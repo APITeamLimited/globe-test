@@ -2,28 +2,45 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/speedboat/client"
-	"github.com/loadimpact/speedboat/master"
+	"github.com/codegangsta/cli"
+	"os"
 )
 
+// All registered commands.
+var globalCommands []cli.Command
+
+// Register an application subcommand.
+func registerCommand(cmd cli.Command) ***REMOVED***
+	globalCommands = append(globalCommands, cmd)
+***REMOVED***
+
+// Configure the global logger.
+func configureLogging(c *cli.Context) ***REMOVED***
+	if c.GlobalBool("verbose") ***REMOVED***
+		log.SetLevel(log.DebugLevel)
+	***REMOVED***
+***REMOVED***
+
 func main() ***REMOVED***
-	master, err := master.New("inproc://master.pub", "inproc://master.sub")
-	if err != nil ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"error": err,
-		***REMOVED***).Fatal("Failed to start master")
-	***REMOVED***
-	go master.Run()
+	// Free up -v and -h for our own flags
+	cli.VersionFlag.Name = "version"
+	cli.HelpFlag.Name = "help, ?"
 
-	client, err := client.New("inproc://master.pub", "inproc://master.sub")
-	if err != nil ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"error": err,
-		***REMOVED***).Fatal("Failed to start client")
+	// Bootstrap using commandline flags
+	app := cli.NewApp()
+	app.Name = "speedboat"
+	app.Usage = "A next-generation load generator"
+	app.Version = "0.0.1a1"
+	app.Flags = []cli.Flag***REMOVED***
+		cli.BoolFlag***REMOVED***
+			Name:  "verbose, v",
+			Usage: "More verbose output",
+		***REMOVED***,
 	***REMOVED***
-	client.Run()
-
-	log.WithFields(log.Fields***REMOVED***
-		"thing": "aaaa",
-	***REMOVED***).Info("Is this working??")
+	app.Commands = globalCommands
+	app.Before = func(c *cli.Context) error ***REMOVED***
+		configureLogging(c)
+		return nil
+	***REMOVED***
+	app.Run(os.Args)
 ***REMOVED***
