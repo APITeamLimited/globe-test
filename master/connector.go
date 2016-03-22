@@ -93,23 +93,23 @@ func (c *Connector) Run() (chan string, <-chan error) ***REMOVED***
 
 	// Start a read loop
 	go func() ***REMOVED***
-		log.Info("-> Connector Read Loop")
+		log.Debug("-> Connector Read Loop")
 		msg, err := c.InSocket.Recv()
 		if err != nil ***REMOVED***
 			errors <- err
 		***REMOVED***
 		ch <- string(msg)
-		log.Info("<- Connector Read Loop")
+		log.Debug("<- Connector Read Loop")
 	***REMOVED***()
 
 	// // Start a write loop
 	go func() ***REMOVED***
-		log.Info("-> Connector Write Loop")
+		log.Debug("-> Connector Write Loop")
 		msg := <-ch
 		if err := c.OutSocket.Send([]byte(msg)); err != nil ***REMOVED***
 			errors <- err
 		***REMOVED***
-		log.Info("<- Connector Write Loop")
+		log.Debug("<- Connector Write Loop")
 	***REMOVED***()
 
 	return ch, errors
