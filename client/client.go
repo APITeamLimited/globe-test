@@ -1,7 +1,7 @@
 package client
 
 import (
-	log "github.com/Sirupsen/logrus"
+	// log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/master"
 )
 
@@ -20,21 +20,4 @@ func New(inAddr string, outAddr string) (c Client, err error) ***REMOVED***
 	***REMOVED***
 
 	return c, err
-***REMOVED***
-
-// Runs the main loop for a client. This is probably going to go away.
-func (c *Client) Run() ***REMOVED***
-	ch, errors := c.Connector.Run()
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg := <-ch:
-			log.WithFields(log.Fields***REMOVED***
-				"msg": msg,
-			***REMOVED***).Info("Client: Message received")
-		case err := <-errors:
-			log.WithFields(log.Fields***REMOVED***
-				"error": err,
-			***REMOVED***).Error("Client: Error receiving")
-		***REMOVED***
-	***REMOVED***
 ***REMOVED***

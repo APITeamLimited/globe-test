@@ -11,8 +11,10 @@ import (
 
 // A bidirectional pub/sub connector, used to connect to a master.
 type Connector struct ***REMOVED***
-	InSocket  mangos.Socket
-	OutSocket mangos.Socket
+	InSocket   mangos.Socket
+	OutSocket  mangos.Socket
+	InChannel  chan string
+	OutChannel chan string
 ***REMOVED***
 
 // Creates a bare, unconnected connector.
@@ -24,6 +26,9 @@ func NewBareConnector() (conn Connector, err error) ***REMOVED***
 	if conn.InSocket, err = sub.NewSocket(); err != nil ***REMOVED***
 		return conn, err
 	***REMOVED***
+
+	conn.InChannel = make(chan string)
+	conn.OutChannel = make(chan string)
 
 	return conn, nil
 ***REMOVED***
@@ -88,29 +93,36 @@ func setupAndDial(sock mangos.Socket, addr string) error ***REMOVED***
 ***REMOVED***
 
 func (c *Connector) Run() (chan string, <-chan error) ***REMOVED***
-	ch := make(chan string)
 	errors := make(chan error)
 
 	// Start a read loop
 	go func() ***REMOVED***
-		log.Debug("-> Connector Read Loop")
-		msg, err := c.InSocket.Recv()
-		if err != nil ***REMOVED***
-			errors <- err
+		for ***REMOVED***
+			log.Debug("-> Connector Read Loop")
+			msg, err := c.InSocket.Recv()
+			if err != nil ***REMOVED***
+				errors <- err
+			***REMOVED***
+			c.InChannel <- string(msg)
+			log.Debug("<- Connector Read Loop")
 		***REMOVED***
-		ch <- string(msg)
-		log.Debug("<- Connector Read Loop")
 	***REMOVED***()
 
 	// // Start a write loop
 	go func() ***REMOVED***
-		log.Debug("-> Connector Write Loop")
-		msg := <-ch
-		if err := c.OutSocket.Send([]byte(msg)); err != nil ***REMOVED***
-			errors <- err
+		for ***REMOVED***
+			log.Debug("-> Connector Write Loop")
+			msg := <-c.OutChannel
+			if err := c.OutSocket.Send([]byte(msg)); err != nil ***REMOVED***
+				errors <- err
+			***REMOVED***
+			log.Debug("<- Connector Write Loop")
 		***REMOVED***
-		log.Debug("<- Connector Write Loop")
 	***REMOVED***()
 
-	return ch, errors
+	return c.InChannel, errors
+***REMOVED***
+
+func (c *Connector) Send(msg string) ***REMOVED***
+	c.OutChannel <- msg
 ***REMOVED***

@@ -31,6 +31,9 @@ func (m *Master) Run() ***REMOVED***
 			log.WithFields(log.Fields***REMOVED***
 				"msg": msg,
 			***REMOVED***).Info("Master: Message received")
+
+			// Echo everything
+			m.Connector.Send(msg)
 		case err := <-errors:
 			log.WithFields(log.Fields***REMOVED***
 				"error": err,
