@@ -130,11 +130,11 @@ func (c *Connector) Read() (msg Message, err error) ***REMOVED***
 ***REMOVED***
 
 func (c *Connector) Write(msg Message) (err error) ***REMOVED***
-	body, err := msg.Encode()
+	data, err := msg.Encode()
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	err = c.OutSocket.Send(body)
+	err = c.OutSocket.Send(data)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
