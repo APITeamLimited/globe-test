@@ -40,7 +40,7 @@ func NewToClient(t string, f Fields) Message ***REMOVED***
 // Creates a message directed to workers.
 func NewToWorker(t string, f Fields) Message ***REMOVED***
 	return Message***REMOVED***
-		Topic:  ClientTopic,
+		Topic:  WorkerTopic,
 		Type:   t,
 		Fields: f,
 	***REMOVED***
