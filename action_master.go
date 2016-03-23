@@ -50,5 +50,6 @@ func actionMaster(c *cli.Context) ***REMOVED***
 		"pub":  port,
 		"sub":  port + 1,
 	***REMOVED***).Info("Master running")
+	master.Handlers = globalHandlers
 	master.Run()
 ***REMOVED***

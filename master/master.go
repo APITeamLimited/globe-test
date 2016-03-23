@@ -7,6 +7,7 @@ import (
 // A Master serves as a semi-intelligent message bus between clients and workers.
 type Master struct ***REMOVED***
 	Connector Connector
+	Handlers  []func(*Master, Message, chan Message) bool
 ***REMOVED***
 
 // Creates a new Master, listening on the given in/out addresses.
@@ -33,8 +34,13 @@ func (m *Master) Run() ***REMOVED***
 				"body": msg.Body,
 			***REMOVED***).Info("Message Received")
 
-			// Echo everything we receive
-			out <- msg
+			// Call handlers until we find one that responds
+			for _, handler := range m.Handlers ***REMOVED***
+				if handler(m, msg, out) ***REMOVED***
+					break
+				***REMOVED***
+			***REMOVED***
+
 		case err := <-errors:
 			log.WithError(err).Error("Error")
 		***REMOVED***

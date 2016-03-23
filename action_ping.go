@@ -13,6 +13,20 @@ func init() ***REMOVED***
 		Usage:  "Test command, will be removed",
 		Action: actionPing,
 	***REMOVED***)
+	registerHandler(handlePing)
+***REMOVED***
+
+func handlePing(m *master.Master, msg master.Message, out chan master.Message) bool ***REMOVED***
+	switch msg.Type ***REMOVED***
+	case "ping.ping":
+		out <- master.Message***REMOVED***
+			Type: "ping.pong",
+			Body: msg.Body,
+		***REMOVED***
+		return true
+	default:
+		return false
+	***REMOVED***
 ***REMOVED***
 
 func actionPing(c *cli.Context) ***REMOVED***
