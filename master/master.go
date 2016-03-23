@@ -24,20 +24,19 @@ func New(outAddr string, inAddr string) (m Master, err error) ***REMOVED***
 
 // Runs the main loop for a master.
 func (m *Master) Run() ***REMOVED***
-	ch, errors := m.Connector.Run()
+	in, out, errors := m.Connector.Run()
 	for ***REMOVED***
 		select ***REMOVED***
-		case msg := <-ch:
+		case msg := <-in:
 			log.WithFields(log.Fields***REMOVED***
-				"msg": msg,
-			***REMOVED***).Info("Master: Message received")
+				"type": msg.Type,
+				"body": msg.Body,
+			***REMOVED***).Info("Message Received")
 
-			// Echo everything
-			m.Connector.Send(msg)
+			// Echo everything we receive
+			out <- msg
 		case err := <-errors:
-			log.WithFields(log.Fields***REMOVED***
-				"error": err,
-			***REMOVED***).Error("Master: Error")
+			log.WithError(err).Error("Error")
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

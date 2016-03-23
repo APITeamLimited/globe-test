@@ -1,7 +1,7 @@
 package master
 
 import (
-	log "github.com/Sirupsen/logrus"
+	// log "github.com/Sirupsen/logrus"
 	"github.com/go-mangos/mangos"
 	"github.com/go-mangos/mangos/protocol/pub"
 	"github.com/go-mangos/mangos/protocol/sub"
@@ -11,10 +11,8 @@ import (
 
 // A bidirectional pub/sub connector, used to connect to a master.
 type Connector struct ***REMOVED***
-	InSocket   mangos.Socket
-	OutSocket  mangos.Socket
-	InChannel  chan string
-	OutChannel chan string
+	InSocket  mangos.Socket
+	OutSocket mangos.Socket
 ***REMOVED***
 
 // Creates a bare, unconnected connector.
@@ -26,9 +24,6 @@ func NewBareConnector() (conn Connector, err error) ***REMOVED***
 	if conn.InSocket, err = sub.NewSocket(); err != nil ***REMOVED***
 		return conn, err
 	***REMOVED***
-
-	conn.InChannel = make(chan string)
-	conn.OutChannel = make(chan string)
 
 	return conn, nil
 ***REMOVED***
@@ -92,37 +87,56 @@ func setupAndDial(sock mangos.Socket, addr string) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (c *Connector) Run() (chan string, <-chan error) ***REMOVED***
+// Provides a channel-based interface around the underlying socket API.
+func (c *Connector) Run() (<-chan Message, chan Message, <-chan error) ***REMOVED***
 	errors := make(chan error)
+	in := make(chan Message)
+	out := make(chan Message)
 
-	// Start a read loop
+	// Read incoming messages
 	go func() ***REMOVED***
 		for ***REMOVED***
-			log.Debug("-> Connector Read Loop")
-			msg, err := c.InSocket.Recv()
+			msg, err := c.Read()
 			if err != nil ***REMOVED***
 				errors <- err
+				continue
 			***REMOVED***
-			c.InChannel <- string(msg)
-			log.Debug("<- Connector Read Loop")
+			in <- msg
 		***REMOVED***
 	***REMOVED***()
 
-	// // Start a write loop
+	// Write outgoing messages
 	go func() ***REMOVED***
 		for ***REMOVED***
-			log.Debug("-> Connector Write Loop")
-			msg := <-c.OutChannel
-			if err := c.OutSocket.Send([]byte(msg)); err != nil ***REMOVED***
+			msg := <-out
+			err := c.Write(msg)
+			if err != nil ***REMOVED***
 				errors <- err
+				continue
 			***REMOVED***
-			log.Debug("<- Connector Write Loop")
 		***REMOVED***
 	***REMOVED***()
 
-	return c.InChannel, errors
+	return in, out, errors
 ***REMOVED***
 
-func (c *Connector) Send(msg string) ***REMOVED***
-	c.OutChannel <- msg
+func (c *Connector) Read() (msg Message, err error) ***REMOVED***
+	data, err := c.InSocket.Recv()
+	if err != nil ***REMOVED***
+		return msg, err
+	***REMOVED***
+	msg, err = DecodeMessage(data)
+	return msg, nil
+***REMOVED***
+
+func (c *Connector) Write(msg Message) (err error) ***REMOVED***
+	body, err := msg.Encode()
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	err = c.OutSocket.Send(body)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
 ***REMOVED***

@@ -4,7 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
-	"os"
+	"github.com/loadimpact/speedboat/master"
 )
 
 func init() ***REMOVED***
@@ -18,21 +18,22 @@ func init() ***REMOVED***
 func actionPing(c *cli.Context) ***REMOVED***
 	client, err := client.New("tcp://127.0.0.1:9595", "tcp://127.0.0.1:9596")
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Failed to ping")
+		log.WithError(err).Fatal("Couldn't create a client")
 	***REMOVED***
 
-	go func() ***REMOVED***
-		client.Connector.Send("ping")
-		msg := <-client.Connector.InChannel
-		log.WithField("msg", msg).Info("Response")
-		os.Exit(0)
-	***REMOVED***()
+	in, out, errors := client.Connector.Run()
+	out <- master.Message***REMOVED***
+		Type: "ping.ping",
+		Body: "Aaaaa",
+	***REMOVED***
 
-	ch, errors := client.Connector.Run()
 	select ***REMOVED***
-	case msg := <-ch:
-		log.WithField("msg", msg).Info("Response")
+	case reply := <-in:
+		log.WithFields(log.Fields***REMOVED***
+			"type": reply.Type,
+			"body": reply.Body,
+		***REMOVED***).Info("Reply")
 	case err := <-errors:
-		log.WithError(err).Error("Failed to ping master")
+		log.WithError(err).Error("Ping failed")
 	***REMOVED***
 ***REMOVED***
