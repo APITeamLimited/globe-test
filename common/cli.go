@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/loadimpact/speedboat/actions/registry"
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/master"
 	"github.com/loadimpact/speedboat/worker"
@@ -40,6 +41,7 @@ func RunLocalMaster(inAddr, outAddr string) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	m.Handlers = registry.GlobalHandlers
 	go m.Run()
 	return nil
 ***REMOVED***
@@ -49,11 +51,12 @@ func RunLocalWorker(inAddr, outAddr string) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	w.Processors = registry.GlobalProcessors
 	go w.Run()
 	return nil
 ***REMOVED***
 
-func MustGetClient(c *cli.Context) client.Client ***REMOVED***
+func MustGetClient(c *cli.Context) (cl client.Client, local bool) ***REMOVED***
 	inAddr, outAddr, local := ParseMasterParams(c)
 
 	// If we're running locally, ensure a local master and worker are running
@@ -66,9 +69,9 @@ func MustGetClient(c *cli.Context) client.Client ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	client, err := client.New(inAddr, outAddr)
+	cl, err := client.New(inAddr, outAddr)
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Failed to start a client")
 	***REMOVED***
-	return client
+	return cl, local
 ***REMOVED***

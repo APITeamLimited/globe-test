@@ -3,35 +3,10 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/master"
-	"github.com/loadimpact/speedboat/message"
-	"github.com/loadimpact/speedboat/worker"
+	_ "github.com/loadimpact/speedboat/actions"
+	"github.com/loadimpact/speedboat/actions/registry"
 	"os"
 )
-
-// All registered commands.
-var globalCommands []cli.Command
-
-// All registered master handlers.
-var globalHandlers []func(*master.Master, message.Message, chan message.Message) bool
-
-// All registered worker processors.
-var globalProcessors []func(*worker.Worker, message.Message, chan message.Message) bool
-
-// Register an application subcommand.
-func registerCommand(cmd cli.Command) ***REMOVED***
-	globalCommands = append(globalCommands, cmd)
-***REMOVED***
-
-// Register a master handler
-func registerHandler(handler func(*master.Master, message.Message, chan message.Message) bool) ***REMOVED***
-	globalHandlers = append(globalHandlers, handler)
-***REMOVED***
-
-// Register a worker processor.
-func registerProcessor(processor func(*worker.Worker, message.Message, chan message.Message) bool) ***REMOVED***
-	globalProcessors = append(globalProcessors, processor)
-***REMOVED***
 
 // Configure the global logger.
 func configureLogging(c *cli.Context) ***REMOVED***
@@ -56,7 +31,7 @@ func main() ***REMOVED***
 			Usage: "More verbose output",
 		***REMOVED***,
 	***REMOVED***
-	app.Commands = globalCommands
+	app.Commands = registry.GlobalCommands
 	app.Before = func(c *cli.Context) error ***REMOVED***
 		configureLogging(c)
 		return nil

@@ -1,9 +1,9 @@
-package main
+package actions
 
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/client"
+	"github.com/loadimpact/speedboat/actions/registry"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/master"
 	"github.com/loadimpact/speedboat/message"
@@ -12,7 +12,7 @@ import (
 )
 
 func init() ***REMOVED***
-	registerCommand(cli.Command***REMOVED***
+	registry.RegisterCommand(cli.Command***REMOVED***
 		Name:   "ping",
 		Usage:  "Tests master connectivity",
 		Action: actionPing,
@@ -21,12 +21,16 @@ func init() ***REMOVED***
 				Name:  "worker",
 				Usage: "Pings a worker instead of the master",
 			***REMOVED***,
+			cli.BoolFlag***REMOVED***
+				Name:  "local",
+				Usage: "Allow pinging an inproc master/worker",
+			***REMOVED***,
 			common.MasterHostFlag,
 			common.MasterPortFlag,
 		***REMOVED***,
 	***REMOVED***)
-	registerHandler(handlePing)
-	registerProcessor(processPing)
+	registry.RegisterHandler(handlePing)
+	registry.RegisterProcessor(processPing)
 ***REMOVED***
 
 func processPing(w *worker.Worker, msg message.Message, out chan message.Message) bool ***REMOVED***
@@ -50,10 +54,11 @@ func handlePing(m *master.Master, msg message.Message, out chan message.Message)
 ***REMOVED***
 
 func actionPing(c *cli.Context) ***REMOVED***
-	client, err := client.New("tcp://127.0.0.1:9595", "tcp://127.0.0.1:9596")
-	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Couldn't create a client")
+	client, local := common.MustGetClient(c)
+	if local && !c.Bool("local") ***REMOVED***
+		log.Fatal("You're about to ping an in-process system, which doesn't make a lot of sense. You probably want to specify --master=..., or use --local if this is actually what you want.")
 	***REMOVED***
+
 	in, out, errors := client.Connector.Run()
 
 	msgTopic := message.MasterTopic
