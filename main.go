@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/master"
+	"github.com/loadimpact/speedboat/worker"
 	"os"
 )
 
@@ -13,6 +14,9 @@ var globalCommands []cli.Command
 // All registered master handlers.
 var globalHandlers []func(*master.Master, master.Message, chan master.Message) bool
 
+// All registered worker processors.
+var globalProcessors []func(*worker.Worker, master.Message, chan master.Message) bool
+
 // Register an application subcommand.
 func registerCommand(cmd cli.Command) ***REMOVED***
 	globalCommands = append(globalCommands, cmd)
@@ -21,6 +25,11 @@ func registerCommand(cmd cli.Command) ***REMOVED***
 // Register a master handler
 func registerHandler(handler func(*master.Master, master.Message, chan master.Message) bool) ***REMOVED***
 	globalHandlers = append(globalHandlers, handler)
+***REMOVED***
+
+// Register a worker processor.
+func registerProcessor(processor func(*worker.Worker, master.Message, chan master.Message) bool) ***REMOVED***
+	globalProcessors = append(globalProcessors, processor)
 ***REMOVED***
 
 // Configure the global logger.

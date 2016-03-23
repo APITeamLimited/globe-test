@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/master"
+	"github.com/loadimpact/speedboat/worker"
 	"time"
 )
 
@@ -13,8 +14,28 @@ func init() ***REMOVED***
 		Name:   "ping",
 		Usage:  "Test command, will be removed",
 		Action: actionPing,
+		Flags: []cli.Flag***REMOVED***
+			cli.BoolFlag***REMOVED***
+				Name:  "worker",
+				Usage: "Pings a worker instead of the master",
+			***REMOVED***,
+		***REMOVED***,
 	***REMOVED***)
 	registerHandler(handlePing)
+	registerProcessor(processPing)
+***REMOVED***
+
+func processPing(w *worker.Worker, msg master.Message, out chan master.Message) bool ***REMOVED***
+	switch msg.Type ***REMOVED***
+	case "ping.worker.ping":
+		out <- master.Message***REMOVED***
+			Type: "ping.worker.pong",
+			Body: msg.Body,
+		***REMOVED***
+		return true
+	default:
+		return false
+	***REMOVED***
 ***REMOVED***
 
 func handlePing(m *master.Master, msg master.Message, out chan master.Message) bool ***REMOVED***
@@ -41,9 +62,13 @@ func actionPing(c *cli.Context) ***REMOVED***
 	out <- master.Message***REMOVED***Type: "ping.noise"***REMOVED***
 	out <- master.Message***REMOVED***Type: "ping.noise"***REMOVED***
 
-	// Send a ping message, server should reply with a pong
+	// Send a ping message, target should reply with a pong
+	msgType := "ping.ping"
+	if c.Bool("worker") ***REMOVED***
+		msgType = "ping.worker.ping"
+	***REMOVED***
 	out <- master.Message***REMOVED***
-		Type: "ping.ping",
+		Type: msgType,
 		Body: time.Now().Format("15:04:05 2006-01-02 MST"),
 	***REMOVED***
 
@@ -56,6 +81,11 @@ readLoop:
 				log.WithFields(log.Fields***REMOVED***
 					"body": msg.Body,
 				***REMOVED***).Info("Pong!")
+				break readLoop
+			case "ping.worker.pong":
+				log.WithFields(log.Fields***REMOVED***
+					"body": msg.Body,
+				***REMOVED***).Info("Worker Pong!")
 				break readLoop
 			***REMOVED***
 		case err := <-errors:
