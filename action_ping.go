@@ -28,11 +28,8 @@ func init() ***REMOVED***
 
 func processPing(w *worker.Worker, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
-	case "ping.worker.ping":
-		out <- message.Message***REMOVED***
-			Type: "ping.worker.pong",
-			Body: msg.Body,
-		***REMOVED***
+	case "ping.ping":
+		out <- message.NewToClient("ping.pong", msg.Body)
 		return true
 	default:
 		return false
@@ -42,10 +39,7 @@ func processPing(w *worker.Worker, msg message.Message, out chan message.Message
 func handlePing(m *master.Master, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
 	case "ping.ping":
-		out <- message.Message***REMOVED***
-			Type: "ping.pong",
-			Body: msg.Body,
-		***REMOVED***
+		out <- message.NewToClient("ping.pong", msg.Body)
 		return true
 	default:
 		return false
@@ -64,13 +58,14 @@ func actionPing(c *cli.Context) ***REMOVED***
 	out <- message.Message***REMOVED***Type: "ping.noise"***REMOVED***
 
 	// Send a ping message, target should reply with a pong
-	msgType := "ping.ping"
+	msgTopic := message.MasterTopic
 	if c.Bool("worker") ***REMOVED***
-		msgType = "ping.worker.ping"
+		msgTopic = message.WorkerTopic
 	***REMOVED***
 	out <- message.Message***REMOVED***
-		Type: msgType,
-		Body: time.Now().Format("15:04:05 2006-01-02 MST"),
+		Topic: msgTopic,
+		Type:  "ping.ping",
+		Body:  time.Now().Format("15:04:05 2006-01-02 MST"),
 	***REMOVED***
 
 readLoop:
@@ -82,11 +77,6 @@ readLoop:
 				log.WithFields(log.Fields***REMOVED***
 					"body": msg.Body,
 				***REMOVED***).Info("Pong!")
-				break readLoop
-			case "ping.worker.pong":
-				log.WithFields(log.Fields***REMOVED***
-					"body": msg.Body,
-				***REMOVED***).Info("Worker Pong!")
 				break readLoop
 			***REMOVED***
 		case err := <-errors:
