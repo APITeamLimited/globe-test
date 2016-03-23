@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/master"
+	"time"
 )
 
 func init() ***REMOVED***
@@ -38,7 +39,7 @@ func actionPing(c *cli.Context) ***REMOVED***
 	in, out, errors := client.Connector.Run()
 	out <- master.Message***REMOVED***
 		Type: "ping.ping",
-		Body: "Aaaaa",
+		Body: time.Now().Format("15:04:05 2006-01-02 MST"),
 	***REMOVED***
 
 	select ***REMOVED***
