@@ -31,8 +31,8 @@ func (m *Master) Run() ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
 			log.WithFields(log.Fields***REMOVED***
-				"type": msg.Type,
-				"body": msg.Body,
+				"type":   msg.Type,
+				"fields": msg.Fields,
 			***REMOVED***).Info("Message Received")
 
 			// If it's not intended for the master, rebroadcast

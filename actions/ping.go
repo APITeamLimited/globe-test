@@ -37,7 +37,7 @@ func init() ***REMOVED***
 func processPing(w *worker.Worker, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
 	case "ping.ping":
-		out <- message.NewToClient("ping.pong", msg.Body)
+		out <- message.NewToClient("ping.pong", msg.Fields)
 		return true
 	default:
 		return false
@@ -48,7 +48,7 @@ func processPing(w *worker.Worker, msg message.Message, out chan message.Message
 func handlePing(m *master.Master, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
 	case "ping.ping":
-		out <- message.NewToClient("ping.pong", msg.Body)
+		out <- message.NewToClient("ping.pong", msg.Fields)
 		return true
 	default:
 		return false
@@ -71,7 +71,9 @@ func actionPing(c *cli.Context) ***REMOVED***
 	out <- message.Message***REMOVED***
 		Topic: msgTopic,
 		Type:  "ping.ping",
-		Body:  time.Now().Format("15:04:05 2006-01-02 MST"),
+		Fields: message.Fields***REMOVED***
+			"time": time.Now().Format("15:04:05 2006-01-02 MST"),
+		***REMOVED***,
 	***REMOVED***
 
 readLoop:
@@ -81,7 +83,7 @@ readLoop:
 			switch msg.Type ***REMOVED***
 			case "ping.pong":
 				log.WithFields(log.Fields***REMOVED***
-					"body": msg.Body,
+					"time": msg.Fields["time"],
 				***REMOVED***).Info("Pong!")
 				break readLoop
 			***REMOVED***

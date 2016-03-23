@@ -29,8 +29,8 @@ func (w *Worker) Run() ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
 			log.WithFields(log.Fields***REMOVED***
-				"type": msg.Type,
-				"body": msg.Body,
+				"type":   msg.Type,
+				"fields": msg.Fields,
 			***REMOVED***).Info("Message Received")
 
 			// Call handlers until we find one that responds
