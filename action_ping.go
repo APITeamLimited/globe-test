@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/master"
+	"github.com/loadimpact/speedboat/message"
 	"github.com/loadimpact/speedboat/worker"
 	"time"
 )
@@ -25,10 +26,10 @@ func init() ***REMOVED***
 	registerProcessor(processPing)
 ***REMOVED***
 
-func processPing(w *worker.Worker, msg master.Message, out chan master.Message) bool ***REMOVED***
+func processPing(w *worker.Worker, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
 	case "ping.worker.ping":
-		out <- master.Message***REMOVED***
+		out <- message.Message***REMOVED***
 			Type: "ping.worker.pong",
 			Body: msg.Body,
 		***REMOVED***
@@ -38,10 +39,10 @@ func processPing(w *worker.Worker, msg master.Message, out chan master.Message) 
 	***REMOVED***
 ***REMOVED***
 
-func handlePing(m *master.Master, msg master.Message, out chan master.Message) bool ***REMOVED***
+func handlePing(m *master.Master, msg message.Message, out chan message.Message) bool ***REMOVED***
 	switch msg.Type ***REMOVED***
 	case "ping.ping":
-		out <- master.Message***REMOVED***
+		out <- message.Message***REMOVED***
 			Type: "ping.pong",
 			Body: msg.Body,
 		***REMOVED***
@@ -59,15 +60,15 @@ func actionPing(c *cli.Context) ***REMOVED***
 	in, out, errors := client.Connector.Run()
 
 	// Send a bunch of noise to filter through
-	out <- master.Message***REMOVED***Type: "ping.noise"***REMOVED***
-	out <- master.Message***REMOVED***Type: "ping.noise"***REMOVED***
+	out <- message.Message***REMOVED***Type: "ping.noise"***REMOVED***
+	out <- message.Message***REMOVED***Type: "ping.noise"***REMOVED***
 
 	// Send a ping message, target should reply with a pong
 	msgType := "ping.ping"
 	if c.Bool("worker") ***REMOVED***
 		msgType = "ping.worker.ping"
 	***REMOVED***
-	out <- master.Message***REMOVED***
+	out <- message.Message***REMOVED***
 		Type: msgType,
 		Body: time.Now().Format("15:04:05 2006-01-02 MST"),
 	***REMOVED***
