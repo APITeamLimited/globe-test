@@ -29,30 +29,46 @@ func init() ***REMOVED***
 			common.MasterPortFlag,
 		***REMOVED***,
 	***REMOVED***)
-	registry.RegisterHandler(handlePing)
-	registry.RegisterProcessor(processPing)
+	registry.RegisterMasterProcessor(func(*master.Master) master.Processor ***REMOVED***
+		return &PingMasterProcessor***REMOVED******REMOVED***
+	***REMOVED***)
+	registry.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
+		return &PingProcessor***REMOVED******REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 // Processes worker pings.
-func processPing(w *worker.Worker, msg message.Message, out chan message.Message) bool ***REMOVED***
-	switch msg.Type ***REMOVED***
-	case "ping.ping":
-		out <- message.NewToClient("ping.pong", msg.Fields)
-		return true
-	default:
-		return false
-	***REMOVED***
+type PingProcessor struct***REMOVED******REMOVED***
+
+func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
+	out := make(chan message.Message)
+
+	go func() ***REMOVED***
+		defer close(out)
+		switch msg.Type ***REMOVED***
+		case "ping.ping":
+			out <- message.NewToClient("ping.pong", msg.Fields)
+		***REMOVED***
+	***REMOVED***()
+
+	return out
 ***REMOVED***
 
-// Handles master pings.
-func handlePing(m *master.Master, msg message.Message, out chan message.Message) bool ***REMOVED***
-	switch msg.Type ***REMOVED***
-	case "ping.ping":
-		out <- message.NewToClient("ping.pong", msg.Fields)
-		return true
-	default:
-		return false
-	***REMOVED***
+// Processes master pings.
+type PingMasterProcessor struct***REMOVED******REMOVED***
+
+func (*PingMasterProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
+	out := make(chan message.Message)
+
+	go func() ***REMOVED***
+		defer close(out)
+		switch msg.Type ***REMOVED***
+		case "ping.ping":
+			out <- message.NewToClient("ping.pong", msg.Fields)
+		***REMOVED***
+	***REMOVED***()
+
+	return out
 ***REMOVED***
 
 // Pings a master or specified workers.

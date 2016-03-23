@@ -52,6 +52,6 @@ func actionMaster(c *cli.Context) ***REMOVED***
 		"pub":  port,
 		"sub":  port + 1,
 	***REMOVED***).Info("Master running")
-	master.Handlers = registry.GlobalHandlers
+	master.Processors = registry.GlobalMasterProcessors
 	master.Run()
 ***REMOVED***

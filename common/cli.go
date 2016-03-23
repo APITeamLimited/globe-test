@@ -48,7 +48,7 @@ func RunLocalMaster(inAddr, outAddr string) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	m.Handlers = registry.GlobalHandlers
+	m.Processors = registry.GlobalMasterProcessors
 	go m.Run()
 	return nil
 ***REMOVED***
