@@ -23,6 +23,7 @@ func init() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+// Runs a standalone worker.
 func actionWorker(c *cli.Context) ***REMOVED***
 	inAddr, outAddr, local := common.ParseMasterParams(c)
 

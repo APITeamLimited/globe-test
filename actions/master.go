@@ -35,6 +35,7 @@ func init() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+// Runs a master.
 func actionMaster(c *cli.Context) ***REMOVED***
 	host := c.String("host")
 	port := c.Int("port")
