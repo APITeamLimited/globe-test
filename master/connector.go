@@ -1,7 +1,7 @@
 package master
 
 import (
-	// log "github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/go-mangos/mangos"
 	"github.com/go-mangos/mangos/protocol/pub"
 	"github.com/go-mangos/mangos/protocol/sub"
@@ -125,6 +125,7 @@ func (c *Connector) Read() (msg Message, err error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return msg, err
 	***REMOVED***
+	log.WithField("data", string(data)).Debug("Read data")
 	msg, err = DecodeMessage(data)
 	return msg, nil
 ***REMOVED***
@@ -134,6 +135,7 @@ func (c *Connector) Write(msg Message) (err error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	log.WithField("data", string(data)).Debug("Writing data")
 	err = c.OutSocket.Send(data)
 	if err != nil ***REMOVED***
 		return err
