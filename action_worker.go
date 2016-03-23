@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/worker"
 )
 
@@ -15,37 +15,30 @@ func init() ***REMOVED***
 		Usage:       "Runs a worker server for distributed tests",
 		Description: desc,
 		Flags: []cli.Flag***REMOVED***
-			cli.StringFlag***REMOVED***
-				Name:  "host, h",
-				Usage: "Host for the master process",
-				Value: "127.0.0.1",
-			***REMOVED***,
-			cli.IntFlag***REMOVED***
-				Name:  "port, p",
-				Usage: "Base port for the master process",
-				Value: 9595,
-			***REMOVED***,
+			common.MasterHostFlag,
+			common.MasterPortFlag,
 		***REMOVED***,
 		Action: actionWorker,
 	***REMOVED***)
 ***REMOVED***
 
 func actionWorker(c *cli.Context) ***REMOVED***
-	host := c.String("host")
-	port := c.Int("port")
+	inAddr, outAddr, local := common.ParseMasterParams(c)
 
-	inAddr := fmt.Sprintf("tcp://%s:%d", host, port)
-	outAddr := fmt.Sprintf("tcp://%s:%d", host, port+1)
+	// Running a standalone worker without a master doesn't make any sense
+	if local ***REMOVED***
+		log.Fatal("No master specified")
+	***REMOVED***
+
 	worker, err := worker.New(inAddr, outAddr)
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Couldn't start worker")
+		log.WithError(err).Fatal("Failed to start worker")
 	***REMOVED***
 
 	log.WithFields(log.Fields***REMOVED***
-		"host": host,
-		"pub":  port,
-		"sub":  port + 1,
+		"master": inAddr,
 	***REMOVED***).Info("Worker running")
+
 	worker.Processors = globalProcessors
 	worker.Run()
 ***REMOVED***
