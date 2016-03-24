@@ -36,7 +36,10 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 	ch := make(chan message.Message)
 
 	go func() ***REMOVED***
-		defer close(ch)
+		defer func() ***REMOVED***
+			ch <- message.NewToClient("run.end", message.Fields***REMOVED******REMOVED***)
+			close(ch)
+		***REMOVED***()
 
 		switch msg.Type ***REMOVED***
 		case "run.run":
@@ -53,11 +56,16 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 			r, err := js.New()
 			if err != nil ***REMOVED***
 				ch <- message.NewToClient("run.error", message.Fields***REMOVED***"error": err***REMOVED***)
-				ch <- message.NewToClient("run.end", message.Fields***REMOVED******REMOVED***)
 				break
 			***REMOVED***
 
-			for res := range r.Run(filename, src) ***REMOVED***
+			err = r.Load(filename, src)
+			if err != nil ***REMOVED***
+				ch <- message.NewToClient("run.error", message.Fields***REMOVED***"error": err***REMOVED***)
+				break
+			***REMOVED***
+
+			for res := range runner.Run(r, 1) ***REMOVED***
 				switch res.Type ***REMOVED***
 				case "log":
 					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
@@ -66,7 +74,6 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 					***REMOVED***)
 				***REMOVED***
 			***REMOVED***
-			ch <- message.NewToClient("run.end", message.Fields***REMOVED******REMOVED***)
 		***REMOVED***
 	***REMOVED***()
 
@@ -105,6 +112,10 @@ readLoop:
 					"time": msg.Fields["time"],
 					"text": msg.Fields["text"],
 				***REMOVED***).Info("Test Log")
+			case "run.error":
+				log.WithFields(log.Fields***REMOVED***
+					"error": msg.Fields["error"],
+				***REMOVED***).Error("Script Error")
 			case "run.end":
 				log.Info("-- Test End --")
 				break readLoop

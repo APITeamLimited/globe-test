@@ -35,6 +35,7 @@ func (m *Master) Run() ***REMOVED***
 		case msg := <-in:
 			log.WithFields(log.Fields***REMOVED***
 				"type":   msg.Type,
+				"topic":  msg.Topic,
 				"fields": msg.Fields,
 			***REMOVED***).Debug("Master Received")
 
