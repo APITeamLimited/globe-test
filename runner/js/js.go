@@ -52,22 +52,13 @@ func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan runner.Result ***REMOVED**
 		defer close(out)
 		defer func() ***REMOVED***
 			if err := recover(); err != nil ***REMOVED***
-				out <- runner.Result***REMOVED***
-					Type:  "error",
-					Error: err.(error),
-				***REMOVED***
+				out <- runner.NewError(err.(error))
 			***REMOVED***
 		***REMOVED***()
 
 		// Log has to be bridged here, as it needs a reference to the channel
 		vm.Set("log", jsLogFactory(func(text string) ***REMOVED***
-			out <- runner.Result***REMOVED***
-				Type: "log",
-				LogEntry: runner.LogEntry***REMOVED***
-					Time: time.Now(),
-					Text: text,
-				***REMOVED***,
-			***REMOVED***
+			out <- runner.NewLogEntry(runner.LogEntry***REMOVED***Time: time.Now(), Text: text***REMOVED***)
 		***REMOVED***))
 
 		startTime := time.Now()
@@ -75,19 +66,10 @@ func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan runner.Result ***REMOVED**
 		duration := time.Since(startTime)
 
 		if err != nil ***REMOVED***
-			out <- runner.Result***REMOVED***
-				Type:  "error",
-				Error: err,
-			***REMOVED***
+			out <- runner.NewError(err)
 		***REMOVED***
 
-		out <- runner.Result***REMOVED***
-			Type: "metric",
-			Metric: runner.Metric***REMOVED***
-				Time:     time.Now(),
-				Duration: duration,
-			***REMOVED***,
-		***REMOVED***
+		out <- runner.NewMetric(runner.Metric***REMOVED***Time: time.Now(), Duration: duration***REMOVED***)
 	***REMOVED***()
 
 	return out
