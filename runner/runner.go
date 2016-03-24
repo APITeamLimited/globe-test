@@ -7,13 +7,12 @@ import (
 
 // A single metric for a test execution.
 type Metric struct ***REMOVED***
-	Time     time.Time
+	Start    time.Time
 	Duration time.Duration
 ***REMOVED***
 
 // A user-printed log message.
 type LogEntry struct ***REMOVED***
-	Time time.Time
 	Text string
 ***REMOVED***
 
@@ -26,12 +25,12 @@ func NewError(err error) interface***REMOVED******REMOVED*** ***REMOVED***
 	return err
 ***REMOVED***
 
-func NewLogEntry(entry LogEntry) interface***REMOVED******REMOVED*** ***REMOVED***
-	return entry
+func NewLogEntry(text string) interface***REMOVED******REMOVED*** ***REMOVED***
+	return LogEntry***REMOVED***Text: text***REMOVED***
 ***REMOVED***
 
-func NewMetric(metric Metric) interface***REMOVED******REMOVED*** ***REMOVED***
-	return metric
+func NewMetric(start time.Time, duration time.Duration) interface***REMOVED******REMOVED*** ***REMOVED***
+	return Metric***REMOVED***Start: start, Duration: duration***REMOVED***
 ***REMOVED***
 
 func Run(r Runner, vus int) <-chan interface***REMOVED******REMOVED*** ***REMOVED***

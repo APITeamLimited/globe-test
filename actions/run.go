@@ -68,12 +68,11 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
 					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
-						"time": res.Time,
 						"text": res.Text,
 					***REMOVED***)
 				case runner.Metric:
 					ch <- message.NewToClient("run.metric", message.Fields***REMOVED***
-						"time":     res.Time,
+						"start":    res.Start,
 						"duration": res.Duration,
 					***REMOVED***)
 				case error:
@@ -117,12 +116,11 @@ readLoop:
 			switch msg.Type ***REMOVED***
 			case "run.log":
 				log.WithFields(log.Fields***REMOVED***
-					"time": msg.Fields["time"],
 					"text": msg.Fields["text"],
 				***REMOVED***).Info("Test Log")
 			case "run.metric":
 				log.WithFields(log.Fields***REMOVED***
-					"time":     msg.Fields["time"],
+					"start":    msg.Fields["start"],
 					"duration": msg.Fields["duration"],
 				***REMOVED***).Info("Test Metric")
 			case "run.error":
