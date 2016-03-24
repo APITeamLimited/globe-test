@@ -2,6 +2,8 @@ package js
 
 import (
 	"github.com/robertkrimen/otto"
+	"io/ioutil"
+	"net/http"
 	"time"
 )
 
@@ -24,5 +26,31 @@ func jsLogFactory(impl func(string)) func(otto.FunctionCall) otto.Value ***REMOV
 		***REMOVED***
 		impl(text)
 		return otto.UndefinedValue()
+	***REMOVED***
+***REMOVED***
+
+func jsHTTPGetFactory(vm *otto.Otto, impl func(url string) (*http.Response, error)) func(otto.FunctionCall) otto.Value ***REMOVED***
+	return func(call otto.FunctionCall) otto.Value ***REMOVED***
+		url, err := call.Argument(0).ToString()
+		if err != nil ***REMOVED***
+			panic(err)
+		***REMOVED***
+
+		res, err := impl(url)
+		if err != nil ***REMOVED***
+			panic(err)
+		***REMOVED***
+		defer res.Body.Close()
+
+		obj, err := vm.Object("new Object()")
+		if err != nil ***REMOVED***
+			panic(err)
+		***REMOVED***
+		body, _ := ioutil.ReadAll(res.Body)
+		obj.Set("body", string(body))
+		obj.Set("statusCode", res.StatusCode)
+		obj.Set("header", res.Header)
+
+		return obj.Value()
 	***REMOVED***
 ***REMOVED***
