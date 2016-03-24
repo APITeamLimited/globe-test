@@ -8,7 +8,6 @@ import (
 // A single metric for a test execution.
 type Metric struct ***REMOVED***
 	Time     time.Time
-	Error    error
 	Duration time.Duration
 ***REMOVED***
 
@@ -47,7 +46,7 @@ func Run(r Runner, vus int) <-chan Result ***REMOVED***
 		***REMOVED***
 
 		go func() ***REMOVED***
-			wg.Done()
+			wg.Wait()
 			close(ch)
 		***REMOVED***()
 	***REMOVED***()
