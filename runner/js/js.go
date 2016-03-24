@@ -30,8 +30,8 @@ func (r *JSRunner) Load(filename, src string) (err error) ***REMOVED***
 	return err
 ***REMOVED***
 
-func (r *JSRunner) RunVU() <-chan runner.Result ***REMOVED***
-	out := make(chan runner.Result)
+func (r *JSRunner) RunVU() <-chan interface***REMOVED******REMOVED*** ***REMOVED***
+	out := make(chan interface***REMOVED******REMOVED***)
 
 	go func() ***REMOVED***
 		defer close(out)
@@ -45,8 +45,8 @@ func (r *JSRunner) RunVU() <-chan runner.Result ***REMOVED***
 	return out
 ***REMOVED***
 
-func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan runner.Result ***REMOVED***
-	out := make(chan runner.Result)
+func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan interface***REMOVED******REMOVED*** ***REMOVED***
+	out := make(chan interface***REMOVED******REMOVED***)
 
 	go func() ***REMOVED***
 		defer close(out)

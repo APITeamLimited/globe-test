@@ -65,20 +65,20 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 			***REMOVED***
 
 			for res := range runner.Run(r, 1) ***REMOVED***
-				switch res.Type ***REMOVED***
-				case "log":
+				switch res := res.(type) ***REMOVED***
+				case runner.LogEntry:
 					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
-						"time": res.LogEntry.Time,
-						"text": res.LogEntry.Text,
+						"time": res.Time,
+						"text": res.Text,
 					***REMOVED***)
-				case "metric":
+				case runner.Metric:
 					ch <- message.NewToClient("run.metric", message.Fields***REMOVED***
-						"time":     res.Metric.Time,
-						"duration": res.Metric.Duration,
+						"time":     res.Time,
+						"duration": res.Duration,
 					***REMOVED***)
-				case "error":
+				case error:
 					ch <- message.NewToClient("run.error", message.Fields***REMOVED***
-						"error": res.Error.Error(),
+						"error": res.Error(),
 					***REMOVED***)
 				***REMOVED***
 			***REMOVED***

@@ -17,33 +17,25 @@ type LogEntry struct ***REMOVED***
 	Text string
 ***REMOVED***
 
-// An envelope for a result.
-type Result struct ***REMOVED***
-	Type     string
-	Error    error
-	LogEntry LogEntry
-	Metric   Metric
-***REMOVED***
-
 type Runner interface ***REMOVED***
 	Load(filename, src string) error
-	RunVU() <-chan Result
+	RunVU() <-chan interface***REMOVED******REMOVED***
 ***REMOVED***
 
-func NewError(err error) ***REMOVED***
-	return Result***REMOVED***Type: "error", Error: err***REMOVED***
+func NewError(err error) interface***REMOVED******REMOVED*** ***REMOVED***
+	return err
 ***REMOVED***
 
-func NewLogEntry(entry LogEntry) ***REMOVED***
-	return Result***REMOVED***Type: "log", LogEntry: entry***REMOVED***
+func NewLogEntry(entry LogEntry) interface***REMOVED******REMOVED*** ***REMOVED***
+	return entry
 ***REMOVED***
 
-func NewMetric(metric Metric) ***REMOVED***
-	return Result***REMOVED***Type: "metric", Metric: metric***REMOVED***
+func NewMetric(metric Metric) interface***REMOVED******REMOVED*** ***REMOVED***
+	return metric
 ***REMOVED***
 
-func Run(r Runner, vus int) <-chan Result ***REMOVED***
-	ch := make(chan Result)
+func Run(r Runner, vus int) <-chan interface***REMOVED******REMOVED*** ***REMOVED***
+	ch := make(chan interface***REMOVED******REMOVED***)
 
 	go func() ***REMOVED***
 		wg := sync.WaitGroup***REMOVED******REMOVED***
