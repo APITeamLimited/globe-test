@@ -71,8 +71,15 @@ func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan runner.Result ***REMOVED**
 		***REMOVED***))
 
 		startTime := time.Now()
-		vm.Run(r.Script)
+		_, err := vm.Run(r.Script)
 		duration := time.Since(startTime)
+
+		if err != nil ***REMOVED***
+			out <- runner.Result***REMOVED***
+				Type:  "error",
+				Error: err,
+			***REMOVED***
+		***REMOVED***
 
 		out <- runner.Result***REMOVED***
 			Type: "metric",
