@@ -11,6 +11,7 @@ import (
 	"github.com/loadimpact/speedboat/runner/js"
 	"github.com/loadimpact/speedboat/worker"
 	"io/ioutil"
+	"time"
 )
 
 func init() ***REMOVED***
@@ -20,8 +21,18 @@ func init() ***REMOVED***
 		Action: actionRun,
 		Flags: []cli.Flag***REMOVED***
 			cli.StringFlag***REMOVED***
-				Name:  "script",
+				Name:  "script, s",
 				Usage: "Script file to run",
+			***REMOVED***,
+			cli.IntFlag***REMOVED***
+				Name:  "vus, u",
+				Usage: "Virtual Users to simulate",
+				Value: 2,
+			***REMOVED***,
+			cli.DurationFlag***REMOVED***
+				Name:  "duration, d",
+				Usage: "Duration of the test",
+				Value: time.Duration(10) * time.Second,
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***)
@@ -45,9 +56,13 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 		case "run.run":
 			filename := msg.Fields["filename"].(string)
 			src := msg.Fields["src"].(string)
+			vus := int(msg.Fields["vus"].(float64))
+			duration := time.Duration(msg.Fields["duration"].(float64)) * time.Millisecond
 
 			log.WithFields(log.Fields***REMOVED***
 				"filename": filename,
+				"vus":      vus,
+				"duration": duration,
 			***REMOVED***).Debug("Running script")
 
 			var r runner.Runner = nil
@@ -64,7 +79,7 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 				break
 			***REMOVED***
 
-			for res := range runner.Run(r, 1) ***REMOVED***
+			for res := range runner.Run(r, vus, duration) ***REMOVED***
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
 					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
@@ -107,6 +122,8 @@ func actionRun(c *cli.Context) ***REMOVED***
 	out <- message.NewToWorker("run.run", message.Fields***REMOVED***
 		"filename": c.String("script"),
 		"src":      src,
+		"vus":      c.Int("vus"),
+		"duration": int64(c.Duration("duration")) / int64(time.Millisecond),
 	***REMOVED***)
 
 readLoop:
