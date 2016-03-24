@@ -100,10 +100,13 @@ readLoop:
 		select ***REMOVED***
 		case msg := <-in:
 			switch msg.Type ***REMOVED***
-			case "ping.pong":
+			case "run.log":
 				log.WithFields(log.Fields***REMOVED***
 					"time": msg.Fields["time"],
-				***REMOVED***).Info("Pong!")
+					"text": msg.Fields["text"],
+				***REMOVED***).Info("Test Log")
+			case "run.end":
+				log.Info("-- Test End --")
 				break readLoop
 			***REMOVED***
 		case err := <-errors:
