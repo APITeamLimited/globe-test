@@ -48,6 +48,14 @@ func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan runner.Result ***REMOVED**
 
 	go func() ***REMOVED***
 		defer close(out)
+		defer func() ***REMOVED***
+			if err := recover(); err != nil ***REMOVED***
+				out <- runner.Result***REMOVED***
+					Type:  "error",
+					Error: err.(error),
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***()
 
 		// Log has to be bridged here, as it needs a reference to the channel
 		vm.Set("log", jsLogFactory(func(text string) ***REMOVED***

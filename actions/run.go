@@ -76,6 +76,10 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 						"time":     res.Metric.Time,
 						"duration": res.Metric.Duration,
 					***REMOVED***)
+				case "error":
+					ch <- message.NewToClient("run.error", message.Fields***REMOVED***
+						"error": res.Error.Error(),
+					***REMOVED***)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
