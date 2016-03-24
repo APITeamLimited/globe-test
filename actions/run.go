@@ -48,8 +48,7 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 
 			log.WithFields(log.Fields***REMOVED***
 				"filename": filename,
-				"src":      src,
-			***REMOVED***).Debug("Source")
+			***REMOVED***).Debug("Running script")
 
 			var r runner.Runner = nil
 
