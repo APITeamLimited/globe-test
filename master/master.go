@@ -9,8 +9,6 @@ import (
 type Master struct ***REMOVED***
 	Connector  Connector
 	Processors []func(*Master) Processor
-
-	pInstances []Processor
 ***REMOVED***
 
 // Creates a new Master, listening on the given in/out addresses.
@@ -28,8 +26,8 @@ func New(outAddr string, inAddr string) (m Master, err error) ***REMOVED***
 
 // Runs the main loop for a master.
 func (m *Master) Run() ***REMOVED***
-	m.createProcessors()
 	in, out, errors := m.Connector.Run()
+	pInstances := m.createProcessors()
 	for ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
@@ -46,7 +44,7 @@ func (m *Master) Run() ***REMOVED***
 			***REMOVED***
 
 			// Let master processors have a stab at them instead
-			for m := range Process(m.pInstances, msg) ***REMOVED***
+			for m := range Process(pInstances, msg) ***REMOVED***
 				out <- m
 			***REMOVED***
 		case err := <-errors:
@@ -55,9 +53,10 @@ func (m *Master) Run() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (m *Master) createProcessors() ***REMOVED***
-	m.pInstances = []Processor***REMOVED******REMOVED***
+func (m *Master) createProcessors() []Processor ***REMOVED***
+	pInstances := []Processor***REMOVED******REMOVED***
 	for _, fn := range m.Processors ***REMOVED***
-		m.pInstances = append(m.pInstances, fn(m))
+		pInstances = append(pInstances, fn(m))
 	***REMOVED***
+	return pInstances
 ***REMOVED***

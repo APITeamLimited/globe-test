@@ -10,8 +10,6 @@ import (
 type Worker struct ***REMOVED***
 	Connector  master.Connector
 	Processors []func(*Worker) master.Processor
-
-	pInstances []master.Processor
 ***REMOVED***
 
 // Creates a new Worker, connecting to a master listening on the given in/out addresses.
@@ -26,8 +24,8 @@ func New(inAddr string, outAddr string) (w Worker, err error) ***REMOVED***
 
 // Runs the main loop for a worker.
 func (w *Worker) Run() ***REMOVED***
-	w.createProcessors()
 	in, out, errors := w.Connector.Run()
+	pInstances := w.createProcessors()
 	for ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
@@ -36,7 +34,7 @@ func (w *Worker) Run() ***REMOVED***
 				"fields": msg.Fields,
 			***REMOVED***).Debug("Worker Received")
 
-			for m := range master.Process(w.pInstances, msg) ***REMOVED***
+			for m := range master.Process(pInstances, msg) ***REMOVED***
 				out <- m
 			***REMOVED***
 
@@ -46,9 +44,10 @@ func (w *Worker) Run() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (w *Worker) createProcessors() ***REMOVED***
-	w.pInstances = []master.Processor***REMOVED******REMOVED***
+func (w *Worker) createProcessors() []master.Processor ***REMOVED***
+	pInstances := []master.Processor***REMOVED******REMOVED***
 	for _, fn := range w.Processors ***REMOVED***
-		w.pInstances = append(w.pInstances, fn(w))
+		pInstances = append(pInstances, fn(w))
 	***REMOVED***
+	return pInstances
 ***REMOVED***
