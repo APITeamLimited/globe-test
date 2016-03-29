@@ -18,6 +18,8 @@ func init() ***REMOVED***
 		Usage:  "Runs a load test",
 		Action: actionRun,
 		Flags: []cli.Flag***REMOVED***
+			common.MasterHostFlag,
+			common.MasterPortFlag,
 			cli.StringFlag***REMOVED***
 				Name:  "script, s",
 				Usage: "Script file to run",
