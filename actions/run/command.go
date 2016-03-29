@@ -43,8 +43,8 @@ func actionRun(c *cli.Context) ***REMOVED***
 	***REMOVED***
 
 	duration := c.Duration("duration")
-
 	filename := c.String("script")
+
 	srcb, err := ioutil.ReadFile(filename)
 	src := string(srcb)
 	if err != nil ***REMOVED***
