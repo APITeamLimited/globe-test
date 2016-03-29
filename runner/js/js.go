@@ -30,23 +30,23 @@ func (r *JSRunner) Load(filename, src string) (err error) ***REMOVED***
 	return err
 ***REMOVED***
 
-func (r *JSRunner) RunVU(duration time.Duration) <-chan interface***REMOVED******REMOVED*** ***REMOVED***
+func (r *JSRunner) RunVU(stop <-chan interface***REMOVED******REMOVED***) <-chan interface***REMOVED******REMOVED*** ***REMOVED***
 	out := make(chan interface***REMOVED******REMOVED***)
 
 	go func() ***REMOVED***
 		defer close(out)
 
-		// Note that this differs from the metrics reported to the client;
-		// the client only gets timings for finished runs and custom metrics
-		totalDuration := time.Duration(0)
-
-		for totalDuration < duration ***REMOVED***
-			vm := r.BaseVM.Copy()
-			startTime := time.Now()
-			for res := range r.RunIteration(vm) ***REMOVED***
-				out <- res
+	runLoop:
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-stop:
+				break runLoop
+			default:
+				vm := r.BaseVM.Copy()
+				for res := range r.RunIteration(vm) ***REMOVED***
+					out <- res
+				***REMOVED***
 			***REMOVED***
-			totalDuration += time.Since(startTime)
 		***REMOVED***
 	***REMOVED***()
 
