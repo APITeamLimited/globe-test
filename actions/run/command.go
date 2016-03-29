@@ -1,11 +1,13 @@
 package run
 
 import (
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/actions/registry"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/message"
+	"github.com/loadimpact/speedboat/runner"
 	"io/ioutil"
 	"time"
 )
@@ -34,6 +36,16 @@ func init() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func parseMetric(msg message.Message) (m runner.Metric, err error) ***REMOVED***
+	duration, ok := msg.Fields["duration"].(float64)
+	if !ok ***REMOVED***
+		return m, errors.New("Duration is not a float64")
+	***REMOVED***
+
+	m.Duration = time.Duration(int64(duration))
+	return m, nil
+***REMOVED***
+
 func actionRun(c *cli.Context) ***REMOVED***
 	client, _ := common.MustGetClient(c)
 	in, out, errors := client.Connector.Run()
@@ -60,6 +72,7 @@ func actionRun(c *cli.Context) ***REMOVED***
 	***REMOVED***)
 
 	startTime := time.Now()
+	sequencer := runner.NewSequencer()
 	for ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
@@ -69,10 +82,18 @@ func actionRun(c *cli.Context) ***REMOVED***
 					"text": msg.Fields["text"],
 				***REMOVED***).Info("Test Log")
 			case "run.metric":
+				m, err := parseMetric(msg)
+				if err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't parse metric")
+					break
+				***REMOVED***
+
 				log.WithFields(log.Fields***REMOVED***
-					"start":    msg.Fields["start"],
-					"duration": msg.Fields["duration"],
-				***REMOVED***).Info("Test Metric")
+					"start":    m.Start,
+					"duration": m.Duration,
+				***REMOVED***).Debug("Test Metric")
+
+				sequencer.Add(m)
 			case "run.error":
 				log.WithFields(log.Fields***REMOVED***
 					"error": msg.Fields["error"],
@@ -88,4 +109,13 @@ func actionRun(c *cli.Context) ***REMOVED***
 			break
 		***REMOVED***
 	***REMOVED***
+
+	stats := sequencer.Stats()
+	log.WithField("count", sequencer.Count()).Info("Results")
+	log.WithFields(log.Fields***REMOVED***
+		"min": stats.Duration.Min,
+		"max": stats.Duration.Max,
+		"avg": stats.Duration.Avg,
+		"med": stats.Duration.Med,
+	***REMOVED***).Info("Duration")
 ***REMOVED***
