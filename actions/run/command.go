@@ -73,8 +73,9 @@ func actionRun(c *cli.Context) ***REMOVED***
 		"vus":      c.Int("vus"),
 	***REMOVED***)
 
-	startTime := time.Now()
+	timeout := time.After(duration)
 	sequencer := runner.NewSequencer()
+runLoop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case msg := <-in:
@@ -103,12 +104,10 @@ func actionRun(c *cli.Context) ***REMOVED***
 			***REMOVED***
 		case err := <-errors:
 			log.WithError(err).Error("Ping failed")
-		***REMOVED***
-
-		if startTime.Add(duration).Before(time.Now()) ***REMOVED***
+		case <-timeout:
 			out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
 			log.Info("Test Ended")
-			break
+			break runLoop
 		***REMOVED***
 	***REMOVED***
 
