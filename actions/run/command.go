@@ -6,6 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/actions/registry"
 	"github.com/loadimpact/speedboat/common"
+	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/message"
 	"github.com/loadimpact/speedboat/runner"
 	"io/ioutil"
@@ -49,74 +50,85 @@ func parseMetric(msg message.Message) (m runner.Metric, err error) ***REMOVED***
 ***REMOVED***
 
 func actionRun(c *cli.Context) ***REMOVED***
-	client, _ := common.MustGetClient(c)
-	in, out, errors := client.Run()
+	// client, _ := common.MustGetClient(c)
+	// in, out, errors := client.Run()
 
-	if !c.IsSet("script") ***REMOVED***
-		log.Fatal("No script file specified!")
+	if !c.IsSet("script") && len(c.Args()) == 0 ***REMOVED***
+		log.Fatal("No test definitions given!")
 	***REMOVED***
 
-	duration := c.Duration("duration")
-	filename := c.String("script")
+	// duration := c.Duration("duration")
+	// filename := c.String("script")
 
-	srcb, err := ioutil.ReadFile(filename)
-	src := string(srcb)
-	if err != nil ***REMOVED***
-		log.WithError(err).WithFields(log.Fields***REMOVED***
-			"filename": filename,
-		***REMOVED***).Fatal("Couldn't read script")
-	***REMOVED***
-
-	out <- message.NewToWorker("run.run", message.Fields***REMOVED***
-		"filename": c.String("script"),
-		"src":      src,
-		"vus":      c.Int("vus"),
-	***REMOVED***)
-
-	timeout := time.After(duration)
-	sequencer := runner.NewSequencer()
-runLoop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg := <-in:
-			switch msg.Type ***REMOVED***
-			case "run.log":
-				log.WithFields(log.Fields***REMOVED***
-					"text": msg.Fields["text"],
-				***REMOVED***).Info("Test Log")
-			case "run.metric":
-				m, err := parseMetric(msg)
-				if err != nil ***REMOVED***
-					log.WithError(err).Error("Couldn't parse metric")
-					break
-				***REMOVED***
-
-				log.WithFields(log.Fields***REMOVED***
-					"start":    m.Start,
-					"duration": m.Duration,
-				***REMOVED***).Debug("Test Metric")
-
-				sequencer.Add(m)
-			case "run.error":
-				log.WithFields(log.Fields***REMOVED***
-					"error": msg.Fields["error"],
-				***REMOVED***).Error("Script Error")
-			***REMOVED***
-		case err := <-errors:
-			log.WithError(err).Error("Ping failed")
-		case <-timeout:
-			out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
-			log.Info("Test Ended")
-			break runLoop
+	conf := loadtest.NewConfig()
+	if len(c.Args()) > 0 ***REMOVED***
+		data, err := ioutil.ReadFile(c.Args()[0])
+		if err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't read test file")
 		***REMOVED***
+
+		loadtest.ParseConfig(data, &conf)
+		log.WithField("conf", conf).Info("Config")
 	***REMOVED***
 
-	stats := sequencer.Stats()
-	log.WithField("count", sequencer.Count()).Info("Results")
-	log.WithFields(log.Fields***REMOVED***
-		"min": stats.Duration.Min,
-		"max": stats.Duration.Max,
-		"avg": stats.Duration.Avg,
-		"med": stats.Duration.Med,
-	***REMOVED***).Info("Duration")
+	// srcb, err := ioutil.ReadFile(filename)
+	// src := string(srcb)
+	// if err != nil ***REMOVED***
+	// 	log.WithError(err).WithFields(log.Fields***REMOVED***
+	// 		"filename": filename,
+	// 	***REMOVED***).Fatal("Couldn't read script")
+	// ***REMOVED***
+
+	// 	out <- message.NewToWorker("run.run", message.Fields***REMOVED***
+	// 		"filename": c.String("script"),
+	// 		"src":      src,
+	// 		"vus":      c.Int("vus"),
+	// 	***REMOVED***)
+
+	// 	timeout := time.After(duration)
+	// 	sequencer := runner.NewSequencer()
+	// runLoop:
+	// 	for ***REMOVED***
+	// 		select ***REMOVED***
+	// 		case msg := <-in:
+	// 			switch msg.Type ***REMOVED***
+	// 			case "run.log":
+	// 				log.WithFields(log.Fields***REMOVED***
+	// 					"text": msg.Fields["text"],
+	// 				***REMOVED***).Info("Test Log")
+	// 			case "run.metric":
+	// 				m, err := parseMetric(msg)
+	// 				if err != nil ***REMOVED***
+	// 					log.WithError(err).Error("Couldn't parse metric")
+	// 					break
+	// 				***REMOVED***
+
+	// 				log.WithFields(log.Fields***REMOVED***
+	// 					"start":    m.Start,
+	// 					"duration": m.Duration,
+	// 				***REMOVED***).Debug("Test Metric")
+
+	// 				sequencer.Add(m)
+	// 			case "run.error":
+	// 				log.WithFields(log.Fields***REMOVED***
+	// 					"error": msg.Fields["error"],
+	// 				***REMOVED***).Error("Script Error")
+	// 			***REMOVED***
+	// 		case err := <-errors:
+	// 			log.WithError(err).Error("Ping failed")
+	// 		case <-timeout:
+	// 			out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
+	// 			log.Info("Test Ended")
+	// 			break runLoop
+	// 		***REMOVED***
+	// 	***REMOVED***
+
+	// 	stats := sequencer.Stats()
+	// 	log.WithField("count", sequencer.Count()).Info("Results")
+	// 	log.WithFields(log.Fields***REMOVED***
+	// 		"min": stats.Duration.Min,
+	// 		"max": stats.Duration.Max,
+	// 		"avg": stats.Duration.Avg,
+	// 		"med": stats.Duration.Med,
+	// 	***REMOVED***).Info("Duration")
 ***REMOVED***
