@@ -22,3 +22,7 @@ func New(inAddr string, outAddr string) (c Client, err error) ***REMOVED***
 
 	return c, err
 ***REMOVED***
+
+func (c *Client) Run() (<-chan message.Message, chan message.Message, <-chan error) ***REMOVED***
+	return c.Connector.Run()
+***REMOVED***
