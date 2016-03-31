@@ -30,10 +30,10 @@ func init() ***REMOVED***
 				Usage: "Virtual Users to simulate",
 				Value: 2,
 			***REMOVED***,
-			cli.DurationFlag***REMOVED***
+			cli.StringFlag***REMOVED***
 				Name:  "duration, d",
 				Usage: "Duration of the test",
-				Value: time.Duration(10) * time.Second,
+				Value: "10s",
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***)
@@ -53,10 +53,6 @@ func actionRun(c *cli.Context) ***REMOVED***
 	// client, _ := common.MustGetClient(c)
 	// in, out, errors := client.Run()
 
-	if !c.IsSet("script") && len(c.Args()) == 0 ***REMOVED***
-		log.Fatal("No test definitions given!")
-	***REMOVED***
-
 	// duration := c.Duration("duration")
 	// filename := c.String("script")
 
@@ -68,8 +64,24 @@ func actionRun(c *cli.Context) ***REMOVED***
 		***REMOVED***
 
 		loadtest.ParseConfig(data, &conf)
-		log.WithField("conf", conf).Info("Config")
 	***REMOVED***
+
+	if c.IsSet("script") ***REMOVED***
+		conf.Script = c.String("script")
+	***REMOVED***
+	if c.IsSet("duration") ***REMOVED***
+		conf.Duration = c.String("duration")
+	***REMOVED***
+	if c.IsSet("vus") ***REMOVED***
+		conf.VUs = c.Int("vus")
+	***REMOVED***
+
+	log.WithField("conf", conf).Info("Config")
+	test, err := conf.Compile()
+	if err != nil ***REMOVED***
+		log.WithError(err).Fatal("Invalid test")
+	***REMOVED***
+	log.WithField("test", test).Info("Test")
 
 	// srcb, err := ioutil.ReadFile(filename)
 	// src := string(srcb)
