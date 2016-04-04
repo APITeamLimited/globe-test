@@ -25,6 +25,7 @@ type LoadTest struct ***REMOVED***
 	Stages []Stage // Test stages.
 
 	scriptSource string
+	currentVUs   int
 ***REMOVED***
 
 func (t *LoadTest) Load() error ***REMOVED***
@@ -34,6 +35,27 @@ func (t *LoadTest) Load() error ***REMOVED***
 	***REMOVED***
 	t.scriptSource = string(srcb)
 	return nil
+***REMOVED***
+
+func (t *LoadTest) StageAt(d time.Duration) (stage Stage, stop bool) ***REMOVED***
+	at := time.Duration(0)
+	for i := range t.Stages ***REMOVED***
+		stage = t.Stages[i]
+		if d > at+stage.Duration ***REMOVED***
+			at += stage.Duration
+		***REMOVED*** else if d < at+stage.Duration ***REMOVED***
+			return stage, false
+		***REMOVED***
+	***REMOVED***
+	return stage, true
+***REMOVED***
+
+func (t *LoadTest) VUsAt(at time.Duration) (vus int, stop bool) ***REMOVED***
+	stage, stop := t.StageAt(at)
+	if stop ***REMOVED***
+		return 0, true
+	***REMOVED***
+	return stage.VUs.Start, false
 ***REMOVED***
 
 func (t *LoadTest) Run(in <-chan message.Message, out chan message.Message, errors <-chan error) (<-chan message.Message, chan message.Message, <-chan error) ***REMOVED***
@@ -46,21 +68,25 @@ func (t *LoadTest) Run(in <-chan message.Message, out chan message.Message, erro
 			"vus":      t.Stages[0].VUs.Start,
 		***REMOVED***)
 
-		duration := time.Duration(0)
-		for i := range t.Stages ***REMOVED***
-			duration += t.Stages[i].Duration
-		***REMOVED***
-
-		timeout := time.After(duration)
+		startTime := time.Now()
+		intervene := time.Tick(time.Duration(1) * time.Second)
 	runLoop:
 		for ***REMOVED***
 			select ***REMOVED***
 			case msg := <-in:
 				oin <- msg
-			case <-timeout:
-				out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
-				close(oin)
-				break runLoop
+			case <-intervene:
+				vus, stop := t.VUsAt(time.Since(startTime))
+				if stop ***REMOVED***
+					out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
+					close(oin)
+					break runLoop
+				***REMOVED***
+				out <- message.NewToWorker("run.vus", message.Fields***REMOVED***
+					"vus": vus,
+				***REMOVED***)
+				t.currentVUs = vus
+				println(t.currentVUs)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
