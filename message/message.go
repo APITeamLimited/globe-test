@@ -64,6 +64,11 @@ func (msg Message) With(src interface***REMOVED******REMOVED***) Message ***REMO
 	return msg
 ***REMOVED***
 
+func (msg Message) WithError(err error) Message ***REMOVED***
+	msg.Payload, _ = json.Marshal(err.Error())
+	return msg
+***REMOVED***
+
 func (msg Message) Take(dst interface***REMOVED******REMOVED***) error ***REMOVED***
 	return json.Unmarshal(msg.Payload, dst)
 ***REMOVED***
