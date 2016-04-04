@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/actions/registry"
@@ -109,12 +108,7 @@ runLoop:
 
 				sequencer.Add(metric)
 			case "error":
-				var text string
-				if err := msg.Take(&text); err != nil ***REMOVED***
-					log.WithError(err).Error("Failed to decode error?!")
-				***REMOVED*** else ***REMOVED***
-					log.WithError(errors.New(text)).Error("Script Error")
-				***REMOVED***
+				log.WithError(msg.TakeError()).Error("Test Error")
 			***REMOVED***
 		case err := <-errs:
 			log.WithError(err).Error("Error")

@@ -3,6 +3,8 @@ package message
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 )
 
 const ClientTopic string = "client" // Subscription topic for clients
@@ -71,6 +73,14 @@ func (msg Message) WithError(err error) Message ***REMOVED***
 
 func (msg Message) Take(dst interface***REMOVED******REMOVED***) error ***REMOVED***
 	return json.Unmarshal(msg.Payload, dst)
+***REMOVED***
+
+func (msg Message) TakeError() error ***REMOVED***
+	var text string
+	if err := msg.Take(&text); err != nil ***REMOVED***
+		return errors.New(fmt.Sprintf("Failed to decode error: %s", err))
+	***REMOVED***
+	return errors.New(text)
 ***REMOVED***
 
 func To(topic, t string) Message ***REMOVED***
