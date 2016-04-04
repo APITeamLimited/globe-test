@@ -15,38 +15,7 @@ const WorkerTopic string = "worker" // Subscription topic for workers
 type Message struct ***REMOVED***
 	Topic   string `json:"-"`
 	Type    string `json:"type"`
-	Fields  Fields `json:"fields,omitempty"`
 	Payload []byte `json:"payload,omitempty"`
-***REMOVED***
-
-// A set of fields in a message.
-type Fields map[string]interface***REMOVED******REMOVED***
-
-// Creates a message directed to the master server.
-func NewToMaster(t string, f Fields) Message ***REMOVED***
-	return Message***REMOVED***
-		Topic:  MasterTopic,
-		Type:   t,
-		Fields: f,
-	***REMOVED***
-***REMOVED***
-
-// Creates a message directed to clients.
-func NewToClient(t string, f Fields) Message ***REMOVED***
-	return Message***REMOVED***
-		Topic:  ClientTopic,
-		Type:   t,
-		Fields: f,
-	***REMOVED***
-***REMOVED***
-
-// Creates a message directed to workers.
-func NewToWorker(t string, f Fields) Message ***REMOVED***
-	return Message***REMOVED***
-		Topic:  WorkerTopic,
-		Type:   t,
-		Fields: f,
-	***REMOVED***
 ***REMOVED***
 
 func (msg Message) WithPayload(src interface***REMOVED******REMOVED***) (Message, error) ***REMOVED***

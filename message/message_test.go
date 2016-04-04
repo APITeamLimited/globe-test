@@ -6,11 +6,9 @@ import (
 
 func TestEncodeDecode(t *testing.T) ***REMOVED***
 	msg1 := Message***REMOVED***
-		Topic: "test",
-		Type:  "test",
-		Fields: Fields***REMOVED***
-			"key": "Abc123",
-		***REMOVED***,
+		Topic:   "test",
+		Type:    "test",
+		Payload: []byte("test"),
 	***REMOVED***
 	data, err := msg1.Encode()
 	msg2 := &Message***REMOVED******REMOVED***
@@ -25,7 +23,7 @@ func TestEncodeDecode(t *testing.T) ***REMOVED***
 	if msg2.Type != msg1.Type ***REMOVED***
 		t.Errorf("Type mismatch: %s != %s", msg2.Type, msg1.Type)
 	***REMOVED***
-	if msg2.Fields["key"] != msg2.Fields["key"] ***REMOVED***
-		t.Errorf("Fields mismatch: \"%s\" != \"%s\"", msg2.Fields, msg1.Fields)
+	if string(msg2.Payload) != string(msg1.Payload) ***REMOVED***
+		t.Errorf("Payload mismatch: \"%s\" != \"%s\"", string(msg2.Payload), string(msg1.Payload))
 	***REMOVED***
 ***REMOVED***
