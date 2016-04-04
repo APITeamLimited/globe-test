@@ -59,18 +59,11 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 			for res := range runner.Run(r, data.VUs, p.stopChannel) ***REMOVED***
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
-					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
-						"text": res.Text,
-					***REMOVED***)
+					ch <- message.ToClient("test.log").With(res)
 				case runner.Metric:
-					ch <- message.NewToClient("run.metric", message.Fields***REMOVED***
-						"start":    res.Start,
-						"duration": res.Duration,
-					***REMOVED***)
+					ch <- message.ToClient("test.metric").With(res)
 				case error:
-					ch <- message.NewToClient("run.error", message.Fields***REMOVED***
-						"error": res.Error(),
-					***REMOVED***)
+					ch <- message.ToClient("error").WithError(res)
 				***REMOVED***
 			***REMOVED***
 		case "test.stop":
