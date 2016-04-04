@@ -50,11 +50,8 @@ func parseMetric(msg message.Message) (m runner.Metric, err error) ***REMOVED***
 ***REMOVED***
 
 func actionRun(c *cli.Context) ***REMOVED***
-	// client, _ := common.MustGetClient(c)
-	// in, out, errors := client.Run()
-
-	// duration := c.Duration("duration")
-	// filename := c.String("script")
+	client, _ := common.MustGetClient(c)
+	in, out, errors := client.Run()
 
 	conf := loadtest.NewConfig()
 	if len(c.Args()) > 0 ***REMOVED***
@@ -83,64 +80,55 @@ func actionRun(c *cli.Context) ***REMOVED***
 	***REMOVED***
 	log.WithField("test", test).Info("Test")
 
-	// srcb, err := ioutil.ReadFile(filename)
-	// src := string(srcb)
-	// if err != nil ***REMOVED***
-	// 	log.WithError(err).WithFields(log.Fields***REMOVED***
-	// 		"filename": filename,
-	// 	***REMOVED***).Fatal("Couldn't read script")
-	// ***REMOVED***
+	if err = test.Load(); err != nil ***REMOVED***
+		log.WithError(err).Fatal("Couldn't load script")
+	***REMOVED***
 
-	// 	out <- message.NewToWorker("run.run", message.Fields***REMOVED***
-	// 		"filename": c.String("script"),
-	// 		"src":      src,
-	// 		"vus":      c.Int("vus"),
-	// 	***REMOVED***)
+	in, out, errors = test.Run(in, out, errors)
+	sequencer := runner.NewSequencer()
+runLoop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case msg, ok := <-in:
+			// ok is false if in is closed
+			if !ok ***REMOVED***
+				break runLoop
+			***REMOVED***
 
-	// 	timeout := time.After(duration)
-	// 	sequencer := runner.NewSequencer()
-	// runLoop:
-	// 	for ***REMOVED***
-	// 		select ***REMOVED***
-	// 		case msg := <-in:
-	// 			switch msg.Type ***REMOVED***
-	// 			case "run.log":
-	// 				log.WithFields(log.Fields***REMOVED***
-	// 					"text": msg.Fields["text"],
-	// 				***REMOVED***).Info("Test Log")
-	// 			case "run.metric":
-	// 				m, err := parseMetric(msg)
-	// 				if err != nil ***REMOVED***
-	// 					log.WithError(err).Error("Couldn't parse metric")
-	// 					break
-	// 				***REMOVED***
+			switch msg.Type ***REMOVED***
+			case "run.log":
+				log.WithFields(log.Fields***REMOVED***
+					"text": msg.Fields["text"],
+				***REMOVED***).Info("Test Log")
+			case "run.metric":
+				m, err := parseMetric(msg)
+				if err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't parse metric")
+					break
+				***REMOVED***
 
-	// 				log.WithFields(log.Fields***REMOVED***
-	// 					"start":    m.Start,
-	// 					"duration": m.Duration,
-	// 				***REMOVED***).Debug("Test Metric")
+				log.WithFields(log.Fields***REMOVED***
+					"start":    m.Start,
+					"duration": m.Duration,
+				***REMOVED***).Debug("Test Metric")
 
-	// 				sequencer.Add(m)
-	// 			case "run.error":
-	// 				log.WithFields(log.Fields***REMOVED***
-	// 					"error": msg.Fields["error"],
-	// 				***REMOVED***).Error("Script Error")
-	// 			***REMOVED***
-	// 		case err := <-errors:
-	// 			log.WithError(err).Error("Ping failed")
-	// 		case <-timeout:
-	// 			out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
-	// 			log.Info("Test Ended")
-	// 			break runLoop
-	// 		***REMOVED***
-	// 	***REMOVED***
+				sequencer.Add(m)
+			case "run.error":
+				log.WithFields(log.Fields***REMOVED***
+					"error": msg.Fields["error"],
+				***REMOVED***).Error("Script Error")
+			***REMOVED***
+		case err := <-errors:
+			log.WithError(err).Error("Error")
+		***REMOVED***
+	***REMOVED***
 
-	// 	stats := sequencer.Stats()
-	// 	log.WithField("count", sequencer.Count()).Info("Results")
-	// 	log.WithFields(log.Fields***REMOVED***
-	// 		"min": stats.Duration.Min,
-	// 		"max": stats.Duration.Max,
-	// 		"avg": stats.Duration.Avg,
-	// 		"med": stats.Duration.Med,
-	// 	***REMOVED***).Info("Duration")
+	stats := sequencer.Stats()
+	log.WithField("count", sequencer.Count()).Info("Results")
+	log.WithFields(log.Fields***REMOVED***
+		"min": stats.Duration.Min,
+		"max": stats.Duration.Max,
+		"avg": stats.Duration.Avg,
+		"med": stats.Duration.Med,
+	***REMOVED***).Info("Duration")
 ***REMOVED***
