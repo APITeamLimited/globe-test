@@ -68,10 +68,10 @@ func (t *LoadTest) Run(in <-chan message.Message, out chan message.Message, erro
 	oin := make(chan message.Message)
 
 	go func() ***REMOVED***
-		out <- message.NewToWorker("run.run", message.Fields***REMOVED***
-			"filename": t.Script,
-			"src":      t.scriptSource,
-			"vus":      t.Stages[0].VUs.Start,
+		out <- message.ToWorker("test.run").With(MessageTestRun***REMOVED***
+			Filename: t.Script,
+			Source:   t.scriptSource,
+			VUs:      t.Stages[0].VUs.Start,
 		***REMOVED***)
 
 		startTime := time.Now()
@@ -84,14 +84,12 @@ func (t *LoadTest) Run(in <-chan message.Message, out chan message.Message, erro
 			case <-intervene:
 				vus, stop := t.VUsAt(time.Since(startTime))
 				if stop ***REMOVED***
-					out <- message.NewToWorker("run.stop", message.Fields***REMOVED******REMOVED***)
+					out <- message.ToWorker("test.stop")
 					close(oin)
 					break runLoop
 				***REMOVED***
 				if vus != t.currentVUs ***REMOVED***
-					out <- message.NewToWorker("run.vus", message.Fields***REMOVED***
-						"vus": vus,
-					***REMOVED***)
+					out <- message.ToWorker("test.scale").With(MessageTestScale***REMOVED***VUs: vus***REMOVED***)
 					t.currentVUs = vus
 				***REMOVED***
 			***REMOVED***

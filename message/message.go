@@ -11,9 +11,10 @@ const WorkerTopic string = "worker" // Subscription topic for workers
 
 // A directed message.
 type Message struct ***REMOVED***
-	Topic  string `json:"-"`
-	Type   string `json:"type"`
-	Fields Fields `json:"fields"`
+	Topic   string `json:"-"`
+	Type    string `json:"type"`
+	Fields  Fields `json:"fields,omitempty"`
+	Payload []byte `json:"payload,omitempty"`
 ***REMOVED***
 
 // A set of fields in a message.
@@ -44,6 +45,43 @@ func NewToWorker(t string, f Fields) Message ***REMOVED***
 		Type:   t,
 		Fields: f,
 	***REMOVED***
+***REMOVED***
+
+func (msg Message) WithPayload(src interface***REMOVED******REMOVED***) (Message, error) ***REMOVED***
+	payload, err := json.Marshal(src)
+	if err != nil ***REMOVED***
+		return msg, err
+	***REMOVED***
+	msg.Payload = payload
+	return msg, nil
+***REMOVED***
+
+func (msg Message) With(src interface***REMOVED******REMOVED***) Message ***REMOVED***
+	msg, err := msg.WithPayload(src)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	return msg
+***REMOVED***
+
+func (msg Message) Take(dst interface***REMOVED******REMOVED***) error ***REMOVED***
+	return json.Unmarshal(msg.Payload, dst)
+***REMOVED***
+
+func To(topic, t string) Message ***REMOVED***
+	return Message***REMOVED***Topic: topic, Type: t***REMOVED***
+***REMOVED***
+
+func ToClient(t string) Message ***REMOVED***
+	return To(ClientTopic, t)
+***REMOVED***
+
+func ToMaster(t string) Message ***REMOVED***
+	return To(MasterTopic, t)
+***REMOVED***
+
+func ToWorker(t string) Message ***REMOVED***
+	return To(WorkerTopic, t)
 ***REMOVED***
 
 // Decodes a message from wire format.

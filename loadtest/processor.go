@@ -1,4 +1,4 @@
-package run
+package loadtest
 
 import (
 	log "github.com/Sirupsen/logrus"
@@ -12,32 +12,37 @@ import (
 
 func init() ***REMOVED***
 	registry.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
-		return &RunProcessor***REMOVED******REMOVED***
+		return &LoadTestProcessor***REMOVED******REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-type RunProcessor struct ***REMOVED***
+type LoadTestProcessor struct ***REMOVED***
 	// Close this channel to stop the currently running test
 	stopChannel chan interface***REMOVED******REMOVED***
 ***REMOVED***
 
-func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
+func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
 	ch := make(chan message.Message)
 
 	go func() ***REMOVED***
 		defer close(ch)
 
 		switch msg.Type ***REMOVED***
-		case "run.run":
+		case "test.run":
 			p.stopChannel = make(chan interface***REMOVED******REMOVED***)
 
-			filename := msg.Fields["filename"].(string)
-			src := msg.Fields["src"].(string)
-			vus := int(msg.Fields["vus"].(float64))
+			// filename := msg.Fields["filename"].(string)
+			// src := msg.Fields["src"].(string)
+			// vus := int(msg.Fields["vus"].(float64))
+			data := MessageTestRun***REMOVED******REMOVED***
+			if err := msg.Take(&data); err != nil ***REMOVED***
+				log.WithError(err).Error("Couldn't decode test.run")
+				return
+			***REMOVED***
 
 			log.WithFields(log.Fields***REMOVED***
-				"filename": filename,
-				"vus":      vus,
+				"filename": data.Filename,
+				"vus":      data.VUs,
 			***REMOVED***).Debug("Running script")
 
 			var r runner.Runner = nil
@@ -48,13 +53,13 @@ func (p *RunProcessor) Process(msg message.Message) <-chan message.Message ***RE
 				break
 			***REMOVED***
 
-			err = r.Load(filename, src)
+			err = r.Load(data.Filename, data.Source)
 			if err != nil ***REMOVED***
 				ch <- message.NewToClient("run.error", message.Fields***REMOVED***"error": err***REMOVED***)
 				break
 			***REMOVED***
 
-			for res := range runner.Run(r, vus, p.stopChannel) ***REMOVED***
+			for res := range runner.Run(r, data.VUs, p.stopChannel) ***REMOVED***
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
 					ch <- message.NewToClient("run.log", message.Fields***REMOVED***
