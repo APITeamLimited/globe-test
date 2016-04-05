@@ -26,29 +26,24 @@ func New(outAddr string, inAddr string) (m Master, err error) ***REMOVED***
 
 // Runs the main loop for a master.
 func (m *Master) Run() ***REMOVED***
-	in, out, errors := m.Connector.Run()
+	in, out, _ := m.Connector.Run()
 	pInstances := m.createProcessors()
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg := <-in:
-			log.WithFields(log.Fields***REMOVED***
-				"type":    msg.Type,
-				"topic":   msg.Topic,
-				"payload": string(msg.Payload),
-			***REMOVED***).Debug("Master Received")
+	for msg := range in ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"type":    msg.Type,
+			"topic":   msg.Topic,
+			"payload": string(msg.Payload),
+		***REMOVED***).Debug("Master Received")
 
-			// If it's not intended for the master, rebroadcast
-			if msg.Topic != message.MasterTopic ***REMOVED***
-				out <- msg
-				break
-			***REMOVED***
+		// If it's not intended for the master, rebroadcast
+		if msg.Topic != message.MasterTopic ***REMOVED***
+			out <- msg
+			continue
+		***REMOVED***
 
-			// Let master processors have a stab at them instead
-			for m := range Process(pInstances, msg) ***REMOVED***
-				out <- m
-			***REMOVED***
-		case err := <-errors:
-			log.WithError(err).Error("Error")
+		// Let master processors have a stab at them instead
+		for m := range Process(pInstances, msg) ***REMOVED***
+			out <- m
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

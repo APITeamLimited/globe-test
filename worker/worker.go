@@ -24,22 +24,16 @@ func New(inAddr string, outAddr string) (w Worker, err error) ***REMOVED***
 
 // Runs the main loop for a worker.
 func (w *Worker) Run() ***REMOVED***
-	in, out, errors := w.Connector.Run()
+	in, out, _ := w.Connector.Run()
 	pInstances := w.createProcessors()
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg := <-in:
-			log.WithFields(log.Fields***REMOVED***
-				"type":    msg.Type,
-				"payload": string(msg.Payload),
-			***REMOVED***).Debug("Worker Received")
+	for msg := range in ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"type":    msg.Type,
+			"payload": string(msg.Payload),
+		***REMOVED***).Debug("Worker Received")
 
-			for m := range master.Process(pInstances, msg) ***REMOVED***
-				out <- m
-			***REMOVED***
-
-		case err := <-errors:
-			log.WithError(err).Error("Error")
+		for m := range master.Process(pInstances, msg) ***REMOVED***
+			out <- m
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

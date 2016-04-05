@@ -104,7 +104,7 @@ func (c *Connector) Run() (<-chan message.Message, chan message.Message, <-chan 
 		for ***REMOVED***
 			msg, err := c.Read()
 			if err != nil ***REMOVED***
-				errors <- err
+				in <- message.ToClient("error").WithError(err)
 				continue
 			***REMOVED***
 			in <- msg
@@ -117,7 +117,7 @@ func (c *Connector) Run() (<-chan message.Message, chan message.Message, <-chan 
 			msg := <-out
 			err := c.Write(msg)
 			if err != nil ***REMOVED***
-				errors <- err
+				in <- message.ToClient("error").WithError(err)
 				continue
 			***REMOVED***
 		***REMOVED***
