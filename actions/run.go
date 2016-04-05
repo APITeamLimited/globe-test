@@ -73,45 +73,34 @@ func actionRun(c *cli.Context) ***REMOVED***
 		log.WithError(err).Fatal("Couldn't load script")
 	***REMOVED***
 
-	in, out, errs = test.Run(in, out, errs)
+	in, out, _ = test.Run(in, out, errs)
 	sequencer := runner.NewSequencer()
-runLoop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg, ok := <-in:
-			// ok is false if in is closed
-			if !ok ***REMOVED***
-				break runLoop
+	for msg := range in ***REMOVED***
+		switch msg.Type ***REMOVED***
+		case "test.log":
+			entry := runner.LogEntry***REMOVED******REMOVED***
+			if err := msg.Take(&entry); err != nil ***REMOVED***
+				log.WithError(err).Error("Couldn't decode log entry")
+				break
+			***REMOVED***
+			log.WithFields(log.Fields***REMOVED***
+				"text": entry.Text,
+			***REMOVED***).Info("Test Log")
+		case "test.metric":
+			metric := runner.Metric***REMOVED******REMOVED***
+			if err := msg.Take(&metric); err != nil ***REMOVED***
+				log.WithError(err).Error("Couldn't decode metric")
+				break
 			***REMOVED***
 
-			switch msg.Type ***REMOVED***
-			case "test.log":
-				entry := runner.LogEntry***REMOVED******REMOVED***
-				if err := msg.Take(&entry); err != nil ***REMOVED***
-					log.WithError(err).Error("Couldn't decode log entry")
-					break
-				***REMOVED***
-				log.WithFields(log.Fields***REMOVED***
-					"text": entry.Text,
-				***REMOVED***).Info("Test Log")
-			case "test.metric":
-				metric := runner.Metric***REMOVED******REMOVED***
-				if err := msg.Take(&metric); err != nil ***REMOVED***
-					log.WithError(err).Error("Couldn't decode metric")
-					break
-				***REMOVED***
+			log.WithFields(log.Fields***REMOVED***
+				"start":    metric.Start,
+				"duration": metric.Duration,
+			***REMOVED***).Debug("Test Metric")
 
-				log.WithFields(log.Fields***REMOVED***
-					"start":    metric.Start,
-					"duration": metric.Duration,
-				***REMOVED***).Debug("Test Metric")
-
-				sequencer.Add(metric)
-			case "error":
-				log.WithError(msg.TakeError()).Error("Test Error")
-			***REMOVED***
-		case err := <-errs:
-			log.WithError(err).Error("Error")
+			sequencer.Add(metric)
+		case "error":
+			log.WithError(msg.TakeError()).Error("Test Error")
 		***REMOVED***
 	***REMOVED***
 
