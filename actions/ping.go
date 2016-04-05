@@ -70,7 +70,7 @@ func actionPing(c *cli.Context) ***REMOVED***
 		log.Fatal("You're about to ping an in-process system, which doesn't make a lot of sense. You probably want to specify --master=..., or use --local if this is actually what you want.")
 	***REMOVED***
 
-	in, out, errors := client.Connector.Run()
+	in, out, _ := client.Connector.Run()
 
 	topic := message.MasterTopic
 	if c.Bool("worker") ***REMOVED***
@@ -81,21 +81,16 @@ func actionPing(c *cli.Context) ***REMOVED***
 	***REMOVED***)
 
 readLoop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case msg := <-in:
-			switch msg.Type ***REMOVED***
-			case "ping.pong":
-				data := PingMessage***REMOVED******REMOVED***
-				if err := msg.Take(&data); err != nil ***REMOVED***
-					log.WithError(err).Error("Couldn't decode pong")
-					break
-				***REMOVED***
-				log.WithField("time", data.Time).Info("Pong!")
-				break readLoop
+	for msg := range in ***REMOVED***
+		switch msg.Type ***REMOVED***
+		case "ping.pong":
+			data := PingMessage***REMOVED******REMOVED***
+			if err := msg.Take(&data); err != nil ***REMOVED***
+				log.WithError(err).Error("Couldn't decode pong")
+				break
 			***REMOVED***
-		case err := <-errors:
-			log.WithError(err).Error("Ping failed")
+			log.WithField("time", data.Time).Info("Pong!")
+			break readLoop
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
