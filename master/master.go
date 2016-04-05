@@ -34,7 +34,7 @@ func (m *Master) Run() ***REMOVED***
 			log.WithFields(log.Fields***REMOVED***
 				"type":    msg.Type,
 				"topic":   msg.Topic,
-				"payload": msg.Payload,
+				"payload": string(msg.Payload),
 			***REMOVED***).Debug("Master Received")
 
 			// If it's not intended for the master, rebroadcast
