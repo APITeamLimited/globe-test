@@ -30,15 +30,19 @@ func init() ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 	registry.RegisterMasterProcessor(func(*master.Master) master.Processor ***REMOVED***
-		return &PingMasterProcessor***REMOVED******REMOVED***
+		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
 	registry.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
 		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-// Processes worker pings.
+// Processes pings, on both master and worker.
 type PingProcessor struct***REMOVED******REMOVED***
+
+type PingMessage struct ***REMOVED***
+	Time time.Time
+***REMOVED***
 
 func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
 	out := make(chan message.Message)
@@ -47,24 +51,12 @@ func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REM
 		defer close(out)
 		switch msg.Type ***REMOVED***
 		case "ping.ping":
-			out <- message.NewToClient("ping.pong", msg.Fields)
-		***REMOVED***
-	***REMOVED***()
-
-	return out
-***REMOVED***
-
-// Processes master pings.
-type PingMasterProcessor struct***REMOVED******REMOVED***
-
-func (*PingMasterProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
-	out := make(chan message.Message)
-
-	go func() ***REMOVED***
-		defer close(out)
-		switch msg.Type ***REMOVED***
-		case "ping.ping":
-			out <- message.NewToClient("ping.pong", msg.Fields)
+			data := PingMessage***REMOVED******REMOVED***
+			if err := msg.Take(&data); err != nil ***REMOVED***
+				out <- message.ToClient("error").WithError(err)
+				break
+			***REMOVED***
+			out <- message.ToClient("ping.pong").With(data)
 		***REMOVED***
 	***REMOVED***()
 
@@ -80,17 +72,13 @@ func actionPing(c *cli.Context) ***REMOVED***
 
 	in, out, errors := client.Connector.Run()
 
-	msgTopic := message.MasterTopic
+	topic := message.MasterTopic
 	if c.Bool("worker") ***REMOVED***
-		msgTopic = message.WorkerTopic
+		topic = message.WorkerTopic
 	***REMOVED***
-	out <- message.Message***REMOVED***
-		Topic: msgTopic,
-		Type:  "ping.ping",
-		Fields: message.Fields***REMOVED***
-			"time": time.Now().Format("15:04:05 2006-01-02 MST"),
-		***REMOVED***,
-	***REMOVED***
+	out <- message.To(topic, "ping.ping").With(PingMessage***REMOVED***
+		Time: time.Now(),
+	***REMOVED***)
 
 readLoop:
 	for ***REMOVED***
@@ -98,9 +86,12 @@ readLoop:
 		case msg := <-in:
 			switch msg.Type ***REMOVED***
 			case "ping.pong":
-				log.WithFields(log.Fields***REMOVED***
-					"time": msg.Fields["time"],
-				***REMOVED***).Info("Pong!")
+				data := PingMessage***REMOVED******REMOVED***
+				if err := msg.Take(&data); err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't decode pong")
+					break
+				***REMOVED***
+				log.WithField("time", data.Time).Info("Pong!")
 				break readLoop
 			***REMOVED***
 		case err := <-errors:
