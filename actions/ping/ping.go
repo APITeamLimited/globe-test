@@ -29,6 +29,48 @@ func init() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+// Parses commandline arguments.
+//
+// topic - The topic (master or worker) to ping
+func Parse(c *cli.Context) (topic string) ***REMOVED***
+	topic = comm.MasterTopic
+	if c.Bool("worker") ***REMOVED***
+		topic = comm.WorkerTopic
+	***REMOVED***
+
+	return topic
+***REMOVED***
+
+// Runs the command.
+func Run(in <-chan comm.Message, topic string) <-chan comm.Message ***REMOVED***
+	out := make(chan comm.Message)
+
+	go func() ***REMOVED***
+		defer close(out)
+
+		// Send a ping
+		out <- comm.To(topic, "ping.ping").With(PingMessage***REMOVED***
+			Time: time.Now(),
+		***REMOVED***)
+
+		// Wait for a reply
+		for msg := range in ***REMOVED***
+			switch msg.Type ***REMOVED***
+			case "ping.pong":
+				data := PingMessage***REMOVED******REMOVED***
+				if err := msg.Take(&data); err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't decode pong")
+					break
+				***REMOVED***
+				log.WithField("time", data.Time).Info("Pong!")
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	return out
+***REMOVED***
+
 // Pings a master or specified workers.
 func actionPing(c *cli.Context) ***REMOVED***
 	ct, local := util.MustGetClient(c)
@@ -37,26 +79,8 @@ func actionPing(c *cli.Context) ***REMOVED***
 	***REMOVED***
 
 	in, out := ct.Connector.Run()
-
-	topic := comm.MasterTopic
-	if c.Bool("worker") ***REMOVED***
-		topic = comm.WorkerTopic
-	***REMOVED***
-	out <- comm.To(topic, "ping.ping").With(PingMessage***REMOVED***
-		Time: time.Now(),
-	***REMOVED***)
-
-readLoop:
-	for msg := range in ***REMOVED***
-		switch msg.Type ***REMOVED***
-		case "ping.pong":
-			data := PingMessage***REMOVED******REMOVED***
-			if err := msg.Take(&data); err != nil ***REMOVED***
-				log.WithError(err).Error("Couldn't decode pong")
-				break
-			***REMOVED***
-			log.WithField("time", data.Time).Info("Pong!")
-			break readLoop
-		***REMOVED***
+	topic := Parse(c)
+	for res := range Run(in, topic) ***REMOVED***
+		out <- res
 	***REMOVED***
 ***REMOVED***
