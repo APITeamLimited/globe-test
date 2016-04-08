@@ -4,9 +4,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
+	"github.com/loadimpact/speedboat/comm"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/master"
-	"github.com/loadimpact/speedboat/message"
 	"github.com/loadimpact/speedboat/worker"
 	"time"
 )
@@ -44,8 +44,8 @@ type PingMessage struct ***REMOVED***
 	Time time.Time
 ***REMOVED***
 
-func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
-	out := make(chan message.Message)
+func (*PingProcessor) Process(msg comm.Message) <-chan comm.Message ***REMOVED***
+	out := make(chan comm.Message)
 
 	go func() ***REMOVED***
 		defer close(out)
@@ -53,10 +53,10 @@ func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REM
 		case "ping.ping":
 			data := PingMessage***REMOVED******REMOVED***
 			if err := msg.Take(&data); err != nil ***REMOVED***
-				out <- message.ToClient("error").WithError(err)
+				out <- comm.ToClient("error").WithError(err)
 				break
 			***REMOVED***
-			out <- message.ToClient("ping.pong").With(data)
+			out <- comm.ToClient("ping.pong").With(data)
 		***REMOVED***
 	***REMOVED***()
 
@@ -72,11 +72,11 @@ func actionPing(c *cli.Context) ***REMOVED***
 
 	in, out := ct.Connector.Run()
 
-	topic := message.MasterTopic
+	topic := comm.MasterTopic
 	if c.Bool("worker") ***REMOVED***
-		topic = message.WorkerTopic
+		topic = comm.WorkerTopic
 	***REMOVED***
-	out <- message.To(topic, "ping.ping").With(PingMessage***REMOVED***
+	out <- comm.To(topic, "ping.ping").With(PingMessage***REMOVED***
 		Time: time.Now(),
 	***REMOVED***)
 

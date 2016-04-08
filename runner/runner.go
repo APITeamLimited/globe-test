@@ -11,7 +11,7 @@ type Metric struct ***REMOVED***
 	Duration time.Duration
 ***REMOVED***
 
-// A user-printed log message.
+// A user-printed log comm.
 type LogEntry struct ***REMOVED***
 	Text string
 ***REMOVED***

@@ -2,8 +2,8 @@ package run
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/speedboat/comm"
 	"github.com/loadimpact/speedboat/master"
-	"github.com/loadimpact/speedboat/message"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/loadimpact/speedboat/runner/js"
 	"github.com/loadimpact/speedboat/worker"
@@ -24,8 +24,8 @@ type LoadTestProcessor struct ***REMOVED***
 	currentVUs int
 ***REMOVED***
 
-func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
-	ch := make(chan message.Message)
+func (p *LoadTestProcessor) Process(msg comm.Message) <-chan comm.Message ***REMOVED***
+	ch := make(chan comm.Message)
 
 	go func() ***REMOVED***
 		defer close(ch)
@@ -34,7 +34,7 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 		case "test.run":
 			data := MessageTestRun***REMOVED******REMOVED***
 			if err := msg.Take(&data); err != nil ***REMOVED***
-				ch <- message.ToClient("error").WithError(err)
+				ch <- comm.ToClient("error").WithError(err)
 				return
 			***REMOVED***
 
@@ -50,13 +50,13 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 
 			r, err := js.New()
 			if err != nil ***REMOVED***
-				ch <- message.ToClient("error").WithError(err)
+				ch <- comm.ToClient("error").WithError(err)
 				break
 			***REMOVED***
 
 			err = r.Load(data.Filename, data.Source)
 			if err != nil ***REMOVED***
-				ch <- message.ToClient("error").WithError(err)
+				ch <- comm.ToClient("error").WithError(err)
 				break
 			***REMOVED***
 
@@ -64,17 +64,17 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 			for res := range runner.Run(r, p.controlChannel) ***REMOVED***
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
-					ch <- message.ToClient("test.log").With(res)
+					ch <- comm.ToClient("test.log").With(res)
 				case runner.Metric:
-					ch <- message.ToClient("test.metric").With(res)
+					ch <- comm.ToClient("test.metric").With(res)
 				case error:
-					ch <- message.ToClient("error").WithError(res)
+					ch <- comm.ToClient("error").WithError(res)
 				***REMOVED***
 			***REMOVED***
 		case "test.scale":
 			data := MessageTestScale***REMOVED******REMOVED***
 			if err := msg.Take(&data); err != nil ***REMOVED***
-				ch <- message.ToClient("error").WithError(err)
+				ch <- comm.ToClient("error").WithError(err)
 				return
 			***REMOVED***
 
