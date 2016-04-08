@@ -1,14 +1,15 @@
-package runner
+package common
 
 import (
 	"errors"
+	"github.com/loadimpact/speedboat/runner"
 	"github.com/loadimpact/speedboat/runner/js"
 	"path"
 )
 
-func Get(filename string) (Runner, error) ***REMOVED***
+func GetRunner(filename string) (runner.Runner, error) ***REMOVED***
 	switch path.Ext(filename) ***REMOVED***
-	case "js":
+	case ".js":
 		return js.New()
 	default:
 		return nil, errors.New("No runner found")
