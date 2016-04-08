@@ -9,3 +9,6 @@ type MessageTestRun struct ***REMOVED***
 type MessageTestScale struct ***REMOVED***
 	VUs int
 ***REMOVED***
+
+type MessageTestStop struct ***REMOVED***
+***REMOVED***

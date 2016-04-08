@@ -36,39 +36,8 @@ func (p *LoadTestProcessor) Process(msg comm.Message) <-chan comm.Message ***REM
 				ch <- comm.ToClient("error").WithError(err)
 				return
 			***REMOVED***
-
-			p.controlChannel = make(chan int, 1)
-			p.currentVUs = data.VUs
-
-			log.WithFields(log.Fields***REMOVED***
-				"filename": data.Filename,
-				"vus":      data.VUs,
-			***REMOVED***).Debug("Running script")
-
-			var r runner.Runner = nil
-
-			r, err := js.New()
-			if err != nil ***REMOVED***
-				ch <- comm.ToClient("error").WithError(err)
-				break
-			***REMOVED***
-
-			err = r.Load(data.Filename, data.Source)
-			if err != nil ***REMOVED***
-				ch <- comm.ToClient("error").WithError(err)
-				break
-			***REMOVED***
-
-			p.controlChannel <- data.VUs
-			for res := range runner.Run(r, p.controlChannel) ***REMOVED***
-				switch res := res.(type) ***REMOVED***
-				case runner.LogEntry:
-					ch <- comm.ToClient("test.log").With(res)
-				case runner.Metric:
-					ch <- comm.ToClient("test.metric").With(res)
-				case error:
-					ch <- comm.ToClient("error").WithError(res)
-				***REMOVED***
+			for res := range p.ProcessRun(data) ***REMOVED***
+				ch <- res
 			***REMOVED***
 		case "test.scale":
 			data := MessageTestScale***REMOVED******REMOVED***
@@ -76,18 +45,87 @@ func (p *LoadTestProcessor) Process(msg comm.Message) <-chan comm.Message ***REM
 				ch <- comm.ToClient("error").WithError(err)
 				return
 			***REMOVED***
-
-			delta := data.VUs - p.currentVUs
-			log.WithFields(log.Fields***REMOVED***
-				"from":  p.currentVUs,
-				"to":    data.VUs,
-				"delta": delta,
-			***REMOVED***).Debug("Scaling")
-			p.controlChannel <- delta
-			p.currentVUs = data.VUs
+			for res := range p.ProcessScale(data) ***REMOVED***
+				ch <- res
+			***REMOVED***
 		case "test.stop":
-			close(p.controlChannel)
+			p.ProcessStop()
 		***REMOVED***
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
+func (p *LoadTestProcessor) ProcessRun(data MessageTestRun) <-chan comm.Message ***REMOVED***
+	ch := make(chan comm.Message)
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		p.controlChannel = make(chan int, 1)
+		p.currentVUs = data.VUs
+
+		log.WithFields(log.Fields***REMOVED***
+			"filename": data.Filename,
+			"vus":      data.VUs,
+		***REMOVED***).Debug("Running script")
+
+		var r runner.Runner = nil
+
+		r, err := js.New()
+		if err != nil ***REMOVED***
+			ch <- comm.ToClient("error").WithError(err)
+			break
+		***REMOVED***
+
+		err = r.Load(data.Filename, data.Source)
+		if err != nil ***REMOVED***
+			ch <- comm.ToClient("error").WithError(err)
+			break
+		***REMOVED***
+
+		p.controlChannel <- data.VUs
+		for res := range runner.Run(r, p.controlChannel) ***REMOVED***
+			switch res := res.(type) ***REMOVED***
+			case runner.LogEntry:
+				ch <- comm.ToClient("test.log").With(res)
+			case runner.Metric:
+				ch <- comm.ToClient("test.metric").With(res)
+			case error:
+				ch <- comm.ToClient("error").WithError(res)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
+func (p *LoadTestProcessor) ProcessScale(data MessageTestScale) <-chan comm.Message ***REMOVED***
+	ch := make(chan comm.Message)
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		delta := data.VUs - p.currentVUs
+
+		log.WithFields(log.Fields***REMOVED***
+			"from":  p.currentVUs,
+			"to":    data.VUs,
+			"delta": delta,
+		***REMOVED***).Debug("Scaling")
+
+		p.controlChannel <- delta
+		p.currentVUs = data.VUs
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
+func (p *LoadTestProcessor) ProcessStop(data MessageTestStop) <-chan comm.Message ***REMOVED***
+	ch := make(chan comm.Message)
+
+	go func() ***REMOVED***
+		close(p.controlChannel)
 	***REMOVED***()
 
 	return ch
