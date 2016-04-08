@@ -42,9 +42,11 @@ func (m *Master) Run() ***REMOVED***
 		***REMOVED***
 
 		// Let master processors have a stab at them instead
-		for m := range Process(pInstances, msg) ***REMOVED***
-			out <- m
-		***REMOVED***
+		go func() ***REMOVED***
+			for m := range Process(pInstances, msg) ***REMOVED***
+				out <- m
+			***REMOVED***
+		***REMOVED***()
 	***REMOVED***
 ***REMOVED***
 
