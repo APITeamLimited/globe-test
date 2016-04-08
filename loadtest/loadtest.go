@@ -1,7 +1,6 @@
 package loadtest
 
 import (
-	"github.com/loadimpact/speedboat/message"
 	"io/ioutil"
 	"path"
 	"time"
@@ -25,8 +24,7 @@ type LoadTest struct ***REMOVED***
 	URL    string  // URL for simple tests.
 	Stages []Stage // Test stages.
 
-	scriptSource string
-	currentVUs   int
+	Source string // Script source
 ***REMOVED***
 
 func (t *LoadTest) Load(base string) error ***REMOVED***
@@ -34,7 +32,7 @@ func (t *LoadTest) Load(base string) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	t.scriptSource = string(srcb)
+	t.Source = string(srcb)
 	return nil
 ***REMOVED***
 
@@ -62,41 +60,4 @@ func (t *LoadTest) VUsAt(at time.Duration) (vus int, stop bool) ***REMOVED***
 	vus = stage.VUs.Start + int(float64(stage.VUs.End-stage.VUs.Start)*percentage)
 
 	return vus, false
-***REMOVED***
-
-func (t *LoadTest) Run(in <-chan message.Message, out chan message.Message) (<-chan message.Message, chan message.Message) ***REMOVED***
-	oin := make(chan message.Message)
-
-	go func() ***REMOVED***
-		defer close(oin)
-		out <- message.ToWorker("test.run").With(MessageTestRun***REMOVED***
-			Filename: t.Script,
-			Source:   t.scriptSource,
-			VUs:      t.Stages[0].VUs.Start,
-		***REMOVED***)
-
-		startTime := time.Now()
-		intervene := time.Tick(time.Duration(1) * time.Second)
-	runLoop:
-		for ***REMOVED***
-			select ***REMOVED***
-			case msg := <-in:
-				oin <- msg
-			case <-intervene:
-				vus, stop := t.VUsAt(time.Since(startTime))
-				if stop ***REMOVED***
-					out <- message.ToWorker("test.stop")
-					break runLoop
-				***REMOVED***
-				if vus != t.currentVUs ***REMOVED***
-					out <- message.ToWorker("test.scale").With(MessageTestScale***REMOVED***VUs: vus***REMOVED***)
-					t.currentVUs = vus
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		oin <- message.ToClient("test.end")
-	***REMOVED***()
-
-	return oin, out
 ***REMOVED***

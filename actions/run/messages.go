@@ -1,4 +1,4 @@
-package loadtest
+package run
 
 type MessageTestRun struct ***REMOVED***
 	Filename string

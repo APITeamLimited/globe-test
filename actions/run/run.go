@@ -6,9 +6,11 @@ import (
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/loadtest"
+	"github.com/loadimpact/speedboat/message"
 	"github.com/loadimpact/speedboat/runner"
 	"io/ioutil"
 	"path"
+	"time"
 )
 
 func init() ***REMOVED***
@@ -73,38 +75,56 @@ func actionRun(c *cli.Context) ***REMOVED***
 		log.WithError(err).Fatal("Couldn't load script")
 	***REMOVED***
 
-	in, out = test.Run(in, out)
+	out <- message.ToWorker("test.run").With(MessageTestRun***REMOVED***
+		Filename: test.Script,
+		Source:   test.Source,
+		VUs:      test.Stages[0].VUs.Start,
+	***REMOVED***)
+
+	startTime := time.Now()
+	intervene := time.Tick(time.Duration(1) * time.Second)
 	sequencer := runner.NewSequencer()
-
+	currentVUs := 0
 runLoop:
-	for msg := range in ***REMOVED***
-		switch msg.Type ***REMOVED***
-		case "test.log":
-			entry := runner.LogEntry***REMOVED******REMOVED***
-			if err := msg.Take(&entry); err != nil ***REMOVED***
-				log.WithError(err).Error("Couldn't decode log entry")
-				break
-			***REMOVED***
-			log.WithFields(log.Fields***REMOVED***
-				"text": entry.Text,
-			***REMOVED***).Info("Test Log")
-		case "test.metric":
-			metric := runner.Metric***REMOVED******REMOVED***
-			if err := msg.Take(&metric); err != nil ***REMOVED***
-				log.WithError(err).Error("Couldn't decode metric")
-				break
-			***REMOVED***
+	for ***REMOVED***
+		select ***REMOVED***
+		case msg := <-in:
+			switch msg.Type ***REMOVED***
+			case "test.log":
+				entry := runner.LogEntry***REMOVED******REMOVED***
+				if err := msg.Take(&entry); err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't decode log entry")
+					break
+				***REMOVED***
+				log.WithFields(log.Fields***REMOVED***
+					"text": entry.Text,
+				***REMOVED***).Info("Test Log")
+			case "test.metric":
+				metric := runner.Metric***REMOVED******REMOVED***
+				if err := msg.Take(&metric); err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't decode metric")
+					break
+				***REMOVED***
 
-			log.WithFields(log.Fields***REMOVED***
-				"start":    metric.Start,
-				"duration": metric.Duration,
-			***REMOVED***).Debug("Test Metric")
+				log.WithFields(log.Fields***REMOVED***
+					"start":    metric.Start,
+					"duration": metric.Duration,
+				***REMOVED***).Debug("Test Metric")
 
-			sequencer.Add(metric)
-		case "test.end":
-			break runLoop
-		case "error":
-			log.WithError(msg.TakeError()).Error("Test Error")
+				sequencer.Add(metric)
+			case "error":
+				log.WithError(msg.TakeError()).Error("Test Error")
+			***REMOVED***
+		case <-intervene:
+			vus, stop := test.VUsAt(time.Since(startTime))
+			if stop ***REMOVED***
+				out <- message.ToWorker("test.stop")
+				break runLoop
+			***REMOVED***
+			if vus != currentVUs ***REMOVED***
+				out <- message.ToWorker("test.scale").With(MessageTestScale***REMOVED***VUs: vus***REMOVED***)
+				currentVUs = vus
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
