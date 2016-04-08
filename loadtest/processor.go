@@ -17,8 +17,12 @@ func init() ***REMOVED***
 ***REMOVED***
 
 type LoadTestProcessor struct ***REMOVED***
-	// Close this channel to stop the currently running test
-	stopChannel chan interface***REMOVED******REMOVED***
+	// Write a positive number to this to spawn so many VUs, negative to kill
+	// that many. Close it to kill all VUs and end the running test.
+	controlChannel chan int
+
+	// Counter for how many VUs we currently have running.
+	currentVUs int
 ***REMOVED***
 
 func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message ***REMOVED***
@@ -29,13 +33,14 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 
 		switch msg.Type ***REMOVED***
 		case "test.run":
-			p.stopChannel = make(chan interface***REMOVED******REMOVED***)
-
 			data := MessageTestRun***REMOVED******REMOVED***
 			if err := msg.Take(&data); err != nil ***REMOVED***
 				ch <- message.ToClient("error").WithError(err)
 				return
 			***REMOVED***
+
+			p.controlChannel = make(chan int, 1)
+			p.currentVUs = data.VUs
 
 			log.WithFields(log.Fields***REMOVED***
 				"filename": data.Filename,
@@ -56,7 +61,8 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 				break
 			***REMOVED***
 
-			for res := range runner.Run(r, data.VUs, p.stopChannel) ***REMOVED***
+			p.controlChannel <- data.VUs
+			for res := range runner.Run(r, p.controlChannel) ***REMOVED***
 				switch res := res.(type) ***REMOVED***
 				case runner.LogEntry:
 					ch <- message.ToClient("test.log").With(res)
@@ -66,8 +72,23 @@ func (p *LoadTestProcessor) Process(msg message.Message) <-chan message.Message 
 					ch <- message.ToClient("error").WithError(res)
 				***REMOVED***
 			***REMOVED***
+		case "test.scale":
+			data := MessageTestScale***REMOVED******REMOVED***
+			if err := msg.Take(&data); err != nil ***REMOVED***
+				ch <- message.ToClient("error").WithError(err)
+				return
+			***REMOVED***
+
+			delta := data.VUs - p.currentVUs
+			log.WithFields(log.Fields***REMOVED***
+				"from":  p.currentVUs,
+				"to":    data.VUs,
+				"delta": delta,
+			***REMOVED***).Debug("Scaling")
+			p.controlChannel <- delta
+			p.currentVUs = data.VUs
 		case "test.stop":
-			close(p.stopChannel)
+			close(p.controlChannel)
 		***REMOVED***
 	***REMOVED***()
 
