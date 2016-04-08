@@ -5,8 +5,8 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/comm"
-	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/master"
+	"github.com/loadimpact/speedboat/util"
 	"github.com/loadimpact/speedboat/worker"
 	"time"
 )
@@ -25,8 +25,8 @@ func init() ***REMOVED***
 				Name:  "local",
 				Usage: "Allow pinging an inproc master/worker",
 			***REMOVED***,
-			common.MasterHostFlag,
-			common.MasterPortFlag,
+			util.MasterHostFlag,
+			util.MasterPortFlag,
 		***REMOVED***,
 	***REMOVED***)
 	master.RegisterProcessor(func(*master.Master) comm.Processor ***REMOVED***
@@ -65,7 +65,7 @@ func (*PingProcessor) Process(msg comm.Message) <-chan comm.Message ***REMOVED**
 
 // Pings a master or specified workers.
 func actionPing(c *cli.Context) ***REMOVED***
-	ct, local := common.MustGetClient(c)
+	ct, local := util.MustGetClient(c)
 	if local && !c.Bool("local") ***REMOVED***
 		log.Fatal("You're about to ping an in-process system, which doesn't make a lot of sense. You probably want to specify --master=..., or use --local if this is actually what you want.")
 	***REMOVED***
