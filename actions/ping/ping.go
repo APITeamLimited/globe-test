@@ -10,23 +10,25 @@ import (
 )
 
 func init() ***REMOVED***
-	client.RegisterCommand(cli.Command***REMOVED***
-		Name:   "ping",
-		Usage:  "Tests master connectivity",
-		Action: actionPing,
-		Flags: []cli.Flag***REMOVED***
-			cli.BoolFlag***REMOVED***
-				Name:  "worker",
-				Usage: "Pings a worker instead of the master",
-			***REMOVED***,
-			cli.BoolFlag***REMOVED***
-				Name:  "local",
-				Usage: "Allow pinging an inproc master/worker",
-			***REMOVED***,
-			util.MasterHostFlag,
-			util.MasterPortFlag,
+	client.RegisterCommand(Command)
+***REMOVED***
+
+var Command cli.Command = cli.Command***REMOVED***
+	Name:   "ping",
+	Usage:  "Tests master connectivity",
+	Action: actionPing,
+	Flags: []cli.Flag***REMOVED***
+		cli.BoolFlag***REMOVED***
+			Name:  "worker",
+			Usage: "Pings a worker instead of the master",
 		***REMOVED***,
-	***REMOVED***)
+		cli.BoolFlag***REMOVED***
+			Name:  "local",
+			Usage: "Allow pinging an inproc master/worker",
+		***REMOVED***,
+		util.MasterHostFlag,
+		util.MasterPortFlag,
+	***REMOVED***,
 ***REMOVED***
 
 // Parses commandline arguments.
