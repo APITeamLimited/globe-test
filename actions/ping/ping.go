@@ -29,10 +29,10 @@ func init() ***REMOVED***
 			common.MasterPortFlag,
 		***REMOVED***,
 	***REMOVED***)
-	master.RegisterProcessor(func(*master.Master) master.Processor ***REMOVED***
+	master.RegisterProcessor(func(*master.Master) comm.Processor ***REMOVED***
 		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
-	worker.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
+	worker.RegisterProcessor(func(*worker.Worker) comm.Processor ***REMOVED***
 		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
 ***REMOVED***
