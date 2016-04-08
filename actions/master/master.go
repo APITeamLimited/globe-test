@@ -4,7 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/actions/registry"
+	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/master"
 )
 
@@ -15,7 +15,7 @@ func init() ***REMOVED***
 		"must allow access to both of these, or clients will not be able to communicate " +
 		"properly with the master."
 
-	registry.RegisterCommand(cli.Command***REMOVED***
+	client.RegisterCommand(cli.Command***REMOVED***
 		Name:        "master",
 		Usage:       "Runs a master server for distributed tests",
 		Description: desc,
@@ -42,7 +42,7 @@ func actionMaster(c *cli.Context) ***REMOVED***
 
 	outAddr := fmt.Sprintf("tcp://%s:%d", host, port)
 	inAddr := fmt.Sprintf("tcp://%s:%d", host, port+1)
-	master, err := master.New(outAddr, inAddr)
+	m, err := master.New(outAddr, inAddr)
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Couldn't start master")
 	***REMOVED***
@@ -52,6 +52,6 @@ func actionMaster(c *cli.Context) ***REMOVED***
 		"pub":  port,
 		"sub":  port + 1,
 	***REMOVED***).Info("Master running")
-	master.Processors = registry.GlobalMasterProcessors
-	master.Run()
+	m.Processors = master.GlobalProcessors
+	m.Run()
 ***REMOVED***

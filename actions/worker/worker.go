@@ -3,7 +3,7 @@ package actions
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/actions/registry"
+	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/worker"
 )
@@ -11,7 +11,7 @@ import (
 func init() ***REMOVED***
 	desc := "A worker executes distributed tasks, and reports back to its master."
 
-	registry.RegisterCommand(cli.Command***REMOVED***
+	client.RegisterCommand(cli.Command***REMOVED***
 		Name:        "worker",
 		Usage:       "Runs a worker server for distributed tests",
 		Description: desc,
@@ -32,7 +32,7 @@ func actionWorker(c *cli.Context) ***REMOVED***
 		log.Fatal("No master specified")
 	***REMOVED***
 
-	worker, err := worker.New(inAddr, outAddr)
+	w, err := worker.New(inAddr, outAddr)
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Failed to start worker")
 	***REMOVED***
@@ -41,6 +41,6 @@ func actionWorker(c *cli.Context) ***REMOVED***
 		"master": inAddr,
 	***REMOVED***).Info("Worker running")
 
-	worker.Processors = registry.GlobalProcessors
-	worker.Run()
+	w.Processors = worker.GlobalProcessors
+	w.Run()
 ***REMOVED***

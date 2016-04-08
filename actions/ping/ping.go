@@ -3,7 +3,7 @@ package actions
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/actions/registry"
+	"github.com/loadimpact/speedboat/client"
 	"github.com/loadimpact/speedboat/common"
 	"github.com/loadimpact/speedboat/master"
 	"github.com/loadimpact/speedboat/message"
@@ -12,7 +12,7 @@ import (
 )
 
 func init() ***REMOVED***
-	registry.RegisterCommand(cli.Command***REMOVED***
+	client.RegisterCommand(cli.Command***REMOVED***
 		Name:   "ping",
 		Usage:  "Tests master connectivity",
 		Action: actionPing,
@@ -29,10 +29,10 @@ func init() ***REMOVED***
 			common.MasterPortFlag,
 		***REMOVED***,
 	***REMOVED***)
-	registry.RegisterMasterProcessor(func(*master.Master) master.Processor ***REMOVED***
+	master.RegisterProcessor(func(*master.Master) master.Processor ***REMOVED***
 		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
-	registry.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
+	worker.RegisterProcessor(func(*worker.Worker) master.Processor ***REMOVED***
 		return &PingProcessor***REMOVED******REMOVED***
 	***REMOVED***)
 ***REMOVED***
@@ -65,12 +65,12 @@ func (*PingProcessor) Process(msg message.Message) <-chan message.Message ***REM
 
 // Pings a master or specified workers.
 func actionPing(c *cli.Context) ***REMOVED***
-	client, local := common.MustGetClient(c)
+	ct, local := common.MustGetClient(c)
 	if local && !c.Bool("local") ***REMOVED***
 		log.Fatal("You're about to ping an in-process system, which doesn't make a lot of sense. You probably want to specify --master=..., or use --local if this is actually what you want.")
 	***REMOVED***
 
-	in, out := client.Connector.Run()
+	in, out := ct.Connector.Run()
 
 	topic := message.MasterTopic
 	if c.Bool("worker") ***REMOVED***
