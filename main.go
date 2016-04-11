@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/loadtest"
+	"github.com/loadimpact/speedboat/util"
 	"io/ioutil"
 	"os"
 	"path"
@@ -52,7 +53,11 @@ func action(c *cli.Context) ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
 	***REMOVED***
 
-	log.WithField("test", test).Info("Test")
+	r, err := util.GetRunner(test.Script)
+	if err != nil ***REMOVED***
+		log.WithError(err).Fatal("Couldn't get a runner")
+	***REMOVED***
+	log.WithField("r", r).Info("Runner")
 ***REMOVED***
 
 // Configure the global logger.
