@@ -58,7 +58,7 @@ func actionRun(c *cli.Context) ***REMOVED***
 
 	if c.IsSet("script") ***REMOVED***
 		conf.Script = c.String("script")
-		base = "."
+		base = ""
 	***REMOVED***
 	if c.IsSet("duration") ***REMOVED***
 		conf.Duration = c.String("duration")
