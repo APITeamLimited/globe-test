@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 )
 
 func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
@@ -69,14 +70,31 @@ func action(c *cli.Context) ***REMOVED***
 	currentVUs := test.Stages[0].VUs.Start
 	controlChannel <- currentVUs
 
-	for res := range runner.Run(r, controlChannel) ***REMOVED***
-		switch res := res.(type) ***REMOVED***
-		case runner.LogEntry:
-			log.WithField("text", res.Text).Info("Test Log")
-		case runner.Metric:
-			log.WithField("d", res.Duration).Info("Test Metric")
-		case error:
-			log.WithError(res).Error("Test Error")
+	startTime := time.Now()
+	intervene := time.Tick(time.Duration(1) * time.Second)
+	results := runner.Run(r, controlChannel)
+runLoop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case res := <-results:
+			switch res := res.(type) ***REMOVED***
+			case runner.LogEntry:
+				log.WithField("text", res.Text).Info("Test Log")
+			case runner.Metric:
+				log.WithField("d", res.Duration).Info("Test Metric")
+			case error:
+				log.WithError(res).Error("Test Error")
+			***REMOVED***
+		case <-intervene:
+			vus, stop := test.VUsAt(time.Since(startTime))
+			if stop ***REMOVED***
+				break runLoop
+			***REMOVED***
+			if vus != currentVUs ***REMOVED***
+				delta := vus - currentVUs
+				controlChannel <- delta
+				currentVUs = vus
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
