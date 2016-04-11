@@ -31,7 +31,7 @@ func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 		base = ""
 	***REMOVED***
 	if c.IsSet("duration") ***REMOVED***
-		conf.Duration = c.String("duration")
+		conf.Duration = c.Duration("duration").String()
 	***REMOVED***
 	if c.IsSet("vus") ***REMOVED***
 		conf.VUs = c.Int("vus")
@@ -131,6 +131,20 @@ func main() ***REMOVED***
 		cli.BoolFlag***REMOVED***
 			Name:  "verbose, v",
 			Usage: "More verbose output",
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "script, s",
+			Usage: "Script to run",
+		***REMOVED***,
+		cli.IntFlag***REMOVED***
+			Name:  "vus, u",
+			Usage: "Number of VUs to simulate",
+			Value: 10,
+		***REMOVED***,
+		cli.DurationFlag***REMOVED***
+			Name:  "duration, d",
+			Usage: "Test duration",
+			Value: time.Duration(10) * time.Second,
 		***REMOVED***,
 	***REMOVED***
 	app.Before = func(c *cli.Context) error ***REMOVED***
