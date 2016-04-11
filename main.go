@@ -72,6 +72,7 @@ func action(c *cli.Context) ***REMOVED***
 
 	startTime := time.Now()
 	intervene := time.Tick(time.Duration(1) * time.Second)
+	sequencer := runner.NewSequencer()
 	results := runner.Run(r, controlChannel)
 runLoop:
 	for ***REMOVED***
@@ -82,6 +83,7 @@ runLoop:
 				log.WithField("text", res.Text).Info("Test Log")
 			case runner.Metric:
 				log.WithField("d", res.Duration).Info("Test Metric")
+				sequencer.Add(res)
 			case error:
 				log.WithError(res).Error("Test Error")
 			***REMOVED***
@@ -97,6 +99,15 @@ runLoop:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+
+	stats := sequencer.Stats()
+	log.WithField("count", sequencer.Count()).Info("Results")
+	log.WithFields(log.Fields***REMOVED***
+		"min": stats.Duration.Min,
+		"max": stats.Duration.Max,
+		"avg": stats.Duration.Avg,
+		"med": stats.Duration.Med,
+	***REMOVED***).Info("Duration")
 ***REMOVED***
 
 // Configure the global logger.
