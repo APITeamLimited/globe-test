@@ -34,7 +34,7 @@ func jsLogFactory(impl func(string)) func(otto.FunctionCall) otto.Value ***REMOV
 	***REMOVED***
 ***REMOVED***
 
-func jsHTTPGetFactory(vm *otto.Otto, impl func(url string) (*http.Response, error)) func(otto.FunctionCall) otto.Value ***REMOVED***
+func jsHTTPGetFactory(impl func(url string) (*http.Response, error)) func(otto.FunctionCall) otto.Value ***REMOVED***
 	return func(call otto.FunctionCall) otto.Value ***REMOVED***
 		url, err := call.Argument(0).ToString()
 		if err != nil ***REMOVED***
