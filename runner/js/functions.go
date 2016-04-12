@@ -1,7 +1,6 @@
 package js
 
 import (
-	"errors"
 	"fmt"
 	"github.com/robertkrimen/otto"
 	"io/ioutil"
@@ -11,7 +10,7 @@ import (
 
 type JSError string
 
-func (e JSError) Error() ***REMOVED*** return e ***REMOVED***
+func (e JSError) Error() string ***REMOVED*** return string(e) ***REMOVED***
 
 func jsSleepFactory(impl func(time.Duration)) func(otto.FunctionCall) otto.Value ***REMOVED***
 	return func(call otto.FunctionCall) otto.Value ***REMOVED***
