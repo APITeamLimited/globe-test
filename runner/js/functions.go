@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+type JSError string
+
+func (e JSError) Error() ***REMOVED*** return e ***REMOVED***
+
 func jsSleepFactory(impl func(time.Duration)) func(otto.FunctionCall) otto.Value ***REMOVED***
 	return func(call otto.FunctionCall) otto.Value ***REMOVED***
 		seconds, err := call.Argument(0).ToFloat()
@@ -35,18 +39,18 @@ func jsHTTPGetFactory(vm *otto.Otto, impl func(url string) (*http.Response, erro
 	return func(call otto.FunctionCall) otto.Value ***REMOVED***
 		url, err := call.Argument(0).ToString()
 		if err != nil ***REMOVED***
-			panic(errors.New(fmt.Sprintf("Couldn't call function: %s", err)))
+			panic(JSError(fmt.Sprintf("Couldn't call function: %s", err)))
 		***REMOVED***
 
 		res, err := impl(url)
 		if err != nil ***REMOVED***
-			panic(errors.New(fmt.Sprintf("HTTP GET impl error: %s", err)))
+			panic(JSError(fmt.Sprintf("HTTP GET impl error: %s", err)))
 		***REMOVED***
 		defer res.Body.Close()
 
 		obj, err := vm.Object("new Object()")
 		if err != nil ***REMOVED***
-			panic(errors.New(fmt.Sprintf("Couldn't create an Object(): %s", err)))
+			panic(JSError(fmt.Sprintf("Couldn't create an Object(): %s", err)))
 		***REMOVED***
 		body, _ := ioutil.ReadAll(res.Body)
 		obj.Set("body", string(body))
