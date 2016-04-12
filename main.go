@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime/pprof"
 	"time"
 )
 
@@ -117,6 +118,24 @@ func configureLogging(c *cli.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Set up a CPU profile, if requested.
+func startCPUProfile(c *cli.Context) ***REMOVED***
+	cpuProfile := c.String("cpuprofile")
+	if cpuProfile != "" ***REMOVED***
+		f, err := os.Create(cpuProfile)
+		if err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't create CPU profile file")
+		***REMOVED***
+
+		pprof.StartCPUProfile(f)
+	***REMOVED***
+***REMOVED***
+
+// End an ongoing CPU profile.
+func endCPUProfile(c *cli.Context) ***REMOVED***
+	pprof.StopCPUProfile()
+***REMOVED***
+
 func main() ***REMOVED***
 	// Free up -v and -h for our own flags
 	cli.VersionFlag.Name = "version"
@@ -146,9 +165,18 @@ func main() ***REMOVED***
 			Usage: "Test duration",
 			Value: time.Duration(10) * time.Second,
 		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "cpuprofile",
+			Usage: "Write a CPU profile to this file",
+		***REMOVED***,
 	***REMOVED***
 	app.Before = func(c *cli.Context) error ***REMOVED***
 		configureLogging(c)
+		startCPUProfile(c)
+		return nil
+	***REMOVED***
+	app.After = func(c *cli.Context) error ***REMOVED***
+		endCPUProfile(c)
 		return nil
 	***REMOVED***
 	app.Action = action
