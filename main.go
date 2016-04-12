@@ -68,8 +68,7 @@ func action(c *cli.Context) ***REMOVED***
 	***REMOVED***
 
 	controlChannel := make(chan int, 1)
-	currentVUs := test.Stages[0].VUs.Start
-	controlChannel <- currentVUs
+	controlChannel <- test.Stages[0].VUs.Start
 
 	startTime := time.Now()
 	intervene := time.Tick(time.Duration(1) * time.Second)
@@ -90,13 +89,9 @@ runLoop:
 			***REMOVED***
 		case <-intervene:
 			vus, stop := test.VUsAt(time.Since(startTime))
+			controlChannel <- vus
 			if stop ***REMOVED***
 				break runLoop
-			***REMOVED***
-			if vus != currentVUs ***REMOVED***
-				delta := vus - currentVUs
-				controlChannel <- delta
-				currentVUs = vus
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***

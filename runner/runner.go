@@ -40,31 +40,48 @@ func Run(r Runner, control <-chan int) <-chan interface***REMOVED******REMOVED**
 	// write to it n times to kill n VUs, close it to kill all of them
 	vuControl := make(chan interface***REMOVED******REMOVED***)
 
+	// Currently active VUs; used to calculate how many VUs to spawn/kill.
+	currentVUs := 0
+
 	go func() ***REMOVED***
 		defer close(ch)
 		defer close(vuControl)
 
 		wg := sync.WaitGroup***REMOVED******REMOVED***
-		for mod := range control ***REMOVED***
-			if mod > 0 ***REMOVED***
-				for i := 0; i < mod; i++ ***REMOVED***
-					wg.Add(1)
-					go func() ***REMOVED***
-						defer wg.Done()
-						for res := range r.RunVU(vuControl) ***REMOVED***
-							ch <- res
-						***REMOVED***
+		for vus := range control ***REMOVED***
+			start := func() ***REMOVED***
+				wg.Add(1)
+				go func() ***REMOVED***
+					defer func() ***REMOVED***
+						currentVUs -= 1
+						wg.Done()
 					***REMOVED***()
-				***REMOVED***
-			***REMOVED*** else if mod < 0 ***REMOVED***
-				for i := mod; i < 0; i++ ***REMOVED***
-					vuControl <- true
-				***REMOVED***
+					for res := range r.RunVU(vuControl) ***REMOVED***
+						ch <- res
+					***REMOVED***
+				***REMOVED***()
 			***REMOVED***
+			stop := func() ***REMOVED***
+				vuControl <- true
+			***REMOVED***
+			scale(currentVUs, vus, start, stop)
 		***REMOVED***
 
 		wg.Wait()
 	***REMOVED***()
 
 	return ch
+***REMOVED***
+
+func scale(from, to int, start, stop func()) ***REMOVED***
+	delta := to - from
+
+	// Start VUs for positive amounts
+	for i := 0; i < delta; i++ ***REMOVED***
+		start()
+	***REMOVED***
+	// Stop VUs for negative amounts
+	for i := delta; i < 0; i++ ***REMOVED***
+		stop()
+	***REMOVED***
 ***REMOVED***
