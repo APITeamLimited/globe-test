@@ -69,11 +69,11 @@ func (r *JSRunner) RunIteration(vm *otto.Otto) <-chan interface***REMOVED******R
 
 	go func() ***REMOVED***
 		defer close(out)
-		// defer func() ***REMOVED***
-		// 	if err := recover(); err != nil ***REMOVED***
-		// 		out <- runner.NewError(err.(error))
-		// 	***REMOVED***
-		// ***REMOVED***()
+		defer func() ***REMOVED***
+			if err := recover(); err != nil ***REMOVED***
+				out <- runner.NewError(err.(error))
+			***REMOVED***
+		***REMOVED***()
 
 		// Log has to be bridged here, as it needs a reference to the channel
 		vm.Set("log", jsLogFactory(func(text string) ***REMOVED***
