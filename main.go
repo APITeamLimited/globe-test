@@ -59,7 +59,6 @@ func action(c *cli.Context) ***REMOVED***
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Couldn't get a runner")
 	***REMOVED***
-	log.WithField("r", r).Info("Runner")
 
 	err = r.Load(test.Script, test.Source)
 	if err != nil ***REMOVED***
