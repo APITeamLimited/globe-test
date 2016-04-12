@@ -1,8 +1,6 @@
 package loadtest
 
 import (
-	"io/ioutil"
-	"path"
 	"time"
 )
 
@@ -25,15 +23,6 @@ type LoadTest struct ***REMOVED***
 	Stages []Stage // Test stages.
 
 	Source string // Script source
-***REMOVED***
-
-func (t *LoadTest) Load(base string) error ***REMOVED***
-	srcb, err := ioutil.ReadFile(path.Join(base, t.Script))
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	t.Source = string(srcb)
-	return nil
 ***REMOVED***
 
 func (t *LoadTest) StageAt(d time.Duration) (start time.Duration, stage Stage, stop bool) ***REMOVED***
