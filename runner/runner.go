@@ -45,28 +45,29 @@ func Run(r Runner, control <-chan int) <-chan interface***REMOVED******REMOVED**
 
 	go func() ***REMOVED***
 		defer close(ch)
-		defer close(vuControl)
 
 		wg := sync.WaitGroup***REMOVED******REMOVED***
-		for vus := range control ***REMOVED***
-			start := func() ***REMOVED***
-				wg.Add(1)
-				go func() ***REMOVED***
-					defer func() ***REMOVED***
-						currentVUs -= 1
-						wg.Done()
-					***REMOVED***()
-					for res := range r.RunVU(vuControl) ***REMOVED***
-						ch <- res
-					***REMOVED***
+		start := func() ***REMOVED***
+			wg.Add(1)
+			go func() ***REMOVED***
+				defer func() ***REMOVED***
+					currentVUs -= 1
+					wg.Done()
 				***REMOVED***()
-			***REMOVED***
-			stop := func() ***REMOVED***
-				vuControl <- true
-			***REMOVED***
+				for res := range r.RunVU(vuControl) ***REMOVED***
+					ch <- res
+				***REMOVED***
+			***REMOVED***()
+		***REMOVED***
+		stop := func() ***REMOVED***
+			vuControl <- true
+		***REMOVED***
+
+		for vus := range control ***REMOVED***
 			scale(currentVUs, vus, start, stop)
 		***REMOVED***
 
+		close(vuControl)
 		wg.Wait()
 	***REMOVED***()
 
