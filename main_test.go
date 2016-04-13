@@ -1,4 +1,4 @@
-package util
+package main
 
 import (
 	"github.com/loadimpact/speedboat/runner/js"
@@ -6,7 +6,7 @@ import (
 )
 
 func GetRunnerJS(t *testing.T) ***REMOVED***
-	r, err := GetRunner("script.js")
+	r, err := getRunner("script.js")
 	if err != nil ***REMOVED***
 		t.Error(err)
 	***REMOVED***
@@ -16,7 +16,7 @@ func GetRunnerJS(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func GetRunnerUnknown(t *testing.T) ***REMOVED***
-	r, err := GetRunner("test.doc")
+	r, err := getRunner("test.doc")
 	if err == nil ***REMOVED***
 		t.Error("No error")
 	***REMOVED***
