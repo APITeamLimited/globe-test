@@ -1,6 +1,7 @@
 package js
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/loadimpact/speedboat/util"
 	"github.com/robertkrimen/otto"
@@ -23,6 +24,10 @@ func New() (r *JSRunner, err error) ***REMOVED***
 
 	// Bridge basic functions
 	r.BaseVM.Set("sleep", jsSleepFactory(time.Sleep))
+	r.BaseVM.Set("log", jsLogFactory(func(text string) ***REMOVED***
+		// out <- runner.NewLogEntry(text)
+		log.WithField("text", text).Info("Test Log")
+	***REMOVED***))
 
 	// Use a single HTTP client for this
 	r.httpClient = &http.Client***REMOVED***
@@ -79,9 +84,9 @@ func (r *JSRunner) RunIteration() <-chan interface***REMOVED******REMOVED*** ***
 		vm := r.BaseVM //.Copy()
 
 		// Log has to be bridged here, as it needs a reference to the channel
-		vm.Set("log", jsLogFactory(func(text string) ***REMOVED***
-			out <- runner.NewLogEntry(text)
-		***REMOVED***))
+		// vm.Set("log", jsLogFactory(func(text string) ***REMOVED***
+		// 	out <- runner.NewLogEntry(text)
+		// ***REMOVED***))
 
 		startTime := time.Now()
 		var err error
