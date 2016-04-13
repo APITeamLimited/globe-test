@@ -13,7 +13,12 @@ import (
 	"time"
 )
 
-func getRunner(filename string) (runner.Runner, error) ***REMOVED***
+func getRunner(filename, url string) (runner.Runner, error) ***REMOVED***
+	// TODO: Implement a URL runner.
+	if url != "" ***REMOVED***
+		return nil, nil
+	***REMOVED***
+
 	switch path.Ext(filename) ***REMOVED***
 	case ".js":
 		return js.New()
@@ -40,6 +45,9 @@ func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 		conf.Script = c.String("script")
 		base = ""
 	***REMOVED***
+	if c.IsSet("url") ***REMOVED***
+		conf.URL = c.String("url")
+	***REMOVED***
 	if c.IsSet("duration") ***REMOVED***
 		conf.Duration = c.Duration("duration").String()
 	***REMOVED***
@@ -52,11 +60,13 @@ func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 		return test, err
 	***REMOVED***
 
-	srcb, err := ioutil.ReadFile(path.Join(base, test.Script))
-	if err != nil ***REMOVED***
-		return test, err
+	if test.Script != "" ***REMOVED***
+		srcb, err := ioutil.ReadFile(path.Join(base, test.Script))
+		if err != nil ***REMOVED***
+			return test, err
+		***REMOVED***
+		test.Source = string(srcb)
 	***REMOVED***
-	test.Source = string(srcb)
 
 	return test, nil
 ***REMOVED***
@@ -67,7 +77,7 @@ func action(c *cli.Context) ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
 	***REMOVED***
 
-	r, err := getRunner(test.Script)
+	r, err := getRunner(test.Script, test.URL)
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Couldn't get a runner")
 	***REMOVED***
@@ -150,7 +160,11 @@ func main() ***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "script, s",
-			Usage: "Script to run",
+			Usage: "Script to run (do not use with --url)",
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "url",
+			Usage: "URL to test (do not use with --script)",
 		***REMOVED***,
 		cli.IntFlag***REMOVED***
 			Name:  "vus, u",
