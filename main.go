@@ -57,6 +57,29 @@ func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 	return test, nil
 ***REMOVED***
 
+func run(test loadtest.LoadTest, r runner.Runner) <-chan runner.Result ***REMOVED***
+	ch := make(chan runner.Result)
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		timeout := time.Duration(0)
+		for _, stage := range test.Stages ***REMOVED***
+			timeout += stage.Duration
+		***REMOVED***
+
+		ctx, _ := context.WithTimeout(context.Background(), timeout)
+		scale := make(chan int, 1)
+		scale <- test.Stages[0].VUs.Start
+
+		for res := range runner.Run(ctx, r, scale) ***REMOVED***
+			ch <- res
+		***REMOVED***
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
 func action(c *cli.Context) ***REMOVED***
 	test, err := makeTest(c)
 	if err != nil ***REMOVED***
@@ -66,21 +89,24 @@ func action(c *cli.Context) ***REMOVED***
 	r := simple.New()
 	r.URL = test.URL
 
-	timeout := time.Duration(0)
-	for _, stage := range test.Stages ***REMOVED***
-		timeout += stage.Duration
+	for res := range run(test, r) ***REMOVED***
+		switch ***REMOVED***
+		case res.Error != nil:
+			l := log.WithError(res.Error)
+			if res.Time != time.Duration(0) ***REMOVED***
+				l = l.WithField("t", res.Time)
+			***REMOVED***
+			l.Error("Error")
+		case res.Text != "":
+			l := log.WithField("text", res.Text)
+			if res.Time != time.Duration(0) ***REMOVED***
+				l = l.WithField("t", res.Time)
+			***REMOVED***
+			l.Info("Log")
+		default:
+			log.WithField("t", res.Time).Debug("Metric")
+		***REMOVED***
 	***REMOVED***
-
-	results := []runner.Result***REMOVED******REMOVED***
-
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
-	scale := make(chan int, 1)
-	scale <- test.Stages[0].VUs.Start
-	for res := range runner.Run(ctx, r, scale) ***REMOVED***
-		results = append(results, res)
-	***REMOVED***
-
-	log.WithField("results", len(results)).Info("Finished")
 ***REMOVED***
 
 // Configure the global logger.
