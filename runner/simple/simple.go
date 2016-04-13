@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"github.com/loadimpact/speedboat/runner"
 	"golang.org/x/net/context"
 	"net/http"
 	"time"
@@ -21,8 +22,8 @@ func New() *SimpleRunner ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *SimpleRunner) Run(ctx context.Context) <-chan time.Duration ***REMOVED***
-	ch := make(chan time.Duration)
+func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED***
+	ch := make(chan runner.Result)
 
 	go func() ***REMOVED***
 		defer close(ch)
@@ -39,7 +40,7 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan time.Duration ***REMOVED*
 			case <-ctx.Done():
 				return
 			default:
-				ch <- duration
+				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()

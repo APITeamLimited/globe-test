@@ -1,88 +1,58 @@
 package runner
 
 import (
+	"golang.org/x/net/context"
 	"sync"
 	"time"
 )
 
-// A single metric for a test execution.
-type Metric struct ***REMOVED***
-	Start    time.Time
-	Duration time.Duration
-***REMOVED***
-
-// A user-printed log comm.
-type LogEntry struct ***REMOVED***
-	Text string
-***REMOVED***
-
 type Runner interface ***REMOVED***
-	Load(filename, src string) error
-	RunVU(stop <-chan interface***REMOVED******REMOVED***) <-chan interface***REMOVED******REMOVED***
+	Run(ctx context.Context) <-chan Result
 ***REMOVED***
 
-func NewError(err error) interface***REMOVED******REMOVED*** ***REMOVED***
-	return err
+type Result struct ***REMOVED***
+	Text  string
+	Time  time.Duration
+	Error error
 ***REMOVED***
 
-func NewLogEntry(text string) interface***REMOVED******REMOVED*** ***REMOVED***
-	return LogEntry***REMOVED***Text: text***REMOVED***
+type VU struct ***REMOVED***
+	Cancel context.CancelFunc
 ***REMOVED***
 
-func NewMetric(start time.Time, duration time.Duration) interface***REMOVED******REMOVED*** ***REMOVED***
-	return Metric***REMOVED***Start: start, Duration: duration***REMOVED***
-***REMOVED***
-
-func Run(r Runner, control <-chan int) <-chan interface***REMOVED******REMOVED*** ***REMOVED***
-	ch := make(chan interface***REMOVED******REMOVED***)
-
-	// Control channel for VUs; VUs terminate upon reading anything from it, so
-	// write to it n times to kill n VUs, close it to kill all of them
-	vuControl := make(chan interface***REMOVED******REMOVED***)
-
-	// Currently active VUs; used to calculate how many VUs to spawn/kill.
-	currentVUs := 0
+func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOVED***
+	ch := make(chan Result)
 
 	go func() ***REMOVED***
 		defer close(ch)
 
+		currentVUs := []VU***REMOVED******REMOVED***
 		wg := sync.WaitGroup***REMOVED******REMOVED***
-		start := func() ***REMOVED***
-			wg.Add(1)
-			go func() ***REMOVED***
-				defer func() ***REMOVED***
-					currentVUs -= 1
-					wg.Done()
-				***REMOVED***()
-				for res := range r.RunVU(vuControl) ***REMOVED***
-					ch <- res
+		for ***REMOVED***
+			select ***REMOVED***
+			case vus := <-scale:
+				for vus > len(currentVUs) ***REMOVED***
+					wg.Add(1)
+					c, cancel := context.WithCancel(ctx)
+					currentVUs = append(currentVUs, VU***REMOVED***Cancel: cancel***REMOVED***)
+					go func() ***REMOVED***
+						defer wg.Done()
+						for res := range r.Run(c) ***REMOVED***
+							ch <- res
+						***REMOVED***
+					***REMOVED***()
 				***REMOVED***
-			***REMOVED***()
-		***REMOVED***
-		stop := func() ***REMOVED***
-			vuControl <- true
+				for vus < len(currentVUs) ***REMOVED***
+					currentVUs[len(currentVUs)-1].Cancel()
+					currentVUs = currentVUs[:len(currentVUs)-1]
+				***REMOVED***
+			case <-ctx.Done():
+				return
+			***REMOVED***
 		***REMOVED***
 
-		for vus := range control ***REMOVED***
-			scale(currentVUs, vus, start, stop)
-		***REMOVED***
-
-		close(vuControl)
 		wg.Wait()
 	***REMOVED***()
 
 	return ch
-***REMOVED***
-
-func scale(from, to int, start, stop func()) ***REMOVED***
-	delta := to - from
-
-	// Start VUs for positive amounts
-	for i := 0; i < delta; i++ ***REMOVED***
-		start()
-	***REMOVED***
-	// Stop VUs for negative amounts
-	for i := delta; i < 0; i++ ***REMOVED***
-		stop()
-	***REMOVED***
 ***REMOVED***

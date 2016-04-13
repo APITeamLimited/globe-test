@@ -1,12 +1,10 @@
 package main
 
 import (
-	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/runner"
-	"github.com/loadimpact/speedboat/runner/js"
 	"github.com/loadimpact/speedboat/runner/simple"
 	"golang.org/x/net/context"
 	"io/ioutil"
@@ -14,20 +12,6 @@ import (
 	"path"
 	"time"
 )
-
-func getRunner(filename, url string) (runner.Runner, error) ***REMOVED***
-	// TODO: Implement a URL runner.
-	if url != "" ***REMOVED***
-		return nil, nil
-	***REMOVED***
-
-	switch path.Ext(filename) ***REMOVED***
-	case ".js":
-		return js.New()
-	default:
-		return nil, errors.New("No runner found")
-	***REMOVED***
-***REMOVED***
 
 func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 	base := ""
@@ -88,67 +72,11 @@ func action(c *cli.Context) ***REMOVED***
 	***REMOVED***
 
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
-	for t := range r.Run(ctx) ***REMOVED***
+	scale := make(chan int, 1)
+	scale <- test.Stages[0].VUs.Start
+	for t := range runner.Run(ctx, r, scale) ***REMOVED***
 		log.WithField("t", t).Info("Test Metric")
 	***REMOVED***
-
-	// 	r, err := getRunner(test.Script, test.URL)
-	// 	if err != nil ***REMOVED***
-	// 		log.WithError(err).Fatal("Couldn't get a runner")
-	// 	***REMOVED***
-
-	// 	err = r.Load(test.Script, test.Source)
-	// 	if err != nil ***REMOVED***
-	// 		log.WithError(err).Fatal("Couldn't load script")
-	// 	***REMOVED***
-
-	// 	// Write a number to the control channel to make the test scale to that many
-	// 	// VUs; close it to make the test terminate.
-	// 	controlChannel := make(chan int, 1)
-	// 	controlChannel <- test.Stages[0].VUs.Start
-
-	// 	sequencer := runner.NewSequencer()
-	// 	startTime := time.Now()
-
-	// 	intervene := time.NewTicker(time.Duration(1) * time.Second)
-	// 	results := runner.Run(r, controlChannel)
-	// runLoop:
-	// 	for ***REMOVED***
-	// 		select ***REMOVED***
-	// 		case res, ok := <-results:
-	// 			// The results channel will be closed once all VUs are done.
-	// 			if !ok ***REMOVED***
-	// 				break runLoop
-	// 			***REMOVED***
-	// 			switch res := res.(type) ***REMOVED***
-	// 			case runner.LogEntry:
-	// 				log.WithField("text", res.Text).Info("Test Log")
-	// 			case runner.Metric:
-	// 				log.WithField("d", res.Duration).Debug("Test Metric")
-	// 				sequencer.Add(res)
-	// 			case error:
-	// 				log.WithError(res).Error("Test Error")
-	// 			***REMOVED***
-	// 		case <-intervene.C:
-	// 			vus, stop := test.VUsAt(time.Since(startTime))
-	// 			if stop ***REMOVED***
-	// 				// Stop the timer, and let VUs gracefully terminate.
-	// 				intervene.Stop()
-	// 				close(controlChannel)
-	// 			***REMOVED*** else ***REMOVED***
-	// 				controlChannel <- vus
-	// 			***REMOVED***
-	// 		***REMOVED***
-	// 	***REMOVED***
-
-	// 	stats := sequencer.Stats()
-	// 	log.WithField("count", sequencer.Count()).Info("Results")
-	// 	log.WithFields(log.Fields***REMOVED***
-	// 		"min": stats.Duration.Min,
-	// 		"max": stats.Duration.Max,
-	// 		"avg": stats.Duration.Avg,
-	// 		"med": stats.Duration.Med,
-	// 	***REMOVED***).Info("Duration")
 ***REMOVED***
 
 // Configure the global logger.
