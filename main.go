@@ -106,7 +106,7 @@ func action(c *cli.Context) ***REMOVED***
 			***REMOVED***
 			l.Info("Log")
 		default:
-			log.WithField("t", res.Time).Debug("Metric")
+			// log.WithField("t", res.Time).Debug("Metric")
 		***REMOVED***
 	***REMOVED***
 
