@@ -2,6 +2,7 @@ package js
 
 import (
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/loadimpact/speedboat/util"
 	"github.com/robertkrimen/otto"
 	"net/http"
 	"time"
@@ -83,8 +84,10 @@ func (r *JSRunner) RunIteration() <-chan interface***REMOVED******REMOVED*** ***
 		***REMOVED***))
 
 		startTime := time.Now()
-		_, err := vm.Run(r.Script)
-		duration := time.Since(startTime)
+		var err error
+		duration := util.Time(func() ***REMOVED***
+			_, err = vm.Run(r.Script)
+		***REMOVED***)
 
 		if err != nil ***REMOVED***
 			out <- runner.NewError(err)
