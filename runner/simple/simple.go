@@ -32,7 +32,7 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 			res, err := r.Client.Get(r.URL)
 			duration := time.Since(startTime)
 			if err != nil ***REMOVED***
-				panic(err)
+				ch <- runner.Result***REMOVED***Error: err***REMOVED***
 			***REMOVED***
 			res.Body.Close()
 
