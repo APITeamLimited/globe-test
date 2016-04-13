@@ -28,19 +28,31 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 	go func() ***REMOVED***
 		defer close(ch)
 		for ***REMOVED***
-			startTime := time.Now()
-			res, err := r.Client.Get(r.URL)
-			duration := time.Since(startTime)
+			req, err := http.NewRequest(http.MethodGet, r.URL, nil)
 			if err != nil ***REMOVED***
 				ch <- runner.Result***REMOVED***Error: err***REMOVED***
+				continue
 			***REMOVED***
-			res.Body.Close()
+			req.Close = true
 
-			select ***REMOVED***
-			case <-ctx.Done():
-				return
-			default:
+			cancel := make(chan struct***REMOVED******REMOVED***)
+			req.Cancel = cancel
+
+			go func() ***REMOVED***
+				startTime := time.Now()
+				res, err := r.Client.Do(req)
+				duration := time.Since(startTime)
+				if err != nil ***REMOVED***
+					ch <- runner.Result***REMOVED***Error: err***REMOVED***
+				***REMOVED***
+				res.Body.Close()
 				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
+			***REMOVED***()
+
+			_, keepGoing := <-ctx.Done()
+			if !keepGoing ***REMOVED***
+				close(cancel)
+				return
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
