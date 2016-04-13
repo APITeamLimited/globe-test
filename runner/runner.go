@@ -30,7 +30,7 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 			close(ch)
 		***REMOVED***()
 
-		currentVUs := []VU***REMOVED******REMOVED***
+		currentVUs := make([]VU, 0, 100)
 		for ***REMOVED***
 			select ***REMOVED***
 			case vus := <-scale:
