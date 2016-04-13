@@ -24,10 +24,13 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 	ch := make(chan Result)
 
 	go func() ***REMOVED***
-		defer close(ch)
+		wg := sync.WaitGroup***REMOVED******REMOVED***
+		defer func() ***REMOVED***
+			wg.Wait()
+			close(ch)
+		***REMOVED***()
 
 		currentVUs := []VU***REMOVED******REMOVED***
-		wg := sync.WaitGroup***REMOVED******REMOVED***
 		for ***REMOVED***
 			select ***REMOVED***
 			case vus := <-scale:
@@ -50,8 +53,6 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 				return
 			***REMOVED***
 		***REMOVED***
-
-		wg.Wait()
 	***REMOVED***()
 
 	return ch
