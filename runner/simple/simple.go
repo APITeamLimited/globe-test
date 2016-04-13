@@ -42,6 +42,7 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 		cancelRequest := make(chan struct***REMOVED******REMOVED***)
 		req.Cancel = cancelRequest
 
+		results := make(chan runner.Result)
 		for ***REMOVED***
 			go func() ***REMOVED***
 				startTime := time.Now()
@@ -49,16 +50,18 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 				duration := time.Since(startTime)
 
 				if err != nil ***REMOVED***
-					ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+					results <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
 					return
 				***REMOVED***
 				res.Body.Close()
 
-				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
+				results <- runner.Result***REMOVED***Time: duration***REMOVED***
 			***REMOVED***()
 
-			_, keepGoing := <-ctx.Done()
-			if !keepGoing ***REMOVED***
+			select ***REMOVED***
+			case res := <-results:
+				ch <- res
+			case <-ctx.Done():
 				close(cancelRequest)
 				return
 			***REMOVED***
