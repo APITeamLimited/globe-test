@@ -42,7 +42,7 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 		cancelRequest := make(chan struct***REMOVED******REMOVED***)
 		req.Cancel = cancelRequest
 
-		results := make(chan runner.Result)
+		results := make(chan runner.Result, 1)
 		for ***REMOVED***
 			go func() ***REMOVED***
 				startTime := time.Now()
