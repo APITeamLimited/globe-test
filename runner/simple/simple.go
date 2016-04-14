@@ -28,24 +28,9 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 	go func() ***REMOVED***
 		defer close(ch)
 
-		// We can reuse the same request across multiple iterations; if something goes awry here,
-		// we abort the test, since it normally means a user failure (like a malformed URL).
-		req, err := http.NewRequest(http.MethodGet, r.URL, nil)
-		if err != nil ***REMOVED***
-			ch <- runner.Result***REMOVED***Error: err***REMOVED***
-			return
-		***REMOVED***
-		req.Close = true
-
-		// Close this channel to abort the request on the spot. The old, transport-based way of
-		// doing this is deprecated, as it doesn't play nice with HTTP/2 requests.
-		// cancelRequest := make(chan struct***REMOVED******REMOVED***)
-		// req.Cancel = cancelRequest
-
-		// results := make(chan runner.Result, 1)
 		for ***REMOVED***
 			startTime := time.Now()
-			res, err := r.Client.Do(req)
+			res, err := r.Client.Get(r.URL)
 			duration := time.Since(startTime)
 
 			select ***REMOVED***
@@ -59,27 +44,6 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 					ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			// go func() ***REMOVED***
-			// 	startTime := time.Now()
-			// 	res, err := r.Client.Do(req)
-			// 	duration := time.Since(startTime)
-
-			// 	if err != nil ***REMOVED***
-			// 		results <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
-			// 		return
-			// 	***REMOVED***
-			// 	res.Body.Close()
-
-			// 	results <- runner.Result***REMOVED***Time: duration***REMOVED***
-			// ***REMOVED***()
-
-			// select ***REMOVED***
-			// case res := <-results:
-			// 	ch <- res
-			// case <-ctx.Done():
-			// 	close(cancelRequest)
-			// 	return
-			// ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
