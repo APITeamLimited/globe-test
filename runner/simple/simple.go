@@ -29,8 +29,16 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 		defer close(ch)
 
 		for ***REMOVED***
+			// Note that we abort if we cannot create a request. This means we're either out of
+			// memory, or we have invalid user input, neither of which are recoverable.
+			req, err := http.NewRequest("GET", r.URL, nil)
+			if err != nil ***REMOVED***
+				ch <- runner.Result***REMOVED***Error: err***REMOVED***
+				return
+			***REMOVED***
+
 			startTime := time.Now()
-			res, err := r.Client.Get(r.URL)
+			res, err := r.Client.Do(req)
 			duration := time.Since(startTime)
 
 			select ***REMOVED***
