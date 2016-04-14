@@ -54,9 +54,10 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 			default:
 				if err != nil ***REMOVED***
 					ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					res.Body.Close()
+					ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 				***REMOVED***
-				res.Body.Close()
-				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 			***REMOVED***
 			// go func() ***REMOVED***
 			// 	startTime := time.Now()
