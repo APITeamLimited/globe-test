@@ -39,32 +39,47 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 
 		// Close this channel to abort the request on the spot. The old, transport-based way of
 		// doing this is deprecated, as it doesn't play nice with HTTP/2 requests.
-		cancelRequest := make(chan struct***REMOVED******REMOVED***)
-		req.Cancel = cancelRequest
+		// cancelRequest := make(chan struct***REMOVED******REMOVED***)
+		// req.Cancel = cancelRequest
 
-		results := make(chan runner.Result, 1)
+		// results := make(chan runner.Result, 1)
 		for ***REMOVED***
-			go func() ***REMOVED***
-				startTime := time.Now()
-				res, err := r.Client.Do(req)
-				duration := time.Since(startTime)
-
-				if err != nil ***REMOVED***
-					results <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
-					return
-				***REMOVED***
-				res.Body.Close()
-
-				results <- runner.Result***REMOVED***Time: duration***REMOVED***
-			***REMOVED***()
+			startTime := time.Now()
+			res, err := r.Client.Do(req)
+			duration := time.Since(startTime)
+			if err != nil ***REMOVED***
+				ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+				continue
+			***REMOVED***
+			res.Body.Close()
 
 			select ***REMOVED***
-			case res := <-results:
-				ch <- res
 			case <-ctx.Done():
-				close(cancelRequest)
 				return
+			default:
+				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 			***REMOVED***
+			// go func() ***REMOVED***
+			// 	startTime := time.Now()
+			// 	res, err := r.Client.Do(req)
+			// 	duration := time.Since(startTime)
+
+			// 	if err != nil ***REMOVED***
+			// 		results <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+			// 		return
+			// 	***REMOVED***
+			// 	res.Body.Close()
+
+			// 	results <- runner.Result***REMOVED***Time: duration***REMOVED***
+			// ***REMOVED***()
+
+			// select ***REMOVED***
+			// case res := <-results:
+			// 	ch <- res
+			// case <-ctx.Done():
+			// 	close(cancelRequest)
+			// 	return
+			// ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
