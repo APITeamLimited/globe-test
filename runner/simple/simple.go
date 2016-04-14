@@ -2,22 +2,20 @@ package simple
 
 import (
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
-	"net/http"
 	"time"
 )
 
 type SimpleRunner struct ***REMOVED***
 	URL    string
-	Client *http.Client
+	Client *fasthttp.Client
 ***REMOVED***
 
 func New() *SimpleRunner ***REMOVED***
 	return &SimpleRunner***REMOVED***
-		Client: &http.Client***REMOVED***
-			Transport: &http.Transport***REMOVED***
-				DisableKeepAlives: true,
-			***REMOVED***,
+		Client: &fasthttp.Client***REMOVED***
+		// MaxIdleConnDuration: time.Duration(0),
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
@@ -28,31 +26,29 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 	go func() ***REMOVED***
 		defer close(ch)
 
+		result := make(chan runner.Result, 1)
 		for ***REMOVED***
-			// Note that we abort if we cannot create a request. This means we're either out of
-			// memory, or we have invalid user input, neither of which are recoverable.
-			req, err := http.NewRequest("GET", r.URL, nil)
-			if err != nil ***REMOVED***
-				ch <- runner.Result***REMOVED***Error: err***REMOVED***
-				return
-			***REMOVED***
-			req.Close = true
-			req.Cancel = ctx.Done()
+			go func() ***REMOVED***
+				req := fasthttp.AcquireRequest()
+				defer fasthttp.ReleaseRequest(req)
 
-			startTime := time.Now()
-			res, err := r.Client.Do(req)
-			duration := time.Since(startTime)
+				res := fasthttp.AcquireResponse()
+				defer fasthttp.ReleaseResponse(res)
+
+				req.SetRequestURI(r.URL)
+
+				startTime := time.Now()
+				err := r.Client.Do(req, res)
+				duration := time.Since(startTime)
+
+				result <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+			***REMOVED***()
 
 			select ***REMOVED***
 			case <-ctx.Done():
 				return
-			default:
-				if err != nil ***REMOVED***
-					ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
-					continue
-				***REMOVED***
-				res.Body.Close()
-				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
+			case res := <-result:
+				ch <- res
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
