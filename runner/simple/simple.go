@@ -47,16 +47,15 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 			startTime := time.Now()
 			res, err := r.Client.Do(req)
 			duration := time.Since(startTime)
-			if err != nil ***REMOVED***
-				ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
-				continue
-			***REMOVED***
-			res.Body.Close()
 
 			select ***REMOVED***
 			case <-ctx.Done():
 				return
 			default:
+				if err != nil ***REMOVED***
+					ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+				***REMOVED***
+				res.Body.Close()
 				ch <- runner.Result***REMOVED***Time: duration***REMOVED***
 			***REMOVED***
 			// go func() ***REMOVED***
