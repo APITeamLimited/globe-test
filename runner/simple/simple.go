@@ -62,7 +62,7 @@ func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED*
 			case res := <-results:
 				ch <- res
 			case <-ctx.Done():
-				close(cancelRequest)
+				// close(cancelRequest)
 				return
 			***REMOVED***
 		***REMOVED***
