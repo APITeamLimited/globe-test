@@ -15,7 +15,7 @@ type SimpleRunner struct ***REMOVED***
 func New() *SimpleRunner ***REMOVED***
 	return &SimpleRunner***REMOVED***
 		Client: &fasthttp.Client***REMOVED***
-		// MaxIdleConnDuration: time.Duration(0),
+			MaxIdleConnDuration: time.Duration(0),
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
