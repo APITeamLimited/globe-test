@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat/aggregate"
 	"github.com/loadimpact/speedboat/loadtest"
+	"github.com/loadimpact/speedboat/report"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/loadimpact/speedboat/runner/simple"
 	"golang.org/x/net/context"
@@ -98,6 +99,21 @@ func action(c *cli.Context) ***REMOVED***
 	stats.Time.Values = make([]time.Duration, 30000000)[:0]
 	pipeline = aggregate.Aggregate(&stats, pipeline)
 
+	// Log results to a file
+	outFilename := c.String("out-file")
+	if outFilename != "" ***REMOVED***
+		reporter := report.CSVReporter***REMOVED******REMOVED***
+		if outFilename != "-" ***REMOVED***
+			f, err := os.Create("results.csv")
+			if err != nil ***REMOVED***
+				log.WithError(err).Fatal("Couldn't open log file")
+			***REMOVED***
+			pipeline = report.Report(reporter, f, pipeline)
+		***REMOVED*** else ***REMOVED***
+			pipeline = report.Report(reporter, os.Stdout, pipeline)
+		***REMOVED***
+	***REMOVED***
+
 	for res := range pipeline ***REMOVED***
 		switch ***REMOVED***
 		case res.Error != nil:
@@ -165,6 +181,10 @@ func main() ***REMOVED***
 			Name:  "duration, d",
 			Usage: "Test duration",
 			Value: time.Duration(10) * time.Second,
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "out-file, o",
+			Usage: "Output raw metrics to a file",
 		***REMOVED***,
 	***REMOVED***
 	app.Before = func(c *cli.Context) error ***REMOVED***
