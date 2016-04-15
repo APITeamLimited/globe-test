@@ -90,9 +90,15 @@ func action(c *cli.Context) ***REMOVED***
 	r := simple.New()
 	r.URL = test.URL
 
+	// Start the pipeline by just running requests
+	pipeline := run(test, r)
+
+	// Stick result aggregation onto it
 	stats := aggregate.Stats***REMOVED******REMOVED***
 	stats.Time.Values = make([]time.Duration, 30000000)[:0]
-	for res := range aggregate.Aggregate(&stats, run(test, r)) ***REMOVED***
+	pipeline = aggregate.Aggregate(&stats, pipeline)
+
+	for res := range pipeline ***REMOVED***
 		switch ***REMOVED***
 		case res.Error != nil:
 			l := log.WithError(res.Error)
