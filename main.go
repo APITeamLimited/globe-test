@@ -124,22 +124,6 @@ func action(c *cli.Context) ***REMOVED***
 		"med": stats.Time.Med,
 		"avg": stats.Time.Avg,
 	***REMOVED***).Info("Time")
-
-	bucketInterval := time.Duration(100) * time.Millisecond
-	buckets := [][]time.Duration***REMOVED******REMOVED***
-	for _, t := range stats.Time.Values ***REMOVED***
-		b := int(t / bucketInterval)
-		for len(buckets) <= b ***REMOVED***
-			buckets = append(buckets, []time.Duration***REMOVED******REMOVED***)
-		***REMOVED***
-		buckets[b] = append(buckets[b], t)
-	***REMOVED***
-	for i, bucket := range buckets ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"i":   i,
-			"len": len(bucket),
-		***REMOVED***).Info("Bucket")
-	***REMOVED***
 ***REMOVED***
 
 // Configure the global logger.
