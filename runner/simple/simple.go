@@ -12,8 +12,9 @@ type SimpleRunner struct ***REMOVED***
 	Client *fasthttp.Client
 ***REMOVED***
 
-func New() *SimpleRunner ***REMOVED***
+func New(url string) *SimpleRunner ***REMOVED***
 	return &SimpleRunner***REMOVED***
+		URL: url,
 		Client: &fasthttp.Client***REMOVED***
 			MaxIdleConnDuration: time.Duration(0),
 		***REMOVED***,

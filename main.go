@@ -7,6 +7,7 @@ import (
 	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/report"
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/loadimpact/speedboat/runner/lua"
 	"github.com/loadimpact/speedboat/runner/simple"
 	"golang.org/x/net/context"
 	"io/ioutil"
@@ -88,10 +89,14 @@ func action(c *cli.Context) ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
 	***REMOVED***
 
-	r := simple.New()
-	r.URL = test.URL
+	r := runner.Runner(nil)
 
 	// Start the pipeline by just running requests
+	if test.Script != "" ***REMOVED***
+		r = lua.New(test.Script, test.Source)
+	***REMOVED*** else ***REMOVED***
+		r = simple.New(test.URL)
+	***REMOVED***
 	pipeline := run(test, r)
 
 	// Stick result aggregation onto it
