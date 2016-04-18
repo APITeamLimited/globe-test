@@ -2,18 +2,31 @@ package lua
 
 import (
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/valyala/fasthttp"
 	"github.com/yuin/gopher-lua"
 	"golang.org/x/net/context"
+	"time"
 )
 
 type LuaRunner struct ***REMOVED***
-	Filename, Source string
+	Filename string
+	Source   string
+	Client   *fasthttp.Client
+***REMOVED***
+
+type LuaVU struct ***REMOVED***
+	r   *LuaRunner
+	ctx context.Context
+	ch  chan runner.Result
 ***REMOVED***
 
 func New(filename, src string) *LuaRunner ***REMOVED***
 	return &LuaRunner***REMOVED***
 		Filename: filename,
 		Source:   src,
+		Client: &fasthttp.Client***REMOVED***
+			MaxIdleConnDuration: time.Duration(0),
+		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -23,8 +36,12 @@ func (r *LuaRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED***
 	go func() ***REMOVED***
 		defer close(ch)
 
+		vu := LuaVU***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
+
 		L := lua.NewState()
 		defer L.Close()
+
+		L.PreloadModule("http", vu.HTTPLoader)
 
 		// Try to load the script, abort execution if it fails
 		lfn, err := L.LoadString(r.Source)
