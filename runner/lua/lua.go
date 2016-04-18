@@ -14,7 +14,7 @@ type LuaRunner struct ***REMOVED***
 	Client   *fasthttp.Client
 ***REMOVED***
 
-type LuaVU struct ***REMOVED***
+type VUContext struct ***REMOVED***
 	r   *LuaRunner
 	ctx context.Context
 	ch  chan runner.Result
@@ -36,7 +36,7 @@ func (r *LuaRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED***
 	go func() ***REMOVED***
 		defer close(ch)
 
-		vu := LuaVU***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
+		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
 
 		L := lua.NewState()
 		defer L.Close()
