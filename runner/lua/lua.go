@@ -27,7 +27,7 @@ func New(filename, src string) *LuaRunner ***REMOVED***
 		Source:   src,
 		Client: &fasthttp.Client***REMOVED***
 			MaxIdleConnDuration: time.Duration(0),
-			MaxConnsPerHost:     math.MaxInt32,
+			MaxConnsPerHost:     math.MaxInt64,
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
