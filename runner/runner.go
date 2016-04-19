@@ -7,7 +7,7 @@ import (
 )
 
 type Runner interface ***REMOVED***
-	Run(ctx context.Context) <-chan Result
+	Run(ctx context.Context, id int64) <-chan Result
 ***REMOVED***
 
 type Result struct ***REMOVED***
@@ -31,16 +31,19 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 		***REMOVED***()
 
 		currentVUs := make([]VU, 0, 100)
+		currentID := int64(0)
 		for ***REMOVED***
 			select ***REMOVED***
 			case vus := <-scale:
 				for vus > len(currentVUs) ***REMOVED***
+					currentID += 1
+					currentID := currentID
 					wg.Add(1)
 					c, cancel := context.WithCancel(ctx)
 					currentVUs = append(currentVUs, VU***REMOVED***Cancel: cancel***REMOVED***)
 					go func() ***REMOVED***
 						defer wg.Done()
-						for res := range r.Run(c) ***REMOVED***
+						for res := range r.Run(c, currentID) ***REMOVED***
 							ch <- res
 						***REMOVED***
 					***REMOVED***()

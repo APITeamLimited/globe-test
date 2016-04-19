@@ -21,7 +21,7 @@ func New(url string) *SimpleRunner ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *SimpleRunner) Run(ctx context.Context) <-chan runner.Result ***REMOVED***
+func (r *SimpleRunner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
 
 	go func() ***REMOVED***
