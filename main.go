@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"time"
 )
@@ -119,22 +120,36 @@ func action(c *cli.Context) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	for res := range pipeline ***REMOVED***
-		switch ***REMOVED***
-		case res.Error != nil:
-			l := log.WithError(res.Error)
-			if res.Time != time.Duration(0) ***REMOVED***
-				l = l.WithField("t", res.Time)
+	// Listen for SIGINT (Ctrl+C)
+	stop := make(chan os.Signal)
+	signal.Notify(stop, os.Interrupt)
+
+runLoop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case res, ok := <-pipeline:
+			if !ok ***REMOVED***
+				break runLoop
 			***REMOVED***
-			l.Error("Error")
-		case res.Text != "":
-			l := log.WithField("text", res.Text)
-			if res.Time != time.Duration(0) ***REMOVED***
-				l = l.WithField("t", res.Time)
+
+			switch ***REMOVED***
+			case res.Error != nil:
+				l := log.WithError(res.Error)
+				if res.Time != time.Duration(0) ***REMOVED***
+					l = l.WithField("t", res.Time)
+				***REMOVED***
+				l.Error("Error")
+			case res.Text != "":
+				l := log.WithField("text", res.Text)
+				if res.Time != time.Duration(0) ***REMOVED***
+					l = l.WithField("t", res.Time)
+				***REMOVED***
+				l.Info("Log")
+			default:
+				// log.WithField("t", res.Time).Debug("Metric")
 			***REMOVED***
-			l.Info("Log")
-		default:
-			// log.WithField("t", res.Time).Debug("Metric")
+		case <-stop:
+			break runLoop
 		***REMOVED***
 	***REMOVED***
 
