@@ -33,6 +33,7 @@ func New(filename, src string) *Runner ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
+
 func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
 
@@ -80,14 +81,19 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 			return
 		***REMOVED***
 
+		c.Gc(0)
+		c.Gc(0)
+
 		for ***REMOVED***
-			c.PushGlobalObject()
 			c.PushString("__code__")
-			if code := c.PcallProp(-2, 0); code != duktape.ExecSuccess ***REMOVED***
+			if code := c.PcallProp(globalIndex, 0); code != duktape.ExecSuccess ***REMOVED***
 				e := c.SafeToString(-1)
 				c.Pop()
 				ch <- runner.Result***REMOVED***Error: errors.New(e)***REMOVED***
 			***REMOVED***
+
+			c.Gc(0)
+			c.Gc(0)
 
 			select ***REMOVED***
 			case <-ctx.Done():
