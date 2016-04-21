@@ -81,9 +81,6 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 			return
 		***REMOVED***
 
-		c.Gc(0)
-		c.Gc(0)
-
 		for ***REMOVED***
 			c.PushString("__code__")
 			if code := c.PcallProp(globalIndex, 0); code != duktape.ExecSuccess ***REMOVED***
@@ -92,9 +89,6 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 				ch <- runner.Result***REMOVED***Error: errors.New(e)***REMOVED***
 			***REMOVED***
 			c.Pop()
-
-			c.Gc(0)
-			c.Gc(0)
 
 			select ***REMOVED***
 			case <-ctx.Done():
