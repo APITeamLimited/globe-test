@@ -43,6 +43,7 @@ func New(filename, src string) *Runner ***REMOVED***
 	***REMOVED***
 	return r
 ***REMOVED***
+
 func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
 
