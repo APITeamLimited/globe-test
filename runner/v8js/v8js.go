@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 	"math"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -62,6 +61,7 @@ func New(filename, src string) *Runner ***REMOVED***
 
 	return r
 ***REMOVED***
+
 func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
 
@@ -70,28 +70,24 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 
 		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
 
-		w := v8worker.New(func(msg string) ***REMOVED******REMOVED***, func(msg string) string ***REMOVED***
-			parts := strings.SplitN(msg, ";", 2)
-			switch parts[0] ***REMOVED***
-			case "get":
-				vu.HTTPGet(parts[1])
-			case "sleep":
-				vu.Sleep(parts[1])
-			default:
-				log.WithField("call", parts[0]).Fatal("Unknown JS call")
-			***REMOVED***
-			return ""
-		***REMOVED***)
+		w := v8worker.New(vu.Recv, vu.RecvSync)
 
 		for _, f := range r.stdlib ***REMOVED***
-			w.Load(f.Filename, f.Source)
+			if err := w.Load(r.Filename, r.Source); err != nil ***REMOVED***
+				log.WithError(err).WithField("file", f.Filename).Error("Couldn't load lib")
+			***REMOVED***
 		***REMOVED***
 
-		src := fmt.Sprintf("speedboat._internal.recv.run = function() ***REMOVED***\n%s\n***REMOVED***", r.Source)
-		w.Load(r.Filename, src)
+		src := fmt.Sprintf("function __run__() ***REMOVED***%s***REMOVED***; undefined", r.Source)
+		if err := w.Load(r.Filename, src); err != nil ***REMOVED***
+			log.WithError(err).Error("Couldn't load JS")
+			return
+		***REMOVED***
 
 		for ***REMOVED***
-			w.SendSync("***REMOVED***\"call\": \"run\"***REMOVED***")
+			log.Info("-> run")
+			w.Send("run")
+			log.Info("<- run")
 
 			select ***REMOVED***
 			case <-ctx.Done():
@@ -102,4 +98,11 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 	***REMOVED***()
 
 	return ch
+***REMOVED***
+
+func (vu *VUContext) Recv(raw string) ***REMOVED***
+***REMOVED***
+
+func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
+	return ""
 ***REMOVED***
