@@ -2,20 +2,29 @@ package v8js
 
 import (
 	"fmt"
+	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/ry/v8worker"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
 	"math"
+	"os"
 	"strings"
 	"time"
 )
+
+type libFile struct ***REMOVED***
+	Filename string
+	Source   string
+***REMOVED***
 
 type Runner struct ***REMOVED***
 	Filename string
 	Source   string
 	Client   *fasthttp.Client
+
+	stdlib []libFile
 ***REMOVED***
 
 type VUContext struct ***REMOVED***
@@ -25,7 +34,7 @@ type VUContext struct ***REMOVED***
 ***REMOVED***
 
 func New(filename, src string) *Runner ***REMOVED***
-	return &Runner***REMOVED***
+	r := &Runner***REMOVED***
 		Filename: filename,
 		Source:   src,
 		Client: &fasthttp.Client***REMOVED***
@@ -34,6 +43,24 @@ func New(filename, src string) *Runner ***REMOVED***
 			MaxConnsPerHost:     math.MaxInt64,
 		***REMOVED***,
 	***REMOVED***
+
+	// Load the standard library as a rice box; panic if any part of this fails
+	// (The only possible cause is a programming/developer error, not user error)
+	box := rice.MustFindBox("lib")
+	box.Walk("/", func(path string, info os.FileInfo, err error) error ***REMOVED***
+		if err != nil ***REMOVED***
+			panic(err)
+		***REMOVED***
+		if !info.IsDir() ***REMOVED***
+			r.stdlib = append(r.stdlib, libFile***REMOVED***
+				Filename: path,
+				Source:   box.MustString(path),
+			***REMOVED***)
+		***REMOVED***
+		return nil
+	***REMOVED***)
+
+	return r
 ***REMOVED***
 func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
@@ -55,39 +82,16 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 			***REMOVED***
 			return ""
 		***REMOVED***)
-		w.Load(r.Filename, fmt.Sprintf(`
-		$recvSync(function(msg) ***REMOVED***
-			if(msg == 'run') ***REMOVED***
-				run()
-			***REMOVED***
-		***REMOVED***)
-		function get(url) ***REMOVED***
-			$sendSync('get;' + url)
-		***REMOVED***
-		function sleep(t) ***REMOVED***
-			$sendSync('sleep;' + t)
-		***REMOVED***
-		function run() ***REMOVED***
-			%s
-		***REMOVED***
-		`, r.Source))
 
-		// vm := otto.New()
-		// vm.Set("__id", id)
-		// vm.Set("get", vu.HTTPGet)
-		// vm.Set("sleep", vu.Sleep)
+		for _, f := range r.stdlib ***REMOVED***
+			w.Load(f.Filename, f.Source)
+		***REMOVED***
 
-		// script, err := vm.Compile(r.Filename, r.Source)
-		// if err != nil ***REMOVED***
-		// 	ch <- runner.Result***REMOVED***Error: err***REMOVED***
-		// 	return
-		// ***REMOVED***
+		src := fmt.Sprintf("speedboat._internal.recv.run = function() ***REMOVED***\n%s\n***REMOVED***", r.Source)
+		w.Load(r.Filename, src)
 
 		for ***REMOVED***
-			// if _, err := vm.Run(script); err != nil ***REMOVED***
-			// 	ch <- runner.Result***REMOVED***Error: err***REMOVED***
-			// ***REMOVED***
-			w.SendSync("run")
+			w.SendSync("***REMOVED***\"call\": \"run\"***REMOVED***")
 
 			select ***REMOVED***
 			case <-ctx.Done():
