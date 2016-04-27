@@ -27,10 +27,15 @@ type Runner struct ***REMOVED***
 ***REMOVED***
 
 type VUContext struct ***REMOVED***
-	r   *Runner
-	ctx context.Context
-	ch  chan runner.Result
+	r    *Runner
+	ctx  context.Context
+	ch   chan runner.Result
+	mods map[string]Module
 ***REMOVED***
+
+type Module map[string]Member
+
+type Member interface***REMOVED******REMOVED***
 
 func New(filename, src string) *Runner ***REMOVED***
 	r := &Runner***REMOVED***
@@ -69,13 +74,17 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 		defer close(ch)
 
 		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
-
 		w := v8worker.New(vu.Recv, vu.RecvSync)
 
 		for _, f := range r.stdlib ***REMOVED***
 			if err := w.Load(f.Filename, f.Source); err != nil ***REMOVED***
 				log.WithError(err).WithField("file", f.Filename).Error("Couldn't load lib")
 			***REMOVED***
+		***REMOVED***
+
+		if err := vu.RegisterModules(w); err != nil ***REMOVED***
+			log.WithError(err).Error("Couldn't register bridged functions")
+			return
 		***REMOVED***
 
 		src := fmt.Sprintf("function __run__() ***REMOVED***%s***REMOVED***; undefined", r.Source)
@@ -85,9 +94,9 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 		***REMOVED***
 
 		for ***REMOVED***
-			log.Info("-> run")
-			w.Send("run")
-			log.Info("<- run")
+			// log.Info("-> run")
+			w.SendSync("run")
+			// log.Info("<- run")
 
 			select ***REMOVED***
 			case <-ctx.Done():
@@ -98,11 +107,4 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 	***REMOVED***()
 
 	return ch
-***REMOVED***
-
-func (vu *VUContext) Recv(raw string) ***REMOVED***
-***REMOVED***
-
-func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
-	return ""
 ***REMOVED***
