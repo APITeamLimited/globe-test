@@ -24,6 +24,10 @@ speedboat._require.string = function(v) ***REMOVED***
 	return (v || "").toString();
 ***REMOVED***
 
+speedboat._require.interface = function(v) ***REMOVED***
+	return v;
+***REMOVED***
+
 $recvSync(function(raw) ***REMOVED***
 	if (raw == 'run') ***REMOVED***
 		__run__();
