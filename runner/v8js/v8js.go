@@ -76,6 +76,8 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
 		w := v8worker.New(vu.Recv, vu.RecvSync)
 
+		w.Load("internal:constants", fmt.Sprintf(`var __id = %d;`, id))
+
 		for _, f := range r.stdlib ***REMOVED***
 			if err := w.Load(f.Filename, f.Source); err != nil ***REMOVED***
 				log.WithError(err).WithField("file", f.Filename).Error("Couldn't load lib")
