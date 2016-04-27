@@ -15,7 +15,9 @@ func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
 			"sleep": vu.Sleep,
 		***REMOVED***,
 		"console": Module***REMOVED***
-			"log": vu.ConsoleLog,
+			"log":   vu.ConsoleLog,
+			"warn":  vu.ConsoleWarn,
+			"error": vu.ConsoleError,
 		***REMOVED***,
 		"http": Module***REMOVED***
 			"get": vu.HTTPGet,
