@@ -14,6 +14,9 @@ func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
 		"global": Module***REMOVED***
 			"sleep": vu.Sleep,
 		***REMOVED***,
+		"console": Module***REMOVED***
+			"log": vu.ConsoleLog,
+		***REMOVED***,
 		"http": Module***REMOVED***
 			"get": vu.HTTPGet,
 		***REMOVED***,
@@ -74,12 +77,14 @@ func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	// Make functions in the "global" module global
+	// Make functions in the "global" module global, preimport console
 	makeGlobals := `
 	for (key in speedboat._modules['global']) ***REMOVED***
 		eval(key + " = speedboat._modules['global']['" + key + "'];");
-	***REMOVED***`
-	if err := w.Load("internal:makeGlobals", makeGlobals); err != nil ***REMOVED***
+	***REMOVED***
+	var console = speedboat._modules['console'];
+	`
+	if err := w.Load("internal:preload", makeGlobals); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
