@@ -1,6 +1,8 @@
 package runner
 
 import (
+	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/speedboat/loadtest"
 	"golang.org/x/net/context"
 	"sync"
 	"time"
@@ -54,6 +56,31 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 				***REMOVED***
 			case <-ctx.Done():
 				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
+func Ramp(t *loadtest.LoadTest, scale chan int, in <-chan Result) <-chan Result ***REMOVED***
+	ch := make(chan Result)
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		ticker := time.NewTicker(time.Duration(1) * time.Second)
+		startTime := time.Now()
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				vus, _ := t.VUsAt(time.Since(startTime))
+				scale <- vus
+			case res, ok := <-in:
+				if !ok ***REMOVED***
+					return
+				***REMOVED***
+				ch <- res
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
