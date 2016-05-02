@@ -15,27 +15,13 @@ type jsCallEnvelope struct ***REMOVED***
 	Args []interface***REMOVED******REMOVED*** `json:"a"`
 ***REMOVED***
 
-func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
-	vu.mods = map[string]Module***REMOVED***
-		"global": Module***REMOVED***
-			"sleep": Member***REMOVED***Func: vu.Sleep***REMOVED***,
-		***REMOVED***,
-		"console": Module***REMOVED***
-			"log":   Member***REMOVED***Func: vu.ConsoleLog, Async: true***REMOVED***,
-			"warn":  Member***REMOVED***Func: vu.ConsoleWarn, Async: true***REMOVED***,
-			"error": Member***REMOVED***Func: vu.ConsoleError, Async: true***REMOVED***,
-		***REMOVED***,
-		"http": Module***REMOVED***
-			"get": Member***REMOVED***Func: vu.HTTPGet***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-
-	for modname, mod := range vu.mods ***REMOVED***
+func (vu *VUContext) BridgeAPI(w *v8worker.Worker) error ***REMOVED***
+	for modname, mod := range vu.api ***REMOVED***
 		jsMod := fmt.Sprintf(`
 		speedboat._modules["%s"] = ***REMOVED******REMOVED***;
 		`, modname)
 		for name, mem := range mod ***REMOVED***
-			t := reflect.TypeOf(mem.Func)
+			t := reflect.TypeOf(mem)
 
 			if t.Kind() != reflect.Func ***REMOVED***
 				return errors.New("Not a function: " + modname + "." + name)
@@ -72,7 +58,7 @@ func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
 
 			jsFn += fmt.Sprintf(`
 				return speedboat._invoke('%s', '%s', args, %v);
-			***REMOVED***`, modname, name, mem.Async)
+			***REMOVED***`, modname, name, false)
 			jsMod += "\n\n" + jsFn
 		***REMOVED***
 
@@ -130,7 +116,7 @@ func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
 ***REMOVED***
 
 func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
-	mod, ok := vu.mods[call.Mod]
+	mod, ok := vu.api[call.Mod]
 	if !ok ***REMOVED***
 		return errors.New(fmt.Sprintf("unknown module '%s'", call.Mod))
 	***REMOVED***
@@ -150,7 +136,7 @@ func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
 			log.WithField("error", err).Error("Go call panicked")
 		***REMOVED***
 	***REMOVED***()
-	fn := reflect.ValueOf(mem.Func)
+	fn := reflect.ValueOf(mem)
 	log.WithField("T", fn.Type().String()).Debug("Function")
 	fn.Call(args)
 
