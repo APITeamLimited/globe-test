@@ -94,7 +94,7 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 			try ***REMOVED***
 		%s
 			***REMOVED*** catch (e) ***REMOVED***
-				console.error(e);
+				console.error("Script Error", '' + e);
 			***REMOVED***
 		***REMOVED***
 		`, r.Source)
