@@ -65,11 +65,7 @@ func (vu *VUContext) RegisterModules(w *v8worker.Worker) error ***REMOVED***
 			***REMOVED***
 
 			jsFn += `
-				$sendSync(JSON.stringify(***REMOVED***
-					m: '` + modname + `',
-					f: '` + name + `',
-					a: args,
-				***REMOVED***));
+				return speedboat._invoke('` + modname + `', '` + name + `', args);
 			***REMOVED***`
 			jsMod += "\n\n" + jsFn
 		***REMOVED***
@@ -103,8 +99,7 @@ func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
 		Args []interface***REMOVED******REMOVED*** `json:"a"`
 	***REMOVED******REMOVED******REMOVED***
 	if err := json.Unmarshal([]byte(raw), &call); err != nil ***REMOVED***
-		log.WithError(err).Error("Malformed call")
-		return ""
+		return jsThrow(fmt.Sprintf("malformed host call: %s", err))
 	***REMOVED***
 	log.WithFields(log.Fields***REMOVED***
 		"mod":  call.Mod,
@@ -114,17 +109,12 @@ func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
 
 	mod, ok := vu.mods[call.Mod]
 	if !ok ***REMOVED***
-		log.WithField("mod", call.Mod).Error("Unknown module")
-		return ""
+		return jsThrow(fmt.Sprintf("unknown module '%s'", call.Mod))
 	***REMOVED***
 
 	fn, ok := mod[call.Fn]
 	if !ok ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"mod": call.Mod,
-			"fn":  call.Fn,
-		***REMOVED***).Error("Unknown function")
-		return ""
+		return jsThrow(fmt.Sprintf("unrecognized function call: '%s'.'%s'", call.Mod, call.Fn))
 	***REMOVED***
 
 	args := make([]reflect.Value, len(call.Args))
