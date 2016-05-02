@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/speedboat/runner"
 	"github.com/ry/v8worker"
 	"reflect"
 )
@@ -137,8 +138,28 @@ func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 	fn := reflect.ValueOf(mem)
-	log.WithField("T", fn.Type().String()).Debug("Function")
-	fn.Call(args)
+	ret := fn.Call(args)
+
+	for _, val := range ret ***REMOVED***
+		switch v := val.Interface().(type) ***REMOVED***
+		case chan runner.Result:
+			fallthrough
+		case <-chan runner.Result:
+		readLoop:
+			for ***REMOVED***
+				select ***REMOVED***
+				case <-vu.ctx.Done():
+					break readLoop
+				case r, ok := <-v:
+					if !ok ***REMOVED***
+						break readLoop
+					***REMOVED***
+					vu.ch <- r
+				***REMOVED***
+			***REMOVED***
+		default:
+		***REMOVED***
+	***REMOVED***
 
 	return nil
 ***REMOVED***
