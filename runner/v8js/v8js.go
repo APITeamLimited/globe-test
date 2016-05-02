@@ -35,7 +35,10 @@ type VUContext struct ***REMOVED***
 
 type Module map[string]Member
 
-type Member interface***REMOVED******REMOVED***
+type Member struct ***REMOVED***
+	Func  interface***REMOVED******REMOVED***
+	Async bool
+***REMOVED***
 
 func New(filename, src string) *Runner ***REMOVED***
 	r := &Runner***REMOVED***

@@ -28,10 +28,11 @@ speedboat._require.interface = function(v) ***REMOVED***
 	return v;
 ***REMOVED***
 
-speedboat._invoke = function(mod, fn, args) ***REMOVED***
-	res = $sendSync(JSON.stringify(***REMOVED*** m: mod, f: fn, a: args ***REMOVED***));
+speedboat._invoke = function(mod, fn, args, async) ***REMOVED***
+	var send = async ? $send : $sendSync
+	var res = send(JSON.stringify(***REMOVED*** m: mod, f: fn, a: args ***REMOVED***));
 	if (res) ***REMOVED***
-		obj = JSON.parse(res);
+		var obj = JSON.parse(res);
 		if (obj._error) ***REMOVED***
 			throw new Error(obj._error);
 		***REMOVED***
