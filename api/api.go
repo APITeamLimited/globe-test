@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/loadimpact/speedboat/api/console"
 	"github.com/loadimpact/speedboat/api/global"
 	"github.com/loadimpact/speedboat/api/http"
 )
@@ -8,8 +9,9 @@ import (
 type RegisterFunc func() map[string]interface***REMOVED******REMOVED***
 
 var API = map[string]RegisterFunc***REMOVED***
-	"global": global.New,
-	"http":   http.New,
+	"global":  global.New,
+	"console": console.New,
+	"http":    http.New,
 ***REMOVED***
 
 func New() map[string]map[string]interface***REMOVED******REMOVED*** ***REMOVED***
