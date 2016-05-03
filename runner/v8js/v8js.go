@@ -5,6 +5,7 @@ import (
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/api"
+	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/ry/v8worker"
 	"golang.org/x/net/context"
@@ -62,7 +63,7 @@ func New(filename, src string) *Runner ***REMOVED***
 	return r
 ***REMOVED***
 
-func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMOVED***
+func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan runner.Result ***REMOVED***
 	ch := make(chan runner.Result)
 
 	go func() ***REMOVED***
@@ -71,7 +72,12 @@ func (r *Runner) Run(ctx context.Context, id int64) <-chan runner.Result ***REMO
 		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch, api: api.New()***REMOVED***
 		w := v8worker.New(vu.Recv, vu.RecvSync)
 
-		w.Load("internal:constants", fmt.Sprintf(`var __id = %d;`, id))
+		w.Load("internal:constants", fmt.Sprintf(`
+		var __id = %d;
+		var test = ***REMOVED***
+			url: "%s",
+		***REMOVED***;
+		`, id, t.URL))
 
 		for _, f := range r.stdlib ***REMOVED***
 			if err := w.Load(f.Filename, f.Source); err != nil ***REMOVED***

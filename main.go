@@ -77,7 +77,7 @@ func run(test loadtest.LoadTest, r runner.Runner) (<-chan runner.Result, chan in
 		ctx, _ := context.WithTimeout(context.Background(), timeout)
 		scale <- test.Stages[0].VUs.Start
 
-		for res := range runner.Run(ctx, r, scale) ***REMOVED***
+		for res := range runner.Run(ctx, r, test, scale) ***REMOVED***
 			ch <- res
 		***REMOVED***
 	***REMOVED***()
@@ -103,7 +103,7 @@ func action(c *cli.Context) error ***REMOVED***
 			log.WithField("ext", ext).Fatal("No runner found")
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		r = simple.New(test.URL)
+		r = simple.New()
 	***REMOVED***
 	pipeline, scale := run(test, r)
 
@@ -203,11 +203,11 @@ func main() ***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "script, s",
-			Usage: "Script to run (do not use with --url)",
+			Usage: "Script to run",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "url",
-			Usage: "URL to test (do not use with --script)",
+			Usage: "URL to test",
 		***REMOVED***,
 		cli.IntFlag***REMOVED***
 			Name:  "vus, u",

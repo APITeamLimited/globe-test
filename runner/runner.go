@@ -8,7 +8,7 @@ import (
 )
 
 type Runner interface ***REMOVED***
-	Run(ctx context.Context, id int64) <-chan Result
+	Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan Result
 ***REMOVED***
 
 type Result struct ***REMOVED***
@@ -21,7 +21,7 @@ type VU struct ***REMOVED***
 	Cancel context.CancelFunc
 ***REMOVED***
 
-func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOVED***
+func Run(ctx context.Context, r Runner, t loadtest.LoadTest, scale <-chan int) <-chan Result ***REMOVED***
 	ch := make(chan Result)
 
 	go func() ***REMOVED***
@@ -44,7 +44,7 @@ func Run(ctx context.Context, r Runner, scale <-chan int) <-chan Result ***REMOV
 					currentVUs = append(currentVUs, VU***REMOVED***Cancel: cancel***REMOVED***)
 					go func() ***REMOVED***
 						defer wg.Done()
-						for res := range r.Run(c, currentID) ***REMOVED***
+						for res := range r.Run(c, t, currentID) ***REMOVED***
 							ch <- res
 						***REMOVED***
 					***REMOVED***()
