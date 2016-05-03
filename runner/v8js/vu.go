@@ -8,6 +8,7 @@ import (
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/ry/v8worker"
 	"reflect"
+	"strings"
 )
 
 type jsCallEnvelope struct ***REMOVED***
@@ -16,6 +17,7 @@ type jsCallEnvelope struct ***REMOVED***
 	Args []interface***REMOVED******REMOVED*** `json:"a"`
 ***REMOVED***
 
+// Aaaaaa, this is awful, it needs restructuring BADLY x_x
 func (vu *VUContext) BridgeAPI(w *v8worker.Worker) error ***REMOVED***
 	for modname, mod := range vu.api ***REMOVED***
 		jsMod := fmt.Sprintf(`
@@ -45,7 +47,25 @@ func (vu *VUContext) BridgeAPI(w *v8worker.Worker) error ***REMOVED***
 
 			for i := 0; i < numArgs; i++ ***REMOVED***
 				aT := t.In(i)
-				jsFn += fmt.Sprintf("args.push(speedboat._require.%s(arguments[%d]));", aT.Kind().String(), i)
+				switch aT.Kind() ***REMOVED***
+				case reflect.Struct:
+					types := make([]string, 0, aT.NumField())
+					for i := 0; i < aT.NumField(); i++ ***REMOVED***
+						field := aT.Field(i)
+						if field.Anonymous ***REMOVED***
+							continue
+						***REMOVED***
+						key := field.Tag.Get("json") // Does not handle comma params yet!
+						if key == "" ***REMOVED***
+							key = field.Name
+						***REMOVED***
+						val := aT.Kind().String()
+						types = append(types, fmt.Sprintf(`"%s":"%s"`, key, val))
+					***REMOVED***
+					jsFn += fmt.Sprintf(`args.push(speedboat._require.struct(***REMOVED***%s***REMOVED***, arguments[%d]));`, strings.Join(types, ","), i)
+				default:
+					jsFn += fmt.Sprintf("args.push(speedboat._require.%s(arguments[%d]));", aT.Kind().String(), i)
+				***REMOVED***
 			***REMOVED***
 			if t.IsVariadic() ***REMOVED***
 				varArg := t.In(numArgs)
@@ -132,12 +152,42 @@ func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
 		args[i] = reflect.ValueOf(arg)
 	***REMOVED***
 
+	fn := reflect.ValueOf(mem)
+	fnT := fn.Type()
+
+	for i := 0; i < fnT.NumIn(); i++ ***REMOVED***
+		argT := fnT.In(i)
+		switch argT.Kind() ***REMOVED***
+		case reflect.Struct:
+			mapv, ok := args[i].Interface().(map[string]interface***REMOVED******REMOVED***)
+			if !ok ***REMOVED***
+				return errors.New("argument is not a dictionary")
+			***REMOVED***
+
+			v := reflect.New(argT)
+			for i := 0; i < argT.NumField(); i++ ***REMOVED***
+				f := argT.Field(i)
+
+				key := f.Tag.Get("json")
+				if key == "" ***REMOVED***
+					key = f.Name
+				***REMOVED***
+				val, ok := mapv[key]
+				if ok ***REMOVED***
+					v.Elem().Field(i).Set(reflect.ValueOf(val))
+				***REMOVED***
+			***REMOVED***
+
+			args[i] = v.Elem()
+		default:
+		***REMOVED***
+	***REMOVED***
+
 	defer func() ***REMOVED***
 		if err := recover(); err != nil ***REMOVED***
 			log.WithField("error", err).Error("Go call panicked")
 		***REMOVED***
 	***REMOVED***()
-	fn := reflect.ValueOf(mem)
 	ret := fn.Call(args)
 
 	for _, val := range ret ***REMOVED***

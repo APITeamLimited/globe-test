@@ -1,6 +1,7 @@
 package http
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/valyala/fasthttp"
 	"math"
@@ -9,6 +10,11 @@ import (
 
 type context struct ***REMOVED***
 	client *fasthttp.Client
+***REMOVED***
+
+type RequestArgs struct ***REMOVED***
+	Follow bool `json:"follow"`
+	Report bool `json:"report"`
 ***REMOVED***
 
 func New() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
@@ -20,11 +26,20 @@ func New() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
-		"get": ctx.Get,
+		"get":     ctx.Get,
+		"request": ctx.Request,
 	***REMOVED***
 ***REMOVED***
 
-func (ctx *context) Get(url string) <-chan runner.Result ***REMOVED***
+func (ctx *context) Get(url string, args RequestArgs) <-chan runner.Result ***REMOVED***
+	return ctx.Request("GET", url, args)
+***REMOVED***
+
+func (ctx *context) Request(method, url string, args RequestArgs) <-chan runner.Result ***REMOVED***
+	log.WithFields(log.Fields***REMOVED***
+		"follow": args.Follow,
+		"report": args.Report,
+	***REMOVED***).Info("Aaaa")
 	ch := make(chan runner.Result, 1)
 	go func() ***REMOVED***
 		defer close(ch)
@@ -36,6 +51,7 @@ func (ctx *context) Get(url string) <-chan runner.Result ***REMOVED***
 		defer fasthttp.ReleaseResponse(res)
 
 		req.SetRequestURI(url)
+		req.Header.SetMethod(method)
 
 		startTime := time.Now()
 		err := ctx.client.Do(req, res)
