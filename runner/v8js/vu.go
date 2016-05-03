@@ -142,8 +142,6 @@ func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
 
 	for _, val := range ret ***REMOVED***
 		switch v := val.Interface().(type) ***REMOVED***
-		case chan runner.Result:
-			fallthrough
 		case <-chan runner.Result:
 		readLoop:
 			for ***REMOVED***
