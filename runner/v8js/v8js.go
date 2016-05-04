@@ -116,15 +116,18 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			return
 		***REMOVED***
 
+		done := make(chan interface***REMOVED******REMOVED***)
 		for ***REMOVED***
-			// log.Info("-> run")
-			w.SendSync("run")
-			// log.Info("<- run")
+			go func() ***REMOVED***
+				w.SendSync("run")
+				done <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+			***REMOVED***()
 
 			select ***REMOVED***
+			case <-done:
 			case <-ctx.Done():
+				w.TerminateExecution()
 				return
-			default:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
