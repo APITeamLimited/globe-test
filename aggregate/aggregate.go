@@ -10,6 +10,7 @@ func Aggregate(stats *Stats, in <-chan runner.Result) <-chan runner.Result ***RE
 	go func() ***REMOVED***
 		defer close(ch)
 
+		defer stats.End()
 		for res := range in ***REMOVED***
 			if res.Abort ***REMOVED***
 				continue
@@ -17,8 +18,6 @@ func Aggregate(stats *Stats, in <-chan runner.Result) <-chan runner.Result ***RE
 			stats.Ingest(&res)
 			ch <- res
 		***REMOVED***
-
-		stats.End()
 	***REMOVED***()
 
 	return ch
