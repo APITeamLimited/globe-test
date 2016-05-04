@@ -62,7 +62,7 @@ func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
 	return test, nil
 ***REMOVED***
 
-func run(test loadtest.LoadTest, r runner.Runner) (<-chan runner.Result, chan int) ***REMOVED***
+func run(c context.Context, test loadtest.LoadTest, r runner.Runner) (<-chan runner.Result, chan int) ***REMOVED***
 	ch := make(chan runner.Result)
 	scale := make(chan int, 1)
 
@@ -74,13 +74,10 @@ func run(test loadtest.LoadTest, r runner.Runner) (<-chan runner.Result, chan in
 			timeout += stage.Duration
 		***REMOVED***
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, _ := context.WithTimeout(c, timeout)
 		scale <- test.Stages[0].VUs.Start
 
 		for res := range runner.Run(ctx, r, test, scale) ***REMOVED***
-			if res.Abort ***REMOVED***
-				cancel()
-			***REMOVED***
 			ch <- res
 		***REMOVED***
 	***REMOVED***()
@@ -95,8 +92,6 @@ func action(c *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	r := runner.Runner(nil)
-
-	// Start the pipeline by just running requests
 	if test.Script != "" ***REMOVED***
 		ext := path.Ext(test.Script)
 		switch ext ***REMOVED***
@@ -108,7 +103,10 @@ func action(c *cli.Context) error ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		r = simple.New()
 	***REMOVED***
-	pipeline, scale := run(test, r)
+
+	// Start the pipeline by just running requests
+	ctx, cancel := context.WithCancel(context.Background())
+	pipeline, scale := run(ctx, test, r)
 
 	// Ramp VUs according to the test definition
 	pipeline = runner.Ramp(&test, scale, pipeline)
@@ -145,6 +143,10 @@ runLoop:
 				break runLoop
 			***REMOVED***
 
+			if res.Abort ***REMOVED***
+				cancel()
+			***REMOVED***
+
 			switch ***REMOVED***
 			case res.Error != nil:
 				l := log.WithError(res.Error)
@@ -162,7 +164,7 @@ runLoop:
 				// log.WithField("t", res.Time).Debug("Metric")
 			***REMOVED***
 		case <-stop:
-			break runLoop
+			cancel()
 		***REMOVED***
 	***REMOVED***
 
