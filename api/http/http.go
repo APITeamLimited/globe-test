@@ -27,7 +27,10 @@ func New() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	***REMOVED***
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
 		"get":     ctx.Get,
+		"head":    ctx.Head,
 		"post":    ctx.Post,
+		"put":     ctx.Put,
+		"delete":  ctx.Delete,
 		"request": ctx.Request,
 	***REMOVED***
 ***REMOVED***
@@ -36,8 +39,20 @@ func (ctx *context) Get(url string, args RequestArgs) <-chan runner.Result ***RE
 	return ctx.Request("GET", url, "", args)
 ***REMOVED***
 
+func (ctx *context) Head(url string, args RequestArgs) <-chan runner.Result ***REMOVED***
+	return ctx.Request("HEAD", url, "", args)
+***REMOVED***
+
 func (ctx *context) Post(url, body string, args RequestArgs) <-chan runner.Result ***REMOVED***
 	return ctx.Request("POST", url, body, args)
+***REMOVED***
+
+func (ctx *context) Put(url, body string, args RequestArgs) <-chan runner.Result ***REMOVED***
+	return ctx.Request("PUT", url, body, args)
+***REMOVED***
+
+func (ctx *context) Delete(url, body string, args RequestArgs) <-chan runner.Result ***REMOVED***
+	return ctx.Request("DELETE", url, body, args)
 ***REMOVED***
 
 func (ctx *context) Request(method, url, body string, args RequestArgs) <-chan runner.Result ***REMOVED***
