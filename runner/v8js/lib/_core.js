@@ -1,6 +1,7 @@
 speedboat = ***REMOVED***
 	_modules: ***REMOVED******REMOVED***,
 	_require: ***REMOVED******REMOVED***,
+	_data: ***REMOVED******REMOVED***,
 ***REMOVED***;
 
 speedboat._require.float64 = function(v) ***REMOVED***

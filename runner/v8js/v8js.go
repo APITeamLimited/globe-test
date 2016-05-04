@@ -72,18 +72,18 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch, api: api.New()***REMOVED***
 		w := v8worker.New(vu.Recv, vu.RecvSync)
 
-		w.Load("internal:constants", fmt.Sprintf(`
-		var __id = %d;
-		var test = ***REMOVED***
-			url: "%s",
-		***REMOVED***;
-		`, id, t.URL))
-
 		for _, f := range r.stdlib ***REMOVED***
 			if err := w.Load(f.Filename, f.Source); err != nil ***REMOVED***
 				log.WithError(err).WithField("file", f.Filename).Error("Couldn't load lib")
 			***REMOVED***
 		***REMOVED***
+
+		w.Load("internal:constants", fmt.Sprintf(`
+		speedboat._data.client_id = %d;
+		speedboat._data.test = ***REMOVED***
+			url: "%s",
+		***REMOVED***;
+		`, id, t.URL))
 
 		if err := vu.BridgeAPI(w); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't register bridged functions")
