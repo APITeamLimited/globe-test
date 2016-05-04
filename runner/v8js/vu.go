@@ -21,8 +21,8 @@ type jsCallEnvelope struct ***REMOVED***
 func (vu *VUContext) BridgeAPI(w *v8worker.Worker) error ***REMOVED***
 	for modname, mod := range vu.api ***REMOVED***
 		jsMod := fmt.Sprintf(`
-		speedboat._modules["%s"] = ***REMOVED******REMOVED***;
-		`, modname)
+		speedboat._modules["%s"] = (speedboat._modules["%s"] || ***REMOVED******REMOVED***);
+		`, modname, modname)
 		for name, mem := range mod ***REMOVED***
 			t := reflect.TypeOf(mem)
 
