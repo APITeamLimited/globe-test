@@ -15,6 +15,7 @@ type Result struct ***REMOVED***
 	Text  string
 	Time  time.Duration
 	Error error
+	Abort bool
 ***REMOVED***
 
 type VU struct ***REMOVED***

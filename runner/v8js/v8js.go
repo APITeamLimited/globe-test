@@ -40,8 +40,9 @@ type Member struct ***REMOVED***
 ***REMOVED***
 
 type workerData struct ***REMOVED***
-	ID   int64
-	Test loadtest.LoadTest
+	ID        int64
+	Test      loadtest.LoadTest
+	Iteration int
 ***REMOVED***
 
 func New(filename, src string) *Runner ***REMOVED***
@@ -102,6 +103,7 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 
 		src := fmt.Sprintf(`
 		function __run__() ***REMOVED***
+			speedboat._data.Iteration++;
 			try ***REMOVED***
 		%s
 			***REMOVED*** catch (e) ***REMOVED***
