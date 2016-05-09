@@ -2,12 +2,17 @@ package bridge
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
 
 type Func struct ***REMOVED***
 	Func    reflect.Value
 	In, Out []Type
+***REMOVED***
+
+func (f *Func) JS(mod, name string) string ***REMOVED***
+	return fmt.Sprintf(`function() ***REMOVED*** __internal__._invoke('%s', '%s', arguments); ***REMOVED***`, mod, name)
 ***REMOVED***
 
 // Creates a bridged function.

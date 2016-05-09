@@ -1,8 +1,8 @@
-speedboat._modules.vu = ***REMOVED***
+__internal__._register('vu', ***REMOVED***
 	id: function() ***REMOVED***
-		return speedboat._data.ID;
+		return __internal__._data.ID;
 	***REMOVED***,
 	iteration: function() ***REMOVED***
-		return speedboat._data.Iteration;
+		return __internal__._data.Iteration;
 	***REMOVED***,
-***REMOVED***;
+***REMOVED***);

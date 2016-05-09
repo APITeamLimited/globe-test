@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/speedboat/api"
 	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/loadimpact/speedboat/runner/v8js/bridge"
 	"github.com/ry/v8worker"
 	"golang.org/x/net/context"
 	"os"
@@ -29,7 +29,7 @@ type VUContext struct ***REMOVED***
 	r   *Runner
 	ctx context.Context
 	ch  chan runner.Result
-	api map[string]map[string]interface***REMOVED******REMOVED***
+	api map[string]bridge.Module
 ***REMOVED***
 
 type workerData struct ***REMOVED***
@@ -69,7 +69,7 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 	go func() ***REMOVED***
 		defer close(ch)
 
-		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch, api: api.New()***REMOVED***
+		vu := VUContext***REMOVED***r: r, ctx: ctx, ch: ch***REMOVED***
 		w := v8worker.New(vu.Recv, vu.RecvSync)
 
 		for _, f := range r.stdlib ***REMOVED***
@@ -87,23 +87,19 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			log.WithError(err).Error("Couldn't encode worker data")
 			return
 		***REMOVED***
-		w.Load("internal:constants", fmt.Sprintf(`speedboat._data = %s;`, wjson))
+		println("setting constants")
+		w.Load("internal:constants", fmt.Sprintf(`__internal__._data = %s;`, wjson))
 
-		if err := vu.BridgeAPI(w); err != nil ***REMOVED***
+		println("bridging api")
+		if err := vu.bridgeAPI(w); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't register bridged functions")
 			return
 		***REMOVED***
 
-		src := fmt.Sprintf(`
-		function __run__() ***REMOVED***
-			speedboat._data.Iteration++;
-			try ***REMOVED***
-		%s
-			***REMOVED*** catch (e) ***REMOVED***
-				console.error("Script Error", '' + e);
-			***REMOVED***
-		***REMOVED***
-		`, r.Source)
+		println("screaming internally")
+		src := fmt.Sprintf(`function __run__()***REMOVED***var console=require('console');__internal__._data.Iteration++;try***REMOVED***%s***REMOVED***catch(e)***REMOVED***console.error("Script Error",''+e);***REMOVED******REMOVED***`, r.Source)
+		println("wtf lol")
+		println(src)
 		if err := w.Load(r.Filename, src); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't load JS")
 			return

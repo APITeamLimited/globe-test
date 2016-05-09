@@ -1,5 +1,5 @@
-speedboat._modules.test = ***REMOVED***
+__internal__._register('test', ***REMOVED***
 	url: function() ***REMOVED***
-		return speedboat._data.Test.URL;
+		return __internal__._data.Test.URL;
 	***REMOVED***,
-***REMOVED***
+***REMOVED***);
