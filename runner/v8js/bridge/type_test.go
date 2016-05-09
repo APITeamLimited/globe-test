@@ -17,19 +17,17 @@ func TestBridgeTypeInvalid(t *testing.T) ***REMOVED***
 
 func TestBridgeTypeStruct(t *testing.T) ***REMOVED***
 	tp := BridgeType(reflect.TypeOf(struct ***REMOVED***
-		F1 string
-		F2 int
+		F1 string `json:"f1"`
+		F2 int    `json:"f2"`
 	***REMOVED******REMOVED******REMOVED***))
 	assert.Contains(t, tp.Spec, "F1")
 	assert.Contains(t, tp.Spec, "F2")
 ***REMOVED***
 
-func TestBridgeTypeStructAnonymous(t *testing.T) ***REMOVED***
+func TestBridgeTypeStructNoTagExcluded(t *testing.T) ***REMOVED***
 	tp := BridgeType(reflect.TypeOf(struct ***REMOVED***
-		reflect.Type // Embedded struct
-
-		F1 string
+		F1 string `json:"f1"`
 		F2 int
 	***REMOVED******REMOVED******REMOVED***))
-	assert.Equal(t, 2, len(tp.Spec))
+	assert.Equal(t, 1, len(tp.Spec))
 ***REMOVED***
