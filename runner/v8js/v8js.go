@@ -32,13 +32,6 @@ type VUContext struct ***REMOVED***
 	api map[string]map[string]interface***REMOVED******REMOVED***
 ***REMOVED***
 
-type Module map[string]Member
-
-type Member struct ***REMOVED***
-	Func  interface***REMOVED******REMOVED***
-	Async bool
-***REMOVED***
-
 type workerData struct ***REMOVED***
 	ID        int64
 	Test      loadtest.LoadTest
