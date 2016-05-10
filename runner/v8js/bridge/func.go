@@ -12,7 +12,7 @@ type Func struct ***REMOVED***
 ***REMOVED***
 
 func (f *Func) JS(mod, name string) string ***REMOVED***
-	return fmt.Sprintf(`function() ***REMOVED*** __internal__._invoke('%s', '%s', arguments); ***REMOVED***`, mod, name)
+	return fmt.Sprintf(`function() ***REMOVED*** __internal__._invoke('%s', '%s', Array.prototype.slice.call(arguments)); ***REMOVED***`, mod, name)
 ***REMOVED***
 
 // Creates a bridged function.

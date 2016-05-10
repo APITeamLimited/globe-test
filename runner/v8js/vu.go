@@ -25,8 +25,16 @@ func (vu *VUContext) bridgeAPI(w *v8worker.Worker) error ***REMOVED***
 
 		js := bmod.JS()
 		println(js)
+		if err := w.Load("internal:api:"+modname, js); err != nil ***REMOVED***
+			log.WithError(err).WithField("mod", modname).Error("Couldn't bridge module")
+			return err
+		***REMOVED***
 	***REMOVED***
 
+	return nil
+***REMOVED***
+
+func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
 	return nil
 ***REMOVED***
 
@@ -62,8 +70,4 @@ func (vu *VUContext) RecvSync(raw string) string ***REMOVED***
 		return jsThrow(err.Error())
 	***REMOVED***
 	return ""
-***REMOVED***
-
-func (vu *VUContext) invoke(call jsCallEnvelope) error ***REMOVED***
-	return nil
 ***REMOVED***
