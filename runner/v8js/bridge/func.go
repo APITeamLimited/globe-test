@@ -7,8 +7,33 @@ import (
 )
 
 type Func struct ***REMOVED***
-	Func    reflect.Value
-	In, Out []Type
+	Func      reflect.Value
+	In, Out   []Type
+	IsVaradic bool
+	VarArg    Type
+***REMOVED***
+
+func (f *Func) Call(args []interface***REMOVED******REMOVED***) error ***REMOVED***
+	rArgs := make([]reflect.Value, 0, len(args))
+	for i, v := range args ***REMOVED***
+		t := Type***REMOVED******REMOVED***
+		if i >= len(f.In) ***REMOVED***
+			if f.IsVaradic ***REMOVED***
+				t = f.VarArg
+			***REMOVED*** else ***REMOVED***
+				break
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			t = f.In[i]
+		***REMOVED***
+
+		if err := t.Cast(&v); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		rArgs = append(rArgs, reflect.ValueOf(v))
+	***REMOVED***
+	f.Func.Call(rArgs)
+	return nil
 ***REMOVED***
 
 func (f *Func) JS(mod, name string) string ***REMOVED***
@@ -27,7 +52,12 @@ func BridgeFunc(raw interface***REMOVED******REMOVED***) Func ***REMOVED***
 	***REMOVED***
 
 	for i := 0; i < fnT.NumIn(); i++ ***REMOVED***
-		fn.In = append(fn.In, BridgeType(fnT.In(i)))
+		if !fnT.IsVariadic() || i != fnT.NumIn()-1 ***REMOVED***
+			fn.In = append(fn.In, BridgeType(fnT.In(i)))
+		***REMOVED*** else ***REMOVED***
+			fn.IsVaradic = true
+			fn.VarArg = BridgeType(fnT.In(i).Elem())
+		***REMOVED***
 	***REMOVED***
 	for i := 0; i < fnT.NumOut(); i++ ***REMOVED***
 		fn.Out = append(fn.Out, BridgeType(fnT.Out(i)))

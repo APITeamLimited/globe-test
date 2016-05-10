@@ -94,7 +94,7 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			return
 		***REMOVED***
 
-		src := fmt.Sprintf(`function __run__()***REMOVED***var console=require('console');__internal__._data.Iteration++;try***REMOVED***%s***REMOVED***catch(e)***REMOVED***console.error("Script Error",''+e);***REMOVED******REMOVED***`, r.Source)
+		src := fmt.Sprintf(`function __run__()***REMOVED***var console=require('console');var sleep = require('global').sleep;__internal__._data.Iteration++;try***REMOVED***%s***REMOVED***catch(e)***REMOVED***console.error("Script Error",''+e);***REMOVED******REMOVED***`, r.Source)
 		if err := w.Load(r.Filename, src); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't load JS")
 			return
