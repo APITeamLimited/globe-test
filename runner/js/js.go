@@ -27,14 +27,14 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 
 		c.PushGlobalObject()
 
-		c.PushObject() // __internal__
+		c.PushObject()
+		***REMOVED***
+			pushModules(c, ch)
+			c.PutPropString(-2, "modules")
 
-		pushModules(c, ch)
-		c.PutPropString(-2, "modules")
-
-		pushData(c, t, id)
-		c.PutPropString(-2, "data")
-
+			pushData(c, t, id)
+			c.PutPropString(-2, "data")
+		***REMOVED***
 		c.PutPropString(-2, "__internal__")
 
 		if top := c.GetTopIndex(); top != 0 ***REMOVED***
@@ -86,28 +86,26 @@ func pushData(c *duktape.Context, t loadtest.LoadTest, id int64) ***REMOVED***
 ***REMOVED***
 
 func pushModules(c *duktape.Context, ch <-chan runner.Result) ***REMOVED***
+	c.PushObject()
+
 	api := map[string]map[string]apiFunc***REMOVED***
 		"http": map[string]apiFunc***REMOVED***
 			"get": apiHTTPGet,
 		***REMOVED***,
 	***REMOVED***
-
-	c.PushObject() // __internal__.modules
 	for name, mod := range api ***REMOVED***
 		pushModule(c, ch, mod)
 		c.PutPropString(-2, name)
 	***REMOVED***
 ***REMOVED***
 
-func pushModule(c *duktape.Context, ch <-chan runner.Result, members map[string]apiFunc) int ***REMOVED***
-	idx := c.PushObject()
+func pushModule(c *duktape.Context, ch <-chan runner.Result, members map[string]apiFunc) ***REMOVED***
+	c.PushObject()
 
 	for name, fn := range members ***REMOVED***
 		c.PushGoFunction(func(lc *duktape.Context) int ***REMOVED***
 			return fn(lc, ch)
 		***REMOVED***)
-		c.PutPropString(idx, name)
+		c.PutPropString(-2, name)
 	***REMOVED***
-
-	return idx
 ***REMOVED***
