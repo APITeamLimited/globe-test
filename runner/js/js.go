@@ -9,6 +9,16 @@ import (
 	"strconv"
 )
 
+const srcRequire = `
+function require(name) ***REMOVED***
+	var mod = __internal__.modules[name];
+	if (!mod) ***REMOVED***
+		throw new Error("Unknown module: " + name);
+	***REMOVED***
+	return mod;
+***REMOVED***
+`
+
 type Runner struct ***REMOVED***
 ***REMOVED***
 
@@ -36,6 +46,12 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			c.PutPropString(-2, "data")
 		***REMOVED***
 		c.PutPropString(-2, "__internal__")
+
+		if err := c.PcompileString(duktape.CompileFunction|duktape.CompileStrict, srcRequire); err != nil ***REMOVED***
+			ch <- runner.Result***REMOVED***Error: err***REMOVED***
+			return
+		***REMOVED***
+		c.PutPropString(-2, "require")
 
 		if top := c.GetTopIndex(); top != 0 ***REMOVED***
 			panic("PROGRAMMING ERROR: Excess items on stack: " + strconv.Itoa(top+1))
