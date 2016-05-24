@@ -4,9 +4,11 @@ import (
 	"errors"
 	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/runner"
+	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
 	"gopkg.in/olebedev/go-duktape.v2"
 	"strconv"
+	"time"
 )
 
 const srcRequire = `
@@ -20,10 +22,15 @@ function require(name) ***REMOVED***
 `
 
 type Runner struct ***REMOVED***
+	Client *fasthttp.Client
 ***REMOVED***
 
 func New() *Runner ***REMOVED***
-	return &Runner***REMOVED******REMOVED***
+	return &Runner***REMOVED***
+		Client: &fasthttp.Client***REMOVED***
+			MaxIdleConnDuration: time.Duration(0),
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan runner.Result ***REMOVED***
@@ -39,7 +46,7 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 
 		c.PushObject()
 		***REMOVED***
-			pushModules(c, ch)
+			pushModules(c, r, ch)
 			c.PutPropString(-2, "modules")
 
 			pushData(c, t, id)
@@ -52,6 +59,14 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			return
 		***REMOVED***
 		c.PutPropString(-2, "require")
+
+		// This will probably be moved to a module; global for compatibility
+		c.PushGoFunction(func(c *duktape.Context) int ***REMOVED***
+			t := argNumber(c, 0)
+			time.Sleep(time.Duration(t) * time.Second)
+			return 0
+		***REMOVED***)
+		c.PutPropString(-2, "sleep")
 
 		if top := c.GetTopIndex(); top != 0 ***REMOVED***
 			panic("PROGRAMMING ERROR: Excess items on stack: " + strconv.Itoa(top+1))
@@ -101,7 +116,7 @@ func pushData(c *duktape.Context, t loadtest.LoadTest, id int64) ***REMOVED***
 	c.PutPropString(-2, "test")
 ***REMOVED***
 
-func pushModules(c *duktape.Context, ch chan<- runner.Result) ***REMOVED***
+func pushModules(c *duktape.Context, r *Runner, ch chan<- runner.Result) ***REMOVED***
 	c.PushObject()
 
 	api := map[string]map[string]apiFunc***REMOVED***
@@ -110,17 +125,17 @@ func pushModules(c *duktape.Context, ch chan<- runner.Result) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	for name, mod := range api ***REMOVED***
-		pushModule(c, ch, mod)
+		pushModule(c, r, ch, mod)
 		c.PutPropString(-2, name)
 	***REMOVED***
 ***REMOVED***
 
-func pushModule(c *duktape.Context, ch chan<- runner.Result, members map[string]apiFunc) ***REMOVED***
+func pushModule(c *duktape.Context, r *Runner, ch chan<- runner.Result, members map[string]apiFunc) ***REMOVED***
 	c.PushObject()
 
 	for name, fn := range members ***REMOVED***
 		c.PushGoFunction(func(lc *duktape.Context) int ***REMOVED***
-			return fn(lc, ch)
+			return fn(r, lc, ch)
 		***REMOVED***)
 		c.PutPropString(-2, name)
 	***REMOVED***
