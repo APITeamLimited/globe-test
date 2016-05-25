@@ -1,10 +1,14 @@
 package js
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/olebedev/go-duktape.v2"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -17,9 +21,21 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 		return 0
 	***REMOVED***
 
-	url := argString(c, 1)
-	if url == "" ***REMOVED***
+	u := argString(c, 1)
+	if u == "" ***REMOVED***
 		ch <- runner.Result***REMOVED***Error: errors.New("Missing URL in http call")***REMOVED***
+		return 0
+	***REMOVED***
+
+	body := ""
+	switch c.GetType(2) ***REMOVED***
+	case duktape.TypeNone, duktape.TypeNull, duktape.TypeUndefined:
+	case duktape.TypeString, duktape.TypeNumber, duktape.TypeBoolean:
+		body = c.ToString(2)
+	case duktape.TypeObject:
+		body = c.JsonEncode(2)
+	default:
+		ch <- runner.Result***REMOVED***Error: errors.New("Unknown type for request body")***REMOVED***
 		return 0
 	***REMOVED***
 
@@ -27,7 +43,7 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 		Report  bool              `json:"report"`
 		Headers map[string]string `json:"headers"`
 	***REMOVED******REMOVED******REMOVED***
-	if err := argJSON(c, 2, &args); err != nil ***REMOVED***
+	if err := argJSON(c, 3, &args); err != nil ***REMOVED***
 		ch <- runner.Result***REMOVED***Error: errors.New("Invalid arguments to http call")***REMOVED***
 		return 0
 	***REMOVED***
@@ -39,7 +55,27 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 	defer fasthttp.ReleaseResponse(res)
 
 	req.Header.SetMethod(method)
-	req.SetRequestURI(url)
+
+	if method == "GET" ***REMOVED***
+		if body != "" && body[0] == '***REMOVED***' ***REMOVED***
+			rawItems := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+			if err := json.Unmarshal([]byte(body), &rawItems); err != nil ***REMOVED***
+				ch <- runner.Result***REMOVED***Error: err***REMOVED***
+				return 0
+			***REMOVED***
+			parts := []string***REMOVED******REMOVED***
+			for key, value := range rawItems ***REMOVED***
+				value := url.QueryEscape(fmt.Sprint(value))
+				parts = append(parts, fmt.Sprintf("%s=%s", key, value))
+			***REMOVED***
+			req.SetRequestURI(u + "?" + strings.Join(parts, "&"))
+		***REMOVED*** else ***REMOVED***
+			req.SetRequestURI(u)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		req.SetRequestURI(u)
+		req.SetBodyString(body)
+	***REMOVED***
 
 	for key, value := range args.Headers ***REMOVED***
 		req.Header.Set(key, value)
