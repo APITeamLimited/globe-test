@@ -142,6 +142,7 @@ func pushModules(c *duktape.Context, r *Runner, ch chan<- runner.Result) ***REMO
 	api := map[string]map[string]apiFunc***REMOVED***
 		"http": map[string]apiFunc***REMOVED***
 			"do": apiHTTPDo,
+			"setMaxConnectionsPerHost": apiHTTPSetMaxConnectionsPerHost,
 		***REMOVED***,
 	***REMOVED***
 	for name, mod := range api ***REMOVED***
