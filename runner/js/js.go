@@ -2,6 +2,7 @@ package js
 
 import (
 	"errors"
+	"github.com/GeertJohan/go.rice"
 	"github.com/loadimpact/speedboat/loadtest"
 	"github.com/loadimpact/speedboat/runner"
 	"github.com/valyala/fasthttp"
@@ -11,18 +12,11 @@ import (
 	"time"
 )
 
-const srcRequire = `
-function require(name) ***REMOVED***
-	var mod = __internal__.modules[name];
-	if (!mod) ***REMOVED***
-		throw new Error("Unknown module: " + name);
-	***REMOVED***
-	return mod;
-***REMOVED***
-`
-
 type Runner struct ***REMOVED***
 	Client *fasthttp.Client
+
+	lib    *rice.Box
+	vendor *rice.Box
 ***REMOVED***
 
 func New() *Runner ***REMOVED***
@@ -30,6 +24,8 @@ func New() *Runner ***REMOVED***
 		Client: &fasthttp.Client***REMOVED***
 			MaxIdleConnDuration: time.Duration(0),
 		***REMOVED***,
+		lib:    rice.MustFindBox("lib"),
+		vendor: rice.MustFindBox("vendor"),
 	***REMOVED***
 ***REMOVED***
 
@@ -54,11 +50,23 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 		***REMOVED***
 		c.PutPropString(-2, "__internal__")
 
-		if err := c.PcompileString(duktape.CompileFunction|duktape.CompileStrict, srcRequire); err != nil ***REMOVED***
-			ch <- runner.Result***REMOVED***Error: err***REMOVED***
-			return
+		load := map[*rice.Box][]string***REMOVED***
+			r.lib:    []string***REMOVED***"require.js"***REMOVED***,
+			r.vendor: []string***REMOVED***"lodash/dist/lodash.min.js"***REMOVED***,
 		***REMOVED***
-		c.PutPropString(-2, "require")
+		for box, files := range load ***REMOVED***
+			for _, name := range files ***REMOVED***
+				src, err := box.String(name)
+				if err != nil ***REMOVED***
+					ch <- runner.Result***REMOVED***Error: err***REMOVED***
+					return
+				***REMOVED***
+				if err = loadFile(c, name, src); err != nil ***REMOVED***
+					ch <- runner.Result***REMOVED***Error: err***REMOVED***
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
 
 		// This will probably be moved to a module; global for compatibility
 		c.PushGoFunction(func(c *duktape.Context) int ***REMOVED***
@@ -151,4 +159,14 @@ func pushModule(c *duktape.Context, r *Runner, ch chan<- runner.Result, members 
 		***REMOVED***)
 		c.PutPropString(-2, name)
 	***REMOVED***
+***REMOVED***
+
+func loadFile(c *duktape.Context, name, src string) error ***REMOVED***
+	c.PushString(name)
+	if err := c.PcompileStringFilename(0, src); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	c.Pcall(0)
+	c.Pop()
+	return nil
 ***REMOVED***
