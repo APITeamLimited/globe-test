@@ -10,10 +10,19 @@ import (
 
 type apiFunc func(r *Runner, c *duktape.Context, ch chan<- runner.Result) int
 
+type apiHTTPArgs struct ***REMOVED***
+	Report bool `json:"report"`
+***REMOVED***
+
 func apiHTTPGet(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***REMOVED***
 	url := argString(c, 0)
 	if url == "" ***REMOVED***
 		ch <- runner.Result***REMOVED***Error: errors.New("Missing URL in http.get()")***REMOVED***
+		return 0
+	***REMOVED***
+	args := apiHTTPArgs***REMOVED******REMOVED***
+	if err := argJSON(c, 1, &args); err != nil ***REMOVED***
+		ch <- runner.Result***REMOVED***Error: errors.New("Invalid arguments to http.get()")***REMOVED***
 		return 0
 	***REMOVED***
 
@@ -29,7 +38,9 @@ func apiHTTPGet(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***R
 	err := r.Client.Do(req, res)
 	duration := time.Since(startTime)
 
-	ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+	if args.Report ***REMOVED***
+		ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
+	***REMOVED***
 
 	return 0
 ***REMOVED***
