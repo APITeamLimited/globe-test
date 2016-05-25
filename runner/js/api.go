@@ -89,7 +89,7 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 		ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
 	***REMOVED***
 
-	c.PushObject()
+	index := c.PushObject()
 	***REMOVED***
 		c.PushNumber(float64(res.StatusCode()))
 		c.PutPropString(-2, "status")
@@ -104,6 +104,11 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 		***REMOVED***)
 		c.PutPropString(-2, "headers")
 	***REMOVED***
+
+	c.PushGlobalObject()
+	c.GetPropString(-1, "HTTPResponse")
+	c.SetPrototype(index)
+	c.Pop()
 
 	return 1
 ***REMOVED***
