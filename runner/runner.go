@@ -14,6 +14,7 @@ type Runner interface ***REMOVED***
 type Result struct ***REMOVED***
 	Text  string
 	Time  time.Duration
+	Extra map[string]interface***REMOVED******REMOVED***
 	Error error
 	Abort bool
 ***REMOVED***
