@@ -154,6 +154,7 @@ func pushModule(c *duktape.Context, r *Runner, ch chan<- runner.Result, members 
 	c.PushObject()
 
 	for name, fn := range members ***REMOVED***
+		fn := fn
 		c.PushGoFunction(func(lc *duktape.Context) int ***REMOVED***
 			return fn(r, lc, ch)
 		***REMOVED***)
