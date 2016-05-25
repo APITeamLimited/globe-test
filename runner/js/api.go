@@ -10,19 +10,24 @@ import (
 
 type apiFunc func(r *Runner, c *duktape.Context, ch chan<- runner.Result) int
 
-type apiHTTPArgs struct ***REMOVED***
-	Report bool `json:"report"`
-***REMOVED***
-
-func apiHTTPGet(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***REMOVED***
-	url := argString(c, 0)
-	if url == "" ***REMOVED***
-		ch <- runner.Result***REMOVED***Error: errors.New("Missing URL in http.get()")***REMOVED***
+func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***REMOVED***
+	method := argString(c, 0)
+	if method == "" ***REMOVED***
+		ch <- runner.Result***REMOVED***Error: errors.New("Missing method in http call")***REMOVED***
 		return 0
 	***REMOVED***
-	args := apiHTTPArgs***REMOVED******REMOVED***
-	if err := argJSON(c, 1, &args); err != nil ***REMOVED***
-		ch <- runner.Result***REMOVED***Error: errors.New("Invalid arguments to http.get()")***REMOVED***
+
+	url := argString(c, 1)
+	if url == "" ***REMOVED***
+		ch <- runner.Result***REMOVED***Error: errors.New("Missing URL in http call")***REMOVED***
+		return 0
+	***REMOVED***
+
+	args := struct ***REMOVED***
+		Report bool `json:"report"`
+	***REMOVED******REMOVED******REMOVED***
+	if err := argJSON(c, 2, &args); err != nil ***REMOVED***
+		ch <- runner.Result***REMOVED***Error: errors.New("Invalid arguments to http call")***REMOVED***
 		return 0
 	***REMOVED***
 
@@ -32,6 +37,7 @@ func apiHTTPGet(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***R
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
+	req.Header.SetMethod(method)
 	req.SetRequestURI(url)
 
 	startTime := time.Now()
