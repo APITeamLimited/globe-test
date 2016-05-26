@@ -108,7 +108,7 @@ func (r *Runner) newJSContext(t loadtest.LoadTest, id int64, ch chan<- runner.Re
 	c.PutPropString(-2, "__internal__")
 
 	load := map[*rice.Box][]string***REMOVED***
-		r.lib:    []string***REMOVED***"require.js", "http.js", "log.js", "vu.js"***REMOVED***,
+		r.lib:    []string***REMOVED***"require.js", "http.js", "log.js", "vu.js", "test.js"***REMOVED***,
 		r.vendor: []string***REMOVED***"lodash/dist/lodash.min.js"***REMOVED***,
 	***REMOVED***
 	for box, files := range load ***REMOVED***
