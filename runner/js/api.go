@@ -40,7 +40,7 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 	***REMOVED***
 
 	args := struct ***REMOVED***
-		Report  bool              `json:"report"`
+		Quiet   bool              `json:"quiet"`
 		Headers map[string]string `json:"headers"`
 	***REMOVED******REMOVED******REMOVED***
 	if err := argJSON(c, 3, &args); err != nil ***REMOVED***
@@ -85,7 +85,7 @@ func apiHTTPDo(r *Runner, c *duktape.Context, ch chan<- runner.Result) int ***RE
 	err := r.Client.Do(req, res)
 	duration := time.Since(startTime)
 
-	if args.Report ***REMOVED***
+	if !args.Quiet ***REMOVED***
 		ch <- runner.Result***REMOVED***Error: err, Time: duration***REMOVED***
 	***REMOVED***
 
