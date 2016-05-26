@@ -160,6 +160,9 @@ func pushModules(c *duktape.Context, r *Runner, ch chan<- runner.Result) ***REMO
 		"log": map[string]apiFunc***REMOVED***
 			"type": apiLogType,
 		***REMOVED***,
+		"test": map[string]apiFunc***REMOVED***
+			"abort": apiTestAbort,
+		***REMOVED***,
 		"vu": map[string]apiFunc***REMOVED******REMOVED***,
 	***REMOVED***
 	for name, mod := range api ***REMOVED***
