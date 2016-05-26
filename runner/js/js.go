@@ -56,10 +56,12 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 		***REMOVED***
 		c.PutPropString(-2, codeProp)
 
+		iteration := 1
 		c.PushString(codeProp)
 		for ***REMOVED***
 			select ***REMOVED***
 			default:
+				setIterationCounter(c, iteration)
 				c.DupTop()
 				if c.PcallProp(-3, 0) != duktape.ErrNone ***REMOVED***
 					c.GetPropString(-1, "fileName")
@@ -80,6 +82,8 @@ func (r *Runner) Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan 
 			case <-ctx.Done():
 				return
 			***REMOVED***
+
+			iteration++
 		***REMOVED***
 	***REMOVED***()
 
@@ -133,6 +137,19 @@ func (r *Runner) newJSContext(t loadtest.LoadTest, id int64, ch chan<- runner.Re
 
 	c.Pop() // Global object
 	return c, nil
+***REMOVED***
+
+func setIterationCounter(c *duktape.Context, i int) ***REMOVED***
+	c.PushGlobalObject()
+	***REMOVED***
+		c.GetPropString(-1, "__internal__")
+		***REMOVED***
+			c.PushInt(i)
+			c.PutPropString(-2, "iteration")
+		***REMOVED***
+		c.Pop()
+	***REMOVED***
+	c.Pop()
 ***REMOVED***
 
 func pushData(c *duktape.Context, t loadtest.LoadTest, id int64) ***REMOVED***
