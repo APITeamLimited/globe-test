@@ -117,6 +117,7 @@ func apiHTTPSetMaxConnectionsPerHost(r *Runner, c *duktape.Context, ch chan<- ru
 	num := int(argNumber(c, 0))
 	if num < 1 ***REMOVED***
 		ch <- runner.Result***REMOVED***Error: errors.New("Max connections per host must be at least 1")***REMOVED***
+		return
 	***REMOVED***
 	r.Client.MaxConnsPerHost = num
 	return 0
