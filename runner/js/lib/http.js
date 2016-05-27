@@ -19,3 +19,11 @@ __internal__.modules.http.put = function() ***REMOVED***
 __internal__.modules.http.delete = function() ***REMOVED***
 	return __internal__.modules.http.do.apply(this, _.concat(['DELETE'], arguments));
 ***REMOVED***
+
+__internal__.modules.http.patch = function() ***REMOVED***
+	return __internal__.modules.http.do.apply(this, _.concat(['PATCH'], arguments));
+***REMOVED***
+
+__internal__.modules.http.options = function() ***REMOVED***
+	return __internal__.modules.http.do.apply(this, _.concat(['OPTIONS'], arguments));
+***REMOVED***
