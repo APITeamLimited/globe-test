@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/loadimpact/speedboat"
 	"time"
 )
 
@@ -19,127 +20,109 @@ type Config struct ***REMOVED***
 	Stages   []ConfigStage `yaml:"stages"`
 ***REMOVED***
 
-/*func parseVUs(vus interface***REMOVED******REMOVED***) (VUSpec, error) ***REMOVED***
+func parseVUs(vus interface***REMOVED******REMOVED***) (int, int, error) ***REMOVED***
 	switch v := vus.(type) ***REMOVED***
-	case nil:
-		return VUSpec***REMOVED******REMOVED***, nil
 	case int:
-		return VUSpec***REMOVED***Start: v, End: v***REMOVED***, nil
+		return v, v, nil
 	case []interface***REMOVED******REMOVED***:
 		switch len(v) ***REMOVED***
 		case 1:
-			v0, ok := v[0].(int)
+			n, ok := v[0].(int)
 			if !ok ***REMOVED***
-				return VUSpec***REMOVED******REMOVED***, errors.New("Item in VU declaration is not an int")
+				return 0, 0, errors.New("VU counts must be integers")
 			***REMOVED***
-			return VUSpec***REMOVED***Start: v0, End: v0***REMOVED***, nil
+			return n, n, nil
 		case 2:
-			v0, ok0 := v[0].(int)
-			v1, ok1 := v[1].(int)
-			if !ok0 || !ok1 ***REMOVED***
-				return VUSpec***REMOVED******REMOVED***, errors.New("Item in VU declaration is not an int")
+			n1, ok1 := v[0].(int)
+			n2, ok2 := v[1].(int)
+			if !ok1 || !ok2 ***REMOVED***
+				return 0, 0, errors.New("VU counts must be integers")
 			***REMOVED***
-			return VUSpec***REMOVED***Start: v0, End: v1***REMOVED***, nil
+			return n1, n2, nil
 		default:
-			return VUSpec***REMOVED******REMOVED***, errors.New("Wrong number of values in [start, end] VU ramp")
+			return 0, 0, errors.New("Only one or two VU steps allowed per stage")
 		***REMOVED***
+	case nil:
+		return 0, 0, nil
 	default:
-		return VUSpec***REMOVED******REMOVED***, errors.New("VUs must be either a single int or [start, end]")
+		return 0, 0, errors.New("VUs must be either an integer or [integer, integer]")
 	***REMOVED***
 ***REMOVED***
 
-func (c *Config) Compile() (t LoadTest, err error) ***REMOVED***
-	// Script/URL
+func (c *Config) MakeTest() (t speedboat.Test, err error) ***REMOVED***
 	t.Script = c.Script
 	t.URL = c.URL
 	if t.Script == "" && t.URL == "" ***REMOVED***
-		return t, errors.New("Script or URL must be specified")
+		return t, errors.New("Neither script nor URL specified")
 	***REMOVED***
 
-	// Root VU definitions
-	rootVUs, err := parseVUs(c.VUs)
-	if err != nil ***REMOVED***
-		return t, err
+	fullDuration := 10 * time.Second
+	if c.Duration != "" ***REMOVED***
+		fullDuration, err = time.ParseDuration(c.Duration)
+		if err != nil ***REMOVED***
+			return t, err
+		***REMOVED***
 	***REMOVED***
 
-	// Duration
-	rootDurationS := c.Duration
-	if rootDurationS == "" ***REMOVED***
-		rootDurationS = "10s"
-	***REMOVED***
-	rootDuration, err := time.ParseDuration(rootDurationS)
-	if err != nil ***REMOVED***
-		return t, err
-	***REMOVED***
-
-	// Stages
 	if len(c.Stages) > 0 ***REMOVED***
-		// Figure out the scale for flexible durations
-		totalFluidDuration := 0
-		totalFixedDuration := time.Duration(0)
-		for i := 0; i < len(c.Stages); i++ ***REMOVED***
-			switch v := c.Stages[i].Duration.(type) ***REMOVED***
+		var totalFluid int
+		var totalFixed time.Duration
+
+		for _, stage := range c.Stages ***REMOVED***
+			tStage := speedboat.TestStage***REMOVED******REMOVED***
+
+			switch v := stage.Duration.(type) ***REMOVED***
 			case int:
-				totalFluidDuration += v
+				totalFluid += v
 			case string:
-				duration, err := time.ParseDuration(v)
+				dur, err := time.ParseDuration(v)
 				if err != nil ***REMOVED***
 					return t, err
 				***REMOVED***
-				totalFixedDuration += duration
+				tStage.Duration = dur
+				totalFixed += dur
+			default:
+				return t, errors.New("Stage durations must be integers or strings")
 			***REMOVED***
-		***REMOVED***
 
-		// Make sure the fixed segments don't exceed the test length
-		available := time.Duration(rootDuration.Nanoseconds() - totalFixedDuration.Nanoseconds())
-		if available.Nanoseconds() < 0 ***REMOVED***
-			return t, errors.New("Fixed stages are exceeding the test duration")
-		***REMOVED***
-
-		// Compile stage definitions
-		for i := 0; i < len(c.Stages); i++ ***REMOVED***
-			cStage := &c.Stages[i]
-			stage := Stage***REMOVED******REMOVED***
-
-			// Stage duration
-			switch v := cStage.Duration.(type) ***REMOVED***
-			case int:
-				claim := float64(v) / float64(totalFluidDuration)
-				stage.Duration = time.Duration(available.Seconds()*claim) * time.Second
-			case string:
-				stage.Duration, err = time.ParseDuration(v)
-			***REMOVED***
+			start, end, err := parseVUs(stage.VUs)
 			if err != nil ***REMOVED***
 				return t, err
 			***REMOVED***
+			tStage.StartVUs = start
+			tStage.EndVUs = end
 
-			// VU curve
-			stage.VUs, err = parseVUs(cStage.VUs)
-			if err != nil ***REMOVED***
-				return t, err
+			t.Stages = append(t.Stages, tStage)
+		***REMOVED***
+
+		if totalFixed > fullDuration ***REMOVED***
+			if totalFluid == 0 ***REMOVED***
+				fullDuration = totalFixed
+			***REMOVED*** else ***REMOVED***
+				return t, errors.New("Stages exceed test duration")
 			***REMOVED***
-			if stage.VUs.Start == 0 && stage.VUs.End == 0 ***REMOVED***
-				if i > 0 ***REMOVED***
-					stage.VUs = VUSpec***REMOVED***
-						Start: t.Stages[i-1].VUs.End,
-						End:   t.Stages[i-1].VUs.End,
-					***REMOVED***
-				***REMOVED*** else ***REMOVED***
-					stage.VUs = rootVUs
+		***REMOVED***
+
+		remainder := fullDuration - totalFixed
+		if remainder > 0 ***REMOVED***
+			for i, stage := range c.Stages ***REMOVED***
+				chunk, ok := stage.Duration.(int)
+				if !ok ***REMOVED***
+					continue
 				***REMOVED***
+				t.Stages[i].Duration = time.Duration(chunk) / remainder
 			***REMOVED***
-
-			t.Stages = append(t.Stages, stage)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		// Create an implicit, full-duration stage
-		t.Stages = []Stage***REMOVED***
-			Stage***REMOVED***
-				Duration: rootDuration,
-				VUs:      rootVUs,
-			***REMOVED***,
+		start, end, err := parseVUs(c.VUs)
+		if err != nil ***REMOVED***
+			return t, err
+		***REMOVED***
+
+		t.Stages = []speedboat.TestStage***REMOVED***
+			speedboat.TestStage***REMOVED***Duration: fullDuration, StartVUs: start, EndVUs: end***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 
 	return t, nil
-***REMOVED****/
+***REMOVED***
