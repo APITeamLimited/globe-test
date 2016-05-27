@@ -5,6 +5,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat/simple"
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -84,6 +86,28 @@ func action(cc *cli.Context) error ***REMOVED***
 		dumpTest(&t)
 		return nil
 	***REMOVED***
+
+	var runner speedboat.Runner
+	switch ***REMOVED***
+	case t.URL != "":
+		runner = simple.New()
+	default:
+		log.Fatal("No suitable runner found!")
+	***REMOVED***
+
+	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
+	offset := time.Duration(0)
+	for _, stage := range t.Stages ***REMOVED***
+		localOffset := offset
+		go func() ***REMOVED***
+			time.Sleep(localOffset)
+			c, _ := context.WithTimeout(ctx, stage.Duration)
+			runner.RunVU(c, t)
+		***REMOVED***()
+		offset += stage.Duration
+	***REMOVED***
+
+	<-ctx.Done()
 
 	return nil
 ***REMOVED***

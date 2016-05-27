@@ -1,17 +1,14 @@
-package runner
+package speedboat
 
 import (
-	"github.com/loadimpact/speedboat/loadtest"
 	"golang.org/x/net/context"
-	"sync"
-	"time"
 )
 
 type Runner interface ***REMOVED***
-	Run(ctx context.Context, t loadtest.LoadTest, id int64) <-chan Result
+	RunVU(ctx context.Context, t Test)
 ***REMOVED***
 
-type Result struct ***REMOVED***
+/*type Result struct ***REMOVED***
 	Text  string
 	Time  time.Duration
 	Extra map[string]interface***REMOVED******REMOVED***
@@ -87,4 +84,4 @@ func Ramp(t *loadtest.LoadTest, scale chan int, in <-chan Result) <-chan Result 
 	***REMOVED***()
 
 	return ch
-***REMOVED***
+***REMOVED****/

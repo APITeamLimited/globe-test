@@ -18,6 +18,14 @@ type Test struct ***REMOVED***
 	Stages []TestStage // Test stages.
 ***REMOVED***
 
+func (t *Test) TotalDuration() time.Duration ***REMOVED***
+	var total time.Duration
+	for _, stage := range t.Stages ***REMOVED***
+		total += stage.Duration
+	***REMOVED***
+	return total
+***REMOVED***
+
 /*func (t *LoadTest) StageAt(d time.Duration) (start time.Duration, stage TestStage, stop bool) ***REMOVED***
 	at := time.Duration(0)
 	for i := range t.Stages ***REMOVED***
