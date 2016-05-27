@@ -3,7 +3,8 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/loadtest"
+	"github.com/loadimpact/speedboat"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"time"
@@ -18,7 +19,7 @@ func configureLogging(c *cli.Context) ***REMOVED***
 ***REMOVED***
 
 func action(cc *cli.Context) error ***REMOVED***
-	conf := loadtest.Config***REMOVED******REMOVED***
+	conf := Config***REMOVED******REMOVED***
 
 	switch len(cc.Args()) ***REMOVED***
 	case 0:
@@ -30,11 +31,11 @@ func action(cc *cli.Context) error ***REMOVED***
 		if err != nil ***REMOVED***
 			log.WithError(err).Fatal("Couldn't read config file")
 		***REMOVED***
-		if err = conf.ParseYAML(bytes); err != nil ***REMOVED***
+		if err := yaml.Unmarshal(bytes, &conf); err != nil ***REMOVED***
 			log.WithError(err).Fatal("Couldn't parse config file")
 		***REMOVED***
 	default:
-		log.Fatal("Wrong number of arguments")
+		log.Fatal("Too many arguments!")
 	***REMOVED***
 
 	return nil
