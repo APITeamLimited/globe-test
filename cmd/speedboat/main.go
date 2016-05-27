@@ -37,6 +37,19 @@ func action(cc *cli.Context) error ***REMOVED***
 		log.Fatal("Too many arguments!")
 	***REMOVED***
 
+	if cc.IsSet("script") ***REMOVED***
+		conf.Script = cc.String("script")
+	***REMOVED***
+	if cc.IsSet("url") ***REMOVED***
+		conf.URL = cc.String("url")
+	***REMOVED***
+	if cc.IsSet("vus") ***REMOVED***
+		conf.VUs = cc.Int("vus")
+	***REMOVED***
+	if cc.IsSet("duration") ***REMOVED***
+		conf.Duration = cc.Duration("duration").String()
+	***REMOVED***
+
 	t, err := conf.MakeTest()
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
