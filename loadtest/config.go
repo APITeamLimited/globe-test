@@ -20,11 +20,7 @@ type Config struct ***REMOVED***
 	Stages   []ConfigStage `yaml:"stages"`
 ***REMOVED***
 
-func NewConfig() Config ***REMOVED***
-	return Config***REMOVED******REMOVED***
-***REMOVED***
-
-func ParseConfig(data []byte, conf *Config) (err error) ***REMOVED***
+func (conf *Config) ParseYAML(data []byte) (err error) ***REMOVED***
 	return yaml.Unmarshal(data, conf)
 ***REMOVED***
 

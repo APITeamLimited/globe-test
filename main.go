@@ -3,197 +3,44 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/loadimpact/speedboat/aggregate"
 	"github.com/loadimpact/speedboat/loadtest"
-	"github.com/loadimpact/speedboat/report"
-	"github.com/loadimpact/speedboat/runner"
-	"github.com/loadimpact/speedboat/runner/js"
-	"github.com/loadimpact/speedboat/runner/simple"
-	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
-	"os/signal"
-	"path"
-	"runtime/debug"
 	"time"
 )
 
-func makeTest(c *cli.Context) (test loadtest.LoadTest, err error) ***REMOVED***
-	base := ""
-	conf := loadtest.NewConfig()
-	if len(c.Args()) > 0 ***REMOVED***
-		filename := c.Args()[0]
-		base = path.Dir(filename)
-		data, err := ioutil.ReadFile(filename)
-		if err != nil ***REMOVED***
-			return test, err
-		***REMOVED***
-
-		loadtest.ParseConfig(data, &conf)
-	***REMOVED***
-
-	if c.IsSet("script") ***REMOVED***
-		conf.Script = c.String("script")
-		base = ""
-	***REMOVED***
-	if c.IsSet("url") ***REMOVED***
-		conf.URL = c.String("url")
-	***REMOVED***
-	if c.IsSet("duration") ***REMOVED***
-		conf.Duration = c.Duration("duration").String()
-	***REMOVED***
-	if c.IsSet("vus") ***REMOVED***
-		conf.VUs = c.Int("vus")
-	***REMOVED***
-
-	test, err = conf.Compile()
-	if err != nil ***REMOVED***
-		return test, err
-	***REMOVED***
-
-	if test.Script != "" ***REMOVED***
-		srcb, err := ioutil.ReadFile(path.Join(base, test.Script))
-		if err != nil ***REMOVED***
-			return test, err
-		***REMOVED***
-		test.Source = string(srcb)
-	***REMOVED***
-
-	return test, nil
-***REMOVED***
-
-func run(c context.Context, test loadtest.LoadTest, r runner.Runner) (<-chan runner.Result, chan int) ***REMOVED***
-	ch := make(chan runner.Result)
-	scale := make(chan int, 1)
-
-	go func() ***REMOVED***
-		defer close(ch)
-
-		timeout := time.Duration(0)
-		for _, stage := range test.Stages ***REMOVED***
-			timeout += stage.Duration
-		***REMOVED***
-
-		ctx, _ := context.WithTimeout(c, timeout)
-		scale <- test.Stages[0].VUs.Start
-
-		for res := range runner.Run(ctx, r, test, scale) ***REMOVED***
-			ch <- res
-		***REMOVED***
-	***REMOVED***()
-
-	return ch, scale
-***REMOVED***
-
-func action(c *cli.Context) error ***REMOVED***
-	test, err := makeTest(c)
-	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Configuration error")
-	***REMOVED***
-
-	r := runner.Runner(nil)
-	if test.Script != "" ***REMOVED***
-		ext := path.Ext(test.Script)
-		switch ext ***REMOVED***
-		case ".js":
-			r = js.New()
-		default:
-			log.WithField("ext", ext).Fatal("No runner found")
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		r = simple.New()
-	***REMOVED***
-
-	// Start the pipeline by just running requests
-	ctx, cancel := context.WithCancel(context.Background())
-	pipeline, scale := run(ctx, test, r)
-
-	// Ramp VUs according to the test definition
-	pipeline = runner.Ramp(&test, scale, pipeline)
-
-	// Stick result aggregation onto it
-	stats := aggregate.Stats***REMOVED******REMOVED***
-	stats.Time.Values = make([]time.Duration, 30000000)[:0]
-	pipeline = aggregate.Aggregate(&stats, pipeline)
-
-	// Log results to a file
-	outFilename := c.String("out-file")
-	if outFilename != "" ***REMOVED***
-		reporter := report.CSVReporter***REMOVED******REMOVED***
-		if outFilename != "-" ***REMOVED***
-			f, err := os.Create("results.csv")
-			if err != nil ***REMOVED***
-				log.WithError(err).Fatal("Couldn't open log file")
-			***REMOVED***
-			pipeline = report.Report(reporter, f, pipeline)
-		***REMOVED*** else ***REMOVED***
-			pipeline = report.Report(reporter, os.Stdout, pipeline)
-		***REMOVED***
-	***REMOVED***
-
-	// Listen for SIGINT (Ctrl+C)
-	stop := make(chan os.Signal)
-	signal.Notify(stop, os.Interrupt)
-
-runLoop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case res, ok := <-pipeline:
-			if !ok ***REMOVED***
-				break runLoop
-			***REMOVED***
-
-			if res.Abort ***REMOVED***
-				cancel()
-			***REMOVED***
-
-			switch ***REMOVED***
-			case res.Error != nil:
-				l := log.WithError(res.Error)
-				if res.Time != time.Duration(0) ***REMOVED***
-					l = l.WithField("t", res.Time)
-				***REMOVED***
-				l = l.WithFields(res.Extra)
-				l.Error("Error")
-			case res.Text != "":
-				l := log.WithField("text", res.Text)
-				if res.Time != time.Duration(0) ***REMOVED***
-					l = l.WithField("t", res.Time)
-				***REMOVED***
-				l = l.WithFields(res.Extra)
-				l.Info("Log")
-			default:
-				// log.WithField("t", res.Time).Debug("Metric")
-			***REMOVED***
-		case <-stop:
-			cancel()
-		***REMOVED***
-	***REMOVED***
-
-	log.WithField("results", stats.Results).Info("Finished")
-	log.WithFields(log.Fields***REMOVED***
-		"min": stats.Time.Min,
-		"max": stats.Time.Max,
-		"med": stats.Time.Med,
-		"avg": stats.Time.Avg,
-	***REMOVED***).Info("Time")
-
-	return nil
-***REMOVED***
-
 // Configure the global logger.
 func configureLogging(c *cli.Context) ***REMOVED***
+	log.SetLevel(log.InfoLevel)
 	if c.GlobalBool("verbose") ***REMOVED***
 		log.SetLevel(log.DebugLevel)
 	***REMOVED***
 ***REMOVED***
 
-func main() ***REMOVED***
-	// Up the thread limit (default: 10.000)
-	debug.SetMaxThreads(100000)
-	// Up the stack size limit (default: 1GB)
-	debug.SetMaxStack(3 * 1000000000)
+func action(cc *cli.Context) error ***REMOVED***
+	conf := loadtest.Config***REMOVED******REMOVED***
 
+	switch len(cc.Args()) ***REMOVED***
+	case 0:
+		if !cc.IsSet("script") && !cc.IsSet("url") ***REMOVED***
+			log.Fatal("No config file, script or URL provided; see --help for usage")
+		***REMOVED***
+	case 1:
+		bytes, err := ioutil.ReadFile(cc.Args()[0])
+		if err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't read config file")
+		***REMOVED***
+		if err = conf.ParseYAML(bytes); err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't parse config file")
+		***REMOVED***
+	default:
+		log.Fatal("Wrong number of arguments")
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func main() ***REMOVED***
 	// Free up -v and -h for our own flags
 	cli.VersionFlag.Name = "version"
 	cli.HelpFlag.Name = "help, ?"
