@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/loadimpact/speedboat"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -17,26 +19,25 @@ func configureLogging(c *cli.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func action(cc *cli.Context) error ***REMOVED***
-	conf := Config***REMOVED******REMOVED***
-
+func parse(cc *cli.Context) (conf Config, err error) ***REMOVED***
 	switch len(cc.Args()) ***REMOVED***
 	case 0:
 		if !cc.IsSet("script") && !cc.IsSet("url") ***REMOVED***
-			log.Fatal("No config file, script or URL provided; see --help for usage")
+			return conf, errors.New("No config file, script or URL")
 		***REMOVED***
 	case 1:
 		bytes, err := ioutil.ReadFile(cc.Args()[0])
 		if err != nil ***REMOVED***
-			log.WithError(err).Fatal("Couldn't read config file")
+			return conf, errors.New("Couldn't read config file")
 		***REMOVED***
 		if err := yaml.Unmarshal(bytes, &conf); err != nil ***REMOVED***
-			log.WithError(err).Fatal("Couldn't parse config file")
+			return conf, errors.New("Couldn't parse config file")
 		***REMOVED***
 	default:
-		log.Fatal("Too many arguments!")
+		return conf, errors.New("Too many arguments!")
 	***REMOVED***
 
+	// Let commandline flags override config files
 	if cc.IsSet("script") ***REMOVED***
 		conf.Script = cc.String("script")
 	***REMOVED***
@@ -50,24 +51,38 @@ func action(cc *cli.Context) error ***REMOVED***
 		conf.Duration = cc.Duration("duration").String()
 	***REMOVED***
 
+	return conf, nil
+***REMOVED***
+
+func dumpTest(t *speedboat.Test) ***REMOVED***
+	log.WithFields(log.Fields***REMOVED***
+		"script": t.Script,
+		"url":    t.URL,
+	***REMOVED***).Info("General")
+	for i, stage := range t.Stages ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"#":        i,
+			"duration": stage.Duration,
+			"start":    stage.StartVUs,
+			"end":      stage.EndVUs,
+		***REMOVED***).Info("Stage")
+	***REMOVED***
+***REMOVED***
+
+func action(cc *cli.Context) error ***REMOVED***
+	conf, err := parse(cc)
+	if err != nil ***REMOVED***
+		log.WithError(err).Fatal("Invalid arguments; see --help")
+	***REMOVED***
+
 	t, err := conf.MakeTest()
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
 	***REMOVED***
 
 	if cc.Bool("dump") ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"script": t.Script,
-			"url":    t.URL,
-		***REMOVED***).Info("General")
-		for i, stage := range t.Stages ***REMOVED***
-			log.WithFields(log.Fields***REMOVED***
-				"#":        i,
-				"duration": stage.Duration,
-				"start":    stage.StartVUs,
-				"end":      stage.EndVUs,
-			***REMOVED***).Info("Stage")
-		***REMOVED***
+		dumpTest(&t)
+		return nil
 	***REMOVED***
 
 	return nil
