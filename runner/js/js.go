@@ -1,6 +1,7 @@
 package js
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/GeertJohan/go.rice"
 	"github.com/loadimpact/speedboat/loadtest"
@@ -207,5 +208,26 @@ func loadFile(c *duktape.Context, name, src string) error ***REMOVED***
 	***REMOVED***
 	c.Pcall(0)
 	c.Pop()
+	return nil
+***REMOVED***
+
+func pushInstance(c *duktape.Context, obj interface***REMOVED******REMOVED***, t string) error ***REMOVED***
+	s, err := json.Marshal(obj)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	c.PushString(string(s))
+	c.JsonDecode(-1)
+
+	if t != "" ***REMOVED***
+		c.PushGlobalObject()
+		***REMOVED***
+			c.GetPropString(-1, t)
+			c.SetPrototype(-3)
+		***REMOVED***
+		c.Pop()
+	***REMOVED***
+
 	return nil
 ***REMOVED***
