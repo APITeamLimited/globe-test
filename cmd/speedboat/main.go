@@ -5,6 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/simple"
 	"github.com/rcrowley/go-metrics"
 	"golang.org/x/net/context"
@@ -12,6 +13,7 @@ import (
 	"io/ioutil"
 	stdlog "log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -121,6 +123,12 @@ func action(cc *cli.Context) error ***REMOVED***
 	switch ***REMOVED***
 	case t.URL != "":
 		runner = simple.New()
+	case strings.HasSuffix(t.Script, ".js"):
+		src, err := ioutil.ReadFile(t.Script)
+		if err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't read script")
+		***REMOVED***
+		runner = js.New(string(src))
 	default:
 		log.Fatal("No suitable runner found!")
 	***REMOVED***

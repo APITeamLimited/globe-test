@@ -20,7 +20,7 @@ type httpResponse struct ***REMOVED***
 ***REMOVED***
 
 func httpDo(c *fasthttp.Client, method, url, body string, args httpArgs) (httpResponse, time.Duration, error) ***REMOVED***
-	if method == "GET" ***REMOVED***
+	if method == "GET" && body != "" ***REMOVED***
 		u, err := neturl.Parse(url)
 		if err != nil ***REMOVED***
 			return httpResponse***REMOVED******REMOVED***, 0, err
