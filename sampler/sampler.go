@@ -114,6 +114,10 @@ func (m *Metric) Max() int64 ***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Avg() int64 ***REMOVED***
+	if len(m.Entries) == 0 ***REMOVED***
+		return 0
+	***REMOVED***
+
 	var sum int64
 	for _, e := range m.Entries ***REMOVED***
 		sum += e.Value
