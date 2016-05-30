@@ -71,6 +71,33 @@ func dumpTest(t *speedboat.Test) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func headlessController(c context.Context, t *speedboat.Test) <-chan int ***REMOVED***
+	ch := make(chan int)
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		select ***REMOVED***
+		case ch <- t.VUsAt(0):
+		case <-c.Done():
+			return
+		***REMOVED***
+
+		startTime := time.Now()
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				ch <- t.VUsAt(time.Since(startTime))
+			case <-c.Done():
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	return ch
+***REMOVED***
+
 func action(cc *cli.Context) error ***REMOVED***
 	conf, err := parse(cc)
 	if err != nil ***REMOVED***
@@ -96,27 +123,21 @@ func action(cc *cli.Context) error ***REMOVED***
 		log.Fatal("No suitable runner found!")
 	***REMOVED***
 
-	// Schedule all configured VUs. Because we know the VU curves ahead of time, we:
-	// - Make a context with the test's duration as timeout
-	// - Loop through all the stages of the test
-	// - Spawn VUs that:
-	//     - Sleep until they're scheduled to start
-	//     - Expire at the projected end of their lifecycles
-	//
-	// TODO: Account for VU ramping in lifecycle projections!
+	// Use a "headless controller" to scale VUs by polling the test ramp
 	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
-	offset := time.Duration(0)
-	for _, stage := range t.Stages ***REMOVED***
-		startOffset := offset
-		ctx, _ := context.WithTimeout(ctx, startOffset+stage.Duration)
-		go func() ***REMOVED***
-			select ***REMOVED***
-			case <-time.After(startOffset):
-				runner.RunVU(ctx, t)
-			case <-ctx.Done():
-			***REMOVED***
-		***REMOVED***()
-		offset += stage.Duration
+	vus := []context.CancelFunc***REMOVED******REMOVED***
+	for scale := range headlessController(ctx, &t) ***REMOVED***
+		for i := len(vus); i < scale; i++ ***REMOVED***
+			log.WithField("id", i).Debug("Spawning VU")
+			vuCtx, cancel := context.WithCancel(ctx)
+			vus = append(vus, cancel)
+			go runner.RunVU(vuCtx, t)
+		***REMOVED***
+		for i := len(vus); i > scale; i-- ***REMOVED***
+			log.WithField("id", i-1).Debug("Dropping VU")
+			vus[i-1]()
+			vus = vus[:i-1]
+		***REMOVED***
 	***REMOVED***
 
 	// Wait until the end of the test
