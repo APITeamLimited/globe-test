@@ -6,12 +6,11 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/loadimpact/speedboat"
 	"github.com/loadimpact/speedboat/js"
+	"github.com/loadimpact/speedboat/sampler"
 	"github.com/loadimpact/speedboat/simple"
-	"github.com/rcrowley/go-metrics"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	stdlog "log"
 	"os"
 	"strings"
 	"time"
@@ -134,13 +133,25 @@ func action(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Global metrics
-	mVUs := metrics.NewRegisteredGauge("vus", speedboat.Registry)
+	mVUs := sampler.Counter("vus")
+
+	// Context that expires at the end of the test
+	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
 
 	// Output metrics appropriately
-	go metrics.Log(speedboat.Registry, time.Second, stdlog.New(os.Stderr, "metrics: ", stdlog.Lmicroseconds))
+	go func() ***REMOVED***
+		ticker := time.NewTicker(1 * time.Second)
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				printMetrics()
+			case <-ctx.Done():
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
 
 	// Use a "headless controller" to scale VUs by polling the test ramp
-	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
 	vus := []context.CancelFunc***REMOVED******REMOVED***
 	for scale := range headlessController(ctx, &t) ***REMOVED***
 		for i := len(vus); i < scale; i++ ***REMOVED***
@@ -154,11 +165,14 @@ func action(cc *cli.Context) error ***REMOVED***
 			vus[i-1]()
 			vus = vus[:i-1]
 		***REMOVED***
-		mVUs.Update(int64(len(vus)))
+		mVUs.Int(len(vus))
 	***REMOVED***
 
 	// Wait until the end of the test
 	<-ctx.Done()
+
+	// Print final metrics
+	printMetrics()
 
 	return nil
 ***REMOVED***
