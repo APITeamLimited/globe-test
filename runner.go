@@ -5,7 +5,7 @@ import (
 )
 
 type Runner interface ***REMOVED***
-	RunVU(ctx context.Context, t Test)
+	RunVU(ctx context.Context, t Test, id int)
 ***REMOVED***
 
 /*type Result struct ***REMOVED***
