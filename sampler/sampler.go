@@ -53,6 +53,7 @@ func (e *Entry) Duration(d time.Duration) ***REMOVED***
 ***REMOVED***
 
 type Metric struct ***REMOVED***
+	Name    string
 	Sampler *Sampler
 	Entries []*Entry
 
@@ -91,6 +92,7 @@ func (m *Metric) Write(e *Entry) ***REMOVED***
 	defer m.entryMutex.Unlock()
 
 	m.Entries = append(m.Entries, e)
+	m.Sampler.Write(m, e)
 ***REMOVED***
 
 func (m *Metric) Min() int64 ***REMOVED***
@@ -126,11 +128,13 @@ func (m *Metric) Avg() int64 ***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Med() int64 ***REMOVED***
-	return m.Entries[len(m.Entries)/2].Value
+	return m.Entries[(len(m.Entries)/2)-1].Value
 ***REMOVED***
 
 type Sampler struct ***REMOVED***
 	Metrics map[string]*Metric
+	Outputs []Output
+	OnError func(error)
 
 	MetricMutex sync.Mutex
 ***REMOVED***
@@ -145,7 +149,7 @@ func (s *Sampler) Get(name string) *Metric ***REMOVED***
 
 	metric, ok := s.Metrics[name]
 	if !ok ***REMOVED***
-		metric = &Metric***REMOVED***Sampler: s***REMOVED***
+		metric = &Metric***REMOVED***Name: name, Sampler: s***REMOVED***
 		s.Metrics[name] = metric
 	***REMOVED***
 	return metric
@@ -163,4 +167,28 @@ func (s *Sampler) Stats(name string) *Metric ***REMOVED***
 
 func (s *Sampler) Counter(name string) *Metric ***REMOVED***
 	return s.GetAs(name, CounterType)
+***REMOVED***
+
+func (s *Sampler) Write(m *Metric, e *Entry) ***REMOVED***
+	for _, out := range s.Outputs ***REMOVED***
+		if err := out.Write(m, e); err != nil ***REMOVED***
+			if s.OnError != nil ***REMOVED***
+				s.OnError(err)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (s *Sampler) Commit() error ***REMOVED***
+	for _, out := range s.Outputs ***REMOVED***
+		if err := out.Commit(); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
+type Output interface ***REMOVED***
+	Write(m *Metric, e *Entry) error
+	Commit() error
 ***REMOVED***

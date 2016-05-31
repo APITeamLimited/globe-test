@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/sampler"
 	stdlog "log"
 	"time"
@@ -18,6 +19,12 @@ func printMetrics(l *stdlog.Logger) ***REMOVED***
 			l.Printf("  min=%-15s max=%s\n", applyIntent(m, m.Min()), applyIntent(m, m.Max()))
 			l.Printf("  avg=%-15s med=%s\n", applyIntent(m, m.Avg()), applyIntent(m, m.Med()))
 		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func commitMetrics() ***REMOVED***
+	if err := sampler.DefaultSampler.Commit(); err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't write samples!")
 	***REMOVED***
 ***REMOVED***
 

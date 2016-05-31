@@ -38,7 +38,7 @@ func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED
 		***REMOVED***
 		duration := time.Since(startTime)
 
-		mDuration.Duration(duration)
+		mDuration.WithField("url", t.URL).Duration(duration)
 
 		select ***REMOVED***
 		case <-ctx.Done():

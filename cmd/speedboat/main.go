@@ -7,6 +7,7 @@ import (
 	"github.com/loadimpact/speedboat"
 	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/sampler"
+	"github.com/loadimpact/speedboat/sampler/influxdb"
 	"github.com/loadimpact/speedboat/simple"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
@@ -22,6 +23,28 @@ func configureLogging(c *cli.Context) ***REMOVED***
 	log.SetLevel(log.InfoLevel)
 	if c.GlobalBool("verbose") ***REMOVED***
 		log.SetLevel(log.DebugLevel)
+	***REMOVED***
+***REMOVED***
+
+// Configure the global sampler.
+func configureSampler(c *cli.Context) ***REMOVED***
+	output := c.String("output")
+	if output == "" ***REMOVED***
+		return
+	***REMOVED***
+
+	sampler.DefaultSampler.OnError = func(err error) ***REMOVED***
+		log.WithError(err).Error("[Sampler error]")
+	***REMOVED***
+
+	parts := strings.SplitN(output, "+", 2)
+	switch parts[0] ***REMOVED***
+	case "influxdb":
+		out, err := influxdb.NewFromURL(parts[1])
+		if err != nil ***REMOVED***
+			log.WithError(err).Fatal("Couldn't create InfluxDB client")
+		***REMOVED***
+		sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
 	***REMOVED***
 ***REMOVED***
 
@@ -140,13 +163,17 @@ func action(cc *cli.Context) error ***REMOVED***
 	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
 
 	// Output metrics appropriately
-	metricsLogger := stdlog.New(os.Stderr, "metrics: ", stdlog.Lmicroseconds)
+	logMetrics := cc.Bool("log")
+	metricsLogger := stdlog.New(os.Stdout, "metrics: ", stdlog.Lmicroseconds)
 	go func() ***REMOVED***
 		ticker := time.NewTicker(1 * time.Second)
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
-				printMetrics(metricsLogger)
+				if logMetrics ***REMOVED***
+					printMetrics(metricsLogger)
+				***REMOVED***
+				commitMetrics()
 			case <-ctx.Done():
 				return
 			***REMOVED***
@@ -175,6 +202,7 @@ func action(cc *cli.Context) error ***REMOVED***
 
 	// Print final metrics
 	printMetrics(metricsLogger)
+	commitMetrics()
 
 	return nil
 ***REMOVED***
@@ -213,8 +241,12 @@ func main() ***REMOVED***
 			Value: time.Duration(10) * time.Second,
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
-			Name:  "out-file, o",
-			Usage: "Output raw metrics to a file",
+			Name:  "output, o",
+			Usage: "Output metrics to a file or database",
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "log, l",
+			Usage: "Log metrics to stdout",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "dump",
@@ -223,6 +255,7 @@ func main() ***REMOVED***
 	***REMOVED***
 	app.Before = func(c *cli.Context) error ***REMOVED***
 		configureLogging(c)
+		configureSampler(c)
 		return nil
 	***REMOVED***
 	app.Action = action
