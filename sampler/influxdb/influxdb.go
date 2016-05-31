@@ -88,6 +88,10 @@ func (o *Output) Commit() error ***REMOVED***
 	o.batchMutex.Lock()
 	defer o.batchMutex.Unlock()
 
+	if o.currentBatch == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
 	err := o.Client.Write(o.currentBatch)
 	o.currentBatch = nil
 	return err
