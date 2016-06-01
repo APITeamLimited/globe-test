@@ -55,12 +55,12 @@ func (e *Entry) Duration(d time.Duration) ***REMOVED***
 type Metric struct ***REMOVED***
 	Name    string
 	Sampler *Sampler
-	Entries []*Entry
 
 	Type   int
 	Intent int
 
-	entryMutex sync.Mutex
+	values     []int64
+	valueMutex sync.Mutex
 ***REMOVED***
 
 func (m *Metric) Entry() *Entry ***REMOVED***
@@ -88,18 +88,18 @@ func (m *Metric) Duration(d time.Duration) ***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Write(e *Entry) ***REMOVED***
-	m.entryMutex.Lock()
-	defer m.entryMutex.Unlock()
+	m.valueMutex.Lock()
+	defer m.valueMutex.Unlock()
 
-	m.Entries = append(m.Entries, e)
+	m.values = append(m.values, e.Value)
 	m.Sampler.Write(m, e)
 ***REMOVED***
 
 func (m *Metric) Min() int64 ***REMOVED***
 	var min int64
-	for _, e := range m.Entries ***REMOVED***
-		if min == 0 || e.Value < min ***REMOVED***
-			min = e.Value
+	for _, v := range m.values ***REMOVED***
+		if min == 0 || v < min ***REMOVED***
+			min = v
 		***REMOVED***
 	***REMOVED***
 	return min
@@ -107,28 +107,32 @@ func (m *Metric) Min() int64 ***REMOVED***
 
 func (m *Metric) Max() int64 ***REMOVED***
 	var max int64
-	for _, e := range m.Entries ***REMOVED***
-		if e.Value > max ***REMOVED***
-			max = e.Value
+	for _, v := range m.values ***REMOVED***
+		if v > max ***REMOVED***
+			max = v
 		***REMOVED***
 	***REMOVED***
 	return max
 ***REMOVED***
 
 func (m *Metric) Avg() int64 ***REMOVED***
-	if len(m.Entries) == 0 ***REMOVED***
+	if len(m.values) == 0 ***REMOVED***
 		return 0
 	***REMOVED***
 
 	var sum int64
-	for _, e := range m.Entries ***REMOVED***
-		sum += e.Value
+	for _, v := range m.values ***REMOVED***
+		sum += v
 	***REMOVED***
-	return sum / int64(len(m.Entries))
+	return sum / int64(len(m.values))
 ***REMOVED***
 
 func (m *Metric) Med() int64 ***REMOVED***
-	return m.Entries[(len(m.Entries)/2)-1].Value
+	return m.values[(len(m.values)/2)-1]
+***REMOVED***
+
+func (m *Metric) Last() int64 ***REMOVED***
+	return m.values[len(m.values)-1]
 ***REMOVED***
 
 type Sampler struct ***REMOVED***
