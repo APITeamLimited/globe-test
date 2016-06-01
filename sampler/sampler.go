@@ -13,6 +13,7 @@ const (
 const (
 	StatsType = iota
 	GaugeType
+	CounterType
 )
 
 type Fields map[string]interface***REMOVED******REMOVED***
@@ -135,6 +136,14 @@ func (m *Metric) Med() int64 ***REMOVED***
 	return m.values[idx]
 ***REMOVED***
 
+func (m *Metric) Sum() int64 ***REMOVED***
+	sum := int64(0)
+	for _, v := range m.values ***REMOVED***
+		sum += v
+	***REMOVED***
+	return sum
+***REMOVED***
+
 func (m *Metric) Last() int64 ***REMOVED***
 	return m.values[len(m.values)-1]
 ***REMOVED***
@@ -175,6 +184,10 @@ func (s *Sampler) Stats(name string) *Metric ***REMOVED***
 
 func (s *Sampler) Gauge(name string) *Metric ***REMOVED***
 	return s.GetAs(name, GaugeType)
+***REMOVED***
+
+func (s *Sampler) Counter(name string) *Metric ***REMOVED***
+	return s.GetAs(name, CounterType)
 ***REMOVED***
 
 func (s *Sampler) Write(m *Metric, e *Entry) ***REMOVED***

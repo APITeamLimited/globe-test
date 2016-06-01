@@ -14,6 +14,10 @@ func Gauge(name string) *Metric ***REMOVED***
 	return DefaultSampler.Gauge(name)
 ***REMOVED***
 
+func Counter(name string) *Metric ***REMOVED***
+	return DefaultSampler.Counter(name)
+***REMOVED***
+
 func Stats(name string) *Metric ***REMOVED***
 	return DefaultSampler.Stats(name)
 ***REMOVED***
