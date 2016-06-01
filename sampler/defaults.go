@@ -10,8 +10,8 @@ func GetAs(name string, t int) *Metric ***REMOVED***
 	return DefaultSampler.GetAs(name, t)
 ***REMOVED***
 
-func Counter(name string) *Metric ***REMOVED***
-	return DefaultSampler.Counter(name)
+func Gauge(name string) *Metric ***REMOVED***
+	return DefaultSampler.Gauge(name)
 ***REMOVED***
 
 func Stats(name string) *Metric ***REMOVED***

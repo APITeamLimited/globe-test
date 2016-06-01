@@ -12,7 +12,7 @@ const (
 
 const (
 	StatsType = iota
-	CounterType
+	GaugeType
 )
 
 type Fields map[string]interface***REMOVED******REMOVED***
@@ -173,8 +173,8 @@ func (s *Sampler) Stats(name string) *Metric ***REMOVED***
 	return s.GetAs(name, StatsType)
 ***REMOVED***
 
-func (s *Sampler) Counter(name string) *Metric ***REMOVED***
-	return s.GetAs(name, CounterType)
+func (s *Sampler) Gauge(name string) *Metric ***REMOVED***
+	return s.GetAs(name, GaugeType)
 ***REMOVED***
 
 func (s *Sampler) Write(m *Metric, e *Entry) ***REMOVED***
