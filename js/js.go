@@ -22,6 +22,7 @@ type Runner struct ***REMOVED***
 	vendor *rice.Box
 
 	mDuration *sampler.Metric
+	mErrors   *sampler.Metric
 ***REMOVED***
 
 func New(src string) *Runner ***REMOVED***
@@ -33,6 +34,7 @@ func New(src string) *Runner ***REMOVED***
 		lib:       rice.MustFindBox("lib"),
 		vendor:    rice.MustFindBox("vendor"),
 		mDuration: sampler.Stats("duration"),
+		mErrors:   sampler.Counter("errors"),
 	***REMOVED***
 ***REMOVED***
 
