@@ -128,7 +128,11 @@ func (m *Metric) Avg() int64 ***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Med() int64 ***REMOVED***
-	return m.values[(len(m.values)/2)-1]
+	idx := len(m.values) / 2
+	if idx >= len(m.values) ***REMOVED***
+		idx = len(m.values) - 1
+	***REMOVED***
+	return m.values[idx]
 ***REMOVED***
 
 func (m *Metric) Last() int64 ***REMOVED***
