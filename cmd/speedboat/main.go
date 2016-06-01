@@ -15,6 +15,7 @@ import (
 	stdlog "log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -162,16 +163,19 @@ func action(cc *cli.Context) error ***REMOVED***
 	// Context that expires at the end of the test
 	ctx, _ := context.WithTimeout(context.Background(), t.TotalDuration())
 
-	// Output metrics appropriately
+	// Output metrics appropriately; use a mutex to prevent garbled output
 	logMetrics := cc.Bool("log")
 	metricsLogger := stdlog.New(os.Stdout, "metrics: ", stdlog.Lmicroseconds)
+	metricsMutex := sync.Mutex***REMOVED******REMOVED***
 	go func() ***REMOVED***
 		ticker := time.NewTicker(1 * time.Second)
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
 				if logMetrics ***REMOVED***
+					metricsMutex.Lock()
 					printMetrics(metricsLogger)
+					metricsMutex.Unlock()
 				***REMOVED***
 				commitMetrics()
 			case <-ctx.Done():
@@ -201,7 +205,9 @@ func action(cc *cli.Context) error ***REMOVED***
 	<-ctx.Done()
 
 	// Print final metrics
+	metricsMutex.Lock()
 	printMetrics(metricsLogger)
+	metricsMutex.Unlock()
 	commitMetrics()
 
 	return nil
