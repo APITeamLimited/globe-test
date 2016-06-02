@@ -152,7 +152,7 @@ func action(cc *cli.Context) error ***REMOVED***
 		if err != nil ***REMOVED***
 			log.WithError(err).Fatal("Couldn't read script")
 		***REMOVED***
-		runner = js.New(string(src))
+		runner = js.New(t.Script, string(src))
 	default:
 		log.Fatal("No suitable runner found!")
 	***REMOVED***
