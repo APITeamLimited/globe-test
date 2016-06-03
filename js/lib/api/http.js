@@ -1,25 +1,25 @@
 "use strict";
 
-__internal__.modules.http.get = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['GET'], arguments));
+__modules__.http.get = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['GET'], arguments));
 ***REMOVED***
 
-__internal__.modules.http.post = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['POST'], arguments));
+__modules__.http.post = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['POST'], arguments));
 ***REMOVED***
 
-__internal__.modules.http.put = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['PUT'], arguments));
+__modules__.http.put = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['PUT'], arguments));
 ***REMOVED***
 
-__internal__.modules.http.delete = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['DELETE'], arguments));
+__modules__.http.delete = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['DELETE'], arguments));
 ***REMOVED***
 
-__internal__.modules.http.patch = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['PATCH'], arguments));
+__modules__.http.patch = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['PATCH'], arguments));
 ***REMOVED***
 
-__internal__.modules.http.options = function() ***REMOVED***
-	return __internal__.modules.http.do.apply(this, _.concat(['OPTIONS'], arguments));
+__modules__.http.options = function() ***REMOVED***
+	return __modules__.http.do.apply(this, _.concat(['OPTIONS'], arguments));
 ***REMOVED***
