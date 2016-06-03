@@ -2,7 +2,7 @@ package js
 
 import (
 	"fmt"
-	// "github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat"
 	"gopkg.in/olebedev/go-duktape.v2"
 )
 
@@ -33,7 +33,7 @@ func getJSError(js *duktape.Context) JSError ***REMOVED***
 	return JSError***REMOVED***Message: msg, Filename: filename, Line: line***REMOVED***
 ***REMOVED***
 
-func setupGlobalObject(js *duktape.Context, id int) ***REMOVED***
+func setupGlobalObject(js *duktape.Context, t speedboat.Test, id int) ***REMOVED***
 	js.PushGlobalObject()
 	defer js.Pop()
 
@@ -44,6 +44,9 @@ func setupGlobalObject(js *duktape.Context, id int) ***REMOVED***
 	***REMOVED***
 		js.PushInt(id)
 		js.PutPropString(-2, "id")
+
+		pushObject(js, t, "")
+		js.PutPropString(-2, "test")
 	***REMOVED***
 	js.PutPropString(-2, "__data__")
 ***REMOVED***
