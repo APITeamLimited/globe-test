@@ -3,9 +3,9 @@
 __modules__.vu = __modules__.vu || ***REMOVED******REMOVED***;
 
 __modules__.vu.id = function() ***REMOVED***
-	return __internal__.data.id;
+	return __data__.id;
 ***REMOVED***
 
 __modules__.vu.iteration = function() ***REMOVED***
-	return __internal__.iteration;
+	return __data__.iteration;
 ***REMOVED***

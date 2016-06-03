@@ -3,12 +3,19 @@ package js
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/js/http"
+	jslog "github.com/loadimpact/speedboat/js/log"
 	"golang.org/x/net/context"
 	"gopkg.in/olebedev/go-duktape.v2"
 	"time"
 )
 
 type APIFunc func(js *duktape.Context, ctx context.Context) int
+
+func contextForAPI(ctx context.Context) context.Context ***REMOVED***
+	ctx = http.WithDefaultClient(ctx)
+	ctx = jslog.WithDefaultLogger(ctx)
+	return ctx
+***REMOVED***
 
 func apiSleep(js *duktape.Context, ctx context.Context) int ***REMOVED***
 	time.Sleep(time.Duration(argNumber(js, 0) * float64(time.Second)))
@@ -54,4 +61,17 @@ func apiHTTPDo(js *duktape.Context, ctx context.Context) int ***REMOVED***
 	pushObject(js, res, "HTTPResponse")
 
 	return 1
+***REMOVED***
+
+func apiLogLog(js *duktape.Context, ctx context.Context) int ***REMOVED***
+	t := argString(js, 0)
+	msg := argString(js, 1)
+	fields := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+	if err := argJSON(js, 2, &fields); err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't parse log fields")
+	***REMOVED***
+
+	jslog.Log(ctx, t, msg, fields)
+
+	return 0
 ***REMOVED***

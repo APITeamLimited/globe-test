@@ -4,7 +4,6 @@ import (
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat"
-	"github.com/loadimpact/speedboat/js/http"
 	"golang.org/x/net/context"
 	"gopkg.in/olebedev/go-duktape.v2"
 	"os"
@@ -24,7 +23,7 @@ func New(filename, src string) *Runner ***REMOVED***
 
 func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED***
 	js := duktape.New()
-	setupGlobalObject(js)
+	setupGlobalObject(js, id)
 	bridgeAPI(js, contextForAPI(ctx))
 
 	if err := putScript(js, r.Filename, r.Source); err != nil ***REMOVED***
@@ -91,15 +90,13 @@ func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED
 	***REMOVED***
 ***REMOVED***
 
-func contextForAPI(ctx context.Context) context.Context ***REMOVED***
-	ctx = http.WithDefaultClient(ctx)
-	return ctx
-***REMOVED***
-
 func bridgeAPI(js *duktape.Context, ctx context.Context) ***REMOVED***
 	api := map[string]map[string]APIFunc***REMOVED***
 		"http": map[string]APIFunc***REMOVED***
 			"do": apiHTTPDo,
+		***REMOVED***,
+		"log": map[string]APIFunc***REMOVED***
+			"log": apiLogLog,
 		***REMOVED***,
 	***REMOVED***
 	global := map[string]APIFunc***REMOVED***
