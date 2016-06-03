@@ -23,6 +23,7 @@ func New(filename, src string) *Runner ***REMOVED***
 
 func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED***
 	js := duktape.New()
+	setupGlobalObject(js)
 
 	if err := putScript(js, r.Filename, r.Source); err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't compile script")
