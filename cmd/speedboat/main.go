@@ -33,23 +33,25 @@ func configureLogging(c *cli.Context) ***REMOVED***
 
 // Configure the global sampler.
 func configureSampler(c *cli.Context) ***REMOVED***
-	output := c.String("output")
-	if output == "" ***REMOVED***
-		return
-	***REMOVED***
-
 	sampler.DefaultSampler.OnError = func(err error) ***REMOVED***
 		log.WithError(err).Error("[Sampler error]")
 	***REMOVED***
 
-	parts := strings.SplitN(output, "+", 2)
-	switch parts[0] ***REMOVED***
-	case "influxdb":
-		out, err := influxdb.NewFromURL(parts[1])
-		if err != nil ***REMOVED***
-			log.WithError(err).Fatal("Couldn't create InfluxDB client")
+	for _, output := range c.GlobalStringSlice("output") ***REMOVED***
+		parts := strings.SplitN(output, "+", 2)
+		switch parts[0] ***REMOVED***
+		case "influxdb":
+			out, err := influxdb.NewFromURL(parts[1])
+			if err != nil ***REMOVED***
+				log.WithError(err).Fatal("Couldn't create InfluxDB client")
+			***REMOVED***
+			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
+		case "stdout":
+			out := &LogMetricsOutput***REMOVED***Writer: os.Stdout***REMOVED***
+			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
+		default:
+			log.WithField("type", parts[0]).Fatal("Unrecognized metric output")
 		***REMOVED***
-		sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
 	***REMOVED***
 ***REMOVED***
 
@@ -280,7 +282,7 @@ func main() ***REMOVED***
 			Usage: "Test duration",
 			Value: time.Duration(10) * time.Second,
 		***REMOVED***,
-		cli.StringFlag***REMOVED***
+		cli.StringSliceFlag***REMOVED***
 			Name:  "output, o",
 			Usage: "Output metrics to a file or database",
 		***REMOVED***,

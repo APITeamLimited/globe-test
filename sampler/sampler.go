@@ -19,10 +19,10 @@ const (
 type Fields map[string]interface***REMOVED******REMOVED***
 
 type Entry struct ***REMOVED***
-	Metric *Metric
-	Time   time.Time
-	Fields map[string]interface***REMOVED******REMOVED***
-	Value  int64
+	Metric *Metric                `json:"metric"`
+	Time   time.Time              `json:"time"`
+	Fields map[string]interface***REMOVED******REMOVED*** `json:"fields"`
+	Value  int64                  `json:"value"`
 ***REMOVED***
 
 func (e *Entry) WithField(key string, value interface***REMOVED******REMOVED***) *Entry ***REMOVED***
@@ -54,14 +54,14 @@ func (e *Entry) Duration(d time.Duration) ***REMOVED***
 ***REMOVED***
 
 type Metric struct ***REMOVED***
-	Name    string
-	Sampler *Sampler
+	Name    string   `json:"name"`
+	Sampler *Sampler `json:"-"`
 
-	Type   int
-	Intent int
+	Type   int `json:"type"`
+	Intent int `json:"intent"`
 
-	values     []int64
-	valueMutex sync.Mutex
+	values     []int64    `json:"-"`
+	valueMutex sync.Mutex `json:"-"`
 ***REMOVED***
 
 func (m *Metric) Entry() *Entry ***REMOVED***
