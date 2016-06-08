@@ -239,9 +239,11 @@ func action(cc *cli.Context) error ***REMOVED***
 	<-ctx.Done()
 
 	// Print final metrics
-	metricsMutex.Lock()
-	printMetrics(metricsLogger)
-	metricsMutex.Unlock()
+	if logMetrics ***REMOVED***
+		metricsMutex.Lock()
+		printMetrics(metricsLogger)
+		metricsMutex.Unlock()
+	***REMOVED***
 	commitMetrics()
 
 	return nil
