@@ -1,31 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/sampler"
-	"io"
 	stdlog "log"
 	"time"
 )
-
-type LogMetricsOutput struct ***REMOVED***
-	Writer io.Writer
-
-	encoder *json.Encoder
-***REMOVED***
-
-func (o *LogMetricsOutput) Write(m *sampler.Metric, e *sampler.Entry) error ***REMOVED***
-	if o.encoder == nil ***REMOVED***
-		o.encoder = json.NewEncoder(o.Writer)
-	***REMOVED***
-	return o.encoder.Encode(e)
-***REMOVED***
-
-func (o *LogMetricsOutput) Commit() error ***REMOVED***
-	return nil
-***REMOVED***
 
 func printMetrics(l *stdlog.Logger) ***REMOVED***
 	for name, m := range sampler.DefaultSampler.Metrics ***REMOVED***
@@ -48,6 +29,12 @@ func printMetrics(l *stdlog.Logger) ***REMOVED***
 func commitMetrics() ***REMOVED***
 	if err := sampler.DefaultSampler.Commit(); err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't write samples!")
+	***REMOVED***
+***REMOVED***
+
+func closeMetrics() ***REMOVED***
+	if err := sampler.DefaultSampler.Commit(); err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't close sampler!")
 	***REMOVED***
 ***REMOVED***
 

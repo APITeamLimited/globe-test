@@ -96,3 +96,7 @@ func (o *Output) Commit() error ***REMOVED***
 	o.currentBatch = nil
 	return err
 ***REMOVED***
+
+func (o *Output) Close() error ***REMOVED***
+	return o.Client.Close()
+***REMOVED***

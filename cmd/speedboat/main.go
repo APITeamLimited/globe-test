@@ -7,10 +7,12 @@ import (
 	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/sampler"
 	"github.com/loadimpact/speedboat/sampler/influxdb"
+	"github.com/loadimpact/speedboat/sampler/stream"
 	"github.com/loadimpact/speedboat/simple"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
+	"io"
 	"io/ioutil"
 	stdlog "log"
 	"os"
@@ -46,11 +48,29 @@ func configureSampler(c *cli.Context) ***REMOVED***
 				log.WithError(err).Fatal("Couldn't create InfluxDB client")
 			***REMOVED***
 			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
-		case "stdout":
-			out := &LogMetricsOutput***REMOVED***Writer: os.Stdout***REMOVED***
-			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
 		default:
-			log.WithField("type", parts[0]).Fatal("Unrecognized metric output")
+			var writer io.WriteCloser
+			switch output ***REMOVED***
+			case "stdout", "-":
+				writer = os.Stdout
+			default:
+				file, err := os.Create(output)
+				if err != nil ***REMOVED***
+					log.WithError(err).Fatal("Couldn't create output file")
+				***REMOVED***
+				writer = file
+			***REMOVED***
+
+			var out sampler.Output
+			switch c.GlobalString("format") ***REMOVED***
+			case "json":
+				out = &stream.JSONOutput***REMOVED***Output: writer***REMOVED***
+			case "csv":
+				out = &stream.CSVOutput***REMOVED***Output: writer***REMOVED***
+			default:
+				log.Fatal("Unknown output format")
+			***REMOVED***
+			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -245,6 +265,7 @@ func action(cc *cli.Context) error ***REMOVED***
 		metricsMutex.Unlock()
 	***REMOVED***
 	commitMetrics()
+	closeMetrics()
 
 	return nil
 ***REMOVED***
@@ -285,6 +306,11 @@ func main() ***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "output, o",
 			Usage: "Output metrics to a file or database",
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "format, f",
+			Usage: "Metric output format (json or csv)",
+			Value: "json",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "log, l",

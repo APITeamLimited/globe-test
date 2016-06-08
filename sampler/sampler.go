@@ -209,7 +209,17 @@ func (s *Sampler) Commit() error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (s *Sampler) Close() error ***REMOVED***
+	for _, out := range s.Outputs ***REMOVED***
+		if err := out.Close(); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
 type Output interface ***REMOVED***
 	Write(m *Metric, e *Entry) error
 	Commit() error
+	Close() error
 ***REMOVED***
