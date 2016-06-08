@@ -4,7 +4,7 @@ machine:
 
 dependencies:
   post:
-    - echo "***REMOVED***\"https://index.docker.io/v1/\":***REMOVED***\"auth\":\"$DOCKER_AUTH\",\"email\":\"$DOCKER_EMAIL\"***REMOVED******REMOVED***" >~/.dockercfg
+    - mkdir ~/.docker && echo "***REMOVED***\"https://index.docker.io/v1/\":***REMOVED***\"auth\":\"$DOCKER_AUTH\",\"email\":\"$DOCKER_EMAIL\"***REMOVED******REMOVED***" >~/.docker/config.json
 
 checkout:
   post:
