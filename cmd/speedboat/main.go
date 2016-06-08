@@ -171,7 +171,7 @@ func action(cc *cli.Context) error ***REMOVED***
 	// Inspect the test to find a suitable runner; additional ones can easily be added
 	var runner speedboat.Runner
 	switch ***REMOVED***
-	case t.URL != "":
+	case t.Script == "":
 		runner = simple.New()
 	case strings.HasSuffix(t.Script, ".js"):
 		src, err := ioutil.ReadFile(t.Script)
