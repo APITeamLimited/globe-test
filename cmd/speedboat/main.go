@@ -168,7 +168,7 @@ func action(cc *cli.Context) error ***REMOVED***
 
 	// Configure the VU logger
 	logger := &log.Logger***REMOVED***
-		Out:       os.Stdout,
+		Out:       os.Stderr,
 		Level:     log.DebugLevel,
 		Formatter: &log.TextFormatter***REMOVED******REMOVED***,
 	***REMOVED***
