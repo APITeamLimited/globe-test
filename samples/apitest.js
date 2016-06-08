@@ -25,11 +25,6 @@ function subsetof(a, b) ***REMOVED***
   return true;
 ***REMOVED***
 
-// Stop execution if this is the 2nd iteration
-if (vu.iteration() > 1) ***REMOVED***
-  sleep(999);
-***REMOVED***
-
 print("1. Testing log.debug()");
 log.debug("   log.debug() WORKS");
 print("2. Testing log.info()");
@@ -175,4 +170,5 @@ print("   vu.iteration() = " + vu.iteration() + " -- IT WORKS");
 print("22. Testing test.url()");
 print("   test.url() = " + test.url() + " -- IT WORKS");
 
-
+print("23. Testing test.abort()");
+test.abort();
