@@ -22,8 +22,8 @@ func New() *Runner ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED***
-	mDuration := sampler.Stats("duration")
-	mErrors := sampler.Counter("errors")
+	mDuration := sampler.Stats("request.duration")
+	mErrors := sampler.Counter("request.error")
 	for ***REMOVED***
 		req := fasthttp.AcquireRequest()
 		defer fasthttp.ReleaseRequest(req)
