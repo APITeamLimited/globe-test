@@ -199,6 +199,9 @@ func action(cc *cli.Context) error ***REMOVED***
 
 	// Output metrics appropriately; use a mutex to prevent garbled output
 	logMetrics := cc.Bool("log")
+	if logMetrics ***REMOVED***
+		sampler.DefaultSampler.Accumulate = true
+	***REMOVED***
 	metricsLogger := stdlog.New(os.Stdout, "metrics: ", stdlog.Lmicroseconds)
 	metricsMutex := sync.Mutex***REMOVED******REMOVED***
 	go func() ***REMOVED***
