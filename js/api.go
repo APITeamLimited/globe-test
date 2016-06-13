@@ -22,7 +22,7 @@ func apiSleep(js *duktape.Context, ctx context.Context) int ***REMOVED***
 	return 0
 ***REMOVED***
 
-func apiHTTPDo(js *duktape.Context, ctx context.Context) int ***REMOVED***
+func apiHTTPRequest(js *duktape.Context, ctx context.Context) int ***REMOVED***
 	method := argString(js, 0)
 	if method == "" ***REMOVED***
 		log.Error("Missing method in http call")
@@ -53,7 +53,7 @@ func apiHTTPDo(js *duktape.Context, ctx context.Context) int ***REMOVED***
 		return 0
 	***REMOVED***
 
-	res, err := http.Do(ctx, method, url, body, args)
+	res, err := http.Request(ctx, method, url, body, args)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Request error")
 	***REMOVED***
