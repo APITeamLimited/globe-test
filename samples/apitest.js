@@ -49,7 +49,7 @@ var data = ***REMOVED*** 'a':'1', 'b':'2' ***REMOVED***;
 var headers = ***REMOVED*** 'X-Myheader' : 'Myheadervalue', 'X-Myheader2' : 'Myheadervalue2' ***REMOVED***;
 var params = ***REMOVED*** 'headers' : headers, 'quiet' : false ***REMOVED***
 
-print("8. Testing http.do(\"GET\"");
+print("8. Testing http.do(\"GET\", \"http://httpbin.org/get\")");
 var jsondata = http.do("GET", "http://httpbin.org/get", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
@@ -58,7 +58,7 @@ if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
 
-print("9. Testing http.get()");
+print("9. Testing http.get(\"http://httpbin.org/get\")");
 var jsondata = http.get("http://httpbin.org/get", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
@@ -67,8 +67,9 @@ if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
 
-log.debug("10. Testing http.do(\"POST\", \"http://httpbin.org/post\")");
+print("10. Testing http.do(\"POST\", \"http://httpbin.org/post\")");
 var jsondata = http.do("POST", "http://httpbin.org/post", data, params).json();
+// XXX TODO: verify that post data is returned
 //if (!subsetof(data, jsondata.form)) ***REMOVED***
 //  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata))
 //***REMOVED***
