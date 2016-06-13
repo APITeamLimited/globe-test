@@ -65,7 +65,11 @@ type Metric struct ***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Entry() *Entry ***REMOVED***
-	return &Entry***REMOVED***Metric: m, Fields: make(map[string]interface***REMOVED******REMOVED***)***REMOVED***
+	return &Entry***REMOVED***
+		Metric: m,
+		Time:   time.Now(),
+		Fields: make(map[string]interface***REMOVED******REMOVED***),
+	***REMOVED***
 ***REMOVED***
 
 func (m *Metric) WithField(key string, value interface***REMOVED******REMOVED***) *Entry ***REMOVED***
