@@ -7,6 +7,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/yuin/gopher-lua"
 	"golang.org/x/net/context"
+	"math"
 	"time"
 )
 
@@ -20,7 +21,9 @@ func New(filename, src string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
 		Filename: filename,
 		Source:   src,
-		Client:   &fasthttp.Client***REMOVED******REMOVED***,
+		Client: &fasthttp.Client***REMOVED***
+			MaxConnsPerHost: math.MaxInt32,
+		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
