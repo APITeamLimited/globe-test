@@ -20,9 +20,7 @@ func New(filename, src string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
 		Filename: filename,
 		Source:   src,
-		Client: &fasthttp.Client***REMOVED***
-			MaxIdleConnDuration: time.Duration(0),
-		***REMOVED***,
+		Client:   &fasthttp.Client***REMOVED******REMOVED***,
 	***REMOVED***
 ***REMOVED***
 

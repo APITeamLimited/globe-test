@@ -16,9 +16,7 @@ type Runner struct ***REMOVED***
 
 func New() *Runner ***REMOVED***
 	return &Runner***REMOVED***
-		Client: &fasthttp.Client***REMOVED***
-			MaxIdleConnDuration: time.Duration(0),
-		***REMOVED***,
+		Client: &fasthttp.Client***REMOVED******REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
