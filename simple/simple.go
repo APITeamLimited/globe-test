@@ -48,7 +48,7 @@ func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED
 		case <-ctx.Done():
 			return
 		default:
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Millisecond)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
