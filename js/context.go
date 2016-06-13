@@ -51,15 +51,15 @@ func setupGlobalObject(js *duktape.Context, t speedboat.Test, id int) ***REMOVED
 	js.PutPropString(-2, "__data__")
 ***REMOVED***
 
-func putScript(js *duktape.Context, filename, src string) error ***REMOVED***
-	js.PushGlobalObject()
-	defer js.Pop()
+func pushScript(js *duktape.Context, filename, src string) error ***REMOVED***
+	// js.PushGlobalObject()
+	// defer js.Pop()
 
 	js.PushString(filename)
 	if err := js.PcompileStringFilename(0, src); err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	js.PutPropString(-2, scriptProp)
+	// js.PutPropString(-2, scriptProp)
 
 	return nil
 ***REMOVED***
