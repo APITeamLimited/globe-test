@@ -6,19 +6,15 @@ import (
 	"github.com/loadimpact/speedboat/sampler"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
+	"math"
 	"time"
 )
 
 type Runner struct ***REMOVED***
-	Client *fasthttp.Client
 ***REMOVED***
 
 func New() *Runner ***REMOVED***
-	return &Runner***REMOVED***
-		Client: &fasthttp.Client***REMOVED***
-			MaxIdleConnDuration: 0,
-		***REMOVED***,
-	***REMOVED***
+	return &Runner***REMOVED******REMOVED***
 ***REMOVED***
 
 func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED***
@@ -30,13 +26,15 @@ func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
+	client := fasthttp.Client***REMOVED***MaxConnsPerHost: math.MaxInt32***REMOVED***
+
 	for ***REMOVED***
 		req.Reset()
 		req.SetRequestURI(t.URL)
 		res.Reset()
 
 		startTime := time.Now()
-		if err := r.Client.Do(req, res); err != nil ***REMOVED***
+		if err := client.Do(req, res); err != nil ***REMOVED***
 			log.WithError(err).Error("Request error")
 			mErrors.WithField("url", t.URL).Int(1)
 		***REMOVED***
