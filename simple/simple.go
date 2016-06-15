@@ -6,7 +6,6 @@ import (
 	"github.com/loadimpact/speedboat/sampler"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
-	"math/rand"
 	"time"
 )
 
@@ -16,7 +15,9 @@ type Runner struct ***REMOVED***
 
 func New() *Runner ***REMOVED***
 	return &Runner***REMOVED***
-		Client: &fasthttp.Client***REMOVED******REMOVED***,
+		Client: &fasthttp.Client***REMOVED***
+			MaxIdleConnDuration: 0,
+		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -47,7 +48,6 @@ func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED
 		case <-ctx.Done():
 			return
 		default:
-			time.Sleep(time.Duration(rand.Int63n(100)) * time.Millisecond)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
