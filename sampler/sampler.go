@@ -201,13 +201,15 @@ func (s *Sampler) Counter(name string) *Metric ***REMOVED***
 ***REMOVED***
 
 func (s *Sampler) Write(m *Metric, e *Entry) ***REMOVED***
-	for _, out := range s.Outputs ***REMOVED***
-		if err := out.Write(m, e); err != nil ***REMOVED***
-			if s.OnError != nil ***REMOVED***
-				s.OnError(err)
+	go func() ***REMOVED***
+		for _, out := range s.Outputs ***REMOVED***
+			if err := out.Write(m, e); err != nil ***REMOVED***
+				if s.OnError != nil ***REMOVED***
+					s.OnError(err)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
-	***REMOVED***
+	***REMOVED***()
 ***REMOVED***
 
 func (s *Sampler) Commit() error ***REMOVED***
