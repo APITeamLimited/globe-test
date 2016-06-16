@@ -59,7 +59,7 @@ func Request(ctx context.Context, method, url, body string, args Args) (Response
 		return Response***REMOVED******REMOVED***, ErrNoClient
 	***REMOVED***
 
-	if method == "GET" && body != "" ***REMOVED***
+	if (method == "GET" || method == "HEAD") && body != "" ***REMOVED***
 		u, err := neturl.Parse(url)
 		if err != nil ***REMOVED***
 			return Response***REMOVED******REMOVED***, err
@@ -84,7 +84,7 @@ func Request(ctx context.Context, method, url, body string, args Args) (Response
 	req.Header.SetMethod(method)
 	req.SetRequestURI(url)
 
-	if method != "GET" ***REMOVED***
+	if method != "GET" && method != "HEAD" ***REMOVED***
 		req.SetBodyString(body)
 	***REMOVED***
 
