@@ -121,21 +121,6 @@ func parse(cc *cli.Context) (conf Config, err error) ***REMOVED***
 	return conf, nil
 ***REMOVED***
 
-func dumpTest(t *speedboat.Test) ***REMOVED***
-	log.WithFields(log.Fields***REMOVED***
-		"script": t.Script,
-		"url":    t.URL,
-	***REMOVED***).Info("General")
-	for i, stage := range t.Stages ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"#":        i,
-			"duration": stage.Duration,
-			"start":    stage.StartVUs,
-			"end":      stage.EndVUs,
-		***REMOVED***).Info("Stage")
-	***REMOVED***
-***REMOVED***
-
 func headlessController(c context.Context, t *speedboat.Test) <-chan int ***REMOVED***
 	ch := make(chan int)
 
@@ -177,11 +162,6 @@ func action(cc *cli.Context) error ***REMOVED***
 	t, err := conf.MakeTest()
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Configuration error")
-	***REMOVED***
-
-	if cc.Bool("dump") ***REMOVED***
-		dumpTest(&t)
-		return nil
 	***REMOVED***
 
 	// Inspect the test to find a suitable runner; additional ones can easily be added
@@ -318,10 +298,6 @@ func main() ***REMOVED***
 			Name:  "format, f",
 			Usage: "Metric output format (json or csv)",
 			Value: "json",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "dump",
-			Usage: "Dump parsed test and exit",
 		***REMOVED***,
 	***REMOVED***
 	app.Before = func(c *cli.Context) error ***REMOVED***
