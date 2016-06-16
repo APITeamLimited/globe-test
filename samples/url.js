@@ -1,4 +1,2 @@
-var http = require('http'),
-	test = require('test');
-http.get(test.url(), ***REMOVED*** report: true ***REMOVED***);
-sleep(1);
+$http.get($test.url(), ***REMOVED*** report: true ***REMOVED***);
+$vu.sleep(1);

@@ -1,5 +1,3 @@
-var http = require('http');
-
 function dump(x, name, indent) ***REMOVED***
   var ret = name + "[" + typeof x + "] ";
   if (indent === undefined) indent = "";
@@ -12,7 +10,7 @@ function dump(x, name, indent) ***REMOVED***
   return indent + ret + "= " + x;
 ***REMOVED***
 
-var res = http.get('http://httpbin.org/get', ***REMOVED***'a': 1, 'b': 2***REMOVED***);
+var res = $http.get('http://httpbin.org/get', ***REMOVED***'a': 1, 'b': 2***REMOVED***);
 var jsonob = res.json();
 print(dump(jsonob, "jsonob"));
 
