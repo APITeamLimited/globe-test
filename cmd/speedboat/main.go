@@ -39,7 +39,7 @@ func configureSampler(c *cli.Context) ***REMOVED***
 		log.WithError(err).Error("[Sampler error]")
 	***REMOVED***
 
-	for _, output := range c.GlobalStringSlice("output") ***REMOVED***
+	for _, output := range c.GlobalStringSlice("metrics") ***REMOVED***
 		parts := strings.SplitN(output, "+", 2)
 		switch parts[0] ***REMOVED***
 		case "influxdb":
@@ -311,8 +311,8 @@ func main() ***REMOVED***
 			Usage: "Suppress the summary at the end of a test",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
-			Name:  "output, o",
-			Usage: "Output metrics to a file or database",
+			Name:  "metrics, m",
+			Usage: "Write metrics to a file or database",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "format, f",
