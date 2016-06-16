@@ -49,7 +49,7 @@ var data = ***REMOVED*** 'a':'1', 'b':'2' ***REMOVED***;
 var headers = ***REMOVED*** 'X-Myheader' : 'Myheadervalue', 'X-Myheader2' : 'Myheadervalue2' ***REMOVED***;
 var params = ***REMOVED*** 'headers' : headers, 'quiet' : false ***REMOVED***
 
-print("8. Testing http.do(\"GET\"");
+print("8. Testing http.do(\"GET\", \"http://httpbin.org/get\")");
 var jsondata = http.do("GET", "http://httpbin.org/get", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
@@ -58,7 +58,7 @@ if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
 
-print("9. Testing http.get()");
+print("9. Testing http.get(\"http://httpbin.org/get\")");
 var jsondata = http.get("http://httpbin.org/get", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
@@ -67,8 +67,9 @@ if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   log.debug("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
 
-log.debug("10. Testing http.do(\"POST\", \"http://httpbin.org/post\")");
+print("10. Testing http.do(\"POST\", \"http://httpbin.org/post\")");
 var jsondata = http.do("POST", "http://httpbin.org/post", data, params).json();
+// XXX TODO: verify that post data is returned
 //if (!subsetof(data, jsondata.form)) ***REMOVED***
 //  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata))
 //***REMOVED***
@@ -139,7 +140,6 @@ if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
 
-/*
 print("18. Testing http.do(\"OPTIONS\", \"http://httpbin.org/options\")");
 var jsondata = http.do("OPTIONS", "http://httpbin.org/options", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
@@ -148,9 +148,7 @@ if (!subsetof(data, jsondata.args)) ***REMOVED***
 if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
-*/
 
-/*
 print("19. Testing http.options(\"http://httpbin.org/options\")");
 var jsondata = http.options("http://httpbin.org/options", data, params).json();
 if (!subsetof(data, jsondata.args)) ***REMOVED***
@@ -159,16 +157,69 @@ if (!subsetof(data, jsondata.args)) ***REMOVED***
 if (!subsetof(headers, jsondata.headers)) ***REMOVED***
   print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
 ***REMOVED***
-*/
 
-print("20. Testing vu.id()");
+print("20. Testing http.do(\"HEAD\", \"http://httpbin.org/head\")");
+var jsondata = http.do("HEAD", "http://httpbin.org/head", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("21. Testing http.head(\"http://httpbin.org/head\")");
+var jsondata = http.head("http://httpbin.org/head", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("22. Testing http.do(\"CONNECT\", \"http://httpbin.org/connect\")");
+var jsondata = http.do("CONNECT", "http://httpbin.org/connect", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("23. Testing http.connect(\"http://httpbin.org/connect\")");
+var jsondata = http.connect("http://httpbin.org/connect", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("24. Testing http.do(\"TRACE\", \"http://httpbin.org/trace\")");
+var jsondata = http.do("TRACE", "http://httpbin.org/trace", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("25. Testing http.trace(\"http://httpbin.org/trace\")");
+var jsondata = http.trace("http://httpbin.org/trace", data, params).json();
+if (!subsetof(data, jsondata.args)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(data) + " but got back: " + JSON.stringify(jsondata.args))
+***REMOVED***
+if (!subsetof(headers, jsondata.headers)) ***REMOVED***
+  print("ERROR!  I sent: " + JSON.stringify(headers) + " but got back: " + JSON.stringify(jsondata.headers))
+***REMOVED***
+
+print("26. Testing vu.id()");
 print("   vu.id() = " + vu.id() + " -- IT WORKS");
 
-print("21. Testing vu.iteration()");
+print("27. Testing vu.iteration()");
 print("   vu.iteration() = " + vu.iteration() + " -- IT WORKS");
 
-print("22. Testing test.url()");
+print("28. Testing test.url()");
 print("   test.url() = " + test.url() + " -- IT WORKS");
 
-print("23. Testing test.abort()");
+print("29. Testing test.abort()");
 test.abort();
