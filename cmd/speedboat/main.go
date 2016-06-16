@@ -21,6 +21,12 @@ import (
 	"time"
 )
 
+const (
+	typeURL = "url"
+	typeYML = "yml"
+	typeJS  = "js"
+)
+
 // Configure the global logger.
 func configureLogging(c *cli.Context) ***REMOVED***
 	log.SetLevel(log.InfoLevel)
@@ -75,13 +81,34 @@ func configureSampler(c *cli.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func guessType(arg string) string ***REMOVED***
+	switch ***REMOVED***
+	case strings.Contains(arg, "://"):
+		return typeURL
+	case strings.HasSuffix(arg, ".js"):
+		return typeJS
+	case strings.HasSuffix(arg, ".yml"):
+		return typeYML
+	***REMOVED***
+	return ""
+***REMOVED***
+
 func parse(cc *cli.Context) (conf Config, err error) ***REMOVED***
-	switch len(cc.Args()) ***REMOVED***
-	case 0:
-		if !cc.IsSet("script") && !cc.IsSet("url") ***REMOVED***
-			return conf, errors.New("No config file, script or URL")
-		***REMOVED***
-	case 1:
+	if len(cc.Args()) == 0 ***REMOVED***
+		return conf, errors.New("Nothing to do!")
+	***REMOVED***
+
+	conf.VUs = cc.Int("vus")
+	conf.Duration = cc.Duration("duration").String()
+
+	arg := cc.Args()[0]
+	argType := cc.String("type")
+	if argType == "" ***REMOVED***
+		argType = guessType(arg)
+	***REMOVED***
+
+	switch argType ***REMOVED***
+	case typeYML:
 		bytes, err := ioutil.ReadFile(cc.Args()[0])
 		if err != nil ***REMOVED***
 			return conf, errors.New("Couldn't read config file")
@@ -89,22 +116,12 @@ func parse(cc *cli.Context) (conf Config, err error) ***REMOVED***
 		if err := yaml.Unmarshal(bytes, &conf); err != nil ***REMOVED***
 			return conf, errors.New("Couldn't parse config file")
 		***REMOVED***
+	case typeURL:
+		conf.URL = arg
+	case typeJS:
+		conf.Script = arg
 	default:
-		return conf, errors.New("Too many arguments!")
-	***REMOVED***
-
-	// Let commandline flags override config files
-	if cc.IsSet("script") ***REMOVED***
-		conf.Script = cc.String("script")
-	***REMOVED***
-	if cc.IsSet("url") ***REMOVED***
-		conf.URL = cc.String("url")
-	***REMOVED***
-	if cc.IsSet("vus") ***REMOVED***
-		conf.VUs = cc.Int("vus")
-	***REMOVED***
-	if cc.IsSet("duration") ***REMOVED***
-		conf.Duration = cc.Duration("duration").String()
+		return conf, errors.New("Unsure of what to do, try specifying --type")
 	***REMOVED***
 
 	return conf, nil
@@ -153,6 +170,11 @@ func headlessController(c context.Context, t *speedboat.Test) <-chan int ***REMO
 ***REMOVED***
 
 func action(cc *cli.Context) error ***REMOVED***
+	if len(cc.Args()) == 0 ***REMOVED***
+		cli.ShowAppHelp(cc)
+		return nil
+	***REMOVED***
+
 	conf, err := parse(cc)
 	if err != nil ***REMOVED***
 		log.WithError(err).Fatal("Invalid arguments; see --help")
@@ -284,17 +306,9 @@ func main() ***REMOVED***
 	app.Usage = "A next-generation load generator"
 	app.Version = "0.0.1a1"
 	app.Flags = []cli.Flag***REMOVED***
-		cli.BoolFlag***REMOVED***
-			Name:  "verbose, v",
-			Usage: "More verbose output",
-		***REMOVED***,
 		cli.StringFlag***REMOVED***
-			Name:  "script, s",
-			Usage: "Script to run",
-		***REMOVED***,
-		cli.StringFlag***REMOVED***
-			Name:  "url",
-			Usage: "URL to test",
+			Name:  "type, t",
+			Usage: "Input file type, if not evident (url, yml or js)",
 		***REMOVED***,
 		cli.IntFlag***REMOVED***
 			Name:  "vus, u",
@@ -305,6 +319,10 @@ func main() ***REMOVED***
 			Name:  "duration, d",
 			Usage: "Test duration",
 			Value: time.Duration(10) * time.Second,
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "verbose, v",
+			Usage: "More verbose output",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "output, o",
