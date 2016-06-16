@@ -154,6 +154,10 @@ func (m *Metric) Last() int64 ***REMOVED***
 	return m.values[len(m.values)-1]
 ***REMOVED***
 
+func (m *Metric) Count() int ***REMOVED***
+	return len(m.values)
+***REMOVED***
+
 type Sampler struct ***REMOVED***
 	Metrics map[string]*Metric
 	Outputs []Output
