@@ -31,10 +31,6 @@ func configureLogging(c *cli.Context) ***REMOVED***
 	if c.GlobalBool("verbose") ***REMOVED***
 		log.SetLevel(log.DebugLevel)
 	***REMOVED***
-
-	if c.GlobalBool("json") ***REMOVED***
-		log.SetFormatter(&log.JSONFormatter***REMOVED******REMOVED***)
-	***REMOVED***
 ***REMOVED***
 
 // Configure the global sampler.
@@ -212,9 +208,6 @@ func action(cc *cli.Context) error ***REMOVED***
 		Level:     log.DebugLevel,
 		Formatter: &log.TextFormatter***REMOVED******REMOVED***,
 	***REMOVED***
-	if cc.GlobalBool("json") ***REMOVED***
-		logger.Formatter = &log.JSONFormatter***REMOVED******REMOVED***
-	***REMOVED***
 	ctx = speedboat.WithLogger(ctx, logger)
 
 	// Store metrics unless the --quiet flag is specified
@@ -325,10 +318,6 @@ func main() ***REMOVED***
 			Name:  "format, f",
 			Usage: "Metric output format (json or csv)",
 			Value: "json",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "json",
-			Usage: "Format log messages as JSON",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "dump",
