@@ -14,10 +14,8 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	stdlog "log"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -219,23 +217,16 @@ func action(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	ctx = speedboat.WithLogger(ctx, logger)
 
-	// Output metrics appropriately; use a mutex to prevent garbled output
-	logMetrics := cc.Bool("log")
-	if logMetrics ***REMOVED***
-		sampler.DefaultSampler.Accumulate = true
-	***REMOVED***
-	metricsLogger := stdlog.New(os.Stdout, "metrics: ", stdlog.Lmicroseconds)
-	metricsMutex := sync.Mutex***REMOVED******REMOVED***
+	// Store metrics unless the --quiet flag is specified
+	quiet := cc.Bool("quiet")
+	sampler.DefaultSampler.Accumulate = !quiet
+
+	// Commit metrics to any configured backends once per second
 	go func() ***REMOVED***
 		ticker := time.NewTicker(1 * time.Second)
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
-				if logMetrics ***REMOVED***
-					metricsMutex.Lock()
-					printMetrics(metricsLogger)
-					metricsMutex.Unlock()
-				***REMOVED***
 				commitMetrics()
 			case <-ctx.Done():
 				return
@@ -283,11 +274,9 @@ func action(cc *cli.Context) error ***REMOVED***
 	// Wait until the end of the test
 	<-ctx.Done()
 
-	// Print final metrics
-	if logMetrics ***REMOVED***
-		metricsMutex.Lock()
-		printMetrics(metricsLogger)
-		metricsMutex.Unlock()
+	// Print and commit final metrics
+	if !quiet ***REMOVED***
+		printMetrics()
 	***REMOVED***
 	commitMetrics()
 	closeMetrics()
@@ -324,6 +313,10 @@ func main() ***REMOVED***
 			Name:  "verbose, v",
 			Usage: "More verbose output",
 		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "quiet, q",
+			Usage: "Suppress the summary at the end of a test",
+		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "output, o",
 			Usage: "Output metrics to a file or database",
@@ -332,10 +325,6 @@ func main() ***REMOVED***
 			Name:  "format, f",
 			Usage: "Metric output format (json or csv)",
 			Value: "json",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "log, l",
-			Usage: "Log metrics to stdout",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "json",
