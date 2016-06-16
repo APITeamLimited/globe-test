@@ -11,41 +11,60 @@ import (
 )
 
 type Runner struct ***REMOVED***
+	Test speedboat.Test
+
+	mDuration *sampler.Metric
+	mErrors   *sampler.Metric
 ***REMOVED***
 
-func New() *Runner ***REMOVED***
-	return &Runner***REMOVED******REMOVED***
+type VU struct ***REMOVED***
+	Runner  *Runner
+	Client  fasthttp.Client
+	Request fasthttp.Request
 ***REMOVED***
 
-func (r *Runner) RunVU(ctx context.Context, t speedboat.Test, id int) ***REMOVED***
-	mDuration := sampler.Stats("request.duration")
-	mErrors := sampler.Counter("request.error")
+func New(t speedboat.Test) *Runner ***REMOVED***
+	return &Runner***REMOVED***
+		Test:      t,
+		mDuration: sampler.Stats("request.duration"),
+		mErrors:   sampler.Counter("request.error"),
+	***REMOVED***
+***REMOVED***
 
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
+func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
+	vu := &VU***REMOVED***
+		Runner: r,
+		Client: fasthttp.Client***REMOVED***MaxConnsPerHost: math.MaxInt32***REMOVED***,
+	***REMOVED***
+
+	vu.Request.SetRequestURI(r.Test.URL)
+
+	return vu, nil
+***REMOVED***
+
+func (u *VU) Reconfigure(id int64) error ***REMOVED***
+	return nil
+***REMOVED***
+
+func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	res := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(res)
 
-	client := fasthttp.Client***REMOVED***MaxConnsPerHost: math.MaxInt32***REMOVED***
+	startTime := time.Now()
+	err := u.Client.Do(&u.Request, res)
+	duration := time.Since(startTime)
 
-	for ***REMOVED***
-		req.Reset()
-		req.SetRequestURI(t.URL)
-		res.Reset()
+	u.Runner.mDuration.WithFields(sampler.Fields***REMOVED***
+		"url":    u.Runner.Test.URL,
+		"method": "GET",
+		"status": res.StatusCode(),
+	***REMOVED***).Duration(duration)
 
-		startTime := time.Now()
-		if err := client.Do(req, res); err != nil ***REMOVED***
-			log.WithError(err).Error("Request error")
-			mErrors.WithField("url", t.URL).Int(1)
-		***REMOVED***
-		duration := time.Since(startTime)
-
-		mDuration.WithField("url", t.URL).Duration(duration)
-
-		select ***REMOVED***
-		case <-ctx.Done():
-			return
-		default:
-		***REMOVED***
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Request error")
+		u.Runner.mErrors.WithField("url", u.Runner.Test.URL).Int(1)
+		return err
 	***REMOVED***
+
+	return nil
 ***REMOVED***

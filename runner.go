@@ -15,6 +15,15 @@ type FlowControl int
 
 type ContextKey int
 
+type Runner interface ***REMOVED***
+	NewVU() (VU, error)
+***REMOVED***
+
+type VU interface ***REMOVED***
+	Reconfigure(id int64) error
+	RunOnce(ctx context.Context) error
+***REMOVED***
+
 func (op FlowControl) Error() string ***REMOVED***
 	switch op ***REMOVED***
 	case 0:
@@ -30,8 +39,4 @@ func WithLogger(ctx context.Context, logger *log.Logger) context.Context ***REMO
 
 func GetLogger(ctx context.Context) *log.Logger ***REMOVED***
 	return ctx.Value(LoggerKey).(*log.Logger)
-***REMOVED***
-
-type Runner interface ***REMOVED***
-	RunVU(ctx context.Context, t Test, id int)
 ***REMOVED***

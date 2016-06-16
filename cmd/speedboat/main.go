@@ -168,13 +168,13 @@ func action(cc *cli.Context) error ***REMOVED***
 	var runner speedboat.Runner
 	switch ***REMOVED***
 	case t.Script == "":
-		runner = simple.New()
+		runner = simple.New(t)
 	case strings.HasSuffix(t.Script, ".js"):
 		src, err := ioutil.ReadFile(t.Script)
 		if err != nil ***REMOVED***
 			log.WithError(err).Fatal("Couldn't read script")
 		***REMOVED***
-		runner = js.New(t.Script, string(src))
+		/*runner =*/ js.New(t.Script, string(src))
 	default:
 		log.Fatal("No suitable runner found!")
 	***REMOVED***
@@ -215,7 +215,8 @@ func action(cc *cli.Context) error ***REMOVED***
 			log.WithField("id", i).Debug("Spawning VU")
 			vuCtx, vuCancel := context.WithCancel(ctx)
 			vus = append(vus, vuCancel)
-			go func() ***REMOVED***
+
+			go func(ctx context.Context) ***REMOVED***
 				defer func() ***REMOVED***
 					if v := recover(); v != nil ***REMOVED***
 						switch err := v.(type) ***REMOVED***
@@ -226,15 +227,27 @@ func action(cc *cli.Context) error ***REMOVED***
 								cancel()
 							***REMOVED***
 						default:
-							log.WithFields(log.Fields***REMOVED***
-								"id":    i,
-								"error": err,
-							***REMOVED***).Error("VU crashed!")
+							panic(err)
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***()
-				runner.RunVU(vuCtx, t, len(vus))
-			***REMOVED***()
+
+				vu, err := runner.NewVU()
+				if err != nil ***REMOVED***
+					log.WithError(err).Error("Couldn't spawn VU")
+					return
+				***REMOVED***
+
+				vu.Reconfigure(int64(i))
+				for ***REMOVED***
+					select ***REMOVED***
+					case <-ctx.Done():
+						return
+					default:
+						vu.RunOnce(ctx)
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***(vuCtx)
 		***REMOVED***
 		for i := len(vus); i > scale; i-- ***REMOVED***
 			log.WithField("id", i-1).Debug("Dropping VU")
