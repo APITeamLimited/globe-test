@@ -1,27 +1,33 @@
 package main
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/sampler"
-	stdlog "log"
 	"time"
 )
 
-func printMetrics(l *stdlog.Logger) ***REMOVED***
+func printMetrics() ***REMOVED***
 	for name, m := range sampler.DefaultSampler.Metrics ***REMOVED***
 		switch m.Type ***REMOVED***
 		case sampler.GaugeType:
-			l.Printf("%s val=%v\n", name, applyIntent(m, m.Last()))
+			last := m.Last()
+			if last == 0 ***REMOVED***
+				continue
+			***REMOVED***
+			log.WithField("val", applyIntent(m, last)).Infof("Metric: %s", name)
 		case sampler.CounterType:
-			l.Printf("%s num=%v\n", name, applyIntent(m, m.Sum()))
+			sum := m.Sum()
+			if sum == 0 ***REMOVED***
+				continue
+			***REMOVED***
+			log.WithField("num", applyIntent(m, sum)).Infof("Metric: %s", name)
 		case sampler.StatsType:
-			l.Printf("%s min=%v max=%v avg=%v med=%v\n", name,
-				applyIntent(m, m.Min()),
-				applyIntent(m, m.Max()),
-				applyIntent(m, m.Avg()),
-				applyIntent(m, m.Med()),
-			)
+			log.WithFields(log.Fields***REMOVED***
+				"min": applyIntent(m, m.Min()),
+				"max": applyIntent(m, m.Max()),
+				"avg": applyIntent(m, m.Avg()),
+				"med": applyIntent(m, m.Med()),
+			***REMOVED***).Infof("Metric: %s", name)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -42,5 +48,5 @@ func applyIntent(m *sampler.Metric, v int64) interface***REMOVED******REMOVED***
 	if m.Intent == sampler.TimeIntent ***REMOVED***
 		return time.Duration(v)
 	***REMOVED***
-	return fmt.Sprint(v)
+	return v
 ***REMOVED***
