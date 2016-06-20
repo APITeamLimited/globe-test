@@ -244,7 +244,9 @@ func action(cc *cli.Context) error ***REMOVED***
 					case <-ctx.Done():
 						return
 					default:
-						vu.RunOnce(ctx)
+						if err := vu.RunOnce(ctx); err != nil ***REMOVED***
+							log.WithError(err).Error("Script error")
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***(vuCtx)
