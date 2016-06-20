@@ -17,6 +17,8 @@ type Runner struct ***REMOVED***
 	filename string
 	source   string
 
+	logger *log.Logger
+
 	mDuration *sampler.Metric
 	mErrors   *sampler.Metric
 ***REMOVED***
@@ -33,9 +35,15 @@ type VU struct ***REMOVED***
 
 func New(t speedboat.Test, filename, source string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
-		Test:      t,
-		filename:  filename,
-		source:    source,
+		Test:     t,
+		filename: filename,
+		source:   source,
+		logger: &log.Logger***REMOVED***
+			Out:       os.Stderr,
+			Formatter: &log.TextFormatter***REMOVED******REMOVED***,
+			Hooks:     make(log.LevelHooks),
+			Level:     log.DebugLevel,
+		***REMOVED***,
 		mDuration: sampler.Stats("request.duration"),
 		mErrors:   sampler.Counter("request.error"),
 	***REMOVED***
@@ -117,6 +125,36 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			return otto.UndefinedValue()
 		***REMOVED***,
 	***REMOVED***)
+	vm.Set("$log", map[string]interface***REMOVED******REMOVED******REMOVED***
+		"log": func(call otto.FunctionCall) otto.Value ***REMOVED***
+			level, err := call.Argument(0).ToString()
+			if err != nil ***REMOVED***
+				panic(vm.MakeTypeError("level must be a string"))
+			***REMOVED***
+
+			msg, err := call.Argument(1).ToString()
+			if err != nil ***REMOVED***
+				panic(vm.MakeTypeError("message must be a string"))
+			***REMOVED***
+
+			fields := make(map[string]interface***REMOVED******REMOVED***)
+			fieldsObj := call.Argument(2).Object()
+			if fieldsObj != nil ***REMOVED***
+				for _, key := range fieldsObj.Keys() ***REMOVED***
+					valObj, _ := fieldsObj.Get(key)
+					val, err := valObj.Export()
+					if err != nil ***REMOVED***
+						panic(err)
+					***REMOVED***
+					fields[key] = val
+				***REMOVED***
+			***REMOVED***
+
+			vu.Log(level, msg, fields)
+
+			return otto.UndefinedValue()
+		***REMOVED***,
+	***REMOVED***)
 
 	init := `
 	$http.get = function(url, data, params) ***REMOVED*** return $http.request('GET', url, data, params); ***REMOVED***;
@@ -126,6 +164,11 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 	$http.patch = function(url, data, params) ***REMOVED*** return $http.request('PATCH', url, data, params); ***REMOVED***;
 	$http.options = function(url, data, params) ***REMOVED*** return $http.request('OPTIONS', url, data, params); ***REMOVED***;
 	$http.head = function(url, data, params) ***REMOVED*** return $http.request('HEAD', url, data, params); ***REMOVED***;
+	
+	$log.debug = function(msg, fields) ***REMOVED*** $log.log('debug', msg, fields); ***REMOVED***;
+	$log.info = function(msg, fields) ***REMOVED*** $log.log('info', msg, fields); ***REMOVED***;
+	$log.warn = function(msg, fields) ***REMOVED*** $log.log('warn', msg, fields); ***REMOVED***;
+	$log.error = function(msg, fields) ***REMOVED*** $log.log('error', msg, fields); ***REMOVED***;
 	`
 	if _, err := vm.Eval(init); err != nil ***REMOVED***
 		return nil, err
