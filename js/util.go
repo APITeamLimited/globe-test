@@ -2,6 +2,8 @@ package js
 
 import (
 	"github.com/robertkrimen/otto"
+	"net/url"
+	"strings"
 )
 
 func paramsFromObject(o *otto.Object) (params HTTPParams, err error) ***REMOVED***
@@ -47,4 +49,43 @@ func paramsFromObject(o *otto.Object) (params HTTPParams, err error) ***REMOVED*
 	***REMOVED***
 
 	return params, nil
+***REMOVED***
+
+func bodyFromValue(o otto.Value) (string, error) ***REMOVED***
+	if o.IsUndefined() || o.IsNull() ***REMOVED***
+		return "", nil
+	***REMOVED***
+
+	if o.IsObject() ***REMOVED***
+		query := make(url.Values)
+		obj := o.Object()
+		for _, key := range obj.Keys() ***REMOVED***
+			valObj, _ := obj.Get(key)
+			val, err := valObj.ToString()
+			if err != nil ***REMOVED***
+				return "", err
+			***REMOVED***
+			query.Add(key, val)
+		***REMOVED***
+		return query.Encode(), nil
+	***REMOVED***
+
+	body, err := o.ToString()
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+
+	return body, nil
+***REMOVED***
+
+func putBodyInURL(url, body string) string ***REMOVED***
+	if body == "" ***REMOVED***
+		return url
+	***REMOVED***
+
+	if !strings.ContainsRune(url, '?') ***REMOVED***
+		return url + "?" + body
+	***REMOVED*** else ***REMOVED***
+		return url + "&" + body
+	***REMOVED***
 ***REMOVED***

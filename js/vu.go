@@ -32,8 +32,11 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetMethod(method)
-	req.SetRequestURI(url)
-	if body != "" ***REMOVED***
+
+	if method == "GET" || method == "HEAD" ***REMOVED***
+		req.SetRequestURI(putBodyInURL(url, body))
+	***REMOVED*** else if body != "" ***REMOVED***
+		req.SetRequestURI(url)
 		req.SetBodyString(body)
 	***REMOVED***
 
