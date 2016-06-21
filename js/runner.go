@@ -52,39 +52,39 @@ func New(t speedboat.Test, filename, source string) *Runner ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
-	vm := otto.New()
+	vuVM := otto.New()
 
-	script, err := vm.Compile(r.filename, r.source)
+	script, err := vuVM.Compile(r.filename, r.source)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	vu := VU***REMOVED***
 		Runner: r,
-		VM:     vm,
+		VM:     vuVM,
 		Script: script,
 	***REMOVED***
 
-	vm.Set("print", func(call otto.FunctionCall) otto.Value ***REMOVED***
+	vu.VM.Set("print", func(call otto.FunctionCall) otto.Value ***REMOVED***
 		fmt.Fprintln(os.Stderr, call.Argument(0))
 		return otto.UndefinedValue()
 	***REMOVED***)
 
-	vm.Set("$http", map[string]interface***REMOVED******REMOVED******REMOVED***
+	vu.VM.Set("$http", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"request": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			method, err := call.Argument(0).ToString()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("method must be a string"))
+				panic(call.Otto.MakeTypeError("method must be a string"))
 			***REMOVED***
 
 			url, err := call.Argument(1).ToString()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("url must be a string"))
+				panic(call.Otto.MakeTypeError("url must be a string"))
 			***REMOVED***
 
 			body, err := bodyFromValue(call.Argument(2))
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("invalid body"))
+				panic(call.Otto.MakeTypeError("invalid body"))
 			***REMOVED***
 
 			params, err := paramsFromObject(call.Argument(3).Object())
@@ -100,12 +100,12 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			***REMOVED***).Debug("Request")
 			res, err := vu.HTTPRequest(method, url, body, params)
 			if err != nil ***REMOVED***
-				panic(vm.MakeCustomError("HTTPError", err.Error()))
+				panic(call.Otto.MakeCustomError("HTTPError", err.Error()))
 			***REMOVED***
 
-			val, err := res.ToValue(vm)
+			val, err := res.ToValue(call.Otto)
 			if err != nil ***REMOVED***
-				panic(vm.MakeCustomError("Error", err.Error()))
+				panic(call.Otto.MakeCustomError("Error", err.Error()))
 			***REMOVED***
 
 			return val
@@ -113,10 +113,10 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 		"setMaxConnsPerHost": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			num, err := call.Argument(0).ToInteger()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("argument must be an integer"))
+				panic(call.Otto.MakeTypeError("argument must be an integer"))
 			***REMOVED***
 			if num <= 0 ***REMOVED***
-				panic(vm.MakeRangeError("argument must be >= 1"))
+				panic(call.Otto.MakeRangeError("argument must be >= 1"))
 			***REMOVED***
 			if num > math.MaxInt32 ***REMOVED***
 				num = math.MaxInt32
@@ -127,11 +127,11 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			return otto.UndefinedValue()
 		***REMOVED***,
 	***REMOVED***)
-	vm.Set("$vu", map[string]interface***REMOVED******REMOVED******REMOVED***
+	vu.VM.Set("$vu", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"sleep": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			t, err := call.Argument(0).ToFloat()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("time must be a number"))
+				panic(call.Otto.MakeTypeError("time must be a number"))
 			***REMOVED***
 
 			vu.Sleep(t)
@@ -141,28 +141,28 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 		"id": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			val, err := call.Otto.ToValue(vu.ID)
 			if err != nil ***REMOVED***
-				panic(jsError(vm, err))
+				panic(jsError(call.Otto, err))
 			***REMOVED***
 			return val
 		***REMOVED***,
 		"iteration": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			val, err := call.Otto.ToValue(vu.Iteration)
 			if err != nil ***REMOVED***
-				panic(jsError(vm, err))
+				panic(jsError(call.Otto, err))
 			***REMOVED***
 			return val
 		***REMOVED***,
 	***REMOVED***)
-	vm.Set("$log", map[string]interface***REMOVED******REMOVED******REMOVED***
+	vu.VM.Set("$log", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"log": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			level, err := call.Argument(0).ToString()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("level must be a string"))
+				panic(call.Otto.MakeTypeError("level must be a string"))
 			***REMOVED***
 
 			msg, err := call.Argument(1).ToString()
 			if err != nil ***REMOVED***
-				panic(vm.MakeTypeError("message must be a string"))
+				panic(call.Otto.MakeTypeError("message must be a string"))
 			***REMOVED***
 
 			fields := make(map[string]interface***REMOVED******REMOVED***)
@@ -204,7 +204,7 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 	$log.warn = function(msg, fields) ***REMOVED*** $log.log('warn', msg, fields); ***REMOVED***;
 	$log.error = function(msg, fields) ***REMOVED*** $log.log('error', msg, fields); ***REMOVED***;
 	`
-	if _, err := vm.Eval(init); err != nil ***REMOVED***
+	if _, err := vu.VM.Eval(init); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
