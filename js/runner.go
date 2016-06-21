@@ -100,12 +100,12 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			***REMOVED***).Debug("Request")
 			res, err := vu.HTTPRequest(method, url, body, params)
 			if err != nil ***REMOVED***
-				panic(call.Otto.MakeCustomError("HTTPError", err.Error()))
+				panic(jsCustomError(call.Otto, "HTTPError", err))
 			***REMOVED***
 
 			val, err := res.ToValue(call.Otto)
 			if err != nil ***REMOVED***
-				panic(call.Otto.MakeCustomError("Error", err.Error()))
+				panic(jsError(call.Otto, err))
 			***REMOVED***
 
 			return val
