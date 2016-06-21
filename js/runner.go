@@ -3,7 +3,7 @@ package js
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/sampler"
 	"github.com/robertkrimen/otto"
 	"github.com/valyala/fasthttp"
@@ -13,7 +13,7 @@ import (
 )
 
 type Runner struct ***REMOVED***
-	Test speedboat.Test
+	Test lib.Test
 
 	filename string
 	source   string
@@ -35,7 +35,7 @@ type VU struct ***REMOVED***
 	Iteration int64
 ***REMOVED***
 
-func New(t speedboat.Test, filename, source string) *Runner ***REMOVED***
+func New(t lib.Test, filename, source string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
 		Test:     t,
 		filename: filename,
@@ -51,7 +51,7 @@ func New(t speedboat.Test, filename, source string) *Runner ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
+func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	vuVM := otto.New()
 
 	script, err := vuVM.Compile(r.filename, r.source)
@@ -162,7 +162,7 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			return val
 		***REMOVED***,
 		"abort": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			panic(speedboat.AbortTest)
+			panic(lib.AbortTest)
 			return otto.UndefinedValue()
 		***REMOVED***,
 	***REMOVED***)

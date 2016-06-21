@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat/lib"
 	"time"
 )
 
@@ -49,7 +49,7 @@ func parseVUs(vus interface***REMOVED******REMOVED***) (int, int, error) ***REMO
 	***REMOVED***
 ***REMOVED***
 
-func (c *Config) MakeTest() (t speedboat.Test, err error) ***REMOVED***
+func (c *Config) MakeTest() (t lib.Test, err error) ***REMOVED***
 	t.Script = c.Script
 	t.URL = c.URL
 	if t.Script == "" && t.URL == "" ***REMOVED***
@@ -69,7 +69,7 @@ func (c *Config) MakeTest() (t speedboat.Test, err error) ***REMOVED***
 		var totalFixed time.Duration
 
 		for _, stage := range c.Stages ***REMOVED***
-			tStage := speedboat.TestStage***REMOVED******REMOVED***
+			tStage := lib.TestStage***REMOVED******REMOVED***
 
 			switch v := stage.Duration.(type) ***REMOVED***
 			case int:
@@ -119,8 +119,8 @@ func (c *Config) MakeTest() (t speedboat.Test, err error) ***REMOVED***
 			return t, err
 		***REMOVED***
 
-		t.Stages = []speedboat.TestStage***REMOVED***
-			speedboat.TestStage***REMOVED***Duration: fullDuration, StartVUs: start, EndVUs: end***REMOVED***,
+		t.Stages = []lib.TestStage***REMOVED***
+			lib.TestStage***REMOVED***Duration: fullDuration, StartVUs: start, EndVUs: end***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 

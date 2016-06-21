@@ -2,7 +2,7 @@ package simple
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/speedboat"
+	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/sampler"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
@@ -11,7 +11,7 @@ import (
 )
 
 type Runner struct ***REMOVED***
-	Test speedboat.Test
+	Test lib.Test
 
 	mDuration *sampler.Metric
 	mErrors   *sampler.Metric
@@ -23,7 +23,7 @@ type VU struct ***REMOVED***
 	Request fasthttp.Request
 ***REMOVED***
 
-func New(t speedboat.Test) *Runner ***REMOVED***
+func New(t lib.Test) *Runner ***REMOVED***
 	return &Runner***REMOVED***
 		Test:      t,
 		mDuration: sampler.Stats("request.duration"),
@@ -31,7 +31,7 @@ func New(t speedboat.Test) *Runner ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
+func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	vu := &VU***REMOVED***
 		Runner: r,
 		Client: fasthttp.Client***REMOVED***MaxConnsPerHost: math.MaxInt32***REMOVED***,
