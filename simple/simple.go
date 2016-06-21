@@ -62,7 +62,11 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Request error")
-		u.Runner.mErrors.WithField("url", u.Runner.Test.URL).Int(1)
+		u.Runner.mErrors.WithFields(sampler.Fields***REMOVED***
+			"url":    u.Runner.Test.URL,
+			"method": "GET",
+			"status": res.StatusCode(),
+		***REMOVED***).Int(1)
 		return err
 	***REMOVED***
 
