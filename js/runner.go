@@ -153,6 +153,19 @@ func (r *Runner) NewVU() (speedboat.VU, error) ***REMOVED***
 			return val
 		***REMOVED***,
 	***REMOVED***)
+	vu.VM.Set("$test", map[string]interface***REMOVED******REMOVED******REMOVED***
+		"url": func(call otto.FunctionCall) otto.Value ***REMOVED***
+			val, err := call.Otto.ToValue(vu.Runner.Test.URL)
+			if err != nil ***REMOVED***
+				panic(jsError(call.Otto, err))
+			***REMOVED***
+			return val
+		***REMOVED***,
+		"abort": func(call otto.FunctionCall) otto.Value ***REMOVED***
+			panic(speedboat.AbortTest)
+			return otto.UndefinedValue()
+		***REMOVED***,
+	***REMOVED***)
 	vu.VM.Set("$log", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"log": func(call otto.FunctionCall) otto.Value ***REMOVED***
 			level, err := call.Argument(0).ToString()
