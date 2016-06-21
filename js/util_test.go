@@ -1,6 +1,7 @@
 package js
 
 import (
+	"errors"
 	"github.com/robertkrimen/otto"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -41,4 +42,35 @@ func TestPutBodyInURL(t *testing.T) ***REMOVED***
 
 func TestPutBodyInURLWithQuery(t *testing.T) ***REMOVED***
 	assert.Equal(t, "http://example.com/?aa=bb&a=b", putBodyInURL("http://example.com/?aa=bb", "a=b"))
+***REMOVED***
+
+func TestMake(t *testing.T) ***REMOVED***
+	vm := otto.New()
+
+	_, err := vm.Eval(`function MyType() ***REMOVED*** this.a = 'b'; ***REMOVED***;`)
+	assert.NoError(t, err, "couldn't set up VM")
+
+	obj, err := Make(vm, "MyType")
+	assert.NoError(t, err)
+	assert.NotNil(t, obj)
+	assert.Equal(t, "Object", obj.Class())
+
+	aVal, err := obj.Get("a")
+	assert.NoError(t, err, "couldn't get 'a'")
+	a, err := aVal.ToString()
+	assert.NoError(t, err, "couldn't turn a into a string")
+	assert.Equal(t, "b", a, "a != 'b'")
+***REMOVED***
+
+func TestJSCustomError(t *testing.T) ***REMOVED***
+	vm := otto.New()
+	vm.Set("fn", func(call otto.FunctionCall) otto.Value ***REMOVED***
+		e := jsCustomError(vm, "CustomError", errors.New("test error"))
+		str, err := e.ToString()
+		assert.NoError(t, err)
+		assert.Equal(t, "CustomError: test error", str)
+		return otto.UndefinedValue()
+	***REMOVED***)
+	_, err := vm.Eval("fn()")
+	assert.NoError(t, err)
 ***REMOVED***
