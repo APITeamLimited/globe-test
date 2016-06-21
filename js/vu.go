@@ -20,11 +20,16 @@ type HTTPResponse struct ***REMOVED***
 ***REMOVED***
 
 func (res HTTPResponse) ToValue(vm *otto.Otto) (otto.Value, error) ***REMOVED***
-	return vm.ToValue(map[string]interface***REMOVED******REMOVED******REMOVED***
-		"status":  res.Status,
-		"headers": res.Headers,
-		"body":    res.Body,
-	***REMOVED***)
+	obj, err := Make(vm, "HTTPResponse")
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
+
+	obj.Set("status", res.Status)
+	obj.Set("headers", res.Headers)
+	obj.Set("body", res.Body)
+
+	return vm.ToValue(obj)
 ***REMOVED***
 
 func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPResponse, error) ***REMOVED***

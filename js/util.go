@@ -89,3 +89,12 @@ func putBodyInURL(url, body string) string ***REMOVED***
 		return url + "&" + body
 	***REMOVED***
 ***REMOVED***
+
+func Make(vm *otto.Otto, t string) (*otto.Object, error) ***REMOVED***
+	val, err := vm.Call("new "+t, nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return val.Object(), nil
+***REMOVED***
