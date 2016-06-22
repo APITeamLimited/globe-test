@@ -11,67 +11,52 @@ import (
 	"github.com/loadimpact/speedboat/simple"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
-	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 )
 
 const (
 	typeURL = "url"
-	typeYML = "yml"
 	typeJS  = "js"
 )
 
-// Configure the global logger.
-func configureLogging(c *cli.Context) ***REMOVED***
-	log.SetLevel(log.InfoLevel)
-	if c.GlobalBool("verbose") ***REMOVED***
-		log.SetLevel(log.DebugLevel)
-	***REMOVED***
+func pollVURamping(ctx context.Context, t lib.Test) <-chan int ***REMOVED***
+	ch := make(chan int)
+	startTime := time.Now()
+
+	go func() ***REMOVED***
+		defer close(ch)
+
+		ticker := time.NewTicker(1 * time.Second)
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				ch <- t.VUsAt(time.Since(startTime))
+			case <-ctx.Done():
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	return ch
 ***REMOVED***
 
-// Configure the global sampler.
-func configureSampler(c *cli.Context) ***REMOVED***
-	sampler.DefaultSampler.OnError = func(err error) ***REMOVED***
-		log.WithError(err).Error("[Sampler error]")
-	***REMOVED***
-
-	for _, output := range c.GlobalStringSlice("metrics") ***REMOVED***
-		parts := strings.SplitN(output, "+", 2)
-		switch parts[0] ***REMOVED***
-		case "influxdb":
-			out, err := influxdb.NewFromURL(parts[1])
-			if err != nil ***REMOVED***
-				log.WithError(err).Fatal("Couldn't create InfluxDB client")
-			***REMOVED***
-			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
-		default:
-			var writer io.WriteCloser
-			switch output ***REMOVED***
-			case "stdout", "-":
-				writer = os.Stdout
-			default:
-				file, err := os.Create(output)
-				if err != nil ***REMOVED***
-					log.WithError(err).Fatal("Couldn't create output file")
-				***REMOVED***
-				writer = file
-			***REMOVED***
-
-			var out sampler.Output
-			switch c.GlobalString("format") ***REMOVED***
-			case "json":
-				out = &stream.JSONOutput***REMOVED***Output: writer***REMOVED***
-			case "csv":
-				out = &stream.CSVOutput***REMOVED***Output: writer***REMOVED***
-			default:
-				log.Fatal("Unknown output format")
-			***REMOVED***
-			sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, out)
+func parseOutput(out, format string) (sampler.Output, error) ***REMOVED***
+	switch ***REMOVED***
+	case out == "-":
+		return stream.New(format, os.Stdout)
+	case strings.HasPrefix(out, "influxdb+"):
+		url := strings.TrimPrefix(out, "influxdb+")
+		return influxdb.NewFromURL(url)
+	default:
+		f, err := os.Create(out)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+		return stream.New(format, f)
 	***REMOVED***
 ***REMOVED***
 
@@ -81,193 +66,127 @@ func guessType(arg string) string ***REMOVED***
 		return typeURL
 	case strings.HasSuffix(arg, ".js"):
 		return typeJS
-	case strings.HasSuffix(arg, ".yml"):
-		return typeYML
 	***REMOVED***
 	return ""
 ***REMOVED***
 
-func parse(cc *cli.Context) (conf Config, err error) ***REMOVED***
-	if len(cc.Args()) == 0 ***REMOVED***
-		return conf, errors.New("Nothing to do!")
+func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED***
+	if typ == typeURL ***REMOVED***
+		return simple.New(t), nil
 	***REMOVED***
 
-	conf.VUs = cc.Int("vus")
-	conf.Duration = cc.Duration("duration").String()
-
-	arg := cc.Args()[0]
-	argType := cc.String("type")
-	if argType == "" ***REMOVED***
-		argType = guessType(arg)
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
-	switch argType ***REMOVED***
-	case typeYML:
-		bytes, err := ioutil.ReadFile(cc.Args()[0])
-		if err != nil ***REMOVED***
-			return conf, errors.New("Couldn't read config file")
-		***REMOVED***
-		if err := yaml.Unmarshal(bytes, &conf); err != nil ***REMOVED***
-			return conf, errors.New("Couldn't parse config file")
-		***REMOVED***
-	case typeURL:
-		conf.URL = arg
+	switch typ ***REMOVED***
 	case typeJS:
-		conf.Script = arg
+		return js.New(t, filename, string(bytes)), nil
 	default:
-		return conf, errors.New("Unsure of what to do, try specifying --type")
+		return nil, errors.New("Unknown type specified")
 	***REMOVED***
-
-	return conf, nil
-***REMOVED***
-
-func headlessController(c context.Context, t *lib.Test) <-chan int ***REMOVED***
-	ch := make(chan int)
-
-	go func() ***REMOVED***
-		defer close(ch)
-
-		select ***REMOVED***
-		case ch <- t.VUsAt(0):
-		case <-c.Done():
-			return
-		***REMOVED***
-
-		startTime := time.Now()
-		ticker := time.NewTicker(100 * time.Millisecond)
-		for ***REMOVED***
-			select ***REMOVED***
-			case <-ticker.C:
-				ch <- t.VUsAt(time.Since(startTime))
-			case <-c.Done():
-				return
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
-
-	return ch
 ***REMOVED***
 
 func action(cc *cli.Context) error ***REMOVED***
-	if len(cc.Args()) == 0 ***REMOVED***
+	if cc.IsSet("verbose") ***REMOVED***
+		log.SetLevel(log.DebugLevel)
+	***REMOVED***
+
+	sampler.DefaultSampler.OnError = func(err error) ***REMOVED***
+		log.WithError(err).Error("[Sampler error]")
+	***REMOVED***
+
+	outFormat := cc.String("format")
+	for _, out := range cc.StringSlice("metrics") ***REMOVED***
+		output, err := parseOutput(out, outFormat)
+		if err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+		sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, output)
+	***REMOVED***
+
+	var t lib.Test
+	var r lib.Runner
+
+	// TODO: Majorly simplify this, along with the Test structure; the URL field is going
+	// away in favor of environment variables (or something of the sort), which means 90%
+	// of this code goes out the window - once things elsewhere stop depending on it >_>
+	switch len(cc.Args()) ***REMOVED***
+	case 0:
 		cli.ShowAppHelp(cc)
 		return nil
-	***REMOVED***
+	case 1, 2:
+		filename := cc.Args()[0]
+		typ := cc.String("type")
+		if typ == "" ***REMOVED***
+			typ = guessType(filename)
+		***REMOVED***
 
-	conf, err := parse(cc)
-	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Invalid arguments; see --help")
-	***REMOVED***
+		switch typ ***REMOVED***
+		case typeJS:
+			t.Script = filename
+		case typeURL:
+			t.URL = filename
+		case "":
+			return cli.NewExitError("Ambiguous argument, please specify -t/--type", 1)
+		default:
+			return cli.NewExitError("Unknown type specified", 1)
+		***REMOVED***
 
-	t, err := conf.MakeTest()
-	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Configuration error")
-	***REMOVED***
+		if typ != typeURL && len(cc.Args()) > 1 ***REMOVED***
+			t.URL = cc.Args()[1]
+		***REMOVED***
 
-	// Inspect the test to find a suitable runner; additional ones can easily be added
-	var runner lib.Runner
-	switch ***REMOVED***
-	case t.Script == "":
-		runner = simple.New(t)
-	case strings.HasSuffix(t.Script, ".js"):
-		src, err := ioutil.ReadFile(t.Script)
+		r_, err := makeRunner(t, filename, typ)
 		if err != nil ***REMOVED***
-			log.WithError(err).Fatal("Couldn't read script")
+			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
-		runner = js.New(t, t.Script, string(src))
+		r = r_
+
 	default:
-		log.Fatal("No suitable runner found!")
+		return cli.NewExitError("Too many arguments!", 1)
 	***REMOVED***
 
-	// Context that expires at the end of the test
-	ctx, cancel := context.WithTimeout(context.Background(), t.TotalDuration())
-
-	// Configure the VU logger
-	logger := &log.Logger***REMOVED***
-		Out:       os.Stderr,
-		Level:     log.DebugLevel,
-		Formatter: &log.TextFormatter***REMOVED******REMOVED***,
+	t.Stages = []lib.TestStage***REMOVED***
+		lib.TestStage***REMOVED***
+			Duration: cc.Duration("duration"),
+			StartVUs: cc.Int("vus"),
+			EndVUs:   cc.Int("vus"),
+		***REMOVED***,
 	***REMOVED***
-	ctx = lib.WithLogger(ctx, logger)
 
-	// Store metrics unless the --quiet flag is specified
-	quiet := cc.Bool("quiet")
-	sampler.DefaultSampler.Accumulate = !quiet
-
-	// Commit metrics to any configured backends once per second
-	go func() ***REMOVED***
-		ticker := time.NewTicker(1 * time.Second)
-		for ***REMOVED***
-			select ***REMOVED***
-			case <-ticker.C:
-				commitMetrics()
-			case <-ctx.Done():
-				return
+	vus := lib.VUGroup***REMOVED***
+		Pool: lib.VUPool***REMOVED***
+			New: r.NewVU,
+		***REMOVED***,
+		RunOnce: func(ctx context.Context, vu lib.VU) ***REMOVED***
+			if err := vu.RunOnce(ctx); err != nil ***REMOVED***
+				log.WithError(err).Error("Uncaught Error")
 			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
-
-	// Use a "headless controller" to scale VUs by polling the test ramp
-	mVUs := sampler.Gauge("vus")
-	vus := []context.CancelFunc***REMOVED******REMOVED***
-	for scale := range headlessController(ctx, &t) ***REMOVED***
-		for i := len(vus); i < scale; i++ ***REMOVED***
-			log.WithField("id", i).Debug("Spawning VU")
-			vuCtx, vuCancel := context.WithCancel(ctx)
-			vus = append(vus, vuCancel)
-
-			go func(ctx context.Context) ***REMOVED***
-				defer func() ***REMOVED***
-					if v := recover(); v != nil ***REMOVED***
-						switch err := v.(type) ***REMOVED***
-						case lib.FlowControl:
-							switch err ***REMOVED***
-							case lib.AbortTest:
-								log.Error("Test aborted")
-								cancel()
-							***REMOVED***
-						default:
-							panic(err)
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***()
-
-				vu, err := runner.NewVU()
-				if err != nil ***REMOVED***
-					log.WithError(err).Error("Couldn't spawn VU")
-					return
-				***REMOVED***
-
-				vu.Reconfigure(int64(i))
-				for ***REMOVED***
-					select ***REMOVED***
-					case <-ctx.Done():
-						return
-					default:
-						if err := vu.RunOnce(ctx); err != nil ***REMOVED***
-							log.WithError(err).Error("Script error")
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***(vuCtx)
-		***REMOVED***
-		for i := len(vus); i > scale; i-- ***REMOVED***
-			log.WithField("id", i-1).Debug("Dropping VU")
-			vus[i-1]()
-			vus = vus[:i-1]
-		***REMOVED***
-		mVUs.Int(len(vus))
+		***REMOVED***,
 	***REMOVED***
 
-	// Wait until the end of the test
-	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), t.TotalDuration())
+	vus.Start(ctx)
 
-	// Print and commit final metrics
-	if !quiet ***REMOVED***
-		printMetrics()
+	quit := make(chan os.Signal)
+	signal.Notify(quit)
+
+	scaleTo := pollVURamping(ctx, t)
+mainLoop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case num := <-scaleTo:
+			vus.Scale(num)
+		case <-quit:
+			cancel()
+		case <-ctx.Done():
+			break mainLoop
+		***REMOVED***
 	***REMOVED***
-	commitMetrics()
-	closeMetrics()
+
+	vus.Stop()
 
 	return nil
 ***REMOVED***
@@ -277,7 +196,7 @@ func main() ***REMOVED***
 	cli.VersionFlag.Name = "version"
 	cli.HelpFlag.Name = "help, ?"
 
-	// Bootstrap using action-registered commandline flags
+	// Bootstrap the app from commandline flags
 	app := cli.NewApp()
 	app.Name = "speedboat"
 	app.Usage = "A next-generation load generator"
@@ -285,7 +204,7 @@ func main() ***REMOVED***
 	app.Flags = []cli.Flag***REMOVED***
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
-			Usage: "Input file type, if not evident (url, yml or js)",
+			Usage: "Input file type, if not evident (url or js)",
 		***REMOVED***,
 		cli.IntFlag***REMOVED***
 			Name:  "vus, u",
@@ -314,11 +233,6 @@ func main() ***REMOVED***
 			Usage: "Metric output format (json or csv)",
 			Value: "json",
 		***REMOVED***,
-	***REMOVED***
-	app.Before = func(c *cli.Context) error ***REMOVED***
-		configureLogging(c)
-		configureSampler(c)
-		return nil
 	***REMOVED***
 	app.Action = action
 	app.Run(os.Args)

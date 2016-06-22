@@ -3,11 +3,27 @@ package stream
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"github.com/loadimpact/speedboat/sampler"
 	"io"
 	"strconv"
 	"sync"
 )
+
+var (
+	ErrUnknownFormat = errors.New("unknown output format")
+)
+
+func New(format string, output io.WriteCloser) (sampler.Output, error) ***REMOVED***
+	switch format ***REMOVED***
+	case "json":
+		return &JSONOutput***REMOVED***Output: output***REMOVED***, nil
+	case "csv":
+		return &CSVOutput***REMOVED***Output: output***REMOVED***, nil
+	default:
+		return nil, ErrUnknownFormat
+	***REMOVED***
+***REMOVED***
 
 type JSONOutput struct ***REMOVED***
 	Output io.WriteCloser
