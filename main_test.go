@@ -1,26 +1,15 @@
 package main
 
 import (
-	"github.com/loadimpact/speedboat/sampler/stream"
+	"github.com/loadimpact/speedboat/stats"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestParseOutputStdoutJSON(t *testing.T) ***REMOVED***
-	output, err := parseOutput("-", "json")
+func TestParseBackendStdout(t *testing.T) ***REMOVED***
+	output, err := parseBackend("-")
 	assert.NoError(t, err)
-	assert.IsType(t, &stream.JSONOutput***REMOVED******REMOVED***, output)
-***REMOVED***
-
-func TestParseOutputStdoutCSV(t *testing.T) ***REMOVED***
-	output, err := parseOutput("-", "csv")
-	assert.NoError(t, err)
-	assert.IsType(t, &stream.CSVOutput***REMOVED******REMOVED***, output)
-***REMOVED***
-
-func TestParseOutputStdoutUnknown(t *testing.T) ***REMOVED***
-	_, err := parseOutput("-", "not a real format")
-	assert.Error(t, err)
+	assert.IsType(t, &stats.JSONBackend***REMOVED******REMOVED***, output)
 ***REMOVED***
 
 func TestGuessTypeURL(t *testing.T) ***REMOVED***
