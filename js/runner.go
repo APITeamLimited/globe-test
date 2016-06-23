@@ -13,8 +13,6 @@ import (
 )
 
 type Runner struct ***REMOVED***
-	Test lib.Test
-
 	filename string
 	source   string
 
@@ -34,9 +32,8 @@ type VU struct ***REMOVED***
 	Iteration int64
 ***REMOVED***
 
-func New(t lib.Test, filename, source string) *Runner ***REMOVED***
+func New(filename, source string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
-		Test:     t,
 		filename: filename,
 		source:   source,
 		logger: &log.Logger***REMOVED***

@@ -16,8 +16,7 @@ var (
 )
 
 type Runner struct ***REMOVED***
-	Test lib.Test
-	URL  string
+	URL string
 ***REMOVED***
 
 type VU struct ***REMOVED***
@@ -27,10 +26,9 @@ type VU struct ***REMOVED***
 	Collector *stats.Collector
 ***REMOVED***
 
-func New(t lib.Test, url string) *Runner ***REMOVED***
+func New(url string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
-		Test: t,
-		URL:  url,
+		URL: url,
 	***REMOVED***
 ***REMOVED***
 

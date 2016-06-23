@@ -95,7 +95,7 @@ func readAll(filename string) ([]byte, error) ***REMOVED***
 
 func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED***
 	if typ == typeURL ***REMOVED***
-		return simple.New(t, filename), nil
+		return simple.New(filename), nil
 	***REMOVED***
 
 	bytes, err := readAll(filename)
@@ -105,7 +105,7 @@ func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED
 
 	switch typ ***REMOVED***
 	case typeJS:
-		return js.New(t, filename, string(bytes)), nil
+		return js.New(filename, string(bytes)), nil
 	default:
 		return nil, errors.New("Type ambiguous, please specify -t/--type")
 	***REMOVED***
