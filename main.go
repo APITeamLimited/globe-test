@@ -276,9 +276,22 @@ func main() ***REMOVED***
 	// Free up -v and -h for our own flags
 	cli.VersionFlag.Name = "version"
 	cli.HelpFlag.Name = "help, ?"
+	cli.AppHelpTemplate = `NAME:
+   ***REMOVED******REMOVED***.Name***REMOVED******REMOVED*** - ***REMOVED******REMOVED***.Usage***REMOVED******REMOVED***
+
+USAGE:
+   ***REMOVED******REMOVED***if .UsageText***REMOVED******REMOVED******REMOVED******REMOVED***.UsageText***REMOVED******REMOVED******REMOVED******REMOVED***else***REMOVED******REMOVED******REMOVED******REMOVED***.HelpName***REMOVED******REMOVED*** ***REMOVED******REMOVED***if .VisibleFlags***REMOVED******REMOVED***[options] ***REMOVED******REMOVED***end***REMOVED******REMOVED***filename|url***REMOVED******REMOVED***end***REMOVED******REMOVED***
+   ***REMOVED******REMOVED***if .Version***REMOVED******REMOVED******REMOVED******REMOVED***if not .HideVersion***REMOVED******REMOVED***
+VERSION:
+   ***REMOVED******REMOVED***.Version***REMOVED******REMOVED***
+   ***REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***if .VisibleFlags***REMOVED******REMOVED***
+OPTIONS:
+   ***REMOVED******REMOVED***range .VisibleFlags***REMOVED******REMOVED******REMOVED******REMOVED***.***REMOVED******REMOVED***
+   ***REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***`
 
 	// Bootstrap using action-registered commandline flags
 	app := cli.NewApp()
+	app.Commands = nil
 	app.Name = "speedboat"
 	app.Usage = "A next-generation load generator"
 	app.Version = "1.0.0-mvp1"
