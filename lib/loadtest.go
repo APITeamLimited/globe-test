@@ -38,3 +38,16 @@ func (t *Test) VUsAt(at time.Duration) int ***REMOVED***
 	***REMOVED***
 	return 0
 ***REMOVED***
+
+func (t *Test) MaxVUs() int ***REMOVED***
+	max := 0
+	for _, stage := range t.Stages ***REMOVED***
+		if stage.StartVUs > max ***REMOVED***
+			max = stage.StartVUs
+		***REMOVED***
+		if stage.EndVUs > max ***REMOVED***
+			max = stage.EndVUs
+		***REMOVED***
+	***REMOVED***
+	return max
+***REMOVED***
