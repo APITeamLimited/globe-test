@@ -167,6 +167,14 @@ func action(cc *cli.Context) error ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
+	for i := 0; i < t.MaxVUs(); i++ ***REMOVED***
+		vu, err := vus.Pool.New()
+		if err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+		vus.Pool.Put(vu)
+	***REMOVED***
+
 	ctx, cancel := context.WithTimeout(context.Background(), t.TotalDuration())
 	vus.Start(ctx)
 
