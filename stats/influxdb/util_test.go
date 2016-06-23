@@ -1,8 +1,10 @@
 package influxdb
 
 import (
+	"github.com/loadimpact/speedboat/stats"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestParseURL(t *testing.T) ***REMOVED***
@@ -24,4 +26,19 @@ func TestParseURLNoAuth(t *testing.T) ***REMOVED***
 func TestParseURLNoDB(t *testing.T) ***REMOVED***
 	_, _, err := parseURL("http://hostname.local:8086")
 	assert.NotNil(t, err, "no error reported")
+***REMOVED***
+
+func TestMakeInfluxPoint(t *testing.T) ***REMOVED***
+	now := time.Now()
+	pt, err := makeInfluxPoint(stats.Point***REMOVED***
+		Stat:   &stats.Stat***REMOVED***Name: "test"***REMOVED***,
+		Time:   now,
+		Tags:   stats.Tags***REMOVED***"a": "b"***REMOVED***,
+		Values: stats.Values***REMOVED***"value": 12345***REMOVED***,
+	***REMOVED***)
+	assert.NoError(t, err)
+	assert.Equal(t, "test", pt.Name())
+	assert.Equal(t, now, pt.Time())
+	assert.EqualValues(t, map[string]string***REMOVED***"a": "b"***REMOVED***, pt.Tags())
+	assert.EqualValues(t, map[string]interface***REMOVED******REMOVED******REMOVED***"value": float64(12345)***REMOVED***, pt.Fields())
 ***REMOVED***

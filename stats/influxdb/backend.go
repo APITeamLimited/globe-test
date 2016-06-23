@@ -1,7 +1,6 @@
 package influxdb
 
 import (
-	"fmt"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/loadimpact/speedboat/stats"
 )
@@ -41,19 +40,10 @@ func (b *Backend) Submit(batches [][]stats.Point) error ***REMOVED***
 
 	for _, batch := range batches ***REMOVED***
 		for _, p := range batch ***REMOVED***
-			tags := make(map[string]string)
-			for key, val := range p.Tags ***REMOVED***
-				tags[key] = fmt.Sprint(val)
-			***REMOVED***
-			fields := make(map[string]interface***REMOVED******REMOVED***)
-			for key, val := range p.Values ***REMOVED***
-				fields[key] = val
-			***REMOVED***
-			pt, err := client.NewPoint(p.Stat.Name, tags, fields, p.Time)
+			pt, err := makeInfluxPoint(p)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-
 			pb.AddPoint(pt)
 		***REMOVED***
 	***REMOVED***

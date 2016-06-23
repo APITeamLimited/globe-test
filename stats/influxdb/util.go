@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/loadimpact/speedboat/stats"
 	neturl "net/url"
 )
 
@@ -24,4 +25,16 @@ func parseURL(url string) (conf client.HTTPConfig, db string, err error) ***REMO
 		conf.Password, _ = u.User.Password()
 	***REMOVED***
 	return conf, db, nil
+***REMOVED***
+
+func makeInfluxPoint(p stats.Point) (*client.Point, error) ***REMOVED***
+	tags := make(map[string]string)
+	for key, val := range p.Tags ***REMOVED***
+		tags[key] = fmt.Sprint(val)
+	***REMOVED***
+	fields := make(map[string]interface***REMOVED******REMOVED***)
+	for key, val := range p.Values ***REMOVED***
+		fields[key] = val
+	***REMOVED***
+	return client.NewPoint(p.Stat.Name, tags, fields, p.Time)
 ***REMOVED***
