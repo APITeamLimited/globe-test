@@ -153,8 +153,18 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 	vu.VM.Set("$test", map[string]interface***REMOVED******REMOVED******REMOVED***
-		"url": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			val, err := call.Otto.ToValue(vu.Runner.Test.URL)
+		"env": func(call otto.FunctionCall) otto.Value ***REMOVED***
+			key, err := call.Argument(0).ToString()
+			if err != nil ***REMOVED***
+				panic(call.Otto.MakeTypeError("key must be a string"))
+			***REMOVED***
+
+			value, ok := os.LookupEnv(key)
+			if !ok ***REMOVED***
+				return otto.UndefinedValue()
+			***REMOVED***
+
+			val, err := call.Otto.ToValue(value)
 			if err != nil ***REMOVED***
 				panic(jsError(call.Otto, err))
 			***REMOVED***

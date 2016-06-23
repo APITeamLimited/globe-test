@@ -95,7 +95,7 @@ func readAll(filename string) ([]byte, error) ***REMOVED***
 
 func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED***
 	if typ == typeURL ***REMOVED***
-		return simple.New(t), nil
+		return simple.New(t, filename), nil
 	***REMOVED***
 
 	bytes, err := readAll(filename)
@@ -107,7 +107,7 @@ func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED
 	case typeJS:
 		return js.New(t, filename, string(bytes)), nil
 	default:
-		return nil, errors.New("Unknown type specified")
+		return nil, errors.New("Type ambiguous, please specify -t/--type")
 	***REMOVED***
 ***REMOVED***
 
@@ -124,17 +124,22 @@ func action(cc *cli.Context) error ***REMOVED***
 		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
 	***REMOVED***
 
-	var t lib.Test
-	var r lib.Runner
+	t := lib.Test***REMOVED***
+		Stages: []lib.TestStage***REMOVED***
+			lib.TestStage***REMOVED***
+				Duration: cc.Duration("duration"),
+				StartVUs: cc.Int("vus"),
+				EndVUs:   cc.Int("vus"),
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
 
-	// TODO: Majorly simplify this, along with the Test structure; the URL field is going
-	// away in favor of environment variables (or something of the sort), which means 90%
-	// of this code goes out the window - once things elsewhere stop depending on it >_>
+	var r lib.Runner
 	switch len(cc.Args()) ***REMOVED***
 	case 0:
 		cli.ShowAppHelp(cc)
 		return nil
-	case 1, 2:
+	case 1:
 		filename := cc.Args()[0]
 		typ := cc.String("type")
 		if typ == "" ***REMOVED***
@@ -145,37 +150,13 @@ func action(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError("Reading from stdin requires a -t/--type flag", 1)
 		***REMOVED***
 
-		switch typ ***REMOVED***
-		case typeJS:
-			t.Script = filename
-		case typeURL:
-			t.URL = filename
-		case "":
-			return cli.NewExitError("Ambiguous argument, please specify -t/--type", 1)
-		default:
-			return cli.NewExitError("Unknown type specified", 1)
-		***REMOVED***
-
-		if typ != typeURL && len(cc.Args()) > 1 ***REMOVED***
-			t.URL = cc.Args()[1]
-		***REMOVED***
-
-		r_, err := makeRunner(t, filename, typ)
+		runner, err := makeRunner(t, filename, typ)
 		if err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
-		r = r_
-
+		r = runner
 	default:
 		return cli.NewExitError("Too many arguments!", 1)
-	***REMOVED***
-
-	t.Stages = []lib.TestStage***REMOVED***
-		lib.TestStage***REMOVED***
-			Duration: cc.Duration("duration"),
-			StartVUs: cc.Int("vus"),
-			EndVUs:   cc.Int("vus"),
-		***REMOVED***,
 	***REMOVED***
 
 	vus := lib.VUGroup***REMOVED***

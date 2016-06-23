@@ -13,8 +13,6 @@ type TestStage struct ***REMOVED***
 
 // A load test definition.
 type Test struct ***REMOVED***
-	Script string      // Script filename.
-	URL    string      // URL for simple tests.
 	Stages []TestStage // Test stages.
 ***REMOVED***
 

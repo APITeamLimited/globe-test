@@ -17,6 +17,7 @@ var (
 
 type Runner struct ***REMOVED***
 	Test lib.Test
+	URL  string
 ***REMOVED***
 
 type VU struct ***REMOVED***
@@ -26,9 +27,10 @@ type VU struct ***REMOVED***
 	Collector *stats.Collector
 ***REMOVED***
 
-func New(t lib.Test) *Runner ***REMOVED***
+func New(t lib.Test, url string) *Runner ***REMOVED***
 	return &Runner***REMOVED***
 		Test: t,
+		URL:  url,
 	***REMOVED***
 ***REMOVED***
 
@@ -39,7 +41,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		Collector: stats.NewCollector(),
 	***REMOVED***
 
-	vu.Request.SetRequestURI(r.Test.URL)
+	vu.Request.SetRequestURI(r.URL)
 
 	return vu, nil
 ***REMOVED***
@@ -57,7 +59,7 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	duration := time.Since(startTime)
 
 	tags := stats.Tags***REMOVED***
-		"url":    u.Runner.Test.URL,
+		"url":    u.Runner.URL,
 		"method": "GET",
 		"status": res.StatusCode(),
 	***REMOVED***
