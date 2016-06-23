@@ -5,10 +5,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/lib"
-	"github.com/loadimpact/speedboat/sampler"
-	"github.com/loadimpact/speedboat/sampler/influxdb"
-	"github.com/loadimpact/speedboat/sampler/stream"
 	"github.com/loadimpact/speedboat/simple"
+	"github.com/loadimpact/speedboat/stats"
+	"github.com/loadimpact/speedboat/stats/influxdb"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 	"io/ioutil"
@@ -44,10 +43,10 @@ func pollVURamping(ctx context.Context, t lib.Test) <-chan int ***REMOVED***
 	return ch
 ***REMOVED***
 
-func parseOutput(out, format string) (sampler.Output, error) ***REMOVED***
+func parseBackend(out string) (stats.Backend, error) ***REMOVED***
 	switch ***REMOVED***
 	case out == "-":
-		return stream.New(format, os.Stdout)
+		return stats.NewJSONBackend(os.Stdout), nil
 	case strings.HasPrefix(out, "influxdb+"):
 		url := strings.TrimPrefix(out, "influxdb+")
 		return influxdb.NewFromURL(url)
@@ -56,7 +55,7 @@ func parseOutput(out, format string) (sampler.Output, error) ***REMOVED***
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return stream.New(format, f)
+		return stats.NewJSONBackend(f), nil
 	***REMOVED***
 ***REMOVED***
 
@@ -93,17 +92,12 @@ func action(cc *cli.Context) error ***REMOVED***
 		log.SetLevel(log.DebugLevel)
 	***REMOVED***
 
-	sampler.DefaultSampler.OnError = func(err error) ***REMOVED***
-		log.WithError(err).Error("[Sampler error]")
-	***REMOVED***
-
-	outFormat := cc.String("format")
 	for _, out := range cc.StringSlice("metrics") ***REMOVED***
-		output, err := parseOutput(out, outFormat)
+		backend, err := parseBackend(out)
 		if err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
-		sampler.DefaultSampler.Outputs = append(sampler.DefaultSampler.Outputs, output)
+		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
 	***REMOVED***
 
 	var t lib.Test
@@ -176,17 +170,36 @@ func action(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	ctx, cancel := context.WithTimeout(context.Background(), t.TotalDuration())
-	vus.Start(ctx)
+
+	go func() ***REMOVED***
+		ticker := time.NewTicker(1 * time.Second)
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				if err := stats.Submit(); err != nil ***REMOVED***
+					log.WithError(err).Error("[Couldn't submit stats]")
+				***REMOVED***
+			case <-ctx.Done():
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
 
 	quit := make(chan os.Signal)
 	signal.Notify(quit)
 
+	vus.Start(ctx)
 	scaleTo := pollVURamping(ctx, t)
+	mVUs := stats.Stat***REMOVED***Name: "vus", Type: stats.GaugeType***REMOVED***
 mainLoop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case num := <-scaleTo:
 			vus.Scale(num)
+			stats.Add(stats.Point***REMOVED***
+				Stat:   &mVUs,
+				Values: stats.Value(float64(num)),
+			***REMOVED***)
 		case <-quit:
 			cancel()
 		case <-ctx.Done():
@@ -235,11 +248,6 @@ func main() ***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "metrics, m",
 			Usage: "Write metrics to a file or database",
-		***REMOVED***,
-		cli.StringFlag***REMOVED***
-			Name:  "format, f",
-			Usage: "Metric output format (json or csv)",
-			Value: "json",
 		***REMOVED***,
 	***REMOVED***
 	app.Action = action
