@@ -340,6 +340,7 @@ func main() ***REMOVED***
 	cli.VersionFlag.Name = "version"
 	cli.HelpFlag.Name = "help, ?"
 	cli.AppHelpTemplate = helpTemplate
+
 	// Bootstrap the app from commandline flags
 	app := cli.NewApp()
 	app.Name = "speedboat"
