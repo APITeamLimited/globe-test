@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	mRequests = stats.Stat***REMOVED***Name: "requests", Type: stats.HistogramType***REMOVED***
+	mRequests = stats.Stat***REMOVED***Name: "requests", Type: stats.HistogramType, Intent: stats.TimeIntent***REMOVED***
 	mErrors   = stats.Stat***REMOVED***Name: "errors", Type: stats.CounterType***REMOVED***
 )
 

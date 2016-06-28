@@ -7,6 +7,7 @@ import (
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/simple"
 	"github.com/loadimpact/speedboat/stats"
+	"github.com/loadimpact/speedboat/stats/accumulate"
 	"github.com/loadimpact/speedboat/stats/influxdb"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
@@ -124,6 +125,12 @@ func action(cc *cli.Context) error ***REMOVED***
 		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
 	***REMOVED***
 
+	var accumulator *accumulate.Backend
+	if !cc.Bool("quiet") ***REMOVED***
+		accumulator = accumulate.New()
+		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
+	***REMOVED***
+
 	t := lib.Test***REMOVED***
 		Stages: []lib.TestStage***REMOVED***
 			lib.TestStage***REMOVED***
@@ -217,6 +224,53 @@ mainLoop:
 	***REMOVED***
 
 	vus.Stop()
+
+	stats.Add(stats.Point***REMOVED***Stat: &mVUs, Values: stats.Value(0)***REMOVED***)
+	stats.Submit()
+
+	if accumulator != nil ***REMOVED***
+		for stat, dimensions := range accumulator.Data ***REMOVED***
+			switch stat.Type ***REMOVED***
+			case stats.CounterType:
+				for dname, dim := range dimensions ***REMOVED***
+					e := log.WithField("count", stats.ApplyIntent(dim.Sum(), stat.Intent))
+					if len(dimensions) == 1 ***REMOVED***
+						e.Infof("Metric: %s", stat.Name)
+					***REMOVED*** else ***REMOVED***
+						e.Infof("Metric: %s.%s", stat.Name, *dname)
+					***REMOVED***
+				***REMOVED***
+			case stats.GaugeType:
+				for dname, dim := range dimensions ***REMOVED***
+					last := dim.Last
+					if last == 0 ***REMOVED***
+						continue
+					***REMOVED***
+
+					e := log.WithField("val", stats.ApplyIntent(last, stat.Intent))
+					if len(dimensions) == 1 ***REMOVED***
+						e.Infof("Metric: %s", stat.Name)
+					***REMOVED*** else ***REMOVED***
+						e.Infof("Metric: %s.%s", stat.Name, *dname)
+					***REMOVED***
+				***REMOVED***
+			case stats.HistogramType:
+				first := true
+				for dname, dim := range dimensions ***REMOVED***
+					if first ***REMOVED***
+						log.WithField("count", len(dim.Values)).Infof("Metric: %s", stat.Name)
+						first = false
+					***REMOVED***
+					log.WithFields(log.Fields***REMOVED***
+						"min": stats.ApplyIntent(dim.Min(), stat.Intent),
+						"max": stats.ApplyIntent(dim.Max(), stat.Intent),
+						"avg": stats.ApplyIntent(dim.Avg(), stat.Intent),
+						"med": stats.ApplyIntent(dim.Med(), stat.Intent),
+					***REMOVED***).Infof("  - %s", *dname)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
 
 	return nil
 ***REMOVED***
