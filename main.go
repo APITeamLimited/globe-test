@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -76,6 +77,70 @@ func parseBackend(out string) (stats.Backend, error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func parseStages(vus []string, total time.Duration) (stages []lib.TestStage, err error) ***REMOVED***
+	accountedTime := time.Duration(0)
+	fluidStages := []int***REMOVED******REMOVED***
+	for i, spec := range vus ***REMOVED***
+		parts := strings.SplitN(spec, ":", 2)
+		countParts := strings.SplitN(parts[0], "-", 2)
+
+		stage := lib.TestStage***REMOVED******REMOVED***
+
+		// An absent first part means keep going from the last stage's end
+		// If it's the first stage, just start with 0
+		if countParts[0] == "" ***REMOVED***
+			if i > 0 ***REMOVED***
+				stage.StartVUs = stages[i-1].EndVUs
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			start, err := strconv.ParseInt(countParts[0], 10, 64)
+			if err != nil ***REMOVED***
+				return stages, err
+			***REMOVED***
+			stage.StartVUs = int(start)
+		***REMOVED***
+
+		// If an end is specified, use that, otherwise keep the VU level constant
+		if len(countParts) > 1 && countParts[1] != "" ***REMOVED***
+			end, err := strconv.ParseInt(countParts[1], 10, 64)
+			if err != nil ***REMOVED***
+				return stages, err
+			***REMOVED***
+			stage.EndVUs = int(end)
+		***REMOVED*** else ***REMOVED***
+			stage.EndVUs = stage.StartVUs
+		***REMOVED***
+
+		// If a time is specified, use that, otherwise mark the stage as "fluid", allotting it an
+		// even slice of what time remains after all fixed stages are accounted for (may be 0)
+		if len(parts) > 1 ***REMOVED***
+			duration, err := time.ParseDuration(parts[1])
+			if err != nil ***REMOVED***
+				return stages, err
+			***REMOVED***
+			stage.Duration = duration
+			accountedTime += duration
+		***REMOVED*** else ***REMOVED***
+			fluidStages = append(fluidStages, i)
+		***REMOVED***
+
+		stages = append(stages, stage)
+	***REMOVED***
+
+	// We're ignoring fluid stages if the fixed stages already take up all the allotted time
+	// Otherwise, evenly divide the test's remaining time between all fluid stages
+	if len(fluidStages) > 0 && accountedTime < total ***REMOVED***
+		fluidDuration := (total - accountedTime) / time.Duration(len(fluidStages))
+		for _, i := range fluidStages ***REMOVED***
+			stage := stages[i]
+			stage.Duration = fluidDuration
+			stages[i] = stage
+		***REMOVED***
+	***REMOVED***
+
+	return stages, nil
+***REMOVED***
+
 func guessType(arg string) string ***REMOVED***
 	switch ***REMOVED***
 	case strings.Contains(arg, "://"):
@@ -131,15 +196,11 @@ func action(cc *cli.Context) error ***REMOVED***
 		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
 	***REMOVED***
 
-	t := lib.Test***REMOVED***
-		Stages: []lib.TestStage***REMOVED***
-			lib.TestStage***REMOVED***
-				Duration: cc.Duration("duration"),
-				StartVUs: cc.Int("vus"),
-				EndVUs:   cc.Int("vus"),
-			***REMOVED***,
-		***REMOVED***,
+	stages, err := parseStages(cc.StringSlice("vus"), cc.Duration("duration"))
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err.Error(), 1)
 	***REMOVED***
+	t := lib.Test***REMOVED***Stages: stages***REMOVED***
 
 	var r lib.Runner
 	switch len(cc.Args()) ***REMOVED***
@@ -290,10 +351,10 @@ func main() ***REMOVED***
 			Name:  "type, t",
 			Usage: "Input file type, if not evident (url or js)",
 		***REMOVED***,
-		cli.IntFlag***REMOVED***
+		cli.StringSliceFlag***REMOVED***
 			Name:  "vus, u",
 			Usage: "Number of VUs to simulate",
-			Value: 10,
+			Value: &cli.StringSlice***REMOVED***"10"***REMOVED***,
 		***REMOVED***,
 		cli.DurationFlag***REMOVED***
 			Name:  "duration, d",
