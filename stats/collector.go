@@ -6,7 +6,7 @@ import (
 )
 
 type Collector struct ***REMOVED***
-	batch []Point
+	Batch []Point
 	mutex sync.Mutex
 ***REMOVED***
 
@@ -19,14 +19,14 @@ func (c *Collector) Add(p Point) ***REMOVED***
 	***REMOVED***
 
 	c.mutex.Lock()
-	c.batch = append(c.batch, p)
+	c.Batch = append(c.Batch, p)
 	c.mutex.Unlock()
 ***REMOVED***
 
 func (c *Collector) drain() []Point ***REMOVED***
 	c.mutex.Lock()
-	oldBatch := c.batch
-	c.batch = nil
+	oldBatch := c.Batch
+	c.Batch = nil
 	c.mutex.Unlock()
 
 	return oldBatch
