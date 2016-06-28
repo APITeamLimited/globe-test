@@ -119,27 +119,27 @@ func TestParseStagesFixedFluidNoTimeLeft(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestParseStagesInvalid(t *testing.T) ***REMOVED***
-	stages, err := parseStages([]string***REMOVED***"a"***REMOVED***, 10*time.Second)
+	_, err := parseStages([]string***REMOVED***"a"***REMOVED***, 10*time.Second)
 	assert.Error(t, err)
 ***REMOVED***
 
 func TestParseStagesInvalidStart(t *testing.T) ***REMOVED***
-	stages, err := parseStages([]string***REMOVED***"a-15"***REMOVED***, 10*time.Second)
+	_, err := parseStages([]string***REMOVED***"a-15"***REMOVED***, 10*time.Second)
 	assert.Error(t, err)
 ***REMOVED***
 
 func TestParseStagesInvalidEnd(t *testing.T) ***REMOVED***
-	stages, err := parseStages([]string***REMOVED***"15-a"***REMOVED***, 10*time.Second)
+	_, err := parseStages([]string***REMOVED***"15-a"***REMOVED***, 10*time.Second)
 	assert.Error(t, err)
 ***REMOVED***
 
 func TestParseStagesInvalidTime(t *testing.T) ***REMOVED***
-	stages, err := parseStages([]string***REMOVED***"15:a"***REMOVED***, 10*time.Second)
+	_, err := parseStages([]string***REMOVED***"15:a"***REMOVED***, 10*time.Second)
 	assert.Error(t, err)
 ***REMOVED***
 
 func TestParseStagesInvalidTimeMissingUnit(t *testing.T) ***REMOVED***
-	stages, err := parseStages([]string***REMOVED***"15:10"***REMOVED***, 10*time.Second)
+	_, err := parseStages([]string***REMOVED***"15:10"***REMOVED***, 10*time.Second)
 	assert.Error(t, err)
 ***REMOVED***
 
