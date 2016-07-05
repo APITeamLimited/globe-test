@@ -5,6 +5,9 @@ import (
 	logtest "github.com/Sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
+	"math"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -115,7 +118,26 @@ func TestAPILogError(t *testing.T) ***REMOVED***
 	assert.Len(t, e.Data, 0)
 ***REMOVED***
 
+func TestAPILogWithData(t *testing.T) ***REMOVED***
+	r := New("script", `$log.info("test", ***REMOVED*** a: 'hi', b: 123 ***REMOVED***);`)
+	logger, hook := logtest.NewNullLogger()
+	r.logger = logger
+
+	vu, _ := r.NewVU()
+	assert.NoError(t, vu.RunOnce(context.Background()))
+
+	e := hook.LastEntry()
+	assert.NotNil(t, e)
+	assert.Equal(t, log.InfoLevel, e.Level)
+	assert.Equal(t, "test", e.Message)
+	assert.Equal(t, log.Fields***REMOVED***"a": "hi", "b": int64(123)***REMOVED***, e.Data)
+***REMOVED***
+
 func TestAPIVUSleep1s(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
 	r := New("script", `$vu.sleep(1);`)
 	vu, _ := r.NewVU()
 
@@ -133,6 +155,10 @@ func TestAPIVUSleep1s(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestAPIVUSleep01s(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
 	r := New("script", `$vu.sleep(0.1);`)
 	vu, _ := r.NewVU()
 
@@ -147,6 +173,72 @@ func TestAPIVUSleep01s(t *testing.T) ***REMOVED***
 	if duration < target || duration > target+(50*time.Millisecond) ***REMOVED***
 		t.Fatalf("Incorrect sleep duration: %s", duration)
 	***REMOVED***
+***REMOVED***
+
+func TestAPIVUID(t *testing.T) ***REMOVED***
+	r := New("script", `if ($vu.id() !== 100) ***REMOVED*** throw new Error("invalid ID"); ***REMOVED***`)
+	vu, _ := r.NewVU()
+	vu.Reconfigure(100)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIVUIteration(t *testing.T) ***REMOVED***
+	r := New("script", `if ($vu.iteration() !== 1) ***REMOVED*** throw new Error("invalid iteration"); ***REMOVED***`)
+	vu, _ := r.NewVU()
+	vu.Reconfigure(100)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPITestEnv(t *testing.T) ***REMOVED***
+	os.Setenv("TEST_VAR", "hi")
+	r := New("script", `if ($test.env("TEST_VAR") !== "hi") ***REMOVED*** throw new Error("assertion failed"); ***REMOVED***`)
+	vu, _ := r.NewVU()
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPITestEnvUndefined(t *testing.T) ***REMOVED***
+	os.Unsetenv("NOT_SET_VAR") // Just in case...
+	r := New("script", `if ($test.env("NOT_SET_VAR") !== undefined) ***REMOVED*** throw new Error("assertion failed"); ***REMOVED***`)
+	vu, _ := r.NewVU()
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPITestAbort(t *testing.T) ***REMOVED***
+	r := New("script", `$test.abort();`)
+	vu, _ := r.NewVU()
+	assert.Panics(t, func() ***REMOVED*** vu.RunOnce(context.Background()) ***REMOVED***)
+***REMOVED***
+
+func TestAPIHTTPSetMaxConnsPerHost(t *testing.T) ***REMOVED***
+	r := New("script", `$http.setMaxConnsPerHost(100);`)
+	vu, _ := r.NewVU()
+	assert.NoError(t, vu.RunOnce(context.Background()))
+	assert.Equal(t, 100, vu.(*VU).Client.MaxConnsPerHost)
+***REMOVED***
+
+func TestAPIHTTPSetMaxConnsPerHostOverflow(t *testing.T) ***REMOVED***
+	r := New("script", `$http.setMaxConnsPerHost(`+strconv.FormatInt(math.MaxInt64, 10)+`);`)
+	vu, _ := r.NewVU()
+	assert.NoError(t, vu.RunOnce(context.Background()))
+	assert.Equal(t, math.MaxInt32, vu.(*VU).Client.MaxConnsPerHost)
+***REMOVED***
+
+func TestAPIHTTPSetMaxConnsPerHostZero(t *testing.T) ***REMOVED***
+	r := New("script", `$http.setMaxConnsPerHost(0);`)
+	vu, _ := r.NewVU()
+	assert.Error(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPSetMaxConnsPerHostNegative(t *testing.T) ***REMOVED***
+	r := New("script", `$http.setMaxConnsPerHost(-1);`)
+	vu, _ := r.NewVU()
+	assert.Error(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPSetMaxConnsPerHostInvalid(t *testing.T) ***REMOVED***
+	r := New("script", `$http.setMaxConnsPerHost("qwerty");`)
+	vu, _ := r.NewVU()
+	assert.Error(t, vu.RunOnce(context.Background()))
 ***REMOVED***
 
 func TestAPIHTTPRequestReportsStats(t *testing.T) ***REMOVED***
