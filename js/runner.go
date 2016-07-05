@@ -189,12 +189,12 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***
 	
 	$http.get = function(url, data, params) ***REMOVED*** return $http.request('GET', url, data, params); ***REMOVED***;
+	$http.head = function(url, data, params) ***REMOVED*** return $http.request('HEAD', url, data, params); ***REMOVED***;
 	$http.post = function(url, data, params) ***REMOVED*** return $http.request('POST', url, data, params); ***REMOVED***;
 	$http.put = function(url, data, params) ***REMOVED*** return $http.request('PUT', url, data, params); ***REMOVED***;
-	$http.delete = function(url, data, params) ***REMOVED*** return $http.request('DELETE', url, data, params); ***REMOVED***;
 	$http.patch = function(url, data, params) ***REMOVED*** return $http.request('PATCH', url, data, params); ***REMOVED***;
+	$http.delete = function(url, data, params) ***REMOVED*** return $http.request('DELETE', url, data, params); ***REMOVED***;
 	$http.options = function(url, data, params) ***REMOVED*** return $http.request('OPTIONS', url, data, params); ***REMOVED***;
-	$http.head = function(url, data, params) ***REMOVED*** return $http.request('HEAD', url, data, params); ***REMOVED***;
 	
 	$log.debug = function(msg, fields) ***REMOVED*** $log.log('debug', msg, fields); ***REMOVED***;
 	$log.info = function(msg, fields) ***REMOVED*** $log.log('info', msg, fields); ***REMOVED***;
