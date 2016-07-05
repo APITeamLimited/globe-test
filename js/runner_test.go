@@ -242,6 +242,10 @@ func TestAPIHTTPSetMaxConnsPerHostInvalid(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestAPIHTTPRequestReportsStats(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
 	r := New("script", "$http.get('http://httpbin.org/get');")
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
@@ -291,4 +295,216 @@ func TestAPIHTTPRequestErrorReportsStats(t *testing.T) ***REMOVED***
 	***REMOVED***
 	assert.True(t, mRequestsFound)
 	assert.True(t, mErrorsFound)
+***REMOVED***
+
+func TestAPIHTTPRequestQuietReportsNoStats(t *testing.T) ***REMOVED***
+	r := New("script", "$http.get('http://255.255.255.255/', null, ***REMOVED*** quiet: true ***REMOVED***);")
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.Error(t, vu.RunOnce(context.Background()))
+	assert.Len(t, vu.(*VU).Collector.Batch, 0)
+***REMOVED***
+
+func TestAPIHTTPRequestGET(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.get("http://httpbin.org/get")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestGETArgs(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	data = $http.get("http://httpbin.org/get", ***REMOVED***a: 'b', b: 2***REMOVED***).json()
+	if (data.args.a !== 'b') ***REMOVED***
+		throw new Error("invalid args.a: " + data.args.a);
+	***REMOVED***
+	if (data.args.b !== '2') ***REMOVED***
+		throw new Error("invalid args.b: " + data.args.b);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestGETHeaders(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	data = $http.get("http://httpbin.org/get", null, ***REMOVED*** headers: ***REMOVED*** 'X-Test': 'hi' ***REMOVED*** ***REMOVED***).json()
+	if (data.headers['X-Test'] !== 'hi') ***REMOVED***
+		throw new Error("invalid X-Test header: " + data.headers['X-Test'])
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestHEAD(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.head("http://httpbin.org/get")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	if (res.body !== "") ***REMOVED***
+		throw new Error("body not empty")
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestHEADWithArgsDoesntStickThemInTheBodyAndFail(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.head("http://httpbin.org/get", ***REMOVED*** a: 'b' ***REMOVED***)
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	if (res.body !== "") ***REMOVED***
+		throw new Error("body not empty")
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestPOST(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.post("http://httpbin.org/post")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestPOSTArgs(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	data = $http.post("http://httpbin.org/post", ***REMOVED*** a: 'b' ***REMOVED***).json()
+	if (data.form.a !== 'b') ***REMOVED***
+		throw new Error("invalid form.a: " + data.form.a);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestPOSTBody(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	data = $http.post("http://httpbin.org/post", 'a=b').json()
+	if (data.form.a !== 'b') ***REMOVED***
+		throw new Error("invalid form.a: " + data.form.a);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestPUT(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.put("http://httpbin.org/put")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestPATCH(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.patch("http://httpbin.org/patch")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestDELETE(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.delete("http://httpbin.org/delete")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestOPTIONS(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.options("http://httpbin.org/")
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid status: " + res.status);
+	***REMOVED***
+	if (res.body !== "") ***REMOVED***
+		throw new Error("non-empty body: " + res.body);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
 ***REMOVED***
