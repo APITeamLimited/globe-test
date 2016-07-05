@@ -1,7 +1,6 @@
 package js
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
@@ -60,11 +59,6 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 		Collector: stats.NewCollector(),
 	***REMOVED***
-
-	vu.VM.Set("print", func(call otto.FunctionCall) otto.Value ***REMOVED***
-		fmt.Fprintln(os.Stderr, call.Argument(0))
-		return otto.UndefinedValue()
-	***REMOVED***)
 
 	vu.VM.Set("$http", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"request": func(call otto.FunctionCall) otto.Value ***REMOVED***
