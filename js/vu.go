@@ -50,6 +50,10 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 		req.SetBodyString(body)
 	***REMOVED***
 
+	for key, value := range params.Headers ***REMOVED***
+		req.Header.Set(key, value)
+	***REMOVED***
+
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(resp)
 
