@@ -61,23 +61,30 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 	err := u.Client.Do(req, resp)
 	duration := time.Since(startTime)
 
-	tags := stats.Tags***REMOVED***
-		"url":    url,
-		"method": method,
-		"status": resp.StatusCode(),
+	if !params.Quiet ***REMOVED***
+		u.Collector.Add(stats.Point***REMOVED***
+			Stat: &mRequests,
+			Tags: stats.Tags***REMOVED***
+				"url":    url,
+				"method": method,
+				"status": resp.StatusCode(),
+			***REMOVED***,
+			Values: stats.Values***REMOVED***"duration": float64(duration)***REMOVED***,
+		***REMOVED***)
 	***REMOVED***
-	u.Collector.Add(stats.Point***REMOVED***
-		Stat:   &mRequests,
-		Tags:   tags,
-		Values: stats.Values***REMOVED***"duration": float64(duration)***REMOVED***,
-	***REMOVED***)
 
 	if err != nil ***REMOVED***
-		u.Collector.Add(stats.Point***REMOVED***
-			Stat:   &mErrors,
-			Tags:   tags,
-			Values: stats.Value(1),
-		***REMOVED***)
+		if !params.Quiet ***REMOVED***
+			u.Collector.Add(stats.Point***REMOVED***
+				Stat: &mErrors,
+				Tags: stats.Tags***REMOVED***
+					"url":    url,
+					"method": method,
+					"status": resp.StatusCode(),
+				***REMOVED***,
+				Values: stats.Value(1),
+			***REMOVED***)
+		***REMOVED***
 		return HTTPResponse***REMOVED******REMOVED***, err
 	***REMOVED***
 
