@@ -7,7 +7,8 @@ import (
 )
 
 type Backend struct ***REMOVED***
-	Data map[*stats.Stat]map[*string]*Dimension
+	Data    map[*stats.Stat]map[*string]*Dimension
+	Exclude map[string]bool
 
 	interned    map[string]*string
 	submitMutex sync.Mutex
@@ -16,6 +17,7 @@ type Backend struct ***REMOVED***
 func New() *Backend ***REMOVED***
 	return &Backend***REMOVED***
 		Data:     make(map[*stats.Stat]map[*string]*Dimension),
+		Exclude:  make(map[string]bool),
 		interned: make(map[string]*string),
 	***REMOVED***
 ***REMOVED***
@@ -34,6 +36,10 @@ func (b *Backend) Submit(batches [][]stats.Point) error ***REMOVED***
 
 	for _, batch := range batches ***REMOVED***
 		for _, p := range batch ***REMOVED***
+			if b.Exclude[p.Stat.Name] ***REMOVED***
+				continue
+			***REMOVED***
+
 			dimensions, ok := b.Data[p.Stat]
 			if !ok ***REMOVED***
 				dimensions = make(map[*string]*Dimension)
