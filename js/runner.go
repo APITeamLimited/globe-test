@@ -68,15 +68,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 	vu.VM.Set("$http", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"request": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			method, err := call.Argument(0).ToString()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("method must be a string"))
-			***REMOVED***
-
-			url, err := call.Argument(1).ToString()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("url must be a string"))
-			***REMOVED***
+			method, _ := call.Argument(0).ToString()
+			url, _ := call.Argument(1).ToString()
 
 			body, err := bodyFromValue(call.Argument(2))
 			if err != nil ***REMOVED***
@@ -151,10 +144,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***)
 	vu.VM.Set("$test", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"env": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			key, err := call.Argument(0).ToString()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("key must be a string"))
-			***REMOVED***
+			key, _ := call.Argument(0).ToString()
 
 			value, ok := os.LookupEnv(key)
 			if !ok ***REMOVED***
@@ -174,15 +164,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***)
 	vu.VM.Set("$log", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"log": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			level, err := call.Argument(0).ToString()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("level must be a string"))
-			***REMOVED***
-
-			msg, err := call.Argument(1).ToString()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("message must be a string"))
-			***REMOVED***
+			level, _ := call.Argument(0).ToString()
+			msg, _ := call.Argument(1).ToString()
 
 			fields := make(map[string]interface***REMOVED******REMOVED***)
 			fieldsObj := call.Argument(2).Object()
