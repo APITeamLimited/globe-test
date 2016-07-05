@@ -45,7 +45,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 
 	if method == "GET" || method == "HEAD" ***REMOVED***
 		req.SetRequestURI(putBodyInURL(url, body))
-	***REMOVED*** else if body != "" ***REMOVED***
+	***REMOVED*** else ***REMOVED***
 		req.SetRequestURI(url)
 		req.SetBodyString(body)
 	***REMOVED***
