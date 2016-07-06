@@ -106,3 +106,18 @@ func TestSubmitIgnoresExcluded(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	assert.Len(t, b.Data, 1)
 ***REMOVED***
+
+func TestSubmitIgnoresNotInOnly(t *testing.T) ***REMOVED***
+	b := New()
+	stat1 := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	stat2 := stats.Stat***REMOVED***Name: "test2"***REMOVED***
+	b.Only["test2"] = true
+	b.Submit([][]stats.Point***REMOVED***
+		[]stats.Point***REMOVED***
+			stats.Point***REMOVED***Stat: &stat1, Values: stats.Values***REMOVED***"value": 3***REMOVED******REMOVED***,
+			stats.Point***REMOVED***Stat: &stat1, Values: stats.Values***REMOVED***"value": 1***REMOVED******REMOVED***,
+			stats.Point***REMOVED***Stat: &stat2, Values: stats.Values***REMOVED***"value": 2***REMOVED******REMOVED***,
+		***REMOVED***,
+	***REMOVED***)
+	assert.Len(t, b.Data, 1)
+***REMOVED***
