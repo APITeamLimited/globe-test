@@ -202,6 +202,9 @@ func action(cc *cli.Context) error ***REMOVED***
 		for _, stat := range cc.StringSlice("exclude") ***REMOVED***
 			accumulator.Exclude[stat] = true
 		***REMOVED***
+		for _, tag := range cc.StringSlice("group-by") ***REMOVED***
+			accumulator.GroupBy = append(accumulator.GroupBy, tag)
+		***REMOVED***
 		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
 	***REMOVED***
 
@@ -390,6 +393,10 @@ func main() ***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "exclude, e",
 			Usage: "Exclude named metrics",
+		***REMOVED***,
+		cli.StringSliceFlag***REMOVED***
+			Name:  "group-by, g",
+			Usage: "Group metrics by tags",
 		***REMOVED***,
 	***REMOVED***
 	app.Action = action

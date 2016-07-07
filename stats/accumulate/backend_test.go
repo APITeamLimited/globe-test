@@ -121,3 +121,43 @@ func TestSubmitIgnoresNotInOnly(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	assert.Len(t, b.Data, 1)
 ***REMOVED***
+
+func TestGetVStatDefault(t *testing.T) ***REMOVED***
+	b := New()
+	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	assert.Equal(t, &stat, b.getVStat(&stat, stats.Tags***REMOVED******REMOVED***))
+***REMOVED***
+
+func TestGetVStatNoMatch(t *testing.T) ***REMOVED***
+	b := New()
+	b.GroupBy = []string***REMOVED***"no-match"***REMOVED***
+	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	assert.Equal(t, &stat, b.getVStat(&stat, stats.Tags***REMOVED******REMOVED***))
+***REMOVED***
+
+func TestGetVStatOneTag(t *testing.T) ***REMOVED***
+	b := New()
+	b.GroupBy = []string***REMOVED***"tag"***REMOVED***
+	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	vstat := b.getVStat(&stat, stats.Tags***REMOVED***"tag": "value"***REMOVED***)
+	assert.NotNil(t, vstat)
+	assert.Equal(t, "test***REMOVED***tag: value***REMOVED***", vstat.Name)
+***REMOVED***
+
+func TestGetVStatTwoTags(t *testing.T) ***REMOVED***
+	b := New()
+	b.GroupBy = []string***REMOVED***"tag", "blah"***REMOVED***
+	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	vstat := b.getVStat(&stat, stats.Tags***REMOVED***"tag": "value", "blah": 12345***REMOVED***)
+	assert.NotNil(t, vstat)
+	assert.Equal(t, "test***REMOVED***tag: value, blah: 12345***REMOVED***", vstat.Name)
+***REMOVED***
+
+func TestGetVStatTwoTagsOneMiss(t *testing.T) ***REMOVED***
+	b := New()
+	b.GroupBy = []string***REMOVED***"tag", "weh", "blah"***REMOVED***
+	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
+	vstat := b.getVStat(&stat, stats.Tags***REMOVED***"tag": "value", "blah": 12345***REMOVED***)
+	assert.NotNil(t, vstat)
+	assert.Equal(t, "test***REMOVED***tag: value, blah: 12345***REMOVED***", vstat.Name)
+***REMOVED***
