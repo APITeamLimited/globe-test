@@ -61,7 +61,7 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 		"method": "GET",
 		"status": res.StatusCode(),
 	***REMOVED***
-	u.Collector.Add(stats.Point***REMOVED***
+	u.Collector.Add(stats.Sample***REMOVED***
 		Stat:   &mRequests,
 		Tags:   tags,
 		Values: stats.Values***REMOVED***"duration": float64(duration)***REMOVED***,
@@ -69,7 +69,7 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Request error")
-		u.Collector.Add(stats.Point***REMOVED***
+		u.Collector.Add(stats.Sample***REMOVED***
 			Stat:   &mErrors,
 			Tags:   tags,
 			Values: stats.Value(1),

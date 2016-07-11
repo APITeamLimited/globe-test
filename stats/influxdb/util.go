@@ -27,14 +27,14 @@ func parseURL(url string) (conf client.HTTPConfig, db string, err error) ***REMO
 	return conf, db, nil
 ***REMOVED***
 
-func makeInfluxPoint(p stats.Point) (*client.Point, error) ***REMOVED***
+func makeInfluxPoint(s stats.Sample) (*client.Point, error) ***REMOVED***
 	tags := make(map[string]string)
-	for key, val := range p.Tags ***REMOVED***
+	for key, val := range s.Tags ***REMOVED***
 		tags[key] = fmt.Sprint(val)
 	***REMOVED***
 	fields := make(map[string]interface***REMOVED******REMOVED***)
-	for key, val := range p.Values ***REMOVED***
+	for key, val := range s.Values ***REMOVED***
 		fields[key] = val
 	***REMOVED***
-	return client.NewPoint(p.Stat.Name, tags, fields, p.Time)
+	return client.NewPoint(s.Stat.Name, tags, fields, s.Time)
 ***REMOVED***

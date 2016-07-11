@@ -62,7 +62,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 	duration := time.Since(startTime)
 
 	if !params.Quiet ***REMOVED***
-		u.Collector.Add(stats.Point***REMOVED***
+		u.Collector.Add(stats.Sample***REMOVED***
 			Stat: &mRequests,
 			Tags: stats.Tags***REMOVED***
 				"url":    url,
@@ -75,7 +75,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 
 	if err != nil ***REMOVED***
 		if !params.Quiet ***REMOVED***
-			u.Collector.Add(stats.Point***REMOVED***
+			u.Collector.Add(stats.Sample***REMOVED***
 				Stat: &mErrors,
 				Tags: stats.Tags***REMOVED***
 					"url":    url,

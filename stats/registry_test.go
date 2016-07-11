@@ -6,13 +6,13 @@ import (
 )
 
 type testBackend struct ***REMOVED***
-	submitted []Point
+	submitted []Sample
 ***REMOVED***
 
-func (b *testBackend) Submit(batches [][]Point) error ***REMOVED***
+func (b *testBackend) Submit(batches [][]Sample) error ***REMOVED***
 	for _, batch := range batches ***REMOVED***
-		for _, p := range batch ***REMOVED***
-			b.submitted = append(b.submitted, p)
+		for _, s := range batch ***REMOVED***
+			b.submitted = append(b.submitted, s)
 		***REMOVED***
 	***REMOVED***
 
@@ -34,12 +34,12 @@ func TestSubmit(t *testing.T) ***REMOVED***
 	stat := Stat***REMOVED***Name: "test"***REMOVED***
 
 	c1 := r.NewCollector()
-	c1.Add(Point***REMOVED***Stat: &stat, Values: Value(1)***REMOVED***)
-	c1.Add(Point***REMOVED***Stat: &stat, Values: Value(2)***REMOVED***)
+	c1.Add(Sample***REMOVED***Stat: &stat, Values: Value(1)***REMOVED***)
+	c1.Add(Sample***REMOVED***Stat: &stat, Values: Value(2)***REMOVED***)
 
 	c2 := r.NewCollector()
-	c2.Add(Point***REMOVED***Stat: &stat, Values: Value(3)***REMOVED***)
-	c2.Add(Point***REMOVED***Stat: &stat, Values: Value(4)***REMOVED***)
+	c2.Add(Sample***REMOVED***Stat: &stat, Values: Value(3)***REMOVED***)
+	c2.Add(Sample***REMOVED***Stat: &stat, Values: Value(4)***REMOVED***)
 
 	err := r.Submit()
 	assert.NoError(t, err)

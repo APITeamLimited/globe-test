@@ -8,7 +8,7 @@ import (
 
 func TestFormat(t *testing.T) ***REMOVED***
 	stat := Stat***REMOVED***Name: "test"***REMOVED***
-	v := (JSONBackend***REMOVED******REMOVED***).format(&Point***REMOVED***
+	v := (JSONBackend***REMOVED******REMOVED***).format(&Sample***REMOVED***
 		Stat:   &stat,
 		Tags:   Tags***REMOVED***"a": "b"***REMOVED***,
 		Values: Values***REMOVED***"value": 12345.0***REMOVED***,
@@ -28,7 +28,7 @@ func TestFormat(t *testing.T) ***REMOVED***
 
 func TestFormatNilTagsBecomeEmptyMap(t *testing.T) ***REMOVED***
 	stat := Stat***REMOVED***Name: "test"***REMOVED***
-	v := (JSONBackend***REMOVED******REMOVED***).format(&Point***REMOVED***
+	v := (JSONBackend***REMOVED******REMOVED***).format(&Sample***REMOVED***
 		Stat:   &stat,
 		Values: Values***REMOVED***"value": 12345.0***REMOVED***,
 	***REMOVED***)

@@ -30,7 +30,7 @@ func NewFromURL(url string) (*Backend, error) ***REMOVED***
 	return New(conf, db)
 ***REMOVED***
 
-func (b *Backend) Submit(batches [][]stats.Point) error ***REMOVED***
+func (b *Backend) Submit(batches [][]stats.Sample) error ***REMOVED***
 	pb, err := client.NewBatchPoints(client.BatchPointsConfig***REMOVED***
 		Database: b.Database,
 	***REMOVED***)

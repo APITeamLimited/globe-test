@@ -285,7 +285,7 @@ mainLoop:
 		select ***REMOVED***
 		case num := <-scaleTo:
 			vus.Scale(num)
-			stats.Add(stats.Point***REMOVED***
+			stats.Add(stats.Sample***REMOVED***
 				Stat:   &mVUs,
 				Values: stats.Value(float64(num)),
 			***REMOVED***)
@@ -298,7 +298,7 @@ mainLoop:
 
 	vus.Stop()
 
-	stats.Add(stats.Point***REMOVED***Stat: &mVUs, Values: stats.Value(0)***REMOVED***)
+	stats.Add(stats.Sample***REMOVED***Stat: &mVUs, Values: stats.Value(0)***REMOVED***)
 	stats.Submit()
 
 	if accumulator != nil ***REMOVED***

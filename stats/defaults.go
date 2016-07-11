@@ -11,6 +11,6 @@ func Submit() error ***REMOVED***
 	return DefaultRegistry.Submit()
 ***REMOVED***
 
-func Add(p Point) ***REMOVED***
-	DefaultCollector.Add(p)
+func Add(s Sample) ***REMOVED***
+	DefaultCollector.Add(s)
 ***REMOVED***
