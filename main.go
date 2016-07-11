@@ -9,6 +9,7 @@ import (
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/loadimpact/speedboat/stats/accumulate"
 	"github.com/loadimpact/speedboat/stats/influxdb"
+	"github.com/loadimpact/speedboat/stats/writer"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
 	"io/ioutil"
@@ -185,40 +186,59 @@ func action(cc *cli.Context) error ***REMOVED***
 		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
 	***REMOVED***
 
-	var formatter Formatter
+	var formatter writer.Formatter
 	switch cc.String("format") ***REMOVED***
 	case "":
 	case "json":
-		formatter = JSONFormatter***REMOVED******REMOVED***
+		formatter = writer.JSONFormatter***REMOVED******REMOVED***
 	case "prettyjson":
-		formatter = PrettyJSONFormatter***REMOVED******REMOVED***
+		formatter = writer.PrettyJSONFormatter***REMOVED******REMOVED***
 	case "yaml":
-		formatter = YAMLFormatter***REMOVED******REMOVED***
+		formatter = writer.YAMLFormatter***REMOVED******REMOVED***
 	default:
 		return cli.NewExitError("Unknown output format", 1)
 	***REMOVED***
 
 	var summarizer *Summarizer
 	if formatter != nil ***REMOVED***
-		accumulator := accumulate.New()
+		only := make(map[string]bool)
 		for _, stat := range cc.StringSlice("select") ***REMOVED***
 			if stat == "*" ***REMOVED***
-				accumulator.Only = make(map[string]bool)
+				only = make(map[string]bool)
 				break
 			***REMOVED***
-			accumulator.Only[stat] = true
+			only[stat] = true
 		***REMOVED***
-		for _, stat := range cc.StringSlice("exclude") ***REMOVED***
-			accumulator.Exclude[stat] = true
-		***REMOVED***
-		for _, tag := range cc.StringSlice("group-by") ***REMOVED***
-			accumulator.GroupBy = append(accumulator.GroupBy, tag)
-		***REMOVED***
-		stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
 
-		summarizer = &Summarizer***REMOVED***
-			Accumulator: accumulator,
-			Formatter:   formatter,
+		exclude := make(map[string]bool)
+		for _, stat := range cc.StringSlice("exclude") ***REMOVED***
+			exclude[stat] = true
+		***REMOVED***
+
+		groupBy := []string***REMOVED******REMOVED***
+		for _, tag := range cc.StringSlice("group-by") ***REMOVED***
+			groupBy = append(groupBy, tag)
+		***REMOVED***
+
+		if cc.Bool("raw") ***REMOVED***
+			backend := &writer.Backend***REMOVED***
+				Writer:    os.Stdout,
+				Formatter: formatter,
+			***REMOVED***
+			backend.Only = only
+			backend.Exclude = exclude
+			stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
+		***REMOVED*** else ***REMOVED***
+			accumulator := accumulate.New()
+			accumulator.Only = only
+			accumulator.Exclude = exclude
+			accumulator.GroupBy = groupBy
+			stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
+
+			summarizer = &Summarizer***REMOVED***
+				Accumulator: accumulator,
+				Formatter:   formatter,
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
@@ -372,6 +392,10 @@ func main() ***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "out, o",
 			Usage: "Write metrics to a database",
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "raw",
+			Usage: "Instead of summaries, dump raw samples to stdout",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "select, s",

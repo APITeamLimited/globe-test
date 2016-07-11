@@ -1,38 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/loadimpact/speedboat/stats/accumulate"
-	"gopkg.in/yaml.v2"
+	"github.com/loadimpact/speedboat/stats/writer"
 	"io"
 )
 
-type Formatter interface ***REMOVED***
-	Format(data interface***REMOVED******REMOVED***) ([]byte, error)
-***REMOVED***
-
-type JSONFormatter struct***REMOVED******REMOVED***
-
-func (JSONFormatter) Format(data interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
-	return json.Marshal(data)
-***REMOVED***
-
-type PrettyJSONFormatter struct***REMOVED******REMOVED***
-
-func (PrettyJSONFormatter) Format(data interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
-	return json.MarshalIndent(data, "", "    ")
-***REMOVED***
-
-type YAMLFormatter struct***REMOVED******REMOVED***
-
-func (YAMLFormatter) Format(data interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
-	return yaml.Marshal(data)
-***REMOVED***
-
 type Summarizer struct ***REMOVED***
 	Accumulator *accumulate.Backend
-	Formatter   Formatter
+	Formatter   writer.Formatter
 ***REMOVED***
 
 func (s *Summarizer) Codify() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
