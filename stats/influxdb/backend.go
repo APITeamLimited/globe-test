@@ -39,8 +39,8 @@ func (b *Backend) Submit(batches [][]stats.Sample) error ***REMOVED***
 	***REMOVED***
 
 	for _, batch := range batches ***REMOVED***
-		for _, p := range batch ***REMOVED***
-			pt, err := makeInfluxPoint(p)
+		for _, s := range batch ***REMOVED***
+			pt, err := makeInfluxPoint(s)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
