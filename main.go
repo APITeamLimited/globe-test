@@ -39,6 +39,8 @@ OPTIONS:
    ***REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***
 `
 
+var mVUs = stats.Stat***REMOVED***Name: "vus", Type: stats.GaugeType***REMOVED***
+
 func pollVURamping(ctx context.Context, t lib.Test) <-chan int ***REMOVED***
 	ch := make(chan int)
 	startTime := time.Now()
@@ -279,7 +281,6 @@ func action(cc *cli.Context) error ***REMOVED***
 
 	vus.Start(ctx)
 	scaleTo := pollVURamping(ctx, t)
-	mVUs := stats.Stat***REMOVED***Name: "vus", Type: stats.GaugeType***REMOVED***
 mainLoop:
 	for ***REMOVED***
 		select ***REMOVED***
