@@ -305,8 +305,16 @@ func action(cc *cli.Context) error ***REMOVED***
 		***REMOVED***()
 	***REMOVED***
 
-	quit := make(chan os.Signal)
-	signal.Notify(quit)
+	go func() ***REMOVED***
+		quit := make(chan os.Signal)
+		signal.Notify(quit)
+
+		select ***REMOVED***
+		case <-quit:
+			cancel()
+		case <-ctx.Done():
+		***REMOVED***
+	***REMOVED***()
 
 	if !cc.Bool("quiet") ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
@@ -326,8 +334,6 @@ mainLoop:
 				Stat:   &mVUs,
 				Values: stats.Value(float64(num)),
 			***REMOVED***)
-		case <-quit:
-			cancel()
 		case <-ctx.Done():
 			break mainLoop
 		***REMOVED***
