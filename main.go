@@ -288,6 +288,23 @@ func action(cc *cli.Context) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
+	interval := cc.Duration("interval")
+	if interval > 0 && summarizer != nil ***REMOVED***
+		go func() ***REMOVED***
+			ticker := time.NewTicker(interval)
+			for ***REMOVED***
+				select ***REMOVED***
+				case <-ticker.C:
+					if err := summarizer.Print(os.Stdout); err != nil ***REMOVED***
+						log.WithError(err).Error("Couldn't print statistics!")
+					***REMOVED***
+				case <-ctx.Done():
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***()
+	***REMOVED***
+
 	quit := make(chan os.Signal)
 	signal.Notify(quit)
 
@@ -368,6 +385,10 @@ func main() ***REMOVED***
 			Name:  "format, f",
 			Usage: "Format for printed metrics (yaml, json, prettyjson)",
 			Value: "yaml",
+		***REMOVED***,
+		cli.DurationFlag***REMOVED***
+			Name:  "interval, i",
+			Usage: "Write periodic summaries",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "out, o",
