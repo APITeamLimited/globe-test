@@ -310,7 +310,7 @@ mainLoop:
 					if len(dimensions) == 1 ***REMOVED***
 						e.Infof("Metric: %s", stat.Name)
 					***REMOVED*** else ***REMOVED***
-						e.Infof("Metric: %s.%s", stat.Name, *dname)
+						e.Infof("Metric: %s.%s", stat.Name, dname)
 					***REMOVED***
 				***REMOVED***
 			case stats.GaugeType:
@@ -324,7 +324,7 @@ mainLoop:
 					if len(dimensions) == 1 ***REMOVED***
 						e.Infof("Metric: %s", stat.Name)
 					***REMOVED*** else ***REMOVED***
-						e.Infof("Metric: %s.%s", stat.Name, *dname)
+						e.Infof("Metric: %s.%s", stat.Name, dname)
 					***REMOVED***
 				***REMOVED***
 			case stats.HistogramType:
@@ -339,7 +339,7 @@ mainLoop:
 						"max": stats.ApplyIntent(dim.Max(), stat.Intent),
 						"avg": stats.ApplyIntent(dim.Avg(), stat.Intent),
 						"med": stats.ApplyIntent(dim.Med(), stat.Intent),
-					***REMOVED***).Infof("  - %s", *dname)
+					***REMOVED***).Infof("  - %s", dname)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***

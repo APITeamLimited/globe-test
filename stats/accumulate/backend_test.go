@@ -9,7 +9,7 @@ import (
 func TestGetNonexistent(t *testing.T) ***REMOVED***
 	b := New()
 	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
-	assert.Nil(t, b.Get(&stat, "value"))
+	assert.Nil(t, b.Data[&stat]["value"])
 ***REMOVED***
 
 func TestGet(t *testing.T) ***REMOVED***
@@ -21,23 +21,7 @@ func TestGet(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 
-	assert.NotNil(t, b.Get(&stat, "value"))
-***REMOVED***
-
-func TestSubmitInternsNames(t *testing.T) ***REMOVED***
-	b := New()
-	stat := stats.Stat***REMOVED***Name: "test"***REMOVED***
-	b.Submit([][]stats.Sample***REMOVED***
-		[]stats.Sample***REMOVED***
-			stats.Sample***REMOVED***Stat: &stat, Values: stats.Values***REMOVED***"value": 1***REMOVED******REMOVED***,
-			stats.Sample***REMOVED***Stat: &stat, Values: stats.Values***REMOVED***"value": 2***REMOVED******REMOVED***,
-			stats.Sample***REMOVED***Stat: &stat, Values: stats.Values***REMOVED***"value": 3***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***)
-	assert.Len(t, b.interned, 1)
-	assert.Len(t, b.Data, 1)
-	assert.Len(t, b.Data[&stat], 1)
-	assert.Contains(t, b.Data[&stat], b.interned["value"])
+	assert.NotNil(t, b.Data[&stat]["value"])
 ***REMOVED***
 
 func TestSubmitSortsValues(t *testing.T) ***REMOVED***
@@ -51,7 +35,7 @@ func TestSubmitSortsValues(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 
-	dim := b.Get(&stat, "value")
+	dim := b.Data[&stat]["value"]
 	assert.EqualValues(t, []float64***REMOVED***1, 2, 3***REMOVED***, dim.Values)
 	assert.False(t, dim.dirty)
 ***REMOVED***
@@ -74,7 +58,7 @@ func TestSubmitSortsValuesContinously(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 
-	dim := b.Get(&stat, "value")
+	dim := b.Data[&stat]["value"]
 	assert.EqualValues(t, []float64***REMOVED***1, 2, 3, 4, 5, 6***REMOVED***, dim.Values)
 	assert.False(t, dim.dirty)
 ***REMOVED***
@@ -89,7 +73,7 @@ func TestSubmitKeepsLast(t *testing.T) ***REMOVED***
 			stats.Sample***REMOVED***Stat: &stat, Values: stats.Values***REMOVED***"value": 2***REMOVED******REMOVED***,
 		***REMOVED***,
 	***REMOVED***)
-	assert.Equal(t, float64(2), b.Get(&stat, "value").Last)
+	assert.Equal(t, float64(2), b.Data[&stat]["value"].Last)
 ***REMOVED***
 
 func TestSubmitIgnoresExcluded(t *testing.T) ***REMOVED***

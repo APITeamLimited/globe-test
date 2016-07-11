@@ -21,23 +21,21 @@ type StatTreeNode struct ***REMOVED***
 ***REMOVED***
 
 type Backend struct ***REMOVED***
-	Data    map[*stats.Stat]map[*string]*Dimension
+	Data    map[*stats.Stat]map[string]*Dimension
 	Only    map[string]bool
 	Exclude map[string]bool
 	GroupBy []string
 
-	interned    map[string]*string
 	vstats      map[*stats.Stat]*StatTree
 	submitMutex sync.Mutex
 ***REMOVED***
 
 func New() *Backend ***REMOVED***
 	return &Backend***REMOVED***
-		Data:     make(map[*stats.Stat]map[*string]*Dimension),
-		Exclude:  make(map[string]bool),
-		Only:     make(map[string]bool),
-		interned: make(map[string]*string),
-		vstats:   make(map[*stats.Stat]*StatTree),
+		Data:    make(map[*stats.Stat]map[string]*Dimension),
+		Exclude: make(map[string]bool),
+		Only:    make(map[string]bool),
+		vstats:  make(map[*stats.Stat]*StatTree),
 	***REMOVED***
 ***REMOVED***
 
@@ -92,15 +90,6 @@ func (b *Backend) getVStat(stat *stats.Stat, tags stats.Tags) *stats.Stat ***REM
 	return ret
 ***REMOVED***
 
-func (b *Backend) Get(stat *stats.Stat, dname string) *Dimension ***REMOVED***
-	dimensions, ok := b.Data[stat]
-	if !ok ***REMOVED***
-		return nil
-	***REMOVED***
-
-	return dimensions[b.interned[dname]]
-***REMOVED***
-
 func (b *Backend) Submit(batches [][]stats.Sample) error ***REMOVED***
 	b.submitMutex.Lock()
 
@@ -119,21 +108,15 @@ func (b *Backend) Submit(batches [][]stats.Sample) error ***REMOVED***
 			stat := b.getVStat(s.Stat, s.Tags)
 			dimensions, ok := b.Data[stat]
 			if !ok ***REMOVED***
-				dimensions = make(map[*string]*Dimension)
+				dimensions = make(map[string]*Dimension)
 				b.Data[stat] = dimensions
 			***REMOVED***
 
 			for dname, val := range s.Values ***REMOVED***
-				interned, ok := b.interned[dname]
-				if !ok ***REMOVED***
-					interned = &dname
-					b.interned[dname] = interned
-				***REMOVED***
-
-				dim, ok := dimensions[interned]
+				dim, ok := dimensions[dname]
 				if !ok ***REMOVED***
 					dim = &Dimension***REMOVED******REMOVED***
-					dimensions[interned] = dim
+					dimensions[dname] = dim
 				***REMOVED***
 
 				dim.Values = append(dim.Values, val)
