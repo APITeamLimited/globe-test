@@ -201,38 +201,18 @@ func action(cc *cli.Context) error ***REMOVED***
 
 	var summarizer *Summarizer
 	if formatter != nil ***REMOVED***
-		only := make(map[string]bool)
-		for _, stat := range cc.StringSlice("select") ***REMOVED***
-			if stat == "*" ***REMOVED***
-				only = make(map[string]bool)
-				break
-			***REMOVED***
-			only[stat] = true
-		***REMOVED***
-
-		exclude := make(map[string]bool)
-		for _, stat := range cc.StringSlice("exclude") ***REMOVED***
-			exclude[stat] = true
-		***REMOVED***
-
-		groupBy := []string***REMOVED******REMOVED***
-		for _, tag := range cc.StringSlice("group-by") ***REMOVED***
-			groupBy = append(groupBy, tag)
-		***REMOVED***
-
+		filter := stats.MakeFilter(cc.StringSlice("exclude"), cc.StringSlice("select"))
 		if cc.Bool("raw") ***REMOVED***
 			backend := &writer.Backend***REMOVED***
 				Writer:    os.Stdout,
 				Formatter: formatter,
 			***REMOVED***
-			backend.Only = only
-			backend.Exclude = exclude
+			backend.Filter = filter
 			stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, backend)
 		***REMOVED*** else ***REMOVED***
 			accumulator := accumulate.New()
-			accumulator.Only = only
-			accumulator.Exclude = exclude
-			accumulator.GroupBy = groupBy
+			accumulator.Filter = filter
+			accumulator.GroupBy = cc.StringSlice("group-by")
 			stats.DefaultRegistry.Backends = append(stats.DefaultRegistry.Backends, accumulator)
 
 			summarizer = &Summarizer***REMOVED***

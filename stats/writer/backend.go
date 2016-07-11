@@ -11,9 +11,7 @@ type Formatter interface ***REMOVED***
 ***REMOVED***
 
 type Backend struct ***REMOVED***
-	Only    map[string]bool
-	Exclude map[string]bool
-
+	Filter    stats.Filter
 	Writer    io.Writer
 	Formatter Formatter
 
@@ -24,14 +22,9 @@ func (b Backend) Submit(batches [][]stats.Sample) error ***REMOVED***
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	hasOnly := len(b.Only) > 0
-
 	for _, batch := range batches ***REMOVED***
 		for _, s := range batch ***REMOVED***
-			if hasOnly && !b.Only[s.Stat.Name] ***REMOVED***
-				continue
-			***REMOVED***
-			if b.Exclude[s.Stat.Name] ***REMOVED***
+			if !b.Filter.Check(s) ***REMOVED***
 				continue
 			***REMOVED***
 

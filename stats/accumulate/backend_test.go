@@ -76,26 +76,11 @@ func TestSubmitKeepsLast(t *testing.T) ***REMOVED***
 	assert.Equal(t, float64(2), b.Data[&stat]["value"].Last)
 ***REMOVED***
 
-func TestSubmitIgnoresExcluded(t *testing.T) ***REMOVED***
+func TestSubmitRespectsFilter(t *testing.T) ***REMOVED***
 	b := New()
 	stat1 := stats.Stat***REMOVED***Name: "test"***REMOVED***
 	stat2 := stats.Stat***REMOVED***Name: "test2"***REMOVED***
-	b.Exclude["test2"] = true
-	b.Submit([][]stats.Sample***REMOVED***
-		[]stats.Sample***REMOVED***
-			stats.Sample***REMOVED***Stat: &stat1, Values: stats.Values***REMOVED***"value": 3***REMOVED******REMOVED***,
-			stats.Sample***REMOVED***Stat: &stat1, Values: stats.Values***REMOVED***"value": 1***REMOVED******REMOVED***,
-			stats.Sample***REMOVED***Stat: &stat2, Values: stats.Values***REMOVED***"value": 2***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***)
-	assert.Len(t, b.Data, 1)
-***REMOVED***
-
-func TestSubmitIgnoresNotInOnly(t *testing.T) ***REMOVED***
-	b := New()
-	stat1 := stats.Stat***REMOVED***Name: "test"***REMOVED***
-	stat2 := stats.Stat***REMOVED***Name: "test2"***REMOVED***
-	b.Only["test2"] = true
+	b.Filter = stats.MakeFilter([]string***REMOVED***"test"***REMOVED***, nil)
 	b.Submit([][]stats.Sample***REMOVED***
 		[]stats.Sample***REMOVED***
 			stats.Sample***REMOVED***Stat: &stat1, Values: stats.Values***REMOVED***"value": 3***REMOVED******REMOVED***,
