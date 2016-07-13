@@ -25,7 +25,8 @@ type VU struct ***REMOVED***
 
 	Collector *stats.Collector
 
-	Client fasthttp.Client
+	Client      fasthttp.Client
+	FollowDepth int
 
 	ID        int64
 	Iteration int64
@@ -58,6 +59,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		Script: script,
 
 		Collector: stats.NewCollector(),
+
+		FollowDepth: 10,
 	***REMOVED***
 
 	vu.VM.Set("$http", map[string]interface***REMOVED******REMOVED******REMOVED***
@@ -81,7 +84,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 				"body":   body,
 				"params": params,
 			***REMOVED***).Debug("Request")
-			res, err := vu.HTTPRequest(method, url, body, params)
+			res, err := vu.HTTPRequest(method, url, body, params, 0)
 			if err != nil ***REMOVED***
 				panic(jsCustomError(call.Otto, "HTTPError", err))
 			***REMOVED***

@@ -13,6 +13,16 @@ func paramsFromObject(o *otto.Object) (params HTTPParams, err error) ***REMOVED*
 
 	for _, key := range o.Keys() ***REMOVED***
 		switch key ***REMOVED***
+		case "follow":
+			v, err := o.Get(key)
+			if err != nil ***REMOVED***
+				return params, err
+			***REMOVED***
+			follow, err := v.ToBoolean()
+			if err != nil ***REMOVED***
+				return params, err
+			***REMOVED***
+			params.Follow = follow
 		case "quiet":
 			v, err := o.Get(key)
 			if err != nil ***REMOVED***
@@ -88,6 +98,20 @@ func putBodyInURL(url, body string) string ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		return url + "&" + body
 	***REMOVED***
+***REMOVED***
+
+func resolveRedirect(from, to string) string ***REMOVED***
+	uFrom, err := url.Parse(from)
+	if err != nil ***REMOVED***
+		return to
+	***REMOVED***
+
+	uTo, err := url.Parse(to)
+	if err != nil ***REMOVED***
+		return to
+	***REMOVED***
+
+	return uFrom.ResolveReference(uTo).String()
 ***REMOVED***
 
 func Make(vm *otto.Otto, t string) (*otto.Object, error) ***REMOVED***

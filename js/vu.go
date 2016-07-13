@@ -1,6 +1,7 @@
 package js
 
 import (
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
@@ -11,9 +12,12 @@ import (
 var (
 	mRequests = stats.Stat***REMOVED***Name: "requests", Type: stats.HistogramType, Intent: stats.TimeIntent***REMOVED***
 	mErrors   = stats.Stat***REMOVED***Name: "errors", Type: stats.CounterType***REMOVED***
+
+	ErrTooManyRedirects = errors.New("too many redirects")
 )
 
 type HTTPParams struct ***REMOVED***
+	Follow  bool
 	Quiet   bool
 	Headers map[string]string
 ***REMOVED***
@@ -37,7 +41,7 @@ func (res HTTPResponse) ToValue(vm *otto.Otto) (otto.Value, error) ***REMOVED***
 	return vm.ToValue(obj)
 ***REMOVED***
 
-func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPResponse, error) ***REMOVED***
+func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects int) (HTTPResponse, error) ***REMOVED***
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
@@ -86,6 +90,34 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams) (HTTPRespo
 			***REMOVED***)
 		***REMOVED***
 		return HTTPResponse***REMOVED******REMOVED***, err
+	***REMOVED***
+
+	status := resp.StatusCode()
+	switch status ***REMOVED***
+	case 301, 302, 303, 307, 308:
+		if !params.Follow ***REMOVED***
+			break
+		***REMOVED***
+		if redirects >= u.FollowDepth ***REMOVED***
+			return HTTPResponse***REMOVED******REMOVED***, ErrTooManyRedirects
+		***REMOVED***
+
+		redirectURL := url
+		resp.Header.VisitAll(func(key, value []byte) ***REMOVED***
+			if string(key) != "Location" ***REMOVED***
+				return
+			***REMOVED***
+
+			redirectURL = resolveRedirect(url, string(value))
+		***REMOVED***)
+
+		redirectMethod := method
+		redirectBody := body
+		if status == 301 || status == 302 || status == 303 ***REMOVED***
+			redirectMethod = "GET"
+			redirectBody = ""
+		***REMOVED***
+		return u.HTTPRequest(redirectMethod, redirectURL, redirectBody, params, redirects+1)
 	***REMOVED***
 
 	headers := make(map[string]string)

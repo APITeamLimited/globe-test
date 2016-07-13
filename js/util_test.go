@@ -44,6 +44,22 @@ func TestPutBodyInURLWithQuery(t *testing.T) ***REMOVED***
 	assert.Equal(t, "http://example.com/?aa=bb&a=b", putBodyInURL("http://example.com/?aa=bb", "a=b"))
 ***REMOVED***
 
+func TestResolveRedirectRelative(t *testing.T) ***REMOVED***
+	assert.Equal(t, "http://example.com/blah", resolveRedirect("http://example.com", "blah"))
+***REMOVED***
+
+func TestResolveRedirectRelativeParent(t *testing.T) ***REMOVED***
+	assert.Equal(t, "http://example.com/blah", resolveRedirect("http://example.com/aaa", "../blah"))
+***REMOVED***
+
+func TestResolveRedirectAbsolute(t *testing.T) ***REMOVED***
+	assert.Equal(t, "http://example.com/blah", resolveRedirect("http://example.com/aaa", "/blah"))
+***REMOVED***
+
+func TestResolveRedirectAbsoluteURL(t *testing.T) ***REMOVED***
+	assert.Equal(t, "https://google.com/", resolveRedirect("http://example.com/aaa", "https://google.com/"))
+***REMOVED***
+
 func TestMake(t *testing.T) ***REMOVED***
 	vm := otto.New()
 

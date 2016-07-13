@@ -356,6 +356,51 @@ func TestAPIHTTPRequestGETHeaders(t *testing.T) ***REMOVED***
 	assert.NoError(t, vu.RunOnce(context.Background()))
 ***REMOVED***
 
+func TestAPIHTTPRequestGETRedirect(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.get("http://httpbin.org/redirect/6");
+	if (res.status !== 302) ***REMOVED***
+		throw new Error("invalid response code: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestGETRedirectFollow(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	res = $http.get("http://httpbin.org/redirect/6", null, ***REMOVED*** follow: true ***REMOVED***);
+	if (res.status !== 200) ***REMOVED***
+		throw new Error("invalid response code: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
+func TestAPIHTTPRequestGETRedirectFollowTooMany(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r := New("script", `
+	$http.get("http://httpbin.org/redirect/15", null, ***REMOVED*** follow: true ***REMOVED***);
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.Error(t, vu.RunOnce(context.Background()))
+***REMOVED***
+
 func TestAPIHTTPRequestHEAD(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
 		t.Skip()
