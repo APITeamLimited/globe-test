@@ -54,11 +54,13 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	res, err := u.Client.Do(u.Request)
 	duration := time.Since(startTime)
 
-	tags := stats.Tags***REMOVED***
-		"url":    u.Runner.URL,
-		"method": "GET",
-		"status": res.StatusCode,
+	status := 0
+	if err == nil ***REMOVED***
+		status = res.StatusCode
+		res.Body.Close()
 	***REMOVED***
+
+	tags := stats.Tags***REMOVED***"method": "GET", "url": u.Runner.URL, "status": status***REMOVED***
 	u.Collector.Add(stats.Sample***REMOVED***
 		Stat:   &mRequests,
 		Tags:   tags,
