@@ -395,7 +395,7 @@ func main() ***REMOVED***
 
 		// Submit stats to a specified server
 		if err := invocation.Submit(submitURL); err != nil ***REMOVED***
-			log.WithError(err).Fatal("Couldn't submit statistics")
+			log.WithError(err).Debug("Couldn't submit statistics")
 		***REMOVED***
 	***REMOVED***()
 
