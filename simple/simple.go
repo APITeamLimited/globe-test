@@ -20,8 +20,8 @@ type Runner struct ***REMOVED***
 
 type VU struct ***REMOVED***
 	Runner    *Runner
-	Client    *http.Client
-	Request   *http.Request
+	Client    http.Client
+	Request   http.Request
 	Collector *stats.Collector
 ***REMOVED***
 
@@ -39,8 +39,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 	return &VU***REMOVED***
 		Runner:    r,
-		Client:    &http.Client***REMOVED******REMOVED***,
-		Request:   req,
+		Client:    http.Client***REMOVED******REMOVED***,
+		Request:   *req,
 		Collector: stats.NewCollector(),
 	***REMOVED***, nil
 ***REMOVED***
@@ -50,8 +50,10 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
+	req := u.Request
+
 	startTime := time.Now()
-	res, err := u.Client.Do(u.Request)
+	res, err := u.Client.Do(&req)
 	duration := time.Since(startTime)
 
 	status := 0
