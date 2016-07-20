@@ -12,6 +12,7 @@ import (
 	"github.com/loadimpact/speedboat/stats/writer"
 	"github.com/urfave/cli"
 	"golang.org/x/net/context"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -253,6 +254,17 @@ func action(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError("Too many arguments!", 1)
 	***REMOVED***
 
+	if cc.Bool("plan") ***REMOVED***
+		data, err := yaml.Marshal(map[string]interface***REMOVED******REMOVED******REMOVED***
+			"stages": stages,
+		***REMOVED***)
+		if err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+		os.Stdout.Write(data)
+		return nil
+	***REMOVED***
+
 	vus := lib.VUGroup***REMOVED***
 		Pool: lib.VUPool***REMOVED***
 			New: r.NewVU,
@@ -365,6 +377,10 @@ func main() ***REMOVED***
 	app.Usage = "A next-generation load generator"
 	app.Version = "1.0.0-mvp1"
 	app.Flags = []cli.Flag***REMOVED***
+		cli.BoolFlag***REMOVED***
+			Name:  "plan",
+			Usage: "Don't run anything, just show the test plan",
+		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
 			Usage: "Input file type, if not evident (url or js)",
