@@ -4,9 +4,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
-	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
-	"math"
+	"net/http"
 	"time"
 )
 
@@ -21,8 +20,8 @@ type Runner struct ***REMOVED***
 
 type VU struct ***REMOVED***
 	Runner    *Runner
-	Client    fasthttp.Client
-	Request   fasthttp.Request
+	Client    *http.Client
+	Request   *http.Request
 	Collector *stats.Collector
 ***REMOVED***
 
@@ -33,15 +32,17 @@ func New(url string) *Runner ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
-	vu := &VU***REMOVED***
-		Runner:    r,
-		Client:    fasthttp.Client***REMOVED***MaxConnsPerHost: math.MaxInt32***REMOVED***,
-		Collector: stats.NewCollector(),
+	req, err := http.NewRequest("GET", r.URL, nil)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
-	vu.Request.SetRequestURI(r.URL)
-
-	return vu, nil
+	return &VU***REMOVED***
+		Runner:    r,
+		Client:    &http.Client***REMOVED******REMOVED***,
+		Request:   req,
+		Collector: stats.NewCollector(),
+	***REMOVED***, nil
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
@@ -49,17 +50,14 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
-	res := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(res)
-
 	startTime := time.Now()
-	err := u.Client.Do(&u.Request, res)
+	res, err := u.Client.Do(u.Request)
 	duration := time.Since(startTime)
 
 	tags := stats.Tags***REMOVED***
 		"url":    u.Runner.URL,
 		"method": "GET",
-		"status": res.StatusCode(),
+		"status": res.StatusCode,
 	***REMOVED***
 	u.Collector.Add(stats.Sample***REMOVED***
 		Stat:   &mRequests,
