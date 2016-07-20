@@ -5,6 +5,9 @@ import (
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"golang.org/x/net/context"
+	"io"
+	"io/ioutil"
+	"math"
 	"net/http"
 	"time"
 )
@@ -38,8 +41,12 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***
 
 	return &VU***REMOVED***
-		Runner:    r,
-		Client:    http.Client***REMOVED******REMOVED***,
+		Runner: r,
+		Client: http.Client***REMOVED***
+			Transport: &http.Transport***REMOVED***
+				MaxIdleConnsPerHost: math.MaxInt32,
+			***REMOVED***,
+		***REMOVED***,
 		Request:   *req,
 		Collector: stats.NewCollector(),
 	***REMOVED***, nil
@@ -59,6 +66,7 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	status := 0
 	if err == nil ***REMOVED***
 		status = res.StatusCode
+		io.Copy(ioutil.Discard, res.Body)
 		res.Body.Close()
 	***REMOVED***
 
