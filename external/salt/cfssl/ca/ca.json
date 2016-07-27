@@ -1,0 +1,13 @@
+***REMOVED***
+	"CN": "speedboat-test root CA",
+	"key": ***REMOVED***
+		"algo": "rsa",
+		"size": 2048
+	***REMOVED***,
+	"names": [***REMOVED***
+		"C": "SE",
+		"L": "Stockholm",
+		"O": "Load Impact",
+		"OU": "speedboat"
+	***REMOVED***]
+***REMOVED***
