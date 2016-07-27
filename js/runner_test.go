@@ -5,9 +5,9 @@ import (
 	logtest "github.com/Sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	"math"
+	// "math"
 	"os"
-	"strconv"
+	// "strconv"
 	"testing"
 	"time"
 )
@@ -209,37 +209,37 @@ func TestAPITestAbort(t *testing.T) ***REMOVED***
 	assert.Panics(t, func() ***REMOVED*** vu.RunOnce(context.Background()) ***REMOVED***)
 ***REMOVED***
 
-func TestAPIHTTPSetMaxConnsPerHost(t *testing.T) ***REMOVED***
-	r := New("script", `$http.setMaxConnsPerHost(100);`)
-	vu, _ := r.NewVU()
-	assert.NoError(t, vu.RunOnce(context.Background()))
-	assert.Equal(t, 100, vu.(*VU).Client.MaxConnsPerHost)
-***REMOVED***
+// func TestAPIHTTPSetMaxConnsPerHost(t *testing.T) ***REMOVED***
+// 	r := New("script", `$http.setMaxConnsPerHost(100);`)
+// 	vu, _ := r.NewVU()
+// 	assert.NoError(t, vu.RunOnce(context.Background()))
+// 	assert.Equal(t, 100, vu.(*VU).Client.MaxConnsPerHost)
+// ***REMOVED***
 
-func TestAPIHTTPSetMaxConnsPerHostOverflow(t *testing.T) ***REMOVED***
-	r := New("script", `$http.setMaxConnsPerHost(`+strconv.FormatInt(math.MaxInt64, 10)+`);`)
-	vu, _ := r.NewVU()
-	assert.NoError(t, vu.RunOnce(context.Background()))
-	assert.Equal(t, math.MaxInt32, vu.(*VU).Client.MaxConnsPerHost)
-***REMOVED***
+// func TestAPIHTTPSetMaxConnsPerHostOverflow(t *testing.T) ***REMOVED***
+// 	r := New("script", `$http.setMaxConnsPerHost(`+strconv.FormatInt(math.MaxInt64, 10)+`);`)
+// 	vu, _ := r.NewVU()
+// 	assert.NoError(t, vu.RunOnce(context.Background()))
+// 	assert.Equal(t, math.MaxInt32, vu.(*VU).Client.MaxConnsPerHost)
+// ***REMOVED***
 
-func TestAPIHTTPSetMaxConnsPerHostZero(t *testing.T) ***REMOVED***
-	r := New("script", `$http.setMaxConnsPerHost(0);`)
-	vu, _ := r.NewVU()
-	assert.Error(t, vu.RunOnce(context.Background()))
-***REMOVED***
+// func TestAPIHTTPSetMaxConnsPerHostZero(t *testing.T) ***REMOVED***
+// 	r := New("script", `$http.setMaxConnsPerHost(0);`)
+// 	vu, _ := r.NewVU()
+// 	assert.Error(t, vu.RunOnce(context.Background()))
+// ***REMOVED***
 
-func TestAPIHTTPSetMaxConnsPerHostNegative(t *testing.T) ***REMOVED***
-	r := New("script", `$http.setMaxConnsPerHost(-1);`)
-	vu, _ := r.NewVU()
-	assert.Error(t, vu.RunOnce(context.Background()))
-***REMOVED***
+// func TestAPIHTTPSetMaxConnsPerHostNegative(t *testing.T) ***REMOVED***
+// 	r := New("script", `$http.setMaxConnsPerHost(-1);`)
+// 	vu, _ := r.NewVU()
+// 	assert.Error(t, vu.RunOnce(context.Background()))
+// ***REMOVED***
 
-func TestAPIHTTPSetMaxConnsPerHostInvalid(t *testing.T) ***REMOVED***
-	r := New("script", `$http.setMaxConnsPerHost("qwerty");`)
-	vu, _ := r.NewVU()
-	assert.Error(t, vu.RunOnce(context.Background()))
-***REMOVED***
+// func TestAPIHTTPSetMaxConnsPerHostInvalid(t *testing.T) ***REMOVED***
+// 	r := New("script", `$http.setMaxConnsPerHost("qwerty");`)
+// 	vu, _ := r.NewVU()
+// 	assert.Error(t, vu.RunOnce(context.Background()))
+// ***REMOVED***
 
 func TestAPIHTTPRequestReportsStats(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***

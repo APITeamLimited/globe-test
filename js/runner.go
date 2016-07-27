@@ -5,9 +5,9 @@ import (
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
-	"github.com/valyala/fasthttp"
 	"golang.org/x/net/context"
 	"math"
+	"net/http"
 	"os"
 )
 
@@ -25,7 +25,7 @@ type VU struct ***REMOVED***
 
 	Collector *stats.Collector
 
-	Client      fasthttp.Client
+	Client      http.Client
 	FollowDepth int
 
 	ID        int64
@@ -60,6 +60,11 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 		Collector: stats.NewCollector(),
 
+		Client: http.Client***REMOVED***
+			Transport: &http.Transport***REMOVED***
+				MaxIdleConnsPerHost: math.MaxInt32,
+			***REMOVED***,
+		***REMOVED***,
 		FollowDepth: 10,
 	***REMOVED***
 
@@ -96,22 +101,22 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 			return val
 		***REMOVED***,
-		"setMaxConnsPerHost": func(call otto.FunctionCall) otto.Value ***REMOVED***
-			num, err := call.Argument(0).ToInteger()
-			if err != nil ***REMOVED***
-				panic(call.Otto.MakeTypeError("argument must be an integer"))
-			***REMOVED***
-			if num <= 0 ***REMOVED***
-				panic(call.Otto.MakeRangeError("argument must be >= 1"))
-			***REMOVED***
-			if num > math.MaxInt32 ***REMOVED***
-				num = math.MaxInt32
-			***REMOVED***
+		// "setMaxConnsPerHost": func(call otto.FunctionCall) otto.Value ***REMOVED***
+		// 	num, err := call.Argument(0).ToInteger()
+		// 	if err != nil ***REMOVED***
+		// 		panic(call.Otto.MakeTypeError("argument must be an integer"))
+		// 	***REMOVED***
+		// 	if num <= 0 ***REMOVED***
+		// 		panic(call.Otto.MakeRangeError("argument must be >= 1"))
+		// 	***REMOVED***
+		// 	if num > math.MaxInt32 ***REMOVED***
+		// 		num = math.MaxInt32
+		// 	***REMOVED***
 
-			vu.Client.MaxConnsPerHost = int(num)
+		// 	vu.Client.MaxConnsPerHost = int(num)
 
-			return otto.UndefinedValue()
-		***REMOVED***,
+		// 	return otto.UndefinedValue()
+		// ***REMOVED***,
 	***REMOVED***)
 	vu.VM.Set("$vu", map[string]interface***REMOVED******REMOVED******REMOVED***
 		"sleep": func(call otto.FunctionCall) otto.Value ***REMOVED***
