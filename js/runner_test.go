@@ -340,37 +340,37 @@ func TestAPIHTTPRequestGETArgs(t *testing.T) ***REMOVED***
 	assert.NoError(t, vu.RunOnce(context.Background()))
 ***REMOVED***
 
-// func TestAPIHTTPRequestGETHeaders(t *testing.T) ***REMOVED***
-// 	if testing.Short() ***REMOVED***
-// 		t.Skip()
-// 	***REMOVED***
+func TestAPIHTTPRequestGETHeaders(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
 
-// 	r := New("script", `
-// 	data = $http.get("http://httpbin.org/get", null, ***REMOVED*** headers: ***REMOVED*** 'X-Test': 'hi' ***REMOVED*** ***REMOVED***).json()
-// 	if (data.headers['X-Test'] !== 'hi') ***REMOVED***
-// 		throw new Error("invalid X-Test header: " + data.headers['X-Test'])
-// 	***REMOVED***
-// 	`)
-// 	vu, err := r.NewVU()
-// 	assert.NoError(t, err)
-// 	assert.NoError(t, vu.RunOnce(context.Background()))
-// ***REMOVED***
+	r := New("script", `
+	data = $http.get("http://httpbin.org/get", null, ***REMOVED*** headers: ***REMOVED*** 'X-Test': 'hi' ***REMOVED*** ***REMOVED***).json()
+	if (data.headers['X-Test'] !== 'hi') ***REMOVED***
+		throw new Error("invalid X-Test header: " + data.headers['X-Test'])
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
 
-// func TestAPIHTTPRequestGETRedirect(t *testing.T) ***REMOVED***
-// 	if testing.Short() ***REMOVED***
-// 		t.Skip()
-// 	***REMOVED***
+func TestAPIHTTPRequestGETRedirect(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
 
-// 	r := New("script", `
-// 	res = $http.get("http://httpbin.org/redirect/6");
-// 	if (res.status !== 302) ***REMOVED***
-// 		throw new Error("invalid response code: " + res.status);
-// 	***REMOVED***
-// 	`)
-// 	vu, err := r.NewVU()
-// 	assert.NoError(t, err)
-// 	assert.NoError(t, vu.RunOnce(context.Background()))
-// ***REMOVED***
+	r := New("script", `
+	res = $http.get("http://httpbin.org/redirect/6");
+	if (res.status !== 302) ***REMOVED***
+		throw new Error("invalid response code: " + res.status);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
 
 func TestAPIHTTPRequestGETRedirectFollow(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***

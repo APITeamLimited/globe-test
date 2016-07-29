@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	neturl "net/url"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,8 @@ var (
 	mErrors   = stats.Stat***REMOVED***Name: "errors", Type: stats.CounterType***REMOVED***
 
 	ErrTooManyRedirects = errors.New("too many redirects")
+
+	errInternalHandleRedirect = errors.New("[internal] handle redirect")
 )
 
 type HTTPParams struct ***REMOVED***
@@ -43,6 +46,12 @@ func (res HTTPResponse) ToValue(vm *otto.Otto) (otto.Value, error) ***REMOVED***
 	return vm.ToValue(obj)
 ***REMOVED***
 
+type stringReadCloser struct ***REMOVED***
+	*strings.Reader
+***REMOVED***
+
+func (stringReadCloser) Close() error ***REMOVED*** return nil ***REMOVED***
+
 func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects int) (HTTPResponse, error) ***REMOVED***
 	parsedURL, err := neturl.Parse(url)
 	if err != nil ***REMOVED***
@@ -58,8 +67,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 	if method == "GET" || method == "HEAD" ***REMOVED***
 		req.URL.RawQuery = body
 	***REMOVED*** else ***REMOVED***
-		// NOT IMPLEMENTED! I'm just testing stuff out.
-		// req.SetBodyString(body)
+		req.Body = stringReadCloser***REMOVED***strings.NewReader(body)***REMOVED***
 	***REMOVED***
 
 	for key, value := range params.Headers ***REMOVED***
@@ -77,7 +85,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 	***REMOVED***
 
 	var respBody []byte
-	if err == nil ***REMOVED***
+	if resp != nil ***REMOVED***
 		tags["status"] = resp.StatusCode
 		tags["proto"] = resp.Proto
 		respBody, _ = ioutil.ReadAll(resp.Body)
@@ -92,43 +100,42 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 		***REMOVED***)
 	***REMOVED***
 
-	if err != nil ***REMOVED***
+	switch e := err.(type) ***REMOVED***
+	case nil:
+		// Do nothing
+	case *neturl.Error:
+		if e.Err != errInternalHandleRedirect ***REMOVED***
+			if !params.Quiet ***REMOVED***
+				u.Collector.Add(stats.Sample***REMOVED***Stat: &mErrors, Tags: tags, Values: stats.Value(1)***REMOVED***)
+			***REMOVED***
+			return HTTPResponse***REMOVED******REMOVED***, err
+		***REMOVED***
+
+		if !params.Follow ***REMOVED***
+			break
+		***REMOVED***
+
+		if redirects >= u.FollowDepth ***REMOVED***
+			return HTTPResponse***REMOVED******REMOVED***, ErrTooManyRedirects
+		***REMOVED***
+
+		redirectURL := resolveRedirect(url, resp.Header.Get("Location"))
+		redirectMethod := method
+		redirectBody := ""
+		if resp.StatusCode == 301 || resp.StatusCode == 302 || resp.StatusCode == 303 ***REMOVED***
+			redirectMethod = "GET"
+			if redirectMethod != method ***REMOVED***
+				redirectBody = ""
+			***REMOVED***
+		***REMOVED***
+
+		return u.HTTPRequest(redirectMethod, redirectURL, redirectBody, params, redirects+1)
+	default:
 		if !params.Quiet ***REMOVED***
-			u.Collector.Add(stats.Sample***REMOVED***
-				Stat:   &mErrors,
-				Tags:   tags,
-				Values: stats.Value(1),
-			***REMOVED***)
+			u.Collector.Add(stats.Sample***REMOVED***Stat: &mErrors, Tags: tags, Values: stats.Value(1)***REMOVED***)
 		***REMOVED***
 		return HTTPResponse***REMOVED******REMOVED***, err
 	***REMOVED***
-
-	// switch resp.StatusCode ***REMOVED***
-	// case 301, 302, 303, 307, 308:
-	// 	if !params.Follow ***REMOVED***
-	// 		break
-	// 	***REMOVED***
-	// 	if redirects >= u.FollowDepth ***REMOVED***
-	// 		return HTTPResponse***REMOVED******REMOVED***, ErrTooManyRedirects
-	// 	***REMOVED***
-
-	// 	redirectURL := url
-	// 	resp.Header.VisitAll(func(key, value []byte) ***REMOVED***
-	// 		if string(key) != "Location" ***REMOVED***
-	// 			return
-	// 		***REMOVED***
-
-	// 		redirectURL = resolveRedirect(url, string(value))
-	// 	***REMOVED***)
-
-	// 	redirectMethod := method
-	// 	redirectBody := body
-	// 	if status == 301 || status == 302 || status == 303 ***REMOVED***
-	// 		redirectMethod = "GET"
-	// 		redirectBody = ""
-	// 	***REMOVED***
-	// 	return u.HTTPRequest(redirectMethod, redirectURL, redirectBody, params, redirects+1)
-	// ***REMOVED***
 
 	headers := make(map[string]string)
 	for key, vals := range resp.Header ***REMOVED***

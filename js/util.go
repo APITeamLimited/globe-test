@@ -101,6 +101,10 @@ func putBodyInURL(url, body string) string ***REMOVED***
 ***REMOVED***
 
 func resolveRedirect(from, to string) string ***REMOVED***
+	if to == "" ***REMOVED***
+		return from
+	***REMOVED***
+
 	uFrom, err := url.Parse(from)
 	if err != nil ***REMOVED***
 		return to
