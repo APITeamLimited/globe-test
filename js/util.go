@@ -61,9 +61,9 @@ func paramsFromObject(o *otto.Object) (params HTTPParams, err error) ***REMOVED*
 	return params, nil
 ***REMOVED***
 
-func bodyFromValue(o otto.Value) (string, error) ***REMOVED***
+func bodyFromValue(o otto.Value) (body string, isForm bool, err error) ***REMOVED***
 	if o.IsUndefined() || o.IsNull() ***REMOVED***
-		return "", nil
+		return "", false, nil
 	***REMOVED***
 
 	if o.IsObject() ***REMOVED***
@@ -73,19 +73,19 @@ func bodyFromValue(o otto.Value) (string, error) ***REMOVED***
 			valObj, _ := obj.Get(key)
 			val, err := valObj.ToString()
 			if err != nil ***REMOVED***
-				return "", err
+				return "", false, err
 			***REMOVED***
 			query.Add(key, val)
 		***REMOVED***
-		return query.Encode(), nil
+		return query.Encode(), true, nil
 	***REMOVED***
 
-	body, err := o.ToString()
+	body, err = o.ToString()
 	if err != nil ***REMOVED***
-		return "", err
+		return "", false, err
 	***REMOVED***
 
-	return body, nil
+	return body, false, nil
 ***REMOVED***
 
 func putBodyInURL(url, body string) string ***REMOVED***

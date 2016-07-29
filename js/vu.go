@@ -68,6 +68,7 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 		req.URL.RawQuery = body
 	***REMOVED*** else ***REMOVED***
 		req.Body = stringReadCloser***REMOVED***strings.NewReader(body)***REMOVED***
+		req.ContentLength = int64(len(body))
 	***REMOVED***
 
 	for key, value := range params.Headers ***REMOVED***

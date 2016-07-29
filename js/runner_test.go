@@ -455,37 +455,37 @@ func TestAPIHTTPRequestPOST(t *testing.T) ***REMOVED***
 	assert.NoError(t, vu.RunOnce(context.Background()))
 ***REMOVED***
 
-// func TestAPIHTTPRequestPOSTArgs(t *testing.T) ***REMOVED***
-// 	if testing.Short() ***REMOVED***
-// 		t.Skip()
-// 	***REMOVED***
+func TestAPIHTTPRequestPOSTArgs(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
 
-// 	r := New("script", `
-// 	data = $http.post("http://httpbin.org/post", ***REMOVED*** a: 'b' ***REMOVED***).json()
-// 	if (data.form.a !== 'b') ***REMOVED***
-// 		throw new Error("invalid form.a: " + data.form.a);
-// 	***REMOVED***
-// 	`)
-// 	vu, err := r.NewVU()
-// 	assert.NoError(t, err)
-// 	assert.NoError(t, vu.RunOnce(context.Background()))
-// ***REMOVED***
+	r := New("script", `
+	data = $http.post("http://httpbin.org/post", ***REMOVED*** a: 'b' ***REMOVED***).json()
+	if (data.form.a !== 'b') ***REMOVED***
+		throw new Error("invalid form.a: " + data.form.a);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
 
-// func TestAPIHTTPRequestPOSTBody(t *testing.T) ***REMOVED***
-// 	if testing.Short() ***REMOVED***
-// 		t.Skip()
-// 	***REMOVED***
+func TestAPIHTTPRequestPOSTBody(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		t.Skip()
+	***REMOVED***
 
-// 	r := New("script", `
-// 	data = $http.post("http://httpbin.org/post", 'a=b').json()
-// 	if (data.form.a !== 'b') ***REMOVED***
-// 		throw new Error("invalid form.a: " + data.form.a);
-// 	***REMOVED***
-// 	`)
-// 	vu, err := r.NewVU()
-// 	assert.NoError(t, err)
-// 	assert.NoError(t, vu.RunOnce(context.Background()))
-// ***REMOVED***
+	r := New("script", `
+	data = $http.post("http://httpbin.org/post", 'a=b').json()
+	if (data.data !== 'a=b') ***REMOVED***
+		throw new Error("invalid data: " + data.data);
+	***REMOVED***
+	`)
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	assert.NoError(t, vu.RunOnce(context.Background()))
+***REMOVED***
 
 func TestAPIHTTPRequestPUT(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
