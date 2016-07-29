@@ -5,7 +5,8 @@ import (
 )
 
 type Registry struct ***REMOVED***
-	Backends []Backend
+	Backends  []Backend
+	ExtraTags Tags
 
 	collectors []*Collector
 	mutex      sync.Mutex
@@ -29,6 +30,21 @@ func (r *Registry) Submit() error ***REMOVED***
 	for _, collector := range r.collectors ***REMOVED***
 		batch := collector.drain()
 		batches = append(batches, batch)
+	***REMOVED***
+
+	if len(r.ExtraTags) > 0 ***REMOVED***
+		for _, batch := range batches ***REMOVED***
+			for i, p := range batch ***REMOVED***
+				if p.Tags == nil ***REMOVED***
+					p.Tags = r.ExtraTags
+					batch[i] = p
+				***REMOVED*** else ***REMOVED***
+					for key, val := range r.ExtraTags ***REMOVED***
+						p.Tags[key] = val
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
 	for _, backend := range r.Backends ***REMOVED***

@@ -45,3 +45,25 @@ func TestSubmit(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	assert.Len(t, backend.submitted, 4)
 ***REMOVED***
+
+func TestSubmitExtraTagsNilTags(t *testing.T) ***REMOVED***
+	backend := &testBackend***REMOVED******REMOVED***
+	r := Registry***REMOVED***Backends: []Backend***REMOVED***backend***REMOVED***, ExtraTags: Tags***REMOVED***"key": "value"***REMOVED******REMOVED***
+	stat := Stat***REMOVED***Name: "test"***REMOVED***
+
+	c1 := r.NewCollector()
+	c1.Add(Sample***REMOVED***Stat: &stat, Values: Value(1)***REMOVED***)
+	assert.NoError(t, r.Submit())
+	assert.Equal(t, "value", backend.submitted[0].Tags["key"])
+***REMOVED***
+
+func TestSubmitExtraTags(t *testing.T) ***REMOVED***
+	backend := &testBackend***REMOVED******REMOVED***
+	r := Registry***REMOVED***Backends: []Backend***REMOVED***backend***REMOVED***, ExtraTags: Tags***REMOVED***"key": "value"***REMOVED******REMOVED***
+	stat := Stat***REMOVED***Name: "test"***REMOVED***
+
+	c1 := r.NewCollector()
+	c1.Add(Sample***REMOVED***Stat: &stat, Values: Value(1), Tags: Tags***REMOVED***"a": "b"***REMOVED******REMOVED***)
+	assert.NoError(t, r.Submit())
+	assert.Equal(t, "value", backend.submitted[0].Tags["key"])
+***REMOVED***

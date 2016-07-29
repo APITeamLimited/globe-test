@@ -144,6 +144,25 @@ func parseStages(vus []string, total time.Duration) (stages []lib.TestStage, err
 	return stages, nil
 ***REMOVED***
 
+func parseTags(lines []string) stats.Tags ***REMOVED***
+	tags := make(stats.Tags)
+	for _, line := range lines ***REMOVED***
+		idx := strings.IndexAny(line, ":=")
+		if idx == -1 ***REMOVED***
+			tags[line] = line
+			continue
+		***REMOVED***
+
+		key := line[:idx]
+		val := line[idx+1:]
+		if key == "" ***REMOVED***
+			key = val
+		***REMOVED***
+		tags[key] = val
+	***REMOVED***
+	return tags
+***REMOVED***
+
 func guessType(arg string) string ***REMOVED***
 	switch ***REMOVED***
 	case strings.Contains(arg, "://"):
@@ -205,6 +224,8 @@ func action(cc *cli.Context) error ***REMOVED***
 	default:
 		return cli.NewExitError("Unknown output format", 1)
 	***REMOVED***
+
+	stats.DefaultRegistry.ExtraTags = parseTags(cc.StringSlice("tag"))
 
 	var summarizer *Summarizer
 	if formatter != nil ***REMOVED***
@@ -463,6 +484,10 @@ func main() ***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "group-by, g",
 			Usage: "Group metrics by tags",
+		***REMOVED***,
+		cli.StringSliceFlag***REMOVED***
+			Name:  "tag",
+			Usage: "Additional metric tags",
 		***REMOVED***,
 	***REMOVED***
 	app.Before = func(cc *cli.Context) error ***REMOVED***

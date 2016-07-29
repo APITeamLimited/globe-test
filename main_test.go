@@ -136,6 +136,36 @@ func TestParseStagesInvalidTimeMissingUnit(t *testing.T) ***REMOVED***
 	assert.Error(t, err)
 ***REMOVED***
 
+func TestParseTagsColon(t *testing.T) ***REMOVED***
+	tags := parseTags([]string***REMOVED***"key:value"***REMOVED***)
+	assert.Len(t, tags, 1)
+	assert.Equal(t, "value", tags["key"])
+***REMOVED***
+
+func TestParseTagsEquals(t *testing.T) ***REMOVED***
+	tags := parseTags([]string***REMOVED***"key=value"***REMOVED***)
+	assert.Len(t, tags, 1)
+	assert.Equal(t, "value", tags["key"])
+***REMOVED***
+
+func TestParseTagsMissingValue(t *testing.T) ***REMOVED***
+	tags := parseTags([]string***REMOVED***"key="***REMOVED***)
+	assert.Len(t, tags, 1)
+	assert.Contains(t, tags, "key")
+***REMOVED***
+
+func TestParseTagsMissingKey(t *testing.T) ***REMOVED***
+	tags := parseTags([]string***REMOVED***"=value"***REMOVED***)
+	assert.Len(t, tags, 1)
+	assert.Equal(t, "value", tags["value"])
+***REMOVED***
+
+func TestParseTagsMissingBoth(t *testing.T) ***REMOVED***
+	tags := parseTags([]string***REMOVED***"value"***REMOVED***)
+	assert.Len(t, tags, 1)
+	assert.Contains(t, tags, "value")
+***REMOVED***
+
 func TestGuessTypeURL(t *testing.T) ***REMOVED***
 	assert.Equal(t, typeURL, guessType("http://example.com/"))
 ***REMOVED***
