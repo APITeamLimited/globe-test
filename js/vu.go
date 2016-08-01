@@ -53,6 +53,8 @@ type stringReadCloser struct ***REMOVED***
 func (stringReadCloser) Close() error ***REMOVED*** return nil ***REMOVED***
 
 func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects int) (HTTPResponse, error) ***REMOVED***
+	log.WithFields(log.Fields***REMOVED***"method": method, "url": url, "body": body, "params": params***REMOVED***).Debug("Request")
+
 	parsedURL, err := neturl.Parse(url)
 	if err != nil ***REMOVED***
 		return HTTPResponse***REMOVED******REMOVED***, err

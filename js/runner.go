@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"sync"
 )
 
 type Runner struct ***REMOVED***
@@ -97,12 +98,6 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 			***REMOVED***
 			params.Headers = headers
 
-			log.WithFields(log.Fields***REMOVED***
-				"method": method,
-				"url":    url,
-				"body":   body,
-				"params": params,
-			***REMOVED***).Debug("Request")
 			res, err := vu.HTTPRequest(method, url, body, params, 0)
 			if err != nil ***REMOVED***
 				panic(jsCustomError(call.Otto, "HTTPError", err))
@@ -114,6 +109,89 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 			***REMOVED***
 
 			return val
+		***REMOVED***,
+		"batch": func(call otto.FunctionCall) otto.Value ***REMOVED***
+			obj := call.Argument(0).Object()
+			if obj == nil ***REMOVED***
+				panic(call.Otto.MakeTypeError("first argument must be an object/array"))
+			***REMOVED***
+
+			wg := sync.WaitGroup***REMOVED******REMOVED***
+			mutex := sync.Mutex***REMOVED******REMOVED***
+			for _, key := range obj.Keys() ***REMOVED***
+				v, _ := obj.Get(key)
+
+				var method string
+				var url string
+				var body string
+				var params HTTPParams
+
+				switch ***REMOVED***
+				case v.IsString():
+					method = "GET"
+					url = v.String()
+				case v.IsObject():
+					o := v.Object()
+
+					keys := o.Keys()
+					if len(keys) == 1 ***REMOVED***
+						method = "GET"
+						urlV, _ := o.Get(keys[0])
+						url = urlV.String()
+						break
+					***REMOVED***
+
+					for _, key := range keys ***REMOVED***
+						switch key ***REMOVED***
+						case "0":
+							v, _ := o.Get(key)
+							method = v.String()
+						case "1":
+							v, _ := o.Get(key)
+							url = v.String()
+						case "2":
+							v, _ := o.Get(key)
+							body = v.String()
+						case "3":
+							v, _ := o.Get(key)
+							paramsObj := v.Object()
+							if paramsObj == nil ***REMOVED***
+								panic(call.Otto.MakeTypeError("params must be an object"))
+							***REMOVED***
+							params, err = paramsFromObject(paramsObj)
+							if err != nil ***REMOVED***
+								panic(jsError(call.Otto, err))
+							***REMOVED***
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				wg.Add(1)
+				go func() ***REMOVED***
+					defer wg.Done()
+
+					res, err := vu.HTTPRequest(method, url, body, params, 0)
+
+					mutex.Lock()
+					defer mutex.Unlock()
+
+					if err != nil ***REMOVED***
+						obj.Set(key, jsError(call.Otto, err))
+						return
+					***REMOVED***
+
+					val, err := res.ToValue(call.Otto)
+					if err != nil ***REMOVED***
+						obj.Set(key, jsError(call.Otto, err))
+						return
+					***REMOVED***
+
+					obj.Set(key, val)
+				***REMOVED***()
+			***REMOVED***
+			wg.Wait()
+
+			return obj.Value()
 		***REMOVED***,
 		// "setMaxConnsPerHost": func(call otto.FunctionCall) otto.Value ***REMOVED***
 		// 	num, err := call.Argument(0).ToInteger()
