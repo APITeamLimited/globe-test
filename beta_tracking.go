@@ -12,6 +12,7 @@ import (
 type Invocation struct ***REMOVED***
 	Args  []string `json:"args"`
 	Flags struct ***REMOVED***
+		Plan     bool          `json:"plan"`
 		Type     string        `json:"type"`
 		VUs      []string      `json:"vus"`
 		Duration time.Duration `json:"duration"`
@@ -24,12 +25,14 @@ type Invocation struct ***REMOVED***
 		Select   []string      `json:"select"`
 		Exclude  []string      `json:"exclude"`
 		GroupBy  []string      `json:"group_by"`
+		Tag      []string      `json:"tag"`
 	***REMOVED*** `json:"flags"`
 	Error string `json:"error"`
 ***REMOVED***
 
 func (i *Invocation) PopulateWithContext(cc *cli.Context) ***REMOVED***
 	i.Args = []string(cc.Args())
+	i.Flags.Plan = cc.GlobalBool("plan")
 	i.Flags.Type = cc.GlobalString("type")
 	i.Flags.VUs = cc.GlobalStringSlice("vus")
 	i.Flags.Duration = cc.GlobalDuration("duration")
@@ -42,6 +45,7 @@ func (i *Invocation) PopulateWithContext(cc *cli.Context) ***REMOVED***
 	i.Flags.Select = cc.GlobalStringSlice("select")
 	i.Flags.Exclude = cc.GlobalStringSlice("exclude")
 	i.Flags.GroupBy = cc.GlobalStringSlice("group-by")
+	i.Flags.Tag = cc.GlobalStringSlice("tag")
 ***REMOVED***
 
 func (i *Invocation) Submit(url string) error ***REMOVED***
