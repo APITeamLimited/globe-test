@@ -256,6 +256,12 @@ func action(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	t := lib.Test***REMOVED***Stages: stages***REMOVED***
 
+	if cc.Bool("once") ***REMOVED***
+		t.Stages = []lib.TestStage***REMOVED***
+			lib.TestStage***REMOVED***Duration: 0, StartVUs: 1, EndVUs: 1***REMOVED***,
+		***REMOVED***
+	***REMOVED***
+
 	var r lib.Runner
 	switch len(cc.Args()) ***REMOVED***
 	case 0:
@@ -362,23 +368,32 @@ func action(cc *cli.Context) error ***REMOVED***
 		***REMOVED***).Info("Starting test...")
 	***REMOVED***
 
-	vus.Start(ctx)
-	scaleTo := pollVURamping(ctx, t)
-mainLoop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case num := <-scaleTo:
-			vus.Scale(num)
-			stats.Add(stats.Sample***REMOVED***
-				Stat:   &mVUs,
-				Values: stats.Value(float64(num)),
-			***REMOVED***)
-		case <-ctx.Done():
-			break mainLoop
-		***REMOVED***
-	***REMOVED***
+	if cc.Bool("once") ***REMOVED***
+		stats.Add(stats.Sample***REMOVED***Stat: &mVUs, Values: stats.Value(1)***REMOVED***)
 
-	vus.Stop()
+		vu, _ := vus.Pool.Get()
+		if err := vu.RunOnce(ctx); err != nil ***REMOVED***
+			log.WithError(err).Error("Uncaught Error")
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		vus.Start(ctx)
+		scaleTo := pollVURamping(ctx, t)
+	mainLoop:
+		for ***REMOVED***
+			select ***REMOVED***
+			case num := <-scaleTo:
+				vus.Scale(num)
+				stats.Add(stats.Sample***REMOVED***
+					Stat:   &mVUs,
+					Values: stats.Value(float64(num)),
+				***REMOVED***)
+			case <-ctx.Done():
+				break mainLoop
+			***REMOVED***
+		***REMOVED***
+
+		vus.Stop()
+	***REMOVED***
 
 	stats.Add(stats.Sample***REMOVED***Stat: &mVUs, Values: stats.Value(0)***REMOVED***)
 	stats.Submit()
@@ -434,6 +449,10 @@ func main() ***REMOVED***
 		cli.BoolFlag***REMOVED***
 			Name:  "plan",
 			Usage: "Don't run anything, just show the test plan",
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "once",
+			Usage: "Run only a single test iteration, with one VU",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
