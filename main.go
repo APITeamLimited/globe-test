@@ -414,7 +414,7 @@ func main() ***REMOVED***
 
 	go func() ***REMOVED***
 		// Set SUBMIT=false to prevent stat collection
-		submitURL := os.Getenv("SUBMIT")
+		submitURL := os.Getenv("SB_SUBMIT")
 		switch submitURL ***REMOVED***
 		case "false", "no":
 			return
