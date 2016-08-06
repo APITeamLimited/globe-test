@@ -283,6 +283,14 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		***REMOVED***;
 	***REMOVED***
 	
+	$assert = ***REMOVED***
+		equal: function(a, b, msg) ***REMOVED***
+			if (a !== b) ***REMOVED***
+				throw new Error((msg || "Assertion Error") + ": " + a + " !== " + b);
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	
 	$http.get = function(url, data, params) ***REMOVED*** return $http.request('GET', url, data, params); ***REMOVED***;
 	$http.head = function(url, data, params) ***REMOVED*** return $http.request('HEAD', url, data, params); ***REMOVED***;
 	$http.post = function(url, data, params) ***REMOVED*** return $http.request('POST', url, data, params); ***REMOVED***;
