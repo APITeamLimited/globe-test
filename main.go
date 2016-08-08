@@ -254,13 +254,12 @@ func action(cc *cli.Context) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return cli.NewExitError(err.Error(), 1)
 	***REMOVED***
-	t := lib.Test***REMOVED***Stages: stages***REMOVED***
-
 	if cc.Bool("once") ***REMOVED***
-		t.Stages = []lib.TestStage***REMOVED***
+		stages = []lib.TestStage***REMOVED***
 			lib.TestStage***REMOVED***Duration: 0, StartVUs: 1, EndVUs: 1***REMOVED***,
 		***REMOVED***
 	***REMOVED***
+	t := lib.Test***REMOVED***Stages: stages***REMOVED***
 
 	var r lib.Runner
 	switch len(cc.Args()) ***REMOVED***
