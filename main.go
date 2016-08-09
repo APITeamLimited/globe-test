@@ -5,6 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/postman"
 	"github.com/loadimpact/speedboat/simple"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/loadimpact/speedboat/stats/accumulate"
@@ -22,8 +23,9 @@ import (
 )
 
 const (
-	typeURL = "url"
-	typeJS  = "js"
+	typeURL     = "url"
+	typeJS      = "js"
+	typePostman = "postman"
 )
 
 // Help text template
@@ -169,6 +171,8 @@ func guessType(arg string) string ***REMOVED***
 		return typeURL
 	case strings.HasSuffix(arg, ".js"):
 		return typeJS
+	case strings.HasSuffix(arg, ".postman_collection.json"):
+		return typePostman
 	***REMOVED***
 	return ""
 ***REMOVED***
@@ -194,6 +198,8 @@ func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED
 	switch typ ***REMOVED***
 	case typeJS:
 		return js.New(filename, string(bytes)), nil
+	case typePostman:
+		return postman.New(bytes)
 	default:
 		return nil, errors.New("Type ambiguous, please specify -t/--type")
 	***REMOVED***
@@ -455,7 +461,7 @@ func main() ***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
-			Usage: "Input file type, if not evident (url or js)",
+			Usage: "Input file type, if not evident (url, js or postman)",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "vus, u",
