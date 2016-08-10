@@ -43,8 +43,8 @@ func TestUnmarshalTime(t *testing.T) ***REMOVED***
 
 func TestUnmarshalTimeString(t *testing.T) ***REMOVED***
 	var tm Time
-	assert.NoError(t, json.Unmarshal([]byte(`"12345"`), &tm))
-	assert.Equal(t, int64(12345), time.Time(tm).Unix())
+	assert.NoError(t, json.Unmarshal([]byte(`"Fri Apr 15 2016 12:54:28 GMT+0200 (CEST)"`), &tm))
+	assert.Equal(t, int64(1460717668), time.Time(tm).Unix())
 ***REMOVED***
 
 func TestUnmarshalTimeInvalid(t *testing.T) ***REMOVED***
@@ -115,7 +115,7 @@ func TestUnmarshalItemRequest(t *testing.T) ***REMOVED***
 				"url": "http://example.com/",
 				"method": "POST",
 				"header": [***REMOVED***"key": "Content-Type", "value": "text/plain"***REMOVED***],
-				"body": "lorem ipsum"
+				"body": ***REMOVED*** "mode": "raw", "raw": "lorem ipsum" ***REMOVED***
 			***REMOVED***
 		***REMOVED***]
 	***REMOVED***`)
@@ -128,7 +128,8 @@ func TestUnmarshalItemRequest(t *testing.T) ***REMOVED***
 	assert.Len(t, c.Item[0].Request.Header, 1)
 	assert.Equal(t, "Content-Type", c.Item[0].Request.Header[0].Key)
 	assert.Equal(t, "text/plain", c.Item[0].Request.Header[0].Value)
-	assert.Equal(t, "lorem ipsum", c.Item[0].Request.Body)
+	assert.Equal(t, "raw", c.Item[0].Request.Body.Mode)
+	assert.Equal(t, "lorem ipsum", c.Item[0].Request.Body.Raw)
 ***REMOVED***
 
 func TestUnmarshalItemRequestImplicitMethod(t *testing.T) ***REMOVED***
@@ -160,7 +161,6 @@ func TestUnmarshalItemRequestString(t *testing.T) ***REMOVED***
 	assert.Equal(t, "http://example.com/", c.Item[0].Request.URL)
 	assert.Equal(t, "GET", c.Item[0].Request.Method)
 	assert.Len(t, c.Item[0].Request.Header, 0)
-	assert.Equal(t, "", c.Item[0].Request.Body)
 ***REMOVED***
 
 func TestUnmarshalItemRequestMissingHeaderKey(t *testing.T) ***REMOVED***
