@@ -31,6 +31,7 @@ func (e ErrorWithLineNumber) Error() string ***REMOVED***
 
 type Runner struct ***REMOVED***
 	Collection Collection
+	Endpoints  []Endpoint
 ***REMOVED***
 
 type VU struct ***REMOVED***
@@ -55,8 +56,14 @@ func New(source []byte) (*Runner, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
+	eps, err := MakeEndpoints(collection)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return &Runner***REMOVED***
 		Collection: collection,
+		Endpoints:  eps,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -77,26 +84,7 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
-	for _, item := range u.Runner.Collection.Item ***REMOVED***
-		if err := u.runItem(item, u.Runner.Collection.Auth); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
-func (u *VU) runItem(i Item, a Auth) error ***REMOVED***
-	if i.Auth.Type != "" ***REMOVED***
-		a = i.Auth
-	***REMOVED***
-
-	if i.Request.URL != "" ***REMOVED***
-		ep, err := MakeEndpoint(i)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
+	for _, ep := range u.Runner.Endpoints ***REMOVED***
 		req := ep.Request()
 
 		startTime := time.Now()
@@ -110,7 +98,7 @@ func (u *VU) runItem(i Item, a Auth) error ***REMOVED***
 			res.Body.Close()
 		***REMOVED***
 
-		tags := stats.Tags***REMOVED***"method": i.Request.Method, "url": i.Request.URL, "status": status***REMOVED***
+		tags := stats.Tags***REMOVED***"method": ep.Method, "url": ep.URLString, "status": status***REMOVED***
 		u.Collector.Add(stats.Sample***REMOVED***
 			Stat:   &mRequests,
 			Tags:   tags,
@@ -124,12 +112,6 @@ func (u *VU) runItem(i Item, a Auth) error ***REMOVED***
 				Tags:   tags,
 				Values: stats.Value(1),
 			***REMOVED***)
-			return err
-		***REMOVED***
-	***REMOVED***
-
-	for _, item := range i.Item ***REMOVED***
-		if err := u.runItem(item, a); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***

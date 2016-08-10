@@ -18,6 +18,37 @@ type Endpoint struct ***REMOVED***
 	URL    *url.URL
 	Header http.Header
 	Body   []byte
+
+	URLString string
+***REMOVED***
+
+func MakeEndpoints(c Collection) ([]Endpoint, error) ***REMOVED***
+	eps := make([]Endpoint, 0)
+	for _, item := range c.Item ***REMOVED***
+		if err := makeEndpointsFrom(item, &eps); err != nil ***REMOVED***
+			return eps, err
+		***REMOVED***
+	***REMOVED***
+
+	return eps, nil
+***REMOVED***
+
+func makeEndpointsFrom(i Item, eps *[]Endpoint) error ***REMOVED***
+	if i.Request.URL != "" ***REMOVED***
+		ep, err := MakeEndpoint(i)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		*eps = append(*eps, ep)
+	***REMOVED***
+
+	for _, item := range i.Item ***REMOVED***
+		if err := makeEndpointsFrom(item, eps); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 func MakeEndpoint(i Item) (Endpoint, error) ***REMOVED***
@@ -62,14 +93,15 @@ func MakeEndpoint(i Item) (Endpoint, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return Endpoint***REMOVED***i.Request.Method, u, header, body***REMOVED***, nil
+	return Endpoint***REMOVED***i.Request.Method, u, header, body, i.Request.URL***REMOVED***, nil
 ***REMOVED***
 
 func (ep Endpoint) Request() http.Request ***REMOVED***
 	return http.Request***REMOVED***
-		Method: ep.Method,
-		URL:    ep.URL,
-		Header: ep.Header,
-		Body:   ioutil.NopCloser(bytes.NewBuffer(ep.Body)),
+		Method:        ep.Method,
+		URL:           ep.URL,
+		Header:        ep.Header,
+		Body:          ioutil.NopCloser(bytes.NewBuffer(ep.Body)),
+		ContentLength: int64(len(ep.Body)),
 	***REMOVED***
 ***REMOVED***
