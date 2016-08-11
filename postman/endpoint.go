@@ -3,6 +3,7 @@ package postman
 import (
 	"bytes"
 	"errors"
+	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -19,13 +20,16 @@ type Endpoint struct ***REMOVED***
 	Header http.Header
 	Body   []byte
 
+	Tests      []*otto.Script
+	PreRequest []*otto.Script
+
 	URLString string
 ***REMOVED***
 
-func MakeEndpoints(c Collection) ([]Endpoint, error) ***REMOVED***
+func MakeEndpoints(c Collection, vm *otto.Otto) ([]Endpoint, error) ***REMOVED***
 	eps := make([]Endpoint, 0)
 	for _, item := range c.Item ***REMOVED***
-		if err := makeEndpointsFrom(item, &eps); err != nil ***REMOVED***
+		if err := makeEndpointsFrom(item, vm, &eps); err != nil ***REMOVED***
 			return eps, err
 		***REMOVED***
 	***REMOVED***
@@ -33,9 +37,9 @@ func MakeEndpoints(c Collection) ([]Endpoint, error) ***REMOVED***
 	return eps, nil
 ***REMOVED***
 
-func makeEndpointsFrom(i Item, eps *[]Endpoint) error ***REMOVED***
+func makeEndpointsFrom(i Item, vm *otto.Otto, eps *[]Endpoint) error ***REMOVED***
 	if i.Request.URL != "" ***REMOVED***
-		ep, err := MakeEndpoint(i)
+		ep, err := MakeEndpoint(i, vm)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -43,7 +47,7 @@ func makeEndpointsFrom(i Item, eps *[]Endpoint) error ***REMOVED***
 	***REMOVED***
 
 	for _, item := range i.Item ***REMOVED***
-		if err := makeEndpointsFrom(item, eps); err != nil ***REMOVED***
+		if err := makeEndpointsFrom(item, vm, eps); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
@@ -51,25 +55,30 @@ func makeEndpointsFrom(i Item, eps *[]Endpoint) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func MakeEndpoint(i Item) (Endpoint, error) ***REMOVED***
+func MakeEndpoint(i Item, vm *otto.Otto) (Endpoint, error) ***REMOVED***
 	if i.Request.URL == "" ***REMOVED***
 		return Endpoint***REMOVED******REMOVED***, ErrItemHasNoRequest
 	***REMOVED***
 
+	endpoint := Endpoint***REMOVED***
+		Method:    i.Request.Method,
+		URLString: i.Request.URL,
+	***REMOVED***
+
 	u, err := url.Parse(i.Request.URL)
 	if err != nil ***REMOVED***
-		return Endpoint***REMOVED******REMOVED***, err
+		return endpoint, err
 	***REMOVED***
+	endpoint.URL = u
 
-	header := make(http.Header)
+	endpoint.Header = make(http.Header)
 	for _, item := range i.Request.Header ***REMOVED***
-		header[item.Key] = append(header[item.Key], item.Value)
+		endpoint.Header[item.Key] = append(endpoint.Header[item.Key], item.Value)
 	***REMOVED***
 
-	var body []byte
 	switch i.Request.Body.Mode ***REMOVED***
 	case "raw":
-		body = []byte(i.Request.Body.Raw)
+		endpoint.Body = []byte(i.Request.Body.Raw)
 	case "urlencoded":
 		values := make(url.Values)
 		for _, field := range i.Request.Body.URLEncoded ***REMOVED***
@@ -78,22 +87,42 @@ func MakeEndpoint(i Item) (Endpoint, error) ***REMOVED***
 			***REMOVED***
 			values[field.Key] = append(values[field.Key], field.Value)
 		***REMOVED***
-		body = []byte(values.Encode())
+		endpoint.Body = []byte(values.Encode())
 	case "formdata":
-		body = make([]byte, 0)
-		w := multipart.NewWriter(bytes.NewBuffer(body))
+		endpoint.Body = make([]byte, 0)
+		w := multipart.NewWriter(bytes.NewBuffer(endpoint.Body))
 		for _, field := range i.Request.Body.FormData ***REMOVED***
 			if !field.Enabled ***REMOVED***
 				continue
 			***REMOVED***
 
 			if err := w.WriteField(field.Key, field.Value); err != nil ***REMOVED***
-				return Endpoint***REMOVED******REMOVED***, err
+				return endpoint, err
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return Endpoint***REMOVED***i.Request.Method, u, header, body, i.Request.URL***REMOVED***, nil
+	if vm != nil ***REMOVED***
+		for _, event := range i.Event ***REMOVED***
+			if event.Disabled ***REMOVED***
+				continue
+			***REMOVED***
+
+			script, err := vm.Compile("event", string(event.Script.Exec))
+			if err != nil ***REMOVED***
+				return endpoint, err
+			***REMOVED***
+
+			switch event.Listen ***REMOVED***
+			case "test":
+				endpoint.Tests = append(endpoint.Tests, script)
+			case "prerequest":
+				endpoint.PreRequest = append(endpoint.PreRequest, script)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return endpoint, nil
 ***REMOVED***
 
 func (ep Endpoint) Request() http.Request ***REMOVED***

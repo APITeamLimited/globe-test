@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
+	"github.com/robertkrimen/otto"
 	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
@@ -20,6 +21,12 @@ var (
 	mErrors   = stats.Stat***REMOVED***Name: "errors", Type: stats.CounterType***REMOVED***
 )
 
+const SETUP_SRC = `
+// Scripts populate this with test resultks; keys are strings, values are bools,
+// or just something truthy/falsy, because this is javascript.
+var tests = ***REMOVED******REMOVED***;
+`
+
 type ErrorWithLineNumber struct ***REMOVED***
 	Wrapped error
 	Line    int
@@ -30,12 +37,14 @@ func (e ErrorWithLineNumber) Error() string ***REMOVED***
 ***REMOVED***
 
 type Runner struct ***REMOVED***
+	VM         *otto.Otto
 	Collection Collection
 	Endpoints  []Endpoint
 ***REMOVED***
 
 type VU struct ***REMOVED***
 	Runner    *Runner
+	VM        *otto.Otto
 	Client    http.Client
 	Collector *stats.Collector
 ***REMOVED***
@@ -56,7 +65,12 @@ func New(source []byte) (*Runner, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	eps, err := MakeEndpoints(collection)
+	vm := otto.New()
+	if _, err := vm.Eval(SETUP_SRC); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	eps, err := MakeEndpoints(collection, vm)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -64,12 +78,14 @@ func New(source []byte) (*Runner, error) ***REMOVED***
 	return &Runner***REMOVED***
 		Collection: collection,
 		Endpoints:  eps,
+		VM:         vm,
 	***REMOVED***, nil
 ***REMOVED***
 
 func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	return &VU***REMOVED***
 		Runner: r,
+		VM:     r.VM.Copy(),
 		Client: http.Client***REMOVED***
 			Transport: &http.Transport***REMOVED***
 				MaxIdleConnsPerHost: math.MaxInt32,
@@ -113,6 +129,12 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 				Values: stats.Value(1),
 			***REMOVED***)
 			return err
+		***REMOVED***
+
+		for _, script := range ep.Tests ***REMOVED***
+			if _, err := u.VM.Run(script); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
