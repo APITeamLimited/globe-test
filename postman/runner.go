@@ -2,13 +2,15 @@ package postman
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
+	_ "github.com/robertkrimen/otto/underscore"
 	"golang.org/x/net/context"
-	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -21,11 +23,69 @@ var (
 	mErrors   = stats.Stat***REMOVED***Name: "errors", Type: stats.CounterType***REMOVED***
 )
 
-const SETUP_SRC = `
-// Scripts populate this with test resultks; keys are strings, values are bools,
-// or just something truthy/falsy, because this is javascript.
-var tests = ***REMOVED******REMOVED***;
+const vuSetupScript = `
+	var globals = ***REMOVED******REMOVED***;
+	var environment = ***REMOVED******REMOVED***;
+	
+	var postman = ***REMOVED******REMOVED***;
+	
+	postman.setEnvironmentVariable = function(name, value) ***REMOVED***
+		environment[name] = value;
+	***REMOVED***
+	postman.setGlobalVariable = function(name, value) ***REMOVED***
+		globals[name] = value;
+	***REMOVED***
+	postman.clearEnvironmentVariable = function(name) ***REMOVED***
+		delete environment[name];
+	***REMOVED***
+	postman.clearGlobalVariable = function(name) ***REMOVED***
+		delete globals[name];
+	***REMOVED***
+	postman.clearEnvironmentVariables = function() ***REMOVED***
+		environment = ***REMOVED******REMOVED***;
+	***REMOVED***
+	postman.clearGlobalVariables = function() ***REMOVED***
+		globals = ***REMOVED******REMOVED***;
+	***REMOVED***
+	
+	postman.getResponseHeader = function(name) ***REMOVED***
+		// Normalize captialization; "content-type"/"CONTENT-TYPE" -> "Content-Type"
+		return responseHeaders[name.toLowerCase().replace(/(?:^|-)(\w)/g, function(txt) ***REMOVED***
+			return txt.toUpperCase();
+		***REMOVED***)];
+	***REMOVED***
 `
+
+var libFiles = []string***REMOVED***
+	"sugar/release/sugar.js",
+	"lodash/dist/lodash.js",
+***REMOVED***
+
+var libPatches = map[string]map[string]string***REMOVED***
+	"sugar/release/sugar.js": map[string]string***REMOVED***
+		// Patch out functions using unsupported regex features.
+		`function cleanDateInput(str) ***REMOVED***
+      str = str.trim().replace(/^just (?=now)|\.+$/i, '');
+      return convertAsianDigits(str);
+    ***REMOVED***`: "",
+		`function truncateOnWord(str, limit, fromLeft) ***REMOVED***
+      if (fromLeft) ***REMOVED***
+        return reverseString(truncateOnWord(reverseString(str), limit));
+      ***REMOVED***
+      var reg = RegExp('(?=[' + getTrimmableCharacters() + '])');
+      var words = str.split(reg);
+      var count = 0;
+      return words.filter(function(word) ***REMOVED***
+        count += word.length;
+        return count <= limit;
+      ***REMOVED***).join('');
+    ***REMOVED***`: "",
+		// We don't need to fully patch out this one, we just have to drop support for -昨 (last...)
+		// This regex is only used to tell whether a character with multiple meanings is used as a
+		// number or as a word, which is not something we're expecting people to do here anyways.
+		`AsianDigitReg = RegExp('([期週周])?([' + KanjiDigits + FullWidthDigits + ']+)(?!昨)', 'g');`: `AsianDigitReg = RegExp('([期週周])?([' + KanjiDigits + FullWidthDigits + ']+)', 'g');`,
+	***REMOVED***,
+***REMOVED***
 
 type ErrorWithLineNumber struct ***REMOVED***
 	Wrapped error
@@ -47,6 +107,7 @@ type VU struct ***REMOVED***
 	VM        *otto.Otto
 	Client    http.Client
 	Collector *stats.Collector
+	Iteration int64
 ***REMOVED***
 
 func New(source []byte) (*Runner, error) ***REMOVED***
@@ -66,8 +127,21 @@ func New(source []byte) (*Runner, error) ***REMOVED***
 	***REMOVED***
 
 	vm := otto.New()
-	if _, err := vm.Eval(SETUP_SRC); err != nil ***REMOVED***
-		return nil, err
+	lib, err := rice.FindBox("lib")
+	if err != nil ***REMOVED***
+		return nil, errors.New(fmt.Sprintf("couldn't find postman lib files; this can happen if you run from the wrong working directory with a non-boxed binary: %s", err.Error()))
+	***REMOVED***
+	for _, filename := range libFiles ***REMOVED***
+		src, err := lib.String(filename)
+		if err != nil ***REMOVED***
+			return nil, errors.New(fmt.Sprintf("couldn't load lib file (%s): %s", filename, err.Error()))
+		***REMOVED***
+		for find, repl := range libPatches[filename] ***REMOVED***
+			src = strings.Replace(src, find, repl, 1)
+		***REMOVED***
+		if _, err := vm.Eval(src); err != nil ***REMOVED***
+			return nil, errors.New(fmt.Sprintf("couldn't eval lib file (%s): %s", filename, err.Error()))
+		***REMOVED***
 	***REMOVED***
 
 	eps, err := MakeEndpoints(collection, vm)
@@ -96,10 +170,19 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
+	u.Iteration = 0
+
 	return nil
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
+	u.Iteration++
+	u.VM.Set("iteration", u.Iteration)
+
+	if _, err := u.VM.Run(vuSetupScript); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
 	for _, ep := range u.Runner.Endpoints ***REMOVED***
 		req := ep.Request()
 
@@ -107,10 +190,15 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 		res, err := u.Client.Do(&req)
 		duration := time.Since(startTime)
 
-		status := 0
+		var status int
+		var body []byte
 		if err == nil ***REMOVED***
 			status = res.StatusCode
-			io.Copy(ioutil.Discard, res.Body)
+			body, err = ioutil.ReadAll(res.Body)
+			if err != nil ***REMOVED***
+				res.Body.Close()
+				return err
+			***REMOVED***
 			res.Body.Close()
 		***REMOVED***
 
@@ -131,9 +219,31 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 			return err
 		***REMOVED***
 
-		for _, script := range ep.Tests ***REMOVED***
-			if _, err := u.VM.Run(script); err != nil ***REMOVED***
-				return err
+		if len(ep.Tests) > 0 ***REMOVED***
+			u.VM.Set("request", map[string]interface***REMOVED******REMOVED******REMOVED***
+				"data":    ep.BodyMap,
+				"headers": ep.HeaderMap,
+				"method":  ep.Method,
+				"url":     ep.URLString,
+			***REMOVED***)
+			responseHeaders := make(map[string]string)
+			for key, values := range res.Header ***REMOVED***
+				responseHeaders[key] = strings.Join(values, ", ")
+			***REMOVED***
+			u.VM.Set("responseHeaders", responseHeaders)
+			u.VM.Set("responseBody", string(body))
+			u.VM.Set("responseTime", duration/time.Millisecond)
+			u.VM.Set("responseCode", map[string]interface***REMOVED******REMOVED******REMOVED***
+				"code":   res.StatusCode,
+				"name":   res.Status,
+				"detail": res.Status, // The docs are vague on this one
+			***REMOVED***)
+			u.VM.Set("tests", map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
+
+			for _, script := range ep.Tests ***REMOVED***
+				if _, err := u.VM.Run(script); err != nil ***REMOVED***
+					return err
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
