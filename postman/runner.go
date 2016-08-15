@@ -58,7 +58,6 @@ const vuSetupScript = `
 
 var libFiles = []string***REMOVED***
 	"sugar/release/sugar.js",
-	"lodash/dist/lodash.js",
 ***REMOVED***
 
 var libPatches = map[string]map[string]string***REMOVED***
