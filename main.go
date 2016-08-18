@@ -206,6 +206,8 @@ func makeRunner(t lib.Test, filename, typ string) (lib.Runner, error) ***REMOVED
 ***REMOVED***
 
 func action(cc *cli.Context) error ***REMOVED***
+	once := cc.Bool("once")
+
 	if cc.IsSet("verbose") ***REMOVED***
 		log.SetLevel(log.DebugLevel)
 	***REMOVED***
@@ -260,7 +262,7 @@ func action(cc *cli.Context) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return cli.NewExitError(err.Error(), 1)
 	***REMOVED***
-	if cc.Bool("once") ***REMOVED***
+	if once ***REMOVED***
 		stages = []lib.TestStage***REMOVED***
 			lib.TestStage***REMOVED***Duration: 0, StartVUs: 1, EndVUs: 1***REMOVED***,
 		***REMOVED***
@@ -323,6 +325,9 @@ func action(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	ctx, cancel := context.WithTimeout(context.Background(), t.TotalDuration())
+	if once ***REMOVED***
+		ctx, cancel = context.WithCancel(context.Background())
+	***REMOVED***
 
 	go func() ***REMOVED***
 		ticker := time.NewTicker(1 * time.Second)
@@ -373,7 +378,7 @@ func action(cc *cli.Context) error ***REMOVED***
 		***REMOVED***).Info("Starting test...")
 	***REMOVED***
 
-	if cc.Bool("once") ***REMOVED***
+	if once ***REMOVED***
 		stats.Add(stats.Sample***REMOVED***Stat: &mVUs, Values: stats.Value(1)***REMOVED***)
 
 		vu, _ := vus.Pool.Get()
