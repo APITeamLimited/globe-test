@@ -60,7 +60,7 @@ func (s *Summarizer) Codify() map[string]interface***REMOVED******REMOVED*** ***
 				***REMOVED***
 			***REMOVED***
 
-			statData["count"] = count
+			statData["_count"] = count
 		***REMOVED***
 
 		if len(statData) > 0 ***REMOVED***

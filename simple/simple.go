@@ -3,13 +3,11 @@ package simple
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/proto/httpwrap"
 	"github.com/loadimpact/speedboat/stats"
 	"golang.org/x/net/context"
-	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
-	"time"
 )
 
 var (
@@ -58,34 +56,28 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	req := u.Request
-
-	startTime := time.Now()
-	res, err := u.Client.Do(&req)
-	duration := time.Since(startTime)
-
-	status := 0
-	if err == nil ***REMOVED***
-		status = res.StatusCode
-		io.Copy(ioutil.Discard, res.Body)
-		res.Body.Close()
-	***REMOVED***
-
-	tags := stats.Tags***REMOVED***"method": "GET", "url": u.Runner.URL, "status": status***REMOVED***
-	u.Collector.Add(stats.Sample***REMOVED***
-		Stat:   &mRequests,
-		Tags:   tags,
-		Values: stats.Values***REMOVED***"duration": float64(duration)***REMOVED***,
-	***REMOVED***)
-
+	_, _, sample, err := httpwrap.Do(ctx, &u.Client, &req, httpwrap.Params***REMOVED***TakeSample: true***REMOVED***)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Request error")
-		u.Collector.Add(stats.Sample***REMOVED***
-			Stat:   &mErrors,
-			Tags:   tags,
-			Values: stats.Value(1),
-		***REMOVED***)
-		return err
+		select ***REMOVED***
+		case <-ctx.Done():
+			return nil
+		default:
+			log.WithError(err).Error("Request Error")
+			u.Collector.Add(stats.Sample***REMOVED***
+				Stat: &mErrors,
+				Tags: stats.Tags***REMOVED***
+					"method": req.Method,
+					"url":    req.URL.String(),
+					"error":  err.Error(),
+				***REMOVED***,
+				Values: stats.Value(1),
+			***REMOVED***)
+			return err
+		***REMOVED***
 	***REMOVED***
+
+	sample.Stat = &mRequests
+	u.Collector.Add(sample)
 
 	return nil
 ***REMOVED***
