@@ -58,8 +58,22 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	req := u.Request
 	_, _, sample, err := httpwrap.Do(ctx, &u.Client, &req, httpwrap.Params***REMOVED***TakeSample: true***REMOVED***)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Request Error")
-		return nil
+		select ***REMOVED***
+		case <-ctx.Done():
+			return nil
+		default:
+			log.WithError(err).Error("Request Error")
+			u.Collector.Add(stats.Sample***REMOVED***
+				Stat: &mErrors,
+				Tags: stats.Tags***REMOVED***
+					"method": req.Method,
+					"url":    req.URL.String(),
+					"error":  err.Error(),
+				***REMOVED***,
+				Values: stats.Value(1),
+			***REMOVED***)
+			return err
+		***REMOVED***
 	***REMOVED***
 
 	sample.Stat = &mRequests
