@@ -66,18 +66,13 @@ func TestRunOnceErrorReportsStats(t *testing.T) ***REMOVED***
 		switch p.Stat ***REMOVED***
 		case &mRequests:
 			mRequestsFound = true
-			assert.Contains(t, p.Tags, "url")
-			assert.Contains(t, p.Tags, "method")
-			assert.Contains(t, p.Tags, "status")
-			assert.Contains(t, p.Values, "duration")
 		case &mErrors:
 			mErrorsFound = true
 			assert.Contains(t, p.Tags, "url")
 			assert.Contains(t, p.Tags, "method")
-			assert.Contains(t, p.Tags, "status")
 			assert.Contains(t, p.Values, "value")
 		***REMOVED***
 	***REMOVED***
-	assert.True(t, mRequestsFound)
+	assert.False(t, mRequestsFound)
 	assert.True(t, mErrorsFound)
 ***REMOVED***
