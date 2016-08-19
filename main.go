@@ -454,7 +454,7 @@ func main() ***REMOVED***
 	app := cli.NewApp()
 	app.Name = "speedboat"
 	app.Usage = "A next-generation load generator"
-	app.Version = "0.0.1"
+	app.Version = "0.0.2"
 	app.Flags = []cli.Flag***REMOVED***
 		cli.BoolFlag***REMOVED***
 			Name:  "plan",
