@@ -23,7 +23,7 @@ func Do(ctx context.Context, client *http.Client, req *http.Request, params Para
 
 	res, err := client.Do(req.WithContext(ctx))
 	if err != nil ***REMOVED***
-		return nil, nil, stats.Sample***REMOVED******REMOVED***, err
+		return res, nil, stats.Sample***REMOVED******REMOVED***, err
 	***REMOVED***
 
 	var body []byte

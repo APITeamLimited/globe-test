@@ -1,11 +1,12 @@
 package js
 
 import (
+	"context"
 	"errors"
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/speedboat/proto/httpwrap"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
-	"io/ioutil"
 	"net/http"
 	neturl "net/url"
 	"strings"
@@ -77,39 +78,26 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 		req.Header[key] = []string***REMOVED***value***REMOVED***
 	***REMOVED***
 
-	startTime := time.Now()
-	resp, err := u.Client.Do(&req)
-	duration := time.Since(startTime)
-
-	tags := stats.Tags***REMOVED***
-		"url":    url,
-		"method": method,
-		"status": 0,
-	***REMOVED***
-
-	var respBody []byte
-	if resp != nil ***REMOVED***
-		tags["status"] = resp.StatusCode
-		tags["proto"] = resp.Proto
-		respBody, _ = ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-	***REMOVED***
-
-	if !params.Quiet ***REMOVED***
-		u.Collector.Add(stats.Sample***REMOVED***
-			Stat:   &mRequests,
-			Tags:   tags,
-			Values: stats.Values***REMOVED***"duration": float64(duration)***REMOVED***,
-		***REMOVED***)
-	***REMOVED***
+	resp, respBody, sample, err := httpwrap.Do(context.Background(), &u.Client, &req, httpwrap.Params***REMOVED***TakeSample: !params.Quiet, KeepBody: true***REMOVED***)
 
 	switch e := err.(type) ***REMOVED***
 	case nil:
-		// Do nothing
+		if !params.Quiet ***REMOVED***
+			sample.Stat = &mRequests
+			u.Collector.Add(sample)
+		***REMOVED***
 	case *neturl.Error:
 		if e.Err != errInternalHandleRedirect ***REMOVED***
 			if !params.Quiet ***REMOVED***
-				u.Collector.Add(stats.Sample***REMOVED***Stat: &mErrors, Tags: tags, Values: stats.Value(1)***REMOVED***)
+				u.Collector.Add(stats.Sample***REMOVED***
+					Stat: &mErrors,
+					Tags: stats.Tags***REMOVED***
+						"method": req.Method,
+						"url":    req.URL.String(),
+						"error":  err.Error(),
+					***REMOVED***,
+					Values: stats.Value(1),
+				***REMOVED***)
 			***REMOVED***
 			return HTTPResponse***REMOVED******REMOVED***, err
 		***REMOVED***
@@ -135,7 +123,15 @@ func (u *VU) HTTPRequest(method, url, body string, params HTTPParams, redirects 
 		return u.HTTPRequest(redirectMethod, redirectURL, redirectBody, params, redirects+1)
 	default:
 		if !params.Quiet ***REMOVED***
-			u.Collector.Add(stats.Sample***REMOVED***Stat: &mErrors, Tags: tags, Values: stats.Value(1)***REMOVED***)
+			u.Collector.Add(stats.Sample***REMOVED***
+				Stat: &mErrors,
+				Tags: stats.Tags***REMOVED***
+					"method": req.Method,
+					"url":    req.URL.String(),
+					"error":  err.Error(),
+				***REMOVED***,
+				Values: stats.Value(1),
+			***REMOVED***)
 		***REMOVED***
 		return HTTPResponse***REMOVED******REMOVED***, err
 	***REMOVED***
