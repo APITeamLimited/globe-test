@@ -81,15 +81,15 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		v1.GET("/info", func(c *gin.Context) ***REMOVED***
 			c.JSON(200, gin.H***REMOVED***"version": cc.App.Version***REMOVED***)
 		***REMOVED***)
-		v1.GET("/state", func(c *gin.Context) ***REMOVED***
-			c.JSON(200, engine.State)
+		v1.GET("/status", func(c *gin.Context) ***REMOVED***
+			c.JSON(200, engine.Status)
 		***REMOVED***)
-		v1.POST("/state/abort", func(c *gin.Context) ***REMOVED***
+		v1.POST("/abort", func(c *gin.Context) ***REMOVED***
 			cancel()
 			wg.Wait()
 			c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
 		***REMOVED***)
-		v1.POST("/state/scale", func(c *gin.Context) ***REMOVED***
+		v1.POST("/scale", func(c *gin.Context) ***REMOVED***
 			vus, err := strconv.ParseInt(c.Query("vus"), 10, 64)
 			if err != nil ***REMOVED***
 				c.AbortWithError(http.StatusBadRequest, err)

@@ -5,24 +5,24 @@ import (
 	"time"
 )
 
-type State struct ***REMOVED***
-	StartTime time.Time `json:"startTime"`
+type Status struct ***REMOVED***
+	StartTime time.Time `json:"startTime" yaml:"startTime"`
 
-	Running bool  `json:"running"`
-	VUs     int64 `json:"vus"`
+	Running bool  `json:"running" yaml:"running"`
+	VUs     int64 `json:"vus" yaml:"vus"`
 ***REMOVED***
 
 type Engine struct ***REMOVED***
 	Runner Runner
-	State  State
+	Status Status
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
-	e.State.StartTime = time.Now()
-	e.State.Running = true
+	e.Status.StartTime = time.Now()
+	e.Status.Running = true
 	defer func() ***REMOVED***
-		e.State.Running = false
-		e.State.VUs = 0
+		e.Status.Running = false
+		e.Status.VUs = 0
 	***REMOVED***()
 
 	<-ctx.Done()
@@ -32,6 +32,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Scale(vus int64) error ***REMOVED***
-	e.State.VUs = vus
+	e.Status.VUs = vus
 	return nil
 ***REMOVED***
