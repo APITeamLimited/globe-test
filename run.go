@@ -64,10 +64,17 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.New()
+	router.Use(gin.Recovery())
 	router.Use(func(c *gin.Context) ***REMOVED***
 		path := c.Request.URL.Path
 		c.Next()
 		log.WithField("status", c.Writer.Status()).Debugf("%s %s", c.Request.Method, path)
+	***REMOVED***)
+	router.Use(func(c *gin.Context) ***REMOVED***
+		c.Next()
+		if c.Writer.Size() == 0 && len(c.Errors) > 0 ***REMOVED***
+			c.JSON(c.Writer.Status(), c.Errors)
+		***REMOVED***
 	***REMOVED***)
 	v1 := router.Group("/v1")
 	***REMOVED***
