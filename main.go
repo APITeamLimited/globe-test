@@ -20,7 +20,6 @@ func main() ***REMOVED***
 	app.Commands = []cli.Command***REMOVED***
 		cli.Command***REMOVED***
 			Name:      "run",
-			Aliases:   []string***REMOVED***"r"***REMOVED***,
 			Usage:     "Starts running a load test",
 			ArgsUsage: "url|filename",
 			Flags: []cli.Flag***REMOVED***
@@ -43,9 +42,10 @@ func main() ***REMOVED***
 			Action: actionRun,
 		***REMOVED***,
 		cli.Command***REMOVED***
-			Name:   "status",
-			Usage:  "Looks up the status of a running test",
-			Action: actionStatus,
+			Name:      "status",
+			Usage:     "Looks up the status of a running test",
+			ArgsUsage: " ",
+			Action:    actionStatus,
 		***REMOVED***,
 		cli.Command***REMOVED***
 			Name:      "scale",
@@ -56,7 +56,7 @@ func main() ***REMOVED***
 		cli.Command***REMOVED***
 			Name:      "abort",
 			Usage:     "Aborts a running test",
-			ArgsUsage: "",
+			ArgsUsage: " ",
 			Action:    actionAbort,
 		***REMOVED***,
 	***REMOVED***
@@ -67,7 +67,7 @@ func main() ***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "address, a",
-			Usage: "address for the HTTP API",
+			Usage: "address for the API",
 			Value: "127.0.0.1:6565",
 		***REMOVED***,
 	***REMOVED***
