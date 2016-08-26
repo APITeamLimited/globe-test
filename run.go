@@ -107,7 +107,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	router.NoRoute(func(c *gin.Context) ***REMOVED***
 		c.JSON(404, gin.H***REMOVED***"error": "Not Found"***REMOVED***)
 	***REMOVED***)
-	router.Run(cc.String("address"))
+	router.Run(cc.GlobalString("address"))
 
 	return nil
 ***REMOVED***
