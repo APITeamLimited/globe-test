@@ -86,6 +86,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		***REMOVED***)
 		v1.POST("/state/abort", func(c *gin.Context) ***REMOVED***
 			cancel()
+			wg.Wait()
 			c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
 		***REMOVED***)
 		v1.POST("/state/scale", func(c *gin.Context) ***REMOVED***
