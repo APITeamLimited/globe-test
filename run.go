@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"github.com/loadimpact/speedboat/lib"
 	"gopkg.in/urfave/cli.v1"
-	"net/http"
-	"strconv"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -56,6 +56,8 @@ func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
 ***REMOVED***
 
 func actionRun(cc *cli.Context) error ***REMOVED***
+	wg := sync.WaitGroup***REMOVED******REMOVED***
+
 	args := cc.Args()
 	if len(args) != 1 ***REMOVED***
 		return cli.NewExitError("Wrong number of arguments!", 1)
@@ -68,76 +70,55 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 	***REMOVED***
 
-	engine := lib.Engine***REMOVED***
+	engine := &lib.Engine***REMOVED***
 		Runner: runner,
 	***REMOVED***
+	engineC, cancelEngine := context.WithCancel(context.Background())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	api := &APIServer***REMOVED***
+		Engine: engine,
+		Cancel: cancelEngine,
+		Info: lib.Info***REMOVED***
+			Version: cc.App.Version,
+		***REMOVED***,
+	***REMOVED***
+	apiC, cancelAPI := context.WithCancel(context.Background())
+
 	timeout := cc.Duration("duration")
 	if timeout > 0 ***REMOVED***
-		ctx, _ = context.WithTimeout(ctx, timeout)
+		engineC, _ = context.WithTimeout(engineC, timeout)
 	***REMOVED***
 
-	wg := sync.WaitGroup***REMOVED******REMOVED***
-	wg.Add(1)
+	wg.Add(2)
 	go func() ***REMOVED***
 		defer func() ***REMOVED***
 			log.Debug("Engine terminated")
 			wg.Done()
 		***REMOVED***()
 		log.Debug("Starting engine...")
-		if err := engine.Run(ctx); err != nil ***REMOVED***
+		if err := engine.Run(engineC); err != nil ***REMOVED***
 			log.WithError(err).Error("Runtime Error")
 		***REMOVED***
 	***REMOVED***()
+	go func() ***REMOVED***
+		defer func() ***REMOVED***
+			log.Debug("API Server terminated")
+			wg.Done()
+		***REMOVED***()
 
-	gin.SetMode(gin.ReleaseMode)
+		addr := cc.GlobalString("address")
+		log.WithField("addr", addr).Debug("API Server starting...")
+		api.Run(apiC, addr)
+	***REMOVED***()
 
-	router := gin.New()
-	router.Use(gin.Recovery())
-	router.Use(func(c *gin.Context) ***REMOVED***
-		path := c.Request.URL.Path
-		c.Next()
-		log.WithField("status", c.Writer.Status()).Debugf("%s %s", c.Request.Method, path)
-	***REMOVED***)
-	router.Use(func(c *gin.Context) ***REMOVED***
-		c.Next()
-		if c.Writer.Size() == 0 && len(c.Errors) > 0 ***REMOVED***
-			c.JSON(c.Writer.Status(), c.Errors)
-		***REMOVED***
-	***REMOVED***)
-	v1 := router.Group("/v1")
-	***REMOVED***
-		v1.GET("/info", func(c *gin.Context) ***REMOVED***
-			c.JSON(200, gin.H***REMOVED***"version": cc.App.Version***REMOVED***)
-		***REMOVED***)
-		v1.GET("/status", func(c *gin.Context) ***REMOVED***
-			c.JSON(200, engine.Status)
-		***REMOVED***)
-		v1.POST("/abort", func(c *gin.Context) ***REMOVED***
-			cancel()
-			wg.Wait()
-			c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
-		***REMOVED***)
-		v1.POST("/scale", func(c *gin.Context) ***REMOVED***
-			vus, err := strconv.ParseInt(c.Query("vus"), 10, 64)
-			if err != nil ***REMOVED***
-				c.AbortWithError(http.StatusBadRequest, err)
-				return
-			***REMOVED***
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	sig := <-quit
+	log.WithField("signal", sig).Debug("Signal received; shutting down...")
 
-			if err := engine.Scale(vus); err != nil ***REMOVED***
-				c.AbortWithError(http.StatusInternalServerError, err)
-				return
-			***REMOVED***
-
-			c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
-		***REMOVED***)
-	***REMOVED***
-	router.NoRoute(func(c *gin.Context) ***REMOVED***
-		c.JSON(404, gin.H***REMOVED***"error": "Not Found"***REMOVED***)
-	***REMOVED***)
-	router.Run(cc.GlobalString("address"))
+	cancelAPI()
+	cancelEngine()
+	wg.Wait()
 
 	return nil
 ***REMOVED***
