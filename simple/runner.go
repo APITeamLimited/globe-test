@@ -56,7 +56,8 @@ type VU struct ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
-	log.WithField("id", u.ID).Info("Running")
+	log.WithField("id", u.ID).Debug("Running")
+	time.Sleep(1 * time.Second)
 	return nil
 ***REMOVED***
 
