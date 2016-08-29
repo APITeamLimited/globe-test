@@ -9,6 +9,7 @@ type Status struct ***REMOVED***
 
 	Running bool  `json:"running" yaml:"running"`
 	VUs     int64 `json:"vus" yaml:"vus"`
+	Pooled  int64 `json:"pooled" yaml:"pooled"`
 ***REMOVED***
 
 type Info struct ***REMOVED***
