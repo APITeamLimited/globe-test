@@ -9,6 +9,27 @@ import (
 	"strconv"
 )
 
+var commandStatus = cli.Command***REMOVED***
+	Name:      "status",
+	Usage:     "Looks up the status of a running test",
+	ArgsUsage: " ",
+	Action:    actionStatus,
+***REMOVED***
+
+var commandScale = cli.Command***REMOVED***
+	Name:      "scale",
+	Usage:     "Scales a running test",
+	ArgsUsage: "vus",
+	Action:    actionScale,
+***REMOVED***
+
+var commandAbort = cli.Command***REMOVED***
+	Name:      "abort",
+	Usage:     "Aborts a running test",
+	ArgsUsage: " ",
+	Action:    actionAbort,
+***REMOVED***
+
 func actionStatus(cc *cli.Context) error ***REMOVED***
 	client, err := client.New(cc.GlobalString("address"))
 	if err != nil ***REMOVED***

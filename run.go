@@ -10,7 +10,32 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
+
+var commandRun = cli.Command***REMOVED***
+	Name:      "run",
+	Usage:     "Starts running a load test",
+	ArgsUsage: "url|filename",
+	Flags: []cli.Flag***REMOVED***
+		cli.IntFlag***REMOVED***
+			Name:  "vus, u",
+			Usage: "virtual users to simulate",
+			Value: 10,
+		***REMOVED***,
+		cli.DurationFlag***REMOVED***
+			Name:  "duration, d",
+			Usage: "test duration, 0 to run until cancelled",
+			Value: 10 * time.Second,
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "type, t",
+			Usage: "input type, one of: auto, url, js",
+			Value: "auto",
+		***REMOVED***,
+	***REMOVED***,
+	Action: actionRun,
+***REMOVED***
 
 func guessType(filename string) string ***REMOVED***
 	switch ***REMOVED***
