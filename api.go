@@ -27,6 +27,9 @@ func (s *APIServer) Run(ctx context.Context, addr string) ***REMOVED***
 	router.Use(s.logRequestsMiddleware)
 	router.Use(s.jsonErrorsMiddleware)
 
+	router.GET("/ping", func(c *gin.Context) ***REMOVED***
+		c.Data(http.StatusNoContent, "", nil)
+	***REMOVED***)
 	v1 := router.Group("/v1")
 	***REMOVED***
 		v1.GET("/info", func(c *gin.Context) ***REMOVED***
