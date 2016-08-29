@@ -73,6 +73,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
+	timeout := cc.Duration("duration")
+	if timeout > 0 ***REMOVED***
+		ctx, _ = context.WithTimeout(ctx, timeout)
+	***REMOVED***
+
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 	wg.Add(1)
 	go func() ***REMOVED***
