@@ -53,6 +53,10 @@ var commandRun = cli.Command***REMOVED***
 			Usage: "input type, one of: auto, url, js",
 			Value: "auto",
 		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "quit, q",
+			Usage: "quit immediately on test completion",
+		***REMOVED***,
 	***REMOVED***,
 	Action: actionRun,
 ***REMOVED***
@@ -108,6 +112,8 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		prepared = vus
 	***REMOVED***
 
+	quit := cc.Bool("quit")
+
 	// Make the Runner
 	filename := args[0]
 	runnerType := cc.String("type")
@@ -144,6 +150,10 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	go func() ***REMOVED***
 		defer func() ***REMOVED***
 			log.Debug("Engine terminated")
+			if quit ***REMOVED***
+				log.Debug("Quit requested; terminating API server...")
+				cancelAPI()
+			***REMOVED***
 			wg.Done()
 		***REMOVED***()
 		log.WithField("prepared", prepared).Debug("Starting engine...")
@@ -185,14 +195,14 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Wait for a signal or timeout before shutting down
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	signals := make(chan os.Signal)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
 	log.Debug("Waiting for test to finish")
 	select ***REMOVED***
 	case <-time.After(duration):
 		log.Debug("Duration expired; shutting down...")
-	case sig := <-quit:
+	case sig := <-signals:
 		log.WithField("signal", sig).Debug("Signal received; shutting down...")
 	***REMOVED***
 
