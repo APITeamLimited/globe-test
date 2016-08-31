@@ -120,10 +120,8 @@ func (t *Tracer) ConnectStart(network, addr string) ***REMOVED***
 
 // ConnectDone hook.
 func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
-	println("connect done")
 	// If using dual-stack dialing, it's possible to get this multiple times.
 	if !t.connectDone.IsZero() ***REMOVED***
-		println("-> duplicate")
 		return
 	***REMOVED***
 	t.connectDone = time.Now()
@@ -131,6 +129,5 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 
 // WroteRequest hook.
 func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) ***REMOVED***
-	println("wrote request")
 	t.wroteRequest = time.Now()
 ***REMOVED***
