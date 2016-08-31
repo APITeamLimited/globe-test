@@ -123,9 +123,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Make the Engine
-	engine := &lib.Engine***REMOVED***
-		Runner: runner,
-	***REMOVED***
+	engine := lib.NewEngine(runner)
 	engineC, cancelEngine := context.WithCancel(context.Background())
 
 	// Make the API Server

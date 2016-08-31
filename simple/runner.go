@@ -4,6 +4,7 @@ import (
 	"context"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/stats"
 	"io"
 	"io/ioutil"
 	"math"
@@ -11,7 +12,19 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
+	"strconv"
 	"time"
+)
+
+var (
+	MetricReqs          = stats.New("http_reqs", stats.Counter)
+	MetricReqDuration   = stats.New("http_req_duration", stats.Trend, stats.Time)
+	MetricReqBlocked    = stats.New("http_req_blocked", stats.Trend, stats.Time)
+	MetricReqLookingUp  = stats.New("http_req_looking_up", stats.Trend, stats.Time)
+	MetricReqConnecting = stats.New("http_req_connecting", stats.Trend, stats.Time)
+	MetricReqSending    = stats.New("http_req_sending", stats.Trend, stats.Time)
+	MetricReqWaiting    = stats.New("http_req_waiting", stats.Trend, stats.Time)
+	MetricReqReceiving  = stats.New("http_req_receiving", stats.Trend, stats.Time)
 )
 
 type Runner struct ***REMOVED***
@@ -44,7 +57,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	tracer := &lib.Tracer***REMOVED******REMOVED***
 
 	return &VU***REMOVED***
-		Runner: r,
+		Runner:    r,
+		URLString: r.URL.String(),
 		Request: &http.Request***REMOVED***
 			Method: "GET",
 			URL:    r.URL,
@@ -58,43 +72,48 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 ***REMOVED***
 
 type VU struct ***REMOVED***
-	Runner *Runner
-	ID     int64
+	Runner   *Runner
+	ID       int64
+	IDString string
 
-	Request *http.Request
-	Client  *http.Client
+	URLString string
+	Request   *http.Request
+	Client    *http.Client
 
 	tracer *lib.Tracer
 	cTrace *httptrace.ClientTrace
 ***REMOVED***
 
-func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
+func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	resp, err := u.Client.Do(u.Request.WithContext(httptrace.WithClientTrace(ctx, u.cTrace)))
 	if err != nil ***REMOVED***
 		u.tracer.Done()
-		return err
+		return nil, err
 	***REMOVED***
 
 	_, _ = io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	trail := u.tracer.Done()
 
-	log.WithFields(log.Fields***REMOVED***
-		"duration":   trail.Duration,
-		"blocked":    trail.Blocked,
-		"looking_up": trail.LookingUp,
-		"connecting": trail.Connecting,
-		"sending":    trail.Sending,
-		"waiting":    trail.Waiting,
-		"receiving":  trail.Receiving,
-		"reused":     trail.ConnReused,
-		"addr":       trail.ConnRemoteAddr,
-	***REMOVED***).Info("Request")
-
-	return nil
+	tags := map[string]string***REMOVED***
+		"vu":     u.IDString,
+		"method": "GET",
+		"url":    u.URLString,
+	***REMOVED***
+	return []stats.Sample***REMOVED***
+		stats.Sample***REMOVED***Metric: MetricReqs, Tags: tags, Value: 1***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqDuration, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqBlocked, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqLookingUp, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqConnecting, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqSending, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqWaiting, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqReceiving, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
+	***REMOVED***, nil
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
+	u.IDString = strconv.FormatInt(id, 10)
 	return nil
 ***REMOVED***
