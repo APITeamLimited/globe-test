@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	MetricVUs    = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
-	MetricErrors = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
+	MetricVUs       = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
+	MetricVUsPooled = &stats.Metric***REMOVED***Name: "vus_pooled", Type: stats.Gauge***REMOVED***
+	MetricErrors    = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
 )
 
 type Engine struct ***REMOVED***
@@ -51,7 +52,18 @@ func (e *Engine) Run(ctx context.Context, prepared int64) error ***REMOVED***
 	e.Status.VUs = 0
 	e.Status.Pooled = prepared
 
-	<-ctx.Done()
+	e.reportInternalStats()
+	ticker := time.NewTicker(1 * time.Second)
+
+loop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-ticker.C:
+			e.reportInternalStats()
+		case <-ctx.Done():
+			break loop
+		***REMOVED***
+	***REMOVED***
 
 	e.cancelers = nil
 	e.pool = nil
@@ -102,6 +114,20 @@ func (e *Engine) Scale(vus int64) error ***REMOVED***
 	e.Status.Pooled = int64(len(e.pool))
 
 	return nil
+***REMOVED***
+
+func (e *Engine) reportInternalStats() ***REMOVED***
+	e.mMutex.Lock()
+	t := time.Now()
+	e.Metrics[MetricVUs] = append(
+		e.Metrics[MetricVUs],
+		stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***,
+	)
+	e.Metrics[MetricVUsPooled] = append(
+		e.Metrics[MetricVUsPooled],
+		stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***,
+	)
+	e.mMutex.Unlock()
 ***REMOVED***
 
 func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
