@@ -28,29 +28,30 @@ type Engine struct ***REMOVED***
 	mMutex  sync.Mutex
 ***REMOVED***
 
-func NewEngine(r Runner) *Engine ***REMOVED***
+func NewEngine(r Runner, prepared int64) (*Engine, error) ***REMOVED***
+	pool := make([]VU, prepared)
+	for i := int64(0); i < prepared; i++ ***REMOVED***
+		vu, err := r.NewVU()
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		pool[i] = vu
+	***REMOVED***
+
 	return &Engine***REMOVED***
 		Runner:  r,
 		Metrics: make(map[*stats.Metric][]stats.Sample),
-	***REMOVED***
+		pool:    pool,
+	***REMOVED***, nil
 ***REMOVED***
 
-func (e *Engine) Run(ctx context.Context, prepared int64) error ***REMOVED***
+func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.ctx = ctx
-
-	e.pool = make([]VU, prepared)
-	for i := int64(0); i < prepared; i++ ***REMOVED***
-		vu, err := e.Runner.NewVU()
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		e.pool[i] = vu
-	***REMOVED***
 
 	e.Status.StartTime = time.Now()
 	e.Status.Running = true
-	e.Status.VUs = 0
-	e.Status.Pooled = prepared
+	e.Status.VUs = int64(len(e.cancelers))
+	e.Status.Pooled = int64(len(e.pool))
 
 	e.reportInternalStats()
 	ticker := time.NewTicker(1 * time.Second)
