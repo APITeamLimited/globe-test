@@ -1,6 +1,8 @@
 import Ember from 'ember';
 
 export default Ember.Controller.extend(***REMOVED***
+  application: Ember.inject.controller(),
+
   vus: Ember.computed.alias('model.metrics.vus.data.value'),
   vus_pooled: Ember.computed.alias('model.metrics.vus_pooled.data.value'),
   vus_max: Ember.computed('vus', 'vus_pooled', function() ***REMOVED***
@@ -9,6 +11,10 @@ export default Ember.Controller.extend(***REMOVED***
   vus_pct: Ember.computed('vus', 'vus_max', function() ***REMOVED***
     return (this.get('vus') / this.get('vus_max')) * 100;
   ***REMOVED***),
+  vus_label: Ember.computed('vus', 'vus_max', function() ***REMOVED***
+    return this.get('vus') + ' / ' + this.get('vus_max');
+  ***REMOVED***),
+
   metrics: Ember.computed('model.metrics', function() ***REMOVED***
     var metrics = this.get('model.metrics');
     var ret = [];
