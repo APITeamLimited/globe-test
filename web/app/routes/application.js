@@ -4,7 +4,7 @@ export default Ember.Route.extend(***REMOVED***
   _scheduleRefresh: Ember.on('init', function() ***REMOVED***
     Ember.run.later(()=> ***REMOVED***
       this.refresh();
-      if (this.get('model.running')) ***REMOVED***
+      if (this.get('controller.model.running')) ***REMOVED***
         this._scheduleRefresh();
       ***REMOVED***
     ***REMOVED***, 5000);
