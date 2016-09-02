@@ -60,7 +60,7 @@ func (m *Metric) Format(samples []Sample) map[string]float64 ***REMOVED***
 		for _, s := range samples ***REMOVED***
 			total += s.Value
 		***REMOVED***
-		return map[string]float64***REMOVED***"value": total***REMOVED***
+		return map[string]float64***REMOVED***"count": total***REMOVED***
 	case Gauge:
 		l := len(samples)
 		if l == 0 ***REMOVED***
