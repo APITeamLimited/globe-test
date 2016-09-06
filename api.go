@@ -44,19 +44,19 @@ func (s *APIServer) Run(ctx context.Context, addr string) ***REMOVED***
 		***REMOVED***)
 		v1.GET("/metrics", func(c *gin.Context) ***REMOVED***
 			metrics := make(map[string]client.Metric)
-			for m, samples := range s.Engine.Metrics ***REMOVED***
+			for m, sink := range s.Engine.Metrics ***REMOVED***
 				metrics[m.Name] = client.Metric***REMOVED***
 					Name:     m.Name,
 					Type:     client.MetricType(m.Type),
 					Contains: client.ValueType(m.Contains),
-					Data:     m.Format(samples),
+					Data:     sink.Format(),
 				***REMOVED***
 			***REMOVED***
 			c.JSON(200, metrics)
 		***REMOVED***)
 		v1.GET("/metrics/:name", func(c *gin.Context) ***REMOVED***
 			name := c.Param("name")
-			for m, samples := range s.Engine.Metrics ***REMOVED***
+			for m, sink := range s.Engine.Metrics ***REMOVED***
 				if m.Name != name ***REMOVED***
 					continue
 				***REMOVED***
@@ -65,7 +65,7 @@ func (s *APIServer) Run(ctx context.Context, addr string) ***REMOVED***
 					Name:     m.Name,
 					Type:     client.MetricType(m.Type),
 					Contains: client.ValueType(m.Contains),
-					Data:     m.Format(samples),
+					Data:     sink.Format(),
 				***REMOVED***)
 				return
 			***REMOVED***

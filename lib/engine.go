@@ -18,7 +18,7 @@ var (
 type Engine struct ***REMOVED***
 	Runner  Runner
 	Status  Status
-	Metrics map[*stats.Metric][]stats.Sample
+	Metrics map[*stats.Metric]stats.Sink
 
 	ctx       context.Context
 	cancelers []context.CancelFunc
@@ -40,7 +40,7 @@ func NewEngine(r Runner, prepared int64) (*Engine, error) ***REMOVED***
 
 	return &Engine***REMOVED***
 		Runner:  r,
-		Metrics: make(map[*stats.Metric][]stats.Sample),
+		Metrics: make(map[*stats.Metric]stats.Sink),
 		pool:    pool,
 	***REMOVED***, nil
 ***REMOVED***
@@ -121,14 +121,8 @@ func (e *Engine) Scale(vus int64) error ***REMOVED***
 func (e *Engine) reportInternalStats() ***REMOVED***
 	e.mMutex.Lock()
 	t := time.Now()
-	e.Metrics[MetricVUs] = append(
-		e.Metrics[MetricVUs],
-		stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***,
-	)
-	e.Metrics[MetricVUsPooled] = append(
-		e.Metrics[MetricVUsPooled],
-		stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***,
-	)
+	e.getSink(MetricVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***)
+	e.getSink(MetricVUsPooled).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***)
 	e.mMutex.Unlock()
 ***REMOVED***
 
@@ -143,14 +137,14 @@ func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
 			e.mMutex.Lock()
 			if err != nil ***REMOVED***
 				log.WithField("vu", id).WithError(err).Error("Runtime Error")
-				e.Metrics[MetricErrors] = append(e.Metrics[MetricErrors], stats.Sample***REMOVED***
+				e.getSink(MetricErrors).Add(stats.Sample***REMOVED***
 					Time:  time.Now(),
 					Tags:  map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
 					Value: float64(1),
 				***REMOVED***)
 			***REMOVED***
 			for _, s := range samples ***REMOVED***
-				e.Metrics[s.Metric] = append(e.Metrics[s.Metric], s)
+				e.getSink(s.Metric).Add(s)
 			***REMOVED***
 			e.mMutex.Unlock()
 		***REMOVED***
@@ -168,4 +162,21 @@ func (e *Engine) getVU() (VU, error) ***REMOVED***
 
 	log.Warn("More VUs requested than what was prepared; instantiation during tests is costly and may skew results!")
 	return e.Runner.NewVU()
+***REMOVED***
+
+// Returns a value sink for a metric, created from the type if unavailable.
+func (e *Engine) getSink(m *stats.Metric) stats.Sink ***REMOVED***
+	s, ok := e.Metrics[m]
+	if !ok ***REMOVED***
+		switch m.Type ***REMOVED***
+		case stats.Counter:
+			s = &stats.CounterSink***REMOVED******REMOVED***
+		case stats.Gauge:
+			s = &stats.GaugeSink***REMOVED******REMOVED***
+		case stats.Trend:
+			s = &stats.TrendSink***REMOVED******REMOVED***
+		***REMOVED***
+		e.Metrics[m] = s
+	***REMOVED***
+	return s
 ***REMOVED***
