@@ -83,7 +83,7 @@ type VU struct ***REMOVED***
 	cTrace *httptrace.ClientTrace
 ***REMOVED***
 
-func (u *VU) RunOnce(ctx context.Context) ([]stats.FatSample, error) ***REMOVED***
+func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	resp, err := u.Client.Do(u.Request.WithContext(httptrace.WithClientTrace(ctx, u.cTrace)))
 	if err != nil ***REMOVED***
 		u.tracer.Done()
@@ -101,39 +101,15 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.FatSample, error) ***REMOVED*
 	***REMOVED***
 
 	t := time.Now()
-	return []stats.FatSample***REMOVED***
-		stats.FatSample***REMOVED***
-			Metric: MetricReqs,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqDuration,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqBlocked,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqLookingUp,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqConnecting,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqSending,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqWaiting,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
-		***REMOVED***,
-		stats.FatSample***REMOVED***
-			Metric: MetricReqReceiving,
-			Sample: stats.Sample***REMOVED***Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
-		***REMOVED***,
+	return []stats.Sample***REMOVED***
+		stats.Sample***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqDuration, Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqBlocked, Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqLookingUp, Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqConnecting, Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqSending, Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqWaiting, Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 

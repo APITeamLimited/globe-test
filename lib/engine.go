@@ -150,7 +150,7 @@ func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***
 			for _, s := range samples ***REMOVED***
-				e.Metrics[s.Metric] = append(e.Metrics[s.Metric], s.Sample)
+				e.Metrics[s.Metric] = append(e.Metrics[s.Metric], s)
 			***REMOVED***
 			e.mMutex.Unlock()
 		***REMOVED***

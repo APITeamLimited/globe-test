@@ -16,7 +16,7 @@ type Runner interface ***REMOVED***
 type VU interface ***REMOVED***
 	// Runs the VU once. An iteration should be completely self-contained, and no state
 	// or open connections should carry over from one iteration to the next.
-	RunOnce(ctx context.Context) ([]stats.FatSample, error)
+	RunOnce(ctx context.Context) ([]stats.Sample, error)
 
 	// Called when the VU's identity changes.
 	Reconfigure(id int64) error
