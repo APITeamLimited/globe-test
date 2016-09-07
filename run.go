@@ -7,6 +7,7 @@ import (
 	"github.com/loadimpact/speedboat/api"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/simple"
+	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"os/signal"
@@ -191,7 +192,8 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Scale the test up to the desired VU count
 	if vus > 0 ***REMOVED***
 		log.WithField("vus", vus).Debug("Scaling test...")
-		if err := cl.Scale(vus); err != nil ***REMOVED***
+		status := lib.Status***REMOVED***ActiveVUs: null.IntFrom(vus)***REMOVED***
+		if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't scale test")
 		***REMOVED***
 	***REMOVED***

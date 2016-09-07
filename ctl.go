@@ -3,6 +3,8 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/api"
+	"github.com/loadimpact/speedboat/lib"
+	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 	"os"
@@ -30,6 +32,16 @@ var commandAbort = cli.Command***REMOVED***
 	Action:    actionAbort,
 ***REMOVED***
 
+func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
+	bytes, err := yaml.Marshal(v)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Serialization Error")
+		return err
+	***REMOVED***
+	_, _ = os.Stdout.Write(bytes)
+	return nil
+***REMOVED***
+
 func actionStatus(cc *cli.Context) error ***REMOVED***
 	client, err := api.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
@@ -42,15 +54,7 @@ func actionStatus(cc *cli.Context) error ***REMOVED***
 		log.WithError(err).Error("Error")
 		return err
 	***REMOVED***
-
-	bytes, err := yaml.Marshal(status)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Serialization Error")
-		return err
-	***REMOVED***
-	_, _ = os.Stdout.Write(bytes)
-
-	return nil
+	return dumpYAML(status)
 ***REMOVED***
 
 func actionScale(cc *cli.Context) error ***REMOVED***
@@ -70,10 +74,12 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	if err := client.Scale(vus); err != nil ***REMOVED***
+	status, err := client.UpdateStatus(lib.Status***REMOVED***ActiveVUs: null.IntFrom(vus)***REMOVED***)
+	if err != nil ***REMOVED***
 		log.WithError(err).Error("Error")
+		return err
 	***REMOVED***
-	return nil
+	return dumpYAML(status)
 ***REMOVED***
 
 func actionAbort(cc *cli.Context) error ***REMOVED***
@@ -83,8 +89,10 @@ func actionAbort(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	if err := client.Abort(); err != nil ***REMOVED***
+	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(false)***REMOVED***)
+	if err != nil ***REMOVED***
 		log.WithError(err).Error("Error")
+		return err
 	***REMOVED***
-	return nil
+	return dumpYAML(status)
 ***REMOVED***

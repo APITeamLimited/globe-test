@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/loadimpact/speedboat/lib"
@@ -31,23 +32,28 @@ func NewClient(addr string) (*Client, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Client) request(method, path string) ([]byte, error) ***REMOVED***
+func (c *Client) request(method, path string, body []byte) ([]byte, error) ***REMOVED***
 	relative := url.URL***REMOVED***Path: path***REMOVED***
 	req := http.Request***REMOVED***
 		Method: method,
 		URL:    c.BaseURL.ResolveReference(&relative),
 	***REMOVED***
+	if body != nil ***REMOVED***
+		req.ContentLength = int64(len(body))
+		req.Body = ioutil.NopCloser(bytes.NewReader(body))
+	***REMOVED***
+
 	res, err := c.Client.Do(&req)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	body, _ := ioutil.ReadAll(res.Body)
+	data, _ := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 
 	if res.StatusCode >= 400 ***REMOVED***
 		var envelope api2go.HTTPError
-		if err := json.Unmarshal(body, &envelope); err != nil ***REMOVED***
+		if err := json.Unmarshal(data, &envelope); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		if len(envelope.Errors) == 0 ***REMOVED***
@@ -56,11 +62,11 @@ func (c *Client) request(method, path string) ([]byte, error) ***REMOVED***
 		return nil, errors.New(envelope.Errors[0].Title)
 	***REMOVED***
 
-	return body, nil
+	return data, nil
 ***REMOVED***
 
-func (c *Client) call(method, path string, out interface***REMOVED******REMOVED***) error ***REMOVED***
-	body, err := c.request(method, path)
+func (c *Client) call(method, path string, body []byte, out interface***REMOVED******REMOVED***) error ***REMOVED***
+	body, err := c.request(method, path, body)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -69,7 +75,7 @@ func (c *Client) call(method, path string, out interface***REMOVED******REMOVED*
 ***REMOVED***
 
 func (c *Client) Ping() error ***REMOVED***
-	_, err := c.request("GET", "/ping")
+	_, err := c.request("GET", "/ping", nil)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -79,25 +85,20 @@ func (c *Client) Ping() error ***REMOVED***
 // Status returns the status of the currently running test.
 func (c *Client) Status() (lib.Status, error) ***REMOVED***
 	var status lib.Status
-	if err := c.call("GET", "/v1/status", &status); err != nil ***REMOVED***
+	if err := c.call("GET", "/v1/status", nil, &status); err != nil ***REMOVED***
 		return status, err
 	***REMOVED***
 	return status, nil
 ***REMOVED***
 
-// Scales the currently running test.
-func (c *Client) Scale(vus int64) error ***REMOVED***
-	// u := url.URL***REMOVED***Path: "/v1/scale", RawQuery: fmt.Sprintf("vus=%d", vus)***REMOVED***
-	// if err := c.call("POST", u, nil); err != nil ***REMOVED***
-	// 	return err
-	// ***REMOVED***
-	return nil
-***REMOVED***
-
-// Aborts the currently running test.
-func (c *Client) Abort() error ***REMOVED***
-	// if err := c.call("POST", url.URL***REMOVED***Path: "/v1/abort"***REMOVED***, nil); err != nil ***REMOVED***
-	// 	return err
-	// ***REMOVED***
-	return nil
+// Updates the status of the currently running test.
+func (c *Client) UpdateStatus(status lib.Status) (lib.Status, error) ***REMOVED***
+	data, err := jsonapi.Marshal(status)
+	if err != nil ***REMOVED***
+		return status, err
+	***REMOVED***
+	if err := c.call("PATCH", "/v1/status", data, &status); err != nil ***REMOVED***
+		return status, err
+	***REMOVED***
+	return status, nil
 ***REMOVED***
