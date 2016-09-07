@@ -63,25 +63,26 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 		v1.PATCH("/status", func(c *gin.Context) ***REMOVED***
 			// TODO: Allow full control of running/active/inactive VUs; stopping a test shouldn't
 			// be final, and shouldn't implicitly affect anything else.
-			if !s.Engine.Status.Running ***REMOVED***
+			if !s.Engine.Status.Running.Bool ***REMOVED***
 				c.AbortWithError(http.StatusBadRequest, errors.New("Test is stopped"))
 				return
 			***REMOVED***
 
-			status := s.Engine.Status
+			var status lib.Status
 			data, _ := ioutil.ReadAll(c.Request.Body)
 			if err := jsonapi.Unmarshal(data, &status); err != nil ***REMOVED***
 				c.AbortWithError(http.StatusBadRequest, err)
 				return
 			***REMOVED***
 
-			if status.ActiveVUs != s.Engine.Status.ActiveVUs ***REMOVED***
-				s.Engine.Scale(status.ActiveVUs)
+			if status.ActiveVUs.Valid && status.ActiveVUs != s.Engine.Status.ActiveVUs ***REMOVED***
+				s.Engine.Status.ActiveVUs = status.ActiveVUs
+				s.Engine.Scale(status.ActiveVUs.Int64)
 			***REMOVED***
-			if !s.Engine.Status.Running ***REMOVED***
+			if status.Running.Valid && !status.Running.Bool ***REMOVED***
+				s.Engine.Status.Running = status.Running
 				s.Cancel()
 			***REMOVED***
-			s.Engine.Status = status
 
 			data, err := jsonapi.Marshal(s.Engine.Status)
 			if err != nil ***REMOVED***
