@@ -11,12 +11,5 @@ export default Ember.Route.extend(***REMOVED***
   ***REMOVED***),
   model() ***REMOVED***
     return this.get('store').findRecord('status', 'default');
-  ***REMOVED***,
-  actions: ***REMOVED***
-    abort() ***REMOVED***
-      return Ember.$.post("/v1/abort").then(()=> ***REMOVED***
-        this.refresh();
-      ***REMOVED***);
-    ***REMOVED***,
-  ***REMOVED***,
+  ***REMOVED***
 ***REMOVED***);
