@@ -48,6 +48,7 @@ func NewEngine(r Runner, prepared int64) (*Engine, error) ***REMOVED***
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.ctx = ctx
 
+	e.Status.ID = "default"
 	e.Status.StartTime = time.Now()
 	e.Status.Running = true
 	e.Status.VUs = int64(len(e.cancelers))

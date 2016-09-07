@@ -2,7 +2,7 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/speedboat/client"
+	"github.com/loadimpact/speedboat/api"
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 	"os"
@@ -31,7 +31,7 @@ var commandAbort = cli.Command***REMOVED***
 ***REMOVED***
 
 func actionStatus(cc *cli.Context) error ***REMOVED***
-	client, err := client.New(cc.GlobalString("address"))
+	client, err := api.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -64,7 +64,7 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	client, err := client.New(cc.GlobalString("address"))
+	client, err := api.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -77,7 +77,7 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionAbort(cc *cli.Context) error ***REMOVED***
-	client, err := client.New(cc.GlobalString("address"))
+	client, err := api.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err

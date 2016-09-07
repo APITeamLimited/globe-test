@@ -1,10 +1,11 @@
-package client
+package api
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"github.com/google/jsonapi"
 	"github.com/loadimpact/speedboat/lib"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -19,7 +20,7 @@ type Client struct ***REMOVED***
 	Client  http.Client
 ***REMOVED***
 
-func New(addr string) (*Client, error) ***REMOVED***
+func NewClient(addr string) (*Client, error) ***REMOVED***
 	if addr == "" ***REMOVED***
 		return nil, errNoAddress
 	***REMOVED***
@@ -30,54 +31,55 @@ func New(addr string) (*Client, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Client) call(method string, relative url.URL, out interface***REMOVED******REMOVED***) error ***REMOVED***
+func (c *Client) call(method string, relative url.URL) (io.ReadCloser, error) ***REMOVED***
 	req := http.Request***REMOVED***
 		Method: method,
 		URL:    c.BaseURL.ResolveReference(&relative),
 	***REMOVED***
 	res, err := c.Client.Do(&req)
 	if err != nil ***REMOVED***
-		return err
+		return nil, err
 	***REMOVED***
-	defer res.Body.Close()
 
 	if res.StatusCode >= 400 ***REMOVED***
-		var envelope struct ***REMOVED***
-			Error string `json:"error"`
-		***REMOVED***
 		body, _ := ioutil.ReadAll(res.Body)
+
+		var envelope ErrorResponse
 		if err := json.Unmarshal(body, &envelope); err != nil ***REMOVED***
-			return err
+			return nil, err
 		***REMOVED***
-		if envelope.Error == "" ***REMOVED***
-			envelope.Error = res.Status
+		if len(envelope.Errors) == 0 ***REMOVED***
+			return nil, errors.New("Unknown error")
 		***REMOVED***
-		return errors.New(envelope.Error)
+		return nil, errors.New(envelope.Errors[0].Title)
 	***REMOVED***
 
-	if out == nil ***REMOVED***
-		return nil
-	***REMOVED***
+	return res.Body, nil
+***REMOVED***
 
-	body, _ := ioutil.ReadAll(res.Body)
-	if err := json.Unmarshal(body, out); err != nil ***REMOVED***
+func (c *Client) callSingle(method string, relative url.URL, out interface***REMOVED******REMOVED***) error ***REMOVED***
+	body, err := c.call(method, relative)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	defer body.Close()
 
-	return nil
+	return jsonapi.UnmarshalPayload(body, out)
 ***REMOVED***
 
 func (c *Client) Ping() error ***REMOVED***
-	if err := c.call("GET", url.URL***REMOVED***Path: "/ping"***REMOVED***, nil); err != nil ***REMOVED***
+	body, err := c.call("GET", url.URL***REMOVED***Path: "/ping"***REMOVED***)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	body.Close()
 	return nil
 ***REMOVED***
 
 // Status returns the status of the currently running test.
 func (c *Client) Status() (lib.Status, error) ***REMOVED***
 	var status lib.Status
-	if err := c.call("GET", url.URL***REMOVED***Path: "/v1/status"***REMOVED***, &status); err != nil ***REMOVED***
+	if err := c.callSingle("GET", url.URL***REMOVED***Path: "/v1/status"***REMOVED***, &status); err != nil ***REMOVED***
 		return status, err
 	***REMOVED***
 	return status, nil
@@ -85,17 +87,17 @@ func (c *Client) Status() (lib.Status, error) ***REMOVED***
 
 // Scales the currently running test.
 func (c *Client) Scale(vus int64) error ***REMOVED***
-	u := url.URL***REMOVED***Path: "/v1/scale", RawQuery: fmt.Sprintf("vus=%d", vus)***REMOVED***
-	if err := c.call("POST", u, nil); err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	// u := url.URL***REMOVED***Path: "/v1/scale", RawQuery: fmt.Sprintf("vus=%d", vus)***REMOVED***
+	// if err := c.call("POST", u, nil); err != nil ***REMOVED***
+	// 	return err
+	// ***REMOVED***
 	return nil
 ***REMOVED***
 
 // Aborts the currently running test.
 func (c *Client) Abort() error ***REMOVED***
-	if err := c.call("POST", url.URL***REMOVED***Path: "/v1/abort"***REMOVED***, nil); err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	// if err := c.call("POST", url.URL***REMOVED***Path: "/v1/abort"***REMOVED***, nil); err != nil ***REMOVED***
+	// 	return err
+	// ***REMOVED***
 	return nil
 ***REMOVED***
