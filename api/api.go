@@ -59,6 +59,36 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 			***REMOVED***
 			c.Data(200, contentType, data)
 		***REMOVED***)
+		v1.PATCH("/status", func(c *gin.Context) ***REMOVED***
+			// TODO: Allow full control of running/active/inactive VUs; stopping a test shouldn't
+			// be final, and shouldn't implicitly affect anything else.
+			if !s.Engine.Status.Running ***REMOVED***
+				c.AbortWithError(http.StatusBadRequest, errors.New("Test is stopped"))
+				return
+			***REMOVED***
+
+			status := s.Engine.Status
+			data, _ := ioutil.ReadAll(c.Request.Body)
+			if err := jsonapi.Unmarshal(data, &status); err != nil ***REMOVED***
+				c.AbortWithError(http.StatusBadRequest, err)
+				return
+			***REMOVED***
+
+			if status.ActiveVUs != s.Engine.Status.ActiveVUs ***REMOVED***
+				s.Engine.Scale(status.ActiveVUs)
+			***REMOVED***
+			if !s.Engine.Status.Running ***REMOVED***
+				s.Cancel()
+			***REMOVED***
+			s.Engine.Status = status
+
+			data, err := jsonapi.Marshal(s.Engine.Status)
+			if err != nil ***REMOVED***
+				c.AbortWithError(http.StatusInternalServerError, err)
+				return
+			***REMOVED***
+			c.Data(200, contentType, data)
+		***REMOVED***)
 		v1.GET("/metrics", func(c *gin.Context) ***REMOVED***
 			metrics := make([]interface***REMOVED******REMOVED***, 0, len(s.Engine.Metrics))
 			for metric, sink := range s.Engine.Metrics ***REMOVED***
@@ -89,24 +119,6 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 			***REMOVED***
 			c.AbortWithError(404, errors.New("Metric not found"))
 		***REMOVED***)
-		// v1.POST("/abort", func(c *gin.Context) ***REMOVED***
-		// 	s.Cancel()
-		// 	c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
-		// ***REMOVED***)
-		// v1.POST("/scale", func(c *gin.Context) ***REMOVED***
-		// 	vus, err := strconv.ParseInt(c.Query("vus"), 10, 64)
-		// 	if err != nil ***REMOVED***
-		// 		c.AbortWithError(http.StatusBadRequest, err)
-		// 		return
-		// 	***REMOVED***
-
-		// 	if err := s.Engine.Scale(vus); err != nil ***REMOVED***
-		// 		c.AbortWithError(http.StatusInternalServerError, err)
-		// 		return
-		// 	***REMOVED***
-
-		// 	c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)
-		// ***REMOVED***)
 	***REMOVED***
 	router.NoRoute(func(c *gin.Context) ***REMOVED***
 		c.JSON(404, gin.H***REMOVED***"error": "Not Found"***REMOVED***)
