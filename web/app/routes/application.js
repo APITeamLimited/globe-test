@@ -10,7 +10,7 @@ export default Ember.Route.extend(***REMOVED***
     ***REMOVED***, 5000);
   ***REMOVED***),
   model() ***REMOVED***
-    return Ember.$.getJSON("/v1/status");
+    return this.get('store').findRecord('status', 'default');
   ***REMOVED***,
   actions: ***REMOVED***
     abort() ***REMOVED***

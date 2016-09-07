@@ -54,35 +54,32 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 				return
 			***REMOVED***
 		***REMOVED***)
-		// v1.GET("/metrics", func(c *gin.Context) ***REMOVED***
-		// 	metrics := make(map[string]Metric)
-		// 	for m, sink := range s.Engine.Metrics ***REMOVED***
-		// 		metrics[m.Name] = Metric***REMOVED***
-		// 			Name:     m.Name,
-		// 			Type:     MetricType(m.Type),
-		// 			Contains: ValueType(m.Contains),
-		// 			Data:     sink.Format(),
-		// 		***REMOVED***
-		// 	***REMOVED***
-		// 	c.JSON(200, metrics)
-		// ***REMOVED***)
-		// v1.GET("/metrics/:name", func(c *gin.Context) ***REMOVED***
-		// 	name := c.Param("name")
-		// 	for m, sink := range s.Engine.Metrics ***REMOVED***
-		// 		if m.Name != name ***REMOVED***
-		// 			continue
-		// 		***REMOVED***
-
-		// 		c.JSON(200, Metric***REMOVED***
-		// 			Name:     m.Name,
-		// 			Type:     MetricType(m.Type),
-		// 			Contains: ValueType(m.Contains),
-		// 			Data:     sink.Format(),
-		// 		***REMOVED***)
-		// 		return
-		// 	***REMOVED***
-		// 	c.AbortWithError(404, errors.New("No such metric"))
-		// ***REMOVED***)
+		v1.GET("/metrics", func(c *gin.Context) ***REMOVED***
+			metrics := make([]interface***REMOVED******REMOVED***, 0, len(s.Engine.Metrics))
+			for metric, sink := range s.Engine.Metrics ***REMOVED***
+				metric.Sample = sink.Format()
+				metrics = append(metrics, metric)
+			***REMOVED***
+			if err := jsonapi.MarshalManyPayload(c.Writer, metrics); err != nil ***REMOVED***
+				c.AbortWithError(500, err)
+				return
+			***REMOVED***
+		***REMOVED***)
+		v1.GET("/metrics/:id", func(c *gin.Context) ***REMOVED***
+			id := c.Param("id")
+			for metric, sink := range s.Engine.Metrics ***REMOVED***
+				if metric.Name != id ***REMOVED***
+					continue
+				***REMOVED***
+				metric.Sample = sink.Format()
+				if err := jsonapi.MarshalOnePayload(c.Writer, metric); err != nil ***REMOVED***
+					c.AbortWithError(500, err)
+					return
+				***REMOVED***
+				return
+			***REMOVED***
+			c.AbortWithError(404, errors.New("Metric not found"))
+		***REMOVED***)
 		// v1.POST("/abort", func(c *gin.Context) ***REMOVED***
 		// 	s.Cancel()
 		// 	c.JSON(202, gin.H***REMOVED***"success": true***REMOVED***)

@@ -3,28 +3,15 @@ import Ember from 'ember';
 export default Ember.Controller.extend(***REMOVED***
   application: Ember.inject.controller(),
 
-  vus: Ember.computed.alias('model.metrics.vus.data.value'),
-  vus_pooled: Ember.computed.alias('model.metrics.vus_pooled.data.value'),
-  vus_max: Ember.computed('vus', 'vus_pooled', function() ***REMOVED***
-    return this.get('vus') + this.get('vus_pooled');
+  vusActive: Ember.computed.alias('application.model.activeVUs'),
+  vusInactive: Ember.computed.alias('application.model.inactiveVUs'),
+  vusMax: Ember.computed('vusActive', 'vusInactive', function() ***REMOVED***
+    return this.get('vusActive') + this.get('vusInactive');
   ***REMOVED***),
-  vus_pct: Ember.computed('vus', 'vus_max', function() ***REMOVED***
-    return (this.get('vus') / this.get('vus_max')) * 100;
+  vusPercent: Ember.computed('vusActive', 'maxVUs', function() ***REMOVED***
+    return (this.get('vusActive') / this.get('maxVUs')) * 100;
   ***REMOVED***),
-  vus_label: Ember.computed('vus', 'vus_max', function() ***REMOVED***
-    return this.get('vus') + ' / ' + this.get('vus_max');
+  vusLabel: Ember.computed('vusActive', 'maxVUs', function() ***REMOVED***
+    return this.get('vusActive') + ' / ' + this.get('vusMax');
   ***REMOVED***),
-
-  metrics: Ember.computed('model.metrics', function() ***REMOVED***
-    var metrics = this.get('model.metrics');
-    var ret = [];
-    for (var key in metrics) ***REMOVED***
-      if (key !== 'vus' && key !== 'vus_pooled') ***REMOVED***
-        ret.push(metrics[key]);
-      ***REMOVED***
-    ***REMOVED***
-    return ret;
-  ***REMOVED***),
-  sortedMetrics: Ember.computed.sort('metrics', 'sortedMetricsBy'),
-  sortedMetricsBy: ['name'],
 ***REMOVED***);

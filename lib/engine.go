@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	MetricVUs       = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
-	MetricVUsPooled = &stats.Metric***REMOVED***Name: "vus_pooled", Type: stats.Gauge***REMOVED***
-	MetricErrors    = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
+	MetricActiveVUs   = &stats.Metric***REMOVED***Name: "vus_active", Type: stats.Gauge***REMOVED***
+	MetricInactiveVUs = &stats.Metric***REMOVED***Name: "vus_inactive", Type: stats.Gauge***REMOVED***
+	MetricErrors      = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
 )
 
 type Engine struct ***REMOVED***
@@ -49,10 +49,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.ctx = ctx
 
 	e.Status.ID = "default"
-	e.Status.StartTime = time.Now()
 	e.Status.Running = true
-	e.Status.VUs = int64(len(e.cancelers))
-	e.Status.Pooled = int64(len(e.pool))
+	e.Status.ActiveVUs = int64(len(e.cancelers))
+	e.Status.InactiveVUs = int64(len(e.pool))
 
 	e.reportInternalStats()
 	ticker := time.NewTicker(1 * time.Second)
@@ -71,8 +70,8 @@ loop:
 	e.pool = nil
 
 	e.Status.Running = false
-	e.Status.VUs = 0
-	e.Status.Pooled = 0
+	e.Status.ActiveVUs = 0
+	e.Status.InactiveVUs = 0
 	e.reportInternalStats()
 
 	return nil
@@ -113,8 +112,8 @@ func (e *Engine) Scale(vus int64) error ***REMOVED***
 		e.cancelers = e.cancelers[:vus]
 	***REMOVED***
 
-	e.Status.VUs = int64(len(e.cancelers))
-	e.Status.Pooled = int64(len(e.pool))
+	e.Status.ActiveVUs = int64(len(e.cancelers))
+	e.Status.InactiveVUs = int64(len(e.pool))
 
 	return nil
 ***REMOVED***
@@ -122,8 +121,8 @@ func (e *Engine) Scale(vus int64) error ***REMOVED***
 func (e *Engine) reportInternalStats() ***REMOVED***
 	e.mMutex.Lock()
 	t := time.Now()
-	e.getSink(MetricVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***)
-	e.getSink(MetricVUsPooled).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***)
+	e.getSink(MetricActiveVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***)
+	e.getSink(MetricInactiveVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***)
 	e.mMutex.Unlock()
 ***REMOVED***
 
