@@ -3,9 +3,9 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"github.com/google/jsonapi"
 	"github.com/loadimpact/speedboat/lib"
-	"io"
+	"github.com/manyminds/api2go"
+	"github.com/manyminds/api2go/jsonapi"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -31,7 +31,8 @@ func NewClient(addr string) (*Client, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Client) call(method string, relative url.URL) (io.ReadCloser, error) ***REMOVED***
+func (c *Client) request(method, path string) ([]byte, error) ***REMOVED***
+	relative := url.URL***REMOVED***Path: path***REMOVED***
 	req := http.Request***REMOVED***
 		Method: method,
 		URL:    c.BaseURL.ResolveReference(&relative),
@@ -41,10 +42,11 @@ func (c *Client) call(method string, relative url.URL) (io.ReadCloser, error) **
 		return nil, err
 	***REMOVED***
 
-	if res.StatusCode >= 400 ***REMOVED***
-		body, _ := ioutil.ReadAll(res.Body)
+	body, _ := ioutil.ReadAll(res.Body)
+	res.Body.Close()
 
-		var envelope ErrorResponse
+	if res.StatusCode >= 400 ***REMOVED***
+		var envelope api2go.HTTPError
 		if err := json.Unmarshal(body, &envelope); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -54,32 +56,30 @@ func (c *Client) call(method string, relative url.URL) (io.ReadCloser, error) **
 		return nil, errors.New(envelope.Errors[0].Title)
 	***REMOVED***
 
-	return res.Body, nil
+	return body, nil
 ***REMOVED***
 
-func (c *Client) callSingle(method string, relative url.URL, out interface***REMOVED******REMOVED***) error ***REMOVED***
-	body, err := c.call(method, relative)
+func (c *Client) call(method, path string, out interface***REMOVED******REMOVED***) error ***REMOVED***
+	body, err := c.request(method, path)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	defer body.Close()
 
-	return jsonapi.UnmarshalPayload(body, out)
+	return jsonapi.Unmarshal(body, out)
 ***REMOVED***
 
 func (c *Client) Ping() error ***REMOVED***
-	body, err := c.call("GET", url.URL***REMOVED***Path: "/ping"***REMOVED***)
+	_, err := c.request("GET", "/ping")
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	body.Close()
 	return nil
 ***REMOVED***
 
 // Status returns the status of the currently running test.
 func (c *Client) Status() (lib.Status, error) ***REMOVED***
 	var status lib.Status
-	if err := c.callSingle("GET", url.URL***REMOVED***Path: "/v1/status"***REMOVED***, &status); err != nil ***REMOVED***
+	if err := c.call("GET", "/v1/status", &status); err != nil ***REMOVED***
 		return status, err
 	***REMOVED***
 	return status, nil
