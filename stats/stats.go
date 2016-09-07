@@ -106,12 +106,12 @@ type Sample struct ***REMOVED***
 
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
-	Name     string     `jsonapi:"primary,metrics"`
-	Type     MetricType `jsonapi:"attr,type"`
-	Contains ValueType  `jsonapi:"attr,contains"`
+	Name     string     `json:"-"`
+	Type     MetricType `json:"type"`
+	Contains ValueType  `json:"contains"`
 
 	// Filled in by the API when requested, the server side cannot count on its presence.
-	Sample map[string]float64 `jsonapi:"attr,sample"`
+	Sample map[string]float64 `json:"sample"`
 ***REMOVED***
 
 func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
@@ -120,4 +120,8 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 		vt = t[0]
 	***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt***REMOVED***
+***REMOVED***
+
+func (m Metric) GetID() string ***REMOVED***
+	return m.Name
 ***REMOVED***
