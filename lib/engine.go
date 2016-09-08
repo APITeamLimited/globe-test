@@ -20,6 +20,7 @@ type Engine struct ***REMOVED***
 	Runner  Runner
 	Status  Status
 	Metrics map[*stats.Metric]stats.Sink
+	Pause   sync.WaitGroup
 
 	ctx       context.Context
 	cancelers []context.CancelFunc
@@ -30,28 +31,31 @@ type Engine struct ***REMOVED***
 ***REMOVED***
 
 func NewEngine(r Runner, prepared int64) (*Engine, error) ***REMOVED***
-	pool := make([]VU, prepared)
+	e := &Engine***REMOVED***
+		Runner:  r,
+		Metrics: make(map[*stats.Metric]stats.Sink),
+		pool:    make([]VU, prepared),
+	***REMOVED***
+
 	for i := int64(0); i < prepared; i++ ***REMOVED***
 		vu, err := r.NewVU()
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		pool[i] = vu
+		e.pool[i] = vu
 	***REMOVED***
 
-	return &Engine***REMOVED***
-		Runner:  r,
-		Metrics: make(map[*stats.Metric]stats.Sink),
-		pool:    pool,
-	***REMOVED***, nil
+	e.Status.Running = null.BoolFrom(false)
+	e.Pause.Add(1)
+
+	e.Status.ActiveVUs = null.IntFrom(0)
+	e.Status.InactiveVUs = null.IntFrom(int64(len(e.pool)))
+
+	return e, nil
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.ctx = ctx
-
-	e.Status.Running = null.BoolFrom(true)
-	e.Status.ActiveVUs = null.IntFrom(int64(len(e.cancelers)))
-	e.Status.InactiveVUs = null.IntFrom(int64(len(e.pool)))
 
 	e.reportInternalStats()
 	ticker := time.NewTicker(1 * time.Second)
@@ -118,6 +122,17 @@ func (e *Engine) Scale(vus int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (e *Engine) SetRunning(running bool) ***REMOVED***
+	if running && !e.Status.Running.Bool ***REMOVED***
+		e.Pause.Done()
+		log.Debug("Engine Unpaused")
+	***REMOVED*** else if !running && e.Status.Running.Bool ***REMOVED***
+		e.Pause.Add(1)
+		log.Debug("Engine Paused")
+	***REMOVED***
+	e.Status.Running.Bool = running
+***REMOVED***
+
 func (e *Engine) reportInternalStats() ***REMOVED***
 	e.mMutex.Lock()
 	t := time.Now()
@@ -128,6 +143,10 @@ func (e *Engine) reportInternalStats() ***REMOVED***
 
 func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
 	idString := strconv.FormatInt(id, 10)
+
+waitForPause:
+	e.Pause.Wait()
+
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ctx.Done():
@@ -147,6 +166,10 @@ func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
 				e.getSink(s.Metric).Add(s)
 			***REMOVED***
 			e.mMutex.Unlock()
+
+			if !e.Status.Running.Bool ***REMOVED***
+				goto waitForPause
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

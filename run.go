@@ -126,14 +126,10 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 	engineC, engineCancel := context.WithCancel(context.Background())
-	if duration > 0 ***REMOVED***
-		engineC, engineCancel = context.WithTimeout(context.Background(), duration)
-	***REMOVED***
 
 	// Make the API Server
 	srv := &api.Server***REMOVED***
 		Engine: engine,
-		Cancel: engineCancel,
 		Info: lib.Info***REMOVED***
 			ID:      "default",
 			Version: cc.App.Version,
@@ -153,10 +149,6 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	go func() ***REMOVED***
 		defer func() ***REMOVED***
 			log.Debug("Engine terminated")
-			if quit ***REMOVED***
-				log.Debug("Quit requested; terminating API server...")
-				srvCancel()
-			***REMOVED***
 			wg.Done()
 		***REMOVED***()
 		log.WithField("prepared", prepared).Debug("Starting engine...")
@@ -191,11 +183,32 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Scale the test up to the desired VU count
 	if vus > 0 ***REMOVED***
-		log.WithField("vus", vus).Debug("Scaling test...")
-		status := lib.Status***REMOVED***ActiveVUs: null.IntFrom(vus)***REMOVED***
+		log.WithField("vus", vus).Debug("Starting test...")
+		status := lib.Status***REMOVED***
+			Running:   null.BoolFrom(true),
+			ActiveVUs: null.IntFrom(vus),
+		***REMOVED***
 		if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't scale test")
 		***REMOVED***
+	***REMOVED***
+
+	// Pause the test once the duration expires
+	if duration > 0 ***REMOVED***
+		log.WithField("duration", duration).Debug("Test will pause after...")
+		go func() ***REMOVED***
+			time.Sleep(duration)
+			log.Debug("Duration expired, pausing...")
+			status := lib.Status***REMOVED***Running: null.BoolFrom(false)***REMOVED***
+			if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
+				log.WithError(err).Error("Couldn't pause test")
+			***REMOVED***
+
+			if quit ***REMOVED***
+				log.Debug("Quit requested, terminating...")
+				srvCancel()
+			***REMOVED***
+		***REMOVED***()
 	***REMOVED***
 
 	// Wait for a signal or timeout before shutting down

@@ -25,11 +25,18 @@ var commandScale = cli.Command***REMOVED***
 	Action:    actionScale,
 ***REMOVED***
 
-var commandAbort = cli.Command***REMOVED***
-	Name:      "abort",
-	Usage:     "Aborts a running test",
+var commandPause = cli.Command***REMOVED***
+	Name:      "pause",
+	Usage:     "Pauses a running test",
 	ArgsUsage: " ",
-	Action:    actionAbort,
+	Action:    actionPause,
+***REMOVED***
+
+var commandResume = cli.Command***REMOVED***
+	Name:      "resume",
+	Usage:     "Resumes a paused test",
+	ArgsUsage: " ",
+	Action:    actionResume,
 ***REMOVED***
 
 func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
@@ -82,7 +89,7 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 	return dumpYAML(status)
 ***REMOVED***
 
-func actionAbort(cc *cli.Context) error ***REMOVED***
+func actionPause(cc *cli.Context) error ***REMOVED***
 	client, err := api.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
@@ -90,6 +97,21 @@ func actionAbort(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(false)***REMOVED***)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Error")
+		return err
+	***REMOVED***
+	return dumpYAML(status)
+***REMOVED***
+
+func actionResume(cc *cli.Context) error ***REMOVED***
+	client, err := api.NewClient(cc.GlobalString("address"))
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't create a client")
+		return err
+	***REMOVED***
+
+	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(true)***REMOVED***)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Error")
 		return err
