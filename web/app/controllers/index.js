@@ -11,4 +11,7 @@ export default Ember.Controller.extend(***REMOVED***
   vusLabel: Ember.computed('vus', 'vusMax', function() ***REMOVED***
     return this.get('vus') + ' / ' + this.get('vusMax');
   ***REMOVED***),
+
+  metricsSortedBy: ['id'],
+  metrics: Ember.computed.sort('model.metrics', 'metricsSortedBy'),
 ***REMOVED***);
