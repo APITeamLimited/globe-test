@@ -25,6 +25,13 @@ var commandScale = cli.Command***REMOVED***
 	Action:    actionScale,
 ***REMOVED***
 
+var commandCap = cli.Command***REMOVED***
+	Name:      "cap",
+	Usage:     "Changes the VU cap for a running test",
+	ArgsUsage: "max",
+	Action:    actionCap,
+***REMOVED***
+
 var commandPause = cli.Command***REMOVED***
 	Name:      "pause",
 	Usage:     "Pauses a running test",
@@ -82,6 +89,31 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	status, err := client.UpdateStatus(lib.Status***REMOVED***VUs: null.IntFrom(vus)***REMOVED***)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Error")
+		return err
+	***REMOVED***
+	return dumpYAML(status)
+***REMOVED***
+
+func actionCap(cc *cli.Context) error ***REMOVED***
+	args := cc.Args()
+	if len(args) != 1 ***REMOVED***
+		return cli.NewExitError("Wrong number of arguments!", 1)
+	***REMOVED***
+	max, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Error")
+		return err
+	***REMOVED***
+
+	client, err := api.NewClient(cc.GlobalString("address"))
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't create a client")
+		return err
+	***REMOVED***
+
+	status, err := client.UpdateStatus(lib.Status***REMOVED***VUsMax: null.IntFrom(max)***REMOVED***)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Error")
 		return err
