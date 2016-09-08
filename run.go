@@ -130,10 +130,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make the API Server
 	srv := &api.Server***REMOVED***
 		Engine: engine,
-		Info: lib.Info***REMOVED***
-			ID:      "default",
-			Version: cc.App.Version,
-		***REMOVED***,
+		Info:   lib.Info***REMOVED***Version: cc.App.Version***REMOVED***,
 	***REMOVED***
 	srvC, srvCancel := context.WithCancel(context.Background())
 

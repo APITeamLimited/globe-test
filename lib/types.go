@@ -23,7 +23,6 @@ func (s Status) SetID(id string) error ***REMOVED***
 ***REMOVED***
 
 type Info struct ***REMOVED***
-	ID      string `json:"-"`
 	Version string `json:"version"`
 ***REMOVED***
 
