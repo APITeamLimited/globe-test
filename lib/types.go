@@ -5,9 +5,9 @@ import (
 )
 
 type Status struct ***REMOVED***
-	Running     null.Bool `json:"running" yaml:"Running"`
-	ActiveVUs   null.Int  `json:"active-vus" yaml:"ActiveVUs"`
-	InactiveVUs null.Int  `json:"inactive-vus" yaml:"InactiveVUs"`
+	Running     null.Bool `json:"running"`
+	ActiveVUs   null.Int  `json:"active-vus"`
+	InactiveVUs null.Int  `json:"inactive-vus"`
 ***REMOVED***
 
 func (s Status) GetName() string ***REMOVED***
