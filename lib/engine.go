@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/stats"
 	"gopkg.in/guregu/null.v3"
@@ -11,10 +12,18 @@ import (
 )
 
 var (
-	MetricActiveVUs   = &stats.Metric***REMOVED***Name: "vus_active", Type: stats.Gauge***REMOVED***
-	MetricInactiveVUs = &stats.Metric***REMOVED***Name: "vus_inactive", Type: stats.Gauge***REMOVED***
-	MetricErrors      = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
+	MetricVUs    = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
+	MetricVUsMax = &stats.Metric***REMOVED***Name: "vus_max", Type: stats.Gauge***REMOVED***
+	MetricErrors = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
+
+	ErrTooManyVUs = errors.New("More VUs than the maximum requested")
+	ErrMaxTooLow  = errors.New("Can't lower max below current VU count")
 )
+
+type vuEntry struct ***REMOVED***
+	VU     VU
+	Cancel context.CancelFunc
+***REMOVED***
 
 type Engine struct ***REMOVED***
 	Runner  Runner
@@ -22,40 +31,37 @@ type Engine struct ***REMOVED***
 	Metrics map[*stats.Metric]stats.Sink
 	Pause   sync.WaitGroup
 
-	ctx       context.Context
-	cancelers []context.CancelFunc
-	pool      []VU
+	ctx    context.Context
+	vus    []*vuEntry
+	nextID int64
 
 	vuMutex sync.Mutex
 	mMutex  sync.Mutex
 ***REMOVED***
 
-func NewEngine(r Runner, prepared int64) (*Engine, error) ***REMOVED***
+func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 	e := &Engine***REMOVED***
-		Runner:  r,
+		Runner: r,
+		Status: Status***REMOVED***
+			Running: null.BoolFrom(false),
+			VUs:     null.IntFrom(0),
+			VUsMax:  null.IntFrom(0),
+		***REMOVED***,
 		Metrics: make(map[*stats.Metric]stats.Sink),
-		pool:    make([]VU, prepared),
-	***REMOVED***
-
-	for i := int64(0); i < prepared; i++ ***REMOVED***
-		vu, err := r.NewVU()
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		e.pool[i] = vu
 	***REMOVED***
 
 	e.Status.Running = null.BoolFrom(false)
 	e.Pause.Add(1)
 
-	e.Status.ActiveVUs = null.IntFrom(0)
-	e.Status.InactiveVUs = null.IntFrom(int64(len(e.pool)))
+	e.Status.VUs = null.IntFrom(0)
+	e.Status.VUsMax = null.IntFrom(0)
 
 	return e, nil
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.ctx = ctx
+	e.nextID = 1
 
 	e.reportInternalStats()
 	ticker := time.NewTicker(1 * time.Second)
@@ -70,54 +76,12 @@ loop:
 		***REMOVED***
 	***REMOVED***
 
-	e.cancelers = nil
-	e.pool = nil
+	e.vus = nil
 
 	e.Status.Running = null.BoolFrom(false)
-	e.Status.ActiveVUs = null.IntFrom(0)
-	e.Status.InactiveVUs = null.IntFrom(0)
+	e.Status.VUs = null.IntFrom(0)
+	e.Status.VUsMax = null.IntFrom(0)
 	e.reportInternalStats()
-
-	return nil
-***REMOVED***
-
-func (e *Engine) Scale(vus int64) error ***REMOVED***
-	e.vuMutex.Lock()
-	defer e.vuMutex.Unlock()
-
-	l := int64(len(e.cancelers))
-	switch ***REMOVED***
-	case l < vus:
-		for i := int64(len(e.cancelers)); i < vus; i++ ***REMOVED***
-			vu, err := e.getVU()
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-
-			id := i + 1
-			if err := vu.Reconfigure(id); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-
-			ctx, cancel := context.WithCancel(e.ctx)
-			e.cancelers = append(e.cancelers, cancel)
-			go func() ***REMOVED***
-				e.runVU(ctx, id, vu)
-
-				e.vuMutex.Lock()
-				e.pool = append(e.pool, vu)
-				e.vuMutex.Unlock()
-			***REMOVED***()
-		***REMOVED***
-	case l > vus:
-		for _, cancel := range e.cancelers[vus+1:] ***REMOVED***
-			cancel()
-		***REMOVED***
-		e.cancelers = e.cancelers[:vus]
-	***REMOVED***
-
-	e.Status.ActiveVUs = null.IntFrom(int64(len(e.cancelers)))
-	e.Status.InactiveVUs = null.IntFrom(int64(len(e.pool)))
 
 	return nil
 ***REMOVED***
@@ -133,11 +97,72 @@ func (e *Engine) SetRunning(running bool) ***REMOVED***
 	e.Status.Running.Bool = running
 ***REMOVED***
 
+func (e *Engine) SetVUs(v int64) error ***REMOVED***
+	e.vuMutex.Lock()
+	defer e.vuMutex.Unlock()
+
+	if v > e.Status.VUsMax.Int64 ***REMOVED***
+		return ErrTooManyVUs
+	***REMOVED***
+
+	current := e.Status.VUs.Int64
+	for i := current; i < v; i++ ***REMOVED***
+		entry := e.vus[i]
+		if entry.Cancel != nil ***REMOVED***
+			panic(errors.New("ATTEMPTED TO RESCHEDULE RUNNING VU"))
+		***REMOVED***
+
+		ctx, cancel := context.WithCancel(e.ctx)
+		entry.Cancel = cancel
+
+		if err := entry.VU.Reconfigure(e.nextID); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		go e.runVU(ctx, e.nextID, entry.VU)
+		e.nextID++
+	***REMOVED***
+	for i := current - 1; i >= v; i-- ***REMOVED***
+		entry := e.vus[i]
+		entry.Cancel()
+		entry.Cancel = nil
+	***REMOVED***
+
+	e.Status.VUs.Int64 = v
+	return nil
+***REMOVED***
+
+func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
+	e.vuMutex.Lock()
+	defer e.vuMutex.Unlock()
+
+	if v < e.Status.VUs.Int64 ***REMOVED***
+		return ErrMaxTooLow
+	***REMOVED***
+
+	current := e.Status.VUsMax.Int64
+	if v > current ***REMOVED***
+		vus := e.vus
+		for i := current; i < v; i++ ***REMOVED***
+			vu, err := e.Runner.NewVU()
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			vus = append(vus, &vuEntry***REMOVED***VU: vu***REMOVED***)
+		***REMOVED***
+		e.vus = vus
+	***REMOVED*** else if v < current ***REMOVED***
+		e.vus = e.vus[:v]
+	***REMOVED***
+
+	e.Status.VUsMax.Int64 = v
+	return nil
+***REMOVED***
+
 func (e *Engine) reportInternalStats() ***REMOVED***
 	e.mMutex.Lock()
 	t := time.Now()
-	e.getSink(MetricActiveVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.cancelers))***REMOVED***)
-	e.getSink(MetricInactiveVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(len(e.pool))***REMOVED***)
+	e.getSink(MetricVUs).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(e.Status.VUs.Int64)***REMOVED***)
+	e.getSink(MetricVUsMax).Add(stats.Sample***REMOVED***Time: t, Tags: nil, Value: float64(e.Status.VUsMax.Int64)***REMOVED***)
 	e.mMutex.Unlock()
 ***REMOVED***
 
@@ -172,19 +197,6 @@ waitForPause:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-***REMOVED***
-
-// Returns a pooled VU if available, otherwise make a new one.
-func (e *Engine) getVU() (VU, error) ***REMOVED***
-	l := len(e.pool)
-	if l > 0 ***REMOVED***
-		vu := e.pool[l-1]
-		e.pool = e.pool[:l-1]
-		return vu, nil
-	***REMOVED***
-
-	log.Warn("More VUs requested than what was prepared; instantiation during tests is costly and may skew results!")
-	return e.Runner.NewVU()
 ***REMOVED***
 
 // Returns a value sink for a metric, created from the type if unavailable.

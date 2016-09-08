@@ -38,15 +38,14 @@ var commandRun = cli.Command***REMOVED***
 			Usage: "virtual users to simulate",
 			Value: 10,
 		***REMOVED***,
+		cli.Int64Flag***REMOVED***
+			Name:  "max, m",
+			Usage: "max number of virtual users, if more than --vus",
+		***REMOVED***,
 		cli.DurationFlag***REMOVED***
 			Name:  "duration, d",
 			Usage: "test duration, 0 to run until cancelled",
 			Value: 10 * time.Second,
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "prepare, p",
-			Usage: "VUs to prepare (but not start)",
-			Value: 0,
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
@@ -102,10 +101,12 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	duration := cc.Duration("duration")
 	vus := cc.Int64("vus")
-
-	prepared := cc.Int64("prepare")
-	if prepared == 0 ***REMOVED***
-		prepared = vus
+	max := cc.Int64("max")
+	if max == 0 ***REMOVED***
+		max = vus
+	***REMOVED***
+	if vus > max ***REMOVED***
+		return cli.NewExitError(lib.ErrTooManyVUs.Error(), 1)
 	***REMOVED***
 
 	quit := cc.Bool("quit")
@@ -120,7 +121,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Make the Engine
-	engine, err := lib.NewEngine(runner, prepared)
+	engine, err := lib.NewEngine(runner)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create the engine")
 		return err
@@ -148,7 +149,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 			log.Debug("Engine terminated")
 			wg.Done()
 		***REMOVED***()
-		log.WithField("prepared", prepared).Debug("Starting engine...")
+		log.Debug("Starting engine...")
 		if err := engine.Run(engineC); err != nil ***REMOVED***
 			log.WithError(err).Error("Engine Error")
 		***REMOVED***
@@ -178,16 +179,15 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		break
 	***REMOVED***
 
-	// Scale the test up to the desired VU count
-	if vus > 0 ***REMOVED***
-		log.WithField("vus", vus).Debug("Starting test...")
-		status := lib.Status***REMOVED***
-			Running:   null.BoolFrom(true),
-			ActiveVUs: null.IntFrom(vus),
-		***REMOVED***
-		if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
-			log.WithError(err).Error("Couldn't scale test")
-		***REMOVED***
+	// Start the test with the desired state
+	log.WithField("vus", vus).Debug("Starting test...")
+	status := lib.Status***REMOVED***
+		Running: null.BoolFrom(true),
+		VUs:     null.IntFrom(vus),
+		VUsMax:  null.IntFrom(max),
+	***REMOVED***
+	if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't scale test")
 	***REMOVED***
 
 	// Pause the test once the duration expires

@@ -81,7 +81,7 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	status, err := client.UpdateStatus(lib.Status***REMOVED***ActiveVUs: null.IntFrom(vus)***REMOVED***)
+	status, err := client.UpdateStatus(lib.Status***REMOVED***VUs: null.IntFrom(vus)***REMOVED***)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Error")
 		return err

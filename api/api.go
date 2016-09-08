@@ -66,9 +66,17 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 				return
 			***REMOVED***
 
-			if status.ActiveVUs.Valid && status.ActiveVUs != s.Engine.Status.ActiveVUs ***REMOVED***
-				s.Engine.Status.ActiveVUs = status.ActiveVUs
-				s.Engine.Scale(status.ActiveVUs.Int64)
+			if status.VUsMax.Valid ***REMOVED***
+				if err := s.Engine.SetMaxVUs(status.VUsMax.Int64); err != nil ***REMOVED***
+					c.AbortWithError(http.StatusInternalServerError, err)
+					return
+				***REMOVED***
+			***REMOVED***
+			if status.VUs.Valid ***REMOVED***
+				if err := s.Engine.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
+					c.AbortWithError(http.StatusInternalServerError, err)
+					return
+				***REMOVED***
 			***REMOVED***
 			if status.Running.Valid ***REMOVED***
 				s.Engine.SetRunning(status.Running.Bool)
