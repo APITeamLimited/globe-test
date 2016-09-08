@@ -6,12 +6,19 @@ export default Ember.Controller.extend(***REMOVED***
   running: Ember.computed.alias('model.running'),
 
   actions: ***REMOVED***
-    abort() ***REMOVED***
+    pause() ***REMOVED***
       var model = this.get('model');
       model.set('running', false);
-      return model.save().then(() => ***REMOVED***
-        this.get('flashMessages').success("Test stopped");
-      ***REMOVED***, (err) => ***REMOVED***
+      return model.save().catch((err) => ***REMOVED***
+        for (var e of err.errors) ***REMOVED***
+          this.get('flashMessages').danger(e.title);
+        ***REMOVED***
+      ***REMOVED***);
+    ***REMOVED***,
+    resume() ***REMOVED***
+      var model = this.get('model');
+      model.set('running', true);
+      return model.save().catch((err) => ***REMOVED***
         for (var e of err.errors) ***REMOVED***
           this.get('flashMessages').danger(e.title);
         ***REMOVED***

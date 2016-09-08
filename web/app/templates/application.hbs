@@ -5,7 +5,12 @@
     </div>
     <div class="collapse navbar-collapse" id="navbar-collapse-1">
       <form class="navbar-form navbar-right">
-        <button class="btn btn-danger ***REMOVED******REMOVED***unless running 'disabled'***REMOVED******REMOVED***" ***REMOVED******REMOVED***action 'abort'***REMOVED******REMOVED***>***REMOVED******REMOVED***if running "Abort" "Not Running"***REMOVED******REMOVED***</button>
+      ***REMOVED******REMOVED***#if running***REMOVED******REMOVED***
+        <button class="btn btn-danger" ***REMOVED******REMOVED***action 'pause'***REMOVED******REMOVED***>Pause</button>
+      ***REMOVED******REMOVED***/if***REMOVED******REMOVED***
+      ***REMOVED******REMOVED***#unless running***REMOVED******REMOVED***
+        <button class="btn btn-success" ***REMOVED******REMOVED***action 'resume'***REMOVED******REMOVED***>Resume</button>
+      ***REMOVED******REMOVED***/unless***REMOVED******REMOVED***
       </form>
     </div>
   </div>
