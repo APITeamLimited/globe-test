@@ -2,6 +2,7 @@ package lib
 
 import (
 	"gopkg.in/guregu/null.v3"
+	"time"
 )
 
 type Status struct ***REMOVED***
@@ -31,5 +32,21 @@ func (i Info) GetName() string ***REMOVED***
 ***REMOVED***
 
 func (i Info) GetID() string ***REMOVED***
+	return "default"
+***REMOVED***
+
+type Options struct ***REMOVED***
+	VUs      int           `json:"vus"`
+	VUsMax   int           `json:"vus-max"`
+	Duration time.Duration `json:"duration"`
+
+	Ext map[string]interface***REMOVED******REMOVED*** `json:"ext"`
+***REMOVED***
+
+func (o Options) GetName() string ***REMOVED***
+	return "options"
+***REMOVED***
+
+func (o Options) GetID() string ***REMOVED***
 	return "default"
 ***REMOVED***

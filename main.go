@@ -19,6 +19,7 @@ func main() ***REMOVED***
 	app.Version = "0.2.0"
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
+		commandInspect,
 		commandStatus,
 		commandScale,
 		commandCap,

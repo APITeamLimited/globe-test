@@ -5,6 +5,7 @@ import (
 	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/api"
+	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/simple"
 	"gopkg.in/guregu/null.v3"
@@ -74,6 +75,34 @@ var commandRun = cli.Command***REMOVED***
    
    For ease of use, you may also pass initial status parameters (vus, max,
    duration) to 'run', which will be applied through a normal API call.`,
+***REMOVED***
+
+var commandInspect = cli.Command***REMOVED***
+	Name:      "inspect",
+	Aliases:   []string***REMOVED***"i"***REMOVED***,
+	Usage:     "Merges and prints test configuration",
+	ArgsUsage: "url|filename",
+	Flags: []cli.Flag***REMOVED***
+		cli.StringFlag***REMOVED***
+			Name:  "type, t",
+			Usage: "input type, one of: auto, url, js",
+			Value: "auto",
+		***REMOVED***,
+		cli.Int64Flag***REMOVED***
+			Name:  "vus, u",
+			Usage: "override vus",
+			Value: 10,
+		***REMOVED***,
+		cli.Int64Flag***REMOVED***
+			Name:  "max, m",
+			Usage: "override vus-max",
+		***REMOVED***,
+		cli.DurationFlag***REMOVED***
+			Name:  "duration, d",
+			Usage: "override duration",
+		***REMOVED***,
+	***REMOVED***,
+	Action: actionInspect,
 ***REMOVED***
 
 func guessType(filename string) string ***REMOVED***
@@ -243,4 +272,32 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	wg.Wait()
 
 	return nil
+***REMOVED***
+
+func actionInspect(cc *cli.Context) error ***REMOVED***
+	args := cc.Args()
+	if len(args) != 1 ***REMOVED***
+		return cli.NewExitError("Wrong number of arguments!", 1)
+	***REMOVED***
+	filename := args[0]
+
+	t := cc.String("type")
+	if t == TypeAuto ***REMOVED***
+		t = guessType(filename)
+	***REMOVED***
+
+	var opts lib.Options
+	switch t ***REMOVED***
+	case TypeJS:
+		r, err := js.New()
+		if err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+
+		if _, err := r.Load(filename); err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+	***REMOVED***
+
+	return dumpYAML(opts)
 ***REMOVED***
