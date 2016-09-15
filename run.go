@@ -116,18 +116,31 @@ func guessType(filename string) string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
+func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***REMOVED***
 	if t == TypeAuto ***REMOVED***
 		t = guessType(filename)
 	***REMOVED***
 
 	switch t ***REMOVED***
-	case TypeAuto:
-		return makeRunner(filename, t)
 	case "":
 		return nil, ErrUnknownType
 	case TypeURL:
 		return simple.New(filename)
+	case TypeJS:
+		rt, err := js.New()
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+
+		exports, err := rt.Load(filename)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+
+		if err := rt.ExtractOptions(exports, opts); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return &js.Runner***REMOVED***Runtime: rt, Exports: exports***REMOVED***, nil
 	default:
 		return nil, ErrInvalidType
 	***REMOVED***
@@ -141,29 +154,41 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError("Wrong number of arguments!", 1)
 	***REMOVED***
 
-	// Collect arguments
-	addr := cc.GlobalString("address")
-
-	paused := cc.Bool("paused")
-	duration := cc.Duration("duration")
-	vus := cc.Int64("vus")
-	max := cc.Int64("max")
-	if max == 0 ***REMOVED***
-		max = vus
-	***REMOVED***
-	if vus > max ***REMOVED***
-		return cli.NewExitError(lib.ErrTooManyVUs.Error(), 1)
-	***REMOVED***
-
-	quit := cc.Bool("quit")
-
 	// Make the Runner
 	filename := args[0]
 	runnerType := cc.String("type")
-	runner, err := makeRunner(filename, runnerType)
+	opts := lib.Options***REMOVED******REMOVED***
+	runner, err := makeRunner(filename, runnerType, &opts)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 		return err
+	***REMOVED***
+
+	// Collect arguments
+	addr := cc.GlobalString("address")
+	paused := cc.Bool("paused")
+	quit := cc.Bool("quit")
+
+	duration := opts.Duration
+	if cc.IsSet("duration") ***REMOVED***
+		duration = cc.Duration("duration")
+	***REMOVED***
+
+	vus := opts.VUs
+	if cc.IsSet("vus") ***REMOVED***
+		vus = cc.Int64("vus")
+	***REMOVED***
+
+	max := opts.VUsMax
+	if cc.IsSet("max") ***REMOVED***
+		max = cc.Int64("max")
+	***REMOVED***
+	if max == 0 ***REMOVED***
+		max = vus
+	***REMOVED***
+
+	if vus > max ***REMOVED***
+		return cli.NewExitError(lib.ErrTooManyVUs.Error(), 1)
 	***REMOVED***
 
 	// Make the Engine
