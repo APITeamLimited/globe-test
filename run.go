@@ -294,7 +294,11 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 
-		if _, err := r.Load(filename); err != nil ***REMOVED***
+		exports, err := r.Load(filename)
+		if err != nil ***REMOVED***
+			return cli.NewExitError(err.Error(), 1)
+		***REMOVED***
+		if err := r.ExtractOptions(exports, &opts); err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 	***REMOVED***

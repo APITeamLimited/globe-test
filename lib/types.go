@@ -36,11 +36,9 @@ func (i Info) GetID() string ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
-	VUs      int           `json:"vus"`
-	VUsMax   int           `json:"vus-max"`
+	VUs      int64         `json:"vus"`
+	VUsMax   int64         `json:"vus-max"`
 	Duration time.Duration `json:"duration"`
-
-	Ext map[string]interface***REMOVED******REMOVED*** `json:"ext"`
 ***REMOVED***
 
 func (o Options) GetName() string ***REMOVED***

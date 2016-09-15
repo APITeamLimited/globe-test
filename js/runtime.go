@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
-	// "github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/lib"
 	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
@@ -59,6 +60,52 @@ func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
 	defer r.VM.Set("require", nil)
 
 	return r.loadFile(filename)
+***REMOVED***
+
+func (r *Runtime) ExtractOptions(exports otto.Value, opts *lib.Options) error ***REMOVED***
+	expObj := exports.Object()
+	if expObj == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	v, err := expObj.Get("options")
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	obj := v.Object()
+	if obj == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	for _, key := range obj.Keys() ***REMOVED***
+		val, err := obj.Get(key)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		switch key ***REMOVED***
+		case "vus":
+			vus, err := val.ToInteger()
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			opts.VUs = vus
+		case "vusMax":
+			vusMax, err := val.ToInteger()
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			opts.VUsMax = vusMax
+		case "duration":
+			seconds, err := val.ToFloat()
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			opts.Duration = time.Duration(seconds * float64(time.Second))
+		***REMOVED***
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
