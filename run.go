@@ -140,7 +140,7 @@ func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***RE
 		if err := rt.ExtractOptions(exports, opts); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return &js.Runner***REMOVED***Runtime: rt, Exports: exports***REMOVED***, nil
+		return js.NewRunner(rt, exports)
 	default:
 		return nil, ErrInvalidType
 	***REMOVED***
