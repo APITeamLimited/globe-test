@@ -141,39 +141,9 @@ func (u *VU) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 				panic(err)
 			***REMOVED***
 
-			var result bool
-
-		typeSwitchLoop:
-			for ***REMOVED***
-				switch ***REMOVED***
-				case val.IsFunction():
-					val, err = val.Call(otto.UndefinedValue(), arg0)
-					if err != nil ***REMOVED***
-						panic(err)
-					***REMOVED***
-					continue typeSwitchLoop
-				case val.IsUndefined() || val.IsNull():
-					result = false
-				case val.IsBoolean():
-					b, err := val.ToBoolean()
-					if err != nil ***REMOVED***
-						panic(err)
-					***REMOVED***
-					result = b
-				case val.IsNumber():
-					f, err := val.ToFloat()
-					if err != nil ***REMOVED***
-						panic(err)
-					***REMOVED***
-					result = (f != 0)
-				case val.IsString():
-					s, err := val.ToString()
-					if err != nil ***REMOVED***
-						panic(err)
-					***REMOVED***
-					result = (s != "")
-				***REMOVED***
-				break
+			result, err := Test(val, arg0)
+			if err != nil ***REMOVED***
+				panic(err)
 			***REMOVED***
 
 			test, _ := u.group.Test(name, &(u.runner.testIDCounter))
@@ -185,4 +155,35 @@ func (u *VU) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return otto.UndefinedValue()
+***REMOVED***
+
+func Test(val, arg0 otto.Value) (bool, error) ***REMOVED***
+	switch ***REMOVED***
+	case val.IsFunction():
+		val, err := val.Call(otto.UndefinedValue(), arg0)
+		if err != nil ***REMOVED***
+			return false, err
+		***REMOVED***
+		return Test(val, arg0)
+	case val.IsBoolean():
+		b, err := val.ToBoolean()
+		if err != nil ***REMOVED***
+			return false, err
+		***REMOVED***
+		return b, nil
+	case val.IsNumber():
+		f, err := val.ToFloat()
+		if err != nil ***REMOVED***
+			return false, err
+		***REMOVED***
+		return f != 0, nil
+	case val.IsString():
+		s, err := val.ToString()
+		if err != nil ***REMOVED***
+			return false, err
+		***REMOVED***
+		return s != "", nil
+	default:
+		return false, nil
+	***REMOVED***
 ***REMOVED***
