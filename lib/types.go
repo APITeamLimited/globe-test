@@ -2,6 +2,7 @@ package lib
 
 import (
 	"gopkg.in/guregu/null.v3"
+	"sync"
 	"time"
 )
 
@@ -47,4 +48,20 @@ func (o Options) GetName() string ***REMOVED***
 
 func (o Options) GetID() string ***REMOVED***
 	return "default"
+***REMOVED***
+
+type Group struct ***REMOVED***
+	Parent *Group
+	Name   string
+	Tests  map[string]*Test
+
+	TestMutex sync.Mutex
+***REMOVED***
+
+type Test struct ***REMOVED***
+	Group *Group
+	Name  string
+
+	Passes int64
+	Fails  int64
 ***REMOVED***
