@@ -164,6 +164,36 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 			***REMOVED***
 			c.AbortWithError(404, errors.New("Group not found"))
 		***REMOVED***)
+		v1.GET("/tests", func(c *gin.Context) ***REMOVED***
+			data, err := jsonapi.Marshal(s.Engine.Runner.GetTests())
+			if err != nil ***REMOVED***
+				c.AbortWithError(500, err)
+				return
+			***REMOVED***
+			c.Data(200, contentType, data)
+		***REMOVED***)
+		v1.GET("/tests/:id", func(c *gin.Context) ***REMOVED***
+			id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+			if err != nil ***REMOVED***
+				c.AbortWithError(http.StatusBadRequest, err)
+				return
+			***REMOVED***
+
+			for _, test := range s.Engine.Runner.GetTests() ***REMOVED***
+				if test.ID != id ***REMOVED***
+					continue
+				***REMOVED***
+
+				data, err := jsonapi.Marshal(test)
+				if err != nil ***REMOVED***
+					c.AbortWithError(http.StatusInternalServerError, err)
+					return
+				***REMOVED***
+				c.Data(200, contentType, data)
+				return
+			***REMOVED***
+			c.AbortWithError(404, errors.New("Group not found"))
+		***REMOVED***)
 	***REMOVED***
 	router.NoRoute(func(c *gin.Context) ***REMOVED***
 		c.JSON(404, gin.H***REMOVED***"error": "Not Found"***REMOVED***)

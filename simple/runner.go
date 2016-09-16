@@ -77,6 +77,10 @@ func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
 	return []*lib.Group***REMOVED******REMOVED***
 ***REMOVED***
 
+func (r *Runner) GetTests() []*lib.Test ***REMOVED***
+	return []*lib.Test***REMOVED******REMOVED***
+***REMOVED***
+
 type VU struct ***REMOVED***
 	Runner   *Runner
 	ID       int64

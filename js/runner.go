@@ -20,10 +20,12 @@ type Runner struct ***REMOVED***
 	Runtime      *Runtime
 	DefaultGroup *lib.Group
 	Groups       []*lib.Group
+	Tests        []*lib.Test
 
 	groupIDCounter int64
-	testIDCounter  int64
 	groupsMutex    sync.Mutex
+	testIDCounter  int64
+	testsMutex     sync.Mutex
 ***REMOVED***
 
 func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
@@ -74,6 +76,10 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
 	return r.Groups
+***REMOVED***
+
+func (r *Runner) GetTests() []*lib.Test ***REMOVED***
+	return r.Tests
 ***REMOVED***
 
 type VU struct ***REMOVED***
@@ -151,7 +157,13 @@ func (u *VU) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 				panic(err)
 			***REMOVED***
 
-			test, _ := u.group.Test(name, &(u.runner.testIDCounter))
+			test, ok := u.group.Test(name, &(u.runner.testIDCounter))
+			if !ok ***REMOVED***
+				u.runner.testsMutex.Lock()
+				u.runner.Tests = append(u.runner.Tests, test)
+				u.runner.testsMutex.Unlock()
+			***REMOVED***
+
 			if result ***REMOVED***
 				atomic.AddInt64(&(test.Passes), 1)
 			***REMOVED*** else ***REMOVED***
