@@ -10,6 +10,9 @@ type Runner interface ***REMOVED***
 	// Creates a new VU. As much as possible should be precomputed here, to allow a pool
 	// of prepared VUs to be used to quickly scale up and down.
 	NewVU() (VU, error)
+
+	// Returns all known test groups, if any.
+	GetGroups() []*Group
 ***REMOVED***
 
 // A VU is a Virtual User.

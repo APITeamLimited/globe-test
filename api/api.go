@@ -13,6 +13,7 @@ import (
 	"gopkg.in/tylerb/graceful.v1"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	// "strconv"
 	"time"
 )
@@ -132,6 +133,36 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 				return
 			***REMOVED***
 			c.AbortWithError(404, errors.New("Metric not found"))
+		***REMOVED***)
+		v1.GET("/groups", func(c *gin.Context) ***REMOVED***
+			data, err := jsonapi.Marshal(s.Engine.Runner.GetGroups())
+			if err != nil ***REMOVED***
+				c.AbortWithError(500, err)
+				return
+			***REMOVED***
+			c.Data(200, contentType, data)
+		***REMOVED***)
+		v1.GET("/groups/:id", func(c *gin.Context) ***REMOVED***
+			id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+			if err != nil ***REMOVED***
+				c.AbortWithError(http.StatusBadRequest, err)
+				return
+			***REMOVED***
+
+			for _, group := range s.Engine.Runner.GetGroups() ***REMOVED***
+				if group.ID != id ***REMOVED***
+					continue
+				***REMOVED***
+
+				data, err := jsonapi.Marshal(group)
+				if err != nil ***REMOVED***
+					c.AbortWithError(http.StatusInternalServerError, err)
+					return
+				***REMOVED***
+				c.Data(200, contentType, data)
+				return
+			***REMOVED***
+			c.AbortWithError(404, errors.New("Group not found"))
 		***REMOVED***)
 	***REMOVED***
 	router.NoRoute(func(c *gin.Context) ***REMOVED***

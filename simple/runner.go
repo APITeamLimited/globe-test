@@ -29,6 +29,8 @@ var (
 type Runner struct ***REMOVED***
 	URL       *url.URL
 	Transport *http.Transport
+
+	defaultGroup *lib.Group
 ***REMOVED***
 
 func New(rawurl string) (*Runner, error) ***REMOVED***
@@ -49,6 +51,7 @@ func New(rawurl string) (*Runner, error) ***REMOVED***
 			MaxIdleConns:        math.MaxInt32,
 			MaxIdleConnsPerHost: math.MaxInt32,
 		***REMOVED***,
+		defaultGroup: &lib.Group***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -68,6 +71,10 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		tracer: tracer,
 		cTrace: tracer.Trace(),
 	***REMOVED***, nil
+***REMOVED***
+
+func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
+	return []*lib.Group***REMOVED******REMOVED***
 ***REMOVED***
 
 type VU struct ***REMOVED***
