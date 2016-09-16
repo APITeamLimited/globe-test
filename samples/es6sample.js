@@ -1,4 +1,4 @@
-import ***REMOVED*** group, test ***REMOVED*** from "speedboat";
+import ***REMOVED*** group, test, sleep ***REMOVED*** from "speedboat";
 
 export let options = ***REMOVED***
 	vus: 5,
@@ -10,4 +10,5 @@ export default function() ***REMOVED***
 			"random value is < 0.5": (v) => v < 0.5
 		***REMOVED***);
 	***REMOVED***);
+	sleep(10 * Math.random());
 ***REMOVED***;

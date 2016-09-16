@@ -3,6 +3,7 @@ package js
 import (
 	"context"
 	"errors"
+	"time"
 	// log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
@@ -99,6 +100,10 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
 	return nil
+***REMOVED***
+
+func (u *VU) Sleep(secs float64) ***REMOVED***
+	time.Sleep(time.Duration(secs * float64(time.Second)))
 ***REMOVED***
 
 func (u *VU) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
