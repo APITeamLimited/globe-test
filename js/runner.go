@@ -3,13 +3,11 @@ package js
 import (
 	"context"
 	"errors"
-	"time"
 	// log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
 	"sync"
-	"sync/atomic"
 )
 
 var ErrDefaultExport = errors.New("you must export a 'default' function")
@@ -67,7 +65,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***
 	u.callable = callable
 
-	if err := u.vm.Set("__vu_impl__", u); err != nil ***REMOVED***
+	if err := u.vm.Set("__jsapi__", JSAPI***REMOVED***u***REMOVED***); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -106,101 +104,4 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
 	return nil
-***REMOVED***
-
-func (u *VU) Sleep(secs float64) ***REMOVED***
-	time.Sleep(time.Duration(secs * float64(time.Second)))
-***REMOVED***
-
-func (u *VU) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
-	name := call.Argument(0).String()
-	group, ok := u.group.Group(name, &(u.runner.groupIDCounter))
-	if !ok ***REMOVED***
-		u.runner.groupsMutex.Lock()
-		u.runner.Groups = append(u.runner.Groups, group)
-		u.runner.groupsMutex.Unlock()
-	***REMOVED***
-	u.group = group
-	defer func() ***REMOVED*** u.group = group.Parent ***REMOVED***()
-
-	fn := call.Argument(1)
-	if !fn.IsFunction() ***REMOVED***
-		panic(call.Otto.MakeSyntaxError("fn must be a function"))
-	***REMOVED***
-
-	val, err := fn.Call(call.This)
-	if err != nil ***REMOVED***
-		panic(err)
-	***REMOVED***
-	return val
-***REMOVED***
-
-func (u *VU) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
-	if len(call.ArgumentList) < 2 ***REMOVED***
-		return otto.UndefinedValue()
-	***REMOVED***
-
-	arg0 := call.Argument(0)
-	for _, v := range call.ArgumentList[1:] ***REMOVED***
-		obj := v.Object()
-		if obj == nil ***REMOVED***
-			panic(call.Otto.MakeTypeError("tests must be objects"))
-		***REMOVED***
-		for _, name := range obj.Keys() ***REMOVED***
-			val, err := obj.Get(name)
-			if err != nil ***REMOVED***
-				panic(err)
-			***REMOVED***
-
-			result, err := Test(val, arg0)
-			if err != nil ***REMOVED***
-				panic(err)
-			***REMOVED***
-
-			test, ok := u.group.Test(name, &(u.runner.testIDCounter))
-			if !ok ***REMOVED***
-				u.runner.testsMutex.Lock()
-				u.runner.Tests = append(u.runner.Tests, test)
-				u.runner.testsMutex.Unlock()
-			***REMOVED***
-
-			if result ***REMOVED***
-				atomic.AddInt64(&(test.Passes), 1)
-			***REMOVED*** else ***REMOVED***
-				atomic.AddInt64(&(test.Fails), 1)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	return otto.UndefinedValue()
-***REMOVED***
-
-func Test(val, arg0 otto.Value) (bool, error) ***REMOVED***
-	switch ***REMOVED***
-	case val.IsFunction():
-		val, err := val.Call(otto.UndefinedValue(), arg0)
-		if err != nil ***REMOVED***
-			return false, err
-		***REMOVED***
-		return Test(val, arg0)
-	case val.IsBoolean():
-		b, err := val.ToBoolean()
-		if err != nil ***REMOVED***
-			return false, err
-		***REMOVED***
-		return b, nil
-	case val.IsNumber():
-		f, err := val.ToFloat()
-		if err != nil ***REMOVED***
-			return false, err
-		***REMOVED***
-		return f != 0, nil
-	case val.IsString():
-		s, err := val.ToString()
-		if err != nil ***REMOVED***
-			return false, err
-		***REMOVED***
-		return s != "", nil
-	default:
-		return false, nil
-	***REMOVED***
 ***REMOVED***
