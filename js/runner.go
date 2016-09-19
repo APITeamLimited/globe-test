@@ -3,11 +3,15 @@ package js
 import (
 	"context"
 	"errors"
+	"net/http"
 	// log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
+	"math"
+	"net"
 	"sync"
+	"time"
 )
 
 var ErrDefaultExport = errors.New("you must export a 'default' function")
@@ -19,6 +23,8 @@ type Runner struct ***REMOVED***
 	DefaultGroup *lib.Group
 	Groups       []*lib.Group
 	Tests        []*lib.Test
+
+	HTTPTransport *http.Transport
 
 	groupIDCounter int64
 	groupsMutex    sync.Mutex
@@ -45,7 +51,19 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 		return nil, err
 	***REMOVED***
 
-	r := &Runner***REMOVED***Runtime: runtime***REMOVED***
+	r := &Runner***REMOVED***
+		Runtime: runtime,
+		HTTPTransport: &http.Transport***REMOVED***
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer***REMOVED***
+				Timeout:   10 * time.Second,
+				KeepAlive: 60 * time.Second,
+				DualStack: true,
+			***REMOVED***).DialContext,
+			MaxIdleConns:        math.MaxInt32,
+			MaxIdleConnsPerHost: math.MaxInt32,
+		***REMOVED***,
+	***REMOVED***
 	r.DefaultGroup = lib.NewGroup("", nil, nil)
 	r.Groups = []*lib.Group***REMOVED***r.DefaultGroup***REMOVED***
 
@@ -56,7 +74,12 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	u := &VU***REMOVED***
 		runner: r,
 		vm:     r.Runtime.VM.Copy(),
-		group:  r.DefaultGroup,
+
+		HTTPClient: &http.Client***REMOVED***
+			Transport: r.HTTPTransport,
+		***REMOVED***,
+
+		group: r.DefaultGroup,
 	***REMOVED***
 
 	callable, err := u.vm.Get(entrypoint)
@@ -86,6 +109,8 @@ type VU struct ***REMOVED***
 	runner   *Runner
 	vm       *otto.Otto
 	callable otto.Value
+
+	HTTPClient *http.Client
 
 	ctx   context.Context
 	group *lib.Group
