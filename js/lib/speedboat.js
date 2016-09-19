@@ -13,3 +13,9 @@ export function test(name, ...sets) ***REMOVED***
 export function sleep(secs) ***REMOVED***
 	__jsapi__.Sleep(secs);
 ***REMOVED***
+
+export default ***REMOVED***
+	group: group,
+	test: test,
+	sleep: sleep,
+***REMOVED***;
