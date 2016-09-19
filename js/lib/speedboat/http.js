@@ -30,7 +30,7 @@ export function put(url, body, params) ***REMOVED***
 	return request("PUT", url, body, params);
 ***REMOVED***;
 
-export function delete_(url, body, params) ***REMOVED***
+export function del(url, body, params) ***REMOVED***
 	return request("DELETE", url, body, params);
 ***REMOVED***;
 
@@ -43,6 +43,6 @@ export default ***REMOVED***
 	get: get,
 	post: post,
 	put: put,
-	delete_: delete_,
+	del: del,
 	patch: patch,
 ***REMOVED***;
