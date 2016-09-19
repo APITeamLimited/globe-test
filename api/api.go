@@ -4,21 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/manyminds/api2go"
 	"github.com/manyminds/api2go/jsonapi"
 	"gopkg.in/tylerb/graceful.v1"
 	"io/ioutil"
+	"mime"
 	"net/http"
+	"path"
 	"strconv"
 	// "strconv"
 	"time"
 )
 
-var contentType = "application/vnd.api+json"
+var (
+	contentType = "application/vnd.api+json"
+	webBox      = rice.MustFindBox("../web/dist")
+)
 
 type Server struct ***REMOVED***
 	Engine *lib.Engine
@@ -28,13 +33,18 @@ type Server struct ***REMOVED***
 // Run runs the API server.
 // I'm not sure how idiomatic this is, probably not particularly...
 func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
+	indexData, err := webBox.Bytes("index.html")
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't load index.html; web UI unavailable")
+	***REMOVED***
+
 	router := gin.New()
 
 	router.Use(gin.Recovery())
 	router.Use(s.logRequestsMiddleware)
 	router.Use(s.jsonErrorsMiddleware)
 
-	router.Use(static.Serve("/", static.LocalFile("web/dist", true)))
+	// router.Use(static.Serve("/", static.LocalFile("web/dist", true)))
 	router.GET("/ping", func(c *gin.Context) ***REMOVED***
 		c.Data(http.StatusNoContent, "", nil)
 	***REMOVED***)
@@ -196,7 +206,23 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 	router.NoRoute(func(c *gin.Context) ***REMOVED***
-		c.JSON(404, gin.H***REMOVED***"error": "Not Found"***REMOVED***)
+		requestPath := c.Request.URL.Path
+		bytes, err := webBox.Bytes(requestPath)
+		if err != nil ***REMOVED***
+			log.WithError(err).Debug("Falling back to index.html")
+			if indexData == nil ***REMOVED***
+				c.String(404, "Web UI is unavailable - see console output.")
+				return
+			***REMOVED***
+			c.Data(200, "text/html; charset=utf-8", indexData)
+			return
+		***REMOVED***
+
+		mimeType := mime.TypeByExtension(path.Ext(requestPath))
+		if mimeType == "" ***REMOVED***
+			mimeType = "application/octet-stream"
+		***REMOVED***
+		c.Data(200, mimeType, bytes)
 	***REMOVED***)
 
 	srv := graceful.Server***REMOVED***NoSignalHandling: true, Server: &http.Server***REMOVED***Addr: addr, Handler: router***REMOVED******REMOVED***
