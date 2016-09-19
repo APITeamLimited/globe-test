@@ -34,3 +34,10 @@ func Test(val, arg0 otto.Value) (bool, error) ***REMOVED***
 		return false, nil
 	***REMOVED***
 ***REMOVED***
+
+func throw(vm *otto.Otto, v interface***REMOVED******REMOVED***) ***REMOVED***
+	if err, ok := v.(error); ok ***REMOVED***
+		panic(vm.MakeCustomError("Error", err.Error()))
+	***REMOVED***
+	panic(v)
+***REMOVED***
