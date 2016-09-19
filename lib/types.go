@@ -81,7 +81,8 @@ func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
 ***REMOVED***
 
 func (g *Group) Group(name string, idCounter *int64) (*Group, bool) ***REMOVED***
-	group, ok := g.Groups[name]
+	snapshot := g.Groups
+	group, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.groupMutex.Lock()
 		group, ok = g.Groups[name]
@@ -95,7 +96,8 @@ func (g *Group) Group(name string, idCounter *int64) (*Group, bool) ***REMOVED**
 ***REMOVED***
 
 func (g *Group) Test(name string, idCounter *int64) (*Test, bool) ***REMOVED***
-	test, ok := g.Tests[name]
+	snapshot := g.Tests
+	test, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.testMutex.Lock()
 		test, ok = g.Tests[name]
