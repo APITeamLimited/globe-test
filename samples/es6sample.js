@@ -15,9 +15,14 @@ export default function() ***REMOVED***
 		***REMOVED***);
 
 		group("http", function() ***REMOVED***
-			test(http.get("http://localhost:8080"), ***REMOVED***
-				"status is 200": (res) => res.status === 200,
+			let res = http.get("https://httpbin.org/get", null, ***REMOVED***
+				headers: ***REMOVED*** "X-Test": "abc123" ***REMOVED***,
 			***REMOVED***);
+			test(res, ***REMOVED***
+				"status is 200": (res) => res.status === 200,
+				"X-Test header is correct": (res) => res.json().headers['X-Test'] === "abc123",
+			***REMOVED***);
+			// console.log(res.body);
 		***REMOVED***);
 
 		group("nested", function() ***REMOVED***
