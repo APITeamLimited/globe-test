@@ -17,7 +17,10 @@ import (
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
 
-var libBox = rice.MustFindBox("lib")
+var (
+	libBox      = rice.MustFindBox("lib")
+	polyfillBox = rice.MustFindBox("node_modules/babel-polyfill")
+)
 
 type Runtime struct ***REMOVED***
 	VM      *otto.Otto
@@ -32,8 +35,22 @@ func New() (*Runtime, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
+	vm := otto.New()
+
+	polyfillJS, err := polyfillBox.String("dist/polyfill.js")
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	polyfill, err := vm.Compile("polyfill.js", polyfillJS)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if _, err := vm.Run(polyfill); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return &Runtime***REMOVED***
-		VM:      otto.New(),
+		VM:      vm,
 		Root:    wd,
 		Exports: make(map[string]otto.Value),
 		Lib:     make(map[string]otto.Value),
