@@ -14,7 +14,7 @@ export default function() ***REMOVED***
 			"random value is < 0.5": (v) => v < 0.5
 		***REMOVED***);
 
-		group("http", function() ***REMOVED***
+		group("json", function() ***REMOVED***
 			let res = http.get("https://httpbin.org/get", null, ***REMOVED***
 				headers: ***REMOVED*** "X-Test": "abc123" ***REMOVED***,
 			***REMOVED***);
@@ -23,6 +23,13 @@ export default function() ***REMOVED***
 				"X-Test header is correct": (res) => res.json().headers['X-Test'] === "abc123",
 			***REMOVED***);
 			// console.log(res.body);
+		***REMOVED***);
+
+		group("html", function() ***REMOVED***
+			test(http.get("http://test.loadimpact.com/"), ***REMOVED***
+				"status is 200": (res) => res.status === 200,
+				"welcome message is correct": (res) => res.html("h2").text() === "Welcome to the LoadImpact.com demo site!",
+			***REMOVED***);
 		***REMOVED***);
 
 		group("nested", function() ***REMOVED***

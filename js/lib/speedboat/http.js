@@ -1,3 +1,5 @@
+import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+
 export class Response ***REMOVED***
 	constructor(data) ***REMOVED***
 		Object.assign(this, data);
@@ -8,6 +10,16 @@ export class Response ***REMOVED***
 			this._json = JSON.parse(this.body);
 		***REMOVED***
 		return this._json;
+	***REMOVED***
+
+	html(sel) ***REMOVED***
+		if (!this._html) ***REMOVED***
+			this._html = parseHTML(this.body);
+		***REMOVED***
+		if (sel) ***REMOVED***
+			return this._html.find(sel);
+		***REMOVED***
+		return this._html;
 	***REMOVED***
 ***REMOVED***
 
