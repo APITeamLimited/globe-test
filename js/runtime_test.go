@@ -1,8 +1,10 @@
 package js
 
 import (
+	"github.com/loadimpact/speedboat/lib"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) ***REMOVED***
@@ -27,5 +29,49 @@ func TestLoad(t *testing.T) ***REMOVED***
 		`))
 		assert.NoError(t, err)
 		assert.Contains(t, r.Lib, "speedboat.js")
+	***REMOVED***)
+***REMOVED***
+
+func TestExtractOptions(t *testing.T) ***REMOVED***
+	r, err := New()
+	assert.NoError(t, err)
+
+	t.Run("nothing", func(t *testing.T) ***REMOVED***
+		exp, err := r.load("test.js", []byte(``))
+		assert.NoError(t, err)
+
+		var opts lib.Options
+		assert.NoError(t, r.ExtractOptions(exp, &opts))
+	***REMOVED***)
+
+	t.Run("vus", func(t *testing.T) ***REMOVED***
+		exp, err := r.load("test.js", []byte(`
+			export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+		`))
+		assert.NoError(t, err)
+
+		var opts lib.Options
+		assert.NoError(t, r.ExtractOptions(exp, &opts))
+		assert.Equal(t, int64(12345), opts.VUs)
+	***REMOVED***)
+	t.Run("vusMax", func(t *testing.T) ***REMOVED***
+		exp, err := r.load("test.js", []byte(`
+			export let options = ***REMOVED*** vusMax: 12345 ***REMOVED***;
+		`))
+		assert.NoError(t, err)
+
+		var opts lib.Options
+		assert.NoError(t, r.ExtractOptions(exp, &opts))
+		assert.Equal(t, int64(12345), opts.VUsMax)
+	***REMOVED***)
+	t.Run("duration", func(t *testing.T) ***REMOVED***
+		exp, err := r.load("test.js", []byte(`
+			export let options = ***REMOVED*** duration: 120 ***REMOVED***;
+		`))
+		assert.NoError(t, err)
+
+		var opts lib.Options
+		assert.NoError(t, r.ExtractOptions(exp, &opts))
+		assert.Equal(t, 120*time.Second, opts.Duration)
 	***REMOVED***)
 ***REMOVED***
