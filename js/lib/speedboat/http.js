@@ -1,19 +1,20 @@
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
-	if (typeof body === "object") ***REMOVED***
-		let formstring = "";
-		for (let entry of body) ***REMOVED***
-			if (formstring !== "") ***REMOVED***
-				formstring += "&";
+	if (body) ***REMOVED***
+		if (typeof body === "object") ***REMOVED***
+			let formstring = "";
+			for (let entry of body) ***REMOVED***
+				if (formstring !== "") ***REMOVED***
+					formstring += "&";
+				***REMOVED***
+				formstring += entry[0] + "=" + encodeURIComponent(entry[1]);
 			***REMOVED***
-			formstring += entry[0] + "=" + encodeURIComponent(entry[1]);
+			body = formstring;
 		***REMOVED***
-	***REMOVED***
-	if (method === "GET" || method === "HEAD") ***REMOVED***
-		if (body) ***REMOVED***
+		if (method === "GET" || method === "HEAD") ***REMOVED***
 			url += (url.includes("?") ? "&" : "?") + body;
+			body = "";
 		***REMOVED***
-		body = "";
 	***REMOVED***
 	return __jsapi__.HTTPRequest(method, url, body, params);
 ***REMOVED***;
