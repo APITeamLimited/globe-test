@@ -41,3 +41,19 @@ func throw(vm *otto.Otto, v interface***REMOVED******REMOVED***) ***REMOVED***
 	***REMOVED***
 	panic(v)
 ***REMOVED***
+
+func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
+	rt, err := New()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	rt.VM.Set("require", rt.require)
+	defer rt.VM.Set("require", nil)
+
+	exp, err := rt.load("__snippet__", []byte(src))
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return NewRunner(rt, exp)
+***REMOVED***
