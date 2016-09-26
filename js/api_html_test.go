@@ -36,3 +36,27 @@ func TestHTMLFindText(t *testing.T) ***REMOVED***
 	***REMOVED***
 	`))
 ***REMOVED***
+
+func TestHTMLAddSelector(t *testing.T) ***REMOVED***
+	assert.NoError(t, runSnippet(`
+	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	let html = "<span id='sub'>This</span> is a <span id='obj'>test snippet</span>.";
+	export default function() ***REMOVED***
+		let doc = parseHTML(html);
+		_assert(doc.find('#sub').add('#obj').text() === "Thistest snippet");
+	***REMOVED***
+	`))
+***REMOVED***
+
+func TestHTMLAddSelection(t *testing.T) ***REMOVED***
+	assert.NoError(t, runSnippet(`
+	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	let html = "<span id='sub'>This</span> is a <span id='obj'>test snippet</span>.";
+	export default function() ***REMOVED***
+		let doc = parseHTML(html);
+		_assert(doc.find('#sub').add(doc.find('#obj')).text() === "Thistest snippet");
+	***REMOVED***
+	`))
+***REMOVED***
