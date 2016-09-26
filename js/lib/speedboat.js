@@ -14,6 +14,12 @@ export function sleep(secs) ***REMOVED***
 	__jsapi__.Sleep(secs);
 ***REMOVED***
 
+export function _assert(exp, err) ***REMOVED***
+	if (!exp) ***REMOVED***
+		throw new Error(err || "assertion failed");
+	***REMOVED***
+***REMOVED***
+
 export default ***REMOVED***
 	group: group,
 	test: test,

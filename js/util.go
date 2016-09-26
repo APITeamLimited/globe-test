@@ -1,6 +1,7 @@
 package js
 
 import (
+	"context"
 	"github.com/robertkrimen/otto"
 )
 
@@ -56,4 +57,17 @@ func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
 	***REMOVED***
 
 	return NewRunner(rt, exp)
+***REMOVED***
+
+func runSnippet(src string) error ***REMOVED***
+	r, err := newSnippetRunner(src)
+	vu, err := r.NewVU()
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	_, err = vu.RunOnce(context.Background())
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
 ***REMOVED***
