@@ -1,0 +1,11 @@
+***REMOVED***
+	"source": ***REMOVED*** "include": ["js/lib"] ***REMOVED***,
+	"opts": ***REMOVED***
+		"recurse": true,
+		"destination": "docs",
+		"readme": "README.md"
+	***REMOVED***,
+	"plugins": [
+		"plugins/markdown"
+	]
+***REMOVED***
