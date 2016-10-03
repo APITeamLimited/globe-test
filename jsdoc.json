@@ -3,7 +3,8 @@
 	"opts": ***REMOVED***
 		"recurse": true,
 		"destination": "docs",
-		"readme": "README.md"
+		"readme": "README.md",
+		"tutorials": "tutorials"
 	***REMOVED***,
 	"plugins": [
 		"plugins/markdown"
