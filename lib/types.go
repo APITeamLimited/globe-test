@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 type Status struct ***REMOVED***
@@ -40,9 +39,9 @@ func (i Info) GetID() string ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
-	VUs      int64         `json:"vus"`
-	VUsMax   int64         `json:"vus-max"`
-	Duration time.Duration `json:"duration"`
+	VUs      null.Int    `json:"vus"`
+	VUsMax   null.Int    `json:"vus-max"`
+	Duration null.String `json:"duration"`
 ***REMOVED***
 
 func (o Options) GetName() string ***REMOVED***

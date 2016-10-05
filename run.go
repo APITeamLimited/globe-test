@@ -169,24 +169,29 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	paused := cc.Bool("paused")
 	quit := cc.Bool("quit")
 
-	duration := opts.Duration
-	if cc.IsSet("duration") ***REMOVED***
-		duration = cc.Duration("duration")
+	duration := cc.Duration("duration")
+	if !cc.IsSet("duration") && opts.Duration.Valid ***REMOVED***
+		d, err := time.ParseDuration(opts.Duration.String)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Script exports invalid duration")
+			return err
+		***REMOVED***
+		duration = d
 	***REMOVED***
 
-	vus := opts.VUs
-	if cc.IsSet("vus") ***REMOVED***
-		vus = cc.Int64("vus")
+	vus := cc.Int64("vus")
+	if !cc.IsSet("vus") && opts.VUs.Valid ***REMOVED***
+		vus = opts.VUs.Int64
 	***REMOVED***
 
-	max := opts.VUsMax
-	if cc.IsSet("max") ***REMOVED***
-		max = cc.Int64("max")
+	max := cc.Int64("max")
+	if !cc.IsSet("max") ***REMOVED***
+		if opts.VUsMax.Valid ***REMOVED***
+			max = opts.VUsMax.Int64
+		***REMOVED*** else ***REMOVED***
+			max = vus
+		***REMOVED***
 	***REMOVED***
-	if max == 0 ***REMOVED***
-		max = vus
-	***REMOVED***
-
 	if vus > max ***REMOVED***
 		return cli.NewExitError(lib.ErrTooManyVUs.Error(), 1)
 	***REMOVED***
