@@ -4,7 +4,6 @@ import (
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) ***REMOVED***
@@ -52,7 +51,8 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 
 		var opts lib.Options
 		assert.NoError(t, r.ExtractOptions(exp, &opts))
-		assert.Equal(t, int64(12345), opts.VUs)
+		assert.True(t, opts.VUs.Valid)
+		assert.Equal(t, int64(12345), opts.VUs.Int64)
 	***REMOVED***)
 	t.Run("vusMax", func(t *testing.T) ***REMOVED***
 		exp, err := r.load("test.js", []byte(`
@@ -62,16 +62,18 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 
 		var opts lib.Options
 		assert.NoError(t, r.ExtractOptions(exp, &opts))
-		assert.Equal(t, int64(12345), opts.VUsMax)
+		assert.True(t, opts.VUsMax.Valid)
+		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("duration", func(t *testing.T) ***REMOVED***
 		exp, err := r.load("test.js", []byte(`
-			export let options = ***REMOVED*** duration: 120 ***REMOVED***;
+			export let options = ***REMOVED*** duration: "2m" ***REMOVED***;
 		`))
 		assert.NoError(t, err)
 
 		var opts lib.Options
 		assert.NoError(t, r.ExtractOptions(exp, &opts))
-		assert.Equal(t, 120*time.Second, opts.Duration)
+		assert.True(t, opts.Duration.Valid)
+		assert.Equal(t, "2m", opts.Duration.String)
 	***REMOVED***)
 ***REMOVED***
