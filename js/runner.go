@@ -11,6 +11,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
 	"sync"
 	"time"
@@ -127,6 +128,14 @@ type VU struct ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	u.MaxRedirects = DefaultMaxRedirect
+
+	// TODO: Stop reallocating this on every VU iteration!!
+	jarOptions := cookiejar.Options***REMOVED******REMOVED***
+	jar, err := cookiejar.New(&jarOptions)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	u.HTTPClient.Jar = jar
 
 	u.ctx = ctx
 	if _, err := u.callable.Call(otto.UndefinedValue()); err != nil ***REMOVED***
