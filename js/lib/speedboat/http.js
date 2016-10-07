@@ -43,11 +43,11 @@ export function request(method, url, body, params = ***REMOVED******REMOVED***) 
 	if (body) ***REMOVED***
 		if (typeof body === "object") ***REMOVED***
 			let formstring = "";
-			for (let entry of body) ***REMOVED***
+			for (let key in body) ***REMOVED***
 				if (formstring !== "") ***REMOVED***
 					formstring += "&";
 				***REMOVED***
-				formstring += entry[0] + "=" + encodeURIComponent(entry[1]);
+				formstring += key + "=" + encodeURIComponent(body[key]);
 			***REMOVED***
 			body = formstring;
 		***REMOVED***
