@@ -1,4 +1,7 @@
-$log.debug("debug", ***REMOVED***id: $vu.id()***REMOVED***);
-$log.info("info", ***REMOVED***id: $vu.id()***REMOVED***);
-$log.warn("warn", ***REMOVED***id: $vu.id()***REMOVED***);
-$log.error("error", ***REMOVED***id: $vu.id()***REMOVED***);
+export default function() ***REMOVED***
+	console.log("log", "a", "b");
+	console.debug("debug", "a", "b");
+	console.info("info", "a", "b");
+	console.warn("warn", "a", "b");
+	console.error("error", "a", "b");
+***REMOVED***
