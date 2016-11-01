@@ -8,8 +8,11 @@ import (
 	"github.com/loadimpact/speedboat/js"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/simple"
+	"github.com/loadimpact/speedboat/stats"
+	"github.com/loadimpact/speedboat/stats/influxdb"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -60,6 +63,10 @@ var commandRun = cli.Command***REMOVED***
 		cli.BoolFlag***REMOVED***
 			Name:  "quit, q",
 			Usage: "quit immediately on test completion",
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:  "out, o",
+			Usage: "output metrics to an external data store",
 		***REMOVED***,
 	***REMOVED***,
 	Action: actionRun,
@@ -146,6 +153,34 @@ func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***RE
 	***REMOVED***
 ***REMOVED***
 
+func parseCollectorString(s string) (t string, u *url.URL, err error) ***REMOVED***
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) != 2 ***REMOVED***
+		return "", nil, errors.New("Malformed output; must be in the form 'type=url'")
+	***REMOVED***
+
+	u, err = url.Parse(parts[1])
+	if err != nil ***REMOVED***
+		return "", nil, err
+	***REMOVED***
+
+	return parts[0], u, nil
+***REMOVED***
+
+func makeCollector(s string) (stats.Collector, error) ***REMOVED***
+	t, u, err := parseCollectorString(s)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	switch t ***REMOVED***
+	case "influxdb":
+		return influxdb.New(u)
+	default:
+		return nil, errors.New("Unknown output type: " + t)
+	***REMOVED***
+***REMOVED***
+
 func actionRun(cc *cli.Context) error ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 
@@ -196,6 +231,19 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError(lib.ErrTooManyVUs.Error(), 1)
 	***REMOVED***
 
+	out := cc.String("out")
+
+	// Make the metric collector, if requested.
+	var collector stats.Collector
+	if out != "" ***REMOVED***
+		c, err := makeCollector(out)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Couldn't create output")
+			return err
+		***REMOVED***
+		collector = c
+	***REMOVED***
+
 	// Make the Engine
 	engine, err := lib.NewEngine(runner)
 	if err != nil ***REMOVED***
@@ -203,6 +251,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 	engineC, engineCancel := context.WithCancel(context.Background())
+	engine.Collector = collector
 
 	// Make the API Server
 	srv := &api.Server***REMOVED***

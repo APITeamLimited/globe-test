@@ -26,10 +26,11 @@ type vuEntry struct ***REMOVED***
 ***REMOVED***
 
 type Engine struct ***REMOVED***
-	Runner  Runner
-	Status  Status
-	Metrics map[*stats.Metric]stats.Sink
-	Pause   sync.WaitGroup
+	Runner    Runner
+	Status    Status
+	Metrics   map[*stats.Metric]stats.Sink
+	Collector stats.Collector
+	Pause     sync.WaitGroup
 
 	ctx    context.Context
 	vus    []*vuEntry
@@ -65,6 +66,12 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 	e.reportInternalStats()
 	ticker := time.NewTicker(1 * time.Second)
+
+	if e.Collector != nil ***REMOVED***
+		go e.Collector.Run(ctx)
+	***REMOVED*** else ***REMOVED***
+		log.Debug("Engine: No Collector")
+	***REMOVED***
 
 loop:
 	for ***REMOVED***
@@ -169,6 +176,11 @@ func (e *Engine) reportInternalStats() ***REMOVED***
 func (e *Engine) runVU(ctx context.Context, id int64, vu VU) ***REMOVED***
 	idString := strconv.FormatInt(id, 10)
 
+	var buffer stats.Buffer
+	if e.Collector != nil ***REMOVED***
+		buffer = e.Collector.Buffer()
+	***REMOVED***
+
 waitForPause:
 	e.Pause.Wait()
 
@@ -178,6 +190,8 @@ waitForPause:
 			return
 		default:
 			samples, err := vu.RunOnce(ctx)
+
+			// TODO: Avoid global locks here; use a lazy pull architecture instead.
 			e.mMutex.Lock()
 			if err != nil ***REMOVED***
 				log.WithField("vu", id).WithError(err).Error("Runtime Error")
@@ -191,6 +205,10 @@ waitForPause:
 				e.getSink(s.Metric).Add(s)
 			***REMOVED***
 			e.mMutex.Unlock()
+
+			if buffer != nil ***REMOVED***
+				buffer.Add(samples...)
+			***REMOVED***
 
 			if !e.Status.Running.Bool ***REMOVED***
 				goto waitForPause
