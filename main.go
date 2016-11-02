@@ -16,7 +16,7 @@ func main() ***REMOVED***
 	app := cli.NewApp()
 	app.Name = "speedboat"
 	app.Usage = "a next generation load generator"
-	app.Version = "0.2.1"
+	app.Version = "0.3.0"
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
 		commandInspect,
