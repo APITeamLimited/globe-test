@@ -52,8 +52,8 @@ var commandRun = cli.Command***REMOVED***
 			Value: 10 * time.Second,
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
-			Name:  "paused, p",
-			Usage: "start test in a paused state",
+			Name:  "run, r",
+			Usage: "start test immediately",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
@@ -201,7 +201,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Collect arguments
 	addr := cc.GlobalString("address")
-	paused := cc.Bool("paused")
+	run := cc.Bool("run")
 	quit := cc.Bool("quit")
 
 	duration := cc.Duration("duration")
@@ -307,14 +307,17 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	log.Infof("Starting test - Web UI available at: http://%s/", addr)
 
 	// Start the test with the desired state
-	log.WithField("vus", vus).Debug("Starting test...")
+	log.WithField("vus", vus).Debug("Configuring test...")
 	status := lib.Status***REMOVED***
-		Running: null.BoolFrom(!paused),
+		Running: null.BoolFrom(run),
 		VUs:     null.IntFrom(vus),
 		VUsMax:  null.IntFrom(max),
 	***REMOVED***
 	if _, err := cl.UpdateStatus(status); err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't scale test")
+		log.WithError(err).Error("Couldn't configure test")
+	***REMOVED***
+	if !run ***REMOVED***
+		log.Info("Use `speedboat start` to start your test, or pass `--run` to autostart")
 	***REMOVED***
 
 	// Pause the test once the duration expires
