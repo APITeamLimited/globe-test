@@ -112,3 +112,11 @@ func (c *Client) Metrics() ([]stats.Metric, error) ***REMOVED***
 	***REMOVED***
 	return metrics, nil
 ***REMOVED***
+
+func (c *Client) Metric(name string) (stats.Metric, error) ***REMOVED***
+	var metric stats.Metric
+	if err := c.call("GET", "/v1/metrics/"+name, nil, &metric); err != nil ***REMOVED***
+		return metric, err
+	***REMOVED***
+	return metric, nil
+***REMOVED***
