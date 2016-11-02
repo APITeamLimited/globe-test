@@ -21,6 +21,7 @@ func main() ***REMOVED***
 		commandRun,
 		commandInspect,
 		commandStatus,
+		commandStats,
 		commandScale,
 		commandStart,
 		commandPause,

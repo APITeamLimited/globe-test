@@ -5,6 +5,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/loadimpact/speedboat/api"
 	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/stats"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"os"
@@ -22,6 +23,13 @@ var commandStatus = cli.Command***REMOVED***
    default is port 6565 on the local machine.
 
    Endpoint: /v1/status`,
+***REMOVED***
+
+var commandStats = cli.Command***REMOVED***
+	Name:      "stats",
+	Usage:     "Prints stats for a running test",
+	ArgsUsage: " ",
+	Action:    actionStats,
 ***REMOVED***
 
 var commandScale = cli.Command***REMOVED***
@@ -94,6 +102,26 @@ func actionStatus(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
+***REMOVED***
+
+func actionStats(cc *cli.Context) error ***REMOVED***
+	client, err := api.NewClient(cc.GlobalString("address"))
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't create a client")
+		return err
+	***REMOVED***
+
+	metricList, err := client.Metrics()
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Error")
+		return err
+	***REMOVED***
+
+	metrics := make(map[string]stats.Metric)
+	for _, metric := range metricList ***REMOVED***
+		metrics[metric.Name] = metric
+	***REMOVED***
+	return dumpYAML(metrics)
 ***REMOVED***
 
 func actionScale(cc *cli.Context) error ***REMOVED***
