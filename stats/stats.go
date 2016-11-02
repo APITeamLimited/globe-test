@@ -125,3 +125,8 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 func (m Metric) GetID() string ***REMOVED***
 	return m.Name
 ***REMOVED***
+
+func (m *Metric) SetID(id string) error ***REMOVED***
+	m.Name = id
+	return nil
+***REMOVED***
