@@ -2,6 +2,9 @@ package stats
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -120,6 +123,34 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 		vt = t[0]
 	***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt***REMOVED***
+***REMOVED***
+
+func (m Metric) Humanize() string ***REMOVED***
+	sample := m.Sample
+	switch len(sample) ***REMOVED***
+	case 0:
+		return ""
+	case 1:
+		for _, v := range sample ***REMOVED***
+			return m.HumanizeValue(v)
+		***REMOVED***
+		return ""
+	default:
+		parts := make([]string, 0, len(m.Sample))
+		for key, val := range m.Sample ***REMOVED***
+			parts = append(parts, fmt.Sprintf("%s=%s", key, m.HumanizeValue(val)))
+		***REMOVED***
+		return strings.Join(parts, ", ")
+	***REMOVED***
+***REMOVED***
+
+func (m Metric) HumanizeValue(v float64) string ***REMOVED***
+	switch m.Contains ***REMOVED***
+	case Time:
+		return time.Duration(v).String()
+	default:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	***REMOVED***
 ***REMOVED***
 
 func (m Metric) GetID() string ***REMOVED***
