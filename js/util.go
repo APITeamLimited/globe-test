@@ -61,6 +61,9 @@ func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
 
 func runSnippet(src string) error ***REMOVED***
 	r, err := newSnippetRunner(src)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
 	vu, err := r.NewVU()
 	if err != nil ***REMOVED***
 		return err
