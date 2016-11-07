@@ -57,6 +57,40 @@ func TestDoGroupNested(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
+func TestDoGroupReturn(t *testing.T) ***REMOVED***
+	r, err := newSnippetRunner(`
+	import ***REMOVED*** group, _assert ***REMOVED*** from "speedboat";
+	export default function() ***REMOVED***
+		let v = group("group", function() ***REMOVED***
+			return 12345;
+		***REMOVED***);
+		_assert(v === 12345);
+	***REMOVED***`)
+	assert.NoError(t, err)
+
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
+	r, err := newSnippetRunner(`
+	import ***REMOVED*** group, _assert ***REMOVED*** from "speedboat";
+	export default function() ***REMOVED***
+		let v = group("group", function() ***REMOVED***
+			// no return
+		***REMOVED***);
+		_assert(v === true);
+	***REMOVED***`)
+	assert.NoError(t, err)
+
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+***REMOVED***
+
 func TestDoTest(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** test ***REMOVED*** from "speedboat";

@@ -66,6 +66,10 @@ func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	if err != nil ***REMOVED***
 		throw(call.Otto, err)
 	***REMOVED***
+
+	if val.IsUndefined() ***REMOVED***
+		return otto.TrueValue()
+	***REMOVED***
 	return val
 ***REMOVED***
 
