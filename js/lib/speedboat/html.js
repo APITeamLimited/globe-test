@@ -63,3 +63,8 @@ export class Selection ***REMOVED***
 	 */
 	text() ***REMOVED*** return this.impl.Text(); ***REMOVED***
 ***REMOVED***;
+
+export default ***REMOVED***
+	parseHTML: parseHTML,
+	Selection: Selection,
+***REMOVED***

@@ -129,6 +129,7 @@ export function setMaxRedirects(n) ***REMOVED***
 ***REMOVED***
 
 export default ***REMOVED***
+	Response: Response,
 	request: request,
 	get: get,
 	post: post,
