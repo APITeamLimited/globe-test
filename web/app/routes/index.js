@@ -5,7 +5,7 @@ export default Ember.Route.extend(***REMOVED***
     return Ember.RSVP.hash(***REMOVED***
       "metrics": this.get('store').findAll('metric'),
       "groups": this.get('store').findAll('group'),
-      "tests": this.get('store').findAll('test'),
+      "checks": this.get('store').findAll('check'),
     ***REMOVED***);
   ***REMOVED***,
   afterModel(model) ***REMOVED***

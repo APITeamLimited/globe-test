@@ -24,7 +24,7 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("GetTests", func(t *testing.T) ***REMOVED***
-		assert.Len(t, r.GetTests(), 0)
+		assert.Len(t, r.GetChecks(), 0)
 	***REMOVED***)
 
 	t.Run("VU", func(t *testing.T) ***REMOVED***

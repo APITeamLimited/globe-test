@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-func TestTest(t *testing.T) ***REMOVED***
+func TestCheck(t *testing.T) ***REMOVED***
 	vm := otto.New()
 
 	t.Run("String", func(t *testing.T) ***REMOVED***
 		t.Run("Something", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`"test"`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.True(t, b)
 		***REMOVED***)
@@ -22,7 +22,7 @@ func TestTest(t *testing.T) ***REMOVED***
 		t.Run("Empty", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`""`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.False(t, b)
 		***REMOVED***)
@@ -32,21 +32,21 @@ func TestTest(t *testing.T) ***REMOVED***
 		t.Run("Positive", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`1`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.True(t, b)
 		***REMOVED***)
 		t.Run("Negative", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`-1`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.True(t, b)
 		***REMOVED***)
 		t.Run("Zero", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`0`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.False(t, b)
 		***REMOVED***)
@@ -56,14 +56,14 @@ func TestTest(t *testing.T) ***REMOVED***
 		t.Run("True", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`true`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.True(t, b)
 		***REMOVED***)
 		t.Run("False", func(t *testing.T) ***REMOVED***
 			v, err := vm.Eval(`false`)
 			assert.NoError(t, err)
-			b, err := Test(v, otto.UndefinedValue())
+			b, err := Check(v, otto.UndefinedValue())
 			assert.NoError(t, err)
 			assert.False(t, b)
 		***REMOVED***)
@@ -74,12 +74,12 @@ func TestTest(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		t.Run("True", func(t *testing.T) ***REMOVED***
-			b, err := Test(fn, otto.TrueValue())
+			b, err := Check(fn, otto.TrueValue())
 			assert.NoError(t, err)
 			assert.True(t, b)
 		***REMOVED***)
 		t.Run("False", func(t *testing.T) ***REMOVED***
-			b, err := Test(fn, otto.FalseValue())
+			b, err := Check(fn, otto.FalseValue())
 			assert.NoError(t, err)
 			assert.False(t, b)
 		***REMOVED***)

@@ -73,7 +73,7 @@ func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	return val
 ***REMOVED***
 
-func (a JSAPI) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
+func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 	if len(call.ArgumentList) < 2 ***REMOVED***
 		return otto.UndefinedValue()
 	***REMOVED***
@@ -83,7 +83,7 @@ func (a JSAPI) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 	for _, v := range call.ArgumentList[1:] ***REMOVED***
 		obj := v.Object()
 		if obj == nil ***REMOVED***
-			panic(call.Otto.MakeTypeError("tests must be objects"))
+			panic(call.Otto.MakeTypeError("checks must be objects"))
 		***REMOVED***
 		for _, name := range obj.Keys() ***REMOVED***
 			val, err := obj.Get(name)
@@ -91,22 +91,22 @@ func (a JSAPI) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 				throw(call.Otto, err)
 			***REMOVED***
 
-			result, err := Test(val, arg0)
+			result, err := Check(val, arg0)
 			if err != nil ***REMOVED***
 				throw(call.Otto, err)
 			***REMOVED***
 
-			test, ok := a.vu.group.Test(name, &(a.vu.runner.testIDCounter))
+			check, ok := a.vu.group.Check(name, &(a.vu.runner.checkIDCounter))
 			if !ok ***REMOVED***
-				a.vu.runner.testsMutex.Lock()
-				a.vu.runner.Tests = append(a.vu.runner.Tests, test)
-				a.vu.runner.testsMutex.Unlock()
+				a.vu.runner.checksMutex.Lock()
+				a.vu.runner.Checks = append(a.vu.runner.Checks, check)
+				a.vu.runner.checksMutex.Unlock()
 			***REMOVED***
 
 			if result ***REMOVED***
-				atomic.AddInt64(&(test.Passes), 1)
+				atomic.AddInt64(&(check.Passes), 1)
 			***REMOVED*** else ***REMOVED***
-				atomic.AddInt64(&(test.Fails), 1)
+				atomic.AddInt64(&(check.Fails), 1)
 				success = false
 			***REMOVED***
 		***REMOVED***

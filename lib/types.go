@@ -58,10 +58,10 @@ type Group struct ***REMOVED***
 	Name   string            `json:"name"`
 	Parent *Group            `json:"-"`
 	Groups map[string]*Group `json:"-"`
-	Tests  map[string]*Test  `json:"-"`
+	Checks map[string]*Check `json:"-"`
 
 	groupMutex sync.Mutex `json:"-"`
-	testMutex  sync.Mutex `json:"-"`
+	checkMutex sync.Mutex `json:"-"`
 ***REMOVED***
 
 func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
@@ -75,7 +75,7 @@ func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
 		Name:   name,
 		Parent: parent,
 		Groups: make(map[string]*Group),
-		Tests:  make(map[string]*Test),
+		Checks: make(map[string]*Check),
 	***REMOVED***
 ***REMOVED***
 
@@ -94,19 +94,19 @@ func (g *Group) Group(name string, idCounter *int64) (*Group, bool) ***REMOVED**
 	return group, ok
 ***REMOVED***
 
-func (g *Group) Test(name string, idCounter *int64) (*Test, bool) ***REMOVED***
-	snapshot := g.Tests
-	test, ok := snapshot[name]
+func (g *Group) Check(name string, idCounter *int64) (*Check, bool) ***REMOVED***
+	snapshot := g.Checks
+	check, ok := snapshot[name]
 	if !ok ***REMOVED***
-		g.testMutex.Lock()
-		test, ok = g.Tests[name]
+		g.checkMutex.Lock()
+		check, ok = g.Checks[name]
 		if !ok ***REMOVED***
-			test = NewTest(name, g, idCounter)
-			g.Tests[name] = test
+			check = NewCheck(name, g, idCounter)
+			g.Checks[name] = check
 		***REMOVED***
-		g.testMutex.Unlock()
+		g.checkMutex.Unlock()
 	***REMOVED***
-	return test, ok
+	return check, ok
 ***REMOVED***
 
 func (g Group) GetID() string ***REMOVED***
@@ -121,20 +121,20 @@ func (g Group) GetReferences() []jsonapi.Reference ***REMOVED***
 			Relationship: jsonapi.ToOneRelationship,
 		***REMOVED***,
 		jsonapi.Reference***REMOVED***
-			Name:         "tests",
-			Type:         "tests",
+			Name:         "checks",
+			Type:         "checks",
 			Relationship: jsonapi.ToManyRelationship,
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
 func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	ids := make([]jsonapi.ReferenceID, 0, len(g.Tests)+len(g.Groups))
-	for _, test := range g.Tests ***REMOVED***
+	ids := make([]jsonapi.ReferenceID, 0, len(g.Checks)+len(g.Groups))
+	for _, check := range g.Checks ***REMOVED***
 		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           test.GetID(),
-			Type:         "tests",
-			Name:         "tests",
+			ID:           check.GetID(),
+			Type:         "checks",
+			Name:         "checks",
 			Relationship: jsonapi.ToManyRelationship,
 		***REMOVED***)
 	***REMOVED***
@@ -160,9 +160,9 @@ func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
 func (g Group) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
 	// Note: we're not sideloading the parent, that snowballs into making requests for a single
 	// group return *every single known group* thanks to the common root group.
-	refs := make([]jsonapi.MarshalIdentifier, 0, len(g.Tests)+len(g.Groups))
-	for _, test := range g.Tests ***REMOVED***
-		refs = append(refs, test)
+	refs := make([]jsonapi.MarshalIdentifier, 0, len(g.Checks)+len(g.Groups))
+	for _, check := range g.Checks ***REMOVED***
+		refs = append(refs, check)
 	***REMOVED***
 	for _, group := range g.Groups ***REMOVED***
 		refs = append(refs, group)
@@ -170,7 +170,7 @@ func (g Group) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
 	return refs
 ***REMOVED***
 
-type Test struct ***REMOVED***
+type Check struct ***REMOVED***
 	ID int64 `json:"-"`
 
 	Group *Group `json:"-"`
@@ -180,19 +180,19 @@ type Test struct ***REMOVED***
 	Fails  int64 `json:"fails"`
 ***REMOVED***
 
-func NewTest(name string, group *Group, idCounter *int64) *Test ***REMOVED***
+func NewCheck(name string, group *Group, idCounter *int64) *Check ***REMOVED***
 	var id int64
 	if idCounter != nil ***REMOVED***
 		id = atomic.AddInt64(idCounter, 1)
 	***REMOVED***
-	return &Test***REMOVED***ID: id, Name: name, Group: group***REMOVED***
+	return &Check***REMOVED***ID: id, Name: name, Group: group***REMOVED***
 ***REMOVED***
 
-func (t Test) GetID() string ***REMOVED***
-	return strconv.FormatInt(t.ID, 10)
+func (c Check) GetID() string ***REMOVED***
+	return strconv.FormatInt(c.ID, 10)
 ***REMOVED***
 
-func (t Test) GetReferences() []jsonapi.Reference ***REMOVED***
+func (c Check) GetReferences() []jsonapi.Reference ***REMOVED***
 	return []jsonapi.Reference***REMOVED***
 		jsonapi.Reference***REMOVED***
 			Name:         "group",
@@ -202,16 +202,16 @@ func (t Test) GetReferences() []jsonapi.Reference ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (t Test) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
+func (c Check) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
 	return []jsonapi.ReferenceID***REMOVED***
 		jsonapi.ReferenceID***REMOVED***
-			ID:   t.Group.GetID(),
+			ID:   c.Group.GetID(),
 			Type: "groups",
 			Name: "group",
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
-func (t Test) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
-	return []jsonapi.MarshalIdentifier***REMOVED***t.Group***REMOVED***
+func (c Check) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
+	return []jsonapi.MarshalIdentifier***REMOVED***c.Group***REMOVED***
 ***REMOVED***

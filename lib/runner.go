@@ -15,7 +15,7 @@ type Runner interface ***REMOVED***
 	GetGroups() []*Group
 
 	// Returns all known tests.
-	GetTests() []*Test
+	GetChecks() []*Check
 ***REMOVED***
 
 // A VU is a Virtual User.

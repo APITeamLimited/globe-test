@@ -174,27 +174,27 @@ func (s *Server) Run(ctx context.Context, addr string) ***REMOVED***
 			***REMOVED***
 			c.AbortWithError(404, errors.New("Group not found"))
 		***REMOVED***)
-		v1.GET("/tests", func(c *gin.Context) ***REMOVED***
-			data, err := jsonapi.Marshal(s.Engine.Runner.GetTests())
+		v1.GET("/checks", func(c *gin.Context) ***REMOVED***
+			data, err := jsonapi.Marshal(s.Engine.Runner.GetChecks())
 			if err != nil ***REMOVED***
 				c.AbortWithError(500, err)
 				return
 			***REMOVED***
 			c.Data(200, contentType, data)
 		***REMOVED***)
-		v1.GET("/tests/:id", func(c *gin.Context) ***REMOVED***
+		v1.GET("/checks/:id", func(c *gin.Context) ***REMOVED***
 			id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 			if err != nil ***REMOVED***
 				c.AbortWithError(http.StatusBadRequest, err)
 				return
 			***REMOVED***
 
-			for _, test := range s.Engine.Runner.GetTests() ***REMOVED***
-				if test.ID != id ***REMOVED***
+			for _, check := range s.Engine.Runner.GetChecks() ***REMOVED***
+				if check.ID != id ***REMOVED***
 					continue
 				***REMOVED***
 
-				data, err := jsonapi.Marshal(test)
+				data, err := jsonapi.Marshal(check)
 				if err != nil ***REMOVED***
 					c.AbortWithError(http.StatusInternalServerError, err)
 					return

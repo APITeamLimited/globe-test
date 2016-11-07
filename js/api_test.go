@@ -91,11 +91,11 @@ func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
-func TestDoTest(t *testing.T) ***REMOVED***
+func TestDoCheck(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** test ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check ***REMOVED*** from "speedboat";
 	export default function() ***REMOVED***
-		test(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
+		check(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
 	***REMOVED***`)
 	assert.NoError(t, err)
 
@@ -106,22 +106,22 @@ func TestDoTest(t *testing.T) ***REMOVED***
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
-	if !assert.Len(t, r.Tests, 1) ***REMOVED***
+	if !assert.Len(t, r.Checks, 1) ***REMOVED***
 		return
 	***REMOVED***
-	ts := r.Tests[0]
-	assert.Equal(t, "v === 3", ts.Name)
-	assert.Equal(t, r.DefaultGroup, ts.Group)
-	assert.Equal(t, int64(1), ts.Passes)
-	assert.Equal(t, int64(0), ts.Fails)
+	c := r.Checks[0]
+	assert.Equal(t, "v === 3", c.Name)
+	assert.Equal(t, r.DefaultGroup, c.Group)
+	assert.Equal(t, int64(1), c.Passes)
+	assert.Equal(t, int64(0), c.Fails)
 ***REMOVED***
 
-func TestTestInGroup(t *testing.T) ***REMOVED***
+func TestCheckInGroup(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group, test ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group, check ***REMOVED*** from "speedboat";
 	export default function() ***REMOVED***
 		group("group", function() ***REMOVED***
-			test(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
+			check(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
 		***REMOVED***);
 	***REMOVED***`)
 	assert.NoError(t, err)
@@ -137,19 +137,19 @@ func TestTestInGroup(t *testing.T) ***REMOVED***
 	g := r.Groups[1]
 	assert.Equal(t, "group", g.Name)
 
-	assert.Len(t, r.Tests, 1)
-	ts := r.Tests[0]
-	assert.Equal(t, "v === 3", ts.Name)
-	assert.Equal(t, g, ts.Group)
-	assert.Equal(t, int64(1), ts.Passes)
-	assert.Equal(t, int64(0), ts.Fails)
+	assert.Len(t, r.Checks, 1)
+	c := r.Checks[0]
+	assert.Equal(t, "v === 3", c.Name)
+	assert.Equal(t, g, c.Group)
+	assert.Equal(t, int64(1), c.Passes)
+	assert.Equal(t, int64(0), c.Fails)
 ***REMOVED***
 
-func TestTestReturnTrueOnSuccess(t *testing.T) ***REMOVED***
+func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** test, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check, _assert ***REMOVED*** from "speedboat";
 	export default function() ***REMOVED***
-		let succ = test(null, ***REMOVED*** "true": true ***REMOVED***);
+		let succ = check(null, ***REMOVED*** "true": true ***REMOVED***);
 		_assert(succ === true);
 	***REMOVED***`)
 	assert.NoError(t, err)
@@ -160,11 +160,11 @@ func TestTestReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
-func TestTestReturnFalseOnFailure(t *testing.T) ***REMOVED***
+func TestCheckReturnFalseOnFailure(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** test, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check, _assert ***REMOVED*** from "speedboat";
 	export default function() ***REMOVED***
-		let succ = test(null, ***REMOVED*** "false": false ***REMOVED***);
+		let succ = check(null, ***REMOVED*** "false": false ***REMOVED***);
 		_assert(succ === false);
 	***REMOVED***`)
 	assert.NoError(t, err)
