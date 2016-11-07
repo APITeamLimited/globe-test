@@ -23,7 +23,7 @@ export function group(name, fn, cond) ***REMOVED***
  * @param  ***REMOVED***...Object***REMOVED*** sets Sets of tests.
  */
 export function test(val, ...sets) ***REMOVED***
-	__jsapi__.DoTest(val, ...sets);
+	return __jsapi__.DoTest(val, ...sets);
 ***REMOVED***
 
 /**

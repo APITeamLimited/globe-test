@@ -78,6 +78,7 @@ func (a JSAPI) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 		return otto.UndefinedValue()
 	***REMOVED***
 
+	success := true
 	arg0 := call.Argument(0)
 	for _, v := range call.ArgumentList[1:] ***REMOVED***
 		obj := v.Object()
@@ -106,8 +107,13 @@ func (a JSAPI) DoTest(call otto.FunctionCall) otto.Value ***REMOVED***
 				atomic.AddInt64(&(test.Passes), 1)
 			***REMOVED*** else ***REMOVED***
 				atomic.AddInt64(&(test.Fails), 1)
+				success = false
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	return otto.UndefinedValue()
+
+	if !success ***REMOVED***
+		return otto.FalseValue()
+	***REMOVED***
+	return otto.TrueValue()
 ***REMOVED***

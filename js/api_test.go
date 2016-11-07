@@ -144,3 +144,33 @@ func TestTestInGroup(t *testing.T) ***REMOVED***
 	assert.Equal(t, int64(1), ts.Passes)
 	assert.Equal(t, int64(0), ts.Fails)
 ***REMOVED***
+
+func TestTestReturnTrueOnSuccess(t *testing.T) ***REMOVED***
+	r, err := newSnippetRunner(`
+	import ***REMOVED*** test, _assert ***REMOVED*** from "speedboat";
+	export default function() ***REMOVED***
+		let succ = test(null, ***REMOVED*** "true": true ***REMOVED***);
+		_assert(succ === true);
+	***REMOVED***`)
+	assert.NoError(t, err)
+
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestTestReturnFalseOnFailure(t *testing.T) ***REMOVED***
+	r, err := newSnippetRunner(`
+	import ***REMOVED*** test, _assert ***REMOVED*** from "speedboat";
+	export default function() ***REMOVED***
+		let succ = test(null, ***REMOVED*** "false": false ***REMOVED***);
+		_assert(succ === false);
+	***REMOVED***`)
+	assert.NoError(t, err)
+
+	vu, err := r.NewVU()
+	assert.NoError(t, err)
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+***REMOVED***
