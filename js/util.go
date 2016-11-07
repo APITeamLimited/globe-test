@@ -2,6 +2,7 @@ package js
 
 import (
 	"context"
+	"github.com/loadimpact/speedboat/lib"
 	"github.com/robertkrimen/otto"
 )
 
@@ -68,7 +69,7 @@ func runSnippet(src string) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	_, err = vu.RunOnce(context.Background())
+	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***

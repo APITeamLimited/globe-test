@@ -47,6 +47,7 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 		Runner: r,
 		Status: Status***REMOVED***
 			Running: null.BoolFrom(false),
+			Tainted: null.BoolFrom(false),
 			VUs:     null.IntFrom(0),
 			VUsMax:  null.IntFrom(0),
 		***REMOVED***,
@@ -207,7 +208,7 @@ waitForPause:
 		case <-ctx.Done():
 			return
 		default:
-			samples, err := vu.RunOnce(ctx)
+			samples, err := vu.RunOnce(ctx, &e.Status)
 
 			// TODO: Avoid global locks here; use a lazy pull architecture instead.
 			e.mMutex.Lock()

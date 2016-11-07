@@ -113,7 +113,12 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 	***REMOVED***
 
 	if !success ***REMOVED***
+		a.vu.Taint = true
 		return otto.FalseValue()
 	***REMOVED***
 	return otto.TrueValue()
+***REMOVED***
+
+func (a JSAPI) Taint() ***REMOVED***
+	a.vu.Taint = true
 ***REMOVED***

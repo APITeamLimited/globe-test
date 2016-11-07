@@ -374,6 +374,9 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	engineCancel()
 	wg.Wait()
 
+	if engine.Status.Tainted.Bool ***REMOVED***
+		return cli.NewExitError("", 99)
+	***REMOVED***
 	return nil
 ***REMOVED***
 

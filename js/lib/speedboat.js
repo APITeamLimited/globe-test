@@ -35,6 +35,14 @@ export function sleep(secs) ***REMOVED***
 ***REMOVED***
 
 /**
+ * Marks the test as "tainted", meaning it should exit with a nonzero status code. This is done
+ * automatically if any check fails, but you can use this to do it manually.
+ */
+export function taint() ***REMOVED***
+	__jsapi__.Taint();
+***REMOVED***
+
+/**
  * Asserts that a value is truthy.
  * @param  ***REMOVED***any***REMOVED***    exp   Expression result.
  * @param  ***REMOVED***string***REMOVED*** [err] Error message.
