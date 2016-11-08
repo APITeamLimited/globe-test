@@ -219,6 +219,7 @@ waitForPause:
 					Tags:  map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
 					Value: float64(1),
 				***REMOVED***)
+				e.Status.Tainted.Bool = true
 			***REMOVED***
 			for _, s := range samples ***REMOVED***
 				e.getSink(s.Metric).Add(s)
