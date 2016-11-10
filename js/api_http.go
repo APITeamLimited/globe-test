@@ -87,9 +87,14 @@ func (a JSAPI) HTTPRequest(method, url, body string, params map[string]interface
 		stats.Sample***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
 	)
 
+	headers := make(map[string]string)
+	for k, v := range res.Header ***REMOVED***
+		headers[k] = strings.Join(v, ", ")
+	***REMOVED***
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
-		"status": res.StatusCode,
-		"body":   string(resBody),
+		"status":  res.StatusCode,
+		"body":    string(resBody),
+		"headers": headers,
 	***REMOVED***
 ***REMOVED***
 
