@@ -123,6 +123,6 @@ func (a JSAPI) Taint() ***REMOVED***
 	a.vu.Taint = true
 ***REMOVED***
 
-func (a JSAPI) ElapsedMs() int64 ***REMOVED***
-	return int64(time.Since(a.vu.started) * time.Millisecond)
+func (a JSAPI) ElapsedMs() float64 ***REMOVED***
+	return float64(time.Since(a.vu.started)) * float64(time.Millisecond)
 ***REMOVED***
