@@ -1,4 +1,4 @@
-import ***REMOVED*** group, test, sleep ***REMOVED*** from "speedboat";
+import ***REMOVED*** group, check, sleep ***REMOVED*** from "speedboat";
 import http from "speedboat/http";
 
 export let options = ***REMOVED***
@@ -6,11 +6,11 @@ export let options = ***REMOVED***
 ***REMOVED***;
 
 export default function() ***REMOVED***
-	test(Math.random(), ***REMOVED***
+	check(Math.random(), ***REMOVED***
 		"top-level test": (v) => v < 1/3
 	***REMOVED***);
 	group("my group", function() ***REMOVED***
-		test(Math.random(), ***REMOVED***
+		check(Math.random(), ***REMOVED***
 			"random value is < 0.5": (v) => v < 0.5
 		***REMOVED***);
 
@@ -18,7 +18,7 @@ export default function() ***REMOVED***
 			let res = http.get("https://httpbin.org/get", null, ***REMOVED***
 				headers: ***REMOVED*** "X-Test": "abc123" ***REMOVED***,
 			***REMOVED***);
-			test(res, ***REMOVED***
+			check(res, ***REMOVED***
 				"status is 200": (res) => res.status === 200,
 				"X-Test header is correct": (res) => res.json().headers['X-Test'] === "abc123",
 			***REMOVED***);
@@ -26,14 +26,15 @@ export default function() ***REMOVED***
 		***REMOVED***);
 
 		group("html", function() ***REMOVED***
-			test(http.get("http://test.loadimpact.com/"), ***REMOVED***
+			check(http.get("http://test.loadimpact.com/"), ***REMOVED***
 				"status is 200": (res) => res.status === 200,
+				"content type is html": (res) => res.headers['Content-Type'] === "text/html",
 				"welcome message is correct": (res) => res.html("h2").text() === "Welcome to the LoadImpact.com demo site!",
 			***REMOVED***);
 		***REMOVED***);
 
 		group("nested", function() ***REMOVED***
-			test(null, ***REMOVED***
+			check(null, ***REMOVED***
 				"always passes": true,
 				"always fails": false,
 			***REMOVED***);
