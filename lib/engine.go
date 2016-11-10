@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"errors"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/stats"
 	"gopkg.in/guregu/null.v3"
@@ -209,7 +210,12 @@ waitForPause:
 		default:
 			samples, err := vu.VU.RunOnce(ctx, &e.Status)
 			if err != nil ***REMOVED***
-				log.WithField("vu", id).WithError(err).Error("Runtime Error")
+				if s, ok := err.(fmt.Stringer); ok ***REMOVED***
+					log.Error(s.String())
+				***REMOVED*** else ***REMOVED***
+					log.WithError(err).Error("Runtime Error")
+				***REMOVED***
+
 				samples = append(samples, stats.Sample***REMOVED***
 					Metric: MetricErrors,
 					Time:   time.Now(),
