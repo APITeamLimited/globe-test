@@ -122,3 +122,7 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 func (a JSAPI) Taint() ***REMOVED***
 	a.vu.Taint = true
 ***REMOVED***
+
+func (a JSAPI) ElapsedMs() int64 ***REMOVED***
+	return int64(time.Since(a.vu.started) * time.Millisecond)
+***REMOVED***
