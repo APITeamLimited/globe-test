@@ -211,9 +211,10 @@ waitForPause:
 			if err != nil ***REMOVED***
 				log.WithField("vu", id).WithError(err).Error("Runtime Error")
 				samples = append(samples, stats.Sample***REMOVED***
-					Time:  time.Now(),
-					Tags:  map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
-					Value: float64(1),
+					Metric: MetricErrors,
+					Time:   time.Now(),
+					Tags:   map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
+					Value:  float64(1),
 				***REMOVED***)
 				e.Status.Tainted.Bool = true
 			***REMOVED***
