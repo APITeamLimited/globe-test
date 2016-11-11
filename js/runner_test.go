@@ -2,7 +2,6 @@ package js
 
 import (
 	"context"
-	"github.com/loadimpact/speedboat/lib"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -39,7 +38,7 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("RunOnce", func(t *testing.T) ***REMOVED***
-			_, err := vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+			_, err := vu.RunOnce(context.Background())
 			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)

@@ -31,7 +31,7 @@ func TestDoGroup(t *testing.T) ***REMOVED***
 		assert.Equal(t, "test", vu.group.Name)
 	***REMOVED***)
 
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 ***REMOVED***
 
@@ -54,7 +54,7 @@ func TestDoGroupNested(t *testing.T) ***REMOVED***
 		assert.Equal(t, "outer", vu.group.Parent.Name)
 	***REMOVED***)
 
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 ***REMOVED***
 
@@ -71,7 +71,7 @@ func TestDoGroupReturn(t *testing.T) ***REMOVED***
 
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 ***REMOVED***
 
@@ -88,7 +88,7 @@ func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
 
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 ***REMOVED***
 
@@ -104,7 +104,7 @@ func TestDoCheck(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
 	if !assert.Len(t, r.Checks, 1) ***REMOVED***
@@ -131,7 +131,7 @@ func TestCheckInGroup(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
 	assert.Len(t, r.Groups, 2)
@@ -157,11 +157,11 @@ func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 ***REMOVED***
 
-func TestCheckReturnFalseOnFailure(t *testing.T) ***REMOVED***
+func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** check, _assert ***REMOVED*** from "speedboat";
 	export default function() ***REMOVED***
@@ -172,8 +172,8 @@ func TestCheckReturnFalseOnFailure(t *testing.T) ***REMOVED***
 
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
-	_, err = vu.RunOnce(context.Background(), &lib.Status***REMOVED******REMOVED***)
-	assert.NoError(t, err)
+	_, err = vu.RunOnce(context.Background())
+	assert.Equal(t, lib.ErrVUWantsTaint, err)
 ***REMOVED***
 
 func TestTaint(t *testing.T) ***REMOVED***
@@ -187,8 +187,6 @@ func TestTaint(t *testing.T) ***REMOVED***
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
 
-	status := lib.Status***REMOVED******REMOVED***
-	_, err = vu.RunOnce(context.Background(), &status)
-	assert.NoError(t, err)
-	assert.True(t, status.Tainted.Bool)
+	_, err = vu.RunOnce(context.Background())
+	assert.Equal(t, lib.ErrVUWantsTaint, err)
 ***REMOVED***
