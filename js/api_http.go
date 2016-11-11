@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptrace"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -72,9 +73,10 @@ func (a JSAPI) HTTPRequest(method, url, body string, params map[string]interface
 	trail := tracer.Done()
 	t := time.Now()
 	tags := map[string]string***REMOVED***
-		"vu":     a.vu.IDString,
-		"method": method,
-		"url":    url,
+		"vu":       a.vu.IDString,
+		"method":   method,
+		"url":      url,
+		"group_id": strconv.FormatInt(a.vu.group.ID, 10),
 	***REMOVED***
 	a.vu.Samples = append(a.vu.Samples,
 		stats.Sample***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
