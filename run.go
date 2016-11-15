@@ -254,7 +254,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	engineC, engineCancel := context.WithCancel(context.Background())
 	engine.Collector = collector
-	engine.Remaining = duration
+	engine.Stages = []lib.Stage***REMOVED***lib.Stage***REMOVED***Duration: null.IntFrom(int64(duration))***REMOVED******REMOVED***
 	engine.Quit = quit
 
 	// Make the API Server

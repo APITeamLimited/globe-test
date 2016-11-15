@@ -13,6 +13,7 @@ type Status struct ***REMOVED***
 	Tainted null.Bool `json:"tainted"`
 	VUs     null.Int  `json:"vus"`
 	VUsMax  null.Int  `json:"vus-max"`
+	AtTime  null.Int  `json:"at-time"`
 ***REMOVED***
 
 func (s Status) GetName() string ***REMOVED***
@@ -24,6 +25,31 @@ func (s Status) GetID() string ***REMOVED***
 ***REMOVED***
 
 func (s Status) SetID(id string) error ***REMOVED***
+	return nil
+***REMOVED***
+
+type Stage struct ***REMOVED***
+	ID int64 `json:"-"`
+
+	Order    null.Int `json:"order"`
+	Duration null.Int `json:"duration"`
+	VUTarget null.Int `json:"vu-target"`
+***REMOVED***
+
+func (s Stage) GetName() string ***REMOVED***
+	return "stage"
+***REMOVED***
+
+func (s Stage) GetID() string ***REMOVED***
+	return strconv.FormatInt(s.ID, 10)
+***REMOVED***
+
+func (s *Stage) SetID(v string) error ***REMOVED***
+	id, err := strconv.ParseInt(v, 10, 64)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	s.ID = id
 	return nil
 ***REMOVED***
 
