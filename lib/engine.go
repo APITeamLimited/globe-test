@@ -106,6 +106,10 @@ loop:
 				e.SetVUs(vus)
 			***REMOVED***
 
+			for _, vu := range e.vus ***REMOVED***
+				e.consumeBuffer(vu.Buffer)
+			***REMOVED***
+
 			if !ok ***REMOVED***
 				e.SetRunning(false)
 
