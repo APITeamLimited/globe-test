@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const TickRate = 500 * time.Millisecond
+const TickRate = 1 * time.Millisecond
 
 var (
 	MetricVUs    = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
@@ -73,11 +73,12 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
+	if len(e.Stages) == 0 ***REMOVED***
+		return errors.New("Engine has no stages")
+	***REMOVED***
+
 	e.ctx = ctx
 	e.nextID = 1
-
-	e.consumeEngineStats()
-	ticker := time.NewTicker(TickRate)
 
 	if e.Collector != nil ***REMOVED***
 		go e.Collector.Run(ctx)
@@ -85,48 +86,37 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		log.Debug("Engine: No Collector")
 	***REMOVED***
 
+	e.consumeEngineStats()
+
+	ticker := time.NewTicker(TickRate)
+	lastTick := time.Now()
+
 loop:
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-ticker.C:
+		case now := <-ticker.C:
+			timeDelta := now.Sub(lastTick)
+			e.Status.AtTime.Int64 += int64(timeDelta)
+			lastTick = now
+
+			stage, left, ok := StageAt(e.Stages, time.Duration(e.Status.AtTime.Int64))
+			if stage.StartVUs.Valid && stage.EndVUs.Valid ***REMOVED***
+				progress := (float64(stage.Duration.Int64-int64(left)) / float64(stage.Duration.Int64))
+				vus := Lerp(stage.StartVUs.Int64, stage.EndVUs.Int64, progress)
+				e.SetVUs(vus)
+			***REMOVED***
+
+			if !ok ***REMOVED***
+				e.SetRunning(false)
+
+				if e.Quit ***REMOVED***
+					break loop
+				***REMOVED*** else ***REMOVED***
+					log.Info("Test finished, press Ctrl+C to exit")
+				***REMOVED***
+			***REMOVED***
+
 			e.consumeEngineStats()
-
-			for _, vu := range e.vus ***REMOVED***
-				e.consumeBuffer(vu.Buffer)
-				vu.Buffer = vu.Buffer[:0]
-			***REMOVED***
-
-			if e.Status.Running.Bool ***REMOVED***
-				e.Status.AtTime.Int64 += int64(TickRate)
-
-				stage, stageLeft, ok := StageAt(e.Stages, time.Duration(e.Status.AtTime.Int64))
-				if stage.VUTarget.Valid ***REMOVED***
-					t := e.Status.AtTime.Int64
-					tx := t - int64(TickRate)
-					ty := t + int64(stageLeft)
-					x := e.Status.VUs.Int64
-					y := stage.VUTarget.Int64
-					vus := Ease(t, tx, ty, x, y)
-
-					if vus != e.Status.VUs.Int64 ***REMOVED***
-						log.WithField("vus", vus).Debug("Engine: Interpolating VUs...")
-						if err := e.SetVUs(vus); err != nil ***REMOVED***
-							log.WithError(err).WithField("vus", vus).Error("Engine: VU interpolation failed")
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-
-				if !ok ***REMOVED***
-					e.SetRunning(false)
-
-					if !e.Quit ***REMOVED***
-						log.Info("Test expired, execution paused, pass --quit to exit here")
-					***REMOVED*** else ***REMOVED***
-						log.Info("Test ended, bye!")
-						break loop
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
 		case <-ctx.Done():
 			break loop
 		***REMOVED***
@@ -154,6 +144,12 @@ func (e *Engine) SetRunning(running bool) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) SetVUs(v int64) error ***REMOVED***
+	if e.Status.VUs.Int64 == v ***REMOVED***
+		return nil
+	***REMOVED***
+
+	log.WithFields(log.Fields***REMOVED***"from": e.Status.VUs.Int64, "to": v***REMOVED***).Debug("Setting VUs")
+
 	e.vuMutex.Lock()
 	defer e.vuMutex.Unlock()
 
@@ -188,6 +184,12 @@ func (e *Engine) SetVUs(v int64) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
+	if e.Status.VUsMax.Int64 == v ***REMOVED***
+		return nil
+	***REMOVED***
+
+	log.WithFields(log.Fields***REMOVED***"from": e.Status.VUsMax.Int64, "to": v***REMOVED***).Debug("Setting Max VUs")
+
 	e.vuMutex.Lock()
 	defer e.vuMutex.Unlock()
 

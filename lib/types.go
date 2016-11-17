@@ -33,7 +33,8 @@ type Stage struct ***REMOVED***
 
 	Order    null.Int `json:"order"`
 	Duration null.Int `json:"duration"`
-	VUTarget null.Int `json:"vu-target"`
+	StartVUs null.Int `json:"start-vus"`
+	EndVUs   null.Int `json:"end-vus"`
 ***REMOVED***
 
 func (s Stage) GetName() string ***REMOVED***
