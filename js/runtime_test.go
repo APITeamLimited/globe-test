@@ -20,14 +20,14 @@ func TestNew(t *testing.T) ***REMOVED***
 func TestLoad(t *testing.T) ***REMOVED***
 	r, err := New()
 	assert.NoError(t, err)
-	assert.NoError(t, r.VM.Set("require", r.require))
+	assert.NoError(t, r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***))
 
 	t.Run("Importing Libraries", func(t *testing.T) ***REMOVED***
 		_, err := r.load("test.js", []byte(`
 			import "speedboat";
 		`))
 		assert.NoError(t, err)
-		assert.Contains(t, r.Lib, "speedboat.js")
+		assert.Contains(t, r.lib, "speedboat.js")
 	***REMOVED***)
 ***REMOVED***
 
