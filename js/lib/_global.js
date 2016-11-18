@@ -12,3 +12,10 @@ console = ***REMOVED***
 performance = ***REMOVED***
 	now() ***REMOVED*** return __jsapi__.ElapsedMs(); ***REMOVED***
 ***REMOVED***;
+
+require = function(name) ***REMOVED***
+	if (!__initapi__) ***REMOVED***
+		throw new Error("imports are only permitted in the init context")
+	***REMOVED***
+	return __initapi__.Require(name);
+***REMOVED***

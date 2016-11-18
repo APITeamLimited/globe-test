@@ -6,6 +6,7 @@ import (
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
 	"gopkg.in/guregu/null.v3"
 	"io/ioutil"
@@ -26,7 +27,8 @@ type Runtime struct ***REMOVED***
 	VM      *otto.Otto
 	Root    string
 	Exports map[string]otto.Value
-	Lib     map[string]otto.Value
+
+	lib map[string]otto.Value
 ***REMOVED***
 
 func New() (*Runtime, error) ***REMOVED***
@@ -39,7 +41,7 @@ func New() (*Runtime, error) ***REMOVED***
 		VM:      otto.New(),
 		Root:    wd,
 		Exports: make(map[string]otto.Value),
-		Lib:     make(map[string]otto.Value),
+		lib:     make(map[string]otto.Value),
 	***REMOVED***
 
 	polyfillJS, err := polyfillBox.String("dist/polyfill.js")
@@ -62,30 +64,10 @@ func New() (*Runtime, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
-	// You can only require() modules during setup; doing it during runtime would sink your test's
-	// performance in potentially nonobvious ways. Only relative imports ("./*", "../*") are
-	// allowed for user code; absolute imports are used for system-provided libraries.
-	r.VM.Set("require", r.require)
-	defer r.VM.Set("require", nil)
+	r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***)
+	defer r.VM.Set("__initapi__", nil)
 
 	return r.loadFile(filename)
-***REMOVED***
-
-func (r *Runtime) require(call otto.FunctionCall) otto.Value ***REMOVED***
-	name := call.Argument(0).String()
-	if !strings.HasPrefix(name, ".") ***REMOVED***
-		exports, err := r.loadLib(name + ".js")
-		if err != nil ***REMOVED***
-			panic(call.Otto.MakeCustomError("ImportError", err.Error()))
-		***REMOVED***
-		return exports
-	***REMOVED***
-
-	exports, err := r.loadFile(name + ".js")
-	if err != nil ***REMOVED***
-		panic(call.Otto.MakeCustomError("ImportError", err.Error()))
-	***REMOVED***
-	return exports
 ***REMOVED***
 
 func (r *Runtime) ExtractOptions(exports otto.Value, opts *lib.Options) error ***REMOVED***
@@ -165,7 +147,7 @@ func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) loadLib(filename string) (otto.Value, error) ***REMOVED***
-	if exports, ok := r.Lib[filename]; ok ***REMOVED***
+	if exports, ok := r.lib[filename]; ok ***REMOVED***
 		return exports, nil
 	***REMOVED***
 
@@ -177,7 +159,7 @@ func (r *Runtime) loadLib(filename string) (otto.Value, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
-	r.Lib[filename] = exports
+	r.lib[filename] = exports
 
 	log.WithField("filename", filename).Debug("Library loaded")
 

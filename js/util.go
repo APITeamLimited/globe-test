@@ -48,8 +48,8 @@ func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	rt.VM.Set("require", rt.require)
-	defer rt.VM.Set("require", nil)
+	rt.VM.Set("__initapi__", InitAPI***REMOVED***r: rt***REMOVED***)
+	defer rt.VM.Set("__initapi__", nil)
 
 	exp, err := rt.load("__snippet__", []byte(src))
 	if err != nil ***REMOVED***
