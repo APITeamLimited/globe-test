@@ -27,6 +27,7 @@ type Runtime struct ***REMOVED***
 	VM      *otto.Otto
 	Root    string
 	Exports map[string]otto.Value
+	Metrics map[string]*stats.Metric
 
 	lib map[string]otto.Value
 ***REMOVED***
@@ -41,6 +42,7 @@ func New() (*Runtime, error) ***REMOVED***
 		VM:      otto.New(),
 		Root:    wd,
 		Exports: make(map[string]otto.Value),
+		Metrics: make(map[string]*stats.Metric),
 		lib:     make(map[string]otto.Value),
 	***REMOVED***
 
