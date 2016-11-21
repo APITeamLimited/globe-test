@@ -113,7 +113,7 @@ func (t *ValueType) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 func (t ValueType) String() string ***REMOVED***
-	switch t.Type ***REMOVED***
+	switch t ***REMOVED***
 	case Default:
 		return defaultString
 	case Time:
