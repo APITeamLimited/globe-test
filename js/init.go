@@ -12,14 +12,21 @@ type InitAPI struct ***REMOVED***
 	r *Runtime
 ***REMOVED***
 
-func (i InitAPI) NewMetric(it int, name string) *stats.Metric ***REMOVED***
+func (i InitAPI) NewMetric(it int, name string, isTime bool) *stats.Metric ***REMOVED***
 	t := stats.MetricType(it)
+	vt := stats.Default
+	if isTime ***REMOVED***
+		vt = stats.Time
+	***REMOVED***
+
 	if m, ok := i.r.Metrics[name]; ok ***REMOVED***
 		if m.Type != t ***REMOVED***
 			throw(i.r.VM, errors.New(fmt.Sprintf("attempted to redeclare %s with a different type (%s != %s)", name, m.Type, t)))
 			return nil
 		***REMOVED***
-
+		if m.Contains != vt ***REMOVED***
+			throw(i.r.VM, errors.New(fmt.Sprintf("attempted to redeclare %s with a different kind of value (%s != %s)", name, m.Contains, vt)))
+		***REMOVED***
 		return m
 	***REMOVED***
 
