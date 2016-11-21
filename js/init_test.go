@@ -18,6 +18,7 @@ func TestNewMetric(t *testing.T) ***REMOVED***
 		"Counter": stats.Counter,
 		"Gauge":   stats.Gauge,
 		"Trend":   stats.Trend,
+		"Rate":    stats.Rate,
 	***REMOVED***
 
 	for s, tp := range types ***REMOVED***

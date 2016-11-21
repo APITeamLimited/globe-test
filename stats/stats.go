@@ -12,6 +12,7 @@ const (
 	counterString = `"counter"`
 	gaugeString   = `"gauge"`
 	trendString   = `"trend"`
+	rateString    = `"rate"`
 
 	defaultString = `"default"`
 	timeString    = `"time"`
@@ -23,6 +24,7 @@ const (
 	Counter                    // A counter that sums its data points
 	Gauge                      // A gauge that displays the latest value
 	Trend                      // A trend, min/max/avg/med are interesting
+	Rate                       // A rate, displays % of values that aren't 0
 )
 
 // Possible values for ValueType.
@@ -49,6 +51,8 @@ func (t MetricType) MarshalJSON() ([]byte, error) ***REMOVED***
 		return []byte(gaugeString), nil
 	case Trend:
 		return []byte(trendString), nil
+	case Rate:
+		return []byte(rateString), nil
 	default:
 		return nil, ErrInvalidMetricType
 	***REMOVED***
@@ -63,6 +67,8 @@ func (t *MetricType) UnmarshalJSON(data []byte) error ***REMOVED***
 		*t = Gauge
 	case trendString:
 		*t = Trend
+	case rateString:
+		*t = Rate
 	default:
 		return ErrInvalidMetricType
 	***REMOVED***
@@ -78,6 +84,8 @@ func (t MetricType) String() string ***REMOVED***
 		return gaugeString
 	case Trend:
 		return trendString
+	case Rate:
+		return rateString
 	default:
 		return "[INVALID]"
 	***REMOVED***
@@ -169,11 +177,16 @@ func (m Metric) Humanize() string ***REMOVED***
 ***REMOVED***
 
 func (m Metric) HumanizeValue(v float64) string ***REMOVED***
-	switch m.Contains ***REMOVED***
-	case Time:
-		return time.Duration(v).String()
+	switch m.Type ***REMOVED***
+	case Rate:
+		return strconv.FormatFloat(100*v, 'f', 2, 64) + "%"
 	default:
-		return strconv.FormatFloat(v, 'f', -1, 64)
+		switch m.Contains ***REMOVED***
+		case Time:
+			return time.Duration(v).String()
+		default:
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 

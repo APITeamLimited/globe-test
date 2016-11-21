@@ -71,3 +71,19 @@ func (t *TrendSink) Format() map[string]float64 ***REMOVED***
 
 	return map[string]float64***REMOVED***"min": t.min, "max": t.max, "avg": t.avg, "med": t.med***REMOVED***
 ***REMOVED***
+
+type RateSink struct ***REMOVED***
+	Trues int64
+	Total int64
+***REMOVED***
+
+func (r *RateSink) Add(s Sample) ***REMOVED***
+	r.Total += 1
+	if s.Value != 0 ***REMOVED***
+		r.Trues += 1
+	***REMOVED***
+***REMOVED***
+
+func (r RateSink) Format() map[string]float64 ***REMOVED***
+	return map[string]float64***REMOVED***"rate": float64(r.Trues) / float64(r.Total)***REMOVED***
+***REMOVED***
