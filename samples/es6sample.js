@@ -1,17 +1,23 @@
 import ***REMOVED*** group, check, sleep ***REMOVED*** from "speedboat";
+import ***REMOVED*** Counter, Trend ***REMOVED*** from "speedboat/metrics";
 import http from "speedboat/http";
 
 export let options = ***REMOVED***
 	vus: 5,
 ***REMOVED***;
 
+let mCounter = new Counter("my_counter");
+let mTrend = new Trend("my_trend");
+
 export default function() ***REMOVED***
 	check(Math.random(), ***REMOVED***
 		"top-level test": (v) => v < 1/3
 	***REMOVED***);
 	group("my group", function() ***REMOVED***
+		mCounter.add(1, ***REMOVED*** tag: "test" ***REMOVED***);
+
 		check(Math.random(), ***REMOVED***
-			"random value is < 0.5": (v) => v < 0.5
+			"random value is < 0.5": (v) => mTrend.add(v < 0.5),
 		***REMOVED***);
 
 		group("json", function() ***REMOVED***

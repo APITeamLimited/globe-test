@@ -9,6 +9,14 @@ export class Metric ***REMOVED***
 		***REMOVED***
 		this._impl = __initapi__.NewMetric(t, name, !!isTime);
 	***REMOVED***
+
+	add(v, tags=***REMOVED******REMOVED***) ***REMOVED***
+		if (!__jsapi__) ***REMOVED***
+			throw new Error("Metric.add() needs VU context")
+		***REMOVED***
+		__jsapi__.MetricAdd(this._impl, v*1.0, tags);
+		return v;
+	***REMOVED***
 ***REMOVED***
 
 export class Counter extends Metric ***REMOVED***
