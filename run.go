@@ -66,6 +66,10 @@ var commandRun = cli.Command***REMOVED***
 			Name:  "quit, q",
 			Usage: "quit immediately on test completion",
 		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "quit-on-taint",
+			Usage: "quit immediately if the test gets tainted",
+		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "out, o",
 			Usage: "output metrics to an external data store",
@@ -205,6 +209,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	addr := cc.GlobalString("address")
 	run := cc.Bool("run")
 	quit := cc.Bool("quit")
+	quitOnTaint := cc.Bool("quit-on-taint")
 
 	duration := cc.Duration("duration")
 	if !cc.IsSet("duration") && opts.Duration.Valid ***REMOVED***
@@ -254,6 +259,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	engineC, engineCancel := context.WithCancel(context.Background())
 	engine.Quit = quit
+	engine.QuitOnTaint = quitOnTaint
 	engine.Collector = collector
 	engine.Stages = []lib.Stage***REMOVED***lib.Stage***REMOVED***Duration: null.IntFrom(int64(duration))***REMOVED******REMOVED***
 

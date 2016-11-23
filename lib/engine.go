@@ -38,12 +38,13 @@ type vuEntry struct ***REMOVED***
 ***REMOVED***
 
 type Engine struct ***REMOVED***
-	Runner    Runner
-	Status    Status
-	Stages    []Stage
-	Collector stats.Collector
-	Quit      bool
-	Pause     sync.WaitGroup
+	Runner      Runner
+	Status      Status
+	Stages      []Stage
+	Collector   stats.Collector
+	Quit        bool
+	QuitOnTaint bool
+	Pause       sync.WaitGroup
 
 	Metrics    map[*stats.Metric]stats.Sink
 	Thresholds map[string][]*otto.Script
@@ -131,6 +132,11 @@ loop:
 					<-ctx.Done()
 					break loop
 				***REMOVED***
+			***REMOVED***
+
+			if e.QuitOnTaint && e.Status.Tainted.Bool ***REMOVED***
+				log.Warn("Test tainted, ending early...")
+				break loop
 			***REMOVED***
 
 			e.consumeEngineStats()
