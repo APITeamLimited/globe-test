@@ -1,6 +1,12 @@
 import ***REMOVED*** group, check ***REMOVED*** from "speedboat";
 import http from "speedboat/http";
 
+export let options = ***REMOVED***
+	thresholds: ***REMOVED***
+		http_req_duration: ["avg<=100"],
+	***REMOVED***
+***REMOVED***;
+
 export default function() ***REMOVED***
 	group("front page", function() ***REMOVED***
 		check(http.get("http://localhost:8080/"), ***REMOVED***

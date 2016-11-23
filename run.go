@@ -253,9 +253,15 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 	engineC, engineCancel := context.WithCancel(context.Background())
+	engine.Quit = quit
 	engine.Collector = collector
 	engine.Stages = []lib.Stage***REMOVED***lib.Stage***REMOVED***Duration: null.IntFrom(int64(duration))***REMOVED******REMOVED***
-	engine.Quit = quit
+
+	for metric, thresholds := range opts.Thresholds ***REMOVED***
+		for _, src := range thresholds ***REMOVED***
+			engine.AddThreshold(metric, src)
+		***REMOVED***
+	***REMOVED***
 
 	// Make the API Server
 	srv := &api.Server***REMOVED***

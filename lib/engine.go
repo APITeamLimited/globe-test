@@ -6,13 +6,17 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/stats"
+	"github.com/robertkrimen/otto"
 	"gopkg.in/guregu/null.v3"
 	"strconv"
 	"sync"
 	"time"
 )
 
-const TickRate = 1 * time.Millisecond
+const (
+	TickRate          = 1 * time.Millisecond
+	ThresholdTickRate = 2 * time.Second
+)
 
 var (
 	MetricVUs    = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
@@ -41,7 +45,10 @@ type Engine struct ***REMOVED***
 	Quit      bool
 	Pause     sync.WaitGroup
 
-	Metrics map[*stats.Metric]stats.Sink
+	Metrics    map[*stats.Metric]stats.Sink
+	Thresholds map[string][]*otto.Script
+
+	thresholdVM *otto.Otto
 
 	ctx    context.Context
 	vus    []*vuEntry
@@ -60,7 +67,9 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 			VUsMax:  null.IntFrom(0),
 			AtTime:  null.IntFrom(0),
 		***REMOVED***,
-		Metrics: make(map[*stats.Metric]stats.Sink),
+		Metrics:     make(map[*stats.Metric]stats.Sink),
+		Thresholds:  make(map[string][]*otto.Script),
+		thresholdVM: otto.New(),
 	***REMOVED***
 
 	e.Status.Running = null.BoolFrom(false)
@@ -85,6 +94,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		log.Debug("Engine: No Collector")
 	***REMOVED***
+
+	go e.runThresholds(ctx)
 
 	e.consumeEngineStats()
 
@@ -226,6 +237,17 @@ func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (e *Engine) AddThreshold(metric, src string) error ***REMOVED***
+	script, err := e.thresholdVM.Compile("__threshold__", src)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	e.Thresholds[metric] = append(e.Thresholds[metric], script)
+
+	return nil
+***REMOVED***
+
 func (e *Engine) runVU(ctx context.Context, id int64, vu *vuEntry) ***REMOVED***
 	idString := strconv.FormatInt(id, 10)
 
@@ -269,6 +291,61 @@ waitForPause:
 
 		if !e.Status.Running.Bool ***REMOVED***
 			goto waitForPause
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *Engine) runThresholds(ctx context.Context) ***REMOVED***
+	ticker := time.NewTicker(ThresholdTickRate)
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-ticker.C:
+			for m, sink := range e.Metrics ***REMOVED***
+				scripts, ok := e.Thresholds[m.Name]
+				if !ok ***REMOVED***
+					continue
+				***REMOVED***
+
+				sample := sink.Format()
+				for key, value := range sample ***REMOVED***
+					if m.Contains == stats.Time ***REMOVED***
+						value = value / float64(time.Millisecond)
+					***REMOVED***
+					// log.WithFields(log.Fields***REMOVED***"k": key, "v": value***REMOVED***).Debug("setting threshold data")
+					e.thresholdVM.Set(key, value)
+				***REMOVED***
+
+				taint := false
+				for _, script := range scripts ***REMOVED***
+					v, err := e.thresholdVM.Run(script.String())
+					if err != nil ***REMOVED***
+						log.WithError(err).WithField("metric", m.Name).Error("Threshold Error")
+						taint = true
+						continue
+					***REMOVED***
+					// log.WithFields(log.Fields***REMOVED***"metric": m.Name, "v": v, "s": sample***REMOVED***).Debug("threshold tick")
+					bV, err := v.ToBoolean()
+					if err != nil ***REMOVED***
+						log.WithError(err).WithField("metric", m.Name).Error("Threshold result is invalid")
+						taint = true
+						continue
+					***REMOVED***
+					if !bV ***REMOVED***
+						taint = true
+					***REMOVED***
+				***REMOVED***
+
+				for key, _ := range sample ***REMOVED***
+					e.thresholdVM.Set(key, otto.UndefinedValue())
+				***REMOVED***
+
+				if taint ***REMOVED***
+					m.Tainted = true
+					e.Status.Tainted.Bool = true
+				***REMOVED***
+			***REMOVED***
+		case <-ctx.Done():
+			return
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
