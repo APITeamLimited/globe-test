@@ -38,17 +38,14 @@ type vuEntry struct ***REMOVED***
 ***REMOVED***
 
 type Engine struct ***REMOVED***
-	Runner      Runner
-	Status      Status
-	Stages      []Stage
-	Collector   stats.Collector
-	Quit        bool
-	QuitOnTaint bool
-	Pause       sync.WaitGroup
+	Runner    Runner
+	Status    Status
+	Stages    []Stage
+	Collector stats.Collector
+	Pause     sync.WaitGroup
+	Metrics   map[*stats.Metric]stats.Sink
 
-	Metrics    map[*stats.Metric]stats.Sink
-	Thresholds map[string][]*otto.Script
-
+	thresholds  map[string][]*otto.Script
 	thresholdVM *otto.Otto
 
 	ctx    context.Context
@@ -69,26 +66,64 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 			AtTime:  null.IntFrom(0),
 		***REMOVED***,
 		Metrics:     make(map[*stats.Metric]stats.Sink),
-		Thresholds:  make(map[string][]*otto.Script),
+		thresholds:  make(map[string][]*otto.Script),
 		thresholdVM: otto.New(),
 	***REMOVED***
-
-	e.Status.Running = null.BoolFrom(false)
 	e.Pause.Add(1)
-
-	e.Status.VUs = null.IntFrom(0)
-	e.Status.VUsMax = null.IntFrom(0)
 
 	return e, nil
 ***REMOVED***
 
-func (e *Engine) Run(ctx context.Context) error ***REMOVED***
-	if len(e.Stages) == 0 ***REMOVED***
-		return errors.New("Engine has no stages")
+func (e *Engine) Apply(opts Options) error ***REMOVED***
+	if opts.Run.Valid ***REMOVED***
+		e.SetRunning(opts.Run.Bool)
+	***REMOVED***
+	if opts.VUsMax.Valid ***REMOVED***
+		if err := e.SetMaxVUs(opts.VUs.Int64); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	if opts.VUs.Valid ***REMOVED***
+		if !opts.VUsMax.Valid ***REMOVED***
+			if err := e.SetMaxVUs(opts.VUs.Int64); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+		if err := e.SetVUs(opts.VUs.Int64); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	if opts.Duration.Valid ***REMOVED***
+		duration, err := time.ParseDuration(opts.Duration.String)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		e.Stages = []Stage***REMOVED***Stage***REMOVED***Duration: null.IntFrom(int64(duration))***REMOVED******REMOVED***
 	***REMOVED***
 
+	if opts.Quit.Valid ***REMOVED***
+		e.Status.Quit = opts.Quit
+	***REMOVED***
+	if opts.QuitOnTaint.Valid ***REMOVED***
+		e.Status.QuitOnTaint = opts.QuitOnTaint
+	***REMOVED***
+
+	for metric, thresholds := range opts.Thresholds ***REMOVED***
+		for _, src := range thresholds ***REMOVED***
+			if err := e.AddThreshold(metric, src); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
 	e.ctx = ctx
 	e.nextID = 1
+
+	e.Apply(opts)
 
 	if e.Collector != nil ***REMOVED***
 		go e.Collector.Run(ctx)
@@ -125,7 +160,7 @@ loop:
 			if !ok ***REMOVED***
 				e.SetRunning(false)
 
-				if e.Quit ***REMOVED***
+				if e.Status.Quit.Bool ***REMOVED***
 					break loop
 				***REMOVED*** else ***REMOVED***
 					log.Info("Test finished, press Ctrl+C to exit")
@@ -134,7 +169,7 @@ loop:
 				***REMOVED***
 			***REMOVED***
 
-			if e.QuitOnTaint && e.Status.Tainted.Bool ***REMOVED***
+			if e.Status.QuitOnTaint.Bool && e.Status.Tainted.Bool ***REMOVED***
 				log.Warn("Test tainted, ending early...")
 				break loop
 			***REMOVED***
@@ -153,6 +188,10 @@ loop:
 	e.consumeEngineStats()
 
 	return nil
+***REMOVED***
+
+func (e *Engine) IsRunning() bool ***REMOVED***
+	return e.ctx != nil
 ***REMOVED***
 
 func (e *Engine) SetRunning(running bool) ***REMOVED***
@@ -249,7 +288,7 @@ func (e *Engine) AddThreshold(metric, src string) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	e.Thresholds[metric] = append(e.Thresholds[metric], script)
+	e.thresholds[metric] = append(e.thresholds[metric], script)
 
 	return nil
 ***REMOVED***
@@ -307,7 +346,7 @@ func (e *Engine) runThresholds(ctx context.Context) ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
 			for m, sink := range e.Metrics ***REMOVED***
-				scripts, ok := e.Thresholds[m.Name]
+				scripts, ok := e.thresholds[m.Name]
 				if !ok ***REMOVED***
 					continue
 				***REMOVED***

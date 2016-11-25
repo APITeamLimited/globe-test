@@ -14,6 +14,9 @@ type Status struct ***REMOVED***
 	VUs     null.Int  `json:"vus"`
 	VUsMax  null.Int  `json:"vus-max"`
 	AtTime  null.Int  `json:"at-time"`
+
+	Quit        null.Bool `json:"quit"`
+	QuitOnTaint null.Bool `json:"quit-on-taint"`
 ***REMOVED***
 
 func (s Status) GetName() string ***REMOVED***
