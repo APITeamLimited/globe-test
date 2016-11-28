@@ -51,7 +51,8 @@ type Engine struct ***REMOVED***
 	vus    []*vuEntry
 	nextID int64
 
-	vuMutex sync.Mutex
+	vuMutex   sync.Mutex
+	waitGroup sync.WaitGroup
 ***REMOVED***
 
 func NewEngine(r Runner) (*Engine, error) ***REMOVED***
@@ -138,8 +139,12 @@ func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
 
 	collectorCtx, collectorC := context.WithCancel(context.Background())
 	if e.Collector != nil ***REMOVED***
-		go e.Collector.Run(collectorCtx)
-		defer collectorC()
+		e.waitGroup.Add(1)
+		go func() ***REMOVED***
+			e.Collector.Run(collectorCtx)
+			log.Debug("Engine: Collector shut down")
+			e.waitGroup.Done()
+		***REMOVED***()
 	***REMOVED*** else ***REMOVED***
 		log.Debug("Engine: No Collector")
 	***REMOVED***
@@ -199,12 +204,15 @@ loop:
 		***REMOVED***
 	***REMOVED***
 
-	e.vus = nil
-
-	e.Status.Running = null.BoolFrom(false)
-	e.Status.VUs = null.IntFrom(0)
-	e.Status.VUsMax = null.IntFrom(0)
+	e.SetRunning(false)
+	e.SetVUs(0)
+	e.SetMaxVUs(0)
 	e.consumeEngineStats()
+
+	collectorC()
+
+	log.Debug("Engine: Waiting for subsystem shutdown...")
+	e.waitGroup.Wait()
 
 	return nil
 ***REMOVED***
@@ -251,7 +259,13 @@ func (e *Engine) SetVUs(v int64) error ***REMOVED***
 		if err := entry.VU.Reconfigure(e.nextID); err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		go e.runVU(ctx, e.nextID, entry)
+		e.waitGroup.Add(1)
+		go func() ***REMOVED***
+			id := e.nextID
+			e.runVU(ctx, id, entry)
+			log.WithField("id", id).Debug("Engine: VU terminated")
+			e.waitGroup.Done()
+		***REMOVED***()
 		e.nextID++
 	***REMOVED***
 	for i := current - 1; i >= v; i-- ***REMOVED***
