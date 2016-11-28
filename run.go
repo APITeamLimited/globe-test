@@ -357,6 +357,7 @@ loop:
 		atTime-(atTime%(100*time.Millisecond)),
 		atTime-(atTime%(100*time.Millisecond)),
 	)
+	fmt.Printf("\n")
 
 	// Sort and print metrics.
 	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
@@ -374,7 +375,7 @@ loop:
 		if val == "0" ***REMOVED***
 			continue
 		***REMOVED***
-		fmt.Printf("%s: %s\n", name, val)
+		fmt.Printf("  ✣ %s: %s\n", name, val)
 	***REMOVED***
 
 	if engine.Status.Tainted.Bool ***REMOVED***
