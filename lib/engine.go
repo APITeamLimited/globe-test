@@ -132,16 +132,16 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
-	e.ctx = ctx
+	subctx, cancel := context.WithCancel(context.Background())
+	e.ctx = subctx
 	e.nextID = 1
 
 	e.Apply(opts)
 
-	collectorCtx, collectorC := context.WithCancel(context.Background())
 	if e.Collector != nil ***REMOVED***
 		e.waitGroup.Add(1)
 		go func() ***REMOVED***
-			e.Collector.Run(collectorCtx)
+			e.Collector.Run(subctx)
 			log.Debug("Engine: Collector shut down")
 			e.waitGroup.Done()
 		***REMOVED***()
@@ -149,7 +149,12 @@ func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
 		log.Debug("Engine: No Collector")
 	***REMOVED***
 
-	go e.runThresholds(ctx)
+	e.waitGroup.Add(1)
+	go func() ***REMOVED***
+		e.runThresholds(subctx)
+		log.Debug("Engine: Thresholds shut down")
+		e.waitGroup.Done()
+	***REMOVED***()
 
 	e.consumeEngineStats()
 
@@ -209,7 +214,7 @@ loop:
 	e.SetMaxVUs(0)
 	e.consumeEngineStats()
 
-	collectorC()
+	cancel()
 
 	log.Debug("Engine: Waiting for subsystem shutdown...")
 	e.waitGroup.Wait()
