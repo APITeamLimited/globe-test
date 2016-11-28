@@ -178,11 +178,10 @@ loop:
 			***REMOVED***
 
 			for _, vu := range e.vus ***REMOVED***
-				if vu.Buffer == nil ***REMOVED***
+				buffer := vu.Buffer
+				if buffer == nil ***REMOVED***
 					continue
 				***REMOVED***
-
-				buffer := vu.Buffer
 				vu.Buffer = nil
 				e.consumeBuffer(buffer)
 			***REMOVED***
@@ -375,9 +374,15 @@ waitForPause:
 			***REMOVED***
 		***REMOVED***
 
-		buffer := vu.Buffer
-		buffer = append(buffer, samples...)
-		vu.Buffer = buffer
+		if samples != nil ***REMOVED***
+			buffer := vu.Buffer
+			if buffer == nil ***REMOVED***
+				buffer = samples
+			***REMOVED*** else ***REMOVED***
+				buffer = append(buffer, samples...)
+			***REMOVED***
+			vu.Buffer = buffer
+		***REMOVED***
 
 		if !e.Status.Running.Bool ***REMOVED***
 			goto waitForPause
