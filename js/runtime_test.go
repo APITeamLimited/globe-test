@@ -54,9 +54,9 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.VUs.Valid)
 		assert.Equal(t, int64(12345), opts.VUs.Int64)
 	***REMOVED***)
-	t.Run("vusMax", func(t *testing.T) ***REMOVED***
+	t.Run("vus-max", func(t *testing.T) ***REMOVED***
 		exp, err := r.load("test.js", []byte(`
-			export let options = ***REMOVED*** vusMax: 12345 ***REMOVED***;
+			export let options = ***REMOVED*** "vus-max": 12345 ***REMOVED***;
 		`))
 		assert.NoError(t, err)
 
