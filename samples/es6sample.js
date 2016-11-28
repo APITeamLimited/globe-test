@@ -4,6 +4,9 @@ import http from "speedboat/http";
 
 export let options = ***REMOVED***
 	vus: 5,
+	thresholds: ***REMOVED***
+		my_rate: ["avg>=0.4"],
+	***REMOVED***
 ***REMOVED***;
 
 let mCounter = new Counter("my_counter");
