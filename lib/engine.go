@@ -45,7 +45,7 @@ type Engine struct ***REMOVED***
 	Pause     sync.WaitGroup
 	Metrics   map[*stats.Metric]stats.Sink
 
-	thresholds  map[string][]*otto.Script
+	thresholds  map[string][]Threshold
 	thresholdVM *otto.Otto
 
 	ctx    context.Context
@@ -66,7 +66,7 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 			AtTime:  null.IntFrom(0),
 		***REMOVED***,
 		Metrics:     make(map[*stats.Metric]stats.Sink),
-		thresholds:  make(map[string][]*otto.Script),
+		thresholds:  make(map[string][]Threshold),
 		thresholdVM: otto.New(),
 	***REMOVED***
 	e.Pause.Add(1)
@@ -108,10 +108,22 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 		e.Status.QuitOnTaint = opts.QuitOnTaint
 	***REMOVED***
 
-	for metric, thresholds := range opts.Thresholds ***REMOVED***
-		for _, src := range thresholds ***REMOVED***
-			if err := e.AddThreshold(metric, src); err != nil ***REMOVED***
-				return err
+	if opts.Thresholds != nil ***REMOVED***
+		e.thresholds = opts.Thresholds
+
+		// Make sure all scripts are compiled!
+		for m, scripts := range e.thresholds ***REMOVED***
+			for i, script := range scripts ***REMOVED***
+				if script.Script != nil ***REMOVED***
+					continue
+				***REMOVED***
+
+				s, err := e.thresholdVM.Compile(fmt.Sprintf("threshold$%s:%i", m, i), script.Source)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				script.Script = s
+				scripts[i] = script
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -282,17 +294,6 @@ func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (e *Engine) AddThreshold(metric, src string) error ***REMOVED***
-	script, err := e.thresholdVM.Compile("__threshold__", src)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	e.thresholds[metric] = append(e.thresholds[metric], script)
-
-	return nil
-***REMOVED***
-
 func (e *Engine) runVU(ctx context.Context, id int64, vu *vuEntry) ***REMOVED***
 	idString := strconv.FormatInt(id, 10)
 
@@ -362,7 +363,7 @@ func (e *Engine) runThresholds(ctx context.Context) ***REMOVED***
 
 				taint := false
 				for _, script := range scripts ***REMOVED***
-					v, err := e.thresholdVM.Run(script.String())
+					v, err := e.thresholdVM.Run(script.Script)
 					if err != nil ***REMOVED***
 						log.WithError(err).WithField("metric", m.Name).Error("Threshold Error")
 						taint = true

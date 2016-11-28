@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"encoding/json"
+	"github.com/robertkrimen/otto"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -13,8 +15,7 @@ type Options struct ***REMOVED***
 	Quit        null.Bool `json:"quit"`
 	QuitOnTaint null.Bool `json:"quit-on-taint"`
 
-	// Thresholds are JS snippets keyed by metrics.
-	Thresholds map[string][]string `json:"thresholds"`
+	Thresholds map[string][]Threshold `json:"thresholds"`
 ***REMOVED***
 
 func (o Options) Apply(opts Options) Options ***REMOVED***
@@ -36,7 +37,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.QuitOnTaint.Valid ***REMOVED***
 		o.QuitOnTaint = opts.QuitOnTaint
 	***REMOVED***
-	if len(opts.Thresholds) > 0 ***REMOVED***
+	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds
 	***REMOVED***
 	return o
@@ -50,4 +51,27 @@ func (o Options) SetAllValid(valid bool) Options ***REMOVED***
 	o.Quit.Valid = valid
 	o.QuitOnTaint.Valid = valid
 	return o
+***REMOVED***
+
+type Threshold struct ***REMOVED***
+	Source string
+	Script *otto.Script
+***REMOVED***
+
+func (t Threshold) String() string ***REMOVED***
+	return t.Source
+***REMOVED***
+
+func (t Threshold) MarshalJSON() ([]byte, error) ***REMOVED***
+	return json.Marshal(t.Source)
+***REMOVED***
+
+func (t *Threshold) UnmarshalJSON(data []byte) error ***REMOVED***
+	var src string
+	if err := json.Unmarshal(data, &src); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	t.Source = src
+	t.Script = nil
+	return nil
 ***REMOVED***
