@@ -2,14 +2,13 @@ package js
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/speedboat/lib"
 	"github.com/loadimpact/speedboat/stats"
 	"github.com/robertkrimen/otto"
-	"gopkg.in/guregu/null.v3"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -83,80 +82,17 @@ func (r *Runtime) ExtractOptions(exports otto.Value, opts *lib.Options) error **
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	obj := v.Object()
-	if obj == nil ***REMOVED***
-		return nil
+	ev, err := v.Export()
+	if err != nil ***REMOVED***
+		return err
 	***REMOVED***
 
-	for _, key := range obj.Keys() ***REMOVED***
-		val, err := obj.Get(key)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		switch key ***REMOVED***
-		case "vus":
-			vus, err := val.ToInteger()
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			opts.VUs = null.IntFrom(vus)
-		case "vusMax":
-			vusMax, err := val.ToInteger()
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			opts.VUsMax = null.IntFrom(vusMax)
-		case "duration":
-			duration, err := val.ToString()
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			opts.Duration = null.StringFrom(duration)
-		case "thresholds":
-			if val.IsUndefined() || val.IsNull() ***REMOVED***
-				break
-			***REMOVED***
-
-			if opts.Thresholds == nil ***REMOVED***
-				opts.Thresholds = make(map[string][]string)
-			***REMOVED***
-
-			obj := val.Object()
-			if obj == nil ***REMOVED***
-				return errors.New("thresholds option must be an object")
-			***REMOVED***
-			for _, metric := range obj.Keys() ***REMOVED***
-				val, err := obj.Get(metric)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-
-				if val.IsString() ***REMOVED***
-					src, err := val.ToString()
-					if err != nil ***REMOVED***
-						return err
-					***REMOVED***
-					opts.Thresholds[metric] = append(opts.Thresholds[metric], src)
-				***REMOVED*** else if val.IsObject() ***REMOVED***
-					obj := val.Object()
-					for _, key := range obj.Keys() ***REMOVED***
-						val, err := obj.Get(key)
-						if err != nil ***REMOVED***
-							return err
-						***REMOVED***
-
-						src, err := val.ToString()
-						if err != nil ***REMOVED***
-							return err
-						***REMOVED***
-						opts.Thresholds[metric] = append(opts.Thresholds[metric], src)
-					***REMOVED***
-				***REMOVED*** else ***REMOVED***
-					return errors.New("threshold must be string or object")
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
+	data, err := json.Marshal(ev)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if err := json.Unmarshal(data, opts); err != nil ***REMOVED***
+		return err
 	***REMOVED***
 
 	return nil
