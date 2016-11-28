@@ -167,6 +167,10 @@ loop:
 			***REMOVED***
 
 			for _, vu := range e.vus ***REMOVED***
+				if vu.Buffer == nil ***REMOVED***
+					continue
+				***REMOVED***
+
 				buffer := vu.Buffer
 				vu.Buffer = nil
 				e.consumeBuffer(buffer)
