@@ -262,13 +262,6 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	srvC, srvCancel := context.WithCancel(context.Background())
 
-	// Make the Client
-	cl, err := api.NewClient(addr)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't make a client; is the address valid?")
-		return err
-	***REMOVED***
-
 	// Run the engine and API server in the background
 	wg.Add(2)
 	go func() ***REMOVED***
@@ -365,33 +358,23 @@ loop:
 		atTime-(atTime%(100*time.Millisecond)),
 	)
 
-	// If API server is still available, write final metrics to stdout.
-	// (An unavailable API server most likely means a port binding failure.)
-	select ***REMOVED***
-	case <-srvC.Done():
-	default:
-		metricList, err := cl.Metrics()
-		if err != nil ***REMOVED***
-			log.WithError(err).Error("Couldn't get metrics!")
-			break
-		***REMOVED***
+	// Sort and print metrics.
+	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
+	metricNames := make([]string, 0, len(engine.Metrics))
+	for m, _ := range engine.Metrics ***REMOVED***
+		metrics[m.Name] = m
+		metricNames = append(metricNames, m.Name)
+	***REMOVED***
+	sort.Strings(metricNames)
 
-		// Poor man's object sort.
-		metrics := make(map[string]stats.Metric, len(metricList))
-		keys := make([]string, len(metricList))
-		for i, metric := range metricList ***REMOVED***
-			metrics[metric.Name] = metric
-			keys[i] = metric.Name
+	for _, name := range metricNames ***REMOVED***
+		m := metrics[name]
+		m.Sample = engine.Metrics[m].Format()
+		val := metrics[name].Humanize()
+		if val == "0" ***REMOVED***
+			continue
 		***REMOVED***
-		sort.Strings(keys)
-
-		for _, key := range keys ***REMOVED***
-			val := metrics[key].Humanize()
-			if val == "0" ***REMOVED***
-				continue
-			***REMOVED***
-			fmt.Printf("%s: %s\n", key, val)
-		***REMOVED***
+		fmt.Printf("%s: %s\n", name, val)
 	***REMOVED***
 
 	if engine.Status.Tainted.Bool ***REMOVED***
