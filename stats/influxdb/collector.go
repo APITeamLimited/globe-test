@@ -6,7 +6,6 @@ import (
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/loadimpact/speedboat/stats"
 	"net/url"
-	"sync"
 	"time"
 )
 
@@ -15,9 +14,7 @@ const pushInterval = 1 * time.Millisecond
 type Collector struct ***REMOVED***
 	client    client.Client
 	batchConf client.BatchPointsConfig
-
-	buffers      []*Buffer
-	buffersMutex sync.Mutex
+	buffer    []stats.Sample
 ***REMOVED***
 
 func New(u *url.URL) (*Collector, error) ***REMOVED***
@@ -46,26 +43,19 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) Buffer() stats.Buffer ***REMOVED***
-	buf := &(Buffer***REMOVED******REMOVED***)
-	c.buffersMutex.Lock()
-	c.buffers = append(c.buffers, buf)
-	c.buffersMutex.Unlock()
-	return buf
+func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+	c.buffer = append(c.buffer, samples...)
 ***REMOVED***
 
 func (c *Collector) commit() ***REMOVED***
+	samples := c.buffer
+	c.buffer = nil
+
 	log.Debug("InfluxDB: Committing...")
 	batch, err := client.NewBatchPoints(c.batchConf)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("InfluxDB: Couldn't make a batch")
 		return
-	***REMOVED***
-
-	buffers := c.buffers
-	samples := []stats.Sample***REMOVED******REMOVED***
-	for _, buf := range buffers ***REMOVED***
-		samples = append(samples, buf.Drain()...)
 	***REMOVED***
 
 	for _, sample := range samples ***REMOVED***
@@ -82,20 +72,11 @@ func (c *Collector) commit() ***REMOVED***
 		batch.AddPoint(p)
 	***REMOVED***
 
-	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing points...")
+	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
+	startTime := time.Now()
 	if err := c.client.Write(batch); err != nil ***REMOVED***
 		log.WithError(err).Error("InfluxDB: Couldn't write stats")
 	***REMOVED***
-***REMOVED***
-
-type Buffer []stats.Sample
-
-func (b *Buffer) Add(samples ...stats.Sample) ***REMOVED***
-	*b = append(*b, samples...)
-***REMOVED***
-
-func (b *Buffer) Drain() []stats.Sample ***REMOVED***
-	old := *b
-	*b = (*b)[:0]
-	return old
+	t := time.Since(startTime)
+	log.WithField("t", t).Debug("InfluxDB: Batch written!")
 ***REMOVED***
