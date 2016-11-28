@@ -2,6 +2,7 @@ package influxdb
 
 import (
 	"context"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/loadimpact/speedboat/stats"
@@ -12,6 +13,7 @@ import (
 const pushInterval = 1 * time.Second
 
 type Collector struct ***REMOVED***
+	u         *url.URL
 	client    client.Client
 	batchConf client.BatchPointsConfig
 	buffer    []stats.Sample
@@ -24,9 +26,14 @@ func New(u *url.URL) (*Collector, error) ***REMOVED***
 	***REMOVED***
 
 	return &Collector***REMOVED***
+		u:         u,
 		client:    cl,
 		batchConf: batchConf,
 	***REMOVED***, nil
+***REMOVED***
+
+func (c *Collector) String() string ***REMOVED***
+	return fmt.Sprintf("influxdb (%s)", c.u.Host)
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***

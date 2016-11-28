@@ -238,6 +238,16 @@ func (e *Engine) IsRunning() bool ***REMOVED***
 	return e.ctx != nil
 ***REMOVED***
 
+func (e *Engine) TotalTime() (total time.Duration, finite bool) ***REMOVED***
+	for _, stage := range e.Stages ***REMOVED***
+		if stage.Duration.Valid ***REMOVED***
+			total += time.Duration(stage.Duration.Int64)
+			finite = true
+		***REMOVED***
+	***REMOVED***
+	return total, finite
+***REMOVED***
+
 func (e *Engine) SetRunning(running bool) ***REMOVED***
 	if running && !e.Status.Running.Bool ***REMOVED***
 		e.Pause.Done()
