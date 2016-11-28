@@ -365,9 +365,9 @@ waitForPause:
 			***REMOVED***
 		***REMOVED***
 
-		if samples != nil ***REMOVED***
-			vu.Buffer = append(vu.Buffer, samples...)
-		***REMOVED***
+		buffer := vu.Buffer
+		buffer = append(buffer, samples...)
+		vu.Buffer = buffer
 
 		if !e.Status.Running.Bool ***REMOVED***
 			goto waitForPause
