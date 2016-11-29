@@ -15,7 +15,7 @@ type Options struct ***REMOVED***
 	Quit        null.Bool `json:"quit"`
 	QuitOnTaint null.Bool `json:"quit-on-taint"`
 
-	Thresholds map[string][]Threshold `json:"thresholds"`
+	Thresholds map[string][]*Threshold `json:"thresholds"`
 ***REMOVED***
 
 func (o Options) Apply(opts Options) Options ***REMOVED***
@@ -56,6 +56,7 @@ func (o Options) SetAllValid(valid bool) Options ***REMOVED***
 type Threshold struct ***REMOVED***
 	Source string
 	Script *otto.Script
+	Failed bool
 ***REMOVED***
 
 func (t Threshold) String() string ***REMOVED***
@@ -73,5 +74,6 @@ func (t *Threshold) UnmarshalJSON(data []byte) error ***REMOVED***
 	***REMOVED***
 	t.Source = src
 	t.Script = nil
+	t.Failed = false
 	return nil
 ***REMOVED***

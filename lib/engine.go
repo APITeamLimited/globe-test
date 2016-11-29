@@ -45,7 +45,7 @@ type Engine struct ***REMOVED***
 	Pause     sync.WaitGroup
 	Metrics   map[*stats.Metric]stats.Sink
 
-	thresholds  map[string][]Threshold
+	Thresholds  map[string][]*Threshold
 	thresholdVM *otto.Otto
 
 	ctx    context.Context
@@ -67,7 +67,7 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 			AtTime:  null.IntFrom(0),
 		***REMOVED***,
 		Metrics:     make(map[*stats.Metric]stats.Sink),
-		thresholds:  make(map[string][]Threshold),
+		Thresholds:  make(map[string][]*Threshold),
 		thresholdVM: otto.New(),
 	***REMOVED***
 	e.Pause.Add(1)
@@ -110,10 +110,10 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 	***REMOVED***
 
 	if opts.Thresholds != nil ***REMOVED***
-		e.thresholds = opts.Thresholds
+		e.Thresholds = opts.Thresholds
 
 		// Make sure all scripts are compiled!
-		for m, scripts := range e.thresholds ***REMOVED***
+		for m, scripts := range e.Thresholds ***REMOVED***
 			for i, script := range scripts ***REMOVED***
 				if script.Script != nil ***REMOVED***
 					continue
@@ -397,7 +397,7 @@ func (e *Engine) runThresholds(ctx context.Context) ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
 			for m, sink := range e.Metrics ***REMOVED***
-				scripts, ok := e.thresholds[m.Name]
+				scripts, ok := e.Thresholds[m.Name]
 				if !ok ***REMOVED***
 					continue
 				***REMOVED***
@@ -428,6 +428,7 @@ func (e *Engine) runThresholds(ctx context.Context) ***REMOVED***
 					***REMOVED***
 					if !bV ***REMOVED***
 						taint = true
+						script.Failed = true
 					***REMOVED***
 				***REMOVED***
 

@@ -420,7 +420,15 @@ loop:
 		if val == "0" ***REMOVED***
 			continue
 		***REMOVED***
-		fmt.Printf("  ✣ %s: %s\n", name, val)
+		icon := "•"
+		for _, threshold := range engine.Thresholds[name] ***REMOVED***
+			icon = "✓"
+			if threshold.Failed ***REMOVED***
+				icon = "✗"
+				break
+			***REMOVED***
+		***REMOVED***
+		fmt.Printf("  %s %s: %s\n", icon, name, val)
 	***REMOVED***
 
 	if engine.Status.Tainted.Bool ***REMOVED***
