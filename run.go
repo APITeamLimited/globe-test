@@ -420,7 +420,7 @@ loop:
 		if val == "0" ***REMOVED***
 			continue
 		***REMOVED***
-		icon := "•"
+		icon := " "
 		for _, threshold := range engine.Thresholds[name] ***REMOVED***
 			icon = "✓"
 			if threshold.Failed ***REMOVED***
