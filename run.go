@@ -55,6 +55,11 @@ var commandRun = cli.Command***REMOVED***
 			Usage: "test duration, 0 to run until cancelled",
 			Value: 10 * time.Second,
 		***REMOVED***,
+		cli.Float64Flag***REMOVED***
+			Name:  "acceptance, a",
+			Usage: "acceptable margin of error before failing the test",
+			Value: 0.0,
+		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "run, r",
 			Usage: "start test immediately",
@@ -202,6 +207,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		Duration:    cliDuration(cc, "duration"),
 		Quit:        cliBool(cc, "quit"),
 		QuitOnTaint: cliBool(cc, "quit-on-taint"),
+		Acceptance:  cliFloat64(cc, "acceptance"),
 	***REMOVED***
 
 	// Make the Runner, extract script-defined options.
