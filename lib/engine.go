@@ -23,13 +23,14 @@ const (
 var (
 	MetricVUs    = &stats.Metric***REMOVED***Name: "vus", Type: stats.Gauge***REMOVED***
 	MetricVUsMax = &stats.Metric***REMOVED***Name: "vus_max", Type: stats.Gauge***REMOVED***
+	MetricRuns   = &stats.Metric***REMOVED***Name: "runs", Type: stats.Gauge***REMOVED***
 	MetricErrors = &stats.Metric***REMOVED***Name: "errors", Type: stats.Counter***REMOVED***
 
 	ErrTooManyVUs = errors.New("More VUs than the maximum requested")
 	ErrMaxTooLow  = errors.New("Can't lower max below current VU count")
 
 	// Special error used to taint a test, without printing an error.
-	ErrVUWantsTaint = errors.New("[ErrVUWantsTaint is never logged]")
+	ErrVUWantsTaint = errors.New("silent taint")
 )
 
 type vuEntry struct ***REMOVED***
@@ -379,19 +380,19 @@ waitForPause:
 		if err != nil ***REMOVED***
 			atomic.AddInt64(&e.Status.Taints, 1)
 
+			samples = append(samples, stats.Sample***REMOVED***
+				Metric: MetricErrors,
+				Time:   time.Now(),
+				Tags:   map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
+				Value:  float64(1),
+			***REMOVED***)
+
 			if err != ErrVUWantsTaint ***REMOVED***
 				if s, ok := err.(fmt.Stringer); ok ***REMOVED***
 					log.Error(s.String())
 				***REMOVED*** else ***REMOVED***
 					log.WithError(err).Error("Runtime Error")
 				***REMOVED***
-
-				samples = append(samples, stats.Sample***REMOVED***
-					Metric: MetricErrors,
-					Time:   time.Now(),
-					Tags:   map[string]string***REMOVED***"vu": idString, "error": err.Error()***REMOVED***,
-					Value:  float64(1),
-				***REMOVED***)
 			***REMOVED***
 		***REMOVED***
 
@@ -499,5 +500,6 @@ func (e *Engine) consumeEngineStats() ***REMOVED***
 	e.consumeBuffer([]stats.Sample***REMOVED***
 		stats.Sample***REMOVED***Metric: MetricVUs, Time: t, Value: float64(e.Status.VUs.Int64)***REMOVED***,
 		stats.Sample***REMOVED***Metric: MetricVUsMax, Time: t, Value: float64(e.Status.VUsMax.Int64)***REMOVED***,
+		stats.Sample***REMOVED***Metric: MetricRuns, Time: t, Value: float64(e.Status.Runs)***REMOVED***,
 	***REMOVED***)
 ***REMOVED***
