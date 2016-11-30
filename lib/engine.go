@@ -62,14 +62,14 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 	e := &Engine***REMOVED***
 		Runner: r,
 		Status: Status***REMOVED***
-			Running:     null.BoolFrom(false),
-			Tainted:     null.BoolFrom(false),
-			VUs:         null.IntFrom(0),
-			VUsMax:      null.IntFrom(0),
-			AtTime:      null.IntFrom(0),
-			Quit:        null.BoolFrom(false),
-			QuitOnTaint: null.BoolFrom(false),
-			Acceptance:  null.FloatFrom(0.0),
+			Running:      null.BoolFrom(false),
+			Tainted:      null.BoolFrom(false),
+			VUs:          null.IntFrom(0),
+			VUsMax:       null.IntFrom(0),
+			AtTime:       null.IntFrom(0),
+			Linger:       null.BoolFrom(false),
+			AbortOnTaint: null.BoolFrom(false),
+			Acceptance:   null.FloatFrom(0.0),
 		***REMOVED***,
 		Metrics:     make(map[*stats.Metric]stats.Sink),
 		Thresholds:  make(map[string][]*Threshold),
@@ -81,8 +81,8 @@ func NewEngine(r Runner) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Apply(opts Options) error ***REMOVED***
-	if opts.Run.Valid ***REMOVED***
-		e.SetRunning(opts.Run.Bool)
+	if opts.Paused.Valid ***REMOVED***
+		e.SetRunning(!opts.Paused.Bool)
 	***REMOVED***
 	if opts.VUsMax.Valid ***REMOVED***
 		if err := e.SetMaxVUs(opts.VUs.Int64); err != nil ***REMOVED***
@@ -107,11 +107,11 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 		e.Stages = []Stage***REMOVED***Stage***REMOVED***Duration: null.IntFrom(int64(duration))***REMOVED******REMOVED***
 	***REMOVED***
 
-	if opts.Quit.Valid ***REMOVED***
-		e.Status.Quit = opts.Quit
+	if opts.Linger.Valid ***REMOVED***
+		e.Status.Linger = opts.Linger
 	***REMOVED***
-	if opts.QuitOnTaint.Valid ***REMOVED***
-		e.Status.QuitOnTaint = opts.QuitOnTaint
+	if opts.AbortOnTaint.Valid ***REMOVED***
+		e.Status.AbortOnTaint = opts.AbortOnTaint
 	***REMOVED***
 	if opts.Acceptance.Valid ***REMOVED***
 		e.Status.Acceptance = opts.Acceptance
@@ -202,21 +202,18 @@ loop:
 			if !ok ***REMOVED***
 				e.SetRunning(false)
 
-				if e.Status.Quit.Bool ***REMOVED***
-					break loop
-				***REMOVED*** else ***REMOVED***
-					log.Info("Test finished, press Ctrl+C to exit")
+				if e.Status.Linger.Bool ***REMOVED***
 					<-ctx.Done()
-					break loop
 				***REMOVED***
+				break loop
 			***REMOVED***
 
 			// Check the taint rate acceptance to decide taint status.
 			taintRate := float64(e.Status.Taints) / float64(e.Status.Runs)
 			e.Status.Tainted.Bool = taintRate > e.Status.Acceptance.Float64
 
-			// If the test is tainted, and we've requested --quit-on-taint, shut down.
-			if e.Status.QuitOnTaint.Bool && e.Status.Tainted.Bool ***REMOVED***
+			// If the test is tainted, and we've requested --abort-on-taint, shut down.
+			if e.Status.AbortOnTaint.Bool && e.Status.Tainted.Bool ***REMOVED***
 				log.Warn("Test tainted, ending early...")
 				break loop
 			***REMOVED***
