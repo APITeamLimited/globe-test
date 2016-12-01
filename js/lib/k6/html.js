@@ -1,5 +1,5 @@
 /**
- * @module speedboat/html
+ * @module k6/html
  */
 
 /**
@@ -26,7 +26,7 @@ export class Selection ***REMOVED***
 	 * with seemingly no practical use - if a compelling use case is presented, modification can
 	 * easily be implemented.)
 	 *
-	 * @memberOf module:speedboat/html
+	 * @memberOf module:k6/html
 	 */
 	constructor(impl) ***REMOVED***
 		this.impl = impl;
@@ -36,7 +36,7 @@ export class Selection ***REMOVED***
 	 * Extends the selection with another set of elements.
 	 *
 	 * @param ***REMOVED***string|Selection***REMOVED*** arg Selection or selector
-	 * @return ***REMOVED***module:speedboat/html.Selection***REMOVED***
+	 * @return ***REMOVED***module:k6/html.Selection***REMOVED***
 	 */
 	add(arg) ***REMOVED***
 		if (typeof arg === "string") ***REMOVED***
@@ -51,7 +51,7 @@ export class Selection ***REMOVED***
 	 * Finds children by a selector.
 	 *
 	 * @param  ***REMOVED***string***REMOVED***    sel CSS selector.
-	 * @return ***REMOVED***module:speedboat/html.Selection***REMOVED***
+	 * @return ***REMOVED***module:k6/html.Selection***REMOVED***
 	 */
 	find(sel) ***REMOVED***
 		return new Selection(this.impl.Find(sel));

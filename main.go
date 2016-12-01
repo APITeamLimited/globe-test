@@ -14,7 +14,7 @@ func main() ***REMOVED***
 	cli.HelpFlag.Hidden = true
 
 	app := cli.NewApp()
-	app.Name = "speedboat"
+	app.Name = "k6"
 	app.Usage = "a next generation load generator"
 	app.Version = "0.4.0"
 	app.Commands = []cli.Command***REMOVED***

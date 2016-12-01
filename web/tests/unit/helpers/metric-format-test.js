@@ -1,4 +1,4 @@
-import ***REMOVED*** metricFormat ***REMOVED*** from 'speedboat/helpers/metric-format';
+import ***REMOVED*** metricFormat ***REMOVED*** from 'k6/helpers/metric-format';
 import ***REMOVED*** module, test ***REMOVED*** from 'qunit';
 
 module('Unit | Helper | metric format');

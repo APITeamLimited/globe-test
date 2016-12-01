@@ -2,7 +2,7 @@
 
 module.exports = function(environment) ***REMOVED***
   var ENV = ***REMOVED***
-    modulePrefix: 'speedboat',
+    modulePrefix: 'k6',
     environment: environment,
     rootURL: '/',
     locationType: 'auto',

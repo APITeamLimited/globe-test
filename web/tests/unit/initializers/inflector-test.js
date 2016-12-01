@@ -1,5 +1,5 @@
 import Ember from 'ember';
-import InflectorInitializer from 'speedboat/initializers/inflector';
+import InflectorInitializer from 'k6/initializers/inflector';
 import ***REMOVED*** module, test ***REMOVED*** from 'qunit';
 
 let application;

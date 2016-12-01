@@ -1,6 +1,6 @@
-import ***REMOVED*** group, check, sleep ***REMOVED*** from "speedboat";
-import ***REMOVED*** Counter, Rate ***REMOVED*** from "speedboat/metrics";
-import http from "speedboat/http";
+import ***REMOVED*** group, check, sleep ***REMOVED*** from "k6";
+import ***REMOVED*** Counter, Rate ***REMOVED*** from "k6/metrics";
+import http from "k6/http";
 
 export let options = ***REMOVED***
 	vus: 5,

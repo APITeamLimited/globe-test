@@ -1,12 +1,12 @@
 /**
- * @module speedboat/http
+ * @module k6/http
  */
-import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 
 export class Response ***REMOVED***
 	/**
 	 * Represents an HTTP response.
-	 * @memberOf module:speedboat/http
+	 * @memberOf module:k6/http
 	 */
 	constructor(data) ***REMOVED***
 		Object.assign(this, data);
@@ -36,7 +36,7 @@ export class Response ***REMOVED***
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
@@ -61,11 +61,11 @@ export function request(method, url, body, params = ***REMOVED******REMOVED***) 
 
 /**
  * Makes a GET request.
- * @see    module:speedboat/http.request
+ * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function get(url, body, params) ***REMOVED***
 	return request("GET", url, body, params);
@@ -73,11 +73,11 @@ export function get(url, body, params) ***REMOVED***
 
 /**
  * Makes a POST request.
- * @see    module:speedboat/http.request
+ * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function post(url, body, params) ***REMOVED***
 	return request("POST", url, body, params);
@@ -85,11 +85,11 @@ export function post(url, body, params) ***REMOVED***
 
 /**
  * Makes a PUT request.
- * @see    module:speedboat/http.request
+ * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function put(url, body, params) ***REMOVED***
 	return request("PUT", url, body, params);
@@ -97,11 +97,11 @@ export function put(url, body, params) ***REMOVED***
 
 /**
  * Makes a DELETE request.
- * @see    module:speedboat/http.request
+ * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function del(url, body, params) ***REMOVED***
 	return request("DELETE", url, body, params);
@@ -109,11 +109,11 @@ export function del(url, body, params) ***REMOVED***
 
 /**
  * Makes a PATCH request.
- * @see    module:speedboat/http.request
+ * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
  * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
- * @return ***REMOVED***module:speedboat/http.Response***REMOVED***
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function patch(url, body, params) ***REMOVED***
 	return request("PATCH", url, body, params);

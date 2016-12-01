@@ -7,7 +7,7 @@ import (
 
 func TestParseHTML(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(`
-	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "This is a <span id='what'>test snippet</span>.";
 	export default function() ***REMOVED*** parseHTML(html); ***REMOVED***
 	`))
@@ -15,8 +15,8 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 
 func TestHTMLText(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(`
-	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
-	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	import ***REMOVED*** _assert ***REMOVED*** from "k6";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "This is a <span id='what'>test snippet</span>.";
 	export default function() ***REMOVED***
 		let doc = parseHTML(html);
@@ -27,8 +27,8 @@ func TestHTMLText(t *testing.T) ***REMOVED***
 
 func TestHTMLFindText(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(`
-	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
-	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	import ***REMOVED*** _assert ***REMOVED*** from "k6";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "This is a <span id='what'>test snippet</span>.";
 	export default function() ***REMOVED***
 		let doc = parseHTML(html);
@@ -39,8 +39,8 @@ func TestHTMLFindText(t *testing.T) ***REMOVED***
 
 func TestHTMLAddSelector(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(`
-	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
-	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	import ***REMOVED*** _assert ***REMOVED*** from "k6";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "<span id='sub'>This</span> is a <span id='obj'>test snippet</span>.";
 	export default function() ***REMOVED***
 		let doc = parseHTML(html);
@@ -51,8 +51,8 @@ func TestHTMLAddSelector(t *testing.T) ***REMOVED***
 
 func TestHTMLAddSelection(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(`
-	import ***REMOVED*** _assert ***REMOVED*** from "speedboat";
-	import ***REMOVED*** parseHTML ***REMOVED*** from "speedboat/html";
+	import ***REMOVED*** _assert ***REMOVED*** from "k6";
+	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "<span id='sub'>This</span> is a <span id='obj'>test snippet</span>.";
 	export default function() ***REMOVED***
 		let doc = parseHTML(html);

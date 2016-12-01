@@ -2,7 +2,7 @@ package js
 
 import (
 	"context"
-	"github.com/loadimpact/speedboat/lib"
+	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -17,7 +17,7 @@ func TestSleep(t *testing.T) ***REMOVED***
 
 func TestDoGroup(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		group("test", fn);
 	***REMOVED***`)
@@ -37,7 +37,7 @@ func TestDoGroup(t *testing.T) ***REMOVED***
 
 func TestDoGroupNested(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		group("outer", function() ***REMOVED***
 			group("inner", fn);
@@ -60,7 +60,7 @@ func TestDoGroupNested(t *testing.T) ***REMOVED***
 
 func TestDoGroupReturn(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		let v = group("group", function() ***REMOVED***
 			return 12345;
@@ -77,7 +77,7 @@ func TestDoGroupReturn(t *testing.T) ***REMOVED***
 
 func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		let v = group("group", function() ***REMOVED***
 			// no return
@@ -94,7 +94,7 @@ func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
 
 func TestDoCheck(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** check ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		check(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
 	***REMOVED***`)
@@ -119,7 +119,7 @@ func TestDoCheck(t *testing.T) ***REMOVED***
 
 func TestCheckInGroup(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** group, check ***REMOVED*** from "speedboat";
+	import ***REMOVED*** group, check ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		group("group", function() ***REMOVED***
 			check(3, ***REMOVED*** "v === 3": (v) => v === 3 ***REMOVED***);
@@ -148,7 +148,7 @@ func TestCheckInGroup(t *testing.T) ***REMOVED***
 
 func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** check, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		let succ = check(null, ***REMOVED*** "true": true ***REMOVED***);
 		_assert(succ === true);
@@ -163,7 +163,7 @@ func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 
 func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** check, _assert ***REMOVED*** from "speedboat";
+	import ***REMOVED*** check, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		let succ = check(null, ***REMOVED*** "false": false ***REMOVED***);
 		_assert(succ === false);
@@ -178,7 +178,7 @@ func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 
 func TestTaint(t *testing.T) ***REMOVED***
 	r, err := newSnippetRunner(`
-	import ***REMOVED*** taint ***REMOVED*** from "speedboat";
+	import ***REMOVED*** taint ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
 		taint();
 	***REMOVED***`)

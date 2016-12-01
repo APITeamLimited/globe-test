@@ -1,5 +1,5 @@
-import ***REMOVED*** group, check ***REMOVED*** from "speedboat";
-import http from "speedboat/http";
+import ***REMOVED*** group, check ***REMOVED*** from "k6";
+import http from "k6/http";
 
 export let options = ***REMOVED***
 	thresholds: ***REMOVED***
