@@ -145,7 +145,9 @@ func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
 	e.ctx = subctx
 	e.nextID = 1
 
-	e.Apply(opts)
+	if err := e.Apply(opts); err != nil ***REMOVED***
+		return err
+	***REMOVED***
 
 	if e.Collector != nil ***REMOVED***
 		e.waitGroup.Add(1)
