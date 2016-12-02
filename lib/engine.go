@@ -90,11 +90,6 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if opts.VUs.Valid ***REMOVED***
-		if !opts.VUsMax.Valid ***REMOVED***
-			if err := e.SetMaxVUs(opts.VUs.Int64); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-		***REMOVED***
 		if err := e.SetVUs(opts.VUs.Int64); err != nil ***REMOVED***
 			return err
 		***REMOVED***
