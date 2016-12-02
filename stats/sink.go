@@ -58,6 +58,23 @@ func (t *TrendSink) Add(s Sample) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (t *TrendSink) P(pct float64) float64 ***REMOVED***
+	switch t.count ***REMOVED***
+	case 0:
+		return 0
+	case 1:
+		return t.Values[0]
+	case 2:
+		if pct < 0.5 ***REMOVED***
+			return t.Values[0]
+		***REMOVED*** else ***REMOVED***
+			return t.Values[1]
+		***REMOVED***
+	default:
+		return t.Values[int(float64(t.count)*pct)]
+	***REMOVED***
+***REMOVED***
+
 func (t *TrendSink) Format() map[string]float64 ***REMOVED***
 	if t.jumbled ***REMOVED***
 		sort.Float64s(t.Values)
@@ -69,7 +86,14 @@ func (t *TrendSink) Format() map[string]float64 ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return map[string]float64***REMOVED***"min": t.min, "max": t.max, "avg": t.avg, "med": t.med***REMOVED***
+	return map[string]float64***REMOVED***
+		"min": t.min,
+		"max": t.max,
+		"avg": t.avg,
+		"med": t.med,
+		"p90": t.P(0.90),
+		"p95": t.P(0.95),
+	***REMOVED***
 ***REMOVED***
 
 type RateSink struct ***REMOVED***
