@@ -203,7 +203,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	opts := lib.Options***REMOVED***
 		Paused:       cliBool(cc, "paused"),
 		VUs:          cliInt64(cc, "vus"),
-		VUsMax:       cliInt64(cc, "vus-max"),
+		VUsMax:       cliInt64(cc, "max"),
 		Duration:     cliDuration(cc, "duration"),
 		Linger:       cliBool(cc, "linger"),
 		AbortOnTaint: cliBool(cc, "abort-on-taint"),
