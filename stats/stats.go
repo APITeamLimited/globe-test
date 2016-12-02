@@ -3,6 +3,7 @@ package stats
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -175,6 +176,7 @@ func (m Metric) Humanize() string ***REMOVED***
 		for key, val := range m.Sample ***REMOVED***
 			parts = append(parts, fmt.Sprintf("%s=%s", key, m.HumanizeValue(val)))
 		***REMOVED***
+		sort.Strings(parts)
 		return strings.Join(parts, ", ")
 	***REMOVED***
 ***REMOVED***
