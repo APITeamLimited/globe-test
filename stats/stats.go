@@ -186,7 +186,18 @@ func (m Metric) HumanizeValue(v float64) string ***REMOVED***
 	default:
 		switch m.Contains ***REMOVED***
 		case Time:
-			return time.Duration(v).String()
+			d := time.Duration(v)
+			switch ***REMOVED***
+			case d > time.Minute:
+				d -= d % (1 * time.Second)
+			case d > time.Second:
+				d -= d % (10 * time.Millisecond)
+			case d > time.Millisecond:
+				d -= d % (10 * time.Microsecond)
+			case d > time.Microsecond:
+				d -= d % (10 * time.Nanosecond)
+			***REMOVED***
+			return d.String()
 		default:
 			return strconv.FormatFloat(v, 'f', -1, 64)
 		***REMOVED***
