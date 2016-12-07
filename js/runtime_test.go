@@ -67,6 +67,15 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 		assert.True(t, r.Options.Duration.Valid)
 		assert.Equal(t, "2m", r.Options.Duration.String)
 	***REMOVED***)
+	t.Run("max-redirects", func(t *testing.T) ***REMOVED***
+		_, err := r.load("test.js", []byte(`
+			export let options = ***REMOVED*** "max-redirects": 12345 ***REMOVED***;
+		`))
+		assert.NoError(t, err)
+
+		assert.True(t, r.Options.MaxRedirects.Valid)
+		assert.Equal(t, int64(12345), r.Options.MaxRedirects.Int64)
+	***REMOVED***)
 	t.Run("thresholds", func(t *testing.T) ***REMOVED***
 		_, err := r.load("test.js", []byte(`
 			export let options = ***REMOVED***

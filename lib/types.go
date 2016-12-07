@@ -16,6 +16,8 @@ type Options struct ***REMOVED***
 	AbortOnTaint null.Bool  `json:"abort-on-taint"`
 	Acceptance   null.Float `json:"acceptance"`
 
+	MaxRedirects null.Int `json:"max-redirects"`
+
 	Thresholds map[string][]*Threshold `json:"thresholds"`
 ***REMOVED***
 
@@ -40,6 +42,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.Acceptance.Valid ***REMOVED***
 		o.Acceptance = opts.Acceptance
+	***REMOVED***
+	if opts.MaxRedirects.Valid ***REMOVED***
+		o.MaxRedirects = opts.MaxRedirects
 	***REMOVED***
 	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds

@@ -119,15 +119,6 @@ export function patch(url, body, params) ***REMOVED***
 	return request("PATCH", url, body, params);
 ***REMOVED***;
 
-/**
- * Sets the maximum number of redirects to follow. A request that encounters more than this many
- * redirects will error. Default: 10.
- * @param ***REMOVED***Number***REMOVED*** n Max number of redirects.
- */
-export function setMaxRedirects(n) ***REMOVED***
-	__jsapi__.HTTPSetMaxRedirects(n);
-***REMOVED***
-
 export default ***REMOVED***
 	Response: Response,
 	request: request,
@@ -136,5 +127,4 @@ export default ***REMOVED***
 	put: put,
 	del: del,
 	patch: patch,
-	setMaxRedirects: setMaxRedirects,
 ***REMOVED***;
