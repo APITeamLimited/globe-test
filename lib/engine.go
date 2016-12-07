@@ -135,12 +135,12 @@ func (e *Engine) Apply(opts Options) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (e *Engine) Run(ctx context.Context, opts Options) error ***REMOVED***
+func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	subctx, cancel := context.WithCancel(context.Background())
 	e.ctx = subctx
 	e.nextID = 1
 
-	if err := e.Apply(opts); err != nil ***REMOVED***
+	if err := e.Apply(e.Runner.GetOptions()); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 

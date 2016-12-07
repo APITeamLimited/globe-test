@@ -29,6 +29,7 @@ type Runner struct ***REMOVED***
 	DefaultGroup *lib.Group
 	Groups       []*lib.Group
 	Checks       []*lib.Check
+	Options      lib.Options
 
 	HTTPTransport *http.Transport
 
@@ -59,6 +60,7 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 
 	r := &Runner***REMOVED***
 		Runtime: runtime,
+		Options: runtime.Options,
 		HTTPTransport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -109,6 +111,14 @@ func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
 
 func (r *Runner) GetChecks() []*lib.Check ***REMOVED***
 	return r.Checks
+***REMOVED***
+
+func (r Runner) GetOptions() lib.Options ***REMOVED***
+	return r.Options
+***REMOVED***
+
+func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
+	r.Options = r.Options.Apply(opts)
 ***REMOVED***
 
 type VU struct ***REMOVED***

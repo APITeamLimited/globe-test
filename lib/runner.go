@@ -16,6 +16,12 @@ type Runner interface ***REMOVED***
 
 	// Returns all known tests.
 	GetChecks() []*Check
+
+	// Returns the option set.
+	GetOptions() Options
+
+	// Applies a set of options.
+	ApplyOptions(opts Options)
 ***REMOVED***
 
 // A VU is a Virtual User.

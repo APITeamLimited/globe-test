@@ -131,7 +131,7 @@ func guessType(filename string) string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***REMOVED***
+func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
 	if t == TypeAuto ***REMOVED***
 		t = guessType(filename)
 	***REMOVED***
@@ -140,7 +140,11 @@ func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***RE
 	case "":
 		return nil, ErrUnknownType
 	case TypeURL:
-		return simple.New(filename)
+		r, err := simple.New(filename)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return r, err
 	case TypeJS:
 		rt, err := js.New()
 		if err != nil ***REMOVED***
@@ -151,11 +155,11 @@ func makeRunner(filename, t string, opts *lib.Options) (lib.Runner, error) ***RE
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-
-		if err := rt.ExtractOptions(exports, opts); err != nil ***REMOVED***
+		r, err := js.NewRunner(rt, exports)
+		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return js.NewRunner(rt, exports)
+		return r, nil
 	default:
 		return nil, ErrInvalidType
 	***REMOVED***
@@ -213,13 +217,12 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make the Runner, extract script-defined options.
 	filename := args[0]
 	runnerType := cc.String("type")
-	runnerOpts := lib.Options***REMOVED******REMOVED***
-	runner, err := makeRunner(filename, runnerType, &runnerOpts)
+	runner, err := makeRunner(filename, runnerType)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 		return err
 	***REMOVED***
-	opts = opts.Apply(runnerOpts)
+	opts = opts.Apply(runner.GetOptions())
 
 	// Read config files.
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
@@ -241,6 +244,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		opts.VUsMax.Int64 = opts.VUs.Int64
 	***REMOVED***
 	opts = opts.SetAllValid(true)
+	runner.ApplyOptions(opts)
 
 	// Make the metric collector, if requested.
 	var collector stats.Collector
@@ -279,7 +283,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 			wg.Done()
 		***REMOVED***()
 		log.Debug("Starting engine...")
-		if err := engine.Run(engineC, opts); err != nil ***REMOVED***
+		if err := engine.Run(engineC); err != nil ***REMOVED***
 			log.WithError(err).Error("Engine Error")
 		***REMOVED***
 		engineCancel()
@@ -466,13 +470,10 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 
-		exports, err := r.Load(filename)
-		if err != nil ***REMOVED***
+		if _, err := r.Load(filename); err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
-		if err := r.ExtractOptions(exports, &opts); err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
+		opts = opts.Apply(r.Options)
 	***REMOVED***
 
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
