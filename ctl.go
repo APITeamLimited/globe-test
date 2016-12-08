@@ -3,7 +3,7 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
-	"github.com/loadimpact/k6/api"
+	"github.com/loadimpact/k6/api/v1"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"gopkg.in/guregu/null.v3"
@@ -97,7 +97,7 @@ func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
 ***REMOVED***
 
 func actionStatus(cc *cli.Context) error ***REMOVED***
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -112,7 +112,7 @@ func actionStatus(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionStats(cc *cli.Context) error ***REMOVED***
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -151,7 +151,7 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -181,7 +181,7 @@ func actionCap(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -196,7 +196,7 @@ func actionCap(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionPause(cc *cli.Context) error ***REMOVED***
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
@@ -211,7 +211,7 @@ func actionPause(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionStart(cc *cli.Context) error ***REMOVED***
-	client, err := api.NewClient(cc.GlobalString("address"))
+	client, err := v1.NewClient(cc.GlobalString("address"))
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a client")
 		return err
