@@ -20,17 +20,19 @@ func ListenAndServe(addr string, engine *lib.Engine) error ***REMOVED***
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())
 	n.UseFunc(WithEngine(engine))
-	n.UseFunc(Logger)
+	n.UseFunc(NewLogger(log.StandardLogger()))
 	n.UseHandler(mux)
 
 	return http.ListenAndServe(addr, n)
 ***REMOVED***
 
-func Logger(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
-	next(rw, r)
+func NewLogger(l *log.Logger) negroni.HandlerFunc ***REMOVED***
+	return func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
+		next(rw, r)
 
-	res := rw.(negroni.ResponseWriter)
-	log.WithFields(log.Fields***REMOVED***"status": res.Status()***REMOVED***).Debugf("%s %s", r.Method, r.URL.Path)
+		res := rw.(negroni.ResponseWriter)
+		l.WithField("status", res.Status()).Debugf("%s %s", r.Method, r.URL.Path)
+	***REMOVED***
 ***REMOVED***
 
 func WithEngine(engine *lib.Engine) negroni.HandlerFunc ***REMOVED***
