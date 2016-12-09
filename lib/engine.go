@@ -204,7 +204,7 @@ loop:
 			if !ok ***REMOVED***
 				e.SetRunning(false)
 
-				if !e.Status.Linger.Bool ***REMOVED***
+				if e.Status.Linger.Bool ***REMOVED***
 					continue
 				***REMOVED***
 				break loop
