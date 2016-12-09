@@ -11,11 +11,16 @@ import (
 	"net/http"
 )
 
-func ListenAndServe(addr string, engine *lib.Engine) error ***REMOVED***
+func NewHandler() http.Handler ***REMOVED***
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", v1.NewHandler())
 	mux.Handle("/v2/", v2.NewHandler())
 	mux.HandleFunc("/ping", HandlePing)
+	return mux
+***REMOVED***
+
+func ListenAndServe(addr string, engine *lib.Engine) error ***REMOVED***
+	mux := NewHandler()
 
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())

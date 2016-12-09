@@ -8,6 +8,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/negroni"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,4 +60,24 @@ func TestWithEngine(t *testing.T) ***REMOVED***
 	WithEngine(engine)(rw, r, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		assert.Equal(t, engine, common.GetEngine(r.Context()))
 	***REMOVED***)
+***REMOVED***
+
+func TestPing(t *testing.T) ***REMOVED***
+	mux := NewHandler()
+
+	rw := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/ping", nil)
+	mux.ServeHTTP(rw, r)
+
+	res := rw.Result()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+
+	if !assert.NotNil(t, res.Body) ***REMOVED***
+		return
+	***REMOVED***
+
+	body, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	assert.NoError(t, err)
+	assert.Equal(t, []byte***REMOVED***'o', 'k'***REMOVED***, body)
 ***REMOVED***
