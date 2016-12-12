@@ -1,7 +1,6 @@
 package js
 
 import (
-	"context"
 	"github.com/robertkrimen/otto"
 )
 
@@ -41,36 +40,4 @@ func throw(vm *otto.Otto, v interface***REMOVED******REMOVED***) ***REMOVED***
 		panic(vm.MakeCustomError("Error", err.Error()))
 	***REMOVED***
 	panic(v)
-***REMOVED***
-
-func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
-	rt, err := New()
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	rt.VM.Set("__initapi__", InitAPI***REMOVED***r: rt***REMOVED***)
-	defer rt.VM.Set("__initapi__", nil)
-
-	exp, err := rt.load("__snippet__", []byte(src))
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	return NewRunner(rt, exp)
-***REMOVED***
-
-func runSnippet(src string) error ***REMOVED***
-	r, err := newSnippetRunner(src)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	vu, err := r.NewVU()
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	_, err = vu.RunOnce(context.Background())
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	return nil
 ***REMOVED***
