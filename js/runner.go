@@ -113,7 +113,7 @@ func (r *Runner) GetChecks() []*lib.Check ***REMOVED***
 	return r.Checks
 ***REMOVED***
 
-func (r Runner) GetOptions() lib.Options ***REMOVED***
+func (r *Runner) GetOptions() lib.Options ***REMOVED***
 	return r.Options
 ***REMOVED***
 
