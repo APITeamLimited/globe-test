@@ -49,9 +49,18 @@ func (t *NullValueType) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 type Metric struct ***REMOVED***
-	Name     string         `json:"-"`
+	Name string `json:"-"`
+
 	Type     NullMetricType `json:"type"`
 	Contains NullValueType  `json:"contains"`
+***REMOVED***
+
+func NewMetric(m stats.Metric) Metric ***REMOVED***
+	return Metric***REMOVED***
+		Name:     m.Name,
+		Type:     NullMetricType***REMOVED***m.Type, true***REMOVED***,
+		Contains: NullValueType***REMOVED***m.Contains, true***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 func (m Metric) GetID() string ***REMOVED***

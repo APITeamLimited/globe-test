@@ -60,3 +60,16 @@ func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
+
+func TestNewMetric(t *testing.T) ***REMOVED***
+	m := NewMetric(stats.Metric***REMOVED***
+		Name:     "name",
+		Type:     stats.Trend,
+		Contains: stats.Time,
+	***REMOVED***)
+	assert.Equal(t, "name", m.Name)
+	assert.True(t, m.Type.Valid)
+	assert.Equal(t, stats.Trend, m.Type.Type)
+	assert.True(t, m.Contains.Valid)
+	assert.Equal(t, stats.Time, m.Contains.Type)
+***REMOVED***

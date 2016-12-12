@@ -11,6 +11,7 @@ import (
 func NewHandler() http.Handler ***REMOVED***
 	router := httprouter.New()
 	router.GET("/v2/status", HandleGetStatus)
+	router.GET("/v2/metrics", HandleGetMetrics)
 	return router
 ***REMOVED***
 
@@ -24,6 +25,22 @@ func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 		VUsMax:  null.IntFrom(engine.Status.VUsMax.Int64),
 	***REMOVED***
 	data, err := jsonapi.Marshal(status)
+	if err != nil ***REMOVED***
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	***REMOVED***
+	_, _ = rw.Write(data)
+***REMOVED***
+
+func HandleGetMetrics(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+	engine := common.GetEngine(r.Context())
+
+	metrics := make([]Metric, 0)
+	for m, _ := range engine.Metrics ***REMOVED***
+		metrics = append(metrics, NewMetric(*m))
+	***REMOVED***
+
+	data, err := jsonapi.Marshal(metrics)
 	if err != nil ***REMOVED***
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
