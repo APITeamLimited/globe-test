@@ -22,9 +22,6 @@ func NewCookieJar() *CookieJar ***REMOVED***
 ***REMOVED***
 
 func (j *CookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) ***REMOVED***
-	if len(cookies) == 0 ***REMOVED***
-		return
-	***REMOVED***
 	if u.Scheme != "http" && u.Scheme != "https" ***REMOVED***
 		return
 	***REMOVED***
