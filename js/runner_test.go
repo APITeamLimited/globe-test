@@ -33,7 +33,7 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 		vu := vu_.(*VU)
 
 		t.Run("Reconfigure", func(t *testing.T) ***REMOVED***
-			vu.Reconfigure(12345)
+			assert.NoError(t, vu.Reconfigure(12345))
 			assert.Equal(t, int64(12345), vu.ID)
 		***REMOVED***)
 

@@ -27,9 +27,9 @@ func TestDoGroup(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	vu.vm.Set("fn", func() ***REMOVED***
+	assert.NoError(t, vu.vm.Set("fn", func() ***REMOVED***
 		assert.Equal(t, "test", vu.group.Name)
-	***REMOVED***)
+	***REMOVED***))
 
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
@@ -49,10 +49,10 @@ func TestDoGroupNested(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	vu.vm.Set("fn", func() ***REMOVED***
+	assert.NoError(t, vu.vm.Set("fn", func() ***REMOVED***
 		assert.Equal(t, "inner", vu.group.Name)
 		assert.Equal(t, "outer", vu.group.Parent.Name)
-	***REMOVED***)
+	***REMOVED***))
 
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)

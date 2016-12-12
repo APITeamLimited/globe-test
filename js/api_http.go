@@ -62,7 +62,7 @@ func (a JSAPI) HTTPRequest(method, url, body string, params map[string]interface
 	if err != nil ***REMOVED***
 		throw(a.vu.vm, err)
 	***REMOVED***
-	res.Body.Close()
+	_ = res.Body.Close()
 
 	trail := tracer.Done()
 	t := time.Now()

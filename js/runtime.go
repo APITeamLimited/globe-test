@@ -67,10 +67,13 @@ func New() (*Runtime, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
-	r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***)
-	defer r.VM.Set("__initapi__", nil)
-
+	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
 	exp, err := r.loadFile(filename)
+	if err := r.VM.Set("__initapi__", nil); err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
 	return exp, err
 ***REMOVED***
 
