@@ -31,11 +31,6 @@ const (
 	TypeJS   = "js"
 )
 
-var (
-	ErrUnknownType = errors.New("Unable to infer type from argument; specify with -t/--type")
-	ErrInvalidType = errors.New("Invalid type specified, see --help")
-)
-
 var commandRun = cli.Command***REMOVED***
 	Name:      "run",
 	Usage:     "Starts running a load test",
@@ -142,7 +137,7 @@ func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
 
 	switch t ***REMOVED***
 	case "":
-		return nil, ErrUnknownType
+		return nil, errors.New("Unable to infer type from argument; specify with -t/--type")
 	case TypeURL:
 		r, err := simple.New(filename)
 		if err != nil ***REMOVED***
@@ -165,7 +160,7 @@ func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
 		***REMOVED***
 		return r, nil
 	default:
-		return nil, ErrInvalidType
+		return nil, errors.New("Invalid type specified, see --help")
 	***REMOVED***
 ***REMOVED***
 

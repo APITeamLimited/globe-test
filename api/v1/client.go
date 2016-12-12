@@ -77,19 +77,14 @@ func (c *Client) call(method, path string, body []byte, out interface***REMOVED*
 
 func (c *Client) Ping() error ***REMOVED***
 	_, err := c.request("GET", "/ping", nil)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	return nil
+	return err
 ***REMOVED***
 
 // Status returns the status of the currently running test.
 func (c *Client) Status() (lib.Status, error) ***REMOVED***
 	var status lib.Status
-	if err := c.call("GET", "/v1/status", nil, &status); err != nil ***REMOVED***
-		return status, err
-	***REMOVED***
-	return status, nil
+	err := c.call("GET", "/v1/status", nil, &status)
+	return status, err
 ***REMOVED***
 
 // Updates the status of the currently running test.
@@ -98,25 +93,19 @@ func (c *Client) UpdateStatus(status lib.Status) (lib.Status, error) ***REMOVED*
 	if err != nil ***REMOVED***
 		return status, err
 	***REMOVED***
-	if err := c.call("PATCH", "/v1/status", data, &status); err != nil ***REMOVED***
-		return status, err
-	***REMOVED***
-	return status, nil
+	err = c.call("PATCH", "/v1/status", data, &status)
+	return status, err
 ***REMOVED***
 
 // Returns a snapshot of metrics for the currently running test.
 func (c *Client) Metrics() ([]stats.Metric, error) ***REMOVED***
 	var metrics []stats.Metric
-	if err := c.call("GET", "/v1/metrics", nil, &metrics); err != nil ***REMOVED***
-		return metrics, err
-	***REMOVED***
-	return metrics, nil
+	err := c.call("GET", "/v1/metrics", nil, &metrics)
+	return metrics, err
 ***REMOVED***
 
 func (c *Client) Metric(name string) (stats.Metric, error) ***REMOVED***
 	var metric stats.Metric
-	if err := c.call("GET", "/v1/metrics/"+name, nil, &metric); err != nil ***REMOVED***
-		return metric, err
-	***REMOVED***
-	return metric, nil
+	err := c.call("GET", "/v1/metrics/"+name, nil, &metric)
+	return metric, err
 ***REMOVED***

@@ -30,7 +30,7 @@ func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
 			***REMOVED***
 			continue
 		***REMOVED***
-		fields["arg"+strconv.FormatInt(int64(i), 10)] = arg.String()
+		fields["arg"+strconv.Itoa(i)] = arg.String()
 	***REMOVED***
 
 	entry := log.WithFields(fields)
