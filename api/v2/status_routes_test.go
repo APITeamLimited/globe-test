@@ -52,8 +52,8 @@ func TestGetStatus(t *testing.T) ***REMOVED***
 		var status Status
 		assert.NoError(t, jsonapi.Unmarshal(rw.Body.Bytes(), &status))
 		assert.True(t, status.Running.Valid)
-		assert.True(t, status.Tainted.Valid)
 		assert.True(t, status.VUs.Valid)
 		assert.True(t, status.VUsMax.Valid)
+		assert.False(t, status.Tainted)
 	***REMOVED***)
 ***REMOVED***
