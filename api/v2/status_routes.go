@@ -24,23 +24,50 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/loadimpact/k6/api/common"
 	"github.com/manyminds/api2go/jsonapi"
-	"gopkg.in/guregu/null.v3"
+	"io/ioutil"
 	"net/http"
 )
 
 func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
 	engine := common.GetEngine(r.Context())
 
-	status := Status***REMOVED***
-		Running: null.BoolFrom(engine.Status.Running.Bool),
-		VUs:     null.IntFrom(engine.Status.VUs.Int64),
-		VUsMax:  null.IntFrom(engine.Status.VUsMax.Int64),
-		Tainted: engine.Status.Tainted.Bool,
-	***REMOVED***
+	status := NewStatus(engine)
 	data, err := jsonapi.Marshal(status)
 	if err != nil ***REMOVED***
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)
+***REMOVED***
+
+func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+	engine := common.GetEngine(r.Context())
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil ***REMOVED***
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	***REMOVED***
+
+	var status Status
+	if err := jsonapi.Unmarshal(body, &status); err != nil ***REMOVED***
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	***REMOVED***
+
+	if status.VUsMax.Valid ***REMOVED***
+		if err := engine.SetMaxVUs(status.VUsMax.Int64); err != nil ***REMOVED***
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		***REMOVED***
+	***REMOVED***
+	if status.VUs.Valid ***REMOVED***
+		if err := engine.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
+			http.Error(rw, err.Error(), http.StatusBadRequest)
+			return
+		***REMOVED***
+	***REMOVED***
+	if status.Running.Valid ***REMOVED***
+		engine.SetRunning(status.Running.Bool)
+	***REMOVED***
 ***REMOVED***

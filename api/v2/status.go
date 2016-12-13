@@ -21,6 +21,7 @@
 package v2
 
 import (
+	"github.com/loadimpact/k6/lib"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -31,6 +32,15 @@ type Status struct ***REMOVED***
 
 	// Readonly.
 	Tainted bool `json:"tainted"`
+***REMOVED***
+
+func NewStatus(engine *lib.Engine) Status ***REMOVED***
+	return Status***REMOVED***
+		Running: null.BoolFrom(engine.Status.Running.Bool),
+		VUs:     null.IntFrom(engine.Status.VUs.Int64),
+		VUsMax:  null.IntFrom(engine.Status.VUsMax.Int64),
+		Tainted: engine.Status.Tainted.Bool,
+	***REMOVED***
 ***REMOVED***
 
 func (s Status) GetName() string ***REMOVED***
