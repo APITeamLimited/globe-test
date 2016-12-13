@@ -50,12 +50,10 @@ func (c *Collector) String() string ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	log.WithField("filename", c.fname).Debug("JSON: Writing JSON metrics")
-	for ***REMOVED***
-		select ***REMOVED***
-		case <-ctx.Done():
-			c.outfile.Close()
-			return
-		***REMOVED***
+	<-ctx.Done()
+	err := c.outfile.Close()
+	if err == nil ***REMOVED***
+		return
 	***REMOVED***
 ***REMOVED***
 
@@ -67,7 +65,11 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 				row, err := json.Marshal(env)
 				if err == nil ***REMOVED***
 					row = append(row, '\n')
-					c.outfile.Write(row)
+					_, err := c.outfile.Write(row)
+					if err != nil ***REMOVED***
+						log.WithField("filename", c.fname).Error("JSON: Error writing to file")
+					***REMOVED***
+
 				***REMOVED***
 			***REMOVED***
 
@@ -80,6 +82,9 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 			continue
 		***REMOVED***
 		row = append(row, '\n')
-		c.outfile.Write(row)
+		_, err = c.outfile.Write(row)
+		if err != nil ***REMOVED***
+			log.WithField("filename", c.fname).Error("JSON: Error writing to file")
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
