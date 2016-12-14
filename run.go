@@ -437,7 +437,7 @@ loop:
 			continue
 		***REMOVED***
 		icon := " "
-		for _, threshold := range engine.Thresholds[name] ***REMOVED***
+		for _, threshold := range engine.Thresholds[name].Thresholds ***REMOVED***
 			icon = "✓"
 			if threshold.Failed ***REMOVED***
 				icon = "✗"
