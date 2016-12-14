@@ -27,6 +27,10 @@ import (
 )
 
 func TestNewRunner(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	rt, err := New()
 	assert.NoError(t, err)
 	exp, err := rt.load("test.js", []byte(`export default function() ***REMOVED******REMOVED***`))

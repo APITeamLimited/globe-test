@@ -27,6 +27,10 @@ import (
 )
 
 func TestNew(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := New()
 	assert.NoError(t, err)
 
@@ -38,6 +42,10 @@ func TestNew(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestLoad(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := New()
 	assert.NoError(t, err)
 	assert.NoError(t, r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***))
@@ -52,6 +60,10 @@ func TestLoad(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestExtractOptions(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := New()
 	assert.NoError(t, err)
 
