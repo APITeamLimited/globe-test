@@ -21,15 +21,7 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/ghodss/yaml"
-	"github.com/loadimpact/k6/api/v1"
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
-	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"strconv"
 )
 
 var commandStatus = cli.Command***REMOVED***
@@ -106,116 +98,22 @@ var commandStart = cli.Command***REMOVED***
    Endpoint: /v1/status`,
 ***REMOVED***
 
-func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
-	bytes, err := yaml.Marshal(v)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Serialization Error")
-		return err
-	***REMOVED***
-	_, _ = os.Stdout.Write(bytes)
+func actionStatus(cc *cli.Context) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func actionStatus(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	status, err := client.Status()
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-	return dumpYAML(status)
-***REMOVED***
-
 func actionStats(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	if len(cc.Args()) > 0 ***REMOVED***
-		metric, err := client.Metric(cc.Args()[0])
-		if err != nil ***REMOVED***
-			log.WithError(err).Error("Error")
-			return err
-		***REMOVED***
-		return dumpYAML(metric)
-	***REMOVED***
-
-	metricList, err := client.Metrics()
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-
-	metrics := make(map[string]stats.Metric)
-	for _, metric := range metricList ***REMOVED***
-		metrics[metric.Name] = metric
-	***REMOVED***
-	return dumpYAML(metrics)
+	return nil
 ***REMOVED***
 
 func actionScale(cc *cli.Context) error ***REMOVED***
-	args := cc.Args()
-	if len(args) != 1 ***REMOVED***
-		return cli.NewExitError("Wrong number of arguments!", 1)
-	***REMOVED***
-	vus, err := strconv.ParseInt(args[0], 10, 64)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	update := lib.Status***REMOVED***VUs: null.IntFrom(vus)***REMOVED***
-	if cc.IsSet("max") ***REMOVED***
-		update.VUsMax = null.IntFrom(cc.Int64("max"))
-	***REMOVED***
-
-	status, err := client.UpdateStatus(update)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-	return dumpYAML(status)
+	return nil
 ***REMOVED***
 
 func actionPause(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(false)***REMOVED***)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-	return dumpYAML(status)
+	return nil
 ***REMOVED***
 
 func actionStart(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(true)***REMOVED***)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-	return dumpYAML(status)
+	return nil
 ***REMOVED***
