@@ -26,6 +26,10 @@ import (
 )
 
 func TestParseHTML(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	assert.NoError(t, runSnippet(`
 	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
 	let html = "This is a <span id='what'>test snippet</span>.";
@@ -34,6 +38,10 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTMLText(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	assert.NoError(t, runSnippet(`
 	import ***REMOVED*** _assert ***REMOVED*** from "k6";
 	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
@@ -46,6 +54,10 @@ func TestHTMLText(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTMLFindText(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	assert.NoError(t, runSnippet(`
 	import ***REMOVED*** _assert ***REMOVED*** from "k6";
 	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
@@ -58,6 +70,10 @@ func TestHTMLFindText(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTMLAddSelector(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	assert.NoError(t, runSnippet(`
 	import ***REMOVED*** _assert ***REMOVED*** from "k6";
 	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
@@ -70,6 +86,10 @@ func TestHTMLAddSelector(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTMLAddSelection(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	assert.NoError(t, runSnippet(`
 	import ***REMOVED*** _assert ***REMOVED*** from "k6";
 	import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
