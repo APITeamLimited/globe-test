@@ -69,7 +69,7 @@ func TestLogger(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestWithEngine(t *testing.T) ***REMOVED***
-	engine, err := lib.NewEngine(nil)
+	engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***

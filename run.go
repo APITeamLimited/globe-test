@@ -280,13 +280,13 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Make the Engine
-	engine, err := lib.NewEngine(runner)
+	engine, err := lib.NewEngine(runner, opts)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create the engine")
 		return err
 	***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
-	engine.Collector = collector
+	// engine.Collector = collector
 
 	// Run the engine.
 	wg.Add(1)
@@ -334,15 +334,11 @@ loop:
 		select ***REMOVED***
 		case <-ticker.C:
 			statusString := "running"
-			if !engine.Status.Running.Bool ***REMOVED***
-				if engine.IsRunning() ***REMOVED***
-					statusString = "paused"
-				***REMOVED*** else ***REMOVED***
-					statusString = "stopping"
-				***REMOVED***
+			if !engine.IsRunning() ***REMOVED***
+				statusString = "paused"
 			***REMOVED***
 
-			atTime := time.Duration(engine.Status.AtTime.Int64)
+			atTime := engine.AtTime()
 			totalTime, finite := engine.TotalTime()
 			progress := 0.0
 			if finite ***REMOVED***
@@ -370,7 +366,7 @@ loop:
 	wg.Wait()
 
 	// Test done, leave that status as the final progress bar!
-	atTime := time.Duration(engine.Status.AtTime.Int64)
+	atTime := engine.AtTime()
 	progressBar.Progress = 1.0
 	fmt.Printf("      done %s %10s / %s\n",
 		progressBar.String(),
@@ -451,7 +447,7 @@ loop:
 		fmt.Printf("  %s %s: %s\n", icon, name, val)
 	***REMOVED***
 
-	if engine.Status.Tainted.Bool ***REMOVED***
+	if engine.IsTainted() ***REMOVED***
 		return cli.NewExitError("", 99)
 	***REMOVED***
 	return nil

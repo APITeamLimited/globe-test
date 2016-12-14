@@ -33,7 +33,7 @@ import (
 )
 
 func TestGetStatus(t *testing.T) ***REMOVED***
-	engine, err := lib.NewEngine(nil)
+	engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	rw := httptest.NewRecorder()
@@ -76,7 +76,7 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 
 	for name, indata := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			engine, err := lib.NewEngine(nil)
+			engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 			assert.NoError(t, err)
 
 			body, err := jsonapi.Marshal(indata.Status)
