@@ -69,9 +69,7 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 		"paused":       ***REMOVED***200, Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED******REMOVED***,
 		"max vus":      ***REMOVED***200, Status***REMOVED***VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 		"too many vus": ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
-
-		// PANICS DUE TO ENGINE BUG!
-		// "vus":          ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
+		"vus":          ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, indata := range testdata ***REMOVED***
