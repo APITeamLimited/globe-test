@@ -29,6 +29,23 @@ import (
 	"time"
 )
 
+// Helper for asserting the number of active/dead VUs.
+func assertActiveVUs(t *testing.T, e *Engine, active, dead int) ***REMOVED***
+	var numActive, numDead int
+	var lastWasDead bool
+	for _, vu := range e.vuEntries ***REMOVED***
+		if vu.Cancel != nil ***REMOVED***
+			numActive++
+			assert.False(t, lastWasDead, "living vu in dead zone")
+		***REMOVED*** else ***REMOVED***
+			numDead++
+			lastWasDead = true
+		***REMOVED***
+	***REMOVED***
+	assert.Equal(t, active, numActive, "wrong number of active vus")
+	assert.Equal(t, dead, numDead, "wrong number of dead vus")
+***REMOVED***
+
 func TestNewEngine(t *testing.T) ***REMOVED***
 	_, err := NewEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
@@ -173,17 +190,41 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(0), e.GetVUsMax())
+		assert.Len(t, e.vuEntries, 0)
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
 		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.Equal(t, int64(10), e.GetVUsMax())
+		assert.Len(t, e.vuEntries, 10)
+		for _, vu := range e.vuEntries ***REMOVED***
+			assert.Nil(t, vu.Cancel)
+		***REMOVED***
+
+		t.Run("higher", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUsMax(15))
+			assert.Equal(t, int64(15), e.GetVUsMax())
+			assert.Len(t, e.vuEntries, 15)
+			for _, vu := range e.vuEntries ***REMOVED***
+				assert.Nil(t, vu.Cancel)
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("lower", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUsMax(5))
+			assert.Equal(t, int64(5), e.GetVUsMax())
+			assert.Len(t, e.vuEntries, 5)
+			for _, vu := range e.vuEntries ***REMOVED***
+				assert.Nil(t, vu.Cancel)
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("set negative", func(t *testing.T) ***REMOVED***
 		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.EqualError(t, e.SetVUsMax(-1), "vus-max can't be negative")
+		assert.Len(t, e.vuEntries, 0)
 	***REMOVED***)
 	t.Run("set too low", func(t *testing.T) ***REMOVED***
 		e, err := NewEngine(nil, Options***REMOVED***
@@ -192,6 +233,7 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 		***REMOVED***)
 		assert.NoError(t, err)
 		assert.EqualError(t, e.SetVUsMax(5), "can't reduce vus-max below vus")
+		assert.Len(t, e.vuEntries, 10)
 	***REMOVED***)
 ***REMOVED***
 
@@ -203,14 +245,34 @@ func TestEngineSetVUs(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(0), e.GetVUs())
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(10)***REMOVED***)
+		e, err := NewEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUs(10))
 		assert.Equal(t, int64(10), e.GetVUs())
-	***REMOVED***)
-	t.Run("set too high", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(10)***REMOVED***)
-		assert.NoError(t, err)
-		assert.EqualError(t, e.SetVUs(20), "more vus than allocated requested")
+		assertActiveVUs(t, e, 10, 5)
+
+		t.Run("negative", func(t *testing.T) ***REMOVED***
+			assert.EqualError(t, e.SetVUs(-1), "vus can't be negative")
+			assert.Equal(t, int64(10), e.GetVUs())
+			assertActiveVUs(t, e, 10, 5)
+		***REMOVED***)
+
+		t.Run("too high", func(t *testing.T) ***REMOVED***
+			assert.EqualError(t, e.SetVUs(20), "more vus than allocated requested")
+			assert.Equal(t, int64(10), e.GetVUs())
+			assertActiveVUs(t, e, 10, 5)
+		***REMOVED***)
+
+		t.Run("lower", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUs(5))
+			assert.Equal(t, int64(5), e.GetVUs())
+			assertActiveVUs(t, e, 5, 10)
+		***REMOVED***)
+
+		t.Run("higher", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUs(15))
+			assert.Equal(t, int64(15), e.GetVUs())
+			assertActiveVUs(t, e, 15, 0)
+		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
