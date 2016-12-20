@@ -39,7 +39,12 @@ type Collector struct ***REMOVED***
 	buffer    []stats.Sample
 ***REMOVED***
 
-func New(u *url.URL) (*Collector, error) ***REMOVED***
+func New(s string) (*Collector, error) ***REMOVED***
+	u, err := url.Parse(s)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	cl, batchConf, err := parseURL(u)
 	if err != nil ***REMOVED***
 		return nil, err

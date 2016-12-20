@@ -26,7 +26,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/stats"
 	"io"
-	"net/url"
 	"os"
 )
 
@@ -45,12 +44,7 @@ func (c *Collector) HasSeenMetric(str string) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func New(u *url.URL) (*Collector, error) ***REMOVED***
-	fname := u.Path
-	if u.Path == "" ***REMOVED***
-		fname = u.String()
-	***REMOVED***
-
+func New(fname string) (*Collector, error) ***REMOVED***
 	logfile, err := os.Create(fname)
 	if err != nil ***REMOVED***
 		return nil, err

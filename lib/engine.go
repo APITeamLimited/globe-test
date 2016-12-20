@@ -369,9 +369,13 @@ func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
 	if v > current ***REMOVED***
 		vus := e.vus
 		for i := current; i < v; i++ ***REMOVED***
-			vu, err := e.Runner.NewVU()
-			if err != nil ***REMOVED***
-				return err
+			var vu VU
+			if e.Runner != nil ***REMOVED***
+				vu_, err := e.Runner.NewVU()
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				vu = vu_
 			***REMOVED***
 			entry := &vuEntry***REMOVED***VU: vu***REMOVED***
 			vus = append(vus, entry)
@@ -386,6 +390,10 @@ func (e *Engine) SetMaxVUs(v int64) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) runVU(ctx context.Context, id int64, vu *vuEntry) ***REMOVED***
+	if vu.VU == nil ***REMOVED***
+		return
+	***REMOVED***
+
 	idString := strconv.FormatInt(id, 10)
 
 waitForPause:
