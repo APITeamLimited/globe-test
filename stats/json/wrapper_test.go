@@ -26,29 +26,21 @@ import (
 	"testing"
 )
 
-func TestWrapWithNilArg(t *testing.T) ***REMOVED***
-	out := Wrap(nil)
+func TestWrapersWithNilArg(t *testing.T) ***REMOVED***
+	out := WrapSample(nil)
+	assert.Equal(t, out, (*Envelope)(nil))
+	out = WrapMetric(nil)
 	assert.Equal(t, out, (*Envelope)(nil))
 ***REMOVED***
 
-func TestWrapWithUnusedType(t *testing.T) ***REMOVED***
-	out := Wrap(JSONSample***REMOVED******REMOVED***)
-	assert.Equal(t, out, (*Envelope)(nil))
-***REMOVED***
-
-func TestWrapWithSample(t *testing.T) ***REMOVED***
-	out := Wrap(stats.Sample***REMOVED***
+func TestWrapSampleWithSamplePointer(t *testing.T) ***REMOVED***
+	out := WrapSample(&stats.Sample***REMOVED***
 		Metric: &stats.Metric***REMOVED******REMOVED***,
 	***REMOVED***)
 	assert.NotEqual(t, out, (*Envelope)(nil))
 ***REMOVED***
 
-func TestWrapWithMetricPointer(t *testing.T) ***REMOVED***
-	out := Wrap(&stats.Metric***REMOVED******REMOVED***)
+func TestWrapMetricWithMetricPointer(t *testing.T) ***REMOVED***
+	out := WrapMetric(&stats.Metric***REMOVED******REMOVED***)
 	assert.NotEqual(t, out, (*Envelope)(nil))
-***REMOVED***
-
-func TestWrapWithMetric(t *testing.T) ***REMOVED***
-	out := Wrap(stats.Metric***REMOVED******REMOVED***)
-	assert.Equal(t, out, (*Envelope)(nil))
 ***REMOVED***

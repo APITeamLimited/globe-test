@@ -45,20 +45,25 @@ func NewJSONSample(sample *stats.Sample) *JSONSample ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func Wrap(t interface***REMOVED******REMOVED***) *Envelope ***REMOVED***
-	switch data := t.(type) ***REMOVED***
-	case stats.Sample:
-		return &Envelope***REMOVED***
-			Type:   "Point",
-			Metric: data.Metric.Name,
-			Data:   NewJSONSample(&data),
-		***REMOVED***
-	case *stats.Metric:
-		return &Envelope***REMOVED***
-			Type:   "Metric",
-			Metric: data.Name,
-			Data:   data,
-		***REMOVED***
+func WrapSample(sample *stats.Sample) *Envelope ***REMOVED***
+	if sample == nil ***REMOVED***
+		return nil
 	***REMOVED***
-	return nil
+	return &Envelope***REMOVED***
+		Type:   "Point",
+		Metric: sample.Metric.Name,
+		Data:   NewJSONSample(sample),
+	***REMOVED***
+***REMOVED***
+
+func WrapMetric(metric *stats.Metric) *Envelope ***REMOVED***
+	if metric == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	return &Envelope***REMOVED***
+		Type:   "Metric",
+		Metric: metric.Name,
+		Data:   metric,
+	***REMOVED***
 ***REMOVED***
