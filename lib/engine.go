@@ -30,6 +30,7 @@ import (
 
 const (
 	TickRate          = 1 * time.Millisecond
+	CollectRate       = 10 * time.Millisecond
 	ThresholdTickRate = 2 * time.Second
 	ShutdownTimeout   = 10 * time.Second
 )
@@ -40,6 +41,9 @@ var ErrVUWantsTaint = errors.New("test is tainted")
 type vuEntry struct ***REMOVED***
 	VU     VU
 	Cancel context.CancelFunc
+
+	Samples []stats.Sample
+	lock    sync.Mutex
 ***REMOVED***
 
 // The Engine is the beating heart of K6.
@@ -47,8 +51,9 @@ type Engine struct ***REMOVED***
 	Runner  Runner
 	Options Options
 
-	Metrics    map[*stats.Metric]stats.Sink
-	Thresholds map[string]Thresholds
+	Thresholds  map[string]Thresholds
+	Metrics     map[*stats.Metric]stats.Sink
+	MetricsLock sync.Mutex
 
 	atTime    time.Duration
 	vuEntries []*vuEntry
@@ -95,8 +100,16 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
+	go e.runCollection(ctx)
+
 	e.running = true
-	<-ctx.Done()
+loop:
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-ctx.Done():
+			break loop
+		***REMOVED***
+	***REMOVED***
 	e.running = false
 
 	e.clearSubcontext()
@@ -229,7 +242,11 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 	***REMOVED***
 
 	for ***REMOVED***
-		_, _ = vu.VU.RunOnce(ctx)
+		samples, _ := vu.VU.RunOnce(ctx)
+
+		vu.lock.Lock()
+		vu.Samples = append(vu.Samples, samples...)
+		vu.lock.Unlock()
 
 		select ***REMOVED***
 		case <-ctx.Done():
@@ -237,4 +254,44 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 		default:
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
+	ticker := time.NewTicker(CollectRate)
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-ticker.C:
+			e.processSamples(e.collect()...)
+		case <-ctx.Done():
+			return
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *Engine) collect() []stats.Sample ***REMOVED***
+	samples := []stats.Sample***REMOVED******REMOVED***
+	for _, vu := range e.vuEntries ***REMOVED***
+		if vu.Samples == nil ***REMOVED***
+			continue
+		***REMOVED***
+
+		vu.lock.Lock()
+		samples = append(samples, vu.Samples...)
+		vu.Samples = nil
+		vu.lock.Unlock()
+	***REMOVED***
+	return samples
+***REMOVED***
+
+func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
+	e.MetricsLock.Lock()
+	for _, sample := range samples ***REMOVED***
+		sink := e.Metrics[sample.Metric]
+		if sink == nil ***REMOVED***
+			sink = sample.Metric.NewSink()
+			e.Metrics[sample.Metric] = sink
+		***REMOVED***
+		sink.Add(sample)
+	***REMOVED***
+	e.MetricsLock.Unlock()
 ***REMOVED***
