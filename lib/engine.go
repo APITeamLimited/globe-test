@@ -95,8 +95,6 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
-	e.clearSubcontext()
-
 	e.running = true
 	<-ctx.Done()
 	e.running = false
