@@ -22,6 +22,7 @@ package json
 
 import (
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -34,6 +35,7 @@ func TestNewWithInaccessibleFilename(t *testing.T) ***REMOVED***
 
 func TestNewWithFileName(t *testing.T) ***REMOVED***
 	p := string("/tmp/okplacetolog.log")
+	defer func() ***REMOVED*** _ = os.Remove(p) ***REMOVED***()
 	collector, err := New(p)
 	assert.Equal(t, err, error(nil))
 	assert.NotEqual(t, collector, (*Collector)(nil))
@@ -41,6 +43,7 @@ func TestNewWithFileName(t *testing.T) ***REMOVED***
 
 func TestNewWithLocalFilename1(t *testing.T) ***REMOVED***
 	p := string("./okplacetolog.log")
+	defer func() ***REMOVED*** _ = os.Remove(p) ***REMOVED***()
 	collector, err := New(p)
 	assert.Equal(t, err, error(nil))
 	assert.NotEqual(t, collector, (*Collector)(nil))
@@ -48,6 +51,7 @@ func TestNewWithLocalFilename1(t *testing.T) ***REMOVED***
 
 func TestNewWithLocalFilename2(t *testing.T) ***REMOVED***
 	p := string("okplacetolog.log")
+	defer func() ***REMOVED*** _ = os.Remove(p) ***REMOVED***()
 	collector, err := New(p)
 	assert.Equal(t, err, error(nil))
 	assert.NotEqual(t, collector, (*Collector)(nil))
