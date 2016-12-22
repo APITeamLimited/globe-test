@@ -165,7 +165,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		ctx, _ := context.WithTimeout(context.Background(), d)
 		startTime := time.Now()
 		assert.NoError(t, e.Run(ctx))
-		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 1*TickRate)
+		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
 	***REMOVED***)
 ***REMOVED***
 
