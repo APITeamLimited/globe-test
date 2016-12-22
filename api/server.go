@@ -42,7 +42,7 @@ func NewHandler(root string) http.Handler ***REMOVED***
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", v1.NewHandler())
 	mux.Handle("/v2/", v2.NewHandler())
-	mux.HandleFunc("/ping", HandlePing)
+	mux.Handle("/ping", HandlePing())
 	mux.Handle("/", HandleStatic(root))
 	return mux
 ***REMOVED***
@@ -75,9 +75,11 @@ func WithEngine(engine *lib.Engine) negroni.HandlerFunc ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func HandlePing(rw http.ResponseWriter, r *http.Request) ***REMOVED***
-	rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(rw, "ok")
+func HandlePing() http.Handler ***REMOVED***
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprint(rw, "ok")
+	***REMOVED***)
 ***REMOVED***
 
 func HandleStatic(root string) http.Handler ***REMOVED***
