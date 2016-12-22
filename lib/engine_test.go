@@ -157,6 +157,16 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			assert.Fail(t, "context was not terminated")
 		***REMOVED***
 	***REMOVED***)
+	t.Run("updates AtTime", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		assert.NoError(t, err)
+
+		d := 50 * time.Millisecond
+		ctx, _ := context.WithTimeout(context.Background(), d)
+		startTime := time.Now()
+		assert.NoError(t, e.Run(ctx))
+		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 1*TickRate)
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***

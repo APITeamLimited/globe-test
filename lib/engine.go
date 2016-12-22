@@ -102,13 +102,28 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	go e.runCollection(ctx)
 
+	lastTick := time.Time***REMOVED******REMOVED***
+	ticker := time.NewTicker(TickRate)
+
 	e.running = true
 loop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ctx.Done():
 			break loop
+		case <-ticker.C:
 		***REMOVED***
+
+		// Calculate the time delta between now and the last tick.
+		now := time.Now()
+		if lastTick.IsZero() ***REMOVED***
+			lastTick = now
+		***REMOVED***
+		dT := now.Sub(lastTick)
+		lastTick = now
+
+		// Update the time counter appropriately.
+		e.atTime += dT
 	***REMOVED***
 	e.running = false
 
