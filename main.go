@@ -22,7 +22,6 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/gin-gonic/gin"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 )
@@ -58,8 +57,6 @@ func main() ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	app.Before = func(cc *cli.Context) error ***REMOVED***
-		gin.SetMode(gin.ReleaseMode)
-
 		if cc.Bool("verbose") ***REMOVED***
 			log.SetLevel(log.DebugLevel)
 		***REMOVED***
