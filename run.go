@@ -336,9 +336,9 @@ loop:
 			***REMOVED***
 
 			atTime := engine.AtTime()
-			totalTime, finite := engine.TotalTime()
+			totalTime := engine.TotalTime()
 			progress := 0.0
-			if finite ***REMOVED***
+			if totalTime > 0 ***REMOVED***
 				progress = float64(atTime) / float64(totalTime)
 			***REMOVED***
 

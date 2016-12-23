@@ -157,6 +157,16 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			assert.Fail(t, "context was not terminated")
 		***REMOVED***
 	***REMOVED***)
+	t.Run("exits with stages", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		assert.NoError(t, err)
+
+		d := 50 * time.Millisecond
+		e.Stages = []Stage***REMOVED***Stage***REMOVED***Duration: d***REMOVED******REMOVED***
+		startTime := time.Now()
+		assert.NoError(t, e.Run(context.Background()))
+		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***
@@ -173,6 +183,44 @@ func TestEngineIsRunning(t *testing.T) ***REMOVED***
 	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond)
 	assert.False(t, e.IsRunning())
+***REMOVED***
+
+func TestEngineTotalTime(t *testing.T) ***REMOVED***
+	t.Run("Duration", func(t *testing.T) ***REMOVED***
+		for _, d := range []time.Duration***REMOVED***0, 1 * time.Second, 10 * time.Second***REMOVED*** ***REMOVED***
+			t.Run(d.String(), func(t *testing.T) ***REMOVED***
+				e, err := NewEngine(nil, Options***REMOVED***Duration: null.StringFrom(d.String())***REMOVED***)
+				assert.NoError(t, err)
+
+				assert.Len(t, e.Stages, 1)
+				assert.Equal(t, Stage***REMOVED***Duration: d***REMOVED***, e.Stages[0])
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		// The lines get way too damn long if I have to write time.Second everywhere
+		sec := time.Second
+
+		testdata := map[string]struct ***REMOVED***
+			Duration time.Duration
+			Stages   []Stage
+		***REMOVED******REMOVED***
+			"nil":        ***REMOVED***0, nil***REMOVED***,
+			"empty":      ***REMOVED***0, []Stage***REMOVED******REMOVED******REMOVED***,
+			"1,infinite": ***REMOVED***0, []Stage***REMOVED***Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
+			"2,infinite": ***REMOVED***0, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED***, Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
+			"1,finite":   ***REMOVED***10 * sec, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED******REMOVED******REMOVED***,
+			"2,finite":   ***REMOVED***15 * sec, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED***, Stage***REMOVED***Duration: 5 * sec***REMOVED******REMOVED******REMOVED***,
+		***REMOVED***
+		for name, data := range testdata ***REMOVED***
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+				assert.NoError(t, err)
+				e.Stages = data.Stages
+				assert.Equal(t, data.Duration, e.TotalTime())
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineAtTime(t *testing.T) ***REMOVED***

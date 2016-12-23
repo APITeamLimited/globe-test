@@ -22,8 +22,8 @@ package lib
 
 import (
 	"context"
-	"errors"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 )
@@ -51,11 +51,16 @@ type Engine struct ***REMOVED***
 	Runner  Runner
 	Options Options
 
+	Stages      []Stage
 	Thresholds  map[string]Thresholds
 	Metrics     map[*stats.Metric]stats.Sink
 	MetricsLock sync.Mutex
 
-	atTime    time.Duration
+	atTime          time.Duration
+	atStage         int
+	atStageSince    time.Duration
+	atStageStartVUs int64
+
 	vuEntries []*vuEntry
 	vuMutex   sync.Mutex
 
@@ -77,11 +82,22 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 		Runner:  r,
 		Options: o,
 
+		Stages:     []Stage***REMOVED***Stage***REMOVED******REMOVED******REMOVED***,
 		Metrics:    make(map[*stats.Metric]stats.Sink),
 		Thresholds: make(map[string]Thresholds),
 	***REMOVED***
 	e.clearSubcontext()
 
+	if o.Duration.Valid ***REMOVED***
+		d, err := time.ParseDuration(o.Duration.String)
+		if err != nil ***REMOVED***
+			return nil, errors.Wrap(err, "options.duration")
+		***REMOVED***
+
+		stage0 := e.Stages[0]
+		stage0.Duration = d
+		e.Stages[0] = stage0
+	***REMOVED***
 	if o.VUsMax.Valid ***REMOVED***
 		if err := e.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
 			return nil, err
@@ -102,18 +118,23 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	go e.runCollection(ctx)
 
+	e.atTime = 0
+	e.atStage = 0
+	e.atStageSince = 0
+	e.atStageStartVUs = e.vus
+
 	lastTick := time.Time***REMOVED******REMOVED***
 	ticker := time.NewTicker(TickRate)
 
 	e.running = true
-loop:
-	for ***REMOVED***
-		select ***REMOVED***
-		case <-ctx.Done():
-			break loop
-		case <-ticker.C:
-		***REMOVED***
+	defer func() ***REMOVED***
+		e.running = false
 
+		e.clearSubcontext()
+		e.subwg.Wait()
+	***REMOVED***()
+
+	for ***REMOVED***
 		// Calculate the time delta between now and the last tick.
 		now := time.Now()
 		if lastTick.IsZero() ***REMOVED***
@@ -122,13 +143,22 @@ loop:
 		dT := now.Sub(lastTick)
 		lastTick = now
 
-		// Update the time counter appropriately.
+		// Update state.
 		e.atTime += dT
-	***REMOVED***
-	e.running = false
+		keepRunning, err := e.processStages()
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		if !keepRunning ***REMOVED***
+			return nil
+		***REMOVED***
 
-	e.clearSubcontext()
-	e.subwg.Wait()
+		select ***REMOVED***
+		case <-ticker.C:
+		case <-ctx.Done():
+			return nil
+		***REMOVED***
+	***REMOVED***
 
 	return nil
 ***REMOVED***
@@ -233,8 +263,15 @@ func (e *Engine) AtTime() time.Duration ***REMOVED***
 	return e.atTime
 ***REMOVED***
 
-func (e *Engine) TotalTime() (time.Duration, bool) ***REMOVED***
-	return 0, false
+func (e *Engine) TotalTime() time.Duration ***REMOVED***
+	var total time.Duration
+	for _, stage := range e.Stages ***REMOVED***
+		if stage.Duration <= 0 ***REMOVED***
+			return 0
+		***REMOVED***
+		total += stage.Duration
+	***REMOVED***
+	return total
 ***REMOVED***
 
 func (e *Engine) clearSubcontext() ***REMOVED***
@@ -247,6 +284,33 @@ func (e *Engine) clearSubcontext() ***REMOVED***
 	subctx, subcancel := context.WithCancel(context.Background())
 	e.subctx = subctx
 	e.subcancel = subcancel
+***REMOVED***
+
+func (e *Engine) processStages() (bool, error) ***REMOVED***
+	stage := e.Stages[e.atStage]
+	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
+		if e.atStage != len(e.Stages)-1 ***REMOVED***
+			e.atStage++
+			e.atStageSince = e.atTime
+			e.atStageStartVUs = e.vus
+			stage = e.Stages[e.atStage]
+		***REMOVED*** else ***REMOVED***
+			return false, nil
+		***REMOVED***
+	***REMOVED***
+	if stage.Target.Valid ***REMOVED***
+		from := e.atStageStartVUs
+		to := stage.Target.Int64
+		t := 1.0
+		if stage.Duration > 0 ***REMOVED***
+			t = Clampf(float64(e.atTime)/float64(e.atStageSince+stage.Duration), 0.0, 1.0)
+		***REMOVED***
+		if err := e.SetVUs(Lerp(from, to, t)); err != nil ***REMOVED***
+			return false, errors.Wrapf(err, "stage #%d", e.atStage+1)
+		***REMOVED***
+	***REMOVED***
+
+	return true, nil
 ***REMOVED***
 
 func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
