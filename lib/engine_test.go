@@ -157,16 +157,6 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			assert.Fail(t, "context was not terminated")
 		***REMOVED***
 	***REMOVED***)
-	t.Run("updates AtTime", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
-		assert.NoError(t, err)
-
-		d := 50 * time.Millisecond
-		ctx, _ := context.WithTimeout(context.Background(), d)
-		startTime := time.Now()
-		assert.NoError(t, e.Run(ctx))
-		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
-	***REMOVED***)
 ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***
@@ -183,6 +173,17 @@ func TestEngineIsRunning(t *testing.T) ***REMOVED***
 	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond)
 	assert.False(t, e.IsRunning())
+***REMOVED***
+
+func TestEngineAtTime(t *testing.T) ***REMOVED***
+	e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+	assert.NoError(t, err)
+
+	d := 50 * time.Millisecond
+	ctx, _ := context.WithTimeout(context.Background(), d)
+	startTime := time.Now()
+	assert.NoError(t, e.Run(ctx))
+	assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
 ***REMOVED***
 
 func TestEngineSetPaused(t *testing.T) ***REMOVED***
