@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 	"testing"
+	"time"
 )
 
 func TestOptionsApply(t *testing.T) ***REMOVED***
@@ -46,6 +47,12 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: null.StringFrom("2m")***REMOVED***)
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m", opts.Duration.String)
+	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
+		assert.NotNil(t, opts.Stages)
+		assert.Len(t, opts.Stages, 1)
+		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
 	***REMOVED***)
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)

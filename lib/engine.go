@@ -82,7 +82,6 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 		Runner:  r,
 		Options: o,
 
-		Stages:     []Stage***REMOVED***Stage***REMOVED******REMOVED******REMOVED***,
 		Metrics:    make(map[*stats.Metric]stats.Sink),
 		Thresholds: make(map[string]Thresholds),
 	***REMOVED***
@@ -93,10 +92,10 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 		if err != nil ***REMOVED***
 			return nil, errors.Wrap(err, "options.duration")
 		***REMOVED***
-
-		stage0 := e.Stages[0]
-		stage0.Duration = d
-		e.Stages[0] = stage0
+		e.Stages = []Stage***REMOVED***Stage***REMOVED***Duration: d***REMOVED******REMOVED***
+	***REMOVED***
+	if o.Stages != nil ***REMOVED***
+		e.Stages = o.Stages
 	***REMOVED***
 	if o.VUsMax.Valid ***REMOVED***
 		if err := e.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
@@ -287,6 +286,11 @@ func (e *Engine) clearSubcontext() ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) processStages() (bool, error) ***REMOVED***
+	// If there are no stages, just keep going indefinitely at a stable VU count.
+	if len(e.Stages) == 0 ***REMOVED***
+		return true, nil
+	***REMOVED***
+
 	stage := e.Stages[e.atStage]
 	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
 		if e.atStage != len(e.Stages)-1 ***REMOVED***

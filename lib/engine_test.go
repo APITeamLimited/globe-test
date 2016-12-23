@@ -214,9 +214,8 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+				e, err := NewEngine(nil, Options***REMOVED***Stages: data.Stages***REMOVED***)
 				assert.NoError(t, err)
-				e.Stages = data.Stages
 				assert.Equal(t, data.Duration, e.TotalTime())
 			***REMOVED***)
 		***REMOVED***
