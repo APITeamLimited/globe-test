@@ -131,7 +131,6 @@ func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 	if path == "-" ***REMOVED***
 		data, err = ioutil.ReadAll(os.Stdin)
 	***REMOVED*** else ***REMOVED***
-		var err error
 		// To protect against directory traversal, prevent loading of files outside the root (pwd) dir
 		path, err = filepath.Abs(filename)
 		if err != nil ***REMOVED***
