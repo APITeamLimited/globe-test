@@ -138,7 +138,12 @@ func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 		return exports, nil
 	***REMOVED***
 
-	data, err := ioutil.ReadFile(path)
+	if path == "-" ***REMOVED***
+		data, err := ioutil.ReadAll(os.Stdin)
+	***REMOVED***
+	else ***REMOVED***
+		data, err := ioutil.ReadFile(path)
+	***REMOVED***
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***

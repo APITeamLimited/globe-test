@@ -46,9 +46,9 @@ import (
 )
 
 const (
-	TypeAuto = "auto"
-	TypeURL  = "url"
-	TypeJS   = "js"
+	TypeAuto 	= "auto"
+	TypeURL  	= "url"
+	TypeJS   	= "js"
 )
 
 var commandRun = cli.Command***REMOVED***
@@ -81,7 +81,7 @@ var commandRun = cli.Command***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
-			Usage: "input type, one of: auto, url, js",
+			Usage: "input type, one of: auto, url, js. Mandatory when reading from stdin",
 			Value: "auto",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
@@ -151,6 +151,9 @@ func guessType(filename string) string ***REMOVED***
 ***REMOVED***
 
 func makeRunner(filename, t string) (lib.Runner, error) ***REMOVED***
+	if filename == "-" && t == TypeAuto ***REMOVED***
+		return nil, errors.New("Unable to auto-detect type when reading from STDIN; please use -t/--type flag")
+	***REMOVED***
 	if t == TypeAuto ***REMOVED***
 		t = guessType(filename)
 	***REMOVED***

@@ -55,6 +55,12 @@ type Runner struct ***REMOVED***
 ***REMOVED***
 
 func New(rawurl string) (*Runner, error) ***REMOVED***
+	if rawurl == "-" ***REMOVED***
+		rawurl, err := ioutil.ReadAll(os.Stdin)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+	***REMOVED***
 	u, err := url.Parse(rawurl)
 	if err != nil ***REMOVED***
 		return nil, err
