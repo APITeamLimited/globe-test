@@ -81,7 +81,7 @@ var commandRun = cli.Command***REMOVED***
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
-			Usage: "input type, one of: auto, url, js. Mandatory when reading from stdin",
+			Usage: "input type, one of: auto, url, js",
 			Value: "auto",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***

@@ -124,25 +124,27 @@ func (r *Runtime) extractOptions(exports otto.Value, opts *lib.Options) error **
 ***REMOVED***
 
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
-	// To protect against directory traversal, prevent loading of files outside the root (pwd) dir
-	path, err := filepath.Abs(filename)
-	if err != nil ***REMOVED***
-		return otto.UndefinedValue(), err
-	***REMOVED***
-	if !strings.HasPrefix(path, r.Root) ***REMOVED***
-		return otto.UndefinedValue(), DirectoryTraversalError***REMOVED***Filename: filename, Root: r.Root***REMOVED***
-	***REMOVED***
-
-	// Don't re-compile repeated includes of the same module
-	if exports, ok := r.Exports[path]; ok ***REMOVED***
-		return exports, nil
-	***REMOVED***
-
+	var path string
+	var data []byte
+	var err error
+	path = strings.TrimSpace(filename)
 	if path == "-" ***REMOVED***
-		data, err := ioutil.ReadAll(os.Stdin)
-	***REMOVED***
-	else ***REMOVED***
-		data, err := ioutil.ReadFile(path)
+		data, err = ioutil.ReadAll(os.Stdin)
+	***REMOVED*** else ***REMOVED***
+		var err error
+		// To protect against directory traversal, prevent loading of files outside the root (pwd) dir
+		path, err = filepath.Abs(filename)
+		if err != nil ***REMOVED***
+			return otto.UndefinedValue(), err
+		***REMOVED***
+		if !strings.HasPrefix(path, r.Root) ***REMOVED***
+			return otto.UndefinedValue(), DirectoryTraversalError***REMOVED***Filename: filename, Root: r.Root***REMOVED***
+		***REMOVED***
+		// Don't re-compile repeated includes of the same module
+		if exports, ok := r.Exports[path]; ok ***REMOVED***
+			return exports, nil
+		***REMOVED***
+		data, err = ioutil.ReadFile(path)
 	***REMOVED***
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
