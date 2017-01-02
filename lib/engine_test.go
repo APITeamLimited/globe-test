@@ -176,6 +176,32 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.NoError(t, e.Run(context.Background()))
 		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
 	***REMOVED***)
+	t.Run("collects samples", func(t *testing.T) ***REMOVED***
+		testMetric := stats.New("test_metric", stats.Trend)
+
+		errors := map[string]error***REMOVED***
+			"nil":   nil,
+			"error": errors.New("error"),
+			"taint": ErrVUWantsTaint,
+		***REMOVED***
+		for name, reterr := range errors ***REMOVED***
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+					return []stats.Sample***REMOVED***stats.Sample***REMOVED***Metric: testMetric, Value: 1.0***REMOVED******REMOVED***, reterr
+				***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
+				assert.NoError(t, err)
+
+				ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+				assert.NoError(t, e.Run(ctx))
+				if !assert.True(t, e.numIterations > 0, "no iterations performed") ***REMOVED***
+					return
+				***REMOVED***
+
+				sink := e.Metrics[testMetric].(*stats.TrendSink)
+				assert.Equal(t, int(e.numIterations), len(sink.Values))
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***
