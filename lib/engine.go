@@ -22,9 +22,12 @@ package lib
 
 import (
 	"context"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -63,6 +66,10 @@ type Engine struct ***REMOVED***
 
 	vuEntries []*vuEntry
 	vuMutex   sync.Mutex
+
+	// Atomic counters.
+	numIterations int64
+	numTaints     int64
 
 	// Stubbing these out to pass tests.
 	running bool
@@ -255,7 +262,7 @@ func (e *Engine) GetVUsMax() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsTainted() bool ***REMOVED***
-	return false
+	return e.numTaints > 0
 ***REMOVED***
 
 func (e *Engine) AtTime() time.Duration ***REMOVED***
@@ -325,18 +332,33 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 	***REMOVED***
 
 	for ***REMOVED***
-		samples, _ := vu.VU.RunOnce(ctx)
-
-		vu.lock.Lock()
-		vu.Samples = append(vu.Samples, samples...)
-		vu.lock.Unlock()
-
 		select ***REMOVED***
 		case <-ctx.Done():
 			return
 		default:
 		***REMOVED***
+
+		e.runVUOnce(ctx, vu)
 	***REMOVED***
+***REMOVED***
+
+func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
+	samples, err := vu.VU.RunOnce(ctx)
+	atomic.AddInt64(&e.numIterations, 1)
+	if err != nil ***REMOVED***
+		atomic.AddInt64(&e.numTaints, 1)
+		if err != ErrVUWantsTaint ***REMOVED***
+			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
+				log.Error(serr.String())
+			***REMOVED*** else ***REMOVED***
+				log.WithError(err).Error("VU Error")
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	vu.lock.Lock()
+	vu.Samples = append(vu.Samples, samples...)
+	vu.lock.Unlock()
 ***REMOVED***
 
 func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
