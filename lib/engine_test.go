@@ -176,6 +176,22 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.NoError(t, e.Run(context.Background()))
 		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
 	***REMOVED***)
+	t.Run("exits with AbortOnTaint", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(nil, Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
+		assert.NoError(t, err)
+
+		ch := make(chan interface***REMOVED******REMOVED***)
+		go func() ***REMOVED***
+			assert.Error(t, e.Run(context.Background()))
+			close(ch)
+		***REMOVED***()
+		time.Sleep(1 * time.Millisecond)
+		assert.True(t, e.IsRunning())
+		e.numTaints++
+		time.Sleep(10 * time.Millisecond)
+		assert.False(t, e.IsRunning())
+		<-ch
+	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		testMetric := stats.New("test_metric", stats.Trend)
 
