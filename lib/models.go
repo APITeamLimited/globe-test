@@ -33,12 +33,11 @@ type Stage struct ***REMOVED***
 ***REMOVED***
 
 type Group struct ***REMOVED***
-	ID int64
-
-	Name   string
-	Parent *Group
-	Groups map[string]*Group
-	Checks map[string]*Check
+	ID     int64             `json:"id"`
+	Name   string            `json:"name"`
+	Parent *Group            `json:"parent"`
+	Groups map[string]*Group `json:"groups"`
+	Checks map[string]*Check `json:"checks"`
 
 	groupMutex sync.Mutex
 	checkMutex sync.Mutex
@@ -90,13 +89,12 @@ func (g *Group) Check(name string, idCounter *int64) (*Check, bool) ***REMOVED**
 ***REMOVED***
 
 type Check struct ***REMOVED***
-	ID int64
+	ID    int64  `json:"id"`
+	Group *Group `json:"group"`
+	Name  string `json:"name"`
 
-	Group *Group
-	Name  string
-
-	Passes int64
-	Fails  int64
+	Passes int64 `json:"passes"`
+	Fails  int64 `json:"fails"`
 ***REMOVED***
 
 func NewCheck(name string, group *Group, idCounter *int64) *Check ***REMOVED***

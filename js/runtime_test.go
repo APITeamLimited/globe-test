@@ -80,9 +80,9 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 		assert.True(t, r.Options.VUs.Valid)
 		assert.Equal(t, int64(12345), r.Options.VUs.Int64)
 	***REMOVED***)
-	t.Run("vus-max", func(t *testing.T) ***REMOVED***
+	t.Run("vusMax", func(t *testing.T) ***REMOVED***
 		_, err := r.load("test.js", []byte(`
-			export let options = ***REMOVED*** "vus-max": 12345 ***REMOVED***;
+			export let options = ***REMOVED*** vusMax: 12345 ***REMOVED***;
 		`))
 		assert.NoError(t, err)
 
@@ -98,9 +98,9 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 		assert.True(t, r.Options.Duration.Valid)
 		assert.Equal(t, "2m", r.Options.Duration.String)
 	***REMOVED***)
-	t.Run("max-redirects", func(t *testing.T) ***REMOVED***
+	t.Run("maxRedirects", func(t *testing.T) ***REMOVED***
 		_, err := r.load("test.js", []byte(`
-			export let options = ***REMOVED*** "max-redirects": 12345 ***REMOVED***;
+			export let options = ***REMOVED*** maxRedirects: 12345 ***REMOVED***;
 		`))
 		assert.NoError(t, err)
 
