@@ -529,4 +529,69 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 
 		assert.Len(t, hook.Entries, 0)
 	***REMOVED***)
+	t.Run("cancelled", func(t *testing.T) ***REMOVED***
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		t.Run("success", func(t *testing.T) ***REMOVED***
+			e.numIterations = 0
+			e.numTaints = 0
+			e.runVUOnce(ctx, &vuEntry***REMOVED***
+				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+					return nil, nil
+				***REMOVED***),
+			***REMOVED***)
+			assert.Equal(t, int64(0), e.numIterations)
+			assert.Equal(t, int64(0), e.numTaints)
+			assert.True(t, e.IsTainted(), "test is not tainted")
+		***REMOVED***)
+		t.Run("error", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			e.numIterations = 0
+			e.numTaints = 0
+			e.runVUOnce(ctx, &vuEntry***REMOVED***
+				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+					return nil, errors.New("this is an error")
+				***REMOVED***),
+			***REMOVED***)
+			assert.Equal(t, int64(1), e.numIterations)
+			assert.Equal(t, int64(1), e.numTaints)
+			assert.False(t, e.IsTainted(), "test is tainted")
+			assert.Nil(t, hook.LastEntry())
+
+			t.Run("string", func(t *testing.T) ***REMOVED***
+				e.numIterations = 0
+				e.numTaints = 0
+				e.runVUOnce(ctx, &vuEntry***REMOVED***
+					VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+						return nil, testErrorWithString("this is an error")
+					***REMOVED***),
+				***REMOVED***)
+				assert.Equal(t, int64(0), e.numIterations)
+				assert.Equal(t, int64(0), e.numTaints)
+				assert.False(t, e.IsTainted(), "test is tainted")
+
+				assert.Nil(t, hook.LastEntry())
+			***REMOVED***)
+		***REMOVED***)
+		t.Run("taint", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			e.numIterations = 0
+			e.numTaints = 0
+			e.runVUOnce(ctx, &vuEntry***REMOVED***
+				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+					return nil, ErrVUWantsTaint
+				***REMOVED***),
+			***REMOVED***)
+			assert.Equal(t, int64(0), e.numIterations)
+			assert.Equal(t, int64(0), e.numTaints)
+			assert.False(t, e.IsTainted(), "test is tainted")
+
+			assert.Len(t, hook.Entries, 0)
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
