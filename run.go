@@ -446,6 +446,10 @@ loop:
 		fmt.Printf("  %s %s: %s\n", icon, name, val)
 	***REMOVED***
 
+	if opts.Linger.Bool ***REMOVED***
+		<-signals
+	***REMOVED***
+
 	if engine.IsTainted() ***REMOVED***
 		return cli.NewExitError("", 99)
 	***REMOVED***
