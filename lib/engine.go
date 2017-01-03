@@ -59,23 +59,23 @@ type Engine struct ***REMOVED***
 	Metrics     map[*stats.Metric]stats.Sink
 	MetricsLock sync.Mutex
 
+	// Stage tracking.
 	atTime          time.Duration
 	atStage         int
 	atStageSince    time.Duration
 	atStageStartVUs int64
 
+	// VU tracking.
+	vus       int64
+	vusMax    int64
 	vuEntries []*vuEntry
 	vuMutex   sync.Mutex
+	vuStop    chan interface***REMOVED******REMOVED***
+	vuPause   chan interface***REMOVED******REMOVED***
 
 	// Atomic counters.
 	numIterations int64
 	numTaints     int64
-
-	// Stubbing these out to pass tests.
-	running bool
-	paused  bool
-	vus     int64
-	vusMax  int64
 
 	// Subsystem-related.
 	subctx    context.Context
@@ -91,6 +91,8 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 
 		Metrics:    make(map[*stats.Metric]stats.Sink),
 		Thresholds: make(map[string]Thresholds),
+
+		vuStop: make(chan interface***REMOVED******REMOVED***),
 	***REMOVED***
 	e.clearSubcontext()
 
@@ -132,9 +134,10 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	lastTick := time.Time***REMOVED******REMOVED***
 	ticker := time.NewTicker(TickRate)
 
-	e.running = true
+	close(e.vuStop)
+	e.vuStop = nil
 	defer func() ***REMOVED***
-		e.running = false
+		e.vuStop = make(chan interface***REMOVED******REMOVED***)
 
 		// Shut down subsystems, wait for graceful termination.
 		e.clearSubcontext()
@@ -174,15 +177,24 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsRunning() bool ***REMOVED***
-	return e.running
+	return e.vuStop == nil
 ***REMOVED***
 
 func (e *Engine) SetPaused(v bool) ***REMOVED***
-	e.paused = v
+	if v && e.vuPause == nil ***REMOVED***
+		e.vuMutex.Lock()
+		e.vuPause = make(chan interface***REMOVED******REMOVED***)
+		e.vuMutex.Unlock()
+	***REMOVED*** else if !v && e.vuPause != nil ***REMOVED***
+		e.vuMutex.Lock()
+		close(e.vuPause)
+		e.vuPause = nil
+		e.vuMutex.Unlock()
+	***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsPaused() bool ***REMOVED***
-	return e.paused
+	return e.vuPause != nil
 ***REMOVED***
 
 func (e *Engine) SetVUs(v int64) error ***REMOVED***
@@ -335,7 +347,17 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 		return
 	***REMOVED***
 
+	// Sleep until the engine starts running.
+	if e.vuStop != nil ***REMOVED***
+		<-e.vuStop
+	***REMOVED***
+
 	for ***REMOVED***
+		// If the engine is paused, sleep until it resumes.
+		if e.vuPause != nil ***REMOVED***
+			<-e.vuPause
+		***REMOVED***
+
 		select ***REMOVED***
 		case <-ctx.Done():
 			return

@@ -269,15 +269,52 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineSetPaused(t *testing.T) ***REMOVED***
-	e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
-	assert.NoError(t, err)
-	assert.False(t, e.IsPaused())
+	t.Run("offline", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		assert.NoError(t, err)
+		assert.False(t, e.IsPaused())
 
-	e.SetPaused(true)
-	assert.True(t, e.IsPaused())
+		e.SetPaused(true)
+		assert.True(t, e.IsPaused())
 
-	e.SetPaused(false)
-	assert.False(t, e.IsPaused())
+		e.SetPaused(false)
+		assert.False(t, e.IsPaused())
+	***REMOVED***)
+
+	t.Run("running", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			return nil, nil
+		***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
+		assert.NoError(t, err)
+		assert.False(t, e.IsPaused())
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
+		defer cancel()
+
+		// The iteration counter should increase over time when not paused...
+		iterationSampleA1 := e.numIterations
+		time.Sleep(1 * time.Millisecond)
+		iterationSampleA2 := e.numIterations
+		assert.True(t, iterationSampleA2 > iterationSampleA1, "iteration counter did not increase")
+
+		// ...stop increasing when you pause... (sleep to ensure outstanding VUs finish)
+		e.SetPaused(true)
+		assert.True(t, e.IsPaused(), "engine did not pause")
+		time.Sleep(1 * time.Millisecond)
+		iterationSampleB1 := e.numIterations
+		time.Sleep(1 * time.Millisecond)
+		iterationSampleB2 := e.numIterations
+		assert.Equal(t, iterationSampleB1, iterationSampleB2, "iteration counter changed while paused")
+
+		// ...and resume when you unpause.
+		e.SetPaused(false)
+		assert.False(t, e.IsPaused(), "engine did not unpause")
+		iterationSampleC1 := e.numIterations
+		time.Sleep(1 * time.Millisecond)
+		iterationSampleC2 := e.numIterations
+		assert.True(t, iterationSampleC2 > iterationSampleC1, "iteration counter did not increase after unpause")
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
