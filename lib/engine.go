@@ -380,6 +380,15 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 
 func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
 	samples, err := vu.VU.RunOnce(ctx)
+
+	// Expired VUs usually have request cancellation errors, and thus skewed metrics and
+	// unhelpful "request cancelled" errors. Don't process those.
+	select ***REMOVED***
+	case <-ctx.Done():
+		return
+	default:
+	***REMOVED***
+
 	if err != nil ***REMOVED***
 		if err != ErrVUWantsTaint ***REMOVED***
 			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
