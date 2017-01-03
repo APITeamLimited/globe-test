@@ -291,29 +291,59 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
 		defer cancel()
+		time.Sleep(1 * time.Millisecond)
+		assert.True(t, e.IsRunning())
 
-		// The iteration counter should increase over time when not paused...
+		// The iteration counter and time should increase over time when not paused...
 		iterationSampleA1 := e.numIterations
+		atTimeSampleA1 := e.AtTime()
 		time.Sleep(1 * time.Millisecond)
 		iterationSampleA2 := e.numIterations
+		atTimeSampleA2 := e.AtTime()
 		assert.True(t, iterationSampleA2 > iterationSampleA1, "iteration counter did not increase")
+		assert.True(t, atTimeSampleA2 > atTimeSampleA1, "timer did not increase")
 
 		// ...stop increasing when you pause... (sleep to ensure outstanding VUs finish)
 		e.SetPaused(true)
 		assert.True(t, e.IsPaused(), "engine did not pause")
 		time.Sleep(1 * time.Millisecond)
 		iterationSampleB1 := e.numIterations
+		atTimeSampleB1 := e.AtTime()
 		time.Sleep(1 * time.Millisecond)
 		iterationSampleB2 := e.numIterations
+		atTimeSampleB2 := e.AtTime()
 		assert.Equal(t, iterationSampleB1, iterationSampleB2, "iteration counter changed while paused")
+		assert.Equal(t, atTimeSampleB1, atTimeSampleB2, "timer changed while paused")
 
 		// ...and resume when you unpause.
 		e.SetPaused(false)
 		assert.False(t, e.IsPaused(), "engine did not unpause")
 		iterationSampleC1 := e.numIterations
+		atTimeSampleC1 := e.AtTime()
 		time.Sleep(1 * time.Millisecond)
 		iterationSampleC2 := e.numIterations
+		atTimeSampleC2 := e.AtTime()
 		assert.True(t, iterationSampleC2 > iterationSampleC1, "iteration counter did not increase after unpause")
+		assert.True(t, atTimeSampleC2 > atTimeSampleC1, "timer did not increase after unpause")
+	***REMOVED***)
+
+	t.Run("exit", func(t *testing.T) ***REMOVED***
+		e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			return nil, nil
+		***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
+		assert.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
+		time.Sleep(1 * time.Millisecond)
+		assert.True(t, e.IsRunning())
+
+		e.SetPaused(true)
+		assert.True(t, e.IsPaused())
+		cancel()
+		time.Sleep(1 * time.Millisecond)
+		assert.False(t, e.IsPaused())
+		assert.False(t, e.IsRunning())
 	***REMOVED***)
 ***REMOVED***
 

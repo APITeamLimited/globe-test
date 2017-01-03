@@ -137,6 +137,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	close(e.vuStop)
 	e.vuStop = nil
 	defer func() ***REMOVED***
+		e.SetPaused(false)
 		e.vuStop = make(chan interface***REMOVED******REMOVED***)
 
 		// Shut down subsystems, wait for graceful termination.
@@ -148,6 +149,15 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED***()
 
 	for ***REMOVED***
+		// Don't do anything while the engine is paused.
+		if e.vuPause != nil ***REMOVED***
+			select ***REMOVED***
+			case <-e.vuPause:
+			case <-ctx.Done():
+				return nil
+			***REMOVED***
+		***REMOVED***
+
 		// Calculate the time delta between now and the last tick.
 		now := time.Now()
 		if lastTick.IsZero() ***REMOVED***
