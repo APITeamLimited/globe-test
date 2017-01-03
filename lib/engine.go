@@ -124,7 +124,11 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
-	go e.runCollection(ctx)
+	e.subwg.Add(1)
+	go func() ***REMOVED***
+		e.runCollection(e.subctx)
+		e.subwg.Done()
+	***REMOVED***()
 
 	e.atTime = 0
 	e.atStage = 0
