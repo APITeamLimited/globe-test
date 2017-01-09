@@ -71,7 +71,6 @@ type Engine struct ***REMOVED***
 	vus       int64
 	vusMax    int64
 	vuEntries []*vuEntry
-	vuMutex   sync.Mutex
 	vuStop    chan interface***REMOVED******REMOVED***
 	vuPause   chan interface***REMOVED******REMOVED***
 
@@ -80,9 +79,9 @@ type Engine struct ***REMOVED***
 	numTaints     int64
 
 	// Subsystem-related.
+	lock      sync.Mutex
 	subctx    context.Context
 	subcancel context.CancelFunc
-	submutex  sync.Mutex
 	subwg     sync.WaitGroup
 ***REMOVED***
 
@@ -128,18 +127,22 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	if e.Collector != nil ***REMOVED***
+		e.lock.Lock()
 		e.subwg.Add(1)
-		go func() ***REMOVED***
-			e.Collector.Run(e.subctx)
+		go func(ctx context.Context) ***REMOVED***
+			e.Collector.Run(ctx)
 			e.subwg.Done()
-		***REMOVED***()
+		***REMOVED***(e.subctx)
+		e.lock.Unlock()
 	***REMOVED***
 
+	e.lock.Lock()
 	e.subwg.Add(1)
-	go func() ***REMOVED***
-		e.runCollection(e.subctx)
+	go func(ctx context.Context) ***REMOVED***
+		e.runCollection(ctx)
 		e.subwg.Done()
-	***REMOVED***()
+	***REMOVED***(e.subctx)
+	e.lock.Unlock()
 
 	e.atTime = 0
 	e.atStage = 0
@@ -212,14 +215,14 @@ func (e *Engine) IsRunning() bool ***REMOVED***
 
 func (e *Engine) SetPaused(v bool) ***REMOVED***
 	if v && e.vuPause == nil ***REMOVED***
-		e.vuMutex.Lock()
+		e.lock.Lock()
 		e.vuPause = make(chan interface***REMOVED******REMOVED***)
-		e.vuMutex.Unlock()
+		e.lock.Unlock()
 	***REMOVED*** else if !v && e.vuPause != nil ***REMOVED***
-		e.vuMutex.Lock()
+		e.lock.Lock()
 		close(e.vuPause)
 		e.vuPause = nil
-		e.vuMutex.Unlock()
+		e.lock.Unlock()
 	***REMOVED***
 ***REMOVED***
 
@@ -235,8 +238,8 @@ func (e *Engine) SetVUs(v int64) error ***REMOVED***
 		return errors.New("more vus than allocated requested")
 	***REMOVED***
 
-	e.vuMutex.Lock()
-	defer e.vuMutex.Unlock()
+	e.lock.Lock()
+	defer e.lock.Unlock()
 
 	// Scale up
 	for i := e.vus; i < v; i++ ***REMOVED***
@@ -250,8 +253,8 @@ func (e *Engine) SetVUs(v int64) error ***REMOVED***
 
 		e.subwg.Add(1)
 		go func() ***REMOVED***
-			e.subwg.Done()
 			e.runVU(ctx, vu)
+			e.subwg.Done()
 		***REMOVED***()
 	***REMOVED***
 
@@ -278,8 +281,8 @@ func (e *Engine) SetVUsMax(v int64) error ***REMOVED***
 		return errors.New("can't reduce vus-max below vus")
 	***REMOVED***
 
-	e.vuMutex.Lock()
-	defer e.vuMutex.Unlock()
+	e.lock.Lock()
+	defer e.lock.Unlock()
 
 	// Scale up
 	for len(e.vuEntries) < int(v) ***REMOVED***
@@ -331,8 +334,8 @@ func (e *Engine) TotalTime() time.Duration ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) clearSubcontext() ***REMOVED***
-	e.submutex.Lock()
-	defer e.submutex.Unlock()
+	e.lock.Lock()
+	defer e.lock.Unlock()
 
 	if e.subcancel != nil ***REMOVED***
 		e.subcancel()
