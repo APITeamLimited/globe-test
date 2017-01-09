@@ -51,8 +51,9 @@ type vuEntry struct ***REMOVED***
 
 // The Engine is the beating heart of K6.
 type Engine struct ***REMOVED***
-	Runner  Runner
-	Options Options
+	Runner    Runner
+	Options   Options
+	Collector stats.Collector
 
 	Stages      []Stage
 	Thresholds  map[string]Thresholds
@@ -124,6 +125,14 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
+	if e.Collector != nil ***REMOVED***
+		e.subwg.Add(1)
+		go func() ***REMOVED***
+			e.Collector.Run(e.subctx)
+			e.subwg.Done()
+		***REMOVED***()
+	***REMOVED***
+
 	e.subwg.Add(1)
 	go func() ***REMOVED***
 		e.runCollection(e.subctx)
@@ -458,6 +467,9 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 			e.Metrics[sample.Metric] = sink
 		***REMOVED***
 		sink.Add(sample)
+	***REMOVED***
+	if e.Collector != nil ***REMOVED***
+		e.Collector.Collect(samples)
 	***REMOVED***
 	e.MetricsLock.Unlock()
 ***REMOVED***
