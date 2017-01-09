@@ -32,7 +32,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -43,16 +42,12 @@ const entrypoint = "__$$entrypoint$$__"
 type Runner struct ***REMOVED***
 	Runtime      *Runtime
 	DefaultGroup *lib.Group
-	Groups       []*lib.Group
-	Checks       []*lib.Check
 	Options      lib.Options
 
 	HTTPTransport *http.Transport
 
 	groupIDCounter int64
-	groupsMutex    sync.Mutex
 	checkIDCounter int64
-	checksMutex    sync.Mutex
 ***REMOVED***
 
 func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
@@ -89,7 +84,6 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 		***REMOVED***,
 	***REMOVED***
 	r.DefaultGroup = lib.NewGroup("", nil, nil)
-	r.Groups = []*lib.Group***REMOVED***r.DefaultGroup***REMOVED***
 
 	return r, nil
 ***REMOVED***
@@ -121,12 +115,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	return u, nil
 ***REMOVED***
 
-func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
-	return r.Groups
-***REMOVED***
-
-func (r *Runner) GetChecks() []*lib.Check ***REMOVED***
-	return r.Checks
+func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
+	return r.DefaultGroup
 ***REMOVED***
 
 func (r *Runner) GetOptions() lib.Options ***REMOVED***

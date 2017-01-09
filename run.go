@@ -411,13 +411,7 @@ loop:
 		***REMOVED***
 	***REMOVED***
 
-	groups := engine.Runner.GetGroups()
-	for _, g := range groups ***REMOVED***
-		if g.Parent != nil ***REMOVED***
-			continue
-		***REMOVED***
-		printGroup(g, 1)
-	***REMOVED***
+	printGroup(engine.Runner.GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
 	metrics := make(map[string]*stats.Metric, len(engine.Metrics))

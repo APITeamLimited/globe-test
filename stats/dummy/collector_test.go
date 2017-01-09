@@ -18,24 +18,32 @@
  *
  */
 
-package v2
+package dummy
 
 import (
-	"github.com/julienschmidt/httprouter"
-	"net/http"
+	"context"
+	"github.com/loadimpact/k6/stats"
+	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
-func NewHandler() http.Handler ***REMOVED***
-	router := httprouter.New()
+func TestCollectorRun(t *testing.T) ***REMOVED***
+	c := &Collector***REMOVED******REMOVED***
+	assert.False(t, c.Running)
 
-	router.GET("/v2/status", HandleGetStatus)
-	router.PATCH("/v2/status", HandlePatchStatus)
+	ctx, cancel := context.WithCancel(context.Background())
+	go c.Run(ctx)
+	time.Sleep(1 * time.Millisecond)
+	assert.True(t, c.Running, "not marked as running")
 
-	router.GET("/v2/metrics", HandleGetMetrics)
-	router.GET("/v2/metrics/:id", HandleGetMetric)
+	cancel()
+	time.Sleep(1 * time.Millisecond)
+	assert.False(t, c.Running, "not marked as stopped")
+***REMOVED***
 
-	router.GET("/v2/groups", HandleGetGroups)
-	router.GET("/v2/groups/:id", HandleGetGroup)
-
-	return router
+func TestCollectorCollect(t *testing.T) ***REMOVED***
+	c := &Collector***REMOVED******REMOVED***
+	c.Collect([]stats.Sample***REMOVED***stats.Sample***REMOVED******REMOVED******REMOVED***)
+	assert.Len(t, c.Samples, 1)
 ***REMOVED***
