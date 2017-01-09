@@ -39,6 +39,23 @@ type testErrorWithString string
 func (e testErrorWithString) Error() string  ***REMOVED*** return string(e) ***REMOVED***
 func (e testErrorWithString) String() string ***REMOVED*** return string(e) ***REMOVED***
 
+// Apply a null logger to the engine and return the hook.
+func applyNullLogger(e *Engine) *logtest.Hook ***REMOVED***
+	logger, hook := logtest.NewNullLogger()
+	e.Logger = logger
+	return hook
+***REMOVED***
+
+// Wrapper around newEngine that applies a null logger.
+func newTestEngine(r Runner, opts Options) (*Engine, error, *logtest.Hook) ***REMOVED***
+	e, err := NewEngine(r, opts)
+	if err != nil ***REMOVED***
+		return e, err, nil
+	***REMOVED***
+	hook := applyNullLogger(e)
+	return e, nil, hook
+***REMOVED***
+
 // Helper for asserting the number of active/dead VUs.
 func assertActiveVUs(t *testing.T, e *Engine, active, dead int) ***REMOVED***
 	var numActive, numDead int
@@ -57,20 +74,20 @@ func assertActiveVUs(t *testing.T, e *Engine, active, dead int) ***REMOVED***
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
-	_, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+	_, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 ***REMOVED***
 
 func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
 		t.Run("not set", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+			e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 			assert.NoError(t, err)
 			assert.Equal(t, int64(0), e.GetVUsMax())
 			assert.Equal(t, int64(0), e.GetVUs())
 		***REMOVED***)
 		t.Run("set", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUsMax: null.IntFrom(10),
 			***REMOVED***)
 			assert.NoError(t, err)
@@ -80,20 +97,20 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("VUs", func(t *testing.T) ***REMOVED***
 		t.Run("no max", func(t *testing.T) ***REMOVED***
-			_, err := NewEngine(nil, Options***REMOVED***
+			_, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUs: null.IntFrom(10),
 			***REMOVED***)
 			assert.EqualError(t, err, "more vus than allocated requested")
 		***REMOVED***)
 		t.Run("max too low", func(t *testing.T) ***REMOVED***
-			_, err := NewEngine(nil, Options***REMOVED***
+			_, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUsMax: null.IntFrom(1),
 				VUs:    null.IntFrom(10),
 			***REMOVED***)
 			assert.EqualError(t, err, "more vus than allocated requested")
 		***REMOVED***)
 		t.Run("max higher", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUsMax: null.IntFrom(10),
 				VUs:    null.IntFrom(1),
 			***REMOVED***)
@@ -102,7 +119,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 			assert.Equal(t, int64(1), e.GetVUs())
 		***REMOVED***)
 		t.Run("max just right", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUsMax: null.IntFrom(10),
 				VUs:    null.IntFrom(10),
 			***REMOVED***)
@@ -113,19 +130,19 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Paused", func(t *testing.T) ***REMOVED***
 		t.Run("not set", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+			e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 			assert.NoError(t, err)
 			assert.False(t, e.IsPaused())
 		***REMOVED***)
 		t.Run("false", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				Paused: null.BoolFrom(false),
 			***REMOVED***)
 			assert.NoError(t, err)
 			assert.False(t, e.IsPaused())
 		***REMOVED***)
 		t.Run("true", func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				Paused: null.BoolFrom(true),
 			***REMOVED***)
 			assert.NoError(t, err)
@@ -138,7 +155,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 	t.Run("exits with context", func(t *testing.T) ***REMOVED***
 		startTime := time.Now()
 		duration := 100 * time.Millisecond
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		ctx, _ := context.WithTimeout(context.Background(), duration)
@@ -146,7 +163,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
 	***REMOVED***)
 	t.Run("terminates subctx", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		subctx := e.subctx
@@ -168,7 +185,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("exits with stages", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		d := 50 * time.Millisecond
@@ -178,7 +195,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
 	***REMOVED***)
 	t.Run("exits with AbortOnTaint", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
 		assert.NoError(t, err)
 
 		ch := make(chan interface***REMOVED******REMOVED***)
@@ -203,7 +220,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 		for name, reterr := range errors ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+				e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return []stats.Sample***REMOVED***stats.Sample***REMOVED***Metric: testMetric, Value: 1.0***REMOVED******REMOVED***, reterr
 				***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
 				assert.NoError(t, err)
@@ -223,7 +240,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
-	e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+	e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
@@ -241,7 +258,7 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		for _, d := range []time.Duration***REMOVED***0, 1 * time.Second, 10 * time.Second***REMOVED*** ***REMOVED***
 			t.Run(d.String(), func(t *testing.T) ***REMOVED***
-				e, err := NewEngine(nil, Options***REMOVED***Duration: null.StringFrom(d.String())***REMOVED***)
+				e, err, _ := newTestEngine(nil, Options***REMOVED***Duration: null.StringFrom(d.String())***REMOVED***)
 				assert.NoError(t, err)
 
 				assert.Len(t, e.Stages, 1)
@@ -266,7 +283,7 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				e, err := NewEngine(nil, Options***REMOVED***Stages: data.Stages***REMOVED***)
+				e, err, _ := newTestEngine(nil, Options***REMOVED***Stages: data.Stages***REMOVED***)
 				assert.NoError(t, err)
 				assert.Equal(t, data.Duration, e.TotalTime())
 			***REMOVED***)
@@ -275,7 +292,7 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineAtTime(t *testing.T) ***REMOVED***
-	e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+	e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	d := 50 * time.Millisecond
@@ -287,7 +304,7 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 
 func TestEngineSetPaused(t *testing.T) ***REMOVED***
 	t.Run("offline", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.False(t, e.IsPaused())
 
@@ -299,7 +316,7 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("running", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 			return nil, nil
 		***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
 		assert.NoError(t, err)
@@ -345,7 +362,7 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("exit", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 			return nil, nil
 		***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
 		assert.NoError(t, err)
@@ -366,13 +383,13 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 
 func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 	t.Run("not set", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(0), e.GetVUsMax())
 		assert.Len(t, e.vuEntries, 0)
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.Equal(t, int64(10), e.GetVUsMax())
@@ -400,13 +417,13 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("set negative", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.EqualError(t, e.SetVUsMax(-1), "vus-max can't be negative")
 		assert.Len(t, e.vuEntries, 0)
 	***REMOVED***)
 	t.Run("set too low", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
 			VUsMax: null.IntFrom(10),
 			VUs:    null.IntFrom(10),
 		***REMOVED***)
@@ -418,13 +435,13 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 
 func TestEngineSetVUs(t *testing.T) ***REMOVED***
 	t.Run("not set", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(0), e.GetVUsMax())
 		assert.Equal(t, int64(0), e.GetVUs())
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
-		e, err := NewEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
+		e, err, _ := newTestEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUs(10))
 		assert.Equal(t, int64(10), e.GetVUs())
@@ -468,7 +485,7 @@ func TestEngineIsTainted(t *testing.T) ***REMOVED***
 
 	for _, data := range testdata ***REMOVED***
 		t.Run(fmt.Sprintf("i=%d,t=%d", data.I, data.T), func(t *testing.T) ***REMOVED***
-			e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+			e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 			assert.NoError(t, err)
 
 			e.numIterations = data.I
@@ -479,12 +496,13 @@ func TestEngineIsTainted(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
-	e, err := NewEngine(nil, Options***REMOVED******REMOVED***)
+	e, err, hook := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), e.numIterations)
 	assert.Equal(t, int64(0), e.numTaints)
 
 	t.Run("success", func(t *testing.T) ***REMOVED***
+		hook.Reset()
 		e.numIterations = 0
 		e.numTaints = 0
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
@@ -497,9 +515,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		assert.False(t, e.IsTainted(), "test is tainted")
 	***REMOVED***)
 	t.Run("error", func(t *testing.T) ***REMOVED***
-		hook := logtest.NewGlobal()
-		defer hook.Reset()
-
+		hook.Reset()
 		e.numIterations = 0
 		e.numTaints = 0
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
@@ -513,6 +529,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		assert.Equal(t, "this is an error", hook.LastEntry().Data["error"].(error).Error())
 
 		t.Run("string", func(t *testing.T) ***REMOVED***
+			hook.Reset()
 			e.numIterations = 0
 			e.numTaints = 0
 			e.runVUOnce(context.Background(), &vuEntry***REMOVED***
@@ -530,9 +547,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("taint", func(t *testing.T) ***REMOVED***
-		hook := logtest.NewGlobal()
-		defer hook.Reset()
-
+		hook.Reset()
 		e.numIterations = 0
 		e.numTaints = 0
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
@@ -551,6 +566,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		cancel()
 
 		t.Run("success", func(t *testing.T) ***REMOVED***
+			hook.Reset()
 			e.numIterations = 0
 			e.numTaints = 0
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
@@ -563,9 +579,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			assert.False(t, e.IsTainted(), "test is tainted")
 		***REMOVED***)
 		t.Run("error", func(t *testing.T) ***REMOVED***
-			hook := logtest.NewGlobal()
-			defer hook.Reset()
-
+			hook.Reset()
 			e.numIterations = 0
 			e.numTaints = 0
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
@@ -579,6 +593,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			assert.Nil(t, hook.LastEntry())
 
 			t.Run("string", func(t *testing.T) ***REMOVED***
+				hook.Reset()
 				e.numIterations = 0
 				e.numTaints = 0
 				e.runVUOnce(ctx, &vuEntry***REMOVED***
@@ -594,9 +609,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("taint", func(t *testing.T) ***REMOVED***
-			hook := logtest.NewGlobal()
-			defer hook.Reset()
-
+			hook.Reset()
 			e.numIterations = 0
 			e.numTaints = 0
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
@@ -617,7 +630,7 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	testMetric := stats.New("test_metric", stats.Trend)
 	c := &dummy.Collector***REMOVED******REMOVED***
 
-	e, err := NewEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		return []stats.Sample***REMOVED***stats.Sample***REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
 	***REMOVED***), Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1)***REMOVED***)
 	assert.NoError(t, err)

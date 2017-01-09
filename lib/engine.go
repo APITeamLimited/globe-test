@@ -54,6 +54,7 @@ type Engine struct ***REMOVED***
 	Runner    Runner
 	Options   Options
 	Collector stats.Collector
+	Logger    *log.Logger
 
 	Stages      []Stage
 	Thresholds  map[string]Thresholds
@@ -89,6 +90,7 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	e := &Engine***REMOVED***
 		Runner:  r,
 		Options: o,
+		Logger:  log.StandardLogger(),
 
 		Metrics:    make(map[*stats.Metric]stats.Sink),
 		Thresholds: make(map[string]Thresholds),
@@ -414,9 +416,9 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
 	if err != nil ***REMOVED***
 		if err != ErrVUWantsTaint ***REMOVED***
 			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
-				log.Error(serr.String())
+				e.Logger.Error(serr.String())
 			***REMOVED*** else ***REMOVED***
-				log.WithError(err).Error("VU Error")
+				e.Logger.WithError(err).Error("VU Error")
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
