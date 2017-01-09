@@ -637,7 +637,7 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	e.Collector = c
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go e.Run(ctx)
+	go func() ***REMOVED*** _ = e.Run(ctx) ***REMOVED***()
 
 	time.Sleep(10 * time.Millisecond)
 	assert.True(t, e.IsRunning(), "engine not running")
