@@ -18,7 +18,7 @@
  *
  */
 
-package v2
+package v1
 
 import (
 	"encoding/json"
@@ -55,7 +55,7 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
 		rw := httptest.NewRecorder()
-		NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v2/groups", nil))
+		NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/groups", nil))
 		res := rw.Result()
 		assert.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -100,7 +100,7 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	for _, gp := range []*lib.Group***REMOVED***g, g1, g2***REMOVED*** ***REMOVED***
 		t.Run(gp.Name, func(t *testing.T) ***REMOVED***
 			rw := httptest.NewRecorder()
-			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v2/groups/"+strconv.FormatInt(gp.ID, 10), nil))
+			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/groups/"+strconv.FormatInt(gp.ID, 10), nil))
 			res := rw.Result()
 			assert.Equal(t, http.StatusOK, res.StatusCode)
 		***REMOVED***)
