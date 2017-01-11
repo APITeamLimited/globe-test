@@ -34,7 +34,7 @@ func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 	status := NewStatus(engine)
 	data, err := jsonapi.Marshal(status)
 	if err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)
@@ -45,25 +45,25 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		apiError(rw, "Couldn't read request", err.Error(), http.StatusBadRequest)
 		return
 	***REMOVED***
 
 	var status Status
 	if err := jsonapi.Unmarshal(body, &status); err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		apiError(rw, "Invalid data", err.Error(), http.StatusBadRequest)
 		return
 	***REMOVED***
 
 	if status.VUsMax.Valid ***REMOVED***
 		if err := engine.SetVUsMax(status.VUsMax.Int64); err != nil ***REMOVED***
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+			apiError(rw, "Couldn't change cap", err.Error(), http.StatusBadRequest)
 			return
 		***REMOVED***
 	***REMOVED***
 	if status.VUs.Valid ***REMOVED***
 		if err := engine.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
-			http.Error(rw, err.Error(), http.StatusBadRequest)
+			apiError(rw, "Couldn't scale", err.Error(), http.StatusBadRequest)
 			return
 		***REMOVED***
 	***REMOVED***
@@ -73,7 +73,7 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 
 	data, err := jsonapi.Marshal(NewStatus(engine))
 	if err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)
