@@ -42,8 +42,8 @@ func main() ***REMOVED***
 		commandStatus,
 		commandStats,
 		commandScale,
-		commandStart,
 		commandPause,
+		commandResume,
 	***REMOVED***
 	app.Flags = []cli.Flag***REMOVED***
 		cli.BoolFlag***REMOVED***

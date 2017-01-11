@@ -21,15 +21,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/ghodss/yaml"
 	"github.com/loadimpact/k6/api/v1"
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
+	"github.com/manyminds/api2go/jsonapi"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"strconv"
+	"io"
+	"io/ioutil"
+	"net/http"
 )
 
 var commandStatus = cli.Command***REMOVED***
@@ -48,15 +50,13 @@ var commandStatus = cli.Command***REMOVED***
 var commandStats = cli.Command***REMOVED***
 	Name:      "stats",
 	Usage:     "Prints stats for a running test",
-	ArgsUsage: "[name]",
+	ArgsUsage: " ",
 	Action:    actionStats,
 	Description: `Stats will print metrics about a running test to stdout in YAML format.
 
-   The result is a dictionary of metrics. If a name is specified, only that one
-   metric is fetched, otherwise every metric is printed in no particular order.
+   The result is a dictionary of metrics, in no particular order.
 
-   Endpoint: /v1/metrics
-             /v1/metrics/:id`,
+   Endpoint: /v1/metrics`,
 ***REMOVED***
 
 var commandScale = cli.Command***REMOVED***
@@ -64,6 +64,10 @@ var commandScale = cli.Command***REMOVED***
 	Usage:     "Scales a running test",
 	ArgsUsage: "vus",
 	Flags: []cli.Flag***REMOVED***
+		cli.Int64Flag***REMOVED***
+			Name:  "vus, u",
+			Usage: "update the number of running VUs",
+		***REMOVED***,
 		cli.Int64Flag***REMOVED***
 			Name:  "max, m",
 			Usage: "update the max number of VUs allowed",
@@ -74,7 +78,7 @@ var commandScale = cli.Command***REMOVED***
 
    It is an error to scale a test beyond vus-max; this is because instantiating
    new VUs is a very expensive operation, which may skew test results if done
-   during a running test. Use --max if you want to do this.
+   during a running test. To raise vus-max, use --max/-m.
 
    Endpoint: /v1/status`,
 ***REMOVED***
@@ -93,12 +97,12 @@ var commandPause = cli.Command***REMOVED***
    Endpoint: /v1/status`,
 ***REMOVED***
 
-var commandStart = cli.Command***REMOVED***
-	Name:      "start",
-	Usage:     "Starts a paused test",
+var commandResume = cli.Command***REMOVED***
+	Name:      "resume",
+	Usage:     "Resumes a paused test",
 	ArgsUsage: " ",
-	Action:    actionStart,
-	Description: `Start starts a paused test.
+	Action:    actionResume,
+	Description: `Resume resumes a paused test.
 
    This is the opposite of the pause command, and will do nothing to an already
    running test.
@@ -106,115 +110,112 @@ var commandStart = cli.Command***REMOVED***
    Endpoint: /v1/status`,
 ***REMOVED***
 
-func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
-	bytes, err := yaml.Marshal(v)
+func endpointURL(cc *cli.Context, endpoint string) string ***REMOVED***
+	return fmt.Sprintf("http://%s%s", cc.GlobalString("address"), endpoint)
+***REMOVED***
+
+func apiCall(cc *cli.Context, method, endpoint string, body []byte, dst interface***REMOVED******REMOVED***) error ***REMOVED***
+	var bodyReader io.Reader
+	if len(body) > 0 ***REMOVED***
+		bodyReader = bytes.NewReader(body)
+	***REMOVED***
+
+	req, err := http.NewRequest(method, endpointURL(cc, endpoint), bodyReader)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Serialization Error")
 		return err
 	***REMOVED***
-	_, _ = os.Stdout.Write(bytes)
-	return nil
+	res, err := http.DefaultClient.Do(req)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	defer res.Body.Close()
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	if res.StatusCode >= 400 ***REMOVED***
+		var envelope v1.ErrorResponse
+		if err := json.Unmarshal(data, &envelope); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		return envelope.Errors[0]
+	***REMOVED***
+
+	return jsonapi.Unmarshal(data, dst)
 ***REMOVED***
 
 func actionStatus(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	status, err := client.Status()
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
+	var status v1.Status
+	if err := apiCall(cc, "GET", "/v1/status", nil, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
 ***REMOVED***
 
 func actionStats(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
+	var metrics []v1.Metric
+	if err := apiCall(cc, "GET", "/v1/metrics", nil, &metrics); err != nil ***REMOVED***
 		return err
 	***REMOVED***
-
-	if len(cc.Args()) > 0 ***REMOVED***
-		metric, err := client.Metric(cc.Args()[0])
-		if err != nil ***REMOVED***
-			log.WithError(err).Error("Error")
-			return err
-		***REMOVED***
-		return dumpYAML(metric)
+	output := make(map[string]v1.Metric)
+	for _, m := range metrics ***REMOVED***
+		output[m.GetID()] = m
 	***REMOVED***
-
-	metricList, err := client.Metrics()
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
-		return err
-	***REMOVED***
-
-	metrics := make(map[string]stats.Metric)
-	for _, metric := range metricList ***REMOVED***
-		metrics[metric.Name] = metric
-	***REMOVED***
-	return dumpYAML(metrics)
+	return dumpYAML(output)
 ***REMOVED***
 
 func actionScale(cc *cli.Context) error ***REMOVED***
-	args := cc.Args()
-	if len(args) != 1 ***REMOVED***
-		return cli.NewExitError("Wrong number of arguments!", 1)
+	patch := v1.Status***REMOVED***
+		VUs:    cliInt64(cc, "vus"),
+		VUsMax: cliInt64(cc, "max"),
 	***REMOVED***
-	vus, err := strconv.ParseInt(args[0], 10, 64)
+	if !patch.VUs.Valid && !patch.VUsMax.Valid ***REMOVED***
+		log.Warn("Neither --vus/-u or --max/-m passed; doing doing nothing")
+		return nil
+	***REMOVED***
+
+	body, err := jsonapi.Marshal(patch)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
+		log.WithError(err).Error("Serialization error")
 		return err
 	***REMOVED***
 
-	client, err := v1.NewClient(cc.GlobalString("address"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
-		return err
-	***REMOVED***
-
-	update := lib.Status***REMOVED***VUs: null.IntFrom(vus)***REMOVED***
-	if cc.IsSet("max") ***REMOVED***
-		update.VUsMax = null.IntFrom(cc.Int64("max"))
-	***REMOVED***
-
-	status, err := client.UpdateStatus(update)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
+	var status v1.Status
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
 ***REMOVED***
 
 func actionPause(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
+	body, err := jsonapi.Marshal(v1.Status***REMOVED***
+		Paused: null.BoolFrom(true),
+	***REMOVED***)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
+		log.WithError(err).Error("Serialization error")
 		return err
 	***REMOVED***
 
-	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(false)***REMOVED***)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
+	var status v1.Status
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
 ***REMOVED***
 
-func actionStart(cc *cli.Context) error ***REMOVED***
-	client, err := v1.NewClient(cc.GlobalString("address"))
+func actionResume(cc *cli.Context) error ***REMOVED***
+	body, err := jsonapi.Marshal(v1.Status***REMOVED***
+		Paused: null.BoolFrom(false),
+	***REMOVED***)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a client")
+		log.WithError(err).Error("Serialization error")
 		return err
 	***REMOVED***
 
-	status, err := client.UpdateStatus(lib.Status***REMOVED***Running: null.BoolFrom(true)***REMOVED***)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Error")
+	var status v1.Status
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)

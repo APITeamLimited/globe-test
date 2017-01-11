@@ -18,7 +18,7 @@
  *
  */
 
-package v2
+package v1
 
 import (
 	"encoding/json"
@@ -82,14 +82,17 @@ func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNewMetric(t *testing.T) ***REMOVED***
-	m := NewMetric(stats.Metric***REMOVED***
+	old := stats.Metric***REMOVED***
 		Name:     "name",
 		Type:     stats.Trend,
 		Contains: stats.Time,
-	***REMOVED***)
+	***REMOVED***
+	sink := old.NewSink()
+	m := NewMetric(old, sink)
 	assert.Equal(t, "name", m.Name)
 	assert.True(t, m.Type.Valid)
 	assert.Equal(t, stats.Trend, m.Type.Type)
 	assert.True(t, m.Contains.Valid)
 	assert.Equal(t, stats.Time, m.Contains.Type)
+	assert.NotEmpty(t, m.Sample)
 ***REMOVED***

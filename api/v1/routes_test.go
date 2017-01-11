@@ -18,39 +18,23 @@
  *
  */
 
-package v2
+package v1
 
 import (
+	"github.com/loadimpact/k6/api/common"
 	"github.com/loadimpact/k6/lib"
-	"gopkg.in/guregu/null.v3"
+	"github.com/stretchr/testify/assert"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
-type Status struct ***REMOVED***
-	Running null.Bool `json:"running"`
-	VUs     null.Int  `json:"vus"`
-	VUsMax  null.Int  `json:"vus-max"`
-
-	// Readonly.
-	Tainted bool `json:"tainted"`
+func newRequestWithEngine(engine *lib.Engine, method, target string, body io.Reader) *http.Request ***REMOVED***
+	r := httptest.NewRequest(method, target, body)
+	return r.WithContext(common.WithEngine(r.Context(), engine))
 ***REMOVED***
 
-func NewStatus(engine *lib.Engine) Status ***REMOVED***
-	return Status***REMOVED***
-		Running: null.BoolFrom(engine.Status.Running.Bool),
-		VUs:     null.IntFrom(engine.Status.VUs.Int64),
-		VUsMax:  null.IntFrom(engine.Status.VUsMax.Int64),
-		Tainted: engine.Status.Tainted.Bool,
-	***REMOVED***
-***REMOVED***
-
-func (s Status) GetName() string ***REMOVED***
-	return "status"
-***REMOVED***
-
-func (s Status) GetID() string ***REMOVED***
-	return "default"
-***REMOVED***
-
-func (s Status) SetID(id string) error ***REMOVED***
-	return nil
+func TestNewHandler(t *testing.T) ***REMOVED***
+	assert.NotNil(t, NewHandler())
 ***REMOVED***

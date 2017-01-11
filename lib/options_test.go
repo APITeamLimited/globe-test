@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 	"testing"
+	"time"
 )
 
 func TestOptionsApply(t *testing.T) ***REMOVED***
@@ -47,6 +48,12 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m", opts.Duration.String)
 	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
+		assert.NotNil(t, opts.Stages)
+		assert.Len(t, opts.Stages, 1)
+		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
+	***REMOVED***)
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.Linger.Valid)
@@ -68,8 +75,8 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(12345), opts.MaxRedirects.Int64)
 	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string][]*Threshold***REMOVED***
-			"metric": []*Threshold***REMOVED***&Threshold***REMOVED***Source: "1+1==2"***REMOVED******REMOVED***,
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string][]string***REMOVED***
+			"metric": []string***REMOVED***"1+1==2"***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)

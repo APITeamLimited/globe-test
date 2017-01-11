@@ -18,23 +18,24 @@
  *
  */
 
-package v2
+package dummy
 
 import (
-	"github.com/loadimpact/k6/api/common"
-	"github.com/loadimpact/k6/lib"
-	"github.com/stretchr/testify/assert"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"testing"
+	"context"
+	"github.com/loadimpact/k6/stats"
 )
 
-func newRequestWithEngine(engine *lib.Engine, method, target string, body io.Reader) *http.Request ***REMOVED***
-	r := httptest.NewRequest(method, target, body)
-	return r.WithContext(common.WithEngine(r.Context(), engine))
+type Collector struct ***REMOVED***
+	Samples []stats.Sample
+	Running bool
 ***REMOVED***
 
-func TestNewHandler(t *testing.T) ***REMOVED***
-	assert.NotNil(t, NewHandler())
+func (c *Collector) Run(ctx context.Context) ***REMOVED***
+	c.Running = true
+	<-ctx.Done()
+	c.Running = false
+***REMOVED***
+
+func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+	c.Samples = append(c.Samples, samples...)
 ***REMOVED***

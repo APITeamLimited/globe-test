@@ -180,6 +180,21 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt***REMOVED***
 ***REMOVED***
 
+func (m Metric) NewSink() Sink ***REMOVED***
+	switch m.Type ***REMOVED***
+	case Counter:
+		return &CounterSink***REMOVED******REMOVED***
+	case Gauge:
+		return &GaugeSink***REMOVED******REMOVED***
+	case Trend:
+		return &TrendSink***REMOVED******REMOVED***
+	case Rate:
+		return &RateSink***REMOVED******REMOVED***
+	default:
+		return nil
+	***REMOVED***
+***REMOVED***
+
 func (m Metric) Humanize() string ***REMOVED***
 	sample := m.Sample
 	switch len(sample) ***REMOVED***

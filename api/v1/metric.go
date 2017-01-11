@@ -18,7 +18,7 @@
  *
  */
 
-package v2
+package v1
 
 import (
 	"bytes"
@@ -73,13 +73,16 @@ type Metric struct ***REMOVED***
 
 	Type     NullMetricType `json:"type"`
 	Contains NullValueType  `json:"contains"`
+
+	Sample map[string]float64 `json:"sample"`
 ***REMOVED***
 
-func NewMetric(m stats.Metric) Metric ***REMOVED***
+func NewMetric(m stats.Metric, sink stats.Sink) Metric ***REMOVED***
 	return Metric***REMOVED***
 		Name:     m.Name,
 		Type:     NullMetricType***REMOVED***m.Type, true***REMOVED***,
 		Contains: NullValueType***REMOVED***m.Contains, true***REMOVED***,
+		Sample:   sink.Format(),
 	***REMOVED***
 ***REMOVED***
 

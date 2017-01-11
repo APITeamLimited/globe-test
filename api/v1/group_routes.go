@@ -18,53 +18,57 @@
  *
  */
 
-package v2
+package v1
 
 import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/loadimpact/k6/api/common"
 	"github.com/manyminds/api2go/jsonapi"
 	"net/http"
+	"strconv"
 )
 
-func HandleGetMetrics(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+func HandleGetGroups(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
 	engine := common.GetEngine(r.Context())
 
-	metrics := make([]Metric, 0)
-	for m, _ := range engine.Metrics ***REMOVED***
-		metrics = append(metrics, NewMetric(*m))
-	***REMOVED***
+	root := NewGroup(engine.Runner.GetDefaultGroup(), nil)
+	groups := FlattenGroup(root)
 
-	data, err := jsonapi.Marshal(metrics)
+	data, err := jsonapi.Marshal(groups)
 	if err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)
 ***REMOVED***
 
-func HandleGetMetric(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
-	id := p.ByName("id")
-	engine := common.GetEngine(r.Context())
-
-	var metric Metric
-	var found bool
-	for m, _ := range engine.Metrics ***REMOVED***
-		if m.Name == id ***REMOVED***
-			metric = NewMetric(*m)
-			found = true
-			break
-		***REMOVED***
-	***REMOVED***
-
-	if !found ***REMOVED***
-		http.Error(rw, "No such metric", http.StatusNotFound)
+func HandleGetGroup(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+	id, err := strconv.ParseInt(p.ByName("id"), 10, 64)
+	if err != nil ***REMOVED***
+		apiError(rw, "Invalid ID", err.Error(), http.StatusBadRequest)
 		return
 	***REMOVED***
 
-	data, err := jsonapi.Marshal(metric)
+	engine := common.GetEngine(r.Context())
+
+	root := NewGroup(engine.Runner.GetDefaultGroup(), nil)
+	groups := FlattenGroup(root)
+
+	var group *Group
+	for _, g := range groups ***REMOVED***
+		if g.ID == id ***REMOVED***
+			group = g
+			break
+		***REMOVED***
+	***REMOVED***
+	if group == nil ***REMOVED***
+		apiError(rw, "Not Found", "No group with that ID was found", http.StatusNotFound)
+		return
+	***REMOVED***
+
+	data, err := jsonapi.Marshal(group)
 	if err != nil ***REMOVED***
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)

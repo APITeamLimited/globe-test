@@ -18,22 +18,19 @@
  *
  */
 
-package lib
+package stats
 
-// Lerp is a linear interpolation between two values x and y, returning the value at the point t,
-// where t is a fraction in the range [0.0 - 1.0].
-func Lerp(x, y int64, t float64) int64 ***REMOVED***
-	return x + int64(t*float64(y-x))
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
+	assert.Panics(t, func() ***REMOVED***
+		DummySink***REMOVED******REMOVED***.Add(Sample***REMOVED******REMOVED***)
+	***REMOVED***)
 ***REMOVED***
 
-// Clampf returns the given value, "clamped" to the range [min, max].
-func Clampf(val, min, max float64) float64 ***REMOVED***
-	switch ***REMOVED***
-	case val < min:
-		return min
-	case val > max:
-		return max
-	default:
-		return val
-	***REMOVED***
+func TestDummySinkFormatReturnsItself(t *testing.T) ***REMOVED***
+	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format())
 ***REMOVED***

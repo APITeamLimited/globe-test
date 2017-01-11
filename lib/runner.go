@@ -25,17 +25,17 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
+// Ensure RunnerFunc conforms to Runner.
+var _ Runner = RunnerFunc(nil)
+
 // A Runner is a factory for VUs.
 type Runner interface ***REMOVED***
 	// Creates a new VU. As much as possible should be precomputed here, to allow a pool
 	// of prepared VUs to be used to quickly scale up and down.
 	NewVU() (VU, error)
 
-	// Returns all known groups.
-	GetGroups() []*Group
-
-	// Returns all known tests.
-	GetChecks() []*Check
+	// Returns the default (root) group.
+	GetDefaultGroup() *Group
 
 	// Returns the option set.
 	GetOptions() Options
@@ -52,4 +52,31 @@ type VU interface ***REMOVED***
 
 	// Called when the VU's identity changes.
 	Reconfigure(id int64) error
+***REMOVED***
+
+// RunnerFunc adapts a function to be used as both a runner and a VU. NewVU() returns copies of
+// the function itself. Mainly useful for testing.
+type RunnerFunc func(ctx context.Context) ([]stats.Sample, error)
+
+func (fn RunnerFunc) NewVU() (VU, error) ***REMOVED***
+	return fn, nil
+***REMOVED***
+
+func (fn RunnerFunc) GetDefaultGroup() *Group ***REMOVED***
+	return nil
+***REMOVED***
+
+func (fn RunnerFunc) GetOptions() Options ***REMOVED***
+	return Options***REMOVED******REMOVED***
+***REMOVED***
+
+func (fn RunnerFunc) ApplyOptions(opts Options) ***REMOVED***
+***REMOVED***
+
+func (fn RunnerFunc) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	return fn(ctx)
+***REMOVED***
+
+func (fn RunnerFunc) Reconfigure(id int64) error ***REMOVED***
+	return nil
 ***REMOVED***
