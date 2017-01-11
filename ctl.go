@@ -22,6 +22,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/api/v1"
@@ -128,14 +129,19 @@ func apiCall(cc *cli.Context, method, endpoint string, body []byte, dst interfac
 	***REMOVED***
 	defer res.Body.Close()
 
-	if dst == nil ***REMOVED***
-		return nil
-	***REMOVED***
-
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+
+	if res.StatusCode >= 400 ***REMOVED***
+		var envelope v1.ErrorResponse
+		if err := json.Unmarshal(data, &envelope); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		return envelope.Errors[0]
+	***REMOVED***
+
 	return jsonapi.Unmarshal(data, dst)
 ***REMOVED***
 
