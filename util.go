@@ -21,7 +21,6 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
@@ -32,10 +31,11 @@ import (
 func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
 	bytes, err := yaml.Marshal(v)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Serialization Error")
 		return err
 	***REMOVED***
-	_, _ = os.Stdout.Write(bytes)
+	if _, err := os.Stdout.Write(bytes); err != nil ***REMOVED***
+		return err
+	***REMOVED***
 	return nil
 ***REMOVED***
 

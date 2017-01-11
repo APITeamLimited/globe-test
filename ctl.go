@@ -27,6 +27,7 @@ import (
 	"github.com/loadimpact/k6/api/v1"
 	"github.com/manyminds/api2go/jsonapi"
 	"gopkg.in/urfave/cli.v1"
+	"io"
 	"io/ioutil"
 	"net/http"
 )
@@ -111,41 +112,44 @@ func endpointURL(cc *cli.Context, endpoint string) string ***REMOVED***
 	return fmt.Sprintf("http://%s%s", cc.GlobalString("address"), endpoint)
 ***REMOVED***
 
-func actionStatus(cc *cli.Context) error ***REMOVED***
-	res, err := http.Get(endpointURL(cc, "/v1/status"))
+func apiCall(cc *cli.Context, method, endpoint string, body []byte, dst interface***REMOVED******REMOVED***) error ***REMOVED***
+	var bodyReader io.Reader
+	if len(body) > 0 ***REMOVED***
+		bodyReader = bytes.NewReader(body)
+	***REMOVED***
+
+	req, err := http.NewRequest(method, endpointURL(cc, endpoint), bodyReader)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Request error")
+		return err
+	***REMOVED***
+	res, err := http.DefaultClient.Do(req)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	defer res.Body.Close()
+
+	if dst == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't read response")
 		return err
 	***REMOVED***
+	return jsonapi.Unmarshal(data, dst)
+***REMOVED***
+
+func actionStatus(cc *cli.Context) error ***REMOVED***
 	var status v1.Status
-	if err := jsonapi.Unmarshal(data, &status); err != nil ***REMOVED***
-		log.WithError(err).Error("Invalid response")
+	if err := apiCall(cc, "GET", "/v1/status", nil, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
 ***REMOVED***
 
 func actionStats(cc *cli.Context) error ***REMOVED***
-	res, err := http.Get(endpointURL(cc, "/v1/metrics"))
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Request error")
-		return err
-	***REMOVED***
-	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't read response")
-		return err
-	***REMOVED***
 	var metrics []v1.Metric
-	if err := jsonapi.Unmarshal(data, &metrics); err != nil ***REMOVED***
-		log.WithError(err).Error("Invalid response")
+	if err := apiCall(cc, "GET", "/v1/metrics", nil, &metrics); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	output := make(map[string]v1.Metric)
@@ -171,31 +175,8 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	req, err := http.NewRequest(
-		http.MethodPatch,
-		endpointURL(cc, "/v1/status"),
-		bytes.NewReader(body),
-	)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create request")
-		return err
-	***REMOVED***
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Request error")
-		return err
-	***REMOVED***
-	defer res.Body.Close()
-
-	data, err := ioutil.ReadAll(res.Body)
-	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't read response")
-		return err
-	***REMOVED***
 	var status v1.Status
-	if err := jsonapi.Unmarshal(data, &status); err != nil ***REMOVED***
-		log.WithError(err).Error("Invalid response")
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	return dumpYAML(status)
