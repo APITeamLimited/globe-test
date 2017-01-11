@@ -21,6 +21,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/api/v1"
@@ -61,6 +62,10 @@ var commandScale = cli.Command***REMOVED***
 	ArgsUsage: "vus",
 	Flags: []cli.Flag***REMOVED***
 		cli.Int64Flag***REMOVED***
+			Name:  "vus, u",
+			Usage: "update the number of running VUs",
+		***REMOVED***,
+		cli.Int64Flag***REMOVED***
 			Name:  "max, m",
 			Usage: "update the max number of VUs allowed",
 		***REMOVED***,
@@ -70,7 +75,7 @@ var commandScale = cli.Command***REMOVED***
 
    It is an error to scale a test beyond vus-max; this is because instantiating
    new VUs is a very expensive operation, which may skew test results if done
-   during a running test. Use --max if you want to do this.
+   during a running test. To raise vus-max, use --max/-m.
 
    Endpoint: /v1/status`,
 ***REMOVED***
@@ -151,7 +156,49 @@ func actionStats(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionScale(cc *cli.Context) error ***REMOVED***
-	return nil
+	patch := v1.Status***REMOVED***
+		VUs:    cliInt64(cc, "vus"),
+		VUsMax: cliInt64(cc, "max"),
+	***REMOVED***
+	if !patch.VUs.Valid && !patch.VUsMax.Valid ***REMOVED***
+		log.Warn("Neither --vus/-u or --max/-m passed; doing doing nothing")
+		return nil
+	***REMOVED***
+
+	body, err := jsonapi.Marshal(patch)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Serialization error")
+		return err
+	***REMOVED***
+
+	req, err := http.NewRequest(
+		http.MethodPatch,
+		endpointURL(cc, "/v1/status"),
+		bytes.NewReader(body),
+	)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't create request")
+		return err
+	***REMOVED***
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Request error")
+		return err
+	***REMOVED***
+	defer res.Body.Close()
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't read response")
+		return err
+	***REMOVED***
+	var status v1.Status
+	if err := jsonapi.Unmarshal(data, &status); err != nil ***REMOVED***
+		log.WithError(err).Error("Invalid response")
+		return err
+	***REMOVED***
+	return dumpYAML(status)
 ***REMOVED***
 
 func actionPause(cc *cli.Context) error ***REMOVED***
