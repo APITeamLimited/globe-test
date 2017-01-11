@@ -70,4 +70,11 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 	if status.Paused.Valid ***REMOVED***
 		engine.SetPaused(status.Paused.Bool)
 	***REMOVED***
+
+	data, err := jsonapi.Marshal(NewStatus(engine))
+	if err != nil ***REMOVED***
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	***REMOVED***
+	_, _ = rw.Write(data)
 ***REMOVED***
