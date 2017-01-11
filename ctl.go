@@ -27,6 +27,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/api/v1"
 	"github.com/manyminds/api2go/jsonapi"
+	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"io"
 	"io/ioutil"
@@ -96,12 +97,12 @@ var commandPause = cli.Command***REMOVED***
    Endpoint: /v1/status`,
 ***REMOVED***
 
-var commandStart = cli.Command***REMOVED***
-	Name:      "start",
-	Usage:     "Starts a paused test",
+var commandResume = cli.Command***REMOVED***
+	Name:      "resume",
+	Usage:     "Resumes a paused test",
 	ArgsUsage: " ",
-	Action:    actionStart,
-	Description: `Start starts a paused test.
+	Action:    actionResume,
+	Description: `Resume resumes a paused test.
 
    This is the opposite of the pause command, and will do nothing to an already
    running test.
@@ -189,9 +190,33 @@ func actionScale(cc *cli.Context) error ***REMOVED***
 ***REMOVED***
 
 func actionPause(cc *cli.Context) error ***REMOVED***
-	return nil
+	body, err := jsonapi.Marshal(v1.Status***REMOVED***
+		Paused: null.BoolFrom(true),
+	***REMOVED***)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Serialization error")
+		return err
+	***REMOVED***
+
+	var status v1.Status
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return dumpYAML(status)
 ***REMOVED***
 
-func actionStart(cc *cli.Context) error ***REMOVED***
-	return nil
+func actionResume(cc *cli.Context) error ***REMOVED***
+	body, err := jsonapi.Marshal(v1.Status***REMOVED***
+		Paused: null.BoolFrom(false),
+	***REMOVED***)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Serialization error")
+		return err
+	***REMOVED***
+
+	var status v1.Status
+	if err := apiCall(cc, "PATCH", "/v1/status", body, &status); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return dumpYAML(status)
 ***REMOVED***
