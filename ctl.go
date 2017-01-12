@@ -128,7 +128,7 @@ func apiCall(cc *cli.Context, method, endpoint string, body []byte, dst interfac
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	defer res.Body.Close()
+	defer func() ***REMOVED*** _ = res.Body.Close() ***REMOVED***()
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil ***REMOVED***
