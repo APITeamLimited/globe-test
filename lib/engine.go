@@ -375,6 +375,9 @@ func (e *Engine) clearSubcontext() ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) processStages() (bool, error) ***REMOVED***
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
 	// If there are no stages, just keep going indefinitely at a stable VU count.
 	if len(e.Stages) == 0 ***REMOVED***
 		return true, nil
@@ -479,15 +482,17 @@ func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) collect() []stats.Sample ***REMOVED***
-	samples := []stats.Sample***REMOVED******REMOVED***
-	for _, vu := range e.vuEntries ***REMOVED***
-		if vu.Samples == nil ***REMOVED***
-			continue
-		***REMOVED***
+	e.lock.Lock()
+	entries := e.vuEntries
+	e.lock.Unlock()
 
+	samples := []stats.Sample***REMOVED******REMOVED***
+	for _, vu := range entries ***REMOVED***
 		vu.lock.Lock()
-		samples = append(samples, vu.Samples...)
-		vu.Samples = nil
+		if len(vu.Samples) > 0 ***REMOVED***
+			samples = append(samples, vu.Samples...)
+			vu.Samples = nil
+		***REMOVED***
 		vu.lock.Unlock()
 	***REMOVED***
 	return samples
