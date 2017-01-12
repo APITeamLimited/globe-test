@@ -219,16 +219,14 @@ func (e *Engine) IsRunning() bool ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) SetPaused(v bool) ***REMOVED***
+	e.lock.Lock()
 	if v && e.vuPause == nil ***REMOVED***
-		e.lock.Lock()
 		e.vuPause = make(chan interface***REMOVED******REMOVED***)
-		e.lock.Unlock()
 	***REMOVED*** else if !v && e.vuPause != nil ***REMOVED***
-		e.lock.Lock()
 		close(e.vuPause)
 		e.vuPause = nil
-		e.lock.Unlock()
 	***REMOVED***
+	e.lock.Unlock()
 ***REMOVED***
 
 func (e *Engine) IsPaused() bool ***REMOVED***
