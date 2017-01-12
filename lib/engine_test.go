@@ -210,7 +210,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		e.numTaints++
 		e.lock.Unlock()
 
-		assert.NoError(t, <-ch)
+		assert.EqualError(t, <-ch, "test is tainted")
 		assert.False(t, e.IsRunning())
 	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
@@ -249,7 +249,8 @@ func TestEngineIsRunning(t *testing.T) ***REMOVED***
 	e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
-	go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
+	ch := make(chan error)
+	go func() ***REMOVED*** ch <- e.Run(ctx) ***REMOVED***()
 	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond)
 	assert.True(t, e.IsRunning())
@@ -258,6 +259,8 @@ func TestEngineIsRunning(t *testing.T) ***REMOVED***
 	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond)
 	assert.False(t, e.IsRunning())
+
+	assert.NoError(t, <-ch)
 ***REMOVED***
 
 func TestEngineTotalTime(t *testing.T) ***REMOVED***
@@ -329,8 +332,8 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		assert.False(t, e.IsPaused())
 
 		ctx, cancel := context.WithCancel(context.Background())
-		go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
-		defer cancel()
+		ch := make(chan error)
+		go func() ***REMOVED*** ch <- e.Run(ctx) ***REMOVED***()
 		time.Sleep(1 * time.Millisecond)
 		assert.True(t, e.IsRunning())
 
@@ -365,6 +368,9 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		atTimeSampleC2 := e.AtTime()
 		assert.True(t, iterationSampleC2 > iterationSampleC1, "iteration counter did not increase after unpause")
 		assert.True(t, atTimeSampleC2 > atTimeSampleC1, "timer did not increase after unpause")
+
+		cancel()
+		assert.NoError(t, <-ch)
 	***REMOVED***)
 
 	t.Run("exit", func(t *testing.T) ***REMOVED***
@@ -374,7 +380,8 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		go func() ***REMOVED*** assert.NoError(t, e.Run(ctx)) ***REMOVED***()
+		ch := make(chan error)
+		go func() ***REMOVED*** ch <- e.Run(ctx) ***REMOVED***()
 		time.Sleep(1 * time.Millisecond)
 		assert.True(t, e.IsRunning())
 
@@ -384,6 +391,8 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		time.Sleep(1 * time.Millisecond)
 		assert.False(t, e.IsPaused())
 		assert.False(t, e.IsRunning())
+
+		assert.NoError(t, <-ch)
 	***REMOVED***)
 ***REMOVED***
 
