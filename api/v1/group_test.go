@@ -45,10 +45,10 @@ func TestNewGroup(t *testing.T) ***REMOVED***
 	t.Run("groups", func(t *testing.T) ***REMOVED***
 		og := &lib.Group***REMOVED***ID: 1, Name: "My Group"***REMOVED***
 		og.Groups = map[string]*lib.Group***REMOVED***
-			"Child": &lib.Group***REMOVED***ID: 2, Name: "Child", Parent: og***REMOVED***,
+			"Child": ***REMOVED***ID: 2, Name: "Child", Parent: og***REMOVED***,
 		***REMOVED***
 		og.Groups["Child"].Groups = map[string]*lib.Group***REMOVED***
-			"Inner": &lib.Group***REMOVED***ID: 3, Name: "Inner", Parent: og.Groups["Child"]***REMOVED***,
+			"Inner": ***REMOVED***ID: 3, Name: "Inner", Parent: og.Groups["Child"]***REMOVED***,
 		***REMOVED***
 
 		g := NewGroup(og, nil)
@@ -73,7 +73,7 @@ func TestNewGroup(t *testing.T) ***REMOVED***
 	t.Run("checks", func(t *testing.T) ***REMOVED***
 		og := &lib.Group***REMOVED***ID: 1, Name: "My Group"***REMOVED***
 		og.Checks = map[string]*lib.Check***REMOVED***
-			"my check": &lib.Check***REMOVED***ID: 1, Name: "my check", Group: og***REMOVED***,
+			"my check": ***REMOVED***ID: 1, Name: "my check", Group: og***REMOVED***,
 		***REMOVED***
 
 		g := NewGroup(og, nil)

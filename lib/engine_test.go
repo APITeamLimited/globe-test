@@ -189,7 +189,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		d := 50 * time.Millisecond
-		e.Stages = []Stage***REMOVED***Stage***REMOVED***Duration: d***REMOVED******REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
 		startTime := time.Now()
 		assert.NoError(t, e.Run(context.Background()))
 		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
@@ -221,7 +221,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		for name, reterr := range errors ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-					return []stats.Sample***REMOVED***stats.Sample***REMOVED***Metric: testMetric, Value: 1.0***REMOVED******REMOVED***, reterr
+					return []stats.Sample***REMOVED******REMOVED***Metric: testMetric, Value: 1.0***REMOVED******REMOVED***, reterr
 				***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
 				assert.NoError(t, err)
 
@@ -276,10 +276,10 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***
 			"nil":        ***REMOVED***0, nil***REMOVED***,
 			"empty":      ***REMOVED***0, []Stage***REMOVED******REMOVED******REMOVED***,
-			"1,infinite": ***REMOVED***0, []Stage***REMOVED***Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
-			"2,infinite": ***REMOVED***0, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED***, Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
-			"1,finite":   ***REMOVED***10 * sec, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED******REMOVED******REMOVED***,
-			"2,finite":   ***REMOVED***15 * sec, []Stage***REMOVED***Stage***REMOVED***Duration: 10 * sec***REMOVED***, Stage***REMOVED***Duration: 5 * sec***REMOVED******REMOVED******REMOVED***,
+			"1,infinite": ***REMOVED***0, []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***,
+			"2,infinite": ***REMOVED***0, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED***, ***REMOVED******REMOVED******REMOVED******REMOVED***,
+			"1,finite":   ***REMOVED***10 * sec, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED******REMOVED******REMOVED***,
+			"2,finite":   ***REMOVED***15 * sec, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED***, ***REMOVED***Duration: 5 * sec***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
@@ -631,7 +631,7 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	c := &dummy.Collector***REMOVED******REMOVED***
 
 	e, err, _ := newTestEngine(RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-		return []stats.Sample***REMOVED***stats.Sample***REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
+		return []stats.Sample***REMOVED******REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
 	***REMOVED***), Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1)***REMOVED***)
 	assert.NoError(t, err)
 	e.Collector = c

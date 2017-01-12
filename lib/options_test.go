@@ -49,7 +49,7 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, "2m", opts.Duration.String)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Stages)
 		assert.Len(t, opts.Stages, 1)
 		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
@@ -76,7 +76,7 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string][]string***REMOVED***
-			"metric": []string***REMOVED***"1+1==2"***REMOVED***,
+			"metric": ***REMOVED***"1+1==2"***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)

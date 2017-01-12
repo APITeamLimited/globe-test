@@ -21,7 +21,7 @@ type ErrorResponse struct ***REMOVED***
 func apiError(rw http.ResponseWriter, title, detail string, status int) ***REMOVED***
 	doc := ErrorResponse***REMOVED***
 		Errors: []Error***REMOVED***
-			Error***REMOVED***
+			***REMOVED***
 				Status: strconv.Itoa(status),
 				Title:  title,
 				Detail: detail,

@@ -416,7 +416,7 @@ loop:
 	// Sort and print metrics.
 	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
 	metricNames := make([]string, 0, len(engine.Metrics))
-	for m, _ := range engine.Metrics ***REMOVED***
+	for m := range engine.Metrics ***REMOVED***
 		metrics[m.Name] = m
 		metricNames = append(metricNames, m.Name)
 	***REMOVED***

@@ -94,12 +94,12 @@ func (g *Group) SetID(v string) error ***REMOVED***
 
 func (g Group) GetReferences() []jsonapi.Reference ***REMOVED***
 	return []jsonapi.Reference***REMOVED***
-		jsonapi.Reference***REMOVED***
+		***REMOVED***
 			Type:         "groups",
 			Name:         "parent",
 			Relationship: jsonapi.ToOneRelationship,
 		***REMOVED***,
-		jsonapi.Reference***REMOVED***
+		***REMOVED***
 			Type:         "groups",
 			Name:         "groups",
 			Relationship: jsonapi.ToManyRelationship,
