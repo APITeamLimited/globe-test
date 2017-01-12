@@ -201,17 +201,17 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
 		assert.NoError(t, err)
 
-		ch := make(chan interface***REMOVED******REMOVED***)
-		go func() ***REMOVED***
-			assert.Error(t, e.Run(context.Background()))
-			close(ch)
-		***REMOVED***()
+		ch := make(chan error)
+		go func() ***REMOVED*** ch <- e.Run(context.Background()) ***REMOVED***()
 		time.Sleep(1 * time.Millisecond)
 		assert.True(t, e.IsRunning())
+
+		e.lock.Lock()
 		e.numTaints++
-		time.Sleep(10 * time.Millisecond)
+		e.lock.Unlock()
+
+		assert.NoError(t, <-ch)
 		assert.False(t, e.IsRunning())
-		<-ch
 	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		testMetric := stats.New("test_metric", stats.Trend)
@@ -230,12 +230,15 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 				ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
 				assert.NoError(t, e.Run(ctx))
+
+				e.lock.Lock()
 				if !assert.True(t, e.numIterations > 0, "no iterations performed") ***REMOVED***
+					e.lock.Unlock()
 					return
 				***REMOVED***
-
 				sink := e.Metrics[testMetric].(*stats.TrendSink)
 				assert.True(t, len(sink.Values) > int(float64(e.numIterations)*0.99), "more than 1%% of iterations missed")
+				e.lock.Unlock()
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
