@@ -35,13 +35,13 @@ type Threshold struct ***REMOVED***
 	vm     *otto.Otto
 ***REMOVED***
 
-func NewThreshold(src string, vm *otto.Otto) (Threshold, error) ***REMOVED***
+func NewThreshold(src string, vm *otto.Otto) (*Threshold, error) ***REMOVED***
 	script, err := vm.Compile("__threshold__", src)
 	if err != nil ***REMOVED***
-		return Threshold***REMOVED******REMOVED***, err
+		return nil, err
 	***REMOVED***
 
-	return Threshold***REMOVED***
+	return &Threshold***REMOVED***
 		Source: src,
 		script: script,
 		vm:     vm,
@@ -66,12 +66,12 @@ func (t *Threshold) Run() (bool, error) ***REMOVED***
 
 type Thresholds struct ***REMOVED***
 	VM         *otto.Otto
-	Thresholds []Threshold
+	Thresholds []*Threshold
 ***REMOVED***
 
 func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 	vm := otto.New()
-	ts := make([]Threshold, len(sources))
+	ts := make([]*Threshold, len(sources))
 	for i, src := range sources ***REMOVED***
 		t, err := NewThreshold(src, vm)
 		if err != nil ***REMOVED***
