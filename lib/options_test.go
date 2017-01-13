@@ -75,8 +75,10 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(12345), opts.MaxRedirects.Int64)
 	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string][]string***REMOVED***
-			"metric": ***REMOVED***"1+1==2"***REMOVED***,
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]Thresholds***REMOVED***
+			"metric": Thresholds***REMOVED***
+				Thresholds: []Threshold***REMOVED***Threshold***REMOVED******REMOVED******REMOVED***,
+			***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)
