@@ -28,22 +28,22 @@ import (
 
 func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 	data := map[*Metric]map[float64]string***REMOVED***
-		&Metric***REMOVED***Type: Counter, Contains: Default***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Counter, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Gauge, Contains: Default***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Gauge, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Trend, Contains: Default***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Trend, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Counter, Contains: Time***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Counter, Contains: Time***REMOVED***: ***REMOVED***
 			float64(1):               "1ns",
 			float64(12):              "12ns",
 			float64(123):             "123ns",
@@ -60,7 +60,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			float64(12345678901234):  "3h25m45s",
 			float64(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Gauge, Contains: Time***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Gauge, Contains: Time***REMOVED***: ***REMOVED***
 			float64(1):               "1ns",
 			float64(12):              "12ns",
 			float64(123):             "123ns",
@@ -77,7 +77,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			float64(12345678901234):  "3h25m45s",
 			float64(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Trend, Contains: Time***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Trend, Contains: Time***REMOVED***: ***REMOVED***
 			float64(1):               "1ns",
 			float64(12):              "12ns",
 			float64(123):             "123ns",
@@ -94,7 +94,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			float64(12345678901234):  "3h25m45s",
 			float64(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Rate, Contains: Default***REMOVED***: map[float64]string***REMOVED***
+		&Metric***REMOVED***Type: Rate, Contains: Default***REMOVED***: ***REMOVED***
 			0.0:      "0.00%",
 			0.01:     "1.00%",
 			0.02:     "2.00%",
@@ -120,6 +120,24 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 					assert.Equal(t, s, m.HumanizeValue(v))
 				***REMOVED***)
 			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestNewSink(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Type     MetricType
+		SinkType Sink
+	***REMOVED******REMOVED***
+		"Counter": ***REMOVED***Counter, &CounterSink***REMOVED******REMOVED******REMOVED***,
+		"Gauge":   ***REMOVED***Gauge, &GaugeSink***REMOVED******REMOVED******REMOVED***,
+		"Trend":   ***REMOVED***Trend, &TrendSink***REMOVED******REMOVED******REMOVED***,
+		"Rate":    ***REMOVED***Rate, &RateSink***REMOVED******REMOVED******REMOVED***,
+	***REMOVED***
+
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			assert.IsType(t, data.SinkType, Metric***REMOVED***Type: data.Type***REMOVED***.NewSink())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

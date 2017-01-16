@@ -28,6 +28,10 @@ import (
 )
 
 func TestNewMetric(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	tpl := `
 		import %s from "k6/metrics";
 		let myMetric = new %s(%s"my_metric", %s);
@@ -45,22 +49,22 @@ func TestNewMetric(t *testing.T) ***REMOVED***
 		t.Run("t="+s, func(t *testing.T) ***REMOVED***
 			// name: [import, type, arg0]
 			imports := map[string][]string***REMOVED***
-				"wrapper,direct": []string***REMOVED***
+				"wrapper,direct": ***REMOVED***
 					fmt.Sprintf("***REMOVED*** %s ***REMOVED***", s),
 					s,
 					"",
 				***REMOVED***,
-				"wrapper,module": []string***REMOVED***
+				"wrapper,module": ***REMOVED***
 					"metrics",
 					fmt.Sprintf("metrics.%s", s),
 					"",
 				***REMOVED***,
-				"const,direct": []string***REMOVED***
+				"const,direct": ***REMOVED***
 					fmt.Sprintf("***REMOVED*** Metric, %sType ***REMOVED***", s),
 					"Metric",
 					fmt.Sprintf("%sType, ", s),
 				***REMOVED***,
-				"const,module": []string***REMOVED***
+				"const,module": ***REMOVED***
 					"metrics",
 					"metrics.Metric",
 					fmt.Sprintf("metrics.%sType, ", s),

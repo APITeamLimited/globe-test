@@ -29,6 +29,10 @@ import (
 )
 
 func TestSleep(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	start := time.Now()
 	JSAPI***REMOVED******REMOVED***.Sleep(0.2)
 	assert.True(t, time.Since(start) > 200*time.Millisecond)
@@ -36,6 +40,10 @@ func TestSleep(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDoGroup(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** group ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -56,6 +64,10 @@ func TestDoGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDoGroupNested(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** group ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -79,6 +91,10 @@ func TestDoGroupNested(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDoGroupReturn(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** group, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -96,6 +112,10 @@ func TestDoGroupReturn(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** group, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -113,6 +133,10 @@ func TestDoGroupReturnTrueByDefault(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDoCheck(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** check ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -127,10 +151,8 @@ func TestDoCheck(t *testing.T) ***REMOVED***
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
-	if !assert.Len(t, r.Checks, 1) ***REMOVED***
-		return
-	***REMOVED***
-	c := r.Checks[0]
+	c := r.DefaultGroup.Checks["v === 3"]
+	assert.NotNil(t, c)
 	assert.Equal(t, "v === 3", c.Name)
 	assert.Equal(t, r.DefaultGroup, c.Group)
 	assert.Equal(t, int64(1), c.Passes)
@@ -138,6 +160,10 @@ func TestDoCheck(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCheckInGroup(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** group, check ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -154,12 +180,12 @@ func TestCheckInGroup(t *testing.T) ***REMOVED***
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
-	assert.Len(t, r.Groups, 2)
-	g := r.Groups[1]
+	g := r.DefaultGroup.Groups["group"]
+	assert.NotNil(t, g)
 	assert.Equal(t, "group", g.Name)
 
-	assert.Len(t, r.Checks, 1)
-	c := r.Checks[0]
+	c := g.Checks["v === 3"]
+	assert.NotNil(t, c)
 	assert.Equal(t, "v === 3", c.Name)
 	assert.Equal(t, g, c.Group)
 	assert.Equal(t, int64(1), c.Passes)
@@ -167,6 +193,10 @@ func TestCheckInGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** check, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -182,6 +212,10 @@ func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** check, _assert ***REMOVED*** from "k6";
 	export default function() ***REMOVED***
@@ -197,6 +231,10 @@ func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestTaint(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	r, err := newSnippetRunner(`
 	import ***REMOVED*** taint ***REMOVED*** from "k6";
 	export default function() ***REMOVED***

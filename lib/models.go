@@ -21,89 +21,26 @@
 package lib
 
 import (
-	"github.com/manyminds/api2go/jsonapi"
 	"gopkg.in/guregu/null.v3"
-	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
-type Status struct ***REMOVED***
-	Running null.Bool `json:"running"`
-	Tainted null.Bool `json:"tainted"`
-	VUs     null.Int  `json:"vus"`
-	VUsMax  null.Int  `json:"vus-max"`
-	AtTime  null.Int  `json:"at-time"`
-
-	Linger       null.Bool  `json:"quit"`
-	AbortOnTaint null.Bool  `json:"abort-on-taint"`
-	Acceptance   null.Float `json:"acceptance"`
-
-	// Read-only, non-nullable.
-	Runs   int64 `json:"runs"`
-	Taints int64 `json:"taints"`
-***REMOVED***
-
-func (s Status) GetName() string ***REMOVED***
-	return "status"
-***REMOVED***
-
-func (s Status) GetID() string ***REMOVED***
-	return "default"
-***REMOVED***
-
-func (s Status) SetID(id string) error ***REMOVED***
-	return nil
-***REMOVED***
-
 type Stage struct ***REMOVED***
-	ID int64 `json:"-"`
-
-	Order    null.Int `json:"order"`
-	Duration null.Int `json:"duration"`
-	StartVUs null.Int `json:"start-vus"`
-	EndVUs   null.Int `json:"end-vus"`
-***REMOVED***
-
-func (s Stage) GetName() string ***REMOVED***
-	return "stage"
-***REMOVED***
-
-func (s Stage) GetID() string ***REMOVED***
-	return strconv.FormatInt(s.ID, 10)
-***REMOVED***
-
-func (s *Stage) SetID(v string) error ***REMOVED***
-	id, err := strconv.ParseInt(v, 10, 64)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	s.ID = id
-	return nil
-***REMOVED***
-
-type Info struct ***REMOVED***
-	Version string `json:"version"`
-***REMOVED***
-
-func (i Info) GetName() string ***REMOVED***
-	return "info"
-***REMOVED***
-
-func (i Info) GetID() string ***REMOVED***
-	return "default"
+	Duration time.Duration `json:"duration"`
+	Target   null.Int      `json:"target"`
 ***REMOVED***
 
 type Group struct ***REMOVED***
-	ID int64 `json:"-"`
-
+	ID     int64             `json:"id"`
 	Name   string            `json:"name"`
-	Parent *Group            `json:"-"`
-	Groups map[string]*Group `json:"-"`
-	Checks map[string]*Check `json:"-"`
+	Parent *Group            `json:"parent"`
+	Groups map[string]*Group `json:"groups"`
+	Checks map[string]*Check `json:"checks"`
 
-	groupMutex sync.Mutex `json:"-"`
-	checkMutex sync.Mutex `json:"-"`
+	groupMutex sync.Mutex
+	checkMutex sync.Mutex
 ***REMOVED***
 
 func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
@@ -151,71 +88,9 @@ func (g *Group) Check(name string, idCounter *int64) (*Check, bool) ***REMOVED**
 	return check, ok
 ***REMOVED***
 
-func (g Group) GetID() string ***REMOVED***
-	return strconv.FormatInt(g.ID, 10)
-***REMOVED***
-
-func (g Group) GetReferences() []jsonapi.Reference ***REMOVED***
-	return []jsonapi.Reference***REMOVED***
-		jsonapi.Reference***REMOVED***
-			Name:         "parent",
-			Type:         "groups",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***,
-		jsonapi.Reference***REMOVED***
-			Name:         "checks",
-			Type:         "checks",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	ids := make([]jsonapi.ReferenceID, 0, len(g.Checks)+len(g.Groups))
-	for _, check := range g.Checks ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           check.GetID(),
-			Type:         "checks",
-			Name:         "checks",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***)
-	***REMOVED***
-	for _, group := range g.Groups ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           group.GetID(),
-			Type:         "groups",
-			Name:         "groups",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***)
-	***REMOVED***
-	if g.Parent != nil ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           g.Parent.GetID(),
-			Type:         "groups",
-			Name:         "parent",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***)
-	***REMOVED***
-	return ids
-***REMOVED***
-
-func (g Group) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
-	// Note: we're not sideloading the parent, that snowballs into making requests for a single
-	// group return *every single known group* thanks to the common root group.
-	refs := make([]jsonapi.MarshalIdentifier, 0, len(g.Checks)+len(g.Groups))
-	for _, check := range g.Checks ***REMOVED***
-		refs = append(refs, check)
-	***REMOVED***
-	for _, group := range g.Groups ***REMOVED***
-		refs = append(refs, group)
-	***REMOVED***
-	return refs
-***REMOVED***
-
 type Check struct ***REMOVED***
-	ID int64 `json:"-"`
-
-	Group *Group `json:"-"`
+	ID    int64  `json:"id"`
+	Group *Group `json:"group"`
 	Name  string `json:"name"`
 
 	Passes int64 `json:"passes"`
@@ -228,32 +103,4 @@ func NewCheck(name string, group *Group, idCounter *int64) *Check ***REMOVED***
 		id = atomic.AddInt64(idCounter, 1)
 	***REMOVED***
 	return &Check***REMOVED***ID: id, Name: name, Group: group***REMOVED***
-***REMOVED***
-
-func (c Check) GetID() string ***REMOVED***
-	return strconv.FormatInt(c.ID, 10)
-***REMOVED***
-
-func (c Check) GetReferences() []jsonapi.Reference ***REMOVED***
-	return []jsonapi.Reference***REMOVED***
-		jsonapi.Reference***REMOVED***
-			Name:         "group",
-			Type:         "groups",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (c Check) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	return []jsonapi.ReferenceID***REMOVED***
-		jsonapi.ReferenceID***REMOVED***
-			ID:   c.Group.GetID(),
-			Type: "groups",
-			Name: "group",
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (c Check) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
-	return []jsonapi.MarshalIdentifier***REMOVED***c.Group***REMOVED***
 ***REMOVED***

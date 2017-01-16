@@ -27,6 +27,10 @@ import (
 )
 
 func TestNewRunner(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	rt, err := New()
 	assert.NoError(t, err)
 	exp, err := rt.load("test.js", []byte(`export default function() ***REMOVED******REMOVED***`))
@@ -37,14 +41,8 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	t.Run("GetGroups", func(t *testing.T) ***REMOVED***
-		g := r.GetGroups()
-		assert.Len(t, g, 1)
-		assert.Equal(t, r.DefaultGroup, g[0])
-	***REMOVED***)
-
-	t.Run("GetTests", func(t *testing.T) ***REMOVED***
-		assert.Len(t, r.GetChecks(), 0)
+	t.Run("GetDefaultGroup", func(t *testing.T) ***REMOVED***
+		assert.Equal(t, r.DefaultGroup, r.GetDefaultGroup())
 	***REMOVED***)
 
 	t.Run("VU", func(t *testing.T) ***REMOVED***

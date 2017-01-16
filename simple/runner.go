@@ -94,12 +94,8 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
-	return []*lib.Group***REMOVED******REMOVED***
-***REMOVED***
-
-func (r *Runner) GetChecks() []*lib.Check ***REMOVED***
-	return []*lib.Check***REMOVED******REMOVED***
+func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
+	return &lib.Group***REMOVED******REMOVED***
 ***REMOVED***
 
 func (r Runner) GetOptions() lib.Options ***REMOVED***
@@ -143,14 +139,14 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 
 	t := time.Now()
 	return []stats.Sample***REMOVED***
-		stats.Sample***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqDuration, Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqBlocked, Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqLookingUp, Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqConnecting, Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqSending, Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqWaiting, Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
+		***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
+		***REMOVED***Metric: MetricReqDuration, Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
+		***REMOVED***Metric: MetricReqBlocked, Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
+		***REMOVED***Metric: MetricReqLookingUp, Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
+		***REMOVED***Metric: MetricReqConnecting, Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
+		***REMOVED***Metric: MetricReqSending, Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
+		***REMOVED***Metric: MetricReqWaiting, Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
+		***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 

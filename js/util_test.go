@@ -58,6 +58,10 @@ func runSnippet(src string) error ***REMOVED***
 ***REMOVED***
 
 func TestCheck(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	vm := otto.New()
 
 	t.Run("String", func(t *testing.T) ***REMOVED***
@@ -137,6 +141,10 @@ func TestCheck(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestThrow(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
 	vm := otto.New()
 	assert.NoError(t, vm.Set("fn", func() ***REMOVED***
 		throw(vm, errors.New("This is a test error"))

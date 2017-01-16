@@ -21,6 +21,7 @@
 package lib
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -29,14 +30,14 @@ import (
 func TestLerp(t *testing.T) ***REMOVED***
 	// data[x][y][t] = v
 	data := map[int64]map[int64]map[float64]int64***REMOVED***
-		0: map[int64]map[float64]int64***REMOVED***
-			0:   map[float64]int64***REMOVED***0.0: 0, 0.10: 0, 0.5: 0, 1.0: 0***REMOVED***,
-			100: map[float64]int64***REMOVED***0.0: 0, 0.10: 10, 0.5: 50, 1.0: 100***REMOVED***,
-			500: map[float64]int64***REMOVED***0.0: 0, 0.10: 50, 0.5: 250, 1.0: 500***REMOVED***,
+		0: ***REMOVED***
+			0:   ***REMOVED***0.0: 0, 0.10: 0, 0.5: 0, 1.0: 0***REMOVED***,
+			100: ***REMOVED***0.0: 0, 0.10: 10, 0.5: 50, 1.0: 100***REMOVED***,
+			500: ***REMOVED***0.0: 0, 0.10: 50, 0.5: 250, 1.0: 500***REMOVED***,
 		***REMOVED***,
-		100: map[int64]map[float64]int64***REMOVED***
-			200: map[float64]int64***REMOVED***0.0: 100, 0.1: 110, 0.5: 150, 1.0: 200***REMOVED***,
-			0:   map[float64]int64***REMOVED***0.0: 100, 0.1: 90, 0.5: 50, 1.0: 0***REMOVED***,
+		100: ***REMOVED***
+			200: ***REMOVED***0.0: 100, 0.1: 110, 0.5: 150, 1.0: 200***REMOVED***,
+			0:   ***REMOVED***0.0: 100, 0.1: 90, 0.5: 50, 1.0: 0***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 
@@ -49,6 +50,53 @@ func TestLerp(t *testing.T) ***REMOVED***
 							assert.Equal(t, x1, Lerp(x, y, t_))
 						***REMOVED***)
 					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestClampf(t *testing.T) ***REMOVED***
+	testdata := map[float64]map[struct ***REMOVED***
+		Min, Max float64
+	***REMOVED***]float64***REMOVED***
+		-1.0: ***REMOVED***
+			***REMOVED***0.0, 1.0***REMOVED***: 0.0,
+			***REMOVED***0.5, 1.0***REMOVED***: 0.5,
+			***REMOVED***1.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.0, 0.5***REMOVED***: 0.0,
+		***REMOVED***,
+		0.0: ***REMOVED***
+			***REMOVED***0.0, 1.0***REMOVED***: 0.0,
+			***REMOVED***0.5, 1.0***REMOVED***: 0.5,
+			***REMOVED***1.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.0, 0.5***REMOVED***: 0.0,
+		***REMOVED***,
+		0.5: ***REMOVED***
+			***REMOVED***0.0, 1.0***REMOVED***: 0.5,
+			***REMOVED***0.5, 1.0***REMOVED***: 0.5,
+			***REMOVED***1.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.0, 0.5***REMOVED***: 0.5,
+		***REMOVED***,
+		1.0: ***REMOVED***
+			***REMOVED***0.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.5, 1.0***REMOVED***: 1.0,
+			***REMOVED***1.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.0, 0.5***REMOVED***: 0.5,
+		***REMOVED***,
+		2.0: ***REMOVED***
+			***REMOVED***0.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.5, 1.0***REMOVED***: 1.0,
+			***REMOVED***1.0, 1.0***REMOVED***: 1.0,
+			***REMOVED***0.0, 0.5***REMOVED***: 0.5,
+		***REMOVED***,
+	***REMOVED***
+
+	for val, ranges := range testdata ***REMOVED***
+		t.Run(fmt.Sprintf("val=%.1f", val), func(t *testing.T) ***REMOVED***
+			for r, result := range ranges ***REMOVED***
+				t.Run(fmt.Sprintf("min=%.1f,max=%.1f", r.Min, r.Max), func(t *testing.T) ***REMOVED***
+					assert.Equal(t, result, Clampf(val, r.Min, r.Max))
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)

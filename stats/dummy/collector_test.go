@@ -18,39 +18,32 @@
  *
  */
 
-package v2
+package dummy
 
 import (
-	"github.com/loadimpact/k6/lib"
-	"gopkg.in/guregu/null.v3"
+	"context"
+	"github.com/loadimpact/k6/stats"
+	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
-type Status struct ***REMOVED***
-	Running null.Bool `json:"running"`
-	VUs     null.Int  `json:"vus"`
-	VUsMax  null.Int  `json:"vus-max"`
+func TestCollectorRun(t *testing.T) ***REMOVED***
+	c := &Collector***REMOVED******REMOVED***
+	assert.False(t, c.IsRunning())
 
-	// Readonly.
-	Tainted bool `json:"tainted"`
+	ctx, cancel := context.WithCancel(context.Background())
+	go c.Run(ctx)
+	time.Sleep(1 * time.Millisecond)
+	assert.True(t, c.IsRunning(), "not marked as running")
+
+	cancel()
+	time.Sleep(1 * time.Millisecond)
+	assert.False(t, c.IsRunning(), "not marked as stopped")
 ***REMOVED***
 
-func NewStatus(engine *lib.Engine) Status ***REMOVED***
-	return Status***REMOVED***
-		Running: null.BoolFrom(engine.Status.Running.Bool),
-		VUs:     null.IntFrom(engine.Status.VUs.Int64),
-		VUsMax:  null.IntFrom(engine.Status.VUsMax.Int64),
-		Tainted: engine.Status.Tainted.Bool,
-	***REMOVED***
-***REMOVED***
-
-func (s Status) GetName() string ***REMOVED***
-	return "status"
-***REMOVED***
-
-func (s Status) GetID() string ***REMOVED***
-	return "default"
-***REMOVED***
-
-func (s Status) SetID(id string) error ***REMOVED***
-	return nil
+func TestCollectorCollect(t *testing.T) ***REMOVED***
+	c := &Collector***REMOVED******REMOVED***
+	c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
+	assert.Len(t, c.Samples, 1)
 ***REMOVED***

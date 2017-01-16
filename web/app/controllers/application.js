@@ -3,12 +3,12 @@ import Ember from 'ember';
 export default Ember.Controller.extend(***REMOVED***
   flashMessages: Ember.inject.service(),
 
-  running: Ember.computed.alias('model.running'),
+  paused: Ember.computed.alias('model.paused'),
 
   actions: ***REMOVED***
     pause() ***REMOVED***
       var model = this.get('model');
-      model.set('running', false);
+      model.set('paused', true);
       return model.save().catch((err) => ***REMOVED***
         for (var e of err.errors) ***REMOVED***
           this.get('flashMessages').danger(e.title);
@@ -17,7 +17,7 @@ export default Ember.Controller.extend(***REMOVED***
     ***REMOVED***,
     resume() ***REMOVED***
       var model = this.get('model');
-      model.set('running', true);
+      model.set('paused', false);
       return model.save().catch((err) => ***REMOVED***
         for (var e of err.errors) ***REMOVED***
           this.get('flashMessages').danger(e.title);

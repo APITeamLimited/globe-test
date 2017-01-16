@@ -35,15 +35,15 @@ func main() ***REMOVED***
 	app := cli.NewApp()
 	app.Name = "k6"
 	app.Usage = "a next generation load generator"
-	app.Version = "0.4.5"
+	app.Version = "0.5.0"
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
 		commandInspect,
 		commandStatus,
 		commandStats,
 		commandScale,
-		commandStart,
 		commandPause,
+		commandResume,
 	***REMOVED***
 	app.Flags = []cli.Flag***REMOVED***
 		cli.BoolFlag***REMOVED***

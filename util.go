@@ -21,10 +21,23 @@
 package main
 
 import (
+	"github.com/ghodss/yaml"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
+	"os"
 	"time"
 )
+
+func dumpYAML(v interface***REMOVED******REMOVED***) error ***REMOVED***
+	bytes, err := yaml.Marshal(v)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if _, err := os.Stdout.Write(bytes); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
+***REMOVED***
 
 // cliBool returns a CLI argument as a bool, which is invalid if not given.
 func cliBool(cc *cli.Context, name string) null.Bool ***REMOVED***

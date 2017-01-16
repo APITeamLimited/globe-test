@@ -277,7 +277,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Make the Engine
-	engine, err := lib.NewEngine(runner)
+	engine, err := lib.NewEngine(runner, opts)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create the engine")
 		return err
@@ -331,18 +331,16 @@ loop:
 		select ***REMOVED***
 		case <-ticker.C:
 			statusString := "running"
-			if !engine.Status.Running.Bool ***REMOVED***
-				if engine.IsRunning() ***REMOVED***
-					statusString = "paused"
-				***REMOVED*** else ***REMOVED***
-					statusString = "stopping"
-				***REMOVED***
+			if !engine.IsRunning() ***REMOVED***
+				statusString = "stopping"
+			***REMOVED*** else if engine.IsPaused() ***REMOVED***
+				statusString = "paused"
 			***REMOVED***
 
-			atTime := time.Duration(engine.Status.AtTime.Int64)
-			totalTime, finite := engine.TotalTime()
+			atTime := engine.AtTime()
+			totalTime := engine.TotalTime()
 			progress := 0.0
-			if finite ***REMOVED***
+			if totalTime > 0 ***REMOVED***
 				progress = float64(atTime) / float64(totalTime)
 			***REMOVED***
 
@@ -367,7 +365,7 @@ loop:
 	wg.Wait()
 
 	// Test done, leave that status as the final progress bar!
-	atTime := time.Duration(engine.Status.AtTime.Int64)
+	atTime := engine.AtTime()
 	progressBar.Progress = 1.0
 	fmt.Printf("      done %s %10s / %s\n",
 		progressBar.String(),
@@ -413,18 +411,12 @@ loop:
 		***REMOVED***
 	***REMOVED***
 
-	groups := engine.Runner.GetGroups()
-	for _, g := range groups ***REMOVED***
-		if g.Parent != nil ***REMOVED***
-			continue
-		***REMOVED***
-		printGroup(g, 1)
-	***REMOVED***
+	printGroup(engine.Runner.GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
 	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
 	metricNames := make([]string, 0, len(engine.Metrics))
-	for m, _ := range engine.Metrics ***REMOVED***
+	for m := range engine.Metrics ***REMOVED***
 		metrics[m.Name] = m
 		metricNames = append(metricNames, m.Name)
 	***REMOVED***
@@ -438,7 +430,7 @@ loop:
 			continue
 		***REMOVED***
 		icon := " "
-		for _, threshold := range engine.Thresholds[name] ***REMOVED***
+		for _, threshold := range engine.Thresholds[name].Thresholds ***REMOVED***
 			icon = "✓"
 			if threshold.Failed ***REMOVED***
 				icon = "✗"
@@ -448,7 +440,11 @@ loop:
 		fmt.Printf("  %s %s: %s\n", icon, name, val)
 	***REMOVED***
 
-	if engine.Status.Tainted.Bool ***REMOVED***
+	if opts.Linger.Bool ***REMOVED***
+		<-signals
+	***REMOVED***
+
+	if engine.IsTainted() ***REMOVED***
 		return cli.NewExitError("", 99)
 	***REMOVED***
 	return nil

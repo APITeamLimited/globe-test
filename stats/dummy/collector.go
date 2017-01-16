@@ -18,34 +18,39 @@
  *
  */
 
-package json
+package dummy
 
 import (
-	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
+	"context"
+	"github.com/loadimpact/k6/stats"
+	"sync"
 )
 
-func TestNew(t *testing.T) ***REMOVED***
-	testdata := map[string]bool***REMOVED***
-		"/nonexistent/badplacetolog.log":   false,
-		os.TempDir() + "/okplacetolog.log": true,
-		"./okplacetolog.log":               true,
-		"okplacetolog.log":                 true,
-	***REMOVED***
+type Collector struct ***REMOVED***
+	Samples []stats.Sample
+	running bool
 
-	for path, succ := range testdata ***REMOVED***
-		t.Run("path="+path, func(t *testing.T) ***REMOVED***
-			defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
+	lock sync.Mutex
+***REMOVED***
 
-			collector, err := New(path)
-			if succ ***REMOVED***
-				assert.NoError(t, err)
-				assert.NotNil(t, collector)
-			***REMOVED*** else ***REMOVED***
-				assert.Error(t, err)
-				assert.Nil(t, collector)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
+func (c *Collector) Run(ctx context.Context) ***REMOVED***
+	c.lock.Lock()
+	c.running = true
+	c.lock.Unlock()
+
+	<-ctx.Done()
+
+	c.lock.Lock()
+	c.running = false
+	c.lock.Unlock()
+***REMOVED***
+
+func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+	c.Samples = append(c.Samples, samples...)
+***REMOVED***
+
+func (c *Collector) IsRunning() bool ***REMOVED***
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.running
 ***REMOVED***

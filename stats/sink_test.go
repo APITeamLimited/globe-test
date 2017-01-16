@@ -18,34 +18,19 @@
  *
  */
 
-package json
+package stats
 
 import (
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
-func TestNew(t *testing.T) ***REMOVED***
-	testdata := map[string]bool***REMOVED***
-		"/nonexistent/badplacetolog.log":   false,
-		os.TempDir() + "/okplacetolog.log": true,
-		"./okplacetolog.log":               true,
-		"okplacetolog.log":                 true,
-	***REMOVED***
+func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
+	assert.Panics(t, func() ***REMOVED***
+		DummySink***REMOVED******REMOVED***.Add(Sample***REMOVED******REMOVED***)
+	***REMOVED***)
+***REMOVED***
 
-	for path, succ := range testdata ***REMOVED***
-		t.Run("path="+path, func(t *testing.T) ***REMOVED***
-			defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
-
-			collector, err := New(path)
-			if succ ***REMOVED***
-				assert.NoError(t, err)
-				assert.NotNil(t, collector)
-			***REMOVED*** else ***REMOVED***
-				assert.Error(t, err)
-				assert.Nil(t, collector)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
+func TestDummySinkFormatReturnsItself(t *testing.T) ***REMOVED***
+	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format())
 ***REMOVED***
