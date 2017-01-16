@@ -16,13 +16,13 @@ let password = "testpassword";
 
 // We export this function as other test cases might want to use it to authenticate
 export function v3_account_login(username, password, debug) ***REMOVED***
-        // First we login. We are not interested in performance metrics from these login transactions
-        var url = urlbase + "/v3/account/login";
-        var payload = ***REMOVED*** email: username, password: password ***REMOVED***;
-        var res = http.post(url, JSON.stringify(payload), ***REMOVED*** headers: ***REMOVED*** "Content-Type": "application/json" ***REMOVED*** ***REMOVED***);
+	// First we login. We are not interested in performance metrics from these login transactions
+	var url = urlbase + "/v3/account/login";
+	var payload = ***REMOVED*** email: username, password: password ***REMOVED***;
+	var res = http.post(url, JSON.stringify(payload), ***REMOVED*** headers: ***REMOVED*** "Content-Type": "application/json" ***REMOVED*** ***REMOVED***);
 	if (typeof debug !== 'undefined')
-        	console.log("Login: status=" + String(res.status) + "  Body=" + res.body);
-        return res;
+		console.log("Login: status=" + String(res.status) + "  Body=" + res.body);
+	return res;
 ***REMOVED***;
 
 // Exercise /login endpoint when this test case is executed
