@@ -560,7 +560,7 @@ func (e *Engine) processThresholds() ***REMOVED***
 		if !ok ***REMOVED***
 			continue
 		***REMOVED***
-		e.Logger.WithField("m", m.Name).Info("running thresholds")
+		e.Logger.WithField("m", m.Name).Debug("running thresholds")
 		succ, err := ts.Run(s)
 		if err != nil ***REMOVED***
 			e.Logger.WithField("metric", m.Name).WithError(err).Error("Threshold Error")
