@@ -195,7 +195,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
 		startTime := time.Now()
 		assert.NoError(t, e.Run(context.Background()))
-		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 2*TickRate)
+		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 100*TickRate)
 	***REMOVED***)
 	t.Run("exits with AbortOnTaint", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
