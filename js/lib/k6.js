@@ -31,7 +31,7 @@ export function check(val, ...sets) ***REMOVED***
  * @param  ***REMOVED***Number***REMOVED*** secs Duration, in seconds.
  */
 export function sleep(secs) ***REMOVED***
-	__jsapi__.Sleep(secs);
+	__jsapi__.Sleep(secs * 1.0);
 ***REMOVED***
 
 /**
