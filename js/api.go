@@ -33,7 +33,13 @@ type JSAPI struct ***REMOVED***
 ***REMOVED***
 
 func (a JSAPI) Sleep(secs float64) ***REMOVED***
-	time.Sleep(time.Duration(secs * float64(time.Second)))
+	d := time.Duration(secs * float64(time.Second))
+	t := time.NewTimer(d)
+	select ***REMOVED***
+	case <-t.C:
+	case <-a.vu.ctx.Done():
+	***REMOVED***
+	t.Stop()
 ***REMOVED***
 
 func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
