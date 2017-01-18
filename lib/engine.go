@@ -575,20 +575,25 @@ func (e *Engine) emitMetrics() ***REMOVED***
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
+	t := time.Now()
 	e.processSamples(
 		stats.Sample***REMOVED***
+			Time:   t,
 			Metric: MetricVUs,
 			Value:  float64(e.vus),
 		***REMOVED***,
 		stats.Sample***REMOVED***
+			Time:   t,
 			Metric: MetricVUsMax,
 			Value:  float64(e.vusMax),
 		***REMOVED***,
 		stats.Sample***REMOVED***
+			Time:   t,
 			Metric: MetricIterations,
 			Value:  float64(atomic.LoadInt64(&e.numIterations)),
 		***REMOVED***,
 		stats.Sample***REMOVED***
+			Time:   t,
 			Metric: MetricTaints,
 			Value:  float64(atomic.LoadInt64(&e.numTaints)),
 		***REMOVED***,
