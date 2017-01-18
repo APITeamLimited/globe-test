@@ -183,7 +183,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	t.Run("thresholds", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
 			Thresholds: map[string]Thresholds***REMOVED***
-				"my_metric": Thresholds***REMOVED******REMOVED***,
+				"my_metric": ***REMOVED******REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
@@ -192,7 +192,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 		t.Run("submetrics", func(t *testing.T) ***REMOVED***
 			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				Thresholds: map[string]Thresholds***REMOVED***
-					"my_metric***REMOVED***tag:value***REMOVED***": Thresholds***REMOVED******REMOVED***,
+					"my_metric***REMOVED***tag:value***REMOVED***": ***REMOVED******REMOVED***,
 				***REMOVED***,
 			***REMOVED***)
 			assert.NoError(t, err)
