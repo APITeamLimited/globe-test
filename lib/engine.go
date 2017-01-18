@@ -61,7 +61,7 @@ type vuEntry struct ***REMOVED***
 type submetric struct ***REMOVED***
 	Name       string
 	Conditions map[string]string
-	Sink       stats.Sink
+	Metric     *stats.Metric
 ***REMOVED***
 
 func parseSubmetric(name string) (string, map[string]string) ***REMOVED***
@@ -633,30 +633,6 @@ func (e *Engine) processThresholds() ***REMOVED***
 			e.thresholdsTainted = true
 		***REMOVED***
 	***REMOVED***
-
-	for _, sms := range e.submetrics ***REMOVED***
-		for _, sm := range sms ***REMOVED***
-			if sm.Sink == nil ***REMOVED***
-				continue
-			***REMOVED***
-
-			ts, ok := e.Thresholds[sm.Name]
-			if !ok ***REMOVED***
-				continue
-			***REMOVED***
-
-			e.Logger.WithField("m", sm.Name).Debug("running thresholds")
-			succ, err := ts.Run(sm.Sink)
-			if err != nil ***REMOVED***
-				e.Logger.WithField("m", sm.Name).WithError(err).Error("Threshold error")
-				continue
-			***REMOVED***
-			if !succ ***REMOVED***
-				e.Logger.WithField("m", sm.Name).Debug("Thresholds failed")
-				e.thresholdsTainted = true
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
 ***REMOVED***
 
 func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
@@ -712,10 +688,11 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 				continue
 			***REMOVED***
 
-			if sm.Sink == nil ***REMOVED***
-				sm.Sink = sample.Metric.NewSink()
+			if sm.Metric == nil ***REMOVED***
+				sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
+				e.Metrics[sm.Metric] = sm.Metric.NewSink()
 			***REMOVED***
-			sm.Sink.Add(sample)
+			e.Metrics[sm.Metric].Add(sample)
 		***REMOVED***
 	***REMOVED***
 
