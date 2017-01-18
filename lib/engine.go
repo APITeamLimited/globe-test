@@ -26,6 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -57,6 +58,39 @@ type vuEntry struct ***REMOVED***
 	lock    sync.Mutex
 ***REMOVED***
 
+type submetric struct ***REMOVED***
+	Name       string
+	Conditions map[string]string
+	Sink       stats.Sink
+***REMOVED***
+
+func parseSubmetric(name string) (string, map[string]string) ***REMOVED***
+	halves := strings.SplitN(strings.TrimSuffix(name, "***REMOVED***"), "***REMOVED***", 2)
+	if len(halves) != 2 ***REMOVED***
+		return halves[0], nil
+	***REMOVED***
+
+	kvs := strings.Split(halves[1], ",")
+	conditions := make(map[string]string, len(kvs))
+	for _, kv := range kvs ***REMOVED***
+		if kv == "" ***REMOVED***
+			continue
+		***REMOVED***
+
+		parts := strings.SplitN(kv, ":", 2)
+
+		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
+		if len(parts) != 2 ***REMOVED***
+			conditions[key] = ""
+			continue
+		***REMOVED***
+
+		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
+		conditions[key] = value
+	***REMOVED***
+	return halves[0], conditions
+***REMOVED***
+
 // The Engine is the beating heart of K6.
 type Engine struct ***REMOVED***
 	Runner    Runner
@@ -68,6 +102,9 @@ type Engine struct ***REMOVED***
 	Thresholds  map[string]Thresholds
 	Metrics     map[*stats.Metric]stats.Sink
 	MetricsLock sync.Mutex
+
+	// Submetrics, mapped from parent metric names.
+	submetrics map[string][]*submetric
 
 	// Stage tracking.
 	atTime          time.Duration
@@ -134,6 +171,19 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 
 	if o.Thresholds != nil ***REMOVED***
 		e.Thresholds = o.Thresholds
+		e.submetrics = make(map[string][]*submetric)
+
+		for name := range e.Thresholds ***REMOVED***
+			if !strings.Contains(name, "***REMOVED***") ***REMOVED***
+				continue
+			***REMOVED***
+
+			parent, conds := parseSubmetric(name)
+			e.submetrics[parent] = append(e.submetrics[parent], &submetric***REMOVED***
+				Name:       name,
+				Conditions: conds,
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***
 
 	return e, nil
@@ -578,6 +628,30 @@ func (e *Engine) processThresholds() ***REMOVED***
 			e.thresholdsTainted = true
 		***REMOVED***
 	***REMOVED***
+
+	for _, sms := range e.submetrics ***REMOVED***
+		for _, sm := range sms ***REMOVED***
+			if sm.Sink == nil ***REMOVED***
+				continue
+			***REMOVED***
+
+			ts, ok := e.Thresholds[sm.Name]
+			if !ok ***REMOVED***
+				continue
+			***REMOVED***
+
+			e.Logger.WithField("m", sm.Name).Debug("running thresholds")
+			succ, err := ts.Run(sm.Sink)
+			if err != nil ***REMOVED***
+				e.Logger.WithField("m", sm.Name).WithError(err).Error("Threshold error")
+				continue
+			***REMOVED***
+			if !succ ***REMOVED***
+				e.Logger.WithField("m", sm.Name).Debug("Thresholds failed")
+				e.thresholdsTainted = true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
@@ -611,6 +685,8 @@ func (e *Engine) collect() []stats.Sample ***REMOVED***
 
 func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 	e.MetricsLock.Lock()
+	defer e.MetricsLock.Unlock()
+
 	for _, sample := range samples ***REMOVED***
 		sink := e.Metrics[sample.Metric]
 		if sink == nil ***REMOVED***
@@ -618,9 +694,27 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 			e.Metrics[sample.Metric] = sink
 		***REMOVED***
 		sink.Add(sample)
+
+		for _, sm := range e.submetrics[sample.Metric.Name] ***REMOVED***
+			passing := true
+			for k, v := range sm.Conditions ***REMOVED***
+				if sample.Tags[k] != v ***REMOVED***
+					passing = false
+					break
+				***REMOVED***
+			***REMOVED***
+			if !passing ***REMOVED***
+				continue
+			***REMOVED***
+
+			if sm.Sink == nil ***REMOVED***
+				sm.Sink = sample.Metric.NewSink()
+			***REMOVED***
+			sm.Sink.Add(sample)
+		***REMOVED***
 	***REMOVED***
+
 	if e.Collector != nil ***REMOVED***
 		e.Collector.Collect(samples)
 	***REMOVED***
-	e.MetricsLock.Unlock()
 ***REMOVED***
