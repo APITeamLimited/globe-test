@@ -76,6 +76,34 @@ func assertActiveVUs(t *testing.T, e *Engine, active, dead int) ***REMOVED***
 	assert.Equal(t, dead, numDead, "wrong number of dead vus")
 ***REMOVED***
 
+func Test_parseSubmetric(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		parent string
+		conds  map[string]string
+	***REMOVED******REMOVED***
+		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
+		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", map[string]string***REMOVED******REMOVED******REMOVED***,
+		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a,b***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a:1,b:2***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		"my_metric***REMOVED*** a : 1, b : 2 ***REMOVED***": ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+	***REMOVED***
+
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			parent, conds := parseSubmetric(name)
+			assert.Equal(t, data.parent, parent)
+			if data.conds != nil ***REMOVED***
+				assert.EqualValues(t, data.conds, conds)
+			***REMOVED*** else ***REMOVED***
+				assert.Nil(t, conds)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestNewEngine(t *testing.T) ***REMOVED***
 	_, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
@@ -150,6 +178,26 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 			***REMOVED***)
 			assert.NoError(t, err)
 			assert.True(t, e.IsPaused())
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("thresholds", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Thresholds: map[string]Thresholds***REMOVED***
+				"my_metric": Thresholds***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+		assert.Contains(t, e.Thresholds, "my_metric")
+
+		t.Run("submetrics", func(t *testing.T) ***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
+				Thresholds: map[string]Thresholds***REMOVED***
+					"my_metric***REMOVED***tag:value***REMOVED***": Thresholds***REMOVED******REMOVED***,
+				***REMOVED***,
+			***REMOVED***)
+			assert.NoError(t, err)
+			assert.Contains(t, e.Thresholds, "my_metric***REMOVED***tag:value***REMOVED***")
+			assert.Contains(t, e.submetrics, "my_metric")
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -666,4 +714,83 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	numSamples := len(e.Metrics[testMetric].(*stats.TrendSink).Values)
 	assert.True(t, numSamples > 0, "no samples")
 	assert.True(t, numSamples > len(c.Samples)-(len(c.Samples)/10), "more than 10%% of samples omitted")
+***REMOVED***
+
+func TestEngine_processSamples(t *testing.T) ***REMOVED***
+	metric := stats.New("my_metric", stats.Gauge)
+
+	t.Run("metric", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
+		assert.NoError(t, err)
+
+		e.processSamples(
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		)
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics[metric])
+	***REMOVED***)
+
+	t.Run("submetric", func(t *testing.T) ***REMOVED***
+		ths, err := NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
+		assert.NoError(t, err)
+
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Thresholds: map[string]Thresholds***REMOVED***
+				"my_metric***REMOVED***a:1***REMOVED***": ths,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+
+		sms := e.submetrics["my_metric"]
+		assert.Len(t, sms, 1)
+		assert.Equal(t, "my_metric***REMOVED***a:1***REMOVED***", sms[0].Name)
+		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Conditions)
+
+		e.processSamples(
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		)
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics[metric])
+
+		sms = e.submetrics["my_metric"]
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, sms[0].Sink)
+	***REMOVED***)
+***REMOVED***
+
+func TestEngine_processThresholds(t *testing.T) ***REMOVED***
+	metric := stats.New("my_metric", stats.Gauge)
+
+	testdata := map[string]struct ***REMOVED***
+		pass bool
+		ths  map[string][]string
+	***REMOVED******REMOVED***
+		"passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"1+1==2"***REMOVED******REMOVED******REMOVED***,
+		"failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"1+1==3"***REMOVED******REMOVED******REMOVED***,
+
+		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"1+1==2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"1+1==3"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"1+1==2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,failing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"1+1==3"***REMOVED******REMOVED******REMOVED***,
+	***REMOVED***
+
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			thresholds := make(map[string]Thresholds, len(data.ths))
+			for m, srcs := range data.ths ***REMOVED***
+				ths, err := NewThresholds(srcs)
+				assert.NoError(t, err)
+				thresholds[m] = ths
+			***REMOVED***
+
+			e, err, _ := newTestEngine(nil, Options***REMOVED***Thresholds: thresholds***REMOVED***)
+			assert.NoError(t, err)
+
+			e.processSamples(
+				stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+			)
+			e.processThresholds()
+
+			assert.Equal(t, data.pass, !e.IsTainted())
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
