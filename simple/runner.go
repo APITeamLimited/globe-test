@@ -51,17 +51,15 @@ var (
 
 type Runner struct ***REMOVED***
 	URL       *url.URL
-	SrcData   *lib.SourceData
 	Transport *http.Transport
 	Options   lib.Options
 
 	defaultGroup *lib.Group
 ***REMOVED***
 
-func New(src *lib.SourceData, u *url.URL) (*Runner, error) ***REMOVED***
+func New(u *url.URL) (*Runner, error) ***REMOVED***
 	return &Runner***REMOVED***
-		URL:     u,
-		SrcData: src,
+		URL: u,
 		Transport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -92,10 +90,6 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		tracer: tracer,
 		cTrace: tracer.Trace(),
 	***REMOVED***, nil
-***REMOVED***
-
-func (r *Runner) GetSourceData() *lib.SourceData ***REMOVED***
-	return r.SrcData
 ***REMOVED***
 
 func (r *Runner) GetGroups() []*lib.Group ***REMOVED***

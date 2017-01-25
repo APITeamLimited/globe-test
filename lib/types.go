@@ -48,6 +48,12 @@ type SourceData struct ***REMOVED***
 	SrcType  string
 ***REMOVED***
 
+const (
+	TypeAuto = "auto"
+	TypeURL  = "url"
+	TypeJS   = "js"
+)
+
 func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Paused.Valid ***REMOVED***
 		o.Paused = opts.Paused

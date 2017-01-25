@@ -47,12 +47,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-const (
-	TypeAuto = "auto"
-	TypeURL  = "url"
-	TypeJS   = "js"
-)
-
 var commandRun = cli.Command***REMOVED***
 	Name:      "run",
 	Usage:     "Starts running a load test",
@@ -164,48 +158,48 @@ func getSrcData(arg, t string) (*lib.SourceData, error) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		// Deduce how to get src data
 		switch srctype ***REMOVED***
-		case TypeAuto:
+		case lib.TypeAuto:
 			if looksLikeURL([]byte(arg)) ***REMOVED*** // always try to parse as URL string first
 				srcdata = []byte(arg)
-				srctype = TypeURL
-				filename = ""
+				srctype = lib.TypeURL
+				filename = "[cmdline]"
 			***REMOVED*** else ***REMOVED***
 				// Otherwise, check if it is a file name and we can load the file
 				srcdata, err = ioutil.ReadFile(arg)
 				if err != nil ***REMOVED*** // if we fail to open file, we assume the arg is JS code
 					srcdata = []byte(arg)
-					srctype = TypeJS
-					filename = ""
+					srctype = lib.TypeJS
+					filename = "[cmdline]"
 				***REMOVED***
 			***REMOVED***
-		case TypeURL:
-			// We try to use TypeURL args as URLs directly first
+		case lib.TypeURL:
+			// We try to use lib.TypeURL args as URLs directly first
 			if looksLikeURL([]byte(arg)) ***REMOVED***
 				srcdata = []byte(arg)
-				filename = ""
+				filename = "[cmdline]"
 			***REMOVED*** else ***REMOVED*** // if that didn’t work, we try to load a file with URLs
 				srcdata, err = ioutil.ReadFile(arg)
 				if err != nil ***REMOVED***
 					return nil, err
 				***REMOVED***
 			***REMOVED***
-		case TypeJS:
-			// TypeJS args we try to use as file names first
+		case lib.TypeJS:
+			// lib.TypeJS args we try to use as file names first
 			srcdata, err = ioutil.ReadFile(arg)
 			if err != nil ***REMOVED*** // and if that didn’t work, we assume the arg itself is JS code
 				srcdata = []byte(arg)
-				filename = ""
+				filename = "[cmdline]"
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	// Now we should have some src data and in most cases a type also. If we
 	// don’t have a type it means we read from STDIN or from a file and the user
-	// specified type == TypeAuto. This means we need to try and auto-detect type
-	if srctype == TypeAuto ***REMOVED***
+	// specified type == lib.TypeAuto. This means we need to try and auto-detect type
+	if srctype == lib.TypeAuto ***REMOVED***
 		if looksLikeURL(srcdata) ***REMOVED***
-			srctype = TypeURL
+			srctype = lib.TypeURL
 		***REMOVED*** else ***REMOVED***
-			srctype = TypeJS
+			srctype = lib.TypeJS
 		***REMOVED***
 	***REMOVED***
 	src := &lib.SourceData***REMOVED***
@@ -216,25 +210,21 @@ func getSrcData(arg, t string) (*lib.SourceData, error) ***REMOVED***
 	return src, nil
 ***REMOVED***
 
-func makeRunner(arg, t string) (lib.Runner, error) ***REMOVED***
-	srcdata, err := getSrcData(arg, t)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
+func makeRunner(srcdata *lib.SourceData) (lib.Runner, error) ***REMOVED***
 	switch srcdata.SrcType ***REMOVED***
 	case "":
 		return nil, errors.New("Invalid type specified, see --help")
-	case TypeURL:
+	case lib.TypeURL:
 		u, err := url.Parse(strings.TrimSpace(string(srcdata.SrcData)))
 		if err != nil || u.Scheme == "" ***REMOVED***
 			return nil, errors.New("Failed to parse URL")
 		***REMOVED***
-		r, err := simple.New(srcdata, u)
+		r, err := simple.New(u)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		return r, err
-	case TypeJS:
+	case lib.TypeJS:
 		rt, err := js.New()
 		if err != nil ***REMOVED***
 			return nil, err
@@ -243,7 +233,7 @@ func makeRunner(arg, t string) (lib.Runner, error) ***REMOVED***
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		r, err := js.NewRunner(rt, srcdata, exports)
+		r, err := js.NewRunner(rt, exports)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -301,16 +291,19 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Make the Runner, extract script-defined options.
-	filename := args[0]
+	arg := args[0]
 	runnerType := cc.String("type")
-	runner, err := makeRunner(filename, runnerType)
+	srcdata, err := getSrcData(arg, runnerType)
+	if err != nil ***REMOVED***
+		log.WithError(err).Error("Couldn't create a runner")
+		return err
+	***REMOVED***
+	runner, err := makeRunner(srcdata)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 		return err
 	***REMOVED***
 	opts = opts.Apply(runner.GetOptions())
-	// Retrieve actual filename loaded/used
-	srcdata := runner.GetSourceData()
 
 	// Read config files.
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
@@ -539,7 +532,7 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 
 	var opts lib.Options
 	switch srcdata.SrcType ***REMOVED***
-	case TypeJS:
+	case lib.TypeJS:
 		r, err := js.New()
 		if err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)

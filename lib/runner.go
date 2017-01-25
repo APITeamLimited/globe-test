@@ -43,9 +43,6 @@ type Runner interface ***REMOVED***
 
 	// Applies a set of options.
 	ApplyOptions(opts Options)
-
-	// Get info about source data
-	GetSourceData() *SourceData
 ***REMOVED***
 
 // A VU is a Virtual User.
