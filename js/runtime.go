@@ -24,16 +24,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 )
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
@@ -86,11 +86,11 @@ func New() (*Runtime, error) ***REMOVED***
 	return rt, nil
 ***REMOVED***
 
-func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
+func (r *Runtime) Load(src *lib.SourceData) (otto.Value, error) ***REMOVED***
 	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
-	exp, err := r.loadFile(filename)
+	exp, err := r.loadJSCode(src)
 	if err := r.VM.Set("__initapi__", nil); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -123,28 +123,44 @@ func (r *Runtime) extractOptions(exports otto.Value, opts *lib.Options) error **
 	return nil
 ***REMOVED***
 
+func (r *Runtime) loadJSCode(src *lib.SourceData) (otto.Value, error) ***REMOVED***
+	var path string
+	var err error
+	path, err = filepath.Abs(src.Filename)
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
+
+	// Don't re-compile repeated includes of the same module
+	if exports, ok := r.Exports[path]; ok ***REMOVED***
+		return exports, nil
+	***REMOVED***
+	exports, err := r.load(path, src.SrcData)
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
+	r.Exports[path] = exports
+
+	log.WithField("path", path).Debug("File loaded")
+
+	return exports, nil
+***REMOVED***
+
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 	var path string
 	var data []byte
 	var err error
-	path = strings.TrimSpace(filename)
-	if path == "-" ***REMOVED***
-		data, err = ioutil.ReadAll(os.Stdin)
-	***REMOVED*** else ***REMOVED***
-		// To protect against directory traversal, prevent loading of files outside the root (pwd) dir
-		path, err = filepath.Abs(filename)
-		if err != nil ***REMOVED***
-			return otto.UndefinedValue(), err
-		***REMOVED***
-		if !strings.HasPrefix(path, r.Root) ***REMOVED***
-			return otto.UndefinedValue(), DirectoryTraversalError***REMOVED***Filename: filename, Root: r.Root***REMOVED***
-		***REMOVED***
-		// Don't re-compile repeated includes of the same module
-		if exports, ok := r.Exports[path]; ok ***REMOVED***
-			return exports, nil
-		***REMOVED***
-		data, err = ioutil.ReadFile(path)
+	path, err = filepath.Abs(filename)
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
 	***REMOVED***
+
+	// Don't re-compile repeated includes of the same module
+	if exports, ok := r.Exports[path]; ok ***REMOVED***
+		return exports, nil
+	***REMOVED***
+
+	data, err = ioutil.ReadFile(path)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***

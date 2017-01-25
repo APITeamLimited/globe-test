@@ -24,16 +24,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
-	"github.com/robertkrimen/otto"
 	"math"
 	"net"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
+	"github.com/robertkrimen/otto"
 )
 
 const (
@@ -50,6 +51,7 @@ type Runner struct ***REMOVED***
 	Groups       []*lib.Group
 	Checks       []*lib.Check
 	Options      lib.Options
+	SrcData      *lib.SourceData
 
 	HTTPTransport *http.Transport
 
@@ -59,7 +61,7 @@ type Runner struct ***REMOVED***
 	checksMutex    sync.Mutex
 ***REMOVED***
 
-func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
+func NewRunner(runtime *Runtime, src *lib.SourceData, exports otto.Value) (*Runner, error) ***REMOVED***
 	expObj := exports.Object()
 	if expObj == nil ***REMOVED***
 		return nil, ErrDefaultExport
@@ -81,6 +83,7 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 	r := &Runner***REMOVED***
 		Runtime: runtime,
 		Options: runtime.Options,
+		SrcData: src,
 		HTTPTransport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -139,6 +142,10 @@ func (r *Runner) GetOptions() lib.Options ***REMOVED***
 
 func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
 	r.Options = r.Options.Apply(opts)
+***REMOVED***
+
+func (r *Runner) GetSourceData() *lib.SourceData ***REMOVED***
+	return r.SrcData
 ***REMOVED***
 
 type VU struct ***REMOVED***
