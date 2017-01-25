@@ -149,6 +149,7 @@ func getSrcData(arg, t string) (*lib.SourceData, error) ***REMOVED***
 	srctype := t
 	filename := arg
 	var err error
+	const cmdline = "[cmdline]"
 	// special case name “-“ will always cause src data to be read from file STDIN
 	if arg == "-" ***REMOVED***
 		srcdata, err = ioutil.ReadAll(os.Stdin)
@@ -162,21 +163,21 @@ func getSrcData(arg, t string) (*lib.SourceData, error) ***REMOVED***
 			if looksLikeURL([]byte(arg)) ***REMOVED*** // always try to parse as URL string first
 				srcdata = []byte(arg)
 				srctype = lib.TypeURL
-				filename = "[cmdline]"
+				filename = cmdline
 			***REMOVED*** else ***REMOVED***
 				// Otherwise, check if it is a file name and we can load the file
 				srcdata, err = ioutil.ReadFile(arg)
 				if err != nil ***REMOVED*** // if we fail to open file, we assume the arg is JS code
 					srcdata = []byte(arg)
 					srctype = lib.TypeJS
-					filename = "[cmdline]"
+					filename = cmdline
 				***REMOVED***
 			***REMOVED***
 		case lib.TypeURL:
 			// We try to use lib.TypeURL args as URLs directly first
 			if looksLikeURL([]byte(arg)) ***REMOVED***
 				srcdata = []byte(arg)
-				filename = "[cmdline]"
+				filename = cmdline
 			***REMOVED*** else ***REMOVED*** // if that didn’t work, we try to load a file with URLs
 				srcdata, err = ioutil.ReadFile(arg)
 				if err != nil ***REMOVED***
@@ -188,7 +189,7 @@ func getSrcData(arg, t string) (*lib.SourceData, error) ***REMOVED***
 			srcdata, err = ioutil.ReadFile(arg)
 			if err != nil ***REMOVED*** // and if that didn’t work, we assume the arg itself is JS code
 				srcdata = []byte(arg)
-				filename = "[cmdline]"
+				filename = cmdline
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
