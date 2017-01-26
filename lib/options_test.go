@@ -48,6 +48,11 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m", opts.Duration.String)
 	***REMOVED***)
+	t.Run("Iterations", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Iterations: null.IntFrom(1234)***REMOVED***)
+		assert.True(t, opts.Iterations.Valid)
+		assert.Equal(t, int64(1234), opts.Iterations.Int64)
+	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Stages)
