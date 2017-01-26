@@ -34,6 +34,7 @@ import (
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/json"
 	"github.com/loadimpact/k6/ui"
+	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
 	"os"
@@ -59,7 +60,7 @@ var commandRun = cli.Command***REMOVED***
 		cli.Int64Flag***REMOVED***
 			Name:  "vus, u",
 			Usage: "virtual users to simulate",
-			Value: 10,
+			Value: 1,
 		***REMOVED***,
 		cli.Int64Flag***REMOVED***
 			Name:  "max, m",
@@ -68,7 +69,10 @@ var commandRun = cli.Command***REMOVED***
 		cli.DurationFlag***REMOVED***
 			Name:  "duration, d",
 			Usage: "test duration, 0 to run until cancelled",
-			Value: 10 * time.Second,
+		***REMOVED***,
+		cli.Int64Flag***REMOVED***
+			Name:  "iterations, i",
+			Usage: "run a set number of iterations, multiplied by VU count",
 		***REMOVED***,
 		cli.Float64Flag***REMOVED***
 			Name:  "acceptance, a",
@@ -259,6 +263,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// CLI options override everything.
 	opts = opts.Apply(cliOpts)
 
+	// Default to 1 iteration if no duration is specified.
+	if !opts.Duration.Valid && !opts.Iterations.Valid ***REMOVED***
+		opts.Iterations = null.IntFrom(1)
+	***REMOVED***
+
 	// Apply defaults.
 	opts = opts.SetAllValid(true)
 
@@ -320,6 +329,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	fmt.Printf("     output: %s\n", collectorString)
 	fmt.Printf("     script: %s\n", filename)
 	fmt.Printf("             ↳ duration: %s\n", opts.Duration.String)
+	fmt.Printf("             ↳ iterations: %d\n", opts.Iterations.Int64)
 	fmt.Printf("             ↳ vus: %d, max: %d\n", opts.VUs.Int64, opts.VUsMax.Int64)
 	fmt.Printf("\n")
 	fmt.Printf("  web ui: http://%s/\n", addr)
