@@ -22,10 +22,9 @@ package js
 
 import (
 	"context"
-	"testing"
-
 	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestNewRunner(t *testing.T) ***REMOVED***
@@ -37,10 +36,10 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	srcdata := &lib.SourceData***REMOVED***
 		Filename: "test.js",
-		SrcData:  []byte("export default function() ***REMOVED******REMOVED***"),
-		SrcType:  lib.TypeJS,
+		Data:     []byte("export default function() ***REMOVED******REMOVED***"),
+		Type:     lib.TypeJS,
 	***REMOVED***
-	exp, err := rt.load(srcdata.Filename, srcdata.SrcData)
+	exp, err := rt.load(srcdata.Filename, srcdata.Data)
 	//exp, err := rt.load("test.js", []byte(`export default function() ***REMOVED******REMOVED***`))
 	assert.NoError(t, err)
 	r, err := NewRunner(rt, exp)
