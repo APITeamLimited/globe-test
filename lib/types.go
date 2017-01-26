@@ -22,7 +22,6 @@ package lib
 
 import (
 	"encoding/json"
-
 	"github.com/robertkrimen/otto"
 	"gopkg.in/guregu/null.v3"
 )
@@ -43,9 +42,9 @@ type Options struct ***REMOVED***
 ***REMOVED***
 
 type SourceData struct ***REMOVED***
-	SrcData  []byte
+	Data     []byte
 	Filename string
-	SrcType  string
+	Type     string
 ***REMOVED***
 
 const (

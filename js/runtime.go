@@ -24,16 +24,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path/filepath"
-
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 )
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
@@ -90,7 +89,7 @@ func (r *Runtime) Load(src *lib.SourceData) (otto.Value, error) ***REMOVED***
 	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
-	exp, err := r.loadJSCode(src)
+	exp, err := r.loadSource(src)
 	if err := r.VM.Set("__initapi__", nil); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -123,10 +122,8 @@ func (r *Runtime) extractOptions(exports otto.Value, opts *lib.Options) error **
 	return nil
 ***REMOVED***
 
-func (r *Runtime) loadJSCode(src *lib.SourceData) (otto.Value, error) ***REMOVED***
-	var path string
-	var err error
-	path, err = filepath.Abs(src.Filename)
+func (r *Runtime) loadSource(src *lib.SourceData) (otto.Value, error) ***REMOVED***
+	path, err := filepath.Abs(src.Filename)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -135,7 +132,7 @@ func (r *Runtime) loadJSCode(src *lib.SourceData) (otto.Value, error) ***REMOVED
 	if exports, ok := r.Exports[path]; ok ***REMOVED***
 		return exports, nil
 	***REMOVED***
-	exports, err := r.load(path, src.SrcData)
+	exports, err := r.load(path, src.Data)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -147,10 +144,7 @@ func (r *Runtime) loadJSCode(src *lib.SourceData) (otto.Value, error) ***REMOVED
 ***REMOVED***
 
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
-	var path string
-	var data []byte
-	var err error
-	path, err = filepath.Abs(filename)
+	path, err := filepath.Abs(filename)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -160,7 +154,7 @@ func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 		return exports, nil
 	***REMOVED***
 
-	data, err = ioutil.ReadFile(path)
+	data, err := ioutil.ReadFile(path)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
