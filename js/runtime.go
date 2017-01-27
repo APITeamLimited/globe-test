@@ -34,7 +34,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
@@ -46,7 +45,6 @@ var (
 
 type Runtime struct ***REMOVED***
 	VM      *otto.Otto
-	Root    string
 	Exports map[string]otto.Value
 	Metrics map[string]*stats.Metric
 	Options lib.Options
@@ -55,14 +53,8 @@ type Runtime struct ***REMOVED***
 ***REMOVED***
 
 func New() (*Runtime, error) ***REMOVED***
-	wd, err := os.Getwd()
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
 	rt := &Runtime***REMOVED***
 		VM:      otto.New(),
-		Root:    wd,
 		Exports: make(map[string]otto.Value),
 		Metrics: make(map[string]*stats.Metric),
 		lib:     make(map[string]otto.Value),
@@ -125,13 +117,9 @@ func (r *Runtime) extractOptions(exports otto.Value, opts *lib.Options) error **
 ***REMOVED***
 
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
-	// To protect against directory traversal, prevent loading of files outside the root (pwd) dir
 	path, err := filepath.Abs(filename)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
-	***REMOVED***
-	if !strings.HasPrefix(path, r.Root) ***REMOVED***
-		return otto.UndefinedValue(), DirectoryTraversalError***REMOVED***Filename: filename, Root: r.Root***REMOVED***
 	***REMOVED***
 
 	// Don't re-compile repeated includes of the same module
