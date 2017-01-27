@@ -303,8 +303,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			return nil
 		***REMOVED***
 	***REMOVED***
-
-	return nil
 ***REMOVED***
 
 func (e *Engine) IsRunning() bool ***REMOVED***
