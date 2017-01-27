@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 )
 
@@ -44,13 +43,14 @@ func (r groupDummyRunner) GetOptions() lib.Options ***REMOVED*** return lib.Opti
 func (r groupDummyRunner) ApplyOptions(opts lib.Options) ***REMOVED******REMOVED***
 
 func TestGetGroups(t *testing.T) ***REMOVED***
-	g := &lib.Group***REMOVED******REMOVED***
-	g1 := &lib.Group***REMOVED***ID: 1, Name: "group 1", Parent: g***REMOVED***
-	g2 := &lib.Group***REMOVED***ID: 2, Name: "group 2", Parent: g1***REMOVED***
-	g.Groups = map[string]*lib.Group***REMOVED***g1.Name: g1***REMOVED***
-	g1.Groups = map[string]*lib.Group***REMOVED***g2.Name: g2***REMOVED***
+	g0, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+	g1, err := g0.Group("group 1")
+	assert.NoError(t, err)
+	g2, err := g1.Group("group 2")
+	assert.NoError(t, err)
 
-	engine, err := lib.NewEngine(groupDummyRunner***REMOVED***g***REMOVED***, lib.Options***REMOVED******REMOVED***)
+	engine, err := lib.NewEngine(groupDummyRunner***REMOVED***g0***REMOVED***, lib.Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
@@ -76,33 +76,33 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 			if assert.Len(t, groups, 3) ***REMOVED***
 				for _, g := range groups ***REMOVED***
 					switch g.ID ***REMOVED***
-					case 0:
+					case g0.ID:
 						assert.Equal(t, "", g.Name)
 						assert.Nil(t, g.Parent)
-						assert.Equal(t, int64(0), g.ParentID)
+						assert.Equal(t, "", g.ParentID)
 						assert.Len(t, g.GroupIDs, 1)
-						assert.Contains(t, g.GroupIDs, int64(1))
-					case 1:
+						assert.EqualValues(t, []string***REMOVED***g1.ID***REMOVED***, g.GroupIDs)
+					case g1.ID:
 						assert.Equal(t, "group 1", g.Name)
 						assert.Nil(t, g.Parent)
-						assert.Equal(t, int64(0), g.ParentID)
-						assert.EqualValues(t, []int64***REMOVED***2***REMOVED***, g.GroupIDs)
-					case 2:
+						assert.Equal(t, g0.ID, g.ParentID)
+						assert.EqualValues(t, []string***REMOVED***g2.ID***REMOVED***, g.GroupIDs)
+					case g2.ID:
 						assert.Equal(t, "group 2", g.Name)
 						assert.Nil(t, g.Parent)
-						assert.Equal(t, int64(1), g.ParentID)
-						assert.EqualValues(t, []int64***REMOVED******REMOVED***, g.GroupIDs)
+						assert.Equal(t, g1.ID, g.ParentID)
+						assert.EqualValues(t, []string***REMOVED******REMOVED***, g.GroupIDs)
 					default:
-						assert.Fail(t, "Unknown ID: %d", g.ID)
+						assert.Fail(t, "Unknown ID: "+g.ID)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
-	for _, gp := range []*lib.Group***REMOVED***g, g1, g2***REMOVED*** ***REMOVED***
+	for _, gp := range []*lib.Group***REMOVED***g0, g1, g2***REMOVED*** ***REMOVED***
 		t.Run(gp.Name, func(t *testing.T) ***REMOVED***
 			rw := httptest.NewRecorder()
-			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/groups/"+strconv.FormatInt(gp.ID, 10), nil))
+			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/groups/"+gp.ID, nil))
 			res := rw.Result()
 			assert.Equal(t, http.StatusOK, res.StatusCode)
 		***REMOVED***)
