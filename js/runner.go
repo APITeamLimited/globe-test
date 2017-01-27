@@ -45,9 +45,6 @@ type Runner struct ***REMOVED***
 	Options      lib.Options
 
 	HTTPTransport *http.Transport
-
-	groupIDCounter int64
-	checkIDCounter int64
 ***REMOVED***
 
 func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
@@ -69,9 +66,15 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 		return nil, err
 	***REMOVED***
 
+	defaultGroup, err := lib.NewGroup("", nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	r := &Runner***REMOVED***
-		Runtime: runtime,
-		Options: runtime.Options,
+		Runtime:      runtime,
+		DefaultGroup: defaultGroup,
+		Options:      runtime.Options,
 		HTTPTransport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -83,7 +86,6 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 			MaxIdleConnsPerHost: math.MaxInt32,
 		***REMOVED***,
 	***REMOVED***
-	r.DefaultGroup = lib.NewGroup("", nil, nil)
 
 	return r, nil
 ***REMOVED***

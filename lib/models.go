@@ -21,11 +21,18 @@
 package lib
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
+
+const groupSeparator = "::"
+
+var ErrNameContainsGroupSeparator = errors.Errorf("group and check names may not contain '%s'", groupSeparator)
 
 type Stage struct ***REMOVED***
 	Duration time.Duration `json:"duration"`
@@ -33,7 +40,8 @@ type Stage struct ***REMOVED***
 ***REMOVED***
 
 type Group struct ***REMOVED***
-	ID     int64             `json:"id"`
+	ID     string            `json:"id"`
+	Path   string            `json:"path"`
 	Name   string            `json:"name"`
 	Parent *Group            `json:"parent"`
 	Groups map[string]*Group `json:"groups"`
@@ -43,53 +51,73 @@ type Group struct ***REMOVED***
 	checkMutex sync.Mutex
 ***REMOVED***
 
-func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
-	var id int64
-	if idCounter != nil ***REMOVED***
-		id = atomic.AddInt64(idCounter, 1)
+func NewGroup(name string, parent *Group) (*Group, error) ***REMOVED***
+	if strings.Contains(name, groupSeparator) ***REMOVED***
+		return nil, ErrNameContainsGroupSeparator
 	***REMOVED***
+
+	path := name
+	if parent != nil ***REMOVED***
+		path = parent.Path + groupSeparator + path
+	***REMOVED***
+
+	hash := md5.Sum([]byte(path))
+	id := hex.EncodeToString(hash[:])
 
 	return &Group***REMOVED***
 		ID:     id,
+		Path:   path,
 		Name:   name,
 		Parent: parent,
 		Groups: make(map[string]*Group),
 		Checks: make(map[string]*Check),
-	***REMOVED***
+	***REMOVED***, nil
 ***REMOVED***
 
-func (g *Group) Group(name string, idCounter *int64) (*Group, bool) ***REMOVED***
+func (g *Group) Group(name string) (*Group, error) ***REMOVED***
 	snapshot := g.Groups
 	group, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.groupMutex.Lock()
-		group, ok = g.Groups[name]
+		defer g.groupMutex.Unlock()
+
+		group, ok := g.Groups[name]
 		if !ok ***REMOVED***
-			group = NewGroup(name, g, idCounter)
+			group, err := NewGroup(name, g)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 			g.Groups[name] = group
+			return group, nil
 		***REMOVED***
-		g.groupMutex.Unlock()
+		return group, nil
 	***REMOVED***
-	return group, ok
+	return group, nil
 ***REMOVED***
 
-func (g *Group) Check(name string, idCounter *int64) (*Check, bool) ***REMOVED***
+func (g *Group) Check(name string) (*Check, error) ***REMOVED***
 	snapshot := g.Checks
 	check, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.checkMutex.Lock()
-		check, ok = g.Checks[name]
+		defer g.checkMutex.Unlock()
+		check, ok := g.Checks[name]
 		if !ok ***REMOVED***
-			check = NewCheck(name, g, idCounter)
+			check, err := NewCheck(name, g)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 			g.Checks[name] = check
+			return check, nil
 		***REMOVED***
-		g.checkMutex.Unlock()
+		return check, nil
 	***REMOVED***
-	return check, ok
+	return check, nil
 ***REMOVED***
 
 type Check struct ***REMOVED***
-	ID    int64  `json:"id"`
+	ID    string `json:"id"`
+	Path  string `json:"path"`
 	Group *Group `json:"group"`
 	Name  string `json:"name"`
 
@@ -97,10 +125,14 @@ type Check struct ***REMOVED***
 	Fails  int64 `json:"fails"`
 ***REMOVED***
 
-func NewCheck(name string, group *Group, idCounter *int64) *Check ***REMOVED***
-	var id int64
-	if idCounter != nil ***REMOVED***
-		id = atomic.AddInt64(idCounter, 1)
+func NewCheck(name string, group *Group) (*Check, error) ***REMOVED***
+	if strings.Contains(name, groupSeparator) ***REMOVED***
+		return nil, ErrNameContainsGroupSeparator
 	***REMOVED***
-	return &Check***REMOVED***ID: id, Name: name, Group: group***REMOVED***
+
+	path := group.Path + groupSeparator + name
+	hash := md5.Sum([]byte(path))
+	id := hex.EncodeToString(hash[:])
+
+	return &Check***REMOVED***ID: id, Path: path, Name: name, Group: group***REMOVED***, nil
 ***REMOVED***

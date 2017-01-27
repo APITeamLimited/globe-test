@@ -25,7 +25,6 @@ import (
 	"github.com/loadimpact/k6/api/common"
 	"github.com/manyminds/api2go/jsonapi"
 	"net/http"
-	"strconv"
 )
 
 func HandleGetGroups(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
@@ -43,11 +42,7 @@ func HandleGetGroups(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 ***REMOVED***
 
 func HandleGetGroup(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
-	id, err := strconv.ParseInt(p.ByName("id"), 10, 64)
-	if err != nil ***REMOVED***
-		apiError(rw, "Invalid ID", err.Error(), http.StatusBadRequest)
-		return
-	***REMOVED***
+	id := p.ByName("id")
 
 	engine := common.GetEngine(r.Context())
 

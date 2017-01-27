@@ -74,7 +74,10 @@ func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
 
 func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	name := call.Argument(0).String()
-	group, _ := a.vu.group.Group(name, &(a.vu.runner.groupIDCounter))
+	group, err := a.vu.group.Group(name)
+	if err != nil ***REMOVED***
+		throw(call.Otto, err)
+	***REMOVED***
 	a.vu.group = group
 	defer func() ***REMOVED*** a.vu.group = group.Parent ***REMOVED***()
 
@@ -117,7 +120,10 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 				throw(call.Otto, err)
 			***REMOVED***
 
-			check, _ := a.vu.group.Check(name, &(a.vu.runner.checkIDCounter))
+			check, err := a.vu.group.Check(name)
+			if err != nil ***REMOVED***
+				throw(call.Otto, err)
+			***REMOVED***
 			if result ***REMOVED***
 				atomic.AddInt64(&(check.Passes), 1)
 			***REMOVED*** else ***REMOVED***

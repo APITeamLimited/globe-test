@@ -24,11 +24,11 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/manyminds/api2go/jsonapi"
 	"github.com/pkg/errors"
-	"strconv"
 )
 
 type Check struct ***REMOVED***
-	ID     int64  `json:"id"`
+	ID     string `json:"id"`
+	Path   string `json:"path"`
 	Name   string `json:"name"`
 	Passes int64  `json:"passes"`
 	Fails  int64  `json:"fails"`
@@ -37,6 +37,7 @@ type Check struct ***REMOVED***
 func NewCheck(c *lib.Check) Check ***REMOVED***
 	return Check***REMOVED***
 		ID:     c.ID,
+		Path:   c.Path,
 		Name:   c.Name,
 		Passes: c.Passes,
 		Fails:  c.Fails,
@@ -44,19 +45,21 @@ func NewCheck(c *lib.Check) Check ***REMOVED***
 ***REMOVED***
 
 type Group struct ***REMOVED***
-	ID     int64   `json:"-"`
+	ID     string  `json:"-"`
+	Path   string  `json:"path"`
 	Name   string  `json:"name"`
 	Checks []Check `json:"checks"`
 
 	Parent   *Group   `json:"-"`
-	ParentID int64    `json:"-"`
+	ParentID string   `json:"-"`
 	Groups   []*Group `json:"-"`
-	GroupIDs []int64  `json:"-"`
+	GroupIDs []string `json:"-"`
 ***REMOVED***
 
 func NewGroup(g *lib.Group, parent *Group) *Group ***REMOVED***
 	group := &Group***REMOVED***
 		ID:   g.ID,
+		Path: g.Path,
 		Name: g.Name,
 	***REMOVED***
 
@@ -80,15 +83,11 @@ func NewGroup(g *lib.Group, parent *Group) *Group ***REMOVED***
 ***REMOVED***
 
 func (g Group) GetID() string ***REMOVED***
-	return strconv.FormatInt(g.ID, 10)
+	return g.ID
 ***REMOVED***
 
 func (g *Group) SetID(v string) error ***REMOVED***
-	id, err := strconv.ParseInt(v, 10, 64)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	g.ID = id
+	g.ID = v
 	return nil
 ***REMOVED***
 
@@ -128,17 +127,9 @@ func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
 	return refs
 ***REMOVED***
 
-func (g *Group) SetToManyReferenceIDs(name string, IDs []string) error ***REMOVED***
+func (g *Group) SetToManyReferenceIDs(name string, ids []string) error ***REMOVED***
 	switch name ***REMOVED***
 	case "groups":
-		ids := make([]int64, len(IDs))
-		for i, ID := range IDs ***REMOVED***
-			id, err := strconv.ParseInt(ID, 10, 64)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			ids[i] = id
-		***REMOVED***
 		g.Groups = nil
 		g.GroupIDs = ids
 		return nil
@@ -147,13 +138,9 @@ func (g *Group) SetToManyReferenceIDs(name string, IDs []string) error ***REMOVE
 	***REMOVED***
 ***REMOVED***
 
-func (g *Group) SetToOneReferenceID(name, ID string) error ***REMOVED***
+func (g *Group) SetToOneReferenceID(name, id string) error ***REMOVED***
 	switch name ***REMOVED***
 	case "parent":
-		id, err := strconv.ParseInt(ID, 10, 64)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
 		g.Parent = nil
 		g.ParentID = id
 		return nil
