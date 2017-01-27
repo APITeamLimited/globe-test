@@ -35,7 +35,7 @@ func main() ***REMOVED***
 	app := cli.NewApp()
 	app.Name = "k6"
 	app.Usage = "a next generation load generator"
-	app.Version = "0.7.0"
+	app.Version = "0.8.0"
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
 		commandInspect,
