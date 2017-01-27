@@ -134,5 +134,10 @@ func NewCheck(name string, group *Group) (*Check, error) ***REMOVED***
 	hash := md5.Sum([]byte(path))
 	id := hex.EncodeToString(hash[:])
 
-	return &Check***REMOVED***ID: id, Path: path, Name: name, Group: group***REMOVED***, nil
+	return &Check***REMOVED***
+		ID:    id,
+		Path:  path,
+		Group: group,
+		Name:  name,
+	***REMOVED***, nil
 ***REMOVED***

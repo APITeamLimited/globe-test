@@ -22,6 +22,8 @@ package js
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
 	"strconv"
 	"sync/atomic"
@@ -102,9 +104,12 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 		return otto.UndefinedValue()
 	***REMOVED***
 
+	t := time.Now()
+	samples := make([]stats.Sample, len(call.ArgumentList)-1)
+
 	success := true
 	arg0 := call.Argument(0)
-	for _, v := range call.ArgumentList[1:] ***REMOVED***
+	for i, v := range call.ArgumentList[1:] ***REMOVED***
 		obj := v.Object()
 		if obj == nil ***REMOVED***
 			panic(call.Otto.MakeTypeError("checks must be objects"))
@@ -124,14 +129,30 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 			if err != nil ***REMOVED***
 				throw(call.Otto, err)
 			***REMOVED***
+
+			sampleValue := 1.0
 			if result ***REMOVED***
 				atomic.AddInt64(&(check.Passes), 1)
 			***REMOVED*** else ***REMOVED***
 				atomic.AddInt64(&(check.Fails), 1)
 				success = false
+				sampleValue = 0.0
+			***REMOVED***
+
+			samples[i] = stats.Sample***REMOVED***
+				Time:   t,
+				Metric: lib.MetricChecks,
+				Tags: map[string]string***REMOVED***
+					"group_id": check.Group.ID,
+					"check_id": check.ID,
+					"path":     check.Path, // Included for human readability.
+				***REMOVED***,
+				Value: sampleValue,
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+
+	a.vu.Samples = append(a.vu.Samples, samples...)
 
 	if !success ***REMOVED***
 		a.vu.Taint = true
