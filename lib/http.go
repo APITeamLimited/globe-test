@@ -51,14 +51,14 @@ type Trail struct ***REMOVED***
 
 func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 	return []stats.Sample***REMOVED***
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqs, Time: tr.StartTime, Tags: tags, Value: 1***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.StartTime, Tags: tags, Value: float64(tr.Duration)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.StartTime, Tags: tags, Value: float64(tr.Blocked)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.StartTime, Tags: tags, Value: float64(tr.LookingUp)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.StartTime, Tags: tags, Value: float64(tr.Connecting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.StartTime, Tags: tags, Value: float64(tr.Sending)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.StartTime, Tags: tags, Value: float64(tr.Waiting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.StartTime, Tags: tags, Value: float64(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.StartTime, Tags: tags, Value: 1***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.StartTime, Tags: tags, Value: float64(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.StartTime, Tags: tags, Value: float64(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.StartTime, Tags: tags, Value: float64(tr.LookingUp)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.StartTime, Tags: tags, Value: float64(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.StartTime, Tags: tags, Value: float64(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.StartTime, Tags: tags, Value: float64(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.StartTime, Tags: tags, Value: float64(tr.Receiving)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
