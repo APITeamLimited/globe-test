@@ -23,7 +23,6 @@ package js
 import (
 	"encoding/json"
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -31,17 +30,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	MetricReqs          = stats.New("http_reqs", stats.Counter)
-	MetricReqDuration   = stats.New("http_req_duration", stats.Trend, stats.Time)
-	MetricReqBlocked    = stats.New("http_req_blocked", stats.Trend, stats.Time)
-	MetricReqLookingUp  = stats.New("http_req_looking_up", stats.Trend, stats.Time)
-	MetricReqConnecting = stats.New("http_req_connecting", stats.Trend, stats.Time)
-	MetricReqSending    = stats.New("http_req_sending", stats.Trend, stats.Time)
-	MetricReqWaiting    = stats.New("http_req_waiting", stats.Trend, stats.Time)
-	MetricReqReceiving  = stats.New("http_req_receiving", stats.Trend, stats.Time)
 )
 
 type HTTPResponse struct ***REMOVED***
@@ -72,41 +60,34 @@ func (a JSAPI) HTTPRequest(method, url, body string, paramData string) map[strin
 		req.Header.Set(key, value)
 	***REMOVED***
 
-	tracer := lib.Tracer***REMOVED******REMOVED***
-	res, err := a.vu.HTTPClient.Do(req.WithContext(httptrace.WithClientTrace(a.vu.ctx, tracer.Trace())))
-	if err != nil ***REMOVED***
-		throw(a.vu.vm, err)
-	***REMOVED***
-
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil ***REMOVED***
-		throw(a.vu.vm, err)
-	***REMOVED***
-	_ = res.Body.Close()
-
-	trail := tracer.Done()
-	t := time.Now()
 	tags := map[string]string***REMOVED***
 		"vu":       a.vu.IDString,
+		"status":   "0",
 		"method":   method,
 		"url":      url,
-		"status":   strconv.Itoa(res.StatusCode),
 		"group_id": a.vu.group.ID,
 	***REMOVED***
 	for key, value := range params.Tags ***REMOVED***
 		tags[key] = value
 	***REMOVED***
 
-	a.vu.Samples = append(a.vu.Samples,
-		stats.Sample***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqDuration, Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqBlocked, Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqLookingUp, Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqConnecting, Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqSending, Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqWaiting, Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
-		stats.Sample***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
-	)
+	tracer := lib.Tracer***REMOVED******REMOVED***
+	res, err := a.vu.HTTPClient.Do(req.WithContext(httptrace.WithClientTrace(a.vu.ctx, tracer.Trace())))
+	if err != nil ***REMOVED***
+		a.vu.Samples = append(a.vu.Samples, tracer.Done().Samples(tags)...)
+		throw(a.vu.vm, err)
+	***REMOVED***
+	tags["status"] = strconv.Itoa(res.StatusCode)
+
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil ***REMOVED***
+		a.vu.Samples = append(a.vu.Samples, tracer.Done().Samples(tags)...)
+		throw(a.vu.vm, err)
+	***REMOVED***
+	_ = res.Body.Close()
+
+	trail := tracer.Done()
+	a.vu.Samples = append(a.vu.Samples, trail.Samples(tags)...)
 
 	headers := make(map[string]string)
 	for k, v := range res.Header ***REMOVED***
