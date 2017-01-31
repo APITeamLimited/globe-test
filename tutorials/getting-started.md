@@ -123,11 +123,11 @@ let commonTests = ***REMOVED***
 
 export default function() ***REMOVED***
     group("front page", function() ***REMOVED***
-        test(http.get("http://test.loadimpact.com/"), commonTests);
+        check(http.get("http://test.loadimpact.com/"), commonTests);
     ***REMOVED***);
     
     group("pi digits", function() ***REMOVED***
-        test(http.get("http://test.loadimpact.com/pi.php?decimals=2"), ***REMOVED***
+        check(http.get("http://test.loadimpact.com/pi.php?decimals=2"), ***REMOVED***
             "pi is 3.14": (res) => res.body === "3.14",
         ***REMOVED***, commonTests);
     ***REMOVED***);
