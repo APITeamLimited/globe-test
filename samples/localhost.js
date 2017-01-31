@@ -3,9 +3,9 @@ import http from "k6/http";
 
 export let options = ***REMOVED***
 	thresholds: ***REMOVED***
-		'http_req_duration***REMOVED***kind:html***REMOVED***': ["avg<=10*ms"],
-		'http_req_duration***REMOVED***kind:css***REMOVED***': ["avg<=10*ms"],
-		'http_req_duration***REMOVED***kind:img***REMOVED***': ["avg<=100*ms"],
+		'http_req_duration***REMOVED***kind:html***REMOVED***': ["avg<=10"],
+		'http_req_duration***REMOVED***kind:css***REMOVED***': ["avg<=10"],
+		'http_req_duration***REMOVED***kind:img***REMOVED***': ["avg<=100"],
 	***REMOVED***
 ***REMOVED***;
 

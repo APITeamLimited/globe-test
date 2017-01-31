@@ -6,7 +6,7 @@ export let options = ***REMOVED***
 	vus: 5,
 	thresholds: ***REMOVED***
 		my_rate: ["rate>=0.4"], // Require my_rate's success rate to be >=40%
-		http_req_duration: ["avg<1000*ms"], // Require http_req_duration's average to be <1000ms
+		http_req_duration: ["avg<1000"], // Require http_req_duration's average to be <1000ms
 	***REMOVED***
 ***REMOVED***;
 
