@@ -21,6 +21,7 @@
 package json
 
 import (
+	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -38,7 +39,7 @@ func TestNew(t *testing.T) ***REMOVED***
 		t.Run("path="+path, func(t *testing.T) ***REMOVED***
 			defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
 
-			collector, err := New(path)
+			collector, err := New(path, lib.Options***REMOVED******REMOVED***)
 			if succ ***REMOVED***
 				assert.NoError(t, err)
 				assert.NotNil(t, collector)
