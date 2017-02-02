@@ -100,6 +100,7 @@ var commandRun = cli.Command***REMOVED***
 		cli.Int64Flag***REMOVED***
 			Name:  "max-redirects",
 			Usage: "follow at most n redirects",
+			Value: 10,
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "out, o",
