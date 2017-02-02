@@ -88,4 +88,9 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)
 	***REMOVED***)
+	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.NoUsageReport.Valid)
+		assert.True(t, opts.NoUsageReport.Bool)
+	***REMOVED***)
 ***REMOVED***
