@@ -37,7 +37,8 @@ type Options struct ***REMOVED***
 	NoUsageReport null.Bool  `json:"noUsageReport"`
 	Acceptance    null.Float `json:"acceptance"`
 
-	MaxRedirects null.Int `json:"maxRedirects"`
+	MaxRedirects          null.Int  `json:"maxRedirects"`
+	InsecureSkipTLSVerify null.Bool `json:"insecureSkipTLSVerify"`
 
 	Thresholds map[string]Thresholds `json:"thresholds"`
 ***REMOVED***
@@ -75,6 +76,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.MaxRedirects.Valid ***REMOVED***
 		o.MaxRedirects = opts.MaxRedirects
+	***REMOVED***
+	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
+		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
 	***REMOVED***
 	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds

@@ -22,6 +22,7 @@ package js
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -47,7 +48,7 @@ type Runner struct ***REMOVED***
 	HTTPTransport *http.Transport
 ***REMOVED***
 
-func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
+func NewRunner(rt *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
 	expObj := exports.Object()
 	if expObj == nil ***REMOVED***
 		return nil, ErrDefaultExport
@@ -62,7 +63,7 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 	if !callable.IsFunction() ***REMOVED***
 		return nil, ErrDefaultExport
 	***REMOVED***
-	if err := runtime.VM.Set(entrypoint, callable); err != nil ***REMOVED***
+	if err := rt.VM.Set(entrypoint, callable); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -72,9 +73,9 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 	***REMOVED***
 
 	r := &Runner***REMOVED***
-		Runtime:      runtime,
+		Runtime:      rt,
 		DefaultGroup: defaultGroup,
-		Options:      runtime.Options,
+		Options:      rt.Options,
 		HTTPTransport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -82,6 +83,9 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 				KeepAlive: 60 * time.Second,
 				DualStack: true,
 			***REMOVED***).DialContext,
+			TLSClientConfig: &tls.Config***REMOVED***
+				InsecureSkipVerify: rt.Options.InsecureSkipTLSVerify.Bool,
+			***REMOVED***,
 			MaxIdleConns:        math.MaxInt32,
 			MaxIdleConnsPerHost: math.MaxInt32,
 		***REMOVED***,
