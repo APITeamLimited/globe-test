@@ -110,7 +110,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***
 	u.callable = callable
 
-	if err := u.vm.Set("__jsapi__", JSAPI***REMOVED***u***REMOVED***); err != nil ***REMOVED***
+	if err := u.vm.Set("__jsapi__", &JSAPI***REMOVED***u***REMOVED***); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
