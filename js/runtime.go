@@ -76,6 +76,15 @@ func New() (*Runtime, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
+	__ENV := make(map[string]string)
+	for _, kv := range os.Environ() ***REMOVED***
+		k, v := lib.SplitKV(kv)
+		__ENV[k] = v
+	***REMOVED***
+	if err := rt.VM.Set("__ENV", __ENV); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return rt, nil
 ***REMOVED***
 

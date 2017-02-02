@@ -22,6 +22,7 @@ package js
 
 import (
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -122,4 +123,16 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 			assert.Equal(t, "value<=1000", r.Options.Thresholds["my_metric"].Thresholds[0].Source)
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestRuntime__ENV(t *testing.T) ***REMOVED***
+	os.Setenv("TEST_KEY", "abc123")
+
+	rt, err := New()
+	assert.NoError(t, err)
+	_, err = rt.VM.Eval(`
+	if (__ENV.TEST_KEY != "abc123") ***REMOVED***
+		throw new Error("Wrong: " + __ENV.TEST_KEY)
+	***REMOVED***`)
+	assert.NoError(t, err)
 ***REMOVED***
