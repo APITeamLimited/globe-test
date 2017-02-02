@@ -8,6 +8,6 @@ export default Ember.Route.extend(***REMOVED***
     ***REMOVED***);
   ***REMOVED***,
   afterModel(model) ***REMOVED***
-    model["defaultGroup"] = this.get('store').peekRecord('group', 0);
+    model["defaultGroup"] = this.get('store').peekAll('group').findBy('name', '');
   ***REMOVED***,
 ***REMOVED***);
