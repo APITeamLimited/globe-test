@@ -24,6 +24,7 @@ import (
 	"context"
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"io"
 	"os"
@@ -44,7 +45,7 @@ func (c *Collector) HasSeenMetric(str string) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func New(fname string) (*Collector, error) ***REMOVED***
+func New(fname string, opts lib.Options) (*Collector, error) ***REMOVED***
 	logfile, err := os.Create(fname)
 	if err != nil ***REMOVED***
 		return nil, err
