@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	"strings"
@@ -38,15 +39,6 @@ const (
 	CollectRate     = 10 * time.Millisecond
 	ThresholdsRate  = 2 * time.Second
 	ShutdownTimeout = 10 * time.Second
-)
-
-var (
-	MetricVUs        = stats.New("vus", stats.Gauge)
-	MetricVUsMax     = stats.New("vus_max", stats.Gauge)
-	MetricIterations = stats.New("iterations", stats.Gauge)
-	MetricTaints     = stats.New("taints", stats.Gauge)
-
-	MetricChecks = stats.New("checks", stats.Rate)
 )
 
 // Special error used to signal that a VU wants a taint, without logging an error.
@@ -594,22 +586,22 @@ func (e *Engine) emitMetrics() ***REMOVED***
 	e.processSamples(
 		stats.Sample***REMOVED***
 			Time:   t,
-			Metric: MetricVUs,
+			Metric: metrics.VUs,
 			Value:  float64(e.vus),
 		***REMOVED***,
 		stats.Sample***REMOVED***
 			Time:   t,
-			Metric: MetricVUsMax,
+			Metric: metrics.VUsMax,
 			Value:  float64(e.vusMax),
 		***REMOVED***,
 		stats.Sample***REMOVED***
 			Time:   t,
-			Metric: MetricIterations,
+			Metric: metrics.Iterations,
 			Value:  float64(atomic.LoadInt64(&e.numIterations)),
 		***REMOVED***,
 		stats.Sample***REMOVED***
 			Time:   t,
-			Metric: MetricTaints,
+			Metric: metrics.Taints,
 			Value:  float64(atomic.LoadInt64(&e.numTaints)),
 		***REMOVED***,
 	)

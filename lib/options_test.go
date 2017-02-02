@@ -79,6 +79,11 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.MaxRedirects.Valid)
 		assert.Equal(t, int64(12345), opts.MaxRedirects.Int64)
 	***REMOVED***)
+	t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.InsecureSkipTLSVerify.Valid)
+		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
+	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]Thresholds***REMOVED***
 			"metric": ***REMOVED***
@@ -87,5 +92,10 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)
+	***REMOVED***)
+	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.NoUsageReport.Valid)
+		assert.True(t, opts.NoUsageReport.Bool)
 	***REMOVED***)
 ***REMOVED***

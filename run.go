@@ -37,6 +37,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"sort"
@@ -99,6 +100,11 @@ var commandRun = cli.Command***REMOVED***
 		cli.Int64Flag***REMOVED***
 			Name:  "max-redirects",
 			Usage: "follow at most n redirects",
+			Value: 10,
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "insecure-skip-tls-verify",
+			Usage: "INSECURE: skip verification of TLS certificates",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:  "out, o",
@@ -107,6 +113,11 @@ var commandRun = cli.Command***REMOVED***
 		cli.StringSliceFlag***REMOVED***
 			Name:  "config, c",
 			Usage: "read additional config files",
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:   "no-usage-report",
+			Usage:  "don't send heartbeat to k6 project on test execution",
+			EnvVar: "K6_NO_USAGE_REPORT",
 		***REMOVED***,
 	***REMOVED***,
 	Action: actionRun,
@@ -225,15 +236,17 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
 	cliOpts := lib.Options***REMOVED***
-		Paused:       cliBool(cc, "paused"),
-		VUs:          cliInt64(cc, "vus"),
-		VUsMax:       cliInt64(cc, "max"),
-		Duration:     cliDuration(cc, "duration"),
-		Iterations:   cliInt64(cc, "iterations"),
-		Linger:       cliBool(cc, "linger"),
-		AbortOnTaint: cliBool(cc, "abort-on-taint"),
-		Acceptance:   cliFloat64(cc, "acceptance"),
-		MaxRedirects: cliInt64(cc, "max-redirects"),
+		Paused:                cliBool(cc, "paused"),
+		VUs:                   cliInt64(cc, "vus"),
+		VUsMax:                cliInt64(cc, "max"),
+		Duration:              cliDuration(cc, "duration"),
+		Iterations:            cliInt64(cc, "iterations"),
+		Linger:                cliBool(cc, "linger"),
+		AbortOnTaint:          cliBool(cc, "abort-on-taint"),
+		Acceptance:            cliFloat64(cc, "acceptance"),
+		MaxRedirects:          cliInt64(cc, "max-redirects"),
+		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
+		NoUsageReport:         cliBool(cc, "no-usage-report"),
 	***REMOVED***
 	opts := cliOpts
 
@@ -301,6 +314,17 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
 	engine.Collector = collector
+
+	// Send usage report, if we're allowed to
+	if opts.NoUsageReport.Valid && !opts.NoUsageReport.Bool ***REMOVED***
+		conn, err := net.Dial("udp", "k6reports.loadimpact.com:6565")
+		if err == nil ***REMOVED***
+			// This is a best-effort attempt to send a usage report. We don't want
+			// to inconvenience users if this doesn't work, for whatever reason
+			_, _ = conn.Write([]byte("nyoom"))
+			_ = conn.Close()
+		***REMOVED***
+	***REMOVED***
 
 	// Run the engine.
 	wg.Add(1)

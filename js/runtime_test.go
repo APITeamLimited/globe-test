@@ -22,6 +22,7 @@ package js
 
 import (
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -47,7 +48,7 @@ func TestLoad(t *testing.T) ***REMOVED***
 
 	r, err := New()
 	assert.NoError(t, err)
-	assert.NoError(t, r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***))
+	assert.NoError(t, r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r***REMOVED***))
 
 	t.Run("Importing Libraries", func(t *testing.T) ***REMOVED***
 		_, err := r.load("test.js", []byte(`
@@ -122,4 +123,16 @@ func TestExtractOptions(t *testing.T) ***REMOVED***
 			assert.Equal(t, "value<=1000", r.Options.Thresholds["my_metric"].Thresholds[0].Source)
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestRuntime__ENV(t *testing.T) ***REMOVED***
+	assert.NoError(t, os.Setenv("TEST_KEY", "abc123"))
+
+	rt, err := New()
+	assert.NoError(t, err)
+	_, err = rt.VM.Eval(`
+	if (__ENV.TEST_KEY != "abc123") ***REMOVED***
+		throw new Error("Wrong: " + __ENV.TEST_KEY)
+	***REMOVED***`)
+	assert.NoError(t, err)
 ***REMOVED***

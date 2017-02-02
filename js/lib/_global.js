@@ -15,7 +15,14 @@ performance = ***REMOVED***
 
 require = function(name) ***REMOVED***
 	if (!__initapi__) ***REMOVED***
-		throw new Error("imports are only permitted in the init context")
+		throw new Error("imports are only permitted during initialization")
 	***REMOVED***
 	return __initapi__.Require(name);
+***REMOVED***
+
+open = function(name) ***REMOVED***
+	if (!__initapi__) ***REMOVED***
+		throw new Error("open() is only permitted during initialization")
+	***REMOVED***
+	return __initapi__.Open(name);
 ***REMOVED***

@@ -35,17 +35,6 @@ import (
 	"time"
 )
 
-var (
-	MetricReqs          = stats.New("http_reqs", stats.Counter)
-	MetricReqDuration   = stats.New("http_req_duration", stats.Trend, stats.Time)
-	MetricReqBlocked    = stats.New("http_req_blocked", stats.Trend, stats.Time)
-	MetricReqLookingUp  = stats.New("http_req_looking_up", stats.Trend, stats.Time)
-	MetricReqConnecting = stats.New("http_req_connecting", stats.Trend, stats.Time)
-	MetricReqSending    = stats.New("http_req_sending", stats.Trend, stats.Time)
-	MetricReqWaiting    = stats.New("http_req_waiting", stats.Trend, stats.Time)
-	MetricReqReceiving  = stats.New("http_req_receiving", stats.Trend, stats.Time)
-)
-
 type Runner struct ***REMOVED***
 	URL       *url.URL
 	Transport *http.Transport
@@ -120,34 +109,25 @@ type VU struct ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	resp, err := u.Client.Do(u.Request.WithContext(httptrace.WithClientTrace(ctx, u.cTrace)))
-	if err != nil ***REMOVED***
-		u.tracer.Done()
-		return nil, err
-	***REMOVED***
-
-	_, _ = io.Copy(ioutil.Discard, resp.Body)
-	_ = resp.Body.Close()
-	trail := u.tracer.Done()
-
 	tags := map[string]string***REMOVED***
 		"vu":     u.IDString,
+		"status": "0",
 		"method": "GET",
 		"url":    u.URLString,
-		"status": strconv.Itoa(resp.StatusCode),
 	***REMOVED***
 
-	t := time.Now()
-	return []stats.Sample***REMOVED***
-		***REMOVED***Metric: MetricReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: MetricReqDuration, Time: t, Tags: tags, Value: float64(trail.Duration)***REMOVED***,
-		***REMOVED***Metric: MetricReqBlocked, Time: t, Tags: tags, Value: float64(trail.Blocked)***REMOVED***,
-		***REMOVED***Metric: MetricReqLookingUp, Time: t, Tags: tags, Value: float64(trail.LookingUp)***REMOVED***,
-		***REMOVED***Metric: MetricReqConnecting, Time: t, Tags: tags, Value: float64(trail.Connecting)***REMOVED***,
-		***REMOVED***Metric: MetricReqSending, Time: t, Tags: tags, Value: float64(trail.Sending)***REMOVED***,
-		***REMOVED***Metric: MetricReqWaiting, Time: t, Tags: tags, Value: float64(trail.Waiting)***REMOVED***,
-		***REMOVED***Metric: MetricReqReceiving, Time: t, Tags: tags, Value: float64(trail.Receiving)***REMOVED***,
-	***REMOVED***, nil
+	resp, err := u.Client.Do(u.Request.WithContext(httptrace.WithClientTrace(ctx, u.cTrace)))
+	if err != nil ***REMOVED***
+		return u.tracer.Done().Samples(tags), err
+	***REMOVED***
+	tags["status"] = strconv.Itoa(resp.StatusCode)
+
+	if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil ***REMOVED***
+		return u.tracer.Done().Samples(tags), err
+	***REMOVED***
+	_ = resp.Body.Close()
+
+	return u.tracer.Done().Samples(tags), nil
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***

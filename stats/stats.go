@@ -219,7 +219,7 @@ func (m Metric) HumanizeValue(v float64) string ***REMOVED***
 	default:
 		switch m.Contains ***REMOVED***
 		case Time:
-			d := time.Duration(v)
+			d := ToD(v)
 			switch ***REMOVED***
 			case d > time.Minute:
 				d -= d % (1 * time.Second)

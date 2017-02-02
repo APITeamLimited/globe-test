@@ -76,11 +76,20 @@ func New() (*Runtime, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
+	__ENV := make(map[string]string)
+	for _, kv := range os.Environ() ***REMOVED***
+		k, v := lib.SplitKV(kv)
+		__ENV[k] = v
+	***REMOVED***
+	if err := rt.VM.Set("__ENV", __ENV); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return rt, nil
 ***REMOVED***
 
 func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
-	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
+	if err := r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
 	exp, err := r.loadFile(filename)
