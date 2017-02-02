@@ -34,27 +34,21 @@ export class Response ***REMOVED***
  * Makes an HTTP request.
  * @param  ***REMOVED***string***REMOVED*** method      HTTP Method (eg. "GET")
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
-	if (body) ***REMOVED***
-		if (typeof body === "object") ***REMOVED***
-			let formstring = "";
-			for (let key in body) ***REMOVED***
-				if (formstring !== "") ***REMOVED***
-					formstring += "&";
-				***REMOVED***
-				formstring += key + "=" + encodeURIComponent(body[key]);
+	if (body && typeof body === "object") ***REMOVED***
+		let formstring = "";
+		for (let key in body) ***REMOVED***
+			if (formstring !== "") ***REMOVED***
+				formstring += "&";
 			***REMOVED***
-			body = formstring;
+			formstring += key + "=" + encodeURIComponent(body[key]);
 		***REMOVED***
-		if (method === "GET" || method === "HEAD") ***REMOVED***
-			url += (url.includes("?") ? "&" : "?") + body;
-			body = "";
-		***REMOVED***
+		body = formstring;
 	***REMOVED***
 	return new Response(__jsapi__.HTTPRequest(method, url, body, JSON.stringify(params)));
 ***REMOVED***;
@@ -63,12 +57,11 @@ export function request(method, url, body, params = ***REMOVED******REMOVED***) 
  * Makes a GET request.
  * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
-export function get(url, body, params) ***REMOVED***
-	return request("GET", url, body, params);
+export function get(url, params) ***REMOVED***
+	return request("GET", url, null, params);
 ***REMOVED***;
 
 /**
