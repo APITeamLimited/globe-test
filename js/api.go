@@ -105,16 +105,17 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 	***REMOVED***
 
 	t := time.Now()
-	samples := make([]stats.Sample, len(call.ArgumentList)-1)
 
 	success := true
 	arg0 := call.Argument(0)
-	for i, v := range call.ArgumentList[1:] ***REMOVED***
+	for _, v := range call.ArgumentList[1:] ***REMOVED***
 		obj := v.Object()
 		if obj == nil ***REMOVED***
 			panic(call.Otto.MakeTypeError("checks must be objects"))
 		***REMOVED***
-		for _, name := range obj.Keys() ***REMOVED***
+		keys := obj.Keys()
+		samples := make([]stats.Sample, len(keys))
+		for i, name := range keys ***REMOVED***
 			val, err := obj.Get(name)
 			if err != nil ***REMOVED***
 				throw(call.Otto, err)
@@ -149,9 +150,8 @@ func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
 				Value: sampleValue,
 			***REMOVED***
 		***REMOVED***
+		a.vu.Samples = append(a.vu.Samples, samples...)
 	***REMOVED***
-
-	a.vu.Samples = append(a.vu.Samples, samples...)
 
 	if !success ***REMOVED***
 		a.vu.Taint = true
