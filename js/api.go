@@ -135,10 +135,7 @@ func (a JSAPI) DoCheck(obj otto.Value, conds map[string]otto.Value, extraTags ma
 		***REMOVED***
 	***REMOVED***
 
-	if !success ***REMOVED***
-		return false
-	***REMOVED***
-	return true
+	return success
 ***REMOVED***
 
 func (a JSAPI) ElapsedMs() float64 ***REMOVED***
