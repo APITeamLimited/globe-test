@@ -19,11 +19,12 @@ export function group(name, fn, cond) ***REMOVED***
 
 /**
  * Runs checks on a value.
- * @param  ***REMOVED***any***REMOVED***    val     Value to test.
- * @param  ***REMOVED***...Object***REMOVED*** sets Sets of tests.
+ * @param  ***REMOVED***any***REMOVED***    val  Value to test.
+ * @param  ***REMOVED***Object***REMOVED*** sets Tests to run on the value.
+ * @param  ***REMOVED***Object***REMOVED*** tags Extra tags for metrics emission.
  */
-export function check(val, ...sets) ***REMOVED***
-	return __jsapi__.DoCheck(val, ...sets);
+export function check(val, conds=***REMOVED******REMOVED***, tags=***REMOVED******REMOVED***) ***REMOVED***
+	return __jsapi__.DoCheck(val, conds, tags);
 ***REMOVED***
 
 /**

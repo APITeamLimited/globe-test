@@ -99,65 +99,47 @@ func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	return val
 ***REMOVED***
 
-func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
-	if len(call.ArgumentList) < 2 ***REMOVED***
-		return otto.UndefinedValue()
-	***REMOVED***
-
+func (a JSAPI) DoCheck(obj otto.Value, conds map[string]otto.Value, extraTags map[string]string) bool ***REMOVED***
 	t := time.Now()
-
 	success := true
-	arg0 := call.Argument(0)
-	for _, v := range call.ArgumentList[1:] ***REMOVED***
-		obj := v.Object()
-		if obj == nil ***REMOVED***
-			panic(call.Otto.MakeTypeError("checks must be objects"))
+	for name, cond := range conds ***REMOVED***
+		check, err := a.vu.group.Check(name)
+		if err != nil ***REMOVED***
+			throw(a.vu.vm, err)
 		***REMOVED***
-		keys := obj.Keys()
-		samples := make([]stats.Sample, len(keys))
-		for i, name := range keys ***REMOVED***
-			val, err := obj.Get(name)
-			if err != nil ***REMOVED***
-				throw(call.Otto, err)
-			***REMOVED***
 
-			result, err := Check(val, arg0)
-			if err != nil ***REMOVED***
-				throw(call.Otto, err)
-			***REMOVED***
-
-			check, err := a.vu.group.Check(name)
-			if err != nil ***REMOVED***
-				throw(call.Otto, err)
-			***REMOVED***
-
-			sampleValue := 1.0
-			if result ***REMOVED***
-				atomic.AddInt64(&(check.Passes), 1)
-			***REMOVED*** else ***REMOVED***
-				atomic.AddInt64(&(check.Fails), 1)
-				success = false
-				sampleValue = 0.0
-			***REMOVED***
-
-			samples[i] = stats.Sample***REMOVED***
-				Time:   t,
-				Metric: metrics.Checks,
-				Tags: map[string]string***REMOVED***
-					"group": check.Group.Path,
-					"check": check.Name,
-				***REMOVED***,
-				Value: sampleValue,
-			***REMOVED***
+		result, err := Check(cond, obj)
+		if err != nil ***REMOVED***
+			throw(a.vu.vm, err)
 		***REMOVED***
-		a.vu.Samples = append(a.vu.Samples, samples...)
+
+		tags := map[string]string***REMOVED***
+			"group": check.Group.Path,
+			"check": check.Name,
+		***REMOVED***
+		for k, v := range extraTags ***REMOVED***
+			tags[k] = v
+		***REMOVED***
+
+		if result ***REMOVED***
+			atomic.AddInt64(&check.Passes, 1)
+			a.vu.Samples = append(a.vu.Samples,
+				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Value: 1***REMOVED***,
+			)
+		***REMOVED*** else ***REMOVED***
+			success = false
+			atomic.AddInt64(&check.Fails, 1)
+			a.vu.Samples = append(a.vu.Samples,
+				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Value: 0***REMOVED***,
+			)
+		***REMOVED***
 	***REMOVED***
 
 	if !success ***REMOVED***
 		a.vu.Taint = true
-		return otto.FalseValue()
+		return false
 	***REMOVED***
-	return otto.TrueValue()
+	return true
 ***REMOVED***
 
 func (a JSAPI) Taint() ***REMOVED***
