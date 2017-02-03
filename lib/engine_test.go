@@ -209,7 +209,8 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
-		ctx, _ := context.WithTimeout(context.Background(), duration)
+		ctx, cancel := context.WithTimeout(context.Background(), duration)
+		defer cancel()
 		assert.NoError(t, e.Run(ctx))
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
 	***REMOVED***)
@@ -276,7 +277,8 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 				***REMOVED***), Options***REMOVED***VUsMax: null.IntFrom(1), VUs: null.IntFrom(1)***REMOVED***)
 				assert.NoError(t, err)
 
-				ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+				defer cancel()
 				assert.NoError(t, e.Run(ctx))
 
 				e.lock.Lock()
@@ -352,7 +354,8 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 	e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
-	ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
 	assert.NoError(t, e.Run(ctx))
 ***REMOVED***
 
