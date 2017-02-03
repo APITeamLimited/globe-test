@@ -32,10 +32,9 @@ type Options struct ***REMOVED***
 	Iterations null.Int    `json:"iterations"`
 	Stages     []Stage     `json:"stage"`
 
-	Linger        null.Bool  `json:"linger"`
-	AbortOnTaint  null.Bool  `json:"abortOnTaint"`
-	NoUsageReport null.Bool  `json:"noUsageReport"`
-	Acceptance    null.Float `json:"acceptance"`
+	Linger        null.Bool `json:"linger"`
+	AbortOnTaint  null.Bool `json:"abortOnTaint"`
+	NoUsageReport null.Bool `json:"noUsageReport"`
 
 	MaxRedirects          null.Int  `json:"maxRedirects"`
 	InsecureSkipTLSVerify null.Bool `json:"insecureSkipTLSVerify"`
@@ -67,9 +66,6 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.AbortOnTaint.Valid ***REMOVED***
 		o.AbortOnTaint = opts.AbortOnTaint
-	***REMOVED***
-	if opts.Acceptance.Valid ***REMOVED***
-		o.Acceptance = opts.Acceptance
 	***REMOVED***
 	if opts.NoUsageReport.Valid ***REMOVED***
 		o.NoUsageReport = opts.NoUsageReport

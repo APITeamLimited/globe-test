@@ -41,9 +41,6 @@ const (
 	ShutdownTimeout = 10 * time.Second
 )
 
-// Special error used to signal that a VU wants a taint, without logging an error.
-var ErrVUWantsTaint = errors.New("test is tainted")
-
 type vuEntry struct ***REMOVED***
 	VU     VU
 	Cancel context.CancelFunc
@@ -116,7 +113,7 @@ type Engine struct ***REMOVED***
 
 	// Atomic counters.
 	numIterations int64
-	numTaints     int64
+	numErrors     int64
 
 	thresholdsTainted bool
 
@@ -246,7 +243,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.atStageSince = 0
 	e.atStageStartVUs = e.vus
 	e.numIterations = 0
-	e.numTaints = 0
+	e.numErrors = 0
 	e.lock.Unlock()
 
 	var lastTick time.Time
@@ -416,18 +413,10 @@ func (e *Engine) GetVUsMax() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsTainted() bool ***REMOVED***
-	if e.thresholdsTainted ***REMOVED***
-		return true
-	***REMOVED***
-
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	acceptance := e.Options.Acceptance.Float64
-	if acceptance > 0 ***REMOVED***
-		return float64(e.numTaints)/float64(e.numIterations) > acceptance
-	***REMOVED***
-	return e.numTaints > 0
+	return e.thresholdsTainted || e.numErrors > 0
 ***REMOVED***
 
 func (e *Engine) AtTime() time.Duration ***REMOVED***
@@ -547,13 +536,19 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
 	***REMOVED***
 
 	if err != nil ***REMOVED***
-		if err != ErrVUWantsTaint ***REMOVED***
-			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
-				e.Logger.Error(serr.String())
-			***REMOVED*** else ***REMOVED***
-				e.Logger.WithError(err).Error("VU Error")
-			***REMOVED***
+		if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
+			e.Logger.Error(serr.String())
+		***REMOVED*** else ***REMOVED***
+			e.Logger.WithError(err).Error("VU Error")
 		***REMOVED***
+		samples = append(samples,
+			stats.Sample***REMOVED***
+				Time:   time.Now(),
+				Metric: metrics.Errors,
+				Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
+				Value:  1,
+			***REMOVED***,
+		)
 	***REMOVED***
 
 	vu.lock.Lock()
@@ -562,7 +557,7 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
 
 	atomic.AddInt64(&e.numIterations, 1)
 	if err != nil ***REMOVED***
-		atomic.AddInt64(&e.numTaints, 1)
+		atomic.AddInt64(&e.numErrors, 1)
 	***REMOVED***
 ***REMOVED***
 
@@ -598,11 +593,6 @@ func (e *Engine) emitMetrics() ***REMOVED***
 			Time:   t,
 			Metric: metrics.Iterations,
 			Value:  float64(atomic.LoadInt64(&e.numIterations)),
-		***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.Taints,
-			Value:  float64(atomic.LoadInt64(&e.numTaints)),
 		***REMOVED***,
 	)
 ***REMOVED***

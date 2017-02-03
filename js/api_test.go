@@ -23,7 +23,6 @@ package js
 import (
 	"context"
 	"fmt"
-	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -239,7 +238,7 @@ func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
-func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
+func TestCheckReturnFalseOnFailure(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
 		return
 	***REMOVED***
@@ -255,24 +254,5 @@ func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
 	_, err = vu.RunOnce(context.Background())
-	assert.Equal(t, lib.ErrVUWantsTaint, err)
-***REMOVED***
-
-func TestTaint(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
-		return
-	***REMOVED***
-
-	r, err := newSnippetRunner(`
-	import ***REMOVED*** taint ***REMOVED*** from "k6";
-	export default function() ***REMOVED***
-		taint();
-	***REMOVED***`)
 	assert.NoError(t, err)
-
-	vu, err := r.NewVU()
-	assert.NoError(t, err)
-
-	_, err = vu.RunOnce(context.Background())
-	assert.Equal(t, lib.ErrVUWantsTaint, err)
 ***REMOVED***

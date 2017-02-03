@@ -75,11 +75,6 @@ var commandRun = cli.Command***REMOVED***
 			Name:  "iterations, i",
 			Usage: "run a set number of iterations, multiplied by VU count",
 		***REMOVED***,
-		cli.Float64Flag***REMOVED***
-			Name:  "acceptance, a",
-			Usage: "acceptable margin of error before failing the test",
-			Value: 0.0,
-		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "paused, p",
 			Usage: "start test in a paused state",
@@ -243,7 +238,6 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		Iterations:            cliInt64(cc, "iterations"),
 		Linger:                cliBool(cc, "linger"),
 		AbortOnTaint:          cliBool(cc, "abort-on-taint"),
-		Acceptance:            cliFloat64(cc, "acceptance"),
 		MaxRedirects:          cliInt64(cc, "max-redirects"),
 		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
 		NoUsageReport:         cliBool(cc, "no-usage-report"),

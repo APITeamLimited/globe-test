@@ -136,14 +136,9 @@ func (a JSAPI) DoCheck(obj otto.Value, conds map[string]otto.Value, extraTags ma
 	***REMOVED***
 
 	if !success ***REMOVED***
-		a.vu.Taint = true
 		return false
 	***REMOVED***
 	return true
-***REMOVED***
-
-func (a JSAPI) Taint() ***REMOVED***
-	a.vu.Taint = true
 ***REMOVED***
 
 func (a JSAPI) ElapsedMs() float64 ***REMOVED***

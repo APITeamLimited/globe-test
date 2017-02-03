@@ -256,7 +256,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.True(t, e.IsRunning())
 
 		e.lock.Lock()
-		e.numTaints++
+		e.numErrors++
 		e.lock.Unlock()
 
 		assert.EqualError(t, <-ch, "test is tainted")
@@ -268,7 +268,6 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		errors := map[string]error***REMOVED***
 			"nil":   nil,
 			"error": errors.New("error"),
-			"taint": ErrVUWantsTaint,
 		***REMOVED***
 		for name, reterr := range errors ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
@@ -552,7 +551,7 @@ func TestEngineIsTainted(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 
 			e.numIterations = data.I
-			e.numTaints = data.T
+			e.numErrors = data.T
 			assert.Equal(t, data.Expect, e.IsTainted())
 		***REMOVED***)
 	***REMOVED***
@@ -562,67 +561,52 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 	e, err, hook := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), e.numIterations)
-	assert.Equal(t, int64(0), e.numTaints)
+	assert.Equal(t, int64(0), e.numErrors)
 
 	t.Run("success", func(t *testing.T) ***REMOVED***
 		hook.Reset()
 		e.numIterations = 0
-		e.numTaints = 0
+		e.numErrors = 0
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, nil
 			***REMOVED***),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
-		assert.Equal(t, int64(0), e.numTaints)
+		assert.Equal(t, int64(0), e.numErrors)
 		assert.False(t, e.IsTainted(), "test is tainted")
 	***REMOVED***)
 	t.Run("error", func(t *testing.T) ***REMOVED***
 		hook.Reset()
 		e.numIterations = 0
-		e.numTaints = 0
+		e.numErrors = 0
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, errors.New("this is an error")
 			***REMOVED***),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
-		assert.Equal(t, int64(1), e.numTaints)
+		assert.Equal(t, int64(1), e.numErrors)
 		assert.True(t, e.IsTainted(), "test is not tainted")
 		assert.Equal(t, "this is an error", hook.LastEntry().Data["error"].(error).Error())
 
 		t.Run("string", func(t *testing.T) ***REMOVED***
 			hook.Reset()
 			e.numIterations = 0
-			e.numTaints = 0
+			e.numErrors = 0
 			e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, testErrorWithString("this is an error")
 				***REMOVED***),
 			***REMOVED***)
 			assert.Equal(t, int64(1), e.numIterations)
-			assert.Equal(t, int64(1), e.numTaints)
+			assert.Equal(t, int64(1), e.numErrors)
 			assert.True(t, e.IsTainted(), "test is not tainted")
 
 			entry := hook.LastEntry()
 			assert.Equal(t, "this is an error", entry.Message)
 			assert.Empty(t, entry.Data)
 		***REMOVED***)
-	***REMOVED***)
-	t.Run("taint", func(t *testing.T) ***REMOVED***
-		hook.Reset()
-		e.numIterations = 0
-		e.numTaints = 0
-		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
-			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-				return nil, ErrVUWantsTaint
-			***REMOVED***),
-		***REMOVED***)
-		assert.Equal(t, int64(1), e.numIterations)
-		assert.Equal(t, int64(1), e.numTaints)
-		assert.True(t, e.IsTainted(), "test is not tainted")
-
-		assert.Nil(t, hook.LastEntry())
 	***REMOVED***)
 	t.Run("cancelled", func(t *testing.T) ***REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
@@ -631,60 +615,45 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		t.Run("success", func(t *testing.T) ***REMOVED***
 			hook.Reset()
 			e.numIterations = 0
-			e.numTaints = 0
+			e.numErrors = 0
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, nil
 				***REMOVED***),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
-			assert.Equal(t, int64(0), e.numTaints)
+			assert.Equal(t, int64(0), e.numErrors)
 			assert.False(t, e.IsTainted(), "test is tainted")
 		***REMOVED***)
 		t.Run("error", func(t *testing.T) ***REMOVED***
 			hook.Reset()
 			e.numIterations = 0
-			e.numTaints = 0
+			e.numErrors = 0
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, errors.New("this is an error")
 				***REMOVED***),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
-			assert.Equal(t, int64(0), e.numTaints)
+			assert.Equal(t, int64(0), e.numErrors)
 			assert.False(t, e.IsTainted(), "test is tainted")
 			assert.Nil(t, hook.LastEntry())
 
 			t.Run("string", func(t *testing.T) ***REMOVED***
 				hook.Reset()
 				e.numIterations = 0
-				e.numTaints = 0
+				e.numErrors = 0
 				e.runVUOnce(ctx, &vuEntry***REMOVED***
 					VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 						return nil, testErrorWithString("this is an error")
 					***REMOVED***),
 				***REMOVED***)
 				assert.Equal(t, int64(0), e.numIterations)
-				assert.Equal(t, int64(0), e.numTaints)
+				assert.Equal(t, int64(0), e.numErrors)
 				assert.False(t, e.IsTainted(), "test is tainted")
 
 				assert.Nil(t, hook.LastEntry())
 			***REMOVED***)
-		***REMOVED***)
-		t.Run("taint", func(t *testing.T) ***REMOVED***
-			hook.Reset()
-			e.numIterations = 0
-			e.numTaints = 0
-			e.runVUOnce(ctx, &vuEntry***REMOVED***
-				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-					return nil, ErrVUWantsTaint
-				***REMOVED***),
-			***REMOVED***)
-			assert.Equal(t, int64(0), e.numIterations)
-			assert.Equal(t, int64(0), e.numTaints)
-			assert.False(t, e.IsTainted(), "test is tainted")
-
-			assert.Nil(t, hook.LastEntry())
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
