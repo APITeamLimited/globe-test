@@ -537,7 +537,6 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			backoff = 0
 		***REMOVED***
-		vu.Iterations++
 	***REMOVED***
 ***REMOVED***
 
@@ -572,6 +571,7 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	vu.Samples = append(vu.Samples, samples...)
 	vu.lock.Unlock()
 
+	atomic.AddInt64(&vu.Iterations, 1)
 	atomic.AddInt64(&e.numIterations, 1)
 	if err != nil ***REMOVED***
 		atomic.AddInt64(&e.numErrors, 1)
