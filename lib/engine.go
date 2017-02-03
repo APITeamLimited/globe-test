@@ -39,6 +39,9 @@ const (
 	CollectRate     = 10 * time.Millisecond
 	ThresholdsRate  = 2 * time.Second
 	ShutdownTimeout = 10 * time.Second
+
+	BackoffAmount = 50 * time.Millisecond
+	BackoffMax    = 10 * time.Second
 )
 
 type vuEntry struct ***REMOVED***
@@ -501,6 +504,8 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 	// Sleep until the engine starts running.
 	<-e.vuStop
 
+	backoffCounter := 0
+	backoff := time.Duration(0)
 	for ***REMOVED***
 		// Exit if the VU has run all its intended iterations.
 		if maxIterations > 0 && vu.Iterations >= maxIterations ***REMOVED***
@@ -519,19 +524,31 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 		default:
 		***REMOVED***
 
-		e.runVUOnce(ctx, vu)
+		if !e.runVUOnce(ctx, vu) ***REMOVED***
+			backoffCounter++
+			backoff += BackoffAmount * time.Duration(backoffCounter)
+			if backoff > BackoffMax ***REMOVED***
+				backoff = BackoffMax
+			***REMOVED***
+			select ***REMOVED***
+			case <-time.After(backoff):
+			case <-ctx.Done():
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			backoff = 0
+		***REMOVED***
 		vu.Iterations++
 	***REMOVED***
 ***REMOVED***
 
-func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
+func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	samples, err := vu.VU.RunOnce(ctx)
 
 	// Expired VUs usually have request cancellation errors, and thus skewed metrics and
 	// unhelpful "request cancelled" errors. Don't process those.
 	select ***REMOVED***
 	case <-ctx.Done():
-		return
+		return true
 	default:
 	***REMOVED***
 
@@ -558,7 +575,9 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) ***REMOVED***
 	atomic.AddInt64(&e.numIterations, 1)
 	if err != nil ***REMOVED***
 		atomic.AddInt64(&e.numErrors, 1)
+		return false
 	***REMOVED***
+	return true
 ***REMOVED***
 
 func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
