@@ -116,6 +116,42 @@ export function patch(url, body, params) ***REMOVED***
 	return request("PATCH", url, body, params);
 ***REMOVED***;
 
+/**
+ * Makes a CONNECT request.
+ * @see    module:k6/http.request
+ * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
+ * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
+ */
+export function connect(url, body, params) ***REMOVED***
+	return request("CONNECT", url, body, params);
+***REMOVED***;
+
+/**
+ * Makes a OPTIONS request.
+ * @see    module:k6/http.request
+ * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
+ * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
+ */
+export function options(url, body, params) ***REMOVED***
+	return request("OPTIONS", url, body, params);
+***REMOVED***;
+
+/**
+ * Makes a TRACE request.
+ * @see    module:k6/http.request
+ * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
+ * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
+ * @return ***REMOVED***module:k6/http.Response***REMOVED***
+ */
+export function trace(url, body, params) ***REMOVED***
+	return request("TRACE", url, body, params);
+***REMOVED***;
+
 export default ***REMOVED***
 	Response: Response,
 	request: request,
