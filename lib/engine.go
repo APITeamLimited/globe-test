@@ -286,11 +286,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			return nil
 		***REMOVED***
 
-		// If AbortOnTaint is set, watch for taints.
-		if e.Options.AbortOnTaint.Bool && e.IsTainted() ***REMOVED***
-			return errors.New("test is tainted")
-		***REMOVED***
-
 		select ***REMOVED***
 		case <-ticker.C:
 		case <-ctx.Done():
@@ -416,10 +411,10 @@ func (e *Engine) GetVUsMax() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsTainted() bool ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.MetricsLock.Lock()
+	defer e.MetricsLock.Unlock()
 
-	return e.thresholdsTainted || e.numErrors > 0
+	return e.thresholdsTainted
 ***REMOVED***
 
 func (e *Engine) AtTime() time.Duration ***REMOVED***
@@ -633,6 +628,7 @@ func (e *Engine) processThresholds() ***REMOVED***
 	e.MetricsLock.Lock()
 	defer e.MetricsLock.Unlock()
 
+	e.thresholdsTainted = false
 	for m, s := range e.Metrics ***REMOVED***
 		ts, ok := e.Thresholds[m.Name]
 		if !ok ***REMOVED***
