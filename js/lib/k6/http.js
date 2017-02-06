@@ -72,7 +72,7 @@ export function get(url, params) ***REMOVED***
  * Makes a POST request.
  * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
@@ -84,7 +84,7 @@ export function post(url, body, params) ***REMOVED***
  * Makes a PUT request.
  * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
@@ -96,7 +96,7 @@ export function put(url, body, params) ***REMOVED***
  * Makes a DELETE request.
  * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
@@ -108,7 +108,7 @@ export function del(url, body, params) ***REMOVED***
  * Makes a PATCH request.
  * @see    module:k6/http.request
  * @param  ***REMOVED***string***REMOVED*** url         Request URL (eg. "http://example.com/")
- * @param  ***REMOVED***string|Object***REMOVED*** body Request body (query for GET/HEAD); objects will be query encoded.
+ * @param  ***REMOVED***string|Object***REMOVED*** body Request body; objects will be query encoded.
  * @param  ***REMOVED***Object***REMOVED*** params      Additional parameters.
  * @return ***REMOVED***module:k6/http.Response***REMOVED***
  */
