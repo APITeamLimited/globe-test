@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/loadimpact/k6/stats"
+	"gopkg.in/guregu/null.v3"
 )
 
 type NullMetricType struct ***REMOVED***
@@ -73,6 +74,7 @@ type Metric struct ***REMOVED***
 
 	Type     NullMetricType `json:"type"`
 	Contains NullValueType  `json:"contains"`
+	Tainted  null.Bool      `json:"tainted"`
 
 	Sample map[string]float64 `json:"sample"`
 ***REMOVED***
@@ -82,6 +84,7 @@ func NewMetric(m stats.Metric, sink stats.Sink) Metric ***REMOVED***
 		Name:     m.Name,
 		Type:     NullMetricType***REMOVED***m.Type, true***REMOVED***,
 		Contains: NullValueType***REMOVED***m.Contains, true***REMOVED***,
+		Tainted:  null.BoolFrom(m.Tainted),
 		Sample:   sink.Format(),
 	***REMOVED***
 ***REMOVED***
