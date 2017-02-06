@@ -27,6 +27,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
+	"gopkg.in/guregu/null.v3"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -635,6 +636,8 @@ func (e *Engine) processThresholds() ***REMOVED***
 			continue
 		***REMOVED***
 
+		m.Tainted = null.BoolFrom(false)
+
 		e.Logger.WithField("m", m.Name).Debug("running thresholds")
 		succ, err := ts.Run(s)
 		if err != nil ***REMOVED***
@@ -643,7 +646,7 @@ func (e *Engine) processThresholds() ***REMOVED***
 		***REMOVED***
 		if !succ ***REMOVED***
 			e.Logger.WithField("m", m.Name).Debug("Thresholds failed")
-			m.Tainted = true
+			m.Tainted = null.BoolFrom(true)
 			e.thresholdsTainted = true
 		***REMOVED***
 	***REMOVED***
