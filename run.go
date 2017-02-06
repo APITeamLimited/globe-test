@@ -461,11 +461,11 @@ loop:
 			continue
 		***REMOVED***
 		icon := " "
-		for _, threshold := range engine.Thresholds[name].Thresholds ***REMOVED***
-			icon = "✓"
-			if threshold.Failed ***REMOVED***
+		if m.Tainted.Valid ***REMOVED***
+			if !m.Tainted.Bool ***REMOVED***
+				icon = "✓"
+			***REMOVED*** else ***REMOVED***
 				icon = "✗"
-				break
 			***REMOVED***
 		***REMOVED***
 		fmt.Printf("  %s %s: %s\n", icon, name, val)
