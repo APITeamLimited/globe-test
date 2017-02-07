@@ -37,10 +37,8 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 	srcdata := &lib.SourceData***REMOVED***
 		Filename: "test.js",
 		Data:     []byte("export default function() ***REMOVED******REMOVED***"),
-		Type:     lib.TypeJS,
 	***REMOVED***
 	exp, err := rt.load(srcdata.Filename, srcdata.Data)
-	//exp, err := rt.load("test.js", []byte(`export default function() ***REMOVED******REMOVED***`))
 	assert.NoError(t, err)
 	r, err := NewRunner(rt, exp)
 	assert.NoError(t, err)

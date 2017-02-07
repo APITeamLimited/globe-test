@@ -44,7 +44,6 @@ type Options struct ***REMOVED***
 type SourceData struct ***REMOVED***
 	Data     []byte
 	Filename string
-	Type     string
 ***REMOVED***
 
 const (
