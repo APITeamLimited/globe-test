@@ -307,13 +307,15 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Send usage report, if we're allowed to
 	if opts.NoUsageReport.Valid && !opts.NoUsageReport.Bool ***REMOVED***
-		conn, err := net.Dial("udp", "k6reports.loadimpact.com:6565")
-		if err == nil ***REMOVED***
-			// This is a best-effort attempt to send a usage report. We don't want
-			// to inconvenience users if this doesn't work, for whatever reason
-			_, _ = conn.Write([]byte("nyoom"))
-			_ = conn.Close()
-		***REMOVED***
+		go func() ***REMOVED***
+			conn, err := net.Dial("udp", "k6reports.loadimpact.com:6565")
+			if err == nil ***REMOVED***
+				// This is a best-effort attempt to send a usage report. We don't want
+				// to inconvenience users if this doesn't work, for whatever reason
+				_, _ = conn.Write([]byte("nyoom"))
+				_ = conn.Close()
+			***REMOVED***
+		***REMOVED***()
 	***REMOVED***
 
 	// Run the engine.
