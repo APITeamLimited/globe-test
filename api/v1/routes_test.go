@@ -18,17 +18,23 @@
  *
  */
 
-package js
+package v1
 
 import (
-	"fmt"
+	"github.com/loadimpact/k6/api/common"
+	"github.com/loadimpact/k6/lib"
+	"github.com/stretchr/testify/assert"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
-type DirectoryTraversalError struct ***REMOVED***
-	Filename string
-	Root     string
+func newRequestWithEngine(engine *lib.Engine, method, target string, body io.Reader) *http.Request ***REMOVED***
+	r := httptest.NewRequest(method, target, body)
+	return r.WithContext(common.WithEngine(r.Context(), engine))
 ***REMOVED***
 
-func (e DirectoryTraversalError) Error() string ***REMOVED***
-	return fmt.Sprintf("loading files outside your working directory is prohibited, to protect against directory traversal attacks (%s is outside %s)", e.Filename, e.Root)
+func TestNewHandler(t *testing.T) ***REMOVED***
+	assert.NotNil(t, NewHandler())
 ***REMOVED***

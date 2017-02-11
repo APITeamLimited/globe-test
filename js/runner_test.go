@@ -46,14 +46,8 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	t.Run("GetGroups", func(t *testing.T) ***REMOVED***
-		g := r.GetGroups()
-		assert.Len(t, g, 1)
-		assert.Equal(t, r.DefaultGroup, g[0])
-	***REMOVED***)
-
-	t.Run("GetTests", func(t *testing.T) ***REMOVED***
-		assert.Len(t, r.GetChecks(), 0)
+	t.Run("GetDefaultGroup", func(t *testing.T) ***REMOVED***
+		assert.Equal(t, r.DefaultGroup, r.GetDefaultGroup())
 	***REMOVED***)
 
 	t.Run("VU", func(t *testing.T) ***REMOVED***
@@ -71,4 +65,41 @@ func TestNewRunner(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)
+***REMOVED***
+
+func TestVUSelfIdentity(t *testing.T) ***REMOVED***
+	r, err := newSnippetRunner(`
+	export default function() ***REMOVED******REMOVED***
+	`)
+	assert.NoError(t, err)
+
+	vu_, err := r.NewVU()
+	assert.NoError(t, err)
+	vu := vu_.(*VU)
+
+	assert.NoError(t, vu.Reconfigure(1234))
+	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
+	assert.NoError(t, err)
+
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
+	assert.NoError(t, err)
+
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__ITER != 1) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
+	assert.NoError(t, err)
+
+	assert.NoError(t, vu.Reconfigure(1234))
+	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
+	assert.NoError(t, err)
+	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
+	assert.NoError(t, err)
 ***REMOVED***

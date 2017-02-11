@@ -18,23 +18,24 @@
  *
  */
 
-package v2
+package v1
 
 import (
-	"github.com/loadimpact/k6/api/common"
-	"github.com/loadimpact/k6/lib"
-	"github.com/stretchr/testify/assert"
-	"io"
+	"github.com/julienschmidt/httprouter"
 	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
-func newRequestWithEngine(engine *lib.Engine, method, target string, body io.Reader) *http.Request ***REMOVED***
-	r := httptest.NewRequest(method, target, body)
-	return r.WithContext(common.WithEngine(r.Context(), engine))
-***REMOVED***
+func NewHandler() http.Handler ***REMOVED***
+	router := httprouter.New()
 
-func TestNewHandler(t *testing.T) ***REMOVED***
-	assert.NotNil(t, NewHandler())
+	router.GET("/v1/status", HandleGetStatus)
+	router.PATCH("/v1/status", HandlePatchStatus)
+
+	router.GET("/v1/metrics", HandleGetMetrics)
+	router.GET("/v1/metrics/:id", HandleGetMetric)
+
+	router.GET("/v1/groups", HandleGetGroups)
+	router.GET("/v1/groups/:id", HandleGetGroup)
+
+	return router
 ***REMOVED***

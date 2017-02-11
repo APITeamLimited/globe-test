@@ -21,239 +21,123 @@
 package lib
 
 import (
-	"github.com/manyminds/api2go/jsonapi"
+	"crypto/md5"
+	"encoding/hex"
+	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
-	"strconv"
+	"strings"
 	"sync"
-	"sync/atomic"
+	"time"
 )
 
-type Status struct ***REMOVED***
-	Running null.Bool `json:"running"`
-	Tainted null.Bool `json:"tainted"`
-	VUs     null.Int  `json:"vus"`
-	VUsMax  null.Int  `json:"vus-max"`
-	AtTime  null.Int  `json:"at-time"`
+const groupSeparator = "::"
 
-	Linger       null.Bool  `json:"quit"`
-	AbortOnTaint null.Bool  `json:"abort-on-taint"`
-	Acceptance   null.Float `json:"acceptance"`
-
-	// Read-only, non-nullable.
-	Runs   int64 `json:"runs"`
-	Taints int64 `json:"taints"`
-***REMOVED***
-
-func (s Status) GetName() string ***REMOVED***
-	return "status"
-***REMOVED***
-
-func (s Status) GetID() string ***REMOVED***
-	return "default"
-***REMOVED***
-
-func (s Status) SetID(id string) error ***REMOVED***
-	return nil
-***REMOVED***
+var ErrNameContainsGroupSeparator = errors.Errorf("group and check names may not contain '%s'", groupSeparator)
 
 type Stage struct ***REMOVED***
-	ID int64 `json:"-"`
-
-	Order    null.Int `json:"order"`
-	Duration null.Int `json:"duration"`
-	StartVUs null.Int `json:"start-vus"`
-	EndVUs   null.Int `json:"end-vus"`
-***REMOVED***
-
-func (s Stage) GetName() string ***REMOVED***
-	return "stage"
-***REMOVED***
-
-func (s Stage) GetID() string ***REMOVED***
-	return strconv.FormatInt(s.ID, 10)
-***REMOVED***
-
-func (s *Stage) SetID(v string) error ***REMOVED***
-	id, err := strconv.ParseInt(v, 10, 64)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	s.ID = id
-	return nil
-***REMOVED***
-
-type Info struct ***REMOVED***
-	Version string `json:"version"`
-***REMOVED***
-
-func (i Info) GetName() string ***REMOVED***
-	return "info"
-***REMOVED***
-
-func (i Info) GetID() string ***REMOVED***
-	return "default"
+	Duration time.Duration `json:"duration"`
+	Target   null.Int      `json:"target"`
 ***REMOVED***
 
 type Group struct ***REMOVED***
-	ID int64 `json:"-"`
-
+	ID     string            `json:"id"`
+	Path   string            `json:"path"`
 	Name   string            `json:"name"`
-	Parent *Group            `json:"-"`
-	Groups map[string]*Group `json:"-"`
-	Checks map[string]*Check `json:"-"`
+	Parent *Group            `json:"parent"`
+	Groups map[string]*Group `json:"groups"`
+	Checks map[string]*Check `json:"checks"`
 
-	groupMutex sync.Mutex `json:"-"`
-	checkMutex sync.Mutex `json:"-"`
+	groupMutex sync.Mutex
+	checkMutex sync.Mutex
 ***REMOVED***
 
-func NewGroup(name string, parent *Group, idCounter *int64) *Group ***REMOVED***
-	var id int64
-	if idCounter != nil ***REMOVED***
-		id = atomic.AddInt64(idCounter, 1)
+func NewGroup(name string, parent *Group) (*Group, error) ***REMOVED***
+	if strings.Contains(name, groupSeparator) ***REMOVED***
+		return nil, ErrNameContainsGroupSeparator
 	***REMOVED***
+
+	path := name
+	if parent != nil ***REMOVED***
+		path = parent.Path + groupSeparator + path
+	***REMOVED***
+
+	hash := md5.Sum([]byte(path))
+	id := hex.EncodeToString(hash[:])
 
 	return &Group***REMOVED***
 		ID:     id,
+		Path:   path,
 		Name:   name,
 		Parent: parent,
 		Groups: make(map[string]*Group),
 		Checks: make(map[string]*Check),
-	***REMOVED***
+	***REMOVED***, nil
 ***REMOVED***
 
-func (g *Group) Group(name string, idCounter *int64) (*Group, bool) ***REMOVED***
+func (g *Group) Group(name string) (*Group, error) ***REMOVED***
 	snapshot := g.Groups
 	group, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.groupMutex.Lock()
-		group, ok = g.Groups[name]
+		defer g.groupMutex.Unlock()
+
+		group, ok := g.Groups[name]
 		if !ok ***REMOVED***
-			group = NewGroup(name, g, idCounter)
+			group, err := NewGroup(name, g)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 			g.Groups[name] = group
+			return group, nil
 		***REMOVED***
-		g.groupMutex.Unlock()
+		return group, nil
 	***REMOVED***
-	return group, ok
+	return group, nil
 ***REMOVED***
 
-func (g *Group) Check(name string, idCounter *int64) (*Check, bool) ***REMOVED***
+func (g *Group) Check(name string) (*Check, error) ***REMOVED***
 	snapshot := g.Checks
 	check, ok := snapshot[name]
 	if !ok ***REMOVED***
 		g.checkMutex.Lock()
-		check, ok = g.Checks[name]
+		defer g.checkMutex.Unlock()
+		check, ok := g.Checks[name]
 		if !ok ***REMOVED***
-			check = NewCheck(name, g, idCounter)
+			check, err := NewCheck(name, g)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 			g.Checks[name] = check
+			return check, nil
 		***REMOVED***
-		g.checkMutex.Unlock()
+		return check, nil
 	***REMOVED***
-	return check, ok
-***REMOVED***
-
-func (g Group) GetID() string ***REMOVED***
-	return strconv.FormatInt(g.ID, 10)
-***REMOVED***
-
-func (g Group) GetReferences() []jsonapi.Reference ***REMOVED***
-	return []jsonapi.Reference***REMOVED***
-		jsonapi.Reference***REMOVED***
-			Name:         "parent",
-			Type:         "groups",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***,
-		jsonapi.Reference***REMOVED***
-			Name:         "checks",
-			Type:         "checks",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	ids := make([]jsonapi.ReferenceID, 0, len(g.Checks)+len(g.Groups))
-	for _, check := range g.Checks ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           check.GetID(),
-			Type:         "checks",
-			Name:         "checks",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***)
-	***REMOVED***
-	for _, group := range g.Groups ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           group.GetID(),
-			Type:         "groups",
-			Name:         "groups",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***)
-	***REMOVED***
-	if g.Parent != nil ***REMOVED***
-		ids = append(ids, jsonapi.ReferenceID***REMOVED***
-			ID:           g.Parent.GetID(),
-			Type:         "groups",
-			Name:         "parent",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***)
-	***REMOVED***
-	return ids
-***REMOVED***
-
-func (g Group) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
-	// Note: we're not sideloading the parent, that snowballs into making requests for a single
-	// group return *every single known group* thanks to the common root group.
-	refs := make([]jsonapi.MarshalIdentifier, 0, len(g.Checks)+len(g.Groups))
-	for _, check := range g.Checks ***REMOVED***
-		refs = append(refs, check)
-	***REMOVED***
-	for _, group := range g.Groups ***REMOVED***
-		refs = append(refs, group)
-	***REMOVED***
-	return refs
+	return check, nil
 ***REMOVED***
 
 type Check struct ***REMOVED***
-	ID int64 `json:"-"`
-
-	Group *Group `json:"-"`
+	ID    string `json:"id"`
+	Path  string `json:"path"`
+	Group *Group `json:"group"`
 	Name  string `json:"name"`
 
 	Passes int64 `json:"passes"`
 	Fails  int64 `json:"fails"`
 ***REMOVED***
 
-func NewCheck(name string, group *Group, idCounter *int64) *Check ***REMOVED***
-	var id int64
-	if idCounter != nil ***REMOVED***
-		id = atomic.AddInt64(idCounter, 1)
+func NewCheck(name string, group *Group) (*Check, error) ***REMOVED***
+	if strings.Contains(name, groupSeparator) ***REMOVED***
+		return nil, ErrNameContainsGroupSeparator
 	***REMOVED***
-	return &Check***REMOVED***ID: id, Name: name, Group: group***REMOVED***
-***REMOVED***
 
-func (c Check) GetID() string ***REMOVED***
-	return strconv.FormatInt(c.ID, 10)
-***REMOVED***
+	path := group.Path + groupSeparator + name
+	hash := md5.Sum([]byte(path))
+	id := hex.EncodeToString(hash[:])
 
-func (c Check) GetReferences() []jsonapi.Reference ***REMOVED***
-	return []jsonapi.Reference***REMOVED***
-		jsonapi.Reference***REMOVED***
-			Name:         "group",
-			Type:         "groups",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (c Check) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	return []jsonapi.ReferenceID***REMOVED***
-		jsonapi.ReferenceID***REMOVED***
-			ID:   c.Group.GetID(),
-			Type: "groups",
-			Name: "group",
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-func (c Check) GetReferencedStructs() []jsonapi.MarshalIdentifier ***REMOVED***
-	return []jsonapi.MarshalIdentifier***REMOVED***c.Group***REMOVED***
+	return &Check***REMOVED***
+		ID:    id,
+		Path:  path,
+		Group: group,
+		Name:  name,
+	***REMOVED***, nil
 ***REMOVED***

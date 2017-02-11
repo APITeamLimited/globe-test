@@ -69,7 +69,7 @@ func TestLogger(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestWithEngine(t *testing.T) ***REMOVED***
-	engine, err := lib.NewEngine(nil)
+	engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -82,7 +82,7 @@ func TestWithEngine(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestPing(t *testing.T) ***REMOVED***
-	mux := NewHandler(staticRoot)
+	mux := NewHandler()
 
 	rw := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/ping", nil)
@@ -91,38 +91,4 @@ func TestPing(t *testing.T) ***REMOVED***
 	res := rw.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, []byte***REMOVED***'o', 'k'***REMOVED***, rw.Body.Bytes())
-***REMOVED***
-
-func TestStatic(t *testing.T) ***REMOVED***
-	var testdata = map[string]map[string]struct ***REMOVED***
-		StatusCode  int
-		ContentType string
-		Body        string
-	***REMOVED******REMOVED***
-		"nonexistent": ***REMOVED***
-			"/":     ***REMOVED***http.StatusNotFound, "text/plain; charset=utf-8", notFoundText***REMOVED***,
-			"/test": ***REMOVED***http.StatusNotFound, "text/plain; charset=utf-8", notFoundText***REMOVED***,
-		***REMOVED***,
-		staticRoot: ***REMOVED***
-			"/":           ***REMOVED***http.StatusOK, "text/html; charset=utf-8", "<!DOCTYPE html>"***REMOVED***,
-			"/robots.txt": ***REMOVED***http.StatusOK, "text/plain; charset=utf-8", "# http://www.robotstxt.org"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	for root, routes := range testdata ***REMOVED***
-		t.Run("root="+root, func(t *testing.T) ***REMOVED***
-			for path, data := range routes ***REMOVED***
-				t.Run("path="+path, func(t *testing.T) ***REMOVED***
-					rw := httptest.NewRecorder()
-					r := httptest.NewRequest("GET", path, nil)
-					NewHandler(root).ServeHTTP(rw, r)
-					res := rw.Result()
-					assert.Equal(t, data.StatusCode, res.StatusCode)
-					assert.Equal(t, data.ContentType, res.Header.Get("Content-Type"))
-					if data.Body != "" ***REMOVED***
-						assert.Contains(t, string(rw.Body.Bytes()), data.Body)
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
 ***REMOVED***

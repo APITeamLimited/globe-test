@@ -21,24 +21,24 @@
 package lib
 
 import (
-	"encoding/json"
-	"github.com/robertkrimen/otto"
 	"gopkg.in/guregu/null.v3"
 )
 
 type Options struct ***REMOVED***
-	Paused   null.Bool   `json:"paused"`
-	VUs      null.Int    `json:"vus"`
-	VUsMax   null.Int    `json:"vus-max"`
-	Duration null.String `json:"duration"`
+	Paused     null.Bool   `json:"paused"`
+	VUs        null.Int    `json:"vus"`
+	VUsMax     null.Int    `json:"vusMax"`
+	Duration   null.String `json:"duration"`
+	Iterations null.Int    `json:"iterations"`
+	Stages     []Stage     `json:"stage"`
 
-	Linger       null.Bool  `json:"linger"`
-	AbortOnTaint null.Bool  `json:"abort-on-taint"`
-	Acceptance   null.Float `json:"acceptance"`
+	Linger        null.Bool `json:"linger"`
+	NoUsageReport null.Bool `json:"noUsageReport"`
 
-	MaxRedirects null.Int `json:"max-redirects"`
+	MaxRedirects          null.Int  `json:"maxRedirects"`
+	InsecureSkipTLSVerify null.Bool `json:"insecureSkipTLSVerify"`
 
-	Thresholds map[string][]*Threshold `json:"thresholds"`
+	Thresholds map[string]Thresholds `json:"thresholds"`
 ***REMOVED***
 
 type SourceData struct ***REMOVED***
@@ -59,17 +59,23 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Duration.Valid ***REMOVED***
 		o.Duration = opts.Duration
 	***REMOVED***
+	if opts.Iterations.Valid ***REMOVED***
+		o.Iterations = opts.Iterations
+	***REMOVED***
+	if opts.Stages != nil ***REMOVED***
+		o.Stages = opts.Stages
+	***REMOVED***
 	if opts.Linger.Valid ***REMOVED***
 		o.Linger = opts.Linger
 	***REMOVED***
-	if opts.AbortOnTaint.Valid ***REMOVED***
-		o.AbortOnTaint = opts.AbortOnTaint
-	***REMOVED***
-	if opts.Acceptance.Valid ***REMOVED***
-		o.Acceptance = opts.Acceptance
+	if opts.NoUsageReport.Valid ***REMOVED***
+		o.NoUsageReport = opts.NoUsageReport
 	***REMOVED***
 	if opts.MaxRedirects.Valid ***REMOVED***
 		o.MaxRedirects = opts.MaxRedirects
+	***REMOVED***
+	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
+		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
 	***REMOVED***
 	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds
@@ -83,31 +89,6 @@ func (o Options) SetAllValid(valid bool) Options ***REMOVED***
 	o.VUsMax.Valid = valid
 	o.Duration.Valid = valid
 	o.Linger.Valid = valid
-	o.AbortOnTaint.Valid = valid
+	o.NoUsageReport.Valid = valid
 	return o
-***REMOVED***
-
-type Threshold struct ***REMOVED***
-	Source string
-	Script *otto.Script
-	Failed bool
-***REMOVED***
-
-func (t Threshold) String() string ***REMOVED***
-	return t.Source
-***REMOVED***
-
-func (t Threshold) MarshalJSON() ([]byte, error) ***REMOVED***
-	return json.Marshal(t.Source)
-***REMOVED***
-
-func (t *Threshold) UnmarshalJSON(data []byte) error ***REMOVED***
-	var src string
-	if err := json.Unmarshal(data, &src); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	t.Source = src
-	t.Script = nil
-	t.Failed = false
-	return nil
 ***REMOVED***

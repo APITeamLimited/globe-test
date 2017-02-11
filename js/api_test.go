@@ -22,7 +22,8 @@ package js
 
 import (
 	"context"
-	"github.com/loadimpact/k6/lib"
+	"fmt"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -33,10 +34,37 @@ func TestSleep(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	start := time.Now()
-	JSAPI***REMOVED******REMOVED***.Sleep(0.2)
-	assert.True(t, time.Since(start) > 200*time.Millisecond)
-	assert.True(t, time.Since(start) < 1*time.Second)
+	testdata := map[string]struct ***REMOVED***
+		src string
+		min time.Duration
+	***REMOVED******REMOVED***
+		"float,sub-1s": ***REMOVED***`0.2`, 200 * time.Millisecond***REMOVED***,
+		"float":        ***REMOVED***`1.0`, 1 * time.Second***REMOVED***,
+		"int":          ***REMOVED***`1`, 1 * time.Second***REMOVED***,
+		"exceeding":    ***REMOVED***`5`, 2 * time.Second***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			r, err := newSnippetRunner(fmt.Sprintf(`
+			import ***REMOVED*** sleep ***REMOVED*** from "k6";
+			export default function() ***REMOVED***
+				sleep(%s);
+			***REMOVED***`, data.src))
+			assert.NoError(t, err)
+
+			vu, err := r.NewVU()
+			assert.NoError(t, err)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			start := time.Now()
+
+			_, err = vu.RunOnce(ctx)
+			assert.NoError(t, err)
+			assert.True(t, time.Since(start) > data.min, "ran too short")
+			assert.True(t, time.Since(start) < data.min+1*time.Second, "ran too long")
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestDoGroup(t *testing.T) ***REMOVED***
@@ -148,17 +176,25 @@ func TestDoCheck(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	_, err = vu.RunOnce(context.Background())
+	samples, err := vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
-	if !assert.Len(t, r.Checks, 1) ***REMOVED***
-		return
-	***REMOVED***
-	c := r.Checks[0]
+	c := r.DefaultGroup.Checks["v === 3"]
+	assert.NotNil(t, c)
 	assert.Equal(t, "v === 3", c.Name)
 	assert.Equal(t, r.DefaultGroup, c.Group)
 	assert.Equal(t, int64(1), c.Passes)
 	assert.Equal(t, int64(0), c.Fails)
+
+	assert.Len(t, samples, 1)
+	sample := samples[0]
+	assert.False(t, sample.Time.IsZero(), "sample time is zero")
+	assert.Equal(t, metrics.Checks, sample.Metric)
+	assert.Equal(t, 1.0, sample.Value)
+	assert.EqualValues(t, map[string]string***REMOVED***
+		"group": "",
+		"check": "v === 3",
+	***REMOVED***, sample.Tags)
 ***REMOVED***
 
 func TestCheckInGroup(t *testing.T) ***REMOVED***
@@ -179,19 +215,29 @@ func TestCheckInGroup(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	vu := vu_.(*VU)
 
-	_, err = vu.RunOnce(context.Background())
+	samples, err := vu.RunOnce(context.Background())
 	assert.NoError(t, err)
 
-	assert.Len(t, r.Groups, 2)
-	g := r.Groups[1]
+	g := r.DefaultGroup.Groups["group"]
+	assert.NotNil(t, g)
 	assert.Equal(t, "group", g.Name)
 
-	assert.Len(t, r.Checks, 1)
-	c := r.Checks[0]
+	c := g.Checks["v === 3"]
+	assert.NotNil(t, c)
 	assert.Equal(t, "v === 3", c.Name)
 	assert.Equal(t, g, c.Group)
 	assert.Equal(t, int64(1), c.Passes)
 	assert.Equal(t, int64(0), c.Fails)
+
+	assert.Len(t, samples, 1)
+	sample := samples[0]
+	assert.False(t, sample.Time.IsZero(), "sample time is zero")
+	assert.Equal(t, metrics.Checks, sample.Metric)
+	assert.Equal(t, 1.0, sample.Value)
+	assert.EqualValues(t, map[string]string***REMOVED***
+		"group": "::group",
+		"check": "v === 3",
+	***REMOVED***, sample.Tags)
 ***REMOVED***
 
 func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
@@ -213,7 +259,7 @@ func TestCheckReturnTrueOnSuccess(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
-func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
+func TestCheckReturnFalseOnFailure(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
 		return
 	***REMOVED***
@@ -229,24 +275,5 @@ func TestCheckReturnFalseAndTaintsOnFailure(t *testing.T) ***REMOVED***
 	vu, err := r.NewVU()
 	assert.NoError(t, err)
 	_, err = vu.RunOnce(context.Background())
-	assert.Equal(t, lib.ErrVUWantsTaint, err)
-***REMOVED***
-
-func TestTaint(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
-		return
-	***REMOVED***
-
-	r, err := newSnippetRunner(`
-	import ***REMOVED*** taint ***REMOVED*** from "k6";
-	export default function() ***REMOVED***
-		taint();
-	***REMOVED***`)
 	assert.NoError(t, err)
-
-	vu, err := r.NewVU()
-	assert.NoError(t, err)
-
-	_, err = vu.RunOnce(context.Background())
-	assert.Equal(t, lib.ErrVUWantsTaint, err)
 ***REMOVED***

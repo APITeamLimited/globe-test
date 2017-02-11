@@ -23,6 +23,7 @@ package stats
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/guregu/null.v3"
 	"sort"
 	"strconv"
 	"strings"
@@ -164,12 +165,10 @@ type Metric struct ***REMOVED***
 	Name     string     `json:"-"`
 	Type     MetricType `json:"type"`
 	Contains ValueType  `json:"contains"`
+	Tainted  null.Bool  `json:"tainted"`
 
 	// Filled in by the API when requested, the server side cannot count on its presence.
 	Sample map[string]float64 `json:"sample"`
-
-	// Set to true if the metric has failed a threshold.
-	Tainted bool
 ***REMOVED***
 
 func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
@@ -178,6 +177,21 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 		vt = t[0]
 	***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt***REMOVED***
+***REMOVED***
+
+func (m Metric) NewSink() Sink ***REMOVED***
+	switch m.Type ***REMOVED***
+	case Counter:
+		return &CounterSink***REMOVED******REMOVED***
+	case Gauge:
+		return &GaugeSink***REMOVED******REMOVED***
+	case Trend:
+		return &TrendSink***REMOVED******REMOVED***
+	case Rate:
+		return &RateSink***REMOVED******REMOVED***
+	default:
+		return nil
+	***REMOVED***
 ***REMOVED***
 
 func (m Metric) Humanize() string ***REMOVED***
@@ -207,7 +221,7 @@ func (m Metric) HumanizeValue(v float64) string ***REMOVED***
 	default:
 		switch m.Contains ***REMOVED***
 		case Time:
-			d := time.Duration(v)
+			d := ToD(v)
 			switch ***REMOVED***
 			case d > time.Minute:
 				d -= d % (1 * time.Second)

@@ -22,6 +22,8 @@ package js
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
 	"strconv"
 	"sync/atomic"
@@ -33,7 +35,13 @@ type JSAPI struct ***REMOVED***
 ***REMOVED***
 
 func (a JSAPI) Sleep(secs float64) ***REMOVED***
-	time.Sleep(time.Duration(secs * float64(time.Second)))
+	d := time.Duration(secs * float64(time.Second))
+	t := time.NewTimer(d)
+	select ***REMOVED***
+	case <-t.C:
+	case <-a.vu.ctx.Done():
+	***REMOVED***
+	t.Stop()
 ***REMOVED***
 
 func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
@@ -68,11 +76,9 @@ func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
 
 func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	name := call.Argument(0).String()
-	group, ok := a.vu.group.Group(name, &(a.vu.runner.groupIDCounter))
-	if !ok ***REMOVED***
-		a.vu.runner.groupsMutex.Lock()
-		a.vu.runner.Groups = append(a.vu.runner.Groups, group)
-		a.vu.runner.groupsMutex.Unlock()
+	group, err := a.vu.group.Group(name)
+	if err != nil ***REMOVED***
+		throw(call.Otto, err)
 	***REMOVED***
 	a.vu.group = group
 	defer func() ***REMOVED*** a.vu.group = group.Parent ***REMOVED***()
@@ -93,54 +99,43 @@ func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
 	return val
 ***REMOVED***
 
-func (a JSAPI) DoCheck(call otto.FunctionCall) otto.Value ***REMOVED***
-	if len(call.ArgumentList) < 2 ***REMOVED***
-		return otto.UndefinedValue()
-	***REMOVED***
-
+func (a JSAPI) DoCheck(obj otto.Value, conds map[string]otto.Value, extraTags map[string]string) bool ***REMOVED***
+	t := time.Now()
 	success := true
-	arg0 := call.Argument(0)
-	for _, v := range call.ArgumentList[1:] ***REMOVED***
-		obj := v.Object()
-		if obj == nil ***REMOVED***
-			panic(call.Otto.MakeTypeError("checks must be objects"))
+	for name, cond := range conds ***REMOVED***
+		check, err := a.vu.group.Check(name)
+		if err != nil ***REMOVED***
+			throw(a.vu.vm, err)
 		***REMOVED***
-		for _, name := range obj.Keys() ***REMOVED***
-			val, err := obj.Get(name)
-			if err != nil ***REMOVED***
-				throw(call.Otto, err)
-			***REMOVED***
 
-			result, err := Check(val, arg0)
-			if err != nil ***REMOVED***
-				throw(call.Otto, err)
-			***REMOVED***
+		result, err := Check(cond, obj)
+		if err != nil ***REMOVED***
+			throw(a.vu.vm, err)
+		***REMOVED***
 
-			check, ok := a.vu.group.Check(name, &(a.vu.runner.checkIDCounter))
-			if !ok ***REMOVED***
-				a.vu.runner.checksMutex.Lock()
-				a.vu.runner.Checks = append(a.vu.runner.Checks, check)
-				a.vu.runner.checksMutex.Unlock()
-			***REMOVED***
+		tags := map[string]string***REMOVED***
+			"group": check.Group.Path,
+			"check": check.Name,
+		***REMOVED***
+		for k, v := range extraTags ***REMOVED***
+			tags[k] = v
+		***REMOVED***
 
-			if result ***REMOVED***
-				atomic.AddInt64(&(check.Passes), 1)
-			***REMOVED*** else ***REMOVED***
-				atomic.AddInt64(&(check.Fails), 1)
-				success = false
-			***REMOVED***
+		if result ***REMOVED***
+			atomic.AddInt64(&check.Passes, 1)
+			a.vu.Samples = append(a.vu.Samples,
+				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 1***REMOVED***,
+			)
+		***REMOVED*** else ***REMOVED***
+			success = false
+			atomic.AddInt64(&check.Fails, 1)
+			a.vu.Samples = append(a.vu.Samples,
+				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 0***REMOVED***,
+			)
 		***REMOVED***
 	***REMOVED***
 
-	if !success ***REMOVED***
-		a.vu.Taint = true
-		return otto.FalseValue()
-	***REMOVED***
-	return otto.TrueValue()
-***REMOVED***
-
-func (a JSAPI) Taint() ***REMOVED***
-	a.vu.Taint = true
+	return success
 ***REMOVED***
 
 func (a JSAPI) ElapsedMs() float64 ***REMOVED***

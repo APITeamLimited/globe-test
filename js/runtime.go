@@ -28,6 +28,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"os"
@@ -44,7 +45,6 @@ var (
 
 type Runtime struct ***REMOVED***
 	VM      *otto.Otto
-	Root    string
 	Exports map[string]otto.Value
 	Metrics map[string]*stats.Metric
 	Options lib.Options
@@ -53,14 +53,8 @@ type Runtime struct ***REMOVED***
 ***REMOVED***
 
 func New() (*Runtime, error) ***REMOVED***
-	wd, err := os.Getwd()
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
 	rt := &Runtime***REMOVED***
 		VM:      otto.New(),
-		Root:    wd,
 		Exports: make(map[string]otto.Value),
 		Metrics: make(map[string]*stats.Metric),
 		lib:     make(map[string]otto.Value),
@@ -79,6 +73,15 @@ func New() (*Runtime, error) ***REMOVED***
 	***REMOVED***
 
 	if _, err := rt.loadLib("_global.js"); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	__ENV := make(map[string]string)
+	for _, kv := range os.Environ() ***REMOVED***
+		k, v := lib.SplitKV(kv)
+		__ENV[k] = v
+	***REMOVED***
+	if err := rt.VM.Set("__ENV", __ENV); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -190,9 +193,30 @@ func (r *Runtime) loadLib(filename string) (otto.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) load(filename string, data []byte) (otto.Value, error) ***REMOVED***
+	nodeNames := []string***REMOVED***"node", "nodejs", "node.exe"***REMOVED***
+	var nodePath string
+	for _, name := range nodeNames ***REMOVED***
+		path, err := exec.LookPath(name)
+		if err != nil ***REMOVED***
+			if e, ok := err.(*exec.Error); ok && e.Err != exec.ErrNotFound ***REMOVED***
+				return otto.UndefinedValue(), err
+			***REMOVED***
+			continue
+		***REMOVED***
+		nodePath = path
+		break
+	***REMOVED***
+	if nodePath == "" ***REMOVED***
+		return otto.UndefinedValue(), errors.New(
+			"Couldn't find node, make sure it's in your PATH. " +
+				"This is a TEMPORARY dependency and will be removed. " +
+				"See: https://github.com/loadimpact/k6/issues/14",
+		)
+	***REMOVED***
+
 	// Compile the file with Babel; this subprocess invocation is TEMPORARY:
 	// https://github.com/robertkrimen/otto/pull/205
-	cmd := exec.Command(babel, "--presets", "latest", "--no-babelrc")
+	cmd := exec.Command(nodePath, babel, "--presets", "latest", "--no-babelrc")
 	cmd.Dir = babelDir
 	cmd.Stdin = bytes.NewReader(data)
 	cmd.Stderr = os.Stderr

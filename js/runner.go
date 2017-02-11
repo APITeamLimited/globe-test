@@ -22,6 +22,7 @@ package js
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -32,12 +33,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
-)
-
-const (
-	DefaultMaxRedirect = 10
 )
 
 var ErrDefaultExport = errors.New("you must export a 'default' function")
@@ -47,19 +43,12 @@ const entrypoint = "__$$entrypoint$$__"
 type Runner struct ***REMOVED***
 	Runtime      *Runtime
 	DefaultGroup *lib.Group
-	Groups       []*lib.Group
-	Checks       []*lib.Check
 	Options      lib.Options
 
 	HTTPTransport *http.Transport
-
-	groupIDCounter int64
-	groupsMutex    sync.Mutex
-	checkIDCounter int64
-	checksMutex    sync.Mutex
 ***REMOVED***
 
-func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
+func NewRunner(rt *Runtime, exports otto.Value) (*Runner, error) ***REMOVED***
 	expObj := exports.Object()
 	if expObj == nil ***REMOVED***
 		return nil, ErrDefaultExport
@@ -74,13 +63,19 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 	if !callable.IsFunction() ***REMOVED***
 		return nil, ErrDefaultExport
 	***REMOVED***
-	if err := runtime.VM.Set(entrypoint, callable); err != nil ***REMOVED***
+	if err := rt.VM.Set(entrypoint, callable); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	defaultGroup, err := lib.NewGroup("", nil)
+	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	r := &Runner***REMOVED***
-		Runtime: runtime,
-		Options: runtime.Options,
+		Runtime:      rt,
+		DefaultGroup: defaultGroup,
+		Options:      rt.Options,
 		HTTPTransport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer***REMOVED***
@@ -88,12 +83,11 @@ func NewRunner(runtime *Runtime, exports otto.Value) (*Runner, error) ***REMOVED
 				KeepAlive: 60 * time.Second,
 				DualStack: true,
 			***REMOVED***).DialContext,
+			TLSClientConfig:     &tls.Config***REMOVED******REMOVED***,
 			MaxIdleConns:        math.MaxInt32,
 			MaxIdleConnsPerHost: math.MaxInt32,
 		***REMOVED***,
 	***REMOVED***
-	r.DefaultGroup = lib.NewGroup("", nil, nil)
-	r.Groups = []*lib.Group***REMOVED***r.DefaultGroup***REMOVED***
 
 	return r, nil
 ***REMOVED***
@@ -118,19 +112,15 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 	***REMOVED***
 	u.callable = callable
 
-	if err := u.vm.Set("__jsapi__", JSAPI***REMOVED***u***REMOVED***); err != nil ***REMOVED***
+	if err := u.vm.Set("__jsapi__", &JSAPI***REMOVED***u***REMOVED***); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	return u, nil
 ***REMOVED***
 
-func (r *Runner) GetGroups() []*lib.Group ***REMOVED***
-	return r.Groups
-***REMOVED***
-
-func (r *Runner) GetChecks() []*lib.Check ***REMOVED***
-	return r.Checks
+func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
+	return r.DefaultGroup
 ***REMOVED***
 
 func (r *Runner) GetOptions() lib.Options ***REMOVED***
@@ -139,13 +129,14 @@ func (r *Runner) GetOptions() lib.Options ***REMOVED***
 
 func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
 	r.Options = r.Options.Apply(opts)
+	r.HTTPTransport.TLSClientConfig.InsecureSkipVerify = opts.InsecureSkipTLSVerify.Bool
 ***REMOVED***
 
 type VU struct ***REMOVED***
-	ID       int64
-	IDString string
-	Samples  []stats.Sample
-	Taint    bool
+	ID        int64
+	IDString  string
+	Iteration int64
+	Samples   []stats.Sample
 
 	runner   *Runner
 	vm       *otto.Otto
@@ -162,17 +153,16 @@ type VU struct ***REMOVED***
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	u.CookieJar.Clear()
 
+	if err := u.vm.Set("__ITER", u.Iteration); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	u.started = time.Now()
 	u.ctx = ctx
 	_, err := u.callable.Call(otto.UndefinedValue())
 	u.ctx = nil
 
-	if u.Taint ***REMOVED***
-		u.Taint = false
-		if err == nil ***REMOVED***
-			err = lib.ErrVUWantsTaint
-		***REMOVED***
-	***REMOVED***
+	u.Iteration++
 
 	samples := u.Samples
 	u.Samples = nil
@@ -182,6 +172,15 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
 	u.IDString = strconv.FormatInt(u.ID, 10)
+	u.Iteration = 0
+
+	if err := u.vm.Set("__VU", u.ID); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if err := u.vm.Set("__ITER", u.Iteration); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
 	return nil
 ***REMOVED***
 

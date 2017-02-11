@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 	"testing"
+	"time"
 )
 
 func TestOptionsApply(t *testing.T) ***REMOVED***
@@ -47,31 +48,44 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m", opts.Duration.String)
 	***REMOVED***)
+	t.Run("Iterations", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Iterations: null.IntFrom(1234)***REMOVED***)
+		assert.True(t, opts.Iterations.Valid)
+		assert.Equal(t, int64(1234), opts.Iterations.Int64)
+	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
+		assert.NotNil(t, opts.Stages)
+		assert.Len(t, opts.Stages, 1)
+		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
+	***REMOVED***)
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.Linger.Valid)
 		assert.True(t, opts.Linger.Bool)
-	***REMOVED***)
-	t.Run("AbortOnTaint", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***AbortOnTaint: null.BoolFrom(true)***REMOVED***)
-		assert.True(t, opts.AbortOnTaint.Valid)
-		assert.True(t, opts.AbortOnTaint.Bool)
-	***REMOVED***)
-	t.Run("Acceptance", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Acceptance: null.FloatFrom(12345.0)***REMOVED***)
-		assert.True(t, opts.Acceptance.Valid)
-		assert.Equal(t, float64(12345.0), opts.Acceptance.Float64)
 	***REMOVED***)
 	t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***MaxRedirects: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.MaxRedirects.Valid)
 		assert.Equal(t, int64(12345), opts.MaxRedirects.Int64)
 	***REMOVED***)
+	t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.InsecureSkipTLSVerify.Valid)
+		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
+	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string][]*Threshold***REMOVED***
-			"metric": []*Threshold***REMOVED***&Threshold***REMOVED***Source: "1+1==2"***REMOVED******REMOVED***,
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]Thresholds***REMOVED***
+			"metric": ***REMOVED***
+				Thresholds: []*Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
+			***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)
+	***REMOVED***)
+	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.NoUsageReport.Valid)
+		assert.True(t, opts.NoUsageReport.Bool)
 	***REMOVED***)
 ***REMOVED***

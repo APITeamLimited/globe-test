@@ -18,21 +18,19 @@
  *
  */
 
-package v2
+package stats
 
 import (
-	"github.com/julienschmidt/httprouter"
-	"net/http"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func NewHandler() http.Handler ***REMOVED***
-	router := httprouter.New()
+func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
+	assert.Panics(t, func() ***REMOVED***
+		DummySink***REMOVED******REMOVED***.Add(Sample***REMOVED******REMOVED***)
+	***REMOVED***)
+***REMOVED***
 
-	router.GET("/v2/status", HandleGetStatus)
-	router.PATCH("/v2/status", HandlePatchStatus)
-
-	router.GET("/v2/metrics", HandleGetMetrics)
-	router.GET("/v2/metrics/:id", HandleGetMetric)
-
-	return router
+func TestDummySinkFormatReturnsItself(t *testing.T) ***REMOVED***
+	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format())
 ***REMOVED***

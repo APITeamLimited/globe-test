@@ -24,6 +24,9 @@ import (
 	"fmt"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -49,22 +52,22 @@ func TestNewMetric(t *testing.T) ***REMOVED***
 		t.Run("t="+s, func(t *testing.T) ***REMOVED***
 			// name: [import, type, arg0]
 			imports := map[string][]string***REMOVED***
-				"wrapper,direct": []string***REMOVED***
+				"wrapper,direct": ***REMOVED***
 					fmt.Sprintf("***REMOVED*** %s ***REMOVED***", s),
 					s,
 					"",
 				***REMOVED***,
-				"wrapper,module": []string***REMOVED***
+				"wrapper,module": ***REMOVED***
 					"metrics",
 					fmt.Sprintf("metrics.%s", s),
 					"",
 				***REMOVED***,
-				"const,direct": []string***REMOVED***
+				"const,direct": ***REMOVED***
 					fmt.Sprintf("***REMOVED*** Metric, %sType ***REMOVED***", s),
 					"Metric",
 					fmt.Sprintf("%sType, ", s),
 				***REMOVED***,
-				"const,module": []string***REMOVED***
+				"const,module": ***REMOVED***
 					"metrics",
 					"metrics.Metric",
 					fmt.Sprintf("metrics.%sType, ", s),
@@ -103,4 +106,37 @@ func TestNewMetric(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestOpen(t *testing.T) ***REMOVED***
+	tmp := os.TempDir()
+	path := filepath.Join(tmp, "k6_init_test.json")
+	assert.NoError(t, ioutil.WriteFile(path, []byte(`***REMOVED***"a": 1***REMOVED***`), 0775))
+	defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
+
+	t.Run("existing", func(t *testing.T) ***REMOVED***
+		assert.NoError(t, runSnippet(fmt.Sprintf(`
+		let data = open('%s');
+		export default function() ***REMOVED***
+			if (data !== '***REMOVED***"a": 1***REMOVED***') ***REMOVED*** throw new Error(); ***REMOVED***
+		***REMOVED***
+		`, path)))
+	***REMOVED***)
+
+	t.Run("nonexistent", func(t *testing.T) ***REMOVED***
+		assert.EqualError(t, runSnippet(`
+		// If you have a file called this, this test will fail.
+		// I will also have several questions for you.
+		let data = open('/dfghuibiuafeuieawfba.txt');
+		export default function() ***REMOVED******REMOVED***
+		`), "Error: open /dfghuibiuafeuieawfba.txt: no such file or directory")
+	***REMOVED***)
+
+	t.Run("runtime prohibited", func(t *testing.T) ***REMOVED***
+		assert.EqualError(t, runSnippet(fmt.Sprintf(`
+		export default function() ***REMOVED***
+			let data = open('%s');
+		***REMOVED***
+		`, path)), "Error: open() is only permitted during initialization")
+	***REMOVED***)
 ***REMOVED***

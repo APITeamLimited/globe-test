@@ -9,6 +9,11 @@ module.exports = function(defaults) ***REMOVED***
         "bower_components",
         "bower_components/bootstrap/less",
       ]
+    ***REMOVED***,
+    minifyCSS: ***REMOVED***
+      options: ***REMOVED***
+        processImport: false
+      ***REMOVED***
     ***REMOVED***
   ***REMOVED***);
 

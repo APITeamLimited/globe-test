@@ -21,25 +21,32 @@
 package lib
 
 import (
-	// "math"
-	"time"
+	"strings"
 )
 
-// StageAt returns the stage at the specified offset (in nanoseconds) and the time remaining of
-// said stage. If the interval is past the end of the test, an empty stage and 0 is returned.
-func StageAt(stages []Stage, offset time.Duration) (s Stage, stageLeft time.Duration, ok bool) ***REMOVED***
-	var counter time.Duration
-	for _, stage := range stages ***REMOVED***
-		counter += time.Duration(stage.Duration.Int64)
-		if counter >= offset ***REMOVED***
-			return stage, counter - offset, true
-		***REMOVED***
+// Splits a string in the form "key=value".
+func SplitKV(s string) (key, value string) ***REMOVED***
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) == 1 ***REMOVED***
+		return parts[0], ""
 	***REMOVED***
-	return stages[len(stages)-1], 0, false
+	return parts[0], parts[1]
 ***REMOVED***
 
 // Lerp is a linear interpolation between two values x and y, returning the value at the point t,
 // where t is a fraction in the range [0.0 - 1.0].
 func Lerp(x, y int64, t float64) int64 ***REMOVED***
 	return x + int64(t*float64(y-x))
+***REMOVED***
+
+// Clampf returns the given value, "clamped" to the range [min, max].
+func Clampf(val, min, max float64) float64 ***REMOVED***
+	switch ***REMOVED***
+	case val < min:
+		return min
+	case val > max:
+		return max
+	default:
+		return val
+	***REMOVED***
 ***REMOVED***

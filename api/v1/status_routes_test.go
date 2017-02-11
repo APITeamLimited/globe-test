@@ -18,7 +18,7 @@
  *
  */
 
-package v2
+package v1
 
 import (
 	"bytes"
@@ -33,11 +33,11 @@ import (
 )
 
 func TestGetStatus(t *testing.T) ***REMOVED***
-	engine, err := lib.NewEngine(nil)
+	engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	rw := httptest.NewRecorder()
-	NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v2/status", nil))
+	NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/status", nil))
 	res := rw.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -53,7 +53,7 @@ func TestGetStatus(t *testing.T) ***REMOVED***
 	t.Run("status", func(t *testing.T) ***REMOVED***
 		var status Status
 		assert.NoError(t, jsonapi.Unmarshal(rw.Body.Bytes(), &status))
-		assert.True(t, status.Running.Valid)
+		assert.True(t, status.Paused.Valid)
 		assert.True(t, status.VUs.Valid)
 		assert.True(t, status.VUsMax.Valid)
 		assert.False(t, status.Tainted)
@@ -66,17 +66,15 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 		Status     Status
 	***REMOVED******REMOVED***
 		"nothing":      ***REMOVED***200, Status***REMOVED******REMOVED******REMOVED***,
-		"running":      ***REMOVED***200, Status***REMOVED***Running: null.BoolFrom(true)***REMOVED******REMOVED***,
+		"paused":       ***REMOVED***200, Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED******REMOVED***,
 		"max vus":      ***REMOVED***200, Status***REMOVED***VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 		"too many vus": ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
-
-		// PANICS DUE TO ENGINE BUG!
-		// "vus":          ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
+		"vus":          ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, indata := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			engine, err := lib.NewEngine(nil)
+			engine, err := lib.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
 			assert.NoError(t, err)
 
 			body, err := jsonapi.Marshal(indata.Status)
@@ -85,7 +83,7 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			rw := httptest.NewRecorder()
-			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v2/status", bytes.NewReader(body)))
+			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v1/status", bytes.NewReader(body)))
 			res := rw.Result()
 
 			if !assert.Equal(t, indata.StatusCode, res.StatusCode) ***REMOVED***
@@ -96,8 +94,8 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			status := NewStatus(engine)
-			if indata.Status.Running.Valid ***REMOVED***
-				assert.Equal(t, indata.Status.Running, status.Running)
+			if indata.Status.Paused.Valid ***REMOVED***
+				assert.Equal(t, indata.Status.Paused, status.Paused)
 			***REMOVED***
 			if indata.Status.VUs.Valid ***REMOVED***
 				assert.Equal(t, indata.Status.VUs, status.VUs)

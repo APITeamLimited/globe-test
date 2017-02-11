@@ -3,23 +3,31 @@ import http from "k6/http";
 
 export let options = ***REMOVED***
 	thresholds: ***REMOVED***
-		http_req_duration: ["avg<=100"],
+		'http_req_duration***REMOVED***kind:html***REMOVED***': ["avg<=10"],
+		'http_req_duration***REMOVED***kind:css***REMOVED***': ["avg<=10"],
+		'http_req_duration***REMOVED***kind:img***REMOVED***': ["avg<=100"],
 	***REMOVED***
 ***REMOVED***;
 
 export default function() ***REMOVED***
 	group("front page", function() ***REMOVED***
-		check(http.get("http://localhost:8080/"), ***REMOVED***
+		check(http.get("http://localhost:8080/", ***REMOVED***
+			tags: ***REMOVED***'kind': 'html' ***REMOVED***,
+		***REMOVED***), ***REMOVED***
 			"status is 200": (res) => res.status === 200,
 		***REMOVED***);
 	***REMOVED***);
 	group("stylesheet", function() ***REMOVED***
-		check(http.get("http://localhost:8080/style.css"), ***REMOVED***
+		check(http.get("http://localhost:8080/style.css", ***REMOVED***
+			tags: ***REMOVED***'kind': 'css' ***REMOVED***,
+		***REMOVED***), ***REMOVED***
 			"status is 200": (res) => res.status === 200,
 		***REMOVED***);
 	***REMOVED***);
 	group("image", function() ***REMOVED***
-		check(http.get("http://localhost:8080/teddy.jpg"), ***REMOVED***
+		check(http.get("http://localhost:8080/teddy.jpg", ***REMOVED***
+			tags: ***REMOVED***'kind': 'img' ***REMOVED***,
+		***REMOVED***), ***REMOVED***
 			"status is 200": (res) => res.status === 200,
 		***REMOVED***);
 	***REMOVED***);

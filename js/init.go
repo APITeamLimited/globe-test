@@ -25,14 +25,18 @@ import (
 	"fmt"
 	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 )
 
 type InitAPI struct ***REMOVED***
 	r *Runtime
+
+	fileCache map[string]string
 ***REMOVED***
 
-func (i InitAPI) NewMetric(it int, name string, isTime bool) *stats.Metric ***REMOVED***
+func (i *InitAPI) NewMetric(it int, name string, isTime bool) *stats.Metric ***REMOVED***
 	t := stats.MetricType(it)
 	vt := stats.Default
 	if isTime ***REMOVED***
@@ -55,7 +59,7 @@ func (i InitAPI) NewMetric(it int, name string, isTime bool) *stats.Metric ***RE
 	return m
 ***REMOVED***
 
-func (i InitAPI) Require(name string) otto.Value ***REMOVED***
+func (i *InitAPI) Require(name string) otto.Value ***REMOVED***
 	if !strings.HasPrefix(name, ".") ***REMOVED***
 		exports, err := i.r.loadLib(name + ".js")
 		if err != nil ***REMOVED***
@@ -69,4 +73,28 @@ func (i InitAPI) Require(name string) otto.Value ***REMOVED***
 		throw(i.r.VM, err)
 	***REMOVED***
 	return exports
+***REMOVED***
+
+func (i *InitAPI) Open(name string) string ***REMOVED***
+	if i.fileCache == nil ***REMOVED***
+		i.fileCache = make(map[string]string)
+	***REMOVED***
+
+	path, err := filepath.Abs(name)
+	if err != nil ***REMOVED***
+		throw(i.r.VM, err)
+	***REMOVED***
+
+	if data, ok := i.fileCache[path]; ok ***REMOVED***
+		return data
+	***REMOVED***
+
+	data, err := ioutil.ReadFile(path)
+	if err != nil ***REMOVED***
+		throw(i.r.VM, err)
+	***REMOVED***
+
+	s := string(data)
+	i.fileCache[path] = s
+	return s
 ***REMOVED***

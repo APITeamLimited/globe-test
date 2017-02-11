@@ -21,6 +21,7 @@
 package stats
 
 import (
+	"errors"
 	"sort"
 )
 
@@ -130,4 +131,14 @@ func (r *RateSink) Add(s Sample) ***REMOVED***
 
 func (r RateSink) Format() map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"rate": float64(r.Trues) / float64(r.Total)***REMOVED***
+***REMOVED***
+
+type DummySink map[string]float64
+
+func (d DummySink) Add(s Sample) ***REMOVED***
+	panic(errors.New("you can't add samples to a dummy sink"))
+***REMOVED***
+
+func (d DummySink) Format() map[string]float64 ***REMOVED***
+	return map[string]float64(d)
 ***REMOVED***

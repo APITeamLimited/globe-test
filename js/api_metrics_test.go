@@ -42,10 +42,10 @@ func TestMetricAdd(t *testing.T) ***REMOVED***
 	for jsV, v := range values ***REMOVED***
 		t.Run("v="+jsV, func(t *testing.T) ***REMOVED***
 			tags := map[string]map[string]string***REMOVED***
-				`undefined`:     map[string]string***REMOVED******REMOVED***,
-				`***REMOVED***tag:"value"***REMOVED***`: map[string]string***REMOVED***"tag": "value"***REMOVED***,
-				`***REMOVED***tag:1234***REMOVED***`:    map[string]string***REMOVED***"tag": "1234"***REMOVED***,
-				`***REMOVED***tag:1234.5***REMOVED***`:  map[string]string***REMOVED***"tag": "1234.5"***REMOVED***,
+				`undefined`:     ***REMOVED******REMOVED***,
+				`***REMOVED***tag:"value"***REMOVED***`: ***REMOVED***"tag": "value"***REMOVED***,
+				`***REMOVED***tag:1234***REMOVED***`:    ***REMOVED***"tag": "1234"***REMOVED***,
+				`***REMOVED***tag:1234.5***REMOVED***`:  ***REMOVED***"tag": "1234.5"***REMOVED***,
 			***REMOVED***
 
 			for jsT, t_ := range tags ***REMOVED***
