@@ -44,12 +44,7 @@ type Runner struct ***REMOVED***
 	defaultGroup *lib.Group
 ***REMOVED***
 
-func New(rawurl string) (*Runner, error) ***REMOVED***
-	u, err := url.Parse(rawurl)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
+func New(u *url.URL) (*Runner, error) ***REMOVED***
 	return &Runner***REMOVED***
 		URL: u,
 		Transport: &http.Transport***REMOVED***

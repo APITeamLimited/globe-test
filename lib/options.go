@@ -41,6 +41,11 @@ type Options struct ***REMOVED***
 	Thresholds map[string]Thresholds `json:"thresholds"`
 ***REMOVED***
 
+type SourceData struct ***REMOVED***
+	Data     []byte
+	Filename string
+***REMOVED***
+
 func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Paused.Valid ***REMOVED***
 		o.Paused = opts.Paused

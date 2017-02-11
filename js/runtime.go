@@ -88,11 +88,11 @@ func New() (*Runtime, error) ***REMOVED***
 	return rt, nil
 ***REMOVED***
 
-func (r *Runtime) Load(filename string) (otto.Value, error) ***REMOVED***
-	if err := r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
+func (r *Runtime) Load(src *lib.SourceData) (otto.Value, error) ***REMOVED***
+	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
-	exp, err := r.loadFile(filename)
+	exp, err := r.loadSource(src)
 	if err := r.VM.Set("__initapi__", nil); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
@@ -123,6 +123,27 @@ func (r *Runtime) extractOptions(exports otto.Value, opts *lib.Options) error **
 	***REMOVED***
 
 	return nil
+***REMOVED***
+
+func (r *Runtime) loadSource(src *lib.SourceData) (otto.Value, error) ***REMOVED***
+	path, err := filepath.Abs(src.Filename)
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
+
+	// Don't re-compile repeated includes of the same module
+	if exports, ok := r.Exports[path]; ok ***REMOVED***
+		return exports, nil
+	***REMOVED***
+	exports, err := r.load(path, src.Data)
+	if err != nil ***REMOVED***
+		return otto.UndefinedValue(), err
+	***REMOVED***
+	r.Exports[path] = exports
+
+	log.WithField("path", path).Debug("File loaded")
+
+	return exports, nil
 ***REMOVED***
 
 func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
