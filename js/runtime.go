@@ -37,8 +37,8 @@ import (
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
 
 var (
-	libBox      = rice.MustFindBox("lib")
-	polyfillBox = rice.MustFindBox("node_modules/babel-polyfill")
+	libBox     = rice.MustFindBox("lib")
+	polyfillJS = libBox.MustString("core-js/client/core.min.js")
 )
 
 type Runtime struct ***REMOVED***
@@ -58,11 +58,7 @@ func New() (*Runtime, error) ***REMOVED***
 		lib:     make(map[string]otto.Value),
 	***REMOVED***
 
-	polyfillJS, err := polyfillBox.String("dist/polyfill.js")
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	polyfill, err := rt.VM.Compile("polyfill.js", polyfillJS)
+	polyfill, err := rt.VM.Compile("core.min.js", polyfillJS)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
