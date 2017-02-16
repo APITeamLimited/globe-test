@@ -193,7 +193,7 @@ func (r *Runtime) load(filename string, data []byte) (otto.Value, error) ***REMO
 	***REMOVED***
 
 	// Use a wrapper function to turn the script into an exported module
-	s, err := r.VM.Compile(filename, fmt.Sprintf(wrapper, string(src)))
+	s, err := r.VM.Compile(filename, fmt.Sprintf(wrapper, src))
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
