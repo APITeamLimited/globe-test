@@ -21,8 +21,28 @@
 package lib
 
 import (
+	"encoding/json"
 	"gopkg.in/guregu/null.v3"
+	"time"
 )
+
+type Duration time.Duration
+
+func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	v, err := time.ParseDuration(str)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	*d = Duration(v)
+
+	return nil
+***REMOVED***
 
 type Options struct ***REMOVED***
 	Paused     null.Bool   `json:"paused"`
@@ -30,7 +50,7 @@ type Options struct ***REMOVED***
 	VUsMax     null.Int    `json:"vusMax"`
 	Duration   null.String `json:"duration"`
 	Iterations null.Int    `json:"iterations"`
-	Stages     []Stage     `json:"stage"`
+	Stages     []Stage     `json:"stages"`
 
 	Linger        null.Bool `json:"linger"`
 	NoUsageReport null.Bool `json:"noUsageReport"`
