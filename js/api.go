@@ -21,11 +21,9 @@
 package js
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
-	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -42,36 +40,6 @@ func (a JSAPI) Sleep(secs float64) ***REMOVED***
 	case <-a.vu.ctx.Done():
 	***REMOVED***
 	t.Stop()
-***REMOVED***
-
-func (a JSAPI) Log(level int, msg string, args []otto.Value) ***REMOVED***
-	fields := make(log.Fields, len(args))
-	for i, arg := range args ***REMOVED***
-		if arg.IsObject() ***REMOVED***
-			obj := arg.Object()
-			for _, key := range obj.Keys() ***REMOVED***
-				v, err := obj.Get(key)
-				if err != nil ***REMOVED***
-					throw(a.vu.vm, err)
-				***REMOVED***
-				fields[key] = v.String()
-			***REMOVED***
-			continue
-		***REMOVED***
-		fields["arg"+strconv.Itoa(i)] = arg.String()
-	***REMOVED***
-
-	entry := log.WithFields(fields)
-	switch level ***REMOVED***
-	case 0:
-		entry.Debug(msg)
-	case 1:
-		entry.Info(msg)
-	case 2:
-		entry.Warn(msg)
-	case 3:
-		entry.Error(msg)
-	***REMOVED***
 ***REMOVED***
 
 func (a JSAPI) DoGroup(call otto.FunctionCall) otto.Value ***REMOVED***
