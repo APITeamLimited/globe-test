@@ -79,6 +79,11 @@ func New() (*Runtime, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
+	__console__ := &Console***REMOVED***log.StandardLogger()***REMOVED***
+	if err := rt.VM.Set("__console__", __console__); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return rt, nil
 ***REMOVED***
 
