@@ -89,7 +89,7 @@ func New() (*Runtime, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) Load(src *lib.SourceData) (otto.Value, error) ***REMOVED***
-	if err := r.VM.Set("__initapi__", InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
+	if err := r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
 	exp, err := r.loadSource(src)
