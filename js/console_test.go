@@ -18,12 +18,12 @@ func TestConsoleLog(t *testing.T) ***REMOVED***
 		"error": log.ErrorLevel,
 	***REMOVED***
 	argsets := map[string]log.Fields***REMOVED***
-		`"a"`:       log.Fields***REMOVED***"arg0": "a"***REMOVED***,
-		`"a","b"`:   log.Fields***REMOVED***"arg0": "a", "arg1": "b"***REMOVED***,
-		`***REMOVED***a:1***REMOVED***`:     log.Fields***REMOVED***"a": "1"***REMOVED***,
-		`***REMOVED***a:1,b:2***REMOVED***`: log.Fields***REMOVED***"a": "1", "b": "2"***REMOVED***,
-		`"a",***REMOVED***a:1***REMOVED***`: log.Fields***REMOVED***"arg0": "a", "a": "1"***REMOVED***,
-		`***REMOVED***a:1***REMOVED***,"a"`: log.Fields***REMOVED***"a": "1", "arg1": "a"***REMOVED***,
+		`"a"`:       ***REMOVED***"arg0": "a"***REMOVED***,
+		`"a","b"`:   ***REMOVED***"arg0": "a", "arg1": "b"***REMOVED***,
+		`***REMOVED***a:1***REMOVED***`:     ***REMOVED***"a": "1"***REMOVED***,
+		`***REMOVED***a:1,b:2***REMOVED***`: ***REMOVED***"a": "1", "b": "2"***REMOVED***,
+		`"a",***REMOVED***a:1***REMOVED***`: ***REMOVED***"arg0": "a", "a": "1"***REMOVED***,
+		`***REMOVED***a:1***REMOVED***,"a"`: ***REMOVED***"a": "1", "arg1": "a"***REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
