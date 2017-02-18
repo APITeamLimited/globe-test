@@ -152,6 +152,25 @@ export function trace(url, body, params) ***REMOVED***
 	return request("TRACE", url, body, params);
 ***REMOVED***;
 
+/**
+ * Batches multiple requests together.
+ * @see    module:k6/http.request
+ * @param  ***REMOVED***Array***REMOVED*** requests	An array of requests, in string or object form.
+ * @return ***REMOVED***Array.<module:k6/http.Response>***REMOVED***
+ */
+export function batch(requests) ***REMOVED***
+	if (!Array.isArray(requests)) ***REMOVED***
+		throw new TypeError('first argument must be an array')
+	***REMOVED***
+
+	let reqObjects = requests.map(e => ***REMOVED***
+		let res = typeof e === 'string' ? ***REMOVED***"method": "GET", "url": e, "body": null, "params": ***REMOVED******REMOVED******REMOVED*** : e
+		res.params = JSON.stringify(res.params)
+		return res
+	***REMOVED***);
+	return __jsapi__.BatchHTTPRequest(reqObjects);
+***REMOVED***;
+
 export default ***REMOVED***
 	Response: Response,
 	request: request,
@@ -160,4 +179,5 @@ export default ***REMOVED***
 	put: put,
 	del: del,
 	patch: patch,
+	batch: batch,
 ***REMOVED***;

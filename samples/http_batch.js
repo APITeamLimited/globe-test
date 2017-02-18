@@ -1,0 +1,17 @@
+import ***REMOVED*** check ***REMOVED*** from 'k6'
+import http from 'k6/http'
+
+export default function() ***REMOVED***
+  const responses = http.batch([
+    "http://test.loadimpact.com",
+    "http://test.loadimpact.com/pi.php",
+  ]);
+
+  check(responses[0], ***REMOVED***
+    "main page 200": res => res.status === 200,
+  ***REMOVED***)
+
+  check(responses[1], ***REMOVED***
+    "pi page 200": res => res.status === 200,
+  ***REMOVED***)
+***REMOVED***;
