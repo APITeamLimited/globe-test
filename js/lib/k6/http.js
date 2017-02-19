@@ -30,6 +30,24 @@ export class Response ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+function parseBody(body) ***REMOVED***
+	if (body) ***REMOVED***
+		if (typeof body === "object") ***REMOVED***
+			let formstring = "";
+			for (let key in body) ***REMOVED***
+				if (formstring !== "") ***REMOVED***
+					formstring += "&";
+				***REMOVED***
+				formstring += key + "=" + encodeURIComponent(body[key]);
+			***REMOVED***
+			return formstring;
+		***REMOVED***
+		return body;
+	***REMOVED*** else ***REMOVED***
+		return '';
+	***REMOVED***
+***REMOVED***
+
 /**
  * Makes an HTTP request.
  * @param  ***REMOVED***string***REMOVED*** method      HTTP Method (eg. "GET")
@@ -40,20 +58,7 @@ export class Response ***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
-	if (body) ***REMOVED***
-		if (typeof body === "object") ***REMOVED***
-			let formstring = "";
-			for (let key in body) ***REMOVED***
-				if (formstring !== "") ***REMOVED***
-					formstring += "&";
-				***REMOVED***
-				formstring += key + "=" + encodeURIComponent(body[key]);
-			***REMOVED***
-			body = formstring;
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		body = ''
-	***REMOVED***
+	body = parseBody(body);
 	return new Response(__jsapi__.HTTPRequest(method, url, body, JSON.stringify(params)));
 ***REMOVED***;
 
@@ -164,7 +169,19 @@ export function batch(requests) ***REMOVED***
 	***REMOVED***
 
 	let reqObjects = requests.map(e => ***REMOVED***
-		let res = typeof e === 'string' ? ***REMOVED***"method": "GET", "url": e, "body": null, "params": ***REMOVED******REMOVED******REMOVED*** : e
+		let res;
+		if (typeof e === 'string') ***REMOVED***
+			res = ***REMOVED***
+				"method": "GET",
+				"url": e,
+				"body": null,
+				"params": ***REMOVED******REMOVED***
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			res = e;
+			res.params = !res.params ? ***REMOVED******REMOVED*** : res.params
+			res.body = parseBody(res.body);
+		***REMOVED***
 		res.params = JSON.stringify(res.params)
 		return res
 	***REMOVED***);
