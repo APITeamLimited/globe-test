@@ -21,26 +21,24 @@
 package js
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/GeertJohan/go.rice"
 	log "github.com/Sirupsen/logrus"
+	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
 const wrapper = "(function() ***REMOVED*** var e = ***REMOVED******REMOVED***; (function(exports) ***REMOVED***%s\n***REMOVED***)(e); return e; ***REMOVED***)();"
 
 var (
-	libBox      = rice.MustFindBox("lib")
-	polyfillBox = rice.MustFindBox("node_modules/babel-polyfill")
+	libBox     = rice.MustFindBox("lib")
+	polyfillJS = libBox.MustString("core-js/client/core.min.js")
 )
 
 type Runtime struct ***REMOVED***
@@ -60,11 +58,7 @@ func New() (*Runtime, error) ***REMOVED***
 		lib:     make(map[string]otto.Value),
 	***REMOVED***
 
-	polyfillJS, err := polyfillBox.String("dist/polyfill.js")
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	polyfill, err := rt.VM.Compile("polyfill.js", polyfillJS)
+	polyfill, err := rt.VM.Compile("core.min.js", polyfillJS)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -198,40 +192,13 @@ func (r *Runtime) loadLib(filename string) (otto.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) load(filename string, data []byte) (otto.Value, error) ***REMOVED***
-	nodeNames := []string***REMOVED***"node", "nodejs", "node.exe"***REMOVED***
-	var nodePath string
-	for _, name := range nodeNames ***REMOVED***
-		path, err := exec.LookPath(name)
-		if err != nil ***REMOVED***
-			if e, ok := err.(*exec.Error); ok && e.Err != exec.ErrNotFound ***REMOVED***
-				return otto.UndefinedValue(), err
-			***REMOVED***
-			continue
-		***REMOVED***
-		nodePath = path
-		break
-	***REMOVED***
-	if nodePath == "" ***REMOVED***
-		return otto.UndefinedValue(), errors.New(
-			"Couldn't find node, make sure it's in your PATH. " +
-				"This is a TEMPORARY dependency and will be removed. " +
-				"See: https://github.com/loadimpact/k6/issues/14",
-		)
-	***REMOVED***
-
-	// Compile the file with Babel; this subprocess invocation is TEMPORARY:
-	// https://github.com/robertkrimen/otto/pull/205
-	cmd := exec.Command(nodePath, babel, "--presets", "latest", "--no-babelrc")
-	cmd.Dir = babelDir
-	cmd.Stdin = bytes.NewReader(data)
-	cmd.Stderr = os.Stderr
-	src, err := cmd.Output()
+	src, _, err := compiler.Transform(string(data), filename)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
 
 	// Use a wrapper function to turn the script into an exported module
-	s, err := r.VM.Compile(filename, fmt.Sprintf(wrapper, string(src)))
+	s, err := r.VM.Compile(filename, fmt.Sprintf(wrapper, src))
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
