@@ -233,11 +233,13 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 		// Process any leftover samples.
 		e.processSamples(e.collect()...)
-		collectorcancel()
-		<-collectorch
 
 		// Emit final metrics.
 		e.emitMetrics()
+
+		// Shut down collector
+		collectorcancel()
+		<-collectorch
 	***REMOVED***()
 
 	// Set tracking to defaults.
