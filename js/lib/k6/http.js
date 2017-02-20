@@ -160,8 +160,8 @@ export function trace(url, body, params) ***REMOVED***
 /**
  * Batches multiple requests together.
  * @see    module:k6/http.request
- * @param  ***REMOVED***Array***REMOVED*** requests	An array of requests, in string or object form.
- * @return ***REMOVED***Array.<module:k6/http.Response>***REMOVED***
+ * @param  ***REMOVED***Array|Object***REMOVED*** requests	An array or object of requests, in string or object form.
+ * @return ***REMOVED***Array.<module:k6/http.Response>|Object***REMOVED***
  */
 export function batch(requests) ***REMOVED***
 	let reqObjects = requests.map(e => ***REMOVED***
