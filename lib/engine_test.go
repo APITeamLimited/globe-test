@@ -427,6 +427,7 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
+
 	t.Run("not set", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
@@ -479,6 +480,14 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineSetVUs(t *testing.T) ***REMOVED***
+	assertVUIDSequence := func(t *testing.T, e *Engine, ids []int64) ***REMOVED***
+		actualIDs := make([]int64, len(ids))
+		for i := range ids ***REMOVED***
+			actualIDs[i] = e.vuEntries[i].VU.(*RunnerFuncVU).ID
+		***REMOVED***
+		assert.Equal(t, ids, actualIDs)
+	***REMOVED***
+
 	t.Run("not set", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
@@ -486,34 +495,39 @@ func TestEngineSetVUs(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(0), e.GetVUs())
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
-		e, err, _ := newTestEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
+		e, err, _ := newTestEngine(RunnerFunc(nil), Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUs(10))
 		assert.Equal(t, int64(10), e.GetVUs())
 		assertActiveVUs(t, e, 10, 5)
+		assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 
 		t.Run("negative", func(t *testing.T) ***REMOVED***
 			assert.EqualError(t, e.SetVUs(-1), "vus can't be negative")
 			assert.Equal(t, int64(10), e.GetVUs())
 			assertActiveVUs(t, e, 10, 5)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 		***REMOVED***)
 
 		t.Run("too high", func(t *testing.T) ***REMOVED***
 			assert.EqualError(t, e.SetVUs(20), "more vus than allocated requested")
 			assert.Equal(t, int64(10), e.GetVUs())
 			assertActiveVUs(t, e, 10, 5)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 		***REMOVED***)
 
 		t.Run("lower", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(5))
 			assert.Equal(t, int64(5), e.GetVUs())
 			assertActiveVUs(t, e, 5, 10)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5***REMOVED***)
 		***REMOVED***)
 
 		t.Run("higher", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(15))
 			assert.Equal(t, int64(15), e.GetVUs())
 			assertActiveVUs(t, e, 15, 0)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -531,7 +545,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, nil
-			***REMOVED***),
+			***REMOVED***).VU(),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
 		assert.Equal(t, int64(0), e.numErrors)
@@ -544,7 +558,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, errors.New("this is an error")
-			***REMOVED***),
+			***REMOVED***).VU(),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
 		assert.Equal(t, int64(1), e.numErrors)
@@ -557,7 +571,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, testErrorWithString("this is an error")
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(1), e.numIterations)
 			assert.Equal(t, int64(1), e.numErrors)
@@ -578,7 +592,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, nil
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
 			assert.Equal(t, int64(0), e.numErrors)
@@ -590,7 +604,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, errors.New("this is an error")
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
 			assert.Equal(t, int64(0), e.numErrors)
@@ -603,7 +617,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 				e.runVUOnce(ctx, &vuEntry***REMOVED***
 					VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 						return nil, testErrorWithString("this is an error")
-					***REMOVED***),
+					***REMOVED***).VU(),
 				***REMOVED***)
 				assert.Equal(t, int64(0), e.numIterations)
 				assert.Equal(t, int64(0), e.numErrors)
