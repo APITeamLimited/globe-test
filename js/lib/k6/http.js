@@ -171,7 +171,7 @@ export function batch(requests) ***REMOVED***
 				"method": "GET",
 				"url": e,
 				"body": null,
-				"params": ***REMOVED******REMOVED***
+				"params": ***REMOVED******REMOVED***,
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			res = e;
@@ -187,12 +187,12 @@ export function batch(requests) ***REMOVED***
 ***REMOVED***;
 
 export default ***REMOVED***
-	Response: Response,
-	request: request,
-	get: get,
-	post: post,
-	put: put,
-	del: del,
-	patch: patch,
-	batch: batch,
+	Response,
+	request,
+	get,
+	post,
+	put,
+	del,
+	patch,
+	batch,
 ***REMOVED***;
