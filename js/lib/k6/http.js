@@ -164,26 +164,45 @@ export function trace(url, body, params) ***REMOVED***
  * @return ***REMOVED***Array.<module:k6/http.Response>|Object***REMOVED***
  */
 export function batch(requests) ***REMOVED***
-	let reqObjects = requests.map(e => ***REMOVED***
-		let res;
-		if (typeof e === 'string') ***REMOVED***
-			res = ***REMOVED***
-				"method": "GET",
-				"url": e,
-				"body": null,
-				"params": ***REMOVED******REMOVED***,
+	let result
+	if (requests.length > 0) ***REMOVED***
+		result = requests.map(e => ***REMOVED***
+			if (typeof e === 'string') ***REMOVED***
+				return ***REMOVED***
+					"method": "GET",
+					"url": e,
+					"body": null,
+					"params": JSON.stringify(***REMOVED******REMOVED***)
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				e.params = !e.params ? ***REMOVED******REMOVED*** : e.params
+				e.body = parseBody(e.body)
+				e.params = JSON.stringify(e.params)
+				return e
 			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			res = e;
-			res.params = !res.params ? ***REMOVED******REMOVED*** : res.params;
-			res.body = parseBody(res.body);
-		***REMOVED***
-		res.params = JSON.stringify(res.params);
-		return res;
-	***REMOVED***);
+		***REMOVED***)
+	***REMOVED*** else ***REMOVED***
+		result = ***REMOVED******REMOVED***
+		Object.keys(requests).map(e => ***REMOVED***
+			let val = requests[e]
+			if (typeof val === 'string') ***REMOVED***
+				result[e] = ***REMOVED***
+					"method": "GET",
+					"url": val,
+					"body": null,
+					"params": JSON.stringify(***REMOVED******REMOVED***)
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				val.params = !val.params ? ***REMOVED******REMOVED*** : val.params
+				val.body = parseBody(val.body)
+				val.params = JSON.stringify(val.params)
+				result[e] = val
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 	
-	let response = __jsapi__.BatchHTTPRequest(reqObjects);
-	return response.map(e => new Response(e));
+	let response = __jsapi__.BatchHTTPRequest(result);
+	return response
 ***REMOVED***;
 
 export default ***REMOVED***
