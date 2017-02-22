@@ -30,6 +30,24 @@ export class Response ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+function parseBody(body) ***REMOVED***
+	if (body) ***REMOVED***
+		if (typeof body === "object") ***REMOVED***
+			let formstring = "";
+			for (let key in body) ***REMOVED***
+				if (formstring !== "") ***REMOVED***
+					formstring += "&";
+				***REMOVED***
+				formstring += key + "=" + encodeURIComponent(body[key]);
+			***REMOVED***
+			return formstring;
+		***REMOVED***
+		return body;
+	***REMOVED*** else ***REMOVED***
+		return '';
+	***REMOVED***
+***REMOVED***
+
 /**
  * Makes an HTTP request.
  * @param  ***REMOVED***string***REMOVED*** method      HTTP Method (eg. "GET")
@@ -40,20 +58,7 @@ export class Response ***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
-	if (body) ***REMOVED***
-		if (typeof body === "object") ***REMOVED***
-			let formstring = "";
-			for (let key in body) ***REMOVED***
-				if (formstring !== "") ***REMOVED***
-					formstring += "&";
-				***REMOVED***
-				formstring += key + "=" + encodeURIComponent(body[key]);
-			***REMOVED***
-			body = formstring;
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		body = ''
-	***REMOVED***
+	body = parseBody(body);
 	return new Response(__jsapi__.HTTPRequest(method, url, body, JSON.stringify(params)));
 ***REMOVED***;
 
@@ -152,12 +157,61 @@ export function trace(url, body, params) ***REMOVED***
 	return request("TRACE", url, body, params);
 ***REMOVED***;
 
+/**
+ * Batches multiple requests together.
+ * @see    module:k6/http.request
+ * @param  ***REMOVED***Array|Object***REMOVED*** requests	An array or object of requests, in string or object form.
+ * @return ***REMOVED***Array.<module:k6/http.Response>|Object***REMOVED***
+ */
+export function batch(requests) ***REMOVED***
+	function stringToObject(str) ***REMOVED***
+		return ***REMOVED***
+			"method": "GET",
+			"url": str,
+			"body": null,
+			"params": JSON.stringify(***REMOVED******REMOVED***)
+		***REMOVED***
+	***REMOVED***
+
+	function formatObject(obj) ***REMOVED***
+		obj.params = !obj.params ? ***REMOVED******REMOVED*** :obj.params
+		obj.body = parseBody(obj.body)
+		obj.params = JSON.stringify(obj.params)
+		return obj
+	***REMOVED***
+
+	let result
+	if (requests.length > 0) ***REMOVED***
+		result = requests.map(e => ***REMOVED***
+			if (typeof e === 'string') ***REMOVED***
+				return stringToObject(e)
+			***REMOVED*** else ***REMOVED***
+				return formatObject(e)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED*** else ***REMOVED***
+		result = ***REMOVED******REMOVED***
+		Object.keys(requests).map(e => ***REMOVED***
+			let val = requests[e]
+			if (typeof val === 'string') ***REMOVED***
+				result[e] = stringToObject(val)
+			***REMOVED*** else ***REMOVED***
+				result[e] = formatObject(val)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+	
+	let response = __jsapi__.BatchHTTPRequest(result);
+	return response
+***REMOVED***;
+
 export default ***REMOVED***
-	Response: Response,
-	request: request,
-	get: get,
-	post: post,
-	put: put,
-	del: del,
-	patch: patch,
+	Response,
+	request,
+	get,
+	post,
+	put,
+	del,
+	patch,
+	batch,
 ***REMOVED***;
