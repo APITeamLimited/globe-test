@@ -164,21 +164,29 @@ export function trace(url, body, params) ***REMOVED***
  * @return ***REMOVED***Array.<module:k6/http.Response>|Object***REMOVED***
  */
 export function batch(requests) ***REMOVED***
+	function stringToObject(str) ***REMOVED***
+		return ***REMOVED***
+			"method": "GET",
+			"url": str,
+			"body": null,
+			"params": JSON.stringify(***REMOVED******REMOVED***)
+		***REMOVED***
+	***REMOVED***
+
+	function formatObject(obj) ***REMOVED***
+		obj.params = !obj.params ? ***REMOVED******REMOVED*** :obj.params
+		obj.body = parseBody(obj.body)
+		obj.params = JSON.stringify(obj.params)
+		return obj
+	***REMOVED***
+
 	let result
 	if (requests.length > 0) ***REMOVED***
 		result = requests.map(e => ***REMOVED***
 			if (typeof e === 'string') ***REMOVED***
-				return ***REMOVED***
-					"method": "GET",
-					"url": e,
-					"body": null,
-					"params": JSON.stringify(***REMOVED******REMOVED***)
-				***REMOVED***
+				return stringToObject(e)
 			***REMOVED*** else ***REMOVED***
-				e.params = !e.params ? ***REMOVED******REMOVED*** : e.params
-				e.body = parseBody(e.body)
-				e.params = JSON.stringify(e.params)
-				return e
+				return formatObject(e)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED*** else ***REMOVED***
@@ -186,17 +194,9 @@ export function batch(requests) ***REMOVED***
 		Object.keys(requests).map(e => ***REMOVED***
 			let val = requests[e]
 			if (typeof val === 'string') ***REMOVED***
-				result[e] = ***REMOVED***
-					"method": "GET",
-					"url": val,
-					"body": null,
-					"params": JSON.stringify(***REMOVED******REMOVED***)
-				***REMOVED***
+				result[e] = stringToObject(val)
 			***REMOVED*** else ***REMOVED***
-				val.params = !val.params ? ***REMOVED******REMOVED*** : val.params
-				val.body = parseBody(val.body)
-				val.params = JSON.stringify(val.params)
-				result[e] = val
+				result[e] = formatObject(val)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
