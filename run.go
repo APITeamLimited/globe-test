@@ -284,9 +284,6 @@ func makeCollector(s string, opts lib.Options) (lib.Collector, error) ***REMOVED
 ***REMOVED***
 
 func actionRun(cc *cli.Context) error ***REMOVED***
-	red := color.New(color.FgRed)
-	green := color.New(color.FgGreen)
-
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 
 	args := cc.Args()
@@ -532,17 +529,17 @@ loop:
 			***REMOVED***
 			for _, check := range g.Checks ***REMOVED***
 				icon := "✓"
-				statusColor := green
+				statusColor := color.GreenString
 				if check.Fails > 0 ***REMOVED***
 					icon = "✗"
-					statusColor = red
+					statusColor = color.RedString
 				***REMOVED***
-				statusColor.Printf("%s  %s %2.2f%% - %s\n",
+				fmt.Print(statusColor("%s  %s %2.2f%% - %s\n",
 					indent,
 					icon,
 					100*(float64(check.Passes)/float64(check.Passes+check.Fails)),
 					check.Name,
-				)
+				))
 			***REMOVED***
 			fmt.Printf("\n")
 		***REMOVED***
@@ -581,9 +578,9 @@ loop:
 		icon := " "
 		if m.Tainted.Valid ***REMOVED***
 			if !m.Tainted.Bool ***REMOVED***
-				icon = green.Sprint("✓")
+				icon = color.GreenString("✓")
 			***REMOVED*** else ***REMOVED***
-				icon = red.Sprint("✗")
+				icon = color.RedString("✗")
 			***REMOVED***
 		***REMOVED***
 
@@ -599,7 +596,7 @@ loop:
 				newParts[i] = fmt.Sprintf(
 					"%s%s",
 					color.New(color.Reset).Sprint(kv[0]+"="),
-					color.New(color.FgCyan).Sprint(kv[1]),
+					color.CyanString(kv[1]),
 				)
 			***REMOVED***
 		***REMOVED***
@@ -610,7 +607,7 @@ loop:
 			icon,
 			name,
 			color.New(color.Faint).Sprint(namePadding+":"),
-			color.New(color.FgCyan).Sprint(val),
+			color.CyanString(val),
 		)
 	***REMOVED***
 
