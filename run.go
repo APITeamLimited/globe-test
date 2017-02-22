@@ -434,22 +434,33 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
+	// Progress bar for TTYs.
 	progressBar := ui.ProgressBar***REMOVED***Width: 60***REMOVED***
-	fmt.Printf(" starting %s -- / --\r", progressBar.String())
+	if isTTY ***REMOVED***
+		fmt.Printf(" starting %s -- / --\r", progressBar.String())
+	***REMOVED***
 
 	// Wait for a signal or timeout before shutting down
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	ticker := time.NewTicker(10 * time.Millisecond)
+
+	// Print status at a set interval; less frequently on non-TTYs.
+	tickInterval := 10 * time.Millisecond
+	if !isTTY ***REMOVED***
+		tickInterval = 1 * time.Second
+	***REMOVED***
+	ticker := time.NewTicker(tickInterval)
 
 loop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			statusString := "running"
 			if !engine.IsRunning() ***REMOVED***
-				statusString = "stopping"
-			***REMOVED*** else if engine.IsPaused() ***REMOVED***
+				break loop
+			***REMOVED***
+
+			statusString := "running"
+			if engine.IsPaused() ***REMOVED***
 				statusString = "paused"
 			***REMOVED***
 
@@ -460,13 +471,21 @@ loop:
 				progress = float64(atTime) / float64(totalTime)
 			***REMOVED***
 
-			progressBar.Progress = progress
-			fmt.Printf("%10s %s %10s / %s\r",
-				statusString,
-				progressBar.String(),
-				roundDuration(atTime, 100*time.Millisecond),
-				roundDuration(totalTime, 100*time.Millisecond),
-			)
+			if isTTY ***REMOVED***
+				progressBar.Progress = progress
+				fmt.Printf("%10s %s %10s / %s\r",
+					statusString,
+					progressBar.String(),
+					roundDuration(atTime, 100*time.Millisecond),
+					roundDuration(totalTime, 100*time.Millisecond),
+				)
+			***REMOVED*** else ***REMOVED***
+				fmt.Printf("[%-10s] %s / %s\n",
+					statusString,
+					roundDuration(atTime, 100*time.Millisecond),
+					roundDuration(totalTime, 100*time.Millisecond),
+				)
+			***REMOVED***
 		case <-ctx.Done():
 			log.Debug("Engine terminated; shutting down...")
 			break loop
@@ -482,12 +501,20 @@ loop:
 
 	// Test done, leave that status as the final progress bar!
 	atTime := engine.AtTime()
-	progressBar.Progress = 1.0
-	fmt.Printf("      done %s %10s / %s\n",
-		progressBar.String(),
-		roundDuration(atTime, 100*time.Millisecond),
-		roundDuration(atTime, 100*time.Millisecond),
-	)
+	if isTTY ***REMOVED***
+		progressBar.Progress = 1.0
+		fmt.Printf("      done %s %10s / %s\n",
+			progressBar.String(),
+			roundDuration(atTime, 100*time.Millisecond),
+			roundDuration(atTime, 100*time.Millisecond),
+		)
+	***REMOVED*** else ***REMOVED***
+		fmt.Printf("[%-10s] %s / %s\n",
+			"done",
+			roundDuration(atTime, 100*time.Millisecond),
+			roundDuration(atTime, 100*time.Millisecond),
+		)
+	***REMOVED***
 	fmt.Printf("\n")
 
 	// Print groups.
