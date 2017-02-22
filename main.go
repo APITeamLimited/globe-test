@@ -22,6 +22,7 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 )
@@ -56,10 +57,18 @@ func main() ***REMOVED***
 			Value:  "127.0.0.1:6565",
 			EnvVar: "K6_ADDRESS",
 		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:   "no-color, n",
+			Usage:  "disable colored output",
+			EnvVar: "K6_NO_COLOR",
+		***REMOVED***,
 	***REMOVED***
 	app.Before = func(cc *cli.Context) error ***REMOVED***
 		if cc.Bool("verbose") ***REMOVED***
 			log.SetLevel(log.DebugLevel)
+		***REMOVED***
+		if cc.Bool("no-color") ***REMOVED***
+			color.NoColor = true
 		***REMOVED***
 
 		return nil
