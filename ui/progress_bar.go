@@ -22,7 +22,12 @@ package ui
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"strings"
+)
+
+var (
+	faint = color.New(color.Faint)
 )
 
 type ProgressBar struct ***REMOVED***
@@ -30,7 +35,7 @@ type ProgressBar struct ***REMOVED***
 	Progress float64
 ***REMOVED***
 
-func (b *ProgressBar) String() string ***REMOVED***
+func (b ProgressBar) String() string ***REMOVED***
 	space := b.Width - 2
 	filled := int(float64(space) * b.Progress)
 
@@ -46,8 +51,12 @@ func (b *ProgressBar) String() string ***REMOVED***
 	***REMOVED***
 
 	padding := ""
+	filler := "="
+	if color.NoColor ***REMOVED***
+		filler = " "
+	***REMOVED***
 	if space > filled ***REMOVED***
-		padding = strings.Repeat(" ", space-filled)
+		padding = faint.Sprint(strings.Repeat(filler, space-filled))
 	***REMOVED***
 
 	return fmt.Sprintf("[%s%s%s]", filling, caret, padding)
