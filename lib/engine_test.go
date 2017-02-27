@@ -427,7 +427,6 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
-
 	t.Run("not set", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
@@ -625,6 +624,46 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
+***REMOVED***
+
+func TestEngine_processStages(t *testing.T) ***REMOVED***
+	type checkpoint struct ***REMOVED***
+		D    time.Duration
+		Cont bool
+		VUs  int64
+	***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Stages      []Stage
+		Checkpoints []checkpoint
+	***REMOVED******REMOVED***
+		"none": ***REMOVED***
+			[]Stage***REMOVED******REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***10 * time.Second, true, 0***REMOVED***,
+				***REMOVED***24 * time.Hour, true, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
+				VUs:    null.IntFrom(0),
+				VUsMax: null.IntFrom(10),
+			***REMOVED***)
+			assert.NoError(t, err)
+
+			e.Stages = data.Stages
+			for _, ckp := range data.Checkpoints ***REMOVED***
+				t.Run((e.AtTime() + ckp.D).String(), func(t *testing.T) ***REMOVED***
+					cont, err := e.processStages(ckp.D)
+					assert.NoError(t, err)
+					assert.Equal(t, ckp.Cont, cont)
+					assert.Equal(t, ckp.VUs, e.GetVUs())
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestEngineCollector(t *testing.T) ***REMOVED***
