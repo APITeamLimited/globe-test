@@ -22,9 +22,12 @@ package main
 
 import (
 	"github.com/ghodss/yaml"
+	"github.com/loadimpact/k6/lib"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -56,4 +59,25 @@ func cliDuration(cc *cli.Context, name string) null.String ***REMOVED***
 
 func roundDuration(d, to time.Duration) time.Duration ***REMOVED***
 	return d - (d % to)
+***REMOVED***
+
+func ParseStage(s string) (lib.Stage, error) ***REMOVED***
+	parts := strings.SplitN(s, ":", 2)
+
+	var stage lib.Stage
+	if parts[0] != "" ***REMOVED***
+		d, err := time.ParseDuration(parts[0])
+		if err != nil ***REMOVED***
+			return stage, err
+		***REMOVED***
+		stage.Duration = d
+	***REMOVED***
+	if len(parts) > 1 && parts[1] != "" ***REMOVED***
+		vus, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil ***REMOVED***
+			return stage, err
+		***REMOVED***
+		stage.Target = null.IntFrom(vus)
+	***REMOVED***
+	return stage, nil
 ***REMOVED***

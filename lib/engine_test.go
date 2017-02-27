@@ -109,6 +109,38 @@ func TestNewEngine(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNewEngineOptions(t *testing.T) ***REMOVED***
+	t.Run("Duration", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Duration: null.StringFrom("10s"),
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Stages: []Stage***REMOVED***
+				Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("Stages/Duration", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Duration: null.StringFrom("60s"),
+			Stages: []Stage***REMOVED***
+				Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[1], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
 		t.Run("not set", func(t *testing.T) ***REMOVED***
 			e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)

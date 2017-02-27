@@ -78,6 +78,10 @@ var commandRun = cli.Command***REMOVED***
 			Name:  "iterations, i",
 			Usage: "run a set number of iterations, multiplied by VU count",
 		***REMOVED***,
+		cli.StringSliceFlag***REMOVED***
+			Name:  "stage, s",
+			Usage: "define a test stage, in the format time[:vus] (10s:100)",
+		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "paused, p",
 			Usage: "start test in a paused state",
@@ -305,6 +309,14 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
 		NoUsageReport:         cliBool(cc, "no-usage-report"),
 	***REMOVED***
+	for _, s := range cc.StringSlice("stage") ***REMOVED***
+		stage, err := ParseStage(s)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Invalid stage specified")
+			return err
+		***REMOVED***
+		cliOpts.Stages = append(cliOpts.Stages, stage)
+	***REMOVED***
 	opts := cliOpts
 
 	// Make the Runner, extract script-defined options.
@@ -339,8 +351,8 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// CLI options override everything.
 	opts = opts.Apply(cliOpts)
 
-	// Default to 1 iteration if no duration is specified.
-	if !opts.Duration.Valid && !opts.Iterations.Valid ***REMOVED***
+	// Default to 1 iteration if duration and stages are unspecified.
+	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) != 0 ***REMOVED***
 		opts.Iterations = null.IntFrom(1)
 	***REMOVED***
 
@@ -350,6 +362,13 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make sure VUsMax defaults to VUs if not specified.
 	if opts.VUsMax.Int64 == 0 ***REMOVED***
 		opts.VUsMax.Int64 = opts.VUs.Int64
+		if len(opts.Stages) > 0 ***REMOVED***
+			for _, stage := range opts.Stages ***REMOVED***
+				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
+					opts.VUsMax = stage.Target
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
 	// Update the runner's options.
