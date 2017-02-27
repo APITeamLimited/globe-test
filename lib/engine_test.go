@@ -268,14 +268,42 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("exits with stages", func(t *testing.T) ***REMOVED***
-		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
-		assert.NoError(t, err)
+		testdata := map[string]struct ***REMOVED***
+			Duration time.Duration
+			Stages   []Stage
+		***REMOVED******REMOVED***
+			"none": ***REMOVED******REMOVED***,
+			"one": ***REMOVED***
+				1 * time.Second,
+				[]Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+			***REMOVED***,
+			"two": ***REMOVED***
+				2 * time.Second,
+				[]Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED***, Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+			***REMOVED***,
+			"two/targeted": ***REMOVED***
+				2 * time.Second,
+				[]Stage***REMOVED***
+					Stage***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(5)***REMOVED***,
+					Stage***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***
+		for name, data := range testdata ***REMOVED***
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
+				assert.NoError(t, err)
 
-		d := 50 * time.Millisecond
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
-		startTime := time.Now()
-		assert.NoError(t, e.Run(context.Background()))
-		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 100*TickRate)
+				e.Stages = data.Stages
+				startTime := time.Now()
+				assert.NoError(t, e.Run(context.Background()))
+				assert.WithinDuration(t,
+					startTime.Add(data.Duration),
+					startTime.Add(e.AtTime()),
+					100*TickRate,
+				)
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		testMetric := stats.New("test_metric", stats.Trend)
