@@ -352,7 +352,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	opts = opts.Apply(cliOpts)
 
 	// Default to 1 iteration if duration and stages are unspecified.
-	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) != 0 ***REMOVED***
+	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
 		opts.Iterations = null.IntFrom(1)
 	***REMOVED***
 
