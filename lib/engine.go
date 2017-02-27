@@ -151,6 +151,8 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 			return nil, errors.Wrap(err, "options.duration")
 		***REMOVED***
 		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
+	***REMOVED*** else ***REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED***Duration: 0***REMOVED******REMOVED***
 	***REMOVED***
 	if o.VUsMax.Valid ***REMOVED***
 		if err := e.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
