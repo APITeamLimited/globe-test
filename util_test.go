@@ -30,12 +30,12 @@ import (
 
 func TestParseStage(t *testing.T) ***REMOVED***
 	testdata := map[string]lib.Stage***REMOVED***
-		"":        lib.Stage***REMOVED******REMOVED***,
-		":":       lib.Stage***REMOVED******REMOVED***,
-		"10s":     lib.Stage***REMOVED***Duration: 10 * time.Second***REMOVED***,
-		"10s:":    lib.Stage***REMOVED***Duration: 10 * time.Second***REMOVED***,
-		"10s:100": lib.Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
-		":100":    lib.Stage***REMOVED***Target: null.IntFrom(100)***REMOVED***,
+		"":        ***REMOVED******REMOVED***,
+		":":       ***REMOVED******REMOVED***,
+		"10s":     ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:":    ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:100": ***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+		":100":    ***REMOVED***Target: null.IntFrom(100)***REMOVED***,
 	***REMOVED***
 	for s, st := range testdata ***REMOVED***
 		t.Run(s, func(t *testing.T) ***REMOVED***

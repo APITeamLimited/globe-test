@@ -30,11 +30,11 @@ import (
 
 func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
 	values := map[NullMetricType]string***REMOVED***
-		NullMetricType***REMOVED******REMOVED***:                    `null`,
-		NullMetricType***REMOVED***stats.Counter, true***REMOVED***: `"counter"`,
-		NullMetricType***REMOVED***stats.Gauge, true***REMOVED***:   `"gauge"`,
-		NullMetricType***REMOVED***stats.Trend, true***REMOVED***:   `"trend"`,
-		NullMetricType***REMOVED***stats.Rate, true***REMOVED***:    `"rate"`,
+		***REMOVED******REMOVED***: `null`,
+		***REMOVED***stats.Counter, true***REMOVED***: `"counter"`,
+		***REMOVED***stats.Gauge, true***REMOVED***:   `"gauge"`,
+		***REMOVED***stats.Trend, true***REMOVED***:   `"trend"`,
+		***REMOVED***stats.Rate, true***REMOVED***:    `"rate"`,
 	***REMOVED***
 	t.Run("Marshal", func(t *testing.T) ***REMOVED***
 		for mt, val := range values ***REMOVED***
@@ -58,9 +58,9 @@ func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
 
 func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
 	values := map[NullValueType]string***REMOVED***
-		NullValueType***REMOVED******REMOVED***:                    `null`,
-		NullValueType***REMOVED***stats.Default, true***REMOVED***: `"default"`,
-		NullValueType***REMOVED***stats.Time, true***REMOVED***:    `"time"`,
+		***REMOVED******REMOVED***: `null`,
+		***REMOVED***stats.Default, true***REMOVED***: `"default"`,
+		***REMOVED***stats.Time, true***REMOVED***:    `"time"`,
 	***REMOVED***
 	t.Run("Marshal", func(t *testing.T) ***REMOVED***
 		for mt, val := range values ***REMOVED***

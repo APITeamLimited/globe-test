@@ -37,7 +37,7 @@ func TestGetMetrics(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	engine.Metrics = map[*stats.Metric]stats.Sink***REMOVED***
-		&stats.Metric***REMOVED***
+		***REMOVED***
 			Name:     "my_metric",
 			Type:     stats.Trend,
 			Contains: stats.Time,
@@ -80,7 +80,7 @@ func TestGetMetric(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	engine.Metrics = map[*stats.Metric]stats.Sink***REMOVED***
-		&stats.Metric***REMOVED***
+		***REMOVED***
 			Name:     "my_metric",
 			Type:     stats.Trend,
 			Contains: stats.Time,

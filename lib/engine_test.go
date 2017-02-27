@@ -121,7 +121,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
 			Stages: []Stage***REMOVED***
-				Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
@@ -133,7 +133,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
 			Duration: null.StringFrom("60s"),
 			Stages: []Stage***REMOVED***
-				Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
@@ -275,17 +275,17 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			"none": ***REMOVED******REMOVED***,
 			"one": ***REMOVED***
 				1 * time.Second,
-				[]Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
 			***REMOVED***,
 			"two": ***REMOVED***
 				2 * time.Second,
-				[]Stage***REMOVED***Stage***REMOVED***Duration: 1 * time.Second***REMOVED***, Stage***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED***, ***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
 			***REMOVED***,
 			"two/targeted": ***REMOVED***
 				2 * time.Second,
 				[]Stage***REMOVED***
-					Stage***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(5)***REMOVED***,
-					Stage***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(5)***REMOVED***,
+					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(10)***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***
