@@ -475,16 +475,19 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 	e.atTime += dT
 
 	if len(e.Stages) == 0 ***REMOVED***
+		e.Logger.Debug("processStages: no stages")
 		return false, nil
 	***REMOVED***
 
 	stage := e.Stages[e.atStage]
 	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
+		e.Logger.Debug("processStages: stage expired")
 		stageIdx := -1
 		stageStart := 0 * time.Second
 		stageStartVUs := e.vus
 		for i, s := range e.Stages ***REMOVED***
 			if stageStart+s.Duration > e.atTime || s.Duration == 0 ***REMOVED***
+				e.Logger.WithField("idx", i).Debug("processStages: proceeding to next stage...")
 				stage = s
 				stageIdx = i
 				break
@@ -493,13 +496,17 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 			stageStartVUs = s.Target.Int64
 		***REMOVED***
 		if stageIdx == -1 ***REMOVED***
+			e.Logger.Debug("processStages: end of test exceeded")
 			return false, nil
 		***REMOVED***
 
 		e.atStage = stageIdx
 		e.atStageSince = stageStart
 
-		e.setVUsNoLock(stageStartVUs)
+		e.Logger.WithField("vus", stageStartVUs).Debug("processStages: normalizing VU count...")
+		if err := e.setVUsNoLock(stageStartVUs); err != nil ***REMOVED***
+			return false, errors.Wrapf(err, "stage #%d (normalization)", e.atStage)
+		***REMOVED***
 		e.atStageStartVUs = stageStartVUs
 	***REMOVED***
 	if stage.Target.Valid ***REMOVED***
@@ -509,8 +516,12 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 		if stage.Duration > 0 ***REMOVED***
 			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration), 0.0, 1.0)
 		***REMOVED***
-		if err := e.setVUsNoLock(Lerp(from, to, t)); err != nil ***REMOVED***
-			return false, errors.Wrapf(err, "stage #%d", e.atStage+1)
+		vus := Lerp(from, to, t)
+		if e.vus != vus ***REMOVED***
+			e.Logger.WithFields(log.Fields***REMOVED***"from": e.vus, "to": vus***REMOVED***).Debug("processStages: interpolating...")
+			if err := e.setVUsNoLock(vus); err != nil ***REMOVED***
+				return false, errors.Wrapf(err, "stage #%d", e.atStage+1)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
