@@ -97,7 +97,7 @@ type Engine struct ***REMOVED***
 	Stages      []Stage
 	Thresholds  map[string]Thresholds
 	Metrics     map[*stats.Metric]stats.Sink
-	MetricsLock sync.Mutex
+	MetricsLock sync.RWMutex
 
 	// Submetrics, mapped from parent metric names.
 	submetrics map[string][]*submetric
@@ -124,7 +124,7 @@ type Engine struct ***REMOVED***
 	thresholdsTainted bool
 
 	// Subsystem-related.
-	lock      sync.Mutex
+	lock      sync.RWMutex
 	subctx    context.Context
 	subcancel context.CancelFunc
 	subwg     sync.WaitGroup
@@ -227,7 +227,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 	close(e.vuStop)
 	defer func() ***REMOVED***
+		e.lock.Lock()
 		e.vuStop = make(chan interface***REMOVED******REMOVED***)
+		e.lock.Unlock()
 		e.SetPaused(false)
 
 		// Shut down subsystems, wait for graceful termination.
@@ -252,9 +254,10 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.atStageSince = 0
 	e.atStageStartVUs = e.vus
 	e.nextVUID = 0
-	e.numIterations = 0
 	e.numErrors = 0
 	e.lock.Unlock()
+
+	atomic.StoreInt64(&e.numIterations, 0)
 
 	var lastTick time.Time
 	ticker := time.NewTicker(TickRate)
@@ -262,7 +265,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	maxIterations := e.Options.Iterations.Int64
 	for ***REMOVED***
 		// Don't do anything while the engine is paused.
+		e.lock.RLock()
 		vuPause := e.vuPause
+		e.lock.RUnlock()
 		if vuPause != nil ***REMOVED***
 			select ***REMOVED***
 			case <-vuPause:
@@ -273,7 +278,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		***REMOVED***
 
 		// If we have an iteration cap, exit once we hit it.
-		if maxIterations > 0 && e.numIterations == e.vusMax*maxIterations ***REMOVED***
+		numIterations := atomic.LoadInt64(&e.numIterations)
+		if maxIterations > 0 && numIterations >= atomic.LoadInt64(&e.vusMax)*maxIterations ***REMOVED***
 			e.Logger.WithFields(log.Fields***REMOVED***
 				"total": e.numIterations,
 				"cap":   e.vusMax * maxIterations,
@@ -309,8 +315,12 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsRunning() bool ***REMOVED***
+	e.lock.RLock()
+	vuStop := e.vuStop
+	e.lock.RUnlock()
+
 	select ***REMOVED***
-	case <-e.vuStop:
+	case <-vuStop:
 		return true
 	default:
 		return false
@@ -330,8 +340,8 @@ func (e *Engine) SetPaused(v bool) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) IsPaused() bool ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	return e.vuPause != nil
 ***REMOVED***
@@ -390,8 +400,8 @@ func (e *Engine) setVUsNoLock(v int64) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) GetVUs() int64 ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	return e.vus
 ***REMOVED***
@@ -431,29 +441,29 @@ func (e *Engine) SetVUsMax(v int64) error ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) GetVUsMax() int64 ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	return e.vusMax
 ***REMOVED***
 
 func (e *Engine) IsTainted() bool ***REMOVED***
-	e.MetricsLock.Lock()
-	defer e.MetricsLock.Unlock()
+	e.MetricsLock.RLock()
+	defer e.MetricsLock.RUnlock()
 
 	return e.thresholdsTainted
 ***REMOVED***
 
 func (e *Engine) AtTime() time.Duration ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	return e.atTime
 ***REMOVED***
 
 func (e *Engine) TotalTime() time.Duration ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	var total time.Duration
 	for _, stage := range e.Stages ***REMOVED***
@@ -562,7 +572,9 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 		***REMOVED***
 
 		// If the engine is paused, sleep until it resumes.
+		e.lock.RLock()
 		vuPause := e.vuPause
+		e.lock.RUnlock()
 		if vuPause != nil ***REMOVED***
 			<-vuPause
 		***REMOVED***
@@ -643,8 +655,8 @@ func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) emitMetrics() ***REMOVED***
-	e.lock.Lock()
-	defer e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	t := time.Now()
 	e.processSamples(
@@ -718,12 +730,11 @@ func (e *Engine) runCollection(ctx context.Context) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) collect() []stats.Sample ***REMOVED***
-	e.lock.Lock()
-	entries := e.vuEntries
-	e.lock.Unlock()
+	e.lock.RLock()
+	defer e.lock.RUnlock()
 
 	samples := []stats.Sample***REMOVED******REMOVED***
-	for _, vu := range entries ***REMOVED***
+	for _, vu := range e.vuEntries ***REMOVED***
 		vu.lock.Lock()
 		if len(vu.Samples) > 0 ***REMOVED***
 			samples = append(samples, vu.Samples...)
