@@ -267,12 +267,17 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			select ***REMOVED***
 			case <-vuPause:
 			case <-ctx.Done():
+				e.Logger.Debug("run: context expired (paused); exiting...")
 				return nil
 			***REMOVED***
 		***REMOVED***
 
 		// If we have an iteration cap, exit once we hit it.
 		if maxIterations > 0 && e.numIterations == e.vusMax*maxIterations ***REMOVED***
+			e.Logger.WithFields(log.Fields***REMOVED***
+				"total": e.numIterations,
+				"cap":   e.vusMax * maxIterations,
+			***REMOVED***).Debug("run: hit iteration cap; exiting...")
 			return nil
 		***REMOVED***
 
@@ -290,12 +295,14 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			return err
 		***REMOVED***
 		if !keepRunning ***REMOVED***
+			e.Logger.Debug("run: processStages() returned false; exiting...")
 			return nil
 		***REMOVED***
 
 		select ***REMOVED***
 		case <-ticker.C:
 		case <-ctx.Done():
+			e.Logger.Debug("run: context expired; exiting...")
 			return nil
 		***REMOVED***
 	***REMOVED***
