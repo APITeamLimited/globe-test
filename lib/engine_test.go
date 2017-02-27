@@ -639,9 +639,69 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		"none": ***REMOVED***
 			[]Stage***REMOVED******REMOVED***,
 			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, false, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+				***REMOVED***24 * time.Hour, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"one": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
-				***REMOVED***10 * time.Second, true, 0***REMOVED***,
-				***REMOVED***24 * time.Hour, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"one/targeted": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 30***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 50***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 70***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 90***REMOVED***,
+				***REMOVED***1 * time.Second, true, 100***REMOVED***,
+				***REMOVED***1 * time.Second, false, 100***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two/targeted": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(0)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 100***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, false, 0***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
@@ -649,7 +709,7 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			e, err, _ := newTestEngine(nil, Options***REMOVED***
 				VUs:    null.IntFrom(0),
-				VUsMax: null.IntFrom(10),
+				VUsMax: null.IntFrom(100),
 			***REMOVED***)
 			assert.NoError(t, err)
 
@@ -658,7 +718,11 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 				t.Run((e.AtTime() + ckp.D).String(), func(t *testing.T) ***REMOVED***
 					cont, err := e.processStages(ckp.D)
 					assert.NoError(t, err)
-					assert.Equal(t, ckp.Cont, cont)
+					if ckp.Cont ***REMOVED***
+						assert.True(t, cont, "test stopped")
+					***REMOVED*** else ***REMOVED***
+						assert.False(t, cont, "test not stopped")
+					***REMOVED***
 					assert.Equal(t, ckp.VUs, e.GetVUs())
 				***REMOVED***)
 			***REMOVED***

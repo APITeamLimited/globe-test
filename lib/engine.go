@@ -481,8 +481,9 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 
 	stage := e.Stages[e.atStage]
 	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
-		stageStart := 0 * time.Second
 		stageIdx := -1
+		stageStart := 0 * time.Second
+		stageStartVUs := e.vus
 		for i, s := range e.Stages ***REMOVED***
 			if stageStart+s.Duration > e.atTime || s.Duration == 0 ***REMOVED***
 				stage = s
@@ -490,6 +491,7 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 				break
 			***REMOVED***
 			stageStart += s.Duration
+			stageStartVUs = s.Target.Int64
 		***REMOVED***
 		if stageIdx == -1 ***REMOVED***
 			return false, nil
@@ -497,14 +499,16 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 
 		e.atStage = stageIdx
 		e.atStageSince = stageStart
-		e.atStageStartVUs = e.vus
+
+		e.setVUsNoLock(stageStartVUs)
+		e.atStageStartVUs = stageStartVUs
 	***REMOVED***
 	if stage.Target.Valid ***REMOVED***
 		from := e.atStageStartVUs
 		to := stage.Target.Int64
 		t := 1.0
 		if stage.Duration > 0 ***REMOVED***
-			t = Clampf(float64(e.atTime)/float64(e.atStageSince+stage.Duration), 0.0, 1.0)
+			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration), 0.0, 1.0)
 		***REMOVED***
 		if err := e.setVUsNoLock(Lerp(from, to, t)); err != nil ***REMOVED***
 			return false, errors.Wrapf(err, "stage #%d", e.atStage+1)
