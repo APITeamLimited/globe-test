@@ -291,7 +291,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
+				e, err, _ := newTestEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(10)***REMOVED***)
 				assert.NoError(t, err)
 
 				e.Stages = data.Stages
