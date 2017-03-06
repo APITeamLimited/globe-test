@@ -56,6 +56,8 @@ const (
 	TypeJS   = "js"
 )
 
+var urlRegex = regexp.MustCompile(`(?i)^https?://`)
+
 var commandRun = cli.Command***REMOVED***
 	Name:      "run",
 	Usage:     "Starts running a load test",
@@ -156,89 +158,48 @@ var commandInspect = cli.Command***REMOVED***
 	Action: actionInspect,
 ***REMOVED***
 
-func looksLikeURL(str []byte) bool ***REMOVED***
-	s := strings.ToLower(strings.TrimSpace(string(str)))
-	match, _ := regexp.MatchString("^https?://", s)
-	return match
+func guessType(data []byte) string ***REMOVED***
+	if urlRegex.Match(data) ***REMOVED***
+		return TypeURL
+	***REMOVED***
+	return TypeJS
 ***REMOVED***
 
-func getSrcData(arg, t string) (*lib.SourceData, string, error) ***REMOVED***
-	srcdata := []byte("")
-	runnerType := t
-	filename := arg
-	const cmdline = "[cmdline]"
-	// special case name "-" will always cause src data to be read from file STDIN
-	if arg == "-" ***REMOVED***
-		s, err := ioutil.ReadAll(os.Stdin)
+func getSrcData(filename string) (*lib.SourceData, error) ***REMOVED***
+	reader := os.Stdin
+	if filename != "-" ***REMOVED***
+		f, err := os.Open(filename)
 		if err != nil ***REMOVED***
-			return nil, "", err
+			// If the file doesn't exist, but it looks like a URL, try using it as one.
+			if os.IsNotExist(err) && urlRegex.MatchString(filename) ***REMOVED***
+				return &lib.SourceData***REMOVED***
+					Data:     []byte(filename),
+					Filename: filename,
+				***REMOVED***, nil
+			***REMOVED***
+
+			return nil, err
 		***REMOVED***
-		srcdata = s
-	***REMOVED*** else ***REMOVED***
-		// Deduce how to get src data
-		switch t ***REMOVED***
-		case TypeAuto:
-			if looksLikeURL([]byte(arg)) ***REMOVED*** // always try to parse as URL string first
-				srcdata = []byte(arg)
-				runnerType = TypeURL
-				filename = cmdline
-			***REMOVED*** else ***REMOVED***
-				// Otherwise, check if it is a file name and we can load the file
-				s, err := ioutil.ReadFile(arg)
-				srcdata = s
-				if err != nil ***REMOVED*** // if we fail to open file, we assume the arg is JS code
-					srcdata = []byte(arg)
-					runnerType = TypeJS
-					filename = cmdline
-				***REMOVED***
-			***REMOVED***
-		case TypeURL:
-			// We try to use TypeURL args as URLs directly first
-			if looksLikeURL([]byte(arg)) ***REMOVED***
-				srcdata = []byte(arg)
-				filename = cmdline
-			***REMOVED*** else ***REMOVED*** // if that didn’t work, we try to load a file with URLs
-				s, err := ioutil.ReadFile(arg)
-				if err != nil ***REMOVED***
-					return nil, "", err
-				***REMOVED***
-				srcdata = s
-			***REMOVED***
-		case TypeJS:
-			// TypeJS args we try to use as file names first
-			s, err := ioutil.ReadFile(arg)
-			srcdata = s
-			if err != nil ***REMOVED*** // and if that didn’t work, we assume the arg itself is JS code
-				srcdata = []byte(arg)
-				filename = cmdline
-			***REMOVED***
-		default:
-			return nil, "", errors.New("Invalid type specified, see --help")
-		***REMOVED***
+		reader = f
 	***REMOVED***
-	// Now we should have some src data and in most cases a type also. If we
-	// don’t have a type it means we read from STDIN or from a file and the user
-	// specified type == TypeAuto. This means we need to try and auto-detect type
-	if runnerType == TypeAuto ***REMOVED***
-		if looksLikeURL(srcdata) ***REMOVED***
-			runnerType = TypeURL
-		***REMOVED*** else ***REMOVED***
-			runnerType = TypeJS
-		***REMOVED***
+
+	data, err := ioutil.ReadAll(reader)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-	src := &lib.SourceData***REMOVED***
-		Data:     srcdata,
+
+	return &lib.SourceData***REMOVED***
+		Data:     data,
 		Filename: filename,
-	***REMOVED***
-	return src, runnerType, nil
+	***REMOVED***, nil
 ***REMOVED***
 
-func makeRunner(runnerType string, srcdata *lib.SourceData) (lib.Runner, error) ***REMOVED***
+func makeRunner(runnerType string, src *lib.SourceData) (lib.Runner, error) ***REMOVED***
 	switch runnerType ***REMOVED***
-	case "":
-		return nil, errors.New("Invalid type specified, see --help")
+	case TypeAuto:
+		return makeRunner(guessType(src.Data), src)
 	case TypeURL:
-		u, err := url.Parse(strings.TrimSpace(string(srcdata.Data)))
+		u, err := url.Parse(strings.TrimSpace(string(src.Data)))
 		if err != nil || u.Scheme == "" ***REMOVED***
 			return nil, errors.New("Failed to parse URL")
 		***REMOVED***
@@ -252,7 +213,7 @@ func makeRunner(runnerType string, srcdata *lib.SourceData) (lib.Runner, error) 
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		exports, err := rt.Load(srcdata)
+		exports, err := rt.Load(src)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -326,13 +287,16 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Make the Runner, extract script-defined options.
 	arg := args[0]
-	t := cc.String("type")
-	srcdata, runnerType, err := getSrcData(arg, t)
+	src, err := getSrcData(arg)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Failed to parse input data")
 		return err
 	***REMOVED***
-	runner, err := makeRunner(runnerType, srcdata)
+	runnerType := cc.String("type")
+	if runnerType == TypeAuto ***REMOVED***
+		runnerType = guessType(src.Data)
+	***REMOVED***
+	runner, err := makeRunner(runnerType, src)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 		return err
@@ -404,7 +368,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	fmt.Fprintf(color.Output, "  execution: %s\n", color.CyanString("local"))
 	fmt.Fprintf(color.Output, "     output: %s\n", color.CyanString(collectorString))
-	fmt.Fprintf(color.Output, "     script: %s (%s)\n", color.CyanString(srcdata.Filename), color.CyanString(runnerType))
+	fmt.Fprintf(color.Output, "     script: %s (%s)\n", color.CyanString(src.Filename), color.CyanString(runnerType))
 	fmt.Fprintf(color.Output, "\n")
 	fmt.Fprintf(color.Output, "   duration: %s, iterations: %s\n", color.CyanString(opts.Duration.String), color.CyanString("%d", opts.Iterations.Int64))
 	fmt.Fprintf(color.Output, "        vus: %s, max: %s\n", color.CyanString("%d", opts.VUs.Int64), color.CyanString("%d", opts.VUsMax.Int64))
@@ -651,13 +615,18 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError("Wrong number of arguments!", 1)
 	***REMOVED***
 	arg := args[0]
-	t := cc.String("type")
-	srcdata, runnerType, err := getSrcData(arg, t)
+
+	src, err := getSrcData(arg)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	runnerType := cc.String("type")
+	if runnerType == TypeAuto ***REMOVED***
+		runnerType = guessType(src.Data)
+	***REMOVED***
 
 	var opts lib.Options
+
 	switch runnerType ***REMOVED***
 	case TypeJS:
 		r, err := js.New()
@@ -665,7 +634,7 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 
-		if _, err := r.Load(srcdata); err != nil ***REMOVED***
+		if _, err := r.Load(src); err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 		opts = opts.Apply(r.Options)
