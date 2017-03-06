@@ -22,9 +22,13 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
+	"github.com/mattn/go-isatty"
 	"gopkg.in/urfave/cli.v1"
 	"os"
 )
+
+var isTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
 func main() ***REMOVED***
 	// This won't be needed in cli v2
@@ -35,7 +39,7 @@ func main() ***REMOVED***
 	app := cli.NewApp()
 	app.Name = "k6"
 	app.Usage = "a next generation load generator"
-	app.Version = "0.10.0"
+	app.Version = "0.12.1"
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
 		commandInspect,
@@ -56,10 +60,18 @@ func main() ***REMOVED***
 			Value:  "127.0.0.1:6565",
 			EnvVar: "K6_ADDRESS",
 		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:   "no-color, n",
+			Usage:  "disable colored output",
+			EnvVar: "K6_NO_COLOR",
+		***REMOVED***,
 	***REMOVED***
 	app.Before = func(cc *cli.Context) error ***REMOVED***
 		if cc.Bool("verbose") ***REMOVED***
 			log.SetLevel(log.DebugLevel)
+		***REMOVED***
+		if cc.Bool("no-color") ***REMOVED***
+			color.NoColor = true
 		***REMOVED***
 
 		return nil

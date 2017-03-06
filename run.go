@@ -63,6 +63,10 @@ var commandRun = cli.Command***REMOVED***
 	Usage:     "Starts running a load test",
 	ArgsUsage: "url|filename",
 	Flags: []cli.Flag***REMOVED***
+		cli.BoolFlag***REMOVED***
+			Name:  "quiet, q",
+			Usage: "hide the progress bar",
+		***REMOVED***,
 		cli.Int64Flag***REMOVED***
 			Name:  "vus, u",
 			Usage: "virtual users to simulate",
@@ -79,6 +83,10 @@ var commandRun = cli.Command***REMOVED***
 		cli.Int64Flag***REMOVED***
 			Name:  "iterations, i",
 			Usage: "run a set number of iterations, multiplied by VU count",
+		***REMOVED***,
+		cli.StringSliceFlag***REMOVED***
+			Name:  "stage, s",
+			Usage: "define a test stage, in the format time[:vus] (10s:100)",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
 			Name:  "paused, p",
@@ -296,6 +304,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
+	quiet := cc.Bool("quiet")
 	cliOpts := lib.Options***REMOVED***
 		Paused:                cliBool(cc, "paused"),
 		VUs:                   cliInt64(cc, "vus"),
@@ -306,6 +315,14 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		MaxRedirects:          cliInt64(cc, "max-redirects"),
 		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
 		NoUsageReport:         cliBool(cc, "no-usage-report"),
+	***REMOVED***
+	for _, s := range cc.StringSlice("stage") ***REMOVED***
+		stage, err := ParseStage(s)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Invalid stage specified")
+			return err
+		***REMOVED***
+		cliOpts.Stages = append(cliOpts.Stages, stage)
 	***REMOVED***
 	opts := cliOpts
 
@@ -341,8 +358,8 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// CLI options override everything.
 	opts = opts.Apply(cliOpts)
 
-	// Default to 1 iteration if no duration is specified.
-	if !opts.Duration.Valid && !opts.Iterations.Valid ***REMOVED***
+	// Default to 1 iteration if duration and stages are unspecified.
+	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
 		opts.Iterations = null.IntFrom(1)
 	***REMOVED***
 
@@ -352,6 +369,13 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make sure VUsMax defaults to VUs if not specified.
 	if opts.VUsMax.Int64 == 0 ***REMOVED***
 		opts.VUsMax.Int64 = opts.VUs.Int64
+		if len(opts.Stages) > 0 ***REMOVED***
+			for _, stage := range opts.Stages ***REMOVED***
+				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
+					opts.VUsMax = stage.Target
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
 	// Update the runner's options.
@@ -369,6 +393,26 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		collector = c
 		collectorString = fmt.Sprint(collector)
 	***REMOVED***
+
+	fmt.Fprintln(color.Output, "")
+
+	color.Green(`          /\      |‾‾|  /‾‾/  /‾/   `)
+	color.Green(`     /\  /  \     |  |_/  /  / /   `)
+	color.Green(`    /  \/    \    |      |  /  ‾‾\  `)
+	color.Green(`   /          \   |  |‾\  \ | (_) | `)
+	color.Green(`  / __________ \  |__|  \__\ \___/  Welcome to k6 v%s!`, cc.App.Version)
+
+	fmt.Fprintln(color.Output, "")
+
+	fmt.Fprintf(color.Output, "  execution: %s\n", color.CyanString("local"))
+	fmt.Fprintf(color.Output, "     output: %s\n", color.CyanString(collectorString))
+	fmt.Fprintf(color.Output, "     script: %s (%s)\n", color.CyanString(srcdata.Filename), color.CyanString(runnerType))
+	fmt.Fprintf(color.Output, "\n")
+	fmt.Fprintf(color.Output, "   duration: %s, iterations: %s\n", color.CyanString(opts.Duration.String), color.CyanString("%d", opts.Iterations.Int64))
+	fmt.Fprintf(color.Output, "        vus: %s, max: %s\n", color.CyanString("%d", opts.VUs.Int64), color.CyanString("%d", opts.VUsMax.Int64))
+	fmt.Fprintf(color.Output, "\n")
+	fmt.Fprintf(color.Output, "    web ui: %s\n", color.CyanString("http://%s/", addr))
+	fmt.Fprintf(color.Output, "\n")
 
 	// Make the Engine
 	engine, err := lib.NewEngine(runner, opts)
@@ -413,35 +457,33 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
-	// Print the banner!
-	fmt.Printf("Welcome to k6 v%s!\n", cc.App.Version)
-	fmt.Printf("\n")
-	fmt.Printf("  execution: local\n")
-	fmt.Printf("     output: %s\n", collectorString)
-	fmt.Printf("     script: %s (%s)\n", srcdata.Filename, runnerType)
-	fmt.Printf("             ↳ duration: %s\n", opts.Duration.String)
-	fmt.Printf("             ↳ iterations: %d\n", opts.Iterations.Int64)
-	fmt.Printf("             ↳ vus: %d, max: %d\n", opts.VUs.Int64, opts.VUsMax.Int64)
-	fmt.Printf("\n")
-	fmt.Printf("  web ui: http://%s/\n", addr)
-	fmt.Printf("\n")
-
+	// Progress bar for TTYs.
 	progressBar := ui.ProgressBar***REMOVED***Width: 60***REMOVED***
-	fmt.Printf(" starting %s -- / --\r", progressBar.String())
+	if isTTY && !quiet ***REMOVED***
+		fmt.Fprintf(color.Output, " starting %s -- / --\r", progressBar.String())
+	***REMOVED***
 
 	// Wait for a signal or timeout before shutting down
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	ticker := time.NewTicker(10 * time.Millisecond)
+
+	// Print status at a set interval; less frequently on non-TTYs.
+	tickInterval := 10 * time.Millisecond
+	if !isTTY || quiet ***REMOVED***
+		tickInterval = 1 * time.Second
+	***REMOVED***
+	ticker := time.NewTicker(tickInterval)
 
 loop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			statusString := "running"
 			if !engine.IsRunning() ***REMOVED***
-				statusString = "stopping"
-			***REMOVED*** else if engine.IsPaused() ***REMOVED***
+				break loop
+			***REMOVED***
+
+			statusString := "running"
+			if engine.IsPaused() ***REMOVED***
 				statusString = "paused"
 			***REMOVED***
 
@@ -452,13 +494,21 @@ loop:
 				progress = float64(atTime) / float64(totalTime)
 			***REMOVED***
 
-			progressBar.Progress = progress
-			fmt.Printf("%10s %s %10s / %s\r",
-				statusString,
-				progressBar.String(),
-				roundDuration(atTime, 100*time.Millisecond),
-				roundDuration(totalTime, 100*time.Millisecond),
-			)
+			if isTTY && !quiet ***REMOVED***
+				progressBar.Progress = progress
+				fmt.Fprintf(color.Output, "%10s %s %10s / %s\r",
+					statusString,
+					progressBar.String(),
+					roundDuration(atTime, 100*time.Millisecond),
+					roundDuration(totalTime, 100*time.Millisecond),
+				)
+			***REMOVED*** else ***REMOVED***
+				fmt.Fprintf(color.Output, "[%-10s] %s / %s\n",
+					statusString,
+					roundDuration(atTime, 100*time.Millisecond),
+					roundDuration(totalTime, 100*time.Millisecond),
+				)
+			***REMOVED***
 		case <-ctx.Done():
 			log.Debug("Engine terminated; shutting down...")
 			break loop
@@ -474,16 +524,21 @@ loop:
 
 	// Test done, leave that status as the final progress bar!
 	atTime := engine.AtTime()
-	progressBar.Progress = 1.0
-	fmt.Printf("      done %s %10s / %s\n",
-		progressBar.String(),
-		roundDuration(atTime, 100*time.Millisecond),
-		roundDuration(atTime, 100*time.Millisecond),
-	)
-	fmt.Printf("\n")
-
-	red := color.New(color.FgRed).SprintFunc()
-	green := color.New(color.FgGreen).SprintFunc()
+	if isTTY && !quiet ***REMOVED***
+		progressBar.Progress = 1.0
+		fmt.Fprintf(color.Output, "      done %s %10s / %s\n",
+			progressBar.String(),
+			roundDuration(atTime, 100*time.Millisecond),
+			roundDuration(atTime, 100*time.Millisecond),
+		)
+	***REMOVED*** else ***REMOVED***
+		fmt.Fprintf(color.Output, "[%-10s] %s / %s\n",
+			"done",
+			roundDuration(atTime, 100*time.Millisecond),
+			roundDuration(atTime, 100*time.Millisecond),
+		)
+	***REMOVED***
+	fmt.Fprintf(color.Output, "\n")
 
 	// Print groups.
 	var printGroup func(g *lib.Group, level int)
@@ -491,30 +546,32 @@ loop:
 		indent := strings.Repeat("  ", level)
 
 		if g.Name != "" && g.Parent != nil ***REMOVED***
-			fmt.Printf("%s█ %s\n", indent, g.Name)
+			fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
 		***REMOVED***
 
 		if len(g.Checks) > 0 ***REMOVED***
 			if g.Name != "" && g.Parent != nil ***REMOVED***
-				fmt.Printf("\n")
+				fmt.Fprintf(color.Output, "\n")
 			***REMOVED***
 			for _, check := range g.Checks ***REMOVED***
-				icon := green("✓")
+				icon := "✓"
+				statusColor := color.GreenString
 				if check.Fails > 0 ***REMOVED***
-					icon = red("✗")
+					icon = "✗"
+					statusColor = color.RedString
 				***REMOVED***
-				fmt.Printf("%s  %s %2.2f%% - %s\n",
+				fmt.Fprint(color.Output, statusColor("%s  %s %2.2f%% - %s\n",
 					indent,
 					icon,
 					100*(float64(check.Passes)/float64(check.Passes+check.Fails)),
 					check.Name,
-				)
+				))
 			***REMOVED***
-			fmt.Printf("\n")
+			fmt.Fprintf(color.Output, "\n")
 		***REMOVED***
 		if len(g.Groups) > 0 ***REMOVED***
 			if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
-				fmt.Printf("\n")
+				fmt.Fprintf(color.Output, "\n")
 			***REMOVED***
 			for _, g := range g.Groups ***REMOVED***
 				printGroup(g, level+1)
@@ -527,9 +584,13 @@ loop:
 	// Sort and print metrics.
 	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
 	metricNames := make([]string, 0, len(engine.Metrics))
+	metricNameWidth := 0
 	for m := range engine.Metrics ***REMOVED***
 		metrics[m.Name] = m
 		metricNames = append(metricNames, m.Name)
+		if l := len(m.Name); l > metricNameWidth ***REMOVED***
+			metricNameWidth = l
+		***REMOVED***
 	***REMOVED***
 	sort.Strings(metricNames)
 
@@ -543,12 +604,37 @@ loop:
 		icon := " "
 		if m.Tainted.Valid ***REMOVED***
 			if !m.Tainted.Bool ***REMOVED***
-				icon = green("✓")
+				icon = color.GreenString("✓")
 			***REMOVED*** else ***REMOVED***
-				icon = red("✗")
+				icon = color.RedString("✗")
 			***REMOVED***
 		***REMOVED***
-		fmt.Printf("  %s %s: %s\n", icon, name, val)
+
+		// Hack some color in there.
+		parts := strings.Split(val, ", ")
+		newParts := make([]string, len(parts))
+		for i, part := range parts ***REMOVED***
+			kv := strings.SplitN(part, "=", 2)
+			switch len(kv) ***REMOVED***
+			case 1:
+				newParts[i] = color.CyanString(kv[0])
+			case 2:
+				newParts[i] = fmt.Sprintf(
+					"%s%s",
+					color.New(color.Reset).Sprint(kv[0]+"="),
+					color.CyanString(kv[1]),
+				)
+			***REMOVED***
+		***REMOVED***
+		val = strings.Join(newParts, ", ")
+
+		namePadding := strings.Repeat(".", metricNameWidth-len(name)+3)
+		fmt.Fprintf(color.Output, "  %s %s%s %s\n",
+			icon,
+			name,
+			color.New(color.Faint).Sprint(namePadding+":"),
+			color.CyanString(val),
+		)
 	***REMOVED***
 
 	if opts.Linger.Bool ***REMOVED***

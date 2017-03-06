@@ -29,7 +29,7 @@ import (
 
 const jsEnv = `
 function p(pct) ***REMOVED***
-	return __sink__.P(pct);
+	return __sink__.P(pct/100.0);
 ***REMOVED***;
 `
 

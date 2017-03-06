@@ -18,46 +18,30 @@
  *
  */
 
-package ui
+package main
 
 import (
-	"fmt"
-	"github.com/fatih/color"
-	"strings"
+	"github.com/loadimpact/k6/lib"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/guregu/null.v3"
+	"testing"
+	"time"
 )
 
-var (
-	faint = color.New(color.Faint)
-)
-
-type ProgressBar struct ***REMOVED***
-	Width    int
-	Progress float64
-***REMOVED***
-
-func (b ProgressBar) String() string ***REMOVED***
-	space := b.Width - 2
-	filled := int(float64(space) * b.Progress)
-
-	filling := ""
-	caret := ""
-	if filled > 0 ***REMOVED***
-		if filled < space ***REMOVED***
-			filling = strings.Repeat("=", filled-1)
-			caret = ">"
-		***REMOVED*** else ***REMOVED***
-			filling = strings.Repeat("=", filled)
-		***REMOVED***
+func TestParseStage(t *testing.T) ***REMOVED***
+	testdata := map[string]lib.Stage***REMOVED***
+		"":        ***REMOVED******REMOVED***,
+		":":       ***REMOVED******REMOVED***,
+		"10s":     ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:":    ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:100": ***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+		":100":    ***REMOVED***Target: null.IntFrom(100)***REMOVED***,
 	***REMOVED***
-
-	padding := ""
-	filler := "="
-	if color.NoColor ***REMOVED***
-		filler = " "
+	for s, st := range testdata ***REMOVED***
+		t.Run(s, func(t *testing.T) ***REMOVED***
+			parsed, err := ParseStage(s)
+			assert.NoError(t, err)
+			assert.Equal(t, st, parsed)
+		***REMOVED***)
 	***REMOVED***
-	if space > filled ***REMOVED***
-		padding = faint.Sprint(strings.Repeat(filler, space-filled))
-	***REMOVED***
-
-	return fmt.Sprintf("[%s%s%s]", filling, caret, padding)
 ***REMOVED***

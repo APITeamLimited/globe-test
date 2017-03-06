@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -109,6 +110,38 @@ func TestNewEngine(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNewEngineOptions(t *testing.T) ***REMOVED***
+	t.Run("Duration", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Duration: null.StringFrom("10s"),
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("Stages", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Stages: []Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("Stages/Duration", func(t *testing.T) ***REMOVED***
+		e, err, _ := newTestEngine(nil, Options***REMOVED***
+			Duration: null.StringFrom("60s"),
+			Stages: []Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***)
+		assert.NoError(t, err)
+		if assert.Len(t, e.Stages, 1) ***REMOVED***
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
 		t.Run("not set", func(t *testing.T) ***REMOVED***
 			e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
@@ -236,14 +269,42 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("exits with stages", func(t *testing.T) ***REMOVED***
-		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
-		assert.NoError(t, err)
+		testdata := map[string]struct ***REMOVED***
+			Duration time.Duration
+			Stages   []Stage
+		***REMOVED******REMOVED***
+			"none": ***REMOVED******REMOVED***,
+			"one": ***REMOVED***
+				1 * time.Second,
+				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+			***REMOVED***,
+			"two": ***REMOVED***
+				2 * time.Second,
+				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED***, ***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+			***REMOVED***,
+			"two/targeted": ***REMOVED***
+				2 * time.Second,
+				[]Stage***REMOVED***
+					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(5)***REMOVED***,
+					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***
+		for name, data := range testdata ***REMOVED***
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				e, err, _ := newTestEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(10)***REMOVED***)
+				assert.NoError(t, err)
 
-		d := 50 * time.Millisecond
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
-		startTime := time.Now()
-		assert.NoError(t, e.Run(context.Background()))
-		assert.WithinDuration(t, startTime.Add(d), startTime.Add(e.AtTime()), 100*TickRate)
+				e.Stages = data.Stages
+				startTime := time.Now()
+				assert.NoError(t, e.Run(context.Background()))
+				assert.WithinDuration(t,
+					startTime.Add(data.Duration),
+					startTime.Add(e.AtTime()),
+					100*TickRate,
+				)
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		testMetric := stats.New("test_metric", stats.Trend)
@@ -260,17 +321,17 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 
 				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-				defer cancel()
 				assert.NoError(t, e.Run(ctx))
+				cancel()
 
 				e.lock.Lock()
+				defer e.lock.Unlock()
+
 				if !assert.True(t, e.numIterations > 0, "no iterations performed") ***REMOVED***
-					e.lock.Unlock()
 					return
 				***REMOVED***
 				sink := e.Metrics[testMetric].(*stats.TrendSink)
 				assert.True(t, len(sink.Values) > int(float64(e.numIterations)*0.99), "more than 1%% of iterations missed")
-				e.lock.Unlock()
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
@@ -368,10 +429,10 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		assert.True(t, e.IsRunning())
 
 		// The iteration counter and time should increase over time when not paused...
-		iterationSampleA1 := e.numIterations
+		iterationSampleA1 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleA1 := e.AtTime()
 		time.Sleep(100 * time.Millisecond)
-		iterationSampleA2 := e.numIterations
+		iterationSampleA2 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleA2 := e.AtTime()
 		assert.True(t, iterationSampleA2 > iterationSampleA1, "iteration counter did not increase")
 		assert.True(t, atTimeSampleA2 > atTimeSampleA1, "timer did not increase")
@@ -380,10 +441,10 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		e.SetPaused(true)
 		assert.True(t, e.IsPaused(), "engine did not pause")
 		time.Sleep(1 * time.Millisecond)
-		iterationSampleB1 := e.numIterations
+		iterationSampleB1 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleB1 := e.AtTime()
 		time.Sleep(100 * time.Millisecond)
-		iterationSampleB2 := e.numIterations
+		iterationSampleB2 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleB2 := e.AtTime()
 		assert.Equal(t, iterationSampleB1, iterationSampleB2, "iteration counter changed while paused")
 		assert.Equal(t, atTimeSampleB1, atTimeSampleB2, "timer changed while paused")
@@ -391,10 +452,10 @@ func TestEngineSetPaused(t *testing.T) ***REMOVED***
 		// ...and resume when you unpause.
 		e.SetPaused(false)
 		assert.False(t, e.IsPaused(), "engine did not unpause")
-		iterationSampleC1 := e.numIterations
+		iterationSampleC1 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleC1 := e.AtTime()
 		time.Sleep(100 * time.Millisecond)
-		iterationSampleC2 := e.numIterations
+		iterationSampleC2 := atomic.LoadInt64(&e.numIterations)
 		atTimeSampleC2 := e.AtTime()
 		assert.True(t, iterationSampleC2 > iterationSampleC1, "iteration counter did not increase after unpause")
 		assert.True(t, atTimeSampleC2 > atTimeSampleC1, "timer did not increase after unpause")
@@ -479,6 +540,14 @@ func TestEngineSetVUsMax(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineSetVUs(t *testing.T) ***REMOVED***
+	assertVUIDSequence := func(t *testing.T, e *Engine, ids []int64) ***REMOVED***
+		actualIDs := make([]int64, len(ids))
+		for i := range ids ***REMOVED***
+			actualIDs[i] = e.vuEntries[i].VU.(*RunnerFuncVU).ID
+		***REMOVED***
+		assert.Equal(t, ids, actualIDs)
+	***REMOVED***
+
 	t.Run("not set", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 		assert.NoError(t, err)
@@ -486,34 +555,39 @@ func TestEngineSetVUs(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(0), e.GetVUs())
 	***REMOVED***)
 	t.Run("set", func(t *testing.T) ***REMOVED***
-		e, err, _ := newTestEngine(nil, Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
+		e, err, _ := newTestEngine(RunnerFunc(nil), Options***REMOVED***VUsMax: null.IntFrom(15)***REMOVED***)
 		assert.NoError(t, err)
 		assert.NoError(t, e.SetVUs(10))
 		assert.Equal(t, int64(10), e.GetVUs())
 		assertActiveVUs(t, e, 10, 5)
+		assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 
 		t.Run("negative", func(t *testing.T) ***REMOVED***
 			assert.EqualError(t, e.SetVUs(-1), "vus can't be negative")
 			assert.Equal(t, int64(10), e.GetVUs())
 			assertActiveVUs(t, e, 10, 5)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 		***REMOVED***)
 
 		t.Run("too high", func(t *testing.T) ***REMOVED***
 			assert.EqualError(t, e.SetVUs(20), "more vus than allocated requested")
 			assert.Equal(t, int64(10), e.GetVUs())
 			assertActiveVUs(t, e, 10, 5)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 6, 7, 8, 9, 10***REMOVED***)
 		***REMOVED***)
 
 		t.Run("lower", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(5))
 			assert.Equal(t, int64(5), e.GetVUs())
 			assertActiveVUs(t, e, 5, 10)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5***REMOVED***)
 		***REMOVED***)
 
 		t.Run("higher", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(15))
 			assert.Equal(t, int64(15), e.GetVUs())
 			assertActiveVUs(t, e, 15, 0)
+			assertVUIDSequence(t, e, []int64***REMOVED***1, 2, 3, 4, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -531,7 +605,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, nil
-			***REMOVED***),
+			***REMOVED***).VU(),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
 		assert.Equal(t, int64(0), e.numErrors)
@@ -544,7 +618,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 		e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 			VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 				return nil, errors.New("this is an error")
-			***REMOVED***),
+			***REMOVED***).VU(),
 		***REMOVED***)
 		assert.Equal(t, int64(1), e.numIterations)
 		assert.Equal(t, int64(1), e.numErrors)
@@ -557,7 +631,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(context.Background(), &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, testErrorWithString("this is an error")
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(1), e.numIterations)
 			assert.Equal(t, int64(1), e.numErrors)
@@ -578,7 +652,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, nil
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
 			assert.Equal(t, int64(0), e.numErrors)
@@ -590,7 +664,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			e.runVUOnce(ctx, &vuEntry***REMOVED***
 				VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 					return nil, errors.New("this is an error")
-				***REMOVED***),
+				***REMOVED***).VU(),
 			***REMOVED***)
 			assert.Equal(t, int64(0), e.numIterations)
 			assert.Equal(t, int64(0), e.numErrors)
@@ -603,7 +677,7 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 				e.runVUOnce(ctx, &vuEntry***REMOVED***
 					VU: RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 						return nil, testErrorWithString("this is an error")
-					***REMOVED***),
+					***REMOVED***).VU(),
 				***REMOVED***)
 				assert.Equal(t, int64(0), e.numIterations)
 				assert.Equal(t, int64(0), e.numErrors)
@@ -611,6 +685,148 @@ func TestEngine_runVUOnceKeepsCounters(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
+***REMOVED***
+
+func TestEngine_processStages(t *testing.T) ***REMOVED***
+	type checkpoint struct ***REMOVED***
+		D    time.Duration
+		Cont bool
+		VUs  int64
+	***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Stages      []Stage
+		Checkpoints []checkpoint
+	***REMOVED******REMOVED***
+		"none": ***REMOVED***
+			[]Stage***REMOVED******REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, false, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+				***REMOVED***24 * time.Hour, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"one": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"one/targeted": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 30***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 50***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 70***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 90***REMOVED***,
+				***REMOVED***1 * time.Second, true, 100***REMOVED***,
+				***REMOVED***1 * time.Second, false, 100***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***10 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two/targeted": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(0)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 100***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"three": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***15 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"three/targeted": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(50)***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(0)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 30***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 50***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 70***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 90***REMOVED***,
+				***REMOVED***1 * time.Second, true, 100***REMOVED***,
+				***REMOVED***1 * time.Second, true, 80***REMOVED***,
+				***REMOVED***1 * time.Second, true, 60***REMOVED***,
+				***REMOVED***1 * time.Second, true, 40***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Second, false, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***
+				VUs:    null.IntFrom(0),
+				VUsMax: null.IntFrom(100),
+			***REMOVED***)
+			assert.NoError(t, err)
+
+			e.Stages = data.Stages
+			for _, ckp := range data.Checkpoints ***REMOVED***
+				t.Run((e.AtTime() + ckp.D).String(), func(t *testing.T) ***REMOVED***
+					cont, err := e.processStages(ckp.D)
+					assert.NoError(t, err)
+					if ckp.Cont ***REMOVED***
+						assert.True(t, cont, "test stopped")
+					***REMOVED*** else ***REMOVED***
+						assert.False(t, cont, "test not stopped")
+					***REMOVED***
+					assert.Equal(t, ckp.VUs, e.GetVUs())
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestEngineCollector(t *testing.T) ***REMOVED***
