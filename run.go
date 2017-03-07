@@ -35,8 +35,10 @@ import (
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/json"
 	"github.com/loadimpact/k6/ui"
+	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -165,10 +167,10 @@ func guessType(data []byte) string ***REMOVED***
 	return TypeJS
 ***REMOVED***
 
-func getSrcData(filename string) (*lib.SourceData, error) ***REMOVED***
-	reader := os.Stdin
+func getSrcData(filename string, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
+	reader := io.Reader(os.Stdin)
 	if filename != "-" ***REMOVED***
-		f, err := os.Open(filename)
+		f, err := fs.Open(filename)
 		if err != nil ***REMOVED***
 			// If the file doesn't exist, but it looks like a URL, try using it as one.
 			if os.IsNotExist(err) && urlRegex.MatchString(filename) ***REMOVED***
@@ -180,6 +182,7 @@ func getSrcData(filename string) (*lib.SourceData, error) ***REMOVED***
 
 			return nil, err
 		***REMOVED***
+		defer func() ***REMOVED*** _ = f.Close() ***REMOVED***()
 		reader = f
 	***REMOVED***
 
@@ -194,10 +197,10 @@ func getSrcData(filename string) (*lib.SourceData, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func makeRunner(runnerType string, src *lib.SourceData) (lib.Runner, error) ***REMOVED***
+func makeRunner(runnerType string, src *lib.SourceData, fs afero.Fs) (lib.Runner, error) ***REMOVED***
 	switch runnerType ***REMOVED***
 	case TypeAuto:
-		return makeRunner(guessType(src.Data), src)
+		return makeRunner(guessType(src.Data), src, fs)
 	case TypeURL:
 		u, err := url.Parse(strings.TrimSpace(string(src.Data)))
 		if err != nil || u.Scheme == "" ***REMOVED***
@@ -213,7 +216,7 @@ func makeRunner(runnerType string, src *lib.SourceData) (lib.Runner, error) ***R
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		exports, err := rt.Load(src)
+		exports, err := rt.Load(src, fs)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -246,7 +249,7 @@ func makeCollector(s string, opts lib.Options) (lib.Collector, error) ***REMOVED
 	case "influxdb":
 		return influxdb.New(p, opts)
 	case "json":
-		return json.New(p, opts)
+		return json.New(p, afero.NewOsFs(), opts)
 	default:
 		return nil, errors.New("Unknown output type: " + t)
 	***REMOVED***
@@ -287,7 +290,8 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Make the Runner, extract script-defined options.
 	arg := args[0]
-	src, err := getSrcData(arg)
+	fs := afero.NewOsFs()
+	src, err := getSrcData(arg, fs)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Failed to parse input data")
 		return err
@@ -296,7 +300,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	if runnerType == TypeAuto ***REMOVED***
 		runnerType = guessType(src.Data)
 	***REMOVED***
-	runner, err := makeRunner(runnerType, src)
+	runner, err := makeRunner(runnerType, src, fs)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create a runner")
 		return err
@@ -305,7 +309,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Read config files.
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := ioutil.ReadFile(filename)
+		data, err := afero.ReadFile(fs, filename)
 		if err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
@@ -616,7 +620,8 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	arg := args[0]
 
-	src, err := getSrcData(arg)
+	fs := afero.NewOsFs()
+	src, err := getSrcData(arg, fs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -634,14 +639,14 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 
-		if _, err := r.Load(src); err != nil ***REMOVED***
+		if _, err := r.Load(src, fs); err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 		opts = opts.Apply(r.Options)
 	***REMOVED***
 
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := ioutil.ReadFile(filename)
+		data, err := afero.ReadFile(fs, filename)
 		if err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***

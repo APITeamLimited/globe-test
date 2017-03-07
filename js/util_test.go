@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"github.com/robertkrimen/otto"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -34,7 +35,7 @@ func newSnippetRunner(src string) (*Runner, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	_ = rt.VM.Set("__initapi__", &InitAPI***REMOVED***r: rt***REMOVED***)
+	_ = rt.VM.Set("__initapi__", &InitAPI***REMOVED***r: rt, fs: afero.NewOsFs()***REMOVED***)
 	exp, err := rt.load("__snippet__", []byte(src))
 	_ = rt.VM.Set("__initapi__", nil)
 	if err != nil ***REMOVED***
