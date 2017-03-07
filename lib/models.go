@@ -35,6 +35,11 @@ const groupSeparator = "::"
 
 var ErrNameContainsGroupSeparator = errors.Errorf("group and check names may not contain '%s'", groupSeparator)
 
+type SourceData struct ***REMOVED***
+	Data     []byte
+	Filename string
+***REMOVED***
+
 type Stage struct ***REMOVED***
 	Duration time.Duration `json:"duration"`
 	Target   null.Int      `json:"target"`

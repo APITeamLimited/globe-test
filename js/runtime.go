@@ -29,7 +29,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
-	"io/ioutil"
+	"github.com/spf13/afero"
 	"os"
 	"path/filepath"
 )
@@ -87,8 +87,8 @@ func New() (*Runtime, error) ***REMOVED***
 	return rt, nil
 ***REMOVED***
 
-func (r *Runtime) Load(src *lib.SourceData) (otto.Value, error) ***REMOVED***
-	if err := r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r***REMOVED***); err != nil ***REMOVED***
+func (r *Runtime) Load(src *lib.SourceData, fs afero.Fs) (otto.Value, error) ***REMOVED***
+	if err := r.VM.Set("__initapi__", &InitAPI***REMOVED***r: r, fs: fs***REMOVED***); err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
 	exp, err := r.loadSource(src)
@@ -145,7 +145,7 @@ func (r *Runtime) loadSource(src *lib.SourceData) (otto.Value, error) ***REMOVED
 	return exports, nil
 ***REMOVED***
 
-func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
+func (r *Runtime) loadFile(filename string, fs afero.Fs) (otto.Value, error) ***REMOVED***
 	path, err := filepath.Abs(filename)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
@@ -156,7 +156,7 @@ func (r *Runtime) loadFile(filename string) (otto.Value, error) ***REMOVED***
 		return exports, nil
 	***REMOVED***
 
-	data, err := ioutil.ReadFile(path)
+	data, err := afero.ReadFile(fs, path)
 	if err != nil ***REMOVED***
 		return otto.UndefinedValue(), err
 	***REMOVED***
