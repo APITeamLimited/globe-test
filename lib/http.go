@@ -50,15 +50,16 @@ type Trail struct ***REMOVED***
 ***REMOVED***
 
 func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
+	t := tr.StartTime.Add(tr.Duration)
 	return []stats.Sample***REMOVED***
-		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.StartTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.LookingUp)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqs, Time: t, Tags: tags, Value: 1***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqDuration, Time: t, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: t, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: t, Tags: tags, Value: stats.D(tr.LookingUp)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: t, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqSending, Time: t, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: t, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: t, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
