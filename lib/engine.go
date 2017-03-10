@@ -616,6 +616,13 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	default:
 	***REMOVED***
 
+	t := time.Now()
+	samples = append(samples,
+		stats.Sample***REMOVED***
+			Time:   t,
+			Metric: metrics.Iterations,
+			Value:  1,
+		***REMOVED***)
 	if err != nil ***REMOVED***
 		if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
 			e.Logger.Error(serr.String())
@@ -624,7 +631,7 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 		***REMOVED***
 		samples = append(samples,
 			stats.Sample***REMOVED***
-				Time:   time.Now(),
+				Time:   t,
 				Metric: metrics.Errors,
 				Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
 				Value:  1,
