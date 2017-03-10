@@ -189,13 +189,13 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
-	collectorctx, collectorcancel := context.WithCancel(ctx)
+	collectorctx, collectorcancel := context.WithCancel(context.Background())
 	collectorch := make(chan interface***REMOVED******REMOVED***)
 	if e.Collector != nil ***REMOVED***
-		go func(ctx context.Context) ***REMOVED***
-			e.Collector.Run(ctx)
+		go func() ***REMOVED***
+			e.Collector.Run(collectorctx)
 			close(collectorch)
-		***REMOVED***(collectorctx)
+		***REMOVED***()
 	***REMOVED*** else ***REMOVED***
 		close(collectorch)
 	***REMOVED***
@@ -236,14 +236,14 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		e.clearSubcontext()
 		e.subwg.Wait()
 
+		// Emit final metrics.
+		e.emitMetrics()
+
 		// Process any leftover samples.
 		e.processSamples(e.collect()...)
 
 		// Process final thresholds.
 		e.processThresholds()
-
-		// Emit final metrics.
-		e.emitMetrics()
 
 		// Shut down collector
 		collectorcancel()
