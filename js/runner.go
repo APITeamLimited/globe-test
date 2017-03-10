@@ -160,7 +160,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 
 	u.started = time.Now()
 	u.Samples = []stats.Sample***REMOVED***
-		stats.Sample***REMOVED***Time: u.started, Metric: metrics.Iterations, Value: 1.0***REMOVED***,
+		***REMOVED***Time: u.started, Metric: metrics.Iterations, Value: 1.0***REMOVED***,
 	***REMOVED***
 	u.ctx = ctx
 	_, err := u.callable.Call(otto.UndefinedValue())
