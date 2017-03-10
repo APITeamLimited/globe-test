@@ -44,6 +44,15 @@ func TestCollectorRun(t *testing.T) ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED******REMOVED***
-	c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
-	assert.Len(t, c.Samples, 1)
+	t.Run("no context", func(t *testing.T) ***REMOVED***
+		assert.Panics(t, func() ***REMOVED*** c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***) ***REMOVED***)
+	***REMOVED***)
+	t.Run("context", func(t *testing.T) ***REMOVED***
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() ***REMOVED*** c.Run(ctx) ***REMOVED***()
+		time.Sleep(1 * time.Millisecond)
+		c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
+		assert.Len(t, c.Samples, 1)
+	***REMOVED***)
 ***REMOVED***
