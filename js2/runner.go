@@ -29,18 +29,24 @@ import (
 )
 
 type Runner struct ***REMOVED***
-	Options lib.Options
+	Bundle *Bundle
 
 	defaultGroup *lib.Group
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundle(src, fs)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	defaultGroup, err := lib.NewGroup("", nil)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	return &Runner***REMOVED***
+		Bundle:       bundle,
 		defaultGroup: defaultGroup,
 	***REMOVED***, nil
 ***REMOVED***
@@ -54,7 +60,23 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) newVU() (*VU, error) ***REMOVED***
-	return &VU***REMOVED******REMOVED***, nil
+	// Instantiate a new bundle, make a VU out of it.
+	rt, err := r.Bundle.Instantiate()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	// Prepare the default callable.
+	exports := rt.Get("exports").ToObject(rt)
+	callable, _ := goja.AssertFunction(exports.Get("default"))
+
+	// Give the VU an initial sense of identity.
+	vu := &VU***REMOVED***Runtime: rt, callable: callable***REMOVED***
+	if err := vu.Reconfigure(0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return vu, nil
 ***REMOVED***
 
 func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
@@ -62,21 +84,34 @@ func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) GetOptions() lib.Options ***REMOVED***
-	return r.Options
+	return r.Bundle.Options
 ***REMOVED***
 
 func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
-	r.Options = r.Options.Apply(opts)
+	r.Bundle.Options = r.Bundle.Options.Apply(opts)
 ***REMOVED***
 
 type VU struct ***REMOVED***
-	VM *goja.Runtime
+	Runtime   *goja.Runtime
+	Samples   []stats.Sample
+	ID        int64
+	Iteration int64
+
+	callable goja.Callable
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	return []stats.Sample***REMOVED******REMOVED***, nil
+	u.Runtime.Set("__ITER", u.Iteration)
+
+	_, err := u.callable(goja.Undefined())
+	samples := u.Samples
+	u.Samples = nil
+	return samples, err
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
+	u.ID = id
+	u.Iteration = 0
+	u.Runtime.Set("__VU", u.ID)
 	return nil
 ***REMOVED***
