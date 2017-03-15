@@ -20,13 +20,18 @@
 
 package js2
 
-// Provides APIs and state for use in a VU context.
-type VUContext struct ***REMOVED***
-	Console *Console `js:"console"`
-***REMOVED***
+import (
+	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/lib"
+	"github.com/spf13/afero"
+)
 
-func NewVUContext() *VUContext ***REMOVED***
-	return &VUContext***REMOVED***
-		Console: NewConsole(),
+// Shortcut to creating a bundle and instantiating a bundle right away.
+// Useful for writing tests, or when you just don't care about the bundle.
+func QuickInstance(src *lib.SourceData, fs afero.Fs) (*goja.Runtime, error) ***REMOVED***
+	b, err := NewBundle(src, fs)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
+	return b.Instantiate()
 ***REMOVED***

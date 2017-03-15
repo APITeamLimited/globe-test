@@ -18,22 +18,20 @@
  *
  */
 
-package js2
+package common
 
 import (
-	crand "crypto/rand"
-	"encoding/binary"
-	"github.com/dop251/goja"
-	"github.com/pkg/errors"
-	"math/rand"
+	"github.com/loadimpact/k6/lib"
 )
 
-var DefaultRandSource = NewRandSource()
+// Provides volatile state; this is cleared on each VU iteration.
+type VolatileState struct ***REMOVED***
+	// Current group. All emitted samples are tagged with this.
+	Group *lib.Group
+***REMOVED***
 
-func NewRandSource() goja.RandSource ***REMOVED***
-	var seed int64
-	if err := binary.Read(crand.Reader, binary.LittleEndian, &seed); err != nil ***REMOVED***
-		panic(errors.New("Couldn't read bytes for random seed"))
-	***REMOVED***
-	return rand.New(rand.NewSource(seed)).Float64
+// Provides persistent state; this is cleared when the VU is Reconfigured.
+type State struct ***REMOVED***
+	// Pointer to the current Volatile state.
+	Volatile *VolatileState
 ***REMOVED***

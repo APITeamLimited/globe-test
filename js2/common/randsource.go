@@ -18,15 +18,23 @@
  *
  */
 
-package js2
+package common
 
-// Provides APIs and state for use in a VU context.
-type VUContext struct ***REMOVED***
-	Console *Console `js:"console"`
-***REMOVED***
+import (
+	crand "crypto/rand"
+	"encoding/binary"
+	"math/rand"
 
-func NewVUContext() *VUContext ***REMOVED***
-	return &VUContext***REMOVED***
-		Console: NewConsole(),
+	"github.com/dop251/goja"
+	"github.com/pkg/errors"
+)
+
+var DefaultRandSource = NewRandSource()
+
+func NewRandSource() goja.RandSource ***REMOVED***
+	var seed int64
+	if err := binary.Read(crand.Reader, binary.LittleEndian, &seed); err != nil ***REMOVED***
+		panic(errors.New("Couldn't read bytes for random seed"))
 	***REMOVED***
+	return rand.New(rand.NewSource(seed)).Float64
 ***REMOVED***

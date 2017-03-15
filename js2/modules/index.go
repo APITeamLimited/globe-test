@@ -18,15 +18,13 @@
  *
  */
 
-package js2
+package modules
 
-// Provides APIs and state for use in a VU context.
-type VUContext struct ***REMOVED***
-	Console *Console `js:"console"`
-***REMOVED***
+import (
+	"github.com/loadimpact/k6/js2/modules/k6"
+)
 
-func NewVUContext() *VUContext ***REMOVED***
-	return &VUContext***REMOVED***
-		Console: NewConsole(),
-	***REMOVED***
+// Index of module implementations.
+var Index = map[string]Module***REMOVED***
+	"k6": Module***REMOVED***Impl: &k6.K6***REMOVED******REMOVED******REMOVED***,
 ***REMOVED***

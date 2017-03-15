@@ -18,13 +18,14 @@
  *
  */
 
-package js2
+package common
 
 import (
-	"github.com/dop251/goja"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/dop251/goja"
+	"github.com/stretchr/testify/assert"
 )
 
 type bridgeTestType struct ***REMOVED***
@@ -36,6 +37,9 @@ type bridgeTestType struct ***REMOVED***
 
 func (bridgeTestType) ExportedFn()   ***REMOVED******REMOVED***
 func (bridgeTestType) unexportedFn() ***REMOVED******REMOVED***
+
+func (*bridgeTestType) ExportedPtrFn()   ***REMOVED******REMOVED***
+func (*bridgeTestType) unexportedPtrFn() ***REMOVED******REMOVED***
 
 func TestFieldNameMapper(t *testing.T) ***REMOVED***
 	typ := reflect.TypeOf(bridgeTestType***REMOVED******REMOVED***)
@@ -70,34 +74,48 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBindToGlobal(t *testing.T) ***REMOVED***
-	testdata := map[string]interface***REMOVED******REMOVED******REMOVED***
-		"Value":   bridgeTestType***REMOVED******REMOVED***,
-		"Pointer": &bridgeTestType***REMOVED******REMOVED***,
+	testdata := map[string]struct ***REMOVED***
+		Obj  interface***REMOVED******REMOVED***
+		Keys []string
+		Not  []string
+	***REMOVED******REMOVED***
+		"Value": ***REMOVED***
+			bridgeTestType***REMOVED******REMOVED***,
+			[]string***REMOVED***"exported", "renamed", "exportedFn"***REMOVED***,
+			[]string***REMOVED***"exportedPtrFn"***REMOVED***,
+		***REMOVED***,
+		"Pointer": ***REMOVED***
+			&bridgeTestType***REMOVED******REMOVED***,
+			[]string***REMOVED***"exported", "renamed", "exportedFn", "exportedPtrFn"***REMOVED***,
+			[]string***REMOVED******REMOVED***,
+		***REMOVED***,
 	***REMOVED***
-	for name, obj := range testdata ***REMOVED***
+	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			keys := []string***REMOVED***"exported", "renamed", "exportedFn"***REMOVED***
-			t.Run("Bridge", func(t *testing.T) ***REMOVED***
-				rt := goja.New()
-				unbind := BindToGlobal(rt, obj)
-				for _, k := range keys ***REMOVED***
-					t.Run(k, func(t *testing.T) ***REMOVED***
-						v := rt.Get(k)
-						if assert.NotNil(t, v) ***REMOVED***
-							assert.False(t, goja.IsUndefined(v), "value is undefined")
-						***REMOVED***
-					***REMOVED***)
-				***REMOVED***
-
-				t.Run("Unbind", func(t *testing.T) ***REMOVED***
-					unbind()
-					for _, k := range keys ***REMOVED***
-						t.Run(k, func(t *testing.T) ***REMOVED***
-							v := rt.Get(k)
-							assert.True(t, goja.IsUndefined(v), "value is not undefined")
-						***REMOVED***)
+			rt := goja.New()
+			unbind := BindToGlobal(rt, data.Obj)
+			for _, k := range data.Keys ***REMOVED***
+				t.Run(k, func(t *testing.T) ***REMOVED***
+					v := rt.Get(k)
+					if assert.NotNil(t, v) ***REMOVED***
+						assert.False(t, goja.IsUndefined(v), "value is undefined")
 					***REMOVED***
 				***REMOVED***)
+			***REMOVED***
+			for _, k := range data.Not ***REMOVED***
+				t.Run(k, func(t *testing.T) ***REMOVED***
+					assert.Nil(t, rt.Get(k), "unexpected member bridged")
+				***REMOVED***)
+			***REMOVED***
+
+			t.Run("Unbind", func(t *testing.T) ***REMOVED***
+				unbind()
+				for _, k := range data.Keys ***REMOVED***
+					t.Run(k, func(t *testing.T) ***REMOVED***
+						v := rt.Get(k)
+						assert.True(t, goja.IsUndefined(v), "value is not undefined")
+					***REMOVED***)
+				***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***

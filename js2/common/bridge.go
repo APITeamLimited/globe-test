@@ -18,12 +18,13 @@
  *
  */
 
-package js2
+package common
 
 import (
-	"github.com/dop251/goja"
 	"reflect"
 	"strings"
+
+	"github.com/dop251/goja"
 )
 
 // The field name mapper translates Go symbol names for bridging to JS.
@@ -68,24 +69,27 @@ func BindToGlobal(rt *goja.Runtime, v interface***REMOVED******REMOVED***) func(
 
 	val := reflect.ValueOf(v)
 	typ := val.Type()
-	if typ.Kind() == reflect.Ptr ***REMOVED***
-		val = val.Elem()
-		typ = val.Type()
-	***REMOVED***
-	for i := 0; i < typ.NumField(); i++ ***REMOVED***
-		f := typ.Field(i)
-		k := mapper.FieldName(typ, f)
-		if k != "" ***REMOVED***
-			v := val.Field(i).Interface()
-			keys = append(keys, k)
-			rt.Set(k, v)
-		***REMOVED***
-	***REMOVED***
 	for i := 0; i < typ.NumMethod(); i++ ***REMOVED***
 		m := typ.Method(i)
 		k := mapper.MethodName(typ, m)
 		if k != "" ***REMOVED***
-			v := val.Method(i).Interface()
+			fn := val.Method(i).Interface()
+			keys = append(keys, k)
+			rt.Set(k, fn)
+		***REMOVED***
+	***REMOVED***
+
+	elem := val
+	elemTyp := typ
+	if typ.Kind() == reflect.Ptr ***REMOVED***
+		elem = val.Elem()
+		elemTyp = elem.Type()
+	***REMOVED***
+	for i := 0; i < elemTyp.NumField(); i++ ***REMOVED***
+		f := elemTyp.Field(i)
+		k := mapper.FieldName(elemTyp, f)
+		if k != "" ***REMOVED***
+			v := elem.Field(i).Interface()
 			keys = append(keys, k)
 			rt.Set(k, v)
 		***REMOVED***
