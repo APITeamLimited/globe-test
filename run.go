@@ -350,7 +350,6 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	// Make the metric collector, if requested.
 	var collector lib.Collector
-	collectorString := "-"
 	if out != "" ***REMOVED***
 		c, err := makeCollector(out, opts)
 		if err != nil ***REMOVED***
@@ -358,7 +357,6 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 			return err
 		***REMOVED***
 		collector = c
-		collectorString = fmt.Sprint(collector)
 	***REMOVED***
 
 	fmt.Fprintln(color.Output, "")
@@ -368,6 +366,12 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	color.Green(`    /  \/    \    |      |  /  ‾‾\  `)
 	color.Green(`   /          \   |  |‾\  \ | (_) | `)
 	color.Green(`  / __________ \  |__|  \__\ \___/  Welcome to k6 v%s!`, cc.App.Version)
+
+	collectorString := "-"
+	if collector != nil ***REMOVED***
+		collector.Init()
+		collectorString = fmt.Sprint(collector)
+	***REMOVED***
 
 	fmt.Fprintln(color.Output, "")
 
