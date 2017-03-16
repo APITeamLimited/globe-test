@@ -21,8 +21,43 @@
 package k6
 
 import (
+	"context"
 	"testing"
+
+	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/js2/common"
+	"github.com/loadimpact/k6/lib"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGroup(t *testing.T) ***REMOVED***
+	rt := goja.New()
+
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+	state := &common.State***REMOVED***
+		Volatile: &common.VolatileState***REMOVED***
+			Group: root,
+		***REMOVED***,
+	***REMOVED***
+
+	mod := Module
+	mod.Context = common.WithState(context.Background(), state)
+	rt.Set("mod", mod.Export(rt))
+
+	t.Run("Valid", func(t *testing.T) ***REMOVED***
+		assert.Equal(t, state.Volatile.Group, root)
+		rt.Set("fn", func() ***REMOVED***
+			assert.Equal(t, state.Volatile.Group.Name, "my group")
+			assert.Equal(t, state.Volatile.Group.Parent, root)
+		***REMOVED***)
+		_, err = rt.RunString(`mod.group("my group", fn)`)
+		assert.NoError(t, err)
+		assert.Equal(t, state.Volatile.Group, root)
+	***REMOVED***)
+
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		_, err := rt.RunString(`mod.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
+		assert.EqualError(t, err, "GoError: group and check names may not contain '::'")
+	***REMOVED***)
 ***REMOVED***

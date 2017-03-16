@@ -31,7 +31,8 @@ var Module = common.Module***REMOVED***Impl: &K6***REMOVED******REMOVED******REM
 
 type K6 struct***REMOVED******REMOVED***
 
-func (impl *K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
+// Group pushes a group onto the stack, runs the provided function in it and resets it.
+func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
 	state := common.GetState(ctx)
 
 	g, err := state.Volatile.Group.Group(name)
