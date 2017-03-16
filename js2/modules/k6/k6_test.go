@@ -35,25 +35,21 @@ func TestGroup(t *testing.T) ***REMOVED***
 
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
-	state := &common.State***REMOVED***
-		Volatile: &common.VolatileState***REMOVED***
-			Group: root,
-		***REMOVED***,
-	***REMOVED***
+	state := &common.State***REMOVED***Group: root***REMOVED***
 
 	mod := Module
 	mod.Context = common.WithState(context.Background(), state)
 	rt.Set("mod", mod.Export(rt))
 
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
-		assert.Equal(t, state.Volatile.Group, root)
+		assert.Equal(t, state.Group, root)
 		rt.Set("fn", func() ***REMOVED***
-			assert.Equal(t, state.Volatile.Group.Name, "my group")
-			assert.Equal(t, state.Volatile.Group.Parent, root)
+			assert.Equal(t, state.Group.Name, "my group")
+			assert.Equal(t, state.Group.Parent, root)
 		***REMOVED***)
 		_, err = rt.RunString(`mod.group("my group", fn)`)
 		assert.NoError(t, err)
-		assert.Equal(t, state.Volatile.Group, root)
+		assert.Equal(t, state.Group, root)
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
