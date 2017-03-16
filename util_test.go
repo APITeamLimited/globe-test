@@ -18,35 +18,30 @@
  *
  */
 
-package json
+package main
 
 import (
 	"github.com/loadimpact/k6/lib"
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"os"
+	"gopkg.in/guregu/null.v3"
 	"testing"
+	"time"
 )
 
-func TestNew(t *testing.T) ***REMOVED***
-	testdata := map[string]bool***REMOVED***
-		"/nonexistent/badplacetolog.log": false,
-		"./okplacetolog.log":             true,
-		"okplacetolog.log":               true,
+func TestParseStage(t *testing.T) ***REMOVED***
+	testdata := map[string]lib.Stage***REMOVED***
+		"":        ***REMOVED******REMOVED***,
+		":":       ***REMOVED******REMOVED***,
+		"10s":     ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:":    ***REMOVED***Duration: 10 * time.Second***REMOVED***,
+		"10s:100": ***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+		":100":    ***REMOVED***Target: null.IntFrom(100)***REMOVED***,
 	***REMOVED***
-
-	for path, succ := range testdata ***REMOVED***
-		t.Run("path="+path, func(t *testing.T) ***REMOVED***
-			defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
-
-			collector, err := New(path, afero.NewOsFs(), lib.Options***REMOVED******REMOVED***)
-			if succ ***REMOVED***
-				assert.NoError(t, err)
-				assert.NotNil(t, collector)
-			***REMOVED*** else ***REMOVED***
-				assert.Error(t, err)
-				assert.Nil(t, collector)
-			***REMOVED***
+	for s, st := range testdata ***REMOVED***
+		t.Run(s, func(t *testing.T) ***REMOVED***
+			parsed, err := ParseStage(s)
+			assert.NoError(t, err)
+			assert.Equal(t, st, parsed)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

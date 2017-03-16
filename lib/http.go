@@ -31,8 +31,8 @@ import (
 // A Trail represents detailed information about an HTTP request.
 // You'd typically get one from a Tracer.
 type Trail struct ***REMOVED***
-	// All metrics will be tagged with this timestamp.
 	StartTime time.Time
+	EndTime   time.Time
 
 	// Total request duration, excluding DNS lookup and connect time.
 	Duration time.Duration
@@ -51,14 +51,14 @@ type Trail struct ***REMOVED***
 
 func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 	return []stats.Sample***REMOVED***
-		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.StartTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.LookingUp)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.StartTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.LookingUp)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -100,6 +100,7 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	done := time.Now()
 	trail := Trail***REMOVED***
 		StartTime:  t.getConn,
+		EndTime:    done,
 		Duration:   done.Sub(t.getConn),
 		Blocked:    t.gotConn.Sub(t.getConn),
 		LookingUp:  t.dnsDone.Sub(t.dnsStart),

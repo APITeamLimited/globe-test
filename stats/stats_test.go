@@ -28,22 +28,22 @@ import (
 
 func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 	data := map[*Metric]map[float64]string***REMOVED***
-		&Metric***REMOVED***Type: Counter, Contains: Default***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Counter, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Gauge, Contains: Default***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Gauge, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Trend, Contains: Default***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Trend, Contains: Default***REMOVED***: ***REMOVED***
 			1.0:     "1",
 			1.5:     "1.5",
 			1.54321: "1.54321",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Counter, Contains: Time***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Counter, Contains: Time***REMOVED***: ***REMOVED***
 			D(1):               "1ns",
 			D(12):              "12ns",
 			D(123):             "123ns",
@@ -60,7 +60,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			D(12345678901234):  "3h25m45s",
 			D(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Gauge, Contains: Time***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Gauge, Contains: Time***REMOVED***: ***REMOVED***
 			D(1):               "1ns",
 			D(12):              "12ns",
 			D(123):             "123ns",
@@ -77,7 +77,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			D(12345678901234):  "3h25m45s",
 			D(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Trend, Contains: Time***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Trend, Contains: Time***REMOVED***: ***REMOVED***
 			D(1):               "1ns",
 			D(12):              "12ns",
 			D(123):             "123ns",
@@ -94,7 +94,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 			D(12345678901234):  "3h25m45s",
 			D(123456789012345): "34h17m36s",
 		***REMOVED***,
-		&Metric***REMOVED***Type: Rate, Contains: Default***REMOVED***: ***REMOVED***
+		***REMOVED***Type: Rate, Contains: Default***REMOVED***: ***REMOVED***
 			0.0:      "0.00%",
 			0.01:     "1.00%",
 			0.02:     "2.00%",
