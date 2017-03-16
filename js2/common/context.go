@@ -18,30 +18,20 @@
  *
  */
 
-package k6
+package common
 
-import (
-	"context"
+import "context"
 
-	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js2/common"
+type ctxKey int
+
+const (
+	ctxKeyState ctxKey = iota
 )
 
-var Module = common.Module***REMOVED***Impl: &K6***REMOVED******REMOVED******REMOVED***
+func WithState(ctx context.Context, state *State) context.Context ***REMOVED***
+	return context.WithValue(ctx, ctxKeyState, state)
+***REMOVED***
 
-type K6 struct***REMOVED******REMOVED***
-
-func (impl *K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
-	state := common.GetState(ctx)
-
-	g, err := state.Volatile.Group.Group(name)
-	if err != nil ***REMOVED***
-		return goja.Undefined(), err
-	***REMOVED***
-
-	old := state.Volatile.Group
-	state.Volatile.Group = g
-	defer func() ***REMOVED*** state.Volatile.Group = old ***REMOVED***()
-
-	return fn(goja.Undefined())
+func GetState(ctx context.Context) *State ***REMOVED***
+	return ctx.Value(ctxKeyState).(*State)
 ***REMOVED***

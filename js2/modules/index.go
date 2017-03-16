@@ -21,10 +21,11 @@
 package modules
 
 import (
+	"github.com/loadimpact/k6/js2/common"
 	"github.com/loadimpact/k6/js2/modules/k6"
 )
 
 // Index of module implementations.
-var Index = map[string]Module***REMOVED***
-	"k6": Module***REMOVED***Impl: &k6.K6***REMOVED******REMOVED******REMOVED***,
+var Index = map[string]common.Module***REMOVED***
+	"k6": k6.Module,
 ***REMOVED***

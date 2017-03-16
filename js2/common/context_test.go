@@ -18,30 +18,16 @@
  *
  */
 
-package k6
+package common
 
 import (
 	"context"
+	"testing"
 
-	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js2/common"
+	"github.com/stretchr/testify/assert"
 )
 
-var Module = common.Module***REMOVED***Impl: &K6***REMOVED******REMOVED******REMOVED***
-
-type K6 struct***REMOVED******REMOVED***
-
-func (impl *K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
-	state := common.GetState(ctx)
-
-	g, err := state.Volatile.Group.Group(name)
-	if err != nil ***REMOVED***
-		return goja.Undefined(), err
-	***REMOVED***
-
-	old := state.Volatile.Group
-	state.Volatile.Group = g
-	defer func() ***REMOVED*** state.Volatile.Group = old ***REMOVED***()
-
-	return fn(goja.Undefined())
+func TestContextState(t *testing.T) ***REMOVED***
+	st := &State***REMOVED******REMOVED***
+	assert.Equal(t, st, GetState(WithState(context.Background(), st)))
 ***REMOVED***
