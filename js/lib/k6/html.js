@@ -62,6 +62,12 @@ export class Selection ***REMOVED***
 	 * @return ***REMOVED***string***REMOVED***
 	 */
 	text() ***REMOVED*** return this.impl.Text(); ***REMOVED***
+
+	/**
+	 * Returns the value of the current selection
+	 * @return 
+	 */
+	attr(attrName) ***REMOVED*** return this.impl.Attr(attrName); ***REMOVED***
 ***REMOVED***;
 
 export default ***REMOVED***
