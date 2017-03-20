@@ -45,3 +45,30 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 
 	return fn(goja.Undefined())
 ***REMOVED***
+
+func (*K6) Check(ctx context.Context, arg0, checks goja.Value) (bool, error) ***REMOVED***
+	// state := common.GetState(ctx)
+	rt := common.GetRuntime(ctx)
+
+	succ := true
+	obj := checks.ToObject(rt)
+	for _, key := range obj.Keys() ***REMOVED***
+		val := obj.Get(key)
+
+		// Resolve callables into values.
+		fn, ok := goja.AssertFunction(val)
+		if ok ***REMOVED***
+			val_, err := fn(goja.Undefined(), arg0)
+			if err != nil ***REMOVED***
+				return false, err
+			***REMOVED***
+			val = val_
+		***REMOVED***
+
+		if !val.ToBoolean() ***REMOVED***
+			succ = false
+		***REMOVED***
+	***REMOVED***
+
+	return succ, nil
+***REMOVED***
