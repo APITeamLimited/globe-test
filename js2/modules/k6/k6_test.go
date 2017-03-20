@@ -47,13 +47,13 @@ func TestGroup(t *testing.T) ***REMOVED***
 			assert.Equal(t, state.Group.Name, "my group")
 			assert.Equal(t, state.Group.Parent, root)
 		***REMOVED***)
-		_, err = rt.RunString(`mod.group("my group", fn)`)
+		_, err = common.RunString(rt, `mod.group("my group", fn)`)
 		assert.NoError(t, err)
 		assert.Equal(t, state.Group, root)
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := rt.RunString(`mod.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
+		_, err := common.RunString(rt, `mod.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
 		assert.EqualError(t, err, "GoError: group and check names may not contain '::'")
 	***REMOVED***)
 ***REMOVED***
