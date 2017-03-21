@@ -44,6 +44,14 @@ export function taint() ***REMOVED***
 ***REMOVED***
 
 /**
+ * Throws an error. Needed because `exp || throw ...` is not valid JS, but `exp || fn()` is.
+ * @param ***REMOVED***any***REMOVED*** err Error.
+ */
+export function fail(err) ***REMOVED***
+	throw err;
+***REMOVED***
+
+/**
  * Asserts that a value is truthy.
  * @param  ***REMOVED***any***REMOVED***    exp   Expression result.
  * @param  ***REMOVED***string***REMOVED*** [err] Error message.
