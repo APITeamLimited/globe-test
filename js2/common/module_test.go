@@ -32,6 +32,8 @@ import (
 
 type testModule struct ***REMOVED***
 	Counter int
+	String  string
+	Renamed string `js:"renamed"`
 ***REMOVED***
 
 func (testModule) unexported() bool ***REMOVED*** return true ***REMOVED***
@@ -71,8 +73,8 @@ func (m *testModule) Count() int ***REMOVED***
 
 func TestModuleProxy(t *testing.T) ***REMOVED***
 	testdata := map[string]func() interface***REMOVED******REMOVED******REMOVED***
-		"Value":   func() interface***REMOVED******REMOVED*** ***REMOVED*** return testModule***REMOVED******REMOVED*** ***REMOVED***,
-		"Pointer": func() interface***REMOVED******REMOVED*** ***REMOVED*** return &testModule***REMOVED******REMOVED*** ***REMOVED***,
+		"Value":   func() interface***REMOVED******REMOVED*** ***REMOVED*** return testModule***REMOVED***0, "a", "b"***REMOVED*** ***REMOVED***,
+		"Pointer": func() interface***REMOVED******REMOVED*** ***REMOVED*** return &testModule***REMOVED***0, "a", "b"***REMOVED*** ***REMOVED***,
 	***REMOVED***
 	for vtype, vfn := range testdata ***REMOVED***
 		t.Run(vtype, func(t *testing.T) ***REMOVED***
@@ -204,6 +206,22 @@ func TestModuleProxy(t *testing.T) ***REMOVED***
 							assert.EqualError(t, err, "TypeError: Object has no member 'count'")
 						***REMOVED***)
 					***REMOVED***
+
+					t.Run("Counter", func(t *testing.T) ***REMOVED***
+						v, err := RunString(rt, `mod.counter`)
+						assert.NoError(t, err)
+						assert.Equal(t, int64(0), v.Export())
+					***REMOVED***)
+					t.Run("String", func(t *testing.T) ***REMOVED***
+						v, err := RunString(rt, `mod.string`)
+						assert.NoError(t, err)
+						assert.Equal(t, "a", v.Export())
+					***REMOVED***)
+					t.Run("Renamed", func(t *testing.T) ***REMOVED***
+						v, err := RunString(rt, `mod.renamed`)
+						assert.NoError(t, err)
+						assert.Equal(t, "b", v.Export())
+					***REMOVED***)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)

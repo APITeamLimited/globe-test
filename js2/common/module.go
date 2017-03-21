@@ -83,6 +83,21 @@ func (m *Module) Proxy(rt *goja.Runtime, v interface***REMOVED******REMOVED***) 
 		_ = exports.Set(name, meth.Interface())
 	***REMOVED***
 
+	elem := val
+	elemTyp := typ
+	if typ.Kind() == reflect.Ptr ***REMOVED***
+		elem = val.Elem()
+		elemTyp = elem.Type()
+	***REMOVED***
+	for i := 0; i < elemTyp.NumField(); i++ ***REMOVED***
+		f := elemTyp.Field(i)
+		k := mapper.FieldName(elemTyp, f)
+		if k == "" ***REMOVED***
+			continue
+		***REMOVED***
+		_ = exports.Set(k, elem.Field(i).Interface())
+	***REMOVED***
+
 	return rt.ToValue(exports)
 ***REMOVED***
 
