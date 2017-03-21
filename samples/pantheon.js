@@ -14,7 +14,7 @@ export let options = ***REMOVED***
 const baseURL = "https://dev-li-david.pantheonsite.io";
 
 // User think time in between page loads etc. (change this to 0 when debugging)
-const thinkTime = 0;
+const thinkTime = 30;
 
 // List of login usernames and passwords
 const credentials = [
@@ -110,7 +110,7 @@ const categories = ***REMOVED***
 				title: "\"The Guy\" Mug  | David li commerce-test",
 				chance: 0.25,
 			***REMOVED***,
-		***REMOVED***			
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***;
 
@@ -193,19 +193,19 @@ function doProductPage(product) ***REMOVED***
 // Add a product to our shopping cart
 function addProductToCart(url, productID, formID, formBuildID, formToken) ***REMOVED***
 	let formdata = ***REMOVED***
-       	product_id: productID,
-       	form_id: formID,
-       	form_build_id: formBuildID,
-       	form_token: formToken,
-       	quantity: 1,
-       	op: "Add to cart",
-    ***REMOVED***;
+		product_id: productID,
+		form_id: formID,
+		form_build_id: formBuildID,
+		form_token: formToken,
+		quantity: 1,
+		op: "Add to cart",
+	***REMOVED***;
 	let headers = ***REMOVED*** "Content-Type": "application/x-www-form-urlencoded" ***REMOVED***;
-    let res = http.post(url, formdata, ***REMOVED*** headers: headers ***REMOVED***);
-    // verify add to cart succeeded
-    check(res, ***REMOVED***
-       	"add to cart succeeded": (res) => res.body.includes('Item successfully added to your cart')
-    ***REMOVED***) || fail("add to cart failed");
+	let res = http.post(url, formdata, ***REMOVED*** headers: headers ***REMOVED***);
+	// verify add to cart succeeded
+	check(res, ***REMOVED***
+		"add to cart succeeded": (res) => res.body.includes('Item successfully added to your cart')
+	***REMOVED***) || fail("add to cart failed");
 ***REMOVED***
 
 // Perform multi-step (multi-page) checkout
@@ -230,16 +230,16 @@ function doCheckout() ***REMOVED***
 		let formToken = res.body.match('name="form_token" value="(.*)"')[1];
 		let formBuildID = res.body.match('name="form_build_id" value="(.*)"')[1];
 		let formdata = ***REMOVED***
-        	"form_build_id": formBuildID,
-        	"form_token": formToken,
-        	"form_id": formID,
-        	"op": "Checkout"
-    	***REMOVED***;
+			"form_build_id": formBuildID,
+			"form_token": formToken,
+			"form_id": formID,
+			"op": "Checkout"
+		***REMOVED***;
 		let headers = ***REMOVED*** "Content-Type": "application/x-www-form-urlencoded" ***REMOVED***;
-    	res = http.post(baseURL + "/cart", formdata, ***REMOVED*** headers: headers ***REMOVED***);
-    	check(res, ***REMOVED***
-        	"cart submit succeeded": (res) => res.url.includes("/checkout/")
-    	***REMOVED***) || fail("cart submit failed");
+		res = http.post(baseURL + "/cart", formdata, ***REMOVED*** headers: headers ***REMOVED***);
+		check(res, ***REMOVED***
+			"cart submit succeeded": (res) => res.url.includes("/checkout/")
+		***REMOVED***) || fail("cart submit failed");
 	***REMOVED***);
 
 	// The previous POST operation should get redirected to a dynamic URL that has a
@@ -255,22 +255,22 @@ function doCheckout() ***REMOVED***
 		let formBuildID = res.body.match('name="form_build_id" value="(.*)"')[1];
 		// try without setting Referer
 		let formdata = ***REMOVED***
-    	    "customer_profile_billing[commerce_customer_address][und][0][country]": "SE",
-    	    "customer_profile_billing[commerce_customer_address][und][0][name_line]": "Mr Test",
-    	    "customer_profile_billing[commerce_customer_address][und][0][thoroughfare]": "Gotgatan 14",
-    	    "customer_profile_billing[commerce_customer_address][und][0][premise]": "",
-    	    "customer_profile_billing[commerce_customer_address][und][0][postal_code]": "11846",
-    	    "customer_profile_billing[commerce_customer_address][und][0][locality]": "Stockholm",
-    	    "customer_profile_shipping[commerce_customer_profile_copy]": "1",
-    	    "form_build_id": formBuildID,
-    	    "form_token": formToken,
-    	    "form_id": formID,
-    	    "op": "Continue to next step"
-    	***REMOVED***;
+			"customer_profile_billing[commerce_customer_address][und][0][country]": "SE",
+			"customer_profile_billing[commerce_customer_address][und][0][name_line]": "Mr Test",
+			"customer_profile_billing[commerce_customer_address][und][0][thoroughfare]": "Gotgatan 14",
+			"customer_profile_billing[commerce_customer_address][und][0][premise]": "",
+			"customer_profile_billing[commerce_customer_address][und][0][postal_code]": "11846",
+			"customer_profile_billing[commerce_customer_address][und][0][locality]": "Stockholm",
+			"customer_profile_shipping[commerce_customer_profile_copy]": "1",
+			"form_build_id": formBuildID,
+			"form_token": formToken,
+			"form_id": formID,
+			"op": "Continue to next step"
+		***REMOVED***;
 		let headers = ***REMOVED*** "Content-Type": "application/x-www-form-urlencoded" ***REMOVED***;
 		res = http.post(checkoutBaseURL, formdata, ***REMOVED*** headers: headers ***REMOVED***);
 		check(res, ***REMOVED***
-        	"billing details succeeded": (res) => res.url === (checkoutBaseURL + "/shipping")
+			"billing details succeeded": (res) => res.url === (checkoutBaseURL + "/shipping")
 		***REMOVED***) || fail("billing details failed"); 
 	***REMOVED***);
 
@@ -279,17 +279,17 @@ function doCheckout() ***REMOVED***
 		let formToken = res.body.match('name="form_token" value="(.*)"')[1];
 		let formBuildID = res.body.match('name="form_build_id" value="(.*)"')[1];
 		let formdata = ***REMOVED***
-        	"commerce_shipping[shipping_service]": "express_shipping",
-        	"form_build_id": formBuildID,
-        	"form_token": formToken,
-        	"form_id": formID,
-        	"op": "Continue to next step"
-    	***REMOVED***;
+			"commerce_shipping[shipping_service]": "express_shipping",
+			"form_build_id": formBuildID,
+			"form_token": formToken,
+			"form_id": formID,
+			"op": "Continue to next step"
+		***REMOVED***;
 		let headers = ***REMOVED*** "Content-Type": "application/x-www-form-urlencoded" ***REMOVED***;
 		res = http.post(checkoutBaseURL + "/shipping", formdata, ***REMOVED*** headers: headers ***REMOVED***);
-    	check(res, ***REMOVED***
-        	"shipping options succeeded": (res) => res.url === (checkoutBaseURL + "/review")
-    	***REMOVED***) || console.log("Select shipping failed!");
+		check(res, ***REMOVED***
+			"shipping options succeeded": (res) => res.url === (checkoutBaseURL + "/review")
+		***REMOVED***) || console.log("Select shipping failed!");
 	***REMOVED***);
 	
 	group("Checkout 5: review and submit", function() ***REMOVED***
@@ -297,23 +297,23 @@ function doCheckout() ***REMOVED***
 		let formToken = res.body.match('name="form_token" value="(.*)"')[1];
 		let formBuildID = res.body.match('name="form_build_id" value="(.*)"')[1];
 		let formdata = ***REMOVED***
-        	"commerce_payment[payment_method]": "commerce_payment_example|commerce_payment_commerce_payment_example",
-        	"commerce_payment[payment_details][credit_card][number]": "4111111111111111",
-        	"commerce_payment[payment_details][credit_card][exp_month]": "03",
-        	"commerce_payment[payment_details][credit_card][exp_year]": "2019",
-        	"form_build_id": formBuildID,
-        	"form_token": formToken,
-        	"form_id": formID,
-        	"op": "Continue to next step"
-    	***REMOVED***;
+			"commerce_payment[payment_method]": "commerce_payment_example|commerce_payment_commerce_payment_example",
+			"commerce_payment[payment_details][credit_card][number]": "4111111111111111",
+			"commerce_payment[payment_details][credit_card][exp_month]": "03",
+			"commerce_payment[payment_details][credit_card][exp_year]": "2019",
+			"form_build_id": formBuildID,
+			"form_token": formToken,
+			"form_id": formID,
+			"op": "Continue to next step"
+		***REMOVED***;
 		let headers = ***REMOVED*** "Content-Type": "application/x-www-form-urlencoded" ***REMOVED***;
 		res = http.post(checkoutBaseURL + "/review", formdata, ***REMOVED*** headers: headers ***REMOVED***);
-	   	// if this POST succeeds, it will redirect to e.g. /checkout/7/payment
-    	// /checkout/7/payment, in turn, will redirect to /checkout/7/paypal_ec
-    	// /checkout/7/paypal_ec, in turn, will redirect to /checkout/7/complete
-    	check(res, ***REMOVED***
-        	"Checkout 6: checkout complete": (res) => res.html("h1").text() === "Checkout complete"
-    	***REMOVED***) || fail("review and submit failed");
+		// if this POST succeeds, it will redirect to e.g. /checkout/7/payment
+		// /checkout/7/payment, in turn, will redirect to /checkout/7/paypal_ec
+		// /checkout/7/paypal_ec, in turn, will redirect to /checkout/7/complete
+		check(res, ***REMOVED***
+			"Checkout 6: checkout complete": (res) => res.html("h1").text() === "Checkout complete"
+		***REMOVED***) || fail("review and submit failed");
 	***REMOVED***);
 ***REMOVED***
 
