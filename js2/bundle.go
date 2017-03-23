@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/compiler"
@@ -40,6 +41,8 @@ type Bundle struct ***REMOVED***
 	Program     *goja.Program
 	InitContext *InitContext
 	Options     lib.Options
+
+	initLock sync.Mutex
 ***REMOVED***
 
 // Creates a new bundle from a source file and a filesystem.
@@ -67,7 +70,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	bundle := Bundle***REMOVED***
 		Filename:    src.Filename,
 		Program:     pgm,
-		InitContext: NewInitContext(rt, fs, pwd),
+		InitContext: NewInitContext(fs, pwd),
 	***REMOVED***
 	if err := bundle.instantiateInto(rt); err != nil ***REMOVED***
 		return nil, err
@@ -118,6 +121,13 @@ func (b *Bundle) Instantiate() (*goja.Runtime, error) ***REMOVED***
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
 func (b *Bundle) instantiateInto(rt *goja.Runtime) error ***REMOVED***
+	b.initLock.Lock()
+	b.InitContext.runtime = rt
+	defer func() ***REMOVED***
+		b.InitContext.runtime = nil
+		b.initLock.Unlock()
+	***REMOVED***()
+
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.Set("exports", rt.NewObject())
 
