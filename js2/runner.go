@@ -63,23 +63,18 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 
 func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	rt, err := r.Bundle.Instantiate()
+	bi, err := r.Bundle.Instantiate()
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	// Prepare the default callable.
-	exports := rt.Get("exports").ToObject(rt)
-	callable, _ := goja.AssertFunction(exports.Get("default"))
-
 	// Make a VU, apply the VU context.
 	vu := &VU***REMOVED***
-		Runner:    r,
-		Runtime:   rt,
-		VUContext: NewVUContext(),
-		callable:  callable,
+		BundleInstance: *bi,
+		Runner:         r,
+		VUContext:      NewVUContext(),
 	***REMOVED***
-	common.BindToGlobal(rt, vu.VUContext)
+	common.BindToGlobal(vu.Runtime, vu.VUContext)
 
 	// Give the VU an initial sense of identity.
 	if err := vu.Reconfigure(0); err != nil ***REMOVED***
@@ -102,26 +97,25 @@ func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
 ***REMOVED***
 
 type VU struct ***REMOVED***
+	BundleInstance
+
 	Runner    *Runner
-	Runtime   *goja.Runtime
 	ID        int64
 	Iteration int64
 
 	Samples   []stats.Sample
 	VUContext *VUContext
-
-	callable goja.Callable
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	// ctx = WithState(ctx, &State***REMOVED***
-	// 	Group: u.Runner.defaultGroup,
-	// ***REMOVED***)
+	ctx = common.WithState(ctx, &common.State***REMOVED***
+		Group: u.Runner.defaultGroup,
+	***REMOVED***)
 
 	u.Runtime.Set("__ITER", u.Iteration)
 	u.Iteration++
 
-	_, err := u.callable(goja.Undefined())
+	_, err := u.Default(goja.Undefined())
 	samples := u.Samples
 	u.Samples = nil
 	return samples, err
