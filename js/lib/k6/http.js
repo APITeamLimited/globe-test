@@ -58,6 +58,12 @@ function parseBody(body) ***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
+	if (typeof body === "object") ***REMOVED***
+		if (typeof params["headers"] !== "object") ***REMOVED***
+			params["headers"] = ***REMOVED******REMOVED***;
+		***REMOVED***
+		params["headers"]["Content-Type"] = "application/x-www-form-urlencoded";
+	***REMOVED***
 	body = parseBody(body);
 	return new Response(__jsapi__.HTTPRequest(method, url, body, JSON.stringify(params)));
 ***REMOVED***;

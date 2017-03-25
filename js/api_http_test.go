@@ -102,3 +102,22 @@ func TestHTTPBatchObject(t *testing.T) ***REMOVED***
 
 	assert.NoError(t, runSnippet(snippet))
 ***REMOVED***
+
+func TestHTTPFormURLEncodeHeader(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
+	snippet := `
+	import ***REMOVED*** _assert ***REMOVED*** from "k6"
+	import http from "k6/http"
+
+	export default function() ***REMOVED***
+		let response = http.post("http://httpbin.org/post", ***REMOVED*** field: "value" ***REMOVED***)
+		_assert(response.json()["form"].hasOwnProperty("field"))
+		_assert(response.json()["form"]["field"] === "value")
+	***REMOVED***
+	`
+
+	assert.NoError(t, runSnippet(snippet))
+***REMOVED***
