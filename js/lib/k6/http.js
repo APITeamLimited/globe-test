@@ -38,7 +38,17 @@ function parseBody(body) ***REMOVED***
 				if (formstring !== "") ***REMOVED***
 					formstring += "&";
 				***REMOVED***
-				formstring += key + "=" + encodeURIComponent(body[key]);
+				if (Array.isArray(body[key])) ***REMOVED***
+					let l = body[key].length;
+					for (let i = 0; i < l; i++) ***REMOVED***
+						formstring += key + "=" + encodeURIComponent(body[key][i]);
+						if (formstring !== "") ***REMOVED***
+							formstring += "&";
+						***REMOVED***
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					formstring += key + "=" + encodeURIComponent(body[key]);
+				***REMOVED***
 			***REMOVED***
 			return formstring;
 		***REMOVED***
