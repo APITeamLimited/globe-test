@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -335,5 +336,38 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***)
+***REMOVED***
+
+func TestBundleInstantiate(t *testing.T) ***REMOVED***
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+		let val = true;
+		export default function() ***REMOVED*** return val; ***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bi, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	t.Run("Run", func(t *testing.T) ***REMOVED***
+		v, err := bi.Default(goja.Undefined())
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, true, v.Export())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
+		bi.Runtime.Set("val", false)
+		v, err := bi.Default(goja.Undefined())
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, false, v.Export())
+		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
