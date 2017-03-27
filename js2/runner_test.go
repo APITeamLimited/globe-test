@@ -24,6 +24,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/loadimpact/k6/js2/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -77,4 +78,31 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 	r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 	assert.Equal(t, r.Bundle.Options, r.GetOptions())
 	assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+***REMOVED***
+
+func TestVURunContext(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data:     []byte(`export default function() ***REMOVED*** fn(); ***REMOVED***`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	fnCalled := false
+	vu.Runtime.Set("fn", func() ***REMOVED***
+		fnCalled = true
+		assert.Equal(t, vu.Runtime, common.GetRuntime(vu.ctx), "incorrect runtime in context")
+		assert.Equal(t, &common.State***REMOVED***
+			Group: r.GetDefaultGroup(),
+		***REMOVED***, common.GetState(vu.ctx), "incorrect state in context")
+	***REMOVED***)
+	_, err = vu.RunOnce(context.Background())
+	assert.NoError(t, err)
+	assert.True(t, fnCalled, "fn() not called")
 ***REMOVED***
