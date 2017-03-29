@@ -22,7 +22,9 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -69,6 +71,30 @@ func (testModule) ContextAddWithError(ctx context.Context, a, b int) (int, error
 func (m *testModule) Count() int ***REMOVED***
 	m.Counter++
 	return m.Counter
+***REMOVED***
+
+func (testModule) Sum(nums ...int) int ***REMOVED***
+	sum := 0
+	for v := range nums ***REMOVED***
+		sum += v
+	***REMOVED***
+	return sum
+***REMOVED***
+
+func (m testModule) SumWithContext(ctx context.Context, nums ...int) int ***REMOVED***
+	return m.Sum(nums...)
+***REMOVED***
+
+func (m testModule) SumWithError(nums ...int) (int, error) ***REMOVED***
+	sum := m.Sum(nums...)
+	if sum < 0 ***REMOVED***
+		return 0, errors.New("answer is negative")
+	***REMOVED***
+	return sum, nil
+***REMOVED***
+
+func (m testModule) SumWithContextAndError(ctx context.Context, nums ...int) (int, error) ***REMOVED***
+	return m.SumWithError(nums...)
 ***REMOVED***
 
 func TestModuleProxy(t *testing.T) ***REMOVED***
@@ -204,6 +230,30 @@ func TestModuleProxy(t *testing.T) ***REMOVED***
 						t.Run("Count", func(t *testing.T) ***REMOVED***
 							_, err := RunString(rt, `mod.count()`)
 							assert.EqualError(t, err, "TypeError: Object has no member 'count'")
+						***REMOVED***)
+					***REMOVED***
+					for name, fname := range map[string]string***REMOVED***
+						"Sum":                    "sum",
+						"SumWithContext":         "sumWithContext",
+						"SumWithError":           "sumWithError",
+						"SumWithContextAndError": "sumWithContextAndError",
+					***REMOVED*** ***REMOVED***
+						mod.Context = context.Background()
+						defer func() ***REMOVED*** mod.Context = nil ***REMOVED***()
+
+						t.Run(name, func(t *testing.T) ***REMOVED***
+							sum := 0
+							args := []string***REMOVED******REMOVED***
+							for i := 0; i < 10; i++ ***REMOVED***
+								args = append(args, strconv.Itoa(i))
+								sum += i
+								t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
+									code := fmt.Sprintf(`mod.%s(%s)`, fname, strings.Join(args, ", "))
+									v, err := RunString(rt, code)
+									assert.NoError(t, err)
+									assert.Equal(t, int64(sum), v.Export())
+								***REMOVED***)
+							***REMOVED***
 						***REMOVED***)
 					***REMOVED***
 
