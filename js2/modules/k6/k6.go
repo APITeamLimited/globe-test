@@ -32,8 +32,6 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-var Module = common.Module***REMOVED***Impl: &K6***REMOVED******REMOVED******REMOVED***
-
 type K6 struct***REMOVED******REMOVED***
 
 func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***

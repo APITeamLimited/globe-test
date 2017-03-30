@@ -99,10 +99,10 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	fnCalled := false
 	vu.Runtime.Set("fn", func() ***REMOVED***
 		fnCalled = true
-		assert.Equal(t, vu.Runtime, common.GetRuntime(vu.ctx), "incorrect runtime in context")
+		assert.Equal(t, vu.Runtime, common.GetRuntime(*vu.Context), "incorrect runtime in context")
 		assert.Equal(t, &common.State***REMOVED***
 			Group: r.GetDefaultGroup(),
-		***REMOVED***, common.GetState(vu.ctx), "incorrect state in context")
+		***REMOVED***, common.GetState(*vu.Context), "incorrect state in context")
 	***REMOVED***)
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
@@ -126,13 +126,13 @@ func TestVURunSamples(t *testing.T) ***REMOVED***
 	metric := stats.New("my_metric", stats.Counter)
 	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: metric, Value: 1***REMOVED***
 	vu.Runtime.Set("fn", func() ***REMOVED***
-		state := common.GetState(vu.ctx)
+		state := common.GetState(*vu.Context)
 		state.Samples = append(state.Samples, sample)
 	***REMOVED***)
 
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
-	assert.Equal(t, []stats.Sample***REMOVED***sample***REMOVED***, common.GetState(vu.ctx).Samples)
+	assert.Equal(t, []stats.Sample***REMOVED***sample***REMOVED***, common.GetState(*vu.Context).Samples)
 ***REMOVED***
 
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
@@ -165,17 +165,17 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	fnNestedCalled := false
 	vu.Runtime.Set("fnOuter", func() ***REMOVED***
 		fnOuterCalled = true
-		assert.Equal(t, r.GetDefaultGroup(), common.GetState(vu.ctx).Group)
+		assert.Equal(t, r.GetDefaultGroup(), common.GetState(*vu.Context).Group)
 	***REMOVED***)
 	vu.Runtime.Set("fnInner", func() ***REMOVED***
 		fnInnerCalled = true
-		g := common.GetState(vu.ctx).Group
+		g := common.GetState(*vu.Context).Group
 		assert.Equal(t, "my group", g.Name)
 		assert.Equal(t, r.GetDefaultGroup(), g.Parent)
 	***REMOVED***)
 	vu.Runtime.Set("fnNested", func() ***REMOVED***
 		fnNestedCalled = true
-		g := common.GetState(vu.ctx).Group
+		g := common.GetState(*vu.Context).Group
 		assert.Equal(t, "nested group", g.Name)
 		assert.Equal(t, "my group", g.Parent.Name)
 		assert.Equal(t, r.GetDefaultGroup(), g.Parent.Parent)
