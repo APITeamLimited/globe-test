@@ -34,6 +34,9 @@ type Collector struct ***REMOVED***
 	lock sync.Mutex
 ***REMOVED***
 
+func (c *Collector) Init() ***REMOVED***
+***REMOVED***
+
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	c.lock.Lock()
 	c.running = true

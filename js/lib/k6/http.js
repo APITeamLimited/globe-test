@@ -38,7 +38,17 @@ function parseBody(body) ***REMOVED***
 				if (formstring !== "") ***REMOVED***
 					formstring += "&";
 				***REMOVED***
-				formstring += key + "=" + encodeURIComponent(body[key]);
+				if (Array.isArray(body[key])) ***REMOVED***
+					let l = body[key].length;
+					for (let i = 0; i < l; i++) ***REMOVED***
+						formstring += key + "=" + encodeURIComponent(body[key][i]);
+						if (formstring !== "") ***REMOVED***
+							formstring += "&";
+						***REMOVED***
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					formstring += key + "=" + encodeURIComponent(body[key]);
+				***REMOVED***
 			***REMOVED***
 			return formstring;
 		***REMOVED***
@@ -58,6 +68,12 @@ function parseBody(body) ***REMOVED***
  */
 export function request(method, url, body, params = ***REMOVED******REMOVED***) ***REMOVED***
 	method = method.toUpperCase();
+	if (typeof body === "object") ***REMOVED***
+		if (typeof params["headers"] !== "object") ***REMOVED***
+			params["headers"] = ***REMOVED******REMOVED***;
+		***REMOVED***
+		params["headers"]["Content-Type"] = "application/x-www-form-urlencoded";
+	***REMOVED***
 	body = parseBody(body);
 	return new Response(__jsapi__.HTTPRequest(method, url, body, JSON.stringify(params)));
 ***REMOVED***;

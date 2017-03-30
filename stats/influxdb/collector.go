@@ -59,6 +59,9 @@ func New(s string, opts lib.Options) (*Collector, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
+func (c *Collector) Init() ***REMOVED***
+***REMOVED***
+
 func (c *Collector) String() string ***REMOVED***
 	return fmt.Sprintf("influxdb (%s)", c.u.Host)
 ***REMOVED***

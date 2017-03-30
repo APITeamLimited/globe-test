@@ -79,6 +79,19 @@ func TestHTTPBatchLong(t *testing.T) ***REMOVED***
 	assert.NoError(t, runSnippet(snippet))
 ***REMOVED***
 
+func TestHTTPBatchError(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
+	snippet := `
+	import http from "k6/http"
+	export default function() ***REMOVED*** http.batch([""]) ***REMOVED***
+	`
+
+	assert.EqualError(t, runSnippet(snippet), "Error: Get : unsupported protocol scheme \"\"")
+***REMOVED***
+
 func TestHTTPBatchObject(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
 		return
@@ -97,6 +110,44 @@ func TestHTTPBatchObject(t *testing.T) ***REMOVED***
 		_assert(responses.twohundred.status === 200)
 		_assert(responses.fourohfour.status === 404)
 		_assert(responses.fivehundred.status === 500)
+	***REMOVED***
+	`
+
+	assert.NoError(t, runSnippet(snippet))
+***REMOVED***
+
+func TestHTTPFormURLEncodeHeader(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
+	snippet := `
+	import ***REMOVED*** _assert ***REMOVED*** from "k6"
+	import http from "k6/http"
+
+	export default function() ***REMOVED***
+		let response = http.post("http://httpbin.org/post", ***REMOVED*** field: "value" ***REMOVED***)
+		_assert(response.json()["form"].hasOwnProperty("field"))
+		_assert(response.json()["form"]["field"] === "value")
+	***REMOVED***
+	`
+
+	assert.NoError(t, runSnippet(snippet))
+***REMOVED***
+
+func TestHTTPFormURLEncodeList(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
+	snippet := `
+	import ***REMOVED*** _assert ***REMOVED*** from "k6"
+	import http from "k6/http"
+
+	export default function() ***REMOVED***
+		let response = http.post("http://httpbin.org/post", ***REMOVED*** field: ["value1", "value2", "value3"] ***REMOVED***, ***REMOVED*** headers: ***REMOVED***"Content-Type": "application/x-www-form-urlencoded"***REMOVED*** ***REMOVED***)
+		_assert(response.json()["form"].hasOwnProperty("field"))
+		_assert(JSON.stringify(response.json()["form"]["field"]) === JSON.stringify(["value1", "value2", "value3"]))
 	***REMOVED***
 	`
 
