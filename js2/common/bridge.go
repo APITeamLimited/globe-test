@@ -21,10 +21,12 @@
 package common
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/pkg/errors"
 )
 
 // The field name mapper translates Go symbol names for bridging to JS.
@@ -100,4 +102,109 @@ func BindToGlobal(rt *goja.Runtime, v interface***REMOVED******REMOVED***) func(
 			rt.Set(k, goja.Undefined())
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctx *context.Context) goja.Value ***REMOVED***
+	ctxT := reflect.TypeOf((*context.Context)(nil)).Elem()
+	errorT := reflect.TypeOf((*error)(nil)).Elem()
+
+	exports := rt.NewObject()
+	mapper := FieldNameMapper***REMOVED******REMOVED***
+
+	val := reflect.ValueOf(v)
+	typ := val.Type()
+	for i := 0; i < typ.NumMethod(); i++ ***REMOVED***
+		i := i
+		methT := typ.Method(i)
+		name := mapper.MethodName(typ, methT)
+		if name == "" ***REMOVED***
+			continue
+		***REMOVED***
+		meth := val.Method(i)
+
+		in := make([]reflect.Type, methT.Type.NumIn())
+		for i := 0; i < len(in); i++ ***REMOVED***
+			in[i] = methT.Type.In(i)
+		***REMOVED***
+		out := make([]reflect.Type, methT.Type.NumOut())
+		for i := 0; i < len(out); i++ ***REMOVED***
+			out[i] = methT.Type.Out(i)
+		***REMOVED***
+
+		// Skip over the first input arg; it'll be the bound object.
+		in = in[1:]
+
+		// If the first argument is a context.Context, inject the given context.
+		// The function will error if called outside of a valid context.
+		if len(in) > 0 && in[0].Implements(ctxT) ***REMOVED***
+			in = in[1:]
+			meth = bindContext(in, out, methT, meth, rt, ctx)
+		***REMOVED***
+
+		// If the last return value is an error, turn it into a JS throw.
+		if len(out) > 0 && out[len(out)-1] == errorT ***REMOVED***
+			out = out[:len(out)-1]
+			meth = bindErrorHandler(in, out, methT, meth, rt)
+		***REMOVED***
+
+		_ = exports.Set(name, meth.Interface())
+	***REMOVED***
+
+	elem := val
+	elemTyp := typ
+	if typ.Kind() == reflect.Ptr ***REMOVED***
+		elem = val.Elem()
+		elemTyp = elem.Type()
+	***REMOVED***
+	for i := 0; i < elemTyp.NumField(); i++ ***REMOVED***
+		f := elemTyp.Field(i)
+		k := mapper.FieldName(elemTyp, f)
+		if k == "" ***REMOVED***
+			continue
+		***REMOVED***
+		_ = exports.Set(k, elem.Field(i).Interface())
+	***REMOVED***
+
+	return rt.ToValue(exports)
+***REMOVED***
+
+func bindContext(in, out []reflect.Type, methT reflect.Method, meth reflect.Value, rt *goja.Runtime, ctxPtr *context.Context) reflect.Value ***REMOVED***
+	return reflect.MakeFunc(
+		reflect.FuncOf(in, out, methT.Type.IsVariadic()),
+		func(args []reflect.Value) []reflect.Value ***REMOVED***
+			ctx := *ctxPtr
+			if ctx == nil ***REMOVED***
+				panic(rt.NewGoError(errors.Errorf("%s needs a valid VU context", methT.Name)))
+			***REMOVED***
+
+			select ***REMOVED***
+			case <-ctx.Done():
+				panic(rt.NewGoError(errors.Errorf("test has ended")))
+			default:
+			***REMOVED***
+
+			return callBound(methT, meth, append([]reflect.Value***REMOVED***reflect.ValueOf(ctx)***REMOVED***, args...))
+		***REMOVED***,
+	)
+***REMOVED***
+
+func bindErrorHandler(in, out []reflect.Type, methT reflect.Method, meth reflect.Value, rt *goja.Runtime) reflect.Value ***REMOVED***
+	return reflect.MakeFunc(
+		reflect.FuncOf(in, out, methT.Type.IsVariadic()),
+		func(args []reflect.Value) []reflect.Value ***REMOVED***
+			ret := callBound(methT, meth, args)
+			err := ret[len(ret)-1]
+			if !err.IsNil() ***REMOVED***
+				panic(rt.NewGoError(err.Interface().(error)))
+			***REMOVED***
+			return ret[:len(ret)-1]
+		***REMOVED***,
+	)
+***REMOVED***
+
+func callBound(methT reflect.Method, meth reflect.Value, args []reflect.Value) []reflect.Value ***REMOVED***
+	if methT.Type.IsVariadic() ***REMOVED***
+		return meth.CallSlice(args)
+	***REMOVED***
+	return meth.Call(args)
 ***REMOVED***
