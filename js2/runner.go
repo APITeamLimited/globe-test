@@ -103,7 +103,6 @@ type VU struct ***REMOVED***
 	ID        int64
 	Iteration int64
 
-	Samples   []stats.Sample
 	VUContext *VUContext
 
 	// Current/last run context, mainly used for testing.
@@ -111,10 +110,12 @@ type VU struct ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	ctx = common.WithRuntime(ctx, u.Runtime)
-	ctx = common.WithState(ctx, &common.State***REMOVED***
+	state := &common.State***REMOVED***
 		Group: u.Runner.defaultGroup,
-	***REMOVED***)
+	***REMOVED***
+
+	ctx = common.WithRuntime(ctx, u.Runtime)
+	ctx = common.WithState(ctx, state)
 	for _, mod := range u.Modules ***REMOVED***
 		mod.Context = ctx
 	***REMOVED***
@@ -124,9 +125,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	u.Iteration++
 
 	_, err := u.Default(goja.Undefined())
-	samples := u.Samples
-	u.Samples = nil
-	return samples, err
+	return state.Samples, err
 ***REMOVED***
 
 func (u *VU) Reconfigure(id int64) error ***REMOVED***

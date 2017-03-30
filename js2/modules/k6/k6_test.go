@@ -28,6 +28,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js2/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,21 +65,45 @@ func TestCheck(t *testing.T) ***REMOVED***
 
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
-	state := &common.State***REMOVED***Group: root***REMOVED***
 
 	mod := Module
 	mod.Context = context.Background()
-	mod.Context = common.WithState(mod.Context, state)
 	mod.Context = common.WithRuntime(mod.Context, rt)
 	rt.Set("mod", mod.Export(rt))
 
 	t.Run("Object", func(t *testing.T) ***REMOVED***
+		state := &common.State***REMOVED***Group: root***REMOVED***
+		mod.Context = common.WithState(mod.Context, state)
+
 		_, err := common.RunString(rt, `mod.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 		assert.NoError(t, err)
+
+		if assert.Len(t, state.Samples, 1) ***REMOVED***
+			assert.NotZero(t, state.Samples[0].Time)
+			assert.Equal(t, metrics.Checks, state.Samples[0].Metric)
+			assert.Equal(t, float64(1), state.Samples[0].Value)
+			assert.Equal(t, map[string]string***REMOVED***
+				"group": "",
+				"check": "::check",
+			***REMOVED***, state.Samples[0].Tags)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("Array", func(t *testing.T) ***REMOVED***
+		state := &common.State***REMOVED***Group: root***REMOVED***
+		mod.Context = common.WithState(mod.Context, state)
+
 		_, err := common.RunString(rt, `mod.check(null, [ true ])`)
 		assert.NoError(t, err)
+
+		if assert.Len(t, state.Samples, 1) ***REMOVED***
+			assert.NotZero(t, state.Samples[0].Time)
+			assert.Equal(t, metrics.Checks, state.Samples[0].Metric)
+			assert.Equal(t, float64(1), state.Samples[0].Value)
+			assert.Equal(t, map[string]string***REMOVED***
+				"group": "",
+				"check": "::0",
+			***REMOVED***, state.Samples[0].Tags)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("Literal", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `mod.check(null, null)`)
@@ -117,13 +142,52 @@ func TestCheck(t *testing.T) ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				for value, succ := range testdata ***REMOVED***
 					t.Run(value, func(t *testing.T) ***REMOVED***
+						state := &common.State***REMOVED***Group: root***REMOVED***
+						mod.Context = common.WithState(mod.Context, state)
+
 						v, err := common.RunString(rt, fmt.Sprintf(tpl, value))
 						if assert.NoError(t, err) ***REMOVED***
 							assert.Equal(t, succ, v.Export())
 						***REMOVED***
+
+						if assert.Len(t, state.Samples, 1) ***REMOVED***
+							assert.NotZero(t, state.Samples[0].Time)
+							assert.Equal(t, metrics.Checks, state.Samples[0].Metric)
+							if succ ***REMOVED***
+								assert.Equal(t, float64(1), state.Samples[0].Value)
+							***REMOVED*** else ***REMOVED***
+								assert.Equal(t, float64(0), state.Samples[0].Value)
+							***REMOVED***
+							assert.Equal(t, map[string]string***REMOVED***
+								"group": "",
+								"check": "::check",
+							***REMOVED***, state.Samples[0].Tags)
+						***REMOVED***
 					***REMOVED***)
 				***REMOVED***
 			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Tags", func(t *testing.T) ***REMOVED***
+		state := &common.State***REMOVED***Group: root***REMOVED***
+		mod.Context = common.WithState(mod.Context, state)
+
+		v, err := common.RunString(rt, `mod.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, true, v.Export())
+		***REMOVED***
+
+		if assert.Len(t, state.Samples, 1) ***REMOVED***
+			assert.NotZero(t, state.Samples[0].Time)
+			assert.Equal(t, metrics.Checks, state.Samples[0].Metric)
+			assert.Equal(t, float64(1), state.Samples[0].Value)
+			assert.Equal(t, map[string]string***REMOVED***
+				"group": "",
+				"check": "::check",
+				"a":     "1",
+				"b":     "2",
+			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
