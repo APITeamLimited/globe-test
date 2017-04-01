@@ -14,11 +14,11 @@ let myTrend = new Trend("my_trend");
 
 export default function() ***REMOVED***
     // Add tag to request metric data
-    let r = http.get("http://httpbin.org/", ***REMOVED*** tags: ***REMOVED*** my_tag: "I'm a tag" ***REMOVED*** ***REMOVED***);
+    let res = http.get("http://httpbin.org/", ***REMOVED*** tags: ***REMOVED*** my_tag: "I'm a tag" ***REMOVED*** ***REMOVED***);
 
     // Add tag to check
-    check(r, ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***, ***REMOVED*** my_tag: "I'm a tag" ***REMOVED***);
+    check(res, ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***, ***REMOVED*** my_tag: "I'm a tag" ***REMOVED***);
 
     // Add tag to custom metric
-    myTrend.add(r.timings.connecting, ***REMOVED*** my_tag: "I'm a tag" ***REMOVED***);
+    myTrend.add(res.timings.connecting, ***REMOVED*** my_tag: "I'm a tag" ***REMOVED***);
 ***REMOVED***

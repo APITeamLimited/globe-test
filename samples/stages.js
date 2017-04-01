@@ -15,17 +15,17 @@ import ***REMOVED*** check ***REMOVED*** from "k6";
 export let options = ***REMOVED***
     stages: [
         // Ramp-up from 1 to 5 VUs in 10s
-        ***REMOVED*** target: 5, duration: "10s" ***REMOVED***,
+        ***REMOVED*** duration: "10s", target: 5 ***REMOVED***,
 
         // Stay at rest on 5 VUs for 5s
         ***REMOVED*** duration: "5s" ***REMOVED***,
 
         // Ramp-down from 5 to 0 VUs for 5s
-        ***REMOVED*** target: 0, duration: "5s" ***REMOVED***
+        ***REMOVED*** duration: "5s", target: 0 ***REMOVED***
     ]
 ***REMOVED***;
 
 export default function() ***REMOVED***
-    let r = http.get("http://httpbin.org/");
-    check(r, ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***);
+    let res = http.get("http://httpbin.org/");
+    check(res, ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***);
 ***REMOVED***
