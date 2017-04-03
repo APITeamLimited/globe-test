@@ -39,6 +39,9 @@ type bridgeTestType struct ***REMOVED***
 	unexported    string
 	unexportedTag string `js:"unexported"`
 
+	TwoWords string
+	URL      string
+
 	Counter int
 ***REMOVED***
 
@@ -111,6 +114,8 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 			"ExportedTag":   "renamed",
 			"unexported":    "",
 			"unexportedTag": "",
+			"TwoWords":      "two_words",
+			"URL":           "url",
 		***REMOVED***
 		for name, result := range names ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
@@ -121,7 +126,7 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
-	t.Run("Exported", func(t *testing.T) ***REMOVED***
+	t.Run("Methods", func(t *testing.T) ***REMOVED***
 		t.Run("ExportedFn", func(t *testing.T) ***REMOVED***
 			m, ok := typ.MethodByName("ExportedFn")
 			if assert.True(t, ok) ***REMOVED***
@@ -184,9 +189,15 @@ func TestBindToGlobal(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBind(t *testing.T) ***REMOVED***
+	template := bridgeTestType***REMOVED***
+		Exported:      "a",
+		ExportedTag:   "b",
+		unexported:    "c",
+		unexportedTag: "d",
+	***REMOVED***
 	testdata := map[string]func() interface***REMOVED******REMOVED******REMOVED***
-		"Value":   func() interface***REMOVED******REMOVED*** ***REMOVED*** return bridgeTestType***REMOVED***"a", "b", "c", "d", 0***REMOVED*** ***REMOVED***,
-		"Pointer": func() interface***REMOVED******REMOVED*** ***REMOVED*** return &bridgeTestType***REMOVED***"a", "b", "c", "d", 0***REMOVED*** ***REMOVED***,
+		"Value":   func() interface***REMOVED******REMOVED*** ***REMOVED*** return template ***REMOVED***,
+		"Pointer": func() interface***REMOVED******REMOVED*** ***REMOVED*** tmp := template; return &tmp ***REMOVED***,
 	***REMOVED***
 	for vtype, vfn := range testdata ***REMOVED***
 		t.Run(vtype, func(t *testing.T) ***REMOVED***
