@@ -20,9 +20,13 @@
 
 package modules
 
-import "github.com/loadimpact/k6/js2/modules/k6"
+import (
+	"github.com/loadimpact/k6/js2/modules/k6"
+	"github.com/loadimpact/k6/js2/modules/k6/http"
+)
 
 // Index of module implementations.
 var Index = map[string]interface***REMOVED******REMOVED******REMOVED***
-	"k6": &k6.K6***REMOVED******REMOVED***,
+	"k6":      &k6.K6***REMOVED******REMOVED***,
+	"k6/http": &http.HTTP***REMOVED******REMOVED***,
 ***REMOVED***
