@@ -15,7 +15,7 @@ import ***REMOVED*** check ***REMOVED*** from "k6";
 export let options = ***REMOVED***
     thresholds: ***REMOVED***
         // Declare a threshold over all HTTP response times,
-        // the 95%-tile should not cross 500ms
+        // the 95th percentile should not cross 500ms
         http_req_duration: ["p(95)<500"],
 
         // Declare a threshold over HTTP response times for all data points
