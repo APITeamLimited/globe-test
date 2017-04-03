@@ -119,7 +119,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			"b": function() ***REMOVED*** throw new Error("error B") ***REMOVED***,
 		***REMOVED***)
 		`)
-		assert.EqualError(t, err, "GoError: Error: error A")
+		assert.EqualError(t, err, "Error: error A")
 	***REMOVED***)
 
 	t.Run("Types", func(t *testing.T) ***REMOVED***

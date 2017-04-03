@@ -33,3 +33,11 @@ func RunString(rt *goja.Runtime, src string) (goja.Value, error) ***REMOVED***
 	***REMOVED***
 	return rt.RunString(src)
 ***REMOVED***
+
+// Throws a JS error; avoids re-wrapping GoErrors.
+func Throw(rt *goja.Runtime, err error) ***REMOVED***
+	if e, ok := err.(*goja.Exception); ok ***REMOVED***
+		panic(e)
+	***REMOVED***
+	panic(rt.NewGoError(err))
+***REMOVED***
