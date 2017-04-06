@@ -30,6 +30,12 @@ import (
 	"github.com/serenize/snaker"
 )
 
+var (
+	ctxT   = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errorT = reflect.TypeOf((*error)(nil)).Elem()
+	mapper = FieldNameMapper***REMOVED******REMOVED***
+)
+
 // The field name mapper translates Go symbol names for bridging to JS.
 type FieldNameMapper struct***REMOVED******REMOVED***
 
@@ -67,7 +73,6 @@ func (FieldNameMapper) MethodName(t reflect.Type, m reflect.Method) string ***RE
 // Binds an object's members to the global scope. Returns a function that un-binds them.
 // Note that this will panic if passed something that isn't a struct; please don't do that.
 func BindToGlobal(rt *goja.Runtime, v interface***REMOVED******REMOVED***) func() ***REMOVED***
-	mapper := FieldNameMapper***REMOVED******REMOVED***
 	keys := []string***REMOVED******REMOVED***
 
 	val := reflect.ValueOf(v)
@@ -106,16 +111,10 @@ func BindToGlobal(rt *goja.Runtime, v interface***REMOVED******REMOVED***) func(
 ***REMOVED***
 
 func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctx *context.Context) goja.Value ***REMOVED***
-	ctxT := reflect.TypeOf((*context.Context)(nil)).Elem()
-	errorT := reflect.TypeOf((*error)(nil)).Elem()
-
-	exports := rt.NewObject()
-	mapper := FieldNameMapper***REMOVED******REMOVED***
-
 	val := reflect.ValueOf(v)
 	typ := val.Type()
+	exports := make(map[string]interface***REMOVED******REMOVED***)
 	for i := 0; i < typ.NumMethod(); i++ ***REMOVED***
-		i := i
 		methT := typ.Method(i)
 		name := mapper.MethodName(typ, methT)
 		if name == "" ***REMOVED***
@@ -148,7 +147,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctx *context.
 			meth = bindErrorHandler(in, out, methT, meth, rt)
 		***REMOVED***
 
-		_ = exports.Set(name, meth.Interface())
+		exports[name] = meth.Interface()
 	***REMOVED***
 
 	elem := val
@@ -163,7 +162,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctx *context.
 		if k == "" ***REMOVED***
 			continue
 		***REMOVED***
-		_ = exports.Set(k, elem.Field(i).Interface())
+		exports[k] = elem.Field(i).Interface()
 	***REMOVED***
 
 	return rt.ToValue(exports)
