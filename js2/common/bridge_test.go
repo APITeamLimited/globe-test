@@ -399,3 +399,21 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func BenchmarkProxy(b *testing.B) ***REMOVED***
+	var v bridgeTestType
+	rt := goja.New()
+	b.ResetTimer()
+
+	b.Run("ToValue", func(b *testing.B) ***REMOVED***
+		for i := 0; i < b.N; i++ ***REMOVED***
+			_ = rt.ToValue(v)
+		***REMOVED***
+	***REMOVED***)
+
+	b.Run("Bind", func(b *testing.B) ***REMOVED***
+		for i := 0; i < b.N; i++ ***REMOVED***
+			_ = Bind(rt, v, nil)
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
