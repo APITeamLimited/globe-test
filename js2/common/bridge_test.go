@@ -91,6 +91,18 @@ func (bridgeTestContextAddWithErrorType) ContextAddWithError(ctx context.Context
 	return res, nil
 ***REMOVED***
 
+type bridgeTestContextInjectType struct ***REMOVED***
+	ctx context.Context
+***REMOVED***
+
+func (t *bridgeTestContextInjectType) ContextInject(ctx context.Context) ***REMOVED*** t.ctx = ctx ***REMOVED***
+
+type bridgeTestContextInjectPtrType struct ***REMOVED***
+	ctxPtr *context.Context
+***REMOVED***
+
+func (t *bridgeTestContextInjectPtrType) ContextInjectPtr(ctxPtr *context.Context) ***REMOVED*** t.ctxPtr = ctxPtr ***REMOVED***
+
 type bridgeTestSumType struct***REMOVED******REMOVED***
 
 func (bridgeTestSumType) Sum(nums ...int) int ***REMOVED***
@@ -333,6 +345,35 @@ func TestBind(t *testing.T) ***REMOVED***
 					assert.EqualError(t, err, "GoError: answer is negative")
 				***REMOVED***)
 			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"ContextInject", bridgeTestContextInjectType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.contextInject()`)
+			switch impl := obj.(type) ***REMOVED***
+			case bridgeTestContextInjectType:
+				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject'")
+			case *bridgeTestContextInjectType:
+				assert.EqualError(t, err, "GoError: ContextInject needs a valid VU context")
+				assert.Equal(t, nil, impl.ctx)
+
+				t.Run("Valid", func(t *testing.T) ***REMOVED***
+					*ctxPtr = context.Background()
+					defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
+
+					_, err := RunString(rt, `obj.contextInject()`)
+					assert.NoError(t, err)
+					assert.Equal(t, *ctxPtr, impl.ctx)
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***"ContextInjectPtr", bridgeTestContextInjectPtrType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.contextInjectPtr()`)
+			switch impl := obj.(type) ***REMOVED***
+			case bridgeTestContextInjectPtrType:
+				assert.EqualError(t, err, "TypeError: Object has no member 'contextInjectPtr'")
+			case *bridgeTestContextInjectPtrType:
+				assert.NoError(t, err)
+				assert.Equal(t, ctxPtr, impl.ctxPtr)
+			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"Count", bridgeTestCounterType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			switch impl := obj.(type) ***REMOVED***

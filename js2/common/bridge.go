@@ -112,9 +112,19 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 		fnT := fn.Type()
 		numIn := fnT.NumIn()
 		numOut := fnT.NumOut()
-		wantsContext := (numIn > 0 && fnT.In(0) == ctxT)
 		hasError := (numOut > 1 && fnT.Out(1) == errorT)
-		if wantsContext || hasError ***REMOVED***
+		wantsContext := false
+		wantsContextPtr := false
+		if numIn > 0 ***REMOVED***
+			in0 := fnT.In(0)
+			switch in0 ***REMOVED***
+			case ctxT:
+				wantsContext = true
+			case ctxPtrT:
+				wantsContextPtr = true
+			***REMOVED***
+		***REMOVED***
+		if hasError || wantsContext || wantsContextPtr ***REMOVED***
 			// Varadic functions are called a bit differently.
 			varadic := fnT.IsVariadic()
 
@@ -122,7 +132,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 			var in []reflect.Type
 			if numIn > 0 ***REMOVED***
 				inOffset := 0
-				if wantsContext ***REMOVED***
+				if wantsContext || wantsContextPtr ***REMOVED***
 					inOffset = 1
 				***REMOVED***
 				in = make([]reflect.Type, numIn-inOffset)
@@ -147,6 +157,8 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 							Throw(rt, errors.New(fmt.Sprintf("%s needs a valid VU context", meth.Name)))
 						***REMOVED***
 						args = append([]reflect.Value***REMOVED***reflect.ValueOf(*ctxPtr)***REMOVED***, args...)
+					***REMOVED*** else if wantsContextPtr ***REMOVED***
+						args = append([]reflect.Value***REMOVED***reflect.ValueOf(ctxPtr)***REMOVED***, args...)
 					***REMOVED***
 
 					var res []reflect.Value
