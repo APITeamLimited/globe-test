@@ -165,6 +165,9 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 						if !assert.NoError(t, err) ***REMOVED***
 							return
 						***REMOVED***
+						if constPath != "" ***REMOVED***
+							assert.Contains(t, b.BaseInitContext.programs, constPath)
+						***REMOVED***
 
 						_, err = b.Instantiate()
 						if !assert.NoError(t, err) ***REMOVED***
