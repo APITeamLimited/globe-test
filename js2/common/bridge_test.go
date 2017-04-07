@@ -192,45 +192,11 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBindToGlobal(t *testing.T) ***REMOVED***
-	testdata := map[string]struct ***REMOVED***
-		Obj  interface***REMOVED******REMOVED***
-		Keys []string
-		Not  []string
-	***REMOVED******REMOVED***
-		"Fields":          ***REMOVED***bridgeTestFieldsType***REMOVED******REMOVED***, []string***REMOVED***"exported", "renamed"***REMOVED***, []string***REMOVED******REMOVED******REMOVED***,
-		"Fields/Pointer":  ***REMOVED***&bridgeTestFieldsType***REMOVED******REMOVED***, []string***REMOVED***"exported", "renamed"***REMOVED***, []string***REMOVED******REMOVED******REMOVED***,
-		"Methods":         ***REMOVED***bridgeTestMethodsType***REMOVED******REMOVED***, []string***REMOVED***"exportedFn"***REMOVED***, []string***REMOVED***"exportedPtrFn"***REMOVED******REMOVED***,
-		"Methods/Pointer": ***REMOVED***&bridgeTestMethodsType***REMOVED******REMOVED***, []string***REMOVED***"exportedFn", "exportedPtrFn"***REMOVED***, []string***REMOVED******REMOVED******REMOVED***,
-	***REMOVED***
-	for name, data := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			rt := goja.New()
-			unbind := BindToGlobal(rt, data.Obj)
-			for _, k := range data.Keys ***REMOVED***
-				t.Run(k, func(t *testing.T) ***REMOVED***
-					v := rt.Get(k)
-					if assert.NotNil(t, v) ***REMOVED***
-						assert.False(t, goja.IsUndefined(v), "value is undefined")
-					***REMOVED***
-				***REMOVED***)
-			***REMOVED***
-			for _, k := range data.Not ***REMOVED***
-				t.Run(k, func(t *testing.T) ***REMOVED***
-					assert.Nil(t, rt.Get(k), "unexpected member bridged")
-				***REMOVED***)
-			***REMOVED***
-
-			t.Run("Unbind", func(t *testing.T) ***REMOVED***
-				unbind()
-				for _, k := range data.Keys ***REMOVED***
-					t.Run(k, func(t *testing.T) ***REMOVED***
-						v := rt.Get(k)
-						assert.True(t, goja.IsUndefined(v), "value is not undefined")
-					***REMOVED***)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***)
-	***REMOVED***
+	rt := goja.New()
+	unbind := BindToGlobal(rt, map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED***)
+	assert.Equal(t, int64(1), rt.Get("a").Export())
+	unbind()
+	assert.Nil(t, rt.Get("a").Export())
 ***REMOVED***
 
 func TestBind(t *testing.T) ***REMOVED***
