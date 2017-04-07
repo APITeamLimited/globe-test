@@ -38,7 +38,11 @@ func WithState(ctx context.Context, state *State) context.Context ***REMOVED***
 ***REMOVED***
 
 func GetState(ctx context.Context) *State ***REMOVED***
-	return ctx.Value(ctxKeyState).(*State)
+	v := ctx.Value(ctxKeyState)
+	if v == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	return v.(*State)
 ***REMOVED***
 
 func WithRuntime(ctx context.Context, rt *goja.Runtime) context.Context ***REMOVED***
@@ -46,5 +50,9 @@ func WithRuntime(ctx context.Context, rt *goja.Runtime) context.Context ***REMOV
 ***REMOVED***
 
 func GetRuntime(ctx context.Context) *goja.Runtime ***REMOVED***
-	return ctx.Value(ctxKeyRuntime).(*goja.Runtime)
+	v := ctx.Value(ctxKeyRuntime)
+	if v == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	return v.(*goja.Runtime)
 ***REMOVED***
