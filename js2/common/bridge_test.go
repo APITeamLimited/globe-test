@@ -53,10 +53,6 @@ type bridgeTestOddFieldsType struct ***REMOVED***
 	URL      string
 ***REMOVED***
 
-type bridgeTestUppercaseMethodType struct***REMOVED******REMOVED***
-
-func (bridgeTestUppercaseMethodType) XUppercaseMethod() ***REMOVED******REMOVED***
-
 type bridgeTestErrorType struct***REMOVED******REMOVED***
 
 func (bridgeTestErrorType) Error() error ***REMOVED*** return errors.New("error") ***REMOVED***
@@ -162,6 +158,14 @@ func (m *bridgeTestCounterType) Count() int ***REMOVED***
 	return m.Counter
 ***REMOVED***
 
+type bridgeTestConstructorType struct***REMOVED******REMOVED***
+
+type bridgeTestConstructorSpawnedType struct***REMOVED******REMOVED***
+
+func (bridgeTestConstructorType) XConstructor() bridgeTestConstructorSpawnedType ***REMOVED***
+	return bridgeTestConstructorSpawnedType***REMOVED******REMOVED***
+***REMOVED***
+
 func TestFieldNameMapper(t *testing.T) ***REMOVED***
 	testdata := []struct ***REMOVED***
 		Typ     reflect.Type
@@ -182,8 +186,8 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 			"TwoWords": "two_words",
 			"URL":      "url",
 		***REMOVED***, nil***REMOVED***,
-		***REMOVED***reflect.TypeOf(bridgeTestUppercaseMethodType***REMOVED******REMOVED***), nil, map[string]string***REMOVED***
-			"XUppercaseMethod": "UppercaseMethod",
+		***REMOVED***reflect.TypeOf(bridgeTestConstructorType***REMOVED******REMOVED***), nil, map[string]string***REMOVED***
+			"XConstructor": "Constructor",
 		***REMOVED******REMOVED***,
 	***REMOVED***
 	for _, data := range testdata ***REMOVED***
@@ -477,6 +481,11 @@ func TestBind(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
+		***REMOVED***"Constructor", bridgeTestConstructorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			v, err := RunString(rt, `new obj.Constructor()`)
+			assert.NoError(t, err)
+			assert.IsType(t, bridgeTestConstructorSpawnedType***REMOVED******REMOVED***, v.Export())
+		***REMOVED******REMOVED***,
 	***REMOVED***
 
 	vfns := map[string]func(interface***REMOVED******REMOVED***) interface***REMOVED******REMOVED******REMOVED***
@@ -580,6 +589,13 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
 				f(1, 2, 3)
+			***REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***"Constructor", "Constructor", bridgeTestConstructorType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			f, _ := goja.AssertFunction(fn.(goja.Value))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ ***REMOVED***
+				f(goja.Undefined())
 			***REMOVED***
 		***REMOVED******REMOVED***,
 	***REMOVED***
