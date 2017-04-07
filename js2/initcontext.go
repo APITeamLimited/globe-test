@@ -52,9 +52,10 @@ type InitContext struct ***REMOVED***
 	Console *Console
 ***REMOVED***
 
-func NewInitContext(rt *goja.Runtime, fs afero.Fs, pwd string) *InitContext ***REMOVED***
+func NewInitContext(rt *goja.Runtime, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
 		runtime: rt,
+		ctxPtr:  ctxPtr,
 		fs:      fs,
 		pwd:     pwd,
 
@@ -65,9 +66,7 @@ func NewInitContext(rt *goja.Runtime, fs afero.Fs, pwd string) *InitContext ***R
 ***REMOVED***
 
 func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Runtime) *InitContext ***REMOVED***
-	init := NewInitContext(rt, base.fs, base.pwd)
-	init.ctxPtr = ctxPtr
-	return init
+	return NewInitContext(rt, ctxPtr, base.fs, base.pwd)
 ***REMOVED***
 
 func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
