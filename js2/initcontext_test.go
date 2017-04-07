@@ -126,6 +126,12 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				"../const.js":  "/path/to/const.js",
 				"sub/const.js": "/path/to/dir/sub/const.js",
 			***REMOVED******REMOVED***,
+			"/path/to/lib.js": ***REMOVED***"/path/to/lib.js", map[string]string***REMOVED***
+				"":             "",
+				"const.js":     "/path/to/const.js",
+				"../const.js":  "/path/const.js",
+				"sub/const.js": "/path/to/sub/const.js",
+			***REMOVED******REMOVED***,
 		***REMOVED***
 		for libName, data := range imports ***REMOVED***
 			t.Run("lib=\""+libName+"\"", func(t *testing.T) ***REMOVED***

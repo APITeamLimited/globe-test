@@ -102,7 +102,10 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 	// Resolve the file path, push the target directory as pwd to make relative imports work.
 	pwd := i.pwd
-	filename := filepath.Join(pwd, name)
+	filename := name
+	if !filepath.IsAbs(filename) ***REMOVED***
+		filename = filepath.Join(pwd, name)
+	***REMOVED***
 	i.pwd = filepath.Dir(filename)
 	defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
 
