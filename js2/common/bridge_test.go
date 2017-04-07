@@ -53,6 +53,10 @@ type bridgeTestOddFieldsType struct ***REMOVED***
 	URL      string
 ***REMOVED***
 
+type bridgeTestUppercaseMethodType struct***REMOVED******REMOVED***
+
+func (bridgeTestUppercaseMethodType) XUppercaseMethod() ***REMOVED******REMOVED***
+
 type bridgeTestErrorType struct***REMOVED******REMOVED***
 
 func (bridgeTestErrorType) Error() error ***REMOVED*** return errors.New("error") ***REMOVED***
@@ -178,6 +182,9 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 			"TwoWords": "two_words",
 			"URL":      "url",
 		***REMOVED***, nil***REMOVED***,
+		***REMOVED***reflect.TypeOf(bridgeTestUppercaseMethodType***REMOVED******REMOVED***), nil, map[string]string***REMOVED***
+			"XUppercaseMethod": "UppercaseMethod",
+		***REMOVED******REMOVED***,
 	***REMOVED***
 	for _, data := range testdata ***REMOVED***
 		for field, name := range data.Fields ***REMOVED***
