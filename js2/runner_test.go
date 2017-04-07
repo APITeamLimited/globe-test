@@ -186,3 +186,30 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	assert.True(t, fnInnerCalled, "fnInner() not called")
 	assert.True(t, fnNestedCalled, "fnNested() not called")
 ***REMOVED***
+
+func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+		import ***REMOVED*** group ***REMOVED*** from "k6";
+		import ***REMOVED*** Trend ***REMOVED*** from "k6/metrics";
+		let myMetric = new Trend("my_metric");
+		export default function() ***REMOVED*** myMetric.add(5); ***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	samples, err := vu.RunOnce(context.Background())
+	if assert.NoError(t, err) && assert.Len(t, samples, 1) ***REMOVED***
+		assert.Equal(t, 5.0, samples[0].Value)
+		assert.Equal(t, "my_metric", samples[0].Metric.Name)
+		assert.Equal(t, stats.Trend, samples[0].Metric.Type)
+	***REMOVED***
+***REMOVED***
