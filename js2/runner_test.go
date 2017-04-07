@@ -22,6 +22,7 @@ package js2
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -80,6 +81,18 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 	r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 	assert.Equal(t, r.Bundle.Options, r.GetOptions())
 	assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+***REMOVED***
+
+func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
+	for _, mod := range []string***REMOVED***"k6", "k6/http", "k6/metrics"***REMOVED*** ***REMOVED***
+		t.Run(mod, func(t *testing.T) ***REMOVED***
+			_, err := New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
+			***REMOVED***, afero.NewMemMapFs())
+			assert.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***
