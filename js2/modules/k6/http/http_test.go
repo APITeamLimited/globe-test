@@ -119,7 +119,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Unroutable", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `http.request("GET", "http://sdafsgdhfjg/");`)
-		assert.EqualError(t, err, "GoError: Get http://sdafsgdhfjg/: dial tcp: lookup sdafsgdhfjg: no such host")
+		assert.Error(t, err)
 	***REMOVED***)
 
 	t.Run("Params", func(t *testing.T) ***REMOVED***
