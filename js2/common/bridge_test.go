@@ -34,10 +34,11 @@ import (
 )
 
 type bridgeTestFieldsType struct ***REMOVED***
-	Exported      string
-	ExportedTag   string `js:"renamed"`
-	unexported    string
-	unexportedTag string `js:"unexported"`
+	Exported       string
+	ExportedTag    string `js:"renamed"`
+	ExportedHidden string `js:"-"`
+	unexported     string
+	unexportedTag  string `js:"unexported"`
 ***REMOVED***
 
 type bridgeTestMethodsType struct***REMOVED******REMOVED***
@@ -173,10 +174,11 @@ func TestFieldNameMapper(t *testing.T) ***REMOVED***
 		Methods map[string]string
 	***REMOVED******REMOVED***
 		***REMOVED***reflect.TypeOf(bridgeTestFieldsType***REMOVED******REMOVED***), map[string]string***REMOVED***
-			"Exported":      "exported",
-			"ExportedTag":   "renamed",
-			"unexported":    "",
-			"unexportedTag": "",
+			"Exported":       "exported",
+			"ExportedTag":    "renamed",
+			"ExportedHidden": "",
+			"unexported":     "",
+			"unexportedTag":  "",
 		***REMOVED***, nil***REMOVED***,
 		***REMOVED***reflect.TypeOf(bridgeTestMethodsType***REMOVED******REMOVED***), nil, map[string]string***REMOVED***
 			"ExportedFn":   "exportedFn",
@@ -229,7 +231,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		V    interface***REMOVED******REMOVED***
 		Fn   func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime)
 	***REMOVED******REMOVED***
-		***REMOVED***"Fields", bridgeTestFieldsType***REMOVED***"a", "b", "c", "d"***REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+		***REMOVED***"Fields", bridgeTestFieldsType***REMOVED***"a", "b", "c", "d", "e"***REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			t.Run("Exported", func(t *testing.T) ***REMOVED***
 				v, err := RunString(rt, `obj.exported`)
 				if assert.NoError(t, err) ***REMOVED***

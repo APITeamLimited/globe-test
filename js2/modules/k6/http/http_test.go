@@ -107,6 +107,19 @@ func TestRequest(t *testing.T) ***REMOVED***
 		`)
 		assert.NoError(t, err)
 		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", 200, "")
+
+		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.request("GET", "https://httpbin.org/html").json();`)
+			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `http.request("", "");`)
+		assert.EqualError(t, err, "GoError: Get : unsupported protocol scheme \"\"")
+	***REMOVED***)
+	t.Run("Unroutable", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `http.request("GET", "http://sdafsgdhfjg/");`)
+		assert.EqualError(t, err, "GoError: Get http://sdafsgdhfjg/: dial tcp: lookup sdafsgdhfjg: no such host")
 	***REMOVED***)
 
 	t.Run("Params", func(t *testing.T) ***REMOVED***

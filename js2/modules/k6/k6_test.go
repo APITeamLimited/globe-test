@@ -89,6 +89,11 @@ func TestCheck(t *testing.T) ***REMOVED***
 				"check": "::check",
 			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
+
+		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "::": true ***REMOVED***)`)
+			assert.EqualError(t, err, "GoError: group and check names may not contain '::'")
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("Array", func(t *testing.T) ***REMOVED***
 		state := &common.State***REMOVED***Group: root***REMOVED***
