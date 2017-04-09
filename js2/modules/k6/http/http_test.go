@@ -99,6 +99,20 @@ func TestRequest(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", 200, "")
 
+		t.Run("html", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			if (res.html().find("h1").text() != "Herman Melville - Moby-Dick") ***REMOVED*** throw new Error("wrong title: " + res.body); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+
+			t.Run("shorthand", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, `
+				if (res.html("h1").text() != "Herman Melville - Moby-Dick") ***REMOVED*** throw new Error("wrong title: " + res.body); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+			***REMOVED***)
+		***REMOVED***)
+
 		t.Run("group", func(t *testing.T) ***REMOVED***
 			g, err := root.Group("my group")
 			if assert.NoError(t, err) ***REMOVED***
