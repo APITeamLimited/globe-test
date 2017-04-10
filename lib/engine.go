@@ -648,7 +648,7 @@ func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	vu.Samples = append(vu.Samples, samples...)
 	vu.lock.Unlock()
 
-	return err != nil
+	return err == nil
 ***REMOVED***
 
 func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
