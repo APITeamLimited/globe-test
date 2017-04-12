@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -44,6 +43,7 @@ import (
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/js2"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/simple"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/influxdb"
@@ -171,33 +171,27 @@ func guessType(data []byte) string ***REMOVED***
 ***REMOVED***
 
 func getSrcData(filename string, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
-	reader := io.Reader(os.Stdin)
-	if filename != "-" ***REMOVED***
-		f, err := fs.Open(filename)
+	if filename == "-" ***REMOVED***
+		data, err := ioutil.ReadAll(os.Stdin)
 		if err != nil ***REMOVED***
-			// If the file doesn't exist, but it looks like a URL, try using it as one.
-			if os.IsNotExist(err) && urlRegex.MatchString(filename) ***REMOVED***
-				return &lib.SourceData***REMOVED***
-					Data:     []byte(filename),
-					Filename: filename,
-				***REMOVED***, nil
-			***REMOVED***
-
 			return nil, err
 		***REMOVED***
-		defer func() ***REMOVED*** _ = f.Close() ***REMOVED***()
-		reader = f
+		return &lib.SourceData***REMOVED***Filename: "-", Data: data***REMOVED***, nil
 	***REMOVED***
 
-	data, err := ioutil.ReadAll(reader)
+	if ok, _ := afero.Exists(fs, filename); ok ***REMOVED***
+		data, err := afero.ReadFile(fs, filename)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return &lib.SourceData***REMOVED***Filename: filename, Data: data***REMOVED***, nil
+	***REMOVED***
+
+	pwd, err := os.Getwd()
 	if err != nil ***REMOVED***
-		return nil, err
+		pwd = "/"
 	***REMOVED***
-
-	return &lib.SourceData***REMOVED***
-		Data:     data,
-		Filename: filename,
-	***REMOVED***, nil
+	return loader.Load(fs, pwd, filename)
 ***REMOVED***
 
 func makeRunner(runnerType string, src *lib.SourceData, fs afero.Fs) (lib.Runner, error) ***REMOVED***
