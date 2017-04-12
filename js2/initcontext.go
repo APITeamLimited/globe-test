@@ -24,13 +24,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/js2/common"
 	"github.com/loadimpact/k6/js2/modules"
+	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 )
 
@@ -114,11 +114,8 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 	// Resolve the file path, push the target directory as pwd to make relative imports work.
 	pwd := i.pwd
-	filename := name
-	if !filepath.IsAbs(filename) ***REMOVED***
-		filename = filepath.Join(pwd, name)
-	***REMOVED***
-	i.pwd = filepath.Dir(filename)
+	filename := loader.Resolve(pwd, name)
+	i.pwd = loader.Dir(filename)
 	defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
 
 	// Swap the importing scope's imports out, then put it back again.
@@ -129,15 +126,15 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 	// Read sources, transform into ES6 and cache the compiled program.
 	pgm, ok := i.programs[filename]
 	if !ok ***REMOVED***
-		data, err := afero.ReadFile(i.fs, filename)
+		data, err := loader.Load(i.fs, pwd, name)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
-		src, _, err := compiler.Transform(string(data), filename)
+		src, _, err := compiler.Transform(string(data.Data), data.Filename)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
-		pgm_, err := goja.Compile(filename, src, true)
+		pgm_, err := goja.Compile(data.Filename, src, true)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
@@ -157,20 +154,15 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (i *InitContext) Open(name string) (string, error) ***REMOVED***
-	pwd := i.pwd
-	filename := name
-	if !filepath.IsAbs(filename) ***REMOVED***
-		filename = filepath.Join(pwd, name)
-	***REMOVED***
-
+	filename := loader.Resolve(i.pwd, name)
 	data, ok := i.files[filename]
 	if !ok ***REMOVED***
-		data_, err := afero.ReadFile(i.fs, filename)
+		data_, err := loader.Load(i.fs, i.pwd, name)
 		if err != nil ***REMOVED***
 			return "", err
 		***REMOVED***
-		i.files[filename] = data_
-		data = data_
+		i.files[filename] = data_.Data
+		data = data_.Data
 	***REMOVED***
 	return string(data), nil
 ***REMOVED***
