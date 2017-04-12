@@ -135,7 +135,7 @@ func fetch(u string) ([]byte, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	defer res.Body.Close()
+	defer func() ***REMOVED*** _ = res.Body.Close() ***REMOVED***()
 
 	if res.StatusCode != 200 ***REMOVED***
 		switch res.StatusCode ***REMOVED***
