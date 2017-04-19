@@ -118,6 +118,7 @@ var commandRun = cli.Command***REMOVED***
 		cli.StringFlag***REMOVED***
 			Name:  "out, o",
 			Usage: "output metrics to an external data store",
+			EnvVar: "K6_OUT",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
 			Name:  "config, c",
