@@ -1,7 +1,10 @@
 package compiler
 
 import (
+	"time"
+
 	"github.com/GeertJohan/go.rice"
+	log "github.com/Sirupsen/logrus"
 	"github.com/dop251/goja"
 	"github.com/mitchellh/mapstructure"
 )
@@ -13,7 +16,7 @@ var (
 	DefaultOpts = map[string]interface***REMOVED******REMOVED******REMOVED***
 		"presets":       []string***REMOVED***"latest"***REMOVED***,
 		"ast":           false,
-		"sourceMaps":    true,
+		"sourceMaps":    false,
 		"babelrc":       false,
 		"compact":       false,
 		"retainLines":   true,
@@ -53,10 +56,12 @@ func (c *Compiler) Transform(src, filename string) (code string, srcmap SourceMa
 	***REMOVED***
 	opts["filename"] = filename
 
+	startTime := time.Now()
 	v, err := c.transform(c.this, c.vm.ToValue(src), c.vm.ToValue(opts))
 	if err != nil ***REMOVED***
 		return code, srcmap, err
 	***REMOVED***
+	log.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
 	vO := v.ToObject(c.vm)
 
 	if err := c.vm.ExportTo(vO.Get("code"), &code); err != nil ***REMOVED***

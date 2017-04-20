@@ -136,35 +136,29 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			LibPath    string
 			ConstPaths map[string]string
 		***REMOVED******REMOVED***
-			"lib.js": ***REMOVED***"/path/to/lib.js", map[string]string***REMOVED***
-				"":             "",
-				"const.js":     "/path/to/const.js",
-				"../const.js":  "/path/const.js",
-				"sub/const.js": "/path/to/sub/const.js",
-			***REMOVED******REMOVED***,
 			"./lib.js": ***REMOVED***"/path/to/lib.js", map[string]string***REMOVED***
-				"":             "",
-				"const.js":     "/path/to/const.js",
-				"../const.js":  "/path/const.js",
-				"sub/const.js": "/path/to/sub/const.js",
+				"":               "",
+				"./const.js":     "/path/to/const.js",
+				"../const.js":    "/path/const.js",
+				"./sub/const.js": "/path/to/sub/const.js",
 			***REMOVED******REMOVED***,
 			"../lib.js": ***REMOVED***"/path/lib.js", map[string]string***REMOVED***
-				"":             "",
-				"const.js":     "/path/const.js",
-				"../const.js":  "/const.js",
-				"sub/const.js": "/path/sub/const.js",
+				"":               "",
+				"./const.js":     "/path/const.js",
+				"../const.js":    "/const.js",
+				"./sub/const.js": "/path/sub/const.js",
 			***REMOVED******REMOVED***,
-			"dir/lib.js": ***REMOVED***"/path/to/dir/lib.js", map[string]string***REMOVED***
-				"":             "",
-				"const.js":     "/path/to/dir/const.js",
-				"../const.js":  "/path/to/const.js",
-				"sub/const.js": "/path/to/dir/sub/const.js",
+			"./dir/lib.js": ***REMOVED***"/path/to/dir/lib.js", map[string]string***REMOVED***
+				"":               "",
+				"./const.js":     "/path/to/dir/const.js",
+				"../const.js":    "/path/to/const.js",
+				"./sub/const.js": "/path/to/dir/sub/const.js",
 			***REMOVED******REMOVED***,
 			"/path/to/lib.js": ***REMOVED***"/path/to/lib.js", map[string]string***REMOVED***
-				"":             "",
-				"const.js":     "/path/to/const.js",
-				"../const.js":  "/path/const.js",
-				"sub/const.js": "/path/to/sub/const.js",
+				"":               "",
+				"./const.js":     "/path/to/const.js",
+				"../const.js":    "/path/const.js",
+				"./sub/const.js": "/path/to/sub/const.js",
 			***REMOVED******REMOVED***,
 		***REMOVED***
 		for libName, data := range imports ***REMOVED***
