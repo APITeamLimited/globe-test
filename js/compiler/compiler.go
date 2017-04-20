@@ -16,7 +16,7 @@ var (
 	DefaultOpts = map[string]interface***REMOVED******REMOVED******REMOVED***
 		"presets":       []string***REMOVED***"latest"***REMOVED***,
 		"ast":           false,
-		"sourceMaps":    true,
+		"sourceMaps":    false,
 		"babelrc":       false,
 		"compact":       false,
 		"retainLines":   true,
