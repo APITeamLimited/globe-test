@@ -25,9 +25,10 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
-
 	"strings"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -139,6 +140,8 @@ func pickLoader(path string) (string, loaderFunc, []string) ***REMOVED***
 ***REMOVED***
 
 func fetch(u string) ([]byte, error) ***REMOVED***
+	log.WithField("url", u).Debug("Fetching source...")
+	startTime := time.Now()
 	res, err := http.Get(u)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -154,5 +157,15 @@ func fetch(u string) ([]byte, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return ioutil.ReadAll(res.Body)
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	log.WithFields(log.Fields***REMOVED***
+		"url": u,
+		"t":   time.Since(startTime),
+		"len": len(data),
+	***REMOVED***).Debug("Fetched!")
+	return data, nil
 ***REMOVED***
