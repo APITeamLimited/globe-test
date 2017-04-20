@@ -301,7 +301,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	runner, err := makeRunner(runnerType, src, fs)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("Couldn't create a runner")
+		if errstr, ok := err.(fmt.Stringer); ok ***REMOVED***
+			log.Error(errstr.String())
+		***REMOVED*** else ***REMOVED***
+			log.WithError(err).Error("Couldn't create a runner")
+		***REMOVED***
 		return err
 	***REMOVED***
 	opts = opts.Apply(runner.GetOptions())
