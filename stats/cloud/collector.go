@@ -15,6 +15,7 @@ import (
 type Collector struct ***REMOVED***
 	referenceID string
 
+	duration   int64
 	thresholds map[string][]string
 	client     *Client
 ***REMOVED***
@@ -31,10 +32,17 @@ func New(fname string, opts lib.Options) (*Collector, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	// Sum test duration from options. -1 for unknown duration.
+	var duration int64 = -1
+	if len(opts.Stages) > 0 ***REMOVED***
+		duration = sumStages(opts.Stages)
+	***REMOVED***
+
 	return &Collector***REMOVED***
 		referenceID: referenceID,
 		thresholds:  thresholds,
 		client:      NewClient(token),
+		duration:    duration,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -46,7 +54,7 @@ func (c *Collector) Init() ***REMOVED***
 
 	// TODO fix this and add proper error handling
 	if c.referenceID == "" ***REMOVED***
-		response := c.client.CreateTestRun(name, c.thresholds)
+		response := c.client.CreateTestRun(name, c.thresholds, c.duration)
 		if response != nil ***REMOVED***
 			c.referenceID = response.ReferenceID
 		***REMOVED***
@@ -87,4 +95,13 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	if len(cloudSamples) > 0 && c.referenceID != "" ***REMOVED***
 		c.client.PushMetric(c.referenceID, cloudSamples)
 	***REMOVED***
+***REMOVED***
+
+func sumStages(stages []lib.Stage) int64 ***REMOVED***
+	var total time.Duration
+	for _, stage := range stages ***REMOVED***
+		total += stage.Duration
+	***REMOVED***
+
+	return int64(total.Seconds())
 ***REMOVED***
