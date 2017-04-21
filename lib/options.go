@@ -60,6 +60,9 @@ type Options struct ***REMOVED***
 	InsecureSkipTLSVerify null.Bool `json:"insecureSkipTLSVerify"`
 
 	Thresholds map[string]Thresholds `json:"thresholds"`
+
+	// These values are for third party collectors' benefit.
+	External map[string]interface***REMOVED******REMOVED*** `json:"ext"`
 ***REMOVED***
 
 func (o Options) Apply(opts Options) Options ***REMOVED***
@@ -95,6 +98,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds
+	***REMOVED***
+	if opts.External != nil ***REMOVED***
+		o.External = opts.External
 	***REMOVED***
 	return o
 ***REMOVED***

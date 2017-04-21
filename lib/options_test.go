@@ -84,6 +84,10 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.NotNil(t, opts.Thresholds)
 		assert.NotEmpty(t, opts.Thresholds)
 	***REMOVED***)
+	t.Run("External", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***External: map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED******REMOVED***)
+		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED***, opts.External)
+	***REMOVED***)
 	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.NoUsageReport.Valid)
