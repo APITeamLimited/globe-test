@@ -116,8 +116,8 @@ var commandRun = cli.Command***REMOVED***
 			Usage: "INSECURE: skip verification of TLS certificates",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
-			Name:  "out, o",
-			Usage: "output metrics to an external data store",
+			Name:   "out, o",
+			Usage:  "output metrics to an external data store",
 			EnvVar: "K6_OUT",
 		***REMOVED***,
 		cli.StringSliceFlag***REMOVED***
