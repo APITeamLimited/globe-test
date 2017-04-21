@@ -804,6 +804,49 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 				***REMOVED***1 * time.Second, false, 0***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"mix": ***REMOVED***
+			[]Stage***REMOVED***
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: 2 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: 2 * time.Second***REMOVED***,
+				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 4***REMOVED***,
+				***REMOVED***1 * time.Second, true, 8***REMOVED***,
+				***REMOVED***1 * time.Second, true, 12***REMOVED***,
+				***REMOVED***1 * time.Second, true, 16***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 18***REMOVED***,
+				***REMOVED***1 * time.Second, true, 16***REMOVED***,
+				***REMOVED***1 * time.Second, true, 14***REMOVED***,
+				***REMOVED***1 * time.Second, true, 12***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 12***REMOVED***,
+				***REMOVED***1 * time.Second, true, 14***REMOVED***,
+				***REMOVED***1 * time.Second, true, 16***REMOVED***,
+				***REMOVED***1 * time.Second, true, 18***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+				***REMOVED***1 * time.Second, true, 20***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, 18***REMOVED***,
+				***REMOVED***1 * time.Second, true, 16***REMOVED***,
+				***REMOVED***1 * time.Second, true, 14***REMOVED***,
+				***REMOVED***1 * time.Second, true, 12***REMOVED***,
+				***REMOVED***1 * time.Second, true, 10***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***

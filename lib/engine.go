@@ -516,7 +516,9 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 				break
 			***REMOVED***
 			stageStart += s.Duration
-			stageStartVUs = s.Target.Int64
+			if s.Target.Valid ***REMOVED***
+				stageStartVUs = s.Target.Int64
+			***REMOVED***
 		***REMOVED***
 		if stageIdx == -1 ***REMOVED***
 			e.Logger.Debug("processStages: end of test exceeded")
