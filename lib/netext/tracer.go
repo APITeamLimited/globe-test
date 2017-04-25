@@ -144,9 +144,10 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 		t.connectDone = t.gotConn
 
 		// If the connection was reused, patch it to use this tracer's data counters.
-		conn := info.Conn.(*Conn)
-		conn.BytesRead = &t.bytesRead
-		conn.BytesWritten = &t.bytesWritten
+		if conn, ok := info.Conn.(*Conn); ok ***REMOVED***
+			conn.BytesRead = &t.bytesRead
+			conn.BytesWritten = &t.bytesWritten
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
