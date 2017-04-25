@@ -579,6 +579,10 @@ loop:
 		case 1:
 			for _, v := range sample ***REMOVED***
 				val = color.CyanString(m.HumanizeValue(v))
+				if atTime > 1*time.Second && m.Type == stats.Counter && m.Contains != stats.Time ***REMOVED***
+					perS := m.HumanizeValue(v / float64(atTime/time.Second))
+					val += " " + color.New(color.Faint, color.FgCyan).Sprintf("(%s/s)", perS)
+				***REMOVED***
 			***REMOVED***
 		default:
 			var parts []string
