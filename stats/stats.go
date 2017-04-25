@@ -22,10 +22,7 @@ package stats
 
 import (
 	"errors"
-	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -202,26 +199,6 @@ func (m Metric) NewSink() Sink ***REMOVED***
 		return &RateSink***REMOVED******REMOVED***
 	default:
 		return nil
-	***REMOVED***
-***REMOVED***
-
-func (m Metric) Humanize() string ***REMOVED***
-	sample := m.Sample
-	switch len(sample) ***REMOVED***
-	case 0:
-		return ""
-	case 1:
-		for _, v := range sample ***REMOVED***
-			return m.HumanizeValue(v)
-		***REMOVED***
-		return ""
-	default:
-		parts := make([]string, 0, len(m.Sample))
-		for key, val := range m.Sample ***REMOVED***
-			parts = append(parts, fmt.Sprintf("%s=%s", key, m.HumanizeValue(val)))
-		***REMOVED***
-		sort.Strings(parts)
-		return strings.Join(parts, ", ")
 	***REMOVED***
 ***REMOVED***
 
