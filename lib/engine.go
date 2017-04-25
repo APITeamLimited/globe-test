@@ -593,11 +593,11 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 
 		succ := e.runVUOnce(ctx, vu)
 		if !succ ***REMOVED***
-			backoffCounter++
 			backoff += BackoffAmount * time.Duration(backoffCounter)
 			if backoff > BackoffMax ***REMOVED***
 				backoff = BackoffMax
 			***REMOVED***
+			backoffCounter++
 			select ***REMOVED***
 			case <-time.After(backoff):
 			case <-ctx.Done():
