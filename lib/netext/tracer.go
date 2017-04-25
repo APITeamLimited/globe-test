@@ -18,7 +18,7 @@
  *
  */
 
-package lib
+package netext
 
 import (
 	"net"
@@ -48,6 +48,9 @@ type Trail struct ***REMOVED***
 	// Detailed connection information.
 	ConnReused     bool
 	ConnRemoteAddr net.Addr
+
+	// Bandwidth usage.
+	BytesRead, BytesWritten int64
 ***REMOVED***
 
 func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
@@ -60,6 +63,8 @@ func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: metrics.DataReceived, Time: tr.EndTime, Tags: tags, Value: float64(tr.BytesRead)***REMOVED***,
+		***REMOVED***Metric: metrics.DataSent, Time: tr.EndTime, Tags: tags, Value: float64(tr.BytesWritten)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -80,6 +85,8 @@ type Tracer struct ***REMOVED***
 
 	connReused     bool
 	connRemoteAddr net.Addr
+
+	bytesRead, bytesWritten int64
 ***REMOVED***
 
 // Trace() returns a premade ClientTrace that calls all of the Tracer's hooks.
@@ -112,6 +119,9 @@ func (t *Tracer) Done() Trail ***REMOVED***
 
 		ConnReused:     t.connReused,
 		ConnRemoteAddr: t.connRemoteAddr,
+
+		BytesRead:    t.bytesRead,
+		BytesWritten: t.bytesWritten,
 	***REMOVED***
 
 	*t = Tracer***REMOVED******REMOVED***
@@ -132,6 +142,11 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 	if t.connReused ***REMOVED***
 		t.connectStart = t.gotConn
 		t.connectDone = t.gotConn
+
+		// If the connection was reused, patch it to use this tracer's data counters.
+		conn := info.Conn.(*Conn)
+		conn.BytesRead = &t.bytesRead
+		conn.BytesWritten = &t.bytesWritten
 	***REMOVED***
 ***REMOVED***
 

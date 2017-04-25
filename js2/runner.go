@@ -22,10 +22,14 @@ package js2
 
 import (
 	"context"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js2/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 	"github.com/spf13/afero"
 )
@@ -107,8 +111,18 @@ type VU struct ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	transport := &http.Transport***REMOVED***
+		DialContext: (netext.Dialer***REMOVED***
+			Dialer: net.Dialer***REMOVED***
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			***REMOVED***,
+		***REMOVED***).DialContext,
+	***REMOVED***
 	state := &common.State***REMOVED***
-		Group: u.Runner.defaultGroup,
+		Group:         u.Runner.defaultGroup,
+		HTTPTransport: transport,
 	***REMOVED***
 
 	ctx = common.WithRuntime(ctx, u.Runtime)
