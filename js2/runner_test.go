@@ -130,9 +130,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	vu.Runtime.Set("fn", func() ***REMOVED***
 		fnCalled = true
 		assert.Equal(t, vu.Runtime, common.GetRuntime(*vu.Context), "incorrect runtime in context")
-		assert.Equal(t, &common.State***REMOVED***
-			Group: r.GetDefaultGroup(),
-		***REMOVED***, common.GetState(*vu.Context), "incorrect state in context")
+		assert.Equal(t, r.GetDefaultGroup(), common.GetState(*vu.Context).Group, "incorrect group in context")
 	***REMOVED***)
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)

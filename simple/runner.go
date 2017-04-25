@@ -28,12 +28,12 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -50,11 +50,11 @@ func New(u *url.URL) (*Runner, error) ***REMOVED***
 		URL: u,
 		Transport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer***REMOVED***
+			DialContext: (netext.Dialer***REMOVED***Dialer: net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
 				KeepAlive: 60 * time.Second,
 				DualStack: true,
-			***REMOVED***).DialContext,
+			***REMOVED******REMOVED***).DialContext,
 			TLSClientConfig:     &tls.Config***REMOVED******REMOVED***,
 			MaxIdleConns:        math.MaxInt32,
 			MaxIdleConnsPerHost: math.MaxInt32,
@@ -64,8 +64,6 @@ func New(u *url.URL) (*Runner, error) ***REMOVED***
 ***REMOVED***
 
 func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
-	tracer := &lib.Tracer***REMOVED******REMOVED***
-
 	return &VU***REMOVED***
 		Runner:    r,
 		URLString: r.URL.String(),
@@ -76,8 +74,7 @@ func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
 		Client: &http.Client***REMOVED***
 			Transport: r.Transport,
 		***REMOVED***,
-		tracer: tracer,
-		cTrace: tracer.Trace(),
+		tracer: &netext.Tracer***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -103,8 +100,7 @@ type VU struct ***REMOVED***
 	Request   *http.Request
 	Client    *http.Client
 
-	tracer *lib.Tracer
-	cTrace *httptrace.ClientTrace
+	tracer *netext.Tracer
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
@@ -115,7 +111,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		"url":    u.URLString,
 	***REMOVED***
 
-	resp, err := u.Client.Do(u.Request.WithContext(httptrace.WithClientTrace(ctx, u.cTrace)))
+	resp, err := u.Client.Do(u.Request.WithContext(netext.WithTracer(ctx, u.tracer)))
 	if err != nil ***REMOVED***
 		return u.tracer.Done().Samples(tags), err
 	***REMOVED***
