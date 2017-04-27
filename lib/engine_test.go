@@ -331,7 +331,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 				if !assert.True(t, e.numIterations > 0, "no iterations performed") ***REMOVED***
 					return
 				***REMOVED***
-				sink := e.Metrics[testMetric].(*stats.TrendSink)
+				sink := e.Metrics["test_metric"].Sink.(*stats.TrendSink)
 				assert.True(t, len(sink.Values) > int(float64(e.numIterations)*0.99), "more than 1%% of iterations missed")
 			***REMOVED***)
 		***REMOVED***
@@ -904,7 +904,7 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	numCollectorSamples := len(cSamples)
-	numEngineSamples := len(e.Metrics[testMetric].(*stats.TrendSink).Values)
+	numEngineSamples := len(e.Metrics["test_metric"].Sink.(*stats.TrendSink).Values)
 	assert.Equal(t, numEngineSamples, numCollectorSamples)
 ***REMOVED***
 
@@ -919,7 +919,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics[metric])
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 	***REMOVED***)
 
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
@@ -942,10 +942,10 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics[metric])
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 
 		sms = e.submetrics["my_metric"]
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics[sms[0].Metric])
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
 

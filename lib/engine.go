@@ -97,7 +97,7 @@ type Engine struct ***REMOVED***
 
 	Stages      []Stage
 	Thresholds  map[string]Thresholds
-	Metrics     map[*stats.Metric]stats.Sink
+	Metrics     map[string]*stats.Metric
 	MetricsLock sync.RWMutex
 
 	// Submetrics, mapped from parent metric names.
@@ -137,7 +137,7 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 		Options: o,
 		Logger:  log.StandardLogger(),
 
-		Metrics:    make(map[*stats.Metric]stats.Sink),
+		Metrics:    make(map[string]*stats.Metric),
 		Thresholds: make(map[string]Thresholds),
 
 		vuStop: make(chan interface***REMOVED******REMOVED***),
@@ -701,7 +701,7 @@ func (e *Engine) processThresholds() ***REMOVED***
 	defer e.MetricsLock.Unlock()
 
 	e.thresholdsTainted = false
-	for m, s := range e.Metrics ***REMOVED***
+	for _, m := range e.Metrics ***REMOVED***
 		ts, ok := e.Thresholds[m.Name]
 		if !ok ***REMOVED***
 			continue
@@ -710,7 +710,7 @@ func (e *Engine) processThresholds() ***REMOVED***
 		m.Tainted = null.BoolFrom(false)
 
 		e.Logger.WithField("m", m.Name).Debug("running thresholds")
-		succ, err := ts.Run(s)
+		succ, err := ts.Run(m.Sink)
 		if err != nil ***REMOVED***
 			e.Logger.WithField("m", m.Name).WithError(err).Error("Threshold error")
 			continue
@@ -760,12 +760,12 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 	defer e.MetricsLock.Unlock()
 
 	for _, sample := range samples ***REMOVED***
-		sink := e.Metrics[sample.Metric]
-		if sink == nil ***REMOVED***
-			sink = sample.Metric.NewSink()
-			e.Metrics[sample.Metric] = sink
+		m, ok := e.Metrics[sample.Metric.Name]
+		if !ok ***REMOVED***
+			m = sample.Metric
+			e.Metrics[m.Name] = m
 		***REMOVED***
-		sink.Add(sample)
+		m.Sink.Add(sample)
 
 		for _, sm := range e.submetrics[sample.Metric.Name] ***REMOVED***
 			passing := true
@@ -781,9 +781,9 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 
 			if sm.Metric == nil ***REMOVED***
 				sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
-				e.Metrics[sm.Metric] = sm.Metric.NewSink()
+				e.Metrics[sm.Name] = sm.Metric
 			***REMOVED***
-			e.Metrics[sm.Metric].Add(sample)
+			sm.Metric.Sink.Add(sample)
 		***REMOVED***
 	***REMOVED***
 

@@ -556,11 +556,9 @@ loop:
 	printGroup(engine.Runner.GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
-	metrics := make(map[string]*stats.Metric, len(engine.Metrics))
 	metricNames := make([]string, 0, len(engine.Metrics))
 	metricNameWidth := 0
-	for m := range engine.Metrics ***REMOVED***
-		metrics[m.Name] = m
+	for _, m := range engine.Metrics ***REMOVED***
 		metricNames = append(metricNames, m.Name)
 		if l := len(m.Name); l > metricNameWidth ***REMOVED***
 			metricNameWidth = l
@@ -569,8 +567,8 @@ loop:
 	sort.Strings(metricNames)
 
 	for _, name := range metricNames ***REMOVED***
-		m := metrics[name]
-		sample := engine.Metrics[m].Format()
+		m := engine.Metrics[name]
+		sample := m.Sink.Format()
 
 		keys := make([]string, 0, len(sample))
 		for k := range sample ***REMOVED***
