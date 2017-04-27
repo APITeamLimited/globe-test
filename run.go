@@ -572,22 +572,27 @@ loop:
 		m := metrics[name]
 		sample := engine.Metrics[m].Format()
 
+		keys := make([]string, 0, len(sample))
+		for k := range sample ***REMOVED***
+			keys = append(keys, k)
+		***REMOVED***
+		sort.Strings(keys)
 		var val string
-		switch len(sample) ***REMOVED***
+		switch len(keys) ***REMOVED***
 		case 0:
 			continue
 		case 1:
-			for _, v := range sample ***REMOVED***
-				val = color.CyanString(m.HumanizeValue(v))
+			for _, k := range keys ***REMOVED***
+				val = color.CyanString(m.HumanizeValue(sample[k]))
 				if atTime > 1*time.Second && m.Type == stats.Counter && m.Contains != stats.Time ***REMOVED***
-					perS := m.HumanizeValue(v / float64(atTime/time.Second))
+					perS := m.HumanizeValue(sample[k] / float64(atTime/time.Second))
 					val += " " + color.New(color.Faint, color.FgCyan).Sprintf("(%s/s)", perS)
 				***REMOVED***
 			***REMOVED***
 		default:
 			var parts []string
-			for k, v := range sample ***REMOVED***
-				parts = append(parts, fmt.Sprintf("%s=%s", k, color.CyanString(m.HumanizeValue(v))))
+			for _, k := range keys ***REMOVED***
+				parts = append(parts, fmt.Sprintf("%s=%s", k, color.CyanString(m.HumanizeValue(sample[k]))))
 			***REMOVED***
 			val = strings.Join(parts, " ")
 		***REMOVED***
