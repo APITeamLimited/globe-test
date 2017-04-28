@@ -55,39 +55,6 @@ type vuEntry struct ***REMOVED***
 	lock       sync.Mutex
 ***REMOVED***
 
-type submetric struct ***REMOVED***
-	Name       string
-	Conditions map[string]string
-	Metric     *stats.Metric
-***REMOVED***
-
-func parseSubmetric(name string) (string, map[string]string) ***REMOVED***
-	halves := strings.SplitN(strings.TrimSuffix(name, "***REMOVED***"), "***REMOVED***", 2)
-	if len(halves) != 2 ***REMOVED***
-		return halves[0], nil
-	***REMOVED***
-
-	kvs := strings.Split(halves[1], ",")
-	conditions := make(map[string]string, len(kvs))
-	for _, kv := range kvs ***REMOVED***
-		if kv == "" ***REMOVED***
-			continue
-		***REMOVED***
-
-		parts := strings.SplitN(kv, ":", 2)
-
-		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
-		if len(parts) != 2 ***REMOVED***
-			conditions[key] = ""
-			continue
-		***REMOVED***
-
-		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
-		conditions[key] = value
-	***REMOVED***
-	return halves[0], conditions
-***REMOVED***
-
 // The Engine is the beating heart of K6.
 type Engine struct ***REMOVED***
 	Runner    Runner
@@ -101,8 +68,7 @@ type Engine struct ***REMOVED***
 
 	// Assigned to metrics upon first received sample.
 	thresholds map[string]stats.Thresholds
-	// Submetrics, mapped from parent metric names.
-	submetrics map[string][]*submetric
+	submetrics map[string][]stats.Submetric
 
 	// Stage tracking.
 	atTime          time.Duration
@@ -170,17 +136,14 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	***REMOVED***
 	if o.Thresholds != nil ***REMOVED***
 		e.thresholds = o.Thresholds
-		e.submetrics = make(map[string][]*submetric)
+		e.submetrics = make(map[string][]stats.Submetric)
 		for name := range e.thresholds ***REMOVED***
 			if !strings.Contains(name, "***REMOVED***") ***REMOVED***
 				continue
 			***REMOVED***
 
-			parent, conds := parseSubmetric(name)
-			e.submetrics[parent] = append(e.submetrics[parent], &submetric***REMOVED***
-				Name:       name,
-				Conditions: conds,
-			***REMOVED***)
+			parent, sm := stats.NewSubmetric(name)
+			e.submetrics[parent] = append(e.submetrics[parent], sm)
 		***REMOVED***
 	***REMOVED***
 
@@ -760,13 +723,14 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 		if !ok ***REMOVED***
 			m = sample.Metric
 			m.Thresholds = e.thresholds[m.Name]
+			m.Submetrics = e.submetrics[m.Name]
 			e.Metrics[m.Name] = m
 		***REMOVED***
 		m.Sink.Add(sample)
 
-		for _, sm := range e.submetrics[sample.Metric.Name] ***REMOVED***
+		for _, sm := range m.Submetrics ***REMOVED***
 			passing := true
-			for k, v := range sm.Conditions ***REMOVED***
+			for k, v := range sm.Tags ***REMOVED***
 				if sample.Tags[k] != v ***REMOVED***
 					passing = false
 					break

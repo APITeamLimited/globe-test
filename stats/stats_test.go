@@ -144,3 +144,31 @@ func TestNew(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestNewSubmetric(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		parent string
+		tags   map[string]string
+	***REMOVED******REMOVED***
+		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
+		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", map[string]string***REMOVED******REMOVED******REMOVED***,
+		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a,b***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
+		"my_metric***REMOVED***a:1,b:2***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		"my_metric***REMOVED*** a : 1, b : 2 ***REMOVED***": ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+	***REMOVED***
+
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			parent, sm := NewSubmetric(name)
+			assert.Equal(t, data.parent, parent)
+			if data.tags != nil ***REMOVED***
+				assert.EqualValues(t, data.tags, sm.Tags)
+			***REMOVED*** else ***REMOVED***
+				assert.Nil(t, sm.Tags)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***

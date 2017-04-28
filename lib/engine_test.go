@@ -77,34 +77,6 @@ func assertActiveVUs(t *testing.T, e *Engine, active, dead int) ***REMOVED***
 	assert.Equal(t, dead, numDead, "wrong number of dead vus")
 ***REMOVED***
 
-func Test_parseSubmetric(t *testing.T) ***REMOVED***
-	testdata := map[string]struct ***REMOVED***
-		parent string
-		conds  map[string]string
-	***REMOVED******REMOVED***
-		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
-		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", map[string]string***REMOVED******REMOVED******REMOVED***,
-		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a,b***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a:1,b:2***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-		"my_metric***REMOVED*** a : 1, b : 2 ***REMOVED***": ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-	***REMOVED***
-
-	for name, data := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			parent, conds := parseSubmetric(name)
-			assert.Equal(t, data.parent, parent)
-			if data.conds != nil ***REMOVED***
-				assert.EqualValues(t, data.conds, conds)
-			***REMOVED*** else ***REMOVED***
-				assert.Nil(t, conds)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestNewEngine(t *testing.T) ***REMOVED***
 	_, err, _ := newTestEngine(nil, Options***REMOVED******REMOVED***)
 	assert.NoError(t, err)
@@ -921,7 +893,6 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 	***REMOVED***)
-
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		ths, err := stats.NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
 		assert.NoError(t, err)
@@ -936,7 +907,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		sms := e.submetrics["my_metric"]
 		assert.Len(t, sms, 1)
 		assert.Equal(t, "my_metric***REMOVED***a:1***REMOVED***", sms[0].Name)
-		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Conditions)
+		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags)
 
 		e.processSamples(
 			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,

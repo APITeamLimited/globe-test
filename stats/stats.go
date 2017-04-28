@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"time"
 
+	"strings"
+
 	"github.com/dustin/go-humanize"
 	"gopkg.in/guregu/null.v3"
 )
@@ -169,12 +171,13 @@ type Sample struct ***REMOVED***
 
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
-	Name       string     `json:"-"`
-	Type       MetricType `json:"type"`
-	Contains   ValueType  `json:"contains"`
-	Tainted    null.Bool  `json:"tainted"`
-	Sink       Sink       `json:"sink"`
-	Thresholds Thresholds `json:"thresholds"`
+	Name       string      `json:"-"`
+	Type       MetricType  `json:"type"`
+	Contains   ValueType   `json:"contains"`
+	Tainted    null.Bool   `json:"tainted"`
+	Sink       Sink        `json:"sink"`
+	Thresholds Thresholds  `json:"thresholds"`
+	Submetrics []Submetric `json:"submetrics"`
 ***REMOVED***
 
 func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
@@ -223,4 +226,38 @@ func (m Metric) HumanizeValue(v float64) string ***REMOVED***
 			return strconv.FormatFloat(v, 'f', -1, 64)
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+// A Submetric represents a filtered dataset based on a parent metric.
+type Submetric struct ***REMOVED***
+	Name   string            `json:"name"`
+	Tags   map[string]string `json:"tags"`
+	Metric *Metric           `json:"metric"`
+***REMOVED***
+
+// Creates a submetric from a name.
+func NewSubmetric(name string) (parentName string, sm Submetric) ***REMOVED***
+	parts := strings.SplitN(strings.TrimSuffix(name, "***REMOVED***"), "***REMOVED***", 2)
+	if len(parts) == 1 ***REMOVED***
+		return parts[0], Submetric***REMOVED***Name: name***REMOVED***
+	***REMOVED***
+
+	kvs := strings.Split(parts[1], ",")
+	tags := make(map[string]string, len(kvs))
+	for _, kv := range kvs ***REMOVED***
+		if kv == "" ***REMOVED***
+			continue
+		***REMOVED***
+		parts := strings.SplitN(kv, ":", 2)
+
+		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
+		if len(parts) != 2 ***REMOVED***
+			tags[key] = ""
+			continue
+		***REMOVED***
+
+		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
+		tags[key] = value
+	***REMOVED***
+	return parts[0], Submetric***REMOVED***Name: name, Tags: tags***REMOVED***
 ***REMOVED***
