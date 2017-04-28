@@ -18,13 +18,12 @@
  *
  */
 
-package lib
+package stats
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/loadimpact/k6/stats"
 	"github.com/robertkrimen/otto"
 	"github.com/stretchr/testify/assert"
 )
@@ -104,7 +103,7 @@ func TestNewThresholds(t *testing.T) ***REMOVED***
 func TestThresholdsUpdateVM(t *testing.T) ***REMOVED***
 	ts, err := NewThresholds(nil)
 	assert.NoError(t, err)
-	assert.NoError(t, ts.UpdateVM(stats.DummySink***REMOVED***"a": 1234.5***REMOVED***))
+	assert.NoError(t, ts.UpdateVM(DummySink***REMOVED***"a": 1234.5***REMOVED***))
 
 	v, err := ts.VM.Get("a")
 	assert.NoError(t, err)
@@ -153,19 +152,19 @@ func TestThresholdsRun(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	t.Run("error", func(t *testing.T) ***REMOVED***
-		b, err := ts.Run(stats.DummySink***REMOVED******REMOVED***)
+		b, err := ts.Run(DummySink***REMOVED******REMOVED***)
 		assert.Error(t, err)
 		assert.False(t, b)
 	***REMOVED***)
 
 	t.Run("pass", func(t *testing.T) ***REMOVED***
-		b, err := ts.Run(stats.DummySink***REMOVED***"a": 1234.5***REMOVED***)
+		b, err := ts.Run(DummySink***REMOVED***"a": 1234.5***REMOVED***)
 		assert.NoError(t, err)
 		assert.True(t, b)
 	***REMOVED***)
 
 	t.Run("fail", func(t *testing.T) ***REMOVED***
-		b, err := ts.Run(stats.DummySink***REMOVED***"a": 0***REMOVED***)
+		b, err := ts.Run(DummySink***REMOVED***"a": 0***REMOVED***)
 		assert.NoError(t, err)
 		assert.False(t, b)
 	***REMOVED***)

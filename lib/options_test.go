@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 )
@@ -76,9 +77,9 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
 	***REMOVED***)
 	t.Run("Thresholds", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]Thresholds***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Thresholds: map[string]stats.Thresholds***REMOVED***
 			"metric": ***REMOVED***
-				Thresholds: []*Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
+				Thresholds: []*stats.Threshold***REMOVED******REMOVED******REMOVED******REMOVED***,
 			***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Thresholds)

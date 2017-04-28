@@ -96,10 +96,11 @@ type Engine struct ***REMOVED***
 	Logger    *log.Logger
 
 	Stages      []Stage
-	Thresholds  map[string]Thresholds
-	Metrics     map[*stats.Metric]stats.Sink
+	Metrics     map[string]*stats.Metric
 	MetricsLock sync.RWMutex
 
+	// Assigned to metrics upon first received sample.
+	thresholds map[string]stats.Thresholds
 	// Submetrics, mapped from parent metric names.
 	submetrics map[string][]*submetric
 
@@ -137,8 +138,7 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 		Options: o,
 		Logger:  log.StandardLogger(),
 
-		Metrics:    make(map[*stats.Metric]stats.Sink),
-		Thresholds: make(map[string]Thresholds),
+		Metrics: make(map[string]*stats.Metric),
 
 		vuStop: make(chan interface***REMOVED******REMOVED***),
 	***REMOVED***
@@ -168,12 +168,10 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	if o.Paused.Valid ***REMOVED***
 		e.SetPaused(o.Paused.Bool)
 	***REMOVED***
-
 	if o.Thresholds != nil ***REMOVED***
-		e.Thresholds = o.Thresholds
+		e.thresholds = o.Thresholds
 		e.submetrics = make(map[string][]*submetric)
-
-		for name := range e.Thresholds ***REMOVED***
+		for name := range e.thresholds ***REMOVED***
 			if !strings.Contains(name, "***REMOVED***") ***REMOVED***
 				continue
 			***REMOVED***
@@ -701,16 +699,14 @@ func (e *Engine) processThresholds() ***REMOVED***
 	defer e.MetricsLock.Unlock()
 
 	e.thresholdsTainted = false
-	for m, s := range e.Metrics ***REMOVED***
-		ts, ok := e.Thresholds[m.Name]
-		if !ok ***REMOVED***
+	for _, m := range e.Metrics ***REMOVED***
+		if len(m.Thresholds.Thresholds) == 0 ***REMOVED***
 			continue
 		***REMOVED***
-
 		m.Tainted = null.BoolFrom(false)
 
 		e.Logger.WithField("m", m.Name).Debug("running thresholds")
-		succ, err := ts.Run(s)
+		succ, err := m.Thresholds.Run(m.Sink)
 		if err != nil ***REMOVED***
 			e.Logger.WithField("m", m.Name).WithError(err).Error("Threshold error")
 			continue
@@ -760,12 +756,13 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 	defer e.MetricsLock.Unlock()
 
 	for _, sample := range samples ***REMOVED***
-		sink := e.Metrics[sample.Metric]
-		if sink == nil ***REMOVED***
-			sink = sample.Metric.NewSink()
-			e.Metrics[sample.Metric] = sink
+		m, ok := e.Metrics[sample.Metric.Name]
+		if !ok ***REMOVED***
+			m = sample.Metric
+			m.Thresholds = e.thresholds[m.Name]
+			e.Metrics[m.Name] = m
 		***REMOVED***
-		sink.Add(sample)
+		m.Sink.Add(sample)
 
 		for _, sm := range e.submetrics[sample.Metric.Name] ***REMOVED***
 			passing := true
@@ -781,9 +778,10 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 
 			if sm.Metric == nil ***REMOVED***
 				sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
-				e.Metrics[sm.Metric] = sm.Metric.NewSink()
+				sm.Metric.Thresholds = e.thresholds[sm.Name]
+				e.Metrics[sm.Name] = sm.Metric
 			***REMOVED***
-			e.Metrics[sm.Metric].Add(sample)
+			sm.Metric.Sink.Add(sample)
 		***REMOVED***
 	***REMOVED***
 

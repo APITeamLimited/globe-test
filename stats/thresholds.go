@@ -18,12 +18,11 @@
  *
  */
 
-package lib
+package stats
 
 import (
 	"encoding/json"
 
-	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	"github.com/robertkrimen/otto"
 )
@@ -94,7 +93,7 @@ func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 	return Thresholds***REMOVED***vm, ts***REMOVED***, nil
 ***REMOVED***
 
-func (ts *Thresholds) UpdateVM(sink stats.Sink) error ***REMOVED***
+func (ts *Thresholds) UpdateVM(sink Sink) error ***REMOVED***
 	if err := ts.VM.Set("__sink__", sink); err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -120,7 +119,7 @@ func (ts *Thresholds) RunAll() (bool, error) ***REMOVED***
 	return succ, nil
 ***REMOVED***
 
-func (ts *Thresholds) Run(sink stats.Sink) (bool, error) ***REMOVED***
+func (ts *Thresholds) Run(sink Sink) (bool, error) ***REMOVED***
 	if err := ts.UpdateVM(sink); err != nil ***REMOVED***
 		return false, err
 	***REMOVED***

@@ -80,13 +80,13 @@ type Metric struct ***REMOVED***
 	Sample map[string]float64 `json:"sample"`
 ***REMOVED***
 
-func NewMetric(m stats.Metric, sink stats.Sink) Metric ***REMOVED***
+func NewMetric(m *stats.Metric) Metric ***REMOVED***
 	return Metric***REMOVED***
 		Name:     m.Name,
 		Type:     NullMetricType***REMOVED***m.Type, true***REMOVED***,
 		Contains: NullValueType***REMOVED***m.Contains, true***REMOVED***,
 		Tainted:  m.Tainted,
-		Sample:   sink.Format(),
+		Sample:   m.Sink.Format(),
 	***REMOVED***
 ***REMOVED***
 
