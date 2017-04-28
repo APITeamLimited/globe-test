@@ -224,12 +224,3 @@ func (m Metric) HumanizeValue(v float64) string ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
-
-func (m Metric) GetID() string ***REMOVED***
-	return m.Name
-***REMOVED***
-
-func (m *Metric) SetID(id string) error ***REMOVED***
-	m.Name = id
-	return nil
-***REMOVED***
