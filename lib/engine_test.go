@@ -943,8 +943,6 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
-
-		sms = e.submetrics["my_metric"]
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
