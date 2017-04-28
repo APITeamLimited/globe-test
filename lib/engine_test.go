@@ -215,21 +215,21 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("thresholds", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
-			Thresholds: map[string]Thresholds***REMOVED***
+			Thresholds: map[string]stats.Thresholds***REMOVED***
 				"my_metric": ***REMOVED******REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
-		assert.Contains(t, e.Thresholds, "my_metric")
+		assert.Contains(t, e.thresholds, "my_metric")
 
 		t.Run("submetrics", func(t *testing.T) ***REMOVED***
 			e, err, _ := newTestEngine(nil, Options***REMOVED***
-				Thresholds: map[string]Thresholds***REMOVED***
+				Thresholds: map[string]stats.Thresholds***REMOVED***
 					"my_metric***REMOVED***tag:value***REMOVED***": ***REMOVED******REMOVED***,
 				***REMOVED***,
 			***REMOVED***)
 			assert.NoError(t, err)
-			assert.Contains(t, e.Thresholds, "my_metric***REMOVED***tag:value***REMOVED***")
+			assert.Contains(t, e.thresholds, "my_metric***REMOVED***tag:value***REMOVED***")
 			assert.Contains(t, e.submetrics, "my_metric")
 		***REMOVED***)
 	***REMOVED***)
@@ -923,11 +923,11 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
-		ths, err := NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
+		ths, err := stats.NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
 		assert.NoError(t, err)
 
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
-			Thresholds: map[string]Thresholds***REMOVED***
+			Thresholds: map[string]stats.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***)
@@ -967,9 +967,9 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			thresholds := make(map[string]Thresholds, len(data.ths))
+			thresholds := make(map[string]stats.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
-				ths, err := NewThresholds(srcs)
+				ths, err := stats.NewThresholds(srcs)
 				assert.NoError(t, err)
 				thresholds[m] = ths
 			***REMOVED***
