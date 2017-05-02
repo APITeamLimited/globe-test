@@ -24,7 +24,7 @@ let api_token = null;
 // We export it in case another test wants to use this end point also
 export function v3_account_me(token) ***REMOVED***
 	var url = urlbase + "/v3/account/me";
-	return http.get(url, null, ***REMOVED*** headers: ***REMOVED*** "Authorization": "Token " + token ***REMOVED*** ***REMOVED***);
+	return http.get(url, ***REMOVED*** headers: ***REMOVED*** "Authorization": "Token " + token ***REMOVED*** ***REMOVED***);
 ***REMOVED***;
 
 // This is the "run" function that k6 will call again and again during a load test, or one single

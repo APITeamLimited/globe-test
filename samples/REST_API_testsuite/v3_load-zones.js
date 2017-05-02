@@ -6,7 +6,7 @@
 
 import http from "k6/http";
 import ***REMOVED*** group, sleep, check ***REMOVED*** from "k6";
-import ***REMOVED*** rtt_rate, options, urlbase, thinktime1, thinktime2 ***REMOVED*** from "./common";
+import ***REMOVED*** myTrend, options, urlbase, thinktime1, thinktime2 ***REMOVED*** from "./common";
 import ***REMOVED*** v3_account_login ***REMOVED*** from "./v3_account_login";
 
 // Export options object so k6 can access it
@@ -27,7 +27,7 @@ let api_token = null;
 // We export it in case another test wants to use this end point also
 export function v3_loadZones(org_id, token) ***REMOVED***
 	var url = urlbase + "/v3/load-zones?organization_id=" + String(org_id);
-	return http.get(url, null, ***REMOVED*** headers: ***REMOVED*** "Authorization": "Token " + token, "Content-Type": "application/json" ***REMOVED*** ***REMOVED***);
+	return http.get(url, ***REMOVED*** headers: ***REMOVED*** "Authorization": "Token " + token, "Content-Type": "application/json" ***REMOVED*** ***REMOVED***);
 ***REMOVED***;
 
 // This is the "run" function that every VU will call again and again during a load test, or it will be
@@ -48,7 +48,7 @@ export default function() ***REMOVED***
 			"content-type is application/json": (res) => res.headers['Content-Type'] === "application/json",
 			"Content OK": (res) => JSON.parse(res.body).hasOwnProperty('load_zones')
 		***REMOVED***);
-		rtt_rate.add(res.timings.duration);
+		myTrend.add(res.timings.duration);
 		sleep(thinktime1);
 	***REMOVED***);
 	sleep(thinktime2);
