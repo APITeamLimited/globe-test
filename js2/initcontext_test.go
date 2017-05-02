@@ -120,7 +120,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				Filename: "/script.js",
 				Data:     []byte(`import "/file.js"; export default function() ***REMOVED******REMOVED***`),
 			***REMOVED***, fs)
-			assert.EqualError(t, err, "SyntaxError: /file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n    | ^")
+			assert.EqualError(t, err, "SyntaxError: /file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n    | ^ at <eval>:2:26853(114)")
 		***REMOVED***)
 		t.Run("Error", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
@@ -129,7 +129,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				Filename: "/script.js",
 				Data:     []byte(`import "/file.js"; export default function() ***REMOVED******REMOVED***`),
 			***REMOVED***, fs)
-			assert.EqualError(t, err, "Error: aaaa")
+			assert.EqualError(t, err, "Error: aaaa at /file.js:1:20(3)")
 		***REMOVED***)
 
 		imports := map[string]struct ***REMOVED***
