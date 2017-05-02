@@ -304,4 +304,52 @@ func TestRequest(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***
+
+	t.Run("Batch", func(t *testing.T) ***REMOVED***
+		t.Run("GET", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			let reqs = [
+				["GET", "https://httpbin.org/"],
+				["GET", "https://example.com/"],
+			];
+			let res = http.batch(reqs);
+			for (var key in res) ***REMOVED***
+				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+				if (res[key].url != reqs[key][1]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+			***REMOVED***`)
+			assert.NoError(t, err)
+
+			t.Run("Shorthand", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, `
+				let reqs = [
+					"https://httpbin.org/",
+					"https://example.com/",
+				];
+				let res = http.batch(reqs);
+				for (var key in res) ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+				***REMOVED***`)
+				assert.NoError(t, err)
+			***REMOVED***)
+		***REMOVED***)
+		t.Run("POST", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			let res = http.batch([ ["POST", "https://httpbin.org/post", ***REMOVED*** key: "value" ***REMOVED***] ]);
+			for (var key in res) ***REMOVED***
+				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
+			***REMOVED***`)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("PUT", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			let res = http.batch([ ["PUT", "https://httpbin.org/put", ***REMOVED*** key: "value" ***REMOVED***] ]);
+			for (var key in res) ***REMOVED***
+				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
+			***REMOVED***`)
+			assert.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
