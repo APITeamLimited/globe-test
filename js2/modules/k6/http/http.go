@@ -30,6 +30,9 @@ import (
 	neturl "net/url"
 	"strconv"
 	"strings"
+	"sync"
+
+	"reflect"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js2/common"
@@ -216,4 +219,64 @@ func (http *HTTP) Patch(ctx context.Context, url string, args ...goja.Value) (*H
 
 func (http *HTTP) Del(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	return http.Request(ctx, "DELETE", url, args...)
+***REMOVED***
+
+func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
+	rt := common.GetRuntime(ctx)
+
+	errs := make(chan error)
+	retval := rt.NewObject()
+	mutex := sync.Mutex***REMOVED******REMOVED***
+
+	reqs := reqsV.ToObject(rt)
+	keys := reqs.Keys()
+	for _, k := range keys ***REMOVED***
+		k := k
+		v := reqs.Get(k)
+
+		var method, url string
+		var args []goja.Value
+
+		// Shorthand: "http://example.com/" -> ["GET", "http://example.com/"]
+		if v.ExportType().Kind() == reflect.String ***REMOVED***
+			method = "GET"
+			url = v.String()
+		***REMOVED*** else ***REMOVED***
+			obj := v.ToObject(rt)
+			objkeys := obj.Keys()
+			for i, objk := range objkeys ***REMOVED***
+				objv := obj.Get(objk)
+				switch i ***REMOVED***
+				case 0:
+					method = strings.ToUpper(objv.String())
+					if method == "GET" || method == "HEAD" ***REMOVED***
+						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
+					***REMOVED***
+				case 1:
+					url = objv.String()
+				default:
+					args = append(args, objv)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+
+		go func() ***REMOVED***
+			res, err := http.Request(ctx, method, url, args...)
+			if err != nil ***REMOVED***
+				errs <- err
+			***REMOVED***
+			mutex.Lock()
+			_ = retval.Set(k, res)
+			mutex.Unlock()
+			errs <- nil
+		***REMOVED***()
+	***REMOVED***
+
+	var err error
+	for range keys ***REMOVED***
+		if e := <-errs; e != nil ***REMOVED***
+			err = e
+		***REMOVED***
+	***REMOVED***
+	return retval, err
 ***REMOVED***
