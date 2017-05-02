@@ -18,16 +18,19 @@
  *
  */
 
-package js
+package modules
 
 import (
-	"time"
-
-	"github.com/loadimpact/k6/stats"
+	"github.com/loadimpact/k6/js/modules/k6"
+	"github.com/loadimpact/k6/js/modules/k6/html"
+	"github.com/loadimpact/k6/js/modules/k6/http"
+	"github.com/loadimpact/k6/js/modules/k6/metrics"
 )
 
-func (a JSAPI) MetricAdd(m *stats.Metric, v float64, tags map[string]string) ***REMOVED***
-	t := time.Now()
-	s := stats.Sample***REMOVED***Metric: m, Time: t, Tags: tags, Value: v***REMOVED***
-	a.vu.Samples = append(a.vu.Samples, s)
+// Index of module implementations.
+var Index = map[string]interface***REMOVED******REMOVED******REMOVED***
+	"k6":         &k6.K6***REMOVED******REMOVED***,
+	"k6/http":    &http.HTTP***REMOVED******REMOVED***,
+	"k6/metrics": &metrics.Metrics***REMOVED******REMOVED***,
+	"k6/html":    &html.HTML***REMOVED******REMOVED***,
 ***REMOVED***

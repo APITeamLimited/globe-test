@@ -22,85 +22,222 @@ package js
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/guregu/null.v3"
 )
 
-func TestNewRunner(t *testing.T) ***REMOVED***
-	if testing.Short() ***REMOVED***
-		return
-	***REMOVED***
+func TestRunnerNew(t *testing.T) ***REMOVED***
+	t.Run("Valid", func(t *testing.T) ***REMOVED***
+		r, err := New(&lib.SourceData***REMOVED***
+			Filename: "/script.js",
+			Data: []byte(`
+			let counter = 0;
+			export default function() ***REMOVED*** counter++; ***REMOVED***
+		`),
+		***REMOVED***, afero.NewMemMapFs())
+		assert.NoError(t, err)
 
-	rt, err := New()
-	assert.NoError(t, err)
-	srcdata := &lib.SourceData***REMOVED***
-		Filename: "test.js",
-		Data:     []byte("export default function() ***REMOVED******REMOVED***"),
-	***REMOVED***
-	exp, err := rt.load(srcdata.Filename, srcdata.Data)
-	assert.NoError(t, err)
-	r, err := NewRunner(rt, exp)
-	assert.NoError(t, err)
-	if !assert.NotNil(t, r) ***REMOVED***
-		return
-	***REMOVED***
+		t.Run("NewVU", func(t *testing.T) ***REMOVED***
+			vu_, err := r.NewVU()
+			assert.NoError(t, err)
+			vu := vu_.(*VU)
+			assert.Equal(t, int64(0), vu.Runtime.Get("counter").Export())
 
-	t.Run("GetDefaultGroup", func(t *testing.T) ***REMOVED***
-		assert.Equal(t, r.DefaultGroup, r.GetDefaultGroup())
+			t.Run("RunOnce", func(t *testing.T) ***REMOVED***
+				_, err = vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+				assert.Equal(t, int64(1), vu.Runtime.Get("counter").Export())
+			***REMOVED***)
+		***REMOVED***)
 	***REMOVED***)
 
-	t.Run("VU", func(t *testing.T) ***REMOVED***
-		vu_, err := r.NewVU()
-		assert.NoError(t, err)
-		vu := vu_.(*VU)
-
-		t.Run("Reconfigure", func(t *testing.T) ***REMOVED***
-			assert.NoError(t, vu.Reconfigure(12345))
-			assert.Equal(t, int64(12345), vu.ID)
-		***REMOVED***)
-
-		t.Run("RunOnce", func(t *testing.T) ***REMOVED***
-			_, err := vu.RunOnce(context.Background())
-			assert.NoError(t, err)
-		***REMOVED***)
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		_, err := New(&lib.SourceData***REMOVED***
+			Filename: "/script.js",
+			Data:     []byte(`blarg`),
+		***REMOVED***, afero.NewMemMapFs())
+		assert.EqualError(t, err, "ReferenceError: blarg is not defined at /script.js:1:14(0)")
 	***REMOVED***)
 ***REMOVED***
 
-func TestVUSelfIdentity(t *testing.T) ***REMOVED***
-	r, err := newSnippetRunner(`
-	export default function() ***REMOVED******REMOVED***
-	`)
+func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
+	***REMOVED***, afero.NewMemMapFs())
+	assert.NoError(t, err)
+	assert.NotNil(t, r.GetDefaultGroup())
+***REMOVED***
+
+func TestRunnerOptions(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
+	***REMOVED***, afero.NewMemMapFs())
 	assert.NoError(t, err)
 
-	vu_, err := r.NewVU()
-	assert.NoError(t, err)
-	vu := vu_.(*VU)
+	assert.Equal(t, r.Bundle.Options, r.GetOptions())
+	assert.Equal(t, null.NewBool(false, false), r.Bundle.Options.Paused)
+	r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
+	assert.Equal(t, r.Bundle.Options, r.GetOptions())
+	assert.Equal(t, null.NewBool(true, true), r.Bundle.Options.Paused)
+	r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
+	assert.Equal(t, r.Bundle.Options, r.GetOptions())
+	assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+***REMOVED***
 
-	assert.NoError(t, vu.Reconfigure(1234))
-	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
+func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
+	modules := []string***REMOVED***
+		"k6",
+		"k6/http",
+		"k6/metrics",
+		"k6/html",
+	***REMOVED***
+	for _, mod := range modules ***REMOVED***
+		t.Run(mod, func(t *testing.T) ***REMOVED***
+			_, err := New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
+			***REMOVED***, afero.NewMemMapFs())
+			assert.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVURunContext(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data:     []byte(`export default function() ***REMOVED*** fn(); ***REMOVED***`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	fnCalled := false
+	vu.Runtime.Set("fn", func() ***REMOVED***
+		fnCalled = true
+		assert.Equal(t, vu.Runtime, common.GetRuntime(*vu.Context), "incorrect runtime in context")
+		assert.Equal(t, r.GetDefaultGroup(), common.GetState(*vu.Context).Group, "incorrect group in context")
+	***REMOVED***)
+	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
-	assert.NoError(t, err)
+	assert.True(t, fnCalled, "fn() not called")
+***REMOVED***
+
+func TestVURunSamples(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data:     []byte(`export default function() ***REMOVED*** fn(); ***REMOVED***`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	metric := stats.New("my_metric", stats.Counter)
+	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: metric, Value: 1***REMOVED***
+	vu.Runtime.Set("fn", func() ***REMOVED***
+		state := common.GetState(*vu.Context)
+		state.Samples = append(state.Samples, sample)
+	***REMOVED***)
 
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
-	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
-	assert.NoError(t, err)
+	assert.Equal(t, []stats.Sample***REMOVED***sample***REMOVED***, common.GetState(*vu.Context).Samples)
+***REMOVED***
 
+func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+		import ***REMOVED*** group ***REMOVED*** from "k6";
+		export default function() ***REMOVED***
+			fnOuter();
+			group("my group", function() ***REMOVED***
+				fnInner();
+				group("nested group", function() ***REMOVED***
+					fnNested();
+				***REMOVED***)
+			***REMOVED***);
+		***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	fnOuterCalled := false
+	fnInnerCalled := false
+	fnNestedCalled := false
+	vu.Runtime.Set("fnOuter", func() ***REMOVED***
+		fnOuterCalled = true
+		assert.Equal(t, r.GetDefaultGroup(), common.GetState(*vu.Context).Group)
+	***REMOVED***)
+	vu.Runtime.Set("fnInner", func() ***REMOVED***
+		fnInnerCalled = true
+		g := common.GetState(*vu.Context).Group
+		assert.Equal(t, "my group", g.Name)
+		assert.Equal(t, r.GetDefaultGroup(), g.Parent)
+	***REMOVED***)
+	vu.Runtime.Set("fnNested", func() ***REMOVED***
+		fnNestedCalled = true
+		g := common.GetState(*vu.Context).Group
+		assert.Equal(t, "nested group", g.Name)
+		assert.Equal(t, "my group", g.Parent.Name)
+		assert.Equal(t, r.GetDefaultGroup(), g.Parent.Parent)
+	***REMOVED***)
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
-	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__ITER != 1) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
-	assert.NoError(t, err)
+	assert.True(t, fnOuterCalled, "fnOuter() not called")
+	assert.True(t, fnInnerCalled, "fnInner() not called")
+	assert.True(t, fnNestedCalled, "fnNested() not called")
+***REMOVED***
 
-	assert.NoError(t, vu.Reconfigure(1234))
-	_, err = vu.vm.Eval(`if(__VU != 1234) ***REMOVED*** throw new Error(__VU); ***REMOVED***`)
-	assert.NoError(t, err)
-	_, err = vu.vm.Eval(`if(__ITER != 0) ***REMOVED*** throw new Error(__ITER); ***REMOVED***`)
-	assert.NoError(t, err)
+func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+		import ***REMOVED*** group ***REMOVED*** from "k6";
+		import ***REMOVED*** Trend ***REMOVED*** from "k6/metrics";
+		let myMetric = new Trend("my_metric");
+		export default function() ***REMOVED*** myMetric.add(5); ***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	vu, err := r.newVU()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	samples, err := vu.RunOnce(context.Background())
+	if assert.NoError(t, err) && assert.Len(t, samples, 1) ***REMOVED***
+		assert.Equal(t, 5.0, samples[0].Value)
+		assert.Equal(t, "my_metric", samples[0].Metric.Name)
+		assert.Equal(t, stats.Trend, samples[0].Metric.Type)
+	***REMOVED***
 ***REMOVED***

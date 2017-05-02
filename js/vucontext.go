@@ -20,24 +20,14 @@
 
 package js
 
-import (
-	"os"
-	"path"
+// Provides APIs and state for use in a VU context.
+type VUContext struct ***REMOVED***
+	// Console Object.
+	Console *Console `js:"console"`
+***REMOVED***
 
-	"github.com/kardianos/osext"
-)
-
-var (
-	babelDir = "."
-	babel    = "babel"
-)
-
-func init() ***REMOVED***
-	gopath := os.Getenv("GOPATH")
-	if gopath != "" ***REMOVED***
-		babelDir = path.Join(gopath, "src", "github.com", "loadimpact", "k6", "js")
-	***REMOVED*** else if dir, err := osext.ExecutableFolder(); err == nil ***REMOVED***
-		babelDir = path.Join(dir, "js")
+func NewVUContext() *VUContext ***REMOVED***
+	return &VUContext***REMOVED***
+		Console: NewConsole(),
 	***REMOVED***
-	babel = path.Join(babelDir, "node_modules", ".bin", babel)
 ***REMOVED***

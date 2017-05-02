@@ -41,7 +41,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/js"
-	"github.com/loadimpact/k6/js2"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/simple"
@@ -58,7 +57,6 @@ const (
 	TypeAuto = "auto"
 	TypeURL  = "url"
 	TypeJS   = "js"
-	TypeJS2  = "js2"
 )
 
 var urlRegex = regexp.MustCompile(`(?i)^https?://`)
@@ -210,21 +208,7 @@ func makeRunner(runnerType string, src *lib.SourceData, fs afero.Fs) (lib.Runner
 		***REMOVED***
 		return r, err
 	case TypeJS:
-		rt, err := js.New()
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		exports, err := rt.Load(src, fs)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		r, err := js.NewRunner(rt, exports)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		return r, nil
-	case TypeJS2:
-		return js2.New(src, fs)
+		return js.New(src, fs)
 	default:
 		return nil, errors.New("Invalid type specified, see --help")
 	***REMOVED***
@@ -647,12 +631,8 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 
 	switch runnerType ***REMOVED***
 	case TypeJS:
-		r, err := js.New()
+		r, err := js.NewBundle(src, fs)
 		if err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-
-		if _, err := r.Load(src, fs); err != nil ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 		opts = opts.Apply(r.Options)
