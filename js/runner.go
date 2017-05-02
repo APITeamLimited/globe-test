@@ -35,9 +35,10 @@ import (
 )
 
 type Runner struct ***REMOVED***
-	Bundle *Bundle
-
+	Bundle       *Bundle
 	defaultGroup *lib.Group
+
+	HTTPTransport *http.Transport
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
@@ -54,6 +55,15 @@ func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
 	return &Runner***REMOVED***
 		Bundle:       bundle,
 		defaultGroup: defaultGroup,
+		HTTPTransport: &http.Transport***REMOVED***
+			DialContext: (netext.Dialer***REMOVED***
+				Dialer: net.Dialer***REMOVED***
+					Timeout:   30 * time.Second,
+					KeepAlive: 0,
+					DualStack: true,
+				***REMOVED***,
+			***REMOVED***).DialContext,
+		***REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -111,18 +121,9 @@ type VU struct ***REMOVED***
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	transport := &http.Transport***REMOVED***
-		DialContext: (netext.Dialer***REMOVED***
-			Dialer: net.Dialer***REMOVED***
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			***REMOVED***,
-		***REMOVED***).DialContext,
-	***REMOVED***
 	state := &common.State***REMOVED***
 		Group:         u.Runner.defaultGroup,
-		HTTPTransport: transport,
+		HTTPTransport: u.Runner.HTTPTransport,
 	***REMOVED***
 
 	ctx = common.WithRuntime(ctx, u.Runtime)
@@ -134,7 +135,6 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 
 	_, err := u.Default(goja.Undefined())
 
-	transport.CloseIdleConnections()
 	return state.Samples, err
 ***REMOVED***
 
