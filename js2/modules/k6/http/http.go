@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	neturl "net/url"
 	"strconv"
@@ -48,11 +49,13 @@ type HTTPResponseTimings struct ***REMOVED***
 type HTTPResponse struct ***REMOVED***
 	ctx context.Context
 
-	URL     string
-	Status  int
-	Headers map[string]string
-	Body    string
-	Timings HTTPResponseTimings
+	RemoteIP   string
+	RemotePort int
+	URL        string
+	Status     int
+	Headers    map[string]string
+	Body       string
+	Timings    HTTPResponseTimings
 
 	cachedJSON goja.Value
 ***REMOVED***
@@ -174,13 +177,17 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 	for k, vs := range res.Header ***REMOVED***
 		headers[k] = strings.Join(vs, ", ")
 	***REMOVED***
+	remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
+	remotePort, _ := strconv.Atoi(remotePortStr)
 	return &HTTPResponse***REMOVED***
 		ctx: ctx,
 
-		URL:     res.Request.URL.String(),
-		Status:  res.StatusCode,
-		Headers: headers,
-		Body:    string(body),
+		RemoteIP:   remoteHost,
+		RemotePort: remotePort,
+		URL:        res.Request.URL.String(),
+		Status:     res.StatusCode,
+		Headers:    headers,
+		Body:       string(body),
 		Timings: HTTPResponseTimings***REMOVED***
 			Duration:   stats.D(trail.Duration),
 			Blocked:    stats.D(trail.Blocked),

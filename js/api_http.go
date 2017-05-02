@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -95,11 +96,15 @@ func (a JSAPI) HTTPRequest(method, url, body string, paramData string) map[strin
 	for k, v := range res.Header ***REMOVED***
 		headers[k] = strings.Join(v, ", ")
 	***REMOVED***
+	remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
+	remotePort, _ := strconv.Atoi(remotePortStr)
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
-		"url":     res.Request.URL.String(),
-		"status":  res.StatusCode,
-		"body":    string(resBody),
-		"headers": headers,
+		"remote_ip":   remoteHost,
+		"remote_port": remotePort,
+		"url":         res.Request.URL.String(),
+		"status":      res.StatusCode,
+		"body":        string(resBody),
+		"headers":     headers,
 		"timings": map[string]float64***REMOVED***
 			"duration":   stats.D(trail.Duration),
 			"blocked":    stats.D(trail.Blocked),
