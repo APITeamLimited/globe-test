@@ -158,40 +158,6 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	trail.Duration = trail.Blocked + trail.LookingUp + trail.Connecting + trail.Sending + trail.Waiting + trail.Receiving
 	trail.StartTime = trail.EndTime.Add(-trail.Duration)
 
-	if trail.StartTime.IsZero() ***REMOVED***
-		panic("no start time")
-	***REMOVED***
-	if trail.EndTime.IsZero() ***REMOVED***
-		panic("no end time")
-	***REMOVED***
-	if trail.Blocked < 0 ***REMOVED***
-		panic("impossible block time")
-	***REMOVED***
-	if trail.LookingUp < 0 ***REMOVED***
-		panic("impossible lookup time")
-	***REMOVED***
-	if trail.Connecting < 0 ***REMOVED***
-		panic("impossible connection time")
-	***REMOVED***
-	if trail.Sending < 0 ***REMOVED***
-		panic("impossible send time")
-	***REMOVED***
-	if trail.Waiting < 0 ***REMOVED***
-		panic("impossible wait time")
-	***REMOVED***
-	if trail.Receiving < 0 ***REMOVED***
-		panic("impossible read time time")
-	***REMOVED***
-	if trail.Duration < 0 ***REMOVED***
-		panic("impossible duration")
-	***REMOVED***
-	if trail.BytesRead < 0 ***REMOVED***
-		panic("impossible read bytes")
-	***REMOVED***
-	if trail.BytesWritten < 0 ***REMOVED***
-		panic("impossible written bytes")
-	***REMOVED***
-
 	*t = Tracer***REMOVED******REMOVED***
 	return trail
 ***REMOVED***
