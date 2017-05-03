@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,10 +36,11 @@ import (
 const pushInterval = 1 * time.Second
 
 type Collector struct ***REMOVED***
-	u         *url.URL
-	client    client.Client
-	batchConf client.BatchPointsConfig
-	buffer    []stats.Sample
+	u          *url.URL
+	client     client.Client
+	batchConf  client.BatchPointsConfig
+	buffer     []stats.Sample
+	bufferLock sync.Mutex
 ***REMOVED***
 
 func New(s string, opts lib.Options) (*Collector, error) ***REMOVED***
@@ -81,12 +83,16 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+	c.bufferLock.Lock()
 	c.buffer = append(c.buffer, samples...)
+	c.bufferLock.Unlock()
 ***REMOVED***
 
 func (c *Collector) commit() ***REMOVED***
+	c.bufferLock.Lock()
 	samples := c.buffer
 	c.buffer = nil
+	c.bufferLock.Unlock()
 
 	log.Debug("InfluxDB: Committing...")
 	batch, err := client.NewBatchPoints(c.batchConf)
