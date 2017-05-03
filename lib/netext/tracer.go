@@ -108,16 +108,7 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 // Call when the request is finished. Calculates metrics and resets the tracer.
 func (t *Tracer) Done() Trail ***REMOVED***
 	done := time.Now()
-
-	// Cover for if the server closed the connection without a response.
-	if t.gotFirstResponseByte.IsZero() ***REMOVED***
-		t.gotFirstResponseByte = done
-	***REMOVED***
-
 	trail := Trail***REMOVED***
-		StartTime:  t.getConn,
-		EndTime:    done,
-		Duration:   done.Sub(t.getConn),
 		Blocked:    t.gotConn.Sub(t.getConn),
 		LookingUp:  t.dnsDone.Sub(t.dnsStart),
 		Connecting: t.connectDone.Sub(t.connectStart),
@@ -132,21 +123,35 @@ func (t *Tracer) Done() Trail ***REMOVED***
 		BytesWritten: t.bytesWritten,
 	***REMOVED***
 
-	// If the connection failed, we'll never get any data for these.
+	// If the connection was reused, it never blocked.
+	if t.connReused ***REMOVED***
+		trail.Blocked = 0
+		trail.LookingUp = 0
+		trail.Connecting = 0
+	***REMOVED***
+
+	// If the connection failed, we'll never get any (meaningful) data for these.
 	if t.protoError != nil ***REMOVED***
 		trail.Sending = 0
 		trail.Waiting = 0
 		trail.Receiving = 0
+
+		// URL is invalid/unroutable.
+		if trail.Blocked < 0 ***REMOVED***
+			trail.Blocked = 0
+		***REMOVED***
 	***REMOVED***
+
+	// Calculate total times using adjusted values.
+	trail.EndTime = done
+	trail.Duration = trail.Blocked + trail.LookingUp + trail.Connecting + trail.Sending + trail.Waiting + trail.Receiving
+	trail.StartTime = trail.EndTime.Add(-trail.Duration)
 
 	if trail.StartTime.IsZero() ***REMOVED***
 		panic("no start time")
 	***REMOVED***
 	if trail.EndTime.IsZero() ***REMOVED***
 		panic("no end time")
-	***REMOVED***
-	if trail.Duration < 0 ***REMOVED***
-		panic("impossible duration")
 	***REMOVED***
 	if trail.Blocked < 0 ***REMOVED***
 		panic("impossible block time")
@@ -166,10 +171,13 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	if trail.Receiving < 0 ***REMOVED***
 		panic("impossible read time time")
 	***REMOVED***
-	if trail.BytesRead <= 0 && trail.Receiving > 0 ***REMOVED***
+	if trail.Duration < 0 ***REMOVED***
+		panic("impossible duration")
+	***REMOVED***
+	if trail.BytesRead < 0 ***REMOVED***
 		panic("impossible read bytes")
 	***REMOVED***
-	if trail.BytesWritten <= 0 && t.protoError == nil ***REMOVED***
+	if trail.BytesWritten < 0 ***REMOVED***
 		panic("impossible written bytes")
 	***REMOVED***
 
