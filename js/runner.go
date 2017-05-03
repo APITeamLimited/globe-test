@@ -37,8 +37,6 @@ import (
 type Runner struct ***REMOVED***
 	Bundle       *Bundle
 	defaultGroup *lib.Group
-
-	HTTPTransport *http.Transport
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
@@ -55,15 +53,6 @@ func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
 	return &Runner***REMOVED***
 		Bundle:       bundle,
 		defaultGroup: defaultGroup,
-		HTTPTransport: &http.Transport***REMOVED***
-			DialContext: (netext.Dialer***REMOVED***
-				Dialer: net.Dialer***REMOVED***
-					Timeout:   30 * time.Second,
-					KeepAlive: 0,
-					DualStack: true,
-				***REMOVED***,
-			***REMOVED***).DialContext,
-		***REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -86,7 +75,16 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	vu := &VU***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
-		VUContext:      NewVUContext(),
+		HTTPTransport: &http.Transport***REMOVED***
+			DialContext: (netext.Dialer***REMOVED***
+				Dialer: net.Dialer***REMOVED***
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+					DualStack: true,
+				***REMOVED***,
+			***REMOVED***).DialContext,
+		***REMOVED***,
+		VUContext: NewVUContext(),
 	***REMOVED***
 	common.BindToGlobal(vu.Runtime, common.Bind(vu.Runtime, vu.VUContext, vu.Context))
 
@@ -113,9 +111,10 @@ func (r *Runner) ApplyOptions(opts lib.Options) ***REMOVED***
 type VU struct ***REMOVED***
 	BundleInstance
 
-	Runner    *Runner
-	ID        int64
-	Iteration int64
+	Runner        *Runner
+	HTTPTransport *http.Transport
+	ID            int64
+	Iteration     int64
 
 	VUContext *VUContext
 ***REMOVED***
@@ -123,7 +122,7 @@ type VU struct ***REMOVED***
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	state := &common.State***REMOVED***
 		Group:         u.Runner.defaultGroup,
-		HTTPTransport: u.Runner.HTTPTransport,
+		HTTPTransport: u.HTTPTransport,
 	***REMOVED***
 
 	ctx = common.WithRuntime(ctx, u.Runtime)
