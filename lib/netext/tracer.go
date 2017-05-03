@@ -86,6 +86,8 @@ type Tracer struct ***REMOVED***
 	connReused     bool
 	connRemoteAddr net.Addr
 
+	protoError error
+
 	bytesRead, bytesWritten int64
 ***REMOVED***
 
@@ -106,6 +108,12 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 // Call when the request is finished. Calculates metrics and resets the tracer.
 func (t *Tracer) Done() Trail ***REMOVED***
 	done := time.Now()
+
+	// Cover for if the server closed the connection without a response.
+	if t.gotFirstResponseByte.IsZero() ***REMOVED***
+		t.gotFirstResponseByte = done
+	***REMOVED***
+
 	trail := Trail***REMOVED***
 		StartTime:  t.getConn,
 		EndTime:    done,
@@ -122,6 +130,47 @@ func (t *Tracer) Done() Trail ***REMOVED***
 
 		BytesRead:    t.bytesRead,
 		BytesWritten: t.bytesWritten,
+	***REMOVED***
+
+	// If the connection failed, we'll never get any data for these.
+	if t.protoError != nil ***REMOVED***
+		trail.Sending = 0
+		trail.Waiting = 0
+		trail.Receiving = 0
+	***REMOVED***
+
+	if trail.StartTime.IsZero() ***REMOVED***
+		panic("no start time")
+	***REMOVED***
+	if trail.EndTime.IsZero() ***REMOVED***
+		panic("no end time")
+	***REMOVED***
+	if trail.Duration < 0 ***REMOVED***
+		panic("impossible duration")
+	***REMOVED***
+	if trail.Blocked < 0 ***REMOVED***
+		panic("impossible block time")
+	***REMOVED***
+	if trail.LookingUp < 0 ***REMOVED***
+		panic("impossible lookup time")
+	***REMOVED***
+	if trail.Connecting < 0 ***REMOVED***
+		panic("impossible connection time")
+	***REMOVED***
+	if trail.Sending < 0 ***REMOVED***
+		panic("impossible send time")
+	***REMOVED***
+	if trail.Waiting < 0 ***REMOVED***
+		panic("impossible wait time")
+	***REMOVED***
+	if trail.Receiving < 0 ***REMOVED***
+		panic("impossible read time time")
+	***REMOVED***
+	if trail.BytesRead <= 0 && trail.Receiving > 0 ***REMOVED***
+		panic("impossible read bytes")
+	***REMOVED***
+	if trail.BytesWritten <= 0 && t.protoError == nil ***REMOVED***
+		panic("impossible written bytes")
 	***REMOVED***
 
 	*t = Tracer***REMOVED******REMOVED***
@@ -168,6 +217,9 @@ func (t *Tracer) DNSDone(info httptrace.DNSDoneInfo) ***REMOVED***
 	if t.dnsStart.IsZero() ***REMOVED***
 		t.dnsStart = t.dnsDone
 	***REMOVED***
+	if info.Err != nil ***REMOVED***
+		t.protoError = info.Err
+	***REMOVED***
 ***REMOVED***
 
 // ConnectStart hook.
@@ -185,10 +237,21 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 	if !t.connectDone.IsZero() ***REMOVED***
 		return
 	***REMOVED***
+
 	t.connectDone = time.Now()
+	if t.gotConn.IsZero() ***REMOVED***
+		t.gotConn = t.connectDone
+	***REMOVED***
+
+	if err != nil ***REMOVED***
+		t.protoError = err
+	***REMOVED***
 ***REMOVED***
 
 // WroteRequest hook.
 func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) ***REMOVED***
 	t.wroteRequest = time.Now()
+	if info.Err != nil ***REMOVED***
+		t.protoError = info.Err
+	***REMOVED***
 ***REMOVED***
