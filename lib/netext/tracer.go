@@ -39,7 +39,6 @@ type Trail struct ***REMOVED***
 	Duration time.Duration
 
 	Blocked    time.Duration // Waiting to acquire a connection.
-	LookingUp  time.Duration // Looking up DNS records.
 	Connecting time.Duration // Connecting to remote host.
 	Sending    time.Duration // Writing request.
 	Waiting    time.Duration // Waiting for first byte.
@@ -58,7 +57,6 @@ func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqLookingUp, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.LookingUp)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
@@ -77,8 +75,6 @@ type Tracer struct ***REMOVED***
 	getConn              time.Time
 	gotConn              time.Time
 	gotFirstResponseByte time.Time
-	dnsStart             time.Time
-	dnsDone              time.Time
 	connectStart         time.Time
 	connectDone          time.Time
 	wroteRequest         time.Time
@@ -97,8 +93,6 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 		GetConn:              t.GetConn,
 		GotConn:              t.GotConn,
 		GotFirstResponseByte: t.GotFirstResponseByte,
-		DNSStart:             t.DNSStart,
-		DNSDone:              t.DNSDone,
 		ConnectStart:         t.ConnectStart,
 		ConnectDone:          t.ConnectDone,
 		WroteRequest:         t.WroteRequest,
@@ -121,7 +115,6 @@ func (t *Tracer) Done() Trail ***REMOVED***
 
 	trail := Trail***REMOVED***
 		Blocked:    t.gotConn.Sub(t.getConn),
-		LookingUp:  t.dnsDone.Sub(t.dnsStart),
 		Connecting: t.connectDone.Sub(t.connectStart),
 		Sending:    t.wroteRequest.Sub(t.connectDone),
 		Waiting:    t.gotFirstResponseByte.Sub(t.wroteRequest),
@@ -137,7 +130,6 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	// If the connection was reused, it never blocked.
 	if t.connReused ***REMOVED***
 		trail.Blocked = 0
-		trail.LookingUp = 0
 		trail.Connecting = 0
 	***REMOVED***
 
@@ -155,7 +147,7 @@ func (t *Tracer) Done() Trail ***REMOVED***
 
 	// Calculate total times using adjusted values.
 	trail.EndTime = done
-	trail.Duration = trail.Blocked + trail.LookingUp + trail.Connecting + trail.Sending + trail.Waiting + trail.Receiving
+	trail.Duration = trail.Sending + trail.Waiting + trail.Receiving
 	trail.StartTime = trail.EndTime.Add(-trail.Duration)
 
 	*t = Tracer***REMOVED******REMOVED***
@@ -188,23 +180,6 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 // GotFirstResponseByte hook.
 func (t *Tracer) GotFirstResponseByte() ***REMOVED***
 	t.gotFirstResponseByte = time.Now()
-***REMOVED***
-
-// DNSStart hook.
-func (t *Tracer) DNSStart(info httptrace.DNSStartInfo) ***REMOVED***
-	t.dnsStart = time.Now()
-	t.dnsDone = t.dnsStart
-***REMOVED***
-
-// DNSDone hook.
-func (t *Tracer) DNSDone(info httptrace.DNSDoneInfo) ***REMOVED***
-	t.dnsDone = time.Now()
-	if t.dnsStart.IsZero() ***REMOVED***
-		t.dnsStart = t.dnsDone
-	***REMOVED***
-	if info.Err != nil ***REMOVED***
-		t.protoError = info.Err
-	***REMOVED***
 ***REMOVED***
 
 // ConnectStart hook.

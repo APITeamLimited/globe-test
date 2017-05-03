@@ -24,14 +24,33 @@ import (
 	"context"
 	"net"
 	"sync/atomic"
+
+	"github.com/viki-org/dnscache"
 )
 
 type Dialer struct ***REMOVED***
 	net.Dialer
+
+	Resolver *dnscache.Resolver
+***REMOVED***
+
+func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
+	return &Dialer***REMOVED***
+		Dialer:   dialer,
+		Resolver: dnscache.New(0),
+	***REMOVED***
 ***REMOVED***
 
 func (d Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
-	conn, err := d.Dialer.DialContext(ctx, proto, addr)
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	ip, err := d.Resolver.FetchOne(host)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	conn, err := d.Dialer.DialContext(ctx, proto, ip.String()+":"+port)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

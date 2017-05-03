@@ -50,11 +50,11 @@ func New(u *url.URL) (*Runner, error) ***REMOVED***
 		URL: u,
 		Transport: &http.Transport***REMOVED***
 			Proxy: http.ProxyFromEnvironment,
-			DialContext: (netext.Dialer***REMOVED***Dialer: net.Dialer***REMOVED***
+			DialContext: netext.NewDialer(net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
 				KeepAlive: 60 * time.Second,
 				DualStack: true,
-			***REMOVED******REMOVED***).DialContext,
+			***REMOVED***).DialContext,
 			TLSClientConfig:     &tls.Config***REMOVED******REMOVED***,
 			MaxIdleConns:        math.MaxInt32,
 			MaxIdleConnsPerHost: math.MaxInt32,
