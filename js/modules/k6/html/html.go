@@ -128,3 +128,7 @@ func(s Selection) Val() goja.Value ***REMOVED***
 			return goja.Undefined()
 	***REMOVED***
 ***REMOVED***
+
+func (s Selection) Closest(name string) Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Closest(name)***REMOVED***
+***REMOVED***
