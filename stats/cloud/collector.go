@@ -4,25 +4,46 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
+
+	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+
+	"github.com/mitchellh/mapstructure"
 )
+
+type loadimpactConfig struct ***REMOVED***
+	ProjectId int    `mapstructure:"project_id"`
+	Name      string `mapstructure:"name"`
+***REMOVED***
 
 // Collector sends results data to the Load Impact cloud service.
 type Collector struct ***REMOVED***
 	referenceID string
+
+	name       string
+	project_id int
 
 	duration   int64
 	thresholds map[string][]string
 	client     *Client
 ***REMOVED***
 
-func New(fname string, opts lib.Options) (*Collector, error) ***REMOVED***
-	referenceID := os.Getenv("K6CLOUD_REFERENCEID")
+// New creates a new cloud collector
+func New(fname string, src *lib.SourceData, opts lib.Options) (*Collector, error) ***REMOVED***
 	token := os.Getenv("K6CLOUD_TOKEN")
+
+	var extConfig loadimpactConfig
+	if val, ok := opts.External["loadimpact"]; ok == true ***REMOVED***
+		err := mapstructure.Decode(val, &extConfig)
+		if err != nil ***REMOVED***
+			// For now we ignore if loadimpact section is malformed
+		***REMOVED***
+	***REMOVED***
 
 	thresholds := make(map[string][]string)
 
@@ -36,29 +57,46 @@ func New(fname string, opts lib.Options) (*Collector, error) ***REMOVED***
 	var duration int64 = -1
 	if len(opts.Stages) > 0 ***REMOVED***
 		duration = sumStages(opts.Stages)
+	***REMOVED*** else if opts.Duration.Valid ***REMOVED***
+		// Parse duration if no stages found
+		dur, err := time.ParseDuration(opts.Duration.String)
+		// ignore error and keep default -1 value
+		if err == nil ***REMOVED***
+			duration = int64(dur.Seconds())
+		***REMOVED***
 	***REMOVED***
 
 	return &Collector***REMOVED***
-		referenceID: referenceID,
-		thresholds:  thresholds,
-		client:      NewClient(token),
-		duration:    duration,
+		name:       getName(src, extConfig),
+		project_id: getProjectId(extConfig),
+		thresholds: thresholds,
+		client:     NewClient(token),
+		duration:   duration,
 	***REMOVED***, nil
 ***REMOVED***
 
 func (c *Collector) Init() ***REMOVED***
-	name := os.Getenv("K6CLOUD_NAME")
-	if name == "" ***REMOVED***
-		name = "k6 test"
+	testRun := &TestRun***REMOVED***
+		Name:       c.name,
+		Thresholds: c.thresholds,
+		Duration:   c.duration,
+		ProjectID:  c.project_id,
 	***REMOVED***
 
 	// TODO fix this and add proper error handling
-	if c.referenceID == "" ***REMOVED***
-		response := c.client.CreateTestRun(name, c.thresholds, c.duration)
-		if response != nil ***REMOVED***
-			c.referenceID = response.ReferenceID
-		***REMOVED***
+	response := c.client.CreateTestRun(testRun)
+	if response != nil ***REMOVED***
+		c.referenceID = response.ReferenceID
+	***REMOVED*** else ***REMOVED***
+		log.Warn("Failed to create test in Load Impact cloud")
 	***REMOVED***
+
+	log.WithFields(log.Fields***REMOVED***
+		"name":        c.name,
+		"projectId":   c.project_id,
+		"duration":    c.duration,
+		"referenceId": c.referenceID,
+	***REMOVED***).Debug("Cloud collector init")
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***
@@ -66,16 +104,17 @@ func (c *Collector) String() string ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	t := time.Now()
 	<-ctx.Done()
-	s := time.Now()
 
-	c.client.TestFinished(c.referenceID)
-
-	log.Debug(fmt.Sprintf("http://localhost:5000/v1/metrics/%s/%d000/%d000\n", c.referenceID, t.Unix(), s.Unix()))
+	if c.referenceID != "" ***REMOVED***
+		c.client.TestFinished(c.referenceID)
+	***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+	if c.referenceID == "" ***REMOVED***
+		return
+	***REMOVED***
 
 	var cloudSamples []*Sample
 	for _, sample := range samples ***REMOVED***
@@ -92,7 +131,7 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 		cloudSamples = append(cloudSamples, sampleJSON)
 	***REMOVED***
 
-	if len(cloudSamples) > 0 && c.referenceID != "" ***REMOVED***
+	if len(cloudSamples) > 0 ***REMOVED***
 		c.client.PushMetric(c.referenceID, cloudSamples)
 	***REMOVED***
 ***REMOVED***
@@ -104,4 +143,40 @@ func sumStages(stages []lib.Stage) int64 ***REMOVED***
 	***REMOVED***
 
 	return int64(total.Seconds())
+***REMOVED***
+
+func getProjectId(extConfig loadimpactConfig) int ***REMOVED***
+	env := os.Getenv("K6CLOUD_PROJECTID")
+	if env != "" ***REMOVED***
+		id, err := strconv.Atoi(env)
+		if err == nil && id > 0 ***REMOVED***
+			return id
+		***REMOVED***
+	***REMOVED***
+
+	if extConfig.ProjectId > 0 ***REMOVED***
+		return extConfig.ProjectId
+	***REMOVED***
+
+	return 0
+***REMOVED***
+
+func getName(src *lib.SourceData, extConfig loadimpactConfig) string ***REMOVED***
+	envName := os.Getenv("K6CLOUD_NAME")
+	if envName != "" ***REMOVED***
+		return envName
+	***REMOVED***
+
+	if extConfig.Name != "" ***REMOVED***
+		return extConfig.Name
+	***REMOVED***
+
+	if src.Filename != "" ***REMOVED***
+		name := filepath.Base(src.Filename)
+		if name != "" || name != "." ***REMOVED***
+			return name
+		***REMOVED***
+	***REMOVED***
+
+	return "k6 test"
 ***REMOVED***
