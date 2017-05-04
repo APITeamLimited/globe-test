@@ -91,6 +91,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 			assert.Equal(t, "Lorem ipsum", v.Export())
 		***REMOVED***
 	***REMOVED***)
+
 	t.Run("Attr", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("h1").attr("id")`)
 		if assert.NoError(t, err) ***REMOVED***
@@ -117,5 +118,12 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("Html", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("h1").html()`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "Lorem ipsum", v.Export())
+		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

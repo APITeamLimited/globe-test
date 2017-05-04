@@ -75,3 +75,11 @@ func (s Selection) Attr(name string, def ...goja.Value) goja.Value ***REMOVED***
 	***REMOVED***
 	return s.rt.ToValue(val)
 ***REMOVED***
+
+func (s Selection) Html() goja.Value***REMOVED***
+	val, err := s.sel.Html()
+	if err != nil ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+	return s.rt.ToValue(val)
+***REMOVED***
