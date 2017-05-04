@@ -85,11 +85,11 @@ func TestRequest(t *testing.T) ***REMOVED***
 	state := &common.State***REMOVED***
 		Group: root,
 		HTTPTransport: &http.Transport***REMOVED***
-			DialContext: (netext.Dialer***REMOVED***Dialer: net.Dialer***REMOVED***
+			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
 				KeepAlive: 60 * time.Second,
 				DualStack: true,
-			***REMOVED******REMOVED***).DialContext,
+			***REMOVED***)).DialContext,
 		***REMOVED***,
 	***REMOVED***
 
