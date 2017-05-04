@@ -76,10 +76,55 @@ func (s Selection) Attr(name string, def ...goja.Value) goja.Value ***REMOVED***
 	return s.rt.ToValue(val)
 ***REMOVED***
 
-func (s Selection) Html() goja.Value***REMOVED***
+func (s Selection) Html() goja.Value ***REMOVED***
 	val, err := s.sel.Html()
 	if err != nil ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 	return s.rt.ToValue(val)
+***REMOVED***
+
+func optionVal(s *goquery.Selection) string ***REMOVED***
+	val, exists := s.Attr("value")
+
+	if exists ***REMOVED***
+		return val
+	***REMOVED***
+
+	val, err := s.Html()
+
+	if err != nil ***REMOVED***
+		return ""
+	***REMOVED***
+
+	return val
+***REMOVED***
+
+func(s Selection) Val() goja.Value ***REMOVED***
+	switch goquery.NodeName(s.sel) ***REMOVED***
+		case "input":
+			return s.Attr("value")
+
+		case "textarea":
+			return s.Html()
+
+		case "button":
+			return s.Attr("value")
+
+		case "select":
+			selected := s.sel.First().Find("option[selected]")
+
+			_, exists := s.sel.Attr("multiple")
+
+			if exists ***REMOVED***
+				return s.rt.ToValue(selected.Map(func(idx int, opt *goquery.Selection) string ***REMOVED*** return optionVal(opt) ***REMOVED***))
+			***REMOVED*** else ***REMOVED***
+				return s.rt.ToValue(optionVal(selected))
+			***REMOVED***
+
+		case "":
+			return goja.Undefined()
+		default:
+			return goja.Undefined()
+	***REMOVED***
 ***REMOVED***
