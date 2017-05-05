@@ -392,3 +392,20 @@ func (s Selection) Has(v goja.Value) Selection ***REMOVED***
 	// TODO match against Dom/Node items
 	return Selection***REMOVED***s.rt, s.sel.Has(v.String())***REMOVED***
 ***REMOVED***
+
+func (s Selection) Map(v goja.Value) (result [] string) ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if isFn ***REMOVED***
+		fn := func(idx int, sel *goquery.Selection) string ***REMOVED***
+			if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel)); fnErr == nil ***REMOVED***
+				return fnRes.String()
+			***REMOVED*** else ***REMOVED***
+				return ""
+			***REMOVED***
+		***REMOVED***
+		return s.sel.Map(fn)
+	***REMOVED*** else ***REMOVED***
+		s.rt.Interrupt("Argument to map() must be a function")
+		return nil
+	***REMOVED***
+***REMOVED***
