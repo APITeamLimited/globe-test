@@ -329,7 +329,20 @@ func (s Selection) Children(def ...string) Selection ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-
 func (s Selection) Contents() Selection ***REMOVED***
 	return Selection***REMOVED***s.rt, s.sel.Contents()***REMOVED***
+***REMOVED***
+
+
+func (s Selection) Each(v goja.Value) Selection ***REMOVED***
+	gojaFn, ok := goja.AssertFunction(v)
+	if ok ***REMOVED***
+		fn := func(idx int, sel *goquery.Selection) ***REMOVED***
+			gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
+		***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.Each(fn)***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		s.rt.Interrupt("Argument to each() must be a function")
+		return s
+	***REMOVED***
 ***REMOVED***
