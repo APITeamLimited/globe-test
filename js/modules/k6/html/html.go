@@ -109,6 +109,9 @@ func(s Selection) Val() goja.Value ***REMOVED***
 		case "button":
 			return s.Attr("value")
 
+		case "option":
+			return s.rt.ToValue(optionVal(s.sel))
+
 		case "select":
 			selected := s.sel.First().Find("option[selected]")
 
@@ -123,6 +126,19 @@ func(s Selection) Val() goja.Value ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (s Selection) Closest(name string) Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.Closest(name)***REMOVED***
+func (s Selection) Closest(selector string) Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Closest(selector)***REMOVED***
+***REMOVED***
+
+func (s Selection) Children(def ...string) Selection ***REMOVED***
+	if len(def) == 0 ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.Children()***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.ChildrenFiltered(def[0])***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+
+func (s Selection) Contents() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Contents()***REMOVED***
 ***REMOVED***
