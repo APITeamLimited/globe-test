@@ -148,6 +148,12 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 				assert.Equal(t, "input-text-value", v.Export())
 			***REMOVED***
 		***REMOVED***)
+		t.Run("Select option[selected]", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("#select_one option[selected]").val()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, "yes this option", v.Export())
+			***REMOVED***
+		***REMOVED***)
 		t.Run("Select Option Attr", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("#select_one").val()`)
 			if assert.NoError(t, err) ***REMOVED***
@@ -178,10 +184,38 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 
+	t.Run("Children", func(t *testing.T) ***REMOVED***
+		t.Run("All", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("head").children()`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 1, sel.Length())
+				assert.Equal(t, true, sel.Is("title"))
+			***REMOVED***
+		***REMOVED***)
+		t.Run("With selector", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("body").children("p")`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 2, sel.Length())
+				assert.Equal(t, "Nullam id nisi", sel.Last().Text()[0:14])
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
 	t.Run("Closest", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("textarea").closest("form").attr("id")`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "form1", v.Export())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Contents", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("head").contents()`)
+		if assert.NoError(t, err) ***REMOVED***
+			sel := v.Export().(Selection).sel
+			assert.Equal(t, 3, sel.Length())
+			assert.Equal(t, "\n\t", sel.First().Text())
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
