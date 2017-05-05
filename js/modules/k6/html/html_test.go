@@ -270,4 +270,35 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 			assert.Equal(t, 5, sel.Length())
 		***REMOVED***
 	***REMOVED***)
+
+	t.Run("Eq", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("body").children().eq(3).attr("id")`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "form1", v.Export())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("First", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("body").children().first().attr("id")`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "top", v.Export())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Last", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("body").children().last().text()`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "This is the footer.", v.Export())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Has", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("body").children().has("input")`)
+		if assert.NoError(t, err) ***REMOVED***
+			sel := v.Export().(Selection).sel
+			assert.Equal(t, 1, sel.Length())
+		***REMOVED***
+	***REMOVED***)
+
+
 ***REMOVED***
