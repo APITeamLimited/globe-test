@@ -313,4 +313,77 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 
+	t.Run("Next", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").next()`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 1, sel.Length())
+				assert.Equal(t, true, sel.Is("p"))
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("p").next("form")`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 1, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("NextAll", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextAll()`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 4, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextAll("p")`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 2, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+
+	t.Run("Prev", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prev()`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, true, sel.Is("form"))
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prev("form")`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 1, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("PrevAll", func(t *testing.T) ***REMOVED***
+		t.Run("No arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").prevAll()`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 3, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filter arg", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").prevAll("p")`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 2, sel.Length())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
