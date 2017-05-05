@@ -333,10 +333,9 @@ func (s Selection) Contents() Selection ***REMOVED***
 	return Selection***REMOVED***s.rt, s.sel.Contents()***REMOVED***
 ***REMOVED***
 
-
 func (s Selection) Each(v goja.Value) Selection ***REMOVED***
-	gojaFn, ok := goja.AssertFunction(v)
-	if ok ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if isFn ***REMOVED***
 		fn := func(idx int, sel *goquery.Selection) ***REMOVED***
 			gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
 		***REMOVED***
@@ -344,5 +343,34 @@ func (s Selection) Each(v goja.Value) Selection ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		s.rt.Interrupt("Argument to each() must be a function")
 		return s
+	***REMOVED***
+***REMOVED***
+
+func (s Selection) End() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.End()***REMOVED***
+***REMOVED***
+
+func (s Selection) buildMatcher(v goja.Value, gojaFn goja.Callable) func (int, *goquery.Selection) bool ***REMOVED***
+	return func(idx int, sel *goquery.Selection) bool ***REMOVED***
+		fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
+		return fnErr == nil && fnRes.ToBoolean()
+	***REMOVED***
+***REMOVED***
+
+func (s Selection) Filter(v goja.Value) Selection ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if isFn ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.FilterFunction(s.buildMatcher(v, gojaFn))***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.Filter(v.String())***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (s Selection) Is(v goja.Value) bool ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if isFn ***REMOVED***
+		return s.sel.IsFunction(s.buildMatcher(v, gojaFn))
+	***REMOVED*** else ***REMOVED***
+		return s.sel.Is(v.String())
 	***REMOVED***
 ***REMOVED***
