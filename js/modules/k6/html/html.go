@@ -363,6 +363,8 @@ func (s Selection) Filter(v goja.Value) Selection ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if isFn ***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.FilterFunction(s.buildMatcher(v, gojaFn))***REMOVED***
+	***REMOVED*** else if filSel, isSel := v.Export().(Selection); isSel ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.FilterSelection(filSel.sel)***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.Filter(v.String())***REMOVED***
 	***REMOVED***
@@ -372,6 +374,8 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if isFn ***REMOVED***
 		return s.sel.IsFunction(s.buildMatcher(v, gojaFn))
+	***REMOVED*** else if cmpSel, isSel := v.Export().(Selection); isSel ***REMOVED***
+		return s.sel.IsSelection(cmpSel.sel)
 	***REMOVED*** else ***REMOVED***
 		return s.sel.Is(v.String())
 	***REMOVED***
@@ -390,8 +394,11 @@ func (s Selection) Last() Selection ***REMOVED***
 ***REMOVED***
 
 func (s Selection) Has(v goja.Value) Selection ***REMOVED***
-	// TODO match against Dom/Node items
-	return Selection***REMOVED***s.rt, s.sel.Has(v.String())***REMOVED***
+	if hasSel, isSel := v.Export().(Selection); isSel ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.HasSelection(hasSel.sel)***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.Has(v.String())***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func (s Selection) Map(v goja.Value) (result [] string) ***REMOVED***
