@@ -586,4 +586,40 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 
+	t.Run("Siblings", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").siblings().size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(4), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").siblings("p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("Slice", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("body").children().slice(1, 2)`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 1, sel.Length())
+				assert.Equal(t, true, sel.Is("p"))
+				assert.Contains(t, sel.Text(), "Lorem ipsum dolor")
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("body").children().slice(3)`)
+			if assert.NoError(t, err) ***REMOVED***
+				sel := v.Export().(Selection).sel
+				assert.Equal(t, 2, sel.Length())
+				assert.Equal(t, true, sel.Eq(0).Is("form"))
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
