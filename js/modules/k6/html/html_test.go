@@ -397,4 +397,169 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
+
+	t.Run("PrevUntil", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prevUntil("h1").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prevUntil(doc.find("h1")).size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").prevUntil("h1", "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("form").prevUntil(doc.find("h1"), "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prevUntil().size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(4), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("footer").prevUntil(null, "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("NextUntil", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil("footer").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil(doc.find("footer")).size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil("footer", "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil(doc.find("footer"), "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil().size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(4), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("h1").nextUntil(null, "p").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("Parent", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parent().attr("id")`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, "form1", v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parent("form").attr("id")`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, "form1", v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("Parents", func(t *testing.T) ***REMOVED***
+		t.Run("No filter", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parents().size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parents("body").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1), v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("ParentsUntil", func(t *testing.T) ***REMOVED***
+		t.Run("String", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil("html").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil(doc.find("html")).size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(2), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("String filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil("html", "body").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Query filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil(doc.find("html"), "body").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil().size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(3), v.Export())
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("All filtered", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("textarea").parentsUntil(null, "body").size()`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1), v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+
 ***REMOVED***

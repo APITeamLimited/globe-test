@@ -249,3 +249,90 @@ func (s Selection) PrevAll(def ...string) Selection ***REMOVED***
 	return s.adjacent(s.sel.PrevAll, s.sel.PrevAllFiltered, def...)
 ***REMOVED***
 
+
+func (s Selection) Parent(def ...string) Selection ***REMOVED***
+	return s.adjacent(s.sel.Parent, s.sel.ParentFiltered, def...)
+***REMOVED***
+
+func (s Selection) Parents(def ...string) Selection ***REMOVED***
+	return s.adjacent(s.sel.Parents, s.sel.ParentsFiltered, def...)
+***REMOVED***
+
+func (s Selection) adjacentUntil(until func (string) *goquery.Selection,
+								 untilSelection func(*goquery.Selection) *goquery.Selection,
+								 filteredUntil func(string, string) *goquery.Selection,
+								 filteredUntilSelection func(string, *goquery.Selection) *goquery.Selection,
+								 def ...goja.Value) Selection ***REMOVED***
+	// empty selector to nextuntil and prevuntil matches jquery api and has same effect as prevAll and nextAll
+	// relies on goquery.compileMatcher retrning a matcher which fails all matches when invalid selector given to cascadia.compile
+	if(len(def) == 0) ***REMOVED***
+		return Selection***REMOVED***s.rt, until("")***REMOVED***
+	***REMOVED***
+
+	selector := def[0].Export()
+
+	if(len(def) == 1) ***REMOVED***
+		switch selector.(type) ***REMOVED***
+			case string:
+				return Selection***REMOVED***s.rt, until(selector.(string))***REMOVED***
+
+			case Selection:
+				return Selection***REMOVED***s.rt, untilSelection(selector.(Selection).sel)***REMOVED***
+
+			default:
+				return Selection***REMOVED***s.rt, until("")***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	filter := def[1].String()
+
+	switch selector.(type) ***REMOVED***
+		case string:
+			return Selection***REMOVED***s.rt, filteredUntil(filter, selector.(string))***REMOVED***
+
+		case Selection:
+			return Selection***REMOVED***s.rt, filteredUntilSelection(filter, selector.(Selection).sel)***REMOVED***
+
+		default:
+			return Selection***REMOVED***s.rt, filteredUntil(filter, "")***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// prevUntil, nextUntil and parentsUntil support two args based on jquery api
+// 1st arg is either a selector string or goquery.selection.
+// 2nd arg is filter selector
+// if 1st arg is nil or blank string then behaviour is similar to prevAll or nextAll
+func (s Selection) PrevUntil(def ...goja.Value) Selection ***REMOVED***
+	return s.adjacentUntil(
+		s.sel.PrevUntil,
+		s.sel.PrevUntilSelection,
+		s.sel.PrevFilteredUntil,
+		s.sel.PrevFilteredUntilSelection,
+		def...
+	)
+***REMOVED***
+
+func (s Selection) NextUntil(def ...goja.Value) Selection ***REMOVED***
+	return s.adjacentUntil(
+		s.sel.NextUntil,
+		s.sel.NextUntilSelection,
+		s.sel.NextFilteredUntil,
+		s.sel.NextFilteredUntilSelection,
+		def...
+	)
+***REMOVED***
+
+func (s Selection) ParentsUntil(def ...goja.Value) Selection ***REMOVED***
+	return s.adjacentUntil(
+		s.sel.ParentsUntil,
+		s.sel.ParentsUntilSelection,
+		s.sel.ParentsFilteredUntil,
+		s.sel.ParentsFilteredUntilSelection,
+		def...
+	)
+***REMOVED***
+
+
+func (s Selection) Size() int ***REMOVED***
+	return s.sel.Length()
+***REMOVED***
