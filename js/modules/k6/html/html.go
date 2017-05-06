@@ -220,6 +220,25 @@ func (s Selection) Map(v goja.Value) (result [] string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (s Selection) Not(v goja.Value) Selection ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if isFn ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.NotFunction(s.buildMatcher(v, gojaFn))***REMOVED***
+	***REMOVED***
+
+	val := v.Export()
+	switch val.(type) ***REMOVED***
+		case Selection:
+			return Selection***REMOVED***s.rt, s.sel.NotSelection(val.(Selection).sel)***REMOVED***
+
+		case string:
+			return Selection***REMOVED***s.rt, s.sel.Not(val.(string))***REMOVED***
+
+		default:
+			return Selection***REMOVED***s.rt, s.sel.Not(v.String())***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func (s Selection) adjacent(unfiltered func () *goquery.Selection,
 							filtered func(string) *goquery.Selection,
 							def ...string) Selection ***REMOVED***
@@ -331,7 +350,6 @@ func (s Selection) ParentsUntil(def ...goja.Value) Selection ***REMOVED***
 		def...
 	)
 ***REMOVED***
-
 
 func (s Selection) Size() int ***REMOVED***
 	return s.sel.Length()
