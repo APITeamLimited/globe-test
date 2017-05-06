@@ -23,6 +23,7 @@ package html
 import (
 	"context"
 	"strings"
+	"errors"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
@@ -151,7 +152,7 @@ func (s Selection) Each(v goja.Value) Selection ***REMOVED***
 		***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.Each(fn)***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		s.rt.Interrupt("Argument to each() must be a function")
+		panic(s.rt.NewGoError(errors.New("Argument to each() must be a function")))
 		return s
 	***REMOVED***
 ***REMOVED***
@@ -214,7 +215,7 @@ func (s Selection) Map(v goja.Value) (result [] string) ***REMOVED***
 		***REMOVED***
 		return s.sel.Map(fn)
 	***REMOVED*** else ***REMOVED***
-		s.rt.Interrupt("Argument to map() must be a function")
+		panic(s.rt.NewGoError(errors.New("Argument to map() must be a function")))
 		return nil
 	***REMOVED***
 ***REMOVED***

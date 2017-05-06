@@ -237,7 +237,8 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `doc.find("#select_multi option").each("");`)
 			if assert.Error(t, err) ***REMOVED***
-				assert.IsType(t, &goja.InterruptedError***REMOVED******REMOVED***, err)
+				assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+				assert.Contains(t, err.Error(), "must be a function")
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
@@ -305,12 +306,22 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Map", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("#select_multi option").map(function(idx, val) ***REMOVED*** return val.text() ***REMOVED***)`)
-		if assert.NoError(t, err) ***REMOVED***
-			mapped := v.Export().([]string)
-			assert.Equal(t, 3, len(mapped))
-			assert.Equal(t, [] string***REMOVED***"option 1", "option 2", "option 3"***REMOVED***, mapped)
-		***REMOVED***
+		t.Run("Valid", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("#select_multi option").map(function(idx, val) ***REMOVED*** return val.text() ***REMOVED***)`)
+			if assert.NoError(t, err) ***REMOVED***
+				mapped := v.Export().([]string)
+				assert.Equal(t, 3, len(mapped))
+				assert.Equal(t, [] string***REMOVED***"option 1", "option 2", "option 3"***REMOVED***, mapped)
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `doc.find("#select_multi option").map("");`)
+			if assert.Error(t, err) ***REMOVED***
+				assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+				assert.Contains(t, err.Error(), "must be a function")
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 
 	t.Run("Next", func(t *testing.T) ***REMOVED***
