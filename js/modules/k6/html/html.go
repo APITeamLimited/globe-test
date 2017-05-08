@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"strings"
 	"errors"
+	"encoding/json"
+	"strconv"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
@@ -561,6 +563,131 @@ func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (s Selection) Get(def ...int) goja.Value ***REMOVED***
+	if len(def) == 0 ***REMOVED***
+		return s.rt.ToValue(s.ToArray())
+	***REMOVED*** else if def[0] < s.sel.Length() && def[0] > -s.sel.Length() ***REMOVED***
+		return s.rt.ToValue(Selection***REMOVED***s.rt, s.sel.Eq(def[0])***REMOVED***)
+	***REMOVED*** else ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+***REMOVED***
+
+func (s Selection) ToArray() (items [] Selection) ***REMOVED***
+	for i := range s.sel.Nodes ***REMOVED***
+		items = append(items, Selection***REMOVED***s.rt, s.sel.Eq(i)***REMOVED***)
+	***REMOVED***
+	return
+***REMOVED***
+
 func (s Selection) Size() int ***REMOVED***
 	return s.sel.Length()
+***REMOVED***
+
+func (s Selection) Index(def ...goja.Value) int ***REMOVED***
+	if(len(def) == 0) ***REMOVED***
+		return s.sel.Index()
+	***REMOVED***
+
+	v := def[0].Export()
+	switch v.(type) ***REMOVED***
+		case Selection:
+			return s.sel.IndexOfSelection(v.(Selection).sel)
+
+		case string:
+			return s.sel.IndexSelector(v.(string))
+
+		default:
+			panic(s.rt.NewGoError(errors.New("The argument to index() be a string or a selection")))
+			return -1
+	***REMOVED***
+***REMOVED***
+
+
+const (
+	lowAlpha = "abcdefghijklmnopqrstuvwxyz"
+	highAlpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+
+func makeReplacerArray(prefixFrom, from, prefixTo, to string) (vals[]string) ***REMOVED***
+	for idx, _ := range from ***REMOVED***
+		vals = append(vals, prefixFrom + string(from[idx]), prefixTo + string(to[idx]))
+	***REMOVED***
+	return
+***REMOVED***
+
+func makeNameReplacer(prefixFrom, from, prefixTo, to string) *strings.Replacer ***REMOVED***
+	return strings.NewReplacer(makeReplacerArray(prefixFrom, from, prefixTo, to)...)
+***REMOVED***
+
+var attrToDataName = makeNameReplacer("-", lowAlpha, "", highAlpha)
+var dataToAttrName = makeNameReplacer("", highAlpha, "-", lowAlpha)
+
+func toAttrName(dataName string) string ***REMOVED***
+	return dataToAttrName.Replace(dataName)
+***REMOVED***
+
+func toDataName(attrName string) string ***REMOVED***
+	return attrToDataName.Replace(attrName)
+***REMOVED***
+
+func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
+	if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
+		var subdata interface***REMOVED******REMOVED***
+
+		err := json.Unmarshal([]byte(val), &subdata)
+		if err == nil ***REMOVED***
+			return subdata
+		***REMOVED*** else ***REMOVED***
+			return val
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		switch val ***REMOVED***
+			case "true":
+				return true
+
+			case "false":
+				return false
+
+			case "null":
+				return goja.Undefined()
+
+			case "undefined":
+				return goja.Undefined()
+
+			default:
+				if intVal, err := strconv.ParseInt(val, 0, 64); err == nil ***REMOVED***
+					return intVal
+				***REMOVED*** else ***REMOVED***
+					return val
+				***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (s Selection) Data(def ...string) goja.Value ***REMOVED***
+	if s.sel.Length() == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	if len(def) > 0 ***REMOVED***
+		val, exists := s.sel.Attr("data-" + def[0])
+		if exists ***REMOVED***
+			return s.rt.ToValue(convert(val))
+		***REMOVED*** else ***REMOVED***
+			return goja.Undefined()
+		***REMOVED***
+	***REMOVED***
+
+	if len(s.sel.Nodes[0].Attr) == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	data := make(map[string]interface***REMOVED******REMOVED***)
+	for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
+		if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 6 ***REMOVED***
+			data[toDataName(attr.Key[5:])] = convert(attr.Val)
+		***REMOVED***
+	***REMOVED***
+	return s.rt.ToValue(data)
 ***REMOVED***
