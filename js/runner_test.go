@@ -95,21 +95,59 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
-	modules := []string***REMOVED***
-		"k6",
-		"k6/http",
-		"k6/metrics",
-		"k6/html",
-	***REMOVED***
-	for _, mod := range modules ***REMOVED***
-		t.Run(mod, func(t *testing.T) ***REMOVED***
-			_, err := New(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
-			***REMOVED***, afero.NewMemMapFs())
-			assert.NoError(t, err)
-		***REMOVED***)
-	***REMOVED***
+	t.Run("Modules", func(t *testing.T) ***REMOVED***
+		modules := []string***REMOVED***
+			"k6",
+			"k6/http",
+			"k6/metrics",
+			"k6/html",
+		***REMOVED***
+		for _, mod := range modules ***REMOVED***
+			t.Run(mod, func(t *testing.T) ***REMOVED***
+				_, err := New(&lib.SourceData***REMOVED***
+					Filename: "/script.js",
+					Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
+				***REMOVED***, afero.NewMemMapFs())
+				assert.NoError(t, err)
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Files", func(t *testing.T) ***REMOVED***
+		fs := afero.NewMemMapFs()
+		assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+		assert.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`export default "hi!";`), 0644))
+
+		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
+			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/lib.js"***REMOVED***,
+			"Relative":       ***REMOVED***"/path/script.js", "./to/lib.js"***REMOVED***,
+			"Adjacent":       ***REMOVED***"/path/to/script.js", "./lib.js"***REMOVED***,
+			"STDIN-Absolute": ***REMOVED***"-", "/path/to/lib.js"***REMOVED***,
+			"STDIN-Relative": ***REMOVED***"-", "./path/to/lib.js"***REMOVED***,
+		***REMOVED***
+		for name, data := range testdata ***REMOVED***
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				r, err := New(&lib.SourceData***REMOVED***
+					Filename: data.filename,
+					Data: []byte(fmt.Sprintf(`
+					import hi from "%s";
+					export default function() ***REMOVED***
+						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
+					***REMOVED***`, data.path)),
+				***REMOVED***, fs)
+				if !assert.NoError(t, err) ***REMOVED***
+					return
+				***REMOVED***
+
+				vu, err := r.NewVU()
+				if !assert.NoError(t, err) ***REMOVED***
+					return
+				***REMOVED***
+				_, err = vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***

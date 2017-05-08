@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -35,6 +36,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"path"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
@@ -169,27 +172,27 @@ func guessType(data []byte) string ***REMOVED***
 	return TypeJS
 ***REMOVED***
 
-func getSrcData(filename string, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
+func getSrcData(filename, pwd string, stdin io.Reader, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
 	if filename == "-" ***REMOVED***
-		data, err := ioutil.ReadAll(os.Stdin)
+		data, err := ioutil.ReadAll(stdin)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		return &lib.SourceData***REMOVED***Filename: "-", Data: data***REMOVED***, nil
 	***REMOVED***
 
-	if ok, _ := afero.Exists(fs, filename); ok ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
+	abspath := filename
+	if !path.IsAbs(abspath) ***REMOVED***
+		abspath = path.Join(pwd, abspath)
+	***REMOVED***
+	if ok, _ := afero.Exists(fs, abspath); ok ***REMOVED***
+		data, err := afero.ReadFile(fs, abspath)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return &lib.SourceData***REMOVED***Filename: filename, Data: data***REMOVED***, nil
+		return &lib.SourceData***REMOVED***Filename: abspath, Data: data***REMOVED***, nil
 	***REMOVED***
 
-	pwd, err := os.Getwd()
-	if err != nil ***REMOVED***
-		pwd = "/"
-	***REMOVED***
 	return loader.Load(fs, pwd, filename)
 ***REMOVED***
 
@@ -247,6 +250,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError("Wrong number of arguments!", 1)
 	***REMOVED***
 
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
@@ -275,7 +283,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make the Runner, extract script-defined options.
 	arg := args[0]
 	fs := afero.NewOsFs()
-	src, err := getSrcData(arg, fs)
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Failed to parse input data")
 		return err
@@ -617,8 +625,13 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	arg := args[0]
 
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
 	fs := afero.NewOsFs()
-	src, err := getSrcData(arg, fs)
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***

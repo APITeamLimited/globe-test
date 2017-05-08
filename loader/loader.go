@@ -59,6 +59,8 @@ func Dir(name string) string ***REMOVED***
 ***REMOVED***
 
 func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
+	log.WithFields(log.Fields***REMOVED***"pwd": pwd, "name": name***REMOVED***).Debug("Loading...")
+
 	// We just need to make sure `import ""` doesn't crash the loader.
 	if name == "" ***REMOVED***
 		return nil, errors.New("local or remote path required")
@@ -76,6 +78,7 @@ func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
 
 	// If the file starts with ".", resolve it as a relative path.
 	name = Resolve(pwd, name)
+	log.WithField("name", name).Debug("Resolved...")
 
 	// If the resolved path starts with a "/", it's a local file.
 	if name[0] == '/' ***REMOVED***
