@@ -23,13 +23,13 @@ package js
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 )
@@ -75,7 +75,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	bundle := Bundle***REMOVED***
 		Filename:        src.Filename,
 		Program:         pgm,
-		BaseInitContext: NewInitContext(rt, new(context.Context), fs, filepath.Dir(src.Filename)),
+		BaseInitContext: NewInitContext(rt, new(context.Context), fs, loader.Dir(src.Filename)),
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err

@@ -21,6 +21,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -48,6 +49,14 @@ func Test_getSrcData(t *testing.T) ***REMOVED***
 					assert.Equal(t, "hi!", string(src.Data))
 				***REMOVED***
 			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("stdin", func(t *testing.T) ***REMOVED***
+		src, err := getSrcData("-", "/path/to", strings.NewReader(`hi!`), nil)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "-", src.Filename)
+			assert.Equal(t, "hi!", string(src.Data))
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

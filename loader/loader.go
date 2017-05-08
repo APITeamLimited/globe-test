@@ -55,6 +55,9 @@ func Resolve(pwd, name string) string ***REMOVED***
 
 // Returns the directory for the path.
 func Dir(name string) string ***REMOVED***
+	if name == "-" ***REMOVED***
+		return "/"
+	***REMOVED***
 	return filepath.Dir(name)
 ***REMOVED***
 
