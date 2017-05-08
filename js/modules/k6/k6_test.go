@@ -34,6 +34,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestFail(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, nil))
+	_, err := common.RunString(rt, `k6.fail("blah")`)
+	assert.EqualError(t, err, "GoError: blah")
+***REMOVED***
+
 func TestSleep(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	ctx, cancel := context.WithCancel(context.Background())
