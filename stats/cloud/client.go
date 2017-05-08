@@ -86,6 +86,8 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 	return err
 ***REMOVED***
 
+type ThresholdResult map[string]map[string]bool
+
 type TestRun struct ***REMOVED***
 	Name       string              `json:"name"`
 	ProjectID  int                 `json:"project_id,omitempty"`
@@ -128,13 +130,21 @@ func (c *Client) PushMetric(referenceID string, samples []*Sample) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Client) TestFinished(referenceID string) ***REMOVED***
+func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) ***REMOVED***
 	url := fmt.Sprintf("%s/tests/%s", c.baseURL, referenceID)
 
+	status := 1
+
+	if tained ***REMOVED***
+		status = 2
+	***REMOVED***
+
 	data := struct ***REMOVED***
-		Status int `json:"status"`
+		Status     int             `json:"status"`
+		Thresholds ThresholdResult `json:"thresholds"`
 	***REMOVED******REMOVED***
-		1,
+		status,
+		thresholds,
 	***REMOVED***
 
 	req, err := c.NewRequest("POST", url, data)

@@ -29,7 +29,7 @@ type Collector struct ***REMOVED***
 	project_id int
 
 	duration   int64
-	thresholds map[string][]string
+	thresholds map[string][]*stats.Threshold
 	client     *Client
 ***REMOVED***
 
@@ -38,18 +38,18 @@ func New(fname string, src *lib.SourceData, opts lib.Options) (*Collector, error
 	token := os.Getenv("K6CLOUD_TOKEN")
 
 	var extConfig loadimpactConfig
-	if val, ok := opts.External["loadimpact"]; ok == true ***REMOVED***
+	if val, ok := opts.External["loadimpact"]; ok ***REMOVED***
 		err := mapstructure.Decode(val, &extConfig)
 		if err != nil ***REMOVED***
 			// For now we ignore if loadimpact section is malformed
 		***REMOVED***
 	***REMOVED***
 
-	thresholds := make(map[string][]string)
+	thresholds := make(map[string][]*stats.Threshold)
 
 	for name, t := range opts.Thresholds ***REMOVED***
 		for _, threshold := range t.Thresholds ***REMOVED***
-			thresholds[name] = append(thresholds[name], threshold.Source)
+			thresholds[name] = append(thresholds[name], threshold)
 		***REMOVED***
 	***REMOVED***
 
@@ -76,9 +76,18 @@ func New(fname string, src *lib.SourceData, opts lib.Options) (*Collector, error
 ***REMOVED***
 
 func (c *Collector) Init() ***REMOVED***
+
+	thresholds := make(map[string][]string)
+
+	for name, t := range c.thresholds ***REMOVED***
+		for _, threshold := range t ***REMOVED***
+			thresholds[name] = append(thresholds[name], threshold.Source)
+		***REMOVED***
+	***REMOVED***
+
 	testRun := &TestRun***REMOVED***
 		Name:       c.name,
-		Thresholds: c.thresholds,
+		Thresholds: thresholds,
 		Duration:   c.duration,
 		ProjectID:  c.project_id,
 	***REMOVED***
@@ -106,8 +115,20 @@ func (c *Collector) String() string ***REMOVED***
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	<-ctx.Done()
 
-	if c.referenceID != "" ***REMOVED***
-		c.client.TestFinished(c.referenceID)
+	testTainted := false
+	thresholdResults := make(ThresholdResult)
+	for name, thresholds := range c.thresholds ***REMOVED***
+		thresholdResults[name] = make(map[string]bool)
+		for _, t := range thresholds ***REMOVED***
+			thresholdResults[name][t.Source] = t.Failed
+			if t.Failed ***REMOVED***
+				testTainted = true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	if c.referenceID == "" ***REMOVED***
+		c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
 	***REMOVED***
 ***REMOVED***
 
