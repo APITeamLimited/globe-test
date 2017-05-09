@@ -23,9 +23,10 @@ type Client struct ***REMOVED***
 	client  *http.Client
 	token   string
 	baseURL string
+	version string
 ***REMOVED***
 
-func NewClient(token, host string) *Client ***REMOVED***
+func NewClient(token, host, version string) *Client ***REMOVED***
 
 	var client = &http.Client***REMOVED***
 		Timeout: TIMEOUT,
@@ -46,6 +47,7 @@ func NewClient(token, host string) *Client ***REMOVED***
 		client:  client,
 		token:   token,
 		baseURL: baseURL,
+		version: version,
 	***REMOVED***
 	return c
 ***REMOVED***
@@ -68,7 +70,7 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
-	req.Header.Set("User-Agent", "k6cloud")
+	req.Header.Set("User-Agent", "k6cloud/"+c.version)
 
 	resp, err := c.client.Do(req)
 	if err != nil ***REMOVED***

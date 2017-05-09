@@ -229,15 +229,15 @@ func splitCollectorString(s string) (string, string) ***REMOVED***
 	return parts[0], parts[1]
 ***REMOVED***
 
-func makeCollector(s string, src *lib.SourceData, opts lib.Options) (lib.Collector, error) ***REMOVED***
-	t, p := splitCollectorString(s)
+func makeCollector(s string, src *lib.SourceData, opts lib.Options, version string) (lib.Collector, error) ***REMOVED***
+        t, p := splitCollectorString(s)
 	switch t ***REMOVED***
 	case "influxdb":
 		return influxdb.New(p, opts)
 	case "json":
 		return json.New(p, afero.NewOsFs(), opts)
 	case "cloud":
-		return cloud.New(p, src, opts)
+		return cloud.New(p, src, opts, version)
 	default:
 		return nil, errors.New("Unknown output type: " + t)
 	***REMOVED***
@@ -348,7 +348,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make the metric collector, if requested.
 	var collector lib.Collector
 	if out != "" ***REMOVED***
-		c, err := makeCollector(out, src, opts)
+		c, err := makeCollector(out, src, opts, cc.App.Version)
 		if err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't create output")
 			return err
