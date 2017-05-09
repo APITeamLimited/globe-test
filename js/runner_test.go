@@ -153,7 +153,10 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 func TestVURunContext(t *testing.T) ***REMOVED***
 	r, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
-		Data:     []byte(`export default function() ***REMOVED*** fn(); ***REMOVED***`),
+		Data: []byte(`
+		export let options = ***REMOVED*** vus: 10 ***REMOVED***;
+		export default function() ***REMOVED*** fn(); ***REMOVED***
+		`),
 	***REMOVED***, afero.NewMemMapFs())
 	if !assert.NoError(t, err) ***REMOVED***
 		return
@@ -167,8 +170,15 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	fnCalled := false
 	vu.Runtime.Set("fn", func() ***REMOVED***
 		fnCalled = true
+
 		assert.Equal(t, vu.Runtime, common.GetRuntime(*vu.Context), "incorrect runtime in context")
-		assert.Equal(t, r.GetDefaultGroup(), common.GetState(*vu.Context).Group, "incorrect group in context")
+
+		state := common.GetState(*vu.Context)
+		if assert.NotNil(t, state) ***REMOVED***
+			assert.Equal(t, null.IntFrom(10), state.Options.VUs)
+			assert.Equal(t, r.GetDefaultGroup(), state.Group)
+			assert.Equal(t, vu.HTTPTransport, state.HTTPTransport)
+		***REMOVED***
 	***REMOVED***)
 	_, err = vu.RunOnce(context.Background())
 	assert.NoError(t, err)

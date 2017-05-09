@@ -30,6 +30,8 @@ import (
 	"testing"
 	"time"
 
+	null "gopkg.in/guregu/null.v3"
+
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
@@ -83,6 +85,9 @@ func TestRequest(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	state := &common.State***REMOVED***
+		Options: lib.Options***REMOVED***
+			MaxRedirects: null.IntFrom(10),
+		***REMOVED***,
 		Group: root,
 		HTTPTransport: &http.Transport***REMOVED***
 			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
@@ -97,6 +102,17 @@ func TestRequest(t *testing.T) ***REMOVED***
 	ctx = common.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, &ctx))
+
+	t.Run("Redirects", func(t *testing.T) ***REMOVED***
+		t.Run("9", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/9")`)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("10", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/10")`)
+			assert.EqualError(t, err, "GoError: Get /get: stopped after 10 redirects")
+		***REMOVED***)
+	***REMOVED***)
 
 	t.Run("HTML", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
