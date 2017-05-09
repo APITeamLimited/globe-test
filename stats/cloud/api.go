@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 )
 
 type sample struct ***REMOVED***
@@ -45,6 +46,10 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 	err = c.Do(req, &ctrr)
 	if err != nil ***REMOVED***
 		return nil, err
+	***REMOVED***
+
+	if ctrr.ReferenceID == "" ***REMOVED***
+		return nil, errors.Errorf("Failed to get a reference ID")
 	***REMOVED***
 
 	return &ctrr, nil

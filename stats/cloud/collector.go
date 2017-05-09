@@ -140,7 +140,7 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if c.referenceID == "" ***REMOVED***
+	if c.referenceID != "" ***REMOVED***
 		err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
 		if err != nil ***REMOVED***
 			log.WithFields(log.Fields***REMOVED***
