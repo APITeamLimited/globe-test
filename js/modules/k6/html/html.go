@@ -339,7 +339,6 @@ func (s Selection) Contents() Selection ***REMOVED***
 func (s Selection) Each(v goja.Value) Selection ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if isFn ***REMOVED***
-		// TODO change goquery.Selection arg to html.Node
 		fn := func(idx int, sel *goquery.Selection) ***REMOVED***
 			gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
 		***REMOVED***
@@ -362,24 +361,28 @@ func (s Selection) buildMatcher(v goja.Value, gojaFn goja.Callable) func (int, *
 ***REMOVED***
 
 func (s Selection) Filter(v goja.Value) Selection ***REMOVED***
-	gojaFn, isFn := goja.AssertFunction(v)
-	if isFn ***REMOVED***
+	if gojaFn, isFn := goja.AssertFunction(v); isFn ***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.FilterFunction(s.buildMatcher(v, gojaFn))***REMOVED***
-	***REMOVED*** else if filSel, isSel := v.Export().(Selection); isSel ***REMOVED***
-		return Selection***REMOVED***s.rt, s.sel.FilterSelection(filSel.sel)***REMOVED***
+	***REMOVED*** else if cmp, isSel := v.Export().(Selection); isSel ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.FilterSelection(cmp.sel)***REMOVED***
+	***REMOVED*** else if str, isStr:= v.Export().(string); isStr ***REMOVED***
+		return Selection***REMOVED***s.rt, s.sel.Filter(str)***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		return Selection***REMOVED***s.rt, s.sel.Filter(v.String())***REMOVED***
+		panic(s.rt.NewGoError(errors.New("Argument to filter() must be a function, a selector or a query object")))
+		return Selection***REMOVED******REMOVED***
 	***REMOVED***
 ***REMOVED***
 
 func (s Selection) Is(v goja.Value) bool ***REMOVED***
-	gojaFn, isFn := goja.AssertFunction(v)
-	if isFn ***REMOVED***
+	if gojaFn, isFn := goja.AssertFunction(v); isFn ***REMOVED***
 		return s.sel.IsFunction(s.buildMatcher(v, gojaFn))
-	***REMOVED*** else if cmpSel, isSel := v.Export().(Selection); isSel ***REMOVED***
-		return s.sel.IsSelection(cmpSel.sel)
+	***REMOVED*** else if cmp, isSel := v.Export().(Selection); isSel ***REMOVED***
+		return s.sel.IsSelection(cmp.sel)
+	***REMOVED*** else if str, isStr:= v.Export().(string); isStr ***REMOVED***
+		return s.sel.Is(str)
 	***REMOVED*** else ***REMOVED***
-		return s.sel.Is(v.String())
+		panic(s.rt.NewGoError(errors.New("Argument to is() must be a function, a selector or a query object")))
+		return false
 	***REMOVED***
 ***REMOVED***
 
@@ -435,7 +438,8 @@ func (s Selection) Not(v goja.Value) Selection ***REMOVED***
 			return Selection***REMOVED***s.rt, s.sel.Not(val.(string))***REMOVED***
 
 		default:
-			return Selection***REMOVED***s.rt, s.sel.Not(v.String())***REMOVED***
+			panic(s.rt.NewGoError(errors.New("Argument to not() must be a function, a selector or a query object")))
+			return Selection***REMOVED******REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -477,20 +481,23 @@ func (s Selection) Parents(def ...string) Selection ***REMOVED***
 	return s.adjacent(s.sel.Parents, s.sel.ParentsFiltered, def...)
 ***REMOVED***
 
+func (s Selection) Siblings(def ...string) Selection ***REMOVED***
+	return s.adjacent(s.sel.Siblings, s.sel.SiblingsFiltered, def...)
+***REMOVED***
+
 func (s Selection) adjacentUntil(until func (string) *goquery.Selection,
 								 untilSelection func(*goquery.Selection) *goquery.Selection,
 								 filteredUntil func(string, string) *goquery.Selection,
 								 filteredUntilSelection func(string, *goquery.Selection) *goquery.Selection,
 								 def ...goja.Value) Selection ***REMOVED***
-	// empty selector to nextuntil and prevuntil matches jquery api and has same effect as prevAll and nextAll
-	// relies on goquery.compileMatcher retrning a matcher which fails all matches when invalid selector given to cascadia.compile
+	// empty selector to nextuntil and prevuntil acts like revAll and nextAll
+	// relies on goquery.compileMatcher returning a matcher which fails all matches when the selector being compiled is invalid
 	if(len(def) == 0) ***REMOVED***
 		return Selection***REMOVED***s.rt, until("")***REMOVED***
 	***REMOVED***
 
 	selector := def[0].Export()
-
-	if(len(def) == 1) ***REMOVED***
+	if len(def) == 1 ***REMOVED***
 		switch selector.(type) ***REMOVED***
 			case string:
 				return Selection***REMOVED***s.rt, until(selector.(string))***REMOVED***
@@ -498,29 +505,35 @@ func (s Selection) adjacentUntil(until func (string) *goquery.Selection,
 			case Selection:
 				return Selection***REMOVED***s.rt, untilSelection(selector.(Selection).sel)***REMOVED***
 
-			default:
+			case nil:
 				return Selection***REMOVED***s.rt, until("")***REMOVED***
+
+			default:
+				panic(s.rt.NewGoError(errors.New("Invalid argument. The selector must be a string or query object")))
+				return Selection***REMOVED******REMOVED***
 		***REMOVED***
-	***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		filter := def[1].String()
+		switch selector.(type) ***REMOVED***
+			case string:
+				return Selection***REMOVED***s.rt, filteredUntil(filter, selector.(string))***REMOVED***
 
-	filter := def[1].String()
+			case Selection:
+				return Selection***REMOVED***s.rt, filteredUntilSelection(filter, selector.(Selection).sel)***REMOVED***
 
-	switch selector.(type) ***REMOVED***
-		case string:
-			return Selection***REMOVED***s.rt, filteredUntil(filter, selector.(string))***REMOVED***
+			case nil:
+				return Selection***REMOVED***s.rt, filteredUntil(filter, "")***REMOVED***
 
-		case Selection:
-			return Selection***REMOVED***s.rt, filteredUntilSelection(filter, selector.(Selection).sel)***REMOVED***
-
-		default:
-			return Selection***REMOVED***s.rt, filteredUntil(filter, "")***REMOVED***
+			default:
+				panic(s.rt.NewGoError(errors.New("Invalid argument. The selector must be a string or query object")))
+				return Selection***REMOVED******REMOVED***
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// prevUntil, nextUntil and parentsUntil support two args based on jquery api
-// 1st arg is either a selector string or goquery.selection.
-// 2nd arg is filter selector
-// if 1st arg is nil or blank string then behaviour is similar to prevAll or nextAll
+// prevUntil, nextUntil and parentsUntil support two args
+// 1st arg is either a selector string, goquery selection object, or nil
+// 2nd arg is filter selector string or nil/undefined
 func (s Selection) PrevUntil(def ...goja.Value) Selection ***REMOVED***
 	return s.adjacentUntil(
 		s.sel.PrevUntil,
@@ -551,9 +564,6 @@ func (s Selection) ParentsUntil(def ...goja.Value) Selection ***REMOVED***
 	)
 ***REMOVED***
 
-func (s Selection) Siblings(def ...string) Selection ***REMOVED***
-	return s.adjacent(s.sel.Siblings, s.sel.SiblingsFiltered, def...)
-***REMOVED***
 
 func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***
 	if len(def) > 0 ***REMOVED***
@@ -598,12 +608,14 @@ func (s Selection) Index(def ...goja.Value) int ***REMOVED***
 			return s.sel.IndexSelector(v.(string))
 
 		default:
-			panic(s.rt.NewGoError(errors.New("The argument to index() be a string or a selection")))
+			panic(s.rt.NewGoError(errors.New("The argument to index() must be a string or a query object")))
 			return -1
 	***REMOVED***
 ***REMOVED***
 
-
+// end result of the following is two strings.Replacer objects
+// Replacer("-a", "A", "-b", "B"..., "-z", "Z") and Replacer("A", "-a",...)
+//to translate to "data-attr-name" to "attrName" and back
 const (
 	lowAlpha = "abcdefghijklmnopqrstuvwxyz"
 	highAlpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -631,6 +643,7 @@ func toDataName(attrName string) string ***REMOVED***
 	return attrToDataName.Replace(attrName)
 ***REMOVED***
 
+//
 func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
 	if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
 		var subdata interface***REMOVED******REMOVED***
@@ -665,8 +678,10 @@ func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+//when 0 args, read all data from attributes beggining with "data-".
+//when 1 arg, read requested data attr
 func (s Selection) Data(def ...string) goja.Value ***REMOVED***
-	if s.sel.Length() == 0 ***REMOVED***
+	if s.sel.Length() == 0 || len(s.sel.Nodes[0].Attr) == 0 ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
@@ -677,17 +692,13 @@ func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			return goja.Undefined()
 		***REMOVED***
-	***REMOVED***
-
-	if len(s.sel.Nodes[0].Attr) == 0 ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-
-	data := make(map[string]interface***REMOVED******REMOVED***)
-	for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
-		if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 6 ***REMOVED***
-			data[toDataName(attr.Key[5:])] = convert(attr.Val)
+	***REMOVED*** else ***REMOVED***
+		data := make(map[string]interface***REMOVED******REMOVED***)
+		for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
+			if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 6 ***REMOVED***
+				data[toDataName(attr.Key[5:])] = convert(attr.Val)
+			***REMOVED***
 		***REMOVED***
+		return s.rt.ToValue(data)
 	***REMOVED***
-	return s.rt.ToValue(data)
 ***REMOVED***
