@@ -30,14 +30,13 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	"path"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
@@ -115,6 +114,10 @@ var commandRun = cli.Command***REMOVED***
 		cli.BoolFlag***REMOVED***
 			Name:  "insecure-skip-tls-verify",
 			Usage: "INSECURE: skip verification of TLS certificates",
+		***REMOVED***,
+		cli.BoolFlag***REMOVED***
+			Name:  "no-connection-reuse",
+			Usage: "don't reuse connections between VU iterations",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:   "out, o",
@@ -268,6 +271,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		Linger:                cliBool(cc, "linger"),
 		MaxRedirects:          cliInt64(cc, "max-redirects"),
 		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
+		NoConnectionReuse:     cliBool(cc, "no-connection-reuse"),
 		NoUsageReport:         cliBool(cc, "no-usage-report"),
 	***REMOVED***
 	for _, s := range cc.StringSlice("stage") ***REMOVED***

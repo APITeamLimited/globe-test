@@ -133,6 +133,9 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 
 	_, err := u.Default(goja.Undefined())
 
+	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
+		u.HTTPTransport.CloseIdleConnections()
+	***REMOVED***
 	return state.Samples, err
 ***REMOVED***
 
