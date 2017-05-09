@@ -107,7 +107,7 @@ func checkResponse(r *http.Response) error ***REMOVED***
 	***REMOVED***
 
 	// Struct of errors set back from API
-	errorStruct := struct ***REMOVED***
+	errorStruct := &struct ***REMOVED***
 		ErrorData struct ***REMOVED***
 			Message string `json:"message"`
 			Code    int    `json:"code"`
