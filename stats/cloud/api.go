@@ -64,11 +64,7 @@ func (c *Client) PushMetric(referenceID string, samples []*sample) error ***REMO
 	***REMOVED***
 
 	err = c.Do(req, nil)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	return nil
+	return err
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
@@ -94,9 +90,5 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 	***REMOVED***
 
 	err = c.Do(req, nil)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	return nil
+	return err
 ***REMOVED***

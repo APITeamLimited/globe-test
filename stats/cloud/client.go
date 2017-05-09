@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"time"
@@ -127,20 +126,4 @@ func checkResponse(r *http.Response) error ***REMOVED***
 	***REMOVED***
 
 	return errorResponse
-***REMOVED***
-
-func retry(r *http.Response, err error) bool ***REMOVED***
-	if e, ok := err.(net.Error); ok ***REMOVED***
-		if e.Temporary() == true ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-
-	if r != nil ***REMOVED***
-		if r.StatusCode >= 502 ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-
-	return false
 ***REMOVED***
