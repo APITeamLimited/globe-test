@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
-
-	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -74,7 +72,6 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 ***REMOVED***
 
 func (c *Collector) Init() ***REMOVED***
-
 	thresholds := make(map[string][]string)
 
 	for name, t := range c.thresholds ***REMOVED***
@@ -115,8 +112,8 @@ func (c *Collector) String() string ***REMOVED***
 	***REMOVED***
 
 	switch c.initErr ***REMOVED***
-	case AuthorizeError:
-	case AuthorizeError:
+	case ErrNotAuthorized:
+	case ErrNotAuthorized:
 		return c.initErr.Error()
 	***REMOVED***
 	return fmt.Sprintf("Failed to create test in Load Impact cloud")

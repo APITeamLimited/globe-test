@@ -26,8 +26,7 @@ type Client struct ***REMOVED***
 ***REMOVED***
 
 func NewClient(token, host, version string) *Client ***REMOVED***
-
-	var client = &http.Client***REMOVED***
+	client := &http.Client***REMOVED***
 		Timeout: TIMEOUT,
 	***REMOVED***
 
@@ -35,7 +34,6 @@ func NewClient(token, host, version string) *Client ***REMOVED***
 	if hostEnv != "" ***REMOVED***
 		host = hostEnv
 	***REMOVED***
-
 	if host == "" ***REMOVED***
 		host = "https://ingest.loadimpact.com"
 	***REMOVED***
@@ -86,8 +84,7 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 	err = checkResponse(resp)
 
 	if v != nil ***REMOVED***
-		err = json.NewDecoder(resp.Body).Decode(v)
-		if err == io.EOF ***REMOVED***
+		if err = json.NewDecoder(resp.Body).Decode(v); err == io.EOF ***REMOVED***
 			err = nil // Ignore EOF from empty body
 		***REMOVED***
 	***REMOVED***
@@ -101,9 +98,9 @@ func checkResponse(r *http.Response) error ***REMOVED***
 	***REMOVED***
 
 	if r.StatusCode == 401 ***REMOVED***
-		return AuthenticateError
+		return ErrNotAuthenticated
 	***REMOVED*** else if r.StatusCode == 403 ***REMOVED***
-		return AuthorizeError
+		return ErrNotAuthorized
 	***REMOVED***
 
 	// Struct of errors set back from API
@@ -114,8 +111,7 @@ func checkResponse(r *http.Response) error ***REMOVED***
 		***REMOVED*** `json:"error"`
 	***REMOVED******REMOVED******REMOVED***
 
-	err := json.NewDecoder(r.Body).Decode(errorStruct)
-	if err != nil ***REMOVED***
+	if err := json.NewDecoder(r.Body).Decode(errorStruct); err != nil ***REMOVED***
 		return errors.Wrap(err, "Non-standard API error response")
 	***REMOVED***
 
