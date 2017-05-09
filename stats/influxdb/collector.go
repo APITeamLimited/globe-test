@@ -44,6 +44,10 @@ type Collector struct ***REMOVED***
 ***REMOVED***
 
 func New(s string, opts lib.Options) (*Collector, error) ***REMOVED***
+	if s == "" ***REMOVED***
+		s = "http://localhost:8086/k6"
+	***REMOVED***
+
 	u, err := url.Parse(s)
 	if err != nil ***REMOVED***
 		return nil, err

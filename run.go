@@ -220,21 +220,16 @@ func makeRunner(runnerType string, src *lib.SourceData, fs afero.Fs) (lib.Runner
 	***REMOVED***
 ***REMOVED***
 
-func parseCollectorString(s string) (t, p string, err error) ***REMOVED***
+func splitCollectorString(s string) (string, string) ***REMOVED***
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) != 2 ***REMOVED***
-		return "", "", errors.New("Malformed output; must be in the form 'type=url'")
+		return parts[0], ""
 	***REMOVED***
-
-	return parts[0], parts[1], nil
+	return parts[0], parts[1]
 ***REMOVED***
 
 func makeCollector(s string, src *lib.SourceData, opts lib.Options) (lib.Collector, error) ***REMOVED***
-	t, p, err := parseCollectorString(s)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
+	t, p := splitCollectorString(s)
 	switch t ***REMOVED***
 	case "influxdb":
 		return influxdb.New(p, opts)
