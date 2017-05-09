@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
+)
+
+const (
+	TIMEOUT = 10 * time.Second
 )
 
 // Client handles communication with Load Impact cloud API.
@@ -20,19 +25,19 @@ type Client struct ***REMOVED***
 	baseURL string
 ***REMOVED***
 
-type ErrorResponse struct ***REMOVED***
-	Message string `json:"message"`
-***REMOVED***
-
-func NewClient(token string) *Client ***REMOVED***
+func NewClient(token, host string) *Client ***REMOVED***
 
 	var client = &http.Client***REMOVED***
-		Timeout: 30 * time.Second,
+		Timeout: TIMEOUT,
 	***REMOVED***
 
-	host := os.Getenv("K6CLOUD_HOST")
+	hostEnv := os.Getenv("K6CLOUD_HOST")
+	if hostEnv != "" ***REMOVED***
+		host = hostEnv
+	***REMOVED***
+
 	if host == "" ***REMOVED***
-		host = "http://localhost:5000"
+		host = "https://ingest.loadimpact.com"
 	***REMOVED***
 
 	baseURL := fmt.Sprintf("%s/v1", host)
@@ -61,20 +66,23 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 ***REMOVED***
 
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
-
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
+	req.Header.Set("User-Agent", "k6cloud")
 
 	resp, err := c.client.Do(req)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+
 	defer func() ***REMOVED***
 		err := resp.Body.Close()
 		if err != nil ***REMOVED***
 			log.Errorln(err)
 		***REMOVED***
 	***REMOVED***()
+
+	err = checkResponse(resp)
 
 	if v != nil ***REMOVED***
 		err = json.NewDecoder(resp.Body).Decode(v)
@@ -86,87 +94,51 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 	return err
 ***REMOVED***
 
-type ThresholdResult map[string]map[string]bool
-
-type TestRun struct ***REMOVED***
-	Name       string              `json:"name"`
-	ProjectID  int                 `json:"project_id,omitempty"`
-	Thresholds map[string][]string `json:"thresholds"`
-	// Duration of test in seconds. -1 for unknown length, 0 for continuous running.
-	Duration int64 `json:"duration"`
-***REMOVED***
-
-type CreateTestRunResponse struct ***REMOVED***
-	ReferenceID string `json:"reference_id"`
-***REMOVED***
-
-func (c *Client) CreateTestRun(testRun *TestRun) *CreateTestRunResponse ***REMOVED***
-	url := fmt.Sprintf("%s/tests", c.baseURL)
-	req, err := c.NewRequest("POST", url, testRun)
-	if err != nil ***REMOVED***
+func checkResponse(r *http.Response) error ***REMOVED***
+	if c := r.StatusCode; c >= 200 && c <= 299 ***REMOVED***
 		return nil
 	***REMOVED***
 
-	var ctrr = CreateTestRunResponse***REMOVED******REMOVED***
-	err = c.Do(req, &ctrr)
-	if err != nil ***REMOVED***
-		return nil
+	if r.StatusCode == 401 ***REMOVED***
+		return AuthenticateError
+	***REMOVED*** else if r.StatusCode == 403 ***REMOVED***
+		return AuthorizeError
 	***REMOVED***
 
-	return &ctrr
+	// Struct of errors set back from API
+	errorStruct := struct ***REMOVED***
+		ErrorData struct ***REMOVED***
+			Message string `json:"message"`
+			Code    int    `json:"code"`
+		***REMOVED*** `json:"error"`
+	***REMOVED******REMOVED******REMOVED***
+
+	err := json.NewDecoder(r.Body).Decode(errorStruct)
+	if err != nil ***REMOVED***
+		return errors.Wrap(err, "Non-standard API error response")
+	***REMOVED***
+
+	errorResponse := &ErrorResponse***REMOVED***
+		Response: r,
+		Message:  errorStruct.ErrorData.Message,
+		Code:     errorStruct.ErrorData.Code,
+	***REMOVED***
+
+	return errorResponse
 ***REMOVED***
 
-func (c *Client) PushMetric(referenceID string, samples []*Sample) ***REMOVED***
-	url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
-
-	req, err := c.NewRequest("POST", url, samples)
-	if err != nil ***REMOVED***
-		return
+func retry(r *http.Response, err error) bool ***REMOVED***
+	if e, ok := err.(net.Error); ok ***REMOVED***
+		if e.Temporary() == true ***REMOVED***
+			return true
+		***REMOVED***
 	***REMOVED***
 
-	err = c.Do(req, nil)
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-***REMOVED***
-
-func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) ***REMOVED***
-	url := fmt.Sprintf("%s/tests/%s", c.baseURL, referenceID)
-
-	status := 1
-
-	if tained ***REMOVED***
-		status = 2
+	if r != nil ***REMOVED***
+		if r.StatusCode >= 502 ***REMOVED***
+			return true
+		***REMOVED***
 	***REMOVED***
 
-	data := struct ***REMOVED***
-		Status     int             `json:"status"`
-		Thresholds ThresholdResult `json:"thresholds"`
-	***REMOVED******REMOVED***
-		status,
-		thresholds,
-	***REMOVED***
-
-	req, err := c.NewRequest("POST", url, data)
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-
-	err = c.Do(req, nil)
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-***REMOVED***
-
-type Sample struct ***REMOVED***
-	Type   string     `json:"type"`
-	Metric string     `json:"metric"`
-	Data   SampleData `json:"data"`
-***REMOVED***
-
-type SampleData struct ***REMOVED***
-	Type  stats.MetricType  `json:"type"`
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  map[string]string `json:"tags,omitempty"`
+	return false
 ***REMOVED***

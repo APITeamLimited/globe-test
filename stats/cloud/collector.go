@@ -21,9 +21,11 @@ type loadimpactConfig struct ***REMOVED***
 	Name      string `mapstructure:"name"`
 ***REMOVED***
 
-// Collector sends results data to the Load Impact cloud service.
+// Collector sends result data to the Load Impact cloud service.
 type Collector struct ***REMOVED***
 	referenceID string
+	initErr     error // Possible error from init call to cloud API
+	sampleFails int   // Failed calls to cloud API
 
 	name       string
 	project_id int
@@ -46,7 +48,6 @@ func New(fname string, src *lib.SourceData, opts lib.Options) (*Collector, error
 	***REMOVED***
 
 	thresholds := make(map[string][]*stats.Threshold)
-
 	for name, t := range opts.Thresholds ***REMOVED***
 		for _, threshold := range t.Thresholds ***REMOVED***
 			thresholds[name] = append(thresholds[name], threshold)
@@ -70,7 +71,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options) (*Collector, error
 		name:       getName(src, extConfig),
 		project_id: getProjectId(extConfig),
 		thresholds: thresholds,
-		client:     NewClient(token),
+		client:     NewClient(token, ""),
 		duration:   duration,
 	***REMOVED***, nil
 ***REMOVED***
@@ -92,24 +93,36 @@ func (c *Collector) Init() ***REMOVED***
 		ProjectID:  c.project_id,
 	***REMOVED***
 
-	// TODO fix this and add proper error handling
-	response := c.client.CreateTestRun(testRun)
-	if response != nil ***REMOVED***
-		c.referenceID = response.ReferenceID
-	***REMOVED*** else ***REMOVED***
-		log.Warn("Failed to create test in Load Impact cloud")
+	response, err := c.client.CreateTestRun(testRun)
+
+	if err != nil ***REMOVED***
+		c.initErr = err
+		log.WithFields(log.Fields***REMOVED***
+			"error": err,
+		***REMOVED***).Error("Cloud collector failed to init")
+		return
 	***REMOVED***
+	c.referenceID = response.ReferenceID
 
 	log.WithFields(log.Fields***REMOVED***
 		"name":        c.name,
 		"projectId":   c.project_id,
 		"duration":    c.duration,
 		"referenceId": c.referenceID,
-	***REMOVED***).Debug("Cloud collector init")
+	***REMOVED***).Debug("Cloud collector init successful")
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***
-	return fmt.Sprintf("Load Impact (https://app.staging.loadimpact.com/k6/runs/%s)", c.referenceID)
+	if c.initErr == nil ***REMOVED***
+		return fmt.Sprintf("Load Impact (https://app.loadimpact.com/k6/runs/%s)", c.referenceID)
+	***REMOVED***
+
+	switch c.initErr ***REMOVED***
+	case AuthorizeError:
+	case AuthorizeError:
+		return c.initErr.Error()
+	***REMOVED***
+	return fmt.Sprintf("Failed to create test in Load Impact cloud")
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
@@ -128,7 +141,12 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 
 	if c.referenceID == "" ***REMOVED***
-		c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
+		err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
+		if err != nil ***REMOVED***
+			log.WithFields(log.Fields***REMOVED***
+				"error": err,
+			***REMOVED***).Warn("Failed to send test finished to cloud")
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -137,23 +155,29 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 		return
 	***REMOVED***
 
-	var cloudSamples []*Sample
-	for _, sample := range samples ***REMOVED***
-		sampleJSON := &Sample***REMOVED***
+	var cloudSamples []*sample
+	for _, samp := range samples ***REMOVED***
+		sampleJSON := &sample***REMOVED***
 			Type:   "Point",
-			Metric: sample.Metric.Name,
-			Data: SampleData***REMOVED***
-				Type:  sample.Metric.Type,
-				Time:  sample.Time,
-				Value: sample.Value,
-				Tags:  sample.Tags,
+			Metric: samp.Metric.Name,
+			Data: sampleData***REMOVED***
+				Type:  samp.Metric.Type,
+				Time:  samp.Time,
+				Value: samp.Value,
+				Tags:  samp.Tags,
 			***REMOVED***,
 		***REMOVED***
 		cloudSamples = append(cloudSamples, sampleJSON)
 	***REMOVED***
 
 	if len(cloudSamples) > 0 ***REMOVED***
-		c.client.PushMetric(c.referenceID, cloudSamples)
+		err := c.client.PushMetric(c.referenceID, cloudSamples)
+		if err != nil ***REMOVED***
+			log.WithFields(log.Fields***REMOVED***
+				"error":   err,
+				"samples": cloudSamples,
+			***REMOVED***).Warn("Failed to send metrics to cloud")
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
