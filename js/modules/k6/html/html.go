@@ -465,7 +465,9 @@ func toNumeric(val string) (float64, bool) ***REMOVED***
 ***REMOVED***
 
 func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
-	if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
+	if len(val) == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED*** else if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
 		var subdata interface***REMOVED******REMOVED***
 
 		err := json.Unmarshal([]byte(val), &subdata)
@@ -506,7 +508,7 @@ func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 	***REMOVED***
 
 	if len(def) > 0 ***REMOVED***
-		val, exists := s.sel.Attr("data-" + def[0])
+		val, exists := s.sel.Attr("data-" + toAttrName(def[0]))
 		if exists ***REMOVED***
 			return s.rt.ToValue(convert(val))
 		***REMOVED*** else ***REMOVED***
@@ -515,7 +517,7 @@ func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		data := make(map[string]interface***REMOVED******REMOVED***)
 		for _, attr := range s.sel.Nodes[0].Attr ***REMOVED***
-			if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 6 ***REMOVED***
+			if strings.HasPrefix(attr.Key, "data-") && len(attr.Key) > 5 ***REMOVED***
 				data[toDataName(attr.Key[5:])] = convert(attr.Val)
 			***REMOVED***
 		***REMOVED***
