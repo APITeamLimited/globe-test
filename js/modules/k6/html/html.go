@@ -452,7 +452,18 @@ func toDataName(attrName string) string ***REMOVED***
 	return attrToDataName.Replace(attrName)
 ***REMOVED***
 
-//
+// return numeric value when the representation is unchanged by conversion to float and back
+// other numeric values (ie "101.00" "1E02") are left as strings
+func toNumeric(val string) (float64, bool) ***REMOVED***
+	if fltVal, err := strconv.ParseFloat(val, 64); err != nil ***REMOVED***
+		return 0, false
+	***REMOVED*** else if repr := strconv.FormatFloat(fltVal, 'f', -1, 64); repr == val ***REMOVED***
+		return fltVal, true
+	***REMOVED*** else ***REMOVED***
+		return 0, false
+	***REMOVED***
+***REMOVED***
+
 func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
 	if val[0] == '***REMOVED***' || val[0] == '[' ***REMOVED***
 		var subdata interface***REMOVED******REMOVED***
@@ -478,11 +489,8 @@ func convert(val string) interface***REMOVED******REMOVED*** ***REMOVED***
 				return goja.Undefined()
 
 			default:
-				// matches description of data - only return Numeric val for values when the representation is unchanged
-				// other numeric values (ie "101.00" "1E02") are left as strings
-				// could return int64 but instead return float64 to match how json.Unmarshal() treats numeric values
-				if intVal, err := strconv.ParseInt(val, 0, 64); err == nil ***REMOVED***
-					return float64(intVal)
+				if fltVal, isOk := toNumeric(val); isOk ***REMOVED***
+					return fltVal
 				***REMOVED*** else ***REMOVED***
 					return val
 				***REMOVED***
