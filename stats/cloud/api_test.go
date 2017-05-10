@@ -88,3 +88,18 @@ func TestFinished(t *testing.T) ***REMOVED***
 
 	assert.Nil(t, err)
 ***REMOVED***
+
+func TestAuthorizedError(t *testing.T) ***REMOVED***
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
+	***REMOVED***))
+	defer server.Close()
+
+	client := NewClient("token", server.URL, "1.0")
+
+	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
+
+	assert.Nil(t, resp)
+	assert.EqualError(t, err, ErrNotAuthorized.Error())
+***REMOVED***
