@@ -230,7 +230,7 @@ func splitCollectorString(s string) (string, string) ***REMOVED***
 ***REMOVED***
 
 func makeCollector(s string, src *lib.SourceData, opts lib.Options, version string) (lib.Collector, error) ***REMOVED***
-        t, p := splitCollectorString(s)
+	t, p := splitCollectorString(s)
 	switch t ***REMOVED***
 	case "influxdb":
 		return influxdb.New(p, opts)
