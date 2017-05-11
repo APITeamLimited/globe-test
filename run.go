@@ -121,7 +121,7 @@ var commandRun = cli.Command***REMOVED***
 			Usage: "don't reuse connections between VU iterations",
 		***REMOVED***,
 		cli.BoolFlag***REMOVED***
-			Name:  "throw, t",
+			Name:  "throw, w",
 			Usage: "throw errors on failed requests",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
