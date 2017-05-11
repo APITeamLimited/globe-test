@@ -87,6 +87,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 	state := &common.State***REMOVED***
 		Options: lib.Options***REMOVED***
 			MaxRedirects: null.IntFrom(10),
+			UserAgent:    null.StringFrom("TestUserAgent"),
 		***REMOVED***,
 		Group: root,
 		HTTPTransport: &http.Transport***REMOVED***
@@ -132,6 +133,27 @@ func TestRequest(t *testing.T) ***REMOVED***
 			endTime := time.Now()
 			assert.EqualError(t, err, "GoError: Get https://httpbin.org/delay/10: net/http: request canceled (Client.Timeout exceeded while awaiting headers)")
 			assert.WithinDuration(t, startTime.Add(1*time.Second), endTime, 1*time.Second)
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("UserAgent", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+			let res = http.get("http://httpbin.org/user-agent");
+			if (res.json()['user-agent'] != "TestUserAgent") ***REMOVED***
+				throw new Error("incorrect user agent: " + res.json()['user-agent'])
+			***REMOVED***
+		`)
+		assert.NoError(t, err)
+
+		t.Run("Override", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("http://httpbin.org/user-agent", ***REMOVED***
+					headers: ***REMOVED*** "User-Agent": "OtherUserAgent" ***REMOVED***,
+				***REMOVED***);
+				if (res.json()['user-agent'] != "OtherUserAgent") ***REMOVED***
+					throw new Error("incorrect user agent: " + res.json()['user-agent'])
+				***REMOVED***
+			`)
+			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)
 
