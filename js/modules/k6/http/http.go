@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
@@ -118,6 +119,7 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 		"url":    url,
 		"group":  state.Group.Path,
 	***REMOVED***
+	timeout := 60 * time.Second
 
 	if len(args) > 1 ***REMOVED***
 		paramsV := args[1]
@@ -149,6 +151,8 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 					for _, key := range tagObj.Keys() ***REMOVED***
 						tags[key] = tagObj.Get(key).String()
 					***REMOVED***
+				case "timeout":
+					timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -156,6 +160,7 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 
 	client := http.Client***REMOVED***
 		Transport: state.HTTPTransport,
+		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			max := int(state.Options.MaxRedirects.Int64)
 			if len(via) >= max ***REMOVED***
