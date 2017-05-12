@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -34,7 +35,10 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const TestName = "k6 test"
+const (
+	TestName          = "k6 test"
+	MetricPushinteral = 1 * time.Second
+)
 
 type loadimpactConfig struct ***REMOVED***
 	ProjectId int    `mapstructure:"project_id"`
@@ -52,6 +56,9 @@ type Collector struct ***REMOVED***
 	duration   int64
 	thresholds map[string][]*stats.Threshold
 	client     *Client
+
+	sampleBuffer []*sample
+	sampleMu     sync.Mutex
 ***REMOVED***
 
 // New creates a new cloud collector
@@ -142,26 +149,16 @@ func (c *Collector) String() string ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	<-ctx.Done()
+	timer := time.NewTicker(MetricPushinteral)
 
-	testTainted := false
-	thresholdResults := make(ThresholdResult)
-	for name, thresholds := range c.thresholds ***REMOVED***
-		thresholdResults[name] = make(map[string]bool)
-		for _, t := range thresholds ***REMOVED***
-			thresholdResults[name][t.Source] = t.Failed
-			if t.Failed ***REMOVED***
-				testTainted = true
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	if c.referenceID != "" ***REMOVED***
-		err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
-		if err != nil ***REMOVED***
-			log.WithFields(log.Fields***REMOVED***
-				"error": err,
-			***REMOVED***).Warn("Failed to send test finished to cloud")
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-timer.C:
+			c.pushMetrics()
+		case <-ctx.Done():
+			c.pushMetrics()
+			c.testFinished()
+			return
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -187,13 +184,61 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	***REMOVED***
 
 	if len(cloudSamples) > 0 ***REMOVED***
-		err := c.client.PushMetric(c.referenceID, cloudSamples)
-		if err != nil ***REMOVED***
-			log.WithFields(log.Fields***REMOVED***
-				"error":   err,
-				"samples": cloudSamples,
-			***REMOVED***).Warn("Failed to send metrics to cloud")
+		c.sampleMu.Lock()
+		c.sampleBuffer = append(c.sampleBuffer, cloudSamples...)
+		c.sampleMu.Unlock()
+	***REMOVED***
+***REMOVED***
+
+func (c *Collector) pushMetrics() ***REMOVED***
+	c.sampleMu.Lock()
+	if len(c.sampleBuffer) == 0 ***REMOVED***
+		c.sampleMu.Unlock()
+		return
+	***REMOVED***
+	buffer := c.sampleBuffer
+	c.sampleBuffer = nil
+	c.sampleMu.Unlock()
+
+	log.WithFields(log.Fields***REMOVED***
+		"samples": len(buffer),
+	***REMOVED***).Debug("Pushing metrics to cloud")
+
+	err := c.client.PushMetric(c.referenceID, buffer)
+	if err != nil ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"error": err,
+		***REMOVED***).Warn("Failed to send metrics to cloud")
+	***REMOVED***
+***REMOVED***
+
+func (c *Collector) testFinished() ***REMOVED***
+	if c.referenceID == "" ***REMOVED***
+		return
+	***REMOVED***
+
+	testTainted := false
+	thresholdResults := make(ThresholdResult)
+	for name, thresholds := range c.thresholds ***REMOVED***
+		thresholdResults[name] = make(map[string]bool)
+		for _, t := range thresholds ***REMOVED***
+			thresholdResults[name][t.Source] = t.Failed
+			if t.Failed ***REMOVED***
+				testTainted = true
+			***REMOVED***
 		***REMOVED***
+	***REMOVED***
+
+	log.WithFields(log.Fields***REMOVED***
+		"ref":     c.referenceID,
+		"tainted": testTainted,
+	***REMOVED***).Debug("Sending test finished")
+
+	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
+	if err != nil ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"error": err,
+		***REMOVED***).Warn("Failed to send test finished to cloud")
 	***REMOVED***
 ***REMOVED***
 
