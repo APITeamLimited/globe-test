@@ -64,81 +64,88 @@ const (
 
 var urlRegex = regexp.MustCompile(`(?i)^https?://`)
 
+var optionFlags = []cli.Flag***REMOVED***
+	cli.Int64Flag***REMOVED***
+		Name:  "vus, u",
+		Usage: "virtual users to simulate",
+		Value: 1,
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "max, m",
+		Usage: "max number of virtual users, if more than --vus",
+	***REMOVED***,
+	cli.DurationFlag***REMOVED***
+		Name:  "duration, d",
+		Usage: "test duration, 0 to run until cancelled",
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "iterations, i",
+		Usage: "run a set number of iterations, multiplied by VU count",
+	***REMOVED***,
+	cli.StringSliceFlag***REMOVED***
+		Name:  "stage, s",
+		Usage: "define a test stage, in the format time[:vus] (10s:100)",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "paused, p",
+		Usage: "start test in a paused state",
+	***REMOVED***,
+	cli.StringFlag***REMOVED***
+		Name:  "type, t",
+		Usage: "input type, one of: auto, url, js",
+		Value: "auto",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "linger, l",
+		Usage: "linger after test completion",
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "max-redirects",
+		Usage: "follow at most n redirects",
+		Value: 10,
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "insecure-skip-tls-verify",
+		Usage: "INSECURE: skip verification of TLS certificates",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "no-connection-reuse",
+		Usage: "don't reuse connections between VU iterations",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "throw, w",
+		Usage: "throw errors on failed requests",
+	***REMOVED***,
+	cli.StringSliceFlag***REMOVED***
+		Name:  "config, c",
+		Usage: "read additional config files",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:   "no-usage-report",
+		Usage:  "don't send heartbeat to k6 project on test execution",
+		EnvVar: "K6_NO_USAGE_REPORT",
+	***REMOVED***,
+***REMOVED***
+
 var commandRun = cli.Command***REMOVED***
 	Name:      "run",
 	Usage:     "Starts running a load test",
 	ArgsUsage: "url|filename",
-	Flags: []cli.Flag***REMOVED***
+	Flags: append(optionFlags,
 		cli.BoolFlag***REMOVED***
 			Name:  "quiet, q",
 			Usage: "hide the progress bar",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "vus, u",
-			Usage: "virtual users to simulate",
-			Value: 1,
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "max, m",
-			Usage: "max number of virtual users, if more than --vus",
-		***REMOVED***,
-		cli.DurationFlag***REMOVED***
-			Name:  "duration, d",
-			Usage: "test duration, 0 to run until cancelled",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "iterations, i",
-			Usage: "run a set number of iterations, multiplied by VU count",
-		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "stage, s",
-			Usage: "define a test stage, in the format time[:vus] (10s:100)",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "paused, p",
-			Usage: "start test in a paused state",
-		***REMOVED***,
-		cli.StringFlag***REMOVED***
-			Name:  "type, t",
-			Usage: "input type, one of: auto, url, js",
-			Value: "auto",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "linger, l",
-			Usage: "linger after test completion",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "max-redirects",
-			Usage: "follow at most n redirects",
-			Value: 10,
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "insecure-skip-tls-verify",
-			Usage: "INSECURE: skip verification of TLS certificates",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "no-connection-reuse",
-			Usage: "don't reuse connections between VU iterations",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "throw, w",
-			Usage: "throw errors on failed requests",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:   "out, o",
 			Usage:  "output metrics to an external data store (format: type=uri)",
 			EnvVar: "K6_OUT",
 		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "config, c",
-			Usage: "read additional config files",
+		cli.StringFlag***REMOVED***
+			Name:  "archive, a",
+			Usage: "Run an archive",
 		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:   "no-usage-report",
-			Usage:  "don't send heartbeat to k6 project on test execution",
-			EnvVar: "K6_NO_USAGE_REPORT",
-		***REMOVED***,
-	***REMOVED***,
+	),
 	Action: actionRun,
 	Description: `Run starts a load test.
 
@@ -154,6 +161,23 @@ var commandRun = cli.Command***REMOVED***
    duration) to 'run', which will be applied through a normal API call.`,
 ***REMOVED***
 
+var commandArchive = cli.Command***REMOVED***
+	Name:      "archive",
+	Usage:     "Archives a test configuration",
+	ArgsUsage: "url|filename",
+	Flags: append(optionFlags,
+		cli.StringFlag***REMOVED***
+			Name:  "archive, a",
+			Usage: "Filename for the archive",
+			Value: "archive.tar",
+		***REMOVED***,
+	),
+	Action: actionArchive,
+	Description: `
+
+	`,
+***REMOVED***
+
 var commandInspect = cli.Command***REMOVED***
 	Name:      "inspect",
 	Aliases:   []string***REMOVED***"i"***REMOVED***,
@@ -164,10 +188,6 @@ var commandInspect = cli.Command***REMOVED***
 			Name:  "type, t",
 			Usage: "input type, one of: auto, url, js",
 			Value: "auto",
-		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "config, c",
-			Usage: "read additional config files",
 		***REMOVED***,
 	***REMOVED***,
 	Action: actionInspect,
@@ -247,6 +267,48 @@ func makeCollector(s string, src *lib.SourceData, opts lib.Options, version stri
 	***REMOVED***
 ***REMOVED***
 
+func getOptions(cc *cli.Context) (lib.Options, error) ***REMOVED***
+	opts := lib.Options***REMOVED***
+		Paused:                cliBool(cc, "paused"),
+		VUs:                   cliInt64(cc, "vus"),
+		VUsMax:                cliInt64(cc, "max"),
+		Duration:              cliDuration(cc, "duration"),
+		Iterations:            cliInt64(cc, "iterations"),
+		Linger:                cliBool(cc, "linger"),
+		MaxRedirects:          cliInt64(cc, "max-redirects"),
+		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
+		NoConnectionReuse:     cliBool(cc, "no-connection-reuse"),
+		Throw:                 cliBool(cc, "throw"),
+		NoUsageReport:         cliBool(cc, "no-usage-report"),
+	***REMOVED***
+	for _, s := range cc.StringSlice("stage") ***REMOVED***
+		stage, err := ParseStage(s)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Invalid stage specified")
+			return opts, err
+		***REMOVED***
+		opts.Stages = append(opts.Stages, stage)
+	***REMOVED***
+	return opts, nil
+***REMOVED***
+
+func readConfigFiles(cc *cli.Context, fs afero.Fs) (lib.Options, error) ***REMOVED***
+	var opts lib.Options
+	for _, filename := range cc.StringSlice("config") ***REMOVED***
+		data, err := afero.ReadFile(fs, filename)
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+
+		var configOpts lib.Options
+		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		opts = opts.Apply(configOpts)
+	***REMOVED***
+	return opts, nil
+***REMOVED***
+
 func actionRun(cc *cli.Context) error ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 
@@ -264,26 +326,9 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
 	quiet := cc.Bool("quiet")
-	cliOpts := lib.Options***REMOVED***
-		Paused:                cliBool(cc, "paused"),
-		VUs:                   cliInt64(cc, "vus"),
-		VUsMax:                cliInt64(cc, "max"),
-		Duration:              cliDuration(cc, "duration"),
-		Iterations:            cliInt64(cc, "iterations"),
-		Linger:                cliBool(cc, "linger"),
-		MaxRedirects:          cliInt64(cc, "max-redirects"),
-		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
-		NoConnectionReuse:     cliBool(cc, "no-connection-reuse"),
-		Throw:                 cliBool(cc, "throw"),
-		NoUsageReport:         cliBool(cc, "no-usage-report"),
-	***REMOVED***
-	for _, s := range cc.StringSlice("stage") ***REMOVED***
-		stage, err := ParseStage(s)
-		if err != nil ***REMOVED***
-			log.WithError(err).Error("Invalid stage specified")
-			return err
-		***REMOVED***
-		cliOpts.Stages = append(cliOpts.Stages, stage)
+	cliOpts, err := getOptions(cc)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
 	***REMOVED***
 	opts := cliOpts
 
@@ -311,18 +356,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	opts = opts.Apply(runner.GetOptions())
 
 	// Read config files.
-	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
-		if err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-
-		var configOpts lib.Options
-		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-		opts = opts.Apply(configOpts)
+	fileOpts, err := readConfigFiles(cc, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
 	***REMOVED***
+	opts = opts.Apply(fileOpts)
 
 	// CLI options override everything.
 	opts = opts.Apply(cliOpts)
@@ -625,6 +663,46 @@ loop:
 	return nil
 ***REMOVED***
 
+func actionArchive(cc *cli.Context) error ***REMOVED***
+	args := cc.Args()
+	if len(args) != 1 ***REMOVED***
+		return cli.NewExitError("Wrong number of arguments!", 1)
+	***REMOVED***
+	arg := args[0]
+
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
+	fs := afero.NewOsFs()
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	runnerType := cc.String("type")
+	if runnerType == TypeAuto ***REMOVED***
+		runnerType = guessType(src.Data)
+	***REMOVED***
+
+	r, err := makeRunner(runnerType, src, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
+	f, err := os.Create(cc.String("archive"))
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	defer func() ***REMOVED*** _ = f.Close() ***REMOVED***()
+
+	arc := r.MakeArchive()
+	if err := arc.Write(f); err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func actionInspect(cc *cli.Context) error ***REMOVED***
 	args := cc.Args()
 	if len(args) != 1 ***REMOVED***
@@ -656,19 +734,6 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 		opts = opts.Apply(r.Options)
-	***REMOVED***
-
-	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
-		if err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-
-		var configOpts lib.Options
-		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-		opts = opts.Apply(configOpts)
 	***REMOVED***
 
 	return dumpYAML(opts)

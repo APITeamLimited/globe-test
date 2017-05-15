@@ -44,6 +44,7 @@ func main() ***REMOVED***
 	app.Commands = []cli.Command***REMOVED***
 		commandRun,
 		commandInspect,
+		commandArchive,
 		commandStatus,
 		commandStats,
 		commandScale,
