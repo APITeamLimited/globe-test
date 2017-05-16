@@ -35,6 +35,8 @@ type groupDummyRunner struct ***REMOVED***
 	Group *lib.Group
 ***REMOVED***
 
+func (r groupDummyRunner) MakeArchive() *lib.Archive ***REMOVED*** return nil ***REMOVED***
+
 func (r groupDummyRunner) NewVU() (lib.VU, error) ***REMOVED*** return nil, nil ***REMOVED***
 
 func (r groupDummyRunner) GetDefaultGroup() *lib.Group ***REMOVED*** return r.Group ***REMOVED***

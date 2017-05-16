@@ -31,6 +31,9 @@ var _ Runner = RunnerFunc(nil)
 
 // A Runner is a factory for VUs.
 type Runner interface ***REMOVED***
+	// Archives the runner; an archive can be restored anywhere else to create a perfect clone.
+	MakeArchive() *Archive
+
 	// Creates a new VU. As much as possible should be precomputed here, to allow a pool
 	// of prepared VUs to be used to quickly scale up and down.
 	NewVU() (VU, error)
@@ -61,6 +64,10 @@ type RunnerFunc func(ctx context.Context) ([]stats.Sample, error)
 
 func (fn RunnerFunc) VU() *RunnerFuncVU ***REMOVED***
 	return &RunnerFuncVU***REMOVED***Fn: fn***REMOVED***
+***REMOVED***
+
+func (fn RunnerFunc) MakeArchive() *Archive ***REMOVED***
+	return nil
 ***REMOVED***
 
 func (fn RunnerFunc) NewVU() (VU, error) ***REMOVED***

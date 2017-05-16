@@ -38,6 +38,7 @@ import (
 // You can use this to produce identical BundleInstance objects.
 type Bundle struct ***REMOVED***
 	Filename string
+	Source   string
 	Program  *goja.Program
 	Options  lib.Options
 
@@ -74,6 +75,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	rt := goja.New()
 	bundle := Bundle***REMOVED***
 		Filename:        src.Filename,
+		Source:          code,
 		Program:         pgm,
 		BaseInitContext: NewInitContext(rt, new(context.Context), fs, loader.Dir(src.Filename)),
 	***REMOVED***
@@ -113,6 +115,54 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	// bundle.InitContext.fs = mirrorFS
 
 	return &bundle, nil
+***REMOVED***
+
+func NewBundleFromArchive(arc *lib.Archive) (*Bundle, error) ***REMOVED***
+	if arc.Type != "js" ***REMOVED***
+		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
+	***REMOVED***
+
+	pgm, err := goja.Compile(arc.Filename, string(arc.Data), true)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	initctx := NewInitContext(goja.New(), new(context.Context), nil, arc.Pwd)
+	for filename, data := range arc.Scripts ***REMOVED***
+		src := string(data)
+		scr, err := goja.Compile(filename, src, true)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		initctx.programs[filename] = programWithSource***REMOVED***scr, src***REMOVED***
+	***REMOVED***
+	initctx.files = arc.Files
+
+	return &Bundle***REMOVED***
+		Filename:        arc.Filename,
+		Source:          string(arc.Data),
+		Program:         pgm,
+		Options:         arc.Options,
+		BaseInitContext: initctx,
+	***REMOVED***, nil
+***REMOVED***
+
+func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
+	arc := &lib.Archive***REMOVED***
+		Type:     "js",
+		Options:  b.Options,
+		Filename: b.Filename,
+		Data:     []byte(b.Source),
+		Pwd:      b.BaseInitContext.pwd,
+	***REMOVED***
+
+	arc.Scripts = make(map[string][]byte, len(b.BaseInitContext.programs))
+	for name, pgm := range b.BaseInitContext.programs ***REMOVED***
+		arc.Scripts[name] = []byte(pgm.src)
+	***REMOVED***
+	arc.Files = b.BaseInitContext.files
+
+	return arc
 ***REMOVED***
 
 // Instantiates a new runtime from this bundle.

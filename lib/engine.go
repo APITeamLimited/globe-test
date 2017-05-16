@@ -110,6 +110,14 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	***REMOVED***
 	e.clearSubcontext()
 
+	if err := e.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if err := e.SetVUs(o.VUs.Int64); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	e.SetPaused(o.Paused.Bool)
+
 	if o.Stages != nil ***REMOVED***
 		e.Stages = o.Stages
 	***REMOVED*** else if o.Duration.Valid ***REMOVED***
@@ -121,30 +129,16 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		e.Stages = []Stage***REMOVED******REMOVED***Duration: 0***REMOVED******REMOVED***
 	***REMOVED***
-	if o.VUsMax.Valid ***REMOVED***
-		if err := e.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-	if o.VUs.Valid ***REMOVED***
-		if err := e.SetVUs(o.VUs.Int64); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-	if o.Paused.Valid ***REMOVED***
-		e.SetPaused(o.Paused.Bool)
-	***REMOVED***
-	if o.Thresholds != nil ***REMOVED***
-		e.thresholds = o.Thresholds
-		e.submetrics = make(map[string][]stats.Submetric)
-		for name := range e.thresholds ***REMOVED***
-			if !strings.Contains(name, "***REMOVED***") ***REMOVED***
-				continue
-			***REMOVED***
 
-			parent, sm := stats.NewSubmetric(name)
-			e.submetrics[parent] = append(e.submetrics[parent], sm)
+	e.thresholds = o.Thresholds
+	e.submetrics = make(map[string][]stats.Submetric)
+	for name := range e.thresholds ***REMOVED***
+		if !strings.Contains(name, "***REMOVED***") ***REMOVED***
+			continue
 		***REMOVED***
+
+		parent, sm := stats.NewSubmetric(name)
+		e.submetrics[parent] = append(e.submetrics[parent], sm)
 	***REMOVED***
 
 	return e, nil
