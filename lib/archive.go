@@ -24,6 +24,7 @@ import (
 	"archive/tar"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -53,7 +54,10 @@ type Archive struct ***REMOVED***
 
 func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 	r := tar.NewReader(in)
-	arc := &Archive***REMOVED******REMOVED***
+	arc := &Archive***REMOVED***
+		Scripts: make(map[string][]byte),
+		Files:   make(map[string][]byte),
+	***REMOVED***
 
 	for ***REMOVED***
 		hdr, err := r.Next()
@@ -63,16 +67,49 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 			***REMOVED***
 			return nil, err
 		***REMOVED***
+		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeRegA ***REMOVED***
+			continue
+		***REMOVED***
 
-		switch ***REMOVED***
-		case hdr.Name == "metadata.json":
-			if err := json.NewDecoder(r).Decode(&arc); err != nil ***REMOVED***
+		data, err := ioutil.ReadAll(r)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+
+		switch hdr.Name ***REMOVED***
+		case "metadata.json":
+			if err := json.Unmarshal(data, &arc); err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+			continue
+		case "data":
+			arc.Data = data
 		***REMOVED***
+
+		idx := strings.IndexRune(hdr.Name, '/')
+		if idx == -1 ***REMOVED***
+			continue
+		***REMOVED***
+		pfx := hdr.Name[:idx]
+		name := hdr.Name[idx+1:]
+		if name != "" && name[0] == '_' ***REMOVED***
+			name = name[1:]
+		***REMOVED***
+
+		var dst map[string][]byte
+		switch pfx ***REMOVED***
+		case "files":
+			dst = arc.Files
+		case "scripts":
+			dst = arc.Scripts
+		default:
+			continue
+		***REMOVED***
+
+		dst[name] = data
 	***REMOVED***
 
-	return nil, nil
+	return arc, nil
 ***REMOVED***
 
 func (arc *Archive) Write(out io.Writer) error ***REMOVED***
