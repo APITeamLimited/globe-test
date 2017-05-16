@@ -27,10 +27,18 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
+
+var homeDirRE = regexp.MustCompile(`^/(Users|home|Documents and Settings)/(?:[^/]+)`)
+
+// Archives should be share-able; to that end, paths including home directories should be anonymized.
+func AnonymizePath(path string) string ***REMOVED***
+	return homeDirRE.ReplaceAllString(path, `/$1/nobody`)
+***REMOVED***
 
 // An Archive is a rollup of all resources and options needed to reproduce a test identically elsewhere.
 type Archive struct ***REMOVED***
@@ -116,7 +124,10 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	w := tar.NewWriter(out)
 	t := time.Now()
 
-	metadata, err := json.MarshalIndent(arc, "", "  ")
+	metaArc := *arc
+	metaArc.Filename = AnonymizePath(metaArc.Filename)
+	metaArc.Pwd = AnonymizePath(metaArc.Pwd)
+	metadata, err := json.MarshalIndent(metaArc, "", "  ")
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -162,9 +173,14 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		//   Figure out which directories are in use here.
 		// - We want archives to be comparable by hash, which means the entries need to be written
 		//   in the same order every time. Go maps are shuffled, so we need to sort lists of keys.
+		// - We don't want to leak private information (eg. usernames) in archives, so make sure to
+		//   anonymize paths before stuffing them in a shareable archive.
 		foundDirs := make(map[string]bool)
 		paths := make([]string, 0, len(entry.files))
-		for path := range entry.files ***REMOVED***
+		files := make(map[string][]byte, len(entry.files))
+		for path, data := range entry.files ***REMOVED***
+			path = AnonymizePath(path)
+			files[path] = data
 			paths = append(paths, path)
 			dir := filepath.Dir(path)
 			for ***REMOVED***
@@ -196,7 +212,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		***REMOVED***
 
 		for _, path := range paths ***REMOVED***
-			data := entry.files[path]
+			data := files[path]
 			if path[0] == '/' ***REMOVED***
 				path = "_" + path
 			***REMOVED***
