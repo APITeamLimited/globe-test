@@ -120,7 +120,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	w.WriteHeader(&tar.Header***REMOVED***
+	_ = w.WriteHeader(&tar.Header***REMOVED***
 		Name:     "metadata.json",
 		Mode:     0644,
 		Size:     int64(len(metadata)),
@@ -131,7 +131,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	w.WriteHeader(&tar.Header***REMOVED***
+	_ = w.WriteHeader(&tar.Header***REMOVED***
 		Name:     "data",
 		Mode:     0644,
 		Size:     int64(len(arc.Data)),
@@ -150,7 +150,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		***REMOVED***"files", arc.Files***REMOVED***,
 	***REMOVED***
 	for _, entry := range arcfs ***REMOVED***
-		w.WriteHeader(&tar.Header***REMOVED***
+		_ = w.WriteHeader(&tar.Header***REMOVED***
 			Name:     entry.name,
 			Mode:     0755,
 			ModTime:  t,
@@ -187,7 +187,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 			if dirpath == "" || dirpath[0] == '/' ***REMOVED***
 				dirpath = "_" + dirpath
 			***REMOVED***
-			w.WriteHeader(&tar.Header***REMOVED***
+			_ = w.WriteHeader(&tar.Header***REMOVED***
 				Name:     filepath.Clean(entry.name + "/" + dirpath),
 				Mode:     0755,
 				ModTime:  t,
@@ -200,7 +200,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 			if path[0] == '/' ***REMOVED***
 				path = "_" + path
 			***REMOVED***
-			w.WriteHeader(&tar.Header***REMOVED***
+			_ = w.WriteHeader(&tar.Header***REMOVED***
 				Name:     filepath.Clean(entry.name + "/" + path),
 				Mode:     0644,
 				Size:     int64(len(data)),
