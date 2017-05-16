@@ -111,19 +111,3 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	return o
 ***REMOVED***
-
-func (o Options) SetAllValid(valid bool) Options ***REMOVED***
-	o.Paused.Valid = valid
-	o.VUs.Valid = valid
-	o.VUsMax.Valid = valid
-	o.Duration.Valid = valid
-	o.Iterations.Valid = valid
-	o.Linger.Valid = valid
-	o.NoUsageReport.Valid = valid
-	o.MaxRedirects.Valid = valid
-	o.InsecureSkipTLSVerify.Valid = valid
-	o.NoConnectionReuse.Valid = valid
-	o.UserAgent.Valid = valid
-	o.Throw.Valid = valid
-	return o
-***REMOVED***

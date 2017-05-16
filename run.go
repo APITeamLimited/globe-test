@@ -292,6 +292,27 @@ func getOptions(cc *cli.Context) (lib.Options, error) ***REMOVED***
 	return opts, nil
 ***REMOVED***
 
+func finalizeOptions(opts lib.Options) lib.Options ***REMOVED***
+	// If VUsMax is unspecified, default to either VUs or the highest Stage Target.
+	if !opts.VUsMax.Valid ***REMOVED***
+		opts.VUsMax.Int64 = opts.VUs.Int64
+		if len(opts.Stages) > 0 ***REMOVED***
+			for _, stage := range opts.Stages ***REMOVED***
+				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
+					opts.VUsMax = stage.Target
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	// Default to 1 iteration if duration and stages are unspecified.
+	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
+		opts.Iterations = null.IntFrom(1)
+	***REMOVED***
+
+	return opts
+***REMOVED***
+
 func readConfigFiles(cc *cli.Context, fs afero.Fs) (lib.Options, error) ***REMOVED***
 	var opts lib.Options
 	for _, filename := range cc.StringSlice("config") ***REMOVED***
@@ -353,39 +374,15 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		***REMOVED***
 		return err
 	***REMOVED***
-	opts = opts.Apply(runner.GetOptions())
 
 	// Read config files.
 	fileOpts, err := readConfigFiles(cc, fs)
 	if err != nil ***REMOVED***
 		return cli.NewExitError(err, 1)
 	***REMOVED***
-	opts = opts.Apply(fileOpts)
 
-	// CLI options override everything.
-	opts = opts.Apply(cliOpts)
-
-	// Default to 1 iteration if duration and stages are unspecified.
-	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
-		opts.Iterations = null.IntFrom(1)
-	***REMOVED***
-
-	// Apply defaults.
-	opts = opts.SetAllValid(true)
-
-	// Make sure VUsMax defaults to VUs if not specified.
-	if opts.VUsMax.Int64 == 0 ***REMOVED***
-		opts.VUsMax.Int64 = opts.VUs.Int64
-		if len(opts.Stages) > 0 ***REMOVED***
-			for _, stage := range opts.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
-					opts.VUsMax = stage.Target
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	// Update the runner's options.
+	// Combine options in order, apply the final results.
+	opts = finalizeOptions(opts.Apply(runner.GetOptions()).Apply(fileOpts).Apply(cliOpts))
 	runner.ApplyOptions(opts)
 
 	// Make the metric collector, if requested.
@@ -675,6 +672,12 @@ func actionArchive(cc *cli.Context) error ***REMOVED***
 		pwd = "/"
 	***REMOVED***
 
+	cliOpts, err := getOptions(cc)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	opts := cliOpts
+
 	fs := afero.NewOsFs()
 	src, err := getSrcData(arg, pwd, os.Stdin, fs)
 	if err != nil ***REMOVED***
@@ -689,6 +692,14 @@ func actionArchive(cc *cli.Context) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return cli.NewExitError(err, 1)
 	***REMOVED***
+
+	fileOpts, err := readConfigFiles(cc, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
+	opts = finalizeOptions(opts.Apply(r.GetOptions()).Apply(fileOpts).Apply(cliOpts))
+	r.ApplyOptions(opts)
 
 	f, err := os.Create(cc.String("archive"))
 	if err != nil ***REMOVED***
