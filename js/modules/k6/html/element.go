@@ -192,7 +192,7 @@ func (e Element) Children() []goja.Value ***REMOVED***
 	return elemList(e.sel.Children())
 ***REMOVED***
 
-func (e Element) childElementCount() int ***REMOVED***
+func (e Element) ChildElementCount() int ***REMOVED***
 	return e.sel.Children().Size()
 ***REMOVED***
 
