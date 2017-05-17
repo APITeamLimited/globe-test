@@ -221,7 +221,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 
 	t.Run("Each", func(t *testing.T) ***REMOVED***
 		t.Run("Func arg", func(t *testing.T) ***REMOVED***
-			v, err := common.RunString(rt, `***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, gqval) ***REMOVED*** elems[idx] = gqval.text() ***REMOVED***); elems ***REMOVED***`)
+			v, err := common.RunString(rt, `***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, elem) ***REMOVED*** elems[idx] = elem.innerHTML; ***REMOVED***); elems ***REMOVED***`)
 			if assert.NoError(t, err) ***REMOVED***
 				var elems []string
 				rt.ExportTo(v, &elems)
@@ -652,30 +652,29 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 	t.Run("Get", func(t *testing.T) ***REMOVED***
 		t.Run("No args", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("body").children().get()`)
+			// 			fmt.Println(fmt.Sprintf("type is: %T\n", v.Export()))
 			if assert.NoError(t, err) ***REMOVED***
-				arr := v.Export().([]Selection)
-				assert.Equal(t, 5, len(arr))
-				assert.True(t, arr[0].sel.Is("h1"))
-				assert.True(t, arr[1].sel.Is("p"))
-				assert.True(t, arr[4].sel.Is("footer"))
+				elems := valToElementList(v)
+
+				assert.Equal(t, "h1", elems[0].NodeName())
+				assert.Equal(t, "p", elems[1].NodeName())
+				assert.Equal(t, "footer", elems[4].NodeName())
 			***REMOVED***
 		***REMOVED***)
 
 		t.Run("+ve index", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("body").children().get(1)`)
 			if assert.NoError(t, err) ***REMOVED***
-				sel := v.Export().(Selection).sel
-				assert.True(t, sel.Is("p"))
-				assert.Contains(t, sel.Text(), "Lorem ipsum dolor sit amet")
+				elem, _ := valToElement(v)
+				assert.Contains(t, elem.InnerHTML(), "Lorem ipsum dolor sit amet")
 			***REMOVED***
 		***REMOVED***)
 
 		t.Run("-ve index", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("body").children().get(-1)`)
 			if assert.NoError(t, err) ***REMOVED***
-				sel := v.Export().(Selection).sel
-				assert.Equal(t, 1, sel.Length())
-				assert.True(t, sel.Is("footer"))
+				elem, _ := valToElement(v)
+				assert.Equal(t, "This is the footer.", elem.InnerHTML().String())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
