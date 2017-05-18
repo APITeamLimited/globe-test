@@ -102,6 +102,7 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
 		HTTPTransport: &http.Transport***REMOVED***
+			Proxy: http.ProxyFromEnvironment,
 			TLSClientConfig: &tls.Config***REMOVED***
 				InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
 			***REMOVED***,
