@@ -191,6 +191,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
+	r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive())
 	if !assert.NoError(t, err) ***REMOVED***
@@ -214,6 +215,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 				state := common.GetState(*vu.Context)
 				if assert.NotNil(t, state) ***REMOVED***
 					assert.Equal(t, null.IntFrom(10), state.Options.VUs)
+					assert.Equal(t, null.BoolFrom(true), state.Options.Throw)
 					assert.NotNil(t, state.Logger)
 					assert.Equal(t, r.GetDefaultGroup(), state.Group)
 					assert.Equal(t, vu.HTTPTransport, state.HTTPTransport)
