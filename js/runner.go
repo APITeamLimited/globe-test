@@ -22,6 +22,7 @@ package js
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"time"
@@ -100,8 +101,13 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	vu := &VU***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
-		HTTPTransport:  &http.Transport***REMOVED***DialContext: r.Dialer.DialContext***REMOVED***,
-		VUContext:      NewVUContext(),
+		HTTPTransport: &http.Transport***REMOVED***
+			TLSClientConfig: &tls.Config***REMOVED***
+				InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
+			***REMOVED***,
+			DialContext: r.Dialer.DialContext,
+		***REMOVED***,
+		VUContext: NewVUContext(),
 	***REMOVED***
 	common.BindToGlobal(vu.Runtime, common.Bind(vu.Runtime, vu.VUContext, vu.Context))
 

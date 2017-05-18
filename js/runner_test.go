@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	logtest "github.com/Sirupsen/logrus/hooks/test"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
@@ -358,6 +359,65 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 				assert.Equal(t, 5.0, samples[0].Value)
 				assert.Equal(t, "my_metric", samples[0].Metric.Name)
 				assert.Equal(t, stats.Trend, samples[0].Metric.Type)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		opts   lib.Options
+		errMsg string
+	***REMOVED******REMOVED***
+		"Null": ***REMOVED***
+			lib.Options***REMOVED******REMOVED***,
+			"GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid",
+		***REMOVED***,
+		"False": ***REMOVED***
+			lib.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(false)***REMOVED***,
+			"GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid",
+		***REMOVED***,
+		"True": ***REMOVED***
+			lib.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***,
+			"",
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			r1, err := New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data: []byte(`
+					import http from "k6/http";
+					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
+				`),
+			***REMOVED***, afero.NewMemMapFs())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+			r1.ApplyOptions(data.opts)
+
+			r2, err := NewFromArchive(r1.MakeArchive())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+
+			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+			for name, r := range runners ***REMOVED***
+				t.Run(name, func(t *testing.T) ***REMOVED***
+					r.Logger, _ = logtest.NewNullLogger()
+
+					vu, err := r.NewVU()
+					if !assert.NoError(t, err) ***REMOVED***
+						return
+					***REMOVED***
+					_, err = vu.RunOnce(context.Background())
+					if data.errMsg != "" ***REMOVED***
+						assert.EqualError(t, err, data.errMsg)
+					***REMOVED*** else ***REMOVED***
+						assert.NoError(t, err)
+					***REMOVED***
+				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
