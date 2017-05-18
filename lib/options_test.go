@@ -61,6 +61,12 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Len(t, opts.Stages, 1)
 		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
 	***REMOVED***)
+	t.Run("Env", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Env: map[string]string***REMOVED***"A": "1"***REMOVED******REMOVED***)
+		assert.Equal(t, opts.Env, map[string]string***REMOVED***"A": "1"***REMOVED***)
+		opts = opts.Apply(Options***REMOVED***Env: map[string]string***REMOVED***"B": "2"***REMOVED******REMOVED***)
+		assert.Equal(t, opts.Env, map[string]string***REMOVED***"A": "1", "B": "2"***REMOVED***)
+	***REMOVED***)
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.Linger.Valid)
