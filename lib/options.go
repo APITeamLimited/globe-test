@@ -47,13 +47,12 @@ func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
-	Paused     null.Bool         `json:"paused"`
-	VUs        null.Int          `json:"vus"`
-	VUsMax     null.Int          `json:"vusMax"`
-	Duration   null.String       `json:"duration"`
-	Iterations null.Int          `json:"iterations"`
-	Stages     []Stage           `json:"stages"`
-	Env        map[string]string `json:"env"`
+	Paused     null.Bool   `json:"paused"`
+	VUs        null.Int    `json:"vus"`
+	VUsMax     null.Int    `json:"vusMax"`
+	Duration   null.String `json:"duration"`
+	Iterations null.Int    `json:"iterations"`
+	Stages     []Stage     `json:"stages"`
 
 	Linger        null.Bool `json:"linger"`
 	NoUsageReport null.Bool `json:"noUsageReport"`
@@ -88,14 +87,6 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.Stages != nil ***REMOVED***
 		o.Stages = opts.Stages
-	***REMOVED***
-	if l := len(opts.Env); l > 0 ***REMOVED***
-		if o.Env == nil ***REMOVED***
-			o.Env = make(map[string]string, l)
-		***REMOVED***
-		for k, v := range opts.Env ***REMOVED***
-			o.Env[k] = v
-		***REMOVED***
 	***REMOVED***
 	if opts.Linger.Valid ***REMOVED***
 		o.Linger = opts.Linger
