@@ -22,6 +22,7 @@ package js
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -480,4 +481,41 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestBundleEnv(t *testing.T) ***REMOVED***
+	assert.NoError(t, os.Setenv("TEST_A", "1"))
+	assert.NoError(t, os.Setenv("TEST_B", ""))
+
+	b1, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export default function() ***REMOVED***
+				if (__ENV.TEST_A !== "1") ***REMOVED*** throw new Error("Invalid TEST_A: " + __ENV.TEST_A); ***REMOVED***
+				if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	b2, err := NewBundleFromArchive(b1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
+	for name, b := range bundles ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			assert.Equal(t, "1", b.Env["TEST_A"])
+			assert.Equal(t, "", b.Env["TEST_B"])
+
+			bi, err := b.Instantiate()
+			if assert.NoError(t, err) ***REMOVED***
+				_, err := bi.Default(goja.Undefined())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

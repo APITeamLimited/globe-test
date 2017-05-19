@@ -89,10 +89,6 @@ var optionFlags = []cli.Flag***REMOVED***
 		Name:  "stage, s",
 		Usage: "define a test stage, in the format time[:vus] (10s:100)",
 	***REMOVED***,
-	cli.StringSliceFlag***REMOVED***
-		Name:  "env, e",
-		Usage: "set an env var (key=val), just key takes val from env",
-	***REMOVED***,
 	cli.BoolFlag***REMOVED***
 		Name:  "paused, p",
 		Usage: "start test in a paused state",
@@ -307,17 +303,6 @@ func getOptions(cc *cli.Context) (lib.Options, error) ***REMOVED***
 			return opts, err
 		***REMOVED***
 		opts.Stages = append(opts.Stages, stage)
-	***REMOVED***
-	if env := cc.StringSlice("env"); len(env) > 0 ***REMOVED***
-		opts.Env = make(map[string]string, len(env))
-		for _, s := range env ***REMOVED***
-			sep := strings.IndexRune(s, '=')
-			if sep != -1 ***REMOVED***
-				opts.Env[s[:sep]] = s[sep+1:]
-			***REMOVED*** else ***REMOVED***
-				fmt.Printf("%s = [%s]", s, opts.Env[s])
-			***REMOVED***
-		***REMOVED***
 	***REMOVED***
 	return opts, nil
 ***REMOVED***

@@ -265,40 +265,6 @@ func TestVURunSamples(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVUEnv(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-		export let options = ***REMOVED*** env: ***REMOVED*** KEY: "value" ***REMOVED*** ***REMOVED***;
-		export default function() ***REMOVED***
-			if (__ENV.KEY !== "value") ***REMOVED*** throw new Error("Invalid __ENV.KEY: " + __ENV.KEY) ***REMOVED***
-		***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs())
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	r2, err := NewFromArchive(r1.MakeArchive())
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			vu, err := r.NewVU()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-			_, err = vu.RunOnce(context.Background())
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",

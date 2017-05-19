@@ -28,14 +28,10 @@ import (
 type VUContext struct ***REMOVED***
 	// Console Object.
 	Console *Console `js:"console"`
-
-	// Environment variables.
-	Env map[string]string `js:"__ENV"`
 ***REMOVED***
 
 func NewVUContext(opts lib.Options) *VUContext ***REMOVED***
 	return &VUContext***REMOVED***
 		Console: NewConsole(),
-		Env:     opts.Env,
 	***REMOVED***
 ***REMOVED***
