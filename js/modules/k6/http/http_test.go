@@ -200,7 +200,9 @@ func TestRequest(t *testing.T) ***REMOVED***
 		defer func() ***REMOVED*** *ctx = oldctx ***REMOVED***()
 
 		_, err := common.RunString(rt, `http.get("https://httpbin.org/get/");`)
-		assert.EqualError(t, err, "GoError: Get https://httpbin.org/get/: context canceled")
+		if assert.Error(t, err) ***REMOVED***
+			assert.Contains(t, err.Error(), "context canceled")
+		***REMOVED***
 		assert.Nil(t, hook.LastEntry())
 	***REMOVED***)
 
