@@ -26,13 +26,15 @@ import (
 	"github.com/loadimpact/k6/js/modules/k6/html"
 	"github.com/loadimpact/k6/js/modules/k6/http"
 	"github.com/loadimpact/k6/js/modules/k6/metrics"
+	"github.com/loadimpact/k6/js/modules/k6/websocket"
 )
 
 // Index of module implementations.
 var Index = map[string]interface***REMOVED******REMOVED******REMOVED***
-	"k6":         &k6.K6***REMOVED******REMOVED***,
-	"k6/crypto":  &crypto.Crypto***REMOVED******REMOVED***,
-	"k6/http":    &http.HTTP***REMOVED******REMOVED***,
-	"k6/metrics": &metrics.Metrics***REMOVED******REMOVED***,
-	"k6/html":    &html.HTML***REMOVED******REMOVED***,
+	"k6":           &k6.K6***REMOVED******REMOVED***,
+	"k6/crypto":    &crypto.Crypto***REMOVED******REMOVED***,
+	"k6/http":      &http.HTTP***REMOVED******REMOVED***,
+	"k6/metrics":   &metrics.Metrics***REMOVED******REMOVED***,
+	"k6/html":      &html.HTML***REMOVED******REMOVED***,
+	"k6/websocket": &websocket.Websocket***REMOVED******REMOVED***,
 ***REMOVED***
