@@ -221,7 +221,13 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 
 	state.Samples = append(state.Samples, trail.Samples(tags)...)
 	if resErr != nil ***REMOVED***
-		state.Logger.WithField("error", resErr).Warn("Request Failed")
+		// Do *not* log errors about the contex being cancelled.
+		select ***REMOVED***
+		case <-ctx.Done():
+		default:
+			state.Logger.WithField("error", resErr).Warn("Request Failed")
+		***REMOVED***
+
 		if throw ***REMOVED***
 			return nil, resErr
 		***REMOVED***

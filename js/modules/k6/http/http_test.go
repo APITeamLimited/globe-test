@@ -107,10 +107,11 @@ func TestRequest(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, &ctx))
+	ctx := new(context.Context)
+	*ctx = context.Background()
+	*ctx = common.WithState(*ctx, state)
+	*ctx = common.WithRuntime(*ctx, rt)
+	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, ctx))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
 		t.Run("9", func(t *testing.T) ***REMOVED***
@@ -187,6 +188,20 @@ func TestRequest(t *testing.T) ***REMOVED***
 	t.Run("BadSSL", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
 		assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
+	***REMOVED***)
+	t.Run("Cancelled", func(t *testing.T) ***REMOVED***
+		hook := logtest.NewLocal(state.Logger)
+		defer hook.Reset()
+
+		oldctx := *ctx
+		newctx, cancel := context.WithCancel(oldctx)
+		cancel()
+		*ctx = newctx
+		defer func() ***REMOVED*** *ctx = oldctx ***REMOVED***()
+
+		_, err := common.RunString(rt, `http.get("https://httpbin.org/get/");`)
+		assert.EqualError(t, err, "GoError: Get https://httpbin.org/get/: context canceled")
+		assert.Nil(t, hook.LastEntry())
 	***REMOVED***)
 
 	t.Run("HTML", func(t *testing.T) ***REMOVED***
