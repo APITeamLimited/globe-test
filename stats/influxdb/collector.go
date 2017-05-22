@@ -65,7 +65,12 @@ func New(s string, opts lib.Options) (*Collector, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init() ***REMOVED***
+func (c *Collector) Init(conf interface***REMOVED******REMOVED***) error ***REMOVED***
+	return nil
+***REMOVED***
+
+func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED***
+	return nil
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***
