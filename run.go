@@ -421,7 +421,9 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	collectorString := "-"
 	if collector != nil ***REMOVED***
-		collector.Init(collector.MakeConfig())
+		if err := collector.Init(collector.MakeConfig()); err != nil ***REMOVED***
+			return cli.NewExitError(err, 1)
+		***REMOVED***
 		collectorString = fmt.Sprint(collector)
 	***REMOVED***
 
