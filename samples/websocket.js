@@ -1,7 +1,11 @@
-import websocket from "k6/websocket";
+import ws from "k6/ws";
+import ***REMOVED*** check ***REMOVED*** from "k6";
 
 export default function () ***REMOVED***
-    var result = websocket.connect("wss://echo.websocket.org", function(socket) ***REMOVED***
+    var url = "ws://echo.websocket.org";
+    var params = ***REMOVED*** "tags": ***REMOVED*** "my_tag": "hello" ***REMOVED*** ***REMOVED***;
+
+    var response = ws.connect(url, params, function (socket) ***REMOVED***
         socket.on('open', function open() ***REMOVED***
             console.log('connected');
             socket.send(Date.now());
@@ -12,8 +16,17 @@ export default function () ***REMOVED***
             ***REMOVED***, 1000);
         ***REMOVED***);
 
+        socket.on('ping', function () ***REMOVED***
+            console.log("PING!");
+        ***REMOVED***);
+
         socket.on('pong', function () ***REMOVED***
             console.log("PONG!");
+        ***REMOVED***);
+
+        socket.on('pong', function () ***REMOVED***
+            // Multiple event handlers on the same event
+            console.log("OTHER PONG!");
         ***REMOVED***);
 
         socket.on('message', function incoming(data) ***REMOVED***
@@ -28,12 +41,16 @@ export default function () ***REMOVED***
         ***REMOVED***);
 
         socket.on('error', function (e) ***REMOVED***
-            console.log('An error occured: ', e.error());
+            if (e.error() != "websocket: close sent") ***REMOVED***
+                console.log('An unexpected error occured: ', e.error());
+            ***REMOVED***
         ***REMOVED***);
 
-        socket.setTimeout(function() ***REMOVED***
-            console.log('5 seconds passed, closing the socket');
+        socket.setTimeout(function () ***REMOVED***
+            console.log('2 seconds passed, closing the socket');
             socket.close();
-        ***REMOVED***, 5000);
+        ***REMOVED***, 2000);
     ***REMOVED***);
+
+    check(response, ***REMOVED*** "status is 101": (r) => r && r.status_code === 101 ***REMOVED***);
 ***REMOVED***;
