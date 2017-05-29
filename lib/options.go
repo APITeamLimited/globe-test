@@ -57,11 +57,13 @@ type Options struct ***REMOVED***
 	Linger        null.Bool `json:"linger"`
 	NoUsageReport null.Bool `json:"noUsageReport"`
 
-	MaxRedirects          null.Int    `json:"maxRedirects"`
-	InsecureSkipTLSVerify null.Bool   `json:"insecureSkipTLSVerify"`
-	NoConnectionReuse     null.Bool   `json:"noConnectionReuse"`
-	UserAgent             null.String `json:"userAgent"`
-	Throw                 null.Bool   `json:"throw"`
+	MaxRedirects          null.Int         `json:"maxRedirects"`
+	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify"`
+	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites"`
+	TLSVersion            *TLSVersion      `json:"tlsVersion"`
+	NoConnectionReuse     null.Bool        `json:"noConnectionReuse"`
+	UserAgent             null.String      `json:"userAgent"`
+	Throw                 null.Bool        `json:"throw"`
 
 	Thresholds map[string]stats.Thresholds `json:"thresholds"`
 
@@ -99,6 +101,12 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
 		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
+	***REMOVED***
+	if opts.TLSCipherSuites != nil ***REMOVED***
+		o.TLSCipherSuites = opts.TLSCipherSuites
+	***REMOVED***
+	if opts.TLSVersion != nil ***REMOVED***
+		o.TLSVersion = opts.TLSVersion
 	***REMOVED***
 	if opts.NoConnectionReuse.Valid ***REMOVED***
 		o.NoConnectionReuse = opts.NoConnectionReuse
