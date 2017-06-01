@@ -483,3 +483,25 @@ func TestRequest(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
+
+func TestTagURL(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, nil))
+
+	testdata := map[string]URLTag***REMOVED***
+		`http://example.com/`:               URLTag***REMOVED***URL: "http://example.com/", Name: "http://example.com/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***`:         URLTag***REMOVED***URL: "http://example.com/2", Name: "http://example.com/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/`:        URLTag***REMOVED***URL: "http://example.com/2/", Name: "http://example.com/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  URLTag***REMOVED***URL: "http://example.com/2/3", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: URLTag***REMOVED***URL: "http://example.com/2/3/", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+	***REMOVED***
+	for expr, tag := range testdata ***REMOVED***
+		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, "http.url`"+expr+"`")
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, tag, v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
