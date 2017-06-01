@@ -100,7 +100,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init(conf interface***REMOVED******REMOVED***) error ***REMOVED***
+func (c *Collector) Init() error ***REMOVED***
 	thresholds := make(map[string][]string)
 
 	for name, t := range c.thresholds ***REMOVED***

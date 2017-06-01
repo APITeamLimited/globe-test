@@ -45,6 +45,7 @@ func main() ***REMOVED***
 		commandRun,
 		commandInspect,
 		commandArchive,
+		commandLogin,
 		commandStatus,
 		commandStats,
 		commandScale,

@@ -34,7 +34,7 @@ type Collector struct ***REMOVED***
 	lock sync.Mutex
 ***REMOVED***
 
-func (c *Collector) Init(conf interface***REMOVED******REMOVED***) error ***REMOVED*** return nil ***REMOVED***
+func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
 
 func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*** return nil ***REMOVED***
 

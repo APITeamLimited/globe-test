@@ -65,7 +65,7 @@ func New(fname string, fs afero.Fs, opts lib.Options) (*Collector, error) ***REM
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init(conf interface***REMOVED******REMOVED***) error ***REMOVED***
+func (c *Collector) Init() error ***REMOVED***
 	return nil
 ***REMOVED***
 
