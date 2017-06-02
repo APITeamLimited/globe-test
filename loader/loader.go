@@ -75,7 +75,7 @@ func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
 	***REMOVED***
 
 	// Do not allow remote-loaded scripts to lift arbitrary files off the user's machine.
-	if name[0] == '/' && pwd[0] != '/' ***REMOVED***
+	if (name[0] == '/' && pwd[0] != '/') || (filepath.VolumeName(name) != "" && filepath.VolumeName(pwd) == "") ***REMOVED***
 		return nil, errors.Errorf("origin (%s) not allowed to load local file: %s", pwd, name)
 	***REMOVED***
 
@@ -83,8 +83,8 @@ func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
 	name = Resolve(pwd, name)
 	log.WithField("name", name).Debug("Resolved...")
 
-	// If the resolved path starts with a "/", it's a local file.
-	if name[0] == '/' ***REMOVED***
+	// If the resolved path starts with a "/" or has a volume, it's a local file.
+	if name[0] == '/' || filepath.VolumeName(name) != "" ***REMOVED***
 		data, err := afero.ReadFile(fs, name)
 		if err != nil ***REMOVED***
 			return nil, err
