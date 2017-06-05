@@ -29,8 +29,9 @@ import (
 var _ Field = StringField***REMOVED******REMOVED***
 
 type StringField struct ***REMOVED***
-	Key   string
-	Label string
+	Key     string
+	Label   string
+	Default string
 
 	// Length constraints.
 	Min, Max int
@@ -44,6 +45,10 @@ func (f StringField) GetLabel() string ***REMOVED***
 	return f.Label
 ***REMOVED***
 
+func (f StringField) GetLabelExtra() string ***REMOVED***
+	return f.Default
+***REMOVED***
+
 func (f StringField) Clean(s string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	s = strings.TrimSpace(s)
 	if f.Min != 0 && len(s) < f.Min ***REMOVED***
@@ -51,6 +56,9 @@ func (f StringField) Clean(s string) (interface***REMOVED******REMOVED***, error
 	***REMOVED***
 	if f.Max != 0 && len(s) > f.Max ***REMOVED***
 		return nil, errors.Errorf("invalid input, max length is %d", f.Max)
+	***REMOVED***
+	if s == "" ***REMOVED***
+		s = f.Default
 	***REMOVED***
 	return s, nil
 ***REMOVED***

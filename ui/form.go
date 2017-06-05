@@ -30,8 +30,9 @@ import (
 
 // A Field in a form.
 type Field interface ***REMOVED***
-	GetKey() string   // Key for the data map.
-	GetLabel() string // Label to print as the prompt.
+	GetKey() string        // Key for the data map.
+	GetLabel() string      // Label to print as the prompt.
+	GetLabelExtra() string // Extra info for the label, eg. defaults.
 
 	// Sanitize user input and return the field's native type.
 	Clean(s string) (interface***REMOVED******REMOVED***, error)
@@ -53,7 +54,11 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 	data := make(map[string]interface***REMOVED******REMOVED***, len(f.Fields))
 	for _, field := range f.Fields ***REMOVED***
 		for ***REMOVED***
-			fmt.Fprintf(w, "  "+field.GetLabel()+": ")
+			displayLabel := field.GetLabel()
+			if extra := field.GetLabelExtra(); extra != "" ***REMOVED***
+				displayLabel += " " + color.New(color.Faint, color.FgCyan).Sprint("["+extra+"]")
+			***REMOVED***
+			fmt.Fprintf(w, "  "+displayLabel+": ")
 
 			color.Set(color.FgCyan)
 			s, err := buf.ReadString('\n')
