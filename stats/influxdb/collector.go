@@ -29,6 +29,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/fatih/color"
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
@@ -104,8 +105,22 @@ func (c *Collector) Login(conf_ interface***REMOVED******REMOVED***, in io.Reade
 	form := ui.Form***REMOVED***
 		Fields: []ui.Field***REMOVED***
 			ui.StringField***REMOVED***
-				Key:   "url",
-				Label: "default connection url",
+				Key:     "host",
+				Label:   "host",
+				Default: "http://localhost:8086",
+			***REMOVED***,
+			ui.StringField***REMOVED***
+				Key:     "db",
+				Label:   "database",
+				Default: "k6",
+			***REMOVED***,
+			ui.StringField***REMOVED***
+				Key:   "username",
+				Label: "username",
+			***REMOVED***,
+			ui.StringField***REMOVED***
+				Key:   "password",
+				Label: "password",
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
@@ -113,12 +128,23 @@ func (c *Collector) Login(conf_ interface***REMOVED******REMOVED***, in io.Reade
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+	host := data["host"].(string)
+	db := data["db"].(string)
+	username := data["username"].(string)
+	password := data["password"].(string)
 
-	ustr := data["url"].(string)
-	u, err := url.Parse(ustr)
+	u, err := url.Parse(host + "/" + db)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+	if username != "" ***REMOVED***
+		if password != "" ***REMOVED***
+			u.User = url.UserPassword(username, password)
+		***REMOVED*** else ***REMOVED***
+			u.User = url.User(username)
+		***REMOVED***
+	***REMOVED***
+
 	cl, _, err := parseURL(u)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -128,6 +154,7 @@ func (c *Collector) Login(conf_ interface***REMOVED******REMOVED***, in io.Reade
 	***REMOVED***
 
 	conf.DefaultURL = null.StringFrom(u.String())
+	fmt.Fprint(out, color.New(color.Faint).Sprint("\n  to use this database: ")+color.CyanString("k6 run ")+color.New(color.FgHiCyan).Sprint("-o influxdb")+color.CyanString(" ...\n"))
 
 	return conf, nil
 ***REMOVED***
