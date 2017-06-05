@@ -100,7 +100,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init() ***REMOVED***
+func (c *Collector) Init() error ***REMOVED***
 	thresholds := make(map[string][]string)
 
 	for name, t := range c.thresholds ***REMOVED***
@@ -123,7 +123,7 @@ func (c *Collector) Init() ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"error": err,
 		***REMOVED***).Error("Cloud collector failed to init")
-		return
+		return nil
 	***REMOVED***
 	c.referenceID = response.ReferenceID
 
@@ -133,6 +133,11 @@ func (c *Collector) Init() ***REMOVED***
 		"duration":    c.duration,
 		"referenceId": c.referenceID,
 	***REMOVED***).Debug("Cloud collector init successful")
+	return nil
+***REMOVED***
+
+func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED***
+	return nil
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***

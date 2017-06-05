@@ -62,6 +62,10 @@ const (
 	TypeURL     = "url"
 	TypeJS      = "js"
 	TypeArchive = "archive"
+
+	CollectorJSON     = "json"
+	CollectorInfluxDB = "influxdb"
+	CollectorCloud    = "cloud"
 )
 
 var urlRegex = regexp.MustCompile(`(?i)^https?://`)
@@ -264,17 +268,30 @@ func splitCollectorString(s string) (string, string) ***REMOVED***
 	return parts[0], parts[1]
 ***REMOVED***
 
-func makeCollector(s string, src *lib.SourceData, opts lib.Options, version string) (lib.Collector, error) ***REMOVED***
+func makeCollector(s string, conf Config, src *lib.SourceData, opts lib.Options, version string) (lib.Collector, error) ***REMOVED***
 	t, p := splitCollectorString(s)
 	switch t ***REMOVED***
-	case "influxdb":
-		return influxdb.New(p, opts)
-	case "json":
+	case CollectorInfluxDB:
+		return influxdb.New(p, conf.Collectors.Get(t), opts)
+	case CollectorJSON:
 		return json.New(p, afero.NewOsFs(), opts)
-	case "cloud":
+	case CollectorCloud:
 		return cloud.New(p, src, opts, version)
 	default:
 		return nil, errors.New("Unknown output type: " + t)
+	***REMOVED***
+***REMOVED***
+
+func collectorOfType(t string) lib.Collector ***REMOVED***
+	switch t ***REMOVED***
+	case CollectorInfluxDB:
+		return &influxdb.Collector***REMOVED******REMOVED***
+	case CollectorJSON:
+		return &json.Collector***REMOVED******REMOVED***
+	case CollectorCloud:
+		return &json.Collector***REMOVED******REMOVED***
+	default:
+		return nil
 	***REMOVED***
 ***REMOVED***
 
@@ -354,6 +371,12 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		pwd = "/"
 	***REMOVED***
 
+	// Read the config file.
+	conf, err := LoadConfig()
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
@@ -399,7 +422,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Make the metric collector, if requested.
 	var collector lib.Collector
 	if out != "" ***REMOVED***
-		c, err := makeCollector(out, src, opts, cc.App.Version)
+		c, err := makeCollector(out, conf, src, opts, cc.App.Version)
 		if err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't create output")
 			return err
@@ -417,7 +440,9 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	collectorString := "-"
 	if collector != nil ***REMOVED***
-		collector.Init()
+		if err := collector.Init(); err != nil ***REMOVED***
+			return cli.NewExitError(err, 1)
+		***REMOVED***
 		collectorString = fmt.Sprint(collector)
 	***REMOVED***
 
