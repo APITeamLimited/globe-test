@@ -21,12 +21,10 @@
 package influxdb
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,6 +32,7 @@ import (
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+	"github.com/loadimpact/k6/ui"
 	null "gopkg.in/guregu/null.v3"
 )
 
@@ -102,14 +101,20 @@ func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*
 func (c *Collector) Login(conf_ interface***REMOVED******REMOVED***, in io.Reader, out io.Writer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	conf := conf_.(*Config)
 
-	buf := bufio.NewReader(in)
-	fmt.Fprintf(out, "default connection url: ")
-	ustr, err := buf.ReadString('\n')
+	form := ui.Form***REMOVED***
+		Fields: []ui.Field***REMOVED***
+			ui.StringField***REMOVED***
+				Key:   "url",
+				Label: "default connection url",
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	data, err := form.Run(in, out)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	ustr = strings.TrimSpace(ustr)
 
+	ustr := data["url"].(string)
 	u, err := url.Parse(ustr)
 	if err != nil ***REMOVED***
 		return nil, err
