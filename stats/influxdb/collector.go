@@ -21,16 +21,14 @@
 package influxdb
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
-
-	"bufio"
-
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/influxdata/influxdb/client/v2"
@@ -44,6 +42,8 @@ const (
 
 	defaultURL = "http://localhost:8086/k6"
 )
+
+var _ lib.AuthenticatedCollector = &Collector***REMOVED******REMOVED***
 
 type Config struct ***REMOVED***
 	DefaultURL null.String `json:"default_url,omitempty"`
