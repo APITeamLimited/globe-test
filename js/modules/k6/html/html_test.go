@@ -221,7 +221,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 
 	t.Run("Each", func(t *testing.T) ***REMOVED***
 		t.Run("Func arg", func(t *testing.T) ***REMOVED***
-			v, err := common.RunString(rt, `***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, elem) ***REMOVED*** elems[idx] = elem.innerHTML; ***REMOVED***); elems ***REMOVED***`)
+			v, err := common.RunString(rt, `***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, elem) ***REMOVED*** elems[idx] = elem.innerHTML(); ***REMOVED***); elems ***REMOVED***`)
 			if assert.NoError(t, err) ***REMOVED***
 				var elems []string
 				rt.ExportTo(v, &elems)
@@ -665,7 +665,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		t.Run("+ve index", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("body").children().get(1)`)
 			if assert.NoError(t, err) ***REMOVED***
-				elem, _ := valToElement(v)
+				elem, _ := v.Export().(Element)
 				assert.Contains(t, elem.InnerHTML(), "Lorem ipsum dolor sit amet")
 			***REMOVED***
 		***REMOVED***)
@@ -673,7 +673,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		t.Run("-ve index", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("body").children().get(-1)`)
 			if assert.NoError(t, err) ***REMOVED***
-				elem, _ := valToElement(v)
+				elem, _ := v.Export().(Element)
 				assert.Equal(t, "This is the footer.", elem.InnerHTML().String())
 			***REMOVED***
 		***REMOVED***)

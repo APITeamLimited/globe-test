@@ -70,8 +70,8 @@ func (s Selection) varargFnCall(arg goja.Value,
 	case string:
 		return Selection***REMOVED***s.rt, strFilter(val.(string))***REMOVED***
 
-	case map[string]interface***REMOVED******REMOVED***:
-		if elem, ok := valToElement(arg); ok ***REMOVED***
+	case Element:
+		if elem, ok := arg.Export().(Element); ok ***REMOVED***
 			return Selection***REMOVED***s.rt, nodeFilter(elem.node)***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			return Selection***REMOVED***s.rt, s.emptySelection().sel***REMOVED***
@@ -505,8 +505,8 @@ func (s Selection) Index(def ...goja.Value) int ***REMOVED***
 	case string:
 		return s.sel.IndexSelector(v.(string))
 
-	case map[string]interface***REMOVED******REMOVED***:
-		if elem, ok := valToElement(def[0]); ok ***REMOVED***
+	case Element:
+		if elem, ok := def[0].Export().(Element); ok ***REMOVED***
 			return s.sel.IndexOfNode(elem.node)
 		***REMOVED*** else ***REMOVED***
 			return -1
