@@ -6,12 +6,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/common"
 	gohtml "golang.org/x/net/html"
-)
-
-var (
-	protoPrg *goja.Program
 )
 
 type Element struct ***REMOVED***
@@ -24,7 +19,7 @@ type Element struct ***REMOVED***
 type Attribute struct ***REMOVED***
 	Name         string
 	nsPrefix     string
-	OwnerElement goja.Value
+	OwnerElement *Element
 	Value        string
 ***REMOVED***
 
@@ -55,9 +50,9 @@ func (e Element) GetAttribute(name string) goja.Value ***REMOVED***
 	return e.sel.Attr(name)
 ***REMOVED***
 
-func (e Element) GetAttributeNode(self goja.Value, name string) goja.Value ***REMOVED***
+func (e Element) GetAttributeNode(name string) goja.Value ***REMOVED***
 	if attr := getHtmlAttr(e.node, name); attr != nil ***REMOVED***
-		return e.rt.ToValue(Attribute***REMOVED***attr.Key, attr.Namespace, self, attr.Val***REMOVED***)
+		return e.rt.ToValue(Attribute***REMOVED***attr.Key, attr.Namespace, &e, attr.Val***REMOVED***)
 	***REMOVED*** else ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
@@ -71,11 +66,11 @@ func (e Element) HasAttributes() bool ***REMOVED***
 	return e.qsel.Length() > 0 && len(e.node.Attr) > 0
 ***REMOVED***
 
-func (e Element) Attributes(self goja.Value) map[string]Attribute ***REMOVED***
+func (e Element) Attributes() map[string]Attribute ***REMOVED***
 	attrs := make(map[string]Attribute)
 	for i := 0; i < len(e.node.Attr); i++ ***REMOVED***
 		attr := e.node.Attr[i]
-		attrs[attr.Key] = Attribute***REMOVED***attr.Key, attr.Namespace, self, attr.Val***REMOVED***
+		attrs[attr.Key] = Attribute***REMOVED***attr.Key, attr.Namespace, &e, attr.Val***REMOVED***
 	***REMOVED***
 	return attrs
 ***REMOVED***
@@ -103,7 +98,7 @@ func (e Element) Id() goja.Value ***REMOVED***
 ***REMOVED***
 
 func (e Element) IsEqualNode(v goja.Value) bool ***REMOVED***
-	if other, ok := valToElement(v); ok ***REMOVED***
+	if other, ok := v.Export().(Element); ok ***REMOVED***
 		htmlA, errA := e.qsel.Html()
 		htmlB, errB := other.qsel.Html()
 
@@ -114,7 +109,7 @@ func (e Element) IsEqualNode(v goja.Value) bool ***REMOVED***
 ***REMOVED***
 
 func (e Element) IsSameNode(v goja.Value) bool ***REMOVED***
-	if other, ok := valToElement(v); ok ***REMOVED***
+	if other, ok := v.Export().(Element); ok ***REMOVED***
 		return e.node == other.node
 	***REMOVED*** else ***REMOVED***
 		return false
@@ -302,7 +297,7 @@ func (e Element) NodeValue() goja.Value ***REMOVED***
 ***REMOVED***
 
 func (e Element) Contains(v goja.Value) bool ***REMOVED***
-	if other, ok := valToElement(v); ok ***REMOVED***
+	if other, ok := v.Export().(Element); ok ***REMOVED***
 		// when testing if a node contains itself, jquery + goquery Contains() return true, JS return false
 		return other.node == e.node || e.qsel.Contains(other.node)
 	***REMOVED*** else ***REMOVED***
@@ -341,34 +336,12 @@ func nodeToElement(e Element, node *gohtml.Node) goja.Value ***REMOVED***
 	return selToElement(sel)
 ***REMOVED***
 
-func valToElementList(val goja.Value) (elems []*Element) ***REMOVED***
+func valToElementList(val goja.Value) (elems []Element) ***REMOVED***
 	vals := val.Export().([]goja.Value)
 	for i := 0; i < len(vals); i++ ***REMOVED***
-		if elem, ok := valToElement(vals[i]); ok ***REMOVED***
-			elems = append(elems, elem)
-		***REMOVED***
+		elems = append(elems, vals[i].Export().(Element))
 	***REMOVED***
 	return
-***REMOVED***
-
-func valToElement(v goja.Value) (*Element, bool) ***REMOVED***
-	obj, ok := v.Export().(map[string]interface***REMOVED******REMOVED***)
-
-	if !ok ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	other, ok := obj["__elem__"]
-
-	if !ok ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	if elem, ok := other.(*Element); ok ***REMOVED***
-		return elem, true
-	***REMOVED*** else ***REMOVED***
-		return nil, false
-	***REMOVED***
 ***REMOVED***
 
 func selToElement(sel Selection) goja.Value ***REMOVED***
@@ -378,88 +351,7 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 		sel = sel.First()
 	***REMOVED***
 
-	elem := sel.rt.NewObject()
-
-	e := Element***REMOVED***&sel, sel.rt, sel.sel, sel.sel.Nodes[0]***REMOVED***
-
-	proto, ok := initJsElem(sel.rt)
-	if !ok ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-
-	elem.Set("__proto__", proto)
-	elem.Set("__elem__", sel.rt.ToValue(&e))
+	elem := Element***REMOVED***&sel, sel.rt, sel.sel, sel.sel.Nodes[0]***REMOVED***
 
 	return sel.rt.ToValue(elem)
-***REMOVED***
-
-func initJsElem(rt *goja.Runtime) (goja.Value, bool) ***REMOVED***
-	if protoPrg == nil ***REMOVED***
-		compileProtoElem()
-	***REMOVED***
-
-	obj, err := rt.RunProgram(protoPrg)
-	if err != nil ***REMOVED***
-		panic(err)
-	***REMOVED***
-
-	return obj, true
-***REMOVED***
-
-func compileProtoElem() ***REMOVED***
-	protoPrg = common.MustCompile("Element proto", `Object.freeze(***REMOVED***
-	get id() ***REMOVED*** return this.__elem__.id(); ***REMOVED***,
-	get nodeName() ***REMOVED*** return this.__elem__.nodeName(); ***REMOVED***,
-	get nodeType() ***REMOVED*** return this.__elem__.nodeType(); ***REMOVED***,
-	get nodeValue() ***REMOVED*** return this.__elem__.nodeValue(); ***REMOVED***,
-	get innerHTML() ***REMOVED*** return this.__elem__.innerHTML(); ***REMOVED***,
-	get textContent() ***REMOVED*** return this.__elem__.textContent(); ***REMOVED***,
-
-	get attributes() ***REMOVED*** return this.__elem__.attributes(this); ***REMOVED***,
-
-	get firstChild() ***REMOVED*** return this.__elem__.firstChild(); ***REMOVED***,
-	get lastChild() ***REMOVED*** return this.__elem__.lastChild(); ***REMOVED***,
-	get firstElementChild() ***REMOVED*** return this.__elem__.firstElementChild(); ***REMOVED***,
-	get lastElementChild() ***REMOVED*** return this.__elem__.lastElementChild(); ***REMOVED***,
-
-	get previousSibling() ***REMOVED*** return this.__elem__.previousSibling(); ***REMOVED***,
-	get nextSibling() ***REMOVED*** return this.__elem__.nextSibling(); ***REMOVED***,
-
-	get previousElementSibling() ***REMOVED*** return this.__elem__.previousElementSibling(); ***REMOVED***,
-	get nextElementSibling() ***REMOVED*** return this.__elem__.nextElementSibling(); ***REMOVED***,
-
-	get parentNode() ***REMOVED*** return this.__elem__.parentNode(); ***REMOVED***,
-	get parentElement() ***REMOVED*** return this.__elem__.parentElement(); ***REMOVED***,
-
-	get childNodes() ***REMOVED*** return this.__elem__.childNodes(); ***REMOVED***,
-	get childElementCount() ***REMOVED*** return this.__elem__.childElementCount(); ***REMOVED***,
-	get children() ***REMOVED*** return this.__elem__.children(); ***REMOVED***,
-
-	get classList() ***REMOVED*** return this.__elem__.classList(); ***REMOVED***,
-	get className() ***REMOVED*** return this.__elem__.className(); ***REMOVED***,
-
-	get lang() ***REMOVED*** return this.__elem__.lang(); ***REMOVED***,
-	get ownerDocument() ***REMOVED*** return this.__elem__.ownerDocument(); ***REMOVED***,
-	get namespaceURI() ***REMOVED*** return this.__elem__.namespaceURI(); ***REMOVED***,
-
-	toString: function() ***REMOVED*** return this.__elem__.toString(); ***REMOVED***,
-	hasAttribute: function(name) ***REMOVED*** return this.__elem__.hasAttribute(name); ***REMOVED***,
-	getAttribute: function(name) ***REMOVED*** return this.__elem__.getAttribute(name); ***REMOVED***,
-	getAttributeNode: function(name) ***REMOVED*** return this.__elem__.getAttributeNode(this, name); ***REMOVED***,
-	hasAttributes: function() ***REMOVED*** return this.__elem__.hasAttributes(); ***REMOVED***,
-	hasChildNodes: function() ***REMOVED*** return this.__elem__.hasChildNodes(); ***REMOVED***,
-	isSameNode: function(val) ***REMOVED*** return this.__elem__.isSameNode(val); ***REMOVED***,
-	isEqualNode: function(val) ***REMOVED*** return this.__elem__.isEqualNode(val); ***REMOVED***,
-	isDefaultNamespace: function() ***REMOVED*** return this.__elem__.isDefaultNamespace(); ***REMOVED***
-	getElementsByClassName: function(val) ***REMOVED*** return this.__elem__.getElementsByClassName(val); ***REMOVED***,
-	getElementsByTagName: function(val) ***REMOVED*** return this.__elem__.getElementsByTagName(val); ***REMOVED***,
-
-	querySelector: function(val) ***REMOVED*** return this.__elem__.querySelector(val); ***REMOVED***,
-	querySelectorAll: function(val) ***REMOVED*** return this.__elem__.querySelectorAll(val); ***REMOVED***,
-
-	contains: function(node) ***REMOVED*** return this.__elem__.contains(node); ***REMOVED***
-	matches: function(str) ***REMOVED*** return this.__elem__.matches(str); ***REMOVED***
-
-***REMOVED***);
-`, true)
 ***REMOVED***
