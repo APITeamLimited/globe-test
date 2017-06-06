@@ -45,6 +45,7 @@ const testHTMLElem = `
 		innerfirst
 		<h2 id="h2_elem" class="class2">Nullam id nisi eget ex pharetra imperdiet.</h2>
 		<span id="span1"><b>test content</b></span>
+		<svg id="svg_elem"></svg>
 		<span id="span2">Maecenas augue ligula, aliquet sit amet maximus ut, vestibulum et magna</span>
 		innerlast
 	</div>
@@ -182,18 +183,18 @@ func TestElement(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("div").get(0).childNodes`)
 		if assert.NoError(t, err) ***REMOVED***
 			nodes := valToElementList(v)
-			assert.Equal(t, 7, len(nodes))
+			assert.Equal(t, 9, len(nodes))
 			assert.Contains(t, nodes[0].TextContent(), "innerfirst")
-			assert.Contains(t, nodes[6].TextContent(), "innerlast")
+			assert.Contains(t, nodes[8].TextContent(), "innerlast")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Children", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("div").get(0).children`)
 		if assert.NoError(t, err) ***REMOVED***
 			nodes := valToElementList(v)
-			assert.Equal(t, 3, len(nodes))
+			assert.Equal(t, 4, len(nodes))
 			assert.Contains(t, nodes[0].TextContent(), "Nullam id nisi eget ex")
-			assert.Contains(t, nodes[2].TextContent(), "Maecenas augue ligula")
+			assert.Contains(t, nodes[3].TextContent(), "Maecenas augue ligula")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ClassList", func(t *testing.T) ***REMOVED***
@@ -315,4 +316,19 @@ func TestElement(t *testing.T) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
 	***REMOVED***)
+	t.Run("NamespaceURI", func(t *testing.T) ***REMOVED***
+		v, err := common.RunString(rt, `doc.find("#svg_elem").namespaceURI`)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "http://www.w3.org/2000/svg", v.Export())
+		***REMOVED***
+	***REMOVED***)
+	t.Run("IsDefaultNamespace", func(t *testing.T) ***REMOVED***
+		v1, err1 := common.RunString(rt, `doc.find("#svg_elem").isDefaultNamespace`)
+		v2, err2 := common.RunString(rt, `doc.find("#div_elem").isDefaultNamespace`)
+		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			assert.Equal(t, false, v1.ToBoolean())
+			assert.Equal(t, true, v2.ToBoolean())
+		***REMOVED***
+	***REMOVED***)
+
 ***REMOVED***

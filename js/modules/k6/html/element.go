@@ -23,11 +23,32 @@ type Element struct ***REMOVED***
 
 type Attribute struct ***REMOVED***
 	Name         string
-	NamespaceURI string
-	LocalName    string
-	Prefix       string
+	nsPrefix     string
 	OwnerElement goja.Value
 	Value        string
+***REMOVED***
+
+func namespaceURI(prefix string) string ***REMOVED***
+	switch prefix ***REMOVED***
+	case "svg":
+		return "http://www.w3.org/2000/svg"
+	case "math":
+		return "http://www.w3.org/1998/Math/MathML"
+	default:
+		return "http://www.w3.org/1999/xhtml"
+	***REMOVED***
+***REMOVED***
+
+func (a Attribute) Prefix() string ***REMOVED***
+	return a.nsPrefix
+***REMOVED***
+
+func (a Attribute) NamespaceURI() string ***REMOVED***
+	return namespaceURI(a.nsPrefix)
+***REMOVED***
+
+func (a Attribute) LocalName() string ***REMOVED***
+	return a.Name
 ***REMOVED***
 
 func (e Element) GetAttribute(name string) goja.Value ***REMOVED***
@@ -36,7 +57,7 @@ func (e Element) GetAttribute(name string) goja.Value ***REMOVED***
 
 func (e Element) GetAttributeNode(self goja.Value, name string) goja.Value ***REMOVED***
 	if attr := getHtmlAttr(e.node, name); attr != nil ***REMOVED***
-		return e.rt.ToValue(Attribute***REMOVED***attr.Key, attr.Namespace, attr.Namespace, attr.Namespace, self, attr.Val***REMOVED***)
+		return e.rt.ToValue(Attribute***REMOVED***attr.Key, attr.Namespace, self, attr.Val***REMOVED***)
 	***REMOVED*** else ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
@@ -54,7 +75,7 @@ func (e Element) Attributes(self goja.Value) map[string]Attribute ***REMOVED***
 	attrs := make(map[string]Attribute)
 	for i := 0; i < len(e.node.Attr); i++ ***REMOVED***
 		attr := e.node.Attr[i]
-		attrs[attr.Key] = Attribute***REMOVED***attr.Key, attr.Namespace, attr.Namespace, attr.Namespace, self, attr.Val***REMOVED***
+		attrs[attr.Key] = Attribute***REMOVED***attr.Key, attr.Namespace, self, attr.Val***REMOVED***
 	***REMOVED***
 	return attrs
 ***REMOVED***
@@ -225,12 +246,11 @@ func (e Element) OwnerDocument() goja.Value ***REMOVED***
 ***REMOVED***
 
 func (e Element) NamespaceURI() string ***REMOVED***
-	return e.node.Namespace
+	return namespaceURI(e.node.Namespace)
 ***REMOVED***
 
 func (e Element) IsDefaultNamespace() bool ***REMOVED***
-	// 	TODO namespace value of node always seems to be blank?
-	return false
+	return e.node.Namespace == ""
 ***REMOVED***
 
 func getOwnerDocNode(node *gohtml.Node) *gohtml.Node ***REMOVED***
@@ -422,7 +442,6 @@ func compileProtoElem() ***REMOVED***
 	get ownerDocument() ***REMOVED*** return this.__elem__.ownerDocument(); ***REMOVED***,
 	get namespaceURI() ***REMOVED*** return this.__elem__.namespaceURI(); ***REMOVED***,
 
-
 	toString: function() ***REMOVED*** return this.__elem__.toString(); ***REMOVED***,
 	hasAttribute: function(name) ***REMOVED*** return this.__elem__.hasAttribute(name); ***REMOVED***,
 	getAttribute: function(name) ***REMOVED*** return this.__elem__.getAttribute(name); ***REMOVED***,
@@ -431,6 +450,7 @@ func compileProtoElem() ***REMOVED***
 	hasChildNodes: function() ***REMOVED*** return this.__elem__.hasChildNodes(); ***REMOVED***,
 	isSameNode: function(val) ***REMOVED*** return this.__elem__.isSameNode(val); ***REMOVED***,
 	isEqualNode: function(val) ***REMOVED*** return this.__elem__.isEqualNode(val); ***REMOVED***,
+	isDefaultNamespace: function() ***REMOVED*** return this.__elem__.isDefaultNamespace(); ***REMOVED***
 	getElementsByClassName: function(val) ***REMOVED*** return this.__elem__.getElementsByClassName(val); ***REMOVED***,
 	getElementsByTagName: function(val) ***REMOVED*** return this.__elem__.getElementsByTagName(val); ***REMOVED***,
 
