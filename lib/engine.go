@@ -121,13 +121,9 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	if o.Stages != nil ***REMOVED***
 		e.Stages = o.Stages
 	***REMOVED*** else if o.Duration.Valid ***REMOVED***
-		d, err := time.ParseDuration(o.Duration.String)
-		if err != nil ***REMOVED***
-			return nil, errors.Wrap(err, "options.duration")
-		***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
 	***REMOVED*** else ***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: 0***REMOVED******REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
 
 	e.thresholds = o.Thresholds
@@ -426,10 +422,10 @@ func (e *Engine) TotalTime() time.Duration ***REMOVED***
 
 	var total time.Duration
 	for _, stage := range e.Stages ***REMOVED***
-		if stage.Duration <= 0 ***REMOVED***
+		if !stage.Duration.Valid ***REMOVED***
 			return 0
 		***REMOVED***
-		total += stage.Duration
+		total += time.Duration(stage.Duration.Duration)
 	***REMOVED***
 	return total
 ***REMOVED***
@@ -458,19 +454,20 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 	***REMOVED***
 
 	stage := e.Stages[e.atStage]
-	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
+	if stage.Duration.Valid && e.atTime > e.atStageSince+time.Duration(stage.Duration.Duration) ***REMOVED***
 		e.Logger.Debug("processStages: stage expired")
 		stageIdx := -1
 		stageStart := 0 * time.Second
 		stageStartVUs := e.vus
 		for i, s := range e.Stages ***REMOVED***
-			if stageStart+s.Duration > e.atTime || s.Duration == 0 ***REMOVED***
+			d := time.Duration(s.Duration.Duration)
+			if !s.Duration.Valid || stageStart+d > e.atTime ***REMOVED***
 				e.Logger.WithField("idx", i).Debug("processStages: proceeding to next stage...")
 				stage = s
 				stageIdx = i
 				break
 			***REMOVED***
-			stageStart += s.Duration
+			stageStart += d
 			if s.Target.Valid ***REMOVED***
 				stageStartVUs = s.Target.Int64
 			***REMOVED***
@@ -493,8 +490,8 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 		from := e.atStageStartVUs
 		to := stage.Target.Int64
 		t := 1.0
-		if stage.Duration > 0 ***REMOVED***
-			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration), 0.0, 1.0)
+		if stage.Duration.Duration > 0 ***REMOVED***
+			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration.Duration), 0.0, 1.0)
 		***REMOVED***
 		vus := Lerp(from, to, t)
 		if e.vus != vus ***REMOVED***

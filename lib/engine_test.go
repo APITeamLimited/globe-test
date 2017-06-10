@@ -85,34 +85,34 @@ func TestNewEngine(t *testing.T) ***REMOVED***
 func TestNewEngineOptions(t *testing.T) ***REMOVED***
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
-			Duration: null.StringFrom("10s"),
+			Duration: NullDurationFrom(10 * time.Second),
 		***REMOVED***)
 		assert.NoError(t, err)
 		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second***REMOVED***)
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
 			Stages: []Stage***REMOVED***
-				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
 		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Stages/Duration", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
-			Duration: null.StringFrom("60s"),
+			Duration: NullDurationFrom(60 * time.Second),
 			Stages: []Stage***REMOVED***
-				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
 		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***)
+			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
@@ -249,17 +249,20 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			"none": ***REMOVED******REMOVED***,
 			"one": ***REMOVED***
 				1 * time.Second,
-				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+				[]Stage***REMOVED******REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
 			***REMOVED***,
 			"two": ***REMOVED***
 				2 * time.Second,
-				[]Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED***, ***REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED***,
+				[]Stage***REMOVED***
+					***REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
+					***REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***,
 			***REMOVED***,
 			"two/targeted": ***REMOVED***
 				2 * time.Second,
 				[]Stage***REMOVED***
-					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(5)***REMOVED***,
-					***REMOVED***Duration: 1 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+					***REMOVED***Duration: NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
+					***REMOVED***Duration: NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***
@@ -333,18 +336,15 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		for _, d := range []time.Duration***REMOVED***0, 1 * time.Second, 10 * time.Second***REMOVED*** ***REMOVED***
 			t.Run(d.String(), func(t *testing.T) ***REMOVED***
-				e, err, _ := newTestEngine(nil, Options***REMOVED***Duration: null.StringFrom(d.String())***REMOVED***)
+				e, err, _ := newTestEngine(nil, Options***REMOVED***Duration: NullDurationFrom(d)***REMOVED***)
 				assert.NoError(t, err)
 
 				assert.Len(t, e.Stages, 1)
-				assert.Equal(t, Stage***REMOVED***Duration: d***REMOVED***, e.Stages[0])
+				assert.Equal(t, Stage***REMOVED***Duration: NullDurationFrom(d)***REMOVED***, e.Stages[0])
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
-		// The lines get way too damn long if I have to write time.Second everywhere
-		sec := time.Second
-
 		testdata := map[string]struct ***REMOVED***
 			Duration time.Duration
 			Stages   []Stage
@@ -352,9 +352,12 @@ func TestEngineTotalTime(t *testing.T) ***REMOVED***
 			"nil":        ***REMOVED***0, nil***REMOVED***,
 			"empty":      ***REMOVED***0, []Stage***REMOVED******REMOVED******REMOVED***,
 			"1,infinite": ***REMOVED***0, []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***,
-			"2,infinite": ***REMOVED***0, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED***, ***REMOVED******REMOVED******REMOVED******REMOVED***,
-			"1,finite":   ***REMOVED***10 * sec, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED******REMOVED******REMOVED***,
-			"2,finite":   ***REMOVED***15 * sec, []Stage***REMOVED******REMOVED***Duration: 10 * sec***REMOVED***, ***REMOVED***Duration: 5 * sec***REMOVED******REMOVED******REMOVED***,
+			"2,infinite": ***REMOVED***0, []Stage***REMOVED******REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED***, ***REMOVED******REMOVED******REMOVED******REMOVED***,
+			"1,finite":   ***REMOVED***10 * time.Second, []Stage***REMOVED******REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED******REMOVED******REMOVED***,
+			"2,finite": ***REMOVED***15 * time.Second, []Stage***REMOVED***
+				***REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED******REMOVED***,
+			***REMOVED***,
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
@@ -680,7 +683,7 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"one": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 10 * time.Second***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -690,7 +693,7 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"one/targeted": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -709,8 +712,8 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"two": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 5 * time.Second***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -720,8 +723,8 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"two/targeted": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(0)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -740,9 +743,9 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"three": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 5 * time.Second***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -752,9 +755,9 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"three/targeted": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(50)***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(0)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
@@ -778,12 +781,12 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"mix": ***REMOVED***
 			[]Stage***REMOVED***
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(10)***REMOVED***,
-				***REMOVED***Duration: 2 * time.Second***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: 2 * time.Second***REMOVED***,
-				***REMOVED***Duration: 5 * time.Second, Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, 0***REMOVED***,
