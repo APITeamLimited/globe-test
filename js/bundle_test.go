@@ -191,7 +191,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`),
 			***REMOVED***, afero.NewMemMapFs())
 			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.StringFrom("10s"), b.Options.Duration)
+				assert.Equal(t, lib.NullDurationFrom(10*time.Second), b.Options.Duration)
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
@@ -272,7 +272,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -290,7 +290,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -309,8 +309,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 2) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 5 * time.Second***REMOVED***, b.Options.Stages[1])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)

@@ -23,10 +23,8 @@ package lib
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
@@ -42,30 +40,8 @@ type SourceData struct ***REMOVED***
 ***REMOVED***
 
 type Stage struct ***REMOVED***
-	Duration time.Duration `json:"duration"`
-	Target   null.Int      `json:"target"`
-***REMOVED***
-
-func (s *Stage) UnmarshalJSON(data []byte) error ***REMOVED***
-	var fields struct ***REMOVED***
-		Duration string   `json:"duration"`
-		Target   null.Int `json:"target"`
-	***REMOVED***
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	s.Target = fields.Target
-
-	if fields.Duration != "" ***REMOVED***
-		d, err := time.ParseDuration(fields.Duration)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		s.Duration = d
-	***REMOVED***
-
-	return nil
+	Duration NullDuration `json:"duration"`
+	Target   null.Int     `json:"target"`
 ***REMOVED***
 
 type Group struct ***REMOVED***
