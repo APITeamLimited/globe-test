@@ -555,11 +555,11 @@ func TestTagURL(t *testing.T) ***REMOVED***
 	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, nil))
 
 	testdata := map[string]URLTag***REMOVED***
-		`http://example.com/`:               URLTag***REMOVED***URL: "http://example.com/", Name: "http://example.com/"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***`:         URLTag***REMOVED***URL: "http://example.com/2", Name: "http://example.com/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/`:        URLTag***REMOVED***URL: "http://example.com/2/", Name: "http://example.com/$***REMOVED******REMOVED***/"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  URLTag***REMOVED***URL: "http://example.com/2/3", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: URLTag***REMOVED***URL: "http://example.com/2/3/", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://example.com/`:               ***REMOVED***URL: "http://example.com/", Name: "http://example.com/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***URL: "http://example.com/2", Name: "http://example.com/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***URL: "http://example.com/2/", Name: "http://example.com/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***URL: "http://example.com/2/3", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***URL: "http://example.com/2/3/", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
 	***REMOVED***
 	for expr, tag := range testdata ***REMOVED***
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
