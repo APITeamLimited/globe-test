@@ -179,19 +179,26 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 			end := time.Now()
 			sessionDuration := stats.D(end.Sub(start))
 
-			avgPingRoundtrip := float64(socket.totalPingDuration) / socket.totalPingCount
-			pingMetric := stats.D(time.Duration(avgPingRoundtrip))
-
 			samples := []stats.Sample***REMOVED***
 				***REMOVED***Metric: metrics.WSSessions, Time: end, Tags: tags, Value: 1***REMOVED***,
 				***REMOVED***Metric: metrics.WSMessagesSent, Time: end, Tags: tags, Value: socket.msgsReceived***REMOVED***,
 				***REMOVED***Metric: metrics.WSMessagesReceived, Time: end, Tags: tags, Value: socket.msgsSent***REMOVED***,
 				***REMOVED***Metric: metrics.WSConnecting, Time: end, Tags: tags, Value: connectionDuration***REMOVED***,
 				***REMOVED***Metric: metrics.WSSessionDuration, Time: end, Tags: tags, Value: sessionDuration***REMOVED***,
-				***REMOVED***Metric: metrics.WSPing, Time: end, Tags: tags, Value: pingMetric***REMOVED***,
 				***REMOVED***Metric: metrics.DataReceived, Time: end, Tags: tags, Value: float64(bytesRead)***REMOVED***,
 				***REMOVED***Metric: metrics.DataSent, Time: end, Tags: tags, Value: float64(bytesWritten)***REMOVED***,
 			***REMOVED***
+
+			if socket.totalPingCount > 0 ***REMOVED***
+				avgPingRoundtrip := float64(socket.totalPingDuration) / socket.totalPingCount
+				samples = append(samples, stats.Sample***REMOVED***
+					Metric: metrics.WSPing,
+					Time:   end,
+					Tags:   tags,
+					Value:  stats.D(time.Duration(avgPingRoundtrip)),
+				***REMOVED***)
+			***REMOVED***
+
 			state.Samples = append(state.Samples, samples...)
 
 			return response

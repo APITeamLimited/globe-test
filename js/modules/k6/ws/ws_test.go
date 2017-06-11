@@ -41,7 +41,6 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 	seenConnecting := false
 	seenMessagesReceived := false
 	seenMessagesSent := false
-	seenPing := false
 	seenDataSent := false
 	seenDataReceived := false
 
@@ -54,8 +53,6 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 				seenMessagesReceived = true
 			case metrics.WSMessagesSent:
 				seenMessagesSent = true
-			case metrics.WSPing:
-				seenPing = true
 			case metrics.WSSessionDuration:
 				seenSessionDuration = true
 			case metrics.WSSessions:
@@ -74,11 +71,23 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 	assert.True(t, seenConnecting, "url %s didn't emit Connecting", url)
 	assert.True(t, seenMessagesReceived, "url %s didn't emit MessagesReceived", url)
 	assert.True(t, seenMessagesSent, "url %s didn't emit MessagesSent", url)
-	assert.True(t, seenPing, "url %s didn't emit Ping", url)
 	assert.True(t, seenSessions, "url %s didn't emit Sessions", url)
 	assert.True(t, seenSessionDuration, "url %s didn't emit SessionDuration", url)
 	assert.True(t, seenDataSent, "url %s didn't emit DataSent", url)
 	assert.True(t, seenDataReceived, "url %s didn't emit DataReceived", url)
+***REMOVED***
+
+func assertPingMetricEmitted(t *testing.T, samples []stats.Sample, url string) ***REMOVED***
+	seenPing := false
+
+	for _, sample := range samples ***REMOVED***
+		if sample.Tags["url"] == url ***REMOVED***
+			if sample.Metric == metrics.WSPing ***REMOVED***
+				seenPing = true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	assert.True(t, seenPing, "url %s didn't emit Ping", url)
 ***REMOVED***
 
 func TestSession(t *testing.T) ***REMOVED***
@@ -213,6 +222,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
+	assertPingMetricEmitted(t, state.Samples, "ws://echo.websocket.org")
 
 	t.Run("multiple_handlers", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -245,6 +255,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
+	assertPingMetricEmitted(t, state.Samples, "ws://echo.websocket.org")
 ***REMOVED***
 
 func TestErrors(t *testing.T) ***REMOVED***
