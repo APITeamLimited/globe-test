@@ -122,6 +122,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	state := &common.State***REMOVED***
 		Group:         u.Runner.defaultGroup,
 		HTTPTransport: u.HTTPTransport,
+		Dialer:        u.Runner.Dialer,
 	***REMOVED***
 
 	ctx = common.WithRuntime(ctx, u.Runtime)

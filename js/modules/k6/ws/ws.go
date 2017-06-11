@@ -21,7 +21,6 @@
 package ws
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net"
@@ -47,6 +46,13 @@ type Socket struct ***REMOVED***
 	scheduled     chan goja.Callable
 	done          chan struct***REMOVED******REMOVED***
 	shutdownOnce  sync.Once
+
+	msgsSent, msgsReceived float64
+
+	pingCounter       int
+	pingStart         time.Time
+	totalPingCount    float64
+	totalPingDuration time.Duration
 ***REMOVED***
 
 const writeWait = 10 * time.Second
@@ -57,6 +63,7 @@ var (
 )
 
 func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Response ***REMOVED***
+
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 
@@ -78,20 +85,19 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 
 	var bytesRead, bytesWritten int64
 	// Pass a custom net.Dial function to websocket.Dialer that will substitute
-	// the underlying net.Conn with our own TraceConn
+	// the underlying net.Conn with our own tracked netext.Conn
 	netDial := func(network, address string) (net.Conn, error) ***REMOVED***
 		var err error
-		var conn, traceConn net.Conn
+		var conn net.Conn
 
-		dialer := netext.NewDialer(net.Dialer***REMOVED******REMOVED***)
+		dialer := state.Dialer
 		if conn, err = dialer.DialContext(ctx, network, address); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		if traceConn, err = dialer.TraceConnection(conn, &bytesRead, &bytesWritten); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
 
-		return traceConn, err
+		trackedConn := netext.TrackConn(conn, &bytesRead, &bytesWritten)
+
+		return trackedConn, nil
 	***REMOVED***
 
 	wsd := websocket.Dialer***REMOVED***
@@ -129,9 +135,10 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 	socket.handleEvent("open")
 
 	// Pass ping/pong events through the main control loop
-	pingPongChan := make(chan string)
-	conn.SetPingHandler(func(string) error ***REMOVED*** pingPongChan <- "ping"; return nil ***REMOVED***)
-	conn.SetPongHandler(func(string) error ***REMOVED*** pingPongChan <- "pong"; return nil ***REMOVED***)
+	pingChan := make(chan interface***REMOVED******REMOVED***)
+	pongChan := make(chan interface***REMOVED******REMOVED***)
+	conn.SetPingHandler(func(string) error ***REMOVED*** pingChan <- "ping"; return nil ***REMOVED***)
+	conn.SetPongHandler(func(string) error ***REMOVED*** pongChan <- "pong"; return nil ***REMOVED***)
 
 	readDataChan := make(chan []byte)
 	readErrChan := make(chan error)
@@ -143,10 +150,19 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 	// should only be executed by this thread to avoid race conditions
 	for ***REMOVED***
 		select ***REMOVED***
-		case ev := <-pingPongChan:
-			socket.handleEvent(ev)
+		case <-pingChan:
+			// Handle pings received from the server
+			socket.handleEvent("ping")
+
+		case <-pongChan:
+			// Handle pong responses to our pings
+			socket.decPingCounter()
+			socket.handleEvent("pong")
+
 		case readData := <-readDataChan:
+			socket.msgsReceived++
 			socket.handleEvent("message", rt.ToValue(string(readData)))
+
 		case readErr := <-readErrChan:
 			socket.handleEvent("error", rt.ToValue(readErr))
 
@@ -163,10 +179,16 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 			end := time.Now()
 			sessionDuration := stats.D(end.Sub(start))
 
+			avgPingRoundtrip := float64(socket.totalPingDuration) / socket.totalPingCount
+			pingMetric := stats.D(time.Duration(avgPingRoundtrip))
+
 			samples := []stats.Sample***REMOVED***
 				***REMOVED***Metric: metrics.WSSessions, Time: end, Tags: tags, Value: 1***REMOVED***,
+				***REMOVED***Metric: metrics.WSMessagesSent, Time: end, Tags: tags, Value: socket.msgsReceived***REMOVED***,
+				***REMOVED***Metric: metrics.WSMessagesReceived, Time: end, Tags: tags, Value: socket.msgsSent***REMOVED***,
 				***REMOVED***Metric: metrics.WSConnecting, Time: end, Tags: tags, Value: connectionDuration***REMOVED***,
 				***REMOVED***Metric: metrics.WSSessionDuration, Time: end, Tags: tags, Value: sessionDuration***REMOVED***,
+				***REMOVED***Metric: metrics.WSPing, Time: end, Tags: tags, Value: pingMetric***REMOVED***,
 				***REMOVED***Metric: metrics.DataReceived, Time: end, Tags: tags, Value: float64(bytesRead)***REMOVED***,
 				***REMOVED***Metric: metrics.DataSent, Time: end, Tags: tags, Value: float64(bytesWritten)***REMOVED***,
 			***REMOVED***
@@ -200,6 +222,8 @@ func (s *Socket) Send(message string) ***REMOVED***
 	if err := s.conn.WriteMessage(websocket.TextMessage, writeData); err != nil ***REMOVED***
 		s.handleEvent("error", rt.ToValue(err))
 	***REMOVED***
+
+	s.msgsSent++
 ***REMOVED***
 
 func (s *Socket) Ping() ***REMOVED***
@@ -209,6 +233,27 @@ func (s *Socket) Ping() ***REMOVED***
 	err := s.conn.WriteControl(websocket.PingMessage, []byte***REMOVED******REMOVED***, deadline)
 	if err != nil ***REMOVED***
 		s.handleEvent("error", rt.ToValue(err))
+		return
+	***REMOVED***
+
+	s.incPingCounter()
+***REMOVED***
+
+func (s *Socket) incPingCounter() ***REMOVED***
+	s.pingCounter++
+	s.totalPingCount++
+
+	if s.pingCounter == 1 ***REMOVED***
+		s.pingStart = time.Now()
+	***REMOVED***
+***REMOVED***
+
+func (s *Socket) decPingCounter() ***REMOVED***
+	s.pingCounter--
+
+	if s.pingCounter == 0 ***REMOVED***
+		pingEnd := time.Now()
+		s.totalPingDuration += pingEnd.Sub(s.pingStart)
 	***REMOVED***
 ***REMOVED***
 
@@ -247,15 +292,15 @@ func (s *Socket) SetInterval(fn goja.Callable, intervalMs int) ***REMOVED***
 
 func (s *Socket) Close(args ...goja.Value) ***REMOVED***
 	code := websocket.CloseGoingAway
-	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
+	if len(args) > 0 ***REMOVED***
 		code = int(args[0].ToInteger())
 	***REMOVED***
 
 	s.closeConnection(code)
 ***REMOVED***
 
+// Attempts to close the websocket gracefully
 func (s *Socket) closeConnection(code int) error ***REMOVED***
-	// Attempts to close the websocket gracefully
 
 	var err error
 	s.shutdownOnce.Do(func() ***REMOVED***
@@ -293,7 +338,6 @@ func readPump(conn *websocket.Conn, readChan chan []byte, errorChan chan error) 
 			return
 		***REMOVED***
 
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		readChan <- message
 	***REMOVED***
 ***REMOVED***
@@ -303,13 +347,14 @@ func parseArgs(rt *goja.Runtime, args []goja.Value) (goja.Callable, map[string]s
 	var paramsV goja.Value
 
 	// The params argument is optional
-	if len(args) == 2 ***REMOVED***
+	switch len(args) ***REMOVED***
+	case 2:
 		paramsV = args[0]
 		callableV = args[1]
-	***REMOVED*** else if len(args) == 1 ***REMOVED***
+	case 1:
 		paramsV = goja.Undefined()
 		callableV = args[0]
-	***REMOVED*** else ***REMOVED***
+	default:
 		return nil, nil, nil, errors.New("Invalid number of arguments to ws.connect")
 	***REMOVED***
 
@@ -322,7 +367,10 @@ func parseArgs(rt *goja.Runtime, args []goja.Value) (goja.Callable, map[string]s
 
 	// Leave header to nil by default so we can pass it directly to the Dialer
 	var header http.Header
-	tags := map[string]string***REMOVED******REMOVED***
+	tags := map[string]string***REMOVED***
+		"status":      "0",
+		"subprotocol": "",
+	***REMOVED***
 
 	if !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) ***REMOVED***
 		params := paramsV.ToObject(rt)
