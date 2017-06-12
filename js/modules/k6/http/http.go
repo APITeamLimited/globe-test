@@ -91,10 +91,7 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 
 type HTTP struct***REMOVED******REMOVED***
 
-func (*HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
-	state := common.GetState(ctx)
-
+func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
 	var bodyReader io.Reader
 	var contentType string
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
@@ -125,7 +122,7 @@ func (*HTTP) Request(ctx context.Context, method string, url goja.Value, args ..
 
 	req, err := http.NewRequest(method, urlStr, bodyReader)
 	if err != nil ***REMOVED***
-		return nil, err
+		return nil, nil, err
 	***REMOVED***
 	if contentType != "" ***REMOVED***
 		req.Header.Set("Content-Type", contentType)
@@ -237,7 +234,6 @@ func (*HTTP) Request(ctx context.Context, method string, url goja.Value, args ..
 		***REMOVED***
 	***REMOVED***
 
-	state.Samples = append(state.Samples, trail.Samples(tags)...)
 	if resErr != nil ***REMOVED***
 		// Do *not* log errors about the contex being cancelled.
 		select ***REMOVED***
@@ -247,10 +243,19 @@ func (*HTTP) Request(ctx context.Context, method string, url goja.Value, args ..
 		***REMOVED***
 
 		if throw ***REMOVED***
-			return nil, resErr
+			return nil, nil, resErr
 		***REMOVED***
 	***REMOVED***
-	return resp, nil
+	return resp, trail.Samples(tags), nil
+***REMOVED***
+
+func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	rt := common.GetRuntime(ctx)
+	state := common.GetState(ctx)
+
+	res, samples, err := http.request(ctx, rt, state, method, url, args...)
+	state.Samples = append(state.Samples, samples...)
+	return res, err
 ***REMOVED***
 
 func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
@@ -283,6 +288,7 @@ func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (
 
 func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
+	state := common.GetState(ctx)
 
 	errs := make(chan error)
 	retval := rt.NewObject()
@@ -323,12 +329,13 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		***REMOVED***
 
 		go func() ***REMOVED***
-			res, err := http.Request(ctx, method, url, args...)
+			res, samples, err := http.request(ctx, rt, state, method, url, args...)
 			if err != nil ***REMOVED***
 				errs <- err
 			***REMOVED***
 			mutex.Lock()
 			_ = retval.Set(k, res)
+			state.Samples = append(state.Samples, samples...)
 			mutex.Unlock()
 			errs <- nil
 		***REMOVED***()
