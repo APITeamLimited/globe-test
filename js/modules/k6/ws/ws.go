@@ -33,7 +33,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -133,16 +132,10 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 
 	***REMOVED***
 
-	var bytesRead, bytesWritten int64
 	// Pass a custom net.Dial function to websocket.Dialer that will substitute
 	// the underlying net.Conn with our own tracked netext.Conn
 	netDial := func(network, address string) (net.Conn, error) ***REMOVED***
-		conn, err := state.Dialer.DialContext(ctx, network, address)
-		if err != nil ***REMOVED***
-			return conn, err
-		***REMOVED***
-
-		return netext.TrackConn(conn, &bytesRead, &bytesWritten), nil
+		return state.Dialer.DialContext(ctx, network, address)
 	***REMOVED***
 
 	wsd := websocket.Dialer***REMOVED***
@@ -231,8 +224,6 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 				***REMOVED***Metric: metrics.WSMessagesReceived, Time: end, Tags: tags, Value: socket.msgsSent***REMOVED***,
 				***REMOVED***Metric: metrics.WSConnecting, Time: end, Tags: tags, Value: connectionDuration***REMOVED***,
 				***REMOVED***Metric: metrics.WSSessionDuration, Time: end, Tags: tags, Value: sessionDuration***REMOVED***,
-				***REMOVED***Metric: metrics.DataReceived, Time: end, Tags: tags, Value: float64(bytesRead)***REMOVED***,
-				***REMOVED***Metric: metrics.DataSent, Time: end, Tags: tags, Value: float64(bytesWritten)***REMOVED***,
 			***REMOVED***
 
 			for _, pingDelta := range socket.pingDeltas ***REMOVED***
