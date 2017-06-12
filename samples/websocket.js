@@ -52,5 +52,5 @@ export default function () ***REMOVED***
         ***REMOVED***, 2000);
     ***REMOVED***);
 
-    check(response, ***REMOVED*** "status is 101": (r) => r && r.status_code === 101 ***REMOVED***);
+    check(response, ***REMOVED*** "status is 101": (r) => r && r.status === 101 ***REMOVED***);
 ***REMOVED***;

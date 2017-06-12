@@ -23,9 +23,11 @@ package ws
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +40,11 @@ import (
 
 type WS struct***REMOVED******REMOVED***
 
+type pingDelta struct ***REMOVED***
+	ping time.Time
+	pong time.Time
+***REMOVED***
+
 type Socket struct ***REMOVED***
 	ctx           context.Context
 	conn          *websocket.Conn
@@ -46,11 +53,20 @@ type Socket struct ***REMOVED***
 	done          chan struct***REMOVED******REMOVED***
 	shutdownOnce  sync.Once
 
-	msgsSent, msgsReceived float64
+	msgSentTimestamps     []time.Time
+	msgReceivedTimestamps []time.Time
 
 	pingSendTimestamps map[string]time.Time
 	pingSendCounter    int
-	pingDeltas         []time.Duration
+	pingTimestamps     []pingDelta
+***REMOVED***
+
+type WSHTTPResponse struct ***REMOVED***
+	URL     string
+	Status  int
+	Headers map[string]string
+	Body    string
+	Error   string
 ***REMOVED***
 
 const writeWait = 10 * time.Second
@@ -60,14 +76,12 @@ var (
 	space   = []byte***REMOVED***' '***REMOVED***
 )
 
-func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Response ***REMOVED***
+func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 
-	var callableV goja.Value
-	var paramsV goja.Value
-
 	// The params argument is optional
+	var callableV, paramsV goja.Value
 	switch len(args) ***REMOVED***
 	case 2:
 		paramsV = args[0]
@@ -76,15 +90,13 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 		paramsV = goja.Undefined()
 		callableV = args[0]
 	default:
-		common.Throw(rt, errors.New("Invalid number of arguments to ws.connect"))
-		return nil
+		return nil, errors.New("Invalid number of arguments to ws.connect")
 	***REMOVED***
 
 	// Get the callable (required)
 	setupFn, isFunc := goja.AssertFunction(callableV)
 	if !isFunc ***REMOVED***
-		common.Throw(rt, errors.New("Last argument to ws.connect must be a function"))
-		return nil
+		return nil, errors.New("Last argument to ws.connect must be a function")
 	***REMOVED***
 
 	// Leave header to nil by default so we can pass it directly to the Dialer
@@ -144,9 +156,12 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 	***REMOVED***
 
 	start := time.Now()
-	conn, response, connErr := wsd.Dial(url, header)
+	conn, httpResponse, connErr := wsd.Dial(url, header)
 	connectionEnd := time.Now()
 	connectionDuration := stats.D(connectionEnd.Sub(start))
+
+	wsResponse := wrapHTTPResponse(httpResponse)
+	wsResponse.URL = url
 
 	socket := Socket***REMOVED***
 		ctx:                ctx,
@@ -163,12 +178,15 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 	if connErr != nil ***REMOVED***
 		// Pass the error to the user script before exiting immediately
 		socket.handleEvent("error", rt.ToValue(connErr))
-		return response
+
+		wsResponse.Error = connErr.Error()
+		tags["error"] = wsResponse.Error
+		return wsResponse, connErr
 	***REMOVED***
 	defer conn.Close()
 
-	tags["status"] = strconv.Itoa(response.StatusCode)
-	tags["subprotocol"] = response.Header.Get("Sec-WebSocket-Protocol")
+	tags["status"] = strconv.Itoa(httpResponse.StatusCode)
+	tags["subprotocol"] = httpResponse.Header.Get("Sec-WebSocket-Protocol")
 
 	// The connection is now open, emit the event
 	socket.handleEvent("open")
@@ -199,7 +217,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 			socket.handleEvent("pong")
 
 		case readData := <-readDataChan:
-			socket.msgsReceived++
+			socket.msgReceivedTimestamps = append(socket.msgReceivedTimestamps, time.Now())
 			socket.handleEvent("message", rt.ToValue(string(readData)))
 
 		case readErr := <-readErrChan:
@@ -209,7 +227,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 			scheduledFn(goja.Undefined())
 
 		case <-ctx.Done():
-			// This means that K6 is shutting down (e.g., during an interrupt)
+			// This means that the VU is shutting down (e.g., during an interrupt)
 			socket.handleEvent("close", rt.ToValue("Interrupt"))
 			socket.closeConnection(websocket.CloseGoingAway)
 
@@ -220,24 +238,40 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) *http.Re
 
 			samples := []stats.Sample***REMOVED***
 				***REMOVED***Metric: metrics.WSSessions, Time: end, Tags: tags, Value: 1***REMOVED***,
-				***REMOVED***Metric: metrics.WSMessagesSent, Time: end, Tags: tags, Value: socket.msgsReceived***REMOVED***,
-				***REMOVED***Metric: metrics.WSMessagesReceived, Time: end, Tags: tags, Value: socket.msgsSent***REMOVED***,
 				***REMOVED***Metric: metrics.WSConnecting, Time: end, Tags: tags, Value: connectionDuration***REMOVED***,
 				***REMOVED***Metric: metrics.WSSessionDuration, Time: end, Tags: tags, Value: sessionDuration***REMOVED***,
 			***REMOVED***
 
-			for _, pingDelta := range socket.pingDeltas ***REMOVED***
+			for _, msgSentTimestamp := range socket.msgSentTimestamps ***REMOVED***
+				samples = append(samples, stats.Sample***REMOVED***
+					Metric: metrics.WSMessagesSent,
+					Time:   msgSentTimestamp,
+					Tags:   tags,
+					Value:  1,
+				***REMOVED***)
+			***REMOVED***
+
+			for _, msgReceivedTimestamp := range socket.msgReceivedTimestamps ***REMOVED***
+				samples = append(samples, stats.Sample***REMOVED***
+					Metric: metrics.WSMessagesReceived,
+					Time:   msgReceivedTimestamp,
+					Tags:   tags,
+					Value:  1,
+				***REMOVED***)
+			***REMOVED***
+
+			for _, pingDelta := range socket.pingTimestamps ***REMOVED***
 				samples = append(samples, stats.Sample***REMOVED***
 					Metric: metrics.WSPing,
-					Time:   end,
+					Time:   pingDelta.pong,
 					Tags:   tags,
-					Value:  stats.D(pingDelta),
+					Value:  stats.D(pingDelta.pong.Sub(pingDelta.ping)),
 				***REMOVED***)
 			***REMOVED***
 
 			state.Samples = append(state.Samples, samples...)
 
-			return response
+			return wsResponse, nil
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -266,7 +300,7 @@ func (s *Socket) Send(message string) ***REMOVED***
 		s.handleEvent("error", rt.ToValue(err))
 	***REMOVED***
 
-	s.msgsSent++
+	s.msgSentTimestamps = append(s.msgSentTimestamps, time.Now())
 ***REMOVED***
 
 func (s *Socket) Ping() ***REMOVED***
@@ -295,7 +329,7 @@ func (s *Socket) trackPong(pingID string) ***REMOVED***
 	***REMOVED***
 	pingTimestamp := s.pingSendTimestamps[pingID]
 
-	s.pingDeltas = append(s.pingDeltas, pongTimestamp.Sub(pingTimestamp))
+	s.pingTimestamps = append(s.pingTimestamps, pingDelta***REMOVED***pingTimestamp, pongTimestamp***REMOVED***)
 ***REMOVED***
 
 func (s *Socket) SetTimeout(fn goja.Callable, timeoutMs int) ***REMOVED***
@@ -382,4 +416,22 @@ func readPump(conn *websocket.Conn, readChan chan []byte, errorChan chan error) 
 
 		readChan <- message
 	***REMOVED***
+***REMOVED***
+
+// Wrap the raw HTTPResponse we received to a WSHTTPResponse we can pass to the user
+func wrapHTTPResponse(httpResponse *http.Response) *WSHTTPResponse ***REMOVED***
+	wsResponse := WSHTTPResponse***REMOVED***
+		Status: httpResponse.StatusCode,
+	***REMOVED***
+
+	body, _ := ioutil.ReadAll(httpResponse.Body)
+	_ = httpResponse.Body.Close()
+	wsResponse.Body = string(body)
+
+	wsResponse.Headers = make(map[string]string, len(httpResponse.Header))
+	for k, vs := range httpResponse.Header ***REMOVED***
+		wsResponse.Headers[k] = strings.Join(vs, ", ")
+	***REMOVED***
+
+	return &wsResponse
 ***REMOVED***
