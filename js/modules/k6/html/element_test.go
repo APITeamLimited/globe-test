@@ -21,7 +21,6 @@
 package html
 
 import (
-	// 	"fmt"
 	"context"
 	"testing"
 
@@ -54,6 +53,13 @@ const testHTMLElem = `
 </body>
 `
 
+func valToElementList(val goja.Value) (elems []Element) ***REMOVED***
+	vals := val.Export().([]goja.Value)
+	for i := 0; i < len(vals); i++ ***REMOVED***
+		elems = append(elems, vals[i].Export().(Element))
+	***REMOVED***
+	return
+***REMOVED***
 func TestElement(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
@@ -305,9 +311,11 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Contains", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).contains(doc.find("body").get(0))`)
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, true, v.Export())
+		v1, err1 := common.RunString(rt, `doc.find("html").get(0).contains(doc.find("body").get(0))`)
+		v2, err2 := common.RunString(rt, `doc.find("body").get(0).contains(doc.find("body").get(0))`)
+		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
+			assert.Equal(t, true, v1.Export())
+			assert.Equal(t, false, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Matches", func(t *testing.T) ***REMOVED***
