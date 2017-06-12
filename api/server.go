@@ -27,7 +27,7 @@ import (
 	"github.com/GeertJohan/go.rice"
 	"github.com/loadimpact/k6/api/common"
 	"github.com/loadimpact/k6/api/v1"
-	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/core"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/negroni"
 )
@@ -42,7 +42,7 @@ func NewHandler() http.Handler ***REMOVED***
 	return mux
 ***REMOVED***
 
-func ListenAndServe(addr string, engine *lib.Engine) error ***REMOVED***
+func ListenAndServe(addr string, engine *core.Engine) error ***REMOVED***
 	mux := NewHandler()
 
 	n := negroni.New()
@@ -63,7 +63,7 @@ func NewLogger(l *log.Logger) negroni.HandlerFunc ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func WithEngine(engine *lib.Engine) negroni.HandlerFunc ***REMOVED***
+func WithEngine(engine *core.Engine) negroni.HandlerFunc ***REMOVED***
 	return negroni.HandlerFunc(func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
 		r = r.WithContext(common.WithEngine(r.Context(), engine))
 		next(rw, r)

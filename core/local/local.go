@@ -18,22 +18,7 @@
  *
  */
 
-package common
+package local
 
-import (
-	"context"
-
-	"github.com/loadimpact/k6/core"
-)
-
-type ContextKey int
-
-const ctxKeyEngine = ContextKey(1)
-
-func WithEngine(ctx context.Context, engine *core.Engine) context.Context ***REMOVED***
-	return context.WithValue(ctx, ctxKeyEngine, engine)
-***REMOVED***
-
-func GetEngine(ctx context.Context) *core.Engine ***REMOVED***
-	return ctx.Value(ctxKeyEngine).(*core.Engine)
+type Executor struct ***REMOVED***
 ***REMOVED***

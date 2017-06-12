@@ -18,7 +18,7 @@
  *
  */
 
-package lib
+package core
 
 import (
 	"context"
@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
@@ -47,7 +48,7 @@ const (
 )
 
 type vuEntry struct ***REMOVED***
-	VU     VU
+	VU     lib.VU
 	Cancel context.CancelFunc
 
 	Samples    []stats.Sample
@@ -57,12 +58,12 @@ type vuEntry struct ***REMOVED***
 
 // The Engine is the beating heart of K6.
 type Engine struct ***REMOVED***
-	Runner    Runner
-	Options   Options
-	Collector Collector
+	Runner    lib.Runner
+	Options   lib.Options
+	Collector lib.Collector
 	Logger    *log.Logger
 
-	Stages      []Stage
+	Stages      []lib.Stage
 	Metrics     map[string]*stats.Metric
 	MetricsLock sync.RWMutex
 
@@ -101,7 +102,7 @@ type Engine struct ***REMOVED***
 	cutoff time.Time
 ***REMOVED***
 
-func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
+func NewEngine(r lib.Runner, o lib.Options) (*Engine, error) ***REMOVED***
 	e := &Engine***REMOVED***
 		Runner:  r,
 		Options: o,
@@ -126,9 +127,9 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	if o.Stages != nil ***REMOVED***
 		e.Stages = o.Stages
 	***REMOVED*** else if o.Duration.Valid && o.Duration.Duration > 0 ***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
+		e.Stages = []lib.Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
 	***REMOVED*** else ***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED******REMOVED******REMOVED***
+		e.Stages = []lib.Stage***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
 
 	e.thresholds = o.Thresholds
@@ -497,9 +498,9 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 		to := stage.Target.Int64
 		t := 1.0
 		if stage.Duration.Duration > 0 ***REMOVED***
-			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration.Duration), 0.0, 1.0)
+			t = lib.Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration.Duration), 0.0, 1.0)
 		***REMOVED***
-		vus := Lerp(from, to, t)
+		vus := lib.Lerp(from, to, t)
 		if e.vus != vus ***REMOVED***
 			e.Logger.WithFields(log.Fields***REMOVED***"from": e.vus, "to": vus***REMOVED***).Debug("processStages: interpolating...")
 			if err := e.setVUsNoLock(vus); err != nil ***REMOVED***
