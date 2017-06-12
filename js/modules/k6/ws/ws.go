@@ -160,7 +160,11 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	connectionEnd := time.Now()
 	connectionDuration := stats.D(connectionEnd.Sub(start))
 
-	wsResponse := wrapHTTPResponse(httpResponse)
+	wsResponse, wsRespErr := wrapHTTPResponse(httpResponse)
+	if wsRespErr != nil ***REMOVED***
+		return nil, wsRespErr
+	***REMOVED***
+
 	wsResponse.URL = url
 
 	socket := Socket***REMOVED***
@@ -419,13 +423,21 @@ func readPump(conn *websocket.Conn, readChan chan []byte, errorChan chan error) 
 ***REMOVED***
 
 // Wrap the raw HTTPResponse we received to a WSHTTPResponse we can pass to the user
-func wrapHTTPResponse(httpResponse *http.Response) *WSHTTPResponse ***REMOVED***
+func wrapHTTPResponse(httpResponse *http.Response) (*WSHTTPResponse, error) ***REMOVED***
 	wsResponse := WSHTTPResponse***REMOVED***
 		Status: httpResponse.StatusCode,
 	***REMOVED***
 
-	body, _ := ioutil.ReadAll(httpResponse.Body)
-	_ = httpResponse.Body.Close()
+	body, err := ioutil.ReadAll(httpResponse.Body)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	err = httpResponse.Body.Close()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	wsResponse.Body = string(body)
 
 	wsResponse.Headers = make(map[string]string, len(httpResponse.Header))
@@ -433,5 +445,5 @@ func wrapHTTPResponse(httpResponse *http.Response) *WSHTTPResponse ***REMOVED***
 		wsResponse.Headers[k] = strings.Join(vs, ", ")
 	***REMOVED***
 
-	return &wsResponse
+	return &wsResponse, nil
 ***REMOVED***
