@@ -39,18 +39,12 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 	seenSessions := false
 	seenSessionDuration := false
 	seenConnecting := false
-	seenMessagesReceived := false
-	seenMessagesSent := false
 
 	for _, sample := range samples ***REMOVED***
 		if sample.Tags["url"] == url ***REMOVED***
 			switch sample.Metric ***REMOVED***
 			case metrics.WSConnecting:
 				seenConnecting = true
-			case metrics.WSMessagesReceived:
-				seenMessagesReceived = true
-			case metrics.WSMessagesSent:
-				seenMessagesSent = true
 			case metrics.WSSessionDuration:
 				seenSessionDuration = true
 			case metrics.WSSessions:
@@ -63,25 +57,22 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenConnecting, "url %s didn't emit Connecting", url)
-	assert.True(t, seenMessagesReceived, "url %s didn't emit MessagesReceived", url)
-	assert.True(t, seenMessagesSent, "url %s didn't emit MessagesSent", url)
 	assert.True(t, seenSessions, "url %s didn't emit Sessions", url)
 	assert.True(t, seenSessionDuration, "url %s didn't emit SessionDuration", url)
 ***REMOVED***
 
-func assertPingMetricEmitted(t *testing.T, samples []stats.Sample, url string) ***REMOVED***
+func assertMetricEmitted(t *testing.T, metric *stats.Metric, samples []stats.Sample, url string) ***REMOVED***
 	seenPing := false
 
 	for _, sample := range samples ***REMOVED***
 		if sample.Tags["url"] == url ***REMOVED***
-			if sample.Metric == metrics.WSPing ***REMOVED***
+			if sample.Metric == metric ***REMOVED***
 				seenPing = true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	assert.True(t, seenPing, "url %s didn't emit Ping", url)
+	assert.True(t, seenPing, "url %s didn't emit %s", url, metric.Name)
 ***REMOVED***
-
 func TestSession(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
@@ -106,7 +97,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		let res = ws.connect("ws://echo.websocket.org", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
-		if (res.status_code != 101) ***REMOVED*** throw new Error("connection failed with status: " + res.status); ***REMOVED***
+		if (res.status != 101) ***REMOVED*** throw new Error("connection failed with status: " + res.status); ***REMOVED***
 		`)
 		assert.NoError(t, err)
 	***REMOVED***)
@@ -117,7 +108,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		let res = ws.connect("wss://echo.websocket.org", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
-		if (res.status_code != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
+		if (res.status != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
 		`)
 		assert.NoError(t, err)
 	***REMOVED***)
@@ -157,6 +148,8 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
+	assertMetricEmitted(t, metrics.WSMessagesSent, state.Samples, "ws://echo.websocket.org")
+	assertMetricEmitted(t, metrics.WSMessagesReceived, state.Samples, "ws://echo.websocket.org")
 
 	t.Run("interval", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -214,7 +207,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
-	assertPingMetricEmitted(t, state.Samples, "ws://echo.websocket.org")
+	assertMetricEmitted(t, metrics.WSPing, state.Samples, "ws://echo.websocket.org")
 
 	t.Run("multiple_handlers", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -247,7 +240,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
-	assertPingMetricEmitted(t, state.Samples, "ws://echo.websocket.org")
+	assertMetricEmitted(t, metrics.WSPing, state.Samples, "ws://echo.websocket.org")
 ***REMOVED***
 
 func TestErrors(t *testing.T) ***REMOVED***
@@ -272,21 +265,13 @@ func TestErrors(t *testing.T) ***REMOVED***
 	t.Run("invalid_url", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
 		_, err := common.RunString(rt, `
-		let hasError = false;
 		let res = ws.connect("INVALID", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.close();
 			***REMOVED***);
-
-			socket.on("error", function(errorEvent) ***REMOVED***
-				hasError = true;
-			***REMOVED***);
 		***REMOVED***);
-		if (!hasError) ***REMOVED***
-			throw new Error ("no error emitted for invalid url");
-		***REMOVED***
 		`)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 	***REMOVED***)
 
 	t.Run("send_after_close", func(t *testing.T) ***REMOVED***
