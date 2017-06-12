@@ -317,6 +317,49 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
+	t.Run("respects cutoff", func(t *testing.T) ***REMOVED***
+		testMetric := stats.New("test_metric", stats.Trend)
+
+		var e *Engine
+		signalChan := make(chan interface***REMOVED******REMOVED***)
+		r := RunnerFunc(func(ctx context.Context) (samples []stats.Sample, err error) ***REMOVED***
+			samples = append(samples, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+			close(signalChan)
+			<-ctx.Done()
+			for ***REMOVED***
+				time.Sleep(1 * time.Millisecond)
+				if !e.cutoff.IsZero() ***REMOVED***
+					break
+				***REMOVED***
+			***REMOVED***
+			samples = append(samples, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 2***REMOVED***)
+			return samples, err
+		***REMOVED***)
+		e, err, _ := newTestEngine(r, Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1)***REMOVED***)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+
+		c := &dummy.Collector***REMOVED******REMOVED***
+		e.Collector = c
+
+		ctx, cancel := context.WithCancel(context.Background())
+		errC := make(chan error)
+		go func() ***REMOVED*** errC <- e.Run(ctx) ***REMOVED***()
+		<-signalChan
+		cancel()
+		assert.NoError(t, <-errC)
+
+		found := 0
+		for _, s := range c.Samples ***REMOVED***
+			if s.Metric != testMetric ***REMOVED***
+				continue
+			***REMOVED***
+			found++
+			assert.Equal(t, 1.0, s.Value, "wrong value")
+		***REMOVED***
+		assert.Equal(t, 1, found, "wrong number of samples")
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngineIsRunning(t *testing.T) ***REMOVED***

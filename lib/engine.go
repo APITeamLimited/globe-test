@@ -96,6 +96,9 @@ type Engine struct ***REMOVED***
 	subctx    context.Context
 	subcancel context.CancelFunc
 	subwg     sync.WaitGroup
+
+	// Cutoff point for samples.
+	cutoff time.Time
 ***REMOVED***
 
 func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
@@ -266,6 +269,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		case <-ticker.C:
 		case <-ctx.Done():
 			e.Logger.Debug("run: context expired; exiting...")
+			e.cutoff = time.Now()
 			return nil
 		***REMOVED***
 	***REMOVED***
@@ -564,40 +568,40 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 
 func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	samples, err := vu.VU.RunOnce(ctx)
-
-	// Expired VUs usually have request cancellation errors, and thus skewed metrics and
-	// unhelpful "request cancelled" errors. Don't process those.
-	select ***REMOVED***
-	case <-ctx.Done():
-		return true
-	default:
-	***REMOVED***
-
 	t := time.Now()
 
-	atomic.AddInt64(&vu.Iterations, 1)
-	atomic.AddInt64(&e.numIterations, 1)
-	samples = append(samples,
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.Iterations,
-			Value:  1,
-		***REMOVED***)
-	if err != nil ***REMOVED***
-		if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
-			e.Logger.Error(serr.String())
-		***REMOVED*** else ***REMOVED***
-			e.Logger.WithError(err).Error("VU Error")
+	select ***REMOVED***
+	case <-ctx.Done():
+		// Expired VUs usually have request cancellation errors, and thus skewed metrics and
+		// unhelpful "request cancelled" errors. Filter out samples past the cutoff point.
+		samples2 := make([]stats.Sample, 0, len(samples))
+		for _, s := range samples ***REMOVED***
+			if s.Time.Before(e.cutoff) ***REMOVED***
+				samples2 = append(samples2, s)
+			***REMOVED***
 		***REMOVED***
-		samples = append(samples,
-			stats.Sample***REMOVED***
-				Time:   t,
-				Metric: metrics.Errors,
-				Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
-				Value:  1,
-			***REMOVED***,
-		)
-		atomic.AddInt64(&e.numErrors, 1)
+		samples = samples2
+	default:
+		// Only successful runs are counted and have their errors reported.
+		if err != nil ***REMOVED***
+			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
+				e.Logger.Error(serr.String())
+			***REMOVED*** else ***REMOVED***
+				e.Logger.WithError(err).Error("VU Error")
+			***REMOVED***
+			samples = append(samples,
+				stats.Sample***REMOVED***
+					Time:   t,
+					Metric: metrics.Errors,
+					Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
+					Value:  1,
+				***REMOVED***,
+			)
+			atomic.AddInt64(&e.numErrors, 1)
+		***REMOVED***
+		atomic.AddInt64(&vu.Iterations, 1)
+		atomic.AddInt64(&e.numIterations, 1)
+		samples = append(samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Iterations, Value: 1***REMOVED***)
 	***REMOVED***
 
 	vu.lock.Lock()
