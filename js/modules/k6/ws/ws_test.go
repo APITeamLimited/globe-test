@@ -62,16 +62,16 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 ***REMOVED***
 
 func assertMetricEmitted(t *testing.T, metric *stats.Metric, samples []stats.Sample, url string) ***REMOVED***
-	seenPing := false
+	seenMetric := false
 
 	for _, sample := range samples ***REMOVED***
 		if sample.Tags["url"] == url ***REMOVED***
 			if sample.Metric == metric ***REMOVED***
-				seenPing = true
+				seenMetric = true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	assert.True(t, seenPing, "url %s didn't emit %s", url, metric.Name)
+	assert.True(t, seenMetric, "url %s didn't emit %s", url, metric.Name)
 ***REMOVED***
 func TestSession(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
