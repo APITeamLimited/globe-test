@@ -34,8 +34,9 @@ type Collector struct ***REMOVED***
 	lock sync.Mutex
 ***REMOVED***
 
-func (c *Collector) Init() ***REMOVED***
-***REMOVED***
+func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
+
+func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*** return nil ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	c.lock.Lock()

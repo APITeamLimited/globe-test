@@ -23,6 +23,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -36,10 +37,17 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	null "gopkg.in/guregu/null.v3"
 )
 
-func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, url string, status int, group string) ***REMOVED***
+func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, url, name string, status int, group string) ***REMOVED***
+	if name == "" ***REMOVED***
+		name = url
+	***REMOVED***
+
 	seenDuration := false
 	seenBlocked := false
 	seenConnecting := false
@@ -66,6 +74,7 @@ func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, u
 			assert.Equal(t, strconv.Itoa(status), sample.Tags["status"])
 			assert.Equal(t, method, sample.Tags["method"])
 			assert.Equal(t, group, sample.Tags["group"])
+			assert.Equal(t, name, sample.Tags["name"])
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenDuration, "url %s didn't emit Duration", url)
@@ -80,10 +89,20 @@ func TestRequest(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
 
+	logger := log.New()
+	logger.Level = log.DebugLevel
+	logger.Out = ioutil.Discard
+
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	state := &common.State***REMOVED***
-		Group: root,
+		Options: lib.Options***REMOVED***
+			MaxRedirects: null.IntFrom(10),
+			UserAgent:    null.StringFrom("TestUserAgent"),
+			Throw:        null.BoolFrom(true),
+		***REMOVED***,
+		Logger: logger,
+		Group:  root,
 		HTTPTransport: &http.Transport***REMOVED***
 			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
@@ -93,10 +112,102 @@ func TestRequest(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, &ctx))
+	ctx := new(context.Context)
+	*ctx = context.Background()
+	*ctx = common.WithState(*ctx, state)
+	*ctx = common.WithRuntime(*ctx, rt)
+	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, ctx))
+
+	t.Run("Redirects", func(t *testing.T) ***REMOVED***
+		t.Run("9", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/9")`)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("10", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/10")`)
+			assert.EqualError(t, err, "GoError: Get /get: stopped after 10 redirects")
+
+			logEntry := hook.LastEntry()
+			if assert.NotNil(t, logEntry) ***REMOVED***
+				assert.Equal(t, log.WarnLevel, logEntry.Level)
+				assert.EqualError(t, logEntry.Data["error"].(error), "Get /get: stopped after 10 redirects")
+				assert.Equal(t, "Request Failed", logEntry.Message)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("Timeout", func(t *testing.T) ***REMOVED***
+		t.Run("10s", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				http.get("https://httpbin.org/delay/1", ***REMOVED***
+					timeout: 5*1000,
+				***REMOVED***)
+			`)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("10s", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			startTime := time.Now()
+			_, err := common.RunString(rt, `
+				http.get("https://httpbin.org/delay/10", ***REMOVED***
+					timeout: 1*1000,
+				***REMOVED***)
+			`)
+			endTime := time.Now()
+			assert.EqualError(t, err, "GoError: Get https://httpbin.org/delay/10: net/http: request canceled (Client.Timeout exceeded while awaiting headers)")
+			assert.WithinDuration(t, startTime.Add(1*time.Second), endTime, 1*time.Second)
+
+			logEntry := hook.LastEntry()
+			if assert.NotNil(t, logEntry) ***REMOVED***
+				assert.Equal(t, log.WarnLevel, logEntry.Level)
+				assert.EqualError(t, logEntry.Data["error"].(error), "Get https://httpbin.org/delay/10: net/http: request canceled (Client.Timeout exceeded while awaiting headers)")
+				assert.Equal(t, "Request Failed", logEntry.Message)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("UserAgent", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+			let res = http.get("http://httpbin.org/user-agent");
+			if (res.json()['user-agent'] != "TestUserAgent") ***REMOVED***
+				throw new Error("incorrect user agent: " + res.json()['user-agent'])
+			***REMOVED***
+		`)
+		assert.NoError(t, err)
+
+		t.Run("Override", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("http://httpbin.org/user-agent", ***REMOVED***
+					headers: ***REMOVED*** "User-Agent": "OtherUserAgent" ***REMOVED***,
+				***REMOVED***);
+				if (res.json()['user-agent'] != "OtherUserAgent") ***REMOVED***
+					throw new Error("incorrect user agent: " + res.json()['user-agent'])
+				***REMOVED***
+			`)
+			assert.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("BadSSL", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
+		assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
+	***REMOVED***)
+	t.Run("Cancelled", func(t *testing.T) ***REMOVED***
+		hook := logtest.NewLocal(state.Logger)
+		defer hook.Reset()
+
+		oldctx := *ctx
+		newctx, cancel := context.WithCancel(oldctx)
+		cancel()
+		*ctx = newctx
+		defer func() ***REMOVED*** *ctx = oldctx ***REMOVED***()
+
+		_, err := common.RunString(rt, `http.get("https://httpbin.org/get/");`)
+		assert.Error(t, err)
+		assert.Nil(t, hook.LastEntry())
+	***REMOVED***)
 
 	t.Run("HTML", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -106,7 +217,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 		if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 		`)
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", 200, "")
+		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", "", 200, "")
 
 		t.Run("html", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
@@ -137,7 +248,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 			if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 			`)
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", 200, "::my group")
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", "", 200, "::my group")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("JSON", func(t *testing.T) ***REMOVED***
@@ -149,7 +260,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 		if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
 		`)
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", 200, "")
+		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", "", 200, "")
 
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `http.request("GET", "https://httpbin.org/html").json();`)
@@ -157,8 +268,36 @@ func TestRequest(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		hook := logtest.NewLocal(state.Logger)
+		defer hook.Reset()
+
 		_, err := common.RunString(rt, `http.request("", "");`)
 		assert.EqualError(t, err, "GoError: Get : unsupported protocol scheme \"\"")
+
+		logEntry := hook.LastEntry()
+		if assert.NotNil(t, logEntry) ***REMOVED***
+			assert.Equal(t, log.WarnLevel, logEntry.Level)
+			assert.EqualError(t, logEntry.Data["error"].(error), "Get : unsupported protocol scheme \"\"")
+			assert.Equal(t, "Request Failed", logEntry.Message)
+		***REMOVED***
+
+		t.Run("throw=false", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			_, err := common.RunString(rt, `
+				let res = http.request("", "", ***REMOVED*** throw: false ***REMOVED***);
+				throw new Error(res.error);
+			`)
+			assert.EqualError(t, err, "GoError: Get : unsupported protocol scheme \"\"")
+
+			logEntry := hook.LastEntry()
+			if assert.NotNil(t, logEntry) ***REMOVED***
+				assert.Equal(t, log.WarnLevel, logEntry.Level)
+				assert.EqualError(t, logEntry.Data["error"].(error), "Get : unsupported protocol scheme \"\"")
+				assert.Equal(t, "Request Failed", logEntry.Message)
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("Unroutable", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `http.request("GET", "http://sdafsgdhfjg/");`)
@@ -174,7 +313,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`, literal))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 			***REMOVED***)
 		***REMOVED***
 
@@ -187,7 +326,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`, literal))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", 200, "")
+					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 				***REMOVED***)
 			***REMOVED***
 
@@ -201,7 +340,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res.json().headers["X-My-Header"] != "value") ***REMOVED*** throw new Error("wrong X-My-Header: " + res.json().headers["X-My-Header"]); ***REMOVED***
 				`)
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 			***REMOVED***)
 		***REMOVED***)
 
@@ -214,7 +353,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`, literal))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", 200, "")
+					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 				***REMOVED***)
 			***REMOVED***
 
@@ -225,7 +364,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`)
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 				for _, sample := range state.Samples ***REMOVED***
 					assert.Equal(t, "value", sample.Tags["tag"])
 				***REMOVED***
@@ -242,7 +381,21 @@ func TestRequest(t *testing.T) ***REMOVED***
 		if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
 		`)
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", 200, "")
+		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", "", 200, "")
+
+		t.Run("Tagged", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let a = "1";
+			let b = "2";
+			let res = http.get(http.url`+"`"+`https://httpbin.org/get?a=$***REMOVED***a***REMOVED***&b=$***REMOVED***b***REMOVED***`+"`"+`);
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			if (res.json().args.a != a) ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
+			if (res.json().args.b != b) ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", "https://httpbin.org/get?a=$***REMOVED******REMOVED***&b=$***REMOVED******REMOVED***", 200, "")
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("HEAD", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -252,7 +405,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 		if (res.body.length != 0) ***REMOVED*** throw new Error("HEAD responses shouldn't have a body"); ***REMOVED***
 		`)
 		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "HEAD", "https://httpbin.org/get?a=1&b=2", 200, "")
+		assertRequestMetricsEmitted(t, state.Samples, "HEAD", "https://httpbin.org/get?a=1&b=2", "", 200, "")
 	***REMOVED***)
 
 	postMethods := map[string]string***REMOVED***
@@ -271,7 +424,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 			if (res.json().headers["Content-Type"]) ***REMOVED*** throw new Error("content type set: " + res.json().headers["Content-Type"]); ***REMOVED***
 			`, fn, strings.ToLower(method)))
 			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), 200, "")
+			assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), "", 200, "")
 
 			t.Run("object", func(t *testing.T) ***REMOVED***
 				state.Samples = nil
@@ -283,7 +436,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res.json().headers["Content-Type"] != "application/x-www-form-urlencoded") ***REMOVED*** throw new Error("wrong content type: " + res.json().headers["Content-Type"]); ***REMOVED***
 				`, fn, strings.ToLower(method)))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), "", 200, "")
 
 				t.Run("Content-Type", func(t *testing.T) ***REMOVED***
 					state.Samples = nil
@@ -295,7 +448,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 					if (res.json().headers["Content-Type"] != "application/x-www-form-urlencoded; charset=utf-8") ***REMOVED*** throw new Error("wrong content type: " + res.json().headers["Content-Type"]); ***REMOVED***
 					`, fn, strings.ToLower(method)))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), 200, "")
+					assertRequestMetricsEmitted(t, state.Samples, method, "https://httpbin.org/"+strings.ToLower(method), "", 200, "")
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED***)
@@ -303,6 +456,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 
 	t.Run("Batch", func(t *testing.T) ***REMOVED***
 		t.Run("GET", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
 			_, err := common.RunString(rt, `
 			let reqs = [
 				["GET", "https://httpbin.org/"],
@@ -314,8 +468,29 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res[key].url != reqs[key][1]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+
+			t.Run("Tagged", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
+				_, err := common.RunString(rt, `
+				let fragment = "get";
+				let reqs = [
+					["GET", http.url`+"`"+`https://httpbin.org/$***REMOVED***fragment***REMOVED***`+"`"+`],
+					["GET", http.url`+"`"+`https://example.com/`+"`"+`],
+				];
+				let res = http.batch(reqs);
+				for (var key in res) ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key][1].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+				***REMOVED***`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+			***REMOVED***)
 
 			t.Run("Shorthand", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
 				_, err := common.RunString(rt, `
 				let reqs = [
 					"https://httpbin.org/",
@@ -327,9 +502,30 @@ func TestRequest(t *testing.T) ***REMOVED***
 					if (res[key].url != reqs[key]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+
+				t.Run("Tagged", func(t *testing.T) ***REMOVED***
+					state.Samples = nil
+					_, err := common.RunString(rt, `
+					let fragment = "get";
+					let reqs = [
+						http.url`+"`"+`https://httpbin.org/$***REMOVED***fragment***REMOVED***`+"`"+`,
+						http.url`+"`"+`https://example.com/`+"`"+`,
+					];
+					let res = http.batch(reqs);
+					for (var key in res) ***REMOVED***
+						if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+						if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+					***REMOVED***`)
+					assert.NoError(t, err)
+					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
+					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+				***REMOVED***)
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("POST", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
 			_, err := common.RunString(rt, `
 			let res = http.batch([ ["POST", "https://httpbin.org/post", ***REMOVED*** key: "value" ***REMOVED***] ]);
 			for (var key in res) ***REMOVED***
@@ -337,8 +533,10 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
 		***REMOVED***)
 		t.Run("PUT", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
 			_, err := common.RunString(rt, `
 			let res = http.batch([ ["PUT", "https://httpbin.org/put", ***REMOVED*** key: "value" ***REMOVED***] ]);
 			for (var key in res) ***REMOVED***
@@ -346,6 +544,29 @@ func TestRequest(t *testing.T) ***REMOVED***
 				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "PUT", "https://httpbin.org/put", "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
+***REMOVED***
+
+func TestTagURL(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, nil))
+
+	testdata := map[string]URLTag***REMOVED***
+		`http://example.com/`:               ***REMOVED***URL: "http://example.com/", Name: "http://example.com/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***URL: "http://example.com/2", Name: "http://example.com/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***URL: "http://example.com/2/", Name: "http://example.com/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***URL: "http://example.com/2/3", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***URL: "http://example.com/2/3/", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+	***REMOVED***
+	for expr, tag := range testdata ***REMOVED***
+		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, "http.url`"+expr+"`")
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, tag, v.Export())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

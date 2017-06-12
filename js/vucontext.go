@@ -20,13 +20,17 @@
 
 package js
 
+import (
+	"github.com/loadimpact/k6/lib"
+)
+
 // Provides APIs and state for use in a VU context.
 type VUContext struct ***REMOVED***
 	// Console Object.
 	Console *Console `js:"console"`
 ***REMOVED***
 
-func NewVUContext() *VUContext ***REMOVED***
+func NewVUContext(opts lib.Options) *VUContext ***REMOVED***
 	return &VUContext***REMOVED***
 		Console: NewConsole(),
 	***REMOVED***

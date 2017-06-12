@@ -29,17 +29,23 @@ import (
 	"net"
 	"net/http"
 	neturl "net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
-
-	"reflect"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/modules/k6/html"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
+)
+
+var (
+	typeString = reflect.TypeOf("")
+	typeURLTag = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
 )
 
 type HTTPResponseTimings struct ***REMOVED***
@@ -56,6 +62,7 @@ type HTTPResponse struct ***REMOVED***
 	Headers    map[string]string
 	Body       string
 	Timings    HTTPResponseTimings
+	Error      string
 
 	cachedJSON goja.Value
 ***REMOVED***
@@ -84,7 +91,7 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 
 type HTTP struct***REMOVED******REMOVED***
 
-func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (*HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 
@@ -104,20 +111,38 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 		***REMOVED***
 	***REMOVED***
 
-	req, err := http.NewRequest(method, url, bodyReader)
+	// The provided URL can be either a string (or at least something stringable) or a URLTag.
+	var urlStr string
+	var nameTag string
+	switch v := url.Export().(type) ***REMOVED***
+	case URLTag:
+		urlStr = v.URL
+		nameTag = v.Name
+	default:
+		urlStr = url.String()
+		nameTag = urlStr
+	***REMOVED***
+
+	req, err := http.NewRequest(method, urlStr, bodyReader)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	if contentType != "" ***REMOVED***
 		req.Header.Set("Content-Type", contentType)
 	***REMOVED***
+	if userAgent := state.Options.UserAgent; userAgent.Valid ***REMOVED***
+		req.Header.Set("User-Agent", userAgent.String)
+	***REMOVED***
 
 	tags := map[string]string***REMOVED***
 		"status": "0",
 		"method": method,
-		"url":    url,
+		"url":    urlStr,
+		"name":   nameTag,
 		"group":  state.Group.Path,
 	***REMOVED***
+	timeout := 60 * time.Second
+	throw := state.Options.Throw.Bool
 
 	if len(args) > 1 ***REMOVED***
 		paramsV := args[1]
@@ -149,81 +174,110 @@ func (*HTTP) Request(ctx context.Context, method, url string, args ...goja.Value
 					for _, key := range tagObj.Keys() ***REMOVED***
 						tags[key] = tagObj.Get(key).String()
 					***REMOVED***
+				case "timeout":
+					timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
+				case "throw":
+					throw = params.Get(k).ToBoolean()
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	client := http.Client***REMOVED***Transport: state.HTTPTransport***REMOVED***
-	tracer := netext.Tracer***REMOVED******REMOVED***
-	res, err := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
-	if err != nil ***REMOVED***
-		state.Samples = append(state.Samples, tracer.Done().Samples(tags)...)
-		return nil, err
-	***REMOVED***
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil ***REMOVED***
-		state.Samples = append(state.Samples, tracer.Done().Samples(tags)...)
-		return nil, err
-	***REMOVED***
-	_ = res.Body.Close()
-	trail := tracer.Done()
-
-	tags["status"] = strconv.Itoa(res.StatusCode)
-	state.Samples = append(state.Samples, trail.Samples(tags)...)
-
-	headers := make(map[string]string, len(res.Header))
-	for k, vs := range res.Header ***REMOVED***
-		headers[k] = strings.Join(vs, ", ")
-	***REMOVED***
-	remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
-	remotePort, _ := strconv.Atoi(remotePortStr)
-	return &HTTPResponse***REMOVED***
+	resp := &HTTPResponse***REMOVED***
 		ctx: ctx,
-
-		RemoteIP:   remoteHost,
-		RemotePort: remotePort,
-		URL:        res.Request.URL.String(),
-		Status:     res.StatusCode,
-		Headers:    headers,
-		Body:       string(body),
-		Timings: HTTPResponseTimings***REMOVED***
-			Duration:   stats.D(trail.Duration),
-			Blocked:    stats.D(trail.Blocked),
-			Connecting: stats.D(trail.Connecting),
-			Sending:    stats.D(trail.Sending),
-			Waiting:    stats.D(trail.Waiting),
-			Receiving:  stats.D(trail.Receiving),
+		URL: urlStr,
+	***REMOVED***
+	client := http.Client***REMOVED***
+		Transport: state.HTTPTransport,
+		Timeout:   timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
+			max := int(state.Options.MaxRedirects.Int64)
+			if len(via) >= max ***REMOVED***
+				return errors.Errorf("stopped after %d redirects", max)
+			***REMOVED***
+			return nil
 		***REMOVED***,
-	***REMOVED***, nil
+	***REMOVED***
+
+	tracer := netext.Tracer***REMOVED******REMOVED***
+	res, resErr := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
+	if res != nil ***REMOVED***
+		body, _ := ioutil.ReadAll(res.Body)
+		_ = res.Body.Close()
+		resp.Body = string(body)
+	***REMOVED***
+	trail := tracer.Done()
+	if trail.ConnRemoteAddr != nil ***REMOVED***
+		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
+		remotePort, _ := strconv.Atoi(remotePortStr)
+		resp.RemoteIP = remoteHost
+		resp.RemotePort = remotePort
+	***REMOVED***
+	resp.Timings = HTTPResponseTimings***REMOVED***
+		Duration:   stats.D(trail.Duration),
+		Blocked:    stats.D(trail.Blocked),
+		Connecting: stats.D(trail.Connecting),
+		Sending:    stats.D(trail.Sending),
+		Waiting:    stats.D(trail.Waiting),
+		Receiving:  stats.D(trail.Receiving),
+	***REMOVED***
+
+	if resErr != nil ***REMOVED***
+		resp.Error = resErr.Error()
+		tags["error"] = resp.Error
+	***REMOVED*** else ***REMOVED***
+		resp.URL = res.Request.URL.String()
+		resp.Status = res.StatusCode
+		tags["url"] = resp.URL
+		tags["status"] = strconv.Itoa(resp.Status)
+
+		resp.Headers = make(map[string]string, len(res.Header))
+		for k, vs := range res.Header ***REMOVED***
+			resp.Headers[k] = strings.Join(vs, ", ")
+		***REMOVED***
+	***REMOVED***
+
+	state.Samples = append(state.Samples, trail.Samples(tags)...)
+	if resErr != nil ***REMOVED***
+		// Do *not* log errors about the contex being cancelled.
+		select ***REMOVED***
+		case <-ctx.Done():
+		default:
+			state.Logger.WithField("error", resErr).Warn("Request Failed")
+		***REMOVED***
+
+		if throw ***REMOVED***
+			return nil, resErr
+		***REMOVED***
+	***REMOVED***
+	return resp, nil
 ***REMOVED***
 
-func (http *HTTP) Get(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 	return http.Request(ctx, "GET", url, args...)
 ***REMOVED***
 
-func (http *HTTP) Head(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 	return http.Request(ctx, "HEAD", url, args...)
 ***REMOVED***
 
-func (http *HTTP) Post(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	return http.Request(ctx, "POST", url, args...)
 ***REMOVED***
 
-func (http *HTTP) Put(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	return http.Request(ctx, "PUT", url, args...)
 ***REMOVED***
 
-func (http *HTTP) Patch(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	return http.Request(ctx, "PATCH", url, args...)
 ***REMOVED***
 
-func (http *HTTP) Del(ctx context.Context, url string, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	return http.Request(ctx, "DELETE", url, args...)
 ***REMOVED***
 
@@ -240,14 +294,16 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		k := k
 		v := reqs.Get(k)
 
-		var method, url string
+		var method string
+		var url goja.Value
 		var args []goja.Value
 
 		// Shorthand: "http://example.com/" -> ["GET", "http://example.com/"]
-		if v.ExportType().Kind() == reflect.String ***REMOVED***
+		switch v.ExportType() ***REMOVED***
+		case typeString, typeURLTag:
 			method = "GET"
-			url = v.String()
-		***REMOVED*** else ***REMOVED***
+			url = v
+		default:
 			obj := v.ToObject(rt)
 			objkeys := obj.Keys()
 			for i, objk := range objkeys ***REMOVED***
@@ -259,7 +315,7 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
 					***REMOVED***
 				case 1:
-					url = objv.String()
+					url = objv
 				default:
 					args = append(args, objv)
 				***REMOVED***
@@ -285,4 +341,17 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		***REMOVED***
 	***REMOVED***
 	return retval, err
+***REMOVED***
+
+func (http *HTTP) Url(parts []string, pieces ...string) URLTag ***REMOVED***
+	var tag URLTag
+	for i, part := range parts ***REMOVED***
+		tag.Name += part
+		tag.URL += part
+		if i < len(pieces) ***REMOVED***
+			tag.Name += "$***REMOVED******REMOVED***"
+			tag.URL += pieces[i]
+		***REMOVED***
+	***REMOVED***
+	return tag
 ***REMOVED***

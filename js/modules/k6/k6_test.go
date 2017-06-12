@@ -34,6 +34,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestFail(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, nil))
+	_, err := common.RunString(rt, `k6.fail("blah")`)
+	assert.EqualError(t, err, "GoError: blah")
+***REMOVED***
+
 func TestSleep(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -155,8 +162,12 @@ func TestCheck(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Literal", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `k6.check(null, null)`)
-		assert.EqualError(t, err, "TypeError: Cannot convert undefined or null to object")
+		state := &common.State***REMOVED***Group: root***REMOVED***
+		*ctx = common.WithState(baseCtx, state)
+
+		_, err := common.RunString(rt, `k6.check(null, 12345)`)
+		assert.NoError(t, err)
+		assert.Len(t, state.Samples, 0)
 	***REMOVED***)
 
 	t.Run("Throws", func(t *testing.T) ***REMOVED***

@@ -23,13 +23,15 @@ package js
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
+	"os"
 	"reflect"
+	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 )
@@ -38,10 +40,13 @@ import (
 // You can use this to produce identical BundleInstance objects.
 type Bundle struct ***REMOVED***
 	Filename string
+	Source   string
 	Program  *goja.Program
 	Options  lib.Options
 
 	BaseInitContext *InitContext
+
+	Env map[string]string
 ***REMOVED***
 
 // A BundleInstance is a self-contained instance of a Bundle.
@@ -49,6 +54,18 @@ type BundleInstance struct ***REMOVED***
 	Runtime *goja.Runtime
 	Context *context.Context
 	Default goja.Callable
+***REMOVED***
+
+func collectEnv() map[string]string ***REMOVED***
+	env := make(map[string]string)
+	for _, kv := range os.Environ() ***REMOVED***
+		if idx := strings.IndexRune(kv, '='); idx != -1 ***REMOVED***
+			env[kv[:idx]] = kv[idx+1:]
+		***REMOVED*** else ***REMOVED***
+			env[kv] = ""
+		***REMOVED***
+	***REMOVED***
+	return env
 ***REMOVED***
 
 // Creates a new bundle from a source file and a filesystem.
@@ -74,8 +91,10 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	rt := goja.New()
 	bundle := Bundle***REMOVED***
 		Filename:        src.Filename,
+		Source:          code,
 		Program:         pgm,
-		BaseInitContext: NewInitContext(rt, new(context.Context), fs, filepath.Dir(src.Filename)),
+		BaseInitContext: NewInitContext(rt, new(context.Context), fs, loader.Dir(src.Filename)),
+		Env:             collectEnv(),
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
@@ -115,6 +134,55 @@ func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	return &bundle, nil
 ***REMOVED***
 
+func NewBundleFromArchive(arc *lib.Archive) (*Bundle, error) ***REMOVED***
+	if arc.Type != "js" ***REMOVED***
+		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
+	***REMOVED***
+
+	pgm, err := goja.Compile(arc.Filename, string(arc.Data), true)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	initctx := NewInitContext(goja.New(), new(context.Context), nil, arc.Pwd)
+	for filename, data := range arc.Scripts ***REMOVED***
+		src := string(data)
+		scr, err := goja.Compile(filename, src, true)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		initctx.programs[filename] = programWithSource***REMOVED***scr, src***REMOVED***
+	***REMOVED***
+	initctx.files = arc.Files
+
+	return &Bundle***REMOVED***
+		Filename:        arc.Filename,
+		Source:          string(arc.Data),
+		Program:         pgm,
+		Options:         arc.Options,
+		BaseInitContext: initctx,
+		Env:             collectEnv(),
+	***REMOVED***, nil
+***REMOVED***
+
+func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
+	arc := &lib.Archive***REMOVED***
+		Type:     "js",
+		Options:  b.Options,
+		Filename: b.Filename,
+		Data:     []byte(b.Source),
+		Pwd:      b.BaseInitContext.pwd,
+	***REMOVED***
+
+	arc.Scripts = make(map[string][]byte, len(b.BaseInitContext.programs))
+	for name, pgm := range b.BaseInitContext.programs ***REMOVED***
+		arc.Scripts[name] = []byte(pgm.src)
+	***REMOVED***
+	arc.Files = b.BaseInitContext.files
+
+	return arc
+***REMOVED***
+
 // Instantiates a new runtime from this bundle.
 func (b *Bundle) Instantiate() (*BundleInstance, error) ***REMOVED***
 	// Placeholder for a real context.
@@ -150,6 +218,8 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 	module := rt.NewObject()
 	_ = module.Set("exports", exports)
 	rt.Set("module", module)
+
+	rt.Set("__ENV", b.Env)
 
 	*init.ctxPtr = common.WithRuntime(context.Background(), rt)
 	unbindInit := common.BindToGlobal(rt, common.Bind(rt, init, init.ctxPtr))

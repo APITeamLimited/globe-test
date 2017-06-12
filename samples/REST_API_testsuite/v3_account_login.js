@@ -6,7 +6,7 @@
 
 import http from "k6/http";
 import ***REMOVED*** group, sleep, check ***REMOVED*** from "k6";
-import ***REMOVED*** myTrend, options, urlbase, thinktime1, thinktime2 ***REMOVED*** from "./common";
+import ***REMOVED*** myTrend, options, urlbase, thinktime1, thinktime2 ***REMOVED*** from "./common.js";
 
 export ***REMOVED*** options ***REMOVED***;
 

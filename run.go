@@ -21,14 +21,17 @@
 package main
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -36,7 +39,6 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/fatih/color"
 	"github.com/ghodss/yaml"
 	"github.com/loadimpact/k6/api"
@@ -45,89 +47,108 @@ import (
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/simple"
 	"github.com/loadimpact/k6/stats"
+	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/json"
 	"github.com/loadimpact/k6/ui"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"gopkg.in/guregu/null.v3"
 	"gopkg.in/urfave/cli.v1"
 )
 
 const (
-	TypeAuto = "auto"
-	TypeURL  = "url"
-	TypeJS   = "js"
+	TypeAuto    = "auto"
+	TypeURL     = "url"
+	TypeJS      = "js"
+	TypeArchive = "archive"
+
+	CollectorJSON     = "json"
+	CollectorInfluxDB = "influxdb"
+	CollectorCloud    = "cloud"
 )
 
 var urlRegex = regexp.MustCompile(`(?i)^https?://`)
+
+var optionFlags = []cli.Flag***REMOVED***
+	cli.Int64Flag***REMOVED***
+		Name:  "vus, u",
+		Usage: "virtual users to simulate",
+		Value: 1,
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "max, m",
+		Usage: "max number of virtual users, if more than --vus",
+	***REMOVED***,
+	cli.DurationFlag***REMOVED***
+		Name:  "duration, d",
+		Usage: "test duration, 0 to run until cancelled",
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "iterations, i",
+		Usage: "run a set number of iterations, multiplied by VU count",
+	***REMOVED***,
+	cli.StringSliceFlag***REMOVED***
+		Name:  "stage, s",
+		Usage: "define a test stage, in the format time[:vus] (10s:100)",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "paused, p",
+		Usage: "start test in a paused state",
+	***REMOVED***,
+	cli.StringFlag***REMOVED***
+		Name:  "type, t",
+		Usage: "input type, one of: auto, url, js, archive",
+		Value: "auto",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "linger, l",
+		Usage: "linger after test completion",
+	***REMOVED***,
+	cli.Int64Flag***REMOVED***
+		Name:  "max-redirects",
+		Usage: "follow at most n redirects",
+		Value: 10,
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "insecure-skip-tls-verify",
+		Usage: "INSECURE: skip verification of TLS certificates",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "no-connection-reuse",
+		Usage: "don't reuse connections between VU iterations",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:  "throw, w",
+		Usage: "throw errors on failed requests",
+	***REMOVED***,
+	cli.StringSliceFlag***REMOVED***
+		Name:  "config, c",
+		Usage: "read additional config files",
+	***REMOVED***,
+	cli.BoolFlag***REMOVED***
+		Name:   "no-usage-report",
+		Usage:  "don't send heartbeat to k6 project on test execution",
+		EnvVar: "K6_NO_USAGE_REPORT",
+	***REMOVED***,
+***REMOVED***
 
 var commandRun = cli.Command***REMOVED***
 	Name:      "run",
 	Usage:     "Starts running a load test",
 	ArgsUsage: "url|filename",
-	Flags: []cli.Flag***REMOVED***
+	Flags: append(optionFlags,
 		cli.BoolFlag***REMOVED***
 			Name:  "quiet, q",
 			Usage: "hide the progress bar",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "vus, u",
-			Usage: "virtual users to simulate",
-			Value: 1,
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "max, m",
-			Usage: "max number of virtual users, if more than --vus",
-		***REMOVED***,
-		cli.DurationFlag***REMOVED***
-			Name:  "duration, d",
-			Usage: "test duration, 0 to run until cancelled",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "iterations, i",
-			Usage: "run a set number of iterations, multiplied by VU count",
-		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "stage, s",
-			Usage: "define a test stage, in the format time[:vus] (10s:100)",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "paused, p",
-			Usage: "start test in a paused state",
-		***REMOVED***,
-		cli.StringFlag***REMOVED***
-			Name:  "type, t",
-			Usage: "input type, one of: auto, url, js",
-			Value: "auto",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "linger, l",
-			Usage: "linger after test completion",
-		***REMOVED***,
-		cli.Int64Flag***REMOVED***
-			Name:  "max-redirects",
-			Usage: "follow at most n redirects",
-			Value: 10,
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:  "insecure-skip-tls-verify",
-			Usage: "INSECURE: skip verification of TLS certificates",
 		***REMOVED***,
 		cli.StringFlag***REMOVED***
 			Name:   "out, o",
 			Usage:  "output metrics to an external data store (format: type=uri)",
 			EnvVar: "K6_OUT",
 		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "config, c",
-			Usage: "read additional config files",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:   "no-usage-report",
-			Usage:  "don't send heartbeat to k6 project on test execution",
-			EnvVar: "K6_NO_USAGE_REPORT",
-		***REMOVED***,
-	***REMOVED***,
+	),
 	Action: actionRun,
 	Description: `Run starts a load test.
 
@@ -143,6 +164,23 @@ var commandRun = cli.Command***REMOVED***
    duration) to 'run', which will be applied through a normal API call.`,
 ***REMOVED***
 
+var commandArchive = cli.Command***REMOVED***
+	Name:      "archive",
+	Usage:     "Archives a test configuration",
+	ArgsUsage: "url|filename",
+	Flags: append(optionFlags,
+		cli.StringFlag***REMOVED***
+			Name:  "archive, a",
+			Usage: "Filename for the archive",
+			Value: "archive.tar",
+		***REMOVED***,
+	),
+	Action: actionArchive,
+	Description: `
+
+	`,
+***REMOVED***
+
 var commandInspect = cli.Command***REMOVED***
 	Name:      "inspect",
 	Aliases:   []string***REMOVED***"i"***REMOVED***,
@@ -151,45 +189,43 @@ var commandInspect = cli.Command***REMOVED***
 	Flags: []cli.Flag***REMOVED***
 		cli.StringFlag***REMOVED***
 			Name:  "type, t",
-			Usage: "input type, one of: auto, url, js",
+			Usage: "input type, one of: auto, url, js, archive",
 			Value: "auto",
-		***REMOVED***,
-		cli.StringSliceFlag***REMOVED***
-			Name:  "config, c",
-			Usage: "read additional config files",
 		***REMOVED***,
 	***REMOVED***,
 	Action: actionInspect,
 ***REMOVED***
 
 func guessType(data []byte) string ***REMOVED***
+	// See if it looks like a URL.
 	if urlRegex.Match(data) ***REMOVED***
 		return TypeURL
+	***REMOVED***
+	// See if it has a valid tar header.
+	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
+		return TypeArchive
 	***REMOVED***
 	return TypeJS
 ***REMOVED***
 
-func getSrcData(filename string, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
+func getSrcData(filename, pwd string, stdin io.Reader, fs afero.Fs) (*lib.SourceData, error) ***REMOVED***
 	if filename == "-" ***REMOVED***
-		data, err := ioutil.ReadAll(os.Stdin)
+		data, err := ioutil.ReadAll(stdin)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		return &lib.SourceData***REMOVED***Filename: "-", Data: data***REMOVED***, nil
 	***REMOVED***
 
-	if ok, _ := afero.Exists(fs, filename); ok ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
+	abspath := filepath.Join(pwd, filename)
+	if ok, _ := afero.Exists(fs, abspath); ok ***REMOVED***
+		data, err := afero.ReadFile(fs, abspath)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return &lib.SourceData***REMOVED***Filename: filename, Data: data***REMOVED***, nil
+		return &lib.SourceData***REMOVED***Filename: abspath, Data: data***REMOVED***, nil
 	***REMOVED***
 
-	pwd, err := os.Getwd()
-	if err != nil ***REMOVED***
-		pwd = "/"
-	***REMOVED***
 	return loader.Load(fs, pwd, filename)
 ***REMOVED***
 
@@ -209,34 +245,119 @@ func makeRunner(runnerType string, src *lib.SourceData, fs afero.Fs) (lib.Runner
 		return r, err
 	case TypeJS:
 		return js.New(src, fs)
+	case TypeArchive:
+		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		switch arc.Type ***REMOVED***
+		case TypeJS:
+			return js.NewFromArchive(arc)
+		default:
+			return nil, errors.Errorf("Invalid archive - unrecognized type: '%s'", arc.Type)
+		***REMOVED***
 	default:
 		return nil, errors.New("Invalid type specified, see --help")
 	***REMOVED***
 ***REMOVED***
 
-func parseCollectorString(s string) (t, p string, err error) ***REMOVED***
+func splitCollectorString(s string) (string, string) ***REMOVED***
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) != 2 ***REMOVED***
-		return "", "", errors.New("Malformed output; must be in the form 'type=url'")
+		return parts[0], ""
 	***REMOVED***
-
-	return parts[0], parts[1], nil
+	return parts[0], parts[1]
 ***REMOVED***
 
-func makeCollector(s string, src *lib.SourceData, opts lib.Options) (lib.Collector, error) ***REMOVED***
-	t, p, err := parseCollectorString(s)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
+func makeCollector(s string, conf Config, src *lib.SourceData, opts lib.Options, version string) (lib.Collector, error) ***REMOVED***
+	t, p := splitCollectorString(s)
 	switch t ***REMOVED***
-	case "influxdb":
-		return influxdb.New(p, opts)
-	case "json":
+	case CollectorInfluxDB:
+		return influxdb.New(p, conf.Collectors.Get(t), opts)
+	case CollectorJSON:
 		return json.New(p, afero.NewOsFs(), opts)
+	case CollectorCloud:
+		return cloud.New(p, src, opts, version)
 	default:
 		return nil, errors.New("Unknown output type: " + t)
 	***REMOVED***
+***REMOVED***
+
+func collectorOfType(t string) lib.Collector ***REMOVED***
+	switch t ***REMOVED***
+	case CollectorInfluxDB:
+		return &influxdb.Collector***REMOVED******REMOVED***
+	case CollectorJSON:
+		return &json.Collector***REMOVED******REMOVED***
+	case CollectorCloud:
+		return &json.Collector***REMOVED******REMOVED***
+	default:
+		return nil
+	***REMOVED***
+***REMOVED***
+
+func getOptions(cc *cli.Context) (lib.Options, error) ***REMOVED***
+	var err error
+	opts := lib.Options***REMOVED***
+		Paused:                cliBool(cc, "paused"),
+		VUs:                   cliInt64(cc, "vus"),
+		VUsMax:                cliInt64(cc, "max"),
+		Duration:              cliDuration(cc, "duration", &err),
+		Iterations:            cliInt64(cc, "iterations"),
+		Linger:                cliBool(cc, "linger"),
+		MaxRedirects:          cliInt64(cc, "max-redirects"),
+		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
+		NoConnectionReuse:     cliBool(cc, "no-connection-reuse"),
+		Throw:                 cliBool(cc, "throw"),
+		NoUsageReport:         cliBool(cc, "no-usage-report"),
+	***REMOVED***
+	for _, s := range cc.StringSlice("stage") ***REMOVED***
+		stage, err := ParseStage(s)
+		if err != nil ***REMOVED***
+			log.WithError(err).Error("Invalid stage specified")
+			return opts, err
+		***REMOVED***
+		opts.Stages = append(opts.Stages, stage)
+	***REMOVED***
+	return opts, nil
+***REMOVED***
+
+func finalizeOptions(opts lib.Options) lib.Options ***REMOVED***
+	// If VUsMax is unspecified, default to either VUs or the highest Stage Target.
+	if !opts.VUsMax.Valid ***REMOVED***
+		opts.VUsMax.Int64 = opts.VUs.Int64
+		if len(opts.Stages) > 0 ***REMOVED***
+			for _, stage := range opts.Stages ***REMOVED***
+				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
+					opts.VUsMax = stage.Target
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	// Default to 1 iteration if duration and stages are unspecified.
+	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
+		opts.Iterations = null.IntFrom(1)
+	***REMOVED***
+
+	return opts
+***REMOVED***
+
+func readConfigFiles(cc *cli.Context, fs afero.Fs) (lib.Options, error) ***REMOVED***
+	var opts lib.Options
+	for _, filename := range cc.StringSlice("config") ***REMOVED***
+		data, err := afero.ReadFile(fs, filename)
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+
+		var configOpts lib.Options
+		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		opts = opts.Apply(configOpts)
+	***REMOVED***
+	return opts, nil
 ***REMOVED***
 
 func actionRun(cc *cli.Context) error ***REMOVED***
@@ -247,35 +368,31 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		return cli.NewExitError("Wrong number of arguments!", 1)
 	***REMOVED***
 
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
+	// Read the config file.
+	conf, err := LoadConfig()
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
 	quiet := cc.Bool("quiet")
-	cliOpts := lib.Options***REMOVED***
-		Paused:                cliBool(cc, "paused"),
-		VUs:                   cliInt64(cc, "vus"),
-		VUsMax:                cliInt64(cc, "max"),
-		Duration:              cliDuration(cc, "duration"),
-		Iterations:            cliInt64(cc, "iterations"),
-		Linger:                cliBool(cc, "linger"),
-		MaxRedirects:          cliInt64(cc, "max-redirects"),
-		InsecureSkipTLSVerify: cliBool(cc, "insecure-skip-tls-verify"),
-		NoUsageReport:         cliBool(cc, "no-usage-report"),
-	***REMOVED***
-	for _, s := range cc.StringSlice("stage") ***REMOVED***
-		stage, err := ParseStage(s)
-		if err != nil ***REMOVED***
-			log.WithError(err).Error("Invalid stage specified")
-			return err
-		***REMOVED***
-		cliOpts.Stages = append(cliOpts.Stages, stage)
+	cliOpts, err := getOptions(cc)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
 	***REMOVED***
 	opts := cliOpts
 
 	// Make the Runner, extract script-defined options.
 	arg := args[0]
 	fs := afero.NewOsFs()
-	src, err := getSrcData(arg, fs)
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Failed to parse input data")
 		return err
@@ -293,52 +410,21 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		***REMOVED***
 		return err
 	***REMOVED***
-	opts = opts.Apply(runner.GetOptions())
 
 	// Read config files.
-	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
-		if err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-
-		var configOpts lib.Options
-		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-		opts = opts.Apply(configOpts)
+	fileOpts, err := readConfigFiles(cc, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
 	***REMOVED***
 
-	// CLI options override everything.
-	opts = opts.Apply(cliOpts)
-
-	// Default to 1 iteration if duration and stages are unspecified.
-	if !opts.Duration.Valid && !opts.Iterations.Valid && len(opts.Stages) == 0 ***REMOVED***
-		opts.Iterations = null.IntFrom(1)
-	***REMOVED***
-
-	// Apply defaults.
-	opts = opts.SetAllValid(true)
-
-	// Make sure VUsMax defaults to VUs if not specified.
-	if opts.VUsMax.Int64 == 0 ***REMOVED***
-		opts.VUsMax.Int64 = opts.VUs.Int64
-		if len(opts.Stages) > 0 ***REMOVED***
-			for _, stage := range opts.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
-					opts.VUsMax = stage.Target
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	// Update the runner's options.
+	// Combine options in order, apply the final results.
+	opts = finalizeOptions(opts.Apply(runner.GetOptions()).Apply(fileOpts).Apply(cliOpts))
 	runner.ApplyOptions(opts)
 
 	// Make the metric collector, if requested.
 	var collector lib.Collector
 	if out != "" ***REMOVED***
-		c, err := makeCollector(out, src, opts)
+		c, err := makeCollector(out, conf, src, opts, cc.App.Version)
 		if err != nil ***REMOVED***
 			log.WithError(err).Error("Couldn't create output")
 			return err
@@ -356,7 +442,9 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	collectorString := "-"
 	if collector != nil ***REMOVED***
-		collector.Init()
+		if err := collector.Init(); err != nil ***REMOVED***
+			return cli.NewExitError(err, 1)
+		***REMOVED***
 		collectorString = fmt.Sprint(collector)
 	***REMOVED***
 
@@ -366,7 +454,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	fmt.Fprintf(color.Output, "     output: %s\n", color.CyanString(collectorString))
 	fmt.Fprintf(color.Output, "     script: %s (%s)\n", color.CyanString(src.Filename), color.CyanString(runnerType))
 	fmt.Fprintf(color.Output, "\n")
-	fmt.Fprintf(color.Output, "   duration: %s, iterations: %s\n", color.CyanString(opts.Duration.String), color.CyanString("%d", opts.Iterations.Int64))
+	fmt.Fprintf(color.Output, "   duration: %s, iterations: %s\n", color.CyanString(opts.Duration.String()), color.CyanString("%d", opts.Iterations.Int64))
 	fmt.Fprintf(color.Output, "        vus: %s, max: %s\n", color.CyanString("%d", opts.VUs.Int64), color.CyanString("%d", opts.VUsMax.Int64))
 	fmt.Fprintf(color.Output, "\n")
 	fmt.Fprintf(color.Output, "    web ui: %s\n", color.CyanString("http://%s/", addr))
@@ -610,6 +698,60 @@ loop:
 	return nil
 ***REMOVED***
 
+func actionArchive(cc *cli.Context) error ***REMOVED***
+	args := cc.Args()
+	if len(args) != 1 ***REMOVED***
+		return cli.NewExitError("Wrong number of arguments!", 1)
+	***REMOVED***
+	arg := args[0]
+
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
+	cliOpts, err := getOptions(cc)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	opts := cliOpts
+
+	fs := afero.NewOsFs()
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	runnerType := cc.String("type")
+	if runnerType == TypeAuto ***REMOVED***
+		runnerType = guessType(src.Data)
+	***REMOVED***
+
+	r, err := makeRunner(runnerType, src, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
+	fileOpts, err := readConfigFiles(cc, fs)
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+
+	opts = finalizeOptions(opts.Apply(r.GetOptions()).Apply(fileOpts).Apply(cliOpts))
+	r.ApplyOptions(opts)
+
+	f, err := os.Create(cc.String("archive"))
+	if err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	defer func() ***REMOVED*** _ = f.Close() ***REMOVED***()
+
+	arc := r.MakeArchive()
+	if err := arc.Write(f); err != nil ***REMOVED***
+		return cli.NewExitError(err, 1)
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func actionInspect(cc *cli.Context) error ***REMOVED***
 	args := cc.Args()
 	if len(args) != 1 ***REMOVED***
@@ -617,8 +759,13 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 	***REMOVED***
 	arg := args[0]
 
+	pwd, err := os.Getwd()
+	if err != nil ***REMOVED***
+		pwd = "/"
+	***REMOVED***
+
 	fs := afero.NewOsFs()
-	src, err := getSrcData(arg, fs)
+	src, err := getSrcData(arg, pwd, os.Stdin, fs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -636,19 +783,6 @@ func actionInspect(cc *cli.Context) error ***REMOVED***
 			return cli.NewExitError(err.Error(), 1)
 		***REMOVED***
 		opts = opts.Apply(r.Options)
-	***REMOVED***
-
-	for _, filename := range cc.StringSlice("config") ***REMOVED***
-		data, err := afero.ReadFile(fs, filename)
-		if err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-
-		var configOpts lib.Options
-		if err := yaml.Unmarshal(data, &configOpts); err != nil ***REMOVED***
-			return cli.NewExitError(err.Error(), 1)
-		***REMOVED***
-		opts = opts.Apply(configOpts)
 	***REMOVED***
 
 	return dumpYAML(opts)

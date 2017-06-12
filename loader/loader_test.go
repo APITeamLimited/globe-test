@@ -27,6 +27,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDir(t *testing.T) ***REMOVED***
+	testdata := map[string]string***REMOVED***
+		"/path/to/file.txt": "/path/to",
+		"-":                 "/",
+	***REMOVED***
+	for name, dir := range testdata ***REMOVED***
+		t.Run("path="+name, func(t *testing.T) ***REMOVED***
+			assert.Equal(t, dir, Dir(name))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestLoad(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		_, err := Load(nil, "/", "")

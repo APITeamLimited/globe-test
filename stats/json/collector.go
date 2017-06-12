@@ -24,10 +24,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"os"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
 
@@ -47,20 +48,29 @@ func (c *Collector) HasSeenMetric(str string) bool ***REMOVED***
 ***REMOVED***
 
 func New(fname string, fs afero.Fs, opts lib.Options) (*Collector, error) ***REMOVED***
+	if fname == "" || fname == "-" ***REMOVED***
+		return &Collector***REMOVED***
+			outfile: os.Stdout,
+			fname:   "-",
+		***REMOVED***, nil
+	***REMOVED***
+
 	logfile, err := fs.Create(fname)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-
-	t := make([]string, 16)
 	return &Collector***REMOVED***
-		outfile:     logfile,
-		fname:       fname,
-		seenMetrics: t,
+		outfile: logfile,
+		fname:   fname,
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init() ***REMOVED***
+func (c *Collector) Init() error ***REMOVED***
+	return nil
+***REMOVED***
+
+func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED***
+	return nil
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***

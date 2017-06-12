@@ -23,43 +23,53 @@ package stats
 import (
 	"encoding/json"
 
+	"github.com/dop251/goja"
 	"github.com/pkg/errors"
-	"github.com/robertkrimen/otto"
 )
 
-const jsEnv = `
+const jsEnvSrc = `
 function p(pct) ***REMOVED***
 	return __sink__.P(pct/100.0);
 ***REMOVED***;
 `
 
+var jsEnv *goja.Program
+
+func init() ***REMOVED***
+	pgm, err := goja.Compile("__env__", jsEnvSrc, true)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	jsEnv = pgm
+***REMOVED***
+
 type Threshold struct ***REMOVED***
 	Source string
 	Failed bool
 
-	script *otto.Script
-	vm     *otto.Otto
+	pgm *goja.Program
+	rt  *goja.Runtime
 ***REMOVED***
 
-func NewThreshold(src string, vm *otto.Otto) (*Threshold, error) ***REMOVED***
-	script, err := vm.Compile("__threshold__", src)
+func NewThreshold(src string, rt *goja.Runtime) (*Threshold, error) ***REMOVED***
+	pgm, err := goja.Compile("__threshold__", src, true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	return &Threshold***REMOVED***
 		Source: src,
-		script: script,
-		vm:     vm,
+		pgm:    pgm,
+		rt:     rt,
 	***REMOVED***, nil
 ***REMOVED***
 
 func (t Threshold) RunNoTaint() (bool, error) ***REMOVED***
-	v, err := t.vm.Run(t.script)
+	v, err := t.rt.RunProgram(t.pgm)
 	if err != nil ***REMOVED***
 		return false, err
 	***REMOVED***
-	return v.ToBoolean()
+	return v.ToBoolean(), nil
 ***REMOVED***
 
 func (t *Threshold) Run() (bool, error) ***REMOVED***
@@ -71,36 +81,31 @@ func (t *Threshold) Run() (bool, error) ***REMOVED***
 ***REMOVED***
 
 type Thresholds struct ***REMOVED***
-	VM         *otto.Otto
+	Runtime    *goja.Runtime
 	Thresholds []*Threshold
 ***REMOVED***
 
 func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
-	vm := otto.New()
-
-	if _, err := vm.Eval(jsEnv); err != nil ***REMOVED***
+	rt := goja.New()
+	if _, err := rt.RunProgram(jsEnv); err != nil ***REMOVED***
 		return Thresholds***REMOVED******REMOVED***, errors.Wrap(err, "builtin")
 	***REMOVED***
 
 	ts := make([]*Threshold, len(sources))
 	for i, src := range sources ***REMOVED***
-		t, err := NewThreshold(src, vm)
+		t, err := NewThreshold(src, rt)
 		if err != nil ***REMOVED***
 			return Thresholds***REMOVED******REMOVED***, errors.Wrapf(err, "%d", i)
 		***REMOVED***
 		ts[i] = t
 	***REMOVED***
-	return Thresholds***REMOVED***vm, ts***REMOVED***, nil
+	return Thresholds***REMOVED***rt, ts***REMOVED***, nil
 ***REMOVED***
 
 func (ts *Thresholds) UpdateVM(sink Sink) error ***REMOVED***
-	if err := ts.VM.Set("__sink__", sink); err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	ts.Runtime.Set("__sink__", sink)
 	for k, v := range sink.Format() ***REMOVED***
-		if err := ts.VM.Set(k, v); err != nil ***REMOVED***
-			return errors.Wrapf(err, "%s", k)
-		***REMOVED***
+		ts.Runtime.Set(k, v)
 	***REMOVED***
 	return nil
 ***REMOVED***

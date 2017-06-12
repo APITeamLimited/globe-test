@@ -23,6 +23,7 @@ package netext
 import (
 	"context"
 	"net"
+	"strings"
 	"sync/atomic"
 
 	"github.com/viki-org/dnscache"
@@ -31,7 +32,9 @@ import (
 type Dialer struct ***REMOVED***
 	net.Dialer
 
-	Resolver *dnscache.Resolver
+	Resolver     *dnscache.Resolver
+	BytesRead    *int64
+	BytesWritten *int64
 ***REMOVED***
 
 func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
@@ -42,21 +45,21 @@ func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
 ***REMOVED***
 
 func (d Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
-	host, port, err := net.SplitHostPort(addr)
+	delimiter := strings.LastIndex(addr, ":")
+	ip, err := d.Resolver.FetchOne(addr[:delimiter])
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	ip, err := d.Resolver.FetchOne(host)
+	ipStr := ip.String()
+	if strings.ContainsRune(ipStr, ':') ***REMOVED***
+		ipStr = "[" + ipStr + "]"
+	***REMOVED***
+	conn, err := d.Dialer.DialContext(ctx, proto, ipStr+":"+addr[delimiter+1:])
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	conn, err := d.Dialer.DialContext(ctx, proto, ip.String()+":"+port)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	if v := ctx.Value(ctxKeyTracer); v != nil ***REMOVED***
-		tracer := v.(*Tracer)
-		return TrackConn(conn, &tracer.bytesRead, &tracer.bytesWritten), nil
+	if d.BytesRead != nil && d.BytesWritten != nil ***REMOVED***
+		conn = &Conn***REMOVED***conn, d.BytesRead, d.BytesWritten***REMOVED***
 	***REMOVED***
 	return conn, err
 ***REMOVED***

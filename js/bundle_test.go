@@ -22,6 +22,7 @@ package js
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -91,11 +92,19 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
 		_, err := NewBundle(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
-			Data: []byte(`
-				export default function() ***REMOVED******REMOVED***;
-			`),
+			Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
 		***REMOVED***, afero.NewMemMapFs())
 		assert.NoError(t, err)
+	***REMOVED***)
+	t.Run("stdin", func(t *testing.T) ***REMOVED***
+		b, err := NewBundle(&lib.SourceData***REMOVED***
+			Filename: "-",
+			Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
+		***REMOVED***, afero.NewMemMapFs())
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, "-", b.Filename)
+			assert.Equal(t, "/", b.BaseInitContext.pwd)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("Options", func(t *testing.T) ***REMOVED***
 		t.Run("Empty", func(t *testing.T) ***REMOVED***
@@ -182,7 +191,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`),
 			***REMOVED***, afero.NewMemMapFs())
 			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.StringFrom("10s"), b.Options.Duration)
+				assert.Equal(t, lib.NullDurationFrom(10*time.Second), b.Options.Duration)
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
@@ -263,7 +272,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -281,7 +290,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -300,8 +309,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 2) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 10 * time.Second, Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-						assert.Equal(t, lib.Stage***REMOVED***Duration: 5 * time.Second***REMOVED***, b.Options.Stages[1])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -383,6 +392,64 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/exclaim.js", []byte(`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`), 0644))
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(`
+			import exclaim from "./exclaim.js";
+			export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+			export let file = open("./file.txt");
+			export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;
+		`),
+	***REMOVED***, fs)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+
+	bi, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	v, err := bi.Default(goja.Undefined())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	assert.Equal(t, "hi!", v.Export())
+
+	arc := b.MakeArchive()
+	assert.Equal(t, "js", arc.Type)
+	assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
+	assert.Equal(t, "/path/to/script.js", arc.Filename)
+	assert.Equal(t, "\"use strict\";Object.defineProperty(exports, \"__esModule\", ***REMOVED*** value: true ***REMOVED***);exports.file = exports.options = undefined;exports.default =\n\n\n\nfunction () ***REMOVED***return (0, _exclaim2.default)(file);***REMOVED***;var _exclaim = require(\"./exclaim.js\");var _exclaim2 = _interopRequireDefault(_exclaim);function _interopRequireDefault(obj) ***REMOVED***return obj && obj.__esModule ? obj : ***REMOVED*** default: obj ***REMOVED***;***REMOVED***var options = exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;var file = exports.file = open(\"./file.txt\");;", string(arc.Data))
+	assert.Equal(t, "/path/to", arc.Pwd)
+	assert.Len(t, arc.Scripts, 1)
+	assert.Equal(t, "\"use strict\";Object.defineProperty(exports, \"__esModule\", ***REMOVED*** value: true ***REMOVED***);exports.default = function (s) ***REMOVED***return s + \"!\";***REMOVED***;;", string(arc.Scripts["/path/to/exclaim.js"]))
+	assert.Len(t, arc.Files, 1)
+	assert.Equal(t, `hi`, string(arc.Files["/path/to/file.txt"]))
+
+	b2, err := NewBundleFromArchive(arc)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b2.Options)
+
+	bi2, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	v2, err := bi2.Default(goja.Undefined())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	assert.Equal(t, "hi!", v2.Export())
+***REMOVED***
+
 func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	b, err := NewBundle(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
@@ -414,4 +481,41 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestBundleEnv(t *testing.T) ***REMOVED***
+	assert.NoError(t, os.Setenv("TEST_A", "1"))
+	assert.NoError(t, os.Setenv("TEST_B", ""))
+
+	b1, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export default function() ***REMOVED***
+				if (__ENV.TEST_A !== "1") ***REMOVED*** throw new Error("Invalid TEST_A: " + __ENV.TEST_A); ***REMOVED***
+				if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	b2, err := NewBundleFromArchive(b1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
+	for name, b := range bundles ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			assert.Equal(t, "1", b.Env["TEST_A"])
+			assert.Equal(t, "", b.Env["TEST_B"])
+
+			bi, err := b.Instantiate()
+			if assert.NoError(t, err) ***REMOVED***
+				_, err := bi.Default(goja.Undefined())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
