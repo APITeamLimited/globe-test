@@ -118,9 +118,11 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	***REMOVED***
 	e.SetPaused(o.Paused.Bool)
 
+	// Use Stages if available, if not, construct a stage to fill the specified duration.
+	// Special case: A valid duration of 0 = an infinite (invalid duration) stage.
 	if o.Stages != nil ***REMOVED***
 		e.Stages = o.Stages
-	***REMOVED*** else if o.Duration.Valid ***REMOVED***
+	***REMOVED*** else if o.Duration.Valid && o.Duration.Duration > 0 ***REMOVED***
 		e.Stages = []Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
 	***REMOVED*** else ***REMOVED***
 		e.Stages = []Stage***REMOVED******REMOVED******REMOVED******REMOVED***

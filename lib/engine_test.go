@@ -91,6 +91,12 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 		if assert.Len(t, e.Stages, 1) ***REMOVED***
 			assert.Equal(t, e.Stages[0], Stage***REMOVED***Duration: NullDurationFrom(10 * time.Second)***REMOVED***)
 		***REMOVED***
+
+		t.Run("Infinite", func(t *testing.T) ***REMOVED***
+			e, err, _ := newTestEngine(nil, Options***REMOVED***Duration: NullDurationFrom(0)***REMOVED***)
+			assert.NoError(t, err)
+			assert.Equal(t, []Stage***REMOVED******REMOVED******REMOVED******REMOVED***, e.Stages)
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, Options***REMOVED***
