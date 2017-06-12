@@ -103,46 +103,27 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 func (t *Tracer) Done() Trail ***REMOVED***
 	done := time.Now()
 
-	// Cover for if the server closed the connection without a response.
-	if t.gotFirstResponseByte.IsZero() ***REMOVED***
-		t.gotFirstResponseByte = done
-	***REMOVED***
-
-	// GotConn is not guaranteed to be called in all cases.
-	if t.gotConn.IsZero() ***REMOVED***
-		t.gotConn = t.getConn
-	***REMOVED***
-
 	trail := Trail***REMOVED***
-		Blocked:    t.gotConn.Sub(t.getConn),
-		Connecting: t.connectDone.Sub(t.connectStart),
-		Sending:    t.wroteRequest.Sub(t.connectDone),
-		Waiting:    t.gotFirstResponseByte.Sub(t.wroteRequest),
-		Receiving:  done.Sub(t.gotFirstResponseByte),
-
 		ConnReused:     t.connReused,
 		ConnRemoteAddr: t.connRemoteAddr,
-
-		BytesRead:    t.bytesRead,
-		BytesWritten: t.bytesWritten,
+		BytesRead:      t.bytesRead,
+		BytesWritten:   t.bytesWritten,
 	***REMOVED***
 
-	// If the connection was reused, it never blocked.
-	if t.connReused ***REMOVED***
-		trail.Blocked = 0
-		trail.Connecting = 0
+	if !t.gotConn.IsZero() && !t.gotConn.IsZero() ***REMOVED***
+		trail.Blocked = t.gotConn.Sub(t.getConn)
 	***REMOVED***
-
-	// If the connection failed, we'll never get any (meaningful) data for these.
-	if t.protoError != nil ***REMOVED***
-		trail.Sending = 0
-		trail.Waiting = 0
-		trail.Receiving = 0
-
-		// URL is invalid/unroutable.
-		if trail.Blocked < 0 ***REMOVED***
-			trail.Blocked = 0
+	if !t.connectDone.IsZero() && !t.connectStart.IsZero() ***REMOVED***
+		trail.Connecting = t.connectDone.Sub(t.connectStart)
+	***REMOVED***
+	if !t.wroteRequest.IsZero() ***REMOVED***
+		trail.Sending = t.wroteRequest.Sub(t.connectDone)
+		if !t.gotFirstResponseByte.IsZero() ***REMOVED***
+			trail.Waiting = t.gotFirstResponseByte.Sub(t.wroteRequest)
 		***REMOVED***
+	***REMOVED***
+	if !t.gotFirstResponseByte.IsZero() ***REMOVED***
+		trail.Receiving = done.Sub(t.gotFirstResponseByte)
 	***REMOVED***
 
 	// Calculate total times using adjusted values.
