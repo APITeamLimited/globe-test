@@ -58,7 +58,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 			assert.NoError(t, res.Body.Close())
 			samples := tracer.Done().Samples(map[string]string***REMOVED***"tag": "value"***REMOVED***)
 
-			assert.Len(t, samples, 9)
+			assert.Len(t, samples, 7)
 			seenMetrics := map[*stats.Metric]bool***REMOVED******REMOVED***
 			for _, s := range samples ***REMOVED***
 				assert.NotContains(t, seenMetrics, s.Metric)
@@ -76,7 +76,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 						break
 					***REMOVED***
 					fallthrough
-				case metrics.HTTPReqDuration, metrics.HTTPReqBlocked, metrics.HTTPReqSending, metrics.HTTPReqWaiting, metrics.HTTPReqReceiving, metrics.DataSent, metrics.DataReceived:
+				case metrics.HTTPReqDuration, metrics.HTTPReqBlocked, metrics.HTTPReqSending, metrics.HTTPReqWaiting, metrics.HTTPReqReceiving:
 					assert.True(t, s.Value > 0.0, "%s is <= 0", s.Metric.Name)
 				default:
 					t.Errorf("unexpected metric: %s", s.Metric.Name)
