@@ -24,10 +24,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
@@ -229,42 +229,6 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVURunSamples(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data:     []byte(`export default function() ***REMOVED*** fn(); ***REMOVED***`),
-	***REMOVED***, afero.NewMemMapFs())
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	r2, err := NewFromArchive(r1.MakeArchive())
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			vu, err := r.newVU()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-
-			metric := stats.New("my_metric", stats.Counter)
-			sample := stats.Sample***REMOVED***Time: time.Now(), Metric: metric, Value: 1***REMOVED***
-			vu.Runtime.Set("fn", func() ***REMOVED***
-				state := common.GetState(*vu.Context)
-				state.Samples = append(state.Samples, sample)
-			***REMOVED***)
-
-			_, err = vu.RunOnce(context.Background())
-			assert.NoError(t, err)
-			assert.Equal(t, []stats.Sample***REMOVED***sample***REMOVED***, common.GetState(*vu.Context).Samples)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
@@ -355,10 +319,21 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			samples, err := vu.RunOnce(context.Background())
-			if assert.NoError(t, err) && assert.Len(t, samples, 1) ***REMOVED***
-				assert.Equal(t, 5.0, samples[0].Value)
-				assert.Equal(t, "my_metric", samples[0].Metric.Name)
-				assert.Equal(t, stats.Trend, samples[0].Metric.Type)
+			assert.NoError(t, err)
+			assert.Len(t, samples, 3)
+			for i, s := range samples ***REMOVED***
+				switch i ***REMOVED***
+				case 0:
+					assert.Equal(t, 5.0, s.Value)
+					assert.Equal(t, "my_metric", s.Metric.Name)
+					assert.Equal(t, stats.Trend, s.Metric.Type)
+				case 1:
+					assert.Equal(t, 0.0, s.Value)
+					assert.Equal(t, metrics.DataSent, s.Metric)
+				case 2:
+					assert.Equal(t, 0.0, s.Value)
+					assert.Equal(t, metrics.DataReceived, s.Metric)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
