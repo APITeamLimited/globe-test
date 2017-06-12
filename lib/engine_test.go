@@ -340,7 +340,7 @@ func TestEngineIsRunning(t *testing.T) ***REMOVED***
 
 func TestEngineTotalTime(t *testing.T) ***REMOVED***
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
-		for _, d := range []time.Duration***REMOVED***0, 1 * time.Second, 10 * time.Second***REMOVED*** ***REMOVED***
+		for _, d := range []time.Duration***REMOVED***1 * time.Second, 10 * time.Second***REMOVED*** ***REMOVED***
 			t.Run(d.String(), func(t *testing.T) ***REMOVED***
 				e, err, _ := newTestEngine(nil, Options***REMOVED***Duration: NullDurationFrom(d)***REMOVED***)
 				assert.NoError(t, err)
