@@ -822,6 +822,15 @@ func TestEngine_processStages(t *testing.T) ***REMOVED***
 				***REMOVED***1 * time.Second, true, 10***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"infinite": ***REMOVED***
+			[]Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, 0***REMOVED***,
+				***REMOVED***1 * time.Minute, true, 0***REMOVED***,
+				***REMOVED***1 * time.Hour, true, 0***REMOVED***,
+				***REMOVED***24 * time.Hour, true, 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
