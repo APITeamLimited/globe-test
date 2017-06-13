@@ -101,7 +101,7 @@ func (t *Tracer) Done() Trail ***REMOVED***
 		ConnRemoteAddr: t.connRemoteAddr,
 	***REMOVED***
 
-	if !t.gotConn.IsZero() && !t.gotConn.IsZero() ***REMOVED***
+	if !t.gotConn.IsZero() && !t.getConn.IsZero() ***REMOVED***
 		trail.Blocked = t.gotConn.Sub(t.getConn)
 	***REMOVED***
 	if !t.connectDone.IsZero() && !t.connectStart.IsZero() ***REMOVED***
