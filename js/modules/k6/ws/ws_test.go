@@ -179,7 +179,7 @@ func TestSession(t *testing.T) ***REMOVED***
 			***REMOVED***, 500);
 		***REMOVED***);
 		if (ellapsed > 2000 || ellapsed < 500) ***REMOVED***
-			throw new Error ("setTimeout occured after " + ellapsed + "ms, expected 500<T<2000");
+			throw new Error ("setTimeout occurred after " + ellapsed + "ms, expected 500<T<2000");
 		***REMOVED***
 		`)
 		assert.NoError(t, err)
