@@ -2,36 +2,29 @@ package html
 
 import (
 	"encoding/json"
-	"regexp"
 	"strconv"
+
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
+	"github.com/serenize/snaker"
+
 	gohtml "golang.org/x/net/html"
 )
 
-var (
-	lowerRe = regexp.MustCompile("-[[:lower:]]")
-	upperRe = regexp.MustCompile("[[:upper:]]")
-)
+func attrToProperty(s string) string ***REMOVED***
+	idx := strings.Index(s, "-")
 
-func toAttrName(dataName string) string ***REMOVED***
-	return upperRe.ReplaceAllStringFunc(dataName, dataNameCb)
+	if idx == -1 ***REMOVED***
+		return s
+	***REMOVED***
+
+	return s[0:idx] + snaker.SnakeToCamel(strings.Replace(s[idx+1:], "-", "_", -1))
 ***REMOVED***
 
-func toDataName(attrName string) string ***REMOVED***
-	return lowerRe.ReplaceAllStringFunc(attrName, attrNameCb)
-***REMOVED***
-
-// Receives a single upper case char
-func dataNameCb(s string) string ***REMOVED***
-	return "-" + strings.ToLower(s)
-***REMOVED***
-
-// Receives a single lower case letter with a hyphen prefix
-func attrNameCb(s string) string ***REMOVED***
-	return strings.ToUpper(s[1:])
+func propertyToAttr(attrName string) string ***REMOVED***
+	return strings.Replace(snaker.CamelToSnake(attrName), "_", "-", -1)
 ***REMOVED***
 
 func namespaceURI(prefix string) string ***REMOVED***
@@ -93,16 +86,6 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
 
 	return sel.rt.ToValue(elem)
-***REMOVED***
-
-// Some Selection methods use an interface***REMOVED******REMOVED*** to handle an argument which may be a Element/Selection/string or a goja wrapper of those types
-// This function unwraps the goja value into it's native go type to be used in a type switch
-func exportIfGojaVal(arg interface***REMOVED******REMOVED***) interface***REMOVED******REMOVED*** ***REMOVED***
-	if gojaArg, ok := arg.(goja.Value); ok ***REMOVED***
-		return gojaArg.Export()
-	***REMOVED***
-
-	return arg
 ***REMOVED***
 
 // Try to read numeric values in data- attributes.
