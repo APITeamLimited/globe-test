@@ -56,31 +56,35 @@ func (s Selection) emptySelection() Selection ***REMOVED***
 	return s.Eq(s.Size())
 ***REMOVED***
 
+func (s Selection) buildMatcher(v goja.Value, gojaFn goja.Callable) func(int, *goquery.Selection) bool ***REMOVED***
+	return func(idx int, sel *goquery.Selection) bool ***REMOVED***
+		fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
+
+		if fnErr != nil ***REMOVED***
+			panic(fnErr)
+		***REMOVED***
+
+		return fnRes.ToBoolean()
+	***REMOVED***
+***REMOVED***
+
 func (s Selection) varargFnCall(arg interface***REMOVED******REMOVED***,
 	strFilter func(string) *goquery.Selection,
 	selFilter func(*goquery.Selection) *goquery.Selection,
 	nodeFilter func(...*gohtml.Node) *goquery.Selection) Selection ***REMOVED***
 
-	switch v := arg.(type) ***REMOVED***
+	switch v := exportIfGojaVal(arg).(type) ***REMOVED***
+	case Selection:
+		return Selection***REMOVED***s.rt, selFilter(v.sel)***REMOVED***
+
 	case string:
 		return Selection***REMOVED***s.rt, strFilter(v)***REMOVED***
 
-	case goja.Value:
-		switch gv := v.Export().(type) ***REMOVED***
-		case Selection:
-			return Selection***REMOVED***s.rt, selFilter(gv.sel)***REMOVED***
+	case Element:
+		return Selection***REMOVED***s.rt, nodeFilter(v.node)***REMOVED***
 
-		case string:
-			return Selection***REMOVED***s.rt, strFilter(gv)***REMOVED***
-
-		case Element:
-			return Selection***REMOVED***s.rt, nodeFilter(gv.node)***REMOVED***
-
-		default:
-			return s.emptySelection()
-		***REMOVED***
 	default:
-		errmsg := fmt.Sprintf("Invalid argument: Cannot use a %T as a selector, requires a string or Selection object", arg)
+		errmsg := fmt.Sprintf("Invalid argument: Cannot use a %T as a selector", arg)
 		panic(s.rt.NewGoError(errors.New(errmsg)))
 	***REMOVED***
 ***REMOVED***
@@ -114,12 +118,10 @@ func (s Selection) adjacentUntil(until func(string) *goquery.Selection,
 
 		case nil:
 			return Selection***REMOVED***s.rt, until("")***REMOVED***
-
-		default:
-			panic(s.rt.NewGoError(errors.New("Invalid argument: Expected a selector string or Selection object")))
 		***REMOVED***
 	case 2:
 		filter := def[1].String()
+
 		switch selector := def[0].Export().(type) ***REMOVED***
 		case string:
 			return Selection***REMOVED***s.rt, filteredUntil(filter, selector)***REMOVED***
@@ -129,13 +131,36 @@ func (s Selection) adjacentUntil(until func(string) *goquery.Selection,
 
 		case nil:
 			return Selection***REMOVED***s.rt, filteredUntil(filter, "")***REMOVED***
-
-		default:
-			panic(s.rt.NewGoError(errors.New("Invalid argument: Expected a selector string or Selection object")))
 		***REMOVED***
 	***REMOVED***
 
-	return s.emptySelection()
+	errmsg := fmt.Sprintf("Invalid argument: Cannot use a %T as a selector", def[0].Export())
+	panic(s.rt.NewGoError(errors.New(errmsg)))
+***REMOVED***
+
+func (s Selection) Add(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
+	return s.varargFnCall(arg, s.sel.Add, s.sel.AddSelection, s.sel.AddNodes)
+***REMOVED***
+
+func (s Selection) Find(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
+	return s.varargFnCall(arg, s.sel.Find, s.sel.FindSelection, s.sel.FindNodes)
+***REMOVED***
+
+func (s Selection) Closest(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
+	return s.varargFnCall(arg, s.sel.Closest, s.sel.ClosestSelection, s.sel.ClosestNodes)
+***REMOVED***
+
+func (s Selection) Has(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
+	return s.varargFnCall(arg, s.sel.Has, s.sel.HasSelection, s.sel.HasNodes)
+***REMOVED***
+
+func (s Selection) Not(v goja.Value) Selection ***REMOVED***
+	gojaFn, isFn := goja.AssertFunction(v)
+	if !isFn ***REMOVED***
+		return s.varargFnCall(v, s.sel.Not, s.sel.NotSelection, s.sel.NotNodes)
+	***REMOVED***
+
+	return Selection***REMOVED***s.rt, s.sel.NotFunction(s.buildMatcher(v, gojaFn))***REMOVED***
 ***REMOVED***
 
 func (s Selection) Next(def ...string) Selection ***REMOVED***
@@ -199,12 +224,28 @@ func (s Selection) ParentsUntil(def ...goja.Value) Selection ***REMOVED***
 	)
 ***REMOVED***
 
-func (s Selection) Add(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
-	return s.varargFnCall(arg, s.sel.Add, s.sel.AddSelection, s.sel.AddNodes)
+func (s Selection) Size() int ***REMOVED***
+	return s.sel.Length()
 ***REMOVED***
 
-func (s Selection) Find(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
-	return s.varargFnCall(arg, s.sel.Find, s.sel.FindSelection, s.sel.FindNodes)
+func (s Selection) End() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.End()***REMOVED***
+***REMOVED***
+
+func (s Selection) Eq(idx int) Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Eq(idx)***REMOVED***
+***REMOVED***
+
+func (s Selection) First() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.First()***REMOVED***
+***REMOVED***
+
+func (s Selection) Last() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Last()***REMOVED***
+***REMOVED***
+
+func (s Selection) Contents() Selection ***REMOVED***
+	return Selection***REMOVED***s.rt, s.sel.Contents()***REMOVED***
 ***REMOVED***
 
 func (s Selection) Text() string ***REMOVED***
@@ -258,20 +299,12 @@ func (s Selection) Val() goja.Value ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (s Selection) Closest(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
-	return s.varargFnCall(arg, s.sel.Closest, s.sel.ClosestSelection, s.sel.ClosestNodes)
-***REMOVED***
-
 func (s Selection) Children(def ...string) Selection ***REMOVED***
 	if len(def) == 0 ***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.Children()***REMOVED***
 	***REMOVED***
 
 	return Selection***REMOVED***s.rt, s.sel.ChildrenFiltered(def[0])***REMOVED***
-***REMOVED***
-
-func (s Selection) Contents() Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.Contents()***REMOVED***
 ***REMOVED***
 
 func (s Selection) Each(v goja.Value) Selection ***REMOVED***
@@ -285,22 +318,6 @@ func (s Selection) Each(v goja.Value) Selection ***REMOVED***
 	***REMOVED***
 
 	return Selection***REMOVED***s.rt, s.sel.Each(fn)***REMOVED***
-***REMOVED***
-
-func (s Selection) End() Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.End()***REMOVED***
-***REMOVED***
-
-func (s Selection) buildMatcher(v goja.Value, gojaFn goja.Callable) func(int, *goquery.Selection) bool ***REMOVED***
-	return func(idx int, sel *goquery.Selection) bool ***REMOVED***
-		fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel))
-
-		if fnErr != nil ***REMOVED***
-			panic(fnErr)
-		***REMOVED***
-
-		return fnRes.ToBoolean()
-	***REMOVED***
 ***REMOVED***
 
 func (s Selection) Filter(v goja.Value) Selection ***REMOVED***
@@ -337,22 +354,6 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 	return s.sel.IsFunction(s.buildMatcher(v, gojaFn))
 ***REMOVED***
 
-func (s Selection) Eq(idx int) Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.Eq(idx)***REMOVED***
-***REMOVED***
-
-func (s Selection) First() Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.First()***REMOVED***
-***REMOVED***
-
-func (s Selection) Last() Selection ***REMOVED***
-	return Selection***REMOVED***s.rt, s.sel.Last()***REMOVED***
-***REMOVED***
-
-func (s Selection) Has(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
-	return s.varargFnCall(arg, s.sel.Has, s.sel.HasSelection, s.sel.HasNodes)
-***REMOVED***
-
 func (s Selection) Map(v goja.Value) (result []string) ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
@@ -368,15 +369,6 @@ func (s Selection) Map(v goja.Value) (result []string) ***REMOVED***
 	***REMOVED***
 
 	return s.sel.Map(fn)
-***REMOVED***
-
-func (s Selection) Not(v goja.Value) Selection ***REMOVED***
-	gojaFn, isFn := goja.AssertFunction(v)
-	if !isFn ***REMOVED***
-		return s.varargFnCall(v, s.sel.Not, s.sel.NotSelection, s.sel.NotNodes)
-	***REMOVED***
-
-	return Selection***REMOVED***s.rt, s.sel.NotFunction(s.buildMatcher(v, gojaFn))***REMOVED***
 ***REMOVED***
 
 func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***
@@ -412,10 +404,6 @@ func (s Selection) ToArray() []Selection ***REMOVED***
 	return items
 ***REMOVED***
 
-func (s Selection) Size() int ***REMOVED***
-	return s.sel.Length()
-***REMOVED***
-
 func (s Selection) Index(def ...goja.Value) int ***REMOVED***
 	if len(def) == 0 ***REMOVED***
 		return s.sel.Index()
@@ -436,38 +424,8 @@ func (s Selection) Index(def ...goja.Value) int ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// end result of the following is two strings.Replacer objects
-// Replacer("-a", "A", "-b", "B"..., "-z", "Z") and Replacer("A", "-a",...)
-//to translate to "data-attr-name" to "attrName" and back
-const (
-	lowAlpha  = "abcdefghijklmnopqrstuvwxyz"
-	highAlpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
-
-func makeReplacerArray(prefixFrom, from, prefixTo, to string) (vals []string) ***REMOVED***
-	for idx, _ := range from ***REMOVED***
-		vals = append(vals, prefixFrom+string(from[idx]), prefixTo+string(to[idx]))
-	***REMOVED***
-	return
-***REMOVED***
-
-func makeNameReplacer(prefixFrom, from, prefixTo, to string) *strings.Replacer ***REMOVED***
-	return strings.NewReplacer(makeReplacerArray(prefixFrom, from, prefixTo, to)...)
-***REMOVED***
-
-var attrToDataName = makeNameReplacer("-", lowAlpha, "", highAlpha)
-var dataToAttrName = makeNameReplacer("", highAlpha, "-", lowAlpha)
-
-func toAttrName(dataName string) string ***REMOVED***
-	return dataToAttrName.Replace(dataName)
-***REMOVED***
-
-func toDataName(attrName string) string ***REMOVED***
-	return attrToDataName.Replace(attrName)
-***REMOVED***
-
-// When 0 arguments: Read all data from attributes beginning with "data-", build a goja hashmap of attributeName -> valuee
-// When 1 argument: Treat arguemnt as suffix to "data-" and try to read the request attribute
+// When 0 arguments: Read all data from attributes beginning with "data-".
+// When 1 argument: Append argument to "data-" then find for a matching attribute
 func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 	if s.sel.Length() == 0 || len(s.sel.Nodes[0].Attr) == 0 ***REMOVED***
 		return goja.Undefined()
