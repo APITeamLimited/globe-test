@@ -23,6 +23,8 @@ package local
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExecutorIsRunning(t *testing.T) ***REMOVED***
@@ -35,4 +37,67 @@ func TestExecutorIsRunning(t *testing.T) ***REMOVED***
 	cancel()
 	for e.IsRunning() ***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func TestExecutorSetVUsMax(t *testing.T) ***REMOVED***
+	t.Run("Negative", func(t *testing.T) ***REMOVED***
+		assert.EqualError(t, New(nil).SetVUsMax(-1), "vu cap can't be negative")
+	***REMOVED***)
+
+	t.Run("Raise", func(t *testing.T) ***REMOVED***
+		e := New(nil)
+
+		assert.NoError(t, e.SetVUsMax(50))
+		assert.Equal(t, int64(50), e.GetVUsMax())
+
+		assert.NoError(t, e.SetVUsMax(100))
+		assert.Equal(t, int64(100), e.GetVUsMax())
+
+		t.Run("Lower", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUsMax(50))
+			assert.Equal(t, int64(50), e.GetVUsMax())
+		***REMOVED***)
+	***REMOVED***)
+
+	t.Run("TooLow", func(t *testing.T) ***REMOVED***
+		e := New(nil)
+		e.ctx = context.Background()
+
+		assert.NoError(t, e.SetVUsMax(100))
+		assert.Equal(t, int64(100), e.GetVUsMax())
+
+		assert.NoError(t, e.SetVUs(100))
+		assert.Equal(t, int64(100), e.GetVUs())
+
+		assert.EqualError(t, e.SetVUsMax(50), "can't lower vu cap (to 50) below vu count (100)")
+	***REMOVED***)
+***REMOVED***
+
+func TestExecutorSetVUs(t *testing.T) ***REMOVED***
+	t.Run("Negative", func(t *testing.T) ***REMOVED***
+		assert.EqualError(t, New(nil).SetVUs(-1), "vu count can't be negative")
+	***REMOVED***)
+
+	t.Run("Too High", func(t *testing.T) ***REMOVED***
+		assert.EqualError(t, New(nil).SetVUs(100), "can't raise vu count (to 100) above vu cap (0)")
+	***REMOVED***)
+
+	t.Run("Raise", func(t *testing.T) ***REMOVED***
+		e := New(nil)
+		e.ctx = context.Background()
+
+		assert.NoError(t, e.SetVUsMax(100))
+		assert.Equal(t, int64(100), e.GetVUsMax())
+
+		assert.NoError(t, e.SetVUs(50))
+		assert.Equal(t, int64(50), e.GetVUs())
+
+		assert.NoError(t, e.SetVUs(100))
+		assert.Equal(t, int64(100), e.GetVUs())
+
+		t.Run("Lower", func(t *testing.T) ***REMOVED***
+			assert.NoError(t, e.SetVUs(50))
+			assert.Equal(t, int64(50), e.GetVUs())
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
