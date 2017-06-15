@@ -38,8 +38,6 @@ type vuHandle struct ***REMOVED***
 	VU     lib.VU
 	Cancel context.CancelFunc
 	Lock   sync.RWMutex
-
-	runLock sync.Mutex
 ***REMOVED***
 
 type Executor struct ***REMOVED***

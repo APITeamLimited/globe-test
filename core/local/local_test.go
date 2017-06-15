@@ -39,8 +39,8 @@ func TestExecutorRun(t *testing.T) ***REMOVED***
 			***REMOVED***
 			return nil, nil
 		***REMOVED***))
-		e.SetVUsMax(10)
-		e.SetVUs(10)
+		assert.NoError(t, e.SetVUsMax(10))
+		assert.NoError(t, e.SetVUs(10))
 
 		ctx, cancel := context.WithCancel(context.Background())
 		err := make(chan error)
@@ -58,12 +58,14 @@ func TestExecutorIsRunning(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
 	e := New(nil)
 
-	go e.Run(ctx, nil)
+	err := make(chan error)
+	go func() ***REMOVED*** err <- e.Run(ctx, nil) ***REMOVED***()
 	for !e.IsRunning() ***REMOVED***
 	***REMOVED***
 	cancel()
 	for e.IsRunning() ***REMOVED***
 	***REMOVED***
+	assert.NoError(t, <-err)
 ***REMOVED***
 
 func TestExecutorSetVUsMax(t *testing.T) ***REMOVED***
