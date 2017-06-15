@@ -55,11 +55,11 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 
 	client := NewClient("token", server.URL, "1.0")
 
-	samples := []*sample***REMOVED***
+	samples := []*Sample***REMOVED***
 		***REMOVED***
 			Type:   "Point",
 			Metric: "metric",
-			Data: sampleData***REMOVED***
+			Data: SampleData***REMOVED***
 				Type:  1,
 				Time:  time.Now(),
 				Value: 1.2,
