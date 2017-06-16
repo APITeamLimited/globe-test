@@ -57,7 +57,7 @@ type Collector struct ***REMOVED***
 	thresholds map[string][]*stats.Threshold
 	client     *Client
 
-	sampleBuffer []*sample
+	sampleBuffer []*Sample
 	sampleMu     sync.Mutex
 ***REMOVED***
 
@@ -168,12 +168,12 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 		return
 	***REMOVED***
 
-	var cloudSamples []*sample
+	var cloudSamples []*Sample
 	for _, samp := range samples ***REMOVED***
-		sampleJSON := &sample***REMOVED***
+		sampleJSON := &Sample***REMOVED***
 			Type:   "Point",
 			Metric: samp.Metric.Name,
-			Data: sampleData***REMOVED***
+			Data: SampleData***REMOVED***
 				Type:  samp.Metric.Type,
 				Time:  samp.Time,
 				Value: samp.Value,
