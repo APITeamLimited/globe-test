@@ -602,16 +602,28 @@ loop:
 			for _, check := range g.Checks ***REMOVED***
 				icon := "✓"
 				statusColor := color.GreenString
-				if check.Fails > 0 ***REMOVED***
+				isCheckFailure := check.Fails > 0
+
+				if isCheckFailure ***REMOVED***
 					icon = "✗"
 					statusColor = color.RedString
 				***REMOVED***
-				fmt.Fprint(color.Output, statusColor("%s  %s %2.2f%% - %s\n",
+
+				fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
 					indent,
 					icon,
-					100*(float64(check.Passes)/float64(check.Passes+check.Fails)),
 					check.Name,
 				))
+
+				if isCheckFailure ***REMOVED***
+					fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
+						indent,
+						100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
+						check.Fails,
+						check.Passes+check.Fails,
+					))
+				***REMOVED***
+
 			***REMOVED***
 			fmt.Fprintf(color.Output, "\n")
 		***REMOVED***
