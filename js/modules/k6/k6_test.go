@@ -227,6 +227,34 @@ func TestCheck(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***
+
+		t.Run("ContextExpiry", func(t *testing.T) ***REMOVED***
+			root, err := lib.NewGroup("", nil)
+			assert.NoError(t, err)
+
+			state := &common.State***REMOVED***Group: root***REMOVED***
+			ctx2, cancel := context.WithCancel(common.WithState(baseCtx, state))
+			*ctx = ctx2
+
+			v, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, true, v.Export())
+			***REMOVED***
+
+			check, _ := root.Check("check")
+			assert.Equal(t, int64(1), check.Passes)
+			assert.Equal(t, int64(0), check.Fails)
+
+			cancel()
+
+			v, err = common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, true, v.Export())
+			***REMOVED***
+
+			assert.Equal(t, int64(1), check.Passes)
+			assert.Equal(t, int64(0), check.Fails)
+		***REMOVED***)
 	***REMOVED***)
 
 	t.Run("Tags", func(t *testing.T) ***REMOVED***

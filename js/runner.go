@@ -113,10 +113,10 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 			***REMOVED***,
 			DialContext: dialer.DialContext,
 		***REMOVED***,
-		Dialer:    dialer,
-		VUContext: NewVUContext(r.Bundle.Options),
+		Dialer:  dialer,
+		Console: NewConsole(),
 	***REMOVED***
-	common.BindToGlobal(vu.Runtime, common.Bind(vu.Runtime, vu.VUContext, vu.Context))
+	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
 	// Give the VU an initial sense of identity.
 	if err := vu.Reconfigure(0); err != nil ***REMOVED***
@@ -147,7 +147,7 @@ type VU struct ***REMOVED***
 	ID            int64
 	Iteration     int64
 
-	VUContext *VUContext
+	Console *Console
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***

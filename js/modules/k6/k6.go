@@ -99,20 +99,24 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 			val = val_
 		***REMOVED***
 
-		// Emit!
-		if val.ToBoolean() ***REMOVED***
-			atomic.AddInt64(&check.Passes, 1)
-			state.Samples = append(state.Samples,
-				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 1***REMOVED***,
-			)
-		***REMOVED*** else ***REMOVED***
-			atomic.AddInt64(&check.Fails, 1)
-			state.Samples = append(state.Samples,
-				stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 0***REMOVED***,
-			)
+		// Emit! (But only if we have a valid context.)
+		select ***REMOVED***
+		case <-ctx.Done():
+		default:
+			if val.ToBoolean() ***REMOVED***
+				atomic.AddInt64(&check.Passes, 1)
+				state.Samples = append(state.Samples,
+					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 1***REMOVED***,
+				)
+			***REMOVED*** else ***REMOVED***
+				atomic.AddInt64(&check.Fails, 1)
+				state.Samples = append(state.Samples,
+					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 0***REMOVED***,
+				)
 
-			// A single failure makes the return value false.
-			succ = false
+				// A single failure makes the return value false.
+				succ = false
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
