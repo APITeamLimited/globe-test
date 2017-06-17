@@ -252,3 +252,48 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		assert.EqualError(t, err, "GoError: Invalid output encoding: someInvalidEncoding")
 	***REMOVED***)
 ***REMOVED***
+
+func TestHMac(t *testing.T) ***REMOVED***
+	if testing.Short() ***REMOVED***
+		return
+	***REMOVED***
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	root, _ := lib.NewGroup("", nil)
+	state := &common.State***REMOVED***Group: root***REMOVED***
+
+	ctx := context.Background()
+	ctx = common.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, rt)
+
+	rt.Set("crypto", common.Bind(rt, &Crypto***REMOVED******REMOVED***, &ctx))
+
+	t.Run("Valid", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+		const correctHex = "7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e";
+
+		let hasher = crypto.createHmac("sha256", "a secret");
+		hasher.update("some data to hash");
+
+		const resultHex = hasher.digest("hex");
+		if (resultHex !== correctHex) ***REMOVED***
+			throw new Error("Hex encoding mismatch: " + resultHex);
+		***REMOVED***`)
+
+		assert.NoError(t, err)
+	***REMOVED***)
+
+	t.Run("Wrapper", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+		const correctHex = "7fd04df92f636fd450bc841c9418e5825c17f33ad9c87c518115a45971f7f77e";
+
+		let resultHex = crypto.hmac("sha256", "a secret", "some data to hash", "hex");
+		if (resultHex !== correctHex) ***REMOVED***
+			throw new Error("Hex encoding mismatch: " + resultHex);
+		***REMOVED***`)
+
+		assert.NoError(t, err)
+	***REMOVED***)
+***REMOVED***
