@@ -28,8 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"crypto/tls"
-
 	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
 )
@@ -66,109 +64,6 @@ func (s *Stage) UnmarshalJSON(data []byte) error ***REMOVED***
 		***REMOVED***
 		s.Duration = d
 	***REMOVED***
-
-	return nil
-***REMOVED***
-
-type TLSVersion struct ***REMOVED***
-	Min int
-	Max int
-***REMOVED***
-
-func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
-	// From https://golang.org/pkg/crypto/tls/#pkg-constants
-	versionMap := map[string]int***REMOVED***
-		"ssl3.0": tls.VersionSSL30,
-		"tls1.0": tls.VersionTLS10,
-		"tls1.1": tls.VersionTLS11,
-		"tls1.2": tls.VersionTLS12,
-	***REMOVED***
-
-	// Version might be a string or an object with separate min & max fields
-	var fields struct ***REMOVED***
-		Min string `json:"min"`
-		Max string `json:"max"`
-	***REMOVED***
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		switch err.(type) ***REMOVED***
-		case *json.UnmarshalTypeError:
-			// Check if it's a type error and the user has passed a string
-			var version string
-			if otherErr := json.Unmarshal(data, &version); otherErr != nil ***REMOVED***
-				// Some other error occurred or none of the types match
-				return otherErr
-			***REMOVED***
-			// It was a string, assign it to both min & max
-			fields.Min = version
-			fields.Max = version
-		default:
-			return err
-		***REMOVED***
-	***REMOVED***
-
-	var minVersion int
-	var maxVersion int
-	var ok bool
-	if minVersion, ok = versionMap[fields.Min]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Min)
-	***REMOVED***
-
-	if maxVersion, ok = versionMap[fields.Max]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Max)
-	***REMOVED***
-
-	v.Min = minVersion
-	v.Max = maxVersion
-
-	return nil
-***REMOVED***
-
-type TLSCipherSuites struct ***REMOVED***
-	Values []uint16
-***REMOVED***
-
-func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
-	// From https://golang.org/pkg/crypto/tls#pkg-constants
-	suiteMap := map[string]uint16***REMOVED***
-		"TLS_RSA_WITH_RC4_128_SHA":                0x0005,
-		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           0x000a,
-		"TLS_RSA_WITH_AES_128_CBC_SHA":            0x002f,
-		"TLS_RSA_WITH_AES_256_CBC_SHA":            0x0035,
-		"TLS_RSA_WITH_AES_128_CBC_SHA256":         0x003c,
-		"TLS_RSA_WITH_AES_128_GCM_SHA256":         0x009c,
-		"TLS_RSA_WITH_AES_256_GCM_SHA384":         0x009d,
-		"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":        0xc007,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    0xc009,
-		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    0xc00a,
-		"TLS_ECDHE_RSA_WITH_RC4_128_SHA":          0xc011,
-		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":     0xc012,
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      0xc013,
-		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      0xc014,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": 0xc023,
-		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   0xc027,
-		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   0xc02f,
-		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": 0xc02b,
-		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   0xc030,
-		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": 0xc02c,
-		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    0xcca8,
-		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  0xcca9,
-	***REMOVED***
-
-	var suiteNames []string
-	if err := json.Unmarshal(data, &suiteNames); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	var suiteIDs []uint16
-	for _, name := range suiteNames ***REMOVED***
-		if suiteID, ok := suiteMap[name]; ok ***REMOVED***
-			suiteIDs = append(suiteIDs, suiteID)
-		***REMOVED*** else ***REMOVED***
-			return errors.New("Unknown cipher suite: " + name)
-		***REMOVED***
-	***REMOVED***
-
-	s.Values = suiteIDs
 
 	return nil
 ***REMOVED***

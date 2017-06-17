@@ -79,16 +79,15 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
 	***REMOVED***)
 	t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
-		suiteIDs := []uint16***REMOVED***
-			tls.TLS_RSA_WITH_RC4_128_SHA,
-			tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-		***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***suiteIDs***REMOVED******REMOVED***)
+		for suiteName, suiteID := range SupportedTLSCipherSuites ***REMOVED***
+			t.Run(suiteName, func(t *testing.T) ***REMOVED***
+				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***[]uint16***REMOVED***suiteID***REMOVED******REMOVED******REMOVED***)
 
-		assert.NotNil(t, opts.TLSCipherSuites.Values)
-		assert.Len(t, opts.TLSCipherSuites.Values, 2)
-		assert.Equal(t, tls.TLS_RSA_WITH_RC4_128_SHA, opts.TLSCipherSuites.Values[0])
-		assert.Equal(t, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA, opts.TLSCipherSuites.Values[1])
+				assert.NotNil(t, opts.TLSCipherSuites.Values)
+				assert.Len(t, opts.TLSCipherSuites.Values, 1)
+				assert.Equal(t, suiteID, opts.TLSCipherSuites.Values[0])
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
 		version := TLSVersion***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionTLS12***REMOVED***
