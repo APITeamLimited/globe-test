@@ -287,7 +287,7 @@ func TestElement(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("body").get(0).getElementsByClassName("class2")`)
 		if assert.NoError(t, err) ***REMOVED***
 			elems := valToElementList(v)
-			assert.Equal(t, []string***REMOVED***"div_elem", "h2_elem"***REMOVED***, []string***REMOVED***elems[0].Id().String(), elems[1].Id().String()***REMOVED***)
+			assert.Equal(t, []string***REMOVED***"div_elem", "h2_elem"***REMOVED***, []string***REMOVED***elems[0].Id(), elems[1].Id()***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetElementsByTagName", func(t *testing.T) ***REMOVED***
@@ -307,7 +307,7 @@ func TestElement(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("body").get(0).querySelectorAll("span")`)
 		if assert.NoError(t, err) ***REMOVED***
 			elems := valToElementList(v)
-			assert.Equal(t, []string***REMOVED***"span1", "span2"***REMOVED***, []string***REMOVED***elems[0].Id().String(), elems[1].Id().String()***REMOVED***)
+			assert.Equal(t, []string***REMOVED***"span1", "span2"***REMOVED***, []string***REMOVED***elems[0].Id(), elems[1].Id()***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Contains", func(t *testing.T) ***REMOVED***
