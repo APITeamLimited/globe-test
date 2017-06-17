@@ -18,20 +18,12 @@
  *
  */
 
-package js
+package http
 
-import (
-	"github.com/loadimpact/k6/lib"
-)
-
-// Provides APIs and state for use in a VU context.
-type VUContext struct ***REMOVED***
-	// Console Object.
-	Console *Console `js:"console"`
-***REMOVED***
-
-func NewVUContext(opts lib.Options) *VUContext ***REMOVED***
-	return &VUContext***REMOVED***
-		Console: NewConsole(),
-	***REMOVED***
+// A URLTag is a special wrapper around a URL that provides the source template for a template URL.
+// Name is assigned as the 'name' tag. Used to group together functionally identical URLs, eg.:
+// for (var i = 0; i < 100; i++) ***REMOVED*** http.get(url`http://example.com/thing/$***REMOVED***id***REMOVED***`) ***REMOVED***
+type URLTag struct ***REMOVED***
+	URL  string // http://example.com/thing/1234/
+	Name string // http://example.com/thing/$***REMOVED******REMOVED***/
 ***REMOVED***

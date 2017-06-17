@@ -29,10 +29,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -57,7 +57,7 @@ type Collector struct ***REMOVED***
 	thresholds map[string][]*stats.Threshold
 	client     *Client
 
-	sampleBuffer []*sample
+	sampleBuffer []*Sample
 	sampleMu     sync.Mutex
 ***REMOVED***
 
@@ -83,12 +83,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 	if len(opts.Stages) > 0 ***REMOVED***
 		duration = sumStages(opts.Stages)
 	***REMOVED*** else if opts.Duration.Valid ***REMOVED***
-		// Parse duration if no stages found
-		dur, err := time.ParseDuration(opts.Duration.String)
-		// ignore error and keep default -1 value
-		if err == nil ***REMOVED***
-			duration = int64(dur.Seconds())
-		***REMOVED***
+		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
 	***REMOVED***
 
 	return &Collector***REMOVED***
@@ -100,7 +95,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 	***REMOVED***, nil
 ***REMOVED***
 
-func (c *Collector) Init() ***REMOVED***
+func (c *Collector) Init() error ***REMOVED***
 	thresholds := make(map[string][]string)
 
 	for name, t := range c.thresholds ***REMOVED***
@@ -123,7 +118,7 @@ func (c *Collector) Init() ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"error": err,
 		***REMOVED***).Error("Cloud collector failed to init")
-		return
+		return nil
 	***REMOVED***
 	c.referenceID = response.ReferenceID
 
@@ -133,6 +128,11 @@ func (c *Collector) Init() ***REMOVED***
 		"duration":    c.duration,
 		"referenceId": c.referenceID,
 	***REMOVED***).Debug("Cloud collector init successful")
+	return nil
+***REMOVED***
+
+func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED***
+	return nil
 ***REMOVED***
 
 func (c *Collector) String() string ***REMOVED***
@@ -168,12 +168,12 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 		return
 	***REMOVED***
 
-	var cloudSamples []*sample
+	var cloudSamples []*Sample
 	for _, samp := range samples ***REMOVED***
-		sampleJSON := &sample***REMOVED***
+		sampleJSON := &Sample***REMOVED***
 			Type:   "Point",
 			Metric: samp.Metric.Name,
-			Data: sampleData***REMOVED***
+			Data: SampleData***REMOVED***
 				Type:  samp.Metric.Type,
 				Time:  samp.Time,
 				Value: samp.Value,
@@ -245,7 +245,7 @@ func (c *Collector) testFinished() ***REMOVED***
 func sumStages(stages []lib.Stage) int64 ***REMOVED***
 	var total time.Duration
 	for _, stage := range stages ***REMOVED***
-		total += stage.Duration
+		total += time.Duration(stage.Duration.Duration)
 	***REMOVED***
 
 	return int64(total.Seconds())

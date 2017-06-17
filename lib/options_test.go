@@ -48,9 +48,9 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: null.StringFrom("2m")***REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: NullDurationFrom(2 * time.Minute)***REMOVED***)
 		assert.True(t, opts.Duration.Valid)
-		assert.Equal(t, "2m", opts.Duration.String)
+		assert.Equal(t, "2m0s", opts.Duration.String())
 	***REMOVED***)
 	t.Run("Iterations", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Iterations: null.IntFrom(1234)***REMOVED***)
@@ -58,10 +58,10 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(1234), opts.Iterations.Int64)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: 1 * time.Second***REMOVED******REMOVED******REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED******REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Stages)
 		assert.Len(t, opts.Stages, 1)
-		assert.Equal(t, 1*time.Second, opts.Stages[0].Duration)
+		assert.Equal(t, 1*time.Second, time.Duration(opts.Stages[0].Duration.Duration))
 	***REMOVED***)
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)

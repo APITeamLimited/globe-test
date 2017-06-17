@@ -54,9 +54,6 @@ type InitContext struct ***REMOVED***
 	// Cache of loaded programs and files.
 	programs map[string]programWithSource
 	files    map[string][]byte
-
-	// Console object.
-	Console *Console
 ***REMOVED***
 
 func NewInitContext(rt *goja.Runtime, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
@@ -68,8 +65,6 @@ func NewInitContext(rt *goja.Runtime, ctxPtr *context.Context, fs afero.Fs, pwd 
 
 		programs: make(map[string]programWithSource),
 		files:    make(map[string][]byte),
-
-		Console: NewConsole(),
 	***REMOVED***
 ***REMOVED***
 
@@ -83,8 +78,6 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 
 		programs: base.programs,
 		files:    base.files,
-
-		Console: base.Console,
 	***REMOVED***
 ***REMOVED***
 

@@ -28,10 +28,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -96,6 +96,9 @@ type Engine struct ***REMOVED***
 	subctx    context.Context
 	subcancel context.CancelFunc
 	subwg     sync.WaitGroup
+
+	// Cutoff point for samples.
+	cutoff time.Time
 ***REMOVED***
 
 func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
@@ -118,16 +121,14 @@ func NewEngine(r Runner, o Options) (*Engine, error) ***REMOVED***
 	***REMOVED***
 	e.SetPaused(o.Paused.Bool)
 
+	// Use Stages if available, if not, construct a stage to fill the specified duration.
+	// Special case: A valid duration of 0 = an infinite (invalid duration) stage.
 	if o.Stages != nil ***REMOVED***
 		e.Stages = o.Stages
-	***REMOVED*** else if o.Duration.Valid ***REMOVED***
-		d, err := time.ParseDuration(o.Duration.String)
-		if err != nil ***REMOVED***
-			return nil, errors.Wrap(err, "options.duration")
-		***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: d***REMOVED******REMOVED***
+	***REMOVED*** else if o.Duration.Valid && o.Duration.Duration > 0 ***REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
 	***REMOVED*** else ***REMOVED***
-		e.Stages = []Stage***REMOVED******REMOVED***Duration: 0***REMOVED******REMOVED***
+		e.Stages = []Stage***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
 
 	e.thresholds = o.Thresholds
@@ -268,6 +269,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		case <-ticker.C:
 		case <-ctx.Done():
 			e.Logger.Debug("run: context expired; exiting...")
+			e.cutoff = time.Now()
 			return nil
 		***REMOVED***
 	***REMOVED***
@@ -426,10 +428,10 @@ func (e *Engine) TotalTime() time.Duration ***REMOVED***
 
 	var total time.Duration
 	for _, stage := range e.Stages ***REMOVED***
-		if stage.Duration <= 0 ***REMOVED***
+		if !stage.Duration.Valid ***REMOVED***
 			return 0
 		***REMOVED***
-		total += stage.Duration
+		total += time.Duration(stage.Duration.Duration)
 	***REMOVED***
 	return total
 ***REMOVED***
@@ -458,19 +460,20 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 	***REMOVED***
 
 	stage := e.Stages[e.atStage]
-	if stage.Duration > 0 && e.atTime > e.atStageSince+stage.Duration ***REMOVED***
+	if stage.Duration.Valid && e.atTime > e.atStageSince+time.Duration(stage.Duration.Duration) ***REMOVED***
 		e.Logger.Debug("processStages: stage expired")
 		stageIdx := -1
 		stageStart := 0 * time.Second
 		stageStartVUs := e.vus
 		for i, s := range e.Stages ***REMOVED***
-			if stageStart+s.Duration > e.atTime || s.Duration == 0 ***REMOVED***
+			d := time.Duration(s.Duration.Duration)
+			if !s.Duration.Valid || stageStart+d > e.atTime ***REMOVED***
 				e.Logger.WithField("idx", i).Debug("processStages: proceeding to next stage...")
 				stage = s
 				stageIdx = i
 				break
 			***REMOVED***
-			stageStart += s.Duration
+			stageStart += d
 			if s.Target.Valid ***REMOVED***
 				stageStartVUs = s.Target.Int64
 			***REMOVED***
@@ -493,8 +496,8 @@ func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
 		from := e.atStageStartVUs
 		to := stage.Target.Int64
 		t := 1.0
-		if stage.Duration > 0 ***REMOVED***
-			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration), 0.0, 1.0)
+		if stage.Duration.Duration > 0 ***REMOVED***
+			t = Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration.Duration), 0.0, 1.0)
 		***REMOVED***
 		vus := Lerp(from, to, t)
 		if e.vus != vus ***REMOVED***
@@ -565,40 +568,40 @@ func (e *Engine) runVU(ctx context.Context, vu *vuEntry) ***REMOVED***
 
 func (e *Engine) runVUOnce(ctx context.Context, vu *vuEntry) bool ***REMOVED***
 	samples, err := vu.VU.RunOnce(ctx)
-
-	// Expired VUs usually have request cancellation errors, and thus skewed metrics and
-	// unhelpful "request cancelled" errors. Don't process those.
-	select ***REMOVED***
-	case <-ctx.Done():
-		return true
-	default:
-	***REMOVED***
-
 	t := time.Now()
 
-	atomic.AddInt64(&vu.Iterations, 1)
-	atomic.AddInt64(&e.numIterations, 1)
-	samples = append(samples,
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.Iterations,
-			Value:  1,
-		***REMOVED***)
-	if err != nil ***REMOVED***
-		if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
-			e.Logger.Error(serr.String())
-		***REMOVED*** else ***REMOVED***
-			e.Logger.WithError(err).Error("VU Error")
+	select ***REMOVED***
+	case <-ctx.Done():
+		// Expired VUs usually have request cancellation errors, and thus skewed metrics and
+		// unhelpful "request cancelled" errors. Filter out samples past the cutoff point.
+		samples2 := make([]stats.Sample, 0, len(samples))
+		for _, s := range samples ***REMOVED***
+			if s.Time.Before(e.cutoff) ***REMOVED***
+				samples2 = append(samples2, s)
+			***REMOVED***
 		***REMOVED***
-		samples = append(samples,
-			stats.Sample***REMOVED***
-				Time:   t,
-				Metric: metrics.Errors,
-				Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
-				Value:  1,
-			***REMOVED***,
-		)
-		atomic.AddInt64(&e.numErrors, 1)
+		samples = samples2
+	default:
+		// Only successful runs are counted and have their errors reported.
+		if err != nil ***REMOVED***
+			if serr, ok := err.(fmt.Stringer); ok ***REMOVED***
+				e.Logger.Error(serr.String())
+			***REMOVED*** else ***REMOVED***
+				e.Logger.WithError(err).Error("VU Error")
+			***REMOVED***
+			samples = append(samples,
+				stats.Sample***REMOVED***
+					Time:   t,
+					Metric: metrics.Errors,
+					Tags:   map[string]string***REMOVED***"error": err.Error()***REMOVED***,
+					Value:  1,
+				***REMOVED***,
+			)
+			atomic.AddInt64(&e.numErrors, 1)
+		***REMOVED***
+		atomic.AddInt64(&vu.Iterations, 1)
+		atomic.AddInt64(&e.numIterations, 1)
+		samples = append(samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Iterations, Value: 1***REMOVED***)
 	***REMOVED***
 
 	vu.lock.Lock()

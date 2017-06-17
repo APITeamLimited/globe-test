@@ -21,28 +21,39 @@
 package main
 
 import (
-	"testing"
-	"time"
+	"os"
 
 	"github.com/loadimpact/k6/lib"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/guregu/null.v3"
+	"gopkg.in/urfave/cli.v1"
 )
 
-func TestParseStage(t *testing.T) ***REMOVED***
-	testdata := map[string]lib.Stage***REMOVED***
-		"":        ***REMOVED******REMOVED***,
-		":":       ***REMOVED******REMOVED***,
-		"10s":     ***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
-		"10s:":    ***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
-		"10s:100": ***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-		":100":    ***REMOVED***Target: null.IntFrom(100)***REMOVED***,
-	***REMOVED***
-	for s, st := range testdata ***REMOVED***
-		t.Run(s, func(t *testing.T) ***REMOVED***
-			parsed, err := ParseStage(s)
-			assert.NoError(t, err)
-			assert.Equal(t, st, parsed)
-		***REMOVED***)
+var commandLogin = cli.Command***REMOVED***
+	Name:  "login",
+	Usage: "Logs into a remote service.",
+	Subcommands: cli.Commands***REMOVED***
+		cli.Command***REMOVED***
+			Name:   "influxdb",
+			Usage:  "Logs into an influxdb server.",
+			Action: actionLogin(CollectorInfluxDB),
+		***REMOVED***,
+	***REMOVED***,
+***REMOVED***
+
+func actionLogin(t string) func(cc *cli.Context) error ***REMOVED***
+	return func(cc *cli.Context) error ***REMOVED***
+		conf, err := LoadConfig()
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		c := collectorOfType(t).(lib.AuthenticatedCollector)
+
+		cconf, err := c.Login(conf.Collectors.Get(t), os.Stdin, os.Stdout)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		conf.Collectors[t] = cconf
+
+		return conf.Store()
 	***REMOVED***
 ***REMOVED***
