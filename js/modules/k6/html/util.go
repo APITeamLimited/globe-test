@@ -61,21 +61,20 @@ func getHtmlAttr(node *gohtml.Node, name string) *gohtml.Attribute ***REMOVED***
 ***REMOVED***
 
 func elemList(s Selection) (items []goja.Value) ***REMOVED***
+	items = make([]goja.Value, s.Size())
 	for i := 0; i < s.Size(); i++ ***REMOVED***
-		items = append(items, selToElement(s.Eq(i)))
+		items[i] = selToElement(s.Eq(i))
 	***REMOVED***
 	return items
 ***REMOVED***
 
 func nodeToElement(e Element, node *gohtml.Node) goja.Value ***REMOVED***
-	// Goquery does not expose a way to build a goquery.Selection with an arbitraty html.Node
-	// so workaround by making an empty Selection and directly adding the node
+	// Goquery does not expose a way to build a goquery.Selection with an arbitrary html.Node.
+	// Workaround by adding a node to an empty Selection
 	emptySel := e.sel.emptySelection()
 	emptySel.sel.Nodes = append(emptySel.sel.Nodes, node)
 
-	elem := Element***REMOVED***node, &emptySel***REMOVED***
-
-	return emptySel.rt.ToValue(elem)
+	return selToElement(emptySel)
 ***REMOVED***
 
 func selToElement(sel Selection) goja.Value ***REMOVED***
@@ -84,8 +83,22 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	***REMOVED***
 
 	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
+	switch elem.node.Data ***REMOVED***
+	case "a":
+		return sel.rt.ToValue(AnchorElement***REMOVED***HrefElement***REMOVED***elem***REMOVED******REMOVED***)
 
-	return sel.rt.ToValue(elem)
+	case "area":
+		return sel.rt.ToValue(AreaElement***REMOVED***HrefElement***REMOVED***elem***REMOVED******REMOVED***)
+
+	case "base":
+		return sel.rt.ToValue(BaseElement***REMOVED***elem***REMOVED***)
+
+	case "button":
+		return sel.rt.ToValue(ButtonElement***REMOVED***elem***REMOVED***)
+
+	default:
+		return sel.rt.ToValue(elem)
+	***REMOVED***
 ***REMOVED***
 
 // Try to read numeric values in data- attributes.
@@ -135,4 +148,23 @@ func convertDataAttrVal(val string) interface***REMOVED******REMOVED*** ***REMOV
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (e Element) ownerFormSel() (*goquery.Selection, bool) ***REMOVED***
+	prtForm := e.sel.sel.Closest("form")
+	if prtForm.Length() > 0 ***REMOVED***
+		return prtForm, true
+	***REMOVED***
+
+	formId := e.attrAsString("form")
+	if formId == "" ***REMOVED***
+		return nil, false
+	***REMOVED***
+
+	findForm := e.sel.sel.Parents().Last().Find("#" + formId)
+	if findForm.Length() == 0 ***REMOVED***
+		return nil, false
+	***REMOVED***
+
+	return findForm, true
 ***REMOVED***
