@@ -35,9 +35,40 @@ import (
 )
 
 type vuHandle struct ***REMOVED***
-	VU     lib.VU
-	Cancel context.CancelFunc
-	Lock   sync.RWMutex
+	sync.RWMutex
+	vu     lib.VU
+	ctx    context.Context
+	cancel context.CancelFunc
+***REMOVED***
+
+func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REMOVED***, out chan<- []stats.Sample) ***REMOVED***
+	h.RLock()
+	ctx := h.ctx
+	h.RUnlock()
+
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-flow:
+		case <-ctx.Done():
+			return
+		***REMOVED***
+
+		samples, err := h.vu.RunOnce(ctx)
+		if err != nil ***REMOVED***
+			if s, ok := err.(fmt.Stringer); ok ***REMOVED***
+				logger.Error(s.String())
+			***REMOVED*** else ***REMOVED***
+				logger.Error(err.Error())
+			***REMOVED***
+			continue
+		***REMOVED***
+
+		select ***REMOVED***
+		case out <- samples:
+		case <-ctx.Done():
+			return
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 type Executor struct ***REMOVED***
@@ -80,9 +111,11 @@ func New(r lib.Runner) *Executor ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Executor) Run(ctx context.Context, out chan<- []stats.Sample) error ***REMOVED***
+func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
+
+	ctx, cancel := context.WithCancel(parent)
 
 	e.lock.Lock()
 	e.ctx = ctx
@@ -90,9 +123,9 @@ func (e *Executor) Run(ctx context.Context, out chan<- []stats.Sample) error ***
 	e.flow = make(chan struct***REMOVED******REMOVED***)
 	e.lock.Unlock()
 
-	e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs)))
-
 	defer func() ***REMOVED***
+		cancel()
+
 		e.lock.Lock()
 		e.ctx = nil
 		e.out = nil
@@ -101,6 +134,8 @@ func (e *Executor) Run(ctx context.Context, out chan<- []stats.Sample) error ***
 
 		e.wg.Wait()
 	***REMOVED***()
+
+	e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs)))
 
 	ticker := time.NewTicker(1 * time.Millisecond)
 	defer ticker.Stop()
@@ -144,38 +179,32 @@ func (e *Executor) Run(ctx context.Context, out chan<- []stats.Sample) error ***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Executor) runVU(ctx context.Context, handle *vuHandle) ***REMOVED***
+func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 	e.lock.RLock()
 	flow := e.flow
 	out := e.out
 	e.lock.RUnlock()
 
-	for range flow ***REMOVED***
-		samples, err := handle.VU.RunOnce(ctx)
-		if err != nil ***REMOVED***
-			if s, ok := err.(fmt.Stringer); ok ***REMOVED***
-				e.Logger.Error(s.String())
-			***REMOVED*** else ***REMOVED***
-				e.Logger.Error(err.Error())
-			***REMOVED***
-			continue
-		***REMOVED***
-		out <- samples
-	***REMOVED***
-***REMOVED***
-
-func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 	e.vusLock.Lock()
 	defer e.vusLock.Unlock()
 
 	for i, handle := range e.vus ***REMOVED***
-		if i <= int(num) && handle.Cancel == nil ***REMOVED***
-			ctx, cancel := context.WithCancel(ctx)
-			handle.Cancel = cancel
-			go e.runVU(ctx, handle)
-		***REMOVED*** else if handle.Cancel != nil ***REMOVED***
-			handle.Cancel()
-			handle.Cancel = nil
+		handle := handle
+		if i <= int(num) && handle.cancel == nil ***REMOVED***
+			vuctx, cancel := context.WithCancel(ctx)
+			handle.Lock()
+			handle.ctx = vuctx
+			handle.cancel = cancel
+			handle.Unlock()
+
+			e.wg.Add(1)
+			go func() ***REMOVED***
+				handle.run(e.Logger, flow, out)
+				e.wg.Done()
+			***REMOVED***()
+		***REMOVED*** else if handle.cancel != nil ***REMOVED***
+			handle.cancel()
+			handle.cancel = nil
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -255,9 +284,6 @@ func (e *Executor) SetVUs(num int64) error ***REMOVED***
 		return errors.Errorf("can't raise vu count (to %d) above vu cap (%d)", num, numVUsMax)
 	***REMOVED***
 
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
 	if ctx := e.ctx; ctx != nil ***REMOVED***
 		e.scale(ctx, num)
 	***REMOVED***
@@ -299,7 +325,7 @@ func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			handle.VU = vu
+			handle.vu = vu
 		***REMOVED***
 		vus = append(vus, &handle)
 	***REMOVED***
