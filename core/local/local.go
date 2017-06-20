@@ -53,6 +53,10 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REM
 			return
 		***REMOVED***
 
+		if h.vu == nil ***REMOVED***
+			continue
+		***REMOVED***
+
 		samples, err := h.vu.RunOnce(ctx)
 		if err != nil ***REMOVED***
 			if s, ok := err.(fmt.Stringer); ok ***REMOVED***
@@ -60,6 +64,10 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REM
 			***REMOVED*** else ***REMOVED***
 				logger.Error(err.Error())
 			***REMOVED***
+			continue
+		***REMOVED***
+
+		if out == nil ***REMOVED***
 			continue
 		***REMOVED***
 
@@ -169,6 +177,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 			***REMOVED***
 		case e.flow <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
 			at := atomic.AddInt64(&e.iterations, 1)
+			println(at)
 			end := atomic.LoadInt64(&e.endIterations)
 			if end >= 0 && at >= end ***REMOVED***
 				return nil
