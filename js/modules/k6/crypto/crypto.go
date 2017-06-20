@@ -22,6 +22,7 @@ package crypto
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -150,4 +151,42 @@ func (hasher *Hasher) Digest(outputEncoding string) string ***REMOVED***
 	***REMOVED***
 
 	return ""
+***REMOVED***
+
+func (c Crypto) CreateHMAC(ctx context.Context, algorithm string, key string) *Hasher ***REMOVED***
+	hasher := Hasher***REMOVED******REMOVED***
+	hasher.ctx = ctx
+	keyBuffer := []byte(key)
+
+	switch algorithm ***REMOVED***
+	case "md4":
+		hasher.hash = hmac.New(md4.New, keyBuffer)
+	case "md5":
+		hasher.hash = hmac.New(md5.New, keyBuffer)
+	case "sha1":
+		hasher.hash = hmac.New(sha1.New, keyBuffer)
+	case "sha256":
+		hasher.hash = hmac.New(sha256.New, keyBuffer)
+	case "sha384":
+		hasher.hash = hmac.New(sha512.New384, keyBuffer)
+	case "sha512_224":
+		hasher.hash = hmac.New(sha512.New512_224, keyBuffer)
+	case "sha512_256":
+		hasher.hash = hmac.New(sha512.New512_256, keyBuffer)
+	case "sha512":
+		hasher.hash = hmac.New(sha512.New, keyBuffer)
+	case "ripemd160":
+		hasher.hash = hmac.New(ripemd160.New, keyBuffer)
+	default:
+		err := errors.New("Invalid algorithm: " + algorithm)
+		common.Throw(common.GetRuntime(hasher.ctx), err)
+	***REMOVED***
+
+	return &hasher
+***REMOVED***
+
+func (c *Crypto) Hmac(ctx context.Context, algorithm string, key string, input string, outputEncoding string) string ***REMOVED***
+	hasher := c.CreateHMAC(ctx, algorithm, key)
+	hasher.Update(input)
+	return hasher.Digest(outputEncoding)
 ***REMOVED***
