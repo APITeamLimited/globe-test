@@ -166,9 +166,8 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 		***REMOVED***)
 		t.Run("Select Option Multiple", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("#select_multi").val()`)
-			if assert.NoError(t, err) ***REMOVED***
-				var opts []string
-				rt.ExportTo(v, &opts)
+			var opts []string
+			if assert.NoError(t, err) && rt.ExportTo(v, &opts) == nil ***REMOVED***
 				assert.Equal(t, 2, len(opts))
 				assert.Equal(t, "option 2", opts[0])
 				assert.Equal(t, "option 3", opts[1])
@@ -216,9 +215,8 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 	t.Run("Each", func(t *testing.T) ***REMOVED***
 		t.Run("Func arg", func(t *testing.T) ***REMOVED***
 			v, err := common.RunString(rt, `***REMOVED*** var elems = []; doc.find("#select_multi option").each(function(idx, elem) ***REMOVED*** elems[idx] = elem.innerHTML(); ***REMOVED***); elems ***REMOVED***`)
-			if assert.NoError(t, err) ***REMOVED***
-				var elems []string
-				rt.ExportTo(v, &elems)
+			var elems []string
+			if assert.NoError(t, err) && rt.ExportTo(v, &elems) == nil ***REMOVED***
 				assert.Equal(t, 3, len(elems))
 				assert.Equal(t, "option 1", elems[0])
 			***REMOVED***
