@@ -284,7 +284,7 @@ func (s Selection) Val() goja.Value ***REMOVED***
 	case "textarea":
 		return s.Html()
 
-	case "button":
+	case Button:
 		return s.Attr("value")
 
 	case "option":
