@@ -21,7 +21,6 @@
 package lib
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 
@@ -35,13 +34,7 @@ type TLSVersion struct ***REMOVED***
 ***REMOVED***
 
 func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
-	// From https://golang.org/pkg/crypto/tls/#pkg-constants
-	versionMap := map[string]int***REMOVED***
-		"ssl3.0": tls.VersionSSL30,
-		"tls1.0": tls.VersionTLS10,
-		"tls1.1": tls.VersionTLS11,
-		"tls1.2": tls.VersionTLS12,
-	***REMOVED***
+	version := TLSVersion***REMOVED******REMOVED***
 
 	// Version might be a string or an object with separate min & max fields
 	var fields struct ***REMOVED***
@@ -71,26 +64,21 @@ func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	var minVersion int
-	var maxVersion int
 	var ok bool
-	if minVersion, ok = versionMap[fields.Min]; !ok ***REMOVED***
+	if version.Min, ok = SupportedTLSVersions[fields.Min]; !ok ***REMOVED***
 		return errors.New("Unknown TLS version : " + fields.Min)
 	***REMOVED***
 
-	if maxVersion, ok = versionMap[fields.Max]; !ok ***REMOVED***
+	if version.Max, ok = SupportedTLSVersions[fields.Max]; !ok ***REMOVED***
 		return errors.New("Unknown TLS version : " + fields.Max)
 	***REMOVED***
 
-	v.Min = minVersion
-	v.Max = maxVersion
+	*v = version
 
 	return nil
 ***REMOVED***
 
-type TLSCipherSuites struct ***REMOVED***
-	Values []uint16
-***REMOVED***
+type TLSCipherSuites []uint16
 
 func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
 	var suiteNames []string
@@ -107,7 +95,7 @@ func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	s.Values = suiteIDs
+	*s = suiteIDs
 
 	return nil
 ***REMOVED***

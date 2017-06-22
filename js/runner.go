@@ -103,7 +103,7 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 
 	var cipherSuites []uint16
 	if r.Bundle.Options.TLSCipherSuites != nil ***REMOVED***
-		cipherSuites = r.Bundle.Options.TLSCipherSuites.Values
+		cipherSuites = *r.Bundle.Options.TLSCipherSuites
 	***REMOVED***
 
 	var tlsVersion lib.TLSVersion

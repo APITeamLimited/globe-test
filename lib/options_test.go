@@ -80,11 +80,11 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 	t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
 		for suiteName, suiteID := range SupportedTLSCipherSuites ***REMOVED***
 			t.Run(suiteName, func(t *testing.T) ***REMOVED***
-				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***[]uint16***REMOVED***suiteID***REMOVED******REMOVED******REMOVED***)
+				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***suiteID***REMOVED******REMOVED***)
 
-				assert.NotNil(t, opts.TLSCipherSuites.Values)
-				assert.Len(t, opts.TLSCipherSuites.Values, 1)
-				assert.Equal(t, suiteID, opts.TLSCipherSuites.Values[0])
+				assert.NotNil(t, opts.TLSCipherSuites)
+				assert.Len(t, *(opts.TLSCipherSuites), 1)
+				assert.Equal(t, suiteID, (*opts.TLSCipherSuites)[0])
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
