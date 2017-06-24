@@ -17,10 +17,10 @@ var defaultPorts = map[string]string***REMOVED***
 ***REMOVED***
 
 const (
-	Anchor = "a"
-	Area   = "area"
-	Base   = "base"
-	Button = "button"
+	AnchorTagName = "a"
+	AreaTagName   = "area"
+	BaseTagName   = "base"
+	ButtonTagName = "button"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
