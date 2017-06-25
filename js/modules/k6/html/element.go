@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"strconv"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
 	gohtml "golang.org/x/net/html"
@@ -47,6 +49,20 @@ func (e Element) attrAsString(name string) string ***REMOVED***
 		return ""
 	***REMOVED***
 	return val
+***REMOVED***
+
+func (e Element) attrAsInt(name string, defaultVal int) int ***REMOVED***
+	strVal, exists := e.sel.sel.Attr(name)
+	if !exists ***REMOVED***
+		return defaultVal
+	***REMOVED***
+
+	intVal, err := strconv.Atoi(strVal)
+	if err != nil ***REMOVED***
+		return defaultVal
+	***REMOVED***
+
+	return intVal
 ***REMOVED***
 
 func (e Element) attrIsPresent(name string) bool ***REMOVED***

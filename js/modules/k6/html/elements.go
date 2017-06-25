@@ -26,6 +26,10 @@ const (
 	DataListTagName = "datalist"
 	EmbedTagName    = "embed"
 	FieldSetTagName = "fieldset"
+	FormTagName     = "form"
+	IFrameTagName   = "iframe"
+	ImageTagName    = "img"
+	InputTagName    = "input"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -41,6 +45,10 @@ type DataElement struct***REMOVED*** Element ***REMOVED***
 type DataListElement struct***REMOVED*** Element ***REMOVED***
 type EmbedElement struct***REMOVED*** Element ***REMOVED***
 type FieldSetElement struct***REMOVED*** Element ***REMOVED***
+type FormElement struct***REMOVED*** Element ***REMOVED***
+type IFrameElement struct***REMOVED*** Element ***REMOVED***
+type ImageElement struct***REMOVED*** Element ***REMOVED***
+type InputElement struct***REMOVED*** FormFieldElement ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -160,26 +168,6 @@ func (f FormFieldElement) Form() goja.Value ***REMOVED***
 
 // Used by the formAction, formMethod, formTarget and formEnctype methods of Button and Input elements
 // Attempts to read attribute "form" + attrName on the current element or attrName on the owning form element
-func (f FormFieldElement) formAttrOrElemOverride(attrName string) string ***REMOVED***
-	if elemAttr, exists := f.sel.sel.Attr("form" + attrName); exists ***REMOVED***
-		return elemAttr
-	***REMOVED***
-
-	formSel, exists := f.ownerFormSel()
-	if !exists ***REMOVED***
-		return ""
-	***REMOVED***
-
-	formAttr, exists := formSel.Attr(attrName)
-	if !exists ***REMOVED***
-		return ""
-	***REMOVED***
-
-	return formAttr
-***REMOVED***
-
-// Used by the formAction, formMethod, formTarget and formEnctype methods of Button and Input elements
-// Attempts to read attribute "form" + attrName on the current element or attrName on the owning form element
 func (f FormFieldElement) formOrElemAttrString(attrName string) string ***REMOVED***
 	if elemAttr, exists := f.sel.sel.Attr("form" + attrName); exists ***REMOVED***
 		return elemAttr
@@ -221,7 +209,11 @@ func (f FormFieldElement) FormEnctype() string ***REMOVED***
 ***REMOVED***
 
 func (f FormFieldElement) FormMethod() string ***REMOVED***
-	return f.formOrElemAttrString("method")
+	if method := strings.ToLower(f.formOrElemAttrString("method")); method == "post" ***REMOVED***
+		return "post"
+	***REMOVED***
+
+	return "get"
 ***REMOVED***
 
 func (f FormFieldElement) FormNoValidate() bool ***REMOVED***
@@ -258,19 +250,6 @@ func (f FormFieldElement) Name() string ***REMOVED***
 	return f.attrAsString("name")
 ***REMOVED***
 
-func (b ButtonElement) Type() string ***REMOVED***
-	switch b.attrAsString("type") ***REMOVED***
-	case "button":
-		return "button"
-	case "menu":
-		return "menu"
-	case "reset":
-		return "reset"
-	default:
-		return "submit"
-	***REMOVED***
-***REMOVED***
-
 func (b ButtonElement) Value() string ***REMOVED***
 	return valueOrHTML(b.sel.sel)
 ***REMOVED***
@@ -305,4 +284,48 @@ func (f FieldSetElement) Elements() []goja.Value ***REMOVED***
 
 func (f FieldSetElement) Validity() goja.Value ***REMOVED***
 	return goja.Undefined()
+***REMOVED***
+
+func (f FormElement) Elements() []goja.Value ***REMOVED***
+	return elemList(f.sel.Find("input,select,button,textarea,fieldset"))
+***REMOVED***
+
+func (f FormElement) Length() int ***REMOVED***
+	return f.sel.sel.Find("input,select,button,textarea,fieldset").Size()
+***REMOVED***
+
+func (f FormElement) Method() string ***REMOVED***
+	if method := f.attrAsString("method"); method == "post" ***REMOVED***
+		return "post"
+	***REMOVED***
+
+	return "get"
+***REMOVED***
+
+func (i InputElement) List() goja.Value ***REMOVED***
+	listId := i.attrAsString("list")
+
+	if listId == "" ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	switch i.attrAsString("type") ***REMOVED***
+	case "hidden":
+		return goja.Undefined()
+	case "checkbox":
+		return goja.Undefined()
+	case "radio":
+		return goja.Undefined()
+	case "file":
+		return goja.Undefined()
+	case "button":
+		return goja.Undefined()
+	***REMOVED***
+
+	datalist := i.sel.sel.Parents().Last().Find("datalist[id=\"" + listId + "\"]")
+	if datalist.Length() == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	return selToElement(Selection***REMOVED***i.sel.rt, datalist.Eq(0)***REMOVED***)
 ***REMOVED***
