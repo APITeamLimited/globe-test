@@ -116,10 +116,6 @@ func (h HrefElement) Protocol() string ***REMOVED***
 	return h.hrefURL().Scheme
 ***REMOVED***
 
-func (h HrefElement) Rel() string ***REMOVED***
-	return h.attrAsString("rel")
-***REMOVED***
-
 func (h HrefElement) RelList() []string ***REMOVED***
 	rel := h.attrAsString("rel")
 
@@ -138,56 +134,8 @@ func (h HrefElement) Search() string ***REMOVED***
 	return "?" + q
 ***REMOVED***
 
-func (h HrefElement) Target() string ***REMOVED***
-	return h.attrAsString("target")
-***REMOVED***
-
 func (h HrefElement) Text() string ***REMOVED***
 	return h.TextContent()
-***REMOVED***
-
-func (h HrefElement) Type() string ***REMOVED***
-	return h.attrAsString("type")
-***REMOVED***
-
-func (h HrefElement) AccessKey() string ***REMOVED***
-	return h.attrAsString("accesskey")
-***REMOVED***
-
-func (h HrefElement) HrefLang() string ***REMOVED***
-	return h.attrAsString("hreflang")
-***REMOVED***
-
-func (h HrefElement) Media() string ***REMOVED***
-	return h.attrAsString("media")
-***REMOVED***
-
-func (h HrefElement) ToString() string ***REMOVED***
-	return h.attrAsString("href")
-***REMOVED***
-
-func (h HrefElement) Href() string ***REMOVED***
-	return h.attrAsString("href")
-***REMOVED***
-
-func (h BaseElement) Href() string ***REMOVED***
-	return h.attrAsString("href")
-***REMOVED***
-
-func (h BaseElement) Target() string ***REMOVED***
-	return h.attrAsString("target")
-***REMOVED***
-
-func (b ButtonElement) AccessKey() string ***REMOVED***
-	return b.attrAsString("accesskey")
-***REMOVED***
-
-func (b ButtonElement) Autofocus() bool ***REMOVED***
-	return b.attrIsPresent("autofocus")
-***REMOVED***
-
-func (b ButtonElement) Disabled() bool ***REMOVED***
-	return b.attrIsPresent("disabled")
 ***REMOVED***
 
 func (b ButtonElement) Form() goja.Value ***REMOVED***
@@ -294,9 +242,9 @@ func (b ButtonElement) Labels() (items []goja.Value) ***REMOVED***
 	return b.elemLabels()
 ***REMOVED***
 
-func (b ButtonElement) Name() string ***REMOVED***
-	return b.attrAsString("name")
-***REMOVED***
+// func (b ButtonElement) Name() string ***REMOVED***
+// 	return b.attrAsString("name")
+// ***REMOVED***
 
 func (b ButtonElement) Type() string ***REMOVED***
 	switch b.attrAsString("type") ***REMOVED***
@@ -311,6 +259,6 @@ func (b ButtonElement) Type() string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (b ButtonElement) Value() string ***REMOVED***
-	return b.attrAsString("value")
-***REMOVED***
+// func (b ButtonElement) Value() string ***REMOVED***
+// 	return b.attrAsString("value")
+// ***REMOVED***

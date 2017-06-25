@@ -16,14 +16,6 @@ type ElemInfo struct ***REMOVED***
 	PrtStructName string
 ***REMOVED***
 
-type FuncDef struct ***REMOVED***
-	ElemName   string
-	ElemMethod string
-	AttrMethod string
-	AttrArg    string
-	ReturnType string
-***REMOVED***
-
 type NodeHandler func(node ast.Node) NodeHandler
 
 type CollectElements struct ***REMOVED***
@@ -32,33 +24,57 @@ type CollectElements struct ***REMOVED***
 	elemInfos map[string]*ElemInfo
 ***REMOVED***
 
-var attrFuncDefs = []string***REMOVED***
-	"Href Rel string",
-	"Href Href string",
-	"Href ToString=href string",
-	"Base Autofocus bool",
-	"Button AccessKey string",
-	"Button Autofocus string",
-	"Button Disabled string",
+type FuncDef struct ***REMOVED***
+	ElemName   string
+	ElemMethod string
+	AttrMethod string
+	AttrName   string
+	ReturnType string
 ***REMOVED***
 
-var testFuncDefs = []string***REMOVED***
-	//Element MethodToTest AttrName=AttrVal
-	"Anchor Rel relattrval",
-	"Anchor Href hrefattrval",
-	"Anchor ToString href=hrefval",
-	"Base Autofocus true",
-	"Button AccessKey q",
-	"Button Autofocus true",
-	"Button Disabled string",
+var funcDefs = []string***REMOVED***
+	"Href Rel string",
+	"Href Href string",
+	"Href Target string",
+	"Href Type string",
+	"Href AccessKey string",
+	"Href HrefLang string",
+	"Href Media string",
+	"Href ToString=href string",
+	"Href Href string",
+
+	"Base Href bool",
+	"Base Target bool",
+
+	"Button AccessKey string",
+	"Button Autofocus bool",
+	"Button Disabled bool",
+***REMOVED***
+
+type TestDef struct ***REMOVED***
+	ElemStructName string
+	ElemHtmlName   string
+	ElemMethod     string
+	AttrName       string
+	AttrVal        string
+***REMOVED***
+
+var testDefs = []string***REMOVED***
+	//Element MethodToTest AttrVal
+	"Area rel relattrval",
+	"Area href hrefattrval",
+	"Area toString href=hrefval",
+	"Base autofocus true",
+	"Button accessKey q",
+	"Button autofocus true",
+	"Button disabled true",
 ***REMOVED***
 
 func main() ***REMOVED***
 	fs := token.NewFileSet()
-	parsedFile, err := parser.ParseFile(fs, "elements.go", nil, 0)
-
-	if err != nil ***REMOVED***
-		log.Fatalf("warning: internal error: could not parse elemts.go: %s", err)
+	parsedFile, parseErr := parser.ParseFile(fs, "elements.go", nil, 0)
+	if parseErr != nil ***REMOVED***
+		log.Fatalf("warning: internal error: could not parse elements.go: %s", parseErr)
 		return
 	***REMOVED***
 
@@ -77,17 +93,30 @@ func main() ***REMOVED***
 	if err != nil ***REMOVED***
 		log.Println("warning: internal error: invalid Go generated:", err)
 	***REMOVED***
-	elemsTemplate.Execute(f, struct ***REMOVED***
-		ElemInfos    map[string]*ElemInfo
-		AttrFuncDefs []string
+
+	elemFuncsTemplate.Execute(f, struct ***REMOVED***
+		ElemInfos map[string]*ElemInfo
+		FuncDefs  []string
 	***REMOVED******REMOVED***
 		ce.elemInfos,
-		attrFuncDefs,
+		funcDefs,
+	***REMOVED***)
+	f.Close()
+
+	f, err = os.Create("elements_gen_test.go")
+	if err != nil ***REMOVED***
+		log.Println("warning: internal error: invalid Go generated:", err)
+	***REMOVED***
+
+	testFuncTemplate.Execute(f, struct ***REMOVED***
+		TestDefs []string
+	***REMOVED******REMOVED***
+		testDefs,
 	***REMOVED***)
 	f.Close()
 ***REMOVED***
 
-var elemsTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
+var elemFuncsTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
 	"buildStruct":  buildStruct,
 	"buildFuncDef": buildFuncDef,
 ***REMOVED***).Parse(`// go generate
@@ -100,24 +129,66 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	***REMOVED***
 
 	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
-	
-	switch elem.node.Data ***REMOVED*** ***REMOVED******REMOVED*** range $elemInfo := .ElemInfos ***REMOVED******REMOVED*** 
+
+	switch elem.node.Data ***REMOVED*** ***REMOVED******REMOVED*** range $elemInfo := .ElemInfos ***REMOVED******REMOVED***
 	case ***REMOVED******REMOVED*** $elemInfo.ConstName ***REMOVED******REMOVED***:
 		return sel.rt.ToValue(***REMOVED******REMOVED*** buildStruct $elemInfo ***REMOVED******REMOVED***)
-	***REMOVED******REMOVED*** end ***REMOVED******REMOVED*** 
+	***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 	default:
 		return sel.rt.ToValue(elem)
 	***REMOVED***
-***REMOVED***
+ ***REMOVED***
 
-***REMOVED******REMOVED*** range $funcDefStr := .AttrFuncDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $funcDef := buildFuncDef $funcDefStr ***REMOVED******REMOVED***
+***REMOVED******REMOVED*** range $funcDefStr := .FuncDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $funcDef := buildFuncDef $funcDefStr ***REMOVED******REMOVED***
 func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.ElemMethod***REMOVED******REMOVED***() ***REMOVED******REMOVED***$funcDef.ReturnType***REMOVED******REMOVED*** ***REMOVED***
-	return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrArg ***REMOVED******REMOVED***")
+	return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
 ***REMOVED***
 ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 `))
 
-// Build fragments for the template
+var testFuncTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
+	"buildTestDef": buildTestDef,
+***REMOVED***).Parse(`// go generate
+// generated by js/modules/k6/html/gen/main.go directed by js/modules/k6/html/elements.go;  DO NOT EDIT
+package html
+
+import (
+	"context"
+	"testing"
+
+	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/js/common"
+	"github.com/stretchr/testify/assert"
+)
+
+const testGenElems = ` + "`" + `<html><body>
+***REMOVED******REMOVED*** range $index, $testDefStr := .TestDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $def := buildTestDef $testDefStr ***REMOVED******REMOVED***
+<***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***" ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***=***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***></***REMOVED******REMOVED*** $def.ElemHtmlName ***REMOVED******REMOVED***> ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+</body></html>` + "`" + `
+
+func TestGenElements(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	ctx := common.WithRuntime(context.Background(), rt)
+	rt.Set("src", testHTMLElems)
+	rt.Set("html", common.Bind(rt, &HTML***REMOVED******REMOVED***, &ctx))
+	// compileProtoElem()
+
+	_, err := common.RunString(rt, "let doc = html.parseHTML(src)")
+
+	assert.NoError(t, err)
+	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
+***REMOVED******REMOVED*** range $index, $testDefStr := .TestDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $def := buildTestDef $testDefStr ***REMOVED******REMOVED*** 
+	t.Run("***REMOVED******REMOVED***$def.ElemStructName***REMOVED******REMOVED*** ***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***", func(t *testing.T) ***REMOVED***
+		if v, err := common.RunString(rt, "doc.find(\"#elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***\").get(0).***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***()"); assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, ***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***, v.Export())
+		***REMOVED***
+	***REMOVED***)
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+***REMOVED***
+`))
+
 func buildStruct(elemInfo ElemInfo) string ***REMOVED***
 	if elemInfo.PrtStructName == "Element" ***REMOVED***
 		return elemInfo.StructName + "***REMOVED***elem***REMOVED***"
@@ -130,10 +201,9 @@ func buildFuncDef(funcDef string) FuncDef ***REMOVED***
 	parts := strings.Split(funcDef, " ")
 	// parts[0] is the element struct name (without the Element suffix for brevity)
 	// parts[1] is either:
-	//   MethodName               The TitleCased name of method to add onto that struct.
-	//                            The string is lowercased and given as an argment to elem.attrAsString(...) or elem.AttrIsPresent(...)
-	//   MethodName=attrname      The MethodName is the name of the mehtid to add to the struct. The attrname is given, as is, to attrAsString ot AttrIsPresent
-	// parts[2] is return type, either string or bool
+	//   MethodName               The name of method added onto that struct and converted to lowercase thenn used as the argument to elem.attrAsString(...) or elem.AttrIsPresent(...)
+	//   MethodName=attrname      The MethodName is added to the struct. The attrname is the argument for attrAsString or AttrIsPresent
+	// parts[2] is the return type, either string or bool
 	elemName := parts[0] + "Element"
 	elemMethod := parts[1]
 	attrName := strings.ToLower(parts[1])
@@ -155,6 +225,27 @@ func buildFuncDef(funcDef string) FuncDef ***REMOVED***
 	default:
 		panic("Unknown attrType in a funcDef")
 	***REMOVED***
+***REMOVED***
+
+func buildTestDef(testDef string) TestDef ***REMOVED***
+	parts := strings.Split(testDef, " ")
+
+	elemStructName := parts[0] + "Element"
+	elemHtmlName := strings.ToLower(parts[0])
+	elemMethod := parts[1]
+	attrName := strings.ToLower(parts[1])
+	attrVal := parts[2]
+
+	if eqPos := strings.Index(attrVal, "="); eqPos != -1 ***REMOVED***
+		attrName = attrVal[0:eqPos]
+		attrVal = attrVal[eqPos+1:]
+	***REMOVED***
+
+	if attrVal != "true" ***REMOVED***
+		attrVal = "\"" + attrVal + "\""
+	***REMOVED***
+
+	return TestDef***REMOVED***elemStructName, elemHtmlName, elemMethod, attrName, attrVal***REMOVED***
 ***REMOVED***
 
 // Node handler functions used in ast.Inspect to scrape TagName consts and the names of Element structs and their parent/nested struct
