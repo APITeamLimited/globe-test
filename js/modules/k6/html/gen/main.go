@@ -118,6 +118,13 @@ var funcDefs = []string***REMOVED***
 	"Input AccessKey string",
 	"Input Multiple bool",
 	"Input Step string",
+
+	"Keygen Autofocus bool",
+	"Keygen Challenge string",
+	"Keygen Disabled bool",
+	"Keygen Keytype enum=RSA,DSA,EC",
+	"Keygen Name string",
+	"Keygen Type enum=keygen",
 ***REMOVED***
 
 type TestDef struct ***REMOVED***

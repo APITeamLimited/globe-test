@@ -89,6 +89,32 @@ func (e Element) ownerFormSel() (*goquery.Selection, bool) ***REMOVED***
 	return findForm, true
 ***REMOVED***
 
+func (e Element) ownerFormVal() goja.Value ***REMOVED***
+	formSel, exists := e.ownerFormSel()
+	if !exists ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+	return selToElement(Selection***REMOVED***e.sel.rt, formSel.Eq(0)***REMOVED***)
+***REMOVED***
+
+func (e Element) elemLabels() []goja.Value ***REMOVED***
+	wrapperLbl := e.sel.sel.Closest("label")
+
+	id := e.attrAsString("id")
+	if id == "" ***REMOVED***
+		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl***REMOVED***)
+	***REMOVED***
+
+	idLbl := e.sel.sel.Parents().Last().Find("label[for=\"" + id + "\"]")
+	if idLbl.Size() == 0 ***REMOVED***
+		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl***REMOVED***)
+	***REMOVED***
+
+	allLbls := wrapperLbl.AddSelection(idLbl)
+
+	return elemList(Selection***REMOVED***e.sel.rt, allLbls***REMOVED***)
+***REMOVED***
+
 func (e Element) GetAttribute(name string) goja.Value ***REMOVED***
 	return e.sel.Attr(name)
 ***REMOVED***

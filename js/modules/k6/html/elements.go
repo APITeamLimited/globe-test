@@ -30,6 +30,7 @@ const (
 	IFrameTagName   = "iframe"
 	ImageTagName    = "img"
 	InputTagName    = "input"
+	KeygenTagName   = "keygen"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -49,6 +50,7 @@ type FormElement struct***REMOVED*** Element ***REMOVED***
 type IFrameElement struct***REMOVED*** Element ***REMOVED***
 type ImageElement struct***REMOVED*** Element ***REMOVED***
 type InputElement struct***REMOVED*** FormFieldElement ***REMOVED***
+type KeygenElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -159,11 +161,7 @@ func (h HrefElement) Text() string ***REMOVED***
 ***REMOVED***
 
 func (f FormFieldElement) Form() goja.Value ***REMOVED***
-	formSel, exists := f.ownerFormSel()
-	if !exists ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-	return selToElement(Selection***REMOVED***f.sel.rt, formSel***REMOVED***)
+	return f.ownerFormVal()
 ***REMOVED***
 
 // Used by the formAction, formMethod, formTarget and formEnctype methods of Button and Input elements
@@ -222,24 +220,6 @@ func (f FormFieldElement) FormNoValidate() bool ***REMOVED***
 
 func (f FormFieldElement) FormTarget() string ***REMOVED***
 	return f.formOrElemAttrString("target")
-***REMOVED***
-
-func (f FormFieldElement) elemLabels() []goja.Value ***REMOVED***
-	wrapperLbl := f.sel.sel.Closest("label")
-
-	id := f.attrAsString("id")
-	if id == "" ***REMOVED***
-		return elemList(Selection***REMOVED***f.sel.rt, wrapperLbl***REMOVED***)
-	***REMOVED***
-
-	idLbl := f.sel.sel.Parents().Last().Find("label[for=\"" + id + "\"]")
-	if idLbl.Size() == 0 ***REMOVED***
-		return elemList(Selection***REMOVED***f.sel.rt, wrapperLbl***REMOVED***)
-	***REMOVED***
-
-	allLbls := wrapperLbl.AddSelection(idLbl)
-
-	return elemList(Selection***REMOVED***f.sel.rt, allLbls***REMOVED***)
 ***REMOVED***
 
 func (f FormFieldElement) Labels() []goja.Value ***REMOVED***
@@ -328,4 +308,12 @@ func (i InputElement) List() goja.Value ***REMOVED***
 	***REMOVED***
 
 	return selToElement(Selection***REMOVED***i.sel.rt, datalist.Eq(0)***REMOVED***)
+***REMOVED***
+
+func (k KeygenElement) Form() goja.Value ***REMOVED***
+	return k.ownerFormVal()
+***REMOVED***
+
+func (k KeygenElement) Labels() []goja.Value ***REMOVED***
+	return k.elemLabels()
 ***REMOVED***
