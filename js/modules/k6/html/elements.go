@@ -24,11 +24,13 @@ const (
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
+type FormFieldElement struct***REMOVED*** Element ***REMOVED***
+
 type AnchorElement struct***REMOVED*** HrefElement ***REMOVED***
 type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
 
 type BaseElement struct***REMOVED*** Element ***REMOVED***
-type ButtonElement struct***REMOVED*** Element ***REMOVED***
+type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -138,22 +140,22 @@ func (h HrefElement) Text() string ***REMOVED***
 	return h.TextContent()
 ***REMOVED***
 
-func (b ButtonElement) Form() goja.Value ***REMOVED***
-	formSel, exists := b.ownerFormSel()
+func (f FormFieldElement) Form() goja.Value ***REMOVED***
+	formSel, exists := f.ownerFormSel()
 	if !exists ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
-	return selToElement(Selection***REMOVED***b.sel.rt, formSel***REMOVED***)
+	return selToElement(Selection***REMOVED***f.sel.rt, formSel***REMOVED***)
 ***REMOVED***
 
 // Used by the formAction, formMethod, formTarget and formEnctype methods of Button and Input elements
 // Attempts to read attribute "form" + attrName on the current element or attrName on the owning form element
-func (e Element) formAttrOrElemOverride(attrName string) string ***REMOVED***
-	if elemAttr, exists := e.sel.sel.Attr("form" + attrName); exists ***REMOVED***
+func (f FormFieldElement) formAttrOrElemOverride(attrName string) string ***REMOVED***
+	if elemAttr, exists := f.sel.sel.Attr("form" + attrName); exists ***REMOVED***
 		return elemAttr
 	***REMOVED***
 
-	formSel, exists := e.ownerFormSel()
+	formSel, exists := f.ownerFormSel()
 	if !exists ***REMOVED***
 		return ""
 	***REMOVED***
@@ -168,12 +170,12 @@ func (e Element) formAttrOrElemOverride(attrName string) string ***REMOVED***
 
 // Used by the formAction, formMethod, formTarget and formEnctype methods of Button and Input elements
 // Attempts to read attribute "form" + attrName on the current element or attrName on the owning form element
-func (e Element) formOrElemAttrString(attrName string) string ***REMOVED***
-	if elemAttr, exists := e.sel.sel.Attr("form" + attrName); exists ***REMOVED***
+func (f FormFieldElement) formOrElemAttrString(attrName string) string ***REMOVED***
+	if elemAttr, exists := f.sel.sel.Attr("form" + attrName); exists ***REMOVED***
 		return elemAttr
 	***REMOVED***
 
-	formSel, exists := e.ownerFormSel()
+	formSel, exists := f.ownerFormSel()
 	if !exists ***REMOVED***
 		return ""
 	***REMOVED***
@@ -186,12 +188,12 @@ func (e Element) formOrElemAttrString(attrName string) string ***REMOVED***
 	return formAttr
 ***REMOVED***
 
-func (e Element) formOrElemAttrPresent(attrName string) bool ***REMOVED***
-	if _, exists := e.sel.sel.Attr("form" + attrName); exists ***REMOVED***
+func (f FormFieldElement) formOrElemAttrPresent(attrName string) bool ***REMOVED***
+	if _, exists := f.sel.sel.Attr("form" + attrName); exists ***REMOVED***
 		return true
 	***REMOVED***
 
-	formSel, exists := e.ownerFormSel()
+	formSel, exists := f.ownerFormSel()
 	if !exists ***REMOVED***
 		return false
 	***REMOVED***
@@ -200,51 +202,47 @@ func (e Element) formOrElemAttrPresent(attrName string) bool ***REMOVED***
 	return exists
 ***REMOVED***
 
-func (b ButtonElement) FormAction() string ***REMOVED***
-	return b.formOrElemAttrString("action")
+func (f FormFieldElement) FormAction() string ***REMOVED***
+	return f.formOrElemAttrString("action")
 ***REMOVED***
 
-func (b ButtonElement) FormEnctype() string ***REMOVED***
-	return b.formOrElemAttrString("enctype")
+func (f FormFieldElement) FormEnctype() string ***REMOVED***
+	return f.formOrElemAttrString("enctype")
 ***REMOVED***
 
-func (b ButtonElement) FormMethod() string ***REMOVED***
-	return b.formOrElemAttrString("method")
+func (f FormFieldElement) FormMethod() string ***REMOVED***
+	return f.formOrElemAttrString("method")
 ***REMOVED***
 
-func (b ButtonElement) FormNoValidate() bool ***REMOVED***
-	return b.formOrElemAttrPresent("novalidate")
+func (f FormFieldElement) FormNoValidate() bool ***REMOVED***
+	return f.formOrElemAttrPresent("novalidate")
 ***REMOVED***
 
-func (b ButtonElement) FormTarget() string ***REMOVED***
-	return b.formOrElemAttrString("target")
+func (f FormFieldElement) FormTarget() string ***REMOVED***
+	return f.formOrElemAttrString("target")
 ***REMOVED***
 
-func (e Element) elemLabels() (items []goja.Value) ***REMOVED***
-	wrapperLbl := e.sel.sel.Closest("label")
+func (f FormFieldElement) elemLabels() (items []goja.Value) ***REMOVED***
+	wrapperLbl := f.sel.sel.Closest("label")
 
-	id := e.attrAsString("id")
+	id := f.attrAsString("id")
 	if id == "" ***REMOVED***
-		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl***REMOVED***)
+		return elemList(Selection***REMOVED***f.sel.rt, wrapperLbl***REMOVED***)
 	***REMOVED***
 
-	idLbl := e.sel.sel.Parents().Last().Find("label[for=\"" + id + "\"]")
+	idLbl := f.sel.sel.Parents().Last().Find("label[for=\"" + id + "\"]")
 	if idLbl.Size() == 0 ***REMOVED***
-		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl***REMOVED***)
+		return elemList(Selection***REMOVED***f.sel.rt, wrapperLbl***REMOVED***)
 	***REMOVED***
 
 	allLbls := wrapperLbl.AddSelection(idLbl)
 
-	return elemList(Selection***REMOVED***e.sel.rt, allLbls***REMOVED***)
+	return elemList(Selection***REMOVED***f.sel.rt, allLbls***REMOVED***)
 ***REMOVED***
 
-func (b ButtonElement) Labels() (items []goja.Value) ***REMOVED***
-	return b.elemLabels()
+func (f FormFieldElement) Labels() (items []goja.Value) ***REMOVED***
+	return f.elemLabels()
 ***REMOVED***
-
-// func (b ButtonElement) Name() string ***REMOVED***
-// 	return b.attrAsString("name")
-// ***REMOVED***
 
 func (b ButtonElement) Type() string ***REMOVED***
 	switch b.attrAsString("type") ***REMOVED***
@@ -258,7 +256,3 @@ func (b ButtonElement) Type() string ***REMOVED***
 		return "submit"
 	***REMOVED***
 ***REMOVED***
-
-// func (b ButtonElement) Value() string ***REMOVED***
-// 	return b.attrAsString("value")
-// ***REMOVED***
