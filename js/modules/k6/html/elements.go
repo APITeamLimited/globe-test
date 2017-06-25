@@ -18,10 +18,13 @@ var defaultPorts = map[string]string***REMOVED***
 ***REMOVED***
 
 const (
-	AnchorTagName = "a"
-	AreaTagName   = "area"
-	BaseTagName   = "base"
-	ButtonTagName = "button"
+	AnchorTagName   = "a"
+	AreaTagName     = "area"
+	BaseTagName     = "base"
+	ButtonTagName   = "button"
+	CanvasTagName   = "canvas"
+	DataTagName     = "data"
+	DataListTagName = "datalist"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -32,6 +35,9 @@ type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
 
 type BaseElement struct***REMOVED*** Element ***REMOVED***
 type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
+type CanvasElement struct***REMOVED*** Element ***REMOVED***
+type DataElement struct***REMOVED*** Element ***REMOVED***
+type DataListElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -141,6 +147,25 @@ func (h HrefElement) Text() string ***REMOVED***
 	return h.TextContent()
 ***REMOVED***
 
+func (f FormFieldElement) ownerFormSel() (*goquery.Selection, bool) ***REMOVED***
+	prtForm := f.sel.sel.Closest("form")
+	if prtForm.Length() > 0 ***REMOVED***
+		return prtForm, true
+	***REMOVED***
+
+	formId := f.attrAsString("form")
+	if formId == "" ***REMOVED***
+		return nil, false
+	***REMOVED***
+
+	findForm := f.sel.sel.Parents().Last().Find("#" + formId)
+	if findForm.Length() == 0 ***REMOVED***
+		return nil, false
+	***REMOVED***
+
+	return findForm, true
+***REMOVED***
+
 func (f FormFieldElement) Form() goja.Value ***REMOVED***
 	formSel, exists := f.ownerFormSel()
 	if !exists ***REMOVED***
@@ -223,7 +248,7 @@ func (f FormFieldElement) FormTarget() string ***REMOVED***
 	return f.formOrElemAttrString("target")
 ***REMOVED***
 
-func (f FormFieldElement) elemLabels() (items []goja.Value) ***REMOVED***
+func (f FormFieldElement) elemLabels() []goja.Value ***REMOVED***
 	wrapperLbl := f.sel.sel.Closest("label")
 
 	id := f.attrAsString("id")
@@ -241,8 +266,12 @@ func (f FormFieldElement) elemLabels() (items []goja.Value) ***REMOVED***
 	return elemList(Selection***REMOVED***f.sel.rt, allLbls***REMOVED***)
 ***REMOVED***
 
-func (f FormFieldElement) Labels() (items []goja.Value) ***REMOVED***
+func (f FormFieldElement) Labels() []goja.Value ***REMOVED***
 	return f.elemLabels()
+***REMOVED***
+
+func (f FormFieldElement) Name() string ***REMOVED***
+	return f.attrAsString("name")
 ***REMOVED***
 
 func (b ButtonElement) Type() string ***REMOVED***
@@ -256,4 +285,20 @@ func (b ButtonElement) Type() string ***REMOVED***
 	default:
 		return "submit"
 	***REMOVED***
+***REMOVED***
+
+func (b ButtonElement) Value() string ***REMOVED***
+	return valueOrHTML(b.sel.sel)
+***REMOVED***
+
+func (c CanvasElement) Width() int64 ***REMOVED***
+	return c.intAttrOrDefault("width", 150)
+***REMOVED***
+
+func (c CanvasElement) Height() int64 ***REMOVED***
+	return c.intAttrOrDefault("height", 150)
+***REMOVED***
+
+func (d DataListElement) Options() (items []goja.Value) ***REMOVED***
+	return elemList(d.sel.Find("option"))
 ***REMOVED***
