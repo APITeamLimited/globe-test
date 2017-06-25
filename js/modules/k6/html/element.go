@@ -2,9 +2,8 @@ package html
 
 import (
 	"fmt"
-	"strings"
-
 	"strconv"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
@@ -29,18 +28,6 @@ type Attribute struct ***REMOVED***
 	nsPrefix     string
 	OwnerElement *Element
 	Value        string
-***REMOVED***
-
-func (a Attribute) Prefix() string ***REMOVED***
-	return a.nsPrefix
-***REMOVED***
-
-func (a Attribute) NamespaceURI() string ***REMOVED***
-	return namespaceURI(a.nsPrefix)
-***REMOVED***
-
-func (a Attribute) LocalName() string ***REMOVED***
-	return a.Name
 ***REMOVED***
 
 func (e Element) attrAsString(name string) string ***REMOVED***
@@ -113,6 +100,40 @@ func (e Element) elemLabels() []goja.Value ***REMOVED***
 	allLbls := wrapperLbl.AddSelection(idLbl)
 
 	return elemList(Selection***REMOVED***e.sel.rt, allLbls***REMOVED***)
+***REMOVED***
+
+func (e Element) splitAttr(attrName string) []string ***REMOVED***
+	attr := e.attrAsString(attrName)
+
+	if attr == "" ***REMOVED***
+		return make([]string, 0)
+	***REMOVED***
+
+	return strings.Split(attr, " ")
+***REMOVED***
+
+func (e Element) idOrNameAttr() (string, bool) ***REMOVED***
+	if id, exists := e.sel.sel.Attr("id"); exists ***REMOVED***
+		return id, true
+	***REMOVED***
+
+	if name, exists := e.sel.sel.Attr("id"); exists ***REMOVED***
+		return name, true
+	***REMOVED***
+
+	return "", false
+***REMOVED***
+
+func (a Attribute) Prefix() string ***REMOVED***
+	return a.nsPrefix
+***REMOVED***
+
+func (a Attribute) NamespaceURI() string ***REMOVED***
+	return namespaceURI(a.nsPrefix)
+***REMOVED***
+
+func (a Attribute) LocalName() string ***REMOVED***
+	return a.Name
 ***REMOVED***
 
 func (e Element) GetAttribute(name string) goja.Value ***REMOVED***

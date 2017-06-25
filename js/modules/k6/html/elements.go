@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"strconv"
+
 	"github.com/dop251/goja"
 )
 
@@ -31,6 +33,11 @@ const (
 	ImageTagName    = "img"
 	InputTagName    = "input"
 	KeygenTagName   = "keygen"
+	LabelTagName    = "label"
+	LegendTagName   = "legend"
+	LiTagName       = "li"
+	LinkTagName     = "link"
+	MapTagName      = "map"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -51,6 +58,11 @@ type IFrameElement struct***REMOVED*** Element ***REMOVED***
 type ImageElement struct***REMOVED*** Element ***REMOVED***
 type InputElement struct***REMOVED*** FormFieldElement ***REMOVED***
 type KeygenElement struct***REMOVED*** Element ***REMOVED***
+type LabelElement struct***REMOVED*** Element ***REMOVED***
+type LegendElement struct***REMOVED*** Element ***REMOVED***
+type LiElement struct***REMOVED*** Element ***REMOVED***
+type LinkElement struct***REMOVED*** Element ***REMOVED***
+type MapElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -139,13 +151,7 @@ func (h HrefElement) Protocol() string ***REMOVED***
 ***REMOVED***
 
 func (h HrefElement) RelList() []string ***REMOVED***
-	rel := h.attrAsString("rel")
-
-	if rel == "" ***REMOVED***
-		return make([]string, 0)
-	***REMOVED***
-
-	return strings.Split(rel, " ")
+	return h.splitAttr("rel")
 ***REMOVED***
 
 func (h HrefElement) Search() string ***REMOVED***
@@ -234,12 +240,12 @@ func (b ButtonElement) Value() string ***REMOVED***
 	return valueOrHTML(b.sel.sel)
 ***REMOVED***
 
-func (c CanvasElement) Width() int64 ***REMOVED***
-	return c.intAttrOrDefault("width", 150)
+func (c CanvasElement) Width() int ***REMOVED***
+	return c.attrAsInt("width", 150)
 ***REMOVED***
 
-func (c CanvasElement) Height() int64 ***REMOVED***
-	return c.intAttrOrDefault("height", 150)
+func (c CanvasElement) Height() int ***REMOVED***
+	return c.attrAsInt("height", 150)
 ***REMOVED***
 
 func (d DataListElement) Options() (items []goja.Value) ***REMOVED***
@@ -316,4 +322,73 @@ func (k KeygenElement) Form() goja.Value ***REMOVED***
 
 func (k KeygenElement) Labels() []goja.Value ***REMOVED***
 	return k.elemLabels()
+***REMOVED***
+
+func (l LabelElement) Control() goja.Value ***REMOVED***
+	forAttr, exists := l.sel.sel.Attr("for")
+	if !exists ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	findControl := l.sel.sel.Parents().Last().Find("#" + forAttr)
+	if findControl.Length() == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	return selToElement(Selection***REMOVED***l.sel.rt, findControl.Eq(0)***REMOVED***)
+***REMOVED***
+
+func (l LabelElement) Form() goja.Value ***REMOVED***
+	return l.ownerFormVal()
+***REMOVED***
+
+func (l LegendElement) Form() goja.Value ***REMOVED***
+	return l.ownerFormVal()
+***REMOVED***
+
+func (l LiElement) Value() goja.Value ***REMOVED***
+	if l.sel.sel.ParentFiltered("ol").Size() == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+
+	prev := l.sel.sel.PrevAllFiltered("li")
+	len := prev.Length()
+
+	if len == 0 ***REMOVED***
+		return l.sel.rt.ToValue(1)
+	***REMOVED***
+
+	for idx := 0; idx < len; idx++ ***REMOVED***
+		val, exists := prev.Eq(idx).Attr("value")
+		if !exists ***REMOVED***
+			continue
+		***REMOVED***
+
+		intVal, err := strconv.Atoi(val)
+		if err != nil ***REMOVED***
+			continue
+		***REMOVED***
+
+		return l.sel.rt.ToValue(intVal + idx + 1)
+	***REMOVED***
+
+	return l.sel.rt.ToValue(len + 1)
+***REMOVED***
+
+func (l LinkElement) RelList() []string ***REMOVED***
+	return l.splitAttr("rel")
+***REMOVED***
+
+func (m MapElement) Areas() []goja.Value ***REMOVED***
+	return elemList(m.sel.Find("area"))
+***REMOVED***
+
+func (m MapElement) Images() []goja.Value ***REMOVED***
+	name, exists := m.idOrNameAttr()
+
+	if !exists ***REMOVED***
+		return make([]goja.Value, 0)
+	***REMOVED***
+
+	return elemList(Selection***REMOVED***m.sel.rt, m.sel.sel.Parents().Last().Find("img[usemap=\"#" + name + "\"],object[usemap=\"#" + name + "\"]")***REMOVED***)
 ***REMOVED***
