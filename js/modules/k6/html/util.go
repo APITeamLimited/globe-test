@@ -125,22 +125,3 @@ func convertDataAttrVal(val string) interface***REMOVED******REMOVED*** ***REMOV
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
-
-func (e Element) ownerFormSel() (*goquery.Selection, bool) ***REMOVED***
-	prtForm := e.sel.sel.Closest("form")
-	if prtForm.Length() > 0 ***REMOVED***
-		return prtForm, true
-	***REMOVED***
-
-	formId := e.attrAsString("form")
-	if formId == "" ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	findForm := e.sel.sel.Parents().Last().Find("#" + formId)
-	if findForm.Length() == 0 ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	return findForm, true
-***REMOVED***

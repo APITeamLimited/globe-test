@@ -130,11 +130,6 @@ func TestElements(t *testing.T) ***REMOVED***
 				assert.Equal(t, "https", v.Export())
 			***REMOVED***
 		***REMOVED***)
-		t.Run("Rel", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).rel()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "prev next", v.Export())
-			***REMOVED***
-		***REMOVED***)
 		t.Run("RelList", func(t *testing.T) ***REMOVED***
 			if v, err := common.RunString(rt, `doc.find("a").get(6).relList()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, []string***REMOVED***"prev", "next"***REMOVED***, v.Export())
@@ -148,44 +143,9 @@ func TestElements(t *testing.T) ***REMOVED***
 				assert.Equal(t, "?querytxt", v.Export())
 			***REMOVED***
 		***REMOVED***)
-		t.Run("Target", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).target()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "_self", v.Export())
-			***REMOVED***
-		***REMOVED***)
 		t.Run("Text", func(t *testing.T) ***REMOVED***
 			if v, err := common.RunString(rt, `doc.find("a").get(6).text()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "6", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Type", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).type()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "rare", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("AccessKey", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).accessKey()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "q", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("HrefLang", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).hrefLang()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "en-US", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Media", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(6).media()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "print", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("Href", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(0).href()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "/testhref?querytxt#hashtext", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("ToString", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("a").get(1).toString()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "http://example.com:80", v.Export())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
@@ -194,37 +154,7 @@ func TestElements(t *testing.T) ***REMOVED***
 			assert.Equal(t, "web.address.com", v.Export())
 		***REMOVED***
 	***REMOVED***)
-	t.Run("BaseElement", func(t *testing.T) ***REMOVED***
-		t.Run("target", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("base").get(0).target()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "_self", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("href", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("base").get(0).href()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "/rel/path", v.Export())
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***)
 	t.Run("ButtonElement", func(t *testing.T) ***REMOVED***
-		t.Run("accessKey", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("button").get(0).accessKey()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, "b", v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("autofocus", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("button").get(0).autofocus()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, true, v.Export())
-			***REMOVED***
-		***REMOVED***)
-		t.Run("disabled", func(t *testing.T) ***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("#form_btn").get(0).disabled()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, true, v.Export())
-			***REMOVED***
-			if v, err := common.RunString(rt, `doc.find("#form_btn_2").get(0).disabled()`); assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, false, v.Export())
-			***REMOVED***
-		***REMOVED***)
 		t.Run("form", func(t *testing.T) ***REMOVED***
 			if v, err := common.RunString(rt, `doc.find("#form_btn").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form1", v.Export())
