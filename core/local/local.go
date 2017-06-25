@@ -34,6 +34,8 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+var _ lib.Executor = &Executor***REMOVED******REMOVED***
+
 type vuHandle struct ***REMOVED***
 	sync.RWMutex
 	vu     lib.VU
@@ -67,14 +69,8 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REM
 			continue
 		***REMOVED***
 
-		if out == nil ***REMOVED***
-			continue
-		***REMOVED***
-
-		select ***REMOVED***
-		case out <- samples:
-		case <-ctx.Done():
-			return
+		if out != nil ***REMOVED***
+			out <- samples
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -221,6 +217,14 @@ func (e *Executor) IsRunning() bool ***REMOVED***
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 	return e.ctx != nil
+***REMOVED***
+
+func (e *Executor) SetLogger(l *log.Logger) ***REMOVED***
+	e.Logger = l
+***REMOVED***
+
+func (e *Executor) GetLogger() *log.Logger ***REMOVED***
+	return e.Logger
 ***REMOVED***
 
 func (e *Executor) GetIterations() int64 ***REMOVED***

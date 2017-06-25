@@ -28,6 +28,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
 )
@@ -42,6 +43,13 @@ func TestExecutorRun(t *testing.T) ***REMOVED***
 	go func() ***REMOVED*** err <- e.Run(ctx, nil) ***REMOVED***()
 	cancel()
 	assert.NoError(t, <-err)
+***REMOVED***
+
+func TestExecutorSetLogger(t *testing.T) ***REMOVED***
+	logger, _ := logtest.NewNullLogger()
+	e := New(nil)
+	e.SetLogger(logger)
+	assert.Equal(t, logger, e.GetLogger())
 ***REMOVED***
 
 func TestExecutorEndTime(t *testing.T) ***REMOVED***
