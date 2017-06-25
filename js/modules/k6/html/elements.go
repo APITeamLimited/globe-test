@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
 )
 
@@ -25,6 +24,8 @@ const (
 	CanvasTagName   = "canvas"
 	DataTagName     = "data"
 	DataListTagName = "datalist"
+	EmbedTagName    = "embed"
+	FieldSetTagName = "fieldset"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -38,6 +39,8 @@ type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
 type CanvasElement struct***REMOVED*** Element ***REMOVED***
 type DataElement struct***REMOVED*** Element ***REMOVED***
 type DataListElement struct***REMOVED*** Element ***REMOVED***
+type EmbedElement struct***REMOVED*** Element ***REMOVED***
+type FieldSetElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -145,25 +148,6 @@ func (h HrefElement) Search() string ***REMOVED***
 
 func (h HrefElement) Text() string ***REMOVED***
 	return h.TextContent()
-***REMOVED***
-
-func (f FormFieldElement) ownerFormSel() (*goquery.Selection, bool) ***REMOVED***
-	prtForm := f.sel.sel.Closest("form")
-	if prtForm.Length() > 0 ***REMOVED***
-		return prtForm, true
-	***REMOVED***
-
-	formId := f.attrAsString("form")
-	if formId == "" ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	findForm := f.sel.sel.Parents().Last().Find("#" + formId)
-	if findForm.Length() == 0 ***REMOVED***
-		return nil, false
-	***REMOVED***
-
-	return findForm, true
 ***REMOVED***
 
 func (f FormFieldElement) Form() goja.Value ***REMOVED***
@@ -301,4 +285,24 @@ func (c CanvasElement) Height() int64 ***REMOVED***
 
 func (d DataListElement) Options() (items []goja.Value) ***REMOVED***
 	return elemList(d.sel.Find("option"))
+***REMOVED***
+
+func (f FieldSetElement) Form() goja.Value ***REMOVED***
+	formSel, exists := f.ownerFormSel()
+	if !exists ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+	return selToElement(Selection***REMOVED***f.sel.rt, formSel***REMOVED***)
+***REMOVED***
+
+func (f FieldSetElement) Type() string ***REMOVED***
+	return "fieldset"
+***REMOVED***
+
+func (f FieldSetElement) Elements() []goja.Value ***REMOVED***
+	return elemList(f.sel.Find("input,select,button,textarea"))
+***REMOVED***
+
+func (f FieldSetElement) Validity() goja.Value ***REMOVED***
+	return goja.Undefined()
 ***REMOVED***

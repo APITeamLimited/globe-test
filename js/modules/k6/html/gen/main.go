@@ -51,6 +51,14 @@ var funcDefs = []string***REMOVED***
 	"Button Disabled bool",
 
 	"Data Value string",
+
+	"Embed Height string",
+	"Embed Width string",
+	"Embed Src string",
+	"Embed Type string",
+
+	"FieldSet Disabled bool",
+	"FieldSet Name string",
 ***REMOVED***
 
 type TestDef struct ***REMOVED***
