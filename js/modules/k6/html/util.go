@@ -77,30 +77,6 @@ func nodeToElement(e Element, node *gohtml.Node) goja.Value ***REMOVED***
 	return selToElement(emptySel)
 ***REMOVED***
 
-func selToElement(sel Selection) goja.Value ***REMOVED***
-	if sel.sel.Length() == 0 ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-
-	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
-	switch elem.node.Data ***REMOVED***
-	case "a":
-		return sel.rt.ToValue(AnchorElement***REMOVED***HrefElement***REMOVED***elem***REMOVED******REMOVED***)
-
-	case "area":
-		return sel.rt.ToValue(AreaElement***REMOVED***HrefElement***REMOVED***elem***REMOVED******REMOVED***)
-
-	case "base":
-		return sel.rt.ToValue(BaseElement***REMOVED***elem***REMOVED***)
-
-	case "button":
-		return sel.rt.ToValue(ButtonElement***REMOVED***elem***REMOVED***)
-
-	default:
-		return sel.rt.ToValue(elem)
-	***REMOVED***
-***REMOVED***
-
 // Try to read numeric values in data- attributes.
 // Return numeric value when the representation is unchanged by conversion to float and back.
 // Other potentially numeric values (ie "101.00" "1E02") remain as strings.
