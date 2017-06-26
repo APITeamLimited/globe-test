@@ -21,6 +21,7 @@
 package js
 
 import (
+	"crypto/tls"
 	"fmt"
 	"os"
 	"testing"
@@ -370,6 +371,65 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, null.BoolFrom(true), b.Options.InsecureSkipTLSVerify)
 			***REMOVED***
+		***REMOVED***)
+		t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
+			for suiteName, suiteID := range lib.SupportedTLSCipherSuites ***REMOVED***
+				t.Run(suiteName, func(t *testing.T) ***REMOVED***
+					script := `
+					export let options = ***REMOVED***
+						tlsCipherSuites: ["%s"]
+					***REMOVED***;
+					export default function() ***REMOVED******REMOVED***;
+					`
+					script = fmt.Sprintf(script, suiteName)
+
+					b, err := NewBundle(&lib.SourceData***REMOVED***
+						Filename: "/script.js",
+						Data:     []byte(script),
+					***REMOVED***, afero.NewMemMapFs())
+					if assert.NoError(t, err) ***REMOVED***
+						if assert.Len(t, *b.Options.TLSCipherSuites, 1) ***REMOVED***
+							assert.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+		t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
+			t.Run("Object", func(t *testing.T) ***REMOVED***
+				b, err := NewBundle(&lib.SourceData***REMOVED***
+					Filename: "/script.js",
+					Data: []byte(`
+						export let options = ***REMOVED***
+							tlsVersion: ***REMOVED***
+								min: "ssl3.0",
+								max: "tls1.2"
+							***REMOVED***
+						***REMOVED***;
+						export default function() ***REMOVED******REMOVED***;
+					`),
+				***REMOVED***, afero.NewMemMapFs())
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, b.Options.TLSVersion.Min, tls.VersionSSL30)
+					assert.Equal(t, b.Options.TLSVersion.Max, tls.VersionTLS12)
+				***REMOVED***
+			***REMOVED***)
+			t.Run("String", func(t *testing.T) ***REMOVED***
+				b, err := NewBundle(&lib.SourceData***REMOVED***
+					Filename: "/script.js",
+					Data: []byte(`
+					export let options = ***REMOVED***
+						tlsVersion: "ssl3.0"
+					***REMOVED***;
+					export default function() ***REMOVED******REMOVED***;
+				`),
+				***REMOVED***, afero.NewMemMapFs())
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, b.Options.TLSVersion.Min, tls.VersionSSL30)
+					assert.Equal(t, b.Options.TLSVersion.Max, tls.VersionSSL30)
+				***REMOVED***
+
+			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
 			b, err := NewBundle(&lib.SourceData***REMOVED***

@@ -21,9 +21,84 @@
 package lib
 
 import (
+	"encoding/json"
+	"errors"
+
 	"github.com/loadimpact/k6/stats"
 	"gopkg.in/guregu/null.v3"
 )
+
+type TLSVersion struct ***REMOVED***
+	Min int
+	Max int
+***REMOVED***
+
+func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
+	version := TLSVersion***REMOVED******REMOVED***
+
+	// Version might be a string or an object with separate min & max fields
+	var fields struct ***REMOVED***
+		Min string `json:"min"`
+		Max string `json:"max"`
+	***REMOVED***
+	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
+		switch err.(type) ***REMOVED***
+		case *json.UnmarshalTypeError:
+			// Check if it's a type error and the user has passed a string
+			var version string
+			if otherErr := json.Unmarshal(data, &version); otherErr != nil ***REMOVED***
+				switch otherErr.(type) ***REMOVED***
+				case *json.UnmarshalTypeError:
+					return errors.New("Type error: the value of tlsVersion " +
+						"should be an object with min/max fields or a string")
+				***REMOVED***
+
+				// Some other error occurred
+				return otherErr
+			***REMOVED***
+			// It was a string, assign it to both min & max
+			fields.Min = version
+			fields.Max = version
+		default:
+			return err
+		***REMOVED***
+	***REMOVED***
+
+	var ok bool
+	if version.Min, ok = SupportedTLSVersions[fields.Min]; !ok ***REMOVED***
+		return errors.New("Unknown TLS version : " + fields.Min)
+	***REMOVED***
+
+	if version.Max, ok = SupportedTLSVersions[fields.Max]; !ok ***REMOVED***
+		return errors.New("Unknown TLS version : " + fields.Max)
+	***REMOVED***
+
+	*v = version
+
+	return nil
+***REMOVED***
+
+type TLSCipherSuites []uint16
+
+func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
+	var suiteNames []string
+	if err := json.Unmarshal(data, &suiteNames); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	var suiteIDs []uint16
+	for _, name := range suiteNames ***REMOVED***
+		if suiteID, ok := SupportedTLSCipherSuites[name]; ok ***REMOVED***
+			suiteIDs = append(suiteIDs, suiteID)
+		***REMOVED*** else ***REMOVED***
+			return errors.New("Unknown cipher suite: " + name)
+		***REMOVED***
+	***REMOVED***
+
+	*s = suiteIDs
+
+	return nil
+***REMOVED***
 
 type Options struct ***REMOVED***
 	Paused     null.Bool    `json:"paused"`
@@ -36,11 +111,13 @@ type Options struct ***REMOVED***
 	Linger        null.Bool `json:"linger"`
 	NoUsageReport null.Bool `json:"noUsageReport"`
 
-	MaxRedirects          null.Int    `json:"maxRedirects"`
-	InsecureSkipTLSVerify null.Bool   `json:"insecureSkipTLSVerify"`
-	NoConnectionReuse     null.Bool   `json:"noConnectionReuse"`
-	UserAgent             null.String `json:"userAgent"`
-	Throw                 null.Bool   `json:"throw"`
+	MaxRedirects          null.Int         `json:"maxRedirects"`
+	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify"`
+	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites"`
+	TLSVersion            *TLSVersion      `json:"tlsVersion"`
+	NoConnectionReuse     null.Bool        `json:"noConnectionReuse"`
+	UserAgent             null.String      `json:"userAgent"`
+	Throw                 null.Bool        `json:"throw"`
 
 	Thresholds map[string]stats.Thresholds `json:"thresholds"`
 
@@ -78,6 +155,12 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
 		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
+	***REMOVED***
+	if opts.TLSCipherSuites != nil ***REMOVED***
+		o.TLSCipherSuites = opts.TLSCipherSuites
+	***REMOVED***
+	if opts.TLSVersion != nil ***REMOVED***
+		o.TLSVersion = opts.TLSVersion
 	***REMOVED***
 	if opts.NoConnectionReuse.Valid ***REMOVED***
 		o.NoConnectionReuse = opts.NoConnectionReuse
