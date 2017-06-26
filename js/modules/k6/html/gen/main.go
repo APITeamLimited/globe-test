@@ -187,6 +187,14 @@ var funcDefs = []string***REMOVED***
 	"Pre Value string",
 
 	"Quote Cite string",
+
+	"Script Type string",
+	"Script Src string",
+	"Script HtmlFor=for string",
+	"Script Charset string",
+	"Script Async bool",
+	"Script Defer bool",
+	"Script NoModule bool",
 ***REMOVED***
 
 type TestDef struct ***REMOVED***

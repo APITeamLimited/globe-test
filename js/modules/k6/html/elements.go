@@ -50,7 +50,8 @@ const (
 	ParamTagName    = "param"
 	PreTagName      = "pre"
 	ProgressTagName = "progress"
-	QuoteTagName    = "progress"
+	QuoteTagName    = "quote"
+	ScriptTagName   = "script"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -92,6 +93,7 @@ type ParamElement struct***REMOVED*** Element ***REMOVED***
 type PreElement struct***REMOVED*** Element ***REMOVED***
 type ProgressElement struct***REMOVED*** Element ***REMOVED***
 type QuoteElement struct***REMOVED*** Element ***REMOVED***
+type ScriptElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -543,4 +545,8 @@ func (p ProgressElement) Position() float64 ***REMOVED***
 
 func (p ProgressElement) Labels() []goja.Value ***REMOVED***
 	return p.elemLabels()
+***REMOVED***
+
+func (s ScriptElement) Text() string ***REMOVED***
+	return s.TextContent()
 ***REMOVED***
