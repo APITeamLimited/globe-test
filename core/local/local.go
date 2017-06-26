@@ -221,6 +221,10 @@ func (e *Executor) IsRunning() bool ***REMOVED***
 	return e.ctx != nil
 ***REMOVED***
 
+func (e *Executor) GetRunner() lib.Runner ***REMOVED***
+	return e.Runner
+***REMOVED***
+
 func (e *Executor) SetLogger(l *log.Logger) ***REMOVED***
 	e.Logger = l
 ***REMOVED***
@@ -305,7 +309,7 @@ func (e *Executor) SetVUs(num int64) error ***REMOVED***
 	if ctx := e.ctx; ctx != nil ***REMOVED***
 		e.scale(ctx, num)
 	***REMOVED*** else ***REMOVED***
-	atomic.StoreInt64(&e.numVUs, num)
+		atomic.StoreInt64(&e.numVUs, num)
 	***REMOVED***
 
 	return nil

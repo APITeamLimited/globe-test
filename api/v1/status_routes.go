@@ -57,19 +57,19 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 	***REMOVED***
 
 	if status.VUsMax.Valid ***REMOVED***
-		if err := engine.SetVUsMax(status.VUsMax.Int64); err != nil ***REMOVED***
+		if err := engine.Executor.SetVUsMax(status.VUsMax.Int64); err != nil ***REMOVED***
 			apiError(rw, "Couldn't change cap", err.Error(), http.StatusBadRequest)
 			return
 		***REMOVED***
 	***REMOVED***
 	if status.VUs.Valid ***REMOVED***
-		if err := engine.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
+		if err := engine.Executor.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
 			apiError(rw, "Couldn't scale", err.Error(), http.StatusBadRequest)
 			return
 		***REMOVED***
 	***REMOVED***
 	if status.Paused.Valid ***REMOVED***
-		engine.SetPaused(status.Paused.Bool)
+		engine.Executor.SetPaused(status.Paused.Bool)
 	***REMOVED***
 
 	data, err := jsonapi.Marshal(NewStatus(engine))
