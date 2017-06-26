@@ -31,16 +31,16 @@ import (
 
 func TestCollectorRun(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED******REMOVED***
-	assert.False(t, c.IsRunning())
+	assert.False(t, c.IsReady())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go c.Run(ctx)
-	time.Sleep(1 * time.Millisecond)
-	assert.True(t, c.IsRunning(), "not marked as running")
+	for !c.IsReady() ***REMOVED***
+	***REMOVED***
 
 	cancel()
-	time.Sleep(1 * time.Millisecond)
-	assert.False(t, c.IsRunning(), "not marked as stopped")
+	for c.IsReady() ***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
