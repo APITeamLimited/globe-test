@@ -21,7 +21,6 @@
 package lib
 
 import (
-	"crypto/tls"
 	"testing"
 	"time"
 
@@ -76,25 +75,6 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***)
 		assert.True(t, opts.InsecureSkipTLSVerify.Valid)
 		assert.True(t, opts.InsecureSkipTLSVerify.Bool)
-	***REMOVED***)
-	t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
-		for suiteName, suiteID := range SupportedTLSCipherSuites ***REMOVED***
-			t.Run(suiteName, func(t *testing.T) ***REMOVED***
-				opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSCipherSuites: &TLSCipherSuites***REMOVED***suiteID***REMOVED******REMOVED***)
-
-				assert.NotNil(t, opts.TLSCipherSuites)
-				assert.Len(t, *(opts.TLSCipherSuites), 1)
-				assert.Equal(t, suiteID, (*opts.TLSCipherSuites)[0])
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-	t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
-		version := TLSVersion***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionTLS12***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***TLSVersion: &version***REMOVED***)
-
-		assert.NotNil(t, opts.TLSVersion)
-		assert.Equal(t, opts.TLSVersion.Min, tls.VersionSSL30)
-		assert.Equal(t, opts.TLSVersion.Max, tls.VersionTLS12)
 	***REMOVED***)
 	t.Run("NoConnectionReuse", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoConnectionReuse: null.BoolFrom(true)***REMOVED***)
