@@ -193,7 +193,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 				e.logger.Debug("run: ProcessStages() returned false; exiting...")
 				return nil
 			***REMOVED***
-			e.Executor.SetVUs(vus)
+			if err := e.Executor.SetVUs(vus); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		case samples := <-out:
 			e.processSamples(samples...)
 		case err := <-errC:
