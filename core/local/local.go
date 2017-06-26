@@ -211,6 +211,8 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 			handle.cancel = nil
 		***REMOVED***
 	***REMOVED***
+
+	atomic.StoreInt64(&e.numVUs, num)
 ***REMOVED***
 
 func (e *Executor) IsRunning() bool ***REMOVED***
@@ -292,15 +294,19 @@ func (e *Executor) SetVUs(num int64) error ***REMOVED***
 		return errors.New("vu count can't be negative")
 	***REMOVED***
 
+	if atomic.LoadInt64(&e.numVUs) == num ***REMOVED***
+		return nil
+	***REMOVED***
+
 	if numVUsMax := atomic.LoadInt64(&e.numVUsMax); num > numVUsMax ***REMOVED***
 		return errors.Errorf("can't raise vu count (to %d) above vu cap (%d)", num, numVUsMax)
 	***REMOVED***
 
 	if ctx := e.ctx; ctx != nil ***REMOVED***
 		e.scale(ctx, num)
-	***REMOVED***
-
+	***REMOVED*** else ***REMOVED***
 	atomic.StoreInt64(&e.numVUs, num)
+	***REMOVED***
 
 	return nil
 ***REMOVED***
@@ -314,11 +320,15 @@ func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
 		return errors.New("vu cap can't be negative")
 	***REMOVED***
 
+	numVUsMax := atomic.LoadInt64(&e.numVUsMax)
+
+	if numVUsMax == max ***REMOVED***
+		return nil
+	***REMOVED***
+
 	if numVUs := atomic.LoadInt64(&e.numVUs); max < numVUs ***REMOVED***
 		return errors.Errorf("can't lower vu cap (to %d) below vu count (%d)", max, numVUs)
 	***REMOVED***
-
-	numVUsMax := atomic.LoadInt64(&e.numVUsMax)
 
 	if max < numVUsMax ***REMOVED***
 		e.vus = e.vus[:max]
