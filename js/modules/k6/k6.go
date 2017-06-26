@@ -59,15 +59,16 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	state.Group = g
 	defer func() ***REMOVED*** state.Group = old ***REMOVED***()
 
-	tags := make(map[string]string)
-	tags["group"] = g.Path
-	// Call group function and generate group_duration sample
 	startTime := time.Now()
 	ret, err := fn(goja.Undefined())
 	t := time.Now()
-	duration := t.Sub(startTime).Seconds() * 1000
 	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.GroupDuration, Tags: tags, Value: duration***REMOVED***,
+		stats.Sample***REMOVED***
+			Time:   t,
+			Metric: metrics.GroupDuration,
+			Tags:   map[string]string***REMOVED***"group": g.Path***REMOVED***,
+			Value:  stats.D(t.Sub(startTime)),
+		***REMOVED***,
 	)
 	return ret, err
 ***REMOVED***
