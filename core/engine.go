@@ -114,11 +114,9 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 	return e, nil
 ***REMOVED***
 
-func (e *Engine) Run(engctx context.Context) error ***REMOVED***
+func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
-
-	engctx, engcancel := context.WithCancel(engctx)
 
 	collectorwg := sync.WaitGroup***REMOVED******REMOVED***
 	collectorctx, collectorcancel := context.WithCancel(context.Background())
@@ -149,10 +147,10 @@ func (e *Engine) Run(engctx context.Context) error ***REMOVED***
 
 	// Run the executor.
 	out := make(chan []stats.Sample)
+	errC := make(chan error)
 	subwg.Add(1)
 	go func() ***REMOVED***
-		e.Executor.Run(subctx, out)
-		engcancel()
+		errC <- e.Executor.Run(subctx, out)
 		subwg.Done()
 	***REMOVED***()
 
@@ -198,7 +196,14 @@ func (e *Engine) Run(engctx context.Context) error ***REMOVED***
 			e.Executor.SetVUs(vus)
 		case samples := <-out:
 			e.processSamples(samples...)
-		case <-engctx.Done():
+		case err := <-errC:
+			if err != nil ***REMOVED***
+				e.logger.WithError(err).Debug("run: executor returned an error")
+				return err
+			***REMOVED***
+			e.logger.Debug("run: executor terminated")
+			return nil
+		case <-ctx.Done():
 			e.logger.Debug("run: context expired; exiting...")
 			return nil
 		***REMOVED***
