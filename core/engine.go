@@ -30,7 +30,6 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 )
@@ -63,12 +62,6 @@ type Engine struct ***REMOVED***
 	// Assigned to metrics upon first received sample.
 	thresholds map[string]stats.Thresholds
 	submetrics map[string][]stats.Submetric
-
-	// Stage tracking.
-	atTime          time.Duration
-	atStage         int
-	atStageSince    time.Duration
-	atStageStartVUs int64
 
 	// Are thresholds tainted?
 	thresholdsTainted bool
@@ -178,7 +171,7 @@ func (e *Engine) Run(engctx context.Context) error ***REMOVED***
 			for _, sample := range samples ***REMOVED***
 				if !sample.Time.After(cutoff) ***REMOVED***
 					e.processSamples(sample)
-				***REMOVED*** 
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 
@@ -193,23 +186,16 @@ func (e *Engine) Run(engctx context.Context) error ***REMOVED***
 		collectorwg.Wait()
 	***REMOVED***()
 
-	lastAt := time.Duration(0)
 	ticker := time.NewTicker(TickRate)
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			at := e.Executor.GetTime()
-			dT := at - lastAt
-			lastAt = at
-
-			keepRunning, err := e.processStages(dT)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
+			vus, keepRunning := ProcessStages(e.Stages, e.Executor.GetTime())
 			if !keepRunning ***REMOVED***
-				e.logger.Debug("run: processStages() returned false; exiting...")
+				e.logger.Debug("run: ProcessStages() returned false; exiting...")
 				return nil
 			***REMOVED***
+			e.Executor.SetVUs(vus)
 		case samples := <-out:
 			e.processSamples(samples...)
 		case <-engctx.Done():
@@ -230,68 +216,6 @@ func (e *Engine) SetLogger(l *log.Logger) ***REMOVED***
 
 func (e *Engine) GetLogger() *log.Logger ***REMOVED***
 	return e.logger
-***REMOVED***
-
-func (e *Engine) processStages(dT time.Duration) (bool, error) ***REMOVED***
-	e.atTime += dT
-
-	if len(e.Stages) == 0 ***REMOVED***
-		e.logger.Debug("processStages: no stages")
-		return false, nil
-	***REMOVED***
-
-	stage := e.Stages[e.atStage]
-	if stage.Duration.Valid && e.atTime > e.atStageSince+time.Duration(stage.Duration.Duration) ***REMOVED***
-		e.logger.Debug("processStages: stage expired")
-		stageIdx := -1
-		stageStart := 0 * time.Second
-		stageStartVUs := e.Executor.GetVUs()
-		for i, s := range e.Stages ***REMOVED***
-			d := time.Duration(s.Duration.Duration)
-			if !s.Duration.Valid || stageStart+d > e.atTime ***REMOVED***
-				e.logger.WithField("idx", i).Debug("processStages: proceeding to next stage...")
-				stage = s
-				stageIdx = i
-				break
-			***REMOVED***
-			stageStart += d
-			if s.Target.Valid ***REMOVED***
-				stageStartVUs = s.Target.Int64
-			***REMOVED***
-		***REMOVED***
-		if stageIdx == -1 ***REMOVED***
-			e.logger.Debug("processStages: end of test exceeded")
-			return false, nil
-		***REMOVED***
-
-		e.atStage = stageIdx
-		e.atStageSince = stageStart
-
-		e.logger.WithField("vus", stageStartVUs).Debug("processStages: normalizing VU count...")
-		if err := e.Executor.SetVUs(stageStartVUs); err != nil ***REMOVED***
-			return false, errors.Wrapf(err, "stage #%d (normalization)", e.atStage)
-		***REMOVED***
-		e.atStageStartVUs = stageStartVUs
-	***REMOVED***
-	if stage.Target.Valid ***REMOVED***
-		from := e.atStageStartVUs
-		to := stage.Target.Int64
-		t := 1.0
-		if stage.Duration.Duration > 0 ***REMOVED***
-			t = lib.Clampf(float64(e.atTime-e.atStageSince)/float64(stage.Duration.Duration), 0.0, 1.0)
-		***REMOVED***
-
-		vus := e.Executor.GetVUs()
-		newVUs := lib.Lerp(from, to, t)
-		if vus != newVUs ***REMOVED***
-			e.logger.WithFields(log.Fields***REMOVED***"from": vus, "to": vus***REMOVED***).Debug("processStages: interpolating...")
-			if err := e.Executor.SetVUs(vus); err != nil ***REMOVED***
-				return false, errors.Wrapf(err, "stage #%d", e.atStage+1)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	return true, nil
 ***REMOVED***
 
 func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***

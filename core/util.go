@@ -21,6 +21,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/loadimpact/k6/lib"
 )
 
@@ -33,4 +35,40 @@ func SumStages(stages []lib.Stage) (d lib.NullDuration) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return d
+***REMOVED***
+
+// Returns the VU count and whether to keep going at the specified time.
+func ProcessStages(stages []lib.Stage, t time.Duration) (int64, bool) ***REMOVED***
+	var vus int64
+
+	var start time.Duration
+	for _, stage := range stages ***REMOVED***
+		// Infinite stages keep running forever, with the last valid end point, or its own target.
+		if !stage.Duration.Valid ***REMOVED***
+			if stage.Target.Valid ***REMOVED***
+				vus = stage.Target.Int64
+			***REMOVED***
+			return vus, true
+		***REMOVED***
+
+		// If the stage has already ended, still record the end VU count for interpolation.
+		end := start + time.Duration(stage.Duration.Duration)
+		if end < t ***REMOVED***
+			if stage.Target.Valid ***REMOVED***
+				vus = stage.Target.Int64
+			***REMOVED***
+			start = end
+			continue
+		***REMOVED***
+
+		// If there's a VU target, use linear interpolation to reach it.
+		if stage.Target.Valid ***REMOVED***
+			prog := lib.Clampf(float64(t-start)/float64(stage.Duration.Duration), 0.0, 1.0)
+			vus = lib.Lerp(vus, stage.Target.Int64, prog)
+		***REMOVED***
+
+		// We found a stage, so keep running.
+		return vus, true
+	***REMOVED***
+	return vus, false
 ***REMOVED***
