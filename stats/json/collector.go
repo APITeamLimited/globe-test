@@ -83,6 +83,10 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	_ = c.outfile.Close()
 ***REMOVED***
 
+func (c *Collector) IsReady() bool ***REMOVED***
+	return true
+***REMOVED***
+
 func (c *Collector) HandleMetric(m *stats.Metric) ***REMOVED***
 	if c.HasSeenMetric(m.Name) ***REMOVED***
 		return
