@@ -177,6 +177,10 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (c *Collector) IsReady() bool ***REMOVED***
+	return true
+***REMOVED***
+
 func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	c.bufferLock.Lock()
 	c.buffer = append(c.buffer, samples...)

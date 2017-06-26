@@ -23,6 +23,7 @@ package lib
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -153,6 +154,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			e.Collector.Run(collectorctx)
 			close(collectorch)
 		***REMOVED***()
+		for !e.Collector.IsReady() ***REMOVED***
+			runtime.Gosched()
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		close(collectorch)
 	***REMOVED***
