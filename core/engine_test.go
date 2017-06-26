@@ -22,7 +22,6 @@ package core
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -340,37 +339,15 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 func TestEngineCollector(t *testing.T) ***REMOVED***
 	testMetric := stats.New("test_metric", stats.Trend)
 
-	holdup := make(chan interface***REMOVED******REMOVED***)
 	e, err, _ := newTestEngine(LF(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-		<-holdup
 		return []stats.Sample***REMOVED******REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
-	***REMOVED***), lib.Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1)***REMOVED***)
+	***REMOVED***), lib.Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1), Iterations: null.IntFrom(1)***REMOVED***)
 	assert.NoError(t, err)
 
 	c := &dummy.Collector***REMOVED******REMOVED***
 	e.Collector = c
 
-	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan error)
-	go func() ***REMOVED*** ch <- e.Run(ctx) ***REMOVED***()
-
-	for !e.Executor.IsRunning() ***REMOVED***
-		runtime.Gosched()
-	***REMOVED***
-	for !c.IsRunning() ***REMOVED***
-		runtime.Gosched()
-	***REMOVED***
-
-	close(holdup)
-	cancel()
-	assert.NoError(t, <-ch)
-
-	for e.Executor.IsRunning() ***REMOVED***
-		runtime.Gosched()
-	***REMOVED***
-	for c.IsRunning() ***REMOVED***
-		runtime.Gosched()
-	***REMOVED***
+	assert.NoError(t, e.Run(context.Background()))
 
 	cSamples := []stats.Sample***REMOVED******REMOVED***
 	for _, sample := range c.Samples ***REMOVED***
@@ -378,9 +355,15 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 			cSamples = append(cSamples, sample)
 		***REMOVED***
 	***REMOVED***
-	numCollectorSamples := len(cSamples)
-	numEngineSamples := len(e.Metrics["test_metric"].Sink.(*stats.TrendSink).Values)
-	assert.Equal(t, numEngineSamples, numCollectorSamples)
+	metric := e.Metrics["test_metric"]
+	if assert.NotNil(t, metric) ***REMOVED***
+		sink := metric.Sink.(*stats.TrendSink)
+		if assert.NotNil(t, sink) ***REMOVED***
+			numCollectorSamples := len(cSamples)
+			numEngineSamples := len(sink.Values)
+			assert.Equal(t, numEngineSamples, numCollectorSamples)
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func TestEngine_processSamples(t *testing.T) ***REMOVED***
