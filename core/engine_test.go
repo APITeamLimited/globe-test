@@ -354,20 +354,22 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	ch := make(chan error)
 	go func() ***REMOVED*** ch <- e.Run(ctx) ***REMOVED***()
 
-	runtime.Gosched()
 	for !e.Executor.IsRunning() ***REMOVED***
+		runtime.Gosched()
 	***REMOVED***
 	for !c.IsRunning() ***REMOVED***
+		runtime.Gosched()
 	***REMOVED***
 
 	close(holdup)
 	cancel()
 	assert.NoError(t, <-ch)
 
-	runtime.Gosched()
 	for e.Executor.IsRunning() ***REMOVED***
+		runtime.Gosched()
 	***REMOVED***
 	for c.IsRunning() ***REMOVED***
+		runtime.Gosched()
 	***REMOVED***
 
 	cSamples := []stats.Sample***REMOVED******REMOVED***
