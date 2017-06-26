@@ -35,6 +35,11 @@ type FuncDef struct ***REMOVED***
 	ReturnOpts []string
 ***REMOVED***
 
+var renameTestElems = map[string]string***REMOVED***
+	"href": "a",
+	"mod":  "del",
+***REMOVED***
+
 var funcDefs = []string***REMOVED***
 	"Href Rel string",
 	"Href Href string",
@@ -140,6 +145,30 @@ var funcDefs = []string***REMOVED***
 	"Link Type string",
 
 	"Map Name string",
+
+	"Meta Content string",
+	"Meta HttpEquiv=http-equiv enum=content-type,default-style,refresh",
+	"Meta Name enum=application-name,author,description,generator,keywords,viewport",
+
+	"Meter Min int",
+	"Meter Max int",
+	"Meter High int",
+	"Meter Low int",
+	"Meter Optimum int",
+
+	"Mod Cite string",
+	"Mod DateTime string",
+
+	"Object Data string",
+	"Object Height string",
+	"Object Name string",
+	"Object Type string",
+	"Object UseMap string",
+	"Object Width string",
+
+	"OList Reversed bool",
+	"OList Start int",
+	"OList Type enum=1,a,A,i,I",
 ***REMOVED***
 
 type TestDef struct ***REMOVED***
@@ -350,8 +379,8 @@ func (ce *CollectElements) buildTestDef(index int, testDef string) TestDef ***RE
 
 	if elemInfo, ok := ce.elemInfos[parts[0]]; ok ***REMOVED***
 		elemHtmlName = strings.Trim(elemInfo.TagName, "\"")
-	***REMOVED*** else if elemHtmlName == "href" ***REMOVED***
-		elemHtmlName = "a"
+	***REMOVED*** else if useElemName, ok := renameTestElems[elemHtmlName]; ok ***REMOVED***
+		elemHtmlName = useElemName
 	***REMOVED***
 
 	if eqPos := strings.Index(elemMethod, "="); eqPos != -1 ***REMOVED***

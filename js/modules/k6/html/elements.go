@@ -26,22 +26,30 @@ const (
 	CanvasTagName   = "canvas"
 	DataTagName     = "data"
 	DataListTagName = "datalist"
+	DelTagName      = "del"
 	EmbedTagName    = "embed"
 	FieldSetTagName = "fieldset"
 	FormTagName     = "form"
 	IFrameTagName   = "iframe"
 	ImageTagName    = "img"
 	InputTagName    = "input"
+	InsTagName      = "ins"
 	KeygenTagName   = "keygen"
 	LabelTagName    = "label"
 	LegendTagName   = "legend"
 	LiTagName       = "li"
 	LinkTagName     = "link"
 	MapTagName      = "map"
+	MetaTagName     = "meta"
+	MeterTagName    = "meter"
+	ObjectTagName   = "object"
+	OListTagName    = "olist"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
+type MediaElement struct***REMOVED*** Element ***REMOVED***
 type FormFieldElement struct***REMOVED*** Element ***REMOVED***
+type ModElement struct***REMOVED*** Element ***REMOVED***
 
 type AnchorElement struct***REMOVED*** HrefElement ***REMOVED***
 type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
@@ -51,6 +59,9 @@ type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
 type CanvasElement struct***REMOVED*** Element ***REMOVED***
 type DataElement struct***REMOVED*** Element ***REMOVED***
 type DataListElement struct***REMOVED*** Element ***REMOVED***
+type DelElement struct***REMOVED*** ModElement ***REMOVED***
+type InsElement struct***REMOVED*** ModElement ***REMOVED***
+
 type EmbedElement struct***REMOVED*** Element ***REMOVED***
 type FieldSetElement struct***REMOVED*** Element ***REMOVED***
 type FormElement struct***REMOVED*** Element ***REMOVED***
@@ -63,6 +74,10 @@ type LegendElement struct***REMOVED*** Element ***REMOVED***
 type LiElement struct***REMOVED*** Element ***REMOVED***
 type LinkElement struct***REMOVED*** Element ***REMOVED***
 type MapElement struct***REMOVED*** Element ***REMOVED***
+type MetaElement struct***REMOVED*** Element ***REMOVED***
+type MeterElement struct***REMOVED*** Element ***REMOVED***
+type ObjectElement struct***REMOVED*** Element ***REMOVED***
+type OListElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -391,4 +406,12 @@ func (m MapElement) Images() []goja.Value ***REMOVED***
 	***REMOVED***
 
 	return elemList(Selection***REMOVED***m.sel.rt, m.sel.sel.Parents().Last().Find("img[usemap=\"#" + name + "\"],object[usemap=\"#" + name + "\"]")***REMOVED***)
+***REMOVED***
+
+func (m MeterElement) Labels() []goja.Value ***REMOVED***
+	return m.elemLabels()
+***REMOVED***
+
+func (o ObjectElement) Form() goja.Value ***REMOVED***
+	return o.ownerFormVal()
 ***REMOVED***
