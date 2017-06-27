@@ -22,6 +22,7 @@ package js
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"testing"
 
@@ -364,6 +365,76 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 				Data: []byte(`
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
+				`),
+			***REMOVED***, afero.NewMemMapFs())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+			r1.ApplyOptions(data.opts)
+
+			r2, err := NewFromArchive(r1.MakeArchive())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+
+			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+			for name, r := range runners ***REMOVED***
+				t.Run(name, func(t *testing.T) ***REMOVED***
+					r.Logger, _ = logtest.NewNullLogger()
+
+					vu, err := r.NewVU()
+					if !assert.NoError(t, err) ***REMOVED***
+						return
+					***REMOVED***
+					_, err = vu.RunOnce(context.Background())
+					if data.errMsg != "" ***REMOVED***
+						assert.EqualError(t, err, data.errMsg)
+					***REMOVED*** else ***REMOVED***
+						assert.NoError(t, err)
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		opts   lib.Options
+		errMsg string
+	***REMOVED******REMOVED***
+		"NullCipherSuites": ***REMOVED***
+			lib.Options***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		"SupportedCipherSuite": ***REMOVED***
+			lib.Options***REMOVED***TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_AES_128_GCM_SHA256***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		"UnsupportedCipherSuite": ***REMOVED***
+			lib.Options***REMOVED***TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_RC4_128_SHA***REMOVED******REMOVED***,
+			"GoError: Get https://sha256.badssl.com/: remote error: tls: handshake failure",
+		***REMOVED***,
+		"NullVersion": ***REMOVED***
+			lib.Options***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		"SupportedVersion": ***REMOVED***
+			lib.Options***REMOVED***TLSVersion: &lib.TLSVersion***REMOVED***Min: tls.VersionTLS12, Max: tls.VersionTLS12***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		"UnsupportedVersion": ***REMOVED***
+			lib.Options***REMOVED***TLSVersion: &lib.TLSVersion***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionSSL30***REMOVED******REMOVED***,
+			"GoError: Get https://sha256.badssl.com/: remote error: tls: handshake failure",
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			r1, err := New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data: []byte(`
+					import http from "k6/http";
+					export default function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`),
 			***REMOVED***, afero.NewMemMapFs())
 			if !assert.NoError(t, err) ***REMOVED***
