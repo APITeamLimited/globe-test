@@ -36,8 +36,10 @@ type FuncDef struct ***REMOVED***
 ***REMOVED***
 
 var renameTestElems = map[string]string***REMOVED***
-	"href": "a",
-	"mod":  "del",
+	"href":            "a",
+	"mod":             "del",
+	"tablecell":       "",
+	"tableheadercell": "",
 ***REMOVED***
 
 var funcDefs = []string***REMOVED***
@@ -114,9 +116,6 @@ var funcDefs = []string***REMOVED***
 	"Input Readonly bool",
 	"Input Min string",
 	"Input Max string",
-	"Input SelectionStart int",
-	"Input SelectionEnd int",
-	"Input SelectionDirection enum=forward,back,none",
 
 	"Input DefaultValue=value string",
 	"Input DirName string",
@@ -135,6 +134,9 @@ var funcDefs = []string***REMOVED***
 
 	"Legend AccessKey string",
 	"Legend Value string",
+
+	"Li Value string",
+	"Li Type enum=,1,a,A,i,I,disc,square,circle",
 
 	"Link Href string",
 	"Link Hreflang string",
@@ -212,6 +214,34 @@ var funcDefs = []string***REMOVED***
 	"Style Media string",
 	"Style Type string",
 	"Style Disabled bool",
+
+	"TableCell ColSpan int=1",
+	"TableCell RowSpan int=1",
+	"TableCell Headers string",
+
+	"TableHeaderCell Abbr string",
+	"TableHeaderCell Scope string",
+	"TableHeaderCell Sorted bool",
+
+	"TextArea Type enum=textarea",
+	"TextArea Value string",
+	"TextArea DefaultValue=value string",
+	"TextArea Placeholder string",
+	"TextArea Rows int",
+	"TextArea Cols int",
+	"TextArea MaxLength int",
+	"TextArea AccessKey string",
+	"TextArea ReadOnly bool",
+	"TextArea Required bool",
+	"TextArea Autocomplete bool",
+	"TextArea Autocapitalize enum=none,off,characters,words,sentences",
+	"TextArea Wrap string",
+
+	"Time DateTime string",
+
+	"Title Text string",
+
+	"UList Type string",
 ***REMOVED***
 
 type TestDef struct ***REMOVED***
@@ -324,10 +354,18 @@ import (
 )
 
 const testGenElems = ` + "`" + `<html><body>
-***REMOVED******REMOVED*** range $index, $testDefStr := .FuncDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $def := buildTestDef $index $testDefStr ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** if eq $def.ReturnType "enum" ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** range $optIdx, $optVal := $def.ReturnOpts ***REMOVED******REMOVED***
- 	<***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***_***REMOVED******REMOVED***$optIdx***REMOVED******REMOVED***" ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***="***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***"> ***REMOVED******REMOVED***end***REMOVED******REMOVED***
- ***REMOVED******REMOVED***else***REMOVED******REMOVED*** <***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***"***REMOVED******REMOVED*** if eq $def.ReturnType "bool" ***REMOVED******REMOVED*** ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED*** ***REMOVED******REMOVED***else***REMOVED******REMOVED*** ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***="***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***"***REMOVED******REMOVED***end***REMOVED******REMOVED***></***REMOVED******REMOVED*** $def.ElemHtmlName ***REMOVED******REMOVED***> ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
-***REMOVED******REMOVED***end***REMOVED******REMOVED***
+***REMOVED******REMOVED***- range $index, $testDefStr := .FuncDefs -***REMOVED******REMOVED***
+	***REMOVED******REMOVED*** $def := buildTestDef $index $testDefStr -***REMOVED******REMOVED***
+	***REMOVED******REMOVED*** if eq $def.ElemHtmlName "" -***REMOVED******REMOVED***
+	***REMOVED******REMOVED*** else if eq $def.ReturnType "enum" -***REMOVED******REMOVED***
+	***REMOVED******REMOVED*** range $optIdx, $optVal := $def.ReturnOpts -***REMOVED******REMOVED***
+		<***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***_***REMOVED******REMOVED***$optIdx***REMOVED******REMOVED***" ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***="***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***"> ***REMOVED******REMOVED***end***REMOVED******REMOVED***
+ 	***REMOVED******REMOVED***- else if eq $def.ReturnType "bool" -***REMOVED******REMOVED***
+	  <***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***" ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***></***REMOVED******REMOVED*** $def.ElemHtmlName ***REMOVED******REMOVED***>
+	***REMOVED******REMOVED***else -***REMOVED******REMOVED*** 
+	  <***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED*** id="elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***" ***REMOVED******REMOVED***$def.AttrName***REMOVED******REMOVED***="***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***"></***REMOVED******REMOVED*** $def.ElemHtmlName ***REMOVED******REMOVED***>
+	***REMOVED******REMOVED***end -***REMOVED******REMOVED***
+***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 </body></html>` + "`" + `
 
 func TestGenElements(t *testing.T) ***REMOVED***
@@ -343,16 +381,24 @@ func TestGenElements(t *testing.T) ***REMOVED***
 
 	assert.NoError(t, err)
 	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
-***REMOVED******REMOVED*** range $index, $testDefStr := .FuncDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $def := buildTestDef $index $testDefStr ***REMOVED******REMOVED*** t.Run("***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED***.***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***", func(t *testing.T) ***REMOVED*** ***REMOVED******REMOVED*** if eq $def.ReturnType "enum" ***REMOVED******REMOVED*** 
-		***REMOVED******REMOVED*** range $optIdx, $optVal := $def.ReturnOpts ***REMOVED******REMOVED***
+***REMOVED******REMOVED*** range $index, $testDefStr := .FuncDefs ***REMOVED******REMOVED*** 
+***REMOVED******REMOVED*** $def := buildTestDef $index $testDefStr ***REMOVED******REMOVED*** 
+	***REMOVED******REMOVED*** if ne $def.ElemHtmlName "" -***REMOVED******REMOVED***
+		t.Run("***REMOVED******REMOVED***$def.ElemHtmlName***REMOVED******REMOVED***.***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***", func(t *testing.T) ***REMOVED*** 
+	***REMOVED******REMOVED*** if eq $def.ReturnType "enum" -***REMOVED******REMOVED*** 
+		***REMOVED******REMOVED*** range $optIdx, $optVal := $def.ReturnOpts -***REMOVED******REMOVED***
 			if v, err := common.RunString(rt, "doc.find(\"#elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***_***REMOVED******REMOVED***$optIdx***REMOVED******REMOVED***\").get(0).***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***()"); assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***", v.Export()) 
-			***REMOVED*** ***REMOVED******REMOVED***end***REMOVED******REMOVED***
-		***REMOVED******REMOVED***else***REMOVED******REMOVED*** if v, err := common.RunString(rt, "doc.find(\"#elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***\").get(0).***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***()"); assert.NoError(t, err) ***REMOVED***
+			***REMOVED*** 
+		***REMOVED******REMOVED***end -***REMOVED******REMOVED***
+	***REMOVED******REMOVED***else -***REMOVED******REMOVED*** 
+	  	if v, err := common.RunString(rt, "doc.find(\"#elem_***REMOVED******REMOVED***$index***REMOVED******REMOVED***\").get(0).***REMOVED******REMOVED***$def.ElemMethod***REMOVED******REMOVED***()"); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, ***REMOVED******REMOVED*** if eq $def.ReturnType "bool" ***REMOVED******REMOVED******REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED*** ***REMOVED******REMOVED***else if eq $def.ReturnType "string" ***REMOVED******REMOVED*** "***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***" ***REMOVED******REMOVED***else if eq $def.ReturnType "int"***REMOVED******REMOVED*** int64(***REMOVED******REMOVED***$def.AttrVal***REMOVED******REMOVED***) ***REMOVED******REMOVED***end***REMOVED******REMOVED***, v.Export()) 
-		***REMOVED*** ***REMOVED******REMOVED***end***REMOVED******REMOVED***
-	***REMOVED***)
+			***REMOVED*** 
+	***REMOVED******REMOVED***end -***REMOVED******REMOVED***
+***REMOVED***)
 ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- end -***REMOVED******REMOVED***
 ***REMOVED***
 `))
 
@@ -420,10 +466,10 @@ func (ce *CollectElements) buildTestDef(index int, testDef string) TestDef ***RE
 	returnType := parts[2]
 	returnOpts := ""
 
-	if elemInfo, ok := ce.elemInfos[parts[0]]; ok ***REMOVED***
-		elemHtmlName = strings.Trim(elemInfo.TagName, "\"")
-	***REMOVED*** else if useElemName, ok := renameTestElems[elemHtmlName]; ok ***REMOVED***
+	if useElemName, ok := renameTestElems[elemHtmlName]; ok ***REMOVED***
 		elemHtmlName = useElemName
+	***REMOVED*** else if elemInfo, ok := ce.elemInfos[parts[0]]; ok ***REMOVED***
+		elemHtmlName = strings.Trim(elemInfo.TagName, "\"")
 	***REMOVED***
 
 	if eqPos := strings.Index(elemMethod, "="); eqPos != -1 ***REMOVED***

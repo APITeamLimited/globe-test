@@ -19,52 +19,65 @@ var defaultPorts = map[string]string***REMOVED***
 ***REMOVED***
 
 const (
-	AnchorTagName   = "a"
-	AreaTagName     = "area"
-	BaseTagName     = "base"
-	ButtonTagName   = "button"
-	CanvasTagName   = "canvas"
-	DataTagName     = "data"
-	DataListTagName = "datalist"
-	DelTagName      = "del"
-	EmbedTagName    = "embed"
-	FieldSetTagName = "fieldset"
-	FormTagName     = "form"
-	IFrameTagName   = "iframe"
-	ImageTagName    = "img"
-	InputTagName    = "input"
-	InsTagName      = "ins"
-	KeygenTagName   = "keygen"
-	LabelTagName    = "label"
-	LegendTagName   = "legend"
-	LiTagName       = "li"
-	LinkTagName     = "link"
-	MapTagName      = "map"
-	MetaTagName     = "meta"
-	MeterTagName    = "meter"
-	ObjectTagName   = "object"
-	OListTagName    = "olist"
-	OptGroupTagName = "optgroup"
-	OptionTagName   = "option"
-	OutputTagName   = "output"
-	ParamTagName    = "param"
-	PreTagName      = "pre"
-	ProgressTagName = "progress"
-	QuoteTagName    = "quote"
-	ScriptTagName   = "script"
-	SelectTagName   = "select"
-	SourceTagName   = "source"
-	StyleTagName    = "style"
+	AnchorTagName          = "a"
+	AreaTagName            = "area"
+	BaseTagName            = "base"
+	ButtonTagName          = "button"
+	CanvasTagName          = "canvas"
+	DataTagName            = "data"
+	DataListTagName        = "datalist"
+	DelTagName             = "del"
+	EmbedTagName           = "embed"
+	FieldSetTagName        = "fieldset"
+	FormTagName            = "form"
+	IFrameTagName          = "iframe"
+	ImageTagName           = "img"
+	InputTagName           = "input"
+	InsTagName             = "ins"
+	KeygenTagName          = "keygen"
+	LabelTagName           = "label"
+	LegendTagName          = "legend"
+	LiTagName              = "li"
+	LinkTagName            = "link"
+	MapTagName             = "map"
+	MetaTagName            = "meta"
+	MeterTagName           = "meter"
+	ObjectTagName          = "object"
+	OListTagName           = "olist"
+	OptGroupTagName        = "optgroup"
+	OptionTagName          = "option"
+	OutputTagName          = "output"
+	ParamTagName           = "param"
+	PreTagName             = "pre"
+	ProgressTagName        = "progress"
+	QuoteTagName           = "quote"
+	ScriptTagName          = "script"
+	SelectTagName          = "select"
+	SourceTagName          = "source"
+	StyleTagName           = "style"
+	TableTagName           = "table"
+	TableHeadTagName       = "thead"
+	TableFootTagName       = "tfoot"
+	TableBodyTagName       = "tbody"
+	TableRowTagName        = "tr"
+	TableColTagName        = "col"
+	TableDataCellTagName   = "td"
+	TableHeaderCellTagName = "th"
+	TextAreaTagName        = "tagname"
+	TimeTagName            = "time"
+	TitleTagName           = "title"
+	UListTagName           = "ul"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
 type MediaElement struct***REMOVED*** Element ***REMOVED***
 type FormFieldElement struct***REMOVED*** Element ***REMOVED***
 type ModElement struct***REMOVED*** Element ***REMOVED***
+type TableSectionElement struct***REMOVED*** Element ***REMOVED***
+type TableCellElement struct***REMOVED*** Element ***REMOVED***
 
 type AnchorElement struct***REMOVED*** HrefElement ***REMOVED***
 type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
-
 type BaseElement struct***REMOVED*** Element ***REMOVED***
 type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
 type CanvasElement struct***REMOVED*** Element ***REMOVED***
@@ -72,7 +85,6 @@ type DataElement struct***REMOVED*** Element ***REMOVED***
 type DataListElement struct***REMOVED*** Element ***REMOVED***
 type DelElement struct***REMOVED*** ModElement ***REMOVED***
 type InsElement struct***REMOVED*** ModElement ***REMOVED***
-
 type EmbedElement struct***REMOVED*** Element ***REMOVED***
 type FieldSetElement struct***REMOVED*** Element ***REMOVED***
 type FormElement struct***REMOVED*** Element ***REMOVED***
@@ -100,6 +112,18 @@ type ScriptElement struct***REMOVED*** Element ***REMOVED***
 type SelectElement struct***REMOVED*** Element ***REMOVED***
 type SourceElement struct***REMOVED*** Element ***REMOVED***
 type StyleElement struct***REMOVED*** Element ***REMOVED***
+type TableElement struct***REMOVED*** Element ***REMOVED***
+type TableHeadElement struct***REMOVED*** TableSectionElement ***REMOVED***
+type TableFootElement struct***REMOVED*** TableSectionElement ***REMOVED***
+type TableBodyElement struct***REMOVED*** TableSectionElement ***REMOVED***
+type TableRowElement struct***REMOVED*** Element ***REMOVED***
+type TableColElement struct***REMOVED*** Element ***REMOVED***
+type TableDataCellElement struct***REMOVED*** TableCellElement ***REMOVED***
+type TableHeaderCellElement struct***REMOVED*** TableCellElement ***REMOVED***
+type TextAreaElement struct***REMOVED*** Element ***REMOVED***
+type TimeElement struct***REMOVED*** Element ***REMOVED***
+type TitleElement struct***REMOVED*** Element ***REMOVED***
+type UListElement struct***REMOVED*** Element ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -383,35 +407,6 @@ func (l LegendElement) Form() goja.Value ***REMOVED***
 	return l.ownerFormVal()
 ***REMOVED***
 
-func (l LiElement) Value() goja.Value ***REMOVED***
-	if l.sel.sel.ParentFiltered("ol").Size() == 0 ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-
-	prev := l.sel.sel.PrevAllFiltered("li")
-	len := prev.Length()
-
-	if len == 0 ***REMOVED***
-		return l.sel.rt.ToValue(1)
-	***REMOVED***
-
-	for idx := 0; idx < len; idx++ ***REMOVED***
-		val, exists := prev.Eq(idx).Attr("value")
-		if !exists ***REMOVED***
-			continue
-		***REMOVED***
-
-		intVal, err := strconv.Atoi(val)
-		if err != nil ***REMOVED***
-			continue
-		***REMOVED***
-
-		return l.sel.rt.ToValue(intVal + idx + 1)
-	***REMOVED***
-
-	return l.sel.rt.ToValue(len + 1)
-***REMOVED***
-
 func (l LinkElement) RelList() []string ***REMOVED***
 	return l.splitAttr("rel")
 ***REMOVED***
@@ -608,4 +603,84 @@ func (s SelectElement) Value() string ***REMOVED***
 		return ""
 	***REMOVED***
 	return valueOrHTML(option.First())
+***REMOVED***
+
+func (t TableElement) firstChild(elemName string) goja.Value ***REMOVED***
+	child := t.sel.sel.ChildrenFiltered(elemName)
+	if child.Size() == 0 ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+	return selToElement(Selection***REMOVED***t.sel.rt, child***REMOVED***)
+***REMOVED***
+
+func (t TableElement) Caption() goja.Value ***REMOVED***
+	return t.firstChild("caption")
+***REMOVED***
+
+func (t TableElement) THead() goja.Value ***REMOVED***
+	return t.firstChild("thead")
+***REMOVED***
+
+func (t TableElement) TFoot() goja.Value ***REMOVED***
+	return t.firstChild("tfoot")
+***REMOVED***
+
+func (t TableElement) Rows() []goja.Value ***REMOVED***
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr")***REMOVED***)
+***REMOVED***
+
+func (t TableElement) TBodies() []goja.Value ***REMOVED***
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tbody")***REMOVED***)
+***REMOVED***
+
+func (t TableSectionElement) Rows() []goja.Value ***REMOVED***
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr")***REMOVED***)
+***REMOVED***
+
+func (t TableCellElement) CellIndex() int ***REMOVED***
+	prtRow := t.sel.sel.ParentsFiltered("tr")
+	if prtRow.Length() == 0 ***REMOVED***
+		return -1
+	***REMOVED***
+	return prtRow.Find("th,td").IndexOfSelection(t.sel.sel)
+***REMOVED***
+
+func (t TableRowElement) Cells() []goja.Value ***REMOVED***
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("th,td")***REMOVED***)
+***REMOVED***
+
+func (t TableRowElement) RowIndex() int ***REMOVED***
+	table := t.sel.sel.ParentsFiltered("table")
+	if table.Length() == 0 ***REMOVED***
+		return -1
+	***REMOVED***
+	return table.Find("tr").IndexOfSelection(t.sel.sel)
+***REMOVED***
+
+func (t TableRowElement) SectionRowIndex() int ***REMOVED***
+	section := t.sel.sel.ParentsFiltered("thead,tbody,tfoot")
+	if section.Length() == 0 ***REMOVED***
+		return -1
+	***REMOVED***
+	return section.Find("tr").IndexOfSelection(t.sel.sel)
+***REMOVED***
+
+func (t TextAreaElement) Form() goja.Value ***REMOVED***
+	return t.ownerFormVal()
+***REMOVED***
+
+func (t TextAreaElement) Length() int ***REMOVED***
+	return len(t.attrAsString("value"))
+***REMOVED***
+
+func (t TextAreaElement) Labels() []goja.Value ***REMOVED***
+	return t.elemLabels()
+***REMOVED***
+
+func (t TableColElement) Span() int ***REMOVED***
+	span := t.attrAsInt("span", 1)
+	if span < 1 ***REMOVED***
+		return 1
+	***REMOVED***
+	return span
 ***REMOVED***
