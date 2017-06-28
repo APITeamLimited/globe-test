@@ -334,21 +334,25 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	switch elem.node.Data ***REMOVED*** ***REMOVED******REMOVED*** range $elemInfo := .ElemInfos ***REMOVED******REMOVED***
 	case ***REMOVED******REMOVED*** $elemInfo.ConstName ***REMOVED******REMOVED***:
 		return sel.rt.ToValue(***REMOVED******REMOVED*** buildStruct $elemInfo ***REMOVED******REMOVED***)
-	***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 	default:
 		return sel.rt.ToValue(elem)
 	***REMOVED***
  ***REMOVED***
 
-***REMOVED******REMOVED*** range $funcDefStr := .FuncDefs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** $funcDef := buildFuncDef $funcDefStr ***REMOVED******REMOVED***
-func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.ElemMethod***REMOVED******REMOVED***() ***REMOVED******REMOVED*** if ne $funcDef.ReturnType "enum" ***REMOVED******REMOVED*** ***REMOVED******REMOVED***$funcDef.ReturnType***REMOVED******REMOVED******REMOVED******REMOVED***else***REMOVED******REMOVED*** string ***REMOVED******REMOVED***end***REMOVED******REMOVED*** ***REMOVED***
-***REMOVED******REMOVED*** if ne $funcDef.ReturnType "enum" ***REMOVED******REMOVED*** return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***"***REMOVED******REMOVED*** if $funcDef.ReturnOpts ***REMOVED******REMOVED***, ***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 ***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***)***REMOVED******REMOVED*** else ***REMOVED******REMOVED*** attrVal := e.attrAsString("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
-	switch attrVal ***REMOVED*** ***REMOVED******REMOVED*** range $optVal := $funcDef.ReturnOpts ***REMOVED******REMOVED***
-		case "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***": 
-			return "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***"
-		***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+***REMOVED******REMOVED*** range $funcDefStr := .FuncDefs -***REMOVED******REMOVED*** 
+***REMOVED******REMOVED*** $funcDef := buildFuncDef $funcDefStr -***REMOVED******REMOVED***
+func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.ElemMethod***REMOVED******REMOVED***() 
+***REMOVED******REMOVED***- if eq $funcDef.ReturnType "enum" ***REMOVED******REMOVED*** string***REMOVED******REMOVED***else***REMOVED******REMOVED*** ***REMOVED******REMOVED***$funcDef.ReturnType***REMOVED******REMOVED*** ***REMOVED******REMOVED***end***REMOVED******REMOVED*** ***REMOVED***
+***REMOVED******REMOVED*** if ne $funcDef.ReturnType "enum" ***REMOVED******REMOVED*** return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***"
+  ***REMOVED******REMOVED***- if $funcDef.ReturnOpts ***REMOVED******REMOVED***, ***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 ***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***)***REMOVED******REMOVED*** else ***REMOVED******REMOVED*** attrVal := e.attrAsString("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
+	switch attrVal ***REMOVED*** ***REMOVED******REMOVED***- range $optVal := $funcDef.ReturnOpts ***REMOVED******REMOVED***
+	case "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***":
+		return "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***"
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 	***REMOVED***
-	return "***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0***REMOVED******REMOVED***" ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+	return "***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0***REMOVED******REMOVED***"
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 ***REMOVED***
 ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 `))
