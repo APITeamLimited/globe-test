@@ -18,22 +18,41 @@
  *
  */
 
-package common
+package lib
 
 import (
 	"context"
+	"time"
 
-	"github.com/loadimpact/k6/core"
+	"github.com/loadimpact/k6/stats"
+	log "github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
 )
 
-type ContextKey int
+// An Executor wraps a Runner, and abstracts away an execution environment.
+type Executor interface ***REMOVED***
+	Run(ctx context.Context, out chan<- []stats.Sample) error
+	IsRunning() bool
 
-const ctxKeyEngine = ContextKey(1)
+	GetRunner() Runner
 
-func WithEngine(ctx context.Context, engine *core.Engine) context.Context ***REMOVED***
-	return context.WithValue(ctx, ctxKeyEngine, engine)
-***REMOVED***
+	SetLogger(l *log.Logger)
+	GetLogger() *log.Logger
 
-func GetEngine(ctx context.Context) *core.Engine ***REMOVED***
-	return ctx.Value(ctxKeyEngine).(*core.Engine)
+	GetIterations() int64
+	GetEndIterations() null.Int
+	SetEndIterations(i null.Int)
+
+	GetTime() time.Duration
+	GetEndTime() NullDuration
+	SetEndTime(t NullDuration)
+
+	IsPaused() bool
+	SetPaused(paused bool)
+
+	GetVUs() int64
+	SetVUs(vus int64) error
+
+	GetVUsMax() int64
+	SetVUsMax(max int64) error
 ***REMOVED***

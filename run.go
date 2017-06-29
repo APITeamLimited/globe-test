@@ -42,6 +42,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/ghodss/yaml"
 	"github.com/loadimpact/k6/api"
+	"github.com/loadimpact/k6/core"
+	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
@@ -461,7 +463,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	fmt.Fprintf(color.Output, "\n")
 
 	// Make the Engine
-	engine, err := lib.NewEngine(runner, opts)
+	engine, err := core.NewEngine(local.New(runner), opts)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("Couldn't create the engine")
 		return err
@@ -524,20 +526,20 @@ loop:
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			if !engine.IsRunning() ***REMOVED***
+			if !engine.Executor.IsRunning() ***REMOVED***
 				break loop
 			***REMOVED***
 
 			statusString := "running"
-			if engine.IsPaused() ***REMOVED***
+			if engine.Executor.IsPaused() ***REMOVED***
 				statusString = "paused"
 			***REMOVED***
 
-			atTime := engine.AtTime()
-			totalTime := engine.TotalTime()
+			atTime := engine.Executor.GetTime()
+			endTime := engine.Executor.GetEndTime()
 			progress := 0.0
-			if totalTime > 0 ***REMOVED***
-				progress = float64(atTime) / float64(totalTime)
+			if endTime.Valid ***REMOVED***
+				progress = float64(atTime) / float64(endTime.Duration)
 			***REMOVED***
 
 			if isTTY && !quiet ***REMOVED***
@@ -546,13 +548,13 @@ loop:
 					statusString,
 					progressBar.String(),
 					roundDuration(atTime, 100*time.Millisecond),
-					roundDuration(totalTime, 100*time.Millisecond),
+					roundDuration(time.Duration(endTime.Duration), 100*time.Millisecond),
 				)
 			***REMOVED*** else ***REMOVED***
 				fmt.Fprintf(color.Output, "[%-10s] %s / %s\n",
 					statusString,
 					roundDuration(atTime, 100*time.Millisecond),
-					roundDuration(totalTime, 100*time.Millisecond),
+					roundDuration(time.Duration(endTime.Duration), 100*time.Millisecond),
 				)
 			***REMOVED***
 		case <-ctx.Done():
@@ -569,7 +571,7 @@ loop:
 	wg.Wait()
 
 	// Test done, leave that status as the final progress bar!
-	atTime := engine.AtTime()
+	atTime := engine.Executor.GetTime()
 	if isTTY && !quiet ***REMOVED***
 		progressBar.Progress = 1.0
 		fmt.Fprintf(color.Output, "      done %s %10s / %s\n",
@@ -637,7 +639,7 @@ loop:
 		***REMOVED***
 	***REMOVED***
 
-	printGroup(engine.Runner.GetDefaultGroup(), 1)
+	printGroup(engine.Executor.GetRunner().GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
 	metricNames := make([]string, 0, len(engine.Metrics))
