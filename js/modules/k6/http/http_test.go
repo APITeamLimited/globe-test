@@ -209,6 +209,20 @@ func TestRequest(t *testing.T) ***REMOVED***
 		assert.Nil(t, hook.LastEntry())
 	***REMOVED***)
 
+	t.Run("HTTP/2", func(t *testing.T) ***REMOVED***
+		state.Samples = nil
+		_, err := common.RunString(rt, `
+		let res = http.request("GET", "https://http2.akamai.com/demo");
+		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+		if (res.proto != "HTTP/2.0") ***REMOVED*** throw new Error("wrong proto: " + res.proto) ***REMOVED***
+		`)
+		assert.NoError(t, err)
+		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://http2.akamai.com/demo", "", 200, "")
+		for _, sample := range state.Samples ***REMOVED***
+			assert.Equal(t, "HTTP/2.0", sample.Tags["proto"])
+		***REMOVED***
+	***REMOVED***)
+
 	t.Run("HTML", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
 		_, err := common.RunString(rt, `

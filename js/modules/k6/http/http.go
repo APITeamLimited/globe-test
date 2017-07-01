@@ -59,6 +59,7 @@ type HTTPResponse struct ***REMOVED***
 	RemotePort int
 	URL        string
 	Status     int
+	Proto      string
 	Headers    map[string]string
 	Body       string
 	Timings    HTTPResponseTimings
@@ -132,6 +133,7 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 	***REMOVED***
 
 	tags := map[string]string***REMOVED***
+		"proto":  "",
 		"status": "0",
 		"method": method,
 		"url":    urlStr,
@@ -225,8 +227,10 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 	***REMOVED*** else ***REMOVED***
 		resp.URL = res.Request.URL.String()
 		resp.Status = res.StatusCode
+		resp.Proto = res.Proto
 		tags["url"] = resp.URL
 		tags["status"] = strconv.Itoa(resp.Status)
+		tags["proto"] = resp.Proto
 
 		resp.Headers = make(map[string]string, len(res.Header))
 		for k, vs := range res.Header ***REMOVED***
