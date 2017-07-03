@@ -24,6 +24,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	jsonenc "encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -69,7 +70,12 @@ const (
 	CollectorJSON     = "json"
 	CollectorInfluxDB = "influxdb"
 	CollectorCloud    = "cloud"
+
+	SummaryFormatText = SummaryFormat(iota)
+	SummaryFormatJSON
 )
+
+type SummaryFormat int
 
 var urlRegex = regexp.MustCompile(`(?i)^https?://`)
 
@@ -154,6 +160,12 @@ var commandRun = cli.Command***REMOVED***
 			Name: "summary-file",
 			Usage: "file where the summary is written (default: standard output)",
 			EnvVar: "K6_SUMMARY_FILE",
+		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name: "summary-format",
+			Usage: "file format for summary, one of: text, json",
+			EnvVar: "K6_SUMMARY_FILE",
+			Value: "text",
 		***REMOVED***,
 	),
 	Action: actionRun,
@@ -303,6 +315,23 @@ func collectorOfType(t string) lib.Collector ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func getSummaryFormat(cc *cli.Context) (SummaryFormat, error) ***REMOVED***
+	var err error
+	var value SummaryFormat
+	format := cc.String("summary-format")
+	
+	switch format ***REMOVED***
+	case "json":
+		value = SummaryFormatJSON
+	case "text":
+		value = SummaryFormatText
+	default:
+		err = errors.Errorf("Invalid summary format: %s", format)
+	***REMOVED***
+
+	return value, err
+***REMOVED***
+
 func getOptions(cc *cli.Context) (lib.Options, error) ***REMOVED***
 	var err error
 	opts := lib.Options***REMOVED***
@@ -390,6 +419,10 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
 	summaryFile := cc.String("summary-file")
+	summaryFormat, err := getSummaryFormat(cc)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
 	quiet := cc.Bool("quiet")
 	cliOpts, err := getOptions(cc)
 	if err != nil ***REMOVED***
@@ -600,10 +633,10 @@ loop:
 	***REMOVED***
 	fmt.Fprintf(color.Output, "\n")
 
-	// Print results in a human readable format
-	summaryError := printHumanizedSummary(fs, summaryFile, engine, atTime)
+	// Print summary
+	summaryError := printSummary(fs, summaryFile, summaryFormat, engine, atTime)
 	if summaryError != nil ***REMOVED***
-		log.Error(summaryError)
+		log.WithError(summaryError).Errorf("Could not write summary to file %s", summaryFile)
 	***REMOVED***
 
 	if opts.Linger.Bool ***REMOVED***
@@ -616,10 +649,9 @@ loop:
 	return nil
 ***REMOVED***
 
-func printHumanizedSummary(fs afero.Fs, filename string, engine *core.Engine, atTime time.Duration) error ***REMOVED***
+func printSummary(fs afero.Fs, filename string, summaryFormat SummaryFormat, engine *core.Engine, atTime time.Duration) error ***REMOVED***
 	var out io.Writer
-	var err error
-	
+
 	// File or stdout
 	if filename == "" || filename == "-" ***REMOVED***
 		out = color.Output
@@ -632,8 +664,19 @@ func printHumanizedSummary(fs afero.Fs, filename string, engine *core.Engine, at
 		defer file.Close()
 	***REMOVED***
 	
+	switch summaryFormat ***REMOVED***
+	case SummaryFormatText:
+		return printHumanizedSummary(out, engine, atTime)
+	case SummaryFormatJSON:
+		return printJsonSummary(out, engine)
+	default:
+		return errors.Errorf("Unexpected summary format: %s", summaryFormat)
+	***REMOVED***
+***REMOVED***
+
+func printHumanizedSummary(out io.Writer, engine *core.Engine, atTime time.Duration) error ***REMOVED***
 	// Print groups.
-	err = printHumanizedGroups(out, engine.Executor.GetRunner().GetDefaultGroup(), 1)
+	err := printHumanizedGroups(out, engine.Executor.GetRunner().GetDefaultGroup(), 1)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -777,6 +820,36 @@ func printHumanizedMetrics(out io.Writer, engine *core.Engine, atTime time.Durat
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
+	***REMOVED***
+	
+	return nil
+***REMOVED***
+
+type EngineSummary struct ***REMOVED***
+	Groups  *lib.Group 		 `json:"groups"`
+	Metrics []*stats.Summary `json:"metrics"`
+***REMOVED***
+
+func printJsonSummary(out io.Writer, engine *core.Engine) error ***REMOVED***
+	metrics := make([]*stats.Summary, 0, len(engine.Metrics))
+	
+	for _, metric := range engine.Metrics ***REMOVED***
+		metrics = append(metrics, metric.Summary())
+	***REMOVED***
+	
+	summary := &EngineSummary***REMOVED***
+		Groups: engine.Executor.GetRunner().GetDefaultGroup(),
+		Metrics: metrics,
+	***REMOVED***
+	
+	bs, err := jsonenc.Marshal(summary)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	
+	_, err = out.Write(bs)
+	if err != nil ***REMOVED***
+		return err
 	***REMOVED***
 	
 	return nil
