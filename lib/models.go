@@ -48,12 +48,12 @@ type Group struct ***REMOVED***
 	ID     string            `json:"id"`
 	Path   string            `json:"path"`
 	Name   string            `json:"name"`
-	Parent *Group            `json:"parent"`
+	Parent *Group            `json:"-"`
 	Groups map[string]*Group `json:"groups"`
 	Checks map[string]*Check `json:"checks"`
 
-	groupMutex sync.Mutex
-	checkMutex sync.Mutex
+	groupMutex sync.Mutex    `json:"-"`
+	checkMutex sync.Mutex    `json:"-"`
 ***REMOVED***
 
 func NewGroup(name string, parent *Group) (*Group, error) ***REMOVED***
@@ -123,7 +123,7 @@ func (g *Group) Check(name string) (*Check, error) ***REMOVED***
 type Check struct ***REMOVED***
 	ID    string `json:"id"`
 	Path  string `json:"path"`
-	Group *Group `json:"group"`
+	Group *Group `json:"-"`
 	Name  string `json:"name"`
 
 	Passes int64 `json:"passes"`
