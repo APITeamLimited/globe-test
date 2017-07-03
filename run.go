@@ -150,6 +150,11 @@ var commandRun = cli.Command***REMOVED***
 			Usage:  "output metrics to an external data store (format: type=uri)",
 			EnvVar: "K6_OUT",
 		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name: "summary-file",
+			Usage: "file where the summary is written (default: standard output)",
+			EnvVar: "K6_SUMMARY_FILE",
+		***REMOVED***,
 	),
 	Action: actionRun,
 	Description: `Run starts a load test.
@@ -384,6 +389,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
+	summaryFile := cc.String("summary-file")
 	quiet := cc.Bool("quiet")
 	cliOpts, err := getOptions(cc)
 	if err != nil ***REMOVED***
@@ -595,7 +601,10 @@ loop:
 	fmt.Fprintf(color.Output, "\n")
 
 	// Print results in a human readable format
-	printHumanizedSummary(engine, atTime)
+	summaryError := printHumanizedSummary(fs, summaryFile, engine, atTime)
+	if summaryError != nil ***REMOVED***
+		log.Error(summaryError)
+	***REMOVED***
 
 	if opts.Linger.Bool ***REMOVED***
 		<-signals
@@ -607,24 +616,53 @@ loop:
 	return nil
 ***REMOVED***
 
-func printHumanizedSummary(engine *core.Engine, atTime time.Duration) ***REMOVED***
+func printHumanizedSummary(fs afero.Fs, filename string, engine *core.Engine, atTime time.Duration) error ***REMOVED***
+	var out io.Writer
+	var err error
+	
+	// File or stdout
+	if filename == "" || filename == "-" ***REMOVED***
+		out = color.Output
+	***REMOVED*** else ***REMOVED***
+		file, err := fs.Create(filename)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		out = file
+		defer file.Close()
+	***REMOVED***
+	
 	// Print groups.
-	printHumanizedGroups(engine.Executor.GetRunner().GetDefaultGroup(), 1)
+	err = printHumanizedGroups(out, engine.Executor.GetRunner().GetDefaultGroup(), 1)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
 
 	// Sort and print metrics.
-	printHumanizedMetrics(engine, atTime)
+	err = printHumanizedMetrics(out, engine, atTime)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	
+	return nil
 ***REMOVED***
 
-func printHumanizedGroups(g *lib.Group, level int) ***REMOVED***
+func printHumanizedGroups(out io.Writer, g *lib.Group, level int) error ***REMOVED***
 	indent := strings.Repeat("  ", level)
 
 	if g.Name != "" && g.Parent != nil ***REMOVED***
-		fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
+		_, err := fmt.Fprintf(out, "%s█ %s\n", indent, g.Name)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED***
 
 	if len(g.Checks) > 0 ***REMOVED***
 		if g.Name != "" && g.Parent != nil ***REMOVED***
-			fmt.Fprintf(color.Output, "\n")
+			_, err := fmt.Fprintf(out, "\n")
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 		for _, check := range g.Checks ***REMOVED***
 			icon := "✓"
@@ -636,14 +674,14 @@ func printHumanizedGroups(g *lib.Group, level int) ***REMOVED***
 				statusColor = color.RedString
 			***REMOVED***
 
-			fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
+			fmt.Fprint(out, statusColor("%s  %s %s\n",
 				indent,
 				icon,
 				check.Name,
 			))
 
 			if isCheckFailure ***REMOVED***
-				fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
+				fmt.Fprint(out, statusColor("%s        %2.2f%% (%v/%v) \n",
 					indent,
 					100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
 					check.Fails,
@@ -652,19 +690,30 @@ func printHumanizedGroups(g *lib.Group, level int) ***REMOVED***
 			***REMOVED***
 
 		***REMOVED***
-		fmt.Fprintf(color.Output, "\n")
+		_, err := fmt.Fprintf(out, "\n")
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED***
 	if len(g.Groups) > 0 ***REMOVED***
 		if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
-			fmt.Fprintf(color.Output, "\n")
+			_, err := fmt.Fprintf(out, "\n")
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 		for _, g := range g.Groups ***REMOVED***
-			printHumanizedGroups(g, level+1)
+			err := printHumanizedGroups(out, g, level+1)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+	
+	return nil
 ***REMOVED***
 
-func printHumanizedMetrics(engine *core.Engine, atTime time.Duration) ***REMOVED***
+func printHumanizedMetrics(out io.Writer, engine *core.Engine, atTime time.Duration) error ***REMOVED***
 	// Sort metric names
 	metricNames := make([]string, 0, len(engine.Metrics))
 	metricNameWidth := 0
@@ -719,13 +768,18 @@ func printHumanizedMetrics(engine *core.Engine, atTime time.Duration) ***REMOVED
 		***REMOVED***
 
 		namePadding := strings.Repeat(".", metricNameWidth-len(name)+3)
-		fmt.Fprintf(color.Output, "  %s %s%s %s\n",
+		_, err := fmt.Fprintf(out, "  %s %s%s %s\n",
 			icon,
 			name,
 			color.New(color.Faint).Sprint(namePadding+":"),
 			val,
 		)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED***
+	
+	return nil
 ***REMOVED***
 
 func actionArchive(cc *cli.Context) error ***REMOVED***
