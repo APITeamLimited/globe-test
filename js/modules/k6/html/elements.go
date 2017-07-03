@@ -21,6 +21,7 @@ var defaultPorts = map[string]string***REMOVED***
 const (
 	AnchorTagName          = "a"
 	AreaTagName            = "area"
+	AudioTagName           = "audio"
 	BaseTagName            = "base"
 	ButtonTagName          = "button"
 	CanvasTagName          = "canvas"
@@ -43,7 +44,7 @@ const (
 	MetaTagName            = "meta"
 	MeterTagName           = "meter"
 	ObjectTagName          = "object"
-	OListTagName           = "olist"
+	OListTagName           = "ol"
 	OptGroupTagName        = "optgroup"
 	OptionTagName          = "option"
 	OutputTagName          = "output"
@@ -63,10 +64,12 @@ const (
 	TableColTagName        = "col"
 	TableDataCellTagName   = "td"
 	TableHeaderCellTagName = "th"
-	TextAreaTagName        = "tagname"
+	TextAreaTagName        = "textarea"
 	TimeTagName            = "time"
 	TitleTagName           = "title"
+	TrackTagName           = "track"
 	UListTagName           = "ul"
+	VideoTagName           = "video"
 )
 
 type HrefElement struct***REMOVED*** Element ***REMOVED***
@@ -78,6 +81,7 @@ type TableCellElement struct***REMOVED*** Element ***REMOVED***
 
 type AnchorElement struct***REMOVED*** HrefElement ***REMOVED***
 type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
+type AudioElement struct***REMOVED*** MediaElement ***REMOVED***
 type BaseElement struct***REMOVED*** Element ***REMOVED***
 type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
 type CanvasElement struct***REMOVED*** Element ***REMOVED***
@@ -123,7 +127,9 @@ type TableHeaderCellElement struct***REMOVED*** TableCellElement ***REMOVED***
 type TextAreaElement struct***REMOVED*** Element ***REMOVED***
 type TimeElement struct***REMOVED*** Element ***REMOVED***
 type TitleElement struct***REMOVED*** Element ***REMOVED***
+type TrackElement struct***REMOVED*** Element ***REMOVED***
 type UListElement struct***REMOVED*** Element ***REMOVED***
+type VideoElement struct***REMOVED*** MediaElement ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	url, err := url.Parse(h.attrAsString("href"))
@@ -605,6 +611,14 @@ func (s SelectElement) Value() string ***REMOVED***
 	return valueOrHTML(option.First())
 ***REMOVED***
 
+func (s StyleElement) Type() string ***REMOVED***
+	typeVal := s.attrAsString("type")
+	if typeVal == "" ***REMOVED***
+		return "text/css"
+	***REMOVED***
+	return typeVal
+***REMOVED***
+
 func (t TableElement) firstChild(elemName string) goja.Value ***REMOVED***
 	child := t.sel.sel.ChildrenFiltered(elemName)
 	if child.Size() == 0 ***REMOVED***
@@ -683,4 +697,12 @@ func (t TableColElement) Span() int ***REMOVED***
 		return 1
 	***REMOVED***
 	return span
+***REMOVED***
+
+func (m MediaElement) TextTracks() []goja.Value ***REMOVED***
+	return elemList(Selection***REMOVED***m.sel.rt, m.sel.sel.Find("track")***REMOVED***)
+***REMOVED***
+
+func (t TitleElement) Text() string ***REMOVED***
+	return t.TextContent()
 ***REMOVED***

@@ -53,13 +53,6 @@ const testHTMLElem = `
 </body>
 `
 
-func valToElementList(val goja.Value) (elems []Element) ***REMOVED***
-	vals := val.Export().([]goja.Value)
-	for i := 0; i < len(vals); i++ ***REMOVED***
-		elems = append(elems, vals[i].Export().(Element))
-	***REMOVED***
-	return
-***REMOVED***
 func TestElement(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
@@ -188,19 +181,19 @@ func TestElement(t *testing.T) ***REMOVED***
 	t.Run("ChildNodes", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("div").get(0).childNodes()`)
 		if assert.NoError(t, err) ***REMOVED***
-			nodes := valToElementList(v)
+			nodes := v.Export().([]goja.Value)
 			assert.Equal(t, 9, len(nodes))
-			assert.Contains(t, nodes[0].TextContent(), "innerfirst")
-			assert.Contains(t, nodes[8].TextContent(), "innerlast")
+			assert.Contains(t, nodes[0].Export().(Element).TextContent(), "innerfirst")
+			assert.Contains(t, nodes[8].Export().(Element).TextContent(), "innerlast")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Children", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("div").get(0).children()`)
 		if assert.NoError(t, err) ***REMOVED***
-			nodes := valToElementList(v)
+			nodes := v.Export().([]goja.Value)
 			assert.Equal(t, 4, len(nodes))
-			assert.Contains(t, nodes[0].TextContent(), "Nullam id nisi eget ex")
-			assert.Contains(t, nodes[3].TextContent(), "Maecenas augue ligula")
+			assert.Contains(t, nodes[0].Export().(Element).TextContent(), "Nullam id nisi eget ex")
+			assert.Contains(t, nodes[3].Export().(Element).TextContent(), "Maecenas augue ligula")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ClassList", func(t *testing.T) ***REMOVED***
@@ -286,14 +279,15 @@ func TestElement(t *testing.T) ***REMOVED***
 	t.Run("GetElementsByClassName", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("body").get(0).getElementsByClassName("class2")`)
 		if assert.NoError(t, err) ***REMOVED***
-			elems := valToElementList(v)
-			assert.Equal(t, []string***REMOVED***"div_elem", "h2_elem"***REMOVED***, []string***REMOVED***elems[0].Id(), elems[1].Id()***REMOVED***)
+			elems := v.Export().([]goja.Value)
+			assert.Equal(t, "div_elem", elems[0].Export().(Element).Id())
+			assert.Equal(t, "h2_elem", elems[1].Export().(Element).Id())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetElementsByTagName", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("body").get(0).getElementsByTagName("span")`)
 		if assert.NoError(t, err) ***REMOVED***
-			elems := valToElementList(v)
+			elems := v.Export().([]goja.Value)
 			assert.Equal(t, 2, len(elems))
 		***REMOVED***
 	***REMOVED***)
@@ -306,8 +300,9 @@ func TestElement(t *testing.T) ***REMOVED***
 	t.Run("QuerySelectorAll", func(t *testing.T) ***REMOVED***
 		v, err := common.RunString(rt, `doc.find("body").get(0).querySelectorAll("span")`)
 		if assert.NoError(t, err) ***REMOVED***
-			elems := valToElementList(v)
-			assert.Equal(t, []string***REMOVED***"span1", "span2"***REMOVED***, []string***REMOVED***elems[0].Id(), elems[1].Id()***REMOVED***)
+			elems := v.Export().([]goja.Value)
+			assert.Equal(t, "span1", elems[0].Export().(Element).Id())
+			assert.Equal(t, "span2", elems[1].Export().(Element).Id())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Contains", func(t *testing.T) ***REMOVED***
