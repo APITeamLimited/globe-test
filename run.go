@@ -594,60 +594,78 @@ loop:
 	***REMOVED***
 	fmt.Fprintf(color.Output, "\n")
 
-	// Print groups.
-	var printGroup func(g *lib.Group, level int)
-	printGroup = func(g *lib.Group, level int) ***REMOVED***
-		indent := strings.Repeat("  ", level)
+	// Print results in a human readable format
+	printHumanizedSummary(engine, atTime)
 
-		if g.Name != "" && g.Parent != nil ***REMOVED***
-			fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
-		***REMOVED***
-
-		if len(g.Checks) > 0 ***REMOVED***
-			if g.Name != "" && g.Parent != nil ***REMOVED***
-				fmt.Fprintf(color.Output, "\n")
-			***REMOVED***
-			for _, check := range g.Checks ***REMOVED***
-				icon := "✓"
-				statusColor := color.GreenString
-				isCheckFailure := check.Fails > 0
-
-				if isCheckFailure ***REMOVED***
-					icon = "✗"
-					statusColor = color.RedString
-				***REMOVED***
-
-				fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
-					indent,
-					icon,
-					check.Name,
-				))
-
-				if isCheckFailure ***REMOVED***
-					fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
-						indent,
-						100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
-						check.Fails,
-						check.Passes+check.Fails,
-					))
-				***REMOVED***
-
-			***REMOVED***
-			fmt.Fprintf(color.Output, "\n")
-		***REMOVED***
-		if len(g.Groups) > 0 ***REMOVED***
-			if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
-				fmt.Fprintf(color.Output, "\n")
-			***REMOVED***
-			for _, g := range g.Groups ***REMOVED***
-				printGroup(g, level+1)
-			***REMOVED***
-		***REMOVED***
+	if opts.Linger.Bool ***REMOVED***
+		<-signals
 	***REMOVED***
 
-	printGroup(engine.Executor.GetRunner().GetDefaultGroup(), 1)
+	if engine.IsTainted() ***REMOVED***
+		return cli.NewExitError("", 99)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func printHumanizedSummary(engine *core.Engine, atTime time.Duration) ***REMOVED***
+	// Print groups.
+	printHumanizedGroups(engine.Executor.GetRunner().GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
+	printHumanizedMetrics(engine, atTime)
+***REMOVED***
+
+func printHumanizedGroups(g *lib.Group, level int) ***REMOVED***
+	indent := strings.Repeat("  ", level)
+
+	if g.Name != "" && g.Parent != nil ***REMOVED***
+		fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
+	***REMOVED***
+
+	if len(g.Checks) > 0 ***REMOVED***
+		if g.Name != "" && g.Parent != nil ***REMOVED***
+			fmt.Fprintf(color.Output, "\n")
+		***REMOVED***
+		for _, check := range g.Checks ***REMOVED***
+			icon := "✓"
+			statusColor := color.GreenString
+			isCheckFailure := check.Fails > 0
+
+			if isCheckFailure ***REMOVED***
+				icon = "✗"
+				statusColor = color.RedString
+			***REMOVED***
+
+			fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
+				indent,
+				icon,
+				check.Name,
+			))
+
+			if isCheckFailure ***REMOVED***
+				fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
+					indent,
+					100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
+					check.Fails,
+					check.Passes+check.Fails,
+				))
+			***REMOVED***
+
+		***REMOVED***
+		fmt.Fprintf(color.Output, "\n")
+	***REMOVED***
+	if len(g.Groups) > 0 ***REMOVED***
+		if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
+			fmt.Fprintf(color.Output, "\n")
+		***REMOVED***
+		for _, g := range g.Groups ***REMOVED***
+			printHumanizedGroups(g, level+1)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func printHumanizedMetrics(engine *core.Engine, atTime time.Duration) ***REMOVED***
+	// Sort metric names
 	metricNames := make([]string, 0, len(engine.Metrics))
 	metricNameWidth := 0
 	for _, m := range engine.Metrics ***REMOVED***
@@ -658,6 +676,7 @@ loop:
 	***REMOVED***
 	sort.Strings(metricNames)
 
+	// Print the metrics in the sorted order
 	for _, name := range metricNames ***REMOVED***
 		m := engine.Metrics[name]
 		sample := m.Sink.Format()
@@ -707,15 +726,6 @@ loop:
 			val,
 		)
 	***REMOVED***
-
-	if opts.Linger.Bool ***REMOVED***
-		<-signals
-	***REMOVED***
-
-	if engine.IsTainted() ***REMOVED***
-		return cli.NewExitError("", 99)
-	***REMOVED***
-	return nil
 ***REMOVED***
 
 func actionArchive(cc *cli.Context) error ***REMOVED***
