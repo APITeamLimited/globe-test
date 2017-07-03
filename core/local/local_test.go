@@ -137,21 +137,65 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Raise", func(t *testing.T) ***REMOVED***
-		e := New(nil)
+		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			return nil, nil
+		***REMOVED***))
 		e.ctx = context.Background()
 
 		assert.NoError(t, e.SetVUsMax(100))
 		assert.Equal(t, int64(100), e.GetVUsMax())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				num++
+				assert.NotNil(t, handle.vu, "vu %d lacks impl", i)
+				assert.Nil(t, handle.ctx, "vu %d has ctx", i)
+				assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+			***REMOVED***
+			assert.Equal(t, 100, num)
+		***REMOVED***
 
 		assert.NoError(t, e.SetVUs(50))
 		assert.Equal(t, int64(50), e.GetVUs())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				if i < 50 ***REMOVED***
+					assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+					num++
+				***REMOVED*** else ***REMOVED***
+					assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+				***REMOVED***
+			***REMOVED***
+			assert.Equal(t, 50, num)
+		***REMOVED***
 
 		assert.NoError(t, e.SetVUs(100))
 		assert.Equal(t, int64(100), e.GetVUs())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+				num++
+			***REMOVED***
+			assert.Equal(t, 100, num)
+		***REMOVED***
 
 		t.Run("Lower", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(50))
 			assert.Equal(t, int64(50), e.GetVUs())
+			if assert.Len(t, e.vus, 100) ***REMOVED***
+				num := 0
+				for i, handle := range e.vus ***REMOVED***
+					if i < 50 ***REMOVED***
+						assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+						num++
+					***REMOVED*** else ***REMOVED***
+						assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+					***REMOVED***
+				***REMOVED***
+				assert.Equal(t, 50, num)
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***

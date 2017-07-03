@@ -194,21 +194,25 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 
 	for i, handle := range e.vus ***REMOVED***
 		handle := handle
-		if i <= int(num) && handle.cancel == nil ***REMOVED***
-			vuctx, cancel := context.WithCancel(ctx)
-			handle.Lock()
-			handle.ctx = vuctx
-			handle.cancel = cancel
-			handle.Unlock()
+		if i < int(num) ***REMOVED***
+			if handle.cancel == nil ***REMOVED***
+				vuctx, cancel := context.WithCancel(ctx)
+				handle.Lock()
+				handle.ctx = vuctx
+				handle.cancel = cancel
+				handle.Unlock()
 
-			e.wg.Add(1)
-			go func() ***REMOVED***
-				handle.run(e.Logger, flow, out)
-				e.wg.Done()
-			***REMOVED***()
+				e.wg.Add(1)
+				go func() ***REMOVED***
+					handle.run(e.Logger, flow, out)
+					e.wg.Done()
+				***REMOVED***()
+			***REMOVED***
 		***REMOVED*** else if handle.cancel != nil ***REMOVED***
+			handle.Lock()
 			handle.cancel()
 			handle.cancel = nil
+			handle.Unlock()
 		***REMOVED***
 	***REMOVED***
 
