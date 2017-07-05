@@ -189,7 +189,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		// nil channel (writing to nil always blocks) if we don't wanna write an iteration.
 		flow := vuFlow
 		if end := atomic.LoadInt64(&e.endIters); end >= 0 ***REMOVED***
-			if partials := atomic.LoadInt64(&e.partIters); partials > end ***REMOVED***
+			if partials := atomic.LoadInt64(&e.partIters); partials >= end ***REMOVED***
 				flow = nil
 			***REMOVED***
 		***REMOVED***
