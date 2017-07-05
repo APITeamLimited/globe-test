@@ -65,18 +65,31 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestExecutorEndIterations(t *testing.T) ***REMOVED***
+	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
+
 	var i int64
 	e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-		atomic.AddInt64(&i, 1)
-		return nil, nil
+		select ***REMOVED***
+		case <-ctx.Done():
+		default:
+			atomic.AddInt64(&i, 1)
+		***REMOVED***
+		return []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
 	***REMOVED***))
-	assert.NoError(t, e.SetVUsMax(10))
-	assert.NoError(t, e.SetVUs(10))
+	assert.NoError(t, e.SetVUsMax(1))
+	assert.NoError(t, e.SetVUs(1))
 	e.SetEndIterations(null.IntFrom(100))
 	assert.Equal(t, null.IntFrom(100), e.GetEndIterations())
-	assert.NoError(t, e.Run(context.Background(), nil))
+
+	samples := make(chan []stats.Sample, 101)
+	assert.NoError(t, e.Run(context.Background(), samples))
 	assert.Equal(t, int64(100), e.GetIterations())
 	assert.Equal(t, int64(100), i)
+
+	for i := 0; i < 100; i++ ***REMOVED***
+		samples := <-samples
+		assert.Equal(t, []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, samples)
+	***REMOVED***
 ***REMOVED***
 
 func TestExecutorIsRunning(t *testing.T) ***REMOVED***
@@ -137,21 +150,65 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Raise", func(t *testing.T) ***REMOVED***
-		e := New(nil)
+		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			return nil, nil
+		***REMOVED***))
 		e.ctx = context.Background()
 
 		assert.NoError(t, e.SetVUsMax(100))
 		assert.Equal(t, int64(100), e.GetVUsMax())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				num++
+				assert.NotNil(t, handle.vu, "vu %d lacks impl", i)
+				assert.Nil(t, handle.ctx, "vu %d has ctx", i)
+				assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+			***REMOVED***
+			assert.Equal(t, 100, num)
+		***REMOVED***
 
 		assert.NoError(t, e.SetVUs(50))
 		assert.Equal(t, int64(50), e.GetVUs())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				if i < 50 ***REMOVED***
+					assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+					num++
+				***REMOVED*** else ***REMOVED***
+					assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+				***REMOVED***
+			***REMOVED***
+			assert.Equal(t, 50, num)
+		***REMOVED***
 
 		assert.NoError(t, e.SetVUs(100))
 		assert.Equal(t, int64(100), e.GetVUs())
+		if assert.Len(t, e.vus, 100) ***REMOVED***
+			num := 0
+			for i, handle := range e.vus ***REMOVED***
+				assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+				num++
+			***REMOVED***
+			assert.Equal(t, 100, num)
+		***REMOVED***
 
 		t.Run("Lower", func(t *testing.T) ***REMOVED***
 			assert.NoError(t, e.SetVUs(50))
 			assert.Equal(t, int64(50), e.GetVUs())
+			if assert.Len(t, e.vus, 100) ***REMOVED***
+				num := 0
+				for i, handle := range e.vus ***REMOVED***
+					if i < 50 ***REMOVED***
+						assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+						num++
+					***REMOVED*** else ***REMOVED***
+						assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+					***REMOVED***
+				***REMOVED***
+				assert.Equal(t, 50, num)
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***

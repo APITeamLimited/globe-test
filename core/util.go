@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/lib"
+	"gopkg.in/guregu/null.v3"
 )
 
 // Returns the total sum of time taken by the given set of stages.
@@ -38,15 +39,15 @@ func SumStages(stages []lib.Stage) (d lib.NullDuration) ***REMOVED***
 ***REMOVED***
 
 // Returns the VU count and whether to keep going at the specified time.
-func ProcessStages(stages []lib.Stage, t time.Duration) (int64, bool) ***REMOVED***
-	var vus int64
+func ProcessStages(stages []lib.Stage, t time.Duration) (null.Int, bool) ***REMOVED***
+	var vus null.Int
 
 	var start time.Duration
 	for _, stage := range stages ***REMOVED***
 		// Infinite stages keep running forever, with the last valid end point, or its own target.
 		if !stage.Duration.Valid ***REMOVED***
 			if stage.Target.Valid ***REMOVED***
-				vus = stage.Target.Int64
+				vus = stage.Target
 			***REMOVED***
 			return vus, true
 		***REMOVED***
@@ -55,7 +56,7 @@ func ProcessStages(stages []lib.Stage, t time.Duration) (int64, bool) ***REMOVED
 		end := start + time.Duration(stage.Duration.Duration)
 		if end < t ***REMOVED***
 			if stage.Target.Valid ***REMOVED***
-				vus = stage.Target.Int64
+				vus = stage.Target
 			***REMOVED***
 			start = end
 			continue
@@ -64,7 +65,7 @@ func ProcessStages(stages []lib.Stage, t time.Duration) (int64, bool) ***REMOVED
 		// If there's a VU target, use linear interpolation to reach it.
 		if stage.Target.Valid ***REMOVED***
 			prog := lib.Clampf(float64(t-start)/float64(stage.Duration.Duration), 0.0, 1.0)
-			vus = lib.Lerp(vus, stage.Target.Int64, prog)
+			vus = null.IntFrom(lib.Lerp(vus.Int64, stage.Target.Int64, prog))
 		***REMOVED***
 
 		// We found a stage, so keep running.

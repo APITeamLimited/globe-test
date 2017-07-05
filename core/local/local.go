@@ -48,30 +48,20 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REM
 	ctx := h.ctx
 	h.RUnlock()
 
-	for ***REMOVED***
-		select ***REMOVED***
-		case <-flow:
-		case <-ctx.Done():
-			return
-		***REMOVED***
-
-		if h.vu == nil ***REMOVED***
-			continue
-		***REMOVED***
-
-		samples, err := h.vu.RunOnce(ctx)
-		if err != nil ***REMOVED***
-			if s, ok := err.(fmt.Stringer); ok ***REMOVED***
-				logger.Error(s.String())
-			***REMOVED*** else ***REMOVED***
-				logger.Error(err.Error())
+	for range flow ***REMOVED***
+		var samples []stats.Sample
+		if h.vu != nil ***REMOVED***
+			s, err := h.vu.RunOnce(ctx)
+			if err != nil ***REMOVED***
+				if s, ok := err.(fmt.Stringer); ok ***REMOVED***
+					logger.Error(s.String())
+				***REMOVED*** else ***REMOVED***
+					logger.Error(err.Error())
+				***REMOVED***
 			***REMOVED***
-			continue
+			samples = s
 		***REMOVED***
-
-		if out != nil ***REMOVED***
-			out <- samples
-		***REMOVED***
+		out <- samples
 	***REMOVED***
 ***REMOVED***
 
@@ -87,8 +77,12 @@ type Executor struct ***REMOVED***
 	numVUs    int64
 	numVUsMax int64
 
-	iterations, endIterations int64
-	time, endTime             int64
+	iters     int64 // Completed iterations
+	partIters int64 // Partial, incomplete iterations
+	endIters  int64 // End test at this many iterations
+
+	time    int64 // Current time
+	endTime int64 // End test at this timestamp
 
 	pauseLock sync.RWMutex
 	pause     chan interface***REMOVED******REMOVED***
@@ -108,10 +102,10 @@ type Executor struct ***REMOVED***
 
 func New(r lib.Runner) *Executor ***REMOVED***
 	return &Executor***REMOVED***
-		Runner:        r,
-		Logger:        log.StandardLogger(),
-		endIterations: -1,
-		endTime:       -1,
+		Runner:   r,
+		Logger:   log.StandardLogger(),
+		endIters: -1,
+		endTime:  -1,
 	***REMOVED***
 ***REMOVED***
 
@@ -120,14 +114,18 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 	defer e.runLock.Unlock()
 
 	ctx, cancel := context.WithCancel(parent)
+	vuOut := make(chan []stats.Sample)
+	vuFlow := make(chan struct***REMOVED******REMOVED***)
 
 	e.lock.Lock()
 	e.ctx = ctx
-	e.out = out
-	e.flow = make(chan struct***REMOVED******REMOVED***)
+	e.out = vuOut
+	e.flow = vuFlow
 	e.lock.Unlock()
 
+	var cutoff time.Time
 	defer func() ***REMOVED***
+		close(vuFlow)
 		cancel()
 
 		e.lock.Lock()
@@ -136,7 +134,29 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		e.flow = nil
 		e.lock.Unlock()
 
-		e.wg.Wait()
+		wait := make(chan interface***REMOVED******REMOVED***)
+		go func() ***REMOVED***
+			e.wg.Wait()
+			close(wait)
+		***REMOVED***()
+
+		var samples []stats.Sample
+		for ***REMOVED***
+			select ***REMOVED***
+			case ss := <-vuOut:
+				for _, s := range ss ***REMOVED***
+					if cutoff.IsZero() || s.Time.Before(cutoff) ***REMOVED***
+						samples = append(samples, s)
+					***REMOVED***
+				***REMOVED***
+			case <-wait:
+				close(vuOut)
+				if out != nil && len(samples) > 0 ***REMOVED***
+					out <- samples
+				***REMOVED***
+				return
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***()
 
 	e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs)))
@@ -152,32 +172,62 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		pause := e.pause
 		e.pauseLock.RUnlock()
 		if pause != nil ***REMOVED***
+			e.Logger.Debug("Local: Pausing!")
 			leftovers := time.Since(lastTick)
 			select ***REMOVED***
 			case <-pause:
+				e.Logger.Debug("Local: No longer paused")
 				lastTick = time.Now().Add(-leftovers)
 			case <-ctx.Done():
+				e.Logger.Debug("Local: Terminated while in paused state")
 				return nil
 			***REMOVED***
 		***REMOVED***
 
+		// Dumb hack: we don't wanna start any more iterations than the max, but we can't
+		// conditionally select on a channel either...so, we cheat: swap out the flow channel for a
+		// nil channel (writing to nil always blocks) if we don't wanna write an iteration.
+		flow := vuFlow
+		if end := atomic.LoadInt64(&e.endIters); end >= 0 ***REMOVED***
+			if partials := atomic.LoadInt64(&e.partIters); partials >= end ***REMOVED***
+				flow = nil
+			***REMOVED***
+		***REMOVED***
+
 		select ***REMOVED***
+		case flow <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+			// Start an iteration if there's a VU waiting. See also: the big comment block above.
+			atomic.AddInt64(&e.partIters, 1)
 		case t := <-ticker.C:
+			// Every tick, increment the clock and see if we passed the end point. If the test ends
+			// this way, set a cutoff point; any samples collected past the cutoff point are excluded.
 			d := t.Sub(lastTick)
 			lastTick = t
 
-			at := atomic.AddInt64(&e.time, int64(d))
-			end := atomic.LoadInt64(&e.endTime)
+			end := time.Duration(atomic.LoadInt64(&e.endTime))
+			at := time.Duration(atomic.AddInt64(&e.time, int64(d)))
 			if end >= 0 && at >= end ***REMOVED***
+				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit time limit")
+				cutoff = time.Now()
 				return nil
 			***REMOVED***
-		case e.flow <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
-			at := atomic.AddInt64(&e.iterations, 1)
-			end := atomic.LoadInt64(&e.endIterations)
+		case samples := <-vuOut:
+			// Every iteration ends with a write to vuOut. Check if we've hit the end point.
+			if out != nil ***REMOVED***
+				out <- samples
+			***REMOVED***
+
+			end := atomic.LoadInt64(&e.endIters)
+			at := atomic.AddInt64(&e.iters, 1)
 			if end >= 0 && at >= end ***REMOVED***
+				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit iteration limit")
 				return nil
 			***REMOVED***
 		case <-ctx.Done():
+			// If the test is cancelled, just set the cutoff point to now and proceed down the same
+			// logic as if the time limit was hit.
+			e.Logger.Debug("Local: Exiting with context")
+			cutoff = time.Now()
 			return nil
 		***REMOVED***
 	***REMOVED***
@@ -194,21 +244,25 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 
 	for i, handle := range e.vus ***REMOVED***
 		handle := handle
-		if i <= int(num) && handle.cancel == nil ***REMOVED***
-			vuctx, cancel := context.WithCancel(ctx)
-			handle.Lock()
-			handle.ctx = vuctx
-			handle.cancel = cancel
-			handle.Unlock()
+		if i < int(num) ***REMOVED***
+			if handle.cancel == nil ***REMOVED***
+				vuctx, cancel := context.WithCancel(ctx)
+				handle.Lock()
+				handle.ctx = vuctx
+				handle.cancel = cancel
+				handle.Unlock()
 
-			e.wg.Add(1)
-			go func() ***REMOVED***
-				handle.run(e.Logger, flow, out)
-				e.wg.Done()
-			***REMOVED***()
+				e.wg.Add(1)
+				go func() ***REMOVED***
+					handle.run(e.Logger, flow, out)
+					e.wg.Done()
+				***REMOVED***()
+			***REMOVED***
 		***REMOVED*** else if handle.cancel != nil ***REMOVED***
+			handle.Lock()
 			handle.cancel()
 			handle.cancel = nil
+			handle.Unlock()
 		***REMOVED***
 	***REMOVED***
 
@@ -234,11 +288,11 @@ func (e *Executor) GetLogger() *log.Logger ***REMOVED***
 ***REMOVED***
 
 func (e *Executor) GetIterations() int64 ***REMOVED***
-	return atomic.LoadInt64(&e.iterations)
+	return atomic.LoadInt64(&e.iters)
 ***REMOVED***
 
 func (e *Executor) GetEndIterations() null.Int ***REMOVED***
-	v := atomic.LoadInt64(&e.endIterations)
+	v := atomic.LoadInt64(&e.endIters)
 	if v < 0 ***REMOVED***
 		return null.Int***REMOVED******REMOVED***
 	***REMOVED***
@@ -249,7 +303,7 @@ func (e *Executor) SetEndIterations(i null.Int) ***REMOVED***
 	if !i.Valid ***REMOVED***
 		i.Int64 = -1
 	***REMOVED***
-	atomic.StoreInt64(&e.endIterations, i.Int64)
+	atomic.StoreInt64(&e.endIters, i.Int64)
 ***REMOVED***
 
 func (e *Executor) GetTime() time.Duration ***REMOVED***
