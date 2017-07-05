@@ -119,6 +119,27 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
 
+	e.logger.Debug("Engine: Starting with parameters...")
+	for i, st := range e.Stages ***REMOVED***
+		fields := make(log.Fields)
+		if st.Target.Valid ***REMOVED***
+			fields["tgt"] = st.Target.Int64
+		***REMOVED***
+		if st.Duration.Valid ***REMOVED***
+			fields["d"] = st.Duration.Duration
+		***REMOVED***
+		e.logger.WithFields(fields).Debugf(" - stage #%d", i)
+	***REMOVED***
+
+	fields := make(log.Fields)
+	if endTime := e.Executor.GetEndTime(); endTime.Valid ***REMOVED***
+		fields["time"] = endTime.Duration
+	***REMOVED***
+	if endIter := e.Executor.GetEndIterations(); endIter.Valid ***REMOVED***
+		fields["iter"] = endIter.Int64
+	***REMOVED***
+	e.logger.WithFields(fields).Debug(" - end conditions (if any)")
+
 	collectorwg := sync.WaitGroup***REMOVED******REMOVED***
 	collectorctx, collectorcancel := context.WithCancel(context.Background())
 	if e.Collector != nil ***REMOVED***
@@ -139,6 +160,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	subwg.Add(1)
 	go func() ***REMOVED***
 		e.runMetricsEmission(subctx)
+		e.logger.Debug("Engine: Emission terminated")
 		subwg.Done()
 	***REMOVED***()
 
@@ -146,6 +168,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	subwg.Add(1)
 	go func() ***REMOVED***
 		e.runThresholds(subctx)
+		e.logger.Debug("Engine: Thresholds terminated")
 		subwg.Done()
 	***REMOVED***()
 
@@ -155,12 +178,12 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	subwg.Add(1)
 	go func() ***REMOVED***
 		errC <- e.Executor.Run(subctx, out)
+		e.logger.Debug("Engine: Executor terminated")
 		subwg.Done()
 	***REMOVED***()
 
 	defer func() ***REMOVED***
 		// Shut down subsystems.
-		cutoff := time.Now()
 		subcancel()
 
 		// Process samples until the subsystems have shut down.
@@ -174,11 +197,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			close(out)
 		***REMOVED***()
 		for samples := range out ***REMOVED***
-			for _, sample := range samples ***REMOVED***
-				if !sample.Time.After(cutoff) ***REMOVED***
-					e.processSamples(sample)
-				***REMOVED***
-			***REMOVED***
+			e.processSamples(samples...)
 		***REMOVED***
 
 		// Emit final metrics.

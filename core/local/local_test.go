@@ -65,18 +65,31 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestExecutorEndIterations(t *testing.T) ***REMOVED***
+	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
+
 	var i int64
 	e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-		atomic.AddInt64(&i, 1)
-		return nil, nil
+		select ***REMOVED***
+		case <-ctx.Done():
+		default:
+			atomic.AddInt64(&i, 1)
+		***REMOVED***
+		return []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
 	***REMOVED***))
-	assert.NoError(t, e.SetVUsMax(10))
-	assert.NoError(t, e.SetVUs(10))
+	assert.NoError(t, e.SetVUsMax(1))
+	assert.NoError(t, e.SetVUs(1))
 	e.SetEndIterations(null.IntFrom(100))
 	assert.Equal(t, null.IntFrom(100), e.GetEndIterations())
-	assert.NoError(t, e.Run(context.Background(), nil))
+
+	samples := make(chan []stats.Sample, 101)
+	assert.NoError(t, e.Run(context.Background(), samples))
 	assert.Equal(t, int64(100), e.GetIterations())
 	assert.Equal(t, int64(100), i)
+
+	for i := 0; i < 100; i++ ***REMOVED***
+		samples := <-samples
+		assert.Equal(t, []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, samples)
+	***REMOVED***
 ***REMOVED***
 
 func TestExecutorIsRunning(t *testing.T) ***REMOVED***
