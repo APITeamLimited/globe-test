@@ -36,6 +36,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/viki-org/dnscache"
+	"golang.org/x/net/http2"
 )
 
 type Runner struct ***REMOVED***
@@ -111,23 +112,25 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		tlsVersion = *r.Bundle.Options.TLSVersion
 	***REMOVED***
 
-	// Make a VU, apply the VU context.
 	dialer := &netext.Dialer***REMOVED***Dialer: r.BaseDialer, Resolver: r.Resolver***REMOVED***
+	transport := &http.Transport***REMOVED***
+		Proxy: http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config***REMOVED***
+			InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
+			CipherSuites:       cipherSuites,
+			MinVersion:         uint16(tlsVersion.Min),
+			MaxVersion:         uint16(tlsVersion.Max),
+		***REMOVED***,
+		DialContext: dialer.DialContext,
+	***REMOVED***
+	_ = http2.ConfigureTransport(transport)
+
 	vu := &VU***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
-		HTTPTransport: &http.Transport***REMOVED***
-			Proxy: http.ProxyFromEnvironment,
-			TLSClientConfig: &tls.Config***REMOVED***
-				InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
-				CipherSuites:       cipherSuites,
-				MinVersion:         uint16(tlsVersion.Min),
-				MaxVersion:         uint16(tlsVersion.Max),
-			***REMOVED***,
-			DialContext: dialer.DialContext,
-		***REMOVED***,
-		Dialer:  dialer,
-		Console: NewConsole(),
+		HTTPTransport:  transport,
+		Dialer:         dialer,
+		Console:        NewConsole(),
 	***REMOVED***
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
