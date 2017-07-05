@@ -48,7 +48,13 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REM
 	ctx := h.ctx
 	h.RUnlock()
 
-	for range flow ***REMOVED***
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-flow:
+		case <-ctx.Done():
+			return
+		***REMOVED***
+
 		var samples []stats.Sample
 		if h.vu != nil ***REMOVED***
 			s, err := h.vu.RunOnce(ctx)
@@ -234,18 +240,22 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 ***REMOVED***
 
 func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
+	e.vusLock.Lock()
+	defer e.vusLock.Unlock()
+
 	e.lock.RLock()
 	flow := e.flow
 	out := e.out
 	e.lock.RUnlock()
 
-	e.vusLock.Lock()
-	defer e.vusLock.Unlock()
-
 	for i, handle := range e.vus ***REMOVED***
 		handle := handle
+		handle.RLock()
+		cancel := handle.cancel
+		handle.RUnlock()
+
 		if i < int(num) ***REMOVED***
-			if handle.cancel == nil ***REMOVED***
+			if cancel == nil ***REMOVED***
 				vuctx, cancel := context.WithCancel(ctx)
 				handle.Lock()
 				handle.ctx = vuctx
@@ -258,7 +268,7 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 					e.wg.Done()
 				***REMOVED***()
 			***REMOVED***
-		***REMOVED*** else if handle.cancel != nil ***REMOVED***
+		***REMOVED*** else if cancel != nil ***REMOVED***
 			handle.Lock()
 			handle.cancel()
 			handle.cancel = nil
