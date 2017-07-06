@@ -262,7 +262,7 @@ func main() ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	elemFuncsTemplate.Execute(f, struct ***REMOVED***
+	err = elemFuncsTemplate.Execute(f, struct ***REMOVED***
 		ElemInfos  map[string]*ElemInfo
 		FuncDefs   []string
 		EnumConsts map[string]string
@@ -271,7 +271,14 @@ func main() ***REMOVED***
 		funcDefs,
 		enumConsts,
 	***REMOVED***)
-	f.Close()
+	if err != nil ***REMOVED***
+		log.Println("error, unable to execute template:", err)
+	***REMOVED***
+
+	err = f.Close()
+	if err != nil ***REMOVED***
+		log.Println("Unable to close generated code file: ", err)
+	***REMOVED***
 ***REMOVED***
 
 var elemFuncsTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
@@ -318,7 +325,7 @@ func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) *
 	***REMOVED******REMOVED***- $optConst := toConst $optVal ***REMOVED******REMOVED***
 		***REMOVED******REMOVED***- if ne $optIdx 0 ***REMOVED******REMOVED***
 	case ***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***:
-		return ***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***
+		return attrVal
 		***REMOVED******REMOVED***- end ***REMOVED******REMOVED***
 	***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 	default: 
@@ -333,7 +340,7 @@ func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) *
 	***REMOVED******REMOVED***- range $optVal := $funcDef.ReturnOpts ***REMOVED******REMOVED***
 	***REMOVED******REMOVED***- $optConst := toConst $optVal ***REMOVED******REMOVED***
 	case ***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***:
-		return e.sel.rt.ToValue(***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***)
+		return e.sel.rt.ToValue(attrVal)
 	***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 	default:
 		return goja.Undefined()

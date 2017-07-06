@@ -5,73 +5,73 @@ package html
 import "github.com/dop251/goja"
 
 const (
-	constBlank = ""
-	const1 = "1"
-	constA = "A"
-	constDSA = "DSA"
-	constEC = "EC"
-	constI = "I"
-	constRSA = "RSA"
-	consta = "a"
-	constanonymous = "anonymous"
+	constBlank                             = ""
+	const1                                 = "1"
+	constA                                 = "A"
+	constDSA                               = "DSA"
+	constEC                                = "EC"
+	constI                                 = "I"
+	constRSA                               = "RSA"
+	consta                                 = "a"
+	constanonymous                         = "anonymous"
 	constapplication_x_www_form_urlencoded = "application/x-www-form-urlencoded"
-	constauto = "auto"
-	constbutton = "button"
-	constcaptions = "captions"
-	constchapters = "chapters"
-	constcharacters = "characters"
-	constcheckbox = "checkbox"
-	constcircle = "circle"
-	constcol = "col"
-	constcolgroup = "colgroup"
-	constcolor = "color"
-	constcontent_type = "content-type"
-	constdate = "date"
-	constdatetime_local = "datetime-local"
-	constdefault_style = "default-style"
-	constdescriptions = "descriptions"
-	constdisc = "disc"
-	constemail = "email"
-	constfile = "file"
-	consthard = "hard"
-	consthidden = "hidden"
-	consti = "i"
-	constimage = "image"
-	constmenu = "menu"
-	constmetadata = "metadata"
-	constmonth = "month"
-	constmultipart_form_data = "multipart/form-data"
-	constno_referrer = "no-referrer"
-	constno_referrer_when_downgrade = "no-referrer-when-downgrade"
-	constnone = "none"
-	constnumber = "number"
-	constoff = "off"
-	conston = "on"
-	constorigin = "origin"
-	constorigin_when_cross_origin = "origin-when-cross-origin"
-	constpassword = "password"
-	constradio = "radio"
-	constrange = "range"
-	constrefresh = "refresh"
-	constreset = "reset"
-	constrow = "row"
-	constrowgroup = "rowgroup"
-	constsearch = "search"
-	constsentences = "sentences"
-	constsoft = "soft"
-	constsquare = "square"
-	constsubmit = "submit"
-	constsubtitle = "subtitle"
-	consttel = "tel"
-	consttext = "text"
-	consttext_plain = "text/plain"
-	consttime = "time"
-	constunsafe_url = "unsafe-url"
-	consturl = "url"
-	constuse_credentials = "use-credentials"
-	constweek = "week"
-	constwords = "words"
-	)
+	constauto                              = "auto"
+	constbutton                            = "button"
+	constcaptions                          = "captions"
+	constchapters                          = "chapters"
+	constcharacters                        = "characters"
+	constcheckbox                          = "checkbox"
+	constcircle                            = "circle"
+	constcol                               = "col"
+	constcolgroup                          = "colgroup"
+	constcolor                             = "color"
+	constcontent_type                      = "content-type"
+	constdate                              = "date"
+	constdatetime_local                    = "datetime-local"
+	constdefault_style                     = "default-style"
+	constdescriptions                      = "descriptions"
+	constdisc                              = "disc"
+	constemail                             = "email"
+	constfile                              = "file"
+	consthard                              = "hard"
+	consthidden                            = "hidden"
+	consti                                 = "i"
+	constimage                             = "image"
+	constmenu                              = "menu"
+	constmetadata                          = "metadata"
+	constmonth                             = "month"
+	constmultipart_form_data               = "multipart/form-data"
+	constno_referrer                       = "no-referrer"
+	constno_referrer_when_downgrade        = "no-referrer-when-downgrade"
+	constnone                              = "none"
+	constnumber                            = "number"
+	constoff                               = "off"
+	conston                                = "on"
+	constorigin                            = "origin"
+	constorigin_when_cross_origin          = "origin-when-cross-origin"
+	constpassword                          = "password"
+	constradio                             = "radio"
+	constrange                             = "range"
+	constrefresh                           = "refresh"
+	constreset                             = "reset"
+	constrow                               = "row"
+	constrowgroup                          = "rowgroup"
+	constsearch                            = "search"
+	constsentences                         = "sentences"
+	constsoft                              = "soft"
+	constsquare                            = "square"
+	constsubmit                            = "submit"
+	constsubtitle                          = "subtitle"
+	consttel                               = "tel"
+	consttext                              = "text"
+	consttext_plain                        = "text/plain"
+	consttime                              = "time"
+	constunsafe_url                        = "unsafe-url"
+	consturl                               = "url"
+	constuse_credentials                   = "use-credentials"
+	constweek                              = "week"
+	constwords                             = "words"
+)
 
 func selToElement(sel Selection) goja.Value ***REMOVED***
 	if sel.sel.Length() == 0 ***REMOVED***
@@ -80,7 +80,7 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 
 	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
 
-	switch elem.node.Data ***REMOVED*** 
+	switch elem.node.Data ***REMOVED***
 	case AnchorTagName:
 		return sel.rt.ToValue(AnchorElement***REMOVED***HrefElement***REMOVED***elem***REMOVED******REMOVED***)
 
@@ -237,7 +237,7 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	default:
 		return sel.rt.ToValue(elem)
 	***REMOVED***
- ***REMOVED***
+***REMOVED***
 
 func (e HrefElement) Download() string ***REMOVED***
 	return e.attrAsString("download")
@@ -246,17 +246,17 @@ func (e HrefElement) ReferrerPolicy() string ***REMOVED***
 	attrVal := e.attrAsString("referrerpolicy")
 	switch attrVal ***REMOVED***
 	case constno_referrer:
-		return constno_referrer
+		return attrVal
 	case constno_referrer_when_downgrade:
-		return constno_referrer_when_downgrade
+		return attrVal
 	case constorigin:
-		return constorigin
+		return attrVal
 	case constorigin_when_cross_origin:
-		return constorigin_when_cross_origin
+		return attrVal
 	case constunsafe_url:
-		return constunsafe_url
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e HrefElement) Rel() string ***REMOVED***
@@ -296,11 +296,11 @@ func (e MediaElement) Preload() string ***REMOVED***
 	attrVal := e.attrAsString("preload")
 	switch attrVal ***REMOVED***
 	case constmetadata:
-		return constmetadata
+		return attrVal
 	case constnone:
-		return constnone
-	default: 
-		return constauto 
+		return attrVal
+	default:
+		return constauto
 	***REMOVED***
 ***REMOVED***
 func (e MediaElement) Src() string ***REMOVED***
@@ -313,9 +313,9 @@ func (e MediaElement) CrossOrigin() goja.Value ***REMOVED***
 	***REMOVED***
 	switch attrVal ***REMOVED***
 	case constanonymous:
-		return e.sel.rt.ToValue(constanonymous)
+		return e.sel.rt.ToValue(attrVal)
 	case constuse_credentials:
-		return e.sel.rt.ToValue(constuse_credentials)
+		return e.sel.rt.ToValue(attrVal)
 	default:
 		return goja.Undefined()
 	***REMOVED***
@@ -351,13 +351,13 @@ func (e ButtonElement) Type() string ***REMOVED***
 	attrVal := e.attrAsString("type")
 	switch attrVal ***REMOVED***
 	case constbutton:
-		return constbutton
+		return attrVal
 	case constmenu:
-		return constmenu
+		return attrVal
 	case constreset:
-		return constreset
-	default: 
-		return constsubmit 
+		return attrVal
+	default:
+		return constsubmit
 	***REMOVED***
 ***REMOVED***
 func (e DataElement) Value() string ***REMOVED***
@@ -394,22 +394,22 @@ func (e FormElement) Enctype() string ***REMOVED***
 	attrVal := e.attrAsString("enctype")
 	switch attrVal ***REMOVED***
 	case constmultipart_form_data:
-		return constmultipart_form_data
+		return attrVal
 	case consttext_plain:
-		return consttext_plain
-	default: 
-		return constapplication_x_www_form_urlencoded 
+		return attrVal
+	default:
+		return constapplication_x_www_form_urlencoded
 	***REMOVED***
 ***REMOVED***
 func (e FormElement) Encoding() string ***REMOVED***
 	attrVal := e.attrAsString("enctype")
 	switch attrVal ***REMOVED***
 	case constmultipart_form_data:
-		return constmultipart_form_data
+		return attrVal
 	case consttext_plain:
-		return consttext_plain
-	default: 
-		return constapplication_x_www_form_urlencoded 
+		return attrVal
+	default:
+		return constapplication_x_www_form_urlencoded
 	***REMOVED***
 ***REMOVED***
 func (e FormElement) AcceptCharset() string ***REMOVED***
@@ -419,9 +419,9 @@ func (e FormElement) Autocomplete() string ***REMOVED***
 	attrVal := e.attrAsString("autocomplete")
 	switch attrVal ***REMOVED***
 	case constoff:
-		return constoff
-	default: 
-		return conston 
+		return attrVal
+	default:
+		return conston
 	***REMOVED***
 ***REMOVED***
 func (e FormElement) NoValidate() bool ***REMOVED***
@@ -434,17 +434,17 @@ func (e IFrameElement) ReferrerPolicy() string ***REMOVED***
 	attrVal := e.attrAsString("referrerpolicy")
 	switch attrVal ***REMOVED***
 	case constno_referrer:
-		return constno_referrer
+		return attrVal
 	case constno_referrer_when_downgrade:
-		return constno_referrer_when_downgrade
+		return attrVal
 	case constorigin:
-		return constorigin
+		return attrVal
 	case constorigin_when_cross_origin:
-		return constorigin_when_cross_origin
+		return attrVal
 	case constunsafe_url:
-		return constunsafe_url
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e IFrameElement) Height() string ***REMOVED***
@@ -478,9 +478,9 @@ func (e ImageElement) CrossOrigin() goja.Value ***REMOVED***
 	***REMOVED***
 	switch attrVal ***REMOVED***
 	case constanonymous:
-		return e.sel.rt.ToValue(constanonymous)
+		return e.sel.rt.ToValue(attrVal)
 	case constuse_credentials:
-		return e.sel.rt.ToValue(constuse_credentials)
+		return e.sel.rt.ToValue(attrVal)
 	default:
 		return goja.Undefined()
 	***REMOVED***
@@ -507,17 +507,17 @@ func (e ImageElement) ReferrerPolicy() string ***REMOVED***
 	attrVal := e.attrAsString("referrerpolicy")
 	switch attrVal ***REMOVED***
 	case constno_referrer:
-		return constno_referrer
+		return attrVal
 	case constno_referrer_when_downgrade:
-		return constno_referrer_when_downgrade
+		return attrVal
 	case constorigin:
-		return constorigin
+		return attrVal
 	case constorigin_when_cross_origin:
-		return constorigin_when_cross_origin
+		return attrVal
 	case constunsafe_url:
-		return constunsafe_url
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e InputElement) Name() string ***REMOVED***
@@ -530,49 +530,49 @@ func (e InputElement) Type() string ***REMOVED***
 	attrVal := e.attrAsString("type")
 	switch attrVal ***REMOVED***
 	case constbutton:
-		return constbutton
+		return attrVal
 	case constcheckbox:
-		return constcheckbox
+		return attrVal
 	case constcolor:
-		return constcolor
+		return attrVal
 	case constdate:
-		return constdate
+		return attrVal
 	case constdatetime_local:
-		return constdatetime_local
+		return attrVal
 	case constemail:
-		return constemail
+		return attrVal
 	case constfile:
-		return constfile
+		return attrVal
 	case consthidden:
-		return consthidden
+		return attrVal
 	case constimage:
-		return constimage
+		return attrVal
 	case constmonth:
-		return constmonth
+		return attrVal
 	case constnumber:
-		return constnumber
+		return attrVal
 	case constpassword:
-		return constpassword
+		return attrVal
 	case constradio:
-		return constradio
+		return attrVal
 	case constrange:
-		return constrange
+		return attrVal
 	case constreset:
-		return constreset
+		return attrVal
 	case constsearch:
-		return constsearch
+		return attrVal
 	case constsubmit:
-		return constsubmit
+		return attrVal
 	case consttel:
-		return consttel
+		return attrVal
 	case consttime:
-		return consttime
+		return attrVal
 	case consturl:
-		return consturl
+		return attrVal
 	case constweek:
-		return constweek
-	default: 
-		return consttext 
+		return attrVal
+	default:
+		return consttext
 	***REMOVED***
 ***REMOVED***
 func (e InputElement) Disabled() bool ***REMOVED***
@@ -612,9 +612,9 @@ func (e InputElement) Autocomplete() string ***REMOVED***
 	attrVal := e.attrAsString("autocomplete")
 	switch attrVal ***REMOVED***
 	case constoff:
-		return constoff
-	default: 
-		return conston 
+		return attrVal
+	default:
+		return conston
 	***REMOVED***
 ***REMOVED***
 func (e InputElement) MaxLength() int ***REMOVED***
@@ -666,11 +666,11 @@ func (e KeygenElement) Keytype() string ***REMOVED***
 	attrVal := e.attrAsString("keytype")
 	switch attrVal ***REMOVED***
 	case constDSA:
-		return constDSA
+		return attrVal
 	case constEC:
-		return constEC
-	default: 
-		return constRSA 
+		return attrVal
+	default:
+		return constRSA
 	***REMOVED***
 ***REMOVED***
 func (e KeygenElement) Name() string ***REMOVED***
@@ -692,23 +692,23 @@ func (e LiElement) Type() string ***REMOVED***
 	attrVal := e.attrAsString("type")
 	switch attrVal ***REMOVED***
 	case const1:
-		return const1
+		return attrVal
 	case consta:
-		return consta
+		return attrVal
 	case constA:
-		return constA
+		return attrVal
 	case consti:
-		return consti
+		return attrVal
 	case constI:
-		return constI
+		return attrVal
 	case constdisc:
-		return constdisc
+		return attrVal
 	case constsquare:
-		return constsquare
+		return attrVal
 	case constcircle:
-		return constcircle
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e LinkElement) CrossOrigin() goja.Value ***REMOVED***
@@ -718,9 +718,9 @@ func (e LinkElement) CrossOrigin() goja.Value ***REMOVED***
 	***REMOVED***
 	switch attrVal ***REMOVED***
 	case constanonymous:
-		return e.sel.rt.ToValue(constanonymous)
+		return e.sel.rt.ToValue(attrVal)
 	case constuse_credentials:
-		return e.sel.rt.ToValue(constuse_credentials)
+		return e.sel.rt.ToValue(attrVal)
 	default:
 		return goja.Undefined()
 	***REMOVED***
@@ -729,17 +729,17 @@ func (e LinkElement) ReferrerPolicy() string ***REMOVED***
 	attrVal := e.attrAsString("referrerpolicy")
 	switch attrVal ***REMOVED***
 	case constno_referrer:
-		return constno_referrer
+		return attrVal
 	case constno_referrer_when_downgrade:
-		return constno_referrer_when_downgrade
+		return attrVal
 	case constorigin:
-		return constorigin
+		return attrVal
 	case constorigin_when_cross_origin:
-		return constorigin_when_cross_origin
+		return attrVal
 	case constunsafe_url:
-		return constunsafe_url
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e LinkElement) Href() string ***REMOVED***
@@ -773,11 +773,11 @@ func (e MetaElement) HttpEquiv() string ***REMOVED***
 	attrVal := e.attrAsString("http-equiv")
 	switch attrVal ***REMOVED***
 	case constdefault_style:
-		return constdefault_style
+		return attrVal
 	case constrefresh:
-		return constrefresh
-	default: 
-		return constcontent_type 
+		return attrVal
+	default:
+		return constcontent_type
 	***REMOVED***
 ***REMOVED***
 func (e MeterElement) Min() int ***REMOVED***
@@ -835,15 +835,15 @@ func (e OListElement) Type() string ***REMOVED***
 	attrVal := e.attrAsString("type")
 	switch attrVal ***REMOVED***
 	case consta:
-		return consta
+		return attrVal
 	case constA:
-		return constA
+		return attrVal
 	case consti:
-		return consti
+		return attrVal
 	case constI:
-		return constI
-	default: 
-		return const1 
+		return attrVal
+	default:
+		return const1
 	***REMOVED***
 ***REMOVED***
 func (e OptGroupElement) Disabled() bool ***REMOVED***
@@ -961,15 +961,15 @@ func (e TableHeaderCellElement) Scope() string ***REMOVED***
 	attrVal := e.attrAsString("scope")
 	switch attrVal ***REMOVED***
 	case constrow:
-		return constrow
+		return attrVal
 	case constcol:
-		return constcol
+		return attrVal
 	case constcolgroup:
-		return constcolgroup
+		return attrVal
 	case constrowgroup:
-		return constrowgroup
-	default: 
-		return constBlank 
+		return attrVal
+	default:
+		return constBlank
 	***REMOVED***
 ***REMOVED***
 func (e TableHeaderCellElement) Sorted() bool ***REMOVED***
@@ -1012,35 +1012,35 @@ func (e TextAreaElement) Autocomplete() string ***REMOVED***
 	attrVal := e.attrAsString("autocomplete")
 	switch attrVal ***REMOVED***
 	case constoff:
-		return constoff
-	default: 
-		return conston 
+		return attrVal
+	default:
+		return conston
 	***REMOVED***
 ***REMOVED***
 func (e TextAreaElement) Autocapitalize() string ***REMOVED***
 	attrVal := e.attrAsString("autocapitalize")
 	switch attrVal ***REMOVED***
 	case constnone:
-		return constnone
+		return attrVal
 	case constoff:
-		return constoff
+		return attrVal
 	case constcharacters:
-		return constcharacters
+		return attrVal
 	case constwords:
-		return constwords
-	default: 
-		return constsentences 
+		return attrVal
+	default:
+		return constsentences
 	***REMOVED***
 ***REMOVED***
 func (e TextAreaElement) Wrap() string ***REMOVED***
 	attrVal := e.attrAsString("wrap")
 	switch attrVal ***REMOVED***
 	case consthard:
-		return consthard
+		return attrVal
 	case constoff:
-		return constoff
-	default: 
-		return constsoft 
+		return attrVal
+	default:
+		return constsoft
 	***REMOVED***
 ***REMOVED***
 func (e TimeElement) Datetime() string ***REMOVED***
@@ -1050,15 +1050,15 @@ func (e TrackElement) Kind() string ***REMOVED***
 	attrVal := e.attrAsString("kind")
 	switch attrVal ***REMOVED***
 	case constcaptions:
-		return constcaptions
+		return attrVal
 	case constdescriptions:
-		return constdescriptions
+		return attrVal
 	case constchapters:
-		return constchapters
+		return attrVal
 	case constmetadata:
-		return constmetadata
-	default: 
-		return constsubtitle 
+		return attrVal
+	default:
+		return constsubtitle
 	***REMOVED***
 ***REMOVED***
 func (e TrackElement) Src() string ***REMOVED***
@@ -1076,4 +1076,3 @@ func (e TrackElement) Default() bool ***REMOVED***
 func (e UListElement) Type() string ***REMOVED***
 	return e.attrAsString("type")
 ***REMOVED***
-
