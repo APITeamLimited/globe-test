@@ -264,12 +264,12 @@ func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 
 func (m *Metric) Summary() *Summary ***REMOVED***
 	return &Summary***REMOVED***
-		Metric: m,
-		Samples: m.Sink.Format(),
+		Metric:  m,
+		Summary: m.Sink.Format(),
 	***REMOVED***
 ***REMOVED***
 
 type Summary struct ***REMOVED***
-	Metric 	 *Metric            `json:"metric"`
-	Samples	 map[string]float64 `json:"samples"`
+	Metric  *Metric            `json:"metric"`
+	Summary map[string]float64 `json:"summary"`
 ***REMOVED***
