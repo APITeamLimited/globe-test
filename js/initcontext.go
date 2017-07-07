@@ -135,6 +135,7 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
 		src, _, err := compiler.Transform(string(data.Data), data.Filename)
+		src = "(function()***REMOVED***" + src + "***REMOVED***)()"
 		if err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
@@ -146,9 +147,6 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 		i.programs[filename] = pgm
 	***REMOVED***
 
-	// Execute the program to populate exports. You may notice that this theoretically allows an
-	// imported file to access or overwrite globals defined outside of it. Please don't do anything
-	// stupid with this, consider *any* use of it undefined behavior >_>;;
 	if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
