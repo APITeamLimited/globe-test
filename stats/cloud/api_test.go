@@ -24,11 +24,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func init() ***REMOVED***
+	_ = os.Setenv("K6CLOUD_HOST", "")
+	_ = os.Setenv("K6CLOUD_TOKEN", "")
+***REMOVED***
 
 func TestCreateTestRun(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
