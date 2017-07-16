@@ -172,7 +172,7 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"src1", "media", "(min-width: 600px)"***REMOVED***,
 	***REMOVED***"src1", "sizes", "100vw,50vw"***REMOVED***,
 	***REMOVED***"src1", "srcset", "large.jpg 1024w,medium.jpg 640w"***REMOVED***,
-	***REMOVED***"src1", "src", "http://test.com/test.png"***REMOVED***,
+	***REMOVED***"src1", "src", "test.png"***REMOVED***,
 	***REMOVED***"src1", "type", "image/png"***REMOVED***,
 
 	***REMOVED***"td1", "headers", "th1"***REMOVED***,
@@ -283,8 +283,41 @@ var nullTests = []struct ***REMOVED***
 	***REMOVED***"link2", "crossOrigin"***REMOVED***,
 ***REMOVED***
 
+var urlTests = []struct ***REMOVED***
+	id       string
+	property string
+	baseUrl  string
+	data     string
+***REMOVED******REMOVED***
+	***REMOVED***"a3", "href", "http://example.com", "http://example.com/relpath"***REMOVED***,
+	***REMOVED***"a3", "href", "http://example.com/somepath", "http://example.com/relpath"***REMOVED***,
+	***REMOVED***"a3", "href", "http://example.com/subdir/", "http://example.com/subdir/relpath"***REMOVED***,
+	***REMOVED***"a4", "href", "http://example.com/", "http://example.com/abspath"***REMOVED***,
+	***REMOVED***"a4", "href", "http://example.com/subdir/", "http://example.com/abspath"***REMOVED***,
+	***REMOVED***"a5", "href", "http://example.com/path?a=no-a&c=no-c", "http://example.com/path?a=yes-a&b=yes-b"***REMOVED***,
+	***REMOVED***"a6", "href", "http://example.com/path#oldfrag", "http://example.com/path#testfrag"***REMOVED***,
+	***REMOVED***"a7", "href", "http://example.com/prevdir/prevpath", "http://example.com/prtpath"***REMOVED***,
+	***REMOVED***"base1", "href", "http://example.com", "http://example.com/foo.html"***REMOVED***,
+	***REMOVED***"audio1", "src", "http://example.com", "http://example.com/foo.wav"***REMOVED***,
+	***REMOVED***"form1", "action", "http://example.com/", "http://example.com/submit_url"***REMOVED***,
+	***REMOVED***"iframe1", "src", "http://example.com", "http://example.com/testframe.html"***REMOVED***,
+	***REMOVED***"img1", "src", "http://example.com", "http://example.com/test.png"***REMOVED***,
+	***REMOVED***"input5", "src", "http://example.com", "http://example.com/input.png"***REMOVED***,
+	***REMOVED***"link1", "href", "http://example.com", "http://example.com/test.css"***REMOVED***,
+	***REMOVED***"object1", "data", "http://example.com", "http://example.com/test.png"***REMOVED***,
+	***REMOVED***"script1", "src", "http://example.com", "http://example.com/script.js"***REMOVED***,
+	***REMOVED***"src1", "src", "http://example.com", "http://example.com/test.png"***REMOVED***,
+	***REMOVED***"track1", "src", "http://example.com", "http://example.com/foo.en.vtt"***REMOVED***,
+***REMOVED***
+
 const testGenElems = `<html><body>
-	<a id="a1" download="file:///path/name" referrerpolicy="no-referrer" rel="open" href="http://test.url" target="__blank" type="text/html" accesskey="w" hreflang="es"></a> <a id="a2"></a>
+	<a id="a1" download="file:///path/name" referrerpolicy="no-referrer" rel="open" href="http://test.url" target="__blank" type="text/html" accesskey="w" hreflang="es"></a> 
+	<a id="a2"></a>
+	<a id="a3" href="relpath"></a>
+	<a id="a4" href="/abspath"></a>
+	<a id="a5" href="?a=yes-a&b=yes-b"></a>
+	<a id="a6" href="#testfrag"></a>
+	<a id="a7" href="../prtpath"></a>
 	<audio id="audio1" autoplay controls loop muted src="foo.wav" crossorigin="anonymous" mediagroup="testgroup"></audio> <audio id="audio2"></audio>
 	<base id="base1" href="foo.html" target="__any"></base>
 	<button id="btn1" accesskey="e" target="__any" autofocus disabled type="button"></button> <button id="btn2"></button>
@@ -326,7 +359,7 @@ const testGenElems = `<html><body>
 	<script id="script2" ></script>
 	<select id="select1" name="sel1_name" autofocus disabled multiple required></select>
 	<select id="select2"></select>
-	<source id="src1" keysystem="keysys" media="(min-width: 600px)" sizes="100vw,50vw" srcset="large.jpg 1024w,medium.jpg 640w" src="http://test.com/test.png" type="image/png"></source>
+	<source id="src1" keysystem="keysys" media="(min-width: 600px)" sizes="100vw,50vw" srcset="large.jpg 1024w,medium.jpg 640w" src="test.png" type="image/png"></source>
 	<style id="style1" media="print"></style>
 	<table id="table1" sortable><tr><td id="td1" colspan="2" rowspan="3" headers="th1"></th><th id="th1" abbr="hdr" scope="row" sorted>Header</th><th id="th2"></th></tr></table>
 	<table id="table2"></table>
@@ -398,6 +431,26 @@ func TestGenElements(t *testing.T) ***REMOVED***
 				t.Errorf("Error for property name '%s' on element id '#%s':\n%+v", test.property, test.id, err)
 			***REMOVED*** else if v.Export() != nil ***REMOVED***
 				t.Errorf("Expected null for property name '%s' on element id '#%s'", test.property, test.id)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Test url properties", func(t *testing.T) ***REMOVED***
+		html := HTML***REMOVED******REMOVED***
+		sel, parseError := html.ParseHTML(ctx, testGenElems)
+		if parseError != nil ***REMOVED***
+			t.Errorf("Unable to parse html")
+		***REMOVED***
+
+		for _, test := range urlTests ***REMOVED***
+			sel.Url = test.baseUrl
+			rt.Set("urldoc", sel)
+
+			v, err := common.RunString(rt, `urldoc.find("#`+test.id+`").get(0).`+test.property+`()`)
+			if err != nil ***REMOVED***
+				t.Errorf("Error for url property '%s' on element id '#%s':\n%+v", test.property, test.id, err)
+			***REMOVED*** else if v.Export() != test.data ***REMOVED***
+				t.Errorf("Expected '%s' for property name '%s' on element id '#%s', got '%s'", test.data, test.property, test.id, v.String())
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***)

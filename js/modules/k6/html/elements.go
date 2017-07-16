@@ -19,6 +19,7 @@ var defaultPorts = map[string]string***REMOVED***
 	"ftp":   "21",
 ***REMOVED***
 
+// The code generator depends on the TagName constants being defined before the Element structs
 const (
 	AnchorTagName          = "a"
 	AreaTagName            = "area"
@@ -135,9 +136,13 @@ type UListElement struct***REMOVED*** Element ***REMOVED***
 type VideoElement struct***REMOVED*** MediaElement ***REMOVED***
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
-	url, err := url.Parse(h.attrAsString("href"))
-	if err != nil ***REMOVED***
-		url, _ = url.Parse("")
+	url, exists := h.attrAsURL("href")
+	if !exists ***REMOVED***
+		url, err := url.Parse(h.sel.Url)
+
+		if err != nil ***REMOVED***
+			url, _ = url.Parse("")
+		***REMOVED***
 	***REMOVED***
 
 	return url
@@ -148,15 +153,15 @@ func (h HrefElement) Hash() string ***REMOVED***
 ***REMOVED***
 
 func (h HrefElement) Host() string ***REMOVED***
-	url := h.hrefURL()
-	hostAndPort := url.Host
+	href := h.hrefURL()
+	hostAndPort := href.Host
 
 	host, port, err := net.SplitHostPort(hostAndPort)
 	if err != nil ***REMOVED***
 		return hostAndPort
 	***REMOVED***
 
-	defaultPort := defaultPorts[url.Scheme]
+	defaultPort := defaultPorts[href.Scheme]
 	if defaultPort != "" && port == defaultPort ***REMOVED***
 		return strings.TrimSuffix(host, ":"+defaultPort)
 	***REMOVED***
@@ -275,7 +280,17 @@ func (f FormFieldElement) formOrElemAttrPresent(attrName string) bool ***REMOVED
 ***REMOVED***
 
 func (f FormFieldElement) FormAction() string ***REMOVED***
-	return f.formOrElemAttrString("action")
+	action := f.formOrElemAttrString("action")
+	if f.sel.Url == "" ***REMOVED***
+		return action
+	***REMOVED***
+
+	actionURL, ok := f.resolveURL(action)
+	if !ok ***REMOVED***
+		return action
+	***REMOVED***
+
+	return actionURL.String()
 ***REMOVED***
 
 func (f FormFieldElement) FormEnctype() string ***REMOVED***
@@ -327,7 +342,7 @@ func (f FieldSetElement) Form() goja.Value ***REMOVED***
 	if !exists ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
-	return selToElement(Selection***REMOVED***f.sel.rt, formSel***REMOVED***)
+	return selToElement(Selection***REMOVED***f.sel.rt, formSel, f.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (f FieldSetElement) Type() string ***REMOVED***
@@ -383,7 +398,7 @@ func (i InputElement) List() goja.Value ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
-	return selToElement(Selection***REMOVED***i.sel.rt, datalist.Eq(0)***REMOVED***)
+	return selToElement(Selection***REMOVED***i.sel.rt, datalist.Eq(0), i.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (k KeygenElement) Form() goja.Value ***REMOVED***
@@ -405,7 +420,7 @@ func (l LabelElement) Control() goja.Value ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
-	return selToElement(Selection***REMOVED***l.sel.rt, findControl.Eq(0)***REMOVED***)
+	return selToElement(Selection***REMOVED***l.sel.rt, findControl.Eq(0), l.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (l LabelElement) Form() goja.Value ***REMOVED***
@@ -432,7 +447,7 @@ func (m MapElement) Images() []goja.Value ***REMOVED***
 	***REMOVED***
 
 	imgs := m.sel.sel.Parents().Last().Find("img[usemap=\"#" + name + "\"],object[usemap=\"#" + name + "\"]")
-	return elemList(Selection***REMOVED***m.sel.rt, imgs***REMOVED***)
+	return elemList(Selection***REMOVED***m.sel.rt, imgs, m.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (m MeterElement) Labels() []goja.Value ***REMOVED***
@@ -460,7 +475,7 @@ func (o OptionElement) Disabled() bool ***REMOVED***
 func (o OptionElement) Form() goja.Value ***REMOVED***
 	prtForm := o.sel.sel.ParentsFiltered("form")
 	if prtForm.Length() != 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***o.sel.rt, prtForm.First()***REMOVED***)
+		return selToElement(Selection***REMOVED***o.sel.rt, prtForm.First(), o.sel.Url***REMOVED***)
 	***REMOVED***
 
 	prtSelect := o.sel.sel.ParentsFiltered("select")
@@ -474,7 +489,7 @@ func (o OptionElement) Form() goja.Value ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 
-	return selToElement(Selection***REMOVED***o.sel.rt, ownerForm.First()***REMOVED***)
+	return selToElement(Selection***REMOVED***o.sel.rt, ownerForm.First(), o.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (o OptionElement) Index() int ***REMOVED***
@@ -575,7 +590,7 @@ func (s SelectElement) Length() int ***REMOVED***
 ***REMOVED***
 
 func (s SelectElement) Options() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***s.sel.rt, s.sel.sel.Find("option")***REMOVED***)
+	return elemList(Selection***REMOVED***s.sel.rt, s.sel.sel.Find("option"), s.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (s SelectElement) SelectedIndex() int ***REMOVED***
@@ -587,7 +602,7 @@ func (s SelectElement) SelectedIndex() int ***REMOVED***
 ***REMOVED***
 
 func (s SelectElement) SelectedOptions() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***s.sel.rt, s.sel.sel.Find("option[selected]")***REMOVED***)
+	return elemList(Selection***REMOVED***s.sel.rt, s.sel.sel.Find("option[selected]"), s.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (s SelectElement) Size() int ***REMOVED***
@@ -627,7 +642,7 @@ func (t TableElement) firstChild(elemName string) goja.Value ***REMOVED***
 	if child.Size() == 0 ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
-	return selToElement(Selection***REMOVED***t.sel.rt, child***REMOVED***)
+	return selToElement(Selection***REMOVED***t.sel.rt, child, t.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TableElement) Caption() goja.Value ***REMOVED***
@@ -643,15 +658,15 @@ func (t TableElement) TFoot() goja.Value ***REMOVED***
 ***REMOVED***
 
 func (t TableElement) Rows() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr")***REMOVED***)
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr"), t.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TableElement) TBodies() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tbody")***REMOVED***)
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tbody"), t.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TableSectionElement) Rows() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr")***REMOVED***)
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("tr"), t.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TableCellElement) CellIndex() int ***REMOVED***
@@ -663,7 +678,7 @@ func (t TableCellElement) CellIndex() int ***REMOVED***
 ***REMOVED***
 
 func (t TableRowElement) Cells() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("th,td")***REMOVED***)
+	return elemList(Selection***REMOVED***t.sel.rt, t.sel.sel.Find("th,td"), t.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TableRowElement) RowIndex() int ***REMOVED***
@@ -703,7 +718,7 @@ func (t TableColElement) Span() int ***REMOVED***
 ***REMOVED***
 
 func (m MediaElement) TextTracks() []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***m.sel.rt, m.sel.sel.Find("track")***REMOVED***)
+	return elemList(Selection***REMOVED***m.sel.rt, m.sel.sel.Find("track"), m.sel.Url***REMOVED***)
 ***REMOVED***
 
 func (t TitleElement) Text() string ***REMOVED***

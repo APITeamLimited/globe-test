@@ -263,7 +263,7 @@ func (e HrefElement) Rel() string ***REMOVED***
 	return e.attrAsString("rel")
 ***REMOVED***
 func (e HrefElement) Href() string ***REMOVED***
-	return e.attrAsString("href")
+	return e.attrAsURLString("href")
 ***REMOVED***
 func (e HrefElement) Target() string ***REMOVED***
 	return e.attrAsString("target")
@@ -278,7 +278,7 @@ func (e HrefElement) HrefLang() string ***REMOVED***
 	return e.attrAsString("hreflang")
 ***REMOVED***
 func (e HrefElement) ToString() string ***REMOVED***
-	return e.attrAsString("href")
+	return e.attrAsURLString("href")
 ***REMOVED***
 func (e MediaElement) Autoplay() bool ***REMOVED***
 	return e.attrIsPresent("autoplay")
@@ -304,7 +304,7 @@ func (e MediaElement) Preload() string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func (e MediaElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e MediaElement) CrossOrigin() goja.Value ***REMOVED***
 	attrVal, exists := e.sel.sel.Attr("crossorigin")
@@ -330,7 +330,7 @@ func (e MediaElement) MediaGroup() string ***REMOVED***
 	return e.attrAsString("mediagroup")
 ***REMOVED***
 func (e BaseElement) Href() string ***REMOVED***
-	return e.attrAsString("href")
+	return e.attrAsURLString("href")
 ***REMOVED***
 func (e BaseElement) Target() string ***REMOVED***
 	return e.attrAsString("target")
@@ -388,7 +388,7 @@ func (e FormElement) Target() string ***REMOVED***
 	return e.attrAsString("target")
 ***REMOVED***
 func (e FormElement) Action() string ***REMOVED***
-	return e.attrAsString("action")
+	return e.attrAsURLString("action")
 ***REMOVED***
 func (e FormElement) Enctype() string ***REMOVED***
 	attrVal := e.attrAsString("enctype")
@@ -457,10 +457,10 @@ func (e IFrameElement) Name() string ***REMOVED***
 	return e.attrAsString("name")
 ***REMOVED***
 func (e IFrameElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e ImageElement) CurrentSrc() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e ImageElement) Sizes() string ***REMOVED***
 	return e.attrAsString("sizes")
@@ -498,7 +498,7 @@ func (e ImageElement) Name() string ***REMOVED***
 	return e.attrAsString("name")
 ***REMOVED***
 func (e ImageElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e ImageElement) UseMap() string ***REMOVED***
 	return e.attrAsString("usemap")
@@ -597,7 +597,7 @@ func (e InputElement) Alt() string ***REMOVED***
 	return e.attrAsString("alt")
 ***REMOVED***
 func (e InputElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e InputElement) Height() string ***REMOVED***
 	return e.attrAsString("height")
@@ -743,7 +743,7 @@ func (e LinkElement) ReferrerPolicy() string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func (e LinkElement) Href() string ***REMOVED***
-	return e.attrAsString("href")
+	return e.attrAsURLString("href")
 ***REMOVED***
 func (e LinkElement) Hreflang() string ***REMOVED***
 	return e.attrAsString("hreflang")
@@ -802,7 +802,7 @@ func (e ModElement) Datetime() string ***REMOVED***
 	return e.attrAsString("datetime")
 ***REMOVED***
 func (e ObjectElement) Data() string ***REMOVED***
-	return e.attrAsString("data")
+	return e.attrAsURLString("data")
 ***REMOVED***
 func (e ObjectElement) Height() string ***REMOVED***
 	return e.attrAsString("height")
@@ -889,7 +889,7 @@ func (e ScriptElement) Type() string ***REMOVED***
 	return e.attrAsString("type")
 ***REMOVED***
 func (e ScriptElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e ScriptElement) Charset() string ***REMOVED***
 	return e.attrAsString("charset")
@@ -931,7 +931,7 @@ func (e SourceElement) Sizes() string ***REMOVED***
 	return e.attrAsString("sizes")
 ***REMOVED***
 func (e SourceElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e SourceElement) Srcset() string ***REMOVED***
 	return e.attrAsString("srcset")
@@ -1062,7 +1062,7 @@ func (e TrackElement) Kind() string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func (e TrackElement) Src() string ***REMOVED***
-	return e.attrAsString("src")
+	return e.attrAsURLString("src")
 ***REMOVED***
 func (e TrackElement) Srclang() string ***REMOVED***
 	return e.attrAsString("srclang")
