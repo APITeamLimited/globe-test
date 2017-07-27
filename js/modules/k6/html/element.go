@@ -40,7 +40,7 @@ func (e Element) attrAsString(name string) string ***REMOVED***
 ***REMOVED***
 
 func (e Element) resolveURL(val string) (*url.URL, bool) ***REMOVED***
-	baseURL, err := url.Parse(e.sel.Url)
+	baseURL, err := url.Parse(e.sel.URL)
 	if err != nil ***REMOVED***
 		return nil, false
 	***REMOVED***
@@ -62,14 +62,14 @@ func (e Element) attrAsURL(name string) (*url.URL, bool) ***REMOVED***
 	return e.resolveURL(val)
 ***REMOVED***
 
-func (e Element) attrAsURLString(name string) string ***REMOVED***
-	if e.sel.Url == "" ***REMOVED***
+func (e Element) attrAsURLString(name string, defaultWhenNoAttr string) string ***REMOVED***
+	if e.sel.URL == "" ***REMOVED***
 		return e.attrAsString(name)
 	***REMOVED***
 
 	url, ok := e.attrAsURL(name)
 	if !ok ***REMOVED***
-		return e.sel.Url
+		return defaultWhenNoAttr
 	***REMOVED***
 
 	return url.String()
@@ -118,7 +118,7 @@ func (e Element) ownerFormVal() goja.Value ***REMOVED***
 	if !exists ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
-	return selToElement(Selection***REMOVED***e.sel.rt, formSel.Eq(0), e.sel.Url***REMOVED***)
+	return selToElement(Selection***REMOVED***e.sel.rt, formSel.Eq(0), e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) elemLabels() []goja.Value ***REMOVED***
@@ -126,17 +126,17 @@ func (e Element) elemLabels() []goja.Value ***REMOVED***
 
 	id := e.attrAsString("id")
 	if id == "" ***REMOVED***
-		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl, e.sel.Url***REMOVED***)
+		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl, e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	idLbl := e.sel.sel.Parents().Last().Find("label[for=\"" + id + "\"]")
 	if idLbl.Size() == 0 ***REMOVED***
-		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl, e.sel.Url***REMOVED***)
+		return elemList(Selection***REMOVED***e.sel.rt, wrapperLbl, e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	allLbls := wrapperLbl.AddSelection(idLbl)
 
-	return elemList(Selection***REMOVED***e.sel.rt, allLbls, e.sel.Url***REMOVED***)
+	return elemList(Selection***REMOVED***e.sel.rt, allLbls, e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) splitAttr(attrName string) []string ***REMOVED***
@@ -247,19 +247,19 @@ func (e Element) IsSameNode(v goja.Value) bool ***REMOVED***
 ***REMOVED***
 
 func (e Element) GetElementsByClassName(name string) []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find("." + name), e.sel.Url***REMOVED***)
+	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find("." + name), e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) GetElementsByTagName(name string) []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(name), e.sel.Url***REMOVED***)
+	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(name), e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) QuerySelector(selector string) goja.Value ***REMOVED***
-	return selToElement(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(selector), e.sel.Url***REMOVED***)
+	return selToElement(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(selector), e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) QuerySelectorAll(selector string) []goja.Value ***REMOVED***
-	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(selector), e.sel.Url***REMOVED***)
+	return elemList(Selection***REMOVED***e.sel.rt, e.sel.sel.Find(selector), e.sel.URL***REMOVED***)
 ***REMOVED***
 
 func (e Element) NodeName() string ***REMOVED***
@@ -276,7 +276,7 @@ func (e Element) LastChild() goja.Value ***REMOVED***
 
 func (e Element) FirstElementChild() goja.Value ***REMOVED***
 	if child := e.sel.sel.Children().First(); child.Length() > 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***e.sel.rt, child.First(), e.sel.Url***REMOVED***)
+		return selToElement(Selection***REMOVED***e.sel.rt, child.First(), e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
@@ -284,7 +284,7 @@ func (e Element) FirstElementChild() goja.Value ***REMOVED***
 
 func (e Element) LastElementChild() goja.Value ***REMOVED***
 	if child := e.sel.sel.Children(); child.Length() > 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***e.sel.rt, child.Last(), e.sel.Url***REMOVED***)
+		return selToElement(Selection***REMOVED***e.sel.rt, child.Last(), e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
@@ -300,7 +300,7 @@ func (e Element) NextSibling() goja.Value ***REMOVED***
 
 func (e Element) PreviousElementSibling() goja.Value ***REMOVED***
 	if prev := e.sel.sel.Prev(); prev.Length() > 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***e.sel.rt, prev, e.sel.Url***REMOVED***)
+		return selToElement(Selection***REMOVED***e.sel.rt, prev, e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
@@ -308,7 +308,7 @@ func (e Element) PreviousElementSibling() goja.Value ***REMOVED***
 
 func (e Element) NextElementSibling() goja.Value ***REMOVED***
 	if next := e.sel.sel.Next(); next.Length() > 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***e.sel.rt, next, e.sel.Url***REMOVED***)
+		return selToElement(Selection***REMOVED***e.sel.rt, next, e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
@@ -324,7 +324,7 @@ func (e Element) ParentNode() goja.Value ***REMOVED***
 
 func (e Element) ParentElement() goja.Value ***REMOVED***
 	if prt := e.sel.sel.Parent(); prt.Length() > 0 ***REMOVED***
-		return selToElement(Selection***REMOVED***e.sel.rt, prt, e.sel.Url***REMOVED***)
+		return selToElement(Selection***REMOVED***e.sel.rt, prt, e.sel.URL***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
