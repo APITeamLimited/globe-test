@@ -96,7 +96,9 @@ func TestFinished(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestAuthorizedError(t *testing.T) ***REMOVED***
+	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		called += 1
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
 	***REMOVED***))
@@ -106,6 +108,45 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 
 	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
 
+	assert.Equal(t, 1, called)
 	assert.Nil(t, resp)
 	assert.EqualError(t, err, ErrNotAuthorized.Error())
+***REMOVED***
+
+func TestRetry(t *testing.T) ***REMOVED***
+	called := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		called += 1
+		w.WriteHeader(500)
+	***REMOVED***))
+	defer server.Close()
+
+	client := NewClient("token", server.URL, "1.0")
+	client.retryInterval = 1 * time.Millisecond
+	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
+
+	assert.Equal(t, 3, called)
+	assert.Nil(t, resp)
+	assert.NotNil(t, err)
+***REMOVED***
+
+func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
+	called := 1
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		called += 1
+		if called == 2 ***REMOVED***
+			fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
+			return
+		***REMOVED***
+		w.WriteHeader(500)
+	***REMOVED***))
+	defer server.Close()
+
+	client := NewClient("token", server.URL, "1.0")
+	client.retryInterval = 1 * time.Millisecond
+	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
+
+	assert.Equal(t, 2, called)
+	assert.NotNil(t, resp)
+	assert.Nil(t, err)
 ***REMOVED***

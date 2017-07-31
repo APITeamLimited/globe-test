@@ -25,16 +25,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
+	// Default request timeout
 	RequestTimeout = 10 * time.Second
+	// Retry interval
+	RetryInterval = 500 * time.Millisecond
+	// Retry attempts
+	MaxRetries = 3
 )
 
 // Client handles communication with Load Impact cloud API.
@@ -43,6 +48,9 @@ type Client struct ***REMOVED***
 	token   string
 	baseURL string
 	version string
+
+	retries       int
+	retryInterval time.Duration
 ***REMOVED***
 
 func NewClient(token, host, version string) *Client ***REMOVED***
@@ -61,10 +69,12 @@ func NewClient(token, host, version string) *Client ***REMOVED***
 	baseURL := fmt.Sprintf("%s/v1", host)
 
 	c := &Client***REMOVED***
-		client:  client,
-		token:   token,
-		baseURL: baseURL,
-		version: version,
+		client:        client,
+		token:         token,
+		baseURL:       baseURL,
+		version:       version,
+		retries:       MaxRetries,
+		retryInterval: RetryInterval,
 	***REMOVED***
 	return c
 ***REMOVED***
@@ -85,24 +95,59 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 ***REMOVED***
 
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
+	var originalBody []byte
+	var err error
+
+	if req.Body != nil ***REMOVED***
+		originalBody, err = ioutil.ReadAll(req.Body)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		if cerr := req.Body.Close(); cerr != nil && err == nil ***REMOVED***
+			err = cerr
+		***REMOVED***
+	***REMOVED***
+
+	for i := 1; i <= c.retries; i++ ***REMOVED***
+		if len(originalBody) > 0 ***REMOVED***
+			req.Body = ioutil.NopCloser(bytes.NewBuffer(originalBody))
+		***REMOVED***
+
+		retry, err := c.do(req, v, i)
+
+		if retry ***REMOVED***
+			time.Sleep(c.retryInterval)
+			continue
+		***REMOVED***
+
+		return err
+	***REMOVED***
+
+	return err
+***REMOVED***
+
+func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, attempt int) (retry bool, err error) ***REMOVED***
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
 	req.Header.Set("User-Agent", "k6cloud/"+c.version)
 
 	resp, err := c.client.Do(req)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
 
 	defer func() ***REMOVED***
-		err := resp.Body.Close()
-		if err != nil ***REMOVED***
-			log.Errorln(err)
+		if resp != nil ***REMOVED***
+			if cerr := resp.Body.Close(); cerr != nil && err == nil ***REMOVED***
+				err = cerr
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
+	if shouldRetry(resp, err, attempt, c.retries) ***REMOVED***
+		return true, err
+	***REMOVED***
+
 	if err = checkResponse(resp); err != nil ***REMOVED***
-		return err
+		return false, err
 	***REMOVED***
 
 	if v != nil ***REMOVED***
@@ -111,10 +156,14 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 		***REMOVED***
 	***REMOVED***
 
-	return err
+	return false, err
 ***REMOVED***
 
 func checkResponse(r *http.Response) error ***REMOVED***
+	if r == nil ***REMOVED***
+		return ErrUnknown
+	***REMOVED***
+
 	if c := r.StatusCode; c >= 200 && c <= 299 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -144,4 +193,20 @@ func checkResponse(r *http.Response) error ***REMOVED***
 	***REMOVED***
 
 	return errorResponse
+***REMOVED***
+
+func shouldRetry(resp *http.Response, err error, attempt, maxAttempts int) bool ***REMOVED***
+	if attempt >= maxAttempts ***REMOVED***
+		return false
+	***REMOVED***
+
+	if resp == nil || err != nil ***REMOVED***
+		return true
+	***REMOVED***
+
+	if resp.StatusCode >= 500 || resp.StatusCode == 429 ***REMOVED***
+		return true
+	***REMOVED***
+
+	return false
 ***REMOVED***
