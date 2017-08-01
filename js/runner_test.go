@@ -512,3 +512,51 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			import http from "k6/http";
+			export default function() ***REMOVED***
+				let preRes = http.get("https://httpbin.org/cookies");
+				if (preRes.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + preRes.status); ***REMOVED***
+				if (preRes.json().cookies.k1 || preRes.json().cookies.k2) ***REMOVED***
+					throw new Error("cookies persisted: " + preRes.body);
+				***REMOVED***
+
+				let res = http.get("https://httpbin.org/cookies/set?k2=v2&k1=v1");
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+				if (res.json().cookies.k1 != "v1" || res.json().cookies.k2 != "v2") ***REMOVED***
+					throw new Error("wrong cookies: " + res.body);
+				***REMOVED***
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	r1.ApplyOptions(lib.Options***REMOVED***
+		Throw:        null.BoolFrom(true),
+		MaxRedirects: null.IntFrom(10),
+	***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU()
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			for i := 0; i < 2; i++ ***REMOVED***
+				_, err = vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
