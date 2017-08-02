@@ -560,3 +560,36 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export default function() ***REMOVED***
+				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
+			***REMOVED***`,
+		),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU()
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.NoError(t, vu.Reconfigure(1234))
+			_, err = vu.RunOnce(context.Background())
+			assert.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***

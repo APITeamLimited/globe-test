@@ -82,6 +82,7 @@ type Executor struct ***REMOVED***
 	vusLock   sync.RWMutex
 	numVUs    int64
 	numVUsMax int64
+	nextVUID  int64
 
 	iters     int64 // Completed iterations
 	partIters int64 // Partial, incomplete iterations
@@ -165,7 +166,9 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		***REMOVED***
 	***REMOVED***()
 
-	e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs)))
+	if err := e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs))); err != nil ***REMOVED***
+		return err
+	***REMOVED***
 
 	ticker := time.NewTicker(1 * time.Millisecond)
 	defer ticker.Stop()
@@ -239,7 +242,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 	***REMOVED***
 ***REMOVED***
 
-func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
+func (e *Executor) scale(ctx context.Context, num int64) error ***REMOVED***
 	e.vusLock.Lock()
 	defer e.vusLock.Unlock()
 
@@ -262,6 +265,12 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 				handle.cancel = cancel
 				handle.Unlock()
 
+				if handle.vu != nil ***REMOVED***
+					if err := handle.vu.Reconfigure(atomic.AddInt64(&e.nextVUID, 1)); err != nil ***REMOVED***
+						return err
+					***REMOVED***
+				***REMOVED***
+
 				e.wg.Add(1)
 				go func() ***REMOVED***
 					handle.run(e.Logger, flow, out)
@@ -277,6 +286,7 @@ func (e *Executor) scale(ctx context.Context, num int64) ***REMOVED***
 	***REMOVED***
 
 	atomic.StoreInt64(&e.numVUs, num)
+	return nil
 ***REMOVED***
 
 func (e *Executor) IsRunning() bool ***REMOVED***
@@ -371,7 +381,9 @@ func (e *Executor) SetVUs(num int64) error ***REMOVED***
 	***REMOVED***
 
 	if ctx := e.ctx; ctx != nil ***REMOVED***
-		e.scale(ctx, num)
+		if err := e.scale(ctx, num); err != nil ***REMOVED***
+			return err
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		atomic.StoreInt64(&e.numVUs, num)
 	***REMOVED***

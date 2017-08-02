@@ -161,7 +161,9 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			num := 0
 			for i, handle := range e.vus ***REMOVED***
 				num++
-				assert.NotNil(t, handle.vu, "vu %d lacks impl", i)
+				if assert.NotNil(t, handle.vu, "vu %d lacks impl", i) ***REMOVED***
+					assert.Equal(t, int64(0), handle.vu.(*lib.RunnerFuncVU).ID)
+				***REMOVED***
 				assert.Nil(t, handle.ctx, "vu %d has ctx", i)
 				assert.Nil(t, handle.cancel, "vu %d has cancel", i)
 			***REMOVED***
@@ -175,9 +177,11 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			for i, handle := range e.vus ***REMOVED***
 				if i < 50 ***REMOVED***
 					assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+					assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
 					num++
 				***REMOVED*** else ***REMOVED***
 					assert.Nil(t, handle.cancel, "vu %d has cancel", i)
+					assert.Equal(t, int64(0), handle.vu.(*lib.RunnerFuncVU).ID)
 				***REMOVED***
 			***REMOVED***
 			assert.Equal(t, 50, num)
@@ -189,6 +193,7 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			num := 0
 			for i, handle := range e.vus ***REMOVED***
 				assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+				assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
 				num++
 			***REMOVED***
 			assert.Equal(t, 100, num)
@@ -206,9 +211,25 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 					***REMOVED*** else ***REMOVED***
 						assert.Nil(t, handle.cancel, "vu %d has cancel", i)
 					***REMOVED***
+					assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
 				***REMOVED***
 				assert.Equal(t, 50, num)
 			***REMOVED***
+
+			t.Run("Raise", func(t *testing.T) ***REMOVED***
+				assert.NoError(t, e.SetVUs(100))
+				assert.Equal(t, int64(100), e.GetVUs())
+				if assert.Len(t, e.vus, 100) ***REMOVED***
+					for i, handle := range e.vus ***REMOVED***
+						assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
+						if i < 50 ***REMOVED***
+							assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+						***REMOVED*** else ***REMOVED***
+							assert.Equal(t, int64(50+i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
