@@ -43,14 +43,17 @@ type vuHandle struct ***REMOVED***
 	cancel context.CancelFunc
 ***REMOVED***
 
-func (h *vuHandle) run(logger *log.Logger, flow <-chan struct***REMOVED******REMOVED***, out chan<- []stats.Sample) ***REMOVED***
+func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, out chan<- []stats.Sample) ***REMOVED***
 	h.RLock()
 	ctx := h.ctx
 	h.RUnlock()
 
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-flow:
+		case _, ok := <-flow:
+			if !ok ***REMOVED***
+				return
+			***REMOVED***
 		case <-ctx.Done():
 			return
 		***REMOVED***
@@ -104,7 +107,7 @@ type Executor struct ***REMOVED***
 	out chan<- []stats.Sample
 
 	// Flow control for VUs; iterations are run only after reading from this channel.
-	flow chan struct***REMOVED******REMOVED***
+	flow chan int64
 ***REMOVED***
 
 func New(r lib.Runner) *Executor ***REMOVED***
@@ -122,7 +125,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 
 	ctx, cancel := context.WithCancel(parent)
 	vuOut := make(chan []stats.Sample)
-	vuFlow := make(chan struct***REMOVED******REMOVED***)
+	vuFlow := make(chan int64)
 
 	e.lock.Lock()
 	e.ctx = ctx
@@ -157,11 +160,15 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 					***REMOVED***
 				***REMOVED***
 			case <-wait:
+			***REMOVED***
+			select ***REMOVED***
+			case <-wait:
 				close(vuOut)
 				if out != nil && len(samples) > 0 ***REMOVED***
 					out <- samples
 				***REMOVED***
 				return
+			default:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
@@ -197,14 +204,14 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		// conditionally select on a channel either...so, we cheat: swap out the flow channel for a
 		// nil channel (writing to nil always blocks) if we don't wanna write an iteration.
 		flow := vuFlow
-		if end := atomic.LoadInt64(&e.endIters); end >= 0 ***REMOVED***
-			if partials := atomic.LoadInt64(&e.partIters); partials >= end ***REMOVED***
-				flow = nil
-			***REMOVED***
+		end := atomic.LoadInt64(&e.endIters)
+		partials := atomic.LoadInt64(&e.partIters)
+		if end >= 0 && partials >= end ***REMOVED***
+			flow = nil
 		***REMOVED***
 
 		select ***REMOVED***
-		case flow <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+		case flow <- partials:
 			// Start an iteration if there's a VU waiting. See also: the big comment block above.
 			atomic.AddInt64(&e.partIters, 1)
 		case t := <-ticker.C:
