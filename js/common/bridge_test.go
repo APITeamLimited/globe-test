@@ -316,7 +316,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"Context", bridgeTestContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.context()`)
-			assert.EqualError(t, err, "GoError: Context needs a valid VU context")
+			assert.EqualError(t, err, "GoError: context() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -328,7 +328,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAdd", bridgeTestContextAddType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.contextAdd(1, 2)`)
-			assert.EqualError(t, err, "GoError: ContextAdd needs a valid VU context")
+			assert.EqualError(t, err, "GoError: contextAdd() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -342,7 +342,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAddWithError", bridgeTestContextAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.contextAddWithError(1, 2)`)
-			assert.EqualError(t, err, "GoError: ContextAddWithError needs a valid VU context")
+			assert.EqualError(t, err, "GoError: contextAddWithError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -365,7 +365,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			case bridgeTestContextInjectType:
 				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject' at <eval>:1:31(3)")
 			case *bridgeTestContextInjectType:
-				assert.EqualError(t, err, "GoError: ContextInject needs a valid VU context")
+				assert.EqualError(t, err, "GoError: contextInject() can only be called from within default()")
 				assert.Equal(t, nil, impl.ctx)
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
@@ -424,7 +424,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContext", bridgeTestSumWithContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.sumWithContext(1, 2)`)
-			assert.EqualError(t, err, "GoError: SumWithContext needs a valid VU context")
+			assert.EqualError(t, err, "GoError: sumWithContext() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -462,7 +462,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContextAndError", bridgeTestSumWithContextAndErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.sumWithContextAndError(1, 2)`)
-			assert.EqualError(t, err, "GoError: SumWithContextAndError needs a valid VU context")
+			assert.EqualError(t, err, "GoError: sumWithContextAndError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()

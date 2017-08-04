@@ -34,6 +34,7 @@ var (
 	ctxPtrT = reflect.TypeOf((*context.Context)(nil))
 	ctxT    = reflect.TypeOf((*context.Context)(nil)).Elem()
 	errorT  = reflect.TypeOf((*error)(nil)).Elem()
+	fnCallT = reflect.TypeOf((*goja.FunctionCall)(nil)).Elem()
 
 	constructWrap = MustCompile(
 		"__constructor__",
@@ -128,59 +129,86 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 			***REMOVED***
 		***REMOVED***
 		if hasError || wantsContext || wantsContextPtr ***REMOVED***
-			// Varadic functions are called a bit differently.
-			varadic := fnT.IsVariadic()
+			isVaradic := fnT.IsVariadic()
+			realFn := fn
+			fn = reflect.ValueOf(func(call goja.FunctionCall) goja.Value ***REMOVED***
+				// Number of arguments: the higher number between the function's required arguments
+				// and the number of arguments actually given.
+				args := make([]reflect.Value, numIn)
 
-			// Collect input types, but skip the context (if any).
-			var in []reflect.Type
-			if numIn > 0 ***REMOVED***
-				inOffset := 0
-				if wantsContext || wantsContextPtr ***REMOVED***
-					inOffset = 1
+				// Inject any requested parameters, and reserve them to offset user args.
+				reservedArgs := 0
+				if wantsContext ***REMOVED***
+					if ctxPtr == nil || *ctxPtr == nil ***REMOVED***
+						Throw(rt, errors.Errorf("%s() can only be called from within default()", name))
+					***REMOVED***
+					args[0] = reflect.ValueOf(*ctxPtr)
+					reservedArgs++
+				***REMOVED*** else if wantsContextPtr ***REMOVED***
+					args[0] = reflect.ValueOf(ctxPtr)
+					reservedArgs++
 				***REMOVED***
-				in = make([]reflect.Type, numIn-inOffset)
-				for i := inOffset; i < numIn; i++ ***REMOVED***
-					in[i-inOffset] = fnT.In(i)
+
+				// Copy over arguments.
+				for i := 0; i < numIn; i++ ***REMOVED***
+					if i < reservedArgs ***REMOVED***
+						continue
+					***REMOVED***
+
+					T := fnT.In(i)
+
+					// The last arg to a varadic function is a slice of the remainder.
+					if isVaradic && i == numIn-1 ***REMOVED***
+						varArgsLen := len(call.Arguments) - (i - reservedArgs)
+						if varArgsLen <= 0 ***REMOVED***
+							args[i] = reflect.Zero(T)
+							break
+						***REMOVED***
+						varArgs := reflect.MakeSlice(T, varArgsLen, varArgsLen)
+						emT := T.Elem()
+						for j := 0; j < varArgsLen; j++ ***REMOVED***
+							arg := call.Arguments[i+j-reservedArgs]
+							v := reflect.New(emT)
+							if err := rt.ExportTo(arg, v.Interface()); err != nil ***REMOVED***
+								Throw(rt, err)
+							***REMOVED***
+							varArgs.Index(j).Set(v.Elem())
+						***REMOVED***
+						args[i] = varArgs
+						break
+					***REMOVED***
+
+					arg := call.Argument(i - reservedArgs)
+
+					// Optimization: no need to allocate a pointer and export for a zero value.
+					if goja.IsUndefined(arg) ***REMOVED***
+						args[i] = reflect.Zero(T)
+						continue
+					***REMOVED***
+
+					// Allocate a T* and export the JS value to it.
+					v := reflect.New(T)
+					if err := rt.ExportTo(arg, v.Interface()); err != nil ***REMOVED***
+						Throw(rt, err)
+					***REMOVED***
+					args[i] = v.Elem()
 				***REMOVED***
-			***REMOVED***
 
-			// Collect the output type (if any). JS functions can only return a single value, but
-			// allow returning an error, which will be thrown as a JS exception.
-			var out []reflect.Type
-			if numOut != 0 ***REMOVED***
-				out = []reflect.Type***REMOVED***fnT.Out(0)***REMOVED***
-			***REMOVED***
+				var ret []reflect.Value
+				if isVaradic ***REMOVED***
+					ret = realFn.CallSlice(args)
+				***REMOVED*** else ***REMOVED***
+					ret = realFn.Call(args)
+				***REMOVED***
 
-			wrappedFn := fn
-			fn = reflect.MakeFunc(
-				reflect.FuncOf(in, out, varadic),
-				func(args []reflect.Value) []reflect.Value ***REMOVED***
-					if wantsContext ***REMOVED***
-						if ctxPtr == nil || *ctxPtr == nil ***REMOVED***
-							Throw(rt, errors.Errorf("%s needs a valid VU context", meth.Name))
-						***REMOVED***
-						args = append([]reflect.Value***REMOVED***reflect.ValueOf(*ctxPtr)***REMOVED***, args...)
-					***REMOVED*** else if wantsContextPtr ***REMOVED***
-						args = append([]reflect.Value***REMOVED***reflect.ValueOf(ctxPtr)***REMOVED***, args...)
+				if len(ret) > 0 ***REMOVED***
+					if hasError && !ret[1].IsNil() ***REMOVED***
+						Throw(rt, ret[1].Interface().(error))
 					***REMOVED***
-
-					var res []reflect.Value
-					if varadic ***REMOVED***
-						res = wrappedFn.CallSlice(args)
-					***REMOVED*** else ***REMOVED***
-						res = wrappedFn.Call(args)
-					***REMOVED***
-
-					if hasError ***REMOVED***
-						if !res[1].IsNil() ***REMOVED***
-							Throw(rt, res[1].Interface().(error))
-						***REMOVED***
-						res = res[:1]
-					***REMOVED***
-
-					return res
-				***REMOVED***,
-			)
+					return rt.ToValue(ret[0].Interface())
+				***REMOVED***
+				return goja.Undefined()
+			***REMOVED***)
 		***REMOVED***
 
 		// X-Prefixed methods are assumed to be constructors; use a closure to wrap them in a
