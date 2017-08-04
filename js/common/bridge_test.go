@@ -58,6 +58,66 @@ type bridgeTestErrorType struct***REMOVED******REMOVED***
 
 func (bridgeTestErrorType) Error() error ***REMOVED*** return errors.New("error") ***REMOVED***
 
+type bridgeTestJSValueType struct***REMOVED******REMOVED***
+
+func (bridgeTestJSValueType) Func(arg goja.Value) goja.Value ***REMOVED*** return arg ***REMOVED***
+
+type bridgeTestJSValueErrorType struct***REMOVED******REMOVED***
+
+func (bridgeTestJSValueErrorType) Func(arg goja.Value) (goja.Value, error) ***REMOVED***
+	if goja.IsUndefined(arg) ***REMOVED***
+		return goja.Undefined(), errors.New("missing argument")
+	***REMOVED***
+	return arg, nil
+***REMOVED***
+
+type bridgeTestJSValueContextType struct***REMOVED******REMOVED***
+
+func (bridgeTestJSValueContextType) Func(ctx context.Context, arg goja.Value) goja.Value ***REMOVED***
+	return arg
+***REMOVED***
+
+type bridgeTestJSValueContextErrorType struct***REMOVED******REMOVED***
+
+func (bridgeTestJSValueContextErrorType) Func(ctx context.Context, arg goja.Value) (goja.Value, error) ***REMOVED***
+	if goja.IsUndefined(arg) ***REMOVED***
+		return goja.Undefined(), errors.New("missing argument")
+	***REMOVED***
+	return arg, nil
+***REMOVED***
+
+type bridgeTestNativeFunctionType struct***REMOVED******REMOVED***
+
+func (bridgeTestNativeFunctionType) Func(call goja.FunctionCall) goja.Value ***REMOVED***
+	return call.Argument(0)
+***REMOVED***
+
+type bridgeTestNativeFunctionErrorType struct***REMOVED******REMOVED***
+
+func (bridgeTestNativeFunctionErrorType) Func(call goja.FunctionCall) (goja.Value, error) ***REMOVED***
+	arg := call.Argument(0)
+	if goja.IsUndefined(arg) ***REMOVED***
+		return goja.Undefined(), errors.New("missing argument")
+	***REMOVED***
+	return arg, nil
+***REMOVED***
+
+type bridgeTestNativeFunctionContextType struct***REMOVED******REMOVED***
+
+func (bridgeTestNativeFunctionContextType) Func(ctx context.Context, call goja.FunctionCall) goja.Value ***REMOVED***
+	return call.Argument(0)
+***REMOVED***
+
+type bridgeTestNativeFunctionContextErrorType struct***REMOVED******REMOVED***
+
+func (bridgeTestNativeFunctionContextErrorType) Func(ctx context.Context, call goja.FunctionCall) (goja.Value, error) ***REMOVED***
+	arg := call.Argument(0)
+	if goja.IsUndefined(arg) ***REMOVED***
+		return goja.Undefined(), errors.New("missing argument")
+	***REMOVED***
+	return arg, nil
+***REMOVED***
+
 type bridgeTestAddType struct***REMOVED******REMOVED***
 
 func (bridgeTestAddType) Add(a, b int) int ***REMOVED*** return a + b ***REMOVED***
@@ -285,6 +345,106 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED***"Error", bridgeTestErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.error()`)
 			assert.EqualError(t, err, "GoError: error")
+		***REMOVED******REMOVED***,
+		***REMOVED***"JSValue", bridgeTestJSValueType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			v, err := RunString(rt, `obj.func(1234)`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1234), v.Export())
+			***REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***"JSValueError", bridgeTestJSValueErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: missing argument")
+
+			t.Run("Valid", func(t *testing.T) ***REMOVED***
+				v, err := RunString(rt, `obj.func(1234)`)
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, int64(1234), v.Export())
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"JSValueContext", bridgeTestJSValueContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+
+			t.Run("Context", func(t *testing.T) ***REMOVED***
+				*ctxPtr = context.Background()
+				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
+
+				v, err := RunString(rt, `obj.func(1234)`)
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, int64(1234), v.Export())
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"JSValueContextError", bridgeTestJSValueContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+
+			t.Run("Context", func(t *testing.T) ***REMOVED***
+				*ctxPtr = context.Background()
+				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
+
+				_, err := RunString(rt, `obj.func()`)
+				assert.EqualError(t, err, "GoError: missing argument")
+
+				t.Run("Valid", func(t *testing.T) ***REMOVED***
+					v, err := RunString(rt, `obj.func(1234)`)
+					if assert.NoError(t, err) ***REMOVED***
+						assert.Equal(t, int64(1234), v.Export())
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"NativeFunction", bridgeTestNativeFunctionType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			v, err := RunString(rt, `obj.func(1234)`)
+			if assert.NoError(t, err) ***REMOVED***
+				assert.Equal(t, int64(1234), v.Export())
+			***REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***"NativeFunctionError", bridgeTestNativeFunctionErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: missing argument")
+
+			t.Run("Valid", func(t *testing.T) ***REMOVED***
+				v, err := RunString(rt, `obj.func(1234)`)
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, int64(1234), v.Export())
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"NativeFunctionContext", bridgeTestNativeFunctionContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+
+			t.Run("Context", func(t *testing.T) ***REMOVED***
+				*ctxPtr = context.Background()
+				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
+
+				v, err := RunString(rt, `obj.func(1234)`)
+				if assert.NoError(t, err) ***REMOVED***
+					assert.Equal(t, int64(1234), v.Export())
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED******REMOVED***,
+		***REMOVED***"NativeFunctionContextError", bridgeTestNativeFunctionContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
+			_, err := RunString(rt, `obj.func()`)
+			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+
+			t.Run("Context", func(t *testing.T) ***REMOVED***
+				*ctxPtr = context.Background()
+				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
+
+				_, err := RunString(rt, `obj.func()`)
+				assert.EqualError(t, err, "GoError: missing argument")
+
+				t.Run("Valid", func(t *testing.T) ***REMOVED***
+					v, err := RunString(rt, `obj.func(1234)`)
+					if assert.NoError(t, err) ***REMOVED***
+						assert.Equal(t, int64(1234), v.Export())
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Add", bridgeTestAddType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			v, err := RunString(rt, `obj.add(1, 2)`)
