@@ -37,7 +37,7 @@ var (
 	jsValT  = reflect.TypeOf((*goja.Value)(nil)).Elem()
 	fnCallT = reflect.TypeOf((*goja.FunctionCall)(nil)).Elem()
 
-	constructWrap = MustCompile(
+	constructWrap = goja.MustCompile(
 		"__constructor__",
 		`(function(impl) ***REMOVED*** return function() ***REMOVED*** return impl.apply(this, arguments); ***REMOVED*** ***REMOVED***)`,
 		true,
