@@ -171,13 +171,13 @@ type Sample struct ***REMOVED***
 
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
-	Name       string      `json:"name"`
-	Type       MetricType  `json:"type"`
-	Contains   ValueType   `json:"contains"`
-	Tainted    null.Bool   `json:"tainted"`
-	Thresholds Thresholds  `json:"thresholds"`
-	Submetrics []Submetric `json:"submetrics"`
-	Sink       Sink        `json:"-"`
+	Name       string       `json:"name"`
+	Type       MetricType   `json:"type"`
+	Contains   ValueType    `json:"contains"`
+	Tainted    null.Bool    `json:"tainted"`
+	Thresholds Thresholds   `json:"thresholds"`
+	Submetrics []*Submetric `json:"submetrics"`
+	Sink       Sink         `json:"-"`
 ***REMOVED***
 
 func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
@@ -236,10 +236,10 @@ type Submetric struct ***REMOVED***
 ***REMOVED***
 
 // Creates a submetric from a name.
-func NewSubmetric(name string) (parentName string, sm Submetric) ***REMOVED***
+func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 	parts := strings.SplitN(strings.TrimSuffix(name, "***REMOVED***"), "***REMOVED***", 2)
 	if len(parts) == 1 ***REMOVED***
-		return parts[0], Submetric***REMOVED***Name: name***REMOVED***
+		return parts[0], &Submetric***REMOVED***Name: name***REMOVED***
 	***REMOVED***
 
 	kvs := strings.Split(parts[1], ",")
@@ -259,5 +259,5 @@ func NewSubmetric(name string) (parentName string, sm Submetric) ***REMOVED***
 		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
 		tags[key] = value
 	***REMOVED***
-	return parts[0], Submetric***REMOVED***Name: name, Tags: tags***REMOVED***
+	return parts[0], &Submetric***REMOVED***Name: name, Tags: tags***REMOVED***
 ***REMOVED***
