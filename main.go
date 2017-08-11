@@ -33,9 +33,8 @@ var isTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdo
 
 func main() ***REMOVED***
 	// This won't be needed in cli v2
-	cli.VersionFlag.Name = "version"
-	cli.HelpFlag.Name = "help"
-	cli.HelpFlag.Hidden = true
+	cli.VersionFlag = cli.BoolFlag***REMOVED***Name: "version"***REMOVED***
+	cli.HelpFlag = cli.BoolFlag***REMOVED***Name: "help", Hidden: true***REMOVED***
 
 	app := cli.NewApp()
 	app.Name = "k6"
