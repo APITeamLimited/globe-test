@@ -21,6 +21,7 @@
 package lib
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 
@@ -100,6 +101,38 @@ func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+type TLSAuthFields struct ***REMOVED***
+	Cert    string   `json:"cert"`
+	Key     string   `json:"key"`
+	Domains []string `json:"domains"`
+***REMOVED***
+
+type TLSAuth struct ***REMOVED***
+	TLSAuthFields
+	certificate *tls.Certificate
+***REMOVED***
+
+func (c *TLSAuth) UnmarshalJSON(data []byte) error ***REMOVED***
+	if err := json.Unmarshal(data, &c.TLSAuthFields); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if _, err := c.Certificate(); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (c *TLSAuth) Certificate() (*tls.Certificate, error) ***REMOVED***
+	if c.certificate == nil ***REMOVED***
+		cert, err := tls.X509KeyPair([]byte(c.Cert), []byte(c.Key))
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		c.certificate = &cert
+	***REMOVED***
+	return c.certificate, nil
+***REMOVED***
+
 type Options struct ***REMOVED***
 	Paused     null.Bool    `json:"paused"`
 	VUs        null.Int     `json:"vus"`
@@ -115,6 +148,7 @@ type Options struct ***REMOVED***
 	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify"`
 	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites"`
 	TLSVersion            *TLSVersion      `json:"tlsVersion"`
+	TLSAuth               []*TLSAuth       `json:"tlsAuth"`
 	NoConnectionReuse     null.Bool        `json:"noConnectionReuse"`
 	UserAgent             null.String      `json:"userAgent"`
 	Throw                 null.Bool        `json:"throw"`
@@ -161,6 +195,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.TLSVersion != nil ***REMOVED***
 		o.TLSVersion = opts.TLSVersion
+	***REMOVED***
+	if opts.TLSAuth != nil ***REMOVED***
+		o.TLSAuth = opts.TLSAuth
 	***REMOVED***
 	if opts.NoConnectionReuse.Valid ***REMOVED***
 		o.NoConnectionReuse = opts.NoConnectionReuse
