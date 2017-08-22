@@ -25,7 +25,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	neturl "net/url"
@@ -203,10 +202,19 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 
 	tracer := netext.Tracer***REMOVED******REMOVED***
 	res, resErr := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
-	if res != nil ***REMOVED***
-		body, _ := ioutil.ReadAll(res.Body)
+	if resErr == nil && res != nil ***REMOVED***
+		buf := state.BPool.Get()
+		buf.Reset()
+		defer state.BPool.Put(buf)
+		_, err := io.Copy(buf, res.Body)
+		if err != nil && err != io.EOF ***REMOVED***
+			println("hi")
+			resErr = err
+		***REMOVED***
 		_ = res.Body.Close()
-		resp.Body = string(body)
+		if resErr != nil ***REMOVED***
+			resp.Body = buf.String()
+		***REMOVED***
 	***REMOVED***
 	trail := tracer.Done()
 	if trail.ConnRemoteAddr != nil ***REMOVED***
