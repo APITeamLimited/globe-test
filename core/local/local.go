@@ -250,6 +250,8 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 ***REMOVED***
 
 func (e *Executor) scale(ctx context.Context, num int64) error ***REMOVED***
+	e.Logger.WithField("num", num).Debug("Local: Scaling...")
+
 	e.vusLock.Lock()
 	defer e.vusLock.Unlock()
 
@@ -330,6 +332,7 @@ func (e *Executor) SetEndIterations(i null.Int) ***REMOVED***
 	if !i.Valid ***REMOVED***
 		i.Int64 = -1
 	***REMOVED***
+	e.Logger.WithField("i", i.Int64).Debug("Local: Setting end iterations")
 	atomic.StoreInt64(&e.endIters, i.Int64)
 ***REMOVED***
 
@@ -349,6 +352,7 @@ func (e *Executor) SetEndTime(t lib.NullDuration) ***REMOVED***
 	if !t.Valid ***REMOVED***
 		t.Duration = -1
 	***REMOVED***
+	e.Logger.WithField("d", t.Duration).Debug("Local: Setting end time")
 	atomic.StoreInt64(&e.endTime, int64(t.Duration))
 ***REMOVED***
 
@@ -359,6 +363,7 @@ func (e *Executor) IsPaused() bool ***REMOVED***
 ***REMOVED***
 
 func (e *Executor) SetPaused(paused bool) ***REMOVED***
+	e.Logger.WithField("paused", paused).Debug("Local: Setting paused")
 	e.pauseLock.Lock()
 	defer e.pauseLock.Unlock()
 
@@ -375,6 +380,7 @@ func (e *Executor) GetVUs() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Executor) SetVUs(num int64) error ***REMOVED***
+	e.Logger.WithField("vus", num).Debug("Local: Setting VUs")
 	if num < 0 ***REMOVED***
 		return errors.New("vu count can't be negative")
 	***REMOVED***
@@ -403,6 +409,7 @@ func (e *Executor) GetVUsMax() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
+	e.Logger.WithField("max", max).Debug("Local: Setting max VUs")
 	if max < 0 ***REMOVED***
 		return errors.New("vu cap can't be negative")
 	***REMOVED***
