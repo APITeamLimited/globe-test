@@ -21,15 +21,43 @@
 package cmd
 
 import (
+	"bytes"
+	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 )
+
+type syncWriter struct ***REMOVED***
+	Writer io.Writer
+	Mutex  *sync.Mutex
+***REMOVED***
+
+func (w syncWriter) Write(p []byte) (n int, err error) ***REMOVED***
+	w.Mutex.Lock()
+	n, err = w.Writer.Write(p)
+	w.Mutex.Unlock()
+	return
+***REMOVED***
+
+// clearingFormatter is a logrus formatter that clears after each line.
+// This gets rid of garbage left over from a previous write of the progress bar.
+type clearingFormatter struct***REMOVED*** log.Formatter ***REMOVED***
+
+func (f clearingFormatter) Format(entry *log.Entry) ([]byte, error) ***REMOVED***
+	b, err := f.Formatter.Format(entry)
+	return append(
+		bytes.Replace(b, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1),
+		'\x1b', '[', '0', 'K',
+	), err
+***REMOVED***
 
 func must(err error) ***REMOVED***
 	if err != nil ***REMOVED***

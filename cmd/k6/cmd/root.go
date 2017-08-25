@@ -23,7 +23,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sync"
 
+	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -35,6 +37,14 @@ var Banner = `
     /  \/    \    |      |  /  ‾‾\  
    /          \   |  |‾\  \ | (_) | 
   / __________ \  |__|  \__\ \___/ .io`
+
+var (
+	outMutex  = &sync.Mutex***REMOVED******REMOVED***
+	stdout    = syncWriter***REMOVED***os.Stdout, outMutex***REMOVED***
+	stderr    = syncWriter***REMOVED***os.Stderr, outMutex***REMOVED***
+	stdoutTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+	stderrTTY = isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
+)
 
 var (
 	cfgFile string
@@ -50,8 +60,14 @@ var RootCmd = &cobra.Command***REMOVED***
 	Short: "a next-generation load generator",
 	Long:  Banner,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
+		l := log.StandardLogger()
+		l.Out = stderr
+		l.Formatter = &log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***
+		if stderrTTY ***REMOVED***
+			l.Formatter = clearingFormatter***REMOVED***l.Formatter***REMOVED***
+		***REMOVED***
 		if verbose ***REMOVED***
-			log.SetLevel(log.DebugLevel)
+			l.SetLevel(log.DebugLevel)
 		***REMOVED***
 	***REMOVED***,
 ***REMOVED***
