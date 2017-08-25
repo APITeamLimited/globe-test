@@ -130,18 +130,17 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		// Trap signals, run the engine until it exits on its own, or a signal is trapped.
+		// Run the engine with a cancellable context.
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		errC := make(chan error)
+		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
+		// Trap Interrupts, SIGINTs and SIGTERMs.
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
 
-		errC := make(chan error)
-		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
-
-		// Show progress to the user.
+		// Prepare a progress bar.
 		progress := ui.ProgressBar***REMOVED***
 			Width: 60,
 			Left: func() string ***REMOVED***
@@ -169,11 +168,37 @@ a commandline interface for interacting with it.`,
 			***REMOVED***,
 		***REMOVED***
 		ticker2 := time.NewTicker(500 * time.Millisecond)
-		ticker := time.NewTicker(50 * time.Millisecond)
+
+		// Ticker for progress bar updates. Less frequent updates for non-TTYs, none if quiet.
+		updateFreq := 50 * time.Millisecond
+		if !stdoutTTY ***REMOVED***
+			updateFreq = 1 * time.Second
+		***REMOVED***
+		ticker := time.NewTicker(updateFreq)
+		if quiet ***REMOVED***
+			ticker.Stop()
+		***REMOVED***
 	mainLoop:
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
+				if quiet || !stdoutTTY ***REMOVED***
+					l := log.WithFields(log.Fields***REMOVED***
+						"t": engine.Executor.GetTime(),
+						"i": engine.Executor.GetIterations(),
+					***REMOVED***)
+					fn := l.Info
+					if quiet ***REMOVED***
+						fn = l.Debug
+					***REMOVED***
+					if engine.Executor.IsPaused() ***REMOVED***
+						fn("Paused")
+					***REMOVED*** else ***REMOVED***
+						fn("Running")
+					***REMOVED***
+					break
+				***REMOVED***
+
 				var prog float64
 				if endIt := engine.Executor.GetEndIterations(); endIt.Valid ***REMOVED***
 					prog = float64(engine.Executor.GetIterations()) / float64(endIt.Int64)
@@ -197,10 +222,21 @@ a commandline interface for interacting with it.`,
 				cancel()
 			***REMOVED***
 		***REMOVED***
-		progress.Progress = 1
-		fmt.Fprintf(stdout, "%s\x1b[0K\n", progress.String())
+		if quiet || !stdoutTTY ***REMOVED***
+			e := log.WithFields(log.Fields***REMOVED***
+				"t": engine.Executor.GetTime(),
+				"i": engine.Executor.GetIterations(),
+			***REMOVED***)
+			fn := e.Info
+			if quiet ***REMOVED***
+				fn = e.Debug
+			***REMOVED***
+			fn("Test finished")
+		***REMOVED*** else ***REMOVED***
+			progress.Progress = 1
+			fmt.Fprintf(stdout, "%s\x1b[0K\n", progress.String())
+		***REMOVED***
 
-		log.Infof("Test ended after: %s", engine.Executor.GetTime())
 		return nil
 	***REMOVED***,
 ***REMOVED***
