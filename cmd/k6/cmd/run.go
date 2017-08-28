@@ -237,10 +237,11 @@ a commandline interface for interacting with it.`,
 		// Print the end-of-test summary.
 		if !quiet ***REMOVED***
 			fmt.Fprintf(stdout, "\n")
-			ui.Summarize(stdout, stdoutTTY, "", ui.SummaryData***REMOVED***
+			ui.Summarize(stdout, "", ui.SummaryData***REMOVED***
 				Opts:    opts,
 				Root:    engine.Executor.GetRunner().GetDefaultGroup(),
 				Metrics: engine.Metrics,
+				Time:    engine.Executor.GetTime(),
 			***REMOVED***)
 		***REMOVED***
 

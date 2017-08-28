@@ -25,9 +25,18 @@ import (
 	"sort"
 )
 
+var (
+	_ Sink = &CounterSink***REMOVED******REMOVED***
+	_ Sink = &GaugeSink***REMOVED******REMOVED***
+	_ Sink = &TrendSink***REMOVED******REMOVED***
+	_ Sink = &RateSink***REMOVED******REMOVED***
+	_ Sink = &DummySink***REMOVED******REMOVED***
+)
+
 type Sink interface ***REMOVED***
-	Add(s Sample)
-	Format() map[string]float64
+	Add(s Sample)               // Add a sample to the sink.
+	Calc()                      // Make final calculations.
+	Format() map[string]float64 // Data for thresholds. (also legacy display)
 ***REMOVED***
 
 type CounterSink struct ***REMOVED***
@@ -38,49 +47,62 @@ func (c *CounterSink) Add(s Sample) ***REMOVED***
 	c.Value += s.Value
 ***REMOVED***
 
+func (c *CounterSink) Calc() ***REMOVED******REMOVED***
+
 func (c *CounterSink) Format() map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"count": c.Value***REMOVED***
 ***REMOVED***
 
 type GaugeSink struct ***REMOVED***
-	Value float64
+	Value    float64
+	Max, Min float64
+	minSet   bool
 ***REMOVED***
 
 func (g *GaugeSink) Add(s Sample) ***REMOVED***
 	g.Value = s.Value
+	if s.Value > g.Max ***REMOVED***
+		g.Max = s.Value
+	***REMOVED***
+	if s.Value < g.Min || !g.minSet ***REMOVED***
+		g.Min = s.Value
+		g.minSet = true
+	***REMOVED***
 ***REMOVED***
+
+func (g *GaugeSink) Calc() ***REMOVED******REMOVED***
 
 func (g *GaugeSink) Format() map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"value": g.Value***REMOVED***
 ***REMOVED***
 
 type TrendSink struct ***REMOVED***
-	Values []float64
+	Values  []float64
+	jumbled bool
 
-	jumbled  bool
-	count    uint64
-	min, max float64
-	sum, avg float64
-	med      float64
+	Count    uint64
+	Min, Max float64
+	Sum, Avg float64
+	Med      float64
 ***REMOVED***
 
 func (t *TrendSink) Add(s Sample) ***REMOVED***
 	t.Values = append(t.Values, s.Value)
 	t.jumbled = true
-	t.count += 1
-	t.sum += s.Value
-	t.avg = t.sum / float64(t.count)
+	t.Count += 1
+	t.Sum += s.Value
+	t.Avg = t.Sum / float64(t.Count)
 
-	if s.Value > t.max ***REMOVED***
-		t.max = s.Value
+	if s.Value > t.Max ***REMOVED***
+		t.Max = s.Value
 	***REMOVED***
-	if s.Value < t.min || t.min == 0 ***REMOVED***
-		t.min = s.Value
+	if s.Value < t.Min || t.Count == 1 ***REMOVED***
+		t.Min = s.Value
 	***REMOVED***
 ***REMOVED***
 
 func (t *TrendSink) P(pct float64) float64 ***REMOVED***
-	switch t.count ***REMOVED***
+	switch t.Count ***REMOVED***
 	case 0:
 		return 0
 	case 1:
@@ -92,26 +114,32 @@ func (t *TrendSink) P(pct float64) float64 ***REMOVED***
 			return t.Values[1]
 		***REMOVED***
 	default:
-		return t.Values[int(float64(t.count)*pct)]
+		return t.Values[int(float64(t.Count)*pct)]
+	***REMOVED***
+***REMOVED***
+
+func (t *TrendSink) Calc() ***REMOVED***
+	if !t.jumbled ***REMOVED***
+		return
+	***REMOVED***
+
+	sort.Float64s(t.Values)
+	t.jumbled = false
+
+	// The median of an even number of values is the average of the middle two.
+	if (t.Count & 0x01) == 0 ***REMOVED***
+		t.Med = (t.Med + t.Values[(t.Count/2)-1]) / 2
+	***REMOVED*** else ***REMOVED***
+		t.Med = t.Values[t.Count/2]
 	***REMOVED***
 ***REMOVED***
 
 func (t *TrendSink) Format() map[string]float64 ***REMOVED***
-	if t.jumbled ***REMOVED***
-		sort.Float64s(t.Values)
-		t.jumbled = false
-
-		t.med = t.Values[t.count/2]
-		if (t.count & 0x01) == 0 ***REMOVED***
-			t.med = (t.med + t.Values[(t.count/2)-1]) / 2
-		***REMOVED***
-	***REMOVED***
-
 	return map[string]float64***REMOVED***
-		"min":   t.min,
-		"max":   t.max,
-		"avg":   t.avg,
-		"med":   t.med,
+		"min":   t.Min,
+		"max":   t.Max,
+		"avg":   t.Avg,
+		"med":   t.Med,
 		"p(90)": t.P(0.90),
 		"p(95)": t.P(0.95),
 	***REMOVED***
@@ -129,6 +157,8 @@ func (r *RateSink) Add(s Sample) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (r RateSink) Calc() ***REMOVED******REMOVED***
+
 func (r RateSink) Format() map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"rate": float64(r.Trues) / float64(r.Total)***REMOVED***
 ***REMOVED***
@@ -138,6 +168,8 @@ type DummySink map[string]float64
 func (d DummySink) Add(s Sample) ***REMOVED***
 	panic(errors.New("you can't add samples to a dummy sink"))
 ***REMOVED***
+
+func (d DummySink) Calc() ***REMOVED******REMOVED***
 
 func (d DummySink) Format() map[string]float64 ***REMOVED***
 	return map[string]float64(d)
