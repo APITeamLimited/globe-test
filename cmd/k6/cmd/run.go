@@ -145,11 +145,11 @@ a commandline interface for interacting with it.`,
 			Width: 60,
 			Left: func() string ***REMOVED***
 				if engine.Executor.IsPaused() ***REMOVED***
-					return " paused"
+					return "  paused"
 				***REMOVED*** else if engine.Executor.IsRunning() ***REMOVED***
-					return "running"
+					return " running"
 				***REMOVED*** else ***REMOVED***
-					return "   done"
+					return "    done"
 				***REMOVED***
 			***REMOVED***,
 			Right: func() string ***REMOVED***
