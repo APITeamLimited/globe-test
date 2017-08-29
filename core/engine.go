@@ -329,6 +329,7 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 
 			if sm.Metric == nil ***REMOVED***
 				sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
+				sm.Metric.Sub = *sm
 				sm.Metric.Thresholds = e.thresholds[sm.Name]
 				e.Metrics[sm.Name] = sm.Metric
 			***REMOVED***
