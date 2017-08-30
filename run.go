@@ -475,7 +475,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 		go func() ***REMOVED***
 			resp, err := http.Get("http://k6reports.loadimpact.com")
 			if err == nil ***REMOVED***
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			***REMOVED***
 		***REMOVED***()
 	***REMOVED***
