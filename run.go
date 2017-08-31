@@ -473,7 +473,11 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 
 	if !opts.NoUsageReport.Valid || !opts.NoUsageReport.Bool ***REMOVED***
 		go func() ***REMOVED***
-			resp, err := http.Get("http://k6reports.loadimpact.com")
+			var jsonStr = []byte(`***REMOVED***"k6_version":"` + cc.App.Version + `"***REMOVED***`)
+			req, err := http.NewRequest("POST", "http://k6reports.loadimpact.com/", bytes.NewBuffer(jsonStr))
+			req.Header.Set("Content-Type", "application/json")
+			client := &http.Client***REMOVED******REMOVED***
+			resp, err := client.Do(req)
 			if err == nil ***REMOVED***
 				_ = resp.Body.Close()
 			***REMOVED***
