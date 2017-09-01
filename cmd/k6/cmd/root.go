@@ -25,6 +25,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/fatih/color"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,12 +39,14 @@ var Banner = `
    /          \   |  |‾\  \ | (_) | 
   / __________ \  |__|  \__\ \___/ .io`
 
+var BannerColor = color.New(color.FgCyan)
+
 var (
 	outMutex  = &sync.Mutex***REMOVED******REMOVED***
-	stdout    = syncWriter***REMOVED***os.Stdout, outMutex***REMOVED***
-	stderr    = syncWriter***REMOVED***os.Stderr, outMutex***REMOVED***
 	stdoutTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 	stderrTTY = isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
+	stdout    = consoleWriter***REMOVED***os.Stdout, stdoutTTY, outMutex***REMOVED***
+	stderr    = consoleWriter***REMOVED***os.Stderr, stderrTTY, outMutex***REMOVED***
 )
 
 var (
@@ -63,9 +66,6 @@ var RootCmd = &cobra.Command***REMOVED***
 		l := log.StandardLogger()
 		l.Out = stderr
 		l.Formatter = &log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***
-		if stderrTTY ***REMOVED***
-			l.Formatter = clearingFormatter***REMOVED***l.Formatter***REMOVED***
-		***REMOVED***
 		if verbose ***REMOVED***
 			l.SetLevel(log.DebugLevel)
 		***REMOVED***

@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -84,12 +85,21 @@ a commandline interface for interacting with it.`,
   k6 run -u 0 -s 10s:100 -s 60s -s 10s:0`[1:],
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+		BannerColor.Fprint(stdout, Banner+"\n\n")
+
+		initBar := ui.ProgressBar***REMOVED***
+			Width: 60,
+			Left:  func() string ***REMOVED*** return "    init" ***REMOVED***,
+		***REMOVED***
+		fmt.Fprintf(stdout, "%s runner\r", initBar.String())
+
 		// Create the Runner.
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		src, err := readSource(args[0], pwd, afero.NewOsFs(), os.Stdin)
+		filename := args[0]
+		src, err := readSource(filename, pwd, afero.NewOsFs(), os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -97,6 +107,13 @@ a commandline interface for interacting with it.`,
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
+
+		fmt.Fprintf(stdout, "  execution: %s\n", ui.ValueColor.Sprint("local"))
+		fmt.Fprintf(stdout, "     output: %s\n", ui.ValueColor.Sprint("-"))
+		fmt.Fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
+		fmt.Fprintf(stdout, "\n")
+
+		fmt.Fprintf(stdout, "%s options\r", initBar.String())
 
 		// Assemble options; start with the CLI-provided options to get shadowed (non-Valid)
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
@@ -124,11 +141,39 @@ a commandline interface for interacting with it.`,
 		// Write options back to the runner too.
 		r.ApplyOptions(opts)
 
+		***REMOVED***
+			duration := ui.GrayColor.Sprint("-")
+			iterations := ui.GrayColor.Sprint("-")
+			if opts.Duration.Valid ***REMOVED***
+				duration = ui.ValueColor.Sprint(opts.Duration.Duration)
+			***REMOVED***
+			if opts.Iterations.Valid ***REMOVED***
+				iterations = ui.ValueColor.Sprint(opts.Iterations.Int64)
+			***REMOVED***
+			vus := ui.ValueColor.Sprint(opts.VUs.Int64)
+			max := ui.ValueColor.Sprint(opts.VUsMax.Int64)
+
+			leftWidth := ui.StrWidth(duration)
+			if l := ui.StrWidth(vus); l > leftWidth ***REMOVED***
+				leftWidth = l
+			***REMOVED***
+			durationPad := strings.Repeat(" ", leftWidth-ui.StrWidth(duration))
+			vusPad := strings.Repeat(" ", leftWidth-ui.StrWidth(vus))
+
+			fmt.Fprintf(stdout, "    duration: %s,%s iterations: %s\n", duration, durationPad, iterations)
+			fmt.Fprintf(stdout, "         vus: %s,%s max: %s\n", vus, vusPad, max)
+			fmt.Fprintf(stdout, "\n")
+		***REMOVED***
+
+		fmt.Fprintf(stdout, "%s executor\r", initBar.String())
+
 		// Create an engine with a local executor, wrapping the Runner.
 		engine, err := core.NewEngine(local.New(r), opts)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
+
+		fmt.Fprintf(stdout, "%s starting\r", initBar.String())
 
 		// Run the engine with a cancellable context.
 		ctx, cancel := context.WithCancel(context.Background())
