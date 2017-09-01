@@ -30,33 +30,25 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 )
 
-type syncWriter struct ***REMOVED***
+// A writer that syncs writes with a mutex and, if the output is a TTY, clears before newlines.
+type consoleWriter struct ***REMOVED***
 	Writer io.Writer
+	IsTTY  bool
 	Mutex  *sync.Mutex
 ***REMOVED***
 
-func (w syncWriter) Write(p []byte) (n int, err error) ***REMOVED***
+func (w consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
+	if w.IsTTY ***REMOVED***
+		p = bytes.Replace(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1)
+	***REMOVED***
 	w.Mutex.Lock()
 	n, err = w.Writer.Write(p)
 	w.Mutex.Unlock()
 	return
-***REMOVED***
-
-// clearingFormatter is a logrus formatter that clears after each line.
-// This gets rid of garbage left over from a previous write of the progress bar.
-type clearingFormatter struct***REMOVED*** log.Formatter ***REMOVED***
-
-func (f clearingFormatter) Format(entry *log.Entry) ([]byte, error) ***REMOVED***
-	b, err := f.Formatter.Format(entry)
-	return append(
-		bytes.Replace(b, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1),
-		'\x1b', '[', '0', 'K',
-	), err
 ***REMOVED***
 
 func must(err error) ***REMOVED***
