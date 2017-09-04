@@ -154,7 +154,6 @@ func SummarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 ***REMOVED***
 
 func NonTrendMetricValueForSum(t time.Duration, m *stats.Metric) (data string, extra []string) ***REMOVED***
-	m.Sink.Calc()
 	switch sink := m.Sink.(type) ***REMOVED***
 	case *stats.CounterSink:
 		value := m.HumanizeValue(sink.Value)
@@ -210,6 +209,7 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, metrics map[s
 			nameLenMax = l
 		***REMOVED***
 
+		m.Sink.Calc()
 		if sink, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
 			cols := make([]string, len(TrendColumns))
 			for i, col := range TrendColumns ***REMOVED***
