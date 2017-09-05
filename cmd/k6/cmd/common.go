@@ -34,6 +34,19 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+// Panic if the given error is not nil.
+func must(err error) ***REMOVED***
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+***REMOVED***
+
+// Silently set an exit code.
+type ExitCode struct ***REMOVED***
+	error
+	Code int
+***REMOVED***
+
 // A writer that syncs writes with a mutex and, if the output is a TTY, clears before newlines.
 type consoleWriter struct ***REMOVED***
 	Writer io.Writer
@@ -49,12 +62,6 @@ func (w consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	n, err = w.Writer.Write(p)
 	w.Mutex.Unlock()
 	return
-***REMOVED***
-
-func must(err error) ***REMOVED***
-	if err != nil ***REMOVED***
-		panic(err)
-	***REMOVED***
 ***REMOVED***
 
 func registerOptions(flags *pflag.FlagSet) ***REMOVED***

@@ -296,6 +296,9 @@ a commandline interface for interacting with it.`,
 			***REMOVED***)
 		***REMOVED***
 
+		if engine.IsTainted() ***REMOVED***
+			return ExitCode***REMOVED***errors.New("some thresholds have failed"), 99***REMOVED***
+		***REMOVED***
 		return nil
 	***REMOVED***,
 ***REMOVED***

@@ -21,7 +21,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"sync"
 
@@ -59,9 +58,11 @@ var (
 
 // RootCmd represents the base command when called without any subcommands.
 var RootCmd = &cobra.Command***REMOVED***
-	Use:   "k6",
-	Short: "a next-generation load generator",
-	Long:  Banner,
+	Use:           "k6",
+	Short:         "a next-generation load generator",
+	Long:          Banner,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
 		l := log.StandardLogger()
 		l.Out = stderr
@@ -76,7 +77,10 @@ var RootCmd = &cobra.Command***REMOVED***
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED***
 	if err := RootCmd.Execute(); err != nil ***REMOVED***
-		fmt.Println(err)
+		log.Error(err.Error())
+		if e, ok := err.(ExitCode); ok ***REMOVED***
+			os.Exit(e.Code)
+		***REMOVED***
 		os.Exit(-1)
 	***REMOVED***
 ***REMOVED***
