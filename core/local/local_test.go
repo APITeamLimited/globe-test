@@ -53,6 +53,41 @@ func TestExecutorSetLogger(t *testing.T) ***REMOVED***
 	assert.Equal(t, logger, e.GetLogger())
 ***REMOVED***
 
+func TestExecutorStages(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Duration time.Duration
+		Stages   []lib.Stage
+	***REMOVED******REMOVED***
+		"one": ***REMOVED***
+			1 * time.Second,
+			[]lib.Stage***REMOVED******REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
+		***REMOVED***,
+		"two": ***REMOVED***
+			2 * time.Second,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two/targeted": ***REMOVED***
+			2 * time.Second,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			e := New(nil)
+			assert.NoError(t, e.SetVUsMax(10))
+			e.SetStages(data.Stages)
+			assert.NoError(t, e.Run(context.Background(), nil))
+			assert.True(t, e.GetTime() >= data.Duration)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	e := New(nil)
 	assert.NoError(t, e.SetVUsMax(10))

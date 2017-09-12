@@ -56,7 +56,6 @@ type Engine struct ***REMOVED***
 
 	logger *log.Logger
 
-	Stages      []lib.Stage
 	Metrics     map[string]*stats.Metric
 	MetricsLock sync.RWMutex
 
@@ -87,18 +86,8 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 	ex.SetPaused(o.Paused.Bool)
-
-	// Use Stages if available, if not, construct a stage to fill the specified duration.
-	// Special case: A valid duration of 0 = an infinite (invalid duration) stage.
-	if o.Stages != nil ***REMOVED***
-		e.Stages = o.Stages
-	***REMOVED*** else if o.Duration.Valid && o.Duration.Duration > 0 ***REMOVED***
-		e.Stages = []lib.Stage***REMOVED******REMOVED***Duration: o.Duration***REMOVED******REMOVED***
-	***REMOVED*** else ***REMOVED***
-		e.Stages = []lib.Stage***REMOVED******REMOVED******REMOVED******REMOVED***
-	***REMOVED***
-
-	ex.SetEndTime(SumStages(e.Stages))
+	ex.SetStages(o.Stages)
+	ex.SetEndTime(o.Duration)
 	ex.SetEndIterations(o.Iterations)
 
 	e.thresholds = o.Thresholds
@@ -120,7 +109,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	defer e.runLock.Unlock()
 
 	e.logger.Debug("Engine: Starting with parameters...")
-	for i, st := range e.Stages ***REMOVED***
+	for i, st := range e.Executor.GetStages() ***REMOVED***
 		fields := make(log.Fields)
 		if st.Target.Valid ***REMOVED***
 			fields["tgt"] = st.Target.Int64
@@ -211,20 +200,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		collectorwg.Wait()
 	***REMOVED***()
 
-	ticker := time.NewTicker(TickRate)
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-ticker.C:
-			vus, keepRunning := ProcessStages(e.Stages, e.Executor.GetTime())
-			if !keepRunning ***REMOVED***
-				e.logger.Debug("run: ProcessStages() returned false; exiting...")
-				return nil
-			***REMOVED***
-			if vus.Valid ***REMOVED***
-				if err := e.Executor.SetVUs(vus.Int64); err != nil ***REMOVED***
-					return err
-				***REMOVED***
-			***REMOVED***
 		case samples := <-out:
 			e.processSamples(samples...)
 		case err := <-errC:

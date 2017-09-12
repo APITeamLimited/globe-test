@@ -98,6 +98,8 @@ type Executor struct ***REMOVED***
 	pauseLock sync.RWMutex
 	pause     chan interface***REMOVED******REMOVED***
 
+	stages []lib.Stage
+
 	// Lock for: ctx, flow, out
 	lock sync.RWMutex
 
@@ -216,8 +218,9 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 			// Start an iteration if there's a VU waiting. See also: the big comment block above.
 			atomic.AddInt64(&e.partIters, 1)
 		case t := <-ticker.C:
-			// Every tick, increment the clock and see if we passed the end point. If the test ends
-			// this way, set a cutoff point; any samples collected past the cutoff point are excluded.
+			// Every tick, increment the clock, see if we passed the end point, and process stages.
+			// If the test ends this way, set a cutoff point; any samples collected past the cutoff
+			// point are excluded.
 			d := t.Sub(lastTick)
 			lastTick = t
 
@@ -227,6 +230,21 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit time limit")
 				cutoff = time.Now()
 				return nil
+			***REMOVED***
+
+			stages := e.stages
+			if stages != nil ***REMOVED***
+				vus, keepRunning := ProcessStages(stages, at)
+				if !keepRunning ***REMOVED***
+					e.Logger.WithField("at", at).Debug("Local: Ran out of stages")
+					cutoff = time.Now()
+					return nil
+				***REMOVED***
+				if vus.Valid ***REMOVED***
+					if err := e.SetVUs(vus.Int64); err != nil ***REMOVED***
+						return err
+					***REMOVED***
+				***REMOVED***
 			***REMOVED***
 		case samples := <-vuOut:
 			// Every iteration ends with a write to vuOut. Check if we've hit the end point.
@@ -319,6 +337,14 @@ func (e *Executor) SetLogger(l *log.Logger) ***REMOVED***
 
 func (e *Executor) GetLogger() *log.Logger ***REMOVED***
 	return e.Logger
+***REMOVED***
+
+func (e *Executor) GetStages() []lib.Stage ***REMOVED***
+	return e.stages
+***REMOVED***
+
+func (e *Executor) SetStages(s []lib.Stage) ***REMOVED***
+	e.stages = s
 ***REMOVED***
 
 func (e *Executor) GetIterations() int64 ***REMOVED***
