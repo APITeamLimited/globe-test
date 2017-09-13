@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,5 +55,91 @@ func TestTransform(t *testing.T) ***REMOVED***
 		// assert.Equal(t, 3, srcmap.Version)
 		// assert.Equal(t, "test.js", srcmap.File)
 		// assert.Equal(t, "aAAA,SAASA,GAAT,CAAaC,CAAb,EAAgBC,CAAhB,EAAmB;AACf,WAAOD,IAAIC,CAAX;AACH;;AAED,IAAIC,MAAMH,IAAI,CAAJ,EAAO,CAAP,CAAV", srcmap.Mappings)
+	***REMOVED***)
+***REMOVED***
+
+func TestCompile(t *testing.T) ***REMOVED***
+	c, err := New()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	t.Run("ES5", func(t *testing.T) ***REMOVED***
+		src := `1+(function() ***REMOVED*** return 2; ***REMOVED***)()`
+		pgm, code, err := c.Compile(src, "script.js", "", "", true)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		assert.Equal(t, src, code)
+		v, err := goja.New().RunProgram(pgm)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, int64(3), v.Export())
+		***REMOVED***
+
+		t.Run("Wrap", func(t *testing.T) ***REMOVED***
+			pgm, code, err := c.Compile(src, "script.js", "(function()***REMOVED***return ", "***REMOVED***)", true)
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.Equal(t, `(function()***REMOVED***return 1+(function() ***REMOVED*** return 2; ***REMOVED***)()***REMOVED***)`, code)
+			v, err := goja.New().RunProgram(pgm)
+			if assert.NoError(t, err) ***REMOVED***
+				fn, ok := goja.AssertFunction(v)
+				if assert.True(t, ok, "not a function") ***REMOVED***
+					v, err := fn(goja.Undefined())
+					if assert.NoError(t, err) ***REMOVED***
+						assert.Equal(t, int64(3), v.Export())
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			src := `1+(function() ***REMOVED*** return 2; )()`
+			_, _, err := c.Compile(src, "script.js", "", "", true)
+			assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+			assert.EqualError(t, err, `SyntaxError: script.js: Unexpected token (1:26)
+> 1 | 1+(function() ***REMOVED*** return 2; )()
+    |                           ^ at <eval>:2:26853(114)`)
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("ES6", func(t *testing.T) ***REMOVED***
+		pgm, code, err := c.Compile(`1+(()=>2)()`, "script.js", "", "", true)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		assert.Equal(t, `"use strict";1 + function () ***REMOVED***return 2;***REMOVED***();`, code)
+		v, err := goja.New().RunProgram(pgm)
+		if assert.NoError(t, err) ***REMOVED***
+			assert.Equal(t, int64(3), v.Export())
+		***REMOVED***
+
+		t.Run("Wrap", func(t *testing.T) ***REMOVED***
+			pgm, code, err := c.Compile(`fn(1+(()=>2)())`, "script.js", "(function(fn)***REMOVED***", "***REMOVED***)", true)
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.Equal(t, `(function(fn)***REMOVED***"use strict";fn(1 + function () ***REMOVED***return 2;***REMOVED***());***REMOVED***)`, code)
+			rt := goja.New()
+			v, err := rt.RunProgram(pgm)
+			if assert.NoError(t, err) ***REMOVED***
+				fn, ok := goja.AssertFunction(v)
+				if assert.True(t, ok, "not a function") ***REMOVED***
+					var out interface***REMOVED******REMOVED***
+					_, err := fn(goja.Undefined(), rt.ToValue(func(v goja.Value) ***REMOVED***
+						out = v.Export()
+					***REMOVED***))
+					assert.NoError(t, err)
+					assert.Equal(t, int64(3), out)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			_, _, err := c.Compile(`1+(=>2)()`, "script.js", "", "", true)
+			assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
+			assert.EqualError(t, err, `SyntaxError: script.js: Unexpected token (1:3)
+> 1 | 1+(=>2)()
+    |    ^ at <eval>:2:26853(114)`)
+		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***

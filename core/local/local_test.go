@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -50,6 +51,41 @@ func TestExecutorSetLogger(t *testing.T) ***REMOVED***
 	e := New(nil)
 	e.SetLogger(logger)
 	assert.Equal(t, logger, e.GetLogger())
+***REMOVED***
+
+func TestExecutorStages(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Duration time.Duration
+		Stages   []lib.Stage
+	***REMOVED******REMOVED***
+		"one": ***REMOVED***
+			1 * time.Second,
+			[]lib.Stage***REMOVED******REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
+		***REMOVED***,
+		"two": ***REMOVED***
+			2 * time.Second,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"two/targeted": ***REMOVED***
+			2 * time.Second,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			e := New(nil)
+			assert.NoError(t, e.SetVUsMax(10))
+			e.SetStages(data.Stages)
+			assert.NoError(t, e.Run(context.Background(), nil))
+			assert.True(t, e.GetTime() >= data.Duration)
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestExecutorEndTime(t *testing.T) ***REMOVED***
@@ -88,7 +124,11 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 
 	for i := 0; i < 100; i++ ***REMOVED***
 		samples := <-samples
-		assert.Equal(t, []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, samples)
+		if assert.Len(t, samples, 2) ***REMOVED***
+			assert.Equal(t, stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, samples[0])
+			assert.Equal(t, metrics.Iterations, samples[1].Metric)
+			assert.Equal(t, float64(1), samples[1].Value)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
