@@ -5,6 +5,7 @@ import (
 
 	"github.com/GeertJohan/go.rice"
 	"github.com/dop251/goja"
+	"github.com/dop251/goja/parser"
 	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 )
@@ -49,6 +50,7 @@ func New() (*Compiler, error) ***REMOVED***
 	return c, nil
 ***REMOVED***
 
+// Transform the given code into ES5.
 func (c *Compiler) Transform(src, filename string) (code string, srcmap SourceMap, err error) ***REMOVED***
 	opts := make(map[string]interface***REMOVED******REMOVED***)
 	for k, v := range DefaultOpts ***REMOVED***
@@ -77,4 +79,26 @@ func (c *Compiler) Transform(src, filename string) (code string, srcmap SourceMa
 	***REMOVED***
 
 	return code, srcmap, nil
+***REMOVED***
+
+// Compiles the program, first trying ES5, then ES6.
+func (c *Compiler) Compile(src, filename string, pre, post string, strict bool) (*goja.Program, string, error) ***REMOVED***
+	return c.compile(src, filename, pre, post, strict, true)
+***REMOVED***
+
+func (c *Compiler) compile(src, filename string, pre, post string, strict, tryBabel bool) (*goja.Program, string, error) ***REMOVED***
+	code := pre + src + post
+	ast, err := parser.ParseFile(nil, filename, code, 0)
+	if err != nil ***REMOVED***
+		if tryBabel ***REMOVED***
+			code, _, err := c.Transform(src, filename)
+			if err != nil ***REMOVED***
+				return nil, code, err
+			***REMOVED***
+			return c.compile(code, filename, pre, post, strict, false)
+		***REMOVED***
+		return nil, src, err
+	***REMOVED***
+	pgm, err := goja.CompileAST(ast, strict)
+	return pgm, code, err
 ***REMOVED***
