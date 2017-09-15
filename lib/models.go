@@ -23,8 +23,10 @@ package lib
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
@@ -42,6 +44,27 @@ type SourceData struct ***REMOVED***
 type Stage struct ***REMOVED***
 	Duration NullDuration `json:"duration"`
 	Target   null.Int     `json:"target"`
+***REMOVED***
+
+func (s *Stage) UnmarshalText(b []byte) error ***REMOVED***
+	var stage Stage
+	parts := strings.SplitN(string(b), ":", 2)
+	if len(parts) > 0 && parts[0] != "" ***REMOVED***
+		d, err := time.ParseDuration(parts[0])
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		stage.Duration = NullDurationFrom(d)
+	***REMOVED***
+	if len(parts) > 1 && parts[1] != "" ***REMOVED***
+		t, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		stage.Target = null.IntFrom(t)
+	***REMOVED***
+	*s = stage
+	return nil
 ***REMOVED***
 
 type Group struct ***REMOVED***

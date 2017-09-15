@@ -23,10 +23,7 @@ package cmd
 import (
 	"bytes"
 	"io"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
@@ -110,28 +107,6 @@ func getNullString(flags *pflag.FlagSet, key string) null.String ***REMOVED***
 	return null.NewString(v, flags.Changed(key))
 ***REMOVED***
 
-func parseStage(s string) (lib.Stage, error) ***REMOVED***
-	var stage lib.Stage
-
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) > 0 && parts[0] != "" ***REMOVED***
-		d, err := time.ParseDuration(parts[0])
-		if err != nil ***REMOVED***
-			return stage, err
-		***REMOVED***
-		stage.Duration = lib.NullDurationFrom(d)
-	***REMOVED***
-	if len(parts) > 1 && parts[1] != "" ***REMOVED***
-		t, err := strconv.ParseInt(s, 10, 64)
-		if err != nil ***REMOVED***
-			return stage, err
-		***REMOVED***
-		stage.Target = null.IntFrom(t)
-	***REMOVED***
-
-	return stage, nil
-***REMOVED***
-
 func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	opts := lib.Options***REMOVED***
 		VUs:                   getNullInt64(flags, "vus"),
@@ -150,12 +125,15 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return opts, err
 	***REMOVED***
-	for i, s := range stageStrings ***REMOVED***
-		stage, err := parseStage(s)
-		if err != nil ***REMOVED***
-			return opts, errors.Wrapf(err, "stage %d", i)
+	if len(stageStrings) > 0 ***REMOVED***
+		opts.Stages = make([]lib.Stage, len(stageStrings))
+		for i, s := range stageStrings ***REMOVED***
+			var stage lib.Stage
+			if err := stage.UnmarshalText([]byte(s)); err != nil ***REMOVED***
+				return opts, errors.Wrapf(err, "stage %d", i)
+			***REMOVED***
+			opts.Stages[i] = stage
 		***REMOVED***
-		opts.Stages = append(opts.Stages, stage)
 	***REMOVED***
 	return opts, nil
 ***REMOVED***

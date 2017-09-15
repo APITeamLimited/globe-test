@@ -47,6 +47,15 @@ func (d Duration) String() string ***REMOVED***
 	return time.Duration(d).String()
 ***REMOVED***
 
+func (d *Duration) UnmarshalText(data []byte) error ***REMOVED***
+	v, err := time.ParseDuration(string(data))
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*d = Duration(v)
+	return nil
+***REMOVED***
+
 func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
 	if len(data) > 0 && data[0] == '"' ***REMOVED***
 		var str string
@@ -82,6 +91,18 @@ type NullDuration struct ***REMOVED***
 
 func NullDurationFrom(d time.Duration) NullDuration ***REMOVED***
 	return NullDuration***REMOVED***Duration(d), true***REMOVED***
+***REMOVED***
+
+func (d *NullDuration) UnmarshalText(data []byte) error ***REMOVED***
+	if len(data) == 0 ***REMOVED***
+		*d = NullDuration***REMOVED******REMOVED***
+		return nil
+	***REMOVED***
+	if err := d.Duration.UnmarshalText(data); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	d.Valid = true
+	return nil
 ***REMOVED***
 
 func (d *NullDuration) UnmarshalJSON(data []byte) error ***REMOVED***

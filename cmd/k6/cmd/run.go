@@ -34,6 +34,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
@@ -42,12 +43,12 @@ import (
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
-	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -117,11 +118,20 @@ a commandline interface for interacting with it.`,
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
 		// on top to give them priority.
 		fmt.Fprintf(stdout, "%s options\r", initBar.String())
+
+		fileConf, err := readDiskConfig()
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		envConf, err := readEnvConfig()
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 		cliOpts, err := getOptions(cmd.Flags())
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		opts := cliOpts.Apply(r.GetOptions()).Apply(cliOpts)
+		opts := cliOpts.Apply(fileConf.Options).Apply(r.GetOptions()).Apply(envConf.Options).Apply(cliOpts)
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
 		if !opts.VUsMax.Valid ***REMOVED***
@@ -135,6 +145,10 @@ a commandline interface for interacting with it.`,
 		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
 		if !opts.Duration.Valid && !opts.Iterations.Valid && opts.Stages == nil ***REMOVED***
 			opts.Iterations = null.IntFrom(1)
+		***REMOVED***
+		// If duration is explicitly set to 0, it means run forever.
+		if opts.Duration.Valid && opts.Duration.Duration == 0 ***REMOVED***
+			opts.Duration = lib.NullDuration***REMOVED******REMOVED***
 		***REMOVED***
 
 		// Write options back to the runner too.
@@ -294,6 +308,7 @@ a commandline interface for interacting with it.`,
 				Metrics: engine.Metrics,
 				Time:    engine.Executor.GetTime(),
 			***REMOVED***)
+			fmt.Fprintf(stdout, "\n")
 		***REMOVED***
 
 		if engine.IsTainted() ***REMOVED***
@@ -316,9 +331,25 @@ func init() ***REMOVED***
 ***REMOVED***
 
 // Reads a configuration file from disk.
-func readConfig() (lib.Options, error) ***REMOVED***
-	cdir := configdir.New("loadimpact", "k6")
+func readDiskConfig() (conf Config, err error) ***REMOVED***
+	cdir := configDirs.QueryFolderContainsFile(configFilename)
+	if cdir == nil ***REMOVED***
+		return conf, nil
+	***REMOVED***
+	data, err := cdir.ReadFile(configFilename)
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+	if err := yaml.Unmarshal(data, &conf); err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+	return conf, nil
+***REMOVED***
 
+// Reads configuration variables from the environment.
+func readEnvConfig() (conf Config, err error) ***REMOVED***
+	err = envconfig.Process("k6", &conf)
+	return conf, err
 ***REMOVED***
 
 // Reads a source file from any supported destination.
