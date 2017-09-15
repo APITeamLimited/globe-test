@@ -32,28 +32,35 @@ func TestDuration(t *testing.T) ***REMOVED***
 	t.Run("String", func(t *testing.T) ***REMOVED***
 		assert.Equal(t, "1m15s", Duration(75*time.Second).String())
 	***REMOVED***)
-	t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
-		t.Run("Number", func(t *testing.T) ***REMOVED***
-			var d Duration
-			assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
-			assert.Equal(t, Duration(75*time.Second), d)
+	t.Run("JSON", func(t *testing.T) ***REMOVED***
+		t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
+			t.Run("Number", func(t *testing.T) ***REMOVED***
+				var d Duration
+				assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
+				assert.Equal(t, Duration(75*time.Second), d)
+			***REMOVED***)
+			t.Run("Seconds", func(t *testing.T) ***REMOVED***
+				var d Duration
+				assert.NoError(t, json.Unmarshal([]byte(`"75s"`), &d))
+				assert.Equal(t, Duration(75*time.Second), d)
+			***REMOVED***)
+			t.Run("String", func(t *testing.T) ***REMOVED***
+				var d Duration
+				assert.NoError(t, json.Unmarshal([]byte(`"1m15s"`), &d))
+				assert.Equal(t, Duration(75*time.Second), d)
+			***REMOVED***)
 		***REMOVED***)
-		t.Run("Seconds", func(t *testing.T) ***REMOVED***
-			var d Duration
-			assert.NoError(t, json.Unmarshal([]byte(`"75s"`), &d))
-			assert.Equal(t, Duration(75*time.Second), d)
-		***REMOVED***)
-		t.Run("String", func(t *testing.T) ***REMOVED***
-			var d Duration
-			assert.NoError(t, json.Unmarshal([]byte(`"1m15s"`), &d))
-			assert.Equal(t, Duration(75*time.Second), d)
+		t.Run("Marshal", func(t *testing.T) ***REMOVED***
+			d := Duration(75 * time.Second)
+			data, err := json.Marshal(d)
+			assert.NoError(t, err)
+			assert.Equal(t, `"1m15s"`, string(data))
 		***REMOVED***)
 	***REMOVED***)
-	t.Run("Marshal", func(t *testing.T) ***REMOVED***
-		d := Duration(75 * time.Second)
-		data, err := json.Marshal(d)
-		assert.NoError(t, err)
-		assert.Equal(t, `"1m15s"`, string(data))
+	t.Run("Text", func(t *testing.T) ***REMOVED***
+		var d Duration
+		assert.NoError(t, d.UnmarshalText([]byte(`10s`)))
+		assert.Equal(t, Duration(10*time.Second), d)
 	***REMOVED***)
 ***REMOVED***
 
@@ -61,40 +68,53 @@ func TestNullDuration(t *testing.T) ***REMOVED***
 	t.Run("String", func(t *testing.T) ***REMOVED***
 		assert.Equal(t, "1m15s", Duration(75*time.Second).String())
 	***REMOVED***)
-	t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
-		t.Run("Number", func(t *testing.T) ***REMOVED***
-			var d NullDuration
-			assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
-			assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
+	t.Run("JSON", func(t *testing.T) ***REMOVED***
+		t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
+			t.Run("Number", func(t *testing.T) ***REMOVED***
+				var d NullDuration
+				assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
+				assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
+			***REMOVED***)
+			t.Run("Seconds", func(t *testing.T) ***REMOVED***
+				var d NullDuration
+				assert.NoError(t, json.Unmarshal([]byte(`"75s"`), &d))
+				assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
+			***REMOVED***)
+			t.Run("String", func(t *testing.T) ***REMOVED***
+				var d NullDuration
+				assert.NoError(t, json.Unmarshal([]byte(`"1m15s"`), &d))
+				assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
+			***REMOVED***)
+			t.Run("Null", func(t *testing.T) ***REMOVED***
+				var d NullDuration
+				assert.NoError(t, json.Unmarshal([]byte(`null`), &d))
+				assert.Equal(t, NullDuration***REMOVED***Duration(0), false***REMOVED***, d)
+			***REMOVED***)
 		***REMOVED***)
-		t.Run("Seconds", func(t *testing.T) ***REMOVED***
-			var d NullDuration
-			assert.NoError(t, json.Unmarshal([]byte(`"75s"`), &d))
-			assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
-		***REMOVED***)
-		t.Run("String", func(t *testing.T) ***REMOVED***
-			var d NullDuration
-			assert.NoError(t, json.Unmarshal([]byte(`"1m15s"`), &d))
-			assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
-		***REMOVED***)
-		t.Run("Null", func(t *testing.T) ***REMOVED***
-			var d NullDuration
-			assert.NoError(t, json.Unmarshal([]byte(`null`), &d))
-			assert.Equal(t, NullDuration***REMOVED***Duration(0), false***REMOVED***, d)
+		t.Run("Marshal", func(t *testing.T) ***REMOVED***
+			t.Run("Valid", func(t *testing.T) ***REMOVED***
+				d := NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***
+				data, err := json.Marshal(d)
+				assert.NoError(t, err)
+				assert.Equal(t, `"1m15s"`, string(data))
+			***REMOVED***)
+			t.Run("null", func(t *testing.T) ***REMOVED***
+				var d NullDuration
+				data, err := json.Marshal(d)
+				assert.NoError(t, err)
+				assert.Equal(t, `null`, string(data))
+			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***)
-	t.Run("Marshal", func(t *testing.T) ***REMOVED***
-		t.Run("Valid", func(t *testing.T) ***REMOVED***
-			d := NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***
-			data, err := json.Marshal(d)
-			assert.NoError(t, err)
-			assert.Equal(t, `"1m15s"`, string(data))
-		***REMOVED***)
-		t.Run("null", func(t *testing.T) ***REMOVED***
+	t.Run("Text", func(t *testing.T) ***REMOVED***
+		var d NullDuration
+		assert.NoError(t, d.UnmarshalText([]byte(`10s`)))
+		assert.Equal(t, NullDurationFrom(10*time.Second), d)
+
+		t.Run("Empty", func(t *testing.T) ***REMOVED***
 			var d NullDuration
-			data, err := json.Marshal(d)
-			assert.NoError(t, err)
-			assert.Equal(t, `null`, string(data))
+			assert.NoError(t, d.UnmarshalText([]byte(``)))
+			assert.Equal(t, NullDuration***REMOVED******REMOVED***, d)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
