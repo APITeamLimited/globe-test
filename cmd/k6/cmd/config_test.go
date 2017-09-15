@@ -41,6 +41,10 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 			"true":  func(c Config) ***REMOVED*** assert.Equal(t, null.BoolFrom(true), c.NoUsageReport) ***REMOVED***,
 			"false": func(c Config) ***REMOVED*** assert.Equal(t, null.BoolFrom(false), c.NoUsageReport) ***REMOVED***,
 		***REMOVED***,
+		***REMOVED***"Out", "K6_OUT"***REMOVED***: ***REMOVED***
+			"":         func(c Config) ***REMOVED*** assert.Equal(t, null.String***REMOVED******REMOVED***, c.Out) ***REMOVED***,
+			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, null.StringFrom("influxdb"), c.Out) ***REMOVED***,
+		***REMOVED***,
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
 		os.Clearenv()
@@ -65,5 +69,9 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
 		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
 		assert.Equal(t, null.BoolFrom(true), conf.NoUsageReport)
+	***REMOVED***)
+	t.Run("Out", func(t *testing.T) ***REMOVED***
+		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: null.StringFrom("influxdb")***REMOVED***)
+		assert.Equal(t, null.StringFrom("influxdb"), conf.Out)
 	***REMOVED***)
 ***REMOVED***
