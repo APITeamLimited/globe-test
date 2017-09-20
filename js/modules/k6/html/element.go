@@ -25,9 +25,9 @@ type Element struct ***REMOVED***
 ***REMOVED***
 
 type Attribute struct ***REMOVED***
+	OwnerElement *Element
 	Name         string
 	nsPrefix     string
-	OwnerElement *Element
 	Value        string
 ***REMOVED***
 
@@ -179,7 +179,7 @@ func (e Element) GetAttribute(name string) goja.Value ***REMOVED***
 
 func (e Element) GetAttributeNode(name string) goja.Value ***REMOVED***
 	if attr := getHtmlAttr(e.node, name); attr != nil ***REMOVED***
-		return e.sel.rt.ToValue(Attribute***REMOVED***attr.Key, attr.Namespace, &e, attr.Val***REMOVED***)
+		return e.sel.rt.ToValue(Attribute***REMOVED***&e, attr.Key, attr.Namespace, attr.Val***REMOVED***)
 	***REMOVED***
 
 	return goja.Undefined()
@@ -198,7 +198,7 @@ func (e Element) Attributes() map[string]Attribute ***REMOVED***
 	attrs := make(map[string]Attribute)
 	for i := 0; i < len(e.node.Attr); i++ ***REMOVED***
 		attr := e.node.Attr[i]
-		attrs[attr.Key] = Attribute***REMOVED***attr.Key, attr.Namespace, &e, attr.Val***REMOVED***
+		attrs[attr.Key] = Attribute***REMOVED***&e, attr.Key, attr.Namespace, attr.Val***REMOVED***
 	***REMOVED***
 	return attrs
 ***REMOVED***

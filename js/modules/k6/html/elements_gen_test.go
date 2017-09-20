@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// type struct
-
 var textTests = []struct ***REMOVED***
 	id       string
 	property string
@@ -50,10 +48,8 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"form1", "acceptCharset", "ISO-8859-1"***REMOVED***,
 	***REMOVED***"form1", "target", "__self"***REMOVED***,
 	***REMOVED***"form1", "autocomplete", "off"***REMOVED***,
-
 	***REMOVED***"form2", "enctype", "application/x-www-form-urlencoded"***REMOVED***,
 	***REMOVED***"form2", "autocomplete", "on"***REMOVED***,
-
 	***REMOVED***"iframe1", "referrerPolicy", "no-referrer"***REMOVED***,
 	***REMOVED***"iframe2", "referrerPolicy", ""***REMOVED***,
 	***REMOVED***"iframe3", "referrerPolicy", ""***REMOVED***,
@@ -61,7 +57,6 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"iframe1", "height", "480"***REMOVED***,
 	***REMOVED***"iframe1", "name", "frame_name"***REMOVED***,
 	***REMOVED***"iframe1", "src", "testframe.html"***REMOVED***,
-
 	***REMOVED***"img1", "src", "test.png"***REMOVED***,
 	***REMOVED***"img1", "currentSrc", "test.png"***REMOVED***,
 	***REMOVED***"img1", "sizes", "100vw,50vw"***REMOVED***,
@@ -71,26 +66,20 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"img1", "name", "img_name"***REMOVED***,
 	***REMOVED***"img1", "useMap", "#map_name"***REMOVED***,
 	***REMOVED***"img1", "referrerPolicy", "origin"***REMOVED***,
-
 	***REMOVED***"img2", "crossOrigin", "use-credentials"***REMOVED***,
 	***REMOVED***"img2", "referrerPolicy", ""***REMOVED***,
 	***REMOVED***"img3", "referrerPolicy", ""***REMOVED***,
-
 	***REMOVED***"input1", "name", "input1_name"***REMOVED***,
 	***REMOVED***"input1", "type", "button"***REMOVED***,
 	***REMOVED***"input1", "value", "input1-val"***REMOVED***,
 	***REMOVED***"input1", "defaultValue", "input1-val"***REMOVED***,
-
 	***REMOVED***"input2", "type", "text"***REMOVED***,
 	***REMOVED***"input2", "value", ""***REMOVED***,
-
 	***REMOVED***"input5", "alt", "input_img"***REMOVED***,
 	***REMOVED***"input5", "src", "input.png"***REMOVED***,
 	***REMOVED***"input5", "width", "80"***REMOVED***,
 	***REMOVED***"input5", "height", "40"***REMOVED***,
-
 	***REMOVED***"input6", "accept", ".jpg,.png"***REMOVED***,
-
 	***REMOVED***"input7", "autocomplete", "off"***REMOVED***,
 	***REMOVED***"input7", "pattern", "..."***REMOVED***,
 	***REMOVED***"input7", "placeholder", "help text"***REMOVED***,
@@ -99,21 +88,16 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"input7", "dirName", "input7.dir"***REMOVED***,
 	***REMOVED***"input7", "accessKey", "s"***REMOVED***,
 	***REMOVED***"input7", "step", "0.1"***REMOVED***,
-
 	***REMOVED***"kg1", "challenge", "cx1"***REMOVED***,
 	***REMOVED***"kg1", "keytype", "DSA"***REMOVED***,
 	***REMOVED***"kg1", "name", "kg1_name"***REMOVED***,
 	***REMOVED***"kg2", "challenge", ""***REMOVED***,
 	***REMOVED***"kg2", "keytype", "RSA"***REMOVED***,
 	***REMOVED***"kg2", "type", "keygen"***REMOVED***,
-
 	***REMOVED***"label1", "htmlFor", "input1_name"***REMOVED***,
-
 	***REMOVED***"legend1", "accessKey", "l"***REMOVED***,
-
 	***REMOVED***"li1", "type", "disc"***REMOVED***,
 	***REMOVED***"li2", "type", ""***REMOVED***,
-
 	***REMOVED***"link1", "crossOrigin", "use-credentials"***REMOVED***,
 	***REMOVED***"link1", "referrerPolicy", "no-referrer"***REMOVED***,
 	***REMOVED***"link1", "href", "test.css"***REMOVED***,
@@ -122,72 +106,52 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"link1", "rel", "alternate author"***REMOVED***,
 	***REMOVED***"link1", "target", "__self"***REMOVED***,
 	***REMOVED***"link1", "type", "stylesheet"***REMOVED***,
-
 	***REMOVED***"link2", "referrerPolicy", ""***REMOVED***,
-
 	***REMOVED***"map1", "name", "map1_name"***REMOVED***,
-
 	***REMOVED***"meta1", "name", "author"***REMOVED***,
 	***REMOVED***"meta1", "content", "author name"***REMOVED***,
-
 	***REMOVED***"meta2", "httpEquiv", "refresh"***REMOVED***,
 	***REMOVED***"meta2", "content", "1;www.test.com"***REMOVED***,
-
 	***REMOVED***"meta2", "content", "1;www.test.com"***REMOVED***,
-
 	***REMOVED***"ins1", "cite", "cite.html"***REMOVED***,
 	***REMOVED***"ins1", "datetime", "2017-01-01"***REMOVED***,
-
 	***REMOVED***"object1", "data", "test.png"***REMOVED***,
 	***REMOVED***"object1", "type", "image/png"***REMOVED***,
 	***REMOVED***"object1", "name", "obj1_name"***REMOVED***,
 	***REMOVED***"object1", "width", "150"***REMOVED***,
 	***REMOVED***"object1", "height", "75"***REMOVED***,
 	***REMOVED***"object1", "useMap", "#map1_name"***REMOVED***,
-
 	***REMOVED***"ol1", "type", "a"***REMOVED***,
-
 	***REMOVED***"optgroup1", "label", "optlabel"***REMOVED***,
-
 	***REMOVED***"out1", "htmlFor", "input1"***REMOVED***,
 	***REMOVED***"out1", "name", "out1_name"***REMOVED***,
 	***REMOVED***"out1", "type", "output"***REMOVED***,
-
 	***REMOVED***"par1", "name", "param1_name"***REMOVED***,
 	***REMOVED***"par1", "value", "param1_val"***REMOVED***,
-
 	***REMOVED***"pre1", "name", "pre1_name"***REMOVED***,
 	***REMOVED***"pre1", "value", "pre1_val"***REMOVED***,
-
 	***REMOVED***"quote1", "cite", "http://cite.com/url"***REMOVED***,
-
 	***REMOVED***"script1", "crossOrigin", "use-credentials"***REMOVED***,
 	***REMOVED***"script1", "type", "text/javascript"***REMOVED***,
 	***REMOVED***"script1", "src", "script.js"***REMOVED***,
 	***REMOVED***"script1", "charset", "ISO-8859-1"***REMOVED***,
-
 	***REMOVED***"select1", "name", "sel1_name"***REMOVED***,
-
 	***REMOVED***"src1", "keySystem", "keysys"***REMOVED***,
 	***REMOVED***"src1", "media", "(min-width: 600px)"***REMOVED***,
 	***REMOVED***"src1", "sizes", "100vw,50vw"***REMOVED***,
 	***REMOVED***"src1", "srcset", "large.jpg 1024w,medium.jpg 640w"***REMOVED***,
 	***REMOVED***"src1", "src", "test.png"***REMOVED***,
 	***REMOVED***"src1", "type", "image/png"***REMOVED***,
-
 	***REMOVED***"td1", "headers", "th1"***REMOVED***,
 	***REMOVED***"th1", "abbr", "hdr"***REMOVED***,
 	***REMOVED***"th1", "scope", "row"***REMOVED***,
-
 	***REMOVED***"txtarea1", "accessKey", "k"***REMOVED***,
 	***REMOVED***"txtarea1", "autocomplete", "off"***REMOVED***,
 	***REMOVED***"txtarea1", "autocapitalize", "words"***REMOVED***,
 	***REMOVED***"txtarea1", "wrap", "hard"***REMOVED***,
-
 	***REMOVED***"txtarea2", "autocomplete", "on"***REMOVED***,
 	***REMOVED***"txtarea2", "autocapitalize", "sentences"***REMOVED***,
 	***REMOVED***"txtarea2", "wrap", "soft"***REMOVED***,
-
 	***REMOVED***"track1", "kind", "metadata"***REMOVED***,
 	***REMOVED***"track1", "src", "foo.en.vtt"***REMOVED***,
 	***REMOVED***"track1", "label", "English"***REMOVED***,
@@ -196,7 +160,6 @@ var textTests = []struct ***REMOVED***
 	***REMOVED***"track2", "src", "foo.sv.vtt"***REMOVED***,
 	***REMOVED***"track2", "srclang", "sv"***REMOVED***,
 	***REMOVED***"track2", "label", "Svenska"***REMOVED***,
-
 	***REMOVED***"time1", "datetime", "2017-01-01"***REMOVED***,
 	***REMOVED***"ul1", "type", "circle"***REMOVED***,
 ***REMOVED***
@@ -432,7 +395,7 @@ func TestGenElements(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
 
-	t.Run("Generated text properties", func(t *testing.T) ***REMOVED***
+	t.Run("Test text properties", func(t *testing.T) ***REMOVED***
 		for _, test := range textTests ***REMOVED***
 			v, err := common.RunString(rt, `doc.find("#`+test.id+`").get(0).`+test.property+`()`)
 			if err != nil ***REMOVED***
@@ -443,7 +406,7 @@ func TestGenElements(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 
-	t.Run("Generated bool properties", func(t *testing.T) ***REMOVED***
+	t.Run("Test bool properties", func(t *testing.T) ***REMOVED***
 		for _, test := range boolTests ***REMOVED***
 			vT, errT := common.RunString(rt, `doc.find("#`+test.idTrue+`").get(0).`+test.property+`()`)
 			if errT != nil ***REMOVED***

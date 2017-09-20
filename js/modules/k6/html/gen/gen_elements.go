@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"log"
@@ -12,7 +14,6 @@ import (
 
 // The ast parser populates this struct using the <ElemName>TagName const and <ElemName>Element struct
 type ElemInfo struct ***REMOVED***
-	ConstName     string
 	StructName    string
 	PrtStructName string
 ***REMOVED***
@@ -26,204 +27,203 @@ type ElemInfoCollectorState struct ***REMOVED***
 	elemInfos map[string]*ElemInfo
 ***REMOVED***
 
-// Built from an entry in funcDefs by buildFuncDef(funcDef)
-type FuncDef struct ***REMOVED***
-	ElemName   string
-	ElemMethod string
-	AttrMethod string
-	AttrName   string
-	ReturnType string
-	ReturnBody string
-	ReturnOpts []string
-***REMOVED***
-
-var funcDefs = []string***REMOVED***
-	"Href Download string",
-	"Href ReferrerPolicy enum=,no-referrer,no-referrer-when-downgrade,origin,origin-when-cross-origin,unsafe-url",
-	"Href Rel string",
-	"Href Href url-or-blank",
-	"Href Target string",
-	"Href Type string",
-	"Href AccessKey string",
-	"Href HrefLang string",
-	"Href ToString=href url-or-blank",
-	"Media Autoplay bool",
-	"Media Controls bool",
-	"Media Loop bool",
-	"Media Muted bool",
-	"Media Preload enum=auto,metadata,none",
-	"Media Src url-or-blank",
-	"Media CrossOrigin enum-nullable=anonymous,use-credentials",
-	"Media CurrentSrc=src string",
-	"Media DefaultMuted=muted bool",
-	"Media MediaGroup string",
-	"Base Href url-or-currpage",
-	"Base Target string",
-	"Button AccessKey string",
-	"Button Autofocus bool",
-	"Button Disabled bool",
-	"Button TabIndex int",
-	"Button Type enum=submit,button,menu,reset",
-	"Data Value string",
-	"Embed Height string",
-	"Embed Width string",
-	"Embed Src string",
-	"Embed Type string",
-	"FieldSet Disabled bool",
-	"FieldSet Name string",
-	"Form Action url-or-blank",
-	"Form Name string",
-	"Form Target string",
-	"Form Enctype enum=application/x-www-form-urlencoded,multipart/form-data,text/plain",
-	"Form Encoding=enctype enum=application/x-www-form-urlencoded,multipart/form-data,text/plain",
-	"Form AcceptCharset=accept-charset string",
-	"Form Autocomplete enum=on,off",
-	"Form NoValidate bool",
-	"IFrame Allowfullscreen bool",
-	"IFrame ReferrerPolicy enum=,no-referrer,no-referrer-when-downgrade,origin,origin-when-cross-origin,unsafe-url",
-	"IFrame Height string",
-	"IFrame Width string",
-	"IFrame Name string",
-	"IFrame Src url-or-blank",
-	"Image CurrentSrc=src url-or-blank",
-	"Image Sizes string",
-	"Image Srcset string",
-	"Image Alt string",
-	"Image CrossOrigin enum-nullable=anonymous,use-credentials",
-	"Image Height int",
-	"Image Width int",
-	"Image IsMap bool",
-	"Image Name string",
-	"Image Src url-or-blank",
-	"Image UseMap string",
-	"Image ReferrerPolicy enum=,no-referrer,no-referrer-when-downgrade,origin,origin-when-cross-origin,unsafe-url",
-	"Input Name string",
-	"Input TabIndex int",
-	"Input Type enum=text,button,checkbox,color,date,datetime-local,email,file,hidden,image,month,number,password,radio,range,reset,search,submit,tel,time,url,week",
-	"Input Disabled bool",
-	"Input Autofocus bool",
-	"Input Required bool",
-	"Input Value string",
-	"Input Checked bool",
-	"Input DefaultChecked=checked bool",
-	"Input Alt string",
-	"Input Src url-or-blank",
-	"Input Height string",
-	"Input Width string",
-	"Input Accept string",
-	"Input Autocomplete enum=on,off",
-	"Input MaxLength int=-1",
-	"Input Size int",
-	"Input Pattern string",
-	"Input Placeholder string",
-	"Input Readonly bool",
-	"Input Min string",
-	"Input Max string",
-	"Input DefaultValue=value string",
-	"Input DirName string",
-	"Input AccessKey string",
-	"Input Multiple bool",
-	"Input Step string",
-	"Keygen Autofocus bool",
-	"Keygen Challenge string",
-	"Keygen Disabled bool",
-	"Keygen Keytype enum=RSA,DSA,EC",
-	"Keygen Name string",
-	"Keygen Type const=keygen",
-	"Label HtmlFor=for string",
-	"Legend AccessKey string",
-	"Li Value int=0",
-	"Li Type enum=,1,a,A,i,I,disc,square,circle",
-	"Link CrossOrigin enum-nullable=anonymous,use-credentials",
-	"Link ReferrerPolicy enum=,no-referrer,no-referrer-when-downgrade,origin,origin-when-cross-origin,unsafe-url",
-	"Link Href url-or-blank",
-	"Link Hreflang string",
-	"Link Media string",
-	"Link Rel string",
-	"Link Target string",
-	"Link Type string",
-	"Map Name string",
-	"Meta Content string",
-	"Meta Name string",
-	"Meta HttpEquiv=http-equiv enum=content-type,default-style,refresh",
-	"Meter Min int",
-	"Meter Max int",
-	"Meter High int",
-	"Meter Low int",
-	"Meter Optimum int",
-	"Mod Cite string",
-	"Mod Datetime string",
-	"Object Data url-or-blank",
-	"Object Height string",
-	"Object Name string",
-	"Object Type string",
-	"Object TabIndex int=0",
-	"Object TypeMustMatch bool",
-	"Object UseMap string",
-	"Object Width string",
-	"OList Reversed bool",
-	"OList Start int",
-	"OList Type enum=1,a,A,i,I",
-	"OptGroup Disabled bool",
-	"OptGroup Label string",
-	"Option DefaultSelected=selected bool",
-	"Option Selected bool",
-	"Output HtmlFor=for string",
-	"Output Name string",
-	"Output Type const=output",
-	"Param Name string",
-	"Param Value string",
-	"Pre Name string",
-	"Pre Value string",
-	"Quote Cite string",
-	"Script CrossOrigin string",
-	"Script Type string",
-	"Script Src url-or-blank",
-	"Script Charset string",
-	"Script Async bool",
-	"Script Defer bool",
-	"Script NoModule bool",
-	"Select Autofocus bool",
-	"Select Disabled bool",
-	"Select Multiple bool",
-	"Select Name string",
-	"Select Required bool",
-	"Select TabIndex int",
-	"Source KeySystem string",
-	"Source Media string",
-	"Source Sizes string",
-	"Source Src url-or-blank",
-	"Source Srcset string",
-	"Source Type string",
-	"Style Media string",
-	"Table Sortable bool",
-	"TableCell ColSpan int=1",
-	"TableCell RowSpan int=1",
-	"TableCell Headers string",
-	"TableHeaderCell Abbr string",
-	"TableHeaderCell Scope enum=,row,col,colgroup,rowgroup",
-	"TableHeaderCell Sorted bool",
-	"TextArea Type const=textarea",
-	"TextArea Value string",
-	"TextArea DefaultValue=value string",
-	"TextArea Placeholder string",
-	"TextArea Rows int",
-	"TextArea Cols int",
-	"TextArea MaxLength int",
-	"TextArea TabIndex int",
-	"TextArea AccessKey string",
-	"TextArea ReadOnly bool",
-	"TextArea Required bool",
-	"TextArea Autocomplete enum=on,off",
-	"TextArea Autocapitalize enum=sentences,none,off,characters,words",
-	"TextArea Wrap enum=soft,hard,off",
-	"Time Datetime string",
-	"Track Kind enum=subtitle,captions,descriptions,chapters,metadata",
-	"Track Src url-or-blank",
-	"Track Srclang string",
-	"Track Label string",
-	"Track Default bool",
-	"UList Type string",
+// "Elem" is the struct name for an Element. "Method" is the go method name. "Attr" is the name of the DOM attribute the method will access.
+// "TemplateType" is used the "elemFuncsTemplate" and the returnType function - either string
+// The Opts property:
+//     for "string" and "bool" template types it is nil.
+//     for "const", "int" and "url" templates it is the default return value when the attribute is unset. The "url" default should be an empty string or e.sel.URL
+//     for "enum" template it is the list of valid options used in a switch statement - the default case is the first in the Opts list
+//     for "enum-goja" template - same as the "enum" template except the function returns a goja.Value and the default value is always null
+var funcDefs = []struct ***REMOVED***
+	Elem, Method, Attr, TemplateType string
+	Opts                             []string
+***REMOVED******REMOVED***
+	***REMOVED***"HrefElement", "Download", "download", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"HrefElement", "Rel", "rel", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "Href", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"HrefElement", "Target", "target", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "HrefLang", "hreflang", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "ToString", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "Autoplay", "autoplay", "bool", nil***REMOVED***,
+	***REMOVED***"MediaElement", "Controls", "controls", "bool", nil***REMOVED***,
+	***REMOVED***"MediaElement", "Loop", "loop", "bool", nil***REMOVED***,
+	***REMOVED***"MediaElement", "Muted", "muted", "bool", nil***REMOVED***,
+	***REMOVED***"MediaElement", "Preload", "preload", "enum", []string***REMOVED***"auto", "metadata", "none"***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "CurrentSrc", "src", "string", nil***REMOVED***,
+	***REMOVED***"MediaElement", "DefaultMuted", "muted", "bool", nil***REMOVED***,
+	***REMOVED***"MediaElement", "MediaGroup", "mediagroup", "string", nil***REMOVED***,
+	***REMOVED***"BaseElement", "Href", "href", "url", []string***REMOVED***"e.sel.URL"***REMOVED******REMOVED***,
+	***REMOVED***"BaseElement", "Target", "target", "string", nil***REMOVED***,
+	***REMOVED***"ButtonElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
+	***REMOVED***"ButtonElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
+	***REMOVED***"ButtonElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"ButtonElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ButtonElement", "Type", "type", "enum", []string***REMOVED***"submit", "button", "menu", "reset"***REMOVED******REMOVED***,
+	***REMOVED***"DataElement", "Value", "value", "string", nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Height", "height", "string", nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Width", "width", "string", nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Src", "src", "string", nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"FieldSetElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"FieldSetElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"FormElement", "Action", "action", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"FormElement", "Target", "target", "string", nil***REMOVED***,
+	***REMOVED***"FormElement", "Enctype", "enctype", "enum", []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "Encoding", "enctype", "enum", []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "AcceptCharset", "accept-charset", "string", nil***REMOVED***,
+	***REMOVED***"FormElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "NoValidate", "novalidate", "bool", nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Allowfullscreen", "allowfullscreen", "bool", nil***REMOVED***,
+	***REMOVED***"IFrameElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"IFrameElement", "Height", "height", "string", nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Width", "width", "string", nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "CurrentSrc", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Sizes", "sizes", "string", nil***REMOVED***,
+	***REMOVED***"ImageElement", "Srcset", "srcset", "string", nil***REMOVED***,
+	***REMOVED***"ImageElement", "Alt", "alt", "string", nil***REMOVED***,
+	***REMOVED***"ImageElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Height", "height", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Width", "width", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "IsMap", "ismap", "bool", nil***REMOVED***,
+	***REMOVED***"ImageElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"ImageElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "UseMap", "usemap", "string", nil***REMOVED***,
+	***REMOVED***"ImageElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Type", "type", "enum", []string***REMOVED***"text", "button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "time", "url", "week"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Required", "required", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Value", "value", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Checked", "checked", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "DefaultChecked", "checked", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Alt", "alt", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Height", "height", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Width", "width", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Accept", "accept", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "MaxLength", "maxlength", "int", []string***REMOVED***"-1"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Size", "size", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Pattern", "pattern", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Placeholder", "placeholder", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Readonly", "readonly", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Min", "min", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Max", "max", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "DefaultValue", "value", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "DirName", "dirname", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
+	***REMOVED***"InputElement", "Multiple", "multiple", "bool", nil***REMOVED***,
+	***REMOVED***"InputElement", "Step", "step", "string", nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Challenge", "challenge", "string", nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Keytype", "keytype", "enum", []string***REMOVED***"RSA", "DSA", "EC"***REMOVED******REMOVED***,
+	***REMOVED***"KeygenElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Type", "type", "const", []string***REMOVED***"keygen"***REMOVED******REMOVED***,
+	***REMOVED***"LabelElement", "HtmlFor", "for", "string", nil***REMOVED***,
+	***REMOVED***"LegendElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
+	***REMOVED***"LiElement", "Value", "value", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"LiElement", "Type", "type", "enum", []string***REMOVED***"", "1", "a", "A", "i", "I", "disc", "square", "circle"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "Href", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "Hreflang", "hreflang", "string", nil***REMOVED***,
+	***REMOVED***"LinkElement", "Media", "media", "string", nil***REMOVED***,
+	***REMOVED***"LinkElement", "Rel", "rel", "string", nil***REMOVED***,
+	***REMOVED***"LinkElement", "Target", "target", "string", nil***REMOVED***,
+	***REMOVED***"LinkElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"MapElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"MetaElement", "Content", "content", "string", nil***REMOVED***,
+	***REMOVED***"MetaElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"MetaElement", "HttpEquiv", "http-equiv", "enum", []string***REMOVED***"content-type", "default-style", "refresh"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Min", "min", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Max", "max", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "High", "high", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Low", "low", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Optimum", "optimum", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ModElement", "Cite", "cite", "string", nil***REMOVED***,
+	***REMOVED***"ModElement", "Datetime", "datetime", "string", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Data", "data", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ObjectElement", "Height", "height", "string", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ObjectElement", "TypeMustMatch", "typemustmatch", "bool", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "UseMap", "usemap", "string", nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Width", "width", "string", nil***REMOVED***,
+	***REMOVED***"OListElement", "Reversed", "reversed", "bool", nil***REMOVED***,
+	***REMOVED***"OListElement", "Start", "start", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"OListElement", "Type", "type", "enum", []string***REMOVED***"1", "a", "A", "i", "I"***REMOVED******REMOVED***,
+	***REMOVED***"OptGroupElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"OptGroupElement", "Label", "label", "string", nil***REMOVED***,
+	***REMOVED***"OptionElement", "DefaultSelected", "selected", "bool", nil***REMOVED***,
+	***REMOVED***"OptionElement", "Selected", "selected", "bool", nil***REMOVED***,
+	***REMOVED***"OutputElement", "HtmlFor", "for", "string", nil***REMOVED***,
+	***REMOVED***"OutputElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"OutputElement", "Type", "type", "const", []string***REMOVED***"output"***REMOVED******REMOVED***,
+	***REMOVED***"ParamElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"ParamElement", "Value", "value", "string", nil***REMOVED***,
+	***REMOVED***"PreElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"PreElement", "Value", "value", "string", nil***REMOVED***,
+	***REMOVED***"QuoteElement", "Cite", "cite", "string", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "CrossOrigin", "crossorigin", "string", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ScriptElement", "Charset", "charset", "string", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Async", "async", "bool", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Defer", "defer", "bool", nil***REMOVED***,
+	***REMOVED***"ScriptElement", "NoModule", "nomodule", "bool", nil***REMOVED***,
+	***REMOVED***"SelectElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
+	***REMOVED***"SelectElement", "Disabled", "disabled", "bool", nil***REMOVED***,
+	***REMOVED***"SelectElement", "Multiple", "multiple", "bool", nil***REMOVED***,
+	***REMOVED***"SelectElement", "Name", "name", "string", nil***REMOVED***,
+	***REMOVED***"SelectElement", "Required", "required", "bool", nil***REMOVED***,
+	***REMOVED***"SelectElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"SourceElement", "KeySystem", "keysystem", "string", nil***REMOVED***,
+	***REMOVED***"SourceElement", "Media", "media", "string", nil***REMOVED***,
+	***REMOVED***"SourceElement", "Sizes", "sizes", "string", nil***REMOVED***,
+	***REMOVED***"SourceElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"SourceElement", "Srcset", "srcset", "string", nil***REMOVED***,
+	***REMOVED***"SourceElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"StyleElement", "Media", "media", "string", nil***REMOVED***,
+	***REMOVED***"TableElement", "Sortable", "sortable", "bool", nil***REMOVED***,
+	***REMOVED***"TableCellElement", "ColSpan", "colspan", "int", []string***REMOVED***"1"***REMOVED******REMOVED***,
+	***REMOVED***"TableCellElement", "RowSpan", "rowspan", "int", []string***REMOVED***"1"***REMOVED******REMOVED***,
+	***REMOVED***"TableCellElement", "Headers", "headers", "string", nil***REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Abbr", "abbr", "string", nil***REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Scope", "scope", "enum", []string***REMOVED***"", "row", "col", "colgroup", "rowgroup"***REMOVED******REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Sorted", "sorted", "bool", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Type", "type", "const", []string***REMOVED***"textarea"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Value", "value", "string", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "DefaultValue", "value", "string", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Placeholder", "placeholder", "string", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Rows", "rows", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Cols", "cols", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "MaxLength", "maxlength", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "ReadOnly", "readonly", "bool", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Required", "required", "bool", nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Autocapitalize", "autocapitalize", "enum", []string***REMOVED***"sentences", "none", "off", "characters", "words"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Wrap", "wrap", "enum", []string***REMOVED***"soft", "hard", "off"***REMOVED******REMOVED***,
+	***REMOVED***"TimeElement", "Datetime", "datetime", "string", nil***REMOVED***,
+	***REMOVED***"TrackElement", "Kind", "kind", "enum", []string***REMOVED***"subtitle", "captions", "descriptions", "chapters", "metadata"***REMOVED******REMOVED***,
+	***REMOVED***"TrackElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"TrackElement", "Srclang", "srclang", "string", nil***REMOVED***,
+	***REMOVED***"TrackElement", "Label", "label", "string", nil***REMOVED***,
+	***REMOVED***"TrackElement", "Default", "default", "bool", nil***REMOVED***,
+	***REMOVED***"UListElement", "Type", "type", "string", nil***REMOVED***,
 ***REMOVED***
 
 var collector = &ElemInfoCollectorState***REMOVED******REMOVED***
@@ -232,8 +232,7 @@ func main() ***REMOVED***
 	fs := token.NewFileSet()
 	parsedFile, parseErr := parser.ParseFile(fs, "elements.go", nil, 0)
 	if parseErr != nil ***REMOVED***
-		log.Fatalf("warning: internal error: could not parse elements.go: %s", parseErr)
-		return
+		log.Fatalf("error: could not parse elements.go\n", parseErr)
 	***REMOVED***
 
 	collector.handler = collector.defaultHandler
@@ -247,59 +246,49 @@ func main() ***REMOVED***
 		return true
 	***REMOVED***)
 
-	f, err := os.Create("elements_gen.go")
-	if err != nil ***REMOVED***
-		log.Println("warning: Unable to create the file 'elements_gen.go'", err)
-	***REMOVED***
-
-	// Generate consts used in the enum items in funcDefs. Consts are needed to avoid warnings for the repeated use of strings
-	var enumConsts = map[string]string***REMOVED******REMOVED***
-	for _, def := range funcDefs ***REMOVED***
-		funcDef := buildFuncDef(def)
-
-		if !strings.HasPrefix(funcDef.ReturnBody, "enum") ***REMOVED***
-			continue
+	buf := new(bytes.Buffer)
+	err := elemFuncsTemplate.Execute(buf, struct ***REMOVED***
+		ElemInfos map[string]*ElemInfo
+		FuncDefs  []struct ***REMOVED***
+			Elem, Method, Attr, TemplateType string
+			Opts                             []string
 		***REMOVED***
-		for _, opt := range funcDef.ReturnOpts ***REMOVED***
-			enumConsts[opt] = toConst(opt)
-		***REMOVED***
-	***REMOVED***
-
-	//
-	err = elemFuncsTemplate.Execute(f, struct ***REMOVED***
-		ElemInfos  map[string]*ElemInfo
-		FuncDefs   []string
-		EnumConsts map[string]string
 	***REMOVED******REMOVED***
 		collector.elemInfos,
 		funcDefs,
-		enumConsts,
 	***REMOVED***)
 	if err != nil ***REMOVED***
-		log.Println("error, unable to execute template:", err)
+		log.Fatalf("error: unable to execute template\n", err)
+	***REMOVED***
+
+	src, err := format.Source(buf.Bytes())
+	if err != nil ***REMOVED***
+		log.Fatalf("error: format.Source on generated code failed\n", err)
+	***REMOVED***
+
+	f, err := os.Create("elements_gen.go")
+	if err != nil ***REMOVED***
+		log.Fatalf("error: Unable to create the file 'elements_gen.go'\n", err)
+	***REMOVED***
+
+	if _, err = f.Write(src); err != nil ***REMOVED***
+		log.Fatalf("error: Unable to write to 'elements_gen.go'\n", err)
 	***REMOVED***
 
 	err = f.Close()
 	if err != nil ***REMOVED***
-		log.Println("Unable to close the file 'elements_gen.go': ", err)
+		log.Fatalf("error: unable to close the file 'elements_gen.go'\n", err)
 	***REMOVED***
 ***REMOVED***
 
 var elemFuncsTemplate = template.Must(template.New("").Funcs(template.FuncMap***REMOVED***
-	"buildStruct":  buildStruct,
-	"buildFuncDef": buildFuncDef,
-	"toConst":      toConst,
-***REMOVED***).Parse(`// go generate
-// generated by js/modules/k6/html/gen/main.go directed by js/modules/k6/html/elements.go;  DO NOT EDIT
+	"buildStruct": buildStruct,
+	"returnType":  returnType,
+***REMOVED***).Parse(`// generated by js/modules/k6/html/gen/gen_elements.go directed by js/modules/k6/html/elements.go;  DO NOT EDIT
+// nolint: goconst
 package html
 
 import "github.com/dop251/goja"
-
-const (
-	***REMOVED******REMOVED*** range $constVal, $constName := .EnumConsts -***REMOVED******REMOVED***
-		***REMOVED******REMOVED***$constName***REMOVED******REMOVED*** = "***REMOVED******REMOVED***$constVal***REMOVED******REMOVED***"
-	***REMOVED******REMOVED*** end -***REMOVED******REMOVED***
-)
 
 func selToElement(sel Selection) goja.Value ***REMOVED***
 	if sel.sel.Length() == 0 ***REMOVED***
@@ -308,71 +297,58 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 
 	elem := Element***REMOVED***sel.sel.Nodes[0], &sel***REMOVED***
 
-	switch elem.node.Data ***REMOVED*** ***REMOVED******REMOVED*** range $elemInfo := .ElemInfos ***REMOVED******REMOVED***
-	case ***REMOVED******REMOVED*** $elemInfo.ConstName ***REMOVED******REMOVED***:
+	switch elem.node.Data ***REMOVED*** 
+***REMOVED******REMOVED***- range $elemName, $elemInfo := .ElemInfos ***REMOVED******REMOVED***
+	case ***REMOVED******REMOVED*** $elemName ***REMOVED******REMOVED***TagName:
 		return sel.rt.ToValue(***REMOVED******REMOVED*** buildStruct $elemInfo ***REMOVED******REMOVED***)
-***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- end ***REMOVED******REMOVED***
 	default:
 		return sel.rt.ToValue(elem)
 	***REMOVED***
  ***REMOVED***
 
-***REMOVED******REMOVED*** range $funcDefStr := .FuncDefs -***REMOVED******REMOVED*** 
-***REMOVED******REMOVED*** $funcDef := buildFuncDef $funcDefStr -***REMOVED******REMOVED***
-func (e ***REMOVED******REMOVED***$funcDef.ElemName***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.ElemMethod***REMOVED******REMOVED***() ***REMOVED******REMOVED***$funcDef.ReturnType***REMOVED******REMOVED*** ***REMOVED***
-***REMOVED******REMOVED***- if eq $funcDef.ReturnBody "int" ***REMOVED******REMOVED***
-	return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 ***REMOVED******REMOVED***)
-***REMOVED******REMOVED***- else if eq $funcDef.ReturnBody "enum" ***REMOVED******REMOVED***
-	attrVal := e.attrAsString("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
+***REMOVED******REMOVED*** range $funcDef := .FuncDefs -***REMOVED******REMOVED*** 
+
+func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.Method***REMOVED******REMOVED***() ***REMOVED******REMOVED*** returnType $funcDef.TemplateType ***REMOVED******REMOVED*** ***REMOVED***
+***REMOVED******REMOVED***- if eq $funcDef.TemplateType "int" ***REMOVED******REMOVED***
+	return e.attrAsInt("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***)
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "enum" ***REMOVED******REMOVED***
+	attrVal := e.attrAsString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 	switch attrVal ***REMOVED*** 
-	***REMOVED******REMOVED***- range $optIdx, $optVal := $funcDef.ReturnOpts ***REMOVED******REMOVED***
-	***REMOVED******REMOVED***- $optConst := toConst $optVal ***REMOVED******REMOVED***
-		***REMOVED******REMOVED***- if ne $optIdx 0 ***REMOVED******REMOVED***
-	case ***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***:
+	***REMOVED******REMOVED***- range $optIdx, $optVal := $funcDef.Opts ***REMOVED******REMOVED***
+	***REMOVED******REMOVED***- if ne $optIdx 0 ***REMOVED******REMOVED***
+	case "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***":
 		return attrVal
-		***REMOVED******REMOVED***- end ***REMOVED******REMOVED***
+	***REMOVED******REMOVED***- end ***REMOVED******REMOVED***
 	***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 	default: 
-		return ***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 | toConst ***REMOVED******REMOVED*** 
+		return "***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***" 
 	***REMOVED***
-***REMOVED******REMOVED***- else if eq $funcDef.ReturnBody "enum-nullable" ***REMOVED******REMOVED***
-	attrVal, exists := e.sel.sel.Attr("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "enum-goja" ***REMOVED******REMOVED***
+	attrVal, exists := e.sel.sel.Attr("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 	if !exists ***REMOVED***
 		return goja.Undefined()
 	***REMOVED***
 	switch attrVal ***REMOVED*** 
-	***REMOVED******REMOVED***- range $optVal := $funcDef.ReturnOpts ***REMOVED******REMOVED***
-	***REMOVED******REMOVED***- $optConst := toConst $optVal ***REMOVED******REMOVED***
-	case ***REMOVED******REMOVED***$optConst***REMOVED******REMOVED***:
+	***REMOVED******REMOVED***- range $optVal := $funcDef.Opts ***REMOVED******REMOVED***
+	case "***REMOVED******REMOVED***$optVal***REMOVED******REMOVED***":
 		return e.sel.rt.ToValue(attrVal)
 	***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 	default:
 		return goja.Undefined()
 	***REMOVED***
-***REMOVED******REMOVED***- else if eq $funcDef.ReturnBody "const" ***REMOVED******REMOVED***
-	return "***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 ***REMOVED******REMOVED***"
-***REMOVED******REMOVED***- else if eq $funcDef.ReturnBody "url" ***REMOVED******REMOVED***
-	return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.ReturnOpts 0 ***REMOVED******REMOVED***)
-***REMOVED******REMOVED***- else ***REMOVED******REMOVED***
-	return e.***REMOVED******REMOVED*** $funcDef.AttrMethod ***REMOVED******REMOVED***("***REMOVED******REMOVED*** $funcDef.AttrName ***REMOVED******REMOVED***")
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "const" ***REMOVED******REMOVED***
+	return "***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***"
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "url" ***REMOVED******REMOVED***
+	return e.attrAsURLString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***)
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "string" ***REMOVED******REMOVED***
+	return e.attrAsString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "bool" ***REMOVED******REMOVED***
+	return e.attrIsPresent("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 ***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 ***REMOVED***
 ***REMOVED******REMOVED*** end ***REMOVED******REMOVED***
 `))
-
-func constNameMapper(r rune) rune ***REMOVED***
-	if r == '-' || r == '/' ***REMOVED***
-		return '_'
-	***REMOVED***
-	return r
-***REMOVED***
-
-func toConst(optName string) string ***REMOVED***
-	if optName == "" ***REMOVED***
-		return "const_Blank"
-	***REMOVED***
-	return "const_" + strings.Map(constNameMapper, optName)
-***REMOVED***
 
 func buildStruct(elemInfo ElemInfo) string ***REMOVED***
 	if elemInfo.PrtStructName == "Element" ***REMOVED***
@@ -382,89 +358,20 @@ func buildStruct(elemInfo ElemInfo) string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func buildFuncDef(funcDef string) FuncDef ***REMOVED***
-	parts := strings.Split(funcDef, " ")
-	// parts[0] is the element struct name (without the Element suffix)
-	// parts[1] is either:
-	//   MethodName               The name of method added onto that struct and converted to lowercase thenn used as the argument to elem.attrAsString(...) or elem.AttrIsPresent(...)
-	//   MethodName=attrname      The MethodName is added to the struct. The attrname is the argument for attrAsString or AttrIsPresent
-	// parts[2] is the return type, either string, const, bool, int, enum or enum-nullable.
-	elemName := parts[0] + "Element"
-	elemMethod := parts[1]
-	attrName := strings.ToLower(parts[1])
-	returnType := parts[2]
-	returnOpts := ""
-
-	if eqPos := strings.Index(parts[1], "="); eqPos != -1 ***REMOVED***
-		attrName = elemMethod[eqPos+1:]
-		elemMethod = elemMethod[0:eqPos]
-	***REMOVED***
-
-	if eqPos := strings.Index(returnType, "="); eqPos != -1 ***REMOVED***
-		returnOpts = returnType[eqPos+1:]
-		returnType = returnType[0:eqPos]
-	***REMOVED***
-
-	switch returnType ***REMOVED***
-	case "int":
-		// The number following 'int=' is a default value used when the attribute is not defined.
-		// "TableCell ColSpan int=1"
-		// => ***REMOVED***"TableCellElement" "ColSpan", "attrAsInt", "colspan", "int", "int", []string***REMOVED***"1"***REMOVED******REMOVED***
-		// => `func (e TableCellElement) ColSpan() int***REMOVED*** return e.attrAsInt("colspan", 1) ***REMOVED***``
-		if returnOpts == "" ***REMOVED***
-			return FuncDef***REMOVED***elemName, elemMethod, "attrAsInt", attrName, "int", returnType, []string***REMOVED***"0"***REMOVED******REMOVED***
-		***REMOVED*** else ***REMOVED***
-			return FuncDef***REMOVED***elemName, elemMethod, "attrAsInt", attrName, "int", returnType, []string***REMOVED***returnOpts***REMOVED******REMOVED***
-		***REMOVED***
-
-	case "enum":
-		// "Button Type enum=submit,button,menu,reset"
-		// The items in the comma separated list are used in a switch statement. The first value in the list is used as the default.
-		return FuncDef***REMOVED***elemName, elemMethod, "", attrName, "string", returnType, strings.Split(returnOpts, ",")***REMOVED***
-
-	case "enum-nullable":
-		// Similar to the enum except the default is goja.Undefined()
-		return FuncDef***REMOVED***elemName, elemMethod, "", attrName, "goja.Value", returnType, strings.Split(returnOpts, ",")***REMOVED***
-
-	case "string":
-		// "Button AccessKey string"
-		// => ***REMOVED***"ButtonElement" "AccessKey", "attrIsString", "accesskey", "string", "string", nil***REMOVED***
-		// => `func (e ButtonElement) AccessKey() string***REMOVED*** return e.attrAsString("accessKey") ***REMOVED***``
-		return FuncDef***REMOVED***elemName, elemMethod, "attrAsString", attrName, returnType, returnType, nil***REMOVED***
-
-	// This url function uses the current page URL as default when attribute is empty and empty string as default when the attribute is undefined
-	case "url-or-blank":
-		// "Href Href url-or-blank"
-		// => ***REMOVED***"HrefElement" "Href", "attrIsString", "accesskey", "string", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***
-		// => `func (e HrefElement) Href() string***REMOVED*** return e.attrAsUrlString("href", """) ***REMOVED***``
-		return FuncDef***REMOVED***elemName, elemMethod, "attrAsURLString", attrName, "string", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***
-
-	// This url function uses current page URL for empty and undefined attributes
-	case "url-or-currpage":
-		// "Base Href url-or-currpage"
-		// => ***REMOVED***"BaseElement" "Href", "attrIsString", "accesskey", "string", "url", []string***REMOVED***"e.sel.URL"***REMOVED******REMOVED***
-		// => `func (e HrefElement) Href() string***REMOVED*** return e.attrAsUrlString("href", e.sel.URL) ***REMOVED***``
-		return FuncDef***REMOVED***elemName, elemMethod, "attrAsURLString", attrName, "string", "url", []string***REMOVED***"e.sel.URL"***REMOVED******REMOVED***
-
-	case "const":
-		// "Output Type const=output"
-		// => ***REMOVED***"OutputElement" "Type", "", "type", "string", "const", []***REMOVED***"output"***REMOVED******REMOVED***
-		// => `func (e OutputElement) Type() string***REMOVED*** return "output" ***REMOVED***``
-		return FuncDef***REMOVED***elemName, elemMethod, "", attrName, "string", returnType, []string***REMOVED***returnOpts***REMOVED******REMOVED***
-
+func returnType(templateType string) string ***REMOVED***
+	switch templateType ***REMOVED***
 	case "bool":
-		// "Button Autofocus bool"
-		// => ***REMOVED***"Button" "Autofocus", "attrIsPresent", "autofocus", "bool", "bool", nil***REMOVED***
-		// => `func (e ButtonElement) ToString() bool ***REMOVED*** return e.attrIsPresent("autofocus") ***REMOVED***``
-		return FuncDef***REMOVED***elemName, elemMethod, "attrIsPresent", attrName, returnType, returnType, nil***REMOVED***
-
+		return "bool"
+	case "int":
+		return "int"
+	case "enum-goja":
+		return "goja.Value"
 	default:
-		panic("Unknown return type in a funcDef: " + returnType)
+		return "string"
 	***REMOVED***
 ***REMOVED***
 
-// Node handler functions used in ast.Inspect to scrape TagName consts and the names of Element structs and their parent/nested struct
-
+// Node handler functions for ast.Inspect.
 func (ce *ElemInfoCollectorState) defaultHandler(node ast.Node) ElemInfoCollector ***REMOVED***
 	ce.elemName = ""
 	switch node.(type) ***REMOVED***
@@ -479,13 +386,13 @@ func (ce *ElemInfoCollectorState) defaultHandler(node ast.Node) ElemInfoCollecto
 	***REMOVED***
 ***REMOVED***
 
-// Found a const, a Tagname suffix means it's for an Element.
+// Found a tagname constant. eg AnchorTagName = "a" adds the entry ce.elemInfos["Anchor"] = ***REMOVED***""", ""***REMOVED***
 func (ce *ElemInfoCollectorState) tagNameValueSpecHandler(node ast.Node) ElemInfoCollector ***REMOVED***
 	switch x := node.(type) ***REMOVED***
 	case *ast.Ident:
 		if strings.HasSuffix(x.Name, "TagName") ***REMOVED***
 			ce.elemName = strings.TrimSuffix(x.Name, "TagName")
-			ce.elemInfos[ce.elemName] = &ElemInfo***REMOVED***x.Name, "", ""***REMOVED***
+			ce.elemInfos[ce.elemName] = &ElemInfo***REMOVED***"", ""***REMOVED***
 		***REMOVED***
 
 		return ce.defaultHandler
@@ -504,8 +411,8 @@ func (ce *ElemInfoCollectorState) elemTypeSpecHandler(node ast.Node) ElemInfoCol
 
 		if ce.elemName == "" ***REMOVED***
 			ce.elemName = strings.TrimSuffix(x.Name, "Element")
-			// Ignore elements which haven't had an elemInfo created by the TagName handler.
-			// (Specifically intermediate structs like HrefElement, MediaElement & FormFieldElement)
+			// Ignore elements which don't have a tag name constant meaning no elemInfo structure was created by the TagName handle.
+			// It skips the Href, Media, FormField, Mod, TableSection or TableCell structs as these structs are inherited by other elements and not created indepedently.
 			if _, ok := ce.elemInfos[ce.elemName]; !ok ***REMOVED***
 				return ce.defaultHandler
 			***REMOVED***
