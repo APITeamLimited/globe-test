@@ -192,10 +192,6 @@ func TestRequest(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)
-	t.Run("BadSSL", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
-		assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
-	***REMOVED***)
 	t.Run("Cancelled", func(t *testing.T) ***REMOVED***
 		hook := logtest.NewLocal(state.Logger)
 		defer hook.Reset()
@@ -281,6 +277,61 @@ func TestRequest(t *testing.T) ***REMOVED***
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `http.request("GET", "https://httpbin.org/html").json();`)
 			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("TLS", func(t *testing.T) ***REMOVED***
+		t.Run("cert_expired", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
+			assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
+		***REMOVED***)
+		t.Run("tls10", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("https://tls-v1-0.badssl.com:1010/");
+				if (res.tls_version != "tls1.0") ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://tls-v1-0.badssl.com:1010/", "", 200, "")
+		***REMOVED***)
+		t.Run("tls11", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("https://tls-v1-1.badssl.com:1011/");
+				if (res.tls_version != "tls1.1") ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://tls-v1-0.badssl.com:1010/", "", 200, "")
+		***REMOVED***)
+		t.Run("tls12", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("https://badssl.com/");
+				if (res.tls_version != "tls1.2") ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://tls-v1-0.badssl.com:1010/", "", 200, "")
+		***REMOVED***)
+		t.Run("cipher_suite_cbc", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("https://cbc.badssl.com/");
+				if (res.tls_cipher_suite != "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://cbc.badssl.com/", "", 200, "")
+		***REMOVED***)
+		t.Run("cipher_suite_ecc384", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+				let res = http.get("https://ecc384.badssl.com/");
+				if (res.tls_cipher_suite != "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://ecc384.badssl.com/", "", 200, "")
+		***REMOVED***)
+		t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://stackoverflow.com/");
+			if (res.ocsp.stapled_response.status != "good") ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.stapled_response.status); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://stackoverflow.com/", "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
