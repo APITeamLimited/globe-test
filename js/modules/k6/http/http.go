@@ -218,11 +218,11 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 										***REMOVED***
 									***REMOVED***
 									c.Expires = t
-								case "maxage":
+								case "max_age":
 									c.MaxAge = int(obj.Get(key).ToInteger())
 								case "secure":
 									c.Secure = obj.Get(key).ToBoolean()
-								case "httponly":
+								case "http_only":
 									c.HttpOnly = obj.Get(key).ToBoolean()
 								***REMOVED***
 							***REMOVED***

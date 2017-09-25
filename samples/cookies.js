@@ -10,7 +10,8 @@ export default function() ***REMOVED***
         let r = http.get("http://httpbin.org/cookies", ***REMOVED*** cookies: cookies ***REMOVED***);
         check(r, ***REMOVED***
             "status is 200": (r) => r.status === 200,
-            "has cookie": (r) => r.cookies["name"].length > 0
+            "has cookie 'name'": (r) => r.cookies.name.length > 0,
+            "has cookie 'name2'": (r) => r.cookies.name2.length > 0
         ***REMOVED***);
     ***REMOVED***);
 
@@ -19,7 +20,7 @@ export default function() ***REMOVED***
         let r = http.get("http://httpbin.org/cookies", ***REMOVED*** cookies: [cookie] ***REMOVED***);
         check(r, ***REMOVED***
             "status is 200": (r) => r.status === 200,
-            "has cookie": (r) => r.cookies["name3"].length > 0
+            "has cookie 'name3'": (r) => r.cookies.name3.length > 0
         ***REMOVED***);
     ***REMOVED***);
 ***REMOVED***
