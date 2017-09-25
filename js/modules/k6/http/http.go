@@ -27,6 +27,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	neturl "net/url"
 	"reflect"
 	"strconv"
@@ -38,12 +39,14 @@ import (
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	typeString = reflect.TypeOf("")
-	typeURLTag = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
+	typeString                     = reflect.TypeOf("")
+	typeURLTag                     = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
+	typeMapKeyStringValueInterface = reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 )
 
 const SSL_3_0 = "ssl3.0"
@@ -167,6 +170,66 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			params := paramsV.ToObject(rt)
 			for _, k := range params.Keys() ***REMOVED***
 				switch k ***REMOVED***
+				case "cookies":
+					var cookieJar *cookiejar.Jar
+					if state.CookieJar == nil ***REMOVED***
+						continue
+					***REMOVED***
+					cookieJar = state.CookieJar
+					cookiesV := params.Get(k)
+					if goja.IsUndefined(cookiesV) || goja.IsNull(cookiesV) ***REMOVED***
+						continue
+					***REMOVED***
+					cookies := cookiesV.ToObject(rt)
+					if cookies == nil ***REMOVED***
+						continue
+					***REMOVED***
+					var cookiesList []*http.Cookie
+					switch cookies.ExportType() ***REMOVED***
+					case typeMapKeyStringValueInterface:
+						for _, key := range cookies.Keys() ***REMOVED***
+							c := http.Cookie***REMOVED***
+								Name:  key,
+								Value: cookies.Get(key).String(),
+							***REMOVED***
+							cookiesList = append(cookiesList, &c)
+						***REMOVED***
+					default:
+						for _, i := range cookies.Keys() ***REMOVED***
+							c := http.Cookie***REMOVED******REMOVED***
+							obj := cookies.Get(i).ToObject(rt)
+							for _, key := range obj.Keys() ***REMOVED***
+								switch strings.ToLower(key) ***REMOVED***
+								case "name":
+									c.Name = obj.Get(key).String()
+								case "value":
+									c.Value = obj.Get(key).String()
+								case "path":
+									c.Path = obj.Get(key).String()
+								case "domain":
+									c.Domain = obj.Get(key).String()
+								case "expires":
+									var t time.Time
+									expires := obj.Get(key).String()
+									if expires != "" ***REMOVED***
+										t, err = time.Parse(time.RFC1123, expires)
+										if err != nil ***REMOVED***
+											return nil, nil, errors.Errorf("unable to parse \"expires\" date string \"%s\" with: %s", expires, err.Error())
+										***REMOVED***
+									***REMOVED***
+									c.Expires = t
+								case "maxage":
+									c.MaxAge = int(obj.Get(key).ToInteger())
+								case "secure":
+									c.Secure = obj.Get(key).ToBoolean()
+								case "httponly":
+									c.HttpOnly = obj.Get(key).ToBoolean()
+								***REMOVED***
+							***REMOVED***
+							cookiesList = append(cookiesList, &c)
+						***REMOVED***
+					***REMOVED***
+					cookieJar.SetCookies(req.URL, cookiesList)
 				case "headers":
 					headersV := params.Get(k)
 					if goja.IsUndefined(headersV) || goja.IsNull(headersV) ***REMOVED***
@@ -283,6 +346,12 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.Headers = make(map[string]string, len(res.Header))
 		for k, vs := range res.Header ***REMOVED***
 			resp.Headers[k] = strings.Join(vs, ", ")
+		***REMOVED***
+
+		resCookies := client.Jar.Cookies(res.Request.URL)
+		resp.Cookies = make(map[string][]*http.Cookie, len(resCookies))
+		for _, c := range resCookies ***REMOVED***
+			resp.Cookies[c.Name] = append(resp.Cookies[c.Name], c)
 		***REMOVED***
 	***REMOVED***
 
