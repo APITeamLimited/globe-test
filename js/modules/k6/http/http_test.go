@@ -409,11 +409,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				state.Samples = nil
 				_, err = common.RunString(rt, `
 				let res = http.request("GET", "https://httpbin.org/cookies/set?key=value", null);
-				if (res.cookies.key[0].value != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
-				const props = ["name", "value", "domain", "path", "expires", "max_age", "secure", "http_only"];
-				for (let i = 0; i < props.length; i++) ***REMOVED***
-					if (res.cookies.key[0][props[i]] === undefined) ***REMOVED*** throw new Error("cookie property not found: " + props[i]); ***REMOVED***
-				***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
 				`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "https://httpbin.org/cookies/set?key=value", 200, "")
@@ -426,7 +422,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				state.Samples = nil
 				_, err = common.RunString(rt, `
 				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: [***REMOVED*** name: "key", value: "value" ***REMOVED***] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
 				`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
@@ -439,7 +435,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				state.Samples = nil
 				_, err = common.RunString(rt, `
 				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key: "value" ***REMOVED*** ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0]); ***REMOVED***
 				`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
@@ -453,12 +449,12 @@ func TestRequest(t *testing.T) ***REMOVED***
 				_, err = common.RunString(rt, `
 				let cookie = ***REMOVED*** name: "key", value: "value", domain: "httpbin.org" ***REMOVED***;
 				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("wrong cookie value: " + res.cookies.key[0]);
 				***REMOVED***
 				cookie = ***REMOVED*** name: "key2", value: "value2", domain: "example.com" ***REMOVED***;
 				res = http.request("GET", "http://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("wrong cookie value: " + res.cookies.key[0]);
 				***REMOVED***
 				if (res.cookies.key2 != undefined) ***REMOVED***
@@ -477,12 +473,12 @@ func TestRequest(t *testing.T) ***REMOVED***
 				_, err = common.RunString(rt, `
 				let cookie = ***REMOVED*** name: "key", value: "value", path: "/cookies" ***REMOVED***;
 				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("wrong cookie value: " + res.cookies.key[0]);
 				***REMOVED***
 				cookie = ***REMOVED*** name: "key2", value: "value2", path: "/some-other-path" ***REMOVED***;
 				res = http.request("GET", "http://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("wrong cookie value: " + res.cookies.key[0]);
 				***REMOVED***
 				if (res.cookies.key2 != undefined) ***REMOVED***
@@ -506,7 +502,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				***REMOVED***
 				cookie.expires = "Sat, 24 Jul 2083 17:01:02 GMT";
 				res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("cookie 'key' not found");
 				***REMOVED***
 				`)
@@ -522,7 +518,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				_, err = common.RunString(rt, `
 				let cookie = ***REMOVED*** name: "key", value: "value", secure: true ***REMOVED***;
 				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);
-				if (res.cookies.key[0].value != "value") ***REMOVED***
+				if (res.cookies.key[0] != "value") ***REMOVED***
 					throw new Error("wrong cookie value: " + res.cookies.key[0]);
 				***REMOVED***
 				res = http.request("GET", "http://httpbin.org/cookies", null, ***REMOVED*** cookies: [cookie] ***REMOVED***);

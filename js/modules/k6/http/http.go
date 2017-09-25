@@ -354,9 +354,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED*** else ***REMOVED***
 			resCookies = []*http.Cookie***REMOVED******REMOVED***
 		***REMOVED***
-		resp.Cookies = make(map[string][]*http.Cookie, len(resCookies))
+		resp.Cookies = make(map[string][]string, len(resCookies))
 		for _, c := range resCookies ***REMOVED***
-			resp.Cookies[c.Name] = append(resp.Cookies[c.Name], c)
+			resp.Cookies[c.Name] = append(resp.Cookies[c.Name], c.Value)
 		***REMOVED***
 	***REMOVED***
 

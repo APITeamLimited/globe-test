@@ -51,6 +51,7 @@ type HTTPResponse struct ***REMOVED***
 	Status         int
 	Proto          string
 	Headers        map[string]string
+	Cookies        map[string][]string
 	Body           string
 	Timings        HTTPResponseTimings
 	TLSVersion     string
