@@ -23,9 +23,12 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
+	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
@@ -180,4 +183,84 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.True(t, opts.NoUsageReport.Valid)
 		assert.True(t, opts.NoUsageReport.Bool)
 	***REMOVED***)
+***REMOVED***
+
+func TestOptionsEnv(t *testing.T) ***REMOVED***
+	testdata := map[struct***REMOVED*** Name, Key string ***REMOVED***]map[string]interface***REMOVED******REMOVED******REMOVED***
+		***REMOVED***"Paused", "K6_PAUSED"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		***REMOVED***"VUs", "K6_VUS"***REMOVED***: ***REMOVED***
+			"":    null.Int***REMOVED******REMOVED***,
+			"123": null.IntFrom(123),
+		***REMOVED***,
+		***REMOVED***"VUsMax", "K6_VUS_MAX"***REMOVED***: ***REMOVED***
+			"":    null.Int***REMOVED******REMOVED***,
+			"123": null.IntFrom(123),
+		***REMOVED***,
+		***REMOVED***"Duration", "K6_DURATION"***REMOVED***: ***REMOVED***
+			"":    NullDuration***REMOVED******REMOVED***,
+			"10s": NullDurationFrom(10 * time.Second),
+		***REMOVED***,
+		***REMOVED***"Iterations", "K6_ITERATIONS"***REMOVED***: ***REMOVED***
+			"":    null.Int***REMOVED******REMOVED***,
+			"123": null.IntFrom(123),
+		***REMOVED***,
+		***REMOVED***"Stages", "K6_STAGES"***REMOVED***: ***REMOVED***
+			// "": []Stage***REMOVED******REMOVED***,
+			"1s": []Stage***REMOVED******REMOVED***
+				Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
+			***REMOVED***,
+			"1s:100": []Stage***REMOVED***
+				***REMOVED***Duration: NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+			"1s,2s:100": []Stage***REMOVED***
+				***REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(2 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***"MaxRedirects", "K6_MAX_REDIRECTS"***REMOVED***: ***REMOVED***
+			"":    null.Int***REMOVED******REMOVED***,
+			"123": null.IntFrom(123),
+		***REMOVED***,
+		***REMOVED***"InsecureSkipTLSVerify", "K6_INSECURE_SKIP_TLS_VERIFY"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		// TLSCipherSuites
+		// TLSVersion
+		// TLSAuth
+		***REMOVED***"NoConnectionReuse", "K6_NO_CONNECTION_REUSE"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		***REMOVED***"UserAgent", "K6_USER_AGENT"***REMOVED***: ***REMOVED***
+			"":    null.String***REMOVED******REMOVED***,
+			"Hi!": null.StringFrom("Hi!"),
+		***REMOVED***,
+		***REMOVED***"Throw", "K6_THROW"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		// Thresholds
+		// External
+	***REMOVED***
+	for field, data := range testdata ***REMOVED***
+		os.Clearenv()
+		t.Run(field.Name, func(t *testing.T) ***REMOVED***
+			for str, val := range data ***REMOVED***
+				t.Run(`"`+str+`"`, func(t *testing.T) ***REMOVED***
+					assert.NoError(t, os.Setenv(field.Key, str))
+					var opts Options
+					assert.NoError(t, envconfig.Process("k6", &opts))
+					assert.Equal(t, val, reflect.ValueOf(opts).FieldByName(field.Name).Interface())
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
