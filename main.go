@@ -21,64 +21,9 @@
 package main
 
 import (
-	"os"
-
-	"github.com/fatih/color"
-	"github.com/mattn/go-isatty"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/loadimpact/k6/cmd"
 )
 
-var isTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-
 func main() ***REMOVED***
-	// This won't be needed in cli v2
-	cli.VersionFlag = cli.BoolFlag***REMOVED***Name: "version"***REMOVED***
-	cli.HelpFlag = cli.BoolFlag***REMOVED***Name: "help", Hidden: true***REMOVED***
-
-	app := cli.NewApp()
-	app.Name = "k6"
-	app.Usage = "a next generation load generator"
-	app.Version = "0.17.1"
-	app.Commands = []cli.Command***REMOVED***
-		commandRun,
-		commandInspect,
-		commandArchive,
-		commandLogin,
-		commandStatus,
-		commandStats,
-		commandScale,
-		commandPause,
-		commandResume,
-	***REMOVED***
-	app.Flags = []cli.Flag***REMOVED***
-		cli.BoolFlag***REMOVED***
-			Name:  "verbose, v",
-			Usage: "show debug messages",
-		***REMOVED***,
-		cli.StringFlag***REMOVED***
-			Name:   "address, a",
-			Usage:  "address for the API",
-			Value:  "127.0.0.1:6565",
-			EnvVar: "K6_ADDRESS",
-		***REMOVED***,
-		cli.BoolFlag***REMOVED***
-			Name:   "no-color, n",
-			Usage:  "disable colored output",
-			EnvVar: "K6_NO_COLOR",
-		***REMOVED***,
-	***REMOVED***
-	app.Before = func(cc *cli.Context) error ***REMOVED***
-		if cc.Bool("verbose") ***REMOVED***
-			log.SetLevel(log.DebugLevel)
-		***REMOVED***
-		if cc.Bool("no-color") ***REMOVED***
-			color.NoColor = true
-		***REMOVED***
-
-		return nil
-	***REMOVED***
-	if err := app.Run(os.Args); err != nil ***REMOVED***
-		os.Exit(1)
-	***REMOVED***
+	cmd.Execute()
 ***REMOVED***
