@@ -206,8 +206,14 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	// should only be executed by this thread to avoid race conditions
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-pingChan:
+		case pingData := <-pingChan:
 			// Handle pings received from the server
+			// - trigger the `ping` event
+			// - reply with pong (needed when `SetPingHandler` is overwritten)
+			err := socket.conn.WriteControl(websocket.PongMessage, []byte(pingData), time.Now().Add(writeWait))
+			if err != nil ***REMOVED***
+				socket.handleEvent("error", rt.ToValue(err))
+			***REMOVED***
 			socket.handleEvent("ping")
 
 		case pingID := <-pongChan:
