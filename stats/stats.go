@@ -201,7 +201,7 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt, Sink: sink***REMOVED***
 ***REMOVED***
 
-func (m Metric) HumanizeValue(v float64) string ***REMOVED***
+func (m *Metric) HumanizeValue(v float64) string ***REMOVED***
 	switch m.Type ***REMOVED***
 	case Rate:
 		return strconv.FormatFloat(100*v, 'f', 2, 64) + "%"
@@ -260,4 +260,16 @@ func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 		tags[key] = value
 	***REMOVED***
 	return parts[0], &Submetric***REMOVED***Name: name, Tags: tags***REMOVED***
+***REMOVED***
+
+func (m *Metric) Summary() *Summary ***REMOVED***
+	return &Summary***REMOVED***
+		Metric:  m,
+		Summary: m.Sink.Format(),
+	***REMOVED***
+***REMOVED***
+
+type Summary struct ***REMOVED***
+	Metric  *Metric            `json:"metric"`
+	Summary map[string]float64 `json:"summary"`
 ***REMOVED***

@@ -24,6 +24,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	jsonenc "encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -150,18 +151,23 @@ var commandRun = cli.Command***REMOVED***
 			Usage:  "output metrics to an external data store (format: type=uri)",
 			EnvVar: "K6_OUT",
 		***REMOVED***,
+		cli.StringFlag***REMOVED***
+			Name:   "report, r",
+			Usage:  "file where the JSON summary report is written",
+			EnvVar: "K6_REPORT",
+		***REMOVED***,
 	),
 	Action: actionRun,
 	Description: `Run starts a load test.
 
    This is the main entry point to k6, and will do two things:
-   
+
    - Construct an Engine and provide it with a Runner, depending on the first
      argument and the --type flag, which is used to execute the test.
-   
+
    - Start an a web server on the address specified by the global --address
      flag, which serves a web interface and a REST API for remote control.
-   
+
    For ease of use, you may also pass initial status parameters (vus, max,
    duration) to 'run', which will be applied through a normal API call.`,
 ***REMOVED***
@@ -384,6 +390,7 @@ func actionRun(cc *cli.Context) error ***REMOVED***
 	// Collect CLI arguments, most (not all) relating to options.
 	addr := cc.GlobalString("address")
 	out := cc.String("out")
+	reportFile := cc.String("report")
 	quiet := cc.Bool("quiet")
 	cliOpts, err := getOptions(cc)
 	if err != nil ***REMOVED***
@@ -594,60 +601,109 @@ loop:
 	***REMOVED***
 	fmt.Fprintf(color.Output, "\n")
 
-	// Print groups.
-	var printGroup func(g *lib.Group, level int)
-	printGroup = func(g *lib.Group, level int) ***REMOVED***
-		indent := strings.Repeat("  ", level)
+	// Print summary to stdout
+	printHumanizedSummary(engine, atTime)
 
-		if g.Name != "" && g.Parent != nil ***REMOVED***
-			fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
-		***REMOVED***
-
-		if len(g.Checks) > 0 ***REMOVED***
-			if g.Name != "" && g.Parent != nil ***REMOVED***
-				fmt.Fprintf(color.Output, "\n")
-			***REMOVED***
-			for _, check := range g.Checks ***REMOVED***
-				icon := "✓"
-				statusColor := color.GreenString
-				isCheckFailure := check.Fails > 0
-
-				if isCheckFailure ***REMOVED***
-					icon = "✗"
-					statusColor = color.RedString
-				***REMOVED***
-
-				fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
-					indent,
-					icon,
-					check.Name,
-				))
-
-				if isCheckFailure ***REMOVED***
-					fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
-						indent,
-						100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
-						check.Fails,
-						check.Passes+check.Fails,
-					))
-				***REMOVED***
-
-			***REMOVED***
-			fmt.Fprintf(color.Output, "\n")
-		***REMOVED***
-		if len(g.Groups) > 0 ***REMOVED***
-			if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
-				fmt.Fprintf(color.Output, "\n")
-			***REMOVED***
-			for _, g := range g.Groups ***REMOVED***
-				printGroup(g, level+1)
-			***REMOVED***
+	if reportFile != "" ***REMOVED***
+		if err := writeJsonReport(fs, reportFile, engine); err != nil ***REMOVED***
+			log.WithError(err).Errorf("Could not JSON summary report to file %s", reportFile)
 		***REMOVED***
 	***REMOVED***
 
-	printGroup(engine.Executor.GetRunner().GetDefaultGroup(), 1)
+	if opts.Linger.Bool ***REMOVED***
+		<-signals
+	***REMOVED***
+
+	if engine.IsTainted() ***REMOVED***
+		return cli.NewExitError("", 99)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func writeJsonReport(fs afero.Fs, reportFile string, engine *core.Engine) (err error) ***REMOVED***
+	bs, err := createJsonReport(engine)
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+
+	err = writeFile(fs, reportFile, bs)
+	return
+***REMOVED***
+
+func writeFile(fs afero.Fs, filename string, contents []byte) (err error) ***REMOVED***
+	file, err := fs.Create(filename)
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+
+	defer func() ***REMOVED***
+		_ = file.Close()
+	***REMOVED***()
+
+	_, err = file.Write(contents)
+
+	return
+***REMOVED***
+
+func printHumanizedSummary(engine *core.Engine, atTime time.Duration) ***REMOVED***
+	// Print groups.
+	printHumanizedGroups(engine.Executor.GetRunner().GetDefaultGroup(), 1)
 
 	// Sort and print metrics.
+	printHumanizedMetrics(engine, atTime)
+***REMOVED***
+
+func printHumanizedGroups(g *lib.Group, level int) ***REMOVED***
+	indent := strings.Repeat("  ", level)
+
+	if g.Name != "" && g.Parent != nil ***REMOVED***
+		fmt.Fprintf(color.Output, "%s█ %s\n", indent, g.Name)
+	***REMOVED***
+
+	if len(g.Checks) > 0 ***REMOVED***
+		if g.Name != "" && g.Parent != nil ***REMOVED***
+			fmt.Fprintf(color.Output, "\n")
+		***REMOVED***
+		for _, check := range g.Checks ***REMOVED***
+			icon := "✓"
+			statusColor := color.GreenString
+			isCheckFailure := check.Fails > 0
+
+			if isCheckFailure ***REMOVED***
+				icon = "✗"
+				statusColor = color.RedString
+			***REMOVED***
+
+			fmt.Fprint(color.Output, statusColor("%s  %s %s\n",
+				indent,
+				icon,
+				check.Name,
+			))
+
+			if isCheckFailure ***REMOVED***
+				fmt.Fprint(color.Output, statusColor("%s        %2.2f%% (%v/%v) \n",
+					indent,
+					100*(float64(check.Fails)/float64(check.Passes+check.Fails)),
+					check.Fails,
+					check.Passes+check.Fails,
+				))
+			***REMOVED***
+
+		***REMOVED***
+		fmt.Fprintf(color.Output, "\n")
+	***REMOVED***
+	if len(g.Groups) > 0 ***REMOVED***
+		if g.Name != "" && g.Parent != nil && len(g.Checks) > 0 ***REMOVED***
+			fmt.Fprintf(color.Output, "\n")
+		***REMOVED***
+		for _, g := range g.Groups ***REMOVED***
+			printHumanizedGroups(g, level+1)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func printHumanizedMetrics(engine *core.Engine, atTime time.Duration) ***REMOVED***
+	// Sort metric names
 	metricNames := make([]string, 0, len(engine.Metrics))
 	metricNameWidth := 0
 	for _, m := range engine.Metrics ***REMOVED***
@@ -658,6 +714,7 @@ loop:
 	***REMOVED***
 	sort.Strings(metricNames)
 
+	// Print the metrics in the sorted order
 	for _, name := range metricNames ***REMOVED***
 		m := engine.Metrics[name]
 		sample := m.Sink.Format()
@@ -707,15 +764,30 @@ loop:
 			val,
 		)
 	***REMOVED***
+***REMOVED***
 
-	if opts.Linger.Bool ***REMOVED***
-		<-signals
+type EngineReport struct ***REMOVED***
+	Groups  *lib.Group       `json:"groups"`
+	Metrics []*stats.Summary `json:"metrics"`
+***REMOVED***
+
+func createJsonReport(engine *core.Engine) ([]byte, error) ***REMOVED***
+	metrics := make([]*stats.Summary, 0, len(engine.Metrics))
+
+	for _, metric := range engine.Metrics ***REMOVED***
+		metrics = append(metrics, metric.Summary())
 	***REMOVED***
 
-	if engine.IsTainted() ***REMOVED***
-		return cli.NewExitError("", 99)
+	summary := &EngineReport***REMOVED***
+		Groups:  engine.Executor.GetRunner().GetDefaultGroup(),
+		Metrics: metrics,
 	***REMOVED***
-	return nil
+
+	bs, err := jsonenc.Marshal(summary)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return bs, nil
 ***REMOVED***
 
 func actionArchive(cc *cli.Context) error ***REMOVED***
