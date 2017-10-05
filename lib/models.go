@@ -23,6 +23,7 @@ package lib
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,9 +42,21 @@ type SourceData struct ***REMOVED***
 	Filename string
 ***REMOVED***
 
-type Stage struct ***REMOVED***
+type StageFields struct ***REMOVED***
 	Duration NullDuration `json:"duration"`
 	Target   null.Int     `json:"target"`
+***REMOVED***
+
+type Stage StageFields
+
+// For some reason, implementing UnmarshalText makes encoding/json treat the type as a string.
+func (s *Stage) UnmarshalJSON(b []byte) error ***REMOVED***
+	var fields StageFields
+	if err := json.Unmarshal(b, &fields); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*s = Stage(fields)
+	return nil
 ***REMOVED***
 
 func (s *Stage) UnmarshalText(b []byte) error ***REMOVED***
