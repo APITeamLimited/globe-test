@@ -59,6 +59,10 @@ func (s *Stage) UnmarshalJSON(b []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (s Stage) MarshalJSON() ([]byte, error) ***REMOVED***
+	return json.Marshal(StageFields(s))
+***REMOVED***
+
 func (s *Stage) UnmarshalText(b []byte) error ***REMOVED***
 	var stage Stage
 	parts := strings.SplitN(string(b), ":", 2)
