@@ -324,15 +324,15 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		default:
 			obj := v.ToObject(rt)
 			objkeys := obj.Keys()
-			for i, objk := range objkeys ***REMOVED***
+			for _, objk := range objkeys ***REMOVED***
 				objv := obj.Get(objk)
-				switch i ***REMOVED***
-				case 0:
+				switch objk ***REMOVED***
+				case "0", "method":
 					method = strings.ToUpper(objv.String())
 					if method == "GET" || method == "HEAD" ***REMOVED***
 						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
 					***REMOVED***
-				case 1:
+				case "1", "url":
 					url = objv
 				default:
 					args = append(args, objv)
