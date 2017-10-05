@@ -129,7 +129,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				Filename: "/script.js",
 				Data:     []byte(`import "/file.js"; export default function() ***REMOVED******REMOVED***`),
 			***REMOVED***, fs)
-			assert.EqualError(t, err, "Error: aaaa at /file.js:1:32(4)")
+			assert.EqualError(t, err, "Error: aaaa at /file.js:1:19(4)")
 		***REMOVED***)
 
 		imports := map[string]struct ***REMOVED***

@@ -29,6 +29,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
+	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
@@ -75,15 +76,13 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 			Duration: lib.NullDurationFrom(10 * time.Second),
 		***REMOVED***)
 		assert.NoError(t, err)
-		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***)
-		***REMOVED***
+		assert.Nil(t, e.Executor.GetStages())
 		assert.Equal(t, lib.NullDurationFrom(10*time.Second), e.Executor.GetEndTime())
 
 		t.Run("Infinite", func(t *testing.T) ***REMOVED***
-			e, err, _ := newTestEngine(nil, lib.Options***REMOVED***Duration: lib.NullDurationFrom(0)***REMOVED***)
+			e, err, _ := newTestEngine(nil, lib.Options***REMOVED***Duration: lib.NullDuration***REMOVED******REMOVED******REMOVED***)
 			assert.NoError(t, err)
-			assert.Equal(t, []lib.Stage***REMOVED******REMOVED******REMOVED******REMOVED***, e.Stages)
+			assert.Nil(t, e.Executor.GetStages())
 			assert.Equal(t, lib.NullDuration***REMOVED******REMOVED***, e.Executor.GetEndTime())
 		***REMOVED***)
 	***REMOVED***)
@@ -94,10 +93,9 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
-		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
+		if assert.Len(t, e.Executor.GetStages(), 1) ***REMOVED***
+			assert.Equal(t, e.Executor.GetStages()[0], lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
 		***REMOVED***
-		assert.Equal(t, lib.NullDurationFrom(10*time.Second), e.Executor.GetEndTime())
 	***REMOVED***)
 	t.Run("Stages/Duration", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***
@@ -107,10 +105,10 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***)
 		assert.NoError(t, err)
-		if assert.Len(t, e.Stages, 1) ***REMOVED***
-			assert.Equal(t, e.Stages[0], lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
+		if assert.Len(t, e.Executor.GetStages(), 1) ***REMOVED***
+			assert.Equal(t, e.Executor.GetStages()[0], lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***)
 		***REMOVED***
-		assert.Equal(t, lib.NullDurationFrom(10*time.Second), e.Executor.GetEndTime())
+		assert.Equal(t, lib.NullDurationFrom(60*time.Second), e.Executor.GetEndTime())
 	***REMOVED***)
 	t.Run("Iterations", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***Iterations: null.IntFrom(100)***REMOVED***)
@@ -210,6 +208,7 @@ func TestNewEngineOptions(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineRun(t *testing.T) ***REMOVED***
+	log.SetLevel(log.DebugLevel)
 	t.Run("exits with context", func(t *testing.T) ***REMOVED***
 		duration := 100 * time.Millisecond
 		e, err, _ := newTestEngine(nil, lib.Options***REMOVED******REMOVED***)
@@ -221,7 +220,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.NoError(t, e.Run(ctx))
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
 	***REMOVED***)
-	t.Run("exits with iterations", func(t *testing.T) ***REMOVED***
+	t.Run("exits with executor", func(t *testing.T) ***REMOVED***
 		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***
 			VUs:        null.IntFrom(10),
 			VUsMax:     null.IntFrom(10),
@@ -230,61 +229,6 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assert.NoError(t, e.Run(context.Background()))
 		assert.Equal(t, int64(100), e.Executor.GetIterations())
-	***REMOVED***)
-	t.Run("exits with duration", func(t *testing.T) ***REMOVED***
-		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***
-			VUs:      null.IntFrom(10),
-			VUsMax:   null.IntFrom(10),
-			Duration: lib.NullDurationFrom(1 * time.Second),
-		***REMOVED***)
-		assert.NoError(t, err)
-		startTime := time.Now()
-		assert.NoError(t, e.Run(context.Background()))
-		assert.True(t, time.Now().After(startTime.Add(1*time.Second)))
-	***REMOVED***)
-	t.Run("exits with stages", func(t *testing.T) ***REMOVED***
-		testdata := map[string]struct ***REMOVED***
-			Duration time.Duration
-			Stages   []lib.Stage
-		***REMOVED******REMOVED***
-			"none": ***REMOVED******REMOVED***,
-			"one": ***REMOVED***
-				1 * time.Second,
-				[]lib.Stage***REMOVED******REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
-			***REMOVED***,
-			"two": ***REMOVED***
-				2 * time.Second,
-				[]lib.Stage***REMOVED***
-					***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
-					***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
-				***REMOVED***,
-			***REMOVED***,
-			"two/targeted": ***REMOVED***
-				2 * time.Second,
-				[]lib.Stage***REMOVED***
-					***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
-					***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***
-		for name, data := range testdata ***REMOVED***
-			t.Run(name, func(t *testing.T) ***REMOVED***
-				e, err, _ := newTestEngine(nil, lib.Options***REMOVED***
-					VUs:    null.IntFrom(10),
-					VUsMax: null.IntFrom(10),
-				***REMOVED***)
-				assert.NoError(t, err)
-
-				e.Stages = data.Stages
-				startTime := time.Now()
-				assert.NoError(t, e.Run(context.Background()))
-				assert.WithinDuration(t,
-					startTime.Add(data.Duration),
-					startTime.Add(e.Executor.GetTime()),
-					100*TickRate,
-				)
-			***REMOVED***)
-		***REMOVED***
 	***REMOVED***)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
 		testMetric := stats.New("test_metric", stats.Trend)

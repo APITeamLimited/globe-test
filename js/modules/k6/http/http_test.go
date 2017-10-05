@@ -37,6 +37,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
+	"github.com/oxtoacart/bpool"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -110,6 +111,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				DualStack: true,
 			***REMOVED***)).DialContext,
 		***REMOVED***,
+		BPool: bpool.NewBufferPool(1),
 	***REMOVED***
 
 	ctx := new(context.Context)
@@ -474,7 +476,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
 			let reqs = [
 				["GET", "https://httpbin.org/"],
-				["GET", "https://example.com/"],
+				["GET", "https://now.httpbin.org/"],
 			];
 			let res = http.batch(reqs);
 			for (var key in res) ***REMOVED***
@@ -483,7 +485,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
-			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://now.httpbin.org/", "", 200, "")
 
 			t.Run("Tagged", func(t *testing.T) ***REMOVED***
 				state.Samples = nil
@@ -491,7 +493,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				let fragment = "get";
 				let reqs = [
 					["GET", http.url`+"`"+`https://httpbin.org/$***REMOVED***fragment***REMOVED***`+"`"+`],
-					["GET", http.url`+"`"+`https://example.com/`+"`"+`],
+					["GET", http.url`+"`"+`https://now.httpbin.org/`+"`"+`],
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
@@ -500,7 +502,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
-				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://now.httpbin.org/", "", 200, "")
 			***REMOVED***)
 
 			t.Run("Shorthand", func(t *testing.T) ***REMOVED***
@@ -508,7 +510,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				_, err := common.RunString(rt, `
 				let reqs = [
 					"https://httpbin.org/",
-					"https://example.com/",
+					"https://now.httpbin.org/",
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
@@ -517,7 +519,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
-				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://now.httpbin.org/", "", 200, "")
 
 				t.Run("Tagged", func(t *testing.T) ***REMOVED***
 					state.Samples = nil
@@ -525,7 +527,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 					let fragment = "get";
 					let reqs = [
 						http.url`+"`"+`https://httpbin.org/$***REMOVED***fragment***REMOVED***`+"`"+`,
-						http.url`+"`"+`https://example.com/`+"`"+`,
+						http.url`+"`"+`https://now.httpbin.org/`+"`"+`,
 					];
 					let res = http.batch(reqs);
 					for (var key in res) ***REMOVED***
@@ -534,8 +536,25 @@ func TestRequest(t *testing.T) ***REMOVED***
 					***REMOVED***`)
 					assert.NoError(t, err)
 					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
-					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://example.com/", "", 200, "")
+					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://now.httpbin.org/", "", 200, "")
 				***REMOVED***)
+			***REMOVED***)
+
+			t.Run("ObjectForm", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
+				_, err := common.RunString(rt, `
+				let reqs = [
+					***REMOVED*** url: "https://httpbin.org/", method: "GET" ***REMOVED***,
+					***REMOVED*** method: "GET", url: "https://now.httpbin.org/" ***REMOVED***,
+				];
+				let res = http.batch(reqs);
+				for (var key in res) ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+				***REMOVED***`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://now.httpbin.org/", "", 200, "")
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("POST", func(t *testing.T) ***REMOVED***
@@ -569,11 +588,11 @@ func TestTagURL(t *testing.T) ***REMOVED***
 	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, nil))
 
 	testdata := map[string]URLTag***REMOVED***
-		`http://example.com/`:               ***REMOVED***URL: "http://example.com/", Name: "http://example.com/"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***URL: "http://example.com/2", Name: "http://example.com/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***URL: "http://example.com/2/", Name: "http://example.com/$***REMOVED******REMOVED***/"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***URL: "http://example.com/2/3", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://example.com/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***URL: "http://example.com/2/3/", Name: "http://example.com/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://httpbin.org/anything/`:               ***REMOVED***URL: "http://httpbin.org/anything/", Name: "http://httpbin.org/anything/"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***URL: "http://httpbin.org/anything/2", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***URL: "http://httpbin.org/anything/2/", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***URL: "http://httpbin.org/anything/2/3", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***URL: "http://httpbin.org/anything/2/3/", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
 	***REMOVED***
 	for expr, tag := range testdata ***REMOVED***
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
