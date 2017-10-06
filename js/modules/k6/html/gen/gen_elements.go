@@ -6,10 +6,21 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"strings"
 	"text/template"
+
+	log "github.com/Sirupsen/logrus"
+)
+
+const (
+	stringTemplate   = "string"
+	urlTemplate      = "url"
+	enumTemplate     = "enum"
+	boolTemplate     = "bool"
+	gojaEnumTemplate = "enum-goja"
+	intTemplate      = "int"
+	constTemplate    = "const"
 )
 
 // The ast parser populates this struct using the <ElemName>TagName const and <ElemName>Element struct
@@ -38,192 +49,192 @@ var funcDefs = []struct ***REMOVED***
 	Elem, Method, Attr, TemplateType string
 	Opts                             []string
 ***REMOVED******REMOVED***
-	***REMOVED***"HrefElement", "Download", "download", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
-	***REMOVED***"HrefElement", "Rel", "rel", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "Href", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"HrefElement", "Target", "target", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "HrefLang", "hreflang", "string", nil***REMOVED***,
-	***REMOVED***"HrefElement", "ToString", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"MediaElement", "Autoplay", "autoplay", "bool", nil***REMOVED***,
-	***REMOVED***"MediaElement", "Controls", "controls", "bool", nil***REMOVED***,
-	***REMOVED***"MediaElement", "Loop", "loop", "bool", nil***REMOVED***,
-	***REMOVED***"MediaElement", "Muted", "muted", "bool", nil***REMOVED***,
-	***REMOVED***"MediaElement", "Preload", "preload", "enum", []string***REMOVED***"auto", "metadata", "none"***REMOVED******REMOVED***,
-	***REMOVED***"MediaElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"MediaElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
-	***REMOVED***"MediaElement", "CurrentSrc", "src", "string", nil***REMOVED***,
-	***REMOVED***"MediaElement", "DefaultMuted", "muted", "bool", nil***REMOVED***,
-	***REMOVED***"MediaElement", "MediaGroup", "mediagroup", "string", nil***REMOVED***,
-	***REMOVED***"BaseElement", "Href", "href", "url", []string***REMOVED***"e.sel.URL"***REMOVED******REMOVED***,
-	***REMOVED***"BaseElement", "Target", "target", "string", nil***REMOVED***,
-	***REMOVED***"ButtonElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
-	***REMOVED***"ButtonElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
-	***REMOVED***"ButtonElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"ButtonElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"ButtonElement", "Type", "type", "enum", []string***REMOVED***"submit", "button", "menu", "reset"***REMOVED******REMOVED***,
-	***REMOVED***"DataElement", "Value", "value", "string", nil***REMOVED***,
-	***REMOVED***"EmbedElement", "Height", "height", "string", nil***REMOVED***,
-	***REMOVED***"EmbedElement", "Width", "width", "string", nil***REMOVED***,
-	***REMOVED***"EmbedElement", "Src", "src", "string", nil***REMOVED***,
-	***REMOVED***"EmbedElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"FieldSetElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"FieldSetElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"FormElement", "Action", "action", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"FormElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"FormElement", "Target", "target", "string", nil***REMOVED***,
-	***REMOVED***"FormElement", "Enctype", "enctype", "enum", []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
-	***REMOVED***"FormElement", "Encoding", "enctype", "enum", []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
-	***REMOVED***"FormElement", "AcceptCharset", "accept-charset", "string", nil***REMOVED***,
-	***REMOVED***"FormElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
-	***REMOVED***"FormElement", "NoValidate", "novalidate", "bool", nil***REMOVED***,
-	***REMOVED***"IFrameElement", "Allowfullscreen", "allowfullscreen", "bool", nil***REMOVED***,
-	***REMOVED***"IFrameElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
-	***REMOVED***"IFrameElement", "Height", "height", "string", nil***REMOVED***,
-	***REMOVED***"IFrameElement", "Width", "width", "string", nil***REMOVED***,
-	***REMOVED***"IFrameElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"IFrameElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "CurrentSrc", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "Sizes", "sizes", "string", nil***REMOVED***,
-	***REMOVED***"ImageElement", "Srcset", "srcset", "string", nil***REMOVED***,
-	***REMOVED***"ImageElement", "Alt", "alt", "string", nil***REMOVED***,
-	***REMOVED***"ImageElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "Height", "height", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "Width", "width", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "IsMap", "ismap", "bool", nil***REMOVED***,
-	***REMOVED***"ImageElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"ImageElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"ImageElement", "UseMap", "usemap", "string", nil***REMOVED***,
-	***REMOVED***"ImageElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Type", "type", "enum", []string***REMOVED***"text", "button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "time", "url", "week"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Required", "required", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Value", "value", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Checked", "checked", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "DefaultChecked", "checked", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Alt", "alt", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Height", "height", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Width", "width", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Accept", "accept", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "MaxLength", "maxlength", "int", []string***REMOVED***"-1"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Size", "size", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"InputElement", "Pattern", "pattern", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Placeholder", "placeholder", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Readonly", "readonly", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Min", "min", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Max", "max", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "DefaultValue", "value", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "DirName", "dirname", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
-	***REMOVED***"InputElement", "Multiple", "multiple", "bool", nil***REMOVED***,
-	***REMOVED***"InputElement", "Step", "step", "string", nil***REMOVED***,
-	***REMOVED***"KeygenElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
-	***REMOVED***"KeygenElement", "Challenge", "challenge", "string", nil***REMOVED***,
-	***REMOVED***"KeygenElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"KeygenElement", "Keytype", "keytype", "enum", []string***REMOVED***"RSA", "DSA", "EC"***REMOVED******REMOVED***,
-	***REMOVED***"KeygenElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"KeygenElement", "Type", "type", "const", []string***REMOVED***"keygen"***REMOVED******REMOVED***,
-	***REMOVED***"LabelElement", "HtmlFor", "for", "string", nil***REMOVED***,
-	***REMOVED***"LegendElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
-	***REMOVED***"LiElement", "Value", "value", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"LiElement", "Type", "type", "enum", []string***REMOVED***"", "1", "a", "A", "i", "I", "disc", "square", "circle"***REMOVED******REMOVED***,
-	***REMOVED***"LinkElement", "CrossOrigin", "crossorigin", "enum-goja", []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
-	***REMOVED***"LinkElement", "ReferrerPolicy", "referrerpolicy", "enum", []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
-	***REMOVED***"LinkElement", "Href", "href", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"LinkElement", "Hreflang", "hreflang", "string", nil***REMOVED***,
-	***REMOVED***"LinkElement", "Media", "media", "string", nil***REMOVED***,
-	***REMOVED***"LinkElement", "Rel", "rel", "string", nil***REMOVED***,
-	***REMOVED***"LinkElement", "Target", "target", "string", nil***REMOVED***,
-	***REMOVED***"LinkElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"MapElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"MetaElement", "Content", "content", "string", nil***REMOVED***,
-	***REMOVED***"MetaElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"MetaElement", "HttpEquiv", "http-equiv", "enum", []string***REMOVED***"content-type", "default-style", "refresh"***REMOVED******REMOVED***,
-	***REMOVED***"MeterElement", "Min", "min", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"MeterElement", "Max", "max", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"MeterElement", "High", "high", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"MeterElement", "Low", "low", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"MeterElement", "Optimum", "optimum", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"ModElement", "Cite", "cite", "string", nil***REMOVED***,
-	***REMOVED***"ModElement", "Datetime", "datetime", "string", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "Data", "data", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"ObjectElement", "Height", "height", "string", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"ObjectElement", "TypeMustMatch", "typemustmatch", "bool", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "UseMap", "usemap", "string", nil***REMOVED***,
-	***REMOVED***"ObjectElement", "Width", "width", "string", nil***REMOVED***,
-	***REMOVED***"OListElement", "Reversed", "reversed", "bool", nil***REMOVED***,
-	***REMOVED***"OListElement", "Start", "start", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"OListElement", "Type", "type", "enum", []string***REMOVED***"1", "a", "A", "i", "I"***REMOVED******REMOVED***,
-	***REMOVED***"OptGroupElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"OptGroupElement", "Label", "label", "string", nil***REMOVED***,
-	***REMOVED***"OptionElement", "DefaultSelected", "selected", "bool", nil***REMOVED***,
-	***REMOVED***"OptionElement", "Selected", "selected", "bool", nil***REMOVED***,
-	***REMOVED***"OutputElement", "HtmlFor", "for", "string", nil***REMOVED***,
-	***REMOVED***"OutputElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"OutputElement", "Type", "type", "const", []string***REMOVED***"output"***REMOVED******REMOVED***,
-	***REMOVED***"ParamElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"ParamElement", "Value", "value", "string", nil***REMOVED***,
-	***REMOVED***"PreElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"PreElement", "Value", "value", "string", nil***REMOVED***,
-	***REMOVED***"QuoteElement", "Cite", "cite", "string", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "CrossOrigin", "crossorigin", "string", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"ScriptElement", "Charset", "charset", "string", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "Async", "async", "bool", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "Defer", "defer", "bool", nil***REMOVED***,
-	***REMOVED***"ScriptElement", "NoModule", "nomodule", "bool", nil***REMOVED***,
-	***REMOVED***"SelectElement", "Autofocus", "autofocus", "bool", nil***REMOVED***,
-	***REMOVED***"SelectElement", "Disabled", "disabled", "bool", nil***REMOVED***,
-	***REMOVED***"SelectElement", "Multiple", "multiple", "bool", nil***REMOVED***,
-	***REMOVED***"SelectElement", "Name", "name", "string", nil***REMOVED***,
-	***REMOVED***"SelectElement", "Required", "required", "bool", nil***REMOVED***,
-	***REMOVED***"SelectElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"SourceElement", "KeySystem", "keysystem", "string", nil***REMOVED***,
-	***REMOVED***"SourceElement", "Media", "media", "string", nil***REMOVED***,
-	***REMOVED***"SourceElement", "Sizes", "sizes", "string", nil***REMOVED***,
-	***REMOVED***"SourceElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"SourceElement", "Srcset", "srcset", "string", nil***REMOVED***,
-	***REMOVED***"SourceElement", "Type", "type", "string", nil***REMOVED***,
-	***REMOVED***"StyleElement", "Media", "media", "string", nil***REMOVED***,
-	***REMOVED***"TableElement", "Sortable", "sortable", "bool", nil***REMOVED***,
-	***REMOVED***"TableCellElement", "ColSpan", "colspan", "int", []string***REMOVED***"1"***REMOVED******REMOVED***,
-	***REMOVED***"TableCellElement", "RowSpan", "rowspan", "int", []string***REMOVED***"1"***REMOVED******REMOVED***,
-	***REMOVED***"TableCellElement", "Headers", "headers", "string", nil***REMOVED***,
-	***REMOVED***"TableHeaderCellElement", "Abbr", "abbr", "string", nil***REMOVED***,
-	***REMOVED***"TableHeaderCellElement", "Scope", "scope", "enum", []string***REMOVED***"", "row", "col", "colgroup", "rowgroup"***REMOVED******REMOVED***,
-	***REMOVED***"TableHeaderCellElement", "Sorted", "sorted", "bool", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Type", "type", "const", []string***REMOVED***"textarea"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "Value", "value", "string", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "DefaultValue", "value", "string", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Placeholder", "placeholder", "string", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Rows", "rows", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "Cols", "cols", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "MaxLength", "maxlength", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "TabIndex", "tabindex", "int", []string***REMOVED***"0"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "AccessKey", "accesskey", "string", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "ReadOnly", "readonly", "bool", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Required", "required", "bool", nil***REMOVED***,
-	***REMOVED***"TextAreaElement", "Autocomplete", "autocomplete", "enum", []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "Autocapitalize", "autocapitalize", "enum", []string***REMOVED***"sentences", "none", "off", "characters", "words"***REMOVED******REMOVED***,
-	***REMOVED***"TextAreaElement", "Wrap", "wrap", "enum", []string***REMOVED***"soft", "hard", "off"***REMOVED******REMOVED***,
-	***REMOVED***"TimeElement", "Datetime", "datetime", "string", nil***REMOVED***,
-	***REMOVED***"TrackElement", "Kind", "kind", "enum", []string***REMOVED***"subtitle", "captions", "descriptions", "chapters", "metadata"***REMOVED******REMOVED***,
-	***REMOVED***"TrackElement", "Src", "src", "url", []string***REMOVED***"\"\""***REMOVED******REMOVED***,
-	***REMOVED***"TrackElement", "Srclang", "srclang", "string", nil***REMOVED***,
-	***REMOVED***"TrackElement", "Label", "label", "string", nil***REMOVED***,
-	***REMOVED***"TrackElement", "Default", "default", "bool", nil***REMOVED***,
-	***REMOVED***"UListElement", "Type", "type", "string", nil***REMOVED***,
+	***REMOVED***"HrefElement", "Download", "download", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "ReferrerPolicy", "referrerpolicy", enumTemplate, []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"HrefElement", "Rel", "rel", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "Href", "href", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"HrefElement", "Target", "target", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "AccessKey", "accesskey", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "HrefLang", "hreflang", stringTemplate, nil***REMOVED***,
+	***REMOVED***"HrefElement", "ToString", "href", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "Autoplay", "autoplay", boolTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "Controls", "controls", boolTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "Loop", "loop", boolTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "Muted", "muted", boolTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "Preload", "preload", enumTemplate, []string***REMOVED***"auto", "metadata", "none"***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "CrossOrigin", "crossorigin", gojaEnumTemplate, []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"MediaElement", "CurrentSrc", "src", stringTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "DefaultMuted", "muted", boolTemplate, nil***REMOVED***,
+	***REMOVED***"MediaElement", "MediaGroup", "mediagroup", stringTemplate, nil***REMOVED***,
+	***REMOVED***"BaseElement", "Href", "href", urlTemplate, []string***REMOVED***"e.sel.URL"***REMOVED******REMOVED***,
+	***REMOVED***"BaseElement", "Target", "target", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ButtonElement", "AccessKey", "accesskey", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ButtonElement", "Autofocus", "autofocus", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ButtonElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ButtonElement", "TabIndex", "tabindex", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ButtonElement", "Type", "type", enumTemplate, []string***REMOVED***"submit", "button", "menu", "reset"***REMOVED******REMOVED***,
+	***REMOVED***"DataElement", "Value", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Height", "height", stringTemplate, nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Width", "width", stringTemplate, nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Src", "src", stringTemplate, nil***REMOVED***,
+	***REMOVED***"EmbedElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"FieldSetElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"FieldSetElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"FormElement", "Action", "action", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"FormElement", "Target", "target", stringTemplate, nil***REMOVED***,
+	***REMOVED***"FormElement", "Enctype", "enctype", enumTemplate, []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "Encoding", "enctype", enumTemplate, []string***REMOVED***"application/x-www-form-urlencoded", "multipart/form-data", "text/plain"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "AcceptCharset", "accept-charset", stringTemplate, nil***REMOVED***,
+	***REMOVED***"FormElement", "Autocomplete", "autocomplete", enumTemplate, []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"FormElement", "NoValidate", "novalidate", boolTemplate, nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Allowfullscreen", "allowfullscreen", boolTemplate, nil***REMOVED***,
+	***REMOVED***"IFrameElement", "ReferrerPolicy", "referrerpolicy", enumTemplate, []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"IFrameElement", "Height", "height", stringTemplate, nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Width", "width", stringTemplate, nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"IFrameElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "CurrentSrc", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Sizes", "sizes", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "Srcset", "srcset", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "Alt", "alt", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "CrossOrigin", "crossorigin", gojaEnumTemplate, []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Height", "height", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "Width", "width", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "IsMap", "ismap", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ImageElement", "UseMap", "usemap", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ImageElement", "ReferrerPolicy", "referrerpolicy", enumTemplate, []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "TabIndex", "tabindex", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Type", "type", enumTemplate, []string***REMOVED***"text", "button", "checkbox", "color", "date", "datetime-local", "email", "file", "hidden", "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "time", "url", "week"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Autofocus", "autofocus", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Required", "required", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Value", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Checked", "checked", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "DefaultChecked", "checked", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Alt", "alt", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Height", "height", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Width", "width", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Accept", "accept", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Autocomplete", "autocomplete", enumTemplate, []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "MaxLength", "maxlength", intTemplate, []string***REMOVED***"-1"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Size", "size", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"InputElement", "Pattern", "pattern", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Placeholder", "placeholder", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Readonly", "readonly", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Min", "min", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Max", "max", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "DefaultValue", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "DirName", "dirname", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "AccessKey", "accesskey", stringTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Multiple", "multiple", boolTemplate, nil***REMOVED***,
+	***REMOVED***"InputElement", "Step", "step", stringTemplate, nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Autofocus", "autofocus", boolTemplate, nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Challenge", "challenge", stringTemplate, nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Keytype", "keytype", enumTemplate, []string***REMOVED***"RSA", "DSA", "EC"***REMOVED******REMOVED***,
+	***REMOVED***"KeygenElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"KeygenElement", "Type", "type", constTemplate, []string***REMOVED***"keygen"***REMOVED******REMOVED***,
+	***REMOVED***"LabelElement", "HtmlFor", "for", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LegendElement", "AccessKey", "accesskey", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LiElement", "Value", "value", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"LiElement", "Type", "type", enumTemplate, []string***REMOVED***"", "1", "a", "A", "i", "I", "disc", "square", "circle"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "CrossOrigin", "crossorigin", gojaEnumTemplate, []string***REMOVED***"anonymous", "use-credentials"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "ReferrerPolicy", "referrerpolicy", enumTemplate, []string***REMOVED***"", "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "unsafe-url"***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "Href", "href", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"LinkElement", "Hreflang", "hreflang", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LinkElement", "Media", "media", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LinkElement", "Rel", "rel", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LinkElement", "Target", "target", stringTemplate, nil***REMOVED***,
+	***REMOVED***"LinkElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"MapElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"MetaElement", "Content", "content", stringTemplate, nil***REMOVED***,
+	***REMOVED***"MetaElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"MetaElement", "HttpEquiv", "http-equiv", enumTemplate, []string***REMOVED***"content-type", "default-style", "refresh"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Min", "min", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Max", "max", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "High", "high", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Low", "low", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"MeterElement", "Optimum", "optimum", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ModElement", "Cite", "cite", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ModElement", "Datetime", "datetime", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Data", "data", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ObjectElement", "Height", "height", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "TabIndex", "tabindex", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"ObjectElement", "TypeMustMatch", "typemustmatch", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "UseMap", "usemap", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ObjectElement", "Width", "width", stringTemplate, nil***REMOVED***,
+	***REMOVED***"OListElement", "Reversed", "reversed", boolTemplate, nil***REMOVED***,
+	***REMOVED***"OListElement", "Start", "start", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"OListElement", "Type", "type", enumTemplate, []string***REMOVED***"1", "a", "A", "i", "I"***REMOVED******REMOVED***,
+	***REMOVED***"OptGroupElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"OptGroupElement", "Label", "label", stringTemplate, nil***REMOVED***,
+	***REMOVED***"OptionElement", "DefaultSelected", "selected", boolTemplate, nil***REMOVED***,
+	***REMOVED***"OptionElement", "Selected", "selected", boolTemplate, nil***REMOVED***,
+	***REMOVED***"OutputElement", "HtmlFor", "for", stringTemplate, nil***REMOVED***,
+	***REMOVED***"OutputElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"OutputElement", "Type", "type", constTemplate, []string***REMOVED***"output"***REMOVED******REMOVED***,
+	***REMOVED***"ParamElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ParamElement", "Value", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"PreElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"PreElement", "Value", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"QuoteElement", "Cite", "cite", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "CrossOrigin", "crossorigin", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"ScriptElement", "Charset", "charset", stringTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Async", "async", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "Defer", "defer", boolTemplate, nil***REMOVED***,
+	***REMOVED***"ScriptElement", "NoModule", "nomodule", boolTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "Autofocus", "autofocus", boolTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "Disabled", "disabled", boolTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "Multiple", "multiple", boolTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "Name", "name", stringTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "Required", "required", boolTemplate, nil***REMOVED***,
+	***REMOVED***"SelectElement", "TabIndex", "tabindex", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"SourceElement", "KeySystem", "keysystem", stringTemplate, nil***REMOVED***,
+	***REMOVED***"SourceElement", "Media", "media", stringTemplate, nil***REMOVED***,
+	***REMOVED***"SourceElement", "Sizes", "sizes", stringTemplate, nil***REMOVED***,
+	***REMOVED***"SourceElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"SourceElement", "Srcset", "srcset", stringTemplate, nil***REMOVED***,
+	***REMOVED***"SourceElement", "Type", "type", stringTemplate, nil***REMOVED***,
+	***REMOVED***"StyleElement", "Media", "media", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TableElement", "Sortable", "sortable", boolTemplate, nil***REMOVED***,
+	***REMOVED***"TableCellElement", "ColSpan", "colspan", intTemplate, []string***REMOVED***"1"***REMOVED******REMOVED***,
+	***REMOVED***"TableCellElement", "RowSpan", "rowspan", intTemplate, []string***REMOVED***"1"***REMOVED******REMOVED***,
+	***REMOVED***"TableCellElement", "Headers", "headers", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Abbr", "abbr", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Scope", "scope", enumTemplate, []string***REMOVED***"", "row", "col", "colgroup", "rowgroup"***REMOVED******REMOVED***,
+	***REMOVED***"TableHeaderCellElement", "Sorted", "sorted", boolTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Type", "type", constTemplate, []string***REMOVED***"textarea"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Value", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "DefaultValue", "value", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Placeholder", "placeholder", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Rows", "rows", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Cols", "cols", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "MaxLength", "maxlength", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "TabIndex", "tabindex", intTemplate, []string***REMOVED***"0"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "AccessKey", "accesskey", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "ReadOnly", "readonly", boolTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Required", "required", boolTemplate, nil***REMOVED***,
+	***REMOVED***"TextAreaElement", "Autocomplete", "autocomplete", enumTemplate, []string***REMOVED***"on", "off"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Autocapitalize", "autocapitalize", enumTemplate, []string***REMOVED***"sentences", "none", "off", "characters", "words"***REMOVED******REMOVED***,
+	***REMOVED***"TextAreaElement", "Wrap", "wrap", enumTemplate, []string***REMOVED***"soft", "hard", "off"***REMOVED******REMOVED***,
+	***REMOVED***"TimeElement", "Datetime", "datetime", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TrackElement", "Kind", "kind", enumTemplate, []string***REMOVED***"subtitle", "captions", "descriptions", "chapters", "metadata"***REMOVED******REMOVED***,
+	***REMOVED***"TrackElement", "Src", "src", urlTemplate, []string***REMOVED***"\"\""***REMOVED******REMOVED***,
+	***REMOVED***"TrackElement", "Srclang", "srclang", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TrackElement", "Label", "label", stringTemplate, nil***REMOVED***,
+	***REMOVED***"TrackElement", "Default", "default", boolTemplate, nil***REMOVED***,
+	***REMOVED***"UListElement", "Type", "type", stringTemplate, nil***REMOVED***,
 ***REMOVED***
 
 var collector = &ElemInfoCollectorState***REMOVED******REMOVED***
@@ -232,7 +243,7 @@ func main() ***REMOVED***
 	fs := token.NewFileSet()
 	parsedFile, parseErr := parser.ParseFile(fs, "elements.go", nil, 0)
 	if parseErr != nil ***REMOVED***
-		log.Fatalf("error: could not parse elements.go\n", parseErr)
+		log.WithError(parseErr).Fatal("Could not parse elements.go")
 	***REMOVED***
 
 	collector.handler = collector.defaultHandler
@@ -246,38 +257,40 @@ func main() ***REMOVED***
 		return true
 	***REMOVED***)
 
-	buf := new(bytes.Buffer)
-	err := elemFuncsTemplate.Execute(buf, struct ***REMOVED***
+	var buf bytes.Buffer
+	err := elemFuncsTemplate.Execute(&buf, struct ***REMOVED***
 		ElemInfos map[string]*ElemInfo
 		FuncDefs  []struct ***REMOVED***
 			Elem, Method, Attr, TemplateType string
 			Opts                             []string
 		***REMOVED***
+		TemplateType struct***REMOVED*** String, Url, Enum, Bool, GojaEnum, Int, Const string ***REMOVED***
 	***REMOVED******REMOVED***
 		collector.elemInfos,
 		funcDefs,
+		struct***REMOVED*** String, Url, Enum, Bool, GojaEnum, Int, Const string ***REMOVED******REMOVED***stringTemplate, urlTemplate, enumTemplate, boolTemplate, gojaEnumTemplate, intTemplate, constTemplate***REMOVED***,
 	***REMOVED***)
 	if err != nil ***REMOVED***
-		log.Fatalf("error: unable to execute template\n", err)
+		log.WithError(err).Fatal("Unable to execute template")
 	***REMOVED***
 
 	src, err := format.Source(buf.Bytes())
 	if err != nil ***REMOVED***
-		log.Fatalf("error: format.Source on generated code failed\n", err)
+		log.WithError(err).Fatal("format.Source on generated code failed")
 	***REMOVED***
 
 	f, err := os.Create("elements_gen.go")
 	if err != nil ***REMOVED***
-		log.Fatalf("error: Unable to create the file 'elements_gen.go'\n", err)
+		log.WithError(err).Fatal("Unable to create the file 'elements_gen.go'")
 	***REMOVED***
 
 	if _, err = f.Write(src); err != nil ***REMOVED***
-		log.Fatalf("error: Unable to write to 'elements_gen.go'\n", err)
+		log.WithError(err).Fatal("Unable to write to 'elements_gen.go'")
 	***REMOVED***
 
 	err = f.Close()
 	if err != nil ***REMOVED***
-		log.Fatalf("error: unable to close the file 'elements_gen.go'\n", err)
+		log.WithError(err).Fatal("Unable to close 'elements_gen.go'")
 	***REMOVED***
 ***REMOVED***
 
@@ -307,12 +320,13 @@ func selToElement(sel Selection) goja.Value ***REMOVED***
 	***REMOVED***
  ***REMOVED***
 
+***REMOVED******REMOVED*** $templateType := .TemplateType ***REMOVED******REMOVED***
 ***REMOVED******REMOVED*** range $funcDef := .FuncDefs -***REMOVED******REMOVED*** 
 
 func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***REMOVED******REMOVED***$funcDef.Method***REMOVED******REMOVED***() ***REMOVED******REMOVED*** returnType $funcDef.TemplateType ***REMOVED******REMOVED*** ***REMOVED***
-***REMOVED******REMOVED***- if eq $funcDef.TemplateType "int" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- if eq $funcDef.TemplateType $templateType.Int ***REMOVED******REMOVED***
 	return e.attrAsInt("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***)
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "enum" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.Enum ***REMOVED******REMOVED***
 	attrVal := e.attrAsString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 	switch attrVal ***REMOVED*** 
 	***REMOVED******REMOVED***- range $optIdx, $optVal := $funcDef.Opts ***REMOVED******REMOVED***
@@ -324,7 +338,7 @@ func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***RE
 	default: 
 		return "***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***" 
 	***REMOVED***
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "enum-goja" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.GojaEnum ***REMOVED******REMOVED***
 	attrVal, exists := e.sel.sel.Attr("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 	if !exists ***REMOVED***
 		return goja.Undefined()
@@ -337,13 +351,13 @@ func (e ***REMOVED******REMOVED***$funcDef.Elem***REMOVED******REMOVED***) ***RE
 	default:
 		return goja.Undefined()
 	***REMOVED***
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "const" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.Const ***REMOVED******REMOVED***
 	return "***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***"
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "url" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.Url ***REMOVED******REMOVED***
 	return e.attrAsURLString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***", ***REMOVED******REMOVED*** index $funcDef.Opts 0 ***REMOVED******REMOVED***)
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "string" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.String ***REMOVED******REMOVED***
 	return e.attrAsString("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
-***REMOVED******REMOVED***- else if eq $funcDef.TemplateType "bool" ***REMOVED******REMOVED***
+***REMOVED******REMOVED***- else if eq $funcDef.TemplateType $templateType.Bool ***REMOVED******REMOVED***
 	return e.attrIsPresent("***REMOVED******REMOVED*** $funcDef.Attr ***REMOVED******REMOVED***")
 ***REMOVED******REMOVED***- end***REMOVED******REMOVED***
 ***REMOVED***
@@ -360,11 +374,11 @@ func buildStruct(elemInfo ElemInfo) string ***REMOVED***
 
 func returnType(templateType string) string ***REMOVED***
 	switch templateType ***REMOVED***
-	case "bool":
+	case boolTemplate:
 		return "bool"
-	case "int":
+	case intTemplate:
 		return "int"
-	case "enum-goja":
+	case gojaEnumTemplate:
 		return "goja.Value"
 	default:
 		return "string"
