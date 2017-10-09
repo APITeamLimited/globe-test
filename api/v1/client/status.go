@@ -29,6 +29,10 @@ import (
 
 var StatusURL = &url.URL***REMOVED***Path: "/v1/status"***REMOVED***
 
-func (c *Client) GetStatus(ctx context.Context) (ret v1.Status, err error) ***REMOVED***
+func (c *Client) Status(ctx context.Context) (ret v1.Status, err error) ***REMOVED***
 	return ret, c.call(ctx, "GET", StatusURL, nil, &ret)
+***REMOVED***
+
+func (c *Client) SetStatus(ctx context.Context, patch v1.Status) (ret v1.Status, err error) ***REMOVED***
+	return ret, c.call(ctx, "PATCH", StatusURL, patch, &ret)
 ***REMOVED***

@@ -23,25 +23,28 @@ package cmd
 import (
 	"context"
 
-	"github.com/loadimpact/k6/ui"
-
+	"github.com/loadimpact/k6/api/v1"
 	"github.com/loadimpact/k6/api/v1/client"
+	"github.com/loadimpact/k6/ui"
 	"github.com/spf13/cobra"
+	"gopkg.in/guregu/null.v3"
 )
 
-// statusCmd represents the status command
-var statusCmd = &cobra.Command***REMOVED***
-	Use:   "status",
-	Short: "Show test status",
-	Long: `Show test status.
-
-Use the global --address flag to specify the URL to the API server.`,
+// resumeCmd represents the resume command
+var resumeCmd = &cobra.Command***REMOVED***
+	Use:   "resume",
+	Short: "Resume a paused test",
+	Long: `Resume a paused test.
+ 
+ Use the global --address flag to specify the URL to the API server.`,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		c, err := client.New(address)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		status, err := c.Status(context.Background())
+		status, err := c.SetStatus(context.Background(), v1.Status***REMOVED***
+			Paused: null.BoolFrom(false),
+		***REMOVED***)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -51,5 +54,5 @@ Use the global --address flag to specify the URL to the API server.`,
 ***REMOVED***
 
 func init() ***REMOVED***
-	RootCmd.AddCommand(statusCmd)
+	RootCmd.AddCommand(resumeCmd)
 ***REMOVED***
