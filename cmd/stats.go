@@ -33,7 +33,7 @@ var statsCmd = &cobra.Command***REMOVED***
 	Use:   "stats",
 	Short: "Show test metrics",
 	Long: `Show test metrics.
-  
+
   Use the global --address flag to specify the URL to the API server.`,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		c, err := client.New(address)
