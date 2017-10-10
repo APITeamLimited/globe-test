@@ -77,7 +77,7 @@ func init() ***REMOVED***
 func Dump(w io.Writer, v interface***REMOVED******REMOVED***) ***REMOVED***
 	data, err := yaml.Marshal(v)
 	if err != nil ***REMOVED***
-		ErrorColor.Fprint(w, err)
+		_, _ = ErrorColor.Fprint(w, err)
 	***REMOVED***
 	str := string(data)
 
@@ -88,7 +88,7 @@ func Dump(w io.Writer, v interface***REMOVED******REMOVED***) ***REMOVED***
 		match := matches[i]
 		for pos, c := range line ***REMOVED***
 			if g, ok := match[pos]; ok ***REMOVED***
-				color.Fprint(w, string(chunk))
+				_, _ = color.Fprint(w, string(chunk))
 				chunk = nil
 
 				gs := highlight.Groups
@@ -107,5 +107,5 @@ func Dump(w io.Writer, v interface***REMOVED******REMOVED***) ***REMOVED***
 		***REMOVED***
 		chunk = append(chunk, '\n')
 	***REMOVED***
-	color.Fprint(w, string(chunk[:len(chunk)-1]))
+	_, _ = color.Fprint(w, string(chunk[:len(chunk)-1]))
 ***REMOVED***
