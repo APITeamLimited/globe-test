@@ -41,9 +41,6 @@ import (
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
-	"github.com/loadimpact/k6/stats/cloud"
-	"github.com/loadimpact/k6/stats/influxdb"
-	"github.com/loadimpact/k6/stats/json"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -418,43 +415,5 @@ func newRunner(src *lib.SourceData, typ string, fs afero.Fs) (lib.Runner, error)
 		***REMOVED***
 	default:
 		return nil, errors.Errorf("unknown -t/--type: %s", typ)
-	***REMOVED***
-***REMOVED***
-
-func parseCollector(s string) (t, arg string) ***REMOVED***
-	parts := strings.SplitN(s, "=", 2)
-	switch len(parts) ***REMOVED***
-	case 0:
-		return "", ""
-	case 1:
-		return parts[0], ""
-	default:
-		return parts[0], parts[1]
-	***REMOVED***
-***REMOVED***
-
-func dummyCollector(t string) lib.Collector ***REMOVED***
-	switch t ***REMOVED***
-	case collectorInfluxDB:
-		return &influxdb.Collector***REMOVED******REMOVED***
-	case collectorJSON:
-		return &json.Collector***REMOVED******REMOVED***
-	case collectorCloud:
-		return &cloud.Collector***REMOVED******REMOVED***
-	default:
-		return nil
-	***REMOVED***
-***REMOVED***
-
-func newCollector(t, arg string, src *lib.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
-	switch t ***REMOVED***
-	case collectorInfluxDB:
-		return influxdb.New(arg, dummyCollector(t).MakeConfig(), conf.Options)
-	case collectorJSON:
-		return json.New(arg, afero.NewOsFs(), conf.Options)
-	case collectorCloud:
-		return cloud.New(arg, src, conf.Options, Version)
-	default:
-		return nil, errors.Errorf("unknown output type: %s", t)
 	***REMOVED***
 ***REMOVED***
