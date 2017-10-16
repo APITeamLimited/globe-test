@@ -38,9 +38,9 @@ const (
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
 type Collector struct ***REMOVED***
-	config    Config
-	client    client.Client
-	batchConf client.BatchPointsConfig
+	Client    client.Client
+	Config    Config
+	BatchConf client.BatchPointsConfig
 
 	buffer     []stats.Sample
 	bufferLock sync.Mutex
@@ -53,16 +53,16 @@ func New(conf Config) (*Collector, error) ***REMOVED***
 	***REMOVED***
 	batchConf := MakeBatchConfig(conf)
 	return &Collector***REMOVED***
-		config:    conf,
-		client:    cl,
-		batchConf: batchConf,
+		Client:    cl,
+		Config:    conf,
+		BatchConf: batchConf,
 	***REMOVED***, nil
 ***REMOVED***
 
 func (c *Collector) Init() error ***REMOVED***
 	// Try to create the database if it doesn't exist. Failure to do so is USUALLY harmless; it
 	// usually means we're either a non-admin user to an existing DB or connecting over UDP.
-	_, err := c.client.Query(client.NewQuery("CREATE DATABASE "+c.batchConf.Database, "", ""))
+	_, err := c.Client.Query(client.NewQuery("CREATE DATABASE "+c.BatchConf.Database, "", ""))
 	if err != nil ***REMOVED***
 		log.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
 	***REMOVED***
@@ -97,7 +97,7 @@ func (c *Collector) commit() ***REMOVED***
 	c.bufferLock.Unlock()
 
 	log.Debug("InfluxDB: Committing...")
-	batch, err := client.NewBatchPoints(c.batchConf)
+	batch, err := client.NewBatchPoints(c.BatchConf)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("InfluxDB: Couldn't make a batch")
 		return
@@ -119,7 +119,7 @@ func (c *Collector) commit() ***REMOVED***
 
 	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
 	startTime := time.Now()
-	if err := c.client.Write(batch); err != nil ***REMOVED***
+	if err := c.Client.Write(batch); err != nil ***REMOVED***
 		log.WithError(err).Error("InfluxDB: Couldn't write stats")
 	***REMOVED***
 	t := time.Since(startTime)

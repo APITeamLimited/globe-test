@@ -34,7 +34,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
@@ -47,7 +46,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	null "gopkg.in/guregu/null.v3"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -116,7 +114,7 @@ a commandline interface for interacting with it.`,
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
 		// on top to give them priority.
 		fmt.Fprintf(stdout, "%s options\r", initBar.String())
-		fileConf, err := readDiskConfig()
+		fileConf, _, err := readDiskConfig()
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -352,28 +350,6 @@ func init() ***REMOVED***
 	runCmd.Flags().AddFlagSet(optionFlagSet)
 	runCmd.Flags().AddFlagSet(configFlagSet)
 	runCmd.Flags().StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
-***REMOVED***
-
-// Reads a configuration file from disk.
-func readDiskConfig() (conf Config, err error) ***REMOVED***
-	cdir := configDirs.QueryFolderContainsFile(configFilename)
-	if cdir == nil ***REMOVED***
-		return conf, nil
-	***REMOVED***
-	data, err := cdir.ReadFile(configFilename)
-	if err != nil ***REMOVED***
-		return conf, err
-	***REMOVED***
-	if err := yaml.Unmarshal(data, &conf); err != nil ***REMOVED***
-		return conf, err
-	***REMOVED***
-	return conf, nil
-***REMOVED***
-
-// Reads configuration variables from the environment.
-func readEnvConfig() (conf Config, err error) ***REMOVED***
-	err = envconfig.Process("k6", &conf)
-	return conf, err
 ***REMOVED***
 
 // Reads a source file from any supported destination.
