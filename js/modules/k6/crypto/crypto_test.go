@@ -226,6 +226,8 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
 		const correctHex = "5eb63bbbe01eeed093cb22bb8f5acdc3";
 		const correctBase64 = "XrY7u+Ae7tCTyyK7j1rNww==";
+		const correctBase64URL = "XrY7u-Ae7tCTyyK7j1rNww=="
+		const correctBase64RawURL = "XrY7u-Ae7tCTyyK7j1rNww";
 
 		let hasher = crypto.createHash("md5");
 		hasher.update("hello world");
@@ -238,7 +240,18 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		const resultBase64 = hasher.digest("base64");
 		if (resultBase64 !== correctBase64) ***REMOVED***
 			throw new Error("Base64 encoding mismatch: " + resultBase64);
-		***REMOVED***`)
+		***REMOVED***
+
+		const resultBase64URL = hasher.digest("base64url");
+		if (resultBase64URL !== correctBase64URL) ***REMOVED***
+			throw new Error("Base64 URL encoding mismatch: " + resultBase64URL);
+		***REMOVED***
+
+		const resultBase64RawURL = hasher.digest("base64rawurl");
+		if (resultBase64RawURL !== correctBase64RawURL) ***REMOVED***
+			throw new Error("Base64 raw URL encoding mismatch: " + resultBase64RawURL);
+		***REMOVED***
+		`)
 
 		assert.NoError(t, err)
 	***REMOVED***)
