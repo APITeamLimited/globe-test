@@ -46,12 +46,12 @@ func MakeClient(conf Config) (client.Client, error) ***REMOVED***
 ***REMOVED***
 
 func MakeBatchConfig(conf Config) client.BatchPointsConfig ***REMOVED***
-	if conf.Database == "" ***REMOVED***
-		conf.Database = "k6"
+	if conf.DB == "" ***REMOVED***
+		conf.DB = "k6"
 	***REMOVED***
 	return client.BatchPointsConfig***REMOVED***
 		Precision:        conf.Precision,
-		Database:         conf.Database,
+		Database:         conf.DB,
 		RetentionPolicy:  conf.Retention,
 		WriteConsistency: conf.Consistency,
 	***REMOVED***
