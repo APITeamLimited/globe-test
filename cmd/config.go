@@ -25,12 +25,13 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/shibukawa/configdir"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 )
 
-const configFilename = "k6.json"
+const configFilename = "config.json"
 
 var (
 	configDirs    = configdir.New("loadimpact", "k6")
@@ -51,7 +52,9 @@ type Config struct ***REMOVED***
 	Linger        null.Bool   `json:"linger" envconfig:"linger"`
 	NoUsageReport null.Bool   `json:"noUsageReport" envconfig:"no_usage_report"`
 
-	Collectors map[string]json.RawMessage `json:"collectors"`
+	Collectors struct ***REMOVED***
+		InfluxDB influxdb.Config `json:"influxdb"`
+	***REMOVED*** `json:"collectors"`
 ***REMOVED***
 
 // Gets configuration from CLI flags.
@@ -112,23 +115,4 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 		c.Out = cfg.Out
 	***REMOVED***
 	return c
-***REMOVED***
-
-func (c Config) ConfigureCollector(t string, out interface***REMOVED******REMOVED***) error ***REMOVED***
-	if data, ok := c.Collectors[t]; ok ***REMOVED***
-		return json.Unmarshal(data, out)
-	***REMOVED***
-	return nil
-***REMOVED***
-
-func (c *Config) SetCollectorConfig(t string, conf interface***REMOVED******REMOVED***) error ***REMOVED***
-	data, err := json.Marshal(conf)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	if c.Collectors == nil ***REMOVED***
-		c.Collectors = make(map[string]json.RawMessage)
-	***REMOVED***
-	c.Collectors[t] = data
-	return nil
 ***REMOVED***

@@ -24,10 +24,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			return err
 		***REMOVED***
 
-		var conf influxdb.Config
-		if err := config.ConfigureCollector(collectorInfluxDB, &conf); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+		conf := config.Collectors.InfluxDB
 		if len(args) > 0 ***REMOVED***
 			if err := conf.UnmarshalText([]byte(args[0])); err != nil ***REMOVED***
 				return err
@@ -80,9 +77,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			return err
 		***REMOVED***
 
-		if err := config.SetCollectorConfig(collectorInfluxDB, conf); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+		config.Collectors.InfluxDB = conf
 		return writeDiskConfig(cdir, config)
 	***REMOVED***,
 ***REMOVED***
