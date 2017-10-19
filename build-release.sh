@@ -7,7 +7,6 @@ eval $(go env)
 VERSION=$***REMOVED***1:-$(git describe --tags --abbrev=0)***REMOVED***
 
 # Fail early if external dependencies aren't installed.
-node --version > /dev/null || (echo "ERROR: node is not installed, bailing out."; exit 1)
 rice --help > /dev/null || (echo "ERROR: rice is not installed, run: go get github.com/GeertJohan/go.rice"; exit 1)
 
 make_archive() ***REMOVED***
@@ -51,9 +50,6 @@ build_dist() ***REMOVED***
 ***REMOVED***
 
 echo "--- Building Release: $***REMOVED***VERSION***REMOVED***"
-
-echo "-> Building web assets..."
-make web
 
 echo "-> Building platform packages..."
 mkdir -p dist
