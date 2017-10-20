@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -39,7 +40,7 @@ import (
 	"github.com/loadimpact/k6/js/modules/k6/html"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -131,7 +132,6 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 		req.Header.Set("User-Agent", userAgent.String)
 	***REMOVED***
 
-	followRedirects := true
 	tags := map[string]string***REMOVED***
 		"proto":  "",
 		"status": "0",
@@ -140,6 +140,7 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 		"name":   nameTag,
 		"group":  state.Group.Path,
 	***REMOVED***
+	redirects := -1
 	timeout := 60 * time.Second
 	throw := state.Options.Throw.Bool
 
@@ -149,8 +150,6 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 			params := paramsV.ToObject(rt)
 			for _, k := range params.Keys() ***REMOVED***
 				switch k ***REMOVED***
-				case "follow":
-					followRedirects = params.Get(k).ToBoolean()
 				case "headers":
 					headersV := params.Get(k)
 					if goja.IsUndefined(headersV) || goja.IsNull(headersV) ***REMOVED***
@@ -162,6 +161,11 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 					***REMOVED***
 					for _, key := range headers.Keys() ***REMOVED***
 						req.Header.Set(key, headers.Get(key).String())
+					***REMOVED***
+				case "redirects":
+					redirects = int(params.Get(k).ToInteger())
+					if redirects < 0 ***REMOVED***
+						redirects = 0
 					***REMOVED***
 				case "tags":
 					tagsV := params.Get(k)
@@ -192,12 +196,19 @@ func (*HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State,
 		Transport: state.HTTPTransport,
 		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
-			if !followRedirects ***REMOVED***
-				return http.ErrUseLastResponse
-			***REMOVED***
 			max := int(state.Options.MaxRedirects.Int64)
-			if len(via) >= max ***REMOVED***
-				return errors.Errorf("stopped after %d redirects", max)
+			if redirects >= 0 ***REMOVED***
+				max = redirects
+			***REMOVED***
+			if len(via) > max ***REMOVED***
+				if redirects < 0 ***REMOVED***
+					log.Println(via[0].Response)
+					state.Logger.WithFields(log.Fields***REMOVED***
+						"error": fmt.Sprintf("Possible redirect loop, %d response returned last, %d redirects followed; pass ***REMOVED*** redirects: n ***REMOVED*** in request params to silence this", via[len(via)-1].Response.StatusCode, max),
+						"url":   via[0].URL.String(),
+					***REMOVED***).Warn("Redirect Limit")
+				***REMOVED***
+				return http.ErrUseLastResponse
 			***REMOVED***
 			return nil
 		***REMOVED***,

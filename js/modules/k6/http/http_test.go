@@ -121,37 +121,44 @@ func TestRequest(t *testing.T) ***REMOVED***
 	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, ctx))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
-		t.Run("9", func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/9")`)
+		t.Run("10", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/10")`)
 			assert.NoError(t, err)
 		***REMOVED***)
-		t.Run("10", func(t *testing.T) ***REMOVED***
+		t.Run("11", func(t *testing.T) ***REMOVED***
 			hook := logtest.NewLocal(state.Logger)
 			defer hook.Reset()
 
-			_, err := common.RunString(rt, `http.get("https://httpbin.org/redirect/10")`)
-			assert.EqualError(t, err, "GoError: Get /get: stopped after 10 redirects")
+			_, err := common.RunString(rt, `
+			let res = http.get("https://httpbin.org/redirect/11");
+			if (res.status != 302) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+			if (res.url != "https://httpbin.org/relative-redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
+			if (res.headers["Location"] != "/get") ***REMOVED*** throw new Error("incorrect Location header: " + res.headers["Location"]) ***REMOVED***
+			`)
+			assert.NoError(t, err)
 
 			logEntry := hook.LastEntry()
 			if assert.NotNil(t, logEntry) ***REMOVED***
 				assert.Equal(t, log.WarnLevel, logEntry.Level)
-				assert.EqualError(t, logEntry.Data["error"].(error), "Get /get: stopped after 10 redirects")
-				assert.Equal(t, "Request Failed", logEntry.Message)
+				assert.Equal(t, "Possible redirect loop, 302 response returned last, 10 redirects followed; pass ***REMOVED*** redirects: n ***REMOVED*** in request params to silence this", logEntry.Data["error"])
+				assert.Equal(t, "https://httpbin.org/redirect/11", logEntry.Data["url"])
+				assert.Equal(t, "Redirect Limit", logEntry.Message)
 			***REMOVED***
 		***REMOVED***)
-		t.Run("follow", func(t *testing.T) ***REMOVED***
+		t.Run("requestScopeRedirects", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
-			let res = http.get("https://httpbin.org/redirect/1", ***REMOVED***follow: true***REMOVED***);
+			let res = http.get("https://httpbin.org/redirect/1", ***REMOVED***redirects: 3***REMOVED***);
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 			if (res.url != "https://httpbin.org/get") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
 			`)
 			assert.NoError(t, err)
 		***REMOVED***)
-		t.Run("nofollow", func(t *testing.T) ***REMOVED***
+		t.Run("requestScopeNoRedirects", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
-			let res = http.get("https://httpbin.org/redirect/1", ***REMOVED***follow: false***REMOVED***);
+			let res = http.get("https://httpbin.org/redirect/1", ***REMOVED***redirects: 0***REMOVED***);
 			if (res.status != 302) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 			if (res.url != "https://httpbin.org/redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
+			if (res.headers["Location"] != "/get") ***REMOVED*** throw new Error("incorrect Location header: " + res.headers["Location"]) ***REMOVED***
 			`)
 			assert.NoError(t, err)
 		***REMOVED***)
