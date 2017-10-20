@@ -134,6 +134,10 @@ func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, at
 		return true, err
 	***REMOVED***
 
+	if err != nil ***REMOVED***
+		return false, err
+	***REMOVED***
+
 	if err = checkResponse(resp); err != nil ***REMOVED***
 		return false, err
 	***REMOVED***
