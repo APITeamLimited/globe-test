@@ -117,3 +117,7 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
+
+func (c *Collector) Link() string ***REMOVED***
+	return ""
+***REMOVED***
