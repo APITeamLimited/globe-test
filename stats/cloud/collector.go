@@ -57,6 +57,8 @@ type Collector struct ***REMOVED***
 	thresholds map[string][]*stats.Threshold
 	client     *Client
 
+	anonymous bool
+
 	sampleBuffer []*Sample
 	sampleMu     sync.Mutex
 ***REMOVED***
@@ -91,6 +93,7 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 		project_id: getProjectId(extConfig),
 		thresholds: thresholds,
 		client:     NewClient(token, "", version),
+		anonymous:  len(token) == 0,
 		duration:   duration,
 	***REMOVED***, nil
 ***REMOVED***
@@ -137,7 +140,11 @@ func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*
 
 func (c *Collector) String() string ***REMOVED***
 	if c.initErr == nil ***REMOVED***
-		return fmt.Sprintf("Load Impact (https://app.loadimpact.com/k6/runs/%s)", c.referenceID)
+		path := "runs"
+		if c.anonymous ***REMOVED***
+			path = "anonymous"
+		***REMOVED***
+		return fmt.Sprintf("Load Impact (https://app.loadimpact.com/k6/%s/%s)", path, c.referenceID)
 	***REMOVED***
 
 	switch c.initErr ***REMOVED***
