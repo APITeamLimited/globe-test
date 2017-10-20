@@ -31,6 +31,10 @@ import (
 
 type HTML struct***REMOVED******REMOVED***
 
+func New() *HTML ***REMOVED***
+	return &HTML***REMOVED******REMOVED***
+***REMOVED***
+
 func (HTML) ParseHTML(ctx context.Context, src string) (Selection, error) ***REMOVED***
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(src))
 	if err != nil ***REMOVED***

@@ -71,6 +71,10 @@ type WSHTTPResponse struct ***REMOVED***
 
 const writeWait = 10 * time.Second
 
+func New() *WS ***REMOVED***
+	return &WS***REMOVED******REMOVED***
+***REMOVED***
+
 func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
