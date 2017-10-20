@@ -90,6 +90,10 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	c.bufferLock.Unlock()
 ***REMOVED***
 
+func (c *Collector) Link() string ***REMOVED***
+	return c.Config.Addr
+***REMOVED***
+
 func (c *Collector) commit() ***REMOVED***
 	c.bufferLock.Lock()
 	samples := c.buffer

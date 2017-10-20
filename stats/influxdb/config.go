@@ -46,6 +46,37 @@ type ConfigFields struct ***REMOVED***
 
 type Config ConfigFields
 
+func (c Config) Apply(cfg Config) Config ***REMOVED***
+	if cfg.Addr != "" ***REMOVED***
+		c.Addr = cfg.Addr
+	***REMOVED***
+	if cfg.Username != "" ***REMOVED***
+		c.Username = cfg.Username
+	***REMOVED***
+	if cfg.Password != "" ***REMOVED***
+		c.Password = cfg.Password
+	***REMOVED***
+	if cfg.Insecure ***REMOVED***
+		c.Insecure = cfg.Insecure
+	***REMOVED***
+	if cfg.PayloadSize > 0 ***REMOVED***
+		c.PayloadSize = cfg.PayloadSize
+	***REMOVED***
+	if cfg.DB != "" ***REMOVED***
+		c.DB = cfg.DB
+	***REMOVED***
+	if cfg.Precision != "" ***REMOVED***
+		c.Precision = cfg.Precision
+	***REMOVED***
+	if cfg.Retention != "" ***REMOVED***
+		c.Retention = cfg.Retention
+	***REMOVED***
+	if cfg.Consistency != "" ***REMOVED***
+		c.Consistency = cfg.Consistency
+	***REMOVED***
+	return c
+***REMOVED***
+
 func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
 	u, err := url.Parse(string(text))
 	if err != nil ***REMOVED***

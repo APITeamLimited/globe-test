@@ -23,9 +23,7 @@ package cloud
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
@@ -40,18 +38,10 @@ const (
 	MetricPushinteral = 1 * time.Second
 )
 
-type loadimpactConfig struct ***REMOVED***
-	ProjectId int    `mapstructure:"project_id"`
-	Name      string `mapstructure:"name"`
-***REMOVED***
-
 // Collector sends result data to the Load Impact cloud service.
 type Collector struct ***REMOVED***
+	config      Config
 	referenceID string
-	initErr     error // Possible error from init call to cloud API
-
-	name       string
-	project_id int
 
 	duration   int64
 	thresholds map[string][]*stats.Threshold
@@ -62,15 +52,15 @@ type Collector struct ***REMOVED***
 ***REMOVED***
 
 // New creates a new cloud collector
-func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
-	token := os.Getenv("K6CLOUD_TOKEN")
-
-	var extConfig loadimpactConfig
+func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
 	if val, ok := opts.External["loadimpact"]; ok ***REMOVED***
-		err := mapstructure.Decode(val, &extConfig)
-		if err != nil ***REMOVED***
-			log.Warn("Malformed loadimpact settings in script options")
+		if err := mapstructure.Decode(val, &conf); err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+	***REMOVED***
+
+	if conf.Name == "" ***REMOVED***
+		conf.Name = filepath.Base(src.Filename)
 	***REMOVED***
 
 	thresholds := make(map[string][]*stats.Threshold)
@@ -87,10 +77,9 @@ func New(fname string, src *lib.SourceData, opts lib.Options, version string) (*
 	***REMOVED***
 
 	return &Collector***REMOVED***
-		name:       getName(src, extConfig),
-		project_id: getProjectId(extConfig),
+		config:     conf,
 		thresholds: thresholds,
-		client:     NewClient(token, "", version),
+		client:     NewClient(conf.Token, conf.Host, version),
 		duration:   duration,
 	***REMOVED***, nil
 ***REMOVED***
@@ -105,47 +94,30 @@ func (c *Collector) Init() error ***REMOVED***
 	***REMOVED***
 
 	testRun := &TestRun***REMOVED***
-		Name:       c.name,
+		Name:       c.config.Name,
+		ProjectID:  c.config.ProjectID,
 		Thresholds: thresholds,
 		Duration:   c.duration,
-		ProjectID:  c.project_id,
 	***REMOVED***
 
 	response, err := c.client.CreateTestRun(testRun)
 
 	if err != nil ***REMOVED***
-		c.initErr = err
-		log.WithFields(log.Fields***REMOVED***
-			"error": err,
-		***REMOVED***).Error("Cloud collector failed to init")
-		return nil
+		return err
 	***REMOVED***
 	c.referenceID = response.ReferenceID
 
 	log.WithFields(log.Fields***REMOVED***
-		"name":        c.name,
-		"projectId":   c.project_id,
+		"name":        c.config.Name,
+		"projectId":   c.config.ProjectID,
 		"duration":    c.duration,
 		"referenceId": c.referenceID,
-	***REMOVED***).Debug("Cloud collector init successful")
+	***REMOVED***).Debug("Cloud: Initialized")
 	return nil
 ***REMOVED***
 
-func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED***
-	return nil
-***REMOVED***
-
-func (c *Collector) String() string ***REMOVED***
-	if c.initErr == nil ***REMOVED***
-		return fmt.Sprintf("Load Impact (https://app.loadimpact.com/k6/runs/%s)", c.referenceID)
-	***REMOVED***
-
-	switch c.initErr ***REMOVED***
-	case ErrNotAuthorized:
-	case ErrNotAuthorized:
-		return c.initErr.Error()
-	***REMOVED***
-	return fmt.Sprintf("Failed to create test in Load Impact cloud")
+func (c *Collector) Link() string ***REMOVED***
+	return fmt.Sprintf("https://app.loadimpact.com/k6/runs/%s", c.referenceID)
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
@@ -253,40 +225,4 @@ func sumStages(stages []lib.Stage) int64 ***REMOVED***
 	***REMOVED***
 
 	return int64(total.Seconds())
-***REMOVED***
-
-func getProjectId(extConfig loadimpactConfig) int ***REMOVED***
-	env := os.Getenv("K6CLOUD_PROJECTID")
-	if env != "" ***REMOVED***
-		id, err := strconv.Atoi(env)
-		if err == nil && id > 0 ***REMOVED***
-			return id
-		***REMOVED***
-	***REMOVED***
-
-	if extConfig.ProjectId > 0 ***REMOVED***
-		return extConfig.ProjectId
-	***REMOVED***
-
-	return 0
-***REMOVED***
-
-func getName(src *lib.SourceData, extConfig loadimpactConfig) string ***REMOVED***
-	envName := os.Getenv("K6CLOUD_NAME")
-	if envName != "" ***REMOVED***
-		return envName
-	***REMOVED***
-
-	if extConfig.Name != "" ***REMOVED***
-		return extConfig.Name
-	***REMOVED***
-
-	if src.Filename != "" && src.Filename != "-" ***REMOVED***
-		name := filepath.Base(src.Filename)
-		if name != "" || name != "." ***REMOVED***
-			return name
-		***REMOVED***
-	***REMOVED***
-
-	return TestName
 ***REMOVED***

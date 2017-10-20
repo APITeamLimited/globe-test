@@ -25,6 +25,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/shibukawa/configdir"
 	"github.com/spf13/pflag"
@@ -54,7 +55,24 @@ type Config struct ***REMOVED***
 
 	Collectors struct ***REMOVED***
 		InfluxDB influxdb.Config `json:"influxdb"`
+		Cloud    cloud.Config    `json:"cloud"`
 	***REMOVED*** `json:"collectors"`
+***REMOVED***
+
+func (c Config) Apply(cfg Config) Config ***REMOVED***
+	c.Options = c.Options.Apply(cfg.Options)
+	if cfg.Out.Valid ***REMOVED***
+		c.Out = cfg.Out
+	***REMOVED***
+	if cfg.Linger.Valid ***REMOVED***
+		c.Linger = cfg.Linger
+	***REMOVED***
+	if cfg.NoUsageReport.Valid ***REMOVED***
+		c.NoUsageReport = cfg.NoUsageReport
+	***REMOVED***
+	c.Collectors.InfluxDB = c.Collectors.InfluxDB.Apply(cfg.Collectors.InfluxDB)
+	c.Collectors.Cloud = c.Collectors.Cloud.Apply(cfg.Collectors.Cloud)
+	return c
 ***REMOVED***
 
 // Gets configuration from CLI flags.
@@ -101,18 +119,4 @@ func writeDiskConfig(cdir *configdir.Config, conf Config) error ***REMOVED***
 func readEnvConfig() (conf Config, err error) ***REMOVED***
 	err = envconfig.Process("k6", &conf)
 	return conf, err
-***REMOVED***
-
-func (c Config) Apply(cfg Config) Config ***REMOVED***
-	c.Options = c.Options.Apply(cfg.Options)
-	if cfg.Linger.Valid ***REMOVED***
-		c.Linger = cfg.Linger
-	***REMOVED***
-	if cfg.NoUsageReport.Valid ***REMOVED***
-		c.NoUsageReport = cfg.NoUsageReport
-	***REMOVED***
-	if cfg.Out.Valid ***REMOVED***
-		c.Out = cfg.Out
-	***REMOVED***
-	return c
 ***REMOVED***
