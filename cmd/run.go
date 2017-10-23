@@ -376,10 +376,7 @@ func readSource(src, pwd string, fs afero.Fs, stdin io.Reader) (*lib.SourceData,
 func newRunner(src *lib.SourceData, typ string, fs afero.Fs) (lib.Runner, error) ***REMOVED***
 	switch typ ***REMOVED***
 	case "":
-		if _, err := tar.NewReader(bytes.NewReader(src.Data)).Next(); err == nil ***REMOVED***
-			return newRunner(src, typeArchive, fs)
-		***REMOVED***
-		return newRunner(src, typeJS, fs)
+		return newRunner(src, detectType(src.Data), fs)
 	case typeJS:
 		return js.New(src, fs)
 	case typeArchive:
@@ -396,4 +393,11 @@ func newRunner(src *lib.SourceData, typ string, fs afero.Fs) (lib.Runner, error)
 	default:
 		return nil, errors.Errorf("unknown -t/--type: %s", typ)
 	***REMOVED***
+***REMOVED***
+
+func detectType(data []byte) string ***REMOVED***
+	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
+		return typeArchive
+	***REMOVED***
+	return typeJS
 ***REMOVED***
