@@ -29,10 +29,10 @@ import (
 func TestConfigText(t *testing.T) ***REMOVED***
 	testdata := map[string]Config***REMOVED***
 		"":                             ***REMOVED******REMOVED***,
-		"dbname":                       ***REMOVED***Database: "dbname"***REMOVED***,
-		"/dbname":                      ***REMOVED***Database: "dbname"***REMOVED***,
+		"dbname":                       ***REMOVED***DB: "dbname"***REMOVED***,
+		"/dbname":                      ***REMOVED***DB: "dbname"***REMOVED***,
 		"http://localhost:8086":        ***REMOVED***Addr: "http://localhost:8086"***REMOVED***,
-		"http://localhost:8086/dbname": ***REMOVED***Addr: "http://localhost:8086", Database: "dbname"***REMOVED***,
+		"http://localhost:8086/dbname": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname"***REMOVED***,
 	***REMOVED***
 	queries := map[string]struct ***REMOVED***
 		Config Config
@@ -59,7 +59,7 @@ func TestConfigText(t *testing.T) ***REMOVED***
 						assert.EqualError(t, err, qdata.Err)
 					***REMOVED*** else ***REMOVED***
 						expected2 := qdata.Config
-						expected2.Database = data.Database
+						expected2.DB = data.DB
 						expected2.Addr = data.Addr
 						assert.Equal(t, expected2, config)
 					***REMOVED***

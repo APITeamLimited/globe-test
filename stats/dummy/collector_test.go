@@ -22,6 +22,7 @@ package dummy
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,17 +31,16 @@ import (
 )
 
 func TestCollectorRun(t *testing.T) ***REMOVED***
+	var wg sync.WaitGroup
 	c := &Collector***REMOVED******REMOVED***
-	assert.False(t, c.IsReady())
-
 	ctx, cancel := context.WithCancel(context.Background())
-	go c.Run(ctx)
-	for !c.IsReady() ***REMOVED***
-	***REMOVED***
-
+	wg.Add(1)
+	go func() ***REMOVED***
+		defer wg.Done()
+		c.Run(ctx)
+	***REMOVED***()
 	cancel()
-	for c.IsReady() ***REMOVED***
-	***REMOVED***
+	wg.Wait()
 ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
