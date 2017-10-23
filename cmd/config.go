@@ -100,10 +100,8 @@ func readDiskConfig() (Config, *configdir.Config, error) ***REMOVED***
 		return Config***REMOVED******REMOVED***, cdir, err
 	***REMOVED***
 	var conf Config
-	if err := json.Unmarshal(data, &conf); err != nil ***REMOVED***
-		return conf, cdir, err
-	***REMOVED***
-	return conf, cdir, nil
+	err = json.Unmarshal(data, &conf)
+	return conf, cdir, err
 ***REMOVED***
 
 // Writes configuration back to disk.
