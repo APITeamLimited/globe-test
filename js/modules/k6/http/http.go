@@ -23,8 +23,6 @@ package http
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -37,12 +35,9 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/js/modules/k6/html"
-	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ocsp"
 )
 
 var (
@@ -50,110 +45,24 @@ var (
 	typeURLTag = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
 )
 
-type OCSP struct ***REMOVED***
-	ProducedAt, ThisUpdate, NextUpdate, RevokedAt int64
-	RevocationReason                              string
-	Status                                        string
-***REMOVED***
-
-type HTTPResponseTimings struct ***REMOVED***
-	Duration, Blocked, LookingUp, Connecting, Sending, Waiting, Receiving float64
-***REMOVED***
-
-type HTTPResponse struct ***REMOVED***
-	ctx context.Context
-
-	RemoteIP       string
-	RemotePort     int
-	URL            string
-	Status         int
-	Proto          string
-	Headers        map[string]string
-	Body           string
-	Timings        HTTPResponseTimings
-	TLSVersion     string
-	TLSCipherSuite string
-	OCSP           OCSP `js:"ocsp"`
-	Error          string
-
-	cachedJSON goja.Value
-***REMOVED***
-
-func (res *HTTPResponse) setTLSInfo(h *HTTP, tlsState *tls.ConnectionState) ***REMOVED***
-	switch tlsState.Version ***REMOVED***
-	case tls.VersionSSL30:
-		res.TLSVersion = h.SSL_3_0
-	case tls.VersionTLS10:
-		res.TLSVersion = h.TLS_1_0
-	case tls.VersionTLS11:
-		res.TLSVersion = h.TLS_1_1
-	case tls.VersionTLS12:
-		res.TLSVersion = h.TLS_1_2
-	***REMOVED***
-	res.TLSCipherSuite = lib.SupportedTLSCipherSuitesToString[tlsState.CipherSuite]
-	ocspStapledRes := OCSP***REMOVED***Status: h.OCSP_STATUS_UNKNOWN***REMOVED***
-	if ocspRes, err := ocsp.ParseResponse(tlsState.OCSPResponse, nil); err == nil ***REMOVED***
-		switch ocspRes.Status ***REMOVED***
-		case ocsp.Good:
-			ocspStapledRes.Status = h.OCSP_STATUS_GOOD
-		case ocsp.Revoked:
-			ocspStapledRes.Status = h.OCSP_STATUS_REVOKED
-		case ocsp.ServerFailed:
-			ocspStapledRes.Status = h.OCSP_STATUS_SERVER_FAILED
-		case ocsp.Unknown:
-			ocspStapledRes.Status = h.OCSP_STATUS_UNKNOWN
-		***REMOVED***
-		switch ocspRes.RevocationReason ***REMOVED***
-		case ocsp.Unspecified:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_UNSPECIFIED
-		case ocsp.KeyCompromise:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_KEY_COMPROMISE
-		case ocsp.CACompromise:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_CA_COMPROMISE
-		case ocsp.AffiliationChanged:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_AFFILIATION_CHANGED
-		case ocsp.Superseded:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_SUPERSEDED
-		case ocsp.CessationOfOperation:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_CESSATION_OF_OPERATION
-		case ocsp.CertificateHold:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_CERTIFICATE_HOLD
-		case ocsp.RemoveFromCRL:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_REMOVE_FROM_CRL
-		case ocsp.PrivilegeWithdrawn:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_PRIVILEGE_WITHDRAWN
-		case ocsp.AACompromise:
-			ocspStapledRes.RevocationReason = h.OCSP_REASON_AA_COMPROMISE
-		***REMOVED***
-		ocspStapledRes.ProducedAt = ocspRes.ProducedAt.Unix()
-		ocspStapledRes.ThisUpdate = ocspRes.ThisUpdate.Unix()
-		ocspStapledRes.NextUpdate = ocspRes.NextUpdate.Unix()
-		ocspStapledRes.RevokedAt = ocspRes.RevokedAt.Unix()
-	***REMOVED***
-	res.OCSP = ocspStapledRes
-***REMOVED***
-
-func (res *HTTPResponse) Json() goja.Value ***REMOVED***
-	if res.cachedJSON == nil ***REMOVED***
-		var v interface***REMOVED******REMOVED***
-		if err := json.Unmarshal([]byte(res.Body), &v); err != nil ***REMOVED***
-			common.Throw(common.GetRuntime(res.ctx), err)
-		***REMOVED***
-		res.cachedJSON = common.GetRuntime(res.ctx).ToValue(v)
-	***REMOVED***
-	return res.cachedJSON
-***REMOVED***
-
-func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
-	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, res.Body)
-	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.ctx), err)
-	***REMOVED***
-	if len(selector) > 0 ***REMOVED***
-		sel = sel.Find(selector[0])
-	***REMOVED***
-	return sel
-***REMOVED***
+const SSL_3_0 = "ssl3.0"
+const TLS_1_0 = "tls1.0"
+const TLS_1_1 = "tls1.1"
+const TLS_1_2 = "tls1.2"
+const OCSP_STATUS_GOOD = "good"
+const OCSP_STATUS_REVOKED = "revoked"
+const OCSP_STATUS_SERVER_FAILED = "server_failed"
+const OCSP_STATUS_UNKNOWN = "unknown"
+const OCSP_REASON_UNSPECIFIED = "unspecified"
+const OCSP_REASON_KEY_COMPROMISE = "key_compromise"
+const OCSP_REASON_CA_COMPROMISE = "ca_compromise"
+const OCSP_REASON_AFFILIATION_CHANGED = "affiliation_changed"
+const OCSP_REASON_SUPERSEDED = "superseded"
+const OCSP_REASON_CESSATION_OF_OPERATION = "cessation_of_operation"
+const OCSP_REASON_CERTIFICATE_HOLD = "certificate_hold"
+const OCSP_REASON_REMOVE_FROM_CRL = "remove_from_crl"
+const OCSP_REASON_PRIVILEGE_WITHDRAWN = "privilege_withdrawn"
+const OCSP_REASON_AA_COMPROMISE = "aa_compromise"
 
 type HTTP struct ***REMOVED***
 	SSL_3_0                            string `js:"SSL_3_0"`
@@ -178,24 +87,24 @@ type HTTP struct ***REMOVED***
 
 func New() *HTTP ***REMOVED***
 	return &HTTP***REMOVED***
-		SSL_3_0:                            "ssl3.0",
-		TLS_1_0:                            "tls1.0",
-		TLS_1_1:                            "tls1.1",
-		TLS_1_2:                            "tls1.2",
-		OCSP_STATUS_GOOD:                   "good",
-		OCSP_STATUS_REVOKED:                "revoked",
-		OCSP_STATUS_SERVER_FAILED:          "server_failed",
-		OCSP_STATUS_UNKNOWN:                "unknown",
-		OCSP_REASON_UNSPECIFIED:            "unspecified",
-		OCSP_REASON_KEY_COMPROMISE:         "key_compromise",
-		OCSP_REASON_CA_COMPROMISE:          "ca_compromise",
-		OCSP_REASON_AFFILIATION_CHANGED:    "affiliation_changed",
-		OCSP_REASON_SUPERSEDED:             "superseded",
-		OCSP_REASON_CESSATION_OF_OPERATION: "cessation_of_operation",
-		OCSP_REASON_CERTIFICATE_HOLD:       "certificate_hold",
-		OCSP_REASON_REMOVE_FROM_CRL:        "remove_from_crl",
-		OCSP_REASON_PRIVILEGE_WITHDRAWN:    "privilege_withdrawn",
-		OCSP_REASON_AA_COMPROMISE:          "aa_compromise",
+		SSL_3_0:                            SSL_3_0,
+		TLS_1_0:                            TLS_1_0,
+		TLS_1_1:                            TLS_1_1,
+		TLS_1_2:                            TLS_1_2,
+		OCSP_STATUS_GOOD:                   OCSP_STATUS_GOOD,
+		OCSP_STATUS_REVOKED:                OCSP_STATUS_REVOKED,
+		OCSP_STATUS_SERVER_FAILED:          OCSP_STATUS_SERVER_FAILED,
+		OCSP_STATUS_UNKNOWN:                OCSP_STATUS_UNKNOWN,
+		OCSP_REASON_UNSPECIFIED:            OCSP_REASON_UNSPECIFIED,
+		OCSP_REASON_KEY_COMPROMISE:         OCSP_REASON_KEY_COMPROMISE,
+		OCSP_REASON_CA_COMPROMISE:          OCSP_REASON_CA_COMPROMISE,
+		OCSP_REASON_AFFILIATION_CHANGED:    OCSP_REASON_AFFILIATION_CHANGED,
+		OCSP_REASON_SUPERSEDED:             OCSP_REASON_SUPERSEDED,
+		OCSP_REASON_CESSATION_OF_OPERATION: OCSP_REASON_CESSATION_OF_OPERATION,
+		OCSP_REASON_CERTIFICATE_HOLD:       OCSP_REASON_CERTIFICATE_HOLD,
+		OCSP_REASON_REMOVE_FROM_CRL:        OCSP_REASON_REMOVE_FROM_CRL,
+		OCSP_REASON_PRIVILEGE_WITHDRAWN:    OCSP_REASON_PRIVILEGE_WITHDRAWN,
+		OCSP_REASON_AA_COMPROMISE:          OCSP_REASON_AA_COMPROMISE,
 	***REMOVED***
 ***REMOVED***
 
@@ -348,8 +257,8 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		tags["status"] = strconv.Itoa(resp.Status)
 		tags["proto"] = resp.Proto
 
-		if tlsState := res.TLS; res.TLS != nil ***REMOVED***
-			resp.setTLSInfo(h, tlsState)
+		if res.TLS != nil ***REMOVED***
+			resp.setTLSInfo(res.TLS)
 			tags["tls_version"] = resp.TLSVersion
 			tags["ocsp_status"] = resp.OCSP.Status
 		***REMOVED***
