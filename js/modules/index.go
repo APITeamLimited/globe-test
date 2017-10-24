@@ -32,11 +32,11 @@ import (
 
 // Index of module implementations.
 var Index = map[string]interface***REMOVED******REMOVED******REMOVED***
-	"k6":          &k6.K6***REMOVED******REMOVED***,
-	"k6/crypto":   &crypto.Crypto***REMOVED******REMOVED***,
-	"k6/encoding": &encoding.Encoding***REMOVED******REMOVED***,
-	"k6/http":     &http.HTTP***REMOVED******REMOVED***,
-	"k6/metrics":  &metrics.Metrics***REMOVED******REMOVED***,
-	"k6/html":     &html.HTML***REMOVED******REMOVED***,
-	"k6/ws":       &ws.WS***REMOVED******REMOVED***,
+	"k6":          k6.New(),
+	"k6/crypto":   crypto.New(),
+	"k6/encoding": encoding.New(),
+	"k6/http":     http.New(),
+	"k6/metrics":  metrics.New(),
+	"k6/html":     html.New(),
+	"k6/ws":       ws.New(),
 ***REMOVED***

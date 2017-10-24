@@ -46,6 +46,10 @@ type Hasher struct ***REMOVED***
 	hash hash.Hash
 ***REMOVED***
 
+func New() *Crypto ***REMOVED***
+	return &Crypto***REMOVED******REMOVED***
+***REMOVED***
+
 func (c *Crypto) Md4(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "md4")
 	hasher.Update(input)

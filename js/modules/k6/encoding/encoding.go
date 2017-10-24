@@ -29,6 +29,10 @@ import (
 
 type Encoding struct***REMOVED******REMOVED***
 
+func New() *Encoding ***REMOVED***
+	return &Encoding***REMOVED******REMOVED***
+***REMOVED***
+
 func (e *Encoding) B64encode(ctx context.Context, input []byte, encoding string) string ***REMOVED***
 	switch encoding ***REMOVED***
 	case "rawstd":

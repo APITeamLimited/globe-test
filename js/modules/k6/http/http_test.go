@@ -118,7 +118,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 	*ctx = context.Background()
 	*ctx = common.WithState(*ctx, state)
 	*ctx = common.WithRuntime(*ctx, rt)
-	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, ctx))
+	rt.Set("http", common.Bind(rt, New(), ctx))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
 		t.Run("9", func(t *testing.T) ***REMOVED***
@@ -191,10 +191,6 @@ func TestRequest(t *testing.T) ***REMOVED***
 			`)
 			assert.NoError(t, err)
 		***REMOVED***)
-	***REMOVED***)
-	t.Run("BadSSL", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
-		assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
 	***REMOVED***)
 	t.Run("Cancelled", func(t *testing.T) ***REMOVED***
 		hook := logtest.NewLocal(state.Logger)
@@ -281,6 +277,54 @@ func TestRequest(t *testing.T) ***REMOVED***
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `http.request("GET", "https://httpbin.org/html").json();`)
 			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("TLS", func(t *testing.T) ***REMOVED***
+		t.Run("cert_expired", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `http.get("https://expired.badssl.com/");`)
+			assert.EqualError(t, err, "GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid")
+		***REMOVED***)
+		tlsVersionTests := []struct ***REMOVED***
+			Name, URL, Version string
+		***REMOVED******REMOVED***
+			***REMOVED***Name: "tls10", URL: "https://tls-v1-0.badssl.com:1010/", Version: "http.TLS_1_0"***REMOVED***,
+			***REMOVED***Name: "tls11", URL: "https://tls-v1-1.badssl.com:1011/", Version: "http.TLS_1_1"***REMOVED***,
+			***REMOVED***Name: "tls12", URL: "https://badssl.com/", Version: "http.TLS_1_2"***REMOVED***,
+		***REMOVED***
+		for _, versionTest := range tlsVersionTests ***REMOVED***
+			t.Run(versionTest.Name, func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, fmt.Sprintf(`
+					let res = http.get("%s");
+					if (res.tls_version != %s) ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
+				`, versionTest.URL, versionTest.Version))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", versionTest.URL, "", 200, "")
+			***REMOVED***)
+		***REMOVED***
+		tlsCipherSuiteTests := []struct ***REMOVED***
+			Name, URL, CipherSuite string
+		***REMOVED******REMOVED***
+			***REMOVED***Name: "cipher_suite_cbc", URL: "https://cbc.badssl.com/", CipherSuite: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"***REMOVED***,
+			***REMOVED***Name: "cipher_suite_ecc384", URL: "https://ecc384.badssl.com/", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"***REMOVED***,
+		***REMOVED***
+		for _, cipherSuiteTest := range tlsCipherSuiteTests ***REMOVED***
+			t.Run(cipherSuiteTest.Name, func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, fmt.Sprintf(`
+					let res = http.get("%s");
+					if (res.tls_cipher_suite != "%s") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
+				`, cipherSuiteTest.URL, cipherSuiteTest.CipherSuite))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", cipherSuiteTest.URL, "", 200, "")
+			***REMOVED***)
+		***REMOVED***
+		t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://stackoverflow.com/");
+			if (res.ocsp.status != http.OCSP_STATUS_GOOD) ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.status); ***REMOVED***
+			`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://stackoverflow.com/", "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
@@ -585,7 +629,7 @@ func TestRequest(t *testing.T) ***REMOVED***
 func TestTagURL(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	rt.Set("http", common.Bind(rt, &HTTP***REMOVED******REMOVED***, nil))
+	rt.Set("http", common.Bind(rt, New(), nil))
 
 	testdata := map[string]URLTag***REMOVED***
 		`http://httpbin.org/anything/`:               ***REMOVED***URL: "http://httpbin.org/anything/", Name: "http://httpbin.org/anything/"***REMOVED***,

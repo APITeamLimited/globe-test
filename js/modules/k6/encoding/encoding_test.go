@@ -38,7 +38,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	ctx := context.Background()
 	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("encoding", common.Bind(rt, &Encoding***REMOVED******REMOVED***, &ctx))
+	rt.Set("encoding", common.Bind(rt, New(), &ctx))
 
 	t.Run("Base64", func(t *testing.T) ***REMOVED***
 		t.Run("DefaultEnc", func(t *testing.T) ***REMOVED***
