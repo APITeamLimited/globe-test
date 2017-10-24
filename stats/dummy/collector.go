@@ -60,9 +60,6 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	c.Samples = append(c.Samples, samples...)
 ***REMOVED***
 
-func (c *Collector) IsReady() bool ***REMOVED***
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	return c.running
+func (c *Collector) Link() string ***REMOVED***
+	return "http://example.com/"
 ***REMOVED***

@@ -24,7 +24,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,7 +39,7 @@ func TestNew(t *testing.T) ***REMOVED***
 		t.Run("path="+path, func(t *testing.T) ***REMOVED***
 			defer func() ***REMOVED*** _ = os.Remove(path) ***REMOVED***()
 
-			collector, err := New(path, afero.NewOsFs(), lib.Options***REMOVED******REMOVED***)
+			collector, err := New(afero.NewOsFs(), path)
 			if succ ***REMOVED***
 				assert.NoError(t, err)
 				assert.NotNil(t, collector)

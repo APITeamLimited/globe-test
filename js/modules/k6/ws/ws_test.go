@@ -90,7 +90,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	ctx = common.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("ws", common.Bind(rt, &WS***REMOVED******REMOVED***, &ctx))
+	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
 	t.Run("connect_ws", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
@@ -241,6 +241,24 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
 	assertMetricEmitted(t, metrics.WSPing, state.Samples, "ws://echo.websocket.org")
+
+	t.Run("close", func(t *testing.T) ***REMOVED***
+		state.Samples = nil
+		_, err := common.RunString(rt, `
+		let closed = false;
+		let res = ws.connect("ws://echo.websocket.org", function(socket)***REMOVED***
+			socket.on("open", function() ***REMOVED***
+							socket.close()
+			***REMOVED***)
+			socket.on("close", function() ***REMOVED***
+							closed = true;
+			***REMOVED***)
+		***REMOVED***);
+		if (!closed) ***REMOVED*** throw new Error ("close event not fired"); ***REMOVED***
+		`)
+		assert.NoError(t, err)
+	***REMOVED***)
+	assertSessionMetricsEmitted(t, state.Samples, "", "ws://echo.websocket.org", 101, "")
 ***REMOVED***
 
 func TestErrors(t *testing.T) ***REMOVED***
@@ -260,7 +278,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	ctx = common.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("ws", common.Bind(rt, &WS***REMOVED******REMOVED***, &ctx))
+	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
 	t.Run("invalid_url", func(t *testing.T) ***REMOVED***
 		state.Samples = nil

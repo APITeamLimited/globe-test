@@ -36,7 +36,7 @@ import (
 
 func TestFail(t *testing.T) ***REMOVED***
 	rt := goja.New()
-	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, nil))
+	rt.Set("k6", common.Bind(rt, New(), nil))
 	_, err := common.RunString(rt, `k6.fail("blah")`)
 	assert.EqualError(t, err, "GoError: blah")
 ***REMOVED***
@@ -44,7 +44,7 @@ func TestFail(t *testing.T) ***REMOVED***
 func TestSleep(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	ctx, cancel := context.WithCancel(context.Background())
-	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, &ctx))
+	rt.Set("k6", common.Bind(rt, New(), &ctx))
 
 	testdata := map[string]time.Duration***REMOVED***
 		"1":   1 * time.Second,
@@ -91,7 +91,7 @@ func TestGroup(t *testing.T) ***REMOVED***
 	ctx := context.Background()
 	ctx = common.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, &ctx))
+	rt.Set("k6", common.Bind(rt, New(), &ctx))
 
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
 		assert.Equal(t, state.Group, root)
@@ -120,7 +120,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 
 	ctx := new(context.Context)
 	*ctx = baseCtx
-	rt.Set("k6", common.Bind(rt, &K6***REMOVED******REMOVED***, ctx))
+	rt.Set("k6", common.Bind(rt, New(), ctx))
 
 	t.Run("Object", func(t *testing.T) ***REMOVED***
 		state := &common.State***REMOVED***Group: root***REMOVED***

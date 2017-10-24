@@ -27,7 +27,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -54,24 +53,13 @@ type Client struct ***REMOVED***
 ***REMOVED***
 
 func NewClient(token, host, version string) *Client ***REMOVED***
-	client := &http.Client***REMOVED***
-		Timeout: RequestTimeout,
-	***REMOVED***
-
-	hostEnv := os.Getenv("K6CLOUD_HOST")
-	if hostEnv != "" ***REMOVED***
-		host = hostEnv
-	***REMOVED***
 	if host == "" ***REMOVED***
 		host = "https://ingest.loadimpact.com"
 	***REMOVED***
-
-	baseURL := fmt.Sprintf("%s/v1", host)
-
 	c := &Client***REMOVED***
-		client:        client,
+		client:        &http.Client***REMOVED***Timeout: RequestTimeout***REMOVED***,
 		token:         token,
-		baseURL:       baseURL,
+		baseURL:       fmt.Sprintf("%s/v1", host),
 		version:       version,
 		retries:       MaxRetries,
 		retryInterval: RetryInterval,
@@ -144,6 +132,10 @@ func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, at
 
 	if shouldRetry(resp, err, attempt, c.retries) ***REMOVED***
 		return true, err
+	***REMOVED***
+
+	if err != nil ***REMOVED***
+		return false, err
 	***REMOVED***
 
 	if err = checkResponse(resp); err != nil ***REMOVED***

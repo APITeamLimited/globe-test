@@ -72,6 +72,10 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 
 type Metrics struct***REMOVED******REMOVED***
 
+func New() *Metrics ***REMOVED***
+	return &Metrics***REMOVED******REMOVED***
+***REMOVED***
+
 func (*Metrics) XCounter(ctx *context.Context, name string, isTime ...bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	return newMetric(ctx, name, stats.Counter, isTime)
 ***REMOVED***

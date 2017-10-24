@@ -34,6 +34,10 @@ import (
 
 type K6 struct***REMOVED******REMOVED***
 
+func New() *K6 ***REMOVED***
+	return &K6***REMOVED******REMOVED***
+***REMOVED***
+
 func (*K6) Fail(msg string) (goja.Value, error) ***REMOVED***
 	return goja.Undefined(), errors.New(msg)
 ***REMOVED***
