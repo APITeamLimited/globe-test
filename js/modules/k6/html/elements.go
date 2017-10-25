@@ -301,6 +301,7 @@ func (f FormFieldElement) FormAction() string ***REMOVED***
 	return actionURL.String()
 ***REMOVED***
 
+// nolint: goconst
 func (f FormFieldElement) FormEnctype() string ***REMOVED***
 	enctype, _ := f.formOrElemAttr("enctype")
 
@@ -395,6 +396,7 @@ func (f FormElement) Method() string ***REMOVED***
 	return methodGet
 ***REMOVED***
 
+// nolint: goconst
 func (i InputElement) List() goja.Value ***REMOVED***
 	listId := i.attrAsString("list")
 
