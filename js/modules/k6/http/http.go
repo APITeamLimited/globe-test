@@ -86,7 +86,6 @@ type HTTP struct ***REMOVED***
 	OCSP_REASON_AA_COMPROMISE          string `js:"OCSP_REASON_AA_COMPROMISE"`
 ***REMOVED***
 
-<<<<<<< 93373207f9385fe87d544cd849358263659e082d
 func New() *HTTP ***REMOVED***
 	return &HTTP***REMOVED***
 		SSL_3_0:                            SSL_3_0,
@@ -107,43 +106,6 @@ func New() *HTTP ***REMOVED***
 		OCSP_REASON_REMOVE_FROM_CRL:        OCSP_REASON_REMOVE_FROM_CRL,
 		OCSP_REASON_PRIVILEGE_WITHDRAWN:    OCSP_REASON_PRIVILEGE_WITHDRAWN,
 		OCSP_REASON_AA_COMPROMISE:          OCSP_REASON_AA_COMPROMISE,
-=======
-type HTTPResponse struct ***REMOVED***
-	ctx context.Context
-
-	RemoteIP   string
-	RemotePort int
-	URL        string
-	Status     int
-	Proto      string
-	Headers    map[string]string
-	Body       string
-	Timings    HTTPResponseTimings
-	Error      string
-
-	cachedJSON goja.Value
-***REMOVED***
-
-func (res *HTTPResponse) Json() goja.Value ***REMOVED***
-	if res.cachedJSON == nil ***REMOVED***
-		var v interface***REMOVED******REMOVED***
-		if err := json.Unmarshal([]byte(res.Body), &v); err != nil ***REMOVED***
-			common.Throw(common.GetRuntime(res.ctx), err)
-		***REMOVED***
-		res.cachedJSON = common.GetRuntime(res.ctx).ToValue(v)
-	***REMOVED***
-	return res.cachedJSON
-***REMOVED***
-
-func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
-	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, res.Body)
-	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.ctx), err)
-	***REMOVED***
-	sel.URL = res.URL
-	if len(selector) > 0 ***REMOVED***
-		sel = sel.Find(selector[0])
->>>>>>> Make accessors for attributes which contain urls behave similarly to DOM API.
 	***REMOVED***
 ***REMOVED***
 
