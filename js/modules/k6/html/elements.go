@@ -219,6 +219,7 @@ func (h HrefElement) Password() string ***REMOVED***
 	return pwd
 ***REMOVED***
 
+// nolint: goconst
 func (h HrefElement) Origin() string ***REMOVED***
 	href := h.hrefURL()
 
