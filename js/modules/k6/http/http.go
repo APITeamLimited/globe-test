@@ -386,10 +386,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			resp.Headers[k] = strings.Join(vs, ", ")
 		***REMOVED***
 
-		var resCookies []*http.Cookie
-		if activeJar != nil ***REMOVED***
-			resCookies = res.Cookies()
-		***REMOVED***
+		resCookies := res.Cookies()
 		resp.Cookies = make(map[string][]*HTTPCookie, len(resCookies))
 		for _, c := range resCookies ***REMOVED***
 			resp.Cookies[c.Name] = append(resp.Cookies[c.Name], &HTTPCookie***REMOVED***
