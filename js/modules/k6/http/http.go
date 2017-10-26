@@ -27,6 +27,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	neturl "net/url"
 	"reflect"
 	"strconv"
@@ -42,8 +43,9 @@ import (
 )
 
 var (
-	typeString = reflect.TypeOf("")
-	typeURLTag = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
+	typeString                     = reflect.TypeOf("")
+	typeURLTag                     = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
+	typeMapKeyStringValueInterface = reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 )
 
 const SSL_3_0 = "ssl3.0"
@@ -64,6 +66,18 @@ const OCSP_REASON_CERTIFICATE_HOLD = "certificate_hold"
 const OCSP_REASON_REMOVE_FROM_CRL = "remove_from_crl"
 const OCSP_REASON_PRIVILEGE_WITHDRAWN = "privilege_withdrawn"
 const OCSP_REASON_AA_COMPROMISE = "aa_compromise"
+
+type HTTPCookie struct ***REMOVED***
+	Name, Value, Domain, Path string
+	HttpOnly, Secure          bool
+	MaxAge                    int
+	Expires                   int64
+***REMOVED***
+
+type HTTPRequestCookie struct ***REMOVED***
+	Name, Value string
+	Replace     bool
+***REMOVED***
 
 type HTTP struct ***REMOVED***
 	SSL_3_0                            string `js:"SSL_3_0"`
@@ -106,6 +120,34 @@ func New() *HTTP ***REMOVED***
 		OCSP_REASON_REMOVE_FROM_CRL:        OCSP_REASON_REMOVE_FROM_CRL,
 		OCSP_REASON_PRIVILEGE_WITHDRAWN:    OCSP_REASON_PRIVILEGE_WITHDRAWN,
 		OCSP_REASON_AA_COMPROMISE:          OCSP_REASON_AA_COMPROMISE,
+	***REMOVED***
+***REMOVED***
+
+func (*HTTP) XCookieJar(ctx *context.Context) *HTTPCookieJar ***REMOVED***
+	return newCookieJar(ctx)
+***REMOVED***
+
+func (*HTTP) CookieJar(ctx context.Context) *HTTPCookieJar ***REMOVED***
+	state := common.GetState(ctx)
+	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***
+***REMOVED***
+
+func (*HTTP) setRequestCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) ***REMOVED***
+	jarCookies := make(map[string][]*http.Cookie)
+	for _, c := range jar.Cookies(req.URL) ***REMOVED***
+		jarCookies[c.Name] = append(jarCookies[c.Name], c)
+	***REMOVED***
+	for key, reqCookie := range reqCookies ***REMOVED***
+		if jc := jarCookies[key]; jc != nil && reqCookie.Replace ***REMOVED***
+			jarCookies[key] = []*http.Cookie***REMOVED******REMOVED***Name: key, Value: reqCookie.Value***REMOVED******REMOVED***
+		***REMOVED*** else ***REMOVED***
+			jarCookies[key] = append(jarCookies[key], &http.Cookie***REMOVED***Name: key, Value: reqCookie.Value***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+	for _, cookies := range jarCookies ***REMOVED***
+		for _, c := range cookies ***REMOVED***
+			req.AddCookie(c)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -161,12 +203,48 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	timeout := 60 * time.Second
 	throw := state.Options.Throw.Bool
 
+	var activeJar *cookiejar.Jar
+	if state.CookieJar != nil ***REMOVED***
+		activeJar = state.CookieJar
+	***REMOVED***
+	reqCookies := make(map[string]*HTTPRequestCookie)
+
 	if len(args) > 1 ***REMOVED***
 		paramsV := args[1]
 		if !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) ***REMOVED***
 			params := paramsV.ToObject(rt)
 			for _, k := range params.Keys() ***REMOVED***
 				switch k ***REMOVED***
+				case "cookies":
+					cookiesV := params.Get(k)
+					if goja.IsUndefined(cookiesV) || goja.IsNull(cookiesV) ***REMOVED***
+						continue
+					***REMOVED***
+					cookies := cookiesV.ToObject(rt)
+					if cookies == nil ***REMOVED***
+						continue
+					***REMOVED***
+					for _, key := range cookies.Keys() ***REMOVED***
+						cookieV := cookies.Get(key)
+						if goja.IsUndefined(cookieV) || goja.IsNull(cookieV) ***REMOVED***
+							continue
+						***REMOVED***
+						switch cookieV.ExportType() ***REMOVED***
+						case typeMapKeyStringValueInterface:
+							reqCookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: "", Replace: false***REMOVED***
+							cookie := cookieV.ToObject(rt)
+							for _, attr := range cookie.Keys() ***REMOVED***
+								switch strings.ToLower(attr) ***REMOVED***
+								case "replace":
+									reqCookies[key].Replace = cookie.Get(attr).ToBoolean()
+								case "value":
+									reqCookies[key].Value = cookie.Get(attr).String()
+								***REMOVED***
+							***REMOVED***
+						default:
+							reqCookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: cookieV.String(), Replace: false***REMOVED***
+						***REMOVED***
+					***REMOVED***
 				case "headers":
 					headersV := params.Get(k)
 					if goja.IsUndefined(headersV) || goja.IsNull(headersV) ***REMOVED***
@@ -178,6 +256,15 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 					***REMOVED***
 					for _, key := range headers.Keys() ***REMOVED***
 						req.Header.Set(key, headers.Get(key).String())
+					***REMOVED***
+				case "jar":
+					jarV := params.Get(k)
+					if goja.IsUndefined(jarV) || goja.IsNull(jarV) ***REMOVED***
+						continue
+					***REMOVED***
+					switch v := jarV.Export().(type) ***REMOVED***
+					case *HTTPCookieJar:
+						activeJar = v.jar
 					***REMOVED***
 				case "redirects":
 					redirects = int(params.Get(k).ToInteger())
@@ -205,6 +292,10 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
+	if activeJar != nil ***REMOVED***
+		h.setRequestCookies(req, activeJar, reqCookies)
+	***REMOVED***
+
 	resp := &HTTPResponse***REMOVED***
 		ctx: ctx,
 		URL: urlStr,
@@ -213,13 +304,20 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		Transport: state.HTTPTransport,
 		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
+			// Update active jar with cookies found in "Set-Cookie" header(s) of redirect response
+			if activeJar != nil ***REMOVED***
+				if respCookies := req.Response.Cookies(); len(respCookies) > 0 ***REMOVED***
+					activeJar.SetCookies(req.URL, respCookies)
+					h.setRequestCookies(req, activeJar, reqCookies)
+				***REMOVED***
+			***REMOVED***
+
 			max := int(state.Options.MaxRedirects.Int64)
 			if redirects >= 0 ***REMOVED***
 				max = redirects
 			***REMOVED***
 			if len(via) > max ***REMOVED***
 				if redirects < 0 ***REMOVED***
-					log.Println(via[0].Response)
 					state.Logger.WithFields(log.Fields***REMOVED***
 						"error": fmt.Sprintf("Possible redirect loop, %d response returned last, %d redirects followed; pass ***REMOVED*** redirects: n ***REMOVED*** in request params to silence this", via[len(via)-1].Response.StatusCode, max),
 						"url":   via[0].URL.String(),
@@ -229,9 +327,6 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			***REMOVED***
 			return nil
 		***REMOVED***,
-	***REMOVED***
-	if state.CookieJar != nil ***REMOVED***
-		client.Jar = state.CookieJar
 	***REMOVED***
 
 	tracer := netext.Tracer***REMOVED******REMOVED***
@@ -267,6 +362,12 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.Error = resErr.Error()
 		tags["error"] = resp.Error
 	***REMOVED*** else ***REMOVED***
+		if activeJar != nil ***REMOVED***
+			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
+				activeJar.SetCookies(req.URL, rc)
+			***REMOVED***
+		***REMOVED***
+
 		resp.URL = res.Request.URL.String()
 		resp.Status = res.StatusCode
 		resp.Proto = res.Proto
@@ -283,6 +384,21 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.Headers = make(map[string]string, len(res.Header))
 		for k, vs := range res.Header ***REMOVED***
 			resp.Headers[k] = strings.Join(vs, ", ")
+		***REMOVED***
+
+		resCookies := res.Cookies()
+		resp.Cookies = make(map[string][]*HTTPCookie, len(resCookies))
+		for _, c := range resCookies ***REMOVED***
+			resp.Cookies[c.Name] = append(resp.Cookies[c.Name], &HTTPCookie***REMOVED***
+				Name:     c.Name,
+				Value:    c.Value,
+				Domain:   c.Domain,
+				Path:     c.Path,
+				HttpOnly: c.HttpOnly,
+				Secure:   c.Secure,
+				MaxAge:   c.MaxAge,
+				Expires:  c.Expires.UnixNano() / 1000000,
+			***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 

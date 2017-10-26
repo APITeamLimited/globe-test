@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"strconv"
 	"strings"
 	"testing"
@@ -406,6 +407,197 @@ func TestRequest(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/headers", "", 200, "")
 			***REMOVED***)
 		***REMOVED***
+
+		t.Run("cookies", func(t *testing.T) ***REMOVED***
+			t.Run("access", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let res = http.request("GET", "https://httpbin.org/cookies/set?key=value", null, ***REMOVED*** redirects: 0 ***REMOVED***);
+				if (res.cookies.key[0].value != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0].value); ***REMOVED***
+				if (res.cookies.key[0].path != "/") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0].path); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies/set?key=value", "", 302, "")
+			***REMOVED***)
+
+			t.Run("vuJar", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value");
+				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key2: "value2" ***REMOVED*** ***REMOVED***);
+				if (res.json().cookies.key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key); ***REMOVED***
+				if (res.json().cookies.key2 != "value2") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key2); ***REMOVED***
+				let jarCookies = jar.cookiesForURL("https://httpbin.org/cookies");
+				if (jarCookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value in jar"); ***REMOVED***
+				if (jarCookies.key2 != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("requestScope", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key: "value" ***REMOVED*** ***REMOVED***);
+				if (res.json().cookies.key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key); ***REMOVED***
+				let jar = http.cookieJar();
+				let jarCookies = jar.cookiesForURL("https://httpbin.org/cookies");
+				if (jarCookies.key != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("requestScopeReplace", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value");
+				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key: ***REMOVED*** value: "replaced", replace: true ***REMOVED*** ***REMOVED*** ***REMOVED***);
+				if (res.json().cookies.key != "replaced") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key); ***REMOVED***
+				let jarCookies = jar.cookiesForURL("https://httpbin.org/cookies");
+				if (jarCookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value in jar"); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("redirect", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				http.cookieJar().set("https://httpbin.org/cookies", "key", "value");
+				let res = http.request("GET", "https://httpbin.org/cookies/set?key2=value2");
+				if (res.json().cookies.key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.body); ***REMOVED***
+				if (res.json().cookies.key2 != "value2") ***REMOVED*** throw new Error("wrong cookie value 2: " + res.body); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "https://httpbin.org/cookies/set?key2=value2", 200, "")
+			***REMOVED***)
+
+			t.Run("domain", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value", ***REMOVED*** domain: "httpbin.org" ***REMOVED***);
+				let res = http.request("GET", "https://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("wrong cookie value: " + res.json().cookies.key);
+				***REMOVED***
+				jar.set("https://httpbin.org/cookies", "key2", "value2", ***REMOVED*** domain: "example.com" ***REMOVED***);
+				res = http.request("GET", "http://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("wrong cookie value: " + res.json().cookies.key);
+				***REMOVED***
+				if (res.json().cookies.key2 != undefined) ***REMOVED***
+					throw new Error("cookie 'key2' unexpectedly found");
+				***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("path", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value", ***REMOVED*** path: "/cookies" ***REMOVED***);
+				let res = http.request("GET", "https://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("wrong cookie value: " + res.json().cookies.key);
+				***REMOVED***
+				jar.set("https://httpbin.org/cookies", "key2", "value2", ***REMOVED*** path: "/some-other-path" ***REMOVED***);
+				res = http.request("GET", "http://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("wrong cookie value: " + res.json().cookies.key);
+				***REMOVED***
+				if (res.json().cookies.key2 != undefined) ***REMOVED***
+					throw new Error("cookie 'key2' unexpectedly found");
+				***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("expires", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value", ***REMOVED*** expires: "Sun, 24 Jul 1983 17:01:02 GMT" ***REMOVED***);
+				let res = http.request("GET", "https://httpbin.org/cookies");
+				if (res.json().cookies.key != undefined) ***REMOVED***
+					throw new Error("cookie 'key' unexpectedly found");
+				***REMOVED***
+				jar.set("https://httpbin.org/cookies", "key", "value", ***REMOVED*** expires: "Sat, 24 Jul 2083 17:01:02 GMT" ***REMOVED***);
+				res = http.request("GET", "https://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("cookie 'key' not found");
+				***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("secure", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = http.cookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value", ***REMOVED*** secure: true ***REMOVED***);
+				let res = http.request("GET", "https://httpbin.org/cookies");
+				if (res.json().cookies.key != "value") ***REMOVED***
+					throw new Error("wrong cookie value: " + res.json().cookies.key);
+				***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+
+			t.Run("localJar", func(t *testing.T) ***REMOVED***
+				cookieJar, err := cookiejar.New(nil)
+				assert.NoError(t, err)
+				state.CookieJar = cookieJar
+				state.Samples = nil
+				_, err = common.RunString(rt, `
+				let jar = new http.CookieJar();
+				jar.set("https://httpbin.org/cookies", "key", "value");
+				let res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key2: "value2" ***REMOVED***, jar: jar ***REMOVED***);
+				if (res.json().cookies.key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key); ***REMOVED***
+				if (res.json().cookies.key2 != "value2") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key2); ***REMOVED***
+				let jarCookies = jar.cookiesForURL("https://httpbin.org/cookies");
+				if (jarCookies.key[0] != "value") ***REMOVED*** throw new Error("wrong cookie value in jar: " + jarCookies.key[0]); ***REMOVED***
+				if (jarCookies.key2 != undefined) ***REMOVED*** throw new Error("unexpected cookie in jar"); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/cookies", "", 200, "")
+			***REMOVED***)
+		***REMOVED***)
 
 		t.Run("headers", func(t *testing.T) ***REMOVED***
 			for _, literal := range []string***REMOVED***`null`, `undefined`***REMOVED*** ***REMOVED***
