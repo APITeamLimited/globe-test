@@ -134,6 +134,7 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 	if err != nil ***REMOVED***
 		common.Throw(common.GetRuntime(res.ctx), err)
 	***REMOVED***
+	sel.URL = res.URL
 	if len(selector) > 0 ***REMOVED***
 		sel = sel.Find(selector[0])
 	***REMOVED***
