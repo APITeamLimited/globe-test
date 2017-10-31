@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -228,6 +229,18 @@ a commandline interface for interacting with it.`,
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
+
+		// If the user hasn't opted out: report usage.
+		if !conf.NoUsageReport.Bool ***REMOVED***
+			go func() ***REMOVED***
+				u := "http://k6reports.loadimpact.com/"
+				mime := "application/json"
+				body := []byte(`***REMOVED***"k6_version":"` + Version + `"***REMOVED***`)
+				if _, err := http.Post(u, mime, bytes.NewBuffer(body)); err != nil ***REMOVED***
+					log.WithError(err).Debug("Couldn't send usage blip")
+				***REMOVED***
+			***REMOVED***()
+		***REMOVED***
 
 		// Prepare a progress bar.
 		progress := ui.ProgressBar***REMOVED***
