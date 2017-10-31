@@ -78,6 +78,11 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
 	***REMOVED***
 
+	if conf.Token == "" && conf.DeprecatedToken != "" ***REMOVED***
+		log.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
+		conf.Token = conf.DeprecatedToken
+	***REMOVED***
+
 	return &Collector***REMOVED***
 		config:     conf,
 		thresholds: thresholds,
