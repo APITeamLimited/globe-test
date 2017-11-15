@@ -66,10 +66,12 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		VUs  null.Int
 	***REMOVED***
 	testdata := map[string]struct ***REMOVED***
+		Start       int64
 		Stages      []lib.Stage
 		Checkpoints []checkpoint
 	***REMOVED******REMOVED***
 		"none": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED******REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, false, null.NewInt(0, false)***REMOVED***,
@@ -78,6 +80,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 		"one": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
 			***REMOVED***,
@@ -88,7 +91,20 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 				***REMOVED***11 * time.Second, false, null.NewInt(0, false)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"one/start": ***REMOVED***
+			5,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***10 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***11 * time.Second, false, null.NewInt(5, false)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 		"one/targeted": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
@@ -107,7 +123,28 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 				***REMOVED***11 * time.Second, false, null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"one/targeted/start": ***REMOVED***
+			50,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, null.IntFrom(50)***REMOVED***,
+				***REMOVED***1 * time.Second, true, null.IntFrom(55)***REMOVED***,
+				***REMOVED***2 * time.Second, true, null.IntFrom(60)***REMOVED***,
+				***REMOVED***3 * time.Second, true, null.IntFrom(65)***REMOVED***,
+				***REMOVED***4 * time.Second, true, null.IntFrom(70)***REMOVED***,
+				***REMOVED***5 * time.Second, true, null.IntFrom(75)***REMOVED***,
+				***REMOVED***6 * time.Second, true, null.IntFrom(80)***REMOVED***,
+				***REMOVED***7 * time.Second, true, null.IntFrom(85)***REMOVED***,
+				***REMOVED***8 * time.Second, true, null.IntFrom(90)***REMOVED***,
+				***REMOVED***9 * time.Second, true, null.IntFrom(95)***REMOVED***,
+				***REMOVED***10 * time.Second, true, null.IntFrom(100)***REMOVED***,
+				***REMOVED***11 * time.Second, false, null.IntFrom(100)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 		"two": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
@@ -118,7 +155,20 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 				***REMOVED***11 * time.Second, false, null.NewInt(0, false)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"two/start": ***REMOVED***
+			5,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***11 * time.Second, false, null.NewInt(5, false)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 		"two/targeted": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
@@ -139,6 +189,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 		"three": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
 				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
@@ -153,6 +204,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 		"three/targeted": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED***,
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
@@ -179,6 +231,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 		"mix": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED***
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
 				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
@@ -221,7 +274,30 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 				***REMOVED***24 * time.Second, true, null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
+		"mix/start": ***REMOVED***
+			5,
+			[]lib.Stage***REMOVED***
+				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***,
+			[]checkpoint***REMOVED***
+				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+
+				***REMOVED***1 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***2 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***3 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***4 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+				***REMOVED***5 * time.Second, true, null.NewInt(5, false)***REMOVED***,
+
+				***REMOVED***6 * time.Second, true, null.NewInt(6, true)***REMOVED***,
+				***REMOVED***7 * time.Second, true, null.NewInt(7, true)***REMOVED***,
+				***REMOVED***8 * time.Second, true, null.NewInt(8, true)***REMOVED***,
+				***REMOVED***9 * time.Second, true, null.NewInt(9, true)***REMOVED***,
+				***REMOVED***10 * time.Second, true, null.NewInt(10, true)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
 		"infinite": ***REMOVED***
+			0,
 			[]lib.Stage***REMOVED******REMOVED******REMOVED******REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
@@ -236,7 +312,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for _, ckp := range data.Checkpoints ***REMOVED***
 				t.Run(ckp.D.String(), func(t *testing.T) ***REMOVED***
-					vus, keepRunning := ProcessStages(data.Stages, ckp.D)
+					vus, keepRunning := ProcessStages(data.Start, data.Stages, ckp.D)
 					assert.Equal(t, ckp.VUs, vus)
 					assert.Equal(t, ckp.Keep, keepRunning)
 				***REMOVED***)

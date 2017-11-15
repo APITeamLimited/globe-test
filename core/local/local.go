@@ -180,7 +180,8 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 		***REMOVED***
 	***REMOVED***()
 
-	if err := e.scale(ctx, lib.Max(0, atomic.LoadInt64(&e.numVUs))); err != nil ***REMOVED***
+	startVUs := atomic.LoadInt64(&e.numVUs)
+	if err := e.scale(ctx, lib.Max(0, startVUs)); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -238,7 +239,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 
 			stages := e.stages
 			if stages != nil ***REMOVED***
-				vus, keepRunning := ProcessStages(stages, at)
+				vus, keepRunning := ProcessStages(startVUs, stages, at)
 				if !keepRunning ***REMOVED***
 					e.Logger.WithField("at", at).Debug("Local: Ran out of stages")
 					cutoff = time.Now()
