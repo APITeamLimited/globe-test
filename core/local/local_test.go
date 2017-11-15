@@ -29,6 +29,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
@@ -98,6 +99,48 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	startTime := time.Now()
 	assert.NoError(t, e.Run(context.Background(), nil))
 	assert.True(t, time.Now().After(startTime.Add(1*time.Second)), "test did not take 1s")
+
+	t.Run("Runtime Errors", func(t *testing.T) ***REMOVED***
+		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			return nil, errors.New("hi")
+		***REMOVED***))
+		assert.NoError(t, e.SetVUsMax(10))
+		assert.NoError(t, e.SetVUs(10))
+		e.SetEndTime(lib.NullDurationFrom(100 * time.Millisecond))
+		assert.Equal(t, lib.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
+
+		l, hook := logtest.NewNullLogger()
+		e.SetLogger(l)
+
+		startTime := time.Now()
+		assert.NoError(t, e.Run(context.Background(), nil))
+		assert.True(t, time.Now().After(startTime.Add(100*time.Millisecond)), "test did not take 100ms")
+
+		assert.NotEmpty(t, hook.Entries)
+		for _, e := range hook.Entries ***REMOVED***
+			assert.Equal(t, "hi", e.Message)
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("End Errors", func(t *testing.T) ***REMOVED***
+		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+			<-ctx.Done()
+			return nil, errors.New("hi")
+		***REMOVED***))
+		assert.NoError(t, e.SetVUsMax(10))
+		assert.NoError(t, e.SetVUs(10))
+		e.SetEndTime(lib.NullDurationFrom(100 * time.Millisecond))
+		assert.Equal(t, lib.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
+
+		l, hook := logtest.NewNullLogger()
+		e.SetLogger(l)
+
+		startTime := time.Now()
+		assert.NoError(t, e.Run(context.Background(), nil))
+		assert.True(t, time.Now().After(startTime.Add(100*time.Millisecond)), "test did not take 100ms")
+
+		assert.Empty(t, hook.Entries)
+	***REMOVED***)
 ***REMOVED***
 
 func TestExecutorEndIterations(t *testing.T) ***REMOVED***
