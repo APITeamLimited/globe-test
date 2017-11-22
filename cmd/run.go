@@ -129,32 +129,31 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 		conf := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf)
-		opts := conf.Options
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
-		if !opts.VUsMax.Valid ***REMOVED***
-			opts.VUsMax = null.IntFrom(opts.VUs.Int64)
-			for _, stage := range opts.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > opts.VUsMax.Int64 ***REMOVED***
-					opts.VUsMax = stage.Target
+		if !conf.VUsMax.Valid ***REMOVED***
+			conf.VUsMax = null.IntFrom(conf.VUs.Int64)
+			for _, stage := range conf.Stages ***REMOVED***
+				if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
+					conf.VUsMax = stage.Target
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
-		if !opts.Duration.Valid && !opts.Iterations.Valid && opts.Stages == nil ***REMOVED***
-			opts.Iterations = null.IntFrom(1)
+		if !conf.Duration.Valid && !conf.Iterations.Valid && conf.Stages == nil ***REMOVED***
+			conf.Iterations = null.IntFrom(1)
 		***REMOVED***
 		// If duration is explicitly set to 0, it means run forever.
-		if opts.Duration.Valid && opts.Duration.Duration == 0 ***REMOVED***
-			opts.Duration = lib.NullDuration***REMOVED******REMOVED***
+		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
+			conf.Duration = lib.NullDuration***REMOVED******REMOVED***
 		***REMOVED***
 
 		// Write options back to the runner too.
-		r.ApplyOptions(opts)
+		r.ApplyOptions(conf.Options)
 
 		// Create an engine with a local executor, wrapping the Runner.
 		fmt.Fprintf(stdout, "%s   engine\r", initBar.String())
-		engine, err := core.NewEngine(local.New(r), opts)
+		engine, err := core.NewEngine(local.New(r), conf.Options)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -199,14 +198,14 @@ a commandline interface for interacting with it.`,
 
 			duration := ui.GrayColor.Sprint("-")
 			iterations := ui.GrayColor.Sprint("-")
-			if opts.Duration.Valid ***REMOVED***
-				duration = ui.ValueColor.Sprint(opts.Duration.Duration)
+			if conf.Duration.Valid ***REMOVED***
+				duration = ui.ValueColor.Sprint(conf.Duration.Duration)
 			***REMOVED***
-			if opts.Iterations.Valid ***REMOVED***
-				iterations = ui.ValueColor.Sprint(opts.Iterations.Int64)
+			if conf.Iterations.Valid ***REMOVED***
+				iterations = ui.ValueColor.Sprint(conf.Iterations.Int64)
 			***REMOVED***
-			vus := ui.ValueColor.Sprint(opts.VUs.Int64)
-			max := ui.ValueColor.Sprint(opts.VUsMax.Int64)
+			vus := ui.ValueColor.Sprint(conf.VUs.Int64)
+			max := ui.ValueColor.Sprint(conf.VUsMax.Int64)
 
 			leftWidth := ui.StrWidth(duration)
 			if l := ui.StrWidth(vus); l > leftWidth ***REMOVED***
@@ -349,7 +348,7 @@ a commandline interface for interacting with it.`,
 		if !quiet ***REMOVED***
 			fmt.Fprintf(stdout, "\n")
 			ui.Summarize(stdout, "", ui.SummaryData***REMOVED***
-				Opts:    opts,
+				Opts:    conf.Options,
 				Root:    engine.Executor.GetRunner().GetDefaultGroup(),
 				Metrics: engine.Metrics,
 				Time:    engine.Executor.GetTime(),
