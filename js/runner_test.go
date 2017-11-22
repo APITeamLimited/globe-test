@@ -108,10 +108,10 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, false), r.Bundle.Options.Paused)
-			r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
+			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(true, true), r.Bundle.Options.Paused)
-			r.ApplyOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
+			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
 		***REMOVED***)
@@ -197,7 +197,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
 	r2, err := NewFromArchive(r1.MakeArchive())
 	if !assert.NoError(t, err) ***REMOVED***
@@ -374,8 +374,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
-			r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
-			r1.ApplyOptions(data.opts)
+			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
 
 			r2, err := NewFromArchive(r1.MakeArchive())
 			if !assert.NoError(t, err) ***REMOVED***
@@ -444,8 +443,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
-			r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
-			r1.ApplyOptions(data.opts)
+			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
 
 			r2, err := NewFromArchive(r1.MakeArchive())
 			if !assert.NoError(t, err) ***REMOVED***
@@ -488,7 +486,7 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive())
 	if !assert.NoError(t, err) ***REMOVED***
@@ -540,7 +538,7 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.ApplyOptions(lib.Options***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		MaxRedirects: null.IntFrom(10),
 	***REMOVED***)
@@ -577,7 +575,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.ApplyOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive())
 	if !assert.NoError(t, err) ***REMOVED***
@@ -672,7 +670,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.ApplyOptions(lib.Options***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***
 		Throw: null.BoolFrom(true),
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***)
@@ -696,7 +694,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 
-	r1.ApplyOptions(lib.Options***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***
 		TLSAuth: []*lib.TLSAuth***REMOVED***
 			***REMOVED***
 				TLSAuthFields: lib.TLSAuthFields***REMOVED***

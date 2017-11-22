@@ -45,7 +45,7 @@ func (r groupDummyRunner) GetDefaultGroup() *lib.Group ***REMOVED*** return r.Gr
 
 func (r groupDummyRunner) GetOptions() lib.Options ***REMOVED*** return lib.Options***REMOVED******REMOVED*** ***REMOVED***
 
-func (r groupDummyRunner) ApplyOptions(opts lib.Options) ***REMOVED******REMOVED***
+func (r groupDummyRunner) SetOptions(opts lib.Options) ***REMOVED******REMOVED***
 
 func TestGetGroups(t *testing.T) ***REMOVED***
 	g0, err := lib.NewGroup("", nil)
