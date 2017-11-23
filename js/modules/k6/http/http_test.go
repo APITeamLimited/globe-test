@@ -127,9 +127,6 @@ func TestRequest(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("11", func(t *testing.T) ***REMOVED***
-			hook := logtest.NewLocal(state.Logger)
-			defer hook.Reset()
-
 			_, err := common.RunString(rt, `
 			let res = http.get("https://httpbin.org/redirect/11");
 			if (res.status != 302) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
@@ -138,13 +135,29 @@ func TestRequest(t *testing.T) ***REMOVED***
 			`)
 			assert.NoError(t, err)
 
-			logEntry := hook.LastEntry()
-			if assert.NotNil(t, logEntry) ***REMOVED***
-				assert.Equal(t, log.WarnLevel, logEntry.Level)
-				assert.Equal(t, "Possible redirect loop, 302 response returned last, 10 redirects followed; pass ***REMOVED*** redirects: n ***REMOVED*** in request params to silence this", logEntry.Data["error"])
-				assert.Equal(t, "https://httpbin.org/redirect/11", logEntry.Data["url"])
-				assert.Equal(t, "Redirect Limit", logEntry.Message)
-			***REMOVED***
+			t.Run("Unset Max", func(t *testing.T) ***REMOVED***
+				hook := logtest.NewLocal(state.Logger)
+				defer hook.Reset()
+
+				oldOpts := state.Options
+				defer func() ***REMOVED*** state.Options = oldOpts ***REMOVED***()
+				state.Options.MaxRedirects = null.NewInt(10, false)
+
+				_, err := common.RunString(rt, `
+				let res = http.get("https://httpbin.org/redirect/11");
+				if (res.status != 302) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+				if (res.url != "https://httpbin.org/relative-redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
+				if (res.headers["Location"] != "/get") ***REMOVED*** throw new Error("incorrect Location header: " + res.headers["Location"]) ***REMOVED***
+				`)
+				assert.NoError(t, err)
+
+				logEntry := hook.LastEntry()
+				if assert.NotNil(t, logEntry) ***REMOVED***
+					assert.Equal(t, log.WarnLevel, logEntry.Level)
+					assert.Equal(t, "https://httpbin.org/redirect/11", logEntry.Data["url"])
+					assert.Equal(t, "Stopped after 11 redirects and returned the redirection; pass ***REMOVED*** redirects: n ***REMOVED*** in request params or set global maxRedirects to silence this", logEntry.Message)
+				***REMOVED***
+			***REMOVED***)
 		***REMOVED***)
 		t.Run("requestScopeRedirects", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
