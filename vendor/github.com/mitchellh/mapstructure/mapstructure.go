@@ -1,0 +1,834 @@
+// Package mapstructure exposes functionality to convert an arbitrary
+// map[string]interface***REMOVED******REMOVED*** into a native Go structure.
+//
+// The Go structure can be arbitrarily complex, containing slices,
+// other structs, etc. and the decoder will properly decode nested
+// maps and so on into the proper structures in the native Go struct.
+// See the examples to see what the decoder is capable of.
+package mapstructure
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+// DecodeHookFunc is the callback function that can be used for
+// data transformations. See "DecodeHook" in the DecoderConfig
+// struct.
+//
+// The type should be DecodeHookFuncType or DecodeHookFuncKind.
+// Either is accepted. Types are a superset of Kinds (Types can return
+// Kinds) and are generally a richer thing to use, but Kinds are simpler
+// if you only need those.
+//
+// The reason DecodeHookFunc is multi-typed is for backwards compatibility:
+// we started with Kinds and then realized Types were the better solution,
+// but have a promise to not break backwards compat so we now support
+// both.
+type DecodeHookFunc interface***REMOVED******REMOVED***
+
+// DecodeHookFuncType is a DecodeHookFunc which has complete information about
+// the source and target types.
+type DecodeHookFuncType func(reflect.Type, reflect.Type, interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error)
+
+// DecodeHookFuncKind is a DecodeHookFunc which knows only the Kinds of the
+// source and target types.
+type DecodeHookFuncKind func(reflect.Kind, reflect.Kind, interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error)
+
+// DecoderConfig is the configuration that is used to create a new decoder
+// and allows customization of various aspects of decoding.
+type DecoderConfig struct ***REMOVED***
+	// DecodeHook, if set, will be called before any decoding and any
+	// type conversion (if WeaklyTypedInput is on). This lets you modify
+	// the values before they're set down onto the resulting struct.
+	//
+	// If an error is returned, the entire decode will fail with that
+	// error.
+	DecodeHook DecodeHookFunc
+
+	// If ErrorUnused is true, then it is an error for there to exist
+	// keys in the original map that were unused in the decoding process
+	// (extra keys).
+	ErrorUnused bool
+
+	// ZeroFields, if set to true, will zero fields before writing them.
+	// For example, a map will be emptied before decoded values are put in
+	// it. If this is false, a map will be merged.
+	ZeroFields bool
+
+	// If WeaklyTypedInput is true, the decoder will make the following
+	// "weak" conversions:
+	//
+	//   - bools to string (true = "1", false = "0")
+	//   - numbers to string (base 10)
+	//   - bools to int/uint (true = 1, false = 0)
+	//   - strings to int/uint (base implied by prefix)
+	//   - int to bool (true if value != 0)
+	//   - string to bool (accepts: 1, t, T, TRUE, true, True, 0, f, F,
+	//     FALSE, false, False. Anything else is an error)
+	//   - empty array = empty map and vice versa
+	//   - negative numbers to overflowed uint values (base 10)
+	//   - slice of maps to a merged map
+	//   - single values are converted to slices if required. Each
+	//     element is weakly decoded. For example: "4" can become []int***REMOVED***4***REMOVED***
+	//     if the target type is an int slice.
+	//
+	WeaklyTypedInput bool
+
+	// Metadata is the struct that will contain extra metadata about
+	// the decoding. If this is nil, then no metadata will be tracked.
+	Metadata *Metadata
+
+	// Result is a pointer to the struct that will contain the decoded
+	// value.
+	Result interface***REMOVED******REMOVED***
+
+	// The tag name that mapstructure reads for field names. This
+	// defaults to "mapstructure"
+	TagName string
+***REMOVED***
+
+// A Decoder takes a raw interface value and turns it into structured
+// data, keeping track of rich error information along the way in case
+// anything goes wrong. Unlike the basic top-level Decode method, you can
+// more finely control how the Decoder behaves using the DecoderConfig
+// structure. The top-level Decode method is just a convenience that sets
+// up the most basic Decoder.
+type Decoder struct ***REMOVED***
+	config *DecoderConfig
+***REMOVED***
+
+// Metadata contains information about decoding a structure that
+// is tedious or difficult to get otherwise.
+type Metadata struct ***REMOVED***
+	// Keys are the keys of the structure which were successfully decoded
+	Keys []string
+
+	// Unused is a slice of keys that were found in the raw value but
+	// weren't decoded since there was no matching field in the result interface
+	Unused []string
+***REMOVED***
+
+// Decode takes a map and uses reflection to convert it into the
+// given Go native structure. val must be a pointer to a struct.
+func Decode(m interface***REMOVED******REMOVED***, rawVal interface***REMOVED******REMOVED***) error ***REMOVED***
+	config := &DecoderConfig***REMOVED***
+		Metadata: nil,
+		Result:   rawVal,
+	***REMOVED***
+
+	decoder, err := NewDecoder(config)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return decoder.Decode(m)
+***REMOVED***
+
+// WeakDecode is the same as Decode but is shorthand to enable
+// WeaklyTypedInput. See DecoderConfig for more info.
+func WeakDecode(input, output interface***REMOVED******REMOVED***) error ***REMOVED***
+	config := &DecoderConfig***REMOVED***
+		Metadata:         nil,
+		Result:           output,
+		WeaklyTypedInput: true,
+	***REMOVED***
+
+	decoder, err := NewDecoder(config)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return decoder.Decode(input)
+***REMOVED***
+
+// NewDecoder returns a new decoder for the given configuration. Once
+// a decoder has been returned, the same configuration must not be used
+// again.
+func NewDecoder(config *DecoderConfig) (*Decoder, error) ***REMOVED***
+	val := reflect.ValueOf(config.Result)
+	if val.Kind() != reflect.Ptr ***REMOVED***
+		return nil, errors.New("result must be a pointer")
+	***REMOVED***
+
+	val = val.Elem()
+	if !val.CanAddr() ***REMOVED***
+		return nil, errors.New("result must be addressable (a pointer)")
+	***REMOVED***
+
+	if config.Metadata != nil ***REMOVED***
+		if config.Metadata.Keys == nil ***REMOVED***
+			config.Metadata.Keys = make([]string, 0)
+		***REMOVED***
+
+		if config.Metadata.Unused == nil ***REMOVED***
+			config.Metadata.Unused = make([]string, 0)
+		***REMOVED***
+	***REMOVED***
+
+	if config.TagName == "" ***REMOVED***
+		config.TagName = "mapstructure"
+	***REMOVED***
+
+	result := &Decoder***REMOVED***
+		config: config,
+	***REMOVED***
+
+	return result, nil
+***REMOVED***
+
+// Decode decodes the given raw interface to the target pointer specified
+// by the configuration.
+func (d *Decoder) Decode(raw interface***REMOVED******REMOVED***) error ***REMOVED***
+	return d.decode("", raw, reflect.ValueOf(d.config.Result).Elem())
+***REMOVED***
+
+// Decodes an unknown data type into a specific reflection value.
+func (d *Decoder) decode(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	if data == nil ***REMOVED***
+		// If the data is nil, then we don't set anything.
+		return nil
+	***REMOVED***
+
+	dataVal := reflect.ValueOf(data)
+	if !dataVal.IsValid() ***REMOVED***
+		// If the data value is invalid, then we just set the value
+		// to be the zero value.
+		val.Set(reflect.Zero(val.Type()))
+		return nil
+	***REMOVED***
+
+	if d.config.DecodeHook != nil ***REMOVED***
+		// We have a DecodeHook, so let's pre-process the data.
+		var err error
+		data, err = DecodeHookExec(
+			d.config.DecodeHook,
+			dataVal.Type(), val.Type(), data)
+		if err != nil ***REMOVED***
+			return fmt.Errorf("error decoding '%s': %s", name, err)
+		***REMOVED***
+	***REMOVED***
+
+	var err error
+	dataKind := getKind(val)
+	switch dataKind ***REMOVED***
+	case reflect.Bool:
+		err = d.decodeBool(name, data, val)
+	case reflect.Interface:
+		err = d.decodeBasic(name, data, val)
+	case reflect.String:
+		err = d.decodeString(name, data, val)
+	case reflect.Int:
+		err = d.decodeInt(name, data, val)
+	case reflect.Uint:
+		err = d.decodeUint(name, data, val)
+	case reflect.Float32:
+		err = d.decodeFloat(name, data, val)
+	case reflect.Struct:
+		err = d.decodeStruct(name, data, val)
+	case reflect.Map:
+		err = d.decodeMap(name, data, val)
+	case reflect.Ptr:
+		err = d.decodePtr(name, data, val)
+	case reflect.Slice:
+		err = d.decodeSlice(name, data, val)
+	case reflect.Func:
+		err = d.decodeFunc(name, data, val)
+	default:
+		// If we reached this point then we weren't able to decode it
+		return fmt.Errorf("%s: unsupported type: %s", name, dataKind)
+	***REMOVED***
+
+	// If we reached here, then we successfully decoded SOMETHING, so
+	// mark the key as used if we're tracking metadata.
+	if d.config.Metadata != nil && name != "" ***REMOVED***
+		d.config.Metadata.Keys = append(d.config.Metadata.Keys, name)
+	***REMOVED***
+
+	return err
+***REMOVED***
+
+// This decodes a basic type (bool, int, string, etc.) and sets the
+// value to "data" of that type.
+func (d *Decoder) decodeBasic(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	if !dataVal.IsValid() ***REMOVED***
+		dataVal = reflect.Zero(val.Type())
+	***REMOVED***
+
+	dataValType := dataVal.Type()
+	if !dataValType.AssignableTo(val.Type()) ***REMOVED***
+		return fmt.Errorf(
+			"'%s' expected type '%s', got '%s'",
+			name, val.Type(), dataValType)
+	***REMOVED***
+
+	val.Set(dataVal)
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeString(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	dataKind := getKind(dataVal)
+
+	converted := true
+	switch ***REMOVED***
+	case dataKind == reflect.String:
+		val.SetString(dataVal.String())
+	case dataKind == reflect.Bool && d.config.WeaklyTypedInput:
+		if dataVal.Bool() ***REMOVED***
+			val.SetString("1")
+		***REMOVED*** else ***REMOVED***
+			val.SetString("0")
+		***REMOVED***
+	case dataKind == reflect.Int && d.config.WeaklyTypedInput:
+		val.SetString(strconv.FormatInt(dataVal.Int(), 10))
+	case dataKind == reflect.Uint && d.config.WeaklyTypedInput:
+		val.SetString(strconv.FormatUint(dataVal.Uint(), 10))
+	case dataKind == reflect.Float32 && d.config.WeaklyTypedInput:
+		val.SetString(strconv.FormatFloat(dataVal.Float(), 'f', -1, 64))
+	case dataKind == reflect.Slice && d.config.WeaklyTypedInput:
+		dataType := dataVal.Type()
+		elemKind := dataType.Elem().Kind()
+		switch ***REMOVED***
+		case elemKind == reflect.Uint8:
+			val.SetString(string(dataVal.Interface().([]uint8)))
+		default:
+			converted = false
+		***REMOVED***
+	default:
+		converted = false
+	***REMOVED***
+
+	if !converted ***REMOVED***
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeInt(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	dataKind := getKind(dataVal)
+	dataType := dataVal.Type()
+
+	switch ***REMOVED***
+	case dataKind == reflect.Int:
+		val.SetInt(dataVal.Int())
+	case dataKind == reflect.Uint:
+		val.SetInt(int64(dataVal.Uint()))
+	case dataKind == reflect.Float32:
+		val.SetInt(int64(dataVal.Float()))
+	case dataKind == reflect.Bool && d.config.WeaklyTypedInput:
+		if dataVal.Bool() ***REMOVED***
+			val.SetInt(1)
+		***REMOVED*** else ***REMOVED***
+			val.SetInt(0)
+		***REMOVED***
+	case dataKind == reflect.String && d.config.WeaklyTypedInput:
+		i, err := strconv.ParseInt(dataVal.String(), 0, val.Type().Bits())
+		if err == nil ***REMOVED***
+			val.SetInt(i)
+		***REMOVED*** else ***REMOVED***
+			return fmt.Errorf("cannot parse '%s' as int: %s", name, err)
+		***REMOVED***
+	case dataType.PkgPath() == "encoding/json" && dataType.Name() == "Number":
+		jn := data.(json.Number)
+		i, err := jn.Int64()
+		if err != nil ***REMOVED***
+			return fmt.Errorf(
+				"error decoding json.Number into %s: %s", name, err)
+		***REMOVED***
+		val.SetInt(i)
+	default:
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeUint(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	dataKind := getKind(dataVal)
+
+	switch ***REMOVED***
+	case dataKind == reflect.Int:
+		i := dataVal.Int()
+		if i < 0 && !d.config.WeaklyTypedInput ***REMOVED***
+			return fmt.Errorf("cannot parse '%s', %d overflows uint",
+				name, i)
+		***REMOVED***
+		val.SetUint(uint64(i))
+	case dataKind == reflect.Uint:
+		val.SetUint(dataVal.Uint())
+	case dataKind == reflect.Float32:
+		f := dataVal.Float()
+		if f < 0 && !d.config.WeaklyTypedInput ***REMOVED***
+			return fmt.Errorf("cannot parse '%s', %f overflows uint",
+				name, f)
+		***REMOVED***
+		val.SetUint(uint64(f))
+	case dataKind == reflect.Bool && d.config.WeaklyTypedInput:
+		if dataVal.Bool() ***REMOVED***
+			val.SetUint(1)
+		***REMOVED*** else ***REMOVED***
+			val.SetUint(0)
+		***REMOVED***
+	case dataKind == reflect.String && d.config.WeaklyTypedInput:
+		i, err := strconv.ParseUint(dataVal.String(), 0, val.Type().Bits())
+		if err == nil ***REMOVED***
+			val.SetUint(i)
+		***REMOVED*** else ***REMOVED***
+			return fmt.Errorf("cannot parse '%s' as uint: %s", name, err)
+		***REMOVED***
+	default:
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeBool(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	dataKind := getKind(dataVal)
+
+	switch ***REMOVED***
+	case dataKind == reflect.Bool:
+		val.SetBool(dataVal.Bool())
+	case dataKind == reflect.Int && d.config.WeaklyTypedInput:
+		val.SetBool(dataVal.Int() != 0)
+	case dataKind == reflect.Uint && d.config.WeaklyTypedInput:
+		val.SetBool(dataVal.Uint() != 0)
+	case dataKind == reflect.Float32 && d.config.WeaklyTypedInput:
+		val.SetBool(dataVal.Float() != 0)
+	case dataKind == reflect.String && d.config.WeaklyTypedInput:
+		b, err := strconv.ParseBool(dataVal.String())
+		if err == nil ***REMOVED***
+			val.SetBool(b)
+		***REMOVED*** else if dataVal.String() == "" ***REMOVED***
+			val.SetBool(false)
+		***REMOVED*** else ***REMOVED***
+			return fmt.Errorf("cannot parse '%s' as bool: %s", name, err)
+		***REMOVED***
+	default:
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeFloat(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.ValueOf(data)
+	dataKind := getKind(dataVal)
+	dataType := dataVal.Type()
+
+	switch ***REMOVED***
+	case dataKind == reflect.Int:
+		val.SetFloat(float64(dataVal.Int()))
+	case dataKind == reflect.Uint:
+		val.SetFloat(float64(dataVal.Uint()))
+	case dataKind == reflect.Float32:
+		val.SetFloat(dataVal.Float())
+	case dataKind == reflect.Bool && d.config.WeaklyTypedInput:
+		if dataVal.Bool() ***REMOVED***
+			val.SetFloat(1)
+		***REMOVED*** else ***REMOVED***
+			val.SetFloat(0)
+		***REMOVED***
+	case dataKind == reflect.String && d.config.WeaklyTypedInput:
+		f, err := strconv.ParseFloat(dataVal.String(), val.Type().Bits())
+		if err == nil ***REMOVED***
+			val.SetFloat(f)
+		***REMOVED*** else ***REMOVED***
+			return fmt.Errorf("cannot parse '%s' as float: %s", name, err)
+		***REMOVED***
+	case dataType.PkgPath() == "encoding/json" && dataType.Name() == "Number":
+		jn := data.(json.Number)
+		i, err := jn.Float64()
+		if err != nil ***REMOVED***
+			return fmt.Errorf(
+				"error decoding json.Number into %s: %s", name, err)
+		***REMOVED***
+		val.SetFloat(i)
+	default:
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeMap(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	valType := val.Type()
+	valKeyType := valType.Key()
+	valElemType := valType.Elem()
+
+	// By default we overwrite keys in the current map
+	valMap := val
+
+	// If the map is nil or we're purposely zeroing fields, make a new map
+	if valMap.IsNil() || d.config.ZeroFields ***REMOVED***
+		// Make a new map to hold our result
+		mapType := reflect.MapOf(valKeyType, valElemType)
+		valMap = reflect.MakeMap(mapType)
+	***REMOVED***
+
+	// Check input type
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
+	if dataVal.Kind() != reflect.Map ***REMOVED***
+		// In weak mode, we accept a slice of maps as an input...
+		if d.config.WeaklyTypedInput ***REMOVED***
+			switch dataVal.Kind() ***REMOVED***
+			case reflect.Array, reflect.Slice:
+				// Special case for BC reasons (covered by tests)
+				if dataVal.Len() == 0 ***REMOVED***
+					val.Set(valMap)
+					return nil
+				***REMOVED***
+
+				for i := 0; i < dataVal.Len(); i++ ***REMOVED***
+					err := d.decode(
+						fmt.Sprintf("%s[%d]", name, i),
+						dataVal.Index(i).Interface(), val)
+					if err != nil ***REMOVED***
+						return err
+					***REMOVED***
+				***REMOVED***
+
+				return nil
+			***REMOVED***
+		***REMOVED***
+
+		return fmt.Errorf("'%s' expected a map, got '%s'", name, dataVal.Kind())
+	***REMOVED***
+
+	// Accumulate errors
+	errors := make([]string, 0)
+
+	for _, k := range dataVal.MapKeys() ***REMOVED***
+		fieldName := fmt.Sprintf("%s[%s]", name, k)
+
+		// First decode the key into the proper type
+		currentKey := reflect.Indirect(reflect.New(valKeyType))
+		if err := d.decode(fieldName, k.Interface(), currentKey); err != nil ***REMOVED***
+			errors = appendErrors(errors, err)
+			continue
+		***REMOVED***
+
+		// Next decode the data into the proper type
+		v := dataVal.MapIndex(k).Interface()
+		currentVal := reflect.Indirect(reflect.New(valElemType))
+		if err := d.decode(fieldName, v, currentVal); err != nil ***REMOVED***
+			errors = appendErrors(errors, err)
+			continue
+		***REMOVED***
+
+		valMap.SetMapIndex(currentKey, currentVal)
+	***REMOVED***
+
+	// Set the built up map to the value
+	val.Set(valMap)
+
+	// If we had errors, return those
+	if len(errors) > 0 ***REMOVED***
+		return &Error***REMOVED***errors***REMOVED***
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodePtr(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	// Create an element of the concrete (non pointer) type and decode
+	// into that. Then set the value of the pointer to this type.
+	valType := val.Type()
+	valElemType := valType.Elem()
+
+	realVal := val
+	if realVal.IsNil() || d.config.ZeroFields ***REMOVED***
+		realVal = reflect.New(valElemType)
+	***REMOVED***
+
+	if err := d.decode(name, data, reflect.Indirect(realVal)); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	val.Set(realVal)
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeFunc(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	// Create an element of the concrete (non pointer) type and decode
+	// into that. Then set the value of the pointer to this type.
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
+	if val.Type() != dataVal.Type() ***REMOVED***
+		return fmt.Errorf(
+			"'%s' expected type '%s', got unconvertible type '%s'",
+			name, val.Type(), dataVal.Type())
+	***REMOVED***
+	val.Set(dataVal)
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeSlice(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
+	dataValKind := dataVal.Kind()
+	valType := val.Type()
+	valElemType := valType.Elem()
+	sliceType := reflect.SliceOf(valElemType)
+
+	valSlice := val
+	if valSlice.IsNil() || d.config.ZeroFields ***REMOVED***
+		// Check input type
+		if dataValKind != reflect.Array && dataValKind != reflect.Slice ***REMOVED***
+			if d.config.WeaklyTypedInput ***REMOVED***
+				switch ***REMOVED***
+				// Empty maps turn into empty slices
+				case dataValKind == reflect.Map:
+					if dataVal.Len() == 0 ***REMOVED***
+						val.Set(reflect.MakeSlice(sliceType, 0, 0))
+						return nil
+					***REMOVED***
+
+				// All other types we try to convert to the slice type
+				// and "lift" it into it. i.e. a string becomes a string slice.
+				default:
+					// Just re-try this function with data as a slice.
+					return d.decodeSlice(name, []interface***REMOVED******REMOVED******REMOVED***data***REMOVED***, val)
+				***REMOVED***
+			***REMOVED***
+
+			return fmt.Errorf(
+				"'%s': source data must be an array or slice, got %s", name, dataValKind)
+
+		***REMOVED***
+
+		// Make a new slice to hold our result, same size as the original data.
+		valSlice = reflect.MakeSlice(sliceType, dataVal.Len(), dataVal.Len())
+	***REMOVED***
+
+	// Accumulate any errors
+	errors := make([]string, 0)
+
+	for i := 0; i < dataVal.Len(); i++ ***REMOVED***
+		currentData := dataVal.Index(i).Interface()
+		for valSlice.Len() <= i ***REMOVED***
+			valSlice = reflect.Append(valSlice, reflect.Zero(valElemType))
+		***REMOVED***
+		currentField := valSlice.Index(i)
+
+		fieldName := fmt.Sprintf("%s[%d]", name, i)
+		if err := d.decode(fieldName, currentData, currentField); err != nil ***REMOVED***
+			errors = appendErrors(errors, err)
+		***REMOVED***
+	***REMOVED***
+
+	// Finally, set the value to the slice we built up
+	val.Set(valSlice)
+
+	// If there were errors, we return those
+	if len(errors) > 0 ***REMOVED***
+		return &Error***REMOVED***errors***REMOVED***
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (d *Decoder) decodeStruct(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
+
+	// If the type of the value to write to and the data match directly,
+	// then we just set it directly instead of recursing into the structure.
+	if dataVal.Type() == val.Type() ***REMOVED***
+		val.Set(dataVal)
+		return nil
+	***REMOVED***
+
+	dataValKind := dataVal.Kind()
+	if dataValKind != reflect.Map ***REMOVED***
+		return fmt.Errorf("'%s' expected a map, got '%s'", name, dataValKind)
+	***REMOVED***
+
+	dataValType := dataVal.Type()
+	if kind := dataValType.Key().Kind(); kind != reflect.String && kind != reflect.Interface ***REMOVED***
+		return fmt.Errorf(
+			"'%s' needs a map with string keys, has '%s' keys",
+			name, dataValType.Key().Kind())
+	***REMOVED***
+
+	dataValKeys := make(map[reflect.Value]struct***REMOVED******REMOVED***)
+	dataValKeysUnused := make(map[interface***REMOVED******REMOVED***]struct***REMOVED******REMOVED***)
+	for _, dataValKey := range dataVal.MapKeys() ***REMOVED***
+		dataValKeys[dataValKey] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		dataValKeysUnused[dataValKey.Interface()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	***REMOVED***
+
+	errors := make([]string, 0)
+
+	// This slice will keep track of all the structs we'll be decoding.
+	// There can be more than one struct if there are embedded structs
+	// that are squashed.
+	structs := make([]reflect.Value, 1, 5)
+	structs[0] = val
+
+	// Compile the list of all the fields that we're going to be decoding
+	// from all the structs.
+	type field struct ***REMOVED***
+		field reflect.StructField
+		val   reflect.Value
+	***REMOVED***
+	fields := []field***REMOVED******REMOVED***
+	for len(structs) > 0 ***REMOVED***
+		structVal := structs[0]
+		structs = structs[1:]
+
+		structType := structVal.Type()
+
+		for i := 0; i < structType.NumField(); i++ ***REMOVED***
+			fieldType := structType.Field(i)
+			fieldKind := fieldType.Type.Kind()
+
+			// If "squash" is specified in the tag, we squash the field down.
+			squash := false
+			tagParts := strings.Split(fieldType.Tag.Get(d.config.TagName), ",")
+			for _, tag := range tagParts[1:] ***REMOVED***
+				if tag == "squash" ***REMOVED***
+					squash = true
+					break
+				***REMOVED***
+			***REMOVED***
+
+			if squash ***REMOVED***
+				if fieldKind != reflect.Struct ***REMOVED***
+					errors = appendErrors(errors,
+						fmt.Errorf("%s: unsupported type for squash: %s", fieldType.Name, fieldKind))
+				***REMOVED*** else ***REMOVED***
+					structs = append(structs, val.FieldByName(fieldType.Name))
+				***REMOVED***
+				continue
+			***REMOVED***
+
+			// Normal struct field, store it away
+			fields = append(fields, field***REMOVED***fieldType, structVal.Field(i)***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+
+	// for fieldType, field := range fields ***REMOVED***
+	for _, f := range fields ***REMOVED***
+		field, fieldValue := f.field, f.val
+		fieldName := field.Name
+
+		tagValue := field.Tag.Get(d.config.TagName)
+		tagValue = strings.SplitN(tagValue, ",", 2)[0]
+		if tagValue != "" ***REMOVED***
+			fieldName = tagValue
+		***REMOVED***
+
+		rawMapKey := reflect.ValueOf(fieldName)
+		rawMapVal := dataVal.MapIndex(rawMapKey)
+		if !rawMapVal.IsValid() ***REMOVED***
+			// Do a slower search by iterating over each key and
+			// doing case-insensitive search.
+			for dataValKey := range dataValKeys ***REMOVED***
+				mK, ok := dataValKey.Interface().(string)
+				if !ok ***REMOVED***
+					// Not a string key
+					continue
+				***REMOVED***
+
+				if strings.EqualFold(mK, fieldName) ***REMOVED***
+					rawMapKey = dataValKey
+					rawMapVal = dataVal.MapIndex(dataValKey)
+					break
+				***REMOVED***
+			***REMOVED***
+
+			if !rawMapVal.IsValid() ***REMOVED***
+				// There was no matching key in the map for the value in
+				// the struct. Just ignore.
+				continue
+			***REMOVED***
+		***REMOVED***
+
+		// Delete the key we're using from the unused map so we stop tracking
+		delete(dataValKeysUnused, rawMapKey.Interface())
+
+		if !fieldValue.IsValid() ***REMOVED***
+			// This should never happen
+			panic("field is not valid")
+		***REMOVED***
+
+		// If we can't set the field, then it is unexported or something,
+		// and we just continue onwards.
+		if !fieldValue.CanSet() ***REMOVED***
+			continue
+		***REMOVED***
+
+		// If the name is empty string, then we're at the root, and we
+		// don't dot-join the fields.
+		if name != "" ***REMOVED***
+			fieldName = fmt.Sprintf("%s.%s", name, fieldName)
+		***REMOVED***
+
+		if err := d.decode(fieldName, rawMapVal.Interface(), fieldValue); err != nil ***REMOVED***
+			errors = appendErrors(errors, err)
+		***REMOVED***
+	***REMOVED***
+
+	if d.config.ErrorUnused && len(dataValKeysUnused) > 0 ***REMOVED***
+		keys := make([]string, 0, len(dataValKeysUnused))
+		for rawKey := range dataValKeysUnused ***REMOVED***
+			keys = append(keys, rawKey.(string))
+		***REMOVED***
+		sort.Strings(keys)
+
+		err := fmt.Errorf("'%s' has invalid keys: %s", name, strings.Join(keys, ", "))
+		errors = appendErrors(errors, err)
+	***REMOVED***
+
+	if len(errors) > 0 ***REMOVED***
+		return &Error***REMOVED***errors***REMOVED***
+	***REMOVED***
+
+	// Add the unused keys to the list of unused keys if we're tracking metadata
+	if d.config.Metadata != nil ***REMOVED***
+		for rawKey := range dataValKeysUnused ***REMOVED***
+			key := rawKey.(string)
+			if name != "" ***REMOVED***
+				key = fmt.Sprintf("%s.%s", name, key)
+			***REMOVED***
+
+			d.config.Metadata.Unused = append(d.config.Metadata.Unused, key)
+		***REMOVED***
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func getKind(val reflect.Value) reflect.Kind ***REMOVED***
+	kind := val.Kind()
+
+	switch ***REMOVED***
+	case kind >= reflect.Int && kind <= reflect.Int64:
+		return reflect.Int
+	case kind >= reflect.Uint && kind <= reflect.Uint64:
+		return reflect.Uint
+	case kind >= reflect.Float32 && kind <= reflect.Float64:
+		return reflect.Float32
+	default:
+		return kind
+	***REMOVED***
+***REMOVED***

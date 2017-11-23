@@ -1,0 +1,372 @@
+/* // +build ignore */
+
+// Copyright (c) 2012-2015 Ugorji Nwoke. All rights reserved.
+// Use of this source code is governed by a MIT license found in the LICENSE file.
+
+// ************************************************************
+// DO NOT EDIT.
+// THIS FILE IS AUTO-GENERATED from gen-helper.go.tmpl
+// ************************************************************
+
+package codec
+
+import (
+	"encoding"
+	"reflect"
+)
+
+// This file is used to generate helper code for codecgen. 
+// The values here i.e. genHelper(En|De)coder are not to be used directly by 
+// library users. They WILL change continuously and without notice.
+// 
+// To help enforce this, we create an unexported type with exported members.
+// The only way to get the type is via the one exported type that we control (somewhat).
+// 
+// When static codecs are created for types, they will use this value
+// to perform encoding or decoding of primitives or known slice or map types.
+
+// GenHelperEncoder is exported so that it can be used externally by codecgen.
+// Library users: DO NOT USE IT DIRECTLY. IT WILL CHANGE CONTINOUSLY WITHOUT NOTICE.
+func GenHelperEncoder(e *Encoder) (genHelperEncoder, encDriver) ***REMOVED***
+	return genHelperEncoder***REMOVED***e:e***REMOVED***, e.e 
+***REMOVED***
+
+// GenHelperDecoder is exported so that it can be used externally by codecgen.
+// Library users: DO NOT USE IT DIRECTLY. IT WILL CHANGE CONTINOUSLY WITHOUT NOTICE.
+func GenHelperDecoder(d *Decoder) (genHelperDecoder, decDriver) ***REMOVED***
+	return genHelperDecoder***REMOVED***d:d***REMOVED***, d.d 
+***REMOVED***
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+type genHelperEncoder struct ***REMOVED***
+	e *Encoder
+	F fastpathT 
+***REMOVED***
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+type genHelperDecoder struct ***REMOVED***
+	d *Decoder
+	F fastpathT 
+***REMOVED***
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncBasicHandle() *BasicHandle ***REMOVED***
+	return f.e.h
+***REMOVED***
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncBinary() bool ***REMOVED***
+	return f.e.be // f.e.hh.isBinaryEncoding()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncFallback(iv interface***REMOVED******REMOVED***) ***REMOVED***
+	// println(">>>>>>>>> EncFallback")
+	f.e.encodeI(iv, false, false)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncTextMarshal(iv encoding.TextMarshaler) ***REMOVED***
+	bs, fnerr := iv.MarshalText()
+	f.e.marshal(bs, fnerr, false, c_UTF8)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncJSONMarshal(iv jsonMarshaler) ***REMOVED***
+	bs, fnerr := iv.MarshalJSON()
+	f.e.marshal(bs, fnerr, true, c_UTF8)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncBinaryMarshal(iv encoding.BinaryMarshaler) ***REMOVED***
+	bs, fnerr := iv.MarshalBinary()
+	f.e.marshal(bs, fnerr, false, c_RAW)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncRaw(iv Raw) ***REMOVED***
+	f.e.raw(iv)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) TimeRtidIfBinc() uintptr ***REMOVED***
+	if _, ok := f.e.hh.(*BincHandle); ok ***REMOVED***
+		return timeTypId 
+	***REMOVED***
+	return 0
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) IsJSONHandle() bool ***REMOVED***
+	return f.e.js
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) HasExtensions() bool ***REMOVED***
+	return len(f.e.h.extHandle) != 0
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncExt(v interface***REMOVED******REMOVED***) (r bool) ***REMOVED***
+	rt := reflect.TypeOf(v)
+	if rt.Kind() == reflect.Ptr ***REMOVED***
+		rt = rt.Elem()
+	***REMOVED***
+	rtid := reflect.ValueOf(rt).Pointer()
+	if xfFn := f.e.h.getExt(rtid); xfFn != nil ***REMOVED***
+		f.e.e.EncodeExt(v, xfFn.tag, xfFn.ext, f.e)
+		return true
+	***REMOVED***
+	return false 
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncSendContainerState(c containerState) ***REMOVED***
+	if f.e.cr != nil ***REMOVED***
+		f.e.cr.sendContainerState(c)
+	***REMOVED***
+***REMOVED***
+
+// ---------------- DECODER FOLLOWS -----------------
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecBasicHandle() *BasicHandle ***REMOVED***
+	return f.d.h
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecBinary() bool ***REMOVED***
+     return f.d.be // f.d.hh.isBinaryEncoding()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecSwallow() ***REMOVED***
+	f.d.swallow()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecScratchBuffer() []byte ***REMOVED***
+	return f.d.b[:]
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecFallback(iv interface***REMOVED******REMOVED***, chkPtr bool) ***REMOVED***
+	// println(">>>>>>>>> DecFallback")
+	f.d.decodeI(iv, chkPtr, false, false, false)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecSliceHelperStart() (decSliceHelper, int) ***REMOVED***
+	return f.d.decSliceHelperStart()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecStructFieldNotFound(index int, name string) ***REMOVED***
+	f.d.structFieldNotFound(index, name)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecArrayCannotExpand(sliceLen, streamLen int) ***REMOVED***
+	f.d.arrayCannotExpand(sliceLen, streamLen)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecTextUnmarshal(tm encoding.TextUnmarshaler) ***REMOVED***
+	fnerr := tm.UnmarshalText(f.d.d.DecodeBytes(f.d.b[:], true, true))
+	if fnerr != nil ***REMOVED***
+		panic(fnerr)
+	***REMOVED***
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecJSONUnmarshal(tm jsonUnmarshaler) ***REMOVED***
+	// bs := f.dd.DecodeBytes(f.d.b[:], true, true)
+	// grab the bytes to be read, as UnmarshalJSON needs the full JSON so as to unmarshal it itself.
+	fnerr := tm.UnmarshalJSON(f.d.nextValueBytes())
+	if fnerr != nil ***REMOVED***
+		panic(fnerr)
+	***REMOVED***
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecBinaryUnmarshal(bm encoding.BinaryUnmarshaler) ***REMOVED***
+	fnerr := bm.UnmarshalBinary(f.d.d.DecodeBytes(nil, false, true))
+	if fnerr != nil ***REMOVED***
+		panic(fnerr)
+	***REMOVED***
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecRaw() []byte ***REMOVED***
+	return f.d.raw()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) TimeRtidIfBinc() uintptr ***REMOVED***
+	if _, ok := f.d.hh.(*BincHandle); ok ***REMOVED***
+		return timeTypId 
+	***REMOVED***
+	return 0
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) IsJSONHandle() bool ***REMOVED***
+	return f.d.js 
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) HasExtensions() bool ***REMOVED***
+	return len(f.d.h.extHandle) != 0
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecExt(v interface***REMOVED******REMOVED***) (r bool) ***REMOVED***
+	rt := reflect.TypeOf(v).Elem()
+	rtid := reflect.ValueOf(rt).Pointer()
+	if xfFn := f.d.h.getExt(rtid); xfFn != nil ***REMOVED***
+		f.d.d.DecodeExt(v, xfFn.tag, xfFn.ext)
+		return true
+	***REMOVED***
+	return false 
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecInferLen(clen, maxlen, unit int) (rvlen int, truncated bool) ***REMOVED***
+	return decInferLen(clen, maxlen, unit)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecSendContainerState(c containerState) ***REMOVED***
+	if f.d.cr != nil ***REMOVED***
+		f.d.cr.sendContainerState(c)
+	***REMOVED***
+***REMOVED***
+
+***REMOVED******REMOVED***/*
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncDriver() encDriver ***REMOVED***
+	return f.e.e
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecDriver() decDriver ***REMOVED***
+     return f.d.d
+***REMOVED***
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncNil() ***REMOVED***
+	f.e.e.EncodeNil()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncBytes(v []byte) ***REMOVED***
+	f.e.e.EncodeStringBytes(c_RAW, v)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncArrayStart(length int) ***REMOVED***
+	f.e.e.EncodeArrayStart(length)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncArrayEnd() ***REMOVED***
+	f.e.e.EncodeArrayEnd()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncArrayEntrySeparator() ***REMOVED***
+	f.e.e.EncodeArrayEntrySeparator()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncMapStart(length int) ***REMOVED***
+	f.e.e.EncodeMapStart(length)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncMapEnd() ***REMOVED***
+	f.e.e.EncodeMapEnd()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncMapEntrySeparator() ***REMOVED***
+	f.e.e.EncodeMapEntrySeparator()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) EncMapKVSeparator() ***REMOVED***
+	f.e.e.EncodeMapKVSeparator()
+***REMOVED***
+
+// ---------
+
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecBytes(v *[]byte) ***REMOVED***
+	*v = f.d.d.DecodeBytes(*v)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecTryNil() bool ***REMOVED***
+	return f.d.d.TryDecodeAsNil()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecContainerIsNil() (b bool) ***REMOVED***
+	return f.d.d.IsContainerType(valueTypeNil)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecContainerIsMap() (b bool) ***REMOVED***
+	return f.d.d.IsContainerType(valueTypeMap)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecContainerIsArray() (b bool) ***REMOVED***
+	return f.d.d.IsContainerType(valueTypeArray)
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecCheckBreak() bool ***REMOVED***
+	return f.d.d.CheckBreak()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecMapStart() int ***REMOVED***
+	return f.d.d.ReadMapStart()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecArrayStart() int ***REMOVED***
+	return f.d.d.ReadArrayStart()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecMapEnd() ***REMOVED***
+	f.d.d.ReadMapEnd()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecArrayEnd() ***REMOVED***
+	f.d.d.ReadArrayEnd()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecArrayEntrySeparator() ***REMOVED***
+	f.d.d.ReadArrayEntrySeparator()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecMapEntrySeparator() ***REMOVED***
+	f.d.d.ReadMapEntrySeparator()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) DecMapKVSeparator() ***REMOVED***
+	f.d.d.ReadMapKVSeparator()
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) ReadStringAsBytes(bs []byte) []byte ***REMOVED***
+	return f.d.d.DecodeStringAsBytes(bs)
+***REMOVED***
+
+
+// -- encode calls (primitives)
+***REMOVED******REMOVED***range .Values***REMOVED******REMOVED******REMOVED******REMOVED***if .Primitive ***REMOVED******REMOVED******REMOVED******REMOVED***if ne .Primitive "interface***REMOVED******REMOVED***" ***REMOVED******REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) ***REMOVED******REMOVED*** .MethodNamePfx "Enc" true ***REMOVED******REMOVED***(v ***REMOVED******REMOVED*** .Primitive ***REMOVED******REMOVED***) ***REMOVED***
+	ee := f.e.e
+	***REMOVED******REMOVED*** encmd .Primitive "v" ***REMOVED******REMOVED***
+***REMOVED***
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+
+// -- decode calls (primitives)
+***REMOVED******REMOVED***range .Values***REMOVED******REMOVED******REMOVED******REMOVED***if .Primitive ***REMOVED******REMOVED******REMOVED******REMOVED***if ne .Primitive "interface***REMOVED******REMOVED***" ***REMOVED******REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) ***REMOVED******REMOVED*** .MethodNamePfx "Dec" true ***REMOVED******REMOVED***(vp ****REMOVED******REMOVED*** .Primitive ***REMOVED******REMOVED***) ***REMOVED***
+	dd := f.d.d
+	*vp = ***REMOVED******REMOVED*** decmd .Primitive ***REMOVED******REMOVED***
+***REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperDecoder) ***REMOVED******REMOVED*** .MethodNamePfx "Read" true ***REMOVED******REMOVED***() (v ***REMOVED******REMOVED*** .Primitive ***REMOVED******REMOVED***) ***REMOVED***
+	dd := f.d.d
+	v = ***REMOVED******REMOVED*** decmd .Primitive ***REMOVED******REMOVED***
+	return
+***REMOVED***
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+
+
+// -- encode calls (slices/maps)
+***REMOVED******REMOVED***range .Values***REMOVED******REMOVED******REMOVED******REMOVED***if not .Primitive ***REMOVED******REMOVED******REMOVED******REMOVED***if .Slice ***REMOVED******REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) ***REMOVED******REMOVED*** .MethodNamePfx "Enc" false ***REMOVED******REMOVED***(v []***REMOVED******REMOVED*** .Elem ***REMOVED******REMOVED***) ***REMOVED*** ***REMOVED******REMOVED*** else ***REMOVED******REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+func (f genHelperEncoder) ***REMOVED******REMOVED*** .MethodNamePfx "Enc" false ***REMOVED******REMOVED***(v map[***REMOVED******REMOVED*** .MapKey ***REMOVED******REMOVED***]***REMOVED******REMOVED*** .Elem ***REMOVED******REMOVED***) ***REMOVED*** ***REMOVED******REMOVED***end***REMOVED******REMOVED***
+	f.F.***REMOVED******REMOVED*** .MethodNamePfx "Enc" false ***REMOVED******REMOVED***V(v, false, f.e)
+***REMOVED***
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+
+// -- decode calls (slices/maps) 
+***REMOVED******REMOVED***range .Values***REMOVED******REMOVED******REMOVED******REMOVED***if not .Primitive ***REMOVED******REMOVED***
+// FOR USE BY CODECGEN ONLY. IT *WILL* CHANGE WITHOUT NOTICE. *DO NOT USE*
+***REMOVED******REMOVED***if .Slice ***REMOVED******REMOVED***func (f genHelperDecoder) ***REMOVED******REMOVED*** .MethodNamePfx "Dec" false ***REMOVED******REMOVED***(vp *[]***REMOVED******REMOVED*** .Elem ***REMOVED******REMOVED***) ***REMOVED*** 
+***REMOVED******REMOVED***else***REMOVED******REMOVED***func (f genHelperDecoder) ***REMOVED******REMOVED*** .MethodNamePfx "Dec" false ***REMOVED******REMOVED***(vp *map[***REMOVED******REMOVED*** .MapKey ***REMOVED******REMOVED***]***REMOVED******REMOVED*** .Elem ***REMOVED******REMOVED***) ***REMOVED*** ***REMOVED******REMOVED***end***REMOVED******REMOVED***
+	v, changed := f.F.***REMOVED******REMOVED*** .MethodNamePfx "Dec" false ***REMOVED******REMOVED***V(*vp, false, true, f.d)
+	if changed ***REMOVED***
+		*vp = v 
+	***REMOVED***
+***REMOVED***
+***REMOVED******REMOVED*** end ***REMOVED******REMOVED******REMOVED******REMOVED*** end ***REMOVED******REMOVED***
+*/***REMOVED******REMOVED***
