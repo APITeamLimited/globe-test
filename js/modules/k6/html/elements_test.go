@@ -454,8 +454,8 @@ func TestElements(t *testing.T) ***REMOVED***
 			v1, err1 := common.RunString(rt, `doc.find("#progress1").get(0).max()`)
 			v2, err2 := common.RunString(rt, `doc.find("#progress2").get(0).max()`)
 			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
-				assert.Equal(t, float64(100), v1.Export())
-				assert.Equal(t, float64(1), v2.Export())
+				assert.Equal(t, int64(100), v1.Export())
+				assert.Equal(t, int64(1), v2.Export())
 			***REMOVED***
 		***REMOVED***)
 		t.Run("value", func(t *testing.T) ***REMOVED***
@@ -463,7 +463,7 @@ func TestElements(t *testing.T) ***REMOVED***
 			v2, err2 := common.RunString(rt, `doc.find("#progress2").get(0).value()`)
 			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 				assert.Equal(t, float64(0.7), v1.Export())
-				assert.Equal(t, float64(0), v2.Export())
+				assert.Equal(t, int64(0), v2.Export())
 			***REMOVED***
 		***REMOVED***)
 		t.Run("position", func(t *testing.T) ***REMOVED***
@@ -471,7 +471,7 @@ func TestElements(t *testing.T) ***REMOVED***
 			v2, err2 := common.RunString(rt, `doc.find("#progress2").get(0).position()`)
 			if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 				assert.Equal(t, float64(0.7), v1.Export())
-				assert.Equal(t, float64(-1), v2.Export())
+				assert.Equal(t, int64(-1), v2.Export())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
