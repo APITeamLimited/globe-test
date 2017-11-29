@@ -117,7 +117,9 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 
 func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, attempt int) (retry bool, err error) ***REMOVED***
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
+	if c.token != "" ***REMOVED***
+		req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
+	***REMOVED***
 	req.Header.Set("User-Agent", "k6cloud/"+c.version)
 
 	resp, err := c.client.Do(req)
