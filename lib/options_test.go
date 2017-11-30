@@ -66,11 +66,6 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 		assert.Len(t, opts.Stages, 1)
 		assert.Equal(t, 1*time.Second, time.Duration(opts.Stages[0].Duration.Duration))
 	***REMOVED***)
-	t.Run("Linger", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)
-		assert.True(t, opts.Linger.Valid)
-		assert.True(t, opts.Linger.Bool)
-	***REMOVED***)
 	t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***MaxRedirects: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.MaxRedirects.Valid)
@@ -177,11 +172,6 @@ func TestOptionsApply(t *testing.T) ***REMOVED***
 	t.Run("External", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***External: map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED******REMOVED***)
 		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED***, opts.External)
-	***REMOVED***)
-	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
-		assert.True(t, opts.NoUsageReport.Valid)
-		assert.True(t, opts.NoUsageReport.Bool)
 	***REMOVED***)
 ***REMOVED***
 
