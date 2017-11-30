@@ -24,6 +24,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"net"
 
 	"github.com/loadimpact/k6/stats"
 	"gopkg.in/guregu/null.v3"
@@ -150,7 +151,8 @@ type Options struct ***REMOVED***
 	UserAgent             null.String      `json:"userAgent" envconfig:"user_agent"`
 	Throw                 null.Bool        `json:"throw" envconfig:"throw"`
 
-	Thresholds map[string]stats.Thresholds `json:"thresholds" envconfig:"thresholds"`
+	Thresholds   map[string]stats.Thresholds `json:"thresholds" envconfig:"thresholds"`
+	BlacklistIPs []*net.IPNet                `json:"blacklistIPs" envconfig:"blacklist_ips"`
 
 	// These values are for third party collectors' benefit.
 	// Can't be set through env vars.
@@ -202,6 +204,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.Thresholds != nil ***REMOVED***
 		o.Thresholds = opts.Thresholds
+	***REMOVED***
+	if opts.BlacklistIPs != nil ***REMOVED***
+		o.BlacklistIPs = opts.BlacklistIPs
 	***REMOVED***
 	if opts.External != nil ***REMOVED***
 		o.External = opts.External
