@@ -49,9 +49,10 @@ const (
 type Engine struct ***REMOVED***
 	runLock sync.Mutex
 
-	Executor  lib.Executor
-	Options   lib.Options
-	Collector lib.Collector
+	Executor     lib.Executor
+	Options      lib.Options
+	Collector    lib.Collector
+	NoThresholds bool
 
 	logger *log.Logger
 
@@ -150,12 +151,14 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED***()
 
 	// Run thresholds.
-	subwg.Add(1)
-	go func() ***REMOVED***
-		e.runThresholds(subctx)
-		e.logger.Debug("Engine: Thresholds terminated")
-		subwg.Done()
-	***REMOVED***()
+	if !e.NoThresholds ***REMOVED***
+		subwg.Add(1)
+		go func() ***REMOVED***
+			e.runThresholds(subctx)
+			e.logger.Debug("Engine: Thresholds terminated")
+			subwg.Done()
+		***REMOVED***()
+	***REMOVED***
 
 	// Run the executor.
 	out := make(chan []stats.Sample)
@@ -189,7 +192,9 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		e.emitMetrics()
 
 		// Process final thresholds.
-		e.processThresholds()
+		if !e.NoThresholds ***REMOVED***
+			e.processThresholds()
+		***REMOVED***
 
 		// Finally, shut down collector.
 		collectorcancel()
