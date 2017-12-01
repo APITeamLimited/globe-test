@@ -24,6 +24,17 @@ import (
 	"strings"
 )
 
+// Returns the total sum of time taken by the given set of stages.
+func SumStages(stages []Stage) (d NullDuration) ***REMOVED***
+	for _, stage := range stages ***REMOVED***
+		d.Valid = stage.Duration.Valid
+		if stage.Duration.Valid ***REMOVED***
+			d.Duration += stage.Duration.Duration
+		***REMOVED***
+	***REMOVED***
+	return d
+***REMOVED***
+
 // Splits a string in the form "key=value".
 func SplitKV(s string) (key, value string) ***REMOVED***
 	parts := strings.SplitN(s, "=", 2)
