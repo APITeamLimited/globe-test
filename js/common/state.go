@@ -59,4 +59,6 @@ type State struct ***REMOVED***
 
 	// Buffer pool; use instead of allocating fresh buffers when possible.
 	BPool *bpool.BufferPool
+
+	Vu, Iteration int64
 ***REMOVED***

@@ -136,6 +136,8 @@ func TestCheck(t *testing.T) ***REMOVED***
 			assert.Equal(t, map[string]string***REMOVED***
 				"group": "",
 				"check": "check",
+				"vu":    "0",
+				"iter":  "0",
 			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
 
@@ -184,6 +186,8 @@ func TestCheck(t *testing.T) ***REMOVED***
 			assert.Equal(t, map[string]string***REMOVED***
 				"group": "",
 				"check": "0",
+				"vu":    "0",
+				"iter":  "0",
 			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
 	***REMOVED***)
@@ -247,6 +251,8 @@ func TestCheck(t *testing.T) ***REMOVED***
 							assert.Equal(t, map[string]string***REMOVED***
 								"group": "",
 								"check": "check",
+								"vu":    "0",
+								"iter":  "0",
 							***REMOVED***, state.Samples[0].Tags)
 						***REMOVED***
 					***REMOVED***)
@@ -301,6 +307,8 @@ func TestCheck(t *testing.T) ***REMOVED***
 				"check": "check",
 				"a":     "1",
 				"b":     "2",
+				"vu":    "0",
+				"iter":  "0",
 			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
 	***REMOVED***)
