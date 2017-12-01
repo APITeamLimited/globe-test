@@ -24,9 +24,40 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestSumStages(t *testing.T) ***REMOVED***
+	testdata := map[string]struct ***REMOVED***
+		Time   NullDuration
+		Stages []Stage
+	***REMOVED******REMOVED***
+		"Blank":    ***REMOVED***NullDuration***REMOVED******REMOVED***, []Stage***REMOVED******REMOVED******REMOVED***,
+		"Infinite": ***REMOVED***NullDuration***REMOVED******REMOVED***, []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***,
+		"Limit": ***REMOVED***
+			NullDurationFrom(10 * time.Second),
+			[]Stage***REMOVED***
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"InfiniteTail": ***REMOVED***
+			NullDuration***REMOVED***Duration: Duration(10 * time.Second), Valid: false***REMOVED***,
+			[]Stage***REMOVED***
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for name, data := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			assert.Equal(t, data.Time, SumStages(data.Stages))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
 
 func TestSplitKV(t *testing.T) ***REMOVED***
 	testdata := map[string]struct ***REMOVED***
