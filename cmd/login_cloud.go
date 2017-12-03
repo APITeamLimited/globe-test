@@ -4,24 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fatih/color"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
-
-var (
-	token string
-	show  bool
-)
-
-func printToken(conf cloud.Config) ***REMOVED***
-	label := "Token"
-	displayLabel := " " + color.New(color.Faint, color.FgCyan).Sprint("["+label+"]")
-	fmt.Fprintf(stdout, " "+displayLabel+": "+conf.Token+"\n")
-***REMOVED***
 
 // loginCloudCommand represents the 'login cloud' command
 var loginCloudCommand = &cobra.Command***REMOVED***
@@ -29,7 +16,7 @@ var loginCloudCommand = &cobra.Command***REMOVED***
 	Short: "Authenticate with Load Impact",
 	Long: `Authenticate with Load Impact.
 
-This will set the default Token used when just "k6 run -o cloud" is passed.`,
+This will set the default token used when just "k6 run -o cloud" is passed.`,
 
 	Example: `
   # Show the stored token.
@@ -43,61 +30,64 @@ This will set the default Token used when just "k6 run -o cloud" is passed.`,
 
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		fs := afero.NewOsFs()
-		config, cdir, err := readDiskConfig(fs)
+
+		printToken := func(conf cloud.Config) ***REMOVED***
+			fmt.Fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token))
+		***REMOVED***
+
+		config, cdir, err := readDiskConfig()
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
+
+		token := getNullString(cmd.Flags(), "token")
+		show := getNullBool(cmd.Flags(), "show")
+
 		conf := config.Collectors.Cloud
 
-		if show ***REMOVED***
-			printToken(conf)
-			return nil
-		***REMOVED***
+		if !show.Valid ***REMOVED***
+			if token.Valid ***REMOVED***
+				conf.Token = token.String
+			***REMOVED*** else ***REMOVED***
+				printToken(conf)
 
-		if token != "" ***REMOVED***
-			conf.Token = token
-		***REMOVED*** else ***REMOVED***
-			printToken(conf)
+				form := ui.Form***REMOVED***
+					Fields: []ui.Field***REMOVED***
+						ui.StringField***REMOVED***
+							Key:   "Email",
+							Label: "Email",
+						***REMOVED***,
+						ui.StringField***REMOVED***
+							Key:   "Password",
+							Label: "Password",
+						***REMOVED***,
+					***REMOVED***,
+				***REMOVED***
 
-			form := ui.Form***REMOVED***
-				Fields: []ui.Field***REMOVED***
-					ui.StringField***REMOVED***
-						Key:   "Email",
-						Label: "Email",
-					***REMOVED***,
-					ui.StringField***REMOVED***
-						Key:   "Password",
-						Label: "Password",
-					***REMOVED***,
-				***REMOVED***,
+				vals, err := form.Run(os.Stdin, stdout)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+
+				email := vals["Email"].(string)
+				password := vals["Password"].(string)
+				client := cloud.NewClient("", conf.Host, Version)
+				response, err := client.Login(email, password)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+
+				if response.APIToken == "" ***REMOVED***
+					return errors.New("Your account has no API token, please generate one: `https://app.loadimpact.com/account/token`.")
+				***REMOVED***
+
+				conf.Token = response.APIToken
 			***REMOVED***
 
-			vals, err := form.Run(os.Stdin, stdout)
-			if err != nil ***REMOVED***
+			config.Collectors.Cloud = conf
+			if err := writeDiskConfig(cdir, config); err != nil ***REMOVED***
 				return err
 			***REMOVED***
-
-			email := vals["Email"].(string)
-			password := vals["Password"].(string)
-			client := cloud.NewClient("", conf.Host, Version)
-			response, err := client.Login(email, password)
-			if err != nil ***REMOVED***
-				return errors.New("Failed to login.")
-			***REMOVED***
-
-			if response.APIToken == "" ***REMOVED***
-				// TODO: instead of `Login`, we must create an endpoint `GetorCreateAPIToken`:
-				//       Given an email and password, it will return your Token or create a new one.
-				return errors.New("You have to create an API Token with your Load Impact account.")
-			***REMOVED***
-
-			conf.Token = response.APIToken
-		***REMOVED***
-
-		config.Collectors.Cloud = conf
-		if err := writeDiskConfig(cdir, config); err != nil ***REMOVED***
-			return err
 		***REMOVED***
 
 		printToken(conf)
@@ -108,6 +98,6 @@ This will set the default Token used when just "k6 run -o cloud" is passed.`,
 
 func init() ***REMOVED***
 	loginCmd.AddCommand(loginCloudCommand)
-	loginCloudCommand.Flags().StringVarP(&token, "token", "t", token, "setup the Load Impact Token")
-	loginCloudCommand.Flags().BoolVarP(&show, "show", "s", false, "show the saved Load Impact Token")
+	loginCloudCommand.Flags().StringP("token", "t", "", "specify `token` to use")
+	loginCloudCommand.Flags().BoolP("show", "s", false, "display saved token and exit")
 ***REMOVED***
