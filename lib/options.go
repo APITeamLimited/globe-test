@@ -143,6 +143,7 @@ type Options struct ***REMOVED***
 	Stages     []Stage      `json:"stages" envconfig:"stages"`
 
 	MaxRedirects          null.Int         `json:"maxRedirects" envconfig:"max_redirects"`
+	Batch                 null.Int         `json:"batch" envconfig:"batch"`
 	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify" envconfig:"insecure_skip_tls_verify"`
 	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites" envconfig:"tls_cipher_suites"`
 	TLSVersion            *TLSVersion      `json:"tlsVersion" envconfig:"tls_version"`
@@ -180,6 +181,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.MaxRedirects.Valid ***REMOVED***
 		o.MaxRedirects = opts.MaxRedirects
+	***REMOVED***
+	if opts.Batch.Valid ***REMOVED***
+		o.Batch = opts.Batch
 	***REMOVED***
 	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
 		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
