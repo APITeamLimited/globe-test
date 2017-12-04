@@ -10,6 +10,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+        actionSetToken = iota
+        actionShowToken
+        actionLogin
+)
+
 // loginCloudCommand represents the 'login cloud' command
 var loginCloudCommand = &cobra.Command***REMOVED***
 	Use:   "cloud",
@@ -43,47 +49,55 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 		token := getNullString(cmd.Flags(), "token")
 		show := getNullBool(cmd.Flags(), "show")
 
+                cmdName := actionLogin
+                if show.Valid ***REMOVED***
+                        cmdName = actionShowToken
+                ***REMOVED*** else if token.Valid ***REMOVED***
+                        cmdName = actionSetToken
+                ***REMOVED***
+
 		conf := config.Collectors.Cloud
 
-		if !show.Valid ***REMOVED***
-			if token.Valid ***REMOVED***
-				conf.Token = token.String
-			***REMOVED*** else ***REMOVED***
-				printToken(conf)
+                switch cmdName ***REMOVED***
+                case actionSetToken:
+                        conf.Token = token.String
+                case actionLogin:
+                        printToken(conf)
 
-				form := ui.Form***REMOVED***
-					Fields: []ui.Field***REMOVED***
-						ui.StringField***REMOVED***
-							Key:   "Email",
-							Label: "Email",
-						***REMOVED***,
-						ui.StringField***REMOVED***
-							Key:   "Password",
-							Label: "Password",
-						***REMOVED***,
+                        form := ui.Form***REMOVED***
+                                Fields: []ui.Field***REMOVED***
+                                        ui.StringField***REMOVED***
+                                                Key:   "Email",
+                                                Label: "Email",
 					***REMOVED***,
-				***REMOVED***
+                                        ui.StringField***REMOVED***
+                                                Key:   "Password",
+                                                Label: "Password",
+                                        ***REMOVED***,
+                                ***REMOVED***,
+                        ***REMOVED***
 
-				vals, err := form.Run(os.Stdin, stdout)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-
-				email := vals["Email"].(string)
-				password := vals["Password"].(string)
-				client := cloud.NewClient("", conf.Host, Version)
-				response, err := client.Login(email, password)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-
-				if response.APIToken == "" ***REMOVED***
-					return errors.New("Your account has no API token, please generate one: `https://app.loadimpact.com/account/token`.")
-				***REMOVED***
-
-				conf.Token = response.APIToken
+                        vals, err := form.Run(os.Stdin, stdout)
+                        if err != nil ***REMOVED***
+                                return err
 			***REMOVED***
 
+                        email := vals["Email"].(string)
+                        password := vals["Password"].(string)
+                        client := cloud.NewClient("", conf.Host, Version)
+                        response, err := client.Login(email, password)
+                        if err != nil ***REMOVED***
+                                return err
+                        ***REMOVED***
+
+                        if response.APIToken == "" ***REMOVED***
+                                return errors.New("Your account has no API token, please generate one: `https://app.loadimpact.com/account/token`.")
+                        ***REMOVED***
+
+                        conf.Token = response.APIToken
+                ***REMOVED***
+
+                if cmdName != actionShowToken ***REMOVED***
 			config.Collectors.Cloud = conf
 			if err := writeDiskConfig(cdir, config); err != nil ***REMOVED***
 				return err
@@ -92,7 +106,6 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 
 		printToken(conf)
 		return nil
-
 	***REMOVED***,
 ***REMOVED***
 
