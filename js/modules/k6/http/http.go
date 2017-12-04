@@ -494,11 +494,14 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 			res, samples, err := http.request(ctx, rt, state, method, url, args...)
 			if err != nil ***REMOVED***
 				errs <- err
+				return
 			***REMOVED***
+
 			mutex.Lock()
 			_ = retval.Set(k, res)
 			state.Samples = append(state.Samples, samples...)
 			mutex.Unlock()
+
 			errs <- nil
 		***REMOVED***()
 	***REMOVED***
