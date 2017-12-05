@@ -7,18 +7,12 @@ import (
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-)
-
-const (
-        actionSetToken = iota
-        actionShowToken
-        actionLogin
+        "github.com/spf13/cobra"
 )
 
 // loginCloudCommand represents the 'login cloud' command
 var loginCloudCommand = &cobra.Command***REMOVED***
-	Use:   "cloud",
+        Use:   "cloud",
 	Short: "Authenticate with Load Impact",
 	Long: `Authenticate with Load Impact.
 
@@ -43,25 +37,28 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 
 		config, cdir, err := readDiskConfig()
 		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		token := getNullString(cmd.Flags(), "token")
-		show := getNullBool(cmd.Flags(), "show")
-
-                cmdName := actionLogin
-                if show.Valid ***REMOVED***
-                        cmdName = actionShowToken
-                ***REMOVED*** else if token.Valid ***REMOVED***
-                        cmdName = actionSetToken
+                        return err
                 ***REMOVED***
 
-		conf := config.Collectors.Cloud
+                flags := cmd.Flags()
+                show, err := flags.GetBool("show")
+                if err != nil ***REMOVED***
+                        return err
+                ***REMOVED***
+                token, err := flags.GetString("token")
+                if err != nil ***REMOVED***
+                        return err
+                ***REMOVED***
 
-                switch cmdName ***REMOVED***
-                case actionSetToken:
-                        conf.Token = token.String
-                case actionLogin:
+                conf := config.Collectors.Cloud
+
+                switch ***REMOVED***
+                case show:
+                        printToken(conf)
+                        return nil
+                case token != "":
+                        conf.Token = token
+                default:
                         printToken(conf)
 
                         form := ui.Form***REMOVED***
@@ -97,14 +94,12 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
                         conf.Token = response.APIToken
                 ***REMOVED***
 
-                if cmdName != actionShowToken ***REMOVED***
-			config.Collectors.Cloud = conf
-			if err := writeDiskConfig(cdir, config); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-		***REMOVED***
+                config.Collectors.Cloud = conf
+                if err := writeDiskConfig(cdir, config); err != nil ***REMOVED***
+                        return err
+                ***REMOVED***
 
-		printToken(conf)
+                printToken(conf)
 		return nil
 	***REMOVED***,
 ***REMOVED***
