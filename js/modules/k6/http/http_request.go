@@ -74,12 +74,16 @@ func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, ar
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 
-	res, samples, err := http.request(ctx, rt, state, method, url, args...)
+	u, err := ToURL(url)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	res, samples, err := http.request(ctx, rt, state, method, u, args...)
 	state.Samples = append(state.Samples, samples...)
 	return res, err
 ***REMOVED***
 
-func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, urlV goja.Value, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
+func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url URL, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
 	var bodyBuf *bytes.Buffer
 	var contentType string
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
@@ -96,27 +100,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
-	// The provided URL can be either a string (or at least something stringable) or a URLTag.
-	var url *neturl.URL
-	var urlStr, nameTag string
-	switch v := urlV.Export().(type) ***REMOVED***
-	case URL:
-		url = v.URL
-		urlStr = v.URLString
-		nameTag = v.Name
-	default:
-		urlStr = urlV.String()
-		u, err := neturl.Parse(urlStr)
-		if err != nil ***REMOVED***
-			return nil, nil, err
-		***REMOVED***
-		url = u
-		nameTag = urlStr
-	***REMOVED***
-
 	req := &http.Request***REMOVED***
 		Method: method,
-		URL:    url,
+		URL:    url.URL,
 		Header: make(http.Header),
 	***REMOVED***
 	if bodyBuf != nil ***REMOVED***
@@ -134,8 +120,8 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		"proto":  "",
 		"status": "0",
 		"method": method,
-		"url":    urlStr,
-		"name":   nameTag,
+		"url":    url.URLString,
+		"name":   url.Name,
 		"group":  state.Group.Path,
 	***REMOVED***
 	redirects := state.Options.MaxRedirects
@@ -232,7 +218,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		h.setRequestCookies(req, activeJar, reqCookies)
 	***REMOVED***
 
-	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: urlStr***REMOVED***
+	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: url.URLString***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: state.HTTPTransport,
 		Timeout:   timeout,
@@ -365,15 +351,20 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		k := k
 		v := reqs.Get(k)
 
-		var method string
-		var url goja.Value
+		method := "GET"
+		var url URL
 		var args []goja.Value
 
 		// Shorthand: "http://example.com/" -> ["GET", "http://example.com/"]
 		switch v.ExportType() ***REMOVED***
-		case typeString, typeURL:
-			method = "GET"
-			url = v
+		case typeURL:
+			url = v.Export().(URL)
+		case typeString:
+			u, err := ToURL(v)
+			if err != nil ***REMOVED***
+				return goja.Undefined(), err
+			***REMOVED***
+			url = u
 		default:
 			obj := v.ToObject(rt)
 			objkeys := obj.Keys()
@@ -386,7 +377,11 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
 					***REMOVED***
 				case "1", "url":
-					url = objv
+					u, err := ToURL(objv)
+					if err != nil ***REMOVED***
+						return goja.Undefined(), err
+					***REMOVED***
+					url = u
 				default:
 					args = append(args, objv)
 				***REMOVED***

@@ -22,6 +22,8 @@ package http
 
 import (
 	"net/url"
+
+	"github.com/dop251/goja"
 )
 
 // A URL wraps net.URL, and preserves the template (if any) the URL was constructed from.
@@ -29,6 +31,15 @@ type URL struct ***REMOVED***
 	URL       *url.URL `js:"-"`
 	Name      string   `js:"name"` // http://example.com/thing/$***REMOVED******REMOVED***/
 	URLString string   `js:"url"`  // http://example.com/thing/1234/
+***REMOVED***
+
+func ToURL(v goja.Value) (URL, error) ***REMOVED***
+	if v.ExportType() == typeURL ***REMOVED***
+		return v.Export().(URL), nil
+	***REMOVED***
+	s := v.String()
+	u, err := url.Parse(s)
+	return URL***REMOVED***u, s, s***REMOVED***, err
 ***REMOVED***
 
 func (http *HTTP) Url(parts []string, pieces ...string) (URL, error) ***REMOVED***
