@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -41,8 +42,8 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
-func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
-	var bodyReader io.Reader
+func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, urlV goja.Value, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
+	var bodyBuf *bytes.Buffer
 	var contentType string
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
 		var data map[string]goja.Value
@@ -51,28 +52,39 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			for k, v := range data ***REMOVED***
 				bodyQuery.Set(k, v.String())
 			***REMOVED***
-			bodyReader = bytes.NewBufferString(bodyQuery.Encode())
+			bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
 			contentType = "application/x-www-form-urlencoded"
 		***REMOVED*** else ***REMOVED***
-			bodyReader = bytes.NewBufferString(args[0].String())
+			bodyBuf = bytes.NewBufferString(args[0].String())
 		***REMOVED***
 	***REMOVED***
 
 	// The provided URL can be either a string (or at least something stringable) or a URLTag.
-	var urlStr string
-	var nameTag string
-	switch v := url.Export().(type) ***REMOVED***
-	case URLTag:
-		urlStr = v.URL
+	var url *neturl.URL
+	var urlStr, nameTag string
+	switch v := urlV.Export().(type) ***REMOVED***
+	case URL:
+		url = v.URL
+		urlStr = v.URLString
 		nameTag = v.Name
 	default:
-		urlStr = url.String()
+		urlStr = urlV.String()
+		u, err := neturl.Parse(urlStr)
+		if err != nil ***REMOVED***
+			return nil, nil, err
+		***REMOVED***
+		url = u
 		nameTag = urlStr
 	***REMOVED***
 
-	req, err := http.NewRequest(method, urlStr, bodyReader)
-	if err != nil ***REMOVED***
-		return nil, nil, err
+	req := &http.Request***REMOVED***
+		Method: method,
+		URL:    url,
+		Header: make(http.Header),
+	***REMOVED***
+	if bodyBuf != nil ***REMOVED***
+		req.Body = ioutil.NopCloser(bodyBuf)
+		req.ContentLength = int64(bodyBuf.Len())
 	***REMOVED***
 	if contentType != "" ***REMOVED***
 		req.Header.Set("Content-Type", contentType)
@@ -183,10 +195,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		h.setRequestCookies(req, activeJar, reqCookies)
 	***REMOVED***
 
-	resp := &HTTPResponse***REMOVED***
-		ctx: ctx,
-		URL: urlStr,
-	***REMOVED***
+	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: urlStr***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: state.HTTPTransport,
 		Timeout:   timeout,
@@ -362,7 +371,7 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 
 		// Shorthand: "http://example.com/" -> ["GET", "http://example.com/"]
 		switch v.ExportType() ***REMOVED***
-		case typeString, typeURLTag:
+		case typeString, typeURL:
 			method = "GET"
 			url = v
 		default:

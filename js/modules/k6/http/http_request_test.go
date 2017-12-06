@@ -776,8 +776,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
-					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-					if (res[key].url != reqs[key][1].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key][1].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key][1].url); ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
@@ -793,8 +793,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
-					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-					if (res[key].url != reqs[key]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key]) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url); ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
@@ -810,8 +810,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 					];
 					let res = http.batch(reqs);
 					for (var key in res) ***REMOVED***
-						if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-						if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+						if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+						if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key].url); ***REMOVED***
 					***REMOVED***`)
 					assert.NoError(t, err)
 					assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "https://httpbin.org/$***REMOVED******REMOVED***", 200, "")
@@ -828,8 +828,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
-					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-					if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
+					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+					if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key].url); ***REMOVED***
 				***REMOVED***`)
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/", "", 200, "")
@@ -841,8 +841,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
 			let res = http.batch([ ["POST", "https://httpbin.org/post", ***REMOVED*** key: "value" ***REMOVED***] ]);
 			for (var key in res) ***REMOVED***
-				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
+				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + key + ": " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
@@ -852,8 +852,8 @@ func TestRequestBatch(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
 			let res = http.batch([ ["PUT", "https://httpbin.org/put", ***REMOVED*** key: "value" ***REMOVED***] ]);
 			for (var key in res) ***REMOVED***
-				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
-				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + JSON.stringify(res[key].json().form)); ***REMOVED***
+				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
+				if (res[key].json().form.key != "value") ***REMOVED*** throw new Error("wrong form: " + key + ": " + JSON.stringify(res[key].json().form)); ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "PUT", "https://httpbin.org/put", "", 200, "")

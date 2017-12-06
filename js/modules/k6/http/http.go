@@ -31,7 +31,7 @@ import (
 
 var (
 	typeString                     = reflect.TypeOf("")
-	typeURLTag                     = reflect.TypeOf(URLTag***REMOVED******REMOVED***)
+	typeURL                        = reflect.TypeOf(URL***REMOVED******REMOVED***)
 	typeMapKeyStringValueInterface = reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 )
 

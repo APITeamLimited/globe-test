@@ -20,15 +20,27 @@
 
 package http
 
-func (http *HTTP) Url(parts []string, pieces ...string) URLTag ***REMOVED***
-	var tag URLTag
+import (
+	"net/url"
+)
+
+// A URL wraps net.URL, and preserves the template (if any) the URL was constructed from.
+type URL struct ***REMOVED***
+	URL       *url.URL `js:"-"`
+	Name      string   `js:"name"` // http://example.com/thing/$***REMOVED******REMOVED***/
+	URLString string   `js:"url"`  // http://example.com/thing/1234/
+***REMOVED***
+
+func (http *HTTP) Url(parts []string, pieces ...string) (URL, error) ***REMOVED***
+	var name, urlstr string
 	for i, part := range parts ***REMOVED***
-		tag.Name += part
-		tag.URL += part
+		name += part
+		urlstr += part
 		if i < len(pieces) ***REMOVED***
-			tag.Name += "$***REMOVED******REMOVED***"
-			tag.URL += pieces[i]
+			name += "$***REMOVED******REMOVED***"
+			urlstr += pieces[i]
 		***REMOVED***
 	***REMOVED***
-	return tag
+	u, err := url.Parse(urlstr)
+	return URL***REMOVED***u, name, urlstr***REMOVED***, err
 ***REMOVED***

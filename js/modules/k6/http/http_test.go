@@ -21,6 +21,7 @@
 package http
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -33,15 +34,18 @@ func TestTagURL(t *testing.T) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.Set("http", common.Bind(rt, New(), nil))
 
-	testdata := map[string]URLTag***REMOVED***
-		`http://httpbin.org/anything/`:               ***REMOVED***URL: "http://httpbin.org/anything/", Name: "http://httpbin.org/anything/"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***URL: "http://httpbin.org/anything/2", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***URL: "http://httpbin.org/anything/2/", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***URL: "http://httpbin.org/anything/2/3", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***URL: "http://httpbin.org/anything/2/3/", Name: "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+	testdata := map[string]struct***REMOVED*** u, n string ***REMOVED******REMOVED***
+		`http://httpbin.org/anything/`:               ***REMOVED***"http://httpbin.org/anything/", "http://httpbin.org/anything/"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***"http://httpbin.org/anything/2", "http://httpbin.org/anything/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***"http://httpbin.org/anything/2/", "http://httpbin.org/anything/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***"http://httpbin.org/anything/2/3", "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***"http://httpbin.org/anything/2/3/", "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
 	***REMOVED***
-	for expr, tag := range testdata ***REMOVED***
+	for expr, data := range testdata ***REMOVED***
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
+			u, err := url.Parse(data.u)
+			assert.NoError(t, err)
+			tag := URL***REMOVED***u, data.n, data.u***REMOVED***
 			v, err := common.RunString(rt, "http.url`"+expr+"`")
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, tag, v.Export())
