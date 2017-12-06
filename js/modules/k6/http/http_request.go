@@ -42,6 +42,43 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	// The body argument is always undefined for GETs and HEADs.
+	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
+	return http.Request(ctx, "GET", url, args...)
+***REMOVED***
+
+func (http *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	// The body argument is always undefined for GETs and HEADs.
+	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
+	return http.Request(ctx, "HEAD", url, args...)
+***REMOVED***
+
+func (http *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return http.Request(ctx, "POST", url, args...)
+***REMOVED***
+
+func (http *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return http.Request(ctx, "PUT", url, args...)
+***REMOVED***
+
+func (http *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return http.Request(ctx, "PATCH", url, args...)
+***REMOVED***
+
+func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return http.Request(ctx, "DELETE", url, args...)
+***REMOVED***
+
+func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	rt := common.GetRuntime(ctx)
+	state := common.GetState(ctx)
+
+	res, samples, err := http.request(ctx, rt, state, method, url, args...)
+	state.Samples = append(state.Samples, samples...)
+	return res, err
+***REMOVED***
+
 func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, urlV goja.Value, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
 	var bodyBuf *bytes.Buffer
 	var contentType string
@@ -308,43 +345,6 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 	return resp, trail.Samples(tags), nil
-***REMOVED***
-
-func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
-	state := common.GetState(ctx)
-
-	res, samples, err := http.request(ctx, rt, state, method, url, args...)
-	state.Samples = append(state.Samples, samples...)
-	return res, err
-***REMOVED***
-
-func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	// The body argument is always undefined for GETs and HEADs.
-	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, "GET", url, args...)
-***REMOVED***
-
-func (http *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	// The body argument is always undefined for GETs and HEADs.
-	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, "HEAD", url, args...)
-***REMOVED***
-
-func (http *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "POST", url, args...)
-***REMOVED***
-
-func (http *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "PUT", url, args...)
-***REMOVED***
-
-func (http *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "PATCH", url, args...)
-***REMOVED***
-
-func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "DELETE", url, args...)
 ***REMOVED***
 
 func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
