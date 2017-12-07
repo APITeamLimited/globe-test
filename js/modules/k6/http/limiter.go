@@ -27,3 +27,25 @@ func (l *SlotLimiter) End() ***REMOVED***
 		l.ch <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
 ***REMOVED***
+
+type MultiSlotLimiter struct ***REMOVED***
+	m     map[string]*SlotLimiter
+	slots int
+***REMOVED***
+
+func NewMultiSlotLimiter(slots int) MultiSlotLimiter ***REMOVED***
+	return MultiSlotLimiter***REMOVED***make(map[string]*SlotLimiter), slots***REMOVED***
+***REMOVED***
+
+func (l *MultiSlotLimiter) Slot(s string) *SlotLimiter ***REMOVED***
+	if l.slots == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+	ll, ok := l.m[s]
+	if !ok ***REMOVED***
+		tmp := NewSlotLimiter(l.slots)
+		ll = &tmp
+		l.m[s] = ll
+	***REMOVED***
+	return ll
+***REMOVED***
