@@ -116,7 +116,9 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 ***REMOVED***
 
 func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, attempt int) (retry bool, err error) ***REMOVED***
-	req.Header.Set("Content-Type", "application/json")
+        if req.Header.Get("Content-Type") == "" ***REMOVED***
+                req.Header.Set("Content-Type", "application/json")
+        ***REMOVED***
 	if c.token != "" ***REMOVED***
 		req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
 	***REMOVED***

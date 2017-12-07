@@ -21,9 +21,13 @@
 package cloud
 
 import (
+        "bytes"
 	"fmt"
+        "mime/multipart"
+        "net/http"
 	"time"
 
+        "github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 )
@@ -73,6 +77,45 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 	***REMOVED***
 
 	return &ctrr, nil
+***REMOVED***
+
+func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error) ***REMOVED***
+        requestUrl := fmt.Sprintf("%s/archive-upload", c.baseURL)
+
+        buf := bytes.NewBuffer(nil)
+        mp := multipart.NewWriter(buf)
+
+        if err := mp.WriteField("name", name); err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        fw, err := mp.CreateFormFile("file", "archive.tar")
+        if err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        if err := arc.Write(fw); err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        if err := mp.Close(); err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        req, err := http.NewRequest("POST", requestUrl, buf)
+        if err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        req.Header.Set("Content-Type", mp.FormDataContentType())
+
+        ctrr := CreateTestRunResponse***REMOVED******REMOVED***
+        err = c.Do(req, &ctrr)
+        if err != nil ***REMOVED***
+                return "", err
+        ***REMOVED***
+
+        return ctrr.ReferenceID, nil
 ***REMOVED***
 
 func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMOVED***
