@@ -26,11 +26,18 @@ import "crypto/tls"
 
 // From https://golang.org/pkg/crypto/tls/#pkg-constants
 
-var SupportedTLSVersions = map[string]int***REMOVED***
+var SupportedTLSVersions = map[string]TLSVersion***REMOVED***
 	"ssl3.0": tls.VersionSSL30,
 	"tls1.0": tls.VersionTLS10,
 	"tls1.1": tls.VersionTLS11,
 	"tls1.2": tls.VersionTLS12,
+***REMOVED***
+
+var SupportedTLSVersionsToString = map[TLSVersion]string***REMOVED***
+	tls.VersionSSL30: "ssl3.0",
+	tls.VersionTLS10: "tls1.0",
+	tls.VersionTLS11: "tls1.1",
+	tls.VersionTLS12: "tls1.2",
 ***REMOVED***
 
 var SupportedTLSCipherSuites = map[string]uint16***REMOVED***

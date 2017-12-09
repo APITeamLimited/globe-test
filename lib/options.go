@@ -23,60 +23,54 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"net"
 
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
 )
 
-type TLSVersion struct ***REMOVED***
-	Min int
-	Max int
+type TLSVersion int
+
+func (v TLSVersion) MarshalJSON() ([]byte, error) ***REMOVED***
+	return []byte(`"` + SupportedTLSVersionsToString[v] + `"`), nil
 ***REMOVED***
 
 func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
-	version := TLSVersion***REMOVED******REMOVED***
-
-	// Version might be a string or an object with separate min & max fields
-	var fields struct ***REMOVED***
-		Min string `json:"min"`
-		Max string `json:"max"`
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil ***REMOVED***
+		return err
 	***REMOVED***
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		switch err.(type) ***REMOVED***
-		case *json.UnmarshalTypeError:
-			// Check if it's a type error and the user has passed a string
-			var version string
-			if otherErr := json.Unmarshal(data, &version); otherErr != nil ***REMOVED***
-				switch otherErr.(type) ***REMOVED***
-				case *json.UnmarshalTypeError:
-					return errors.New("Type error: the value of tlsVersion " +
-						"should be an object with min/max fields or a string")
-				***REMOVED***
+	if str == "" ***REMOVED***
+		*v = 0
+		return nil
+	***REMOVED***
+	ver, ok := SupportedTLSVersions[str]
+	if !ok ***REMOVED***
+		return errors.Errorf("unknown TLS version: %s", str)
+	***REMOVED***
+	*v = ver
+	return nil
+***REMOVED***
 
-				// Some other error occurred
-				return otherErr
-			***REMOVED***
-			// It was a string, assign it to both min & max
-			fields.Min = version
-			fields.Max = version
-		default:
+type TLSVersionsFields struct ***REMOVED***
+	Min TLSVersion `json:"min"`
+	Max TLSVersion `json:"max"`
+***REMOVED***
+
+type TLSVersions TLSVersionsFields
+
+func (v *TLSVersions) UnmarshalJSON(data []byte) error ***REMOVED***
+	var fields TLSVersionsFields
+	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
+		var ver TLSVersion
+		if err2 := json.Unmarshal(data, &ver); err2 != nil ***REMOVED***
 			return err
 		***REMOVED***
+		fields.Min = ver
+		fields.Max = ver
 	***REMOVED***
-
-	var ok bool
-	if version.Min, ok = SupportedTLSVersions[fields.Min]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Min)
-	***REMOVED***
-
-	if version.Max, ok = SupportedTLSVersions[fields.Max]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Max)
-	***REMOVED***
-
-	*v = version
-
+	*v = TLSVersions(fields)
 	return nil
 ***REMOVED***
 
@@ -147,7 +141,7 @@ type Options struct ***REMOVED***
 	BatchPerHost          null.Int         `json:"batchPerHost" envconfig:"batch_per_host"`
 	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify" envconfig:"insecure_skip_tls_verify"`
 	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites" envconfig:"tls_cipher_suites"`
-	TLSVersion            *TLSVersion      `json:"tlsVersion" envconfig:"tls_version"`
+	TLSVersion            *TLSVersions     `json:"tlsVersion" envconfig:"tls_version"`
 	TLSAuth               []*TLSAuth       `json:"tlsAuth" envconfig:"tlsauth"`
 	NoConnectionReuse     null.Bool        `json:"noConnectionReuse" envconfig:"no_connection_reuse"`
 	UserAgent             null.String      `json:"userAgent" envconfig:"user_agent"`

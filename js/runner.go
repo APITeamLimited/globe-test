@@ -109,9 +109,9 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		cipherSuites = *r.Bundle.Options.TLSCipherSuites
 	***REMOVED***
 
-	var tlsVersion lib.TLSVersion
+	var tlsVersions lib.TLSVersions
 	if r.Bundle.Options.TLSVersion != nil ***REMOVED***
-		tlsVersion = *r.Bundle.Options.TLSVersion
+		tlsVersions = *r.Bundle.Options.TLSVersion
 	***REMOVED***
 
 	tlsAuth := r.Bundle.Options.TLSAuth
@@ -138,8 +138,8 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		TLSClientConfig: &tls.Config***REMOVED***
 			InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
 			CipherSuites:       cipherSuites,
-			MinVersion:         uint16(tlsVersion.Min),
-			MaxVersion:         uint16(tlsVersion.Max),
+			MinVersion:         uint16(tlsVersions.Min),
+			MaxVersion:         uint16(tlsVersions.Max),
 			Certificates:       certs,
 			NameToCertificate:  nameToCert,
 			Renegotiation:      tls.RenegotiateFreelyAsClient,
