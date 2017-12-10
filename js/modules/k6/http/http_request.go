@@ -180,7 +180,13 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 						continue
 					***REMOVED***
 					for _, key := range headers.Keys() ***REMOVED***
-						req.Header.Set(key, headers.Get(key).String())
+						str := headers.Get(key).String()
+						switch strings.ToLower(key) ***REMOVED***
+						case "host":
+							req.Host = str
+						default:
+							req.Header.Set(key, str)
+						***REMOVED***
 					***REMOVED***
 				case "jar":
 					jarV := params.Get(k)
