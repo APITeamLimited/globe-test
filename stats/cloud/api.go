@@ -79,6 +79,18 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 	return &ctrr, nil
 ***REMOVED***
 
+func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMOVED***
+        url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
+
+        req, err := c.NewRequest("POST", url, samples)
+        if err != nil ***REMOVED***
+                return err
+        ***REMOVED***
+
+        err = c.Do(req, nil)
+        return err
+***REMOVED***
+
 func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error) ***REMOVED***
         requestUrl := fmt.Sprintf("%s/archive-upload", c.baseURL)
 
@@ -111,23 +123,11 @@ func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error
 
         ctrr := CreateTestRunResponse***REMOVED******REMOVED***
         err = c.Do(req, &ctrr)
-        if err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
-
-        return ctrr.ReferenceID, nil
-***REMOVED***
-
-func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMOVED***
-	url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
-
-	req, err := c.NewRequest("POST", url, samples)
 	if err != nil ***REMOVED***
-		return err
+                return "", err
 	***REMOVED***
 
-	err = c.Do(req, nil)
-	return err
+        return ctrr.ReferenceID, nil
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
@@ -154,4 +154,23 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 
 	err = c.Do(req, nil)
 	return err
+***REMOVED***
+
+func (c *Client) ValidateConfig(arc *lib.Archive) error ***REMOVED***
+        url := fmt.Sprintf("%s/validate-config", c.baseURL)
+
+        data := struct ***REMOVED***
+                Config *lib.Archive `json:"config"`
+        ***REMOVED******REMOVED***
+                arc,
+        ***REMOVED***
+
+        req, err := c.NewRequest("POST", url, data)
+        if err != nil ***REMOVED***
+                return err
+        ***REMOVED***
+
+        err = c.Do(req, nil)
+        return err
+
 ***REMOVED***
