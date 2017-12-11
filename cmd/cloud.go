@@ -111,7 +111,7 @@ var cloudCmd = &cobra.Command***REMOVED***
                 // Start cloud test run
                 client := cloud.NewClient(token, host, Version)
 
-                err = client.ValidateConfig(arc)
+                err = client.ValidateOptions(arc.Options)
                 if err != nil ***REMOVED***
                         return err
                 ***REMOVED***

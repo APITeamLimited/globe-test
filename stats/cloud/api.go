@@ -153,16 +153,16 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 	***REMOVED***
 
 	err = c.Do(req, nil)
-	return err
+        return err
 ***REMOVED***
 
-func (c *Client) ValidateConfig(arc *lib.Archive) error ***REMOVED***
-        url := fmt.Sprintf("%s/validate-config", c.baseURL)
+func (c *Client) ValidateOptions(options lib.Options) error ***REMOVED***
+        url := fmt.Sprintf("%s/validate-options", c.baseURL)
 
         data := struct ***REMOVED***
-                Config *lib.Archive `json:"config"`
+                Options lib.Options `json:"options"`
         ***REMOVED******REMOVED***
-                arc,
+                options,
         ***REMOVED***
 
         req, err := c.NewRequest("POST", url, data)
