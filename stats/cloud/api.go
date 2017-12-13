@@ -125,9 +125,15 @@ func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error
         err = c.Do(req, &ctrr)
 	if err != nil ***REMOVED***
                 return "", err
-	***REMOVED***
+        ***REMOVED***
 
-        return ctrr.ReferenceID, nil
+        path := "runs"
+        if c.token == "" ***REMOVED***
+                path = "anonymous"
+	***REMOVED***
+        testUrl := fmt.Sprintf("https://app.loadimpact.com/k6/%s/%s", path, ctrr.ReferenceID)
+
+        return testUrl, nil
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
