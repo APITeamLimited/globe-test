@@ -224,6 +224,11 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		h.setRequestCookies(req, activeJar, reqCookies)
 	***REMOVED***
 
+	// Check rate limit *after* we've prepared a request; no need to wait with that part.
+	if err := state.RPSLimit.Wait(ctx); err != nil ***REMOVED***
+		return nil, nil, err
+	***REMOVED***
+
 	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: url.URLString***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: state.HTTPTransport,

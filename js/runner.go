@@ -39,6 +39,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/viki-org/dnscache"
 	"golang.org/x/net/http2"
+	"golang.org/x/time/rate"
 )
 
 type Runner struct ***REMOVED***
@@ -48,6 +49,7 @@ type Runner struct ***REMOVED***
 
 	BaseDialer net.Dialer
 	Resolver   *dnscache.Resolver
+	RPSLimit   *rate.Limiter
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
@@ -72,7 +74,7 @@ func NewFromBundle(b *Bundle) (*Runner, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return &Runner***REMOVED***
+	r := &Runner***REMOVED***
 		Bundle:       b,
 		Logger:       log.StandardLogger(),
 		defaultGroup: defaultGroup,
@@ -82,7 +84,9 @@ func NewFromBundle(b *Bundle) (*Runner, error) ***REMOVED***
 			DualStack: true,
 		***REMOVED***,
 		Resolver: dnscache.New(0),
-	***REMOVED***, nil
+	***REMOVED***
+	r.SetOptions(r.Bundle.Options)
+	return r, nil
 ***REMOVED***
 
 func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
@@ -176,6 +180,11 @@ func (r *Runner) GetOptions() lib.Options ***REMOVED***
 
 func (r *Runner) SetOptions(opts lib.Options) ***REMOVED***
 	r.Bundle.Options = opts
+
+	r.RPSLimit = common.DefaultRPSLimit
+	if rps := opts.RPS; rps.Valid ***REMOVED***
+		r.RPSLimit = rate.NewLimiter(rate.Limit(rps.Int64), 1)
+	***REMOVED***
 ***REMOVED***
 
 type VU struct ***REMOVED***
@@ -204,6 +213,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		HTTPTransport: u.HTTPTransport,
 		Dialer:        u.Dialer,
 		CookieJar:     cookieJar,
+		RPSLimit:      u.Runner.RPSLimit,
 		BPool:         u.BPool,
 	***REMOVED***
 	u.Dialer.BytesRead = &state.BytesRead
