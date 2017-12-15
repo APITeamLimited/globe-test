@@ -61,21 +61,33 @@ func (w consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 ***REMOVED***
 
 func getNullBool(flags *pflag.FlagSet, key string) null.Bool ***REMOVED***
-	v, _ := flags.GetBool(key)
+	v, err := flags.GetBool(key)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
 	return null.NewBool(v, flags.Changed(key))
 ***REMOVED***
 
 func getNullInt64(flags *pflag.FlagSet, key string) null.Int ***REMOVED***
-	v, _ := flags.GetInt64(key)
+	v, err := flags.GetInt64(key)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
 	return null.NewInt(v, flags.Changed(key))
 ***REMOVED***
 
 func getNullDuration(flags *pflag.FlagSet, key string) lib.NullDuration ***REMOVED***
-	v, _ := flags.GetDuration(key)
+	v, err := flags.GetDuration(key)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
 	return lib.NullDuration***REMOVED***Duration: lib.Duration(v), Valid: flags.Changed(key)***REMOVED***
 ***REMOVED***
 
 func getNullString(flags *pflag.FlagSet, key string) null.String ***REMOVED***
-	v, _ := flags.GetString(key)
+	v, err := flags.GetString(key)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
 	return null.NewString(v, flags.Changed(key))
 ***REMOVED***

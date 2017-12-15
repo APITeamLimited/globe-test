@@ -60,7 +60,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 		***REMOVED***
 
 		// Options.
-		cliConf, err := getConfig(cmd.Flags())
+		cliOpts, err := getOptions(cmd.Flags())
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -72,7 +72,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		opts := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf).Options
+		opts := cliOpts.Apply(fileConf.Options).Apply(r.GetOptions()).Apply(envConf.Options).Apply(cliOpts)
 		r.SetOptions(opts)
 
 		// Archive.
