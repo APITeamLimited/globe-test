@@ -33,5 +33,5 @@ func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDummySinkFormatReturnsItself(t *testing.T) ***REMOVED***
-	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format())
+	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format(0))
 ***REMOVED***
