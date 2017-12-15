@@ -14,46 +14,39 @@ import (
 var loginCloudCommand = &cobra.Command***REMOVED***
         Use:   "cloud",
 	Short: "Authenticate with Load Impact",
-	Long: `Authenticate with Load Impact.
+        Long: `Authenticate with Load Impact.
 
 This will set the default token used when just "k6 run -o cloud" is passed.`,
-
-	Example: `
+        Example: `
   # Show the stored token.
   k6 login cloud -s
 
-  # Set up the token.
+  # Store a token.
   k6 login cloud -t YOUR_TOKEN
 
-  # Ask for your Load Impact user email and password to automatically set up the token.
+  # Log in with an email/password.
   k6 login cloud`[1:],
-
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-
-		printToken := func(conf cloud.Config) ***REMOVED***
-			fmt.Fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token))
-		***REMOVED***
-
-		config, cdir, err := readDiskConfig()
-		if err != nil ***REMOVED***
+        Args: cobra.NoArgs,
+        RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+                config, cdir, err := readDiskConfig()
+                if err != nil ***REMOVED***
                         return err
                 ***REMOVED***
 
                 flags := cmd.Flags()
-                show, err := flags.GetBool("show")
-                if err != nil ***REMOVED***
-                        return err
-                ***REMOVED***
+                show := getNullBool(flags, "show")
                 token, err := flags.GetString("token")
                 if err != nil ***REMOVED***
                         return err
                 ***REMOVED***
 
+                printToken := func(conf cloud.Config) ***REMOVED***
+                        fmt.Fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token))
+                ***REMOVED***
                 conf := config.Collectors.Cloud
 
                 switch ***REMOVED***
-                case show:
+                case show.Bool:
                         printToken(conf)
                         return nil
                 case token != "":
@@ -73,25 +66,24 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
                                         ***REMOVED***,
                                 ***REMOVED***,
                         ***REMOVED***
-
                         vals, err := form.Run(os.Stdin, stdout)
                         if err != nil ***REMOVED***
                                 return err
-			***REMOVED***
-
+                        ***REMOVED***
                         email := vals["Email"].(string)
                         password := vals["Password"].(string)
+
                         client := cloud.NewClient("", conf.Host, Version)
-                        response, err := client.Login(email, password)
+                        res, err := client.Login(email, password)
                         if err != nil ***REMOVED***
                                 return err
                         ***REMOVED***
 
-                        if response.APIToken == "" ***REMOVED***
-                                return errors.New("Your account has no API token, please generate one: `https://app.loadimpact.com/account/token`.")
+                        if res.APIToken == "" ***REMOVED***
+                                return errors.New("Your account has no API token, please generate one: \"https://app.loadimpact.com/account/token\".")
                         ***REMOVED***
 
-                        conf.Token = response.APIToken
+                        conf.Token = res.APIToken
                 ***REMOVED***
 
                 config.Collectors.Cloud = conf
