@@ -56,7 +56,7 @@ type CreateTestRunResponse struct ***REMOVED***
 ***REMOVED***
 
 type LoginResponse struct ***REMOVED***
-	APIToken string `json:"token"`
+        Token string `json:"token"`
 ***REMOVED***
 
 func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error) ***REMOVED***

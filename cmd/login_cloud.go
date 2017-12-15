@@ -33,25 +33,16 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
                         return err
                 ***REMOVED***
 
-                flags := cmd.Flags()
-                show := getNullBool(flags, "show")
-                token, err := flags.GetString("token")
-                if err != nil ***REMOVED***
-                        return err
-                ***REMOVED***
+                show := getNullBool(cmd.Flags(), "show")
+                token := getNullString(cmd.Flags(), "token")
 
-                printToken := func(conf cloud.Config) ***REMOVED***
-                        fmt.Fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token))
-                ***REMOVED***
                 conf := config.Collectors.Cloud
 
                 switch ***REMOVED***
                 case show.Bool:
-                case token != "":
-                        conf.Token = token
+                case token.Valid:
+                        conf.Token = token.String
                 default:
-                        printToken(conf)
-
                         form := ui.Form***REMOVED***
                                 Fields: []ui.Field***REMOVED***
                                         ui.StringField***REMOVED***
@@ -77,11 +68,11 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
                                 return err
                         ***REMOVED***
 
-                        if res.APIToken == "" ***REMOVED***
+                        if res.Token == "" ***REMOVED***
                                 return errors.New("Your account has no API token, please generate one: \"https://app.loadimpact.com/account/token\".")
                         ***REMOVED***
 
-                        conf.Token = res.APIToken
+                        conf.Token = res.Token
                 ***REMOVED***
 
                 config.Collectors.Cloud = conf
@@ -89,9 +80,9 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
                         return err
                 ***REMOVED***
 
-                printToken(conf)
-		return nil
-	***REMOVED***,
+                fmt.Fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token))
+                return nil
+        ***REMOVED***,
 ***REMOVED***
 
 func init() ***REMOVED***
