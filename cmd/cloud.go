@@ -39,22 +39,13 @@ var cloudCmd = &cobra.Command***REMOVED***
         Short: "Execute a test on the cloud",
         Long: `Execute a test on the cloud.
 
-                This will execute the test on the Load Impact cloud service. Use "k6 login cloud" to authenticate.`,
-
+This will execute the test on the Load Impact cloud service. Use "k6 login cloud" to authenticate.`,
         Example: `
-                k6 cloud script.js`[1:],
-
+        k6 cloud script.js`[1:],
         Args: cobra.ExactArgs(1),
         RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-
                 _, _ = BannerColor.Fprint(stdout, Banner+"\n\n")
-                fmt.Fprintf(stdout, "  Deploying script to the cloud..")
-                ticker := time.NewTicker(time.Millisecond * 500)
-                go func() ***REMOVED***
-                        for range ticker.C ***REMOVED***
-                                fmt.Fprintf(stdout, ".")
-                        ***REMOVED***
-                ***REMOVED***()
+                fmt.Fprint(stdout, "  Deploying script to the cloud..")
 
                 // Runner
                 pwd, err := os.Getwd()
@@ -78,41 +69,39 @@ var cloudCmd = &cobra.Command***REMOVED***
                 if err != nil ***REMOVED***
                         return err
                 ***REMOVED***
-
                 cliConf, err := getConfig(cmd.Flags())
                 if err != nil ***REMOVED***
                         return err
                 ***REMOVED***
-
                 envConf, err := readEnvConfig()
                 if err != nil ***REMOVED***
                         return err
                 ***REMOVED***
-
                 conf := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf)
                 r.SetOptions(conf.Options)
 
-                arc := r.MakeArchive()
-
                 // Overwrite Cloud config
                 cloudConfig := conf.Collectors.Cloud
-
                 if err := envconfig.Process("k6", &cloudConfig); err != nil ***REMOVED***
                         return err
                 ***REMOVED***
-
-                token := cloudConfig.Token
-                host := cloudConfig.Host
-
-                if token == "" ***REMOVED***
-                        return errors.New("Your cloud token is empty, please authenticate using `k6 login cloud`.")
+                if cloudConfig.Token == "" ***REMOVED***
+                        return errors.New("Not logged in, please use `k6 login cloud`.")
                 ***REMOVED***
 
                 // Start cloud test run
-                client := cloud.NewClient(token, host, Version)
+                client := cloud.NewClient(cloudConfig.Token, cloudConfig.Host, Version)
 
-                err = client.ValidateOptions(arc.Options)
-                if err != nil ***REMOVED***
+                // Create a ticker to add a dot to the console every 0.5s
+                ticker := time.NewTicker(time.Millisecond * 500)
+                go func() ***REMOVED***
+                        for range ticker.C ***REMOVED***
+                                fmt.Fprint(stdout, ".")
+                        ***REMOVED***
+                ***REMOVED***()
+
+                arc := r.MakeArchive()
+                if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
                         return err
                 ***REMOVED***
 

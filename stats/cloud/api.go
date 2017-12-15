@@ -87,15 +87,14 @@ func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMO
                 return err
         ***REMOVED***
 
-        err = c.Do(req, nil)
-        return err
+        return c.Do(req, nil)
 ***REMOVED***
 
 func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error) ***REMOVED***
         requestUrl := fmt.Sprintf("%s/archive-upload", c.baseURL)
 
-        buf := bytes.NewBuffer(nil)
-        mp := multipart.NewWriter(buf)
+        var buf bytes.Buffer
+        mp := multipart.NewWriter(&buf)
 
         if err := mp.WriteField("name", name); err != nil ***REMOVED***
                 return "", err
@@ -114,7 +113,7 @@ func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error
                 return "", err
         ***REMOVED***
 
-        req, err := http.NewRequest("POST", requestUrl, buf)
+        req, err := http.NewRequest("POST", requestUrl, &buf)
         if err != nil ***REMOVED***
                 return "", err
         ***REMOVED***
@@ -130,10 +129,8 @@ func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error
         path := "runs"
         if c.token == "" ***REMOVED***
                 path = "anonymous"
-	***REMOVED***
-        testUrl := fmt.Sprintf("https://app.loadimpact.com/k6/%s/%s", path, ctrr.ReferenceID)
-
-        return testUrl, nil
+        ***REMOVED***
+        return fmt.Sprintf("https://app.loadimpact.com/k6/%s/%s", path, ctrr.ReferenceID), nil
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
@@ -155,11 +152,10 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 
 	req, err := c.NewRequest("POST", url, data)
 	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
+                return err
+        ***REMOVED***
 
-	err = c.Do(req, nil)
-        return err
+        return c.Do(req, nil)
 ***REMOVED***
 
 func (c *Client) ValidateOptions(options lib.Options) error ***REMOVED***
@@ -176,7 +172,5 @@ func (c *Client) ValidateOptions(options lib.Options) error ***REMOVED***
                 return err
         ***REMOVED***
 
-        err = c.Do(req, nil)
-        return err
-
+        return c.Do(req, nil)
 ***REMOVED***
