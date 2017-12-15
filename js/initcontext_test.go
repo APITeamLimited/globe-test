@@ -22,10 +22,13 @@ package js
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -280,4 +283,84 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		***REMOVED***, fs)
 		assert.EqualError(t, err, "GoError: open /nonexistent.txt: file does not exist")
 	***REMOVED***)
+***REMOVED***
+
+func TestInitContextOpenBinary(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(`
+		export let data = open("/path/to/file.bin", "b");
+		export default function() ***REMOVED*** console.log(data); ***REMOVED***
+		`),
+	***REMOVED***, fs)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bi, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		t.Log(err)
+		return
+	***REMOVED***
+
+	fd := common.FileData***REMOVED***Data: []byte***REMOVED***104, 105, 33***REMOVED******REMOVED***
+	assert.Equal(t, fd, bi.Runtime.Get("data").Export())
+***REMOVED***
+
+func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	ch := make(chan bool)
+
+	h := func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		defer func() ***REMOVED***
+			ch <- true
+		***REMOVED***()
+
+		r.ParseMultipartForm(32 << 20)
+		file, _, err := r.FormFile("file")
+		assert.NoError(t, err)
+		defer file.Close()
+		var bytes []byte
+		_, err = file.Read(bytes)
+		assert.NoError(t, err)
+		assert.Equal(t, []byte("hi!"), bytes)
+	***REMOVED***
+
+	svr := httptest.NewServer(http.HandlerFunc(h))
+	defer svr.Close()
+
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(fmt.Sprintf(`
+			import http from "k6/http";
+			let binFile = open("/path/to/file.bin", "b");
+			export default function() ***REMOVED***
+				var data = ***REMOVED***
+					field: "this is a standard form field",
+					file: binFile
+				***REMOVED***;
+				var res = http.upload("%s", data);
+				return true;
+			***REMOVED***
+			`, svr.URL)),
+	***REMOVED***, fs)
+	assert.NoError(t, err)
+
+	bi, err := b.Instantiate()
+	assert.NoError(t, err)
+
+	v, err := bi.Default(goja.Undefined())
+	assert.NoError(t, err)
+	assert.Equal(t, true, v.Export())
+
+	<-ch
 ***REMOVED***

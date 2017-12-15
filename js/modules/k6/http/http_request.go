@@ -27,6 +27,7 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -84,6 +85,13 @@ func (http *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Valu
 	return http.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
 ***REMOVED***
 
+func (http *HTTP) Upload(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	// flag as multipart request
+	http.isMultipart = true
+
+	return http.Request(ctx, "POST", url, args...)
+***REMOVED***
+
 func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
@@ -103,14 +111,48 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
 		var data map[string]goja.Value
 		if rt.ExportTo(args[0], &data) == nil ***REMOVED***
-			bodyQuery := make(neturl.Values, len(data))
-			for k, v := range data ***REMOVED***
-				if v != goja.Undefined() ***REMOVED***
+			if h.isMultipart ***REMOVED***
+				mpw := multipart.NewWriter(bodyBuf)
+
+				// For parameters of type common.FileData, created with open(file, "b"),
+				// we write the file boundary to the body buffer.
+				// Otherwise parameters are treated as standard form field.
+				for k, v := range data ***REMOVED***
+					switch ve := v.Export().(type) ***REMOVED***
+					case common.FileData:
+						fw, err := mpw.CreateFormFile(k, ve.FileName)
+						if err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+
+						if _, err := fw.Write(ve.Data); err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+					default:
+						fw, err := mpw.CreateFormField(k)
+						if err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+
+						if _, err := fw.Write([]byte(v.String())); err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				if err := mpw.Close(); err != nil ***REMOVED***
+					return nil, nil, err
+				***REMOVED***
+
+				contentType = "multipart/form-data"
+			***REMOVED*** else ***REMOVED***
+				bodyQuery := make(neturl.Values, len(data))
+				for k, v := range data ***REMOVED***
 					bodyQuery.Set(k, v.String())
 				***REMOVED***
+				bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
+				contentType = "application/x-www-form-urlencoded"
 			***REMOVED***
-			bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
-			contentType = "application/x-www-form-urlencoded"
 		***REMOVED*** else ***REMOVED***
 			bodyBuf = bytes.NewBufferString(args[0].String())
 		***REMOVED***
