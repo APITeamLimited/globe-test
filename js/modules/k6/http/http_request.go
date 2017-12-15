@@ -225,7 +225,11 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	***REMOVED***
 
 	// Check rate limit *after* we've prepared a request; no need to wait with that part.
-	if err := state.RPSLimit.Wait(ctx); err != nil ***REMOVED***
+	rpsLimit := state.RPSLimit
+	if rpsLimit == nil ***REMOVED***
+		rpsLimit = common.DefaultRPSLimit
+	***REMOVED***
+	if err := rpsLimit.Wait(ctx); err != nil ***REMOVED***
 		return nil, nil, err
 	***REMOVED***
 
