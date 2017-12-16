@@ -262,18 +262,14 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	tracer := netext.Tracer***REMOVED******REMOVED***
 	res, resErr := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
 	if resErr == nil && res != nil ***REMOVED***
+		if res.Header.Get("Content-Encoding") == "deflate" ***REMOVED***
+			res.Body, resErr = zlib.NewReader(res.Body)
+		***REMOVED***
+	***REMOVED***
+	if resErr == nil && res != nil ***REMOVED***
 		buf := state.BPool.Get()
 		buf.Reset()
 		defer state.BPool.Put(buf)
-
-		if res.Header.Get("Content-Encoding") == "deflate" ***REMOVED***
-			var err error
-			res.Body, err = zlib.NewReader(res.Body)
-			if err != nil ***REMOVED***
-				resErr = err
-			***REMOVED***
-		***REMOVED***
-
 		_, err := io.Copy(buf, res.Body)
 		if err != nil && err != io.EOF ***REMOVED***
 			resErr = err
