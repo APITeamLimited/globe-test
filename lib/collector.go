@@ -22,7 +22,6 @@ package lib
 
 import (
 	"context"
-	"io"
 
 	"github.com/loadimpact/k6/stats"
 )
@@ -43,12 +42,4 @@ type Collector interface ***REMOVED***
 
 	// Optionally return a link that is shown to the user.
 	Link() string
-***REMOVED***
-
-// An AuthenticatedCollector is a collector that can store persistent authentication.
-type AuthenticatedCollector interface ***REMOVED***
-	Collector
-
-	// Present a login form to the user.
-	Login(conf interface***REMOVED******REMOVED***, in io.Reader, out io.Writer) (interface***REMOVED******REMOVED***, error)
 ***REMOVED***
