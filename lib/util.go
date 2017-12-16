@@ -62,7 +62,7 @@ func Clampf(val, min, max float64) float64 ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Returns the maximum value between a and b.
+// Returns the maximum value of a and b.
 func Max(a, b int64) int64 ***REMOVED***
 	if a > b ***REMOVED***
 		return a
@@ -70,7 +70,7 @@ func Max(a, b int64) int64 ***REMOVED***
 	return b
 ***REMOVED***
 
-// Returns the minimum value between a and b.
+// Returns the minimum value of a and b.
 func Min(a, b int64) int64 ***REMOVED***
 	if a < b ***REMOVED***
 		return a
