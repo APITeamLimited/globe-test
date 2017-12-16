@@ -23,23 +23,8 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
-	"sync/atomic"
 	"time"
 )
-
-type AtomicBool struct***REMOVED*** v uint32 ***REMOVED***
-
-func (a *AtomicBool) Set(v bool) ***REMOVED***
-	var i uint32
-	if v ***REMOVED***
-		i = 1
-	***REMOVED***
-	atomic.StoreUint32(&a.v, i)
-***REMOVED***
-
-func (a *AtomicBool) Get() bool ***REMOVED***
-	return atomic.LoadUint32(&a.v) != 0
-***REMOVED***
 
 type Duration time.Duration
 
