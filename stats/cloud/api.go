@@ -121,16 +121,10 @@ func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error
         req.Header.Set("Content-Type", mp.FormDataContentType())
 
         ctrr := CreateTestRunResponse***REMOVED******REMOVED***
-        err = c.Do(req, &ctrr)
-	if err != nil ***REMOVED***
+        if err := c.Do(req, &ctrr); err != nil ***REMOVED***
                 return "", err
         ***REMOVED***
-
-        path := "runs"
-        if c.token == "" ***REMOVED***
-                path = "anonymous"
-        ***REMOVED***
-        return fmt.Sprintf("https://app.loadimpact.com/k6/%s/%s", path, ctrr.ReferenceID), nil
+        return ctrr.ReferenceID, nil
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
