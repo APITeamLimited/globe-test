@@ -22,9 +22,9 @@ package cloud
 
 import "fmt"
 
-func URLForResults(refID string, cloudConfig Config) string ***REMOVED***
+func URLForResults(refID string, config Config) string ***REMOVED***
         path := "runs"
-        if cloudConfig.Token == "" ***REMOVED***
+        if config.Token == "" ***REMOVED***
                 path = "anonymous"
         ***REMOVED***
         return fmt.Sprintf("https://app.loadimpact.com/k6/%s/%s", path, refID)
