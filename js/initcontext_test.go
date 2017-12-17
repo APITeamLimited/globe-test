@@ -28,7 +28,6 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -307,8 +306,8 @@ func TestInitContextOpenBinary(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	fd := common.FileData***REMOVED***Data: []byte***REMOVED***104, 105, 33***REMOVED******REMOVED***
-	assert.Equal(t, fd, bi.Runtime.Get("data").Export())
+	bytes := []byte***REMOVED***104, 105, 33***REMOVED***
+	assert.Equal(t, bytes, bi.Runtime.Get("data").Export())
 ***REMOVED***
 
 func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
@@ -322,7 +321,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 		***REMOVED***()
 
 		r.ParseMultipartForm(32 << 20)
-		file, _, err := r.FormFile("file")
+		file, _, err := r.FormFile("test.bin")
 		assert.NoError(t, err)
 		defer file.Close()
 		var bytes []byte
@@ -346,9 +345,9 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			export default function() ***REMOVED***
 				var data = ***REMOVED***
 					field: "this is a standard form field",
-					file: binFile
+					file: http.file(binFile, "test.bin")
 				***REMOVED***;
-				var res = http.upload("%s", data);
+				var res = http.post("%s", data);
 				return true;
 			***REMOVED***
 			`, svr.URL)),

@@ -22,7 +22,6 @@ package common
 
 import (
 	"context"
-	"encoding/hex"
 
 	"github.com/dop251/goja"
 )
@@ -56,32 +55,4 @@ func GetRuntime(ctx context.Context) *goja.Runtime ***REMOVED***
 		return nil
 	***REMOVED***
 	return v.(*goja.Runtime)
-***REMOVED***
-
-type StringOrBinaryData interface ***REMOVED***
-	String() string
-	Bytes() []byte
-	Lenght() int
-	Hex() string
-***REMOVED***
-
-type FileData struct ***REMOVED***
-	FileName string
-	Data []byte
-***REMOVED***
-
-func (f *FileData) String() string ***REMOVED***
-	return string(f.Data)
-***REMOVED***
-
-func (f *FileData) Bytes() []byte ***REMOVED***
-	return f.Data
-***REMOVED***
-
-func (f *FileData) Length() int ***REMOVED***
-	return len(f.Data)
-***REMOVED***
-
-func (f *FileData) Hex() string ***REMOVED***
-	return hex.EncodeToString(f.Data)
 ***REMOVED***

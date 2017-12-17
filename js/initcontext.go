@@ -173,11 +173,7 @@ func (i *InitContext) Open(name string, args ...string) (goja.Value, error) ***R
 	***REMOVED***
 
 	if len(args) > 0 && args[0] == "b" ***REMOVED***
-		fd := common.FileData***REMOVED***
-			FileName: name,
-			Data:     data,
-		***REMOVED***
-		return i.runtime.ToValue(fd), nil
+		return i.runtime.ToValue(data), nil
 	***REMOVED***
 	return i.runtime.ToValue(string(data)), nil
 ***REMOVED***
