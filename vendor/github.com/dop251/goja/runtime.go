@@ -160,6 +160,44 @@ func (e *InterruptedError) Value() interface***REMOVED******REMOVED*** ***REMOVE
 	return e.iface
 ***REMOVED***
 
+func (e *InterruptedError) String() string ***REMOVED***
+	if e == nil ***REMOVED***
+		return "<nil>"
+	***REMOVED***
+	var b bytes.Buffer
+	if e.iface != nil ***REMOVED***
+		b.WriteString(fmt.Sprint(e.iface))
+		b.WriteByte('\n')
+	***REMOVED***
+	e.writeFullStack(&b)
+	return b.String()
+***REMOVED***
+
+func (e *InterruptedError) Error() string ***REMOVED***
+	if e == nil || e.iface == nil ***REMOVED***
+		return "<nil>"
+	***REMOVED***
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprint(e.iface))
+	e.writeShortStack(&b)
+	return b.String()
+***REMOVED***
+
+func (e *Exception) writeFullStack(b *bytes.Buffer) ***REMOVED***
+	for _, frame := range e.stack ***REMOVED***
+		b.WriteString("\tat ")
+		frame.write(b)
+		b.WriteByte('\n')
+	***REMOVED***
+***REMOVED***
+
+func (e *Exception) writeShortStack(b *bytes.Buffer) ***REMOVED***
+	if len(e.stack) > 0 && (e.stack[0].prg != nil || e.stack[0].funcName != "") ***REMOVED***
+		b.WriteString(" at ")
+		e.stack[0].write(b)
+	***REMOVED***
+***REMOVED***
+
 func (e *Exception) String() string ***REMOVED***
 	if e == nil ***REMOVED***
 		return "<nil>"
@@ -167,13 +205,9 @@ func (e *Exception) String() string ***REMOVED***
 	var b bytes.Buffer
 	if e.val != nil ***REMOVED***
 		b.WriteString(e.val.String())
-	***REMOVED***
-	b.WriteByte('\n')
-	for _, frame := range e.stack ***REMOVED***
-		b.WriteString("\tat ")
-		frame.write(&b)
 		b.WriteByte('\n')
 	***REMOVED***
+	e.writeFullStack(&b)
 	return b.String()
 ***REMOVED***
 
@@ -181,15 +215,10 @@ func (e *Exception) Error() string ***REMOVED***
 	if e == nil || e.val == nil ***REMOVED***
 		return "<nil>"
 	***REMOVED***
-	if len(e.stack) > 0 && (e.stack[0].prg != nil || e.stack[0].funcName != "") ***REMOVED***
-		var b bytes.Buffer
-		b.WriteString(e.val.String())
-		b.WriteString(" at ")
-		e.stack[0].write(&b)
-		return b.String()
-	***REMOVED***
-
-	return e.val.String()
+	var b bytes.Buffer
+	b.WriteString(e.val.String())
+	e.writeShortStack(&b)
+	return b.String()
 ***REMOVED***
 
 func (e *Exception) Value() Value ***REMOVED***
@@ -1370,6 +1399,15 @@ func AssertFunction(v Value) (Callable, bool) ***REMOVED***
 	if obj, ok := v.(*Object); ok ***REMOVED***
 		if f, ok := obj.self.assertCallable(); ok ***REMOVED***
 			return func(this Value, args ...Value) (ret Value, err error) ***REMOVED***
+				defer func() ***REMOVED***
+					if x := recover(); x != nil ***REMOVED***
+						if ex, ok := x.(*InterruptedError); ok ***REMOVED***
+							err = ex
+						***REMOVED*** else ***REMOVED***
+							panic(x)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***()
 				ex := obj.runtime.vm.try(func() ***REMOVED***
 					ret = f(FunctionCall***REMOVED***
 						This:      this,
@@ -1413,6 +1451,8 @@ func tryFunc(f func()) (err error) ***REMOVED***
 		if x := recover(); x != nil ***REMOVED***
 			switch x := x.(type) ***REMOVED***
 			case *Exception:
+				err = x
+			case *InterruptedError:
 				err = x
 			case Value:
 				err = &Exception***REMOVED***
