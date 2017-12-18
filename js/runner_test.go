@@ -30,6 +30,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
@@ -231,6 +232,38 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 			_, err = vu.RunOnce(context.Background())
 			assert.NoError(t, err)
 			assert.True(t, fnCalled, "fn() not called")
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVURunInterrupt(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.newVU()
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			_, err = vu.RunOnce(ctx)
+			assert.EqualError(t, err, "context cancelled at /script.js:1:1(1)")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
