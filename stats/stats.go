@@ -264,10 +264,10 @@ func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 	return parts[0], &Submetric***REMOVED***Name: name, Parent: parts[0], Suffix: parts[1], Tags: tags***REMOVED***
 ***REMOVED***
 
-func (m *Metric) Summary() *Summary ***REMOVED***
+func (m *Metric) Summary(t time.Duration) *Summary ***REMOVED***
 	return &Summary***REMOVED***
 		Metric:  m,
-		Summary: m.Sink.Format(),
+		Summary: m.Sink.Format(t),
 	***REMOVED***
 ***REMOVED***
 

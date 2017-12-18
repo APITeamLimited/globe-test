@@ -23,63 +23,63 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"net"
 
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
 )
 
-type TLSVersion struct ***REMOVED***
-	Min int
-	Max int
+// Describes a TLS version. Serialised to/from JSON as a string, eg. "tls1.2".
+type TLSVersion int
+
+func (v TLSVersion) MarshalJSON() ([]byte, error) ***REMOVED***
+	return []byte(`"` + SupportedTLSVersionsToString[v] + `"`), nil
 ***REMOVED***
 
 func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
-	version := TLSVersion***REMOVED******REMOVED***
-
-	// Version might be a string or an object with separate min & max fields
-	var fields struct ***REMOVED***
-		Min string `json:"min"`
-		Max string `json:"max"`
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil ***REMOVED***
+		return err
 	***REMOVED***
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		switch err.(type) ***REMOVED***
-		case *json.UnmarshalTypeError:
-			// Check if it's a type error and the user has passed a string
-			var version string
-			if otherErr := json.Unmarshal(data, &version); otherErr != nil ***REMOVED***
-				switch otherErr.(type) ***REMOVED***
-				case *json.UnmarshalTypeError:
-					return errors.New("Type error: the value of tlsVersion " +
-						"should be an object with min/max fields or a string")
-				***REMOVED***
-
-				// Some other error occurred
-				return otherErr
-			***REMOVED***
-			// It was a string, assign it to both min & max
-			fields.Min = version
-			fields.Max = version
-		default:
-			return err
-		***REMOVED***
+	if str == "" ***REMOVED***
+		*v = 0
+		return nil
 	***REMOVED***
-
-	var ok bool
-	if version.Min, ok = SupportedTLSVersions[fields.Min]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Min)
+	ver, ok := SupportedTLSVersions[str]
+	if !ok ***REMOVED***
+		return errors.Errorf("unknown TLS version: %s", str)
 	***REMOVED***
-
-	if version.Max, ok = SupportedTLSVersions[fields.Max]; !ok ***REMOVED***
-		return errors.New("Unknown TLS version : " + fields.Max)
-	***REMOVED***
-
-	*v = version
-
+	*v = ver
 	return nil
 ***REMOVED***
 
+// Fields for TLSVersions. Unmarshalling hack.
+type TLSVersionsFields struct ***REMOVED***
+	Min TLSVersion `json:"min"` // Minimum allowed version, 0 = any.
+	Max TLSVersion `json:"max"` // Maximum allowed version, 0 = any.
+***REMOVED***
+
+// Describes a set (min/max) of TLS versions.
+type TLSVersions TLSVersionsFields
+
+func (v *TLSVersions) UnmarshalJSON(data []byte) error ***REMOVED***
+	var fields TLSVersionsFields
+	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
+		var ver TLSVersion
+		if err2 := json.Unmarshal(data, &ver); err2 != nil ***REMOVED***
+			return err
+		***REMOVED***
+		fields.Min = ver
+		fields.Max = ver
+	***REMOVED***
+	*v = TLSVersions(fields)
+	return nil
+***REMOVED***
+
+// A list of TLS cipher suites.
+// Marshals and unmarshals from a list of names, eg. "TLS_ECDHE_RSA_WITH_RC4_128_SHA".
+// BUG: This currently doesn't marshal back to JSON properly!!
 type TLSCipherSuites []uint16
 
 func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
@@ -102,12 +102,17 @@ func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// Fields for TLSAuth. Unmarshalling hack.
 type TLSAuthFields struct ***REMOVED***
-	Cert    string   `json:"cert"`
-	Key     string   `json:"key"`
+	// Certificate and key as a PEM-encoded string, including "-----BEGIN CERTIFICATE-----".
+	Cert string `json:"cert"`
+	Key  string `json:"key"`
+
+	// Domains to present the certificate to. May contain wildcards, eg. "*.example.com".
 	Domains []string `json:"domains"`
 ***REMOVED***
 
+// Defines a TLS client certificate to present to certain hosts.
 type TLSAuth struct ***REMOVED***
 	TLSAuthFields
 	certificate *tls.Certificate
@@ -135,30 +140,65 @@ func (c *TLSAuth) Certificate() (*tls.Certificate, error) ***REMOVED***
 ***REMOVED***
 
 type Options struct ***REMOVED***
-	Paused     null.Bool    `json:"paused" envconfig:"paused"`
+	// Should the test start in a paused state?
+	Paused null.Bool `json:"paused" envconfig:"paused"`
+
+	// Initial values for VUs, max VUs, duration cap, iteration cap, and stages.
+	// See the Runner or Executor interfaces for more information.
 	VUs        null.Int     `json:"vus" envconfig:"vus"`
 	VUsMax     null.Int     `json:"vusMax" envconfig:"vus_max"`
 	Duration   NullDuration `json:"duration" envconfig:"duration"`
 	Iterations null.Int     `json:"iterations" envconfig:"iterations"`
 	Stages     []Stage      `json:"stages" envconfig:"stages"`
 
-	MaxRedirects          null.Int         `json:"maxRedirects" envconfig:"max_redirects"`
-	InsecureSkipTLSVerify null.Bool        `json:"insecureSkipTLSVerify" envconfig:"insecure_skip_tls_verify"`
-	TLSCipherSuites       *TLSCipherSuites `json:"tlsCipherSuites" envconfig:"tls_cipher_suites"`
-	TLSVersion            *TLSVersion      `json:"tlsVersion" envconfig:"tls_version"`
-	TLSAuth               []*TLSAuth       `json:"tlsAuth" envconfig:"tlsauth"`
-	NoConnectionReuse     null.Bool        `json:"noConnectionReuse" envconfig:"no_connection_reuse"`
-	UserAgent             null.String      `json:"userAgent" envconfig:"user_agent"`
-	Throw                 null.Bool        `json:"throw" envconfig:"throw"`
+	// Limit HTTP requests per second.
+	RPS null.Int `json:"rps" envconfig:"rps"`
 
-	Thresholds   map[string]stats.Thresholds `json:"thresholds" envconfig:"thresholds"`
-	BlacklistIPs []*net.IPNet                `json:"blacklistIPs" envconfig:"blacklist_ips"`
+	// How many HTTP redirects do we follow?
+	MaxRedirects null.Int `json:"maxRedirects" envconfig:"max_redirects"`
+
+	// Default User Agent string for HTTP requests.
+	UserAgent null.String `json:"userAgent" envconfig:"user_agent"`
+
+	// How many batch requests are allowed in parallel, in total and per host?
+	Batch        null.Int `json:"batch" envconfig:"batch"`
+	BatchPerHost null.Int `json:"batchPerHost" envconfig:"batch_per_host"`
+
+	// Accept invalid or untrusted TLS certificates.
+	InsecureSkipTLSVerify null.Bool `json:"insecureSkipTLSVerify" envconfig:"insecure_skip_tls_verify"`
+
+	// Specify TLS versions and cipher suites, and present client certificates.
+	TLSCipherSuites *TLSCipherSuites `json:"tlsCipherSuites" envconfig:"tls_cipher_suites"`
+	TLSVersion      *TLSVersions     `json:"tlsVersion" envconfig:"tls_version"`
+	TLSAuth         []*TLSAuth       `json:"tlsAuth" envconfig:"tlsauth"`
+
+	// Throw warnings (eg. failed HTTP requests) as errors instead of simply logging them.
+	Throw null.Bool `json:"throw" envconfig:"throw"`
+
+	// Define thresholds; these take the form of 'metric=["snippet1", "snippet2"]'.
+	// To create a threshold on a derived metric based on tag queries ("submetrics"), create a
+	// metric on a nonexistent metric named 'real_metric***REMOVED***tagA:valueA,tagB:valueB***REMOVED***'.
+	Thresholds map[string]stats.Thresholds `json:"thresholds" envconfig:"thresholds"`
+
+	// Blacklist IP ranges that tests may not contact. Mainly useful in hosted setups.
+	BlacklistIPs []*net.IPNet `json:"blacklistIPs" envconfig:"blacklist_ips"`
+
+	// Do not reuse connections between VU iterations. This gives more realistic results (depending
+	// on what you're looking for), but you need to raise various kernel limits or you'll get
+	// errors about running out of file handles or sockets, or being unable to bind addresses.
+	NoConnectionReuse null.Bool `json:"noConnectionReuse" envconfig:"no_connection_reuse"`
 
 	// These values are for third party collectors' benefit.
 	// Can't be set through env vars.
 	External map[string]interface***REMOVED******REMOVED*** `json:"ext" ignored:"true"`
 ***REMOVED***
 
+// Returns the result of overwriting any fields with any that are set on the argument.
+//
+// Example:
+//   a := Options***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED***
+//   b := Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***
+//   a.Apply(b) // Options***REMOVED***VUs: null.IntFrom(5), VUsMax: null.IntFrom(10)***REMOVED***
 func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Paused.Valid ***REMOVED***
 		o.Paused = opts.Paused
@@ -178,8 +218,20 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Stages != nil ***REMOVED***
 		o.Stages = opts.Stages
 	***REMOVED***
+	if opts.RPS.Valid ***REMOVED***
+		o.RPS = opts.RPS
+	***REMOVED***
 	if opts.MaxRedirects.Valid ***REMOVED***
 		o.MaxRedirects = opts.MaxRedirects
+	***REMOVED***
+	if opts.UserAgent.Valid ***REMOVED***
+		o.UserAgent = opts.UserAgent
+	***REMOVED***
+	if opts.Batch.Valid ***REMOVED***
+		o.Batch = opts.Batch
+	***REMOVED***
+	if opts.BatchPerHost.Valid ***REMOVED***
+		o.BatchPerHost = opts.BatchPerHost
 	***REMOVED***
 	if opts.InsecureSkipTLSVerify.Valid ***REMOVED***
 		o.InsecureSkipTLSVerify = opts.InsecureSkipTLSVerify
@@ -193,12 +245,6 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.TLSAuth != nil ***REMOVED***
 		o.TLSAuth = opts.TLSAuth
 	***REMOVED***
-	if opts.NoConnectionReuse.Valid ***REMOVED***
-		o.NoConnectionReuse = opts.NoConnectionReuse
-	***REMOVED***
-	if opts.UserAgent.Valid ***REMOVED***
-		o.UserAgent = opts.UserAgent
-	***REMOVED***
 	if opts.Throw.Valid ***REMOVED***
 		o.Throw = opts.Throw
 	***REMOVED***
@@ -207,6 +253,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.BlacklistIPs != nil ***REMOVED***
 		o.BlacklistIPs = opts.BlacklistIPs
+	***REMOVED***
+	if opts.NoConnectionReuse.Valid ***REMOVED***
+		o.NoConnectionReuse = opts.NoConnectionReuse
 	***REMOVED***
 	if opts.External != nil ***REMOVED***
 		o.External = opts.External

@@ -71,7 +71,8 @@ func collectEnv() map[string]string ***REMOVED***
 // Creates a new bundle from a source file and a filesystem.
 func NewBundle(src *lib.SourceData, fs afero.Fs) (*Bundle, error) ***REMOVED***
 	// Compile sources, both ES5 and ES6 are supported.
-	pgm, code, err := compiler.Compile(string(src.Data), src.Filename, "", "", true)
+	code := string(src.Data)
+	pgm, _, err := compiler.Compile(code, src.Filename, "", "", true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -135,7 +136,7 @@ func NewBundleFromArchive(arc *lib.Archive) (*Bundle, error) ***REMOVED***
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
 
-	pgm, err := goja.Compile(arc.Filename, string(arc.Data), true)
+	pgm, _, err := compiler.Compile(string(arc.Data), arc.Filename, "", "", true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -143,11 +144,11 @@ func NewBundleFromArchive(arc *lib.Archive) (*Bundle, error) ***REMOVED***
 	initctx := NewInitContext(goja.New(), new(context.Context), nil, arc.Pwd)
 	for filename, data := range arc.Scripts ***REMOVED***
 		src := string(data)
-		scr, err := goja.Compile(filename, src, true)
+		pgm, err := initctx.compileImport(src, filename)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		initctx.programs[filename] = programWithSource***REMOVED***scr, src***REMOVED***
+		initctx.programs[filename] = programWithSource***REMOVED***pgm, src***REMOVED***
 	***REMOVED***
 	initctx.files = arc.Files
 

@@ -382,8 +382,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					`),
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, tls.VersionSSL30)
-					assert.Equal(t, b.Options.TLSVersion.Max, tls.VersionTLS12)
+					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
+					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
 				***REMOVED***
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
@@ -397,8 +397,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`),
 				***REMOVED***, afero.NewMemMapFs())
 				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, tls.VersionSSL30)
-					assert.Equal(t, b.Options.TLSVersion.Max, tls.VersionSSL30)
+					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
+					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionSSL30))
 				***REMOVED***
 
 			***REMOVED***)
@@ -430,7 +430,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644))
 	assert.NoError(t, afero.WriteFile(fs, "/path/to/exclaim.js", []byte(`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`), 0644))
 
-	b, err := NewBundle(&lib.SourceData***REMOVED***
+	src := &lib.SourceData***REMOVED***
 		Filename: "/path/to/script.js",
 		Data: []byte(`
 			import exclaim from "./exclaim.js";
@@ -438,7 +438,8 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			export let file = open("./file.txt");
 			export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;
 		`),
-	***REMOVED***, fs)
+	***REMOVED***
+	b, err := NewBundle(src, fs)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -458,10 +459,10 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	assert.Equal(t, "js", arc.Type)
 	assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
 	assert.Equal(t, "/path/to/script.js", arc.Filename)
-	assert.Equal(t, "\"use strict\";Object.defineProperty(exports, \"__esModule\", ***REMOVED*** value: true ***REMOVED***);exports.file = exports.options = undefined;exports.default =\n\n\n\nfunction () ***REMOVED***return (0, _exclaim2.default)(file);***REMOVED***;var _exclaim = require(\"./exclaim.js\");var _exclaim2 = _interopRequireDefault(_exclaim);function _interopRequireDefault(obj) ***REMOVED***return obj && obj.__esModule ? obj : ***REMOVED*** default: obj ***REMOVED***;***REMOVED***var options = exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;var file = exports.file = open(\"./file.txt\");;", string(arc.Data))
+	assert.Equal(t, string(src.Data), string(arc.Data))
 	assert.Equal(t, "/path/to", arc.Pwd)
 	assert.Len(t, arc.Scripts, 1)
-	assert.Equal(t, "(function()***REMOVED***\"use strict\";Object.defineProperty(exports, \"__esModule\", ***REMOVED*** value: true ***REMOVED***);exports.default = function (s) ***REMOVED***return s + \"!\";***REMOVED***;;***REMOVED***)()", string(arc.Scripts["/path/to/exclaim.js"]))
+	assert.Equal(t, `export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`, string(arc.Scripts["/path/to/exclaim.js"]))
 	assert.Len(t, arc.Files, 1)
 	assert.Equal(t, `hi`, string(arc.Files["/path/to/file.txt"]))
 

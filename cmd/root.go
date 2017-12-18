@@ -25,12 +25,13 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-var Version = "0.18.1"
+var Version = "0.18.2"
 var Banner = `
           /\      |‾‾|  /‾‾/  /‾/   
      /\  /  \     |  |_/  /  / /   
@@ -44,8 +45,8 @@ var (
 	outMutex  = &sync.Mutex***REMOVED******REMOVED***
 	stdoutTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 	stderrTTY = isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
-	stdout    = consoleWriter***REMOVED***os.Stdout, stdoutTTY, outMutex***REMOVED***
-	stderr    = consoleWriter***REMOVED***os.Stderr, stderrTTY, outMutex***REMOVED***
+	stdout    = consoleWriter***REMOVED***colorable.NewColorableStdout(), stdoutTTY, outMutex***REMOVED***
+	stderr    = consoleWriter***REMOVED***colorable.NewColorableStderr(), stderrTTY, outMutex***REMOVED***
 )
 
 var (
@@ -53,6 +54,7 @@ var (
 
 	verbose bool
 	quiet   bool
+	noColor bool
 	address string
 )
 
@@ -69,6 +71,10 @@ var RootCmd = &cobra.Command***REMOVED***
 		l.Formatter = &log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***
 		if verbose ***REMOVED***
 			l.SetLevel(log.DebugLevel)
+		***REMOVED***
+		if noColor ***REMOVED***
+			stdout.Writer = colorable.NewNonColorable(os.Stdout)
+			stdout.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
 	***REMOVED***,
 ***REMOVED***
@@ -88,6 +94,7 @@ func Execute() ***REMOVED***
 func init() ***REMOVED***
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "disable progress updates")
+	RootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	RootCmd.PersistentFlags().StringVarP(&address, "address", "a", "localhost:6565", "address for the api server")
 	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default ./k6.yaml or ~/.config/k6.yaml)")
 	must(cobra.MarkFlagFilename(RootCmd.PersistentFlags(), "config"))

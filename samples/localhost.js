@@ -6,6 +6,7 @@ export let options = ***REMOVED***
 		'http_req_duration***REMOVED***kind:html***REMOVED***': ["avg<=10"],
 		'http_req_duration***REMOVED***kind:css***REMOVED***': ["avg<=10"],
 		'http_req_duration***REMOVED***kind:img***REMOVED***': ["avg<=100"],
+		'http_reqs': ["rate>100"],
 	***REMOVED***
 ***REMOVED***;
 

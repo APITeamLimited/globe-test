@@ -118,3 +118,13 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 		assert.Equal(t, arc1Anon, arc2)
 	***REMOVED***)
 ***REMOVED***
+
+func TestArchiveJSONEscape(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	arc := &Archive***REMOVED******REMOVED***
+	arc.Filename = "test<.js"
+	b, err := arc.json()
+	assert.NoError(t, err)
+	assert.Contains(t, string(b), "test<.js")
+***REMOVED***

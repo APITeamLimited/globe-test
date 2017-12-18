@@ -22,6 +22,7 @@ package lib
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -35,7 +36,7 @@ import (
 
 var homeDirRE = regexp.MustCompile(`^/(Users|home|Documents and Settings)/(?:[^/]+)`)
 
-// Archives should be share-able; to that end, paths including home directories should be anonymized.
+// Anonymizes a file path, by scrubbing usernames from home directories.
 func AnonymizePath(path string) string ***REMOVED***
 	return homeDirRE.ReplaceAllString(path, `/$1/nobody`)
 ***REMOVED***
@@ -60,6 +61,7 @@ type Archive struct ***REMOVED***
 	Files   map[string][]byte `json:"-"` // non-script resources
 ***REMOVED***
 
+// Reads an archive created by Archive.Write from a reader.
 func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 	r := tar.NewReader(in)
 	arc := &Archive***REMOVED***
@@ -120,6 +122,11 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 	return arc, nil
 ***REMOVED***
 
+// Write serialises the archive to a writer.
+//
+// The format should be treated as opaque; currently it is simply a TAR rollup, but this may
+// change. If it does change, ReadArchive must be able to handle all previous formats as well as
+// the current one.
 func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	w := tar.NewWriter(out)
 	t := time.Now()
@@ -127,7 +134,7 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	metaArc := *arc
 	metaArc.Filename = AnonymizePath(metaArc.Filename)
 	metaArc.Pwd = AnonymizePath(metaArc.Pwd)
-	metadata, err := json.MarshalIndent(metaArc, "", "  ")
+	metadata, err := metaArc.json()
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -230,4 +237,17 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	***REMOVED***
 
 	return w.Close()
+***REMOVED***
+
+func (arc *Archive) json() ([]byte, error) ***REMOVED***
+	buffer := &bytes.Buffer***REMOVED******REMOVED***
+	encoder := json.NewEncoder(buffer)
+	// this prevents <, >, and & from being escaped in JSON strings
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(arc); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return buffer.Bytes(), nil
 ***REMOVED***

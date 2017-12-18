@@ -23,6 +23,7 @@ package stats
 import (
 	"errors"
 	"sort"
+	"time"
 )
 
 var (
@@ -34,23 +35,30 @@ var (
 )
 
 type Sink interface ***REMOVED***
-	Add(s Sample)               // Add a sample to the sink.
-	Calc()                      // Make final calculations.
-	Format() map[string]float64 // Data for thresholds. (also legacy display)
+	Add(s Sample)                              // Add a sample to the sink.
+	Calc()                                     // Make final calculations.
+	Format(t time.Duration) map[string]float64 // Data for thresholds.
 ***REMOVED***
 
 type CounterSink struct ***REMOVED***
 	Value float64
+	First time.Time
 ***REMOVED***
 
 func (c *CounterSink) Add(s Sample) ***REMOVED***
 	c.Value += s.Value
+	if c.First.IsZero() ***REMOVED***
+		c.First = s.Time
+	***REMOVED***
 ***REMOVED***
 
 func (c *CounterSink) Calc() ***REMOVED******REMOVED***
 
-func (c *CounterSink) Format() map[string]float64 ***REMOVED***
-	return map[string]float64***REMOVED***"count": c.Value***REMOVED***
+func (c *CounterSink) Format(t time.Duration) map[string]float64 ***REMOVED***
+	return map[string]float64***REMOVED***
+		"count": c.Value,
+		"rate":  c.Value / (float64(t) / float64(time.Second)),
+	***REMOVED***
 ***REMOVED***
 
 type GaugeSink struct ***REMOVED***
@@ -72,7 +80,7 @@ func (g *GaugeSink) Add(s Sample) ***REMOVED***
 
 func (g *GaugeSink) Calc() ***REMOVED******REMOVED***
 
-func (g *GaugeSink) Format() map[string]float64 ***REMOVED***
+func (g *GaugeSink) Format(t time.Duration) map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"value": g.Value***REMOVED***
 ***REMOVED***
 
@@ -134,7 +142,7 @@ func (t *TrendSink) Calc() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (t *TrendSink) Format() map[string]float64 ***REMOVED***
+func (t *TrendSink) Format(tt time.Duration) map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***
 		"min":   t.Min,
 		"max":   t.Max,
@@ -159,7 +167,7 @@ func (r *RateSink) Add(s Sample) ***REMOVED***
 
 func (r RateSink) Calc() ***REMOVED******REMOVED***
 
-func (r RateSink) Format() map[string]float64 ***REMOVED***
+func (r RateSink) Format(t time.Duration) map[string]float64 ***REMOVED***
 	return map[string]float64***REMOVED***"rate": float64(r.Trues) / float64(r.Total)***REMOVED***
 ***REMOVED***
 
@@ -171,6 +179,6 @@ func (d DummySink) Add(s Sample) ***REMOVED***
 
 func (d DummySink) Calc() ***REMOVED******REMOVED***
 
-func (d DummySink) Format() map[string]float64 ***REMOVED***
+func (d DummySink) Format(t time.Duration) map[string]float64 ***REMOVED***
 	return map[string]float64(d)
 ***REMOVED***
