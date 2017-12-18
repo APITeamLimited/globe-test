@@ -50,7 +50,8 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 		filename := args[0]
-		src, err := readSource(filename, pwd, afero.NewOsFs(), os.Stdin)
+		fs := afero.NewOsFs()
+		src, err := readSource(filename, pwd, fs, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -64,7 +65,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		fileConf, _, err := readDiskConfig()
+		fileConf, _, err := readDiskConfig(fs)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
