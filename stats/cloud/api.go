@@ -56,7 +56,7 @@ type CreateTestRunResponse struct ***REMOVED***
 ***REMOVED***
 
 type LoginResponse struct ***REMOVED***
-        Token string `json:"token"`
+	Token string `json:"token"`
 ***REMOVED***
 
 func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error) ***REMOVED***
@@ -136,7 +136,7 @@ func (c *Client) Login(email string, password string) (*LoginResponse, error) **
 	lr := LoginResponse***REMOVED******REMOVED***
 	err = c.Do(req, &lr)
 	if err != nil ***REMOVED***
-                return nil, err
+		return nil, err
 	***REMOVED***
 
 	return &lr, nil
