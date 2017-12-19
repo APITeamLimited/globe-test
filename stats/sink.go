@@ -136,7 +136,7 @@ func (t *TrendSink) Calc() ***REMOVED***
 
 	// The median of an even number of values is the average of the middle two.
 	if (t.Count & 0x01) == 0 ***REMOVED***
-		t.Med = (t.Med + t.Values[(t.Count/2)-1]) / 2
+		t.Med = (t.Values[(t.Count/2)-1] + t.Values[(t.Count/2)]) / 2
 	***REMOVED*** else ***REMOVED***
 		t.Med = t.Values[t.Count/2]
 	***REMOVED***
