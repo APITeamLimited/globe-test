@@ -127,7 +127,7 @@ func (c *Collector) Init() error ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Link() string ***REMOVED***
-        return URLForResults(c.referenceID, c.config)
+	return URLForResults(c.referenceID, c.config)
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***

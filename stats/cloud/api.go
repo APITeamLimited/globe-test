@@ -21,13 +21,13 @@
 package cloud
 
 import (
-        "bytes"
+	"bytes"
 	"fmt"
-        "mime/multipart"
-        "net/http"
+	"mime/multipart"
+	"net/http"
 	"time"
 
-        "github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 )
@@ -80,51 +80,51 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 ***REMOVED***
 
 func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMOVED***
-        url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
+	url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
 
-        req, err := c.NewRequest("POST", url, samples)
-        if err != nil ***REMOVED***
-                return err
-        ***REMOVED***
+	req, err := c.NewRequest("POST", url, samples)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
 
-        return c.Do(req, nil)
+	return c.Do(req, nil)
 ***REMOVED***
 
 func (c *Client) StartCloudTestRun(name string, arc *lib.Archive) (string, error) ***REMOVED***
-        requestUrl := fmt.Sprintf("%s/archive-upload", c.baseURL)
+	requestUrl := fmt.Sprintf("%s/archive-upload", c.baseURL)
 
-        var buf bytes.Buffer
-        mp := multipart.NewWriter(&buf)
+	var buf bytes.Buffer
+	mp := multipart.NewWriter(&buf)
 
-        if err := mp.WriteField("name", name); err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
+	if err := mp.WriteField("name", name); err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
-        fw, err := mp.CreateFormFile("file", "archive.tar")
-        if err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
+	fw, err := mp.CreateFormFile("file", "archive.tar")
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
-        if err := arc.Write(fw); err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
+	if err := arc.Write(fw); err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
-        if err := mp.Close(); err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
+	if err := mp.Close(); err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
-        req, err := http.NewRequest("POST", requestUrl, &buf)
-        if err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
+	req, err := http.NewRequest("POST", requestUrl, &buf)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
-        req.Header.Set("Content-Type", mp.FormDataContentType())
+	req.Header.Set("Content-Type", mp.FormDataContentType())
 
-        ctrr := CreateTestRunResponse***REMOVED******REMOVED***
-        if err := c.Do(req, &ctrr); err != nil ***REMOVED***
-                return "", err
-        ***REMOVED***
-        return ctrr.ReferenceID, nil
+	ctrr := CreateTestRunResponse***REMOVED******REMOVED***
+	if err := c.Do(req, &ctrr); err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	return ctrr.ReferenceID, nil
 ***REMOVED***
 
 func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
@@ -146,25 +146,25 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 
 	req, err := c.NewRequest("POST", url, data)
 	if err != nil ***REMOVED***
-                return err
-        ***REMOVED***
+		return err
+	***REMOVED***
 
-        return c.Do(req, nil)
+	return c.Do(req, nil)
 ***REMOVED***
 
 func (c *Client) ValidateOptions(options lib.Options) error ***REMOVED***
-        url := fmt.Sprintf("%s/validate-options", c.baseURL)
+	url := fmt.Sprintf("%s/validate-options", c.baseURL)
 
-        data := struct ***REMOVED***
-                Options lib.Options `json:"options"`
-        ***REMOVED******REMOVED***
-                options,
-        ***REMOVED***
+	data := struct ***REMOVED***
+		Options lib.Options `json:"options"`
+	***REMOVED******REMOVED***
+		options,
+	***REMOVED***
 
-        req, err := c.NewRequest("POST", url, data)
-        if err != nil ***REMOVED***
-                return err
-        ***REMOVED***
+	req, err := c.NewRequest("POST", url, data)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
 
-        return c.Do(req, nil)
+	return c.Do(req, nil)
 ***REMOVED***
