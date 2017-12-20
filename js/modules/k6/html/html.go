@@ -24,7 +24,6 @@ import (
 	"context"
 	"fmt"
 	neturl "net/url"
-	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -56,7 +55,7 @@ type Selection struct ***REMOVED***
 
 type FormValue struct ***REMOVED***
 	name  string
-	value string
+	value goja.Value
 ***REMOVED***
 
 func (s Selection) emptySelection() Selection ***REMOVED***
@@ -482,30 +481,26 @@ func (s Selection) SerializeArray() []FormValue ***REMOVED***
 			inputType != "reset" &&
 			inputType != "image" && // Must not be an image or file
 			inputType != "file" &&
-			(checked == "checked" || (inputType != "checkbox" && inputType != "radio" )) // Must be checked if it is an checkbox or radio
+			(checked == "checked" || (inputType != "checkbox" && inputType != "radio")) // Must be checked if it is an checkbox or radio
 	***REMOVED***)
 
-	reCRLF := regexp.MustCompile("\r?\n")
 	result := make([]FormValue, len(formElements.Nodes))
 	formElements.Each(func(i int, sel *goquery.Selection) ***REMOVED***
+		element := Selection***REMOVED***s.rt, sel, s.URL***REMOVED***
 		name, _ := sel.Attr("name")
-		// ToDo: find a way to use something like 'sel.Val()' or implement it here
-		value := reCRLF.ReplaceAllString(sel.AttrOr("value", ""), "\r\n")
-		result[i] = FormValue***REMOVED***name: name, value: value***REMOVED***
-
-		// ToDo: If we have an array of values (e.g. `<select multiple>`), return an array of key/value pairs
-		// This would make FormValue.value either an string or an array of ***REMOVED*** name, value ***REMOVED***. 
+		result[i] = FormValue***REMOVED***name: name, value: element.Val()***REMOVED***
 	***REMOVED***)
 	return result
 ***REMOVED***
 
-func (s Selection) SerializeObject() map[string]string ***REMOVED***
+func (s Selection) SerializeObject() map[string]goja.Value ***REMOVED***
 	formValues := s.SerializeArray()
-	result := make(map[string]string)
+	result := make(map[string]goja.Value)
 	for i := range formValues ***REMOVED***
 		formValue := formValues[i]
 		result[formValue.name] = formValue.value
 	***REMOVED***
+
 	return result
 ***REMOVED***
 
@@ -514,7 +509,14 @@ func (s Selection) Serialize() string ***REMOVED***
 	urlValues := make(neturl.Values, len(formValues))
 	for i := range formValues ***REMOVED***
 		formValue := formValues[i]
-		urlValues.Set(formValue.name, formValue.value)
+		value := formValue.value.Export()
+		switch value.(type) ***REMOVED***
+		case string:
+			urlValues.Set(formValue.name, value.(string))
+		case []string:
+			urlValues[formValue.name] = value.([]string)
+		***REMOVED***
+
 	***REMOVED***
 	return urlValues.Encode()
 ***REMOVED***
