@@ -459,6 +459,7 @@ func (s Selection) Data(def ...string) goja.Value ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// nolint: goconst
 func (s Selection) SerializeArray() []FormValue ***REMOVED***
 	submittableSelector := "input,select,textarea,keygen"
 	var formElements *goquery.Selection
