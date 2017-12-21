@@ -54,8 +54,8 @@ type Selection struct ***REMOVED***
 ***REMOVED***
 
 type FormValue struct ***REMOVED***
-	name  string
-	value goja.Value
+	Name  string
+	Value goja.Value
 ***REMOVED***
 
 func (s Selection) emptySelection() Selection ***REMOVED***
@@ -489,7 +489,7 @@ func (s Selection) SerializeArray() []FormValue ***REMOVED***
 	formElements.Each(func(i int, sel *goquery.Selection) ***REMOVED***
 		element := Selection***REMOVED***s.rt, sel, s.URL***REMOVED***
 		name, _ := sel.Attr("name")
-		result[i] = FormValue***REMOVED***name: name, value: element.Val()***REMOVED***
+		result[i] = FormValue***REMOVED***Name: name, Value: element.Val()***REMOVED***
 	***REMOVED***)
 	return result
 ***REMOVED***
@@ -499,7 +499,7 @@ func (s Selection) SerializeObject() map[string]goja.Value ***REMOVED***
 	result := make(map[string]goja.Value)
 	for i := range formValues ***REMOVED***
 		formValue := formValues[i]
-		result[formValue.name] = formValue.value
+		result[formValue.Name] = formValue.Value
 	***REMOVED***
 
 	return result
@@ -510,12 +510,12 @@ func (s Selection) Serialize() string ***REMOVED***
 	urlValues := make(neturl.Values, len(formValues))
 	for i := range formValues ***REMOVED***
 		formValue := formValues[i]
-		value := formValue.value.Export()
+		value := formValue.Value.Export()
 		switch value.(type) ***REMOVED***
 		case string:
-			urlValues.Set(formValue.name, value.(string))
+			urlValues.Set(formValue.Name, value.(string))
 		case []string:
-			urlValues[formValue.name] = value.([]string)
+			urlValues[formValue.Name] = value.([]string)
 		***REMOVED***
 
 	***REMOVED***
