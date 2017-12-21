@@ -42,6 +42,7 @@ type Bundle struct ***REMOVED***
 	Program  *goja.Program
 	Options  lib.Options
 
+	Setup, Teardown goja.Callable
 	BaseInitContext *InitContext
 
 	Env map[string]string
@@ -83,7 +84,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 		return nil, err
 	***REMOVED***
 
-	// Validate exports.
+	// Grab exports.
 	exportsV := rt.Get("exports")
 	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) ***REMOVED***
 		return nil, errors.New("exports must be an object")
@@ -99,15 +100,33 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 		return nil, errors.New("default export must be a function")
 	***REMOVED***
 
-	// Extract exported options.
-	optV := exports.Get("options")
-	if optV != nil && !goja.IsNull(optV) && !goja.IsUndefined(optV) ***REMOVED***
-		optdata, err := json.Marshal(optV.Export())
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		if err := json.Unmarshal(optdata, &bundle.Options); err != nil ***REMOVED***
-			return nil, err
+	// Grab other exports.
+	for _, k := range exports.Keys() ***REMOVED***
+		v := exports.Get(k)
+		switch k ***REMOVED***
+		case "default": // Already checked above.
+		case "options":
+			data, err := json.Marshal(v.Export())
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			if err := json.Unmarshal(data, &bundle.Options); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		case "setup":
+			fn, ok := goja.AssertFunction(v)
+			if !ok ***REMOVED***
+				return nil, errors.New("exported 'setup' must be a function")
+			***REMOVED***
+			bundle.Setup = fn
+		case "teardown":
+			fn, ok := goja.AssertFunction(v)
+			if !ok ***REMOVED***
+				return nil, errors.New("exported 'teardown' must be a function")
+			***REMOVED***
+			bundle.Teardown = fn
+		default:
+			return nil, errors.Errorf("unrecognised root-level export: %s", k)
 		***REMOVED***
 	***REMOVED***
 
