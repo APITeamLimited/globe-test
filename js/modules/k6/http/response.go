@@ -30,6 +30,8 @@ import (
 	"github.com/loadimpact/k6/js/modules/k6/html"
 	"github.com/loadimpact/k6/lib"
 	"golang.org/x/crypto/ocsp"
+	"strings"
+	"net/url"
 )
 
 type OCSP struct ***REMOVED***
@@ -140,4 +142,58 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 		sel = sel.Find(selector[0])
 	***REMOVED***
 	return sel
+***REMOVED***
+
+func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) ***REMOVED***
+	rt := common.GetRuntime(res.ctx)
+	
+	selector := "form"
+	var fields map[string]goja.Value
+	var requestOptions goja.Value
+	if len(args) > 0***REMOVED***
+		params := args[0].ToObject(rt)
+		for _, k := range params.Keys() ***REMOVED***
+			switch k ***REMOVED***
+			case "selector":
+				selector = params.Get(k).Export().(string)
+			case "fields":
+				rt.ExportTo(params.Get(k), &fields)
+			case "options":
+				requestOptions = params.Get(k)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***	
+	
+	form := res.Html(selector)
+	
+	methodAttr := form.Attr("method")
+	var requestMethod string
+	if methodAttr == goja.Undefined()***REMOVED***
+		requestMethod = "GET"
+	***REMOVED*** else***REMOVED***
+		requestMethod = strings.ToUpper(methodAttr.Export().(string))
+	***REMOVED***
+
+	actionAttr := form.Attr("action")
+	var requestUrl goja.Value
+	if actionAttr == goja.Undefined()***REMOVED***
+		requestUrl = rt.ToValue(res.URL)
+	***REMOVED*** else***REMOVED***
+		responseUrl, _ := url.Parse(res.URL)
+		actionUrl, _ := url.Parse(actionAttr.Export().(string))
+		requestUrl = rt.ToValue(responseUrl.ResolveReference(actionUrl).String())
+	***REMOVED***
+	
+	body := form.SerializeObject()
+	if fields != nil***REMOVED***
+		for k, v := range fields ***REMOVED***
+			body[k] = rt.ToValue(v)
+		***REMOVED***
+	***REMOVED***
+	
+	if requestOptions == nil ***REMOVED***
+		return New().Request(res.ctx, requestMethod, requestUrl, rt.ToValue(body))
+	***REMOVED*** else ***REMOVED***
+		return New().Request(res.ctx, requestMethod, requestUrl, rt.ToValue(body), requestOptions)
+	***REMOVED***
 ***REMOVED***
