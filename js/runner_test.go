@@ -67,6 +67,43 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 
+	t.Run("SetupTeardown", func(t *testing.T) ***REMOVED***
+		r, err := New(&lib.SourceData***REMOVED***
+			Filename: "/script.js",
+			Data: []byte(`
+				export function setup() ***REMOVED***
+					return ***REMOVED*** v: 1 ***REMOVED***;
+				***REMOVED***
+				export function teardown(data) ***REMOVED***
+					if (data.v != 1) ***REMOVED***
+						throw new Error("teardown: wrong data: " + JSON.stringify(data))
+					***REMOVED***
+				***REMOVED***
+				export default function(data) ***REMOVED***
+					if (data.v != 1) ***REMOVED***
+						throw new Error("default: wrong data: " + JSON.stringify(data))
+					***REMOVED***
+				***REMOVED***
+			`),
+		***REMOVED***, afero.NewMemMapFs())
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		if !assert.NoError(t, r.Setup()) ***REMOVED***
+			return
+		***REMOVED***
+
+		t.Run("VU", func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU()
+			if assert.NoError(t, err) ***REMOVED***
+				_, err := vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+
+		assert.NoError(t, r.Teardown())
+	***REMOVED***)
+
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		_, err := New(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
