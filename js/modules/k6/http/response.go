@@ -147,15 +147,18 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(res.ctx)
 	
-	selector := "form"
+	formSelector := "form"
+	submitSelector := "[type=\"submit\"]"
 	var fields map[string]goja.Value
 	var requestOptions goja.Value
 	if len(args) > 0***REMOVED***
 		params := args[0].ToObject(rt)
 		for _, k := range params.Keys() ***REMOVED***
 			switch k ***REMOVED***
-			case "selector":
-				selector = params.Get(k).Export().(string)
+			case "formSelector":
+				formSelector = params.Get(k).Export().(string)
+			case "submitSelector":
+				formSelector = params.Get(k).Export().(string)
 			case "fields":
 				rt.ExportTo(params.Get(k), &fields)
 			case "options":
@@ -164,11 +167,12 @@ func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) *
 		***REMOVED***
 	***REMOVED***	
 	
-	form := res.Html(selector)
+	form := res.Html(formSelector)
 	
 	methodAttr := form.Attr("method")
 	var requestMethod string
 	if methodAttr == goja.Undefined()***REMOVED***
+		// Use GET by default
 		requestMethod = "GET"
 	***REMOVED*** else***REMOVED***
 		requestMethod = strings.ToUpper(methodAttr.Export().(string))
@@ -177,8 +181,10 @@ func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) *
 	actionAttr := form.Attr("action")
 	var requestUrl goja.Value
 	if actionAttr == goja.Undefined()***REMOVED***
+		// Use the url of the response if no action is set
 		requestUrl = rt.ToValue(res.URL)
 	***REMOVED*** else***REMOVED***
+		// Resolve the action url from the response url
 		responseUrl, _ := url.Parse(res.URL)
 		actionUrl, _ := url.Parse(actionAttr.Export().(string))
 		requestUrl = rt.ToValue(responseUrl.ResolveReference(actionUrl).String())
@@ -189,6 +195,14 @@ func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) *
 		for k, v := range fields ***REMOVED***
 			body[k] = rt.ToValue(v)
 		***REMOVED***
+	***REMOVED***
+	
+	// Add the name + value of the submit button to the fields
+	submit := form.Find(submitSelector)
+	submitName := submit.Attr("name")
+	submitValue := submit.Val()
+	if submitName != goja.Undefined() && submitValue != goja.Undefined()***REMOVED***
+		body[submitName.String()] = submitValue
 	***REMOVED***
 	
 	if requestOptions == nil ***REMOVED***
