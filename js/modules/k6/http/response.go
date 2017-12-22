@@ -190,19 +190,22 @@ func (res *HTTPResponse) SubmitForm(args... goja.Value) (*HTTPResponse, error) *
 		requestUrl = rt.ToValue(responseUrl.ResolveReference(actionUrl).String())
 	***REMOVED***
 	
+	// Set the body based on the form values
 	body := form.SerializeObject()
-	if fields != nil***REMOVED***
-		for k, v := range fields ***REMOVED***
-			body[k] = rt.ToValue(v)
-		***REMOVED***
-	***REMOVED***
 	
-	// Add the name + value of the submit button to the fields
+	// Set the name + value of the submit button
 	submit := form.Find(submitSelector)
 	submitName := submit.Attr("name")
 	submitValue := submit.Val()
 	if submitName != goja.Undefined() && submitValue != goja.Undefined()***REMOVED***
 		body[submitName.String()] = submitValue
+	***REMOVED***
+	
+	// Set the values supplied in the arguments, overriding automatically set values
+	if fields != nil***REMOVED***
+		for k, v := range fields ***REMOVED***
+			body[k] = v
+		***REMOVED***
 	***REMOVED***
 	
 	if requestOptions == nil ***REMOVED***
