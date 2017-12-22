@@ -90,7 +90,6 @@ func (s Selection) Serialize() string ***REMOVED***
 		case []string:
 			urlValues[formValue.Name] = value.([]string)
 		***REMOVED***
-
 	***REMOVED***
 	return urlValues.Encode()
 ***REMOVED***
