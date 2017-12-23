@@ -42,7 +42,6 @@ type Bundle struct ***REMOVED***
 	Program  *goja.Program
 	Options  lib.Options
 
-	Setup, Teardown goja.Callable
 	BaseInitContext *InitContext
 
 	Env map[string]string
@@ -100,7 +99,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 		return nil, errors.New("default export must be a function")
 	***REMOVED***
 
-	// Grab other exports.
+	// Extract/validate other exports.
 	for _, k := range exports.Keys() ***REMOVED***
 		v := exports.Get(k)
 		switch k ***REMOVED***
@@ -114,19 +113,14 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 				return nil, err
 			***REMOVED***
 		case "setup":
-			fn, ok := goja.AssertFunction(v)
-			if !ok ***REMOVED***
+			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
 				return nil, errors.New("exported 'setup' must be a function")
 			***REMOVED***
-			bundle.Setup = fn
 		case "teardown":
-			fn, ok := goja.AssertFunction(v)
-			if !ok ***REMOVED***
+			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
 				return nil, errors.New("exported 'teardown' must be a function")
 			***REMOVED***
-			bundle.Teardown = fn
 		default:
-			return nil, errors.Errorf("unrecognised root-level export: %s", k)
 		***REMOVED***
 	***REMOVED***
 

@@ -23,6 +23,7 @@ package js
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -55,8 +56,7 @@ type Runner struct ***REMOVED***
 	Resolver   *dnscache.Resolver
 	RPSLimit   *rate.Limiter
 
-	// Value returned from setup(), if anything.
-	setupData goja.Value
+	setupData interface***REMOVED******REMOVED***
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
@@ -169,6 +169,7 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		Console:        NewConsole(),
 		BPool:          bpool.NewBufferPool(100),
 	***REMOVED***
+	vu.setupData = vu.Runtime.ToValue(r.setupData)
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
 	// Give the VU an initial sense of identity.
@@ -179,18 +180,21 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	return vu, nil
 ***REMOVED***
 
-func (r *Runner) Setup() (err error) ***REMOVED***
-	if setup := r.Bundle.Setup; setup != nil ***REMOVED***
-		r.setupData, err = setup(goja.Undefined())
+func (r *Runner) Setup(ctx context.Context) error ***REMOVED***
+	v, err := r.runPart(ctx, "setup", nil)
+	if err != nil ***REMOVED***
+		return errors.Wrap(err, "setup")
 	***REMOVED***
-	return
+	data, err := json.Marshal(v.Export())
+	if err != nil ***REMOVED***
+		return errors.Wrap(err, "setup")
+	***REMOVED***
+	return json.Unmarshal(data, &r.setupData)
 ***REMOVED***
 
-func (r *Runner) Teardown() (err error) ***REMOVED***
-	if teardown := r.Bundle.Teardown; teardown != nil ***REMOVED***
-		_, err = teardown(goja.Undefined(), r.setupData)
-	***REMOVED***
-	return
+func (r *Runner) Teardown(ctx context.Context) error ***REMOVED***
+	_, err := r.runPart(ctx, "teardown", r.setupData)
+	return err
 ***REMOVED***
 
 func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
@@ -210,6 +214,32 @@ func (r *Runner) SetOptions(opts lib.Options) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Runs an exported function in its own temporary VU, optionally with an argument. Execution is
+// interrupted if the context expires. No error is returned if the part does not exist.
+func (r *Runner) runPart(ctx context.Context, name string, arg interface***REMOVED******REMOVED***) (goja.Value, error) ***REMOVED***
+	vu, err := r.newVU()
+	if err != nil ***REMOVED***
+		return goja.Undefined(), err
+	***REMOVED***
+	exp := vu.Runtime.Get("exports").ToObject(vu.Runtime)
+	if exp == nil ***REMOVED***
+		return goja.Undefined(), nil
+	***REMOVED***
+	fn, ok := goja.AssertFunction(exp.Get(name))
+	if !ok ***REMOVED***
+		return goja.Undefined(), nil
+	***REMOVED***
+
+	ctx, cancel := context.WithCancel(ctx)
+	go func() ***REMOVED***
+		<-ctx.Done()
+		vu.Runtime.Interrupt(errInterrupt)
+	***REMOVED***()
+	v, _, err := vu.runFn(ctx, fn, vu.Runtime.ToValue(arg))
+	cancel()
+	return v, err
+***REMOVED***
+
 type VU struct ***REMOVED***
 	BundleInstance
 
@@ -222,6 +252,8 @@ type VU struct ***REMOVED***
 	Console *Console
 	BPool   *bpool.BufferPool
 
+	setupData goja.Value
+
 	// A VU will track the last context it was called with for cancellation.
 	// Note that interruptTrackedCtx is the context that is currently being tracked, while
 	// interruptCancel cancels an unrelated context that terminates the tracking goroutine
@@ -231,6 +263,13 @@ type VU struct ***REMOVED***
 	// goroutine per call.
 	interruptTrackedCtx context.Context
 	interruptCancel     context.CancelFunc
+***REMOVED***
+
+func (u *VU) Reconfigure(id int64) error ***REMOVED***
+	u.ID = id
+	u.Iteration = 0
+	u.Runtime.Set("__VU", u.ID)
+	return nil
 ***REMOVED***
 
 func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
@@ -251,9 +290,18 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		***REMOVED***()
 	***REMOVED***
 
-	cookieJar, err := cookiejar.New(nil)
+	// Call the default function.
+	_, state, err := u.runFn(ctx, u.Default, u.setupData)
 	if err != nil ***REMOVED***
 		return nil, err
+	***REMOVED***
+	return state.Samples, nil
+***REMOVED***
+
+func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (goja.Value, *common.State, error) ***REMOVED***
+	cookieJar, err := cookiejar.New(nil)
+	if err != nil ***REMOVED***
+		return goja.Undefined(), nil, err
 	***REMOVED***
 
 	state := &common.State***REMOVED***
@@ -281,7 +329,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	u.Iteration++
 
 	startTime := time.Now()
-	_, err = u.Default(goja.Undefined(), u.Runner.setupData) // Actually run the JS script
+	v, err := fn(goja.Undefined(), args...) // Actually run the JS script
 	t := time.Now()
 
 	tags := map[string]string***REMOVED******REMOVED***
@@ -292,7 +340,7 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
 
-	samples := append(state.Samples,
+    state.Samples := append(state.Samples,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: tags***REMOVED***,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: tags***REMOVED***,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: tags***REMOVED***,
@@ -301,12 +349,5 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
-	return samples, err
-***REMOVED***
-
-func (u *VU) Reconfigure(id int64) error ***REMOVED***
-	u.ID = id
-	u.Iteration = 0
-	u.Runtime.Set("__VU", u.ID)
-	return nil
+	return v, state, err
 ***REMOVED***

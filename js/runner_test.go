@@ -67,43 +67,6 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 
-	t.Run("SetupTeardown", func(t *testing.T) ***REMOVED***
-		r, err := New(&lib.SourceData***REMOVED***
-			Filename: "/script.js",
-			Data: []byte(`
-				export function setup() ***REMOVED***
-					return ***REMOVED*** v: 1 ***REMOVED***;
-				***REMOVED***
-				export function teardown(data) ***REMOVED***
-					if (data.v != 1) ***REMOVED***
-						throw new Error("teardown: wrong data: " + JSON.stringify(data))
-					***REMOVED***
-				***REMOVED***
-				export default function(data) ***REMOVED***
-					if (data.v != 1) ***REMOVED***
-						throw new Error("default: wrong data: " + JSON.stringify(data))
-					***REMOVED***
-				***REMOVED***
-			`),
-		***REMOVED***, afero.NewMemMapFs())
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
-		if !assert.NoError(t, r.Setup()) ***REMOVED***
-			return
-		***REMOVED***
-
-		t.Run("VU", func(t *testing.T) ***REMOVED***
-			vu, err := r.NewVU()
-			if assert.NoError(t, err) ***REMOVED***
-				_, err := vu.RunOnce(context.Background())
-				assert.NoError(t, err)
-			***REMOVED***
-		***REMOVED***)
-
-		assert.NoError(t, r.Teardown())
-	***REMOVED***)
-
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		_, err := New(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
@@ -153,6 +116,52 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestSetupTeardown(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export function setup() ***REMOVED***
+				return ***REMOVED*** v: 1 ***REMOVED***;
+			***REMOVED***
+			export function teardown(data) ***REMOVED***
+				if (data.v != 1) ***REMOVED***
+					throw new Error("teardown: wrong data: " + JSON.stringify(data))
+				***REMOVED***
+			***REMOVED***
+			export default function(data) ***REMOVED***
+				if (data.v != 1) ***REMOVED***
+					throw new Error("default: wrong data: " + JSON.stringify(data))
+				***REMOVED***
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r2, err := NewFromArchive(r1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			if !assert.NoError(t, r.Setup(context.Background())) ***REMOVED***
+				return
+			***REMOVED***
+
+			vu, err := r.NewVU()
+			if assert.NoError(t, err) ***REMOVED***
+				_, err := vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***
+
+			assert.NoError(t, r.Teardown(context.Background()))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
