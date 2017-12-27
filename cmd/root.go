@@ -25,7 +25,6 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"github.com/loadimpact/k6/lib/loggers"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -68,17 +67,11 @@ var RootCmd = &cobra.Command***REMOVED***
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
-		l := log.StandardLogger()
-		l.Out = stderr
-		l.Formatter = &log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***
-		if verbose ***REMOVED***
-			l.SetLevel(log.DebugLevel)
-		***REMOVED***
+		setupLoggers(logFmt)
 		if noColor ***REMOVED***
 			stdout.Writer = colorable.NewNonColorable(os.Stdout)
 			stdout.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
-		setupLoggers(logFmt)
 	***REMOVED***,
 ***REMOVED***
 
@@ -105,10 +98,18 @@ func init() ***REMOVED***
 ***REMOVED***
 
 func setupLoggers(logFmt string) ***REMOVED***
+	if verbose ***REMOVED***
+		log.SetLevel(log.DebugLevel)
+	***REMOVED***
+	log.SetOutput(stderr)
+
 	switch logFmt ***REMOVED***
 	case "json":
-		loggers.SetupJSON()
+		log.SetFormatter(&log.JSONFormatter***REMOVED******REMOVED***)
+		log.Debug("Logger format: JSON")
 	default:
-		log.Debugf("Logger type unknown: %s. Using default instead", logFmt)
+		log.SetFormatter(&log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***)
+		log.Debug("Logger format: TEXT")
 	***REMOVED***
+
 ***REMOVED***
