@@ -22,6 +22,7 @@ package http
 
 import (
 	"bytes"
+	"compress/gzip"
 	"compress/zlib"
 	"context"
 	"io"
@@ -264,6 +265,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	if resErr == nil && res != nil ***REMOVED***
 		if res.Header.Get("Content-Encoding") == "deflate" ***REMOVED***
 			res.Body, resErr = zlib.NewReader(res.Body)
+		***REMOVED***
+		if res.Header.Get("Content-Encoding") == "gzip" ***REMOVED***
+			res.Body, resErr = gzip.NewReader(res.Body)
 		***REMOVED***
 	***REMOVED***
 	if resErr == nil && res != nil ***REMOVED***
