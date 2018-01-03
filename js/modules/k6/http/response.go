@@ -177,7 +177,7 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 	var requestMethod string
 	if methodAttr == goja.Undefined() ***REMOVED***
 		// Use GET by default
-		requestMethod = "GET"
+		requestMethod = "GET" // nolint: goconst
 	***REMOVED*** else ***REMOVED***
 		requestMethod = strings.ToUpper(methodAttr.String())
 	***REMOVED***
