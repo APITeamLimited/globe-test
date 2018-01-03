@@ -192,5 +192,15 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
 		***REMOVED***)
+
+		t.Run("withNonExistentForm", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org/forms/post");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res.submitForm(***REMOVED*** formSelector: "#doesNotExist" ***REMOVED***)
+		`)
+			assert.EqualError(t, err, "GoError: no form found for selector '#doesNotExist' in response 'https://httpbin.org/forms/post'")
+		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
