@@ -263,7 +263,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		assert.Error(t, err)
 		assert.Nil(t, hook.LastEntry())
 	***REMOVED***)
-
 	t.Run("HTTP/2", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
 		_, err := common.RunString(rt, `
@@ -276,72 +275,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		for _, sample := range state.Samples ***REMOVED***
 			assert.Equal(t, "HTTP/2.0", sample.Tags["proto"])
 		***REMOVED***
-	***REMOVED***)
-
-	t.Run("HTML", func(t *testing.T) ***REMOVED***
-		state.Samples = nil
-		_, err := common.RunString(rt, `
-		let res = http.request("GET", "https://httpbin.org/html");
-		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-		if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
-		`)
-		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", "", 200, "")
-
-		t.Run("html", func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, `
-			if (res.html().find("h1").text() != "Herman Melville - Moby-Dick") ***REMOVED*** throw new Error("wrong title: " + res.body); ***REMOVED***
-			`)
-			assert.NoError(t, err)
-
-			t.Run("shorthand", func(t *testing.T) ***REMOVED***
-				_, err := common.RunString(rt, `
-				if (res.html("h1").text() != "Herman Melville - Moby-Dick") ***REMOVED*** throw new Error("wrong title: " + res.body); ***REMOVED***
-				`)
-				assert.NoError(t, err)
-			***REMOVED***)
-
-			t.Run("url", func(t *testing.T) ***REMOVED***
-				_, err := common.RunString(rt, `
-				if (res.html().url != "https://httpbin.org/html") ***REMOVED*** throw new Error("url incorrect: " + res.html().url); ***REMOVED***
-				`)
-				assert.NoError(t, err)
-			***REMOVED***)
-		***REMOVED***)
-
-		t.Run("group", func(t *testing.T) ***REMOVED***
-			g, err := root.Group("my group")
-			if assert.NoError(t, err) ***REMOVED***
-				old := state.Group
-				state.Group = g
-				defer func() ***REMOVED*** state.Group = old ***REMOVED***()
-			***REMOVED***
-
-			state.Samples = nil
-			_, err = common.RunString(rt, `
-			let res = http.request("GET", "https://httpbin.org/html");
-			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-			if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
-			`)
-			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/html", "", 200, "::my group")
-		***REMOVED***)
-	***REMOVED***)
-	t.Run("JSON", func(t *testing.T) ***REMOVED***
-		state.Samples = nil
-		_, err := common.RunString(rt, `
-		let res = http.request("GET", "https://httpbin.org/get?a=1&b=2");
-		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-		if (res.json().args.a != "1") ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
-		if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
-		`)
-		assert.NoError(t, err)
-		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get?a=1&b=2", "", 200, "")
-
-		t.Run("Invalid", func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, `http.request("GET", "https://httpbin.org/html").json();`)
-			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
-		***REMOVED***)
 	***REMOVED***)
 	t.Run("TLS", func(t *testing.T) ***REMOVED***
 		t.Run("cert_expired", func(t *testing.T) ***REMOVED***
