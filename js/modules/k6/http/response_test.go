@@ -143,10 +143,16 @@ func TestResponse(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
 		let res = http.request("GET", "https://httpbin.org/forms/post");
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-		res = res.submitForm()
+		res = res.submitForm(***REMOVED*** fields: ***REMOVED*** custname: "test", extradata: "test2" ***REMOVED*** ***REMOVED***)
         if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
         let data = res.json().form
-        if (data.comments !== "" || data.custemail !== "" || data.custname !== "" || data.custtel !== "" || data.delivery !== "" ) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
+        if (data.custname !== "test" ||
+			data.extradata !== "test2" || 
+			data.comments !== "" || 
+			data.custemail !== "" || 
+			data.custtel !== "" || 
+			data.delivery !== "" 
+		) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 		`)
 		assert.NoError(t, err)
 	***REMOVED***)
