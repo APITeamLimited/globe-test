@@ -208,10 +208,8 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 	***REMOVED***
 
 	// Set the values supplied in the arguments, overriding automatically set values
-	if fields != nil ***REMOVED***
-		for k, v := range fields ***REMOVED***
-			body[k] = v
-		***REMOVED***
+	for k, v := range fields ***REMOVED***
+		body[k] = v
 	***REMOVED***
 
 	if requestParams == nil ***REMOVED***
