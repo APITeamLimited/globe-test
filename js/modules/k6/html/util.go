@@ -33,14 +33,6 @@ func namespaceURI(prefix string) string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func value(s *goquery.Selection) string ***REMOVED***
-	if val, exists := s.Attr("value"); exists ***REMOVED***
-		return val
-	***REMOVED***
-
-	return ""
-***REMOVED***
-
 func valueOrHTML(s *goquery.Selection) string ***REMOVED***
 	if val, exists := s.Attr("value"); exists ***REMOVED***
 		return val
