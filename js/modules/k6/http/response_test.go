@@ -193,6 +193,26 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
 		***REMOVED***)
 
+		t.Run("withFormSelector", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org/forms/post");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.submitForm(***REMOVED*** formSelector: 'form[method="post"]' ***REMOVED***)
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			let data = res.json().form
+			if (data.custname !== "" ||
+				data.extradata !== undefined || 
+				data.comments !== "" || 
+				data.custemail !== "" || 
+				data.custtel !== "" || 
+				data.delivery !== "" 
+			) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
+		`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
+		***REMOVED***)
+		
 		t.Run("withNonExistentForm", func(t *testing.T) ***REMOVED***
 			state.Samples = nil
 			_, err := common.RunString(rt, `
