@@ -29,6 +29,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -108,7 +109,16 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return err
 		***REMOVED***
 
-		name := filepath.Base(filename)
+		if val, ok := arc.Options.External["loadimpact"]; ok ***REMOVED***
+			if err := mapstructure.Decode(val, &cloudConfig); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+		name := cloudConfig.Name
+		if name == "" ***REMOVED***
+			name = filepath.Base(filename)
+		***REMOVED***
+
 		refID, err := client.StartCloudTestRun(name, arc)
 		if err != nil ***REMOVED***
 			return err
