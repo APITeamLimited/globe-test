@@ -130,7 +130,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 			***REMOVED***
 		***REMOVED***
 		if hasError || wantsContext || wantsContextPtr ***REMOVED***
-			isVaradic := fnT.IsVariadic()
+			isVariadic := fnT.IsVariadic()
 			realFn := fn
 			fn = reflect.ValueOf(func(call goja.FunctionCall) goja.Value ***REMOVED***
 				// Number of arguments: the higher number between the function's required arguments
@@ -165,7 +165,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 					***REMOVED***
 
 					// The last arg to a varadic function is a slice of the remainder.
-					if isVaradic && i == numIn-1 ***REMOVED***
+					if isVariadic && i == numIn-1 ***REMOVED***
 						varArgsLen := len(call.Arguments) - (i - reservedArgs)
 						if varArgsLen <= 0 ***REMOVED***
 							args[i] = reflect.Zero(T)
@@ -206,7 +206,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 				***REMOVED***
 
 				var ret []reflect.Value
-				if isVaradic ***REMOVED***
+				if isVariadic ***REMOVED***
 					ret = realFn.CallSlice(args)
 				***REMOVED*** else ***REMOVED***
 					ret = realFn.Call(args)
