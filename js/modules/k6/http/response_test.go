@@ -212,7 +212,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
 		***REMOVED***)
-		
+
 		t.Run("withNonExistentForm", func(t *testing.T) ***REMOVED***
 			state.Samples = nil
 			_, err := common.RunString(rt, `
