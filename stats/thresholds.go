@@ -22,7 +22,6 @@ package stats
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/dop251/goja"
@@ -107,7 +106,6 @@ func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 func (ts *Thresholds) UpdateVM(sink Sink, t time.Duration) error ***REMOVED***
 	ts.Runtime.Set("__sink__", sink)
 	f := sink.Format(t)
-	fmt.Println(f)
 	for k, v := range f ***REMOVED***
 		ts.Runtime.Set(k, v)
 	***REMOVED***
