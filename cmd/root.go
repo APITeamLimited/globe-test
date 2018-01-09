@@ -55,6 +55,7 @@ var (
 	verbose bool
 	quiet   bool
 	noColor bool
+	logFmt  string
 	address string
 )
 
@@ -66,12 +67,7 @@ var RootCmd = &cobra.Command***REMOVED***
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
-		l := log.StandardLogger()
-		l.Out = stderr
-		l.Formatter = &log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***
-		if verbose ***REMOVED***
-			l.SetLevel(log.DebugLevel)
-		***REMOVED***
+		setupLoggers(logFmt)
 		if noColor ***REMOVED***
 			stdout.Writer = colorable.NewNonColorable(os.Stdout)
 			stdout.Writer = colorable.NewNonColorable(os.Stderr)
@@ -95,7 +91,25 @@ func init() ***REMOVED***
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	RootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "disable progress updates")
 	RootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
+	RootCmd.PersistentFlags().StringVar(&logFmt, "logformat", "", "log output format")
 	RootCmd.PersistentFlags().StringVarP(&address, "address", "a", "localhost:6565", "address for the api server")
 	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default ./k6.yaml or ~/.config/k6.yaml)")
 	must(cobra.MarkFlagFilename(RootCmd.PersistentFlags(), "config"))
+***REMOVED***
+
+func setupLoggers(logFmt string) ***REMOVED***
+	if verbose ***REMOVED***
+		log.SetLevel(log.DebugLevel)
+	***REMOVED***
+	log.SetOutput(stderr)
+
+	switch logFmt ***REMOVED***
+	case "json":
+		log.SetFormatter(&log.JSONFormatter***REMOVED******REMOVED***)
+		log.Debug("Logger format: JSON")
+	default:
+		log.SetFormatter(&log.TextFormatter***REMOVED***ForceColors: stderrTTY***REMOVED***)
+		log.Debug("Logger format: TEXT")
+	***REMOVED***
+
 ***REMOVED***
