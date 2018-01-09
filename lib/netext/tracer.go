@@ -21,6 +21,7 @@
 package netext
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http/httptrace"
 	"time"
@@ -38,11 +39,12 @@ type Trail struct ***REMOVED***
 	// Total request duration, excluding DNS lookup and connect time.
 	Duration time.Duration
 
-	Blocked    time.Duration // Waiting to acquire a connection.
-	Connecting time.Duration // Connecting to remote host.
-	Sending    time.Duration // Writing request.
-	Waiting    time.Duration // Waiting for first byte.
-	Receiving  time.Duration // Receiving response.
+	Blocked        time.Duration // Waiting to acquire a connection.
+	Connecting     time.Duration // Connecting to remote host.
+	Sending        time.Duration // Writing request.
+	Waiting        time.Duration // Waiting for first byte.
+	Receiving      time.Duration // Receiving response.
+	TLSHandshaking time.Duration // Executing TLS handshake.
 
 	// Detailed connection information.
 	ConnReused     bool
@@ -58,6 +60,7 @@ func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqTLSShaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -73,6 +76,8 @@ type Tracer struct ***REMOVED***
 	connectStart         time.Time
 	connectDone          time.Time
 	wroteRequest         time.Time
+	tlsHandshakeStart    time.Time
+	tlsHandshakeDone     time.Time
 
 	connReused     bool
 	connRemoteAddr net.Addr
@@ -89,6 +94,8 @@ func (t *Tracer) Trace() *httptrace.ClientTrace ***REMOVED***
 		ConnectStart:         t.ConnectStart,
 		ConnectDone:          t.ConnectDone,
 		WroteRequest:         t.WroteRequest,
+		TLSHandshakeStart:    t.TLSHandshakeStart,
+		TLSHandshakeDone:     t.TLSHandshakeDone,
 	***REMOVED***
 ***REMOVED***
 
@@ -106,6 +113,9 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	***REMOVED***
 	if !t.connectDone.IsZero() && !t.connectStart.IsZero() ***REMOVED***
 		trail.Connecting = t.connectDone.Sub(t.connectStart)
+	***REMOVED***
+	if !t.tlsHandshakeDone.IsZero() && !t.tlsHandshakeStart.IsZero() ***REMOVED***
+		trail.TLSHandshaking = t.tlsHandshakeDone.Sub(t.tlsHandshakeStart)
 	***REMOVED***
 	if !t.wroteRequest.IsZero() ***REMOVED***
 		trail.Sending = t.wroteRequest.Sub(t.connectDone)
@@ -168,6 +178,20 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 	if t.gotConn.IsZero() ***REMOVED***
 		t.gotConn = t.connectDone
 	***REMOVED***
+
+	if err != nil ***REMOVED***
+		t.protoError = err
+	***REMOVED***
+***REMOVED***
+
+// TLSHandshakeStart hook.
+func (t *Tracer) TLSHandshakeStart() ***REMOVED***
+	t.tlsHandshakeStart = time.Now()
+***REMOVED***
+
+// TLSHandshakeDone hook.
+func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) ***REMOVED***
+	t.tlsHandshakeDone = time.Now()
 
 	if err != nil ***REMOVED***
 		t.protoError = err
