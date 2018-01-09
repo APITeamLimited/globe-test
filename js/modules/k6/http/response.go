@@ -151,7 +151,7 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 	formSelector := "form"
 	submitSelector := "[type=\"submit\"]"
 	var fields map[string]goja.Value
-	var requestParams goja.Value
+	requestParams := goja.Null()
 	if len(args) > 0 ***REMOVED***
 		params := args[0].ToObject(rt)
 		for _, k := range params.Keys() ***REMOVED***
@@ -191,8 +191,14 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 		requestUrl = rt.ToValue(res.URL)
 	***REMOVED*** else ***REMOVED***
 		// Resolve the action url from the response url
-		responseUrl, _ := url.Parse(res.URL)
-		actionUrl, _ := url.Parse(actionAttr.String())
+		responseUrl, responseUrlError := url.Parse(res.URL)
+		if responseUrlError != nil ***REMOVED***
+			common.Throw(rt, responseUrlError)
+		***REMOVED***
+		actionUrl, actionUrlError := url.Parse(actionAttr.String())
+		if actionUrlError != nil ***REMOVED***
+			common.Throw(rt, actionUrlError)
+		***REMOVED***
 		requestUrl = rt.ToValue(responseUrl.ResolveReference(actionUrl).String())
 	***REMOVED***
 
@@ -211,10 +217,6 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 	for k, v := range fields ***REMOVED***
 		body[k] = v
 	***REMOVED***
-
-	if requestParams == nil ***REMOVED***
-		return New().Request(res.ctx, requestMethod, requestUrl, rt.ToValue(body))
-	***REMOVED*** else ***REMOVED***
-		return New().Request(res.ctx, requestMethod, requestUrl, rt.ToValue(body), requestParams)
-	***REMOVED***
+	
+	return New().Request(res.ctx, requestMethod, requestUrl, rt.ToValue(body), requestParams)
 ***REMOVED***
