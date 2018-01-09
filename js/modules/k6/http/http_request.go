@@ -47,29 +47,29 @@ import (
 func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, "GET", url, args...)
+	return http.Request(ctx, HTTP_METHOD_GET, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, "HEAD", url, args...)
+	return http.Request(ctx, HTTP_METHOD_HEAD, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "POST", url, args...)
+	return http.Request(ctx, HTTP_METHOD_POST, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "PUT", url, args...)
+	return http.Request(ctx, HTTP_METHOD_PUT, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "PATCH", url, args...)
+	return http.Request(ctx, HTTP_METHOD_PATCH, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, "DELETE", url, args...)
+	return http.Request(ctx, HTTP_METHOD_DELETE, url, args...)
 ***REMOVED***
 
 func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
@@ -93,7 +93,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		if rt.ExportTo(args[0], &data) == nil ***REMOVED***
 			bodyQuery := make(neturl.Values, len(data))
 			for k, v := range data ***REMOVED***
-				bodyQuery.Set(k, v.String())
+				if v != goja.Undefined() ***REMOVED***
+					bodyQuery.Set(k, v.String())
+				***REMOVED***
 			***REMOVED***
 			bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
 			contentType = "application/x-www-form-urlencoded"
@@ -375,7 +377,7 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		k := k
 		v := reqs.Get(k)
 
-		method := "GET"
+		method := HTTP_METHOD_GET
 		var url URL
 		var args []goja.Value
 
@@ -397,7 +399,7 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 				switch objk ***REMOVED***
 				case "0", "method":
 					method = strings.ToUpper(objv.String())
-					if method == "GET" || method == "HEAD" ***REMOVED***
+					if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
 						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
 					***REMOVED***
 				case "1", "url":
