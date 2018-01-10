@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -231,6 +232,13 @@ func Fail(t TestingT, failureMessage string, msgAndArgs ...interface***REMOVED**
 		***REMOVED***"Error", failureMessage***REMOVED***,
 	***REMOVED***
 
+	// Add test name if the Go version supports it
+	if n, ok := t.(interface ***REMOVED***
+		Name() string
+	***REMOVED***); ok ***REMOVED***
+		content = append(content, labeledContent***REMOVED***"Test", n.Name()***REMOVED***)
+	***REMOVED***
+
 	message := messageFromMsgAndArgs(msgAndArgs...)
 	if len(message) > 0 ***REMOVED***
 		content = append(content, labeledContent***REMOVED***"Messages", message***REMOVED***)
@@ -273,15 +281,16 @@ func labeledOutput(content ...labeledContent) string ***REMOVED***
 //
 //    assert.Implements(t, (*MyInterface)(nil), new(MyObject))
 func Implements(t TestingT, interfaceObject interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-
 	interfaceType := reflect.TypeOf(interfaceObject).Elem()
 
+	if object == nil ***REMOVED***
+		return Fail(t, fmt.Sprintf("Cannot check if nil implements %v", interfaceType), msgAndArgs...)
+	***REMOVED***
 	if !reflect.TypeOf(object).Implements(interfaceType) ***REMOVED***
 		return Fail(t, fmt.Sprintf("%T must implement %v", object, interfaceType), msgAndArgs...)
 	***REMOVED***
 
 	return true
-
 ***REMOVED***
 
 // IsType asserts that the specified objects are of the same type.
@@ -298,8 +307,6 @@ func IsType(t TestingT, expectedType interface***REMOVED******REMOVED***, object
 //
 //    assert.Equal(t, 123, 123)
 //
-// Returns whether the assertion was successful (true) or not (false).
-//
 // Pointer variable equality is determined based on the equality of the
 // referenced values (as opposed to the memory addresses). Function equality
 // cannot be determined and will always fail.
@@ -314,7 +321,7 @@ func Equal(t TestingT, expected, actual interface***REMOVED******REMOVED***, msg
 		expected, actual = formatUnequalValues(expected, actual)
 		return Fail(t, fmt.Sprintf("Not equal: \n"+
 			"expected: %s\n"+
-			"actual: %s%s", expected, actual, diff), msgAndArgs...)
+			"actual  : %s%s", expected, actual, diff), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -341,8 +348,6 @@ func formatUnequalValues(expected, actual interface***REMOVED******REMOVED***) (
 // and equal.
 //
 //    assert.EqualValues(t, uint32(123), int32(123))
-//
-// Returns whether the assertion was successful (true) or not (false).
 func EqualValues(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if !ObjectsAreEqualValues(expected, actual) ***REMOVED***
@@ -350,18 +355,16 @@ func EqualValues(t TestingT, expected, actual interface***REMOVED******REMOVED**
 		expected, actual = formatUnequalValues(expected, actual)
 		return Fail(t, fmt.Sprintf("Not equal: \n"+
 			"expected: %s\n"+
-			"actual: %s%s", expected, actual, diff), msgAndArgs...)
+			"actual  : %s%s", expected, actual, diff), msgAndArgs...)
 	***REMOVED***
 
 	return true
 
 ***REMOVED***
 
-// Exactly asserts that two objects are equal is value and type.
+// Exactly asserts that two objects are equal in value and type.
 //
 //    assert.Exactly(t, int32(123), int64(123))
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Exactly(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	aType := reflect.TypeOf(expected)
@@ -378,8 +381,6 @@ func Exactly(t TestingT, expected, actual interface***REMOVED******REMOVED***, m
 // NotNil asserts that the specified object is not nil.
 //
 //    assert.NotNil(t, err)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotNil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if !isNil(object) ***REMOVED***
 		return true
@@ -405,8 +406,6 @@ func isNil(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 // Nil asserts that the specified object is nil.
 //
 //    assert.Nil(t, err)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Nil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if isNil(object) ***REMOVED***
 		return true
@@ -414,74 +413,38 @@ func Nil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...i
 	return Fail(t, fmt.Sprintf("Expected nil, but got: %#v", object), msgAndArgs...)
 ***REMOVED***
 
-var numericZeros = []interface***REMOVED******REMOVED******REMOVED***
-	int(0),
-	int8(0),
-	int16(0),
-	int32(0),
-	int64(0),
-	uint(0),
-	uint8(0),
-	uint16(0),
-	uint32(0),
-	uint64(0),
-	float32(0),
-	float64(0),
-***REMOVED***
-
 // isEmpty gets whether the specified object is considered empty or not.
 func isEmpty(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 
+	// get nil case out of the way
 	if object == nil ***REMOVED***
 		return true
-	***REMOVED*** else if object == "" ***REMOVED***
-		return true
-	***REMOVED*** else if object == false ***REMOVED***
-		return true
-	***REMOVED***
-
-	for _, v := range numericZeros ***REMOVED***
-		if object == v ***REMOVED***
-			return true
-		***REMOVED***
 	***REMOVED***
 
 	objValue := reflect.ValueOf(object)
 
 	switch objValue.Kind() ***REMOVED***
-	case reflect.Map:
-		fallthrough
-	case reflect.Slice, reflect.Chan:
-		***REMOVED***
-			return (objValue.Len() == 0)
-		***REMOVED***
-	case reflect.Struct:
-		switch object.(type) ***REMOVED***
-		case time.Time:
-			return object.(time.Time).IsZero()
-		***REMOVED***
+	// collection types are empty when they have no element
+	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice:
+		return objValue.Len() == 0
+	// pointers are empty if nil or if the value they point to is empty
 	case reflect.Ptr:
+		if objValue.IsNil() ***REMOVED***
+			return true
 		***REMOVED***
-			if objValue.IsNil() ***REMOVED***
-				return true
-			***REMOVED***
-			switch object.(type) ***REMOVED***
-			case *time.Time:
-				return object.(*time.Time).IsZero()
-			default:
-				return false
-			***REMOVED***
-		***REMOVED***
+		deref := objValue.Elem().Interface()
+		return isEmpty(deref)
+	// for all other types, compare against the zero value
+	default:
+		zero := reflect.Zero(objValue.Type())
+		return reflect.DeepEqual(object, zero.Interface())
 	***REMOVED***
-	return false
 ***REMOVED***
 
 // Empty asserts that the specified object is empty.  I.e. nil, "", false, 0 or either
 // a slice or a channel with len == 0.
 //
 //  assert.Empty(t, obj)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	pass := isEmpty(object)
@@ -499,8 +462,6 @@ func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ..
 //  if assert.NotEmpty(t, obj) ***REMOVED***
 //    assert.Equal(t, "two", obj[1])
 //  ***REMOVED***
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotEmpty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	pass := !isEmpty(object)
@@ -528,8 +489,6 @@ func getLen(x interface***REMOVED******REMOVED***) (ok bool, length int) ***REMO
 // Len also fails if the object has a type that len() not accept.
 //
 //    assert.Len(t, mySlice, 3)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Len(t TestingT, object interface***REMOVED******REMOVED***, length int, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	ok, l := getLen(object)
 	if !ok ***REMOVED***
@@ -545,8 +504,6 @@ func Len(t TestingT, object interface***REMOVED******REMOVED***, length int, msg
 // True asserts that the specified value is true.
 //
 //    assert.True(t, myBool)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if value != true ***REMOVED***
@@ -560,8 +517,6 @@ func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED
 // False asserts that the specified value is false.
 //
 //    assert.False(t, myBool)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func False(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if value != false ***REMOVED***
@@ -575,8 +530,6 @@ func False(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVE
 // NotEqual asserts that the specified values are NOT equal.
 //
 //    assert.NotEqual(t, obj1, obj2)
-//
-// Returns whether the assertion was successful (true) or not (false).
 //
 // Pointer variable equality is determined based on the equality of the
 // referenced values (as opposed to the memory addresses).
@@ -638,8 +591,6 @@ func includeElement(list interface***REMOVED******REMOVED***, element interface*
 //    assert.Contains(t, "Hello World", "World")
 //    assert.Contains(t, ["Hello", "World"], "World")
 //    assert.Contains(t, ***REMOVED***"Hello": "World"***REMOVED***, "Hello")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	ok, found := includeElement(s, contains)
@@ -660,8 +611,6 @@ func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAn
 //    assert.NotContains(t, "Hello World", "Earth")
 //    assert.NotContains(t, ["Hello", "World"], "Earth")
 //    assert.NotContains(t, ***REMOVED***"Hello": "World"***REMOVED***, "Earth")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotContains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	ok, found := includeElement(s, contains)
@@ -680,8 +629,6 @@ func NotContains(t TestingT, s, contains interface***REMOVED******REMOVED***, ms
 // elements given in the specified subset(array, slice...).
 //
 //    assert.Subset(t, [1, 2, 3], [1, 2], "But [1, 2, 3] does contain [1, 2]")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
 	if subset == nil ***REMOVED***
 		return true // we consider nil to be equal to the nil set
@@ -723,11 +670,9 @@ func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAnd
 // elements given in the specified subset(array, slice...).
 //
 //    assert.NotSubset(t, [1, 3, 4], [1, 2], "But [1, 3, 4] does not contain [1, 2]")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
 	if subset == nil ***REMOVED***
-		return false // we consider nil to be equal to the nil set
+		return Fail(t, fmt.Sprintf("nil is the empty set which is a subset of every set"), msgAndArgs...)
 	***REMOVED***
 
 	subsetValue := reflect.ValueOf(subset)
@@ -760,6 +705,60 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 	***REMOVED***
 
 	return Fail(t, fmt.Sprintf("%q is a subset of %q", subset, list), msgAndArgs...)
+***REMOVED***
+
+// ElementsMatch asserts that the specified listA(array, slice...) is equal to specified
+// listB(array, slice...) ignoring the order of the elements. If there are duplicate elements,
+// the number of appearances of each of them in both lists should match.
+//
+// assert.ElementsMatch(t, [1, 3, 2, 3], [1, 3, 3, 2]))
+func ElementsMatch(t TestingT, listA, listB interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
+	if isEmpty(listA) && isEmpty(listB) ***REMOVED***
+		return true
+	***REMOVED***
+
+	aKind := reflect.TypeOf(listA).Kind()
+	bKind := reflect.TypeOf(listB).Kind()
+
+	if aKind != reflect.Array && aKind != reflect.Slice ***REMOVED***
+		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", listA, aKind), msgAndArgs...)
+	***REMOVED***
+
+	if bKind != reflect.Array && bKind != reflect.Slice ***REMOVED***
+		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", listB, bKind), msgAndArgs...)
+	***REMOVED***
+
+	aValue := reflect.ValueOf(listA)
+	bValue := reflect.ValueOf(listB)
+
+	aLen := aValue.Len()
+	bLen := bValue.Len()
+
+	if aLen != bLen ***REMOVED***
+		return Fail(t, fmt.Sprintf("lengths don't match: %d != %d", aLen, bLen), msgAndArgs...)
+	***REMOVED***
+
+	// Mark indexes in bValue that we already used
+	visited := make([]bool, bLen)
+	for i := 0; i < aLen; i++ ***REMOVED***
+		element := aValue.Index(i).Interface()
+		found := false
+		for j := 0; j < bLen; j++ ***REMOVED***
+			if visited[j] ***REMOVED***
+				continue
+			***REMOVED***
+			if ObjectsAreEqual(bValue.Index(j).Interface(), element) ***REMOVED***
+				visited[j] = true
+				found = true
+				break
+			***REMOVED***
+		***REMOVED***
+		if !found ***REMOVED***
+			return Fail(t, fmt.Sprintf("element %s appears more times in %s than in %s", element, aValue, bValue), msgAndArgs...)
+		***REMOVED***
+	***REMOVED***
+
+	return true
 ***REMOVED***
 
 // Condition uses a Comparison to assert a complex condition.
@@ -800,8 +799,6 @@ func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***) ***RE
 // Panics asserts that the code inside the specified PanicTestFunc panics.
 //
 //   assert.Panics(t, func()***REMOVED*** GoCrazy() ***REMOVED***)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Panics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if funcDidPanic, panicValue := didPanic(f); !funcDidPanic ***REMOVED***
@@ -815,8 +812,6 @@ func Panics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******
 // the recovered panic value equals the expected panic value.
 //
 //   assert.PanicsWithValue(t, "crazy error", func()***REMOVED*** GoCrazy() ***REMOVED***)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func PanicsWithValue(t TestingT, expected interface***REMOVED******REMOVED***, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	funcDidPanic, panicValue := didPanic(f)
@@ -833,8 +828,6 @@ func PanicsWithValue(t TestingT, expected interface***REMOVED******REMOVED***, f
 // NotPanics asserts that the code inside the specified PanicTestFunc does NOT panic.
 //
 //   assert.NotPanics(t, func()***REMOVED*** RemainCalm() ***REMOVED***)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotPanics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if funcDidPanic, panicValue := didPanic(f); funcDidPanic ***REMOVED***
@@ -847,8 +840,6 @@ func NotPanics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED***
 // WithinDuration asserts that the two times are within duration delta of each other.
 //
 //   assert.WithinDuration(t, time.Now(), time.Now(), 10*time.Second)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func WithinDuration(t TestingT, expected, actual time.Time, delta time.Duration, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	dt := expected.Sub(actual)
@@ -886,6 +877,8 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 		xf = float64(xn)
 	case float64:
 		xf = float64(xn)
+	case time.Duration:
+		xf = float64(xn)
 	default:
 		xok = false
 	***REMOVED***
@@ -896,8 +889,6 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 // InDelta asserts that the two numerals are within delta of each other.
 //
 // 	 assert.InDelta(t, math.Pi, (22 / 7.0), 0.01)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	af, aok := toFloat(expected)
@@ -908,7 +899,7 @@ func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, d
 	***REMOVED***
 
 	if math.IsNaN(af) ***REMOVED***
-		return Fail(t, fmt.Sprintf("Actual must not be NaN"), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Expected must not be NaN"), msgAndArgs...)
 	***REMOVED***
 
 	if math.IsNaN(bf) ***REMOVED***
@@ -944,6 +935,47 @@ func InDeltaSlice(t TestingT, expected, actual interface***REMOVED******REMOVED*
 	return true
 ***REMOVED***
 
+// InDeltaMapValues is the same as InDelta, but it compares all values between two maps. Both maps must have exactly the same keys.
+func InDeltaMapValues(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if expected == nil || actual == nil ||
+		reflect.TypeOf(actual).Kind() != reflect.Map ||
+		reflect.TypeOf(expected).Kind() != reflect.Map ***REMOVED***
+		return Fail(t, "Arguments must be maps", msgAndArgs...)
+	***REMOVED***
+
+	expectedMap := reflect.ValueOf(expected)
+	actualMap := reflect.ValueOf(actual)
+
+	if expectedMap.Len() != actualMap.Len() ***REMOVED***
+		return Fail(t, "Arguments must have the same numbe of keys", msgAndArgs...)
+	***REMOVED***
+
+	for _, k := range expectedMap.MapKeys() ***REMOVED***
+		ev := expectedMap.MapIndex(k)
+		av := actualMap.MapIndex(k)
+
+		if !ev.IsValid() ***REMOVED***
+			return Fail(t, fmt.Sprintf("missing key %q in expected map", k), msgAndArgs...)
+		***REMOVED***
+
+		if !av.IsValid() ***REMOVED***
+			return Fail(t, fmt.Sprintf("missing key %q in actual map", k), msgAndArgs...)
+		***REMOVED***
+
+		if !InDelta(
+			t,
+			ev.Interface(),
+			av.Interface(),
+			delta,
+			msgAndArgs...,
+		) ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+
+	return true
+***REMOVED***
+
 func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (float64, error) ***REMOVED***
 	af, aok := toFloat(expected)
 	if !aok ***REMOVED***
@@ -954,15 +986,13 @@ func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (fl
 	***REMOVED***
 	bf, bok := toFloat(actual)
 	if !bok ***REMOVED***
-		return 0, fmt.Errorf("expected value %q cannot be converted to float", actual)
+		return 0, fmt.Errorf("actual value %q cannot be converted to float", actual)
 	***REMOVED***
 
 	return math.Abs(af-bf) / math.Abs(af), nil
 ***REMOVED***
 
 // InEpsilon asserts that expected and actual have a relative error less than epsilon
-//
-// Returns whether the assertion was successful (true) or not (false).
 func InEpsilon(t TestingT, expected, actual interface***REMOVED******REMOVED***, epsilon float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	actualEpsilon, err := calcRelativeError(expected, actual)
 	if err != nil ***REMOVED***
@@ -970,7 +1000,7 @@ func InEpsilon(t TestingT, expected, actual interface***REMOVED******REMOVED***,
 	***REMOVED***
 	if actualEpsilon > epsilon ***REMOVED***
 		return Fail(t, fmt.Sprintf("Relative error is too high: %#v (expected)\n"+
-			"        < %#v (actual)", actualEpsilon, epsilon), msgAndArgs...)
+			"        < %#v (actual)", epsilon, actualEpsilon), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -1007,8 +1037,6 @@ func InEpsilonSlice(t TestingT, expected, actual interface***REMOVED******REMOVE
 //   if assert.NoError(t, err) ***REMOVED***
 //	   assert.Equal(t, expectedObj, actualObj)
 //   ***REMOVED***
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if err != nil ***REMOVED***
 		return Fail(t, fmt.Sprintf("Received unexpected error:\n%+v", err), msgAndArgs...)
@@ -1023,8 +1051,6 @@ func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOV
 //   if assert.Error(t, err) ***REMOVED***
 //	   assert.Equal(t, expectedError, err)
 //   ***REMOVED***
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Error(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	if err == nil ***REMOVED***
@@ -1039,8 +1065,6 @@ func Error(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED
 //
 //   actualObj, err := SomeFunction()
 //   assert.EqualError(t, err,  expectedErrorString)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func EqualError(t TestingT, theError error, errString string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if !Error(t, theError, msgAndArgs...) ***REMOVED***
 		return false
@@ -1051,7 +1075,7 @@ func EqualError(t TestingT, theError error, errString string, msgAndArgs ...inte
 	if expected != actual ***REMOVED***
 		return Fail(t, fmt.Sprintf("Error message not equal:\n"+
 			"expected: %q\n"+
-			"actual: %q", expected, actual), msgAndArgs...)
+			"actual  : %q", expected, actual), msgAndArgs...)
 	***REMOVED***
 	return true
 ***REMOVED***
@@ -1074,8 +1098,6 @@ func matchRegexp(rx interface***REMOVED******REMOVED***, str interface***REMOVED
 //
 //  assert.Regexp(t, regexp.MustCompile("start"), "it's starting")
 //  assert.Regexp(t, "start...$", "it's not starting")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func Regexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	match := matchRegexp(rx, str)
@@ -1091,8 +1113,6 @@ func Regexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***
 //
 //  assert.NotRegexp(t, regexp.MustCompile("starts"), "it's starting")
 //  assert.NotRegexp(t, "^start", "it's not starting")
-//
-// Returns whether the assertion was successful (true) or not (false).
 func NotRegexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	match := matchRegexp(rx, str)
 
@@ -1104,7 +1124,7 @@ func NotRegexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface
 
 ***REMOVED***
 
-// Zero asserts that i is the zero value for its type and returns the truth.
+// Zero asserts that i is the zero value for its type.
 func Zero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if i != nil && !reflect.DeepEqual(i, reflect.Zero(reflect.TypeOf(i)).Interface()) ***REMOVED***
 		return Fail(t, fmt.Sprintf("Should be zero, but was %v", i), msgAndArgs...)
@@ -1112,7 +1132,7 @@ func Zero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...inter
 	return true
 ***REMOVED***
 
-// NotZero asserts that i is not the zero value for its type and returns the truth.
+// NotZero asserts that i is not the zero value for its type.
 func NotZero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if i == nil || reflect.DeepEqual(i, reflect.Zero(reflect.TypeOf(i)).Interface()) ***REMOVED***
 		return Fail(t, fmt.Sprintf("Should not be zero, but was %v", i), msgAndArgs...)
@@ -1120,11 +1140,39 @@ func NotZero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...in
 	return true
 ***REMOVED***
 
+// FileExists checks whether a file exists in the given path. It also fails if the path points to a directory or there is an error when trying to check the file.
+func FileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	info, err := os.Lstat(path)
+	if err != nil ***REMOVED***
+		if os.IsNotExist(err) ***REMOVED***
+			return Fail(t, fmt.Sprintf("unable to find file %q", path), msgAndArgs...)
+		***REMOVED***
+		return Fail(t, fmt.Sprintf("error when running os.Lstat(%q): %s", path, err), msgAndArgs...)
+	***REMOVED***
+	if info.IsDir() ***REMOVED***
+		return Fail(t, fmt.Sprintf("%q is a directory", path), msgAndArgs...)
+	***REMOVED***
+	return true
+***REMOVED***
+
+// DirExists checks whether a directory exists in the given path. It also fails if the path is a file rather a directory or there is an error checking whether it exists.
+func DirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	info, err := os.Lstat(path)
+	if err != nil ***REMOVED***
+		if os.IsNotExist(err) ***REMOVED***
+			return Fail(t, fmt.Sprintf("unable to find file %q", path), msgAndArgs...)
+		***REMOVED***
+		return Fail(t, fmt.Sprintf("error when running os.Lstat(%q): %s", path, err), msgAndArgs...)
+	***REMOVED***
+	if !info.IsDir() ***REMOVED***
+		return Fail(t, fmt.Sprintf("%q is a file", path), msgAndArgs...)
+	***REMOVED***
+	return true
+***REMOVED***
+
 // JSONEq asserts that two JSON strings are equivalent.
 //
 //  assert.JSONEq(t, `***REMOVED***"hello": "world", "foo": "bar"***REMOVED***`, `***REMOVED***"foo": "bar", "hello": "world"***REMOVED***`)
-//
-// Returns whether the assertion was successful (true) or not (false).
 func JSONEq(t TestingT, expected string, actual string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	var expectedJSONAsInterface, actualJSONAsInterface interface***REMOVED******REMOVED***
 
