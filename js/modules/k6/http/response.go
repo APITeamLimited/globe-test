@@ -63,6 +63,8 @@ type HTTPResponse struct ***REMOVED***
 	OCSP           OCSP `js:"ocsp"`
 	Error          string
 
+	Request HTTPRequest
+
 	cachedJSON goja.Value
 ***REMOVED***
 
