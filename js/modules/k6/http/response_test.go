@@ -22,9 +22,13 @@ package http
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -37,6 +41,53 @@ import (
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
 )
+
+const testGetFormHTML = `
+<html>
+<head>
+	<title>This is the title</title>
+</head>
+<body>
+	<form method="get" id="form1">
+		<input name="input_with_value" type="text" value="value"/>
+		<input name="input_without_value" type="text"/>
+		<select name="select_one">
+			<option value="not this option">no</option>
+			<option value="yes this option" selected>yes</option>
+		</select>
+		<select name="select_multi" multiple>
+			<option>option 1</option>
+			<option selected>option 2</option>
+			<option selected>option 3</option>
+		</select>
+		<textarea name="textarea" multiple>Lorem ipsum dolor sit amet</textarea>
+	</form>
+</body>
+`
+
+type TestGetFormHttpHandler struct***REMOVED******REMOVED***
+
+func (h *TestGetFormHttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	var body []byte
+	var err error
+	if r.URL.RawQuery != "" ***REMOVED***
+		body, err = json.Marshal(struct ***REMOVED***
+			Query url.Values `json:"query"`
+		***REMOVED******REMOVED***
+			Query: r.URL.Query(),
+		***REMOVED***)
+		if err != nil ***REMOVED***
+			body = []byte(`***REMOVED***"error": "failed serializing json"***REMOVED***`)
+		***REMOVED***
+		w.Header().Set("Content-Type", "application/json")
+	***REMOVED*** else ***REMOVED***
+		w.Header().Set("Content-Type", "text/html")
+		body = []byte(testGetFormHTML)
+	***REMOVED***
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+	w.WriteHeader(200)
+	w.Write(body)
+***REMOVED***
 
 func TestResponse(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
@@ -71,6 +122,13 @@ func TestResponse(t *testing.T) ***REMOVED***
 	*ctx = common.WithState(*ctx, state)
 	*ctx = common.WithRuntime(*ctx, rt)
 	rt.Set("http", common.Bind(rt, New(), ctx))
+
+	mux := http.NewServeMux()
+	mux.Handle("/forms/get", &TestGetFormHttpHandler***REMOVED******REMOVED***)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	rt.Set("httpTestServerURL", srv.URL)
 
 	t.Run("Html", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
@@ -187,7 +245,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 			res = res.submitForm(***REMOVED*** params: ***REMOVED*** headers: ***REMOVED*** "My-Fancy-Header": "SomeValue" ***REMOVED*** ***REMOVED******REMOVED***)
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			let headers = res.json().headers
-			if (headers["My-Fancy-Header"] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
+			if (headers["My-Fancy-Header"] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect header: " + headers["My-Fancy-Header"]); ***REMOVED***
 		`)
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, state.Samples, "POST", "https://httpbin.org/post", "", 200, "")
@@ -221,6 +279,25 @@ func TestResponse(t *testing.T) ***REMOVED***
 			res.submitForm(***REMOVED*** formSelector: "#doesNotExist" ***REMOVED***)
 		`)
 			assert.EqualError(t, err, "GoError: no form found for selector '#doesNotExist' in response 'https://httpbin.org/forms/post'")
+		***REMOVED***)
+
+		t.Run("withGetMethod", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", httpTestServerURL + "/forms/get");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.submitForm()
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			let data = res.json().query
+			if (data.input_with_value[0] !== "value" ||
+				data.input_without_value[0] !== "" ||
+				data.select_one[0] !== "yes this option" ||
+				data.select_multi[0] !== "option 2,option 3" ||
+				data.textarea[0] !== "Lorem ipsum dolor sit amet"
+			) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
+		`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", srv.URL+"/forms/get", "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
