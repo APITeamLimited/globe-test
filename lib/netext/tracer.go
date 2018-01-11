@@ -60,7 +60,7 @@ func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqTLSShaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
