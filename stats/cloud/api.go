@@ -22,6 +22,8 @@ package cloud
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -83,14 +85,34 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 	return &ctrr, nil
 ***REMOVED***
 
-func (c *Client) PushMetric(referenceID string, samples []*Sample) error ***REMOVED***
+func (c *Client) PushMetric(referenceID string, compress bool, samples []*Sample) error ***REMOVED***
 	url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
 
-	req, err := c.NewRequest("POST", url, samples)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	var req *http.Request
+	var reqError error
 
+	if compress ***REMOVED***
+		var buf bytes.Buffer
+		if samples != nil ***REMOVED***
+			b, err := json.Marshal(&samples)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			g := gzip.NewWriter(&buf)
+			if _, err = g.Write(b); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if err = g.Close(); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+		req, reqError = http.NewRequest("POST", url, &buf)
+	***REMOVED*** else ***REMOVED***
+		req, reqError = c.NewRequest("POST", url, samples)
+	***REMOVED***
+	if reqError != nil ***REMOVED***
+		return reqError
+	***REMOVED***
 	return c.Do(req, nil)
 ***REMOVED***
 
