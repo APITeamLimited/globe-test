@@ -43,7 +43,7 @@ type OCSP struct ***REMOVED***
 ***REMOVED***
 
 type HTTPResponseTimings struct ***REMOVED***
-	Duration, Blocked, LookingUp, Connecting, Sending, Waiting, Receiving float64
+	Duration, Blocked, LookingUp, Connecting, TLSHandshaking, Sending, Waiting, Receiving float64
 ***REMOVED***
 
 type HTTPResponse struct ***REMOVED***
