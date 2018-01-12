@@ -291,12 +291,13 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.RemotePort = remotePort
 	***REMOVED***
 	resp.Timings = HTTPResponseTimings***REMOVED***
-		Duration:   stats.D(trail.Duration),
-		Blocked:    stats.D(trail.Blocked),
-		Connecting: stats.D(trail.Connecting),
-		Sending:    stats.D(trail.Sending),
-		Waiting:    stats.D(trail.Waiting),
-		Receiving:  stats.D(trail.Receiving),
+		Duration:       stats.D(trail.Duration),
+		Blocked:        stats.D(trail.Blocked),
+		Connecting:     stats.D(trail.Connecting),
+		TLSHandshaking: stats.D(trail.TLSHandshaking),
+		Sending:        stats.D(trail.Sending),
+		Waiting:        stats.D(trail.Waiting),
+		Receiving:      stats.D(trail.Receiving),
 	***REMOVED***
 
 	if resErr != nil ***REMOVED***
