@@ -865,7 +865,8 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("HTTPRequest", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
-			let res = http.get("https://httpbin.org/get?a=1&b=2");
+			let reqUrl = "https://httpbin.org/get?a=1&b=2"
+			let res = http.get(reqUrl);
 
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			if (res.json().args.a != "1") ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
@@ -873,7 +874,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 			if (res.request["method"] !== "GET") ***REMOVED*** throw new Error("http request method was not \"GET\": " + JSON.stringify(res.request)) ***REMOVED***
 			if (res.request["body"] != null) ***REMOVED*** throw new Error("http request body was not null: " + JSON.stringify(res.request)) ***REMOVED***
-			if (res.request["url"]["host"] != "httpbin.org" || res.request["url"]["path"] != "/get" || res.request["url"]["raw_query"] != "a=1&b=2") ***REMOVED***
+			if (res.request["url"] != reqUrl) ***REMOVED***
 				throw new Error("http request url was not null: " + JSON.stringify(res.request))
 			***REMOVED***
 			if (Object.keys(res.request["cookies"]).length != 0) ***REMOVED*** throw new Error("http request cookies was not empty: " + JSON.stringify(res.request)) ***REMOVED***
