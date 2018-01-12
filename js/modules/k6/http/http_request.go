@@ -72,6 +72,10 @@ func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (
 	return http.Request(ctx, HTTP_METHOD_DELETE, url, args...)
 ***REMOVED***
 
+func (http *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return http.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
+***REMOVED***
+
 func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
