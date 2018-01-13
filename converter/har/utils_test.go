@@ -52,7 +52,6 @@ func TestIsAllowedURL(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSplitEntriesInBatches(t *testing.T) ***REMOVED***
-
 	t1 := time.Date(2017, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	entries := []*Entry***REMOVED******REMOVED***

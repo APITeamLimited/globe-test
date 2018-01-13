@@ -80,7 +80,6 @@ func IsAllowedURL(url string, only, skip []string) bool ***REMOVED***
 ***REMOVED***
 
 func SplitEntriesInBatches(entries []*Entry, interval uint) [][]*Entry ***REMOVED***
-
 	var r [][]*Entry
 	r = append(r, []*Entry***REMOVED******REMOVED***)
 
