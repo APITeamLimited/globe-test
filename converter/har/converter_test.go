@@ -29,39 +29,19 @@ import (
 	"github.com/spf13/afero"
 )
 
-func TestBuildK6Cookies(t *testing.T) ***REMOVED***
-	var cookies = []struct ***REMOVED***
-		values   []Cookie
-		expected string
-	***REMOVED******REMOVED***
-		***REMOVED***[]Cookie***REMOVED******REMOVED***Name: "a", Value: "b"***REMOVED******REMOVED***, "a=b"***REMOVED***,
-		***REMOVED***[]Cookie***REMOVED******REMOVED***Name: "a", Value: "b"***REMOVED***, ***REMOVED***Name: "c", Value: "d"***REMOVED******REMOVED***, "a=b; c=d"***REMOVED***,
-	***REMOVED***
-
-	for _, pair := range cookies ***REMOVED***
-		v := buildK6CookiesValues(pair.values)
-		if v != pair.expected ***REMOVED***
-			t.Errorf("buildK6Cookies(%v): expected %v, actual %v", pair.values, pair.expected, v)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
 func TestBuildK6Headers(t *testing.T) ***REMOVED***
 	var headers = []struct ***REMOVED***
 		values   []Header
-		expected string
+		expected []string
 	***REMOVED******REMOVED***
-		***REMOVED***[]Header***REMOVED******REMOVED***"name", "1"***REMOVED***, ***REMOVED***"name", "2"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED*** \"name\" : \"1\" ***REMOVED***"***REMOVED***,
-		***REMOVED***[]Header***REMOVED******REMOVED***"name", "1"***REMOVED***, ***REMOVED***"Name", "2"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED*** \"name\" : \"1\" ***REMOVED***"***REMOVED***,
-		***REMOVED***[]Header***REMOVED******REMOVED***"Name", "1"***REMOVED***, ***REMOVED***"name", "2"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED*** \"Name\" : \"1\" ***REMOVED***"***REMOVED***,
-		***REMOVED***[]Header***REMOVED******REMOVED***"name", "value"***REMOVED***, ***REMOVED***"name2", "value2"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED*** \"name\" : \"value\", \"name2\" : \"value2\" ***REMOVED***"***REMOVED***,
-		***REMOVED***[]Header***REMOVED******REMOVED***"accept-language", "es-ES,es;q=0.8"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED*** \"accept-language\" : \"es-ES,es;q=0.8\" ***REMOVED***"***REMOVED***,
-		***REMOVED***[]Header***REMOVED******REMOVED***":host", "localhost"***REMOVED******REMOVED***, "\"headers\" : ***REMOVED***  ***REMOVED***"***REMOVED***, // avoid SPDY’s colon headers
+		***REMOVED***[]Header***REMOVED******REMOVED***"name", "1"***REMOVED***, ***REMOVED***"name", "2"***REMOVED******REMOVED***, []string***REMOVED***`"name": "1"`***REMOVED******REMOVED***,
+		***REMOVED***[]Header***REMOVED******REMOVED***"name", "1"***REMOVED***, ***REMOVED***"name2", "2"***REMOVED******REMOVED***, []string***REMOVED***`"name": "1"`, `"name2": "2"`***REMOVED******REMOVED***,
+		***REMOVED***[]Header***REMOVED******REMOVED***":host", "localhost"***REMOVED******REMOVED***, []string***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, pair := range headers ***REMOVED***
 		v := buildK6Headers(pair.values)
-		if v != pair.expected ***REMOVED***
+		if len(v) != len(pair.expected) ***REMOVED***
 			t.Errorf("buildK6Headers(%v): expected %v, actual %v", pair.values, pair.expected, v)
 		***REMOVED***
 	***REMOVED***

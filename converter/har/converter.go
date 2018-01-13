@@ -158,19 +158,27 @@ func buildK6RequestObject(req *Request) (string, error) ***REMOVED***
 	if method == "delete" ***REMOVED***
 		method = "del"
 	***REMOVED***
-	fmt.Fprintf(w, "\"method\": %q,\n\"url\": %q", method, req.URL)
+	fmt.Fprintf(w, `"method": %q, "url": %q`, method, req.URL)
 
 	if req.PostData != nil && req.PostData.Text != "" && method != "get" ***REMOVED***
-		fmt.Fprintf(w, ", \"body\": \n%q\n", req.PostData.Text)
+		fmt.Fprintf(w, `, "body": %q`, req.PostData.Text)
 	***REMOVED***
 
-	headers := req.Headers
-	if c := buildK6CookiesValues(req.Cookies); c != "" ***REMOVED***
-		headers = append(headers, Header***REMOVED***Name: "Cookie", Value: c***REMOVED***)
+	var params []string
+	var cookies []string
+	for _, c := range req.Cookies ***REMOVED***
+		cookies = append(cookies, fmt.Sprintf(`%q: %q`, c.Name, c.Value))
+	***REMOVED***
+	if len(cookies) > 0 ***REMOVED***
+		params = append(params, fmt.Sprintf(`"cookies": ***REMOVED*** %s ***REMOVED***`, strings.Join(cookies, ", ")))
 	***REMOVED***
 
-	if header := buildK6Headers(headers); len(header) > 0 ***REMOVED***
-		fmt.Fprintf(w, ", \"params\": ***REMOVED***\n%s\n***REMOVED***\n", header)
+	if headers := buildK6Headers(req.Headers); len(headers) > 0 ***REMOVED***
+		params = append(params, fmt.Sprintf(`"headers": ***REMOVED*** %s ***REMOVED***`, strings.Join(headers, ", ")))
+	***REMOVED***
+
+	if len(params) > 0 ***REMOVED***
+		fmt.Fprintf(w, `, "params": ***REMOVED*** %s ***REMOVED***`, strings.Join(params, ", "))
 	***REMOVED***
 
 	fmt.Fprint(w, "***REMOVED***")
@@ -186,35 +194,19 @@ func buildK6RequestObject(req *Request) (string, error) ***REMOVED***
 	return buffer.String(), nil
 ***REMOVED***
 
-func buildK6Headers(headers []Header) string ***REMOVED***
-	if len(headers) == 0 ***REMOVED***
-		return ""
-	***REMOVED***
-	m := make(map[string]Header)
-
+func buildK6Headers(headers []Header) []string ***REMOVED***
 	var h []string
-	for _, header := range headers ***REMOVED***
-		// Avoid SPDY's colon headers
-		if header.Name[0] != ':' ***REMOVED***
-			// Avoid header duplicity
-			_, exists := m[strings.ToLower(header.Name)]
-			if !exists ***REMOVED***
+	if len(headers) > 0 ***REMOVED***
+		m := make(map[string]Header)
+		for _, header := range headers ***REMOVED***
+			name := strings.ToLower(header.Name)
+			_, exists := m[name]
+			// Avoid SPDY's, duplicated or cookie headers
+			if !exists && name[0] != ':' && name != "cookie" ***REMOVED***
 				m[strings.ToLower(header.Name)] = header
-				h = append(h, fmt.Sprintf("%q : %q", header.Name, header.Value))
+				h = append(h, fmt.Sprintf("%q: %q", header.Name, header.Value))
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	return fmt.Sprintf("\"headers\" : ***REMOVED*** %v ***REMOVED***", strings.Join(h, ", "))
-***REMOVED***
-
-func buildK6CookiesValues(cookies []Cookie) string ***REMOVED***
-	if len(cookies) == 0 ***REMOVED***
-		return ""
-	***REMOVED***
-
-	var c []string
-	for _, cookie := range cookies ***REMOVED***
-		c = append(c, fmt.Sprintf("%v=%v", cookie.Name, cookie.Value))
-	***REMOVED***
-	return strings.Join(c, "; ")
+	return h
 ***REMOVED***
