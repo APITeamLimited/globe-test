@@ -26,8 +26,8 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-// Ensure RunnerFunc conforms to Runner.
-var _ Runner = RunnerFunc(nil)
+// Ensure MiniRunner conforms to Runner.
+var _ Runner = MiniRunner***REMOVED******REMOVED***
 
 // A Runner is a factory for VUs. It should precompute as much as possible upon creation (parse
 // ASTs, load files into memory, etc.), so that spawning VUs becomes as fast as possible.
@@ -72,54 +72,64 @@ type VU interface ***REMOVED***
 	Reconfigure(id int64) error
 ***REMOVED***
 
-// RunnerFunc wraps a function in a runner whose VUs will simply call that function.
-type RunnerFunc func(ctx context.Context) ([]stats.Sample, error)
-
-func (fn RunnerFunc) VU() *RunnerFuncVU ***REMOVED***
-	return &RunnerFuncVU***REMOVED***Fn: fn***REMOVED***
+// MiniRunner wraps a function in a runner whose VUs will simply call that function.
+type MiniRunner struct ***REMOVED***
+	Fn         func(ctx context.Context) ([]stats.Sample, error)
+	SetupFn    func(ctx context.Context) error
+	TeardownFn func(ctx context.Context) error
 ***REMOVED***
 
-func (fn RunnerFunc) MakeArchive() *Archive ***REMOVED***
+func (r MiniRunner) VU() *MiniRunnerVU ***REMOVED***
+	return &MiniRunnerVU***REMOVED***R: r***REMOVED***
+***REMOVED***
+
+func (r MiniRunner) MakeArchive() *Archive ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (fn RunnerFunc) NewVU() (VU, error) ***REMOVED***
-	return fn.VU(), nil
+func (r MiniRunner) NewVU() (VU, error) ***REMOVED***
+	return r.VU(), nil
 ***REMOVED***
 
-func (fn RunnerFunc) Setup() error ***REMOVED***
+func (r MiniRunner) Setup(ctx context.Context) error ***REMOVED***
+	if fn := r.SetupFn; fn != nil ***REMOVED***
+		return fn(ctx)
+	***REMOVED***
 	return nil
 ***REMOVED***
 
-func (fn RunnerFunc) Teardown() error ***REMOVED***
+func (r MiniRunner) Teardown(ctx context.Context) error ***REMOVED***
+	if fn := r.TeardownFn; fn != nil ***REMOVED***
+		return fn(ctx)
+	***REMOVED***
 	return nil
 ***REMOVED***
 
-func (fn RunnerFunc) GetDefaultGroup() *Group ***REMOVED***
+func (r MiniRunner) GetDefaultGroup() *Group ***REMOVED***
 	return &Group***REMOVED******REMOVED***
 ***REMOVED***
 
-func (fn RunnerFunc) GetOptions() Options ***REMOVED***
+func (r MiniRunner) GetOptions() Options ***REMOVED***
 	return Options***REMOVED******REMOVED***
 ***REMOVED***
 
-func (fn RunnerFunc) SetOptions(opts Options) ***REMOVED***
+func (r MiniRunner) SetOptions(opts Options) ***REMOVED***
 ***REMOVED***
 
-// A VU spawned by a RunnerFunc.
-type RunnerFuncVU struct ***REMOVED***
-	Fn RunnerFunc
+// A VU spawned by a MiniRunner.
+type MiniRunnerVU struct ***REMOVED***
+	R  MiniRunner
 	ID int64
 ***REMOVED***
 
-func (fn RunnerFuncVU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-	if fn.Fn == nil ***REMOVED***
+func (vu MiniRunnerVU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	if vu.R.Fn == nil ***REMOVED***
 		return []stats.Sample***REMOVED******REMOVED***, nil
 	***REMOVED***
-	return fn.Fn(ctx)
+	return vu.R.Fn(ctx)
 ***REMOVED***
 
-func (fn *RunnerFuncVU) Reconfigure(id int64) error ***REMOVED***
-	fn.ID = id
+func (vu *MiniRunnerVU) Reconfigure(id int64) error ***REMOVED***
+	vu.ID = id
 	return nil
 ***REMOVED***

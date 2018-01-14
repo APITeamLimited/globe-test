@@ -102,9 +102,9 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	assert.True(t, time.Now().After(startTime.Add(1*time.Second)), "test did not take 1s")
 
 	t.Run("Runtime Errors", func(t *testing.T) ***REMOVED***
-		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 			return nil, errors.New("hi")
-		***REMOVED***))
+		***REMOVED******REMOVED***)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
 		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
@@ -124,10 +124,10 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("End Errors", func(t *testing.T) ***REMOVED***
-		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 			<-ctx.Done()
 			return nil, errors.New("hi")
-		***REMOVED***))
+		***REMOVED******REMOVED***)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
 		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
@@ -148,14 +148,14 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
 	var i int64
-	e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	e := New(lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
 			atomic.AddInt64(&i, 1)
 		***REMOVED***
 		return []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
-	***REMOVED***))
+	***REMOVED******REMOVED***)
 	assert.NoError(t, e.SetVUsMax(1))
 	assert.NoError(t, e.SetVUs(1))
 	e.SetEndIterations(null.IntFrom(100))
@@ -234,9 +234,9 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Raise", func(t *testing.T) ***REMOVED***
-		e := New(lib.RunnerFunc(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 			return nil, nil
-		***REMOVED***))
+		***REMOVED******REMOVED***)
 		e.ctx = context.Background()
 
 		assert.NoError(t, e.SetVUsMax(100))
@@ -246,7 +246,7 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			for i, handle := range e.vus ***REMOVED***
 				num++
 				if assert.NotNil(t, handle.vu, "vu %d lacks impl", i) ***REMOVED***
-					assert.Equal(t, int64(0), handle.vu.(*lib.RunnerFuncVU).ID)
+					assert.Equal(t, int64(0), handle.vu.(*lib.MiniRunnerVU).ID)
 				***REMOVED***
 				assert.Nil(t, handle.ctx, "vu %d has ctx", i)
 				assert.Nil(t, handle.cancel, "vu %d has cancel", i)
@@ -261,11 +261,11 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			for i, handle := range e.vus ***REMOVED***
 				if i < 50 ***REMOVED***
 					assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
-					assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+					assert.Equal(t, int64(i+1), handle.vu.(*lib.MiniRunnerVU).ID)
 					num++
 				***REMOVED*** else ***REMOVED***
 					assert.Nil(t, handle.cancel, "vu %d has cancel", i)
-					assert.Equal(t, int64(0), handle.vu.(*lib.RunnerFuncVU).ID)
+					assert.Equal(t, int64(0), handle.vu.(*lib.MiniRunnerVU).ID)
 				***REMOVED***
 			***REMOVED***
 			assert.Equal(t, 50, num)
@@ -277,7 +277,7 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 			num := 0
 			for i, handle := range e.vus ***REMOVED***
 				assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
-				assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+				assert.Equal(t, int64(i+1), handle.vu.(*lib.MiniRunnerVU).ID)
 				num++
 			***REMOVED***
 			assert.Equal(t, 100, num)
@@ -295,7 +295,7 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 					***REMOVED*** else ***REMOVED***
 						assert.Nil(t, handle.cancel, "vu %d has cancel", i)
 					***REMOVED***
-					assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+					assert.Equal(t, int64(i+1), handle.vu.(*lib.MiniRunnerVU).ID)
 				***REMOVED***
 				assert.Equal(t, 50, num)
 			***REMOVED***
@@ -307,9 +307,9 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 					for i, handle := range e.vus ***REMOVED***
 						assert.NotNil(t, handle.cancel, "vu %d lacks cancel", i)
 						if i < 50 ***REMOVED***
-							assert.Equal(t, int64(i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+							assert.Equal(t, int64(i+1), handle.vu.(*lib.MiniRunnerVU).ID)
 						***REMOVED*** else ***REMOVED***
-							assert.Equal(t, int64(50+i+1), handle.vu.(*lib.RunnerFuncVU).ID)
+							assert.Equal(t, int64(50+i+1), handle.vu.(*lib.MiniRunnerVU).ID)
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***
