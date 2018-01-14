@@ -119,7 +119,7 @@ func (r MiniRunner) GetOptions() Options ***REMOVED***
 	return r.Options
 ***REMOVED***
 
-func (r MiniRunner) SetOptions(opts Options) ***REMOVED***
+func (r *MiniRunner) SetOptions(opts Options) ***REMOVED***
 	r.Options = opts
 ***REMOVED***
 
