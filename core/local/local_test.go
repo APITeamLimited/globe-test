@@ -48,6 +48,56 @@ func TestExecutorRun(t *testing.T) ***REMOVED***
 	assert.NoError(t, <-err)
 ***REMOVED***
 
+func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
+	t.Run("Normal", func(t *testing.T) ***REMOVED***
+		setupC := make(chan struct***REMOVED******REMOVED***)
+		teardownC := make(chan struct***REMOVED******REMOVED***)
+		e := New(lib.MiniRunner***REMOVED***
+			SetupFn: func(ctx context.Context) error ***REMOVED***
+				close(setupC)
+				return nil
+			***REMOVED***,
+			TeardownFn: func(ctx context.Context) error ***REMOVED***
+				close(teardownC)
+				return nil
+			***REMOVED***,
+		***REMOVED***)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		err := make(chan error, 1)
+		go func() ***REMOVED*** err <- e.Run(ctx, nil) ***REMOVED***()
+		cancel()
+		<-setupC
+		<-teardownC
+		assert.NoError(t, <-err)
+	***REMOVED***)
+	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
+		e := New(lib.MiniRunner***REMOVED***
+			SetupFn: func(ctx context.Context) error ***REMOVED***
+				return errors.New("setup error")
+			***REMOVED***,
+			TeardownFn: func(ctx context.Context) error ***REMOVED***
+				return errors.New("teardown error")
+			***REMOVED***,
+		***REMOVED***)
+		assert.EqualError(t, e.Run(context.Background(), nil), "setup error")
+	***REMOVED***)
+	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
+		e := New(lib.MiniRunner***REMOVED***
+			SetupFn: func(ctx context.Context) error ***REMOVED***
+				return nil
+			***REMOVED***,
+			TeardownFn: func(ctx context.Context) error ***REMOVED***
+				return errors.New("teardown error")
+			***REMOVED***,
+		***REMOVED***)
+		e.SetEndIterations(null.IntFrom(1))
+		assert.NoError(t, e.SetVUsMax(1))
+		assert.NoError(t, e.SetVUs(1))
+		assert.EqualError(t, e.Run(context.Background(), nil), "teardown error")
+	***REMOVED***)
+***REMOVED***
+
 func TestExecutorSetLogger(t *testing.T) ***REMOVED***
 	logger, _ := logtest.NewNullLogger()
 	e := New(nil)

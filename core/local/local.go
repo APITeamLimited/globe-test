@@ -127,9 +127,18 @@ func New(r lib.Runner) *Executor ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error ***REMOVED***
+func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) (reterr error) ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
+
+	if e.Runner != nil ***REMOVED***
+		setupCtx, setupCancel := context.WithTimeout(parent, 10*time.Second)
+		if err := e.Runner.Setup(setupCtx); err != nil ***REMOVED***
+			setupCancel()
+			return err
+		***REMOVED***
+		setupCancel()
+	***REMOVED***
 
 	ctx, cancel := context.WithCancel(parent)
 	vuOut := make(chan []stats.Sample)
@@ -143,6 +152,12 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.Sample) error 
 
 	var cutoff time.Time
 	defer func() ***REMOVED***
+		if e.Runner != nil ***REMOVED***
+			teardownCtx, teardownCancel := context.WithTimeout(parent, 10*time.Second)
+			reterr = e.Runner.Teardown(teardownCtx)
+			teardownCancel()
+		***REMOVED***
+
 		close(vuFlow)
 		cancel()
 
