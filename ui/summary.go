@@ -67,11 +67,7 @@ func VerifyTrendColumnStat(stat string) bool ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if generatePercentileTrendColumn(stat) != nil ***REMOVED***
-		return true
-	***REMOVED***
-
-	return false
+	return generatePercentileTrendColumn(stat) != nil
 ***REMOVED***
 
 // UpdateTrendColumns updates the default trend columns with user defined ones
