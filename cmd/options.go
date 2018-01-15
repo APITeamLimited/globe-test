@@ -99,7 +99,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		return opts, err
 	***REMOVED***
 	for _, s := range trendStatStrings ***REMOVED***
-		if ui.VerifyTrendColumn(s) ***REMOVED***
+		if ui.VerifyTrendColumnStat(s) ***REMOVED***
 			opts.SummaryTrendStats = append(opts.SummaryTrendStats, s)
 		***REMOVED***
 	***REMOVED***
