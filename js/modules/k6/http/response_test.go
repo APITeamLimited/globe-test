@@ -300,4 +300,54 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assertRequestMetricsEmitted(t, state.Samples, "GET", srv.URL+"/forms/get", "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
+
+	t.Run("ClickLink", func(t *testing.T) ***REMOVED***
+		t.Run("withoutArgs", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org/links/10/0");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.clickLink()
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+		`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/links/10/1", "", 200, "")
+		***REMOVED***)
+
+		t.Run("withSelector", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org/links/10/0");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.clickLink(***REMOVED*** selector: 'a:nth-child(4)' ***REMOVED***)
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+		`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/links/10/4", "", 200, "")
+		***REMOVED***)
+
+		t.Run("withNonExistentLink", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org/links/10/0");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.clickLink(***REMOVED*** selector: 'a#doesNotExist' ***REMOVED***)
+		`)
+			assert.EqualError(t, err, "GoError: no element found for selector 'a#doesNotExist' in response 'https://httpbin.org/links/10/0'")
+		***REMOVED***)
+
+		t.Run("withRequestParams", func(t *testing.T) ***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = http.request("GET", "https://httpbin.org");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			res = res.clickLink(***REMOVED*** selector: 'a[href="/get"]', params: ***REMOVED*** headers: ***REMOVED*** "My-Fancy-Header": "SomeValue" ***REMOVED*** ***REMOVED*** ***REMOVED***)
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+			let headers = res.json().headers
+			if (headers["My-Fancy-Header"] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect header: " + headers["My-Fancy-Header"]); ***REMOVED***
+		`)
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, state.Samples, "GET", "https://httpbin.org/get", "", 200, "")
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
