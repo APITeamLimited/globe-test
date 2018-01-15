@@ -24,6 +24,7 @@ import (
 	"net"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 )
@@ -46,6 +47,7 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Bool("no-connection-reuse", false, "don't reuse connections between iterations")
 	flags.BoolP("throw", "w", false, "throw warnings (like failed http requests) as errors")
 	flags.StringSlice("blacklist-ip", nil, "blacklist an `ip range` from being called")
+	flags.StringSlice("summary-trend-stats", nil, "define `stats` for trend metrics (response times)")
 	return flags
 ***REMOVED***
 
@@ -90,6 +92,16 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			return opts, errors.Wrap(err, "blacklist-ip")
 		***REMOVED***
 		opts.BlacklistIPs = append(opts.BlacklistIPs, net)
+	***REMOVED***
+
+	trendStatStrings, err := flags.GetStringSlice("summary-trend-stats")
+	if err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	for _, s := range trendStatStrings ***REMOVED***
+		if ui.VerifyTrendColumn(s) ***REMOVED***
+			opts.SummaryTrendStats = append(opts.SummaryTrendStats, s)
+		***REMOVED***
 	***REMOVED***
 
 	return opts, nil

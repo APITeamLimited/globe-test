@@ -145,6 +145,10 @@ a commandline interface for interacting with it.`,
 		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
 			conf.Duration = lib.NullDuration***REMOVED******REMOVED***
 		***REMOVED***
+		// If summary trend stats are defined, update the UI to reflect them
+		if len(conf.SummaryTrendStats) > 0 ***REMOVED***
+			ui.UpdateTrendColumns(conf.SummaryTrendStats)
+		***REMOVED***
 
 		// Write options back to the runner too.
 		r.SetOptions(conf.Options)
