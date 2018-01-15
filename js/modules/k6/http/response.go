@@ -258,7 +258,7 @@ func (res *HTTPResponse) ClickLink(args ...goja.Value) (*HTTPResponse, error) **
 	***REMOVED***
 	hrefAttr := link.Attr("href")
 	if hrefAttr == goja.Undefined() ***REMOVED***
-		common.Throw(rt, fmt.Errorf("no valid href atribute value found on element '%s' in response '%s'", selector, res.URL))
+		common.Throw(rt, fmt.Errorf("no valid href attribute value found on element '%s' in response '%s'", selector, res.URL))
 	***REMOVED***
 	hrefUrl, err := url.Parse(hrefAttr.String())
 	if err != nil ***REMOVED***
