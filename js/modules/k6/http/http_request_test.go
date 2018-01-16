@@ -865,20 +865,24 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("HTTPRequest", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
-			let reqUrl = "https://httpbin.org/get?a=1&b=2"
+			let reqUrl = "https://httpbin.org/cookies"
 			let res = http.get(reqUrl);
+			let jar = new http.CookieJar();
+
+			jar.set("https://httpbin.org/cookies", "key", "value");
+			res = http.request("GET", "https://httpbin.org/cookies", null, ***REMOVED*** cookies: ***REMOVED*** key2: "value2" ***REMOVED***, jar: jar ***REMOVED***);
+
+			if (res.json().cookies.key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.json().cookies.key); ***REMOVED***
 
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-			if (res.json().args.a != "1") ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
-			if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
-
 			if (res.request["method"] !== "GET") ***REMOVED*** throw new Error("http request method was not \"GET\": " + JSON.stringify(res.request)) ***REMOVED***
 			if (res.request["body"] != null) ***REMOVED*** throw new Error("http request body was not null: " + JSON.stringify(res.request)) ***REMOVED***
 			if (res.request["url"] != reqUrl) ***REMOVED***
-				throw new Error("http request url was not null: " + JSON.stringify(res.request))
+				throw new Error("wront http request url: " + JSON.stringify(res.request))
 			***REMOVED***
-			if (Object.keys(res.request["cookies"]).length != 0) ***REMOVED*** throw new Error("http request cookies was not empty: " + JSON.stringify(res.request)) ***REMOVED***
-			if (res.request["headers"]["User-Agent"][0] != "TestUserAgent") ***REMOVED*** throw new Error("http request headers was not set properly: " + JSON.stringify(res.request)) ***REMOVED***
+			// TODO: this is kind of ugly, is there a way to simplify the cookies structure?
+			if (res.request["cookies"][1]["name"] != "key2") ***REMOVED*** throw new Error("wrong http request cookies: " + JSON.stringify(res.request["cookies"][1]["name"]) + " full request:  " + JSON.stringify(res.request)) ***REMOVED***
+			if (res.request["headers"]["User-Agent"][0] != "TestUserAgent") ***REMOVED*** throw new Error("wrong http request headers: " + JSON.stringify(res.request)) ***REMOVED***
 			`)
 		assert.NoError(t, err)
 	***REMOVED***)

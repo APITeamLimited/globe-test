@@ -25,6 +25,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	// "fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -49,7 +50,7 @@ type HTTPRequest struct ***REMOVED***
 	URL     string
 	Headers map[string][]string
 	Body    io.Closer
-	Cookies map[string]*HTTPRequestCookie
+	Cookies []*http.Cookie
 ***REMOVED***
 
 func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
@@ -255,7 +256,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	***REMOVED***
 
 	respReq.Headers = req.Header
-	respReq.Cookies = reqCookies
+	respReq.Cookies = req.Cookies()
 
 	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: url.URLString, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
