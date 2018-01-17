@@ -191,6 +191,9 @@ type Options struct ***REMOVED***
 	// These values are for third party collectors' benefit.
 	// Can't be set through env vars.
 	External map[string]interface***REMOVED******REMOVED*** `json:"ext" ignored:"true"`
+
+	// Summary trend stats for trend metrics (response times) in CLI output
+	SummaryTrendStats []string `json:"SummaryTrendStats" envconfig:"summary_trend_stats"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -259,6 +262,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.External != nil ***REMOVED***
 		o.External = opts.External
+	***REMOVED***
+	if opts.SummaryTrendStats != nil ***REMOVED***
+		o.SummaryTrendStats = opts.SummaryTrendStats
 	***REMOVED***
 	return o
 ***REMOVED***
