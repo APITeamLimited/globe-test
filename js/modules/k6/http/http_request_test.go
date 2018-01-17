@@ -880,8 +880,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			if (res.request["url"] != reqUrl) ***REMOVED***
 				throw new Error("wront http request url: " + JSON.stringify(res.request))
 			***REMOVED***
-			// TODO: this is kind of ugly, is there a way to simplify the cookies structure?
-			if (res.request["cookies"][1]["name"] != "key2") ***REMOVED*** throw new Error("wrong http request cookies: " + JSON.stringify(res.request["cookies"][1]["name"]) + " full request:  " + JSON.stringify(res.request)) ***REMOVED***
+			if (res.request["cookies"]["key2"][0].name != "key2") ***REMOVED*** throw new Error("wrong http request cookies: " + JSON.stringify(JSON.stringify(res.request["cookies"]["key2"]))) ***REMOVED***
 			if (res.request["headers"]["User-Agent"][0] != "TestUserAgent") ***REMOVED*** throw new Error("wrong http request headers: " + JSON.stringify(res.request)) ***REMOVED***
 			`)
 		assert.NoError(t, err)

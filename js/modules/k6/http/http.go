@@ -128,21 +128,25 @@ func (*HTTP) CookieJar(ctx context.Context) *HTTPCookieJar ***REMOVED***
 	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***
 ***REMOVED***
 
-func (*HTTP) setRequestCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) ***REMOVED***
-	jarCookies := make(map[string][]*http.Cookie)
+func (*HTTP) mergeCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) map[string][]*HTTPRequestCookie ***REMOVED***
+	allCookies := make(map[string][]*HTTPRequestCookie)
 	for _, c := range jar.Cookies(req.URL) ***REMOVED***
-		jarCookies[c.Name] = append(jarCookies[c.Name], c)
+		allCookies[c.Name] = append(allCookies[c.Name], &HTTPRequestCookie***REMOVED***Name: c.Name, Value: c.Value***REMOVED***)
 	***REMOVED***
 	for key, reqCookie := range reqCookies ***REMOVED***
-		if jc := jarCookies[key]; jc != nil && reqCookie.Replace ***REMOVED***
-			jarCookies[key] = []*http.Cookie***REMOVED******REMOVED***Name: key, Value: reqCookie.Value***REMOVED******REMOVED***
+		if jc := allCookies[key]; jc != nil && reqCookie.Replace ***REMOVED***
+			allCookies[key] = []*HTTPRequestCookie***REMOVED******REMOVED***Name: key, Value: reqCookie.Value***REMOVED******REMOVED***
 		***REMOVED*** else ***REMOVED***
-			jarCookies[key] = append(jarCookies[key], &http.Cookie***REMOVED***Name: key, Value: reqCookie.Value***REMOVED***)
+			allCookies[key] = append(allCookies[key], &HTTPRequestCookie***REMOVED***Name: key, Value: reqCookie.Value***REMOVED***)
 		***REMOVED***
 	***REMOVED***
-	for _, cookies := range jarCookies ***REMOVED***
+	return allCookies
+***REMOVED***
+
+func (*HTTP) setRequestCookies(req *http.Request, reqCookies map[string][]*HTTPRequestCookie) ***REMOVED***
+	for _, cookies := range reqCookies ***REMOVED***
 		for _, c := range cookies ***REMOVED***
-			req.AddCookie(c)
+			req.AddCookie(&http.Cookie***REMOVED***Name: c.Name, Value: c.Value***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
