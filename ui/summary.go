@@ -21,6 +21,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -41,6 +42,12 @@ const (
 	FailMark = "✗"
 )
 
+var (
+	ErrStatEmptyString            = errors.New("Invalid stat, empty string")
+	ErrStatUnknownFormat          = errors.New("Invalid stat, unknown format")
+	ErrPercentileStatInvalidValue = errors.New("Invalid percentile stat value, accepts a number")
+)
+
 var TrendColumns = []TrendColumn***REMOVED***
 	***REMOVED***"avg", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Avg ***REMOVED******REMOVED***,
 	***REMOVED***"min", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Min ***REMOVED******REMOVED***,
@@ -56,18 +63,22 @@ type TrendColumn struct ***REMOVED***
 ***REMOVED***
 
 // VerifyTrendColumnStat checks if stat is a valid trend column
-func VerifyTrendColumnStat(stat string) bool ***REMOVED***
+func VerifyTrendColumnStat(stat string) error ***REMOVED***
 	if stat == "" ***REMOVED***
-		return false
+		return ErrStatEmptyString
 	***REMOVED***
 
 	for _, col := range TrendColumns ***REMOVED***
 		if col.Key == stat ***REMOVED***
-			return true
+			return nil
 		***REMOVED***
 	***REMOVED***
 
-	return generatePercentileTrendColumn(stat) != nil
+	if _, err := generatePercentileTrendColumn(stat); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 // UpdateTrendColumns updates the default trend columns with user defined ones
@@ -75,9 +86,9 @@ func UpdateTrendColumns(stats []string) ***REMOVED***
 	newTrendColumns := make([]TrendColumn, 0, len(stats))
 
 	for _, stat := range stats ***REMOVED***
-		percentileTrendColumn := generatePercentileTrendColumn(stat)
+		percentileTrendColumn, err := generatePercentileTrendColumn(stat)
 
-		if percentileTrendColumn != nil ***REMOVED***
+		if err == nil ***REMOVED***
 			newTrendColumns = append(newTrendColumns, TrendColumn***REMOVED***stat, percentileTrendColumn***REMOVED***)
 			continue
 		***REMOVED***
@@ -95,20 +106,24 @@ func UpdateTrendColumns(stats []string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func generatePercentileTrendColumn(stat string) func(s *stats.TrendSink) float64 ***REMOVED***
-	if stat == "" || !strings.HasPrefix(stat, "p(") || !strings.HasSuffix(stat, ")") ***REMOVED***
-		return nil
+func generatePercentileTrendColumn(stat string) (func(s *stats.TrendSink) float64, error) ***REMOVED***
+	if stat == "" ***REMOVED***
+		return nil, ErrStatEmptyString
+	***REMOVED***
+
+	if !strings.HasPrefix(stat, "p(") || !strings.HasSuffix(stat, ")") ***REMOVED***
+		return nil, ErrStatUnknownFormat
 	***REMOVED***
 
 	percentile, err := strconv.ParseFloat(stat[2:len(stat)-1], 64)
 
 	if err != nil ***REMOVED***
-		return nil
+		return nil, ErrPercentileStatInvalidValue
 	***REMOVED***
 
 	percentile = percentile / 100
 
-	return func(s *stats.TrendSink) float64 ***REMOVED*** return s.P(percentile) ***REMOVED***
+	return func(s *stats.TrendSink) float64 ***REMOVED*** return s.P(percentile) ***REMOVED***, nil
 ***REMOVED***
 
 // Returns the actual width of the string.

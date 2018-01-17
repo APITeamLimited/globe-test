@@ -29,21 +29,22 @@ import (
 
 var verifyTests = []struct ***REMOVED***
 	in  string
-	out bool
+	out error
 ***REMOVED******REMOVED***
-	***REMOVED***"avg", true***REMOVED***,
-	***REMOVED***"min", true***REMOVED***,
-	***REMOVED***"med", true***REMOVED***,
-	***REMOVED***"max", true***REMOVED***,
-	***REMOVED***"p(0)", true***REMOVED***,
-	***REMOVED***"p(90)", true***REMOVED***,
-	***REMOVED***"p(95)", true***REMOVED***,
-	***REMOVED***"p(99)", true***REMOVED***,
-	***REMOVED***"p(99.9)", true***REMOVED***,
-	***REMOVED***"p(99.9999)", true***REMOVED***,
-	***REMOVED***"nil", false***REMOVED***,
-	***REMOVED***" avg", false***REMOVED***,
-	***REMOVED***"avg ", false***REMOVED***,
+	***REMOVED***"avg", nil***REMOVED***,
+	***REMOVED***"min", nil***REMOVED***,
+	***REMOVED***"med", nil***REMOVED***,
+	***REMOVED***"max", nil***REMOVED***,
+	***REMOVED***"p(0)", nil***REMOVED***,
+	***REMOVED***"p(90)", nil***REMOVED***,
+	***REMOVED***"p(95)", nil***REMOVED***,
+	***REMOVED***"p(99)", nil***REMOVED***,
+	***REMOVED***"p(99.9)", nil***REMOVED***,
+	***REMOVED***"p(99.9999)", nil***REMOVED***,
+	***REMOVED***"nil", ErrStatUnknownFormat***REMOVED***,
+	***REMOVED***" avg", ErrStatUnknownFormat***REMOVED***,
+	***REMOVED***"avg ", ErrStatUnknownFormat***REMOVED***,
+	***REMOVED***"", ErrStatEmptyString***REMOVED***,
 ***REMOVED***
 
 var defaultTrendColumns = TrendColumns
@@ -60,7 +61,8 @@ func createTestTrendSink(count int) *stats.TrendSink ***REMOVED***
 
 func TestVerifyTrendColumnStat(t *testing.T) ***REMOVED***
 	for _, testCase := range verifyTests ***REMOVED***
-		assert.Equal(t, testCase.out, VerifyTrendColumnStat(testCase.in))
+		err := VerifyTrendColumnStat(testCase.in)
+		assert.Equal(t, testCase.out, err)
 	***REMOVED***
 ***REMOVED***
 
@@ -81,7 +83,9 @@ func TestUpdateTrendColumns(t *testing.T) ***REMOVED***
 		UpdateTrendColumns([]string***REMOVED***"avg"***REMOVED***)
 
 		assert.Exactly(t, 1, len(TrendColumns))
-		assert.Exactly(t, sink.Avg, TrendColumns[0].Get(sink))
+		assert.Exactly(t,
+			sink.Avg,
+			TrendColumns[0].Get(sink))
 	***REMOVED***)
 
 	t.Run("Multiple stats", func(t *testing.T) ***REMOVED***
@@ -118,34 +122,39 @@ func TestGeneratePercentileTrendColumn(t *testing.T) ***REMOVED***
 	sink := createTestTrendSink(100)
 
 	t.Run("Happy path", func(t *testing.T) ***REMOVED***
-		colFunc := generatePercentileTrendColumn("p(99)")
+		colFunc, err := generatePercentileTrendColumn("p(99)")
 
 		assert.NotNil(t, colFunc)
 		assert.Exactly(t, sink.P(0.99), colFunc(sink))
 		assert.NotEqual(t, sink.P(0.98), colFunc(sink))
+		assert.Nil(t, err)
 	***REMOVED***)
 
 	t.Run("Empty stat", func(t *testing.T) ***REMOVED***
-		colFunc := generatePercentileTrendColumn("")
+		colFunc, err := generatePercentileTrendColumn("")
 
 		assert.Nil(t, colFunc)
+		assert.Exactly(t, err, ErrStatEmptyString)
 	***REMOVED***)
 
 	t.Run("Invalid format", func(t *testing.T) ***REMOVED***
-		colFunc := generatePercentileTrendColumn("p90")
+		colFunc, err := generatePercentileTrendColumn("p90")
 
 		assert.Nil(t, colFunc)
+		assert.Exactly(t, err, ErrStatUnknownFormat)
 	***REMOVED***)
 
 	t.Run("Invalid format 2", func(t *testing.T) ***REMOVED***
-		colFunc := generatePercentileTrendColumn("p(90")
+		colFunc, err := generatePercentileTrendColumn("p(90")
 
 		assert.Nil(t, colFunc)
+		assert.Exactly(t, err, ErrStatUnknownFormat)
 	***REMOVED***)
 
 	t.Run("Invalid float", func(t *testing.T) ***REMOVED***
-		colFunc := generatePercentileTrendColumn("p(a)")
+		colFunc, err := generatePercentileTrendColumn("p(a)")
 
 		assert.Nil(t, colFunc)
+		assert.Exactly(t, err, ErrPercentileStatInvalidValue)
 	***REMOVED***)
 ***REMOVED***
