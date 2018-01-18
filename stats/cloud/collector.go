@@ -190,7 +190,7 @@ func (c *Collector) pushMetrics() ***REMOVED***
 		"samples": len(buffer),
 	***REMOVED***).Debug("Pushing metrics to cloud")
 
-	err := c.client.PushMetric(c.referenceID, c.config.Compress, buffer)
+	err := c.client.PushMetric(c.referenceID, c.config.NoCompress, buffer)
 	if err != nil ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"error": err,

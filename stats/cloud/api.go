@@ -85,10 +85,16 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 	return &ctrr, nil
 ***REMOVED***
 
-func (c *Client) PushMetric(referenceID string, compress bool, samples []*Sample) error ***REMOVED***
+func (c *Client) PushMetric(referenceID string, noCompress bool, samples []*Sample) error ***REMOVED***
 	url := fmt.Sprintf("%s/metrics/%s", c.baseURL, referenceID)
 
-	if compress ***REMOVED***
+	if noCompress ***REMOVED***
+		req, err := c.NewRequest("POST", url, samples)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		return c.Do(req, nil)
+	***REMOVED*** else ***REMOVED***
 		var buf bytes.Buffer
 		if samples != nil ***REMOVED***
 			b, err := json.Marshal(&samples)
@@ -108,12 +114,6 @@ func (c *Client) PushMetric(referenceID string, compress bool, samples []*Sample
 			return err
 		***REMOVED***
 		req.Header.Set("Content-Encoding", "gzip")
-		return c.Do(req, nil)
-	***REMOVED*** else ***REMOVED***
-		req, err := c.NewRequest("POST", url, samples)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
 		return c.Do(req, nil)
 	***REMOVED***
 ***REMOVED***
