@@ -22,10 +22,12 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"sync"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 )
@@ -90,4 +92,13 @@ func getNullString(flags *pflag.FlagSet, key string) null.String ***REMOVED***
 		panic(err)
 	***REMOVED***
 	return null.NewString(v, flags.Changed(key))
+***REMOVED***
+
+func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs ***REMOVED***
+	return func(cmd *cobra.Command, args []string) error ***REMOVED***
+		if len(args) != n ***REMOVED***
+			return fmt.Errorf("accepts %d arg(s), received %d: %s", n, len(args), msg)
+		***REMOVED***
+		return nil
+	***REMOVED***
 ***REMOVED***
