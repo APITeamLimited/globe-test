@@ -250,8 +250,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			if activeJar != nil ***REMOVED***
 				if respCookies := req.Response.Cookies(); len(respCookies) > 0 ***REMOVED***
 					activeJar.SetCookies(req.URL, respCookies)
-					h.setRequestCookies(req, activeJar, reqCookies)
 				***REMOVED***
+				req.Header.Del("Cookie")
+				h.setRequestCookies(req, activeJar, reqCookies)
 			***REMOVED***
 
 			if l := len(via); int64(l) > redirects.Int64 ***REMOVED***
@@ -312,7 +313,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	***REMOVED*** else ***REMOVED***
 		if activeJar != nil ***REMOVED***
 			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
-				activeJar.SetCookies(req.URL, rc)
+				activeJar.SetCookies(res.Request.URL, rc)
 			***REMOVED***
 		***REMOVED***
 
