@@ -21,14 +21,14 @@
 package cmd
 
 import (
-	"os"
+	"io"
 	"path/filepath"
 
 	"github.com/loadimpact/k6/converter/har"
 	"github.com/spf13/cobra"
 )
 
-var output = "har-script.js"
+var output = ""
 
 var (
 	enableChecks bool
@@ -60,7 +60,7 @@ var convertCmd = &cobra.Command***REMOVED***
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		r, err := os.Open(filePath)
+		r, err := defaultFs.Open(filePath)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -77,19 +77,25 @@ var convertCmd = &cobra.Command***REMOVED***
 			return err
 		***REMOVED***
 
-		// Write script content to output
-		f, err := os.Create(output)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if _, err := f.WriteString(script); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := f.Sync(); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := f.Close(); err != nil ***REMOVED***
-			return err
+		// Write script content to stdout or file
+		if output == "" || output == "-" ***REMOVED***
+			if _, err := io.WriteString(defaultWriter, script); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			f, err := defaultFs.Create(output)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if _, err := f.WriteString(script); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if err := f.Sync(); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if err := f.Close(); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
@@ -98,7 +104,7 @@ var convertCmd = &cobra.Command***REMOVED***
 func init() ***REMOVED***
 	RootCmd.AddCommand(convertCmd)
 	convertCmd.Flags().SortFlags = false
-	convertCmd.Flags().StringVarP(&output, "output", "O", output, "k6 script output filename")
+	convertCmd.Flags().StringVarP(&output, "output", "O", output, "k6 script output filename (stdout by default)")
 	convertCmd.Flags().StringSliceVarP(&only, "only", "", []string***REMOVED******REMOVED***, "include only requests from the given domains")
 	convertCmd.Flags().StringSliceVarP(&skip, "skip", "", []string***REMOVED******REMOVED***, "skip requests from the given domains")
 	convertCmd.Flags().UintVarP(&threshold, "batch-threshold", "", 500, "batch request idle time threshold (see example)")
