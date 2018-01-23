@@ -411,14 +411,14 @@ func TestGenElements(t *testing.T) ***REMOVED***
 			vT, errT := common.RunString(rt, `doc.find("#`+test.idTrue+`").get(0).`+test.property+`()`)
 			if errT != nil ***REMOVED***
 				t.Errorf("Error for property name '%s' on element id '#%s':\n%+v", test.property, test.idTrue, errT)
-			***REMOVED*** else if vT.Export() != true ***REMOVED***
+			***REMOVED*** else if vT.Export() != true ***REMOVED*** // nolint: gosimple
 				t.Errorf("Expected true for property name '%s' on element id '#%s'", test.property, test.idTrue)
 			***REMOVED***
 
 			vF, errF := common.RunString(rt, `doc.find("#`+test.idFalse+`").get(0).`+test.property+`()`)
 			if errF != nil ***REMOVED***
 				t.Errorf("Error for property name '%s' on element id '#%s':\n%+v", test.property, test.idFalse, errF)
-			***REMOVED*** else if vF.Export() != false ***REMOVED***
+			***REMOVED*** else if vF.Export() != false ***REMOVED*** // nolint: gosimple
 				t.Errorf("Expected false for property name '%s' on element id '#%s'", test.property, test.idFalse)
 			***REMOVED***
 		***REMOVED***
