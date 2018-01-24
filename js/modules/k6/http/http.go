@@ -151,8 +151,8 @@ func (*HTTP) setRequestCookies(req *http.Request, jar *cookiejar.Jar, reqCookies
 ***REMOVED***
 
 func (*HTTP) debugRequest(state *common.State, req *http.Request, description string) ***REMOVED***
-	if state.Options.HttpDebug.Bool ***REMOVED***
-		dump, err := httputil.DumpRequestOut(req, false)
+	if state.Options.HttpDebug.Bool || state.Options.HttpDebugFull.Bool ***REMOVED***
+		dump, err := httputil.DumpRequestOut(req, state.Options.HttpDebugFull.Bool)
 		if err != nil ***REMOVED***
 			log.Fatal(err)
 		***REMOVED***
@@ -161,8 +161,8 @@ func (*HTTP) debugRequest(state *common.State, req *http.Request, description st
 ***REMOVED***
 
 func (*HTTP) debugResponse(state *common.State, res *http.Response, description string) ***REMOVED***
-	if state.Options.HttpDebug.Bool ***REMOVED***
-		dump, err := httputil.DumpResponse(res, true)
+	if state.Options.HttpDebug.Bool || state.Options.HttpDebugFull.Bool ***REMOVED***
+		dump, err := httputil.DumpResponse(res, state.Options.HttpDebugFull.Bool)
 		if err != nil ***REMOVED***
 			log.Fatal(err)
 		***REMOVED***
