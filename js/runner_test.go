@@ -477,6 +477,87 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
+	srv := &http.Server***REMOVED***
+		Addr: ":8080",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+			_, _ = fmt.Fprintf(w, "ok")
+		***REMOVED***),
+		ErrorLog: stdlog.New(ioutil.Discard, "", 0),
+	***REMOVED***
+	go srv.ListenAndServe()
+	defer srv.Shutdown(context.TODO())
+
+	// Getting local ip addresses to assert
+	addrs, err := net.InterfaceAddrs()
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	ips := []net.IP***REMOVED******REMOVED***
+	for _, address := range addrs ***REMOVED***
+		if ipnet, ok := address.(*net.IPNet); ok ***REMOVED***
+			if ipnet.IP.To4() != nil ***REMOVED***
+				ips = append(ips, ipnet.IP)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(fmt.Sprintf(`
+					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
+					import http from "k6/http";
+					let ips = [];
+					export default function() ***REMOVED***
+						let res = http.get("http://test.loadimpact.com:8080/");
+						ips.push(res.remote_ip)
+
+						if (ips.length === 2) ***REMOVED***
+							check(ips, ***REMOVED***
+								"is correct IP": (ips) => ips.toString() == ["%s", "%s"].toString()
+							***REMOVED***) || fail("failed to override dns");
+						***REMOVED***
+					***REMOVED***
+				`, ips[1].String(), ips[0].String())),
+	***REMOVED***, afero.NewMemMapFs())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r1.SetOptions(lib.Options***REMOVED***
+		NoConnectionReuse: null.BoolFrom(true),
+		Throw:             null.BoolFrom(true),
+		Hosts: map[string][]net.IP***REMOVED***
+			"test.loadimpact.com": []net.IP***REMOVED***ips[0], ips[1]***REMOVED***,
+		***REMOVED***,
+	***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive())
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU()
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+
+			//Running VU twice to assert each ip
+			_, err = vu.RunOnce(context.Background())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			_, err = vu.RunOnce(context.Background())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	testdata := map[string]struct ***REMOVED***
 		opts   lib.Options
