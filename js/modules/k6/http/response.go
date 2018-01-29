@@ -62,6 +62,7 @@ type HTTPResponse struct ***REMOVED***
 	TLSCipherSuite string
 	OCSP           OCSP `js:"ocsp"`
 	Error          string
+	Request        HTTPRequest
 
 	cachedJSON goja.Value
 ***REMOVED***
