@@ -160,8 +160,15 @@ func buildK6RequestObject(req *Request) (string, error) ***REMOVED***
 	***REMOVED***
 	fmt.Fprintf(w, `"method": %q, "url": %q`, method, req.URL)
 
-	if req.PostData != nil && req.PostData.Text != "" && method != "get" ***REMOVED***
-		fmt.Fprintf(w, `, "body": %q`, req.PostData.Text)
+	if req.PostData != nil && method != "get" ***REMOVED***
+		postParams, plainText, err := buildK6Body(req)
+		if err != nil ***REMOVED***
+			return "", err
+		***REMOVED*** else if len(postParams) > 0 ***REMOVED***
+			fmt.Fprintf(w, `, "body": ***REMOVED*** %s ***REMOVED***`, strings.Join(postParams, ", "))
+		***REMOVED*** else if plainText != "" ***REMOVED***
+			fmt.Fprintf(w, `, "body": %q`, plainText)
+		***REMOVED***
 	***REMOVED***
 
 	var params []string
@@ -209,4 +216,23 @@ func buildK6Headers(headers []Header) []string ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return h
+***REMOVED***
+
+func buildK6Body(req *Request) ([]string, string, error) ***REMOVED***
+	var postParams []string
+	if req.PostData.MimeType == "application/x-www-form-urlencoded" && len(req.PostData.Params) > 0 ***REMOVED***
+		for _, p := range req.PostData.Params ***REMOVED***
+			n, err := url.QueryUnescape(p.Name)
+			if err != nil ***REMOVED***
+				return postParams, "", err
+			***REMOVED***
+			v, err := url.QueryUnescape(p.Value)
+			if err != nil ***REMOVED***
+				return postParams, "", err
+			***REMOVED***
+			postParams = append(postParams, fmt.Sprintf(`%q: %q`, n, v))
+		***REMOVED***
+		return postParams, "", nil
+	***REMOVED***
+	return postParams, req.PostData.Text, nil
 ***REMOVED***

@@ -22,6 +22,7 @@ package har
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/loadimpact/k6/js"
@@ -66,4 +67,52 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	if err != nil ***REMOVED***
 		t.Error(err)
 	***REMOVED***
+***REMOVED***
+
+func TestBuildK6Body(t *testing.T) ***REMOVED***
+
+	bodyText := "ccustemail=ppcano%40gmail.com&size=medium&topping=cheese&delivery=12%3A00&comments="
+
+	req := &Request***REMOVED***
+		Method: "post",
+		URL:    "http://www.google.es",
+		PostData: &PostData***REMOVED***
+			MimeType: "application/x-www-form-urlencoded",
+			Text:     bodyText,
+		***REMOVED***,
+	***REMOVED***
+	postParams, plainText, err := buildK6Body(req)
+	if err != nil ***REMOVED***
+		t.Error(err)
+	***REMOVED*** else if len(postParams) > 0 ***REMOVED***
+		t.Error("buildK6Body postParams should be empty")
+	***REMOVED*** else if plainText != bodyText ***REMOVED***
+		t.Errorf("buildK6Body: expected %v, actual %v", bodyText, plainText)
+	***REMOVED***
+
+	email := "user@mail.es"
+	expectedEmailParam := fmt.Sprintf(`"email": %q`, email)
+
+	req = &Request***REMOVED***
+		Method: "post",
+		URL:    "http://www.google.es",
+		PostData: &PostData***REMOVED***
+			MimeType: "application/x-www-form-urlencoded",
+			Params: []Param***REMOVED***
+				***REMOVED***Name: "email", Value: url.QueryEscape(email)***REMOVED***,
+				***REMOVED***Name: "pw", Value: "hola"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	postParams, plainText, err = buildK6Body(req)
+	if err != nil ***REMOVED***
+		t.Error(err)
+	***REMOVED*** else if plainText != "" ***REMOVED***
+		t.Errorf("buildK6Body: expected empty plainText, actual %v", plainText)
+	***REMOVED*** else if len(postParams) != 2 ***REMOVED***
+		t.Errorf("buildK6Body: expected params length %v, actual %v", 2, len(postParams))
+	***REMOVED*** else if postParams[0] != expectedEmailParam ***REMOVED***
+		t.Errorf("buildK6Body: expected unescaped value %v, actual %v", expectedEmailParam, postParams[0])
+	***REMOVED***
+
 ***REMOVED***
