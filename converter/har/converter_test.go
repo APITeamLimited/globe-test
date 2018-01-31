@@ -28,6 +28,7 @@ import (
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildK6Headers(t *testing.T) ***REMOVED***
@@ -42,9 +43,7 @@ func TestBuildK6Headers(t *testing.T) ***REMOVED***
 
 	for _, pair := range headers ***REMOVED***
 		v := buildK6Headers(pair.values)
-		if len(v) != len(pair.expected) ***REMOVED***
-			t.Errorf("buildK6Headers(%v): expected %v, actual %v", pair.values, pair.expected, v)
-		***REMOVED***
+		assert.Equal(t, len(v), len(pair.expected), fmt.Sprintf("params: %v", pair.values))
 	***REMOVED***
 ***REMOVED***
 
@@ -56,17 +55,12 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 		Cookies: []Cookie***REMOVED******REMOVED***Name: "a", Value: "b"***REMOVED******REMOVED***,
 	***REMOVED***
 	v, err := buildK6RequestObject(req)
-	if err != nil ***REMOVED***
-		t.Error(err)
-	***REMOVED***
+	assert.NoError(t, err)
 	_, err = js.New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data:     []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
 	***REMOVED***, afero.NewMemMapFs())
-
-	if err != nil ***REMOVED***
-		t.Error(err)
-	***REMOVED***
+	assert.NoError(t, err)
 ***REMOVED***
 
 func TestBuildK6Body(t *testing.T) ***REMOVED***
@@ -82,13 +76,9 @@ func TestBuildK6Body(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	postParams, plainText, err := buildK6Body(req)
-	if err != nil ***REMOVED***
-		t.Error(err)
-	***REMOVED*** else if len(postParams) > 0 ***REMOVED***
-		t.Error("buildK6Body postParams should be empty")
-	***REMOVED*** else if plainText != bodyText ***REMOVED***
-		t.Errorf("buildK6Body: expected %v, actual %v", bodyText, plainText)
-	***REMOVED***
+	assert.NoError(t, err)
+	assert.Equal(t, len(postParams), 0, "postParams should be empty")
+	assert.Equal(t, bodyText, plainText)
 
 	email := "user@mail.es"
 	expectedEmailParam := fmt.Sprintf(`"email": %q`, email)
@@ -105,14 +95,8 @@ func TestBuildK6Body(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	postParams, plainText, err = buildK6Body(req)
-	if err != nil ***REMOVED***
-		t.Error(err)
-	***REMOVED*** else if plainText != "" ***REMOVED***
-		t.Errorf("buildK6Body: expected empty plainText, actual %v", plainText)
-	***REMOVED*** else if len(postParams) != 2 ***REMOVED***
-		t.Errorf("buildK6Body: expected params length %v, actual %v", 2, len(postParams))
-	***REMOVED*** else if postParams[0] != expectedEmailParam ***REMOVED***
-		t.Errorf("buildK6Body: expected unescaped value %v, actual %v", expectedEmailParam, postParams[0])
-	***REMOVED***
-
+	assert.NoError(t, err)
+	assert.Equal(t, plainText, "", "expected empty plainText")
+	assert.Equal(t, len(postParams), 2, "postParams should have two items")
+	assert.Equal(t, postParams[0], expectedEmailParam, "expected unescaped value")
 ***REMOVED***
