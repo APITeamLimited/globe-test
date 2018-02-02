@@ -123,7 +123,7 @@ func Convert(h HAR, includeCodeCheck bool, batchTime uint, nobatch bool, only, s
 
 				if includeCodeCheck ***REMOVED***
 					if e.Response.Status > 0 ***REMOVED***
-						fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\n\t\t\t\"status is %v\": (r) => r.status === %v\n\t\t***REMOVED***);\n", e.Response.Status, e.Response.Status)
+						fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
