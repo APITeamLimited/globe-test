@@ -200,7 +200,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 
 	t.Run("Hosts", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Hosts: map[string][]net.IP***REMOVED***
-			"test.loadimpact.com": []net.IP***REMOVED***net.ParseIP("192.0.2.1")***REMOVED***,
+			"test.loadimpact.com": ***REMOVED***net.ParseIP("192.0.2.1")***REMOVED***,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Hosts)
 		assert.NotEmpty(t, opts.Hosts)
