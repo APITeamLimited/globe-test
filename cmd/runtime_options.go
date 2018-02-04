@@ -59,6 +59,7 @@ func runtimeOptionFlagSet() *pflag.FlagSet ***REMOVED***
 func getRuntimeOptions(flags *pflag.FlagSet) (lib.RuntimeOptions, error) ***REMOVED***
 	opts := lib.RuntimeOptions***REMOVED***
 		NoSystemEnvVars: getNullBool(flags, "no-system-env-vars"),
+		Env:             make(map[string]string),
 	***REMOVED***
 
 	// If not disabled, gather the actual system environment variables
@@ -72,11 +73,6 @@ func getRuntimeOptions(flags *pflag.FlagSet) (lib.RuntimeOptions, error) ***REMO
 		return opts, err
 	***REMOVED***
 	if len(envVars) > 0 ***REMOVED***
-		// Initialize opts.Env if NoSystemEnvVars was enabled
-		if opts.Env == nil ***REMOVED***
-			opts.Env = make(map[string]string)
-		***REMOVED***
-
 		for _, kv := range envVars ***REMOVED***
 			k, v := parseEnvKeyValue(kv)
 			// Allow only alphanumeric ASCII variable names for now
