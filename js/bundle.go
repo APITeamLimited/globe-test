@@ -144,7 +144,7 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		Program:         pgm,
 		Options:         arc.Options,
 		BaseInitContext: initctx,
-		Env:             rtOpts.Env, //TODO: use Env from archive (and apply the rtOpts.Env?)
+		Env:             arc.Env, //TODO: if set, overwrite some options via rtOpts.Env?
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -155,6 +155,7 @@ func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
 		Filename: b.Filename,
 		Data:     []byte(b.Source),
 		Pwd:      b.BaseInitContext.pwd,
+		Env:      b.Env,
 	***REMOVED***
 
 	arc.Scripts = make(map[string][]byte, len(b.BaseInitContext.programs))

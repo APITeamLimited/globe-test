@@ -23,7 +23,6 @@ package js
 import (
 	"crypto/tls"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -435,15 +434,23 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleEnv(t *testing.T) ***REMOVED***
-	assert.NoError(t, os.Setenv("TEST_A", "1"))
-	assert.NoError(t, os.Setenv("TEST_B", ""))
+	rtOpts := lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***
+		"TEST_A": "1",
+		"TEST_B": "",
+	***REMOVED******REMOVED***
 
-	b1, err := getSimpleBundle("/script.js", `
-		export default function() ***REMOVED***
-			if (__ENV.TEST_A !== "1") ***REMOVED*** throw new Error("Invalid TEST_A: " + __ENV.TEST_A); ***REMOVED***
-			if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
-		***REMOVED***
-	`)
+	b1, err := NewBundle(
+		&lib.SourceData***REMOVED***
+			Filename: "/script.js",
+			Data: []byte(`
+				export default function() ***REMOVED***
+					if (__ENV.TEST_A !== "1") ***REMOVED*** throw new Error("Invalid TEST_A: " + __ENV.TEST_A); ***REMOVED***
+					if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
+				***REMOVED***
+			`),
+		***REMOVED***,
+		afero.NewMemMapFs(), rtOpts,
+	)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***

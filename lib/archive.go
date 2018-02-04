@@ -59,6 +59,9 @@ type Archive struct ***REMOVED***
 	// Archived filesystem.
 	Scripts map[string][]byte `json:"-"` // included scripts
 	Files   map[string][]byte `json:"-"` // non-script resources
+
+	// Environment variables
+	Env map[string]string `json:"env"`
 ***REMOVED***
 
 // Reads an archive created by Archive.Write from a reader.

@@ -128,3 +128,5 @@ func TestArchiveJSONEscape(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 	assert.Contains(t, string(b), "test<.js")
 ***REMOVED***
+
+//TODO: write test for environment variables
