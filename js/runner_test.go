@@ -50,7 +50,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 			let counter = 0;
 			export default function() ***REMOVED*** counter++; ***REMOVED***
 		`),
-		***REMOVED***, afero.NewMemMapFs())
+		***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		t.Run("NewVU", func(t *testing.T) ***REMOVED***
@@ -71,7 +71,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 		_, err := New(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
 			Data:     []byte(`blarg`),
-		***REMOVED***, afero.NewMemMapFs())
+		***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		assert.EqualError(t, err, "ReferenceError: blarg is not defined at /script.js:1:1(0)")
 	***REMOVED***)
 ***REMOVED***
@@ -80,12 +80,12 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r2.GetDefaultGroup())
 	***REMOVED***
@@ -95,12 +95,12 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -134,7 +134,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 					_, err := New(&lib.SourceData***REMOVED***
 						Filename: "/script.js",
 						Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
-					***REMOVED***, afero.NewMemMapFs())
+					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 					assert.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***)
@@ -162,12 +162,12 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 					export default function() ***REMOVED***
 						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
 					***REMOVED***`, data.path)),
-				***REMOVED***, fs)
+				***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 				if !assert.NoError(t, err) ***REMOVED***
 					return
 				***REMOVED***
 
-				r2, err := NewFromArchive(r1.MakeArchive())
+				r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 				if !assert.NoError(t, err) ***REMOVED***
 					return
 				***REMOVED***
@@ -195,13 +195,13 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 		export let options = ***REMOVED*** vus: 10 ***REMOVED***;
 		export default function() ***REMOVED*** fn(); ***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -242,13 +242,13 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 		Data: []byte(`
 		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -283,12 +283,12 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 			***REMOVED***);
 		***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -339,12 +339,12 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 		let myMetric = new Trend("my_metric");
 		export default function() ***REMOVED*** myMetric.add(5); ***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -406,13 +406,13 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
 				`),
-			***REMOVED***, afero.NewMemMapFs())
+			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
 			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
 
-			r2, err := NewFromArchive(r1.MakeArchive())
+			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -445,7 +445,7 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -459,7 +459,7 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 		BlacklistIPs: []*net.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -515,13 +515,13 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`),
-			***REMOVED***, afero.NewMemMapFs())
+			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
 			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
 
-			r2, err := NewFromArchive(r1.MakeArchive())
+			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -558,13 +558,13 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 				if (res.proto != "HTTP/2.0") ***REMOVED*** throw new Error("wrong proto: " + res.proto) ***REMOVED***
 			***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -610,7 +610,7 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -619,7 +619,7 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 		MaxRedirects: null.IntFrom(10),
 	***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -647,13 +647,13 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
 		),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -742,7 +742,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			import http from "k6/http";
 			export default function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String())),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -752,7 +752,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(r1.MakeArchive())
+		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -797,7 +797,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(r1.MakeArchive())
+		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
