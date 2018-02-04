@@ -63,7 +63,8 @@ var inspectCmd = &cobra.Command***REMOVED***
 			***REMOVED***
 			opts = arc.Options
 		case typeJS:
-			b, err := js.NewBundle(src, fs)
+			//TODO: also accept CLI env vars? they can influence the JS init and options
+			b, err := js.NewBundle(src, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
