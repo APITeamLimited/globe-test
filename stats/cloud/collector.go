@@ -127,6 +127,15 @@ func (c *Collector) Init() error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (c *Collector) GetOptions() lib.CollectorOptions ***REMOVED***
+	return lib.CollectorOptions***REMOVED***
+		DefaultTags: lib.Tags***REMOVED***
+			"vu:id":   true,
+			"vu:iter": true,
+		***REMOVED***,
+	***REMOVED***
+***REMOVED***
+
 func (c *Collector) Link() string ***REMOVED***
 	return URLForResults(c.referenceID, c.config)
 ***REMOVED***

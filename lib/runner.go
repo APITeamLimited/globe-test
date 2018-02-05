@@ -53,6 +53,9 @@ type Runner interface ***REMOVED***
 	// values and write it back to the runner.
 	GetOptions() Options
 	SetOptions(opts Options)
+
+	// Set options from the collector.
+	SetCollectorOptions(opts CollectorOptions)
 ***REMOVED***
 
 // A VU is a Virtual User, that can be scheduled by an Executor.
@@ -90,6 +93,9 @@ func (fn RunnerFunc) GetOptions() Options ***REMOVED***
 ***REMOVED***
 
 func (fn RunnerFunc) SetOptions(opts Options) ***REMOVED***
+***REMOVED***
+
+func (fn RunnerFunc) SetCollectorOptions(opts CollectorOptions) ***REMOVED***
 ***REMOVED***
 
 // A VU spawned by a RunnerFunc.

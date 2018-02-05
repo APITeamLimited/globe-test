@@ -31,6 +31,32 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+type Tags map[string]bool
+
+func (t Tags) MarshalJSON() ([]byte, error) ***REMOVED***
+	var tags []string
+	for tag, _ := range t ***REMOVED***
+		tags = append(tags, tag)
+	***REMOVED***
+	return json.Marshal(tags)
+***REMOVED***
+
+func (t *Tags) UnmarshalJSON(data []byte) error ***REMOVED***
+	var tags []string
+	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if len(tags) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+	_tags := Tags***REMOVED******REMOVED***
+	for _, tag := range tags ***REMOVED***
+		_tags[tag] = true
+	***REMOVED***
+	*t = _tags
+	return nil
+***REMOVED***
+
 // Describes a TLS version. Serialised to/from JSON as a string, eg. "tls1.2".
 type TLSVersion int
 
@@ -201,6 +227,9 @@ type Options struct ***REMOVED***
 
 	// Summary trend stats for trend metrics (response times) in CLI output
 	SummaryTrendStats []string `json:"SummaryTrendStats" envconfig:"summary_trend_stats"`
+
+	// Which default tags to include with metrics, namespaced ("http:method", "vu:id" etc.)
+	DefaultTags Tags `json:"defaultTags" envconfig:"default_tags"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -278,6 +307,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.SummaryTrendStats != nil ***REMOVED***
 		o.SummaryTrendStats = opts.SummaryTrendStats
+	***REMOVED***
+	if opts.DefaultTags != nil ***REMOVED***
+		o.DefaultTags = opts.DefaultTags
 	***REMOVED***
 	return o
 ***REMOVED***

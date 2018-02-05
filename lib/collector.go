@@ -33,6 +33,8 @@ type Collector interface ***REMOVED***
 	// You should do any lenghty setup here rather than in New.
 	Init() error
 
+	GetOptions() CollectorOptions
+
 	// Run is called in a goroutine and starts the collector. Should commit samples to the backend
 	// at regular intervals and when the context is terminated.
 	Run(ctx context.Context)
@@ -43,4 +45,10 @@ type Collector interface ***REMOVED***
 
 	// Optionally return a link that is shown to the user.
 	Link() string
+***REMOVED***
+
+// CollectorOptions holds options that allows the collector to control different aspects of the core.
+type CollectorOptions struct ***REMOVED***
+	// Which default tags to include with metrics, namespaced ("http:method", "vu:id" etc.)
+	DefaultTags Tags
 ***REMOVED***

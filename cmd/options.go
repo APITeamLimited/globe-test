@@ -51,6 +51,7 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.BoolP("throw", "w", false, "throw warnings (like failed http requests) as errors")
 	flags.StringSlice("blacklist-ip", nil, "blacklist an `ip range` from being called")
 	flags.StringSlice("summary-trend-stats", nil, "define `stats` for trend metrics (response times), one or more as 'avg,p(95),...'")
+	flags.StringSlice("default-tags", nil, "only include specified default tags on metrics")
 	return flags
 ***REMOVED***
 
@@ -108,6 +109,17 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		***REMOVED***
 
 		opts.SummaryTrendStats = append(opts.SummaryTrendStats, s)
+	***REMOVED***
+
+	defTagsStrings, err := flags.GetStringSlice("default-tags")
+	if err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	if len(defTagsStrings) > 0 ***REMOVED***
+		opts.DefaultTags = lib.Tags***REMOVED******REMOVED***
+		for _, tag := range defTagsStrings ***REMOVED***
+			opts.DefaultTags[tag] = true
+		***REMOVED***
 	***REMOVED***
 
 	return opts, nil
