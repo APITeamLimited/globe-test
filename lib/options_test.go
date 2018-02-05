@@ -229,6 +229,41 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.NoError(t, json.Unmarshal(data, &opts))
 		assert.Equal(t, Options***REMOVED******REMOVED***, opts)
 	***REMOVED***)
+	t.Run("DefaultTags", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***DefaultTags: Tags***REMOVED***
+			"ns:tag": true,
+		***REMOVED******REMOVED***)
+		assert.NotNil(t, opts.DefaultTags)
+		assert.NotEmpty(t, opts.DefaultTags)
+		assert.True(t, opts.DefaultTags["ns:tag"])
+
+		t.Run("JSON", func(t *testing.T) ***REMOVED***
+			t.Run("Array", func(t *testing.T) ***REMOVED***
+				var opts Options
+				jsonStr := `***REMOVED***"defaultTags":["vu:id","http:url"]***REMOVED***`
+				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
+				assert.Equal(t, Tags***REMOVED***
+					"vu:id":    true,
+					"http:url": true,
+				***REMOVED***, opts.DefaultTags)
+
+				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+					data, err := json.Marshal(opts.DefaultTags)
+					assert.NoError(t, err)
+					assert.Equal(t, `["vu:id","http:url"]`, string(data))
+					var vers2 Tags
+					assert.NoError(t, json.Unmarshal(data, &vers2))
+					assert.Equal(t, vers2, opts.DefaultTags)
+				***REMOVED***)
+			***REMOVED***)
+			t.Run("Blank", func(t *testing.T) ***REMOVED***
+				var opts Options
+				jsonStr := `***REMOVED***"defaultTags":[]***REMOVED***`
+				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
+				assert.Nil(t, opts.DefaultTags)
+			***REMOVED***)
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
 
 func TestOptionsEnv(t *testing.T) ***REMOVED***
