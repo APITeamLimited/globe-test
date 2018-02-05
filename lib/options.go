@@ -31,11 +31,12 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+// A set of tags, used to keep track of which default tags to emit with metrics.
 type Tags map[string]bool
 
 func (t Tags) MarshalJSON() ([]byte, error) ***REMOVED***
 	var tags []string
-	for tag, _ := range t ***REMOVED***
+	for tag := range t ***REMOVED***
 		tags = append(tags, tag)
 	***REMOVED***
 	return json.Marshal(tags)
