@@ -28,11 +28,17 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"github.com/pkg/errors"
 )
 
-func Convert(h HAR, includeCodeCheck bool, batchTime uint, nobatch bool, only, skip []string) (string, error) ***REMOVED***
+func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
+
+	if returnOnFailedCheck && !includeCodeCheck ***REMOVED***
+		return "", errors.Errorf("return on failed check requires --enable-status-code-checks")
+	***REMOVED***
+
 	if includeCodeCheck ***REMOVED***
 		fmt.Fprint(w, "import ***REMOVED*** group, check, sleep ***REMOVED*** from 'k6';\n")
 	***REMOVED*** else ***REMOVED***
@@ -123,7 +129,11 @@ func Convert(h HAR, includeCodeCheck bool, batchTime uint, nobatch bool, only, s
 
 				if includeCodeCheck ***REMOVED***
 					if e.Response.Status > 0 ***REMOVED***
-						fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+						if returnOnFailedCheck ***REMOVED***
+							fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+						***REMOVED*** else ***REMOVED***
+							fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
@@ -151,7 +161,11 @@ func Convert(h HAR, includeCodeCheck bool, batchTime uint, nobatch bool, only, s
 				if includeCodeCheck ***REMOVED***
 					for k, e := range batchEntries ***REMOVED***
 						if e.Response.Status > 0 ***REMOVED***
-							fmt.Fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\n\t\t\"status is %v\": (r) => r.status === %v,\n\t***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
+							if returnOnFailedCheck ***REMOVED***
+								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+							***REMOVED*** else ***REMOVED***
+								fmt.Fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
+							***REMOVED***
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***
