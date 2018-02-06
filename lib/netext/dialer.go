@@ -35,6 +35,7 @@ type Dialer struct ***REMOVED***
 
 	Resolver  *dnscache.Resolver
 	Blacklist []*net.IPNet
+	Hosts     map[string]net.IP
 
 	BytesRead    *int64
 	BytesWritten *int64
@@ -49,10 +50,18 @@ func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
 
 func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
 	delimiter := strings.LastIndex(addr, ":")
-	ip, err := d.Resolver.FetchOne(addr[:delimiter])
-	if err != nil ***REMOVED***
-		return nil, err
+	host := addr[:delimiter]
+
+	// lookup for domain defined in Hosts option before trying to resolve DNS.
+	ip, ok := d.Hosts[host]
+	if !ok ***REMOVED***
+		var err error
+		ip, err = d.Resolver.FetchOne(host)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 	***REMOVED***
+
 	for _, net := range d.Blacklist ***REMOVED***
 		if net.Contains(ip) ***REMOVED***
 			return nil, errors.Errorf("IP (%s) is in a blacklisted range (%s)", ip, net)

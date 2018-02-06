@@ -140,6 +140,7 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		Dialer:    r.BaseDialer,
 		Resolver:  r.Resolver,
 		Blacklist: r.Bundle.Options.BlacklistIPs,
+		Hosts:     r.Bundle.Options.Hosts,
 	***REMOVED***
 	transport := &http.Transport***REMOVED***
 		Proxy: http.ProxyFromEnvironment,
