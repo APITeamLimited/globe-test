@@ -127,6 +127,46 @@ func TestTrendSink(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func TestRateSink(t *testing.T) ***REMOVED***
+	samples6 := []float64***REMOVED***1.0, 0.0, 1.0, 0.0, 0.0, 1.0***REMOVED***
+
+	t.Run("add", func(t *testing.T) ***REMOVED***
+		t.Run("one true", func(t *testing.T) ***REMOVED***
+			sink := RateSink***REMOVED******REMOVED***
+			sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: 1.0***REMOVED***)
+			assert.Equal(t, int64(1), sink.Total)
+			assert.Equal(t, int64(1), sink.Trues)
+		***REMOVED***)
+		t.Run("one false", func(t *testing.T) ***REMOVED***
+			sink := RateSink***REMOVED******REMOVED***
+			sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: 0.0***REMOVED***)
+			assert.Equal(t, int64(1), sink.Total)
+			assert.Equal(t, int64(0), sink.Trues)
+		***REMOVED***)
+		t.Run("values", func(t *testing.T) ***REMOVED***
+			sink := RateSink***REMOVED******REMOVED***
+			for _, s := range samples6 ***REMOVED***
+				sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: s***REMOVED***)
+			***REMOVED***
+			assert.Equal(t, int64(6), sink.Total)
+			assert.Equal(t, int64(3), sink.Trues)
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("calc", func(t *testing.T) ***REMOVED***
+		sink := RateSink***REMOVED******REMOVED***
+		sink.Calc()
+		assert.Equal(t, int64(0), sink.Total)
+		assert.Equal(t, int64(0), sink.Trues)
+	***REMOVED***)
+	t.Run("format", func(t *testing.T) ***REMOVED***
+		sink := RateSink***REMOVED******REMOVED***
+		for _, s := range samples6 ***REMOVED***
+			sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: s***REMOVED***)
+		***REMOVED***
+		assert.Equal(t, map[string]float64***REMOVED***"rate": 0.5***REMOVED***, sink.Format(0))
+	***REMOVED***)
+***REMOVED***
+
 func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
 	assert.Panics(t, func() ***REMOVED***
 		DummySink***REMOVED******REMOVED***.Add(Sample***REMOVED******REMOVED***)
