@@ -22,9 +22,45 @@ package stats
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestCounterSink(t *testing.T) ***REMOVED***
+	samples10 := []float64***REMOVED***1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 100.0***REMOVED***
+	now := time.Now()
+
+	t.Run("add", func(t *testing.T) ***REMOVED***
+		t.Run("one value", func(t *testing.T) ***REMOVED***
+			sink := CounterSink***REMOVED******REMOVED***
+			sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: 1.0, Time: now***REMOVED***)
+			assert.Equal(t, 1.0, sink.Value)
+			assert.Equal(t, now, sink.First)
+		***REMOVED***)
+		t.Run("values", func(t *testing.T) ***REMOVED***
+			sink := CounterSink***REMOVED******REMOVED***
+			for _, s := range samples10 ***REMOVED***
+				sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: s, Time: now***REMOVED***)
+			***REMOVED***
+			assert.Equal(t, 145.0, sink.Value)
+			assert.Equal(t, now, sink.First)
+		***REMOVED***)
+	***REMOVED***)
+	t.Run("calc", func(t *testing.T) ***REMOVED***
+		sink := CounterSink***REMOVED******REMOVED***
+		sink.Calc()
+		assert.Equal(t, 0.0, sink.Value)
+		assert.Equal(t, time.Time***REMOVED******REMOVED***, sink.First)
+	***REMOVED***)
+	t.Run("format", func(t *testing.T) ***REMOVED***
+		sink := CounterSink***REMOVED******REMOVED***
+		for _, s := range samples10 ***REMOVED***
+			sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: s, Time: now***REMOVED***)
+		***REMOVED***
+		assert.Equal(t, map[string]float64***REMOVED***"count": 145, "rate": 145.0***REMOVED***, sink.Format(1*time.Second))
+	***REMOVED***)
+***REMOVED***
 
 func TestGaugeSink(t *testing.T) ***REMOVED***
 	samples6 := []float64***REMOVED***1.0, 2.0, 3.0, 4.0, 10.0, 5.0***REMOVED***
