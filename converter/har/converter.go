@@ -31,7 +31,7 @@ import (
 	"strings"
 )
 
-func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, only, skip []string) (string, error) ***REMOVED***
+func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
@@ -55,7 +55,9 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 		fmt.Fprintf(w, "// %v\n", h.Log.Comment)
 	***REMOVED***
 
-	fmt.Fprint(w, "\n")
+	// recordings include redirections as separate requests, and we dont want to trigger them twice
+	fmt.Fprint(w, "\nexport let options = ***REMOVED*** maxRedirects: 0 ***REMOVED***;\n\n")
+
 	fmt.Fprint(w, "export default function() ***REMOVED***\n\n")
 
 	pages := h.Log.Pages
@@ -95,7 +97,9 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 		sort.Sort(EntryByStarted(entries))
 
 		if nobatch ***REMOVED***
-			fmt.Fprint(w, "\t\tlet res;\n")
+			var recordedRedirectUrl string
+
+			fmt.Fprint(w, "\t\tlet res, redirectUrl;\n")
 
 			for _, e := range entries ***REMOVED***
 
@@ -118,8 +122,21 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 					params = append(params, fmt.Sprintf("\"headers\": ***REMOVED***\n\t\t\t\t\t%s\n\t\t\t\t***REMOVED***", strings.Join(headers, ",\n\t\t\t\t\t")))
 				***REMOVED***
 
-				fmt.Fprintf(w, "\t\tres = http.%s(%q,\n\t\t\t%q",
-					strings.ToLower(e.Request.Method), e.Request.URL, body)
+				fmt.Fprintf(w, "\t\tres = http.%s(", strings.ToLower(e.Request.Method))
+
+				if correlate && recordedRedirectUrl != "" ***REMOVED***
+					if recordedRedirectUrl != e.Request.URL ***REMOVED***
+						return "", errors.Errorf("The har file contained a redirect but the next request did not match that redirect. Possibly a misbehaving client or concurrent requests?")
+					***REMOVED***
+					fmt.Fprintf(w, "redirectUrl")
+					recordedRedirectUrl = ""
+				***REMOVED*** else ***REMOVED***
+					fmt.Fprintf(w, "%q", e.Request.URL)
+				***REMOVED***
+
+				if e.Request.Method != "GET" ***REMOVED***
+					fmt.Fprintf(w, ", %q", body)
+				***REMOVED***
 
 				if len(params) > 0 ***REMOVED***
 					fmt.Fprintf(w, ",\n\t\t\t***REMOVED***\n\t\t\t\t%s\n\t\t\t***REMOVED***", strings.Join(params, ",\n\t\t\t"))
@@ -133,6 +150,16 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 							fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 						***REMOVED*** else ***REMOVED***
 							fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				if e.Response.Headers != nil ***REMOVED***
+					for _, header := range e.Response.Headers ***REMOVED***
+						if header.Name == "Location" ***REMOVED***
+							fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
+							recordedRedirectUrl = header.Value
+							break
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***
