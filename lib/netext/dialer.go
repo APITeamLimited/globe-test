@@ -21,7 +21,6 @@
 package netext
 
 import (
-	"container/ring"
 	"context"
 	"net"
 	"strings"
@@ -36,7 +35,7 @@ type Dialer struct ***REMOVED***
 
 	Resolver  *dnscache.Resolver
 	Blacklist []*net.IPNet
-	Hosts     map[string]*ring.Ring
+	Hosts     map[string]net.IP
 
 	BytesRead    *int64
 	BytesWritten *int64
@@ -53,12 +52,9 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 	delimiter := strings.LastIndex(addr, ":")
 	host := addr[:delimiter]
 
-	// lookup for domain defined in Hosts options before trying to solve DNS.
-	var ip net.IP
-	if _, ok := d.Hosts[host]; ok ***REMOVED***
-		d.Hosts[host] = d.Hosts[host].Next()
-		ip = d.Hosts[host].Value.(net.IP)
-	***REMOVED*** else ***REMOVED***
+	// lookup for domain defined in Hosts option before trying to resolve DNS.
+	ip, ok := d.Hosts[host]
+	if !ok ***REMOVED***
 		var err error
 		ip, err = d.Resolver.FetchOne(host)
 		if err != nil ***REMOVED***
