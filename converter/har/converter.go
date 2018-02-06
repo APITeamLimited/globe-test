@@ -30,7 +30,7 @@ import (
 	"strings"
 )
 
-func Convert(h HAR, includeCodeCheck bool, batchTime uint, only, skip []string) (string, error) ***REMOVED***
+func Convert(h HAR, includeCodeCheck bool, batchTime uint, nobatch bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 	if includeCodeCheck ***REMOVED***
@@ -87,55 +87,97 @@ func Convert(h HAR, includeCodeCheck bool, batchTime uint, only, skip []string) 
 		fmt.Fprintf(w, "\tgroup(\"%s - %s\", function() ***REMOVED***\n", page.ID, page.Title)
 
 		sort.Sort(EntryByStarted(entries))
-		batches := SplitEntriesInBatches(entries, batchTime)
 
-		fmt.Fprint(w, "\t\tlet req, res;\n")
+		if nobatch ***REMOVED***
+			fmt.Fprint(w, "\t\tlet res;\n")
 
-		for j, batchEntries := range batches ***REMOVED***
+			for _, e := range entries ***REMOVED***
 
-			fmt.Fprint(w, "\t\treq = [")
-			for k, e := range batchEntries ***REMOVED***
-				r, err := buildK6RequestObject(e.Request)
-				if err != nil ***REMOVED***
-					return "", err
+				var params []string
+				var cookies []string
+				var body string
+
+				if e.Request.PostData != nil ***REMOVED***
+					body = e.Request.PostData.Text
 				***REMOVED***
-				fmt.Fprintf(w, "%v", r)
-				if k != len(batchEntries)-1 ***REMOVED***
-					fmt.Fprint(w, ",")
-				***REMOVED***
-			***REMOVED***
-			fmt.Fprint(w, "];\n")
-			fmt.Fprint(w, "\t\tres = http.batch(req);\n")
 
-			if includeCodeCheck ***REMOVED***
-				for k, e := range batchEntries ***REMOVED***
+				for _, c := range e.Request.Cookies ***REMOVED***
+					cookies = append(cookies, fmt.Sprintf(`%q: %q`, c.Name, c.Value))
+				***REMOVED***
+				if len(cookies) > 0 ***REMOVED***
+					params = append(params, fmt.Sprintf("\"cookies\": ***REMOVED***\n\t\t\t\t%s\n\t\t\t***REMOVED***", strings.Join(cookies, ",\n\t\t\t\t\t")))
+				***REMOVED***
+
+				if headers := buildK6Headers(e.Request.Headers); len(headers) > 0 ***REMOVED***
+					params = append(params, fmt.Sprintf("\"headers\": ***REMOVED***\n\t\t\t\t\t%s\n\t\t\t\t***REMOVED***", strings.Join(headers, ",\n\t\t\t\t\t")))
+				***REMOVED***
+
+				fmt.Fprintf(w, "\t\tres = http.%s(%q,\n\t\t\t%q",
+					strings.ToLower(e.Request.Method), e.Request.URL, body)
+
+				if len(params) > 0 ***REMOVED***
+					fmt.Fprintf(w, ",\n\t\t\t***REMOVED***\n\t\t\t\t%s\n\t\t\t***REMOVED***", strings.Join(params, ",\n\t\t\t"))
+				***REMOVED***
+
+				fmt.Fprintf(w, "\n\t\t)\n")
+
+				if includeCodeCheck ***REMOVED***
 					if e.Response.Status > 0 ***REMOVED***
-						fmt.Fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\n\t\t\"status is %v\": (r) => r.status === %v,\n\t***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
+						fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\n\t\t\t\"status is %v\": (r) => r.status === %v\n\t\t***REMOVED***);\n", e.Response.Status, e.Response.Status)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			batches := SplitEntriesInBatches(entries, batchTime)
 
-			if j != len(batches)-1 ***REMOVED***
-				lastBatchEntry := batchEntries[len(batchEntries)-1]
-				firstBatchEntry := batches[j+1][0]
-				t := firstBatchEntry.StartedDateTime.Sub(lastBatchEntry.StartedDateTime).Seconds()
+			fmt.Fprint(w, "\t\tlet req, res;\n")
+
+			for j, batchEntries := range batches ***REMOVED***
+
+				fmt.Fprint(w, "\t\treq = [")
+				for k, e := range batchEntries ***REMOVED***
+					r, err := buildK6RequestObject(e.Request)
+					if err != nil ***REMOVED***
+						return "", err
+					***REMOVED***
+					fmt.Fprintf(w, "%v", r)
+					if k != len(batchEntries)-1 ***REMOVED***
+						fmt.Fprint(w, ",")
+					***REMOVED***
+				***REMOVED***
+				fmt.Fprint(w, "];\n")
+				fmt.Fprint(w, "\t\tres = http.batch(req);\n")
+
+				if includeCodeCheck ***REMOVED***
+					for k, e := range batchEntries ***REMOVED***
+						if e.Response.Status > 0 ***REMOVED***
+							fmt.Fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\n\t\t\"status is %v\": (r) => r.status === %v,\n\t***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				if j != len(batches)-1 ***REMOVED***
+					lastBatchEntry := batchEntries[len(batchEntries)-1]
+					firstBatchEntry := batches[j+1][0]
+					t := firstBatchEntry.StartedDateTime.Sub(lastBatchEntry.StartedDateTime).Seconds()
+					fmt.Fprintf(w, "\t\tsleep(%.2f);\n", t)
+				***REMOVED***
+			***REMOVED***
+
+			if i == len(pages)-1 ***REMOVED***
+				// Last page; add random sleep time at the group completion
+				fmt.Fprint(w, "\t\t// Random sleep between 2s and 4s\n")
+				fmt.Fprint(w, "\t\tsleep(Math.floor(Math.random()*3+2));\n")
+			***REMOVED*** else ***REMOVED***
+				// Add sleep time at the end of the group
+				nextPage := pages[i+1]
+				lastEntry := entries[len(entries)-1]
+				t := nextPage.StartedDateTime.Sub(lastEntry.StartedDateTime).Seconds()
+				if t < 0.01 ***REMOVED***
+					t = 0.5
+				***REMOVED***
 				fmt.Fprintf(w, "\t\tsleep(%.2f);\n", t)
 			***REMOVED***
-		***REMOVED***
-
-		if i == len(pages)-1 ***REMOVED***
-			// Last page; add random sleep time at the group completion
-			fmt.Fprint(w, "\t\t// Random sleep between 2s and 4s\n")
-			fmt.Fprint(w, "\t\tsleep(Math.floor(Math.random()*3+2));\n")
-		***REMOVED*** else ***REMOVED***
-			// Add sleep time at the end of the group
-			nextPage := pages[i+1]
-			lastEntry := entries[len(entries)-1]
-			t := nextPage.StartedDateTime.Sub(lastEntry.StartedDateTime).Seconds()
-			if t < 0.01 ***REMOVED***
-				t = 0.5
-			***REMOVED***
-			fmt.Fprintf(w, "\t\tsleep(%.2f);\n", t)
 		***REMOVED***
 
 		fmt.Fprint(w, "\t***REMOVED***);\n")
