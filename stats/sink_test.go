@@ -249,6 +249,12 @@ func TestDummySinkAddPanics(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func TestDummySinkCalcDoesNothing(t *testing.T) ***REMOVED***
+	sink := DummySink***REMOVED***"a": 1***REMOVED***
+	sink.Calc()
+	assert.Equal(t, 1.0, sink["a"])
+***REMOVED***
+
 func TestDummySinkFormatReturnsItself(t *testing.T) ***REMOVED***
 	assert.Equal(t, map[string]float64***REMOVED***"a": 1***REMOVED***, DummySink***REMOVED***"a": 1***REMOVED***.Format(0))
 ***REMOVED***
