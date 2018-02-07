@@ -33,6 +33,7 @@ import (
 
 type EnvVarTest struct ***REMOVED***
 	name      string
+	useSysEnv bool // Whether to include the system env vars by default (run) or not (cloud/archive/inspect)
 	systemEnv map[string]string
 	cliOpts   []string
 	expErr    bool
@@ -42,20 +43,63 @@ type EnvVarTest struct ***REMOVED***
 var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***
 		"empty env",
+		true,
 		map[string]string***REMOVED******REMOVED***,
 		[]string***REMOVED******REMOVED***,
 		false,
 		map[string]string***REMOVED******REMOVED***,
 	***REMOVED***,
 	***REMOVED***
-		"disabled sys env",
+		"disabled sys env by default",
+		false,
 		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		[]string***REMOVED***"--no-system-env-vars"***REMOVED***,
+		[]string***REMOVED******REMOVED***,
 		false,
 		map[string]string***REMOVED******REMOVED***,
 	***REMOVED***,
 	***REMOVED***
-		"only system env",
+		"disabled sys env by cli 1",
+		true,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+		[]string***REMOVED***"--include-system-env-vars=false"***REMOVED***,
+		false,
+		map[string]string***REMOVED******REMOVED***,
+	***REMOVED***,
+	***REMOVED***
+		"disabled sys env by cli 2",
+		true,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+		[]string***REMOVED***"--include-system-env-vars=0"***REMOVED***,
+		false,
+		map[string]string***REMOVED******REMOVED***,
+	***REMOVED***,
+	***REMOVED***
+		"enabled sys env by default",
+		true,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+		[]string***REMOVED******REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+	***REMOVED***,
+	***REMOVED***
+		"enabled sys env by cli 1",
+		false,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+		[]string***REMOVED***"--include-system-env-vars"***REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+	***REMOVED***,
+	***REMOVED***
+		"enabled sys env by cli 2",
+		false,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+		[]string***REMOVED***"--include-system-env-vars=true"***REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+	***REMOVED***,
+	***REMOVED***
+		"run only system env",
+		true,
 		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
 		[]string***REMOVED******REMOVED***,
 		false,
@@ -63,20 +107,31 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***,
 	***REMOVED***
 		"mixed system and cli env",
+		true,
 		map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
 		[]string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5="***REMOVED***,
 		false,
 		map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
 	***REMOVED***,
 	***REMOVED***
+		"mixed system and cli env 2",
+		false,
+		map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
+		[]string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5=", "--include-system-env-vars=1"***REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
+	***REMOVED***,
+	***REMOVED***
 		"disabled system env with cli params",
+		false,
 		map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		[]string***REMOVED***"-e", "test2=overwriten", "-e", "test2=val2", "--no-system-env-vars"***REMOVED***,
+		[]string***REMOVED***"-e", "test2=overwriten", "-e", "test2=val2"***REMOVED***,
 		false,
 		map[string]string***REMOVED***"test2": "val2"***REMOVED***,
 	***REMOVED***,
 	***REMOVED***
 		"overwriting system env with cli param",
+		true,
 		map[string]string***REMOVED***"test1": "val1sys"***REMOVED***,
 		[]string***REMOVED***"--env", "test1=val1cli"***REMOVED***,
 		false,
@@ -84,6 +139,7 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***,
 	***REMOVED***
 		"error invalid cli var name 1",
+		true,
 		map[string]string***REMOVED******REMOVED***,
 		[]string***REMOVED***"--env", "test a=error"***REMOVED***,
 		true,
@@ -91,6 +147,7 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***,
 	***REMOVED***
 		"error invalid cli var name 2",
+		true,
 		map[string]string***REMOVED******REMOVED***,
 		[]string***REMOVED***"--env", "1var=error"***REMOVED***,
 		true,
@@ -98,6 +155,7 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***,
 	***REMOVED***
 		"error invalid cli var name 3",
+		true,
 		map[string]string***REMOVED******REMOVED***,
 		[]string***REMOVED***"--env", "уникод=unicode-disabled"***REMOVED***,
 		true,
@@ -105,6 +163,7 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 	***REMOVED***,
 	***REMOVED***
 		"valid env vars with spaces",
+		true,
 		map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
 		[]string***REMOVED***"--env", "test2=value 2"***REMOVED***,
 		false,
@@ -119,7 +178,7 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 			for key, val := range tc.systemEnv ***REMOVED***
 				require.NoError(t, os.Setenv(key, val))
 			***REMOVED***
-			flags := runtimeOptionFlagSet()
+			flags := runtimeOptionFlagSet(tc.useSysEnv)
 			require.NoError(t, flags.Parse(tc.cliOpts))
 
 			rtOpts, err := getRuntimeOptions(flags)
