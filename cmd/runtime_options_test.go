@@ -28,6 +28,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -216,18 +217,26 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 			archiveBuf := &bytes.Buffer***REMOVED******REMOVED***
 			archive.Write(archiveBuf)
 
-			_, err = newRunner(
-				&lib.SourceData***REMOVED***
-					Data:     []byte(archiveBuf.Bytes()),
-					Filename: "/script.tar",
-				***REMOVED***,
-				typeArchive,
-				afero.NewOsFs(),
-				lib.RuntimeOptions***REMOVED******REMOVED***, // Empty runtime options!
-			)
-			require.NoError(t, err)
+			getRunnerErr := func(rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
+				r, err := newRunner(
+					&lib.SourceData***REMOVED***
+						Data:     []byte(archiveBuf.Bytes()),
+						Filename: "/script.tar",
+					***REMOVED***,
+					typeArchive,
+					afero.NewOsFs(),
+					rtOpts,
+				)
+				return r, err
+			***REMOVED***
 
-			//TODO: write test when the runner overwrites some env vars in the archive?
+			_, err = getRunnerErr(lib.RuntimeOptions***REMOVED******REMOVED***)
+			require.NoError(t, err)
+			for key, val := range tc.expEnv ***REMOVED***
+				r, err := getRunnerErr(lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***key: "almost " + val***REMOVED******REMOVED***)
+				assert.NoError(t, err)
+				assert.Equal(t, r.MakeArchive().Env[key], "almost "+val)
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
