@@ -103,6 +103,7 @@ func TestGaugeSink(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestTrendSink(t *testing.T) ***REMOVED***
+	unsortedSamples5 := []float64***REMOVED***0.0, 5.0, 10.0, 3.0, 1.0***REMOVED***
 	unsortedSamples10 := []float64***REMOVED***0.0, 100.0, 30.0, 80.0, 70.0, 60.0, 50.0, 40.0, 90.0, 20.0***REMOVED***
 
 	t.Run("add", func(t *testing.T) ***REMOVED***
@@ -136,6 +137,16 @@ func TestTrendSink(t *testing.T) ***REMOVED***
 			assert.Equal(t, uint64(0), sink.Count)
 			assert.Equal(t, false, sink.jumbled)
 			assert.Equal(t, 0.0, sink.Med)
+		***REMOVED***)
+		t.Run("odd number of samples median", func(t *testing.T) ***REMOVED***
+			sink := TrendSink***REMOVED******REMOVED***
+			for _, s := range unsortedSamples5 ***REMOVED***
+				sink.Add(Sample***REMOVED***Metric: &Metric***REMOVED******REMOVED***, Value: s***REMOVED***)
+			***REMOVED***
+			sink.Calc()
+			assert.Equal(t, uint64(len(unsortedSamples5)), sink.Count)
+			assert.Equal(t, false, sink.jumbled)
+			assert.Equal(t, 3.0, sink.Med)
 		***REMOVED***)
 		t.Run("sorted", func(t *testing.T) ***REMOVED***
 			sink := TrendSink***REMOVED******REMOVED***
