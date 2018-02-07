@@ -54,6 +54,11 @@ var inspectCmd = &cobra.Command***REMOVED***
 			typ = detectType(src.Data)
 		***REMOVED***
 
+		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
 		var opts lib.Options
 		switch typ ***REMOVED***
 		case typeArchive:
@@ -61,10 +66,13 @@ var inspectCmd = &cobra.Command***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			opts = arc.Options
+			b, err := js.NewBundleFromArchive(arc, runtimeOptions)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			opts = b.Options
 		case typeJS:
-			//TODO: also accept CLI env vars? they can influence the JS init and options
-			b, err := js.NewBundle(src, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+			b, err := js.NewBundle(src, fs, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -82,5 +90,7 @@ var inspectCmd = &cobra.Command***REMOVED***
 
 func init() ***REMOVED***
 	RootCmd.AddCommand(inspectCmd)
+	inspectCmd.Flags().SortFlags = false
+	inspectCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
 	inspectCmd.Flags().StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
 ***REMOVED***
