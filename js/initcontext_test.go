@@ -39,7 +39,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	null "gopkg.in/guregu/null.v3"
 )
 
 func TestInitContextRequire(t *testing.T) ***REMOVED***
@@ -375,11 +374,9 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	logger.Out = ioutil.Discard
 
 	state := &common.State***REMOVED***
-		Options: lib.Options***REMOVED***
-			HttpDebug: null.StringFrom("full"),
-		***REMOVED***,
-		Logger: logger,
-		Group:  root,
+		Options: lib.Options***REMOVED******REMOVED***,
+		Logger:  logger,
+		Group:   root,
 		HTTPTransport: &http.Transport***REMOVED***
 			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
