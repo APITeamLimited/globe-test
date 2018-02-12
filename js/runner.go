@@ -56,16 +56,16 @@ type Runner struct ***REMOVED***
 	RPSLimit   *rate.Limiter
 ***REMOVED***
 
-func New(src *lib.SourceData, fs afero.Fs) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundle(src, fs)
+func New(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundle(src, fs, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	return NewFromBundle(bundle)
 ***REMOVED***
 
-func NewFromArchive(arc *lib.Archive) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundleFromArchive(arc)
+func NewFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundleFromArchive(arc, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

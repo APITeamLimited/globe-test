@@ -91,7 +91,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 							`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 							name, args,
 						)),
-					***REMOVED***, afero.NewMemMapFs())
+					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 					assert.NoError(t, err)
 
 					vu, err := r.newVU()
