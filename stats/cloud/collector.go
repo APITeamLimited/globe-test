@@ -23,6 +23,7 @@ package cloud
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,18 +156,54 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 	***REMOVED***
 
 	var cloudSamples []*Sample
+	var httpJSON *Sample
+	var iterationJSON *Sample
 	for _, samp := range samples ***REMOVED***
-		sampleJSON := &Sample***REMOVED***
-			Type:   "Point",
-			Metric: samp.Metric.Name,
-			Data: SampleData***REMOVED***
-				Type:  samp.Metric.Type,
-				Time:  samp.Time,
-				Value: samp.Value,
-				Tags:  samp.Tags,
-			***REMOVED***,
+
+		name := samp.Metric.Name
+		if name == "http_reqs" ***REMOVED***
+			httpJSON = &Sample***REMOVED***
+				Type:   "Points",
+				Metric: "http_req_li_all",
+				Data: SampleData***REMOVED***
+					Type:   samp.Metric.Type,
+					Time:   samp.Time,
+					Tags:   samp.Tags,
+					Values: make(map[string]float64),
+				***REMOVED***,
+			***REMOVED***
+			httpJSON.Data.Values[name] = samp.Value
+			cloudSamples = append(cloudSamples, httpJSON)
+		***REMOVED*** else if name == "data_sent" ***REMOVED***
+			iterationJSON = &Sample***REMOVED***
+				Type:   "Points",
+				Metric: "iter_li_all",
+				Data: SampleData***REMOVED***
+					Type:   samp.Metric.Type,
+					Time:   samp.Time,
+					Tags:   samp.Tags,
+					Values: make(map[string]float64),
+				***REMOVED***,
+			***REMOVED***
+			iterationJSON.Data.Values[name] = samp.Value
+			cloudSamples = append(cloudSamples, iterationJSON)
+		***REMOVED*** else if name == "data_received" || name == "iter_duration" ***REMOVED***
+			iterationJSON.Data.Values[name] = samp.Value
+		***REMOVED*** else if strings.HasPrefix(name, "http_req_") ***REMOVED***
+			httpJSON.Data.Values[name] = samp.Value
+		***REMOVED*** else ***REMOVED***
+			sampleJSON := &Sample***REMOVED***
+				Type:   "Point",
+				Metric: name,
+				Data: SampleData***REMOVED***
+					Type:  samp.Metric.Type,
+					Time:  samp.Time,
+					Value: samp.Value,
+					Tags:  samp.Tags,
+				***REMOVED***,
+			***REMOVED***
+			cloudSamples = append(cloudSamples, sampleJSON)
 		***REMOVED***
-		cloudSamples = append(cloudSamples, sampleJSON)
 	***REMOVED***
 
 	if len(cloudSamples) > 0 ***REMOVED***

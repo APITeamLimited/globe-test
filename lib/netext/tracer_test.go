@@ -60,7 +60,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 
 			assert.Len(t, samples, 8)
 			seenMetrics := map[*stats.Metric]bool***REMOVED******REMOVED***
-			for _, s := range samples ***REMOVED***
+			for i, s := range samples ***REMOVED***
 				assert.NotContains(t, seenMetrics, s.Metric)
 				seenMetrics[s.Metric] = true
 
@@ -70,6 +70,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 				switch s.Metric ***REMOVED***
 				case metrics.HTTPReqs:
 					assert.Equal(t, 1.0, s.Value)
+					assert.Equal(t, 0, i, "`HTTPReqs` is reported before the other HTTP metrics")
 				case metrics.HTTPReqConnecting:
 					if isReuse ***REMOVED***
 						assert.Equal(t, 0.0, s.Value)

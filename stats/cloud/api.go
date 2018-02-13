@@ -42,10 +42,11 @@ type Sample struct ***REMOVED***
 ***REMOVED***
 
 type SampleData struct ***REMOVED***
-	Type  stats.MetricType  `json:"type"`
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  map[string]string `json:"tags,omitempty"`
+	Type   stats.MetricType   `json:"type"`
+	Time   time.Time          `json:"time"`
+	Value  float64            `json:"value"`
+	Values map[string]float64 `json:"values,omitempty"`
+	Tags   map[string]string  `json:"tags,omitempty"`
 ***REMOVED***
 
 type ThresholdResult map[string]map[string]bool
