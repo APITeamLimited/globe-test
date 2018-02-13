@@ -23,7 +23,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -33,6 +35,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var cloudCmd = &cobra.Command***REMOVED***
@@ -46,7 +50,11 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 	Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		_, _ = BannerColor.Fprint(stdout, Banner+"\n\n")
-		fmt.Fprint(stdout, "  Uploading script to the cloud..")
+		initBar := ui.ProgressBar***REMOVED***
+			Width: 60,
+			Left:  func() string ***REMOVED*** return "    uploading script" ***REMOVED***,
+		***REMOVED***
+		fmt.Fprintf(stdout, "%s \r", initBar.String())
 
 		// Runner
 		pwd, err := os.Getwd()
@@ -98,14 +106,6 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return errors.New("Not logged in, please use `k6 login cloud`.")
 		***REMOVED***
 
-		// Create a ticker to add a dot to the console every 0.5s
-		ticker := time.NewTicker(time.Millisecond * 500)
-		go func() ***REMOVED***
-			for range ticker.C ***REMOVED***
-				fmt.Fprint(stdout, ".")
-			***REMOVED***
-		***REMOVED***()
-
 		// Start cloud test run
 		client := cloud.NewClient(cloudConfig.Token, cloudConfig.Host, Version)
 
@@ -128,13 +128,68 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		ticker.Stop()
 
 		testURL := cloud.URLForResults(refID, cloudConfig)
 		fmt.Fprint(stdout, "\n\n")
 		fmt.Fprintf(stdout, "     execution: %s\n", ui.ValueColor.Sprint("cloud"))
 		fmt.Fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
 		fmt.Fprintf(stdout, "     output: %s\n", ui.ValueColor.Sprint(testURL))
+		fmt.Fprint(stdout, "\n")
+
+		// The quiet option hides the progress bar and disallow aborting the test
+		if quiet ***REMOVED***
+			return nil
+		***REMOVED***
+
+		// Trap Interrupts, SIGINTs and SIGTERMs.
+		sigC := make(chan os.Signal, 1)
+		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigC)
+
+		var progressErr error
+		testProgress := &cloud.TestProgressResponse***REMOVED******REMOVED***
+		progress := ui.ProgressBar***REMOVED***
+			Width: 60,
+			Left: func() string ***REMOVED***
+				return "  " + testProgress.RunStatusText
+			***REMOVED***,
+		***REMOVED***
+
+		ticker := time.NewTicker(time.Millisecond * 2000)
+		shouldExitLoop := false
+
+	runningLoop:
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				testProgress, progressErr = client.GetTestProgress(refID)
+				if progressErr == nil ***REMOVED***
+					if testProgress.RunStatus > 2 ***REMOVED***
+						shouldExitLoop = true
+					***REMOVED***
+					progress.Progress = testProgress.Progress
+					fmt.Fprintf(stdout, "%s\x1b[0K\r", progress.String())
+				***REMOVED*** else ***REMOVED***
+					log.WithError(progressErr).Error("Test progress error")
+				***REMOVED***
+				if shouldExitLoop ***REMOVED***
+					break runningLoop
+				***REMOVED***
+			case sig := <-sigC:
+				log.WithField("sig", sig).Debug("Exiting in response to signal")
+				err := client.StopCloudTestRun(refID)
+				if err != nil ***REMOVED***
+					log.WithError(err).Error("Stop cloud test error")
+				***REMOVED***
+				shouldExitLoop = true
+			***REMOVED***
+		***REMOVED***
+		fmt.Fprintf(stdout, "     test status: %s\n", ui.ValueColor.Sprint(testProgress.RunStatusText))
+
+		if testProgress.ResultStatus == 1 ***REMOVED***
+			return ExitCode***REMOVED***errors.New("The test have failed"), 99***REMOVED***
+		***REMOVED***
+
 		return nil
 	***REMOVED***,
 ***REMOVED***
