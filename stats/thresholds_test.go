@@ -31,18 +31,20 @@ import (
 func TestNewThreshold(t *testing.T) ***REMOVED***
 	src := `1+1==2`
 	rt := goja.New()
-	th, err := NewThreshold(src, rt)
+	abortOnFail := false
+	th, err := NewThreshold(src, rt, abortOnFail)
 	assert.NoError(t, err)
 
 	assert.Equal(t, src, th.Source)
 	assert.False(t, th.Failed)
 	assert.NotNil(t, th.pgm)
 	assert.Equal(t, rt, th.rt)
+	assert.Equal(t, abortOnFail, th.AbortOnFail)
 ***REMOVED***
 
 func TestThresholdRun(t *testing.T) ***REMOVED***
 	t.Run("true", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==2`, goja.New())
+		th, err := NewThreshold(`1+1==2`, goja.New(), false)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
@@ -61,7 +63,7 @@ func TestThresholdRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("false", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==4`, goja.New())
+		th, err := NewThreshold(`1+1==4`, goja.New(), false)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
@@ -94,6 +96,31 @@ func TestNewThresholds(t *testing.T) ***REMOVED***
 		for i, th := range ts.Thresholds ***REMOVED***
 			assert.Equal(t, sources[i], th.Source)
 			assert.False(t, th.Failed)
+			assert.False(t, th.AbortOnFail)
+			assert.NotNil(t, th.pgm)
+			assert.Equal(t, ts.Runtime, th.rt)
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
+
+func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
+	t.Run("empty", func(t *testing.T) ***REMOVED***
+		ts, err := NewThresholds([]string***REMOVED******REMOVED***)
+		assert.NoError(t, err)
+		assert.Len(t, ts.Thresholds, 0)
+	***REMOVED***)
+	t.Run("two", func(t *testing.T) ***REMOVED***
+		configs := []ThresholdConfig***REMOVED***
+			***REMOVED***`1+1==2`, false***REMOVED***,
+			***REMOVED***`1+1==4`, true***REMOVED***,
+		***REMOVED***
+		ts, err := NewThresholdsWithConfig(configs)
+		assert.NoError(t, err)
+		assert.Len(t, ts.Thresholds, 2)
+		for i, th := range ts.Thresholds ***REMOVED***
+			assert.Equal(t, configs[i].Threshold, th.Source)
+			assert.False(t, th.Failed)
+			assert.Equal(t, configs[i].AbortOnTaint, th.AbortOnFail)
 			assert.NotNil(t, th.pgm)
 			assert.Equal(t, ts.Runtime, th.rt)
 		***REMOVED***
@@ -109,22 +136,29 @@ func TestThresholdsUpdateVM(t *testing.T) ***REMOVED***
 
 func TestThresholdsRunAll(t *testing.T) ***REMOVED***
 	testdata := map[string]struct ***REMOVED***
-		succ bool
-		err  bool
-		srcs []string
+		succ  bool
+		err   bool
+		abort bool
+		srcs  []string
 	***REMOVED******REMOVED***
-		"one passing":  ***REMOVED***true, false, []string***REMOVED***`1+1==2`***REMOVED******REMOVED***,
-		"one failing":  ***REMOVED***false, false, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
-		"two passing":  ***REMOVED***true, false, []string***REMOVED***`1+1==2`, `2+2==4`***REMOVED******REMOVED***,
-		"two failing":  ***REMOVED***false, false, []string***REMOVED***`1+1==4`, `2+2==2`***REMOVED******REMOVED***,
-		"two mixed":    ***REMOVED***false, false, []string***REMOVED***`1+1==2`, `1+1==4`***REMOVED******REMOVED***,
-		"one erroring": ***REMOVED***false, true, []string***REMOVED***`throw new Error('?!');`***REMOVED******REMOVED***,
+		"one passing":  ***REMOVED***true, false, false, []string***REMOVED***`1+1==2`***REMOVED******REMOVED***,
+		"one failing":  ***REMOVED***false, false, false, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
+		"two passing":  ***REMOVED***true, false, false, []string***REMOVED***`1+1==2`, `2+2==4`***REMOVED******REMOVED***,
+		"two failing":  ***REMOVED***false, false, false, []string***REMOVED***`1+1==4`, `2+2==2`***REMOVED******REMOVED***,
+		"two mixed":    ***REMOVED***false, false, false, []string***REMOVED***`1+1==2`, `1+1==4`***REMOVED******REMOVED***,
+		"one erroring": ***REMOVED***false, true, false, []string***REMOVED***`throw new Error('?!');`***REMOVED******REMOVED***,
+		"one aborting": ***REMOVED***false, false, true, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ts, err := NewThresholds(data.srcs)
 			assert.NoError(t, err)
+
+			if data.abort ***REMOVED***
+				ts.Thresholds[0].AbortOnFail = true
+			***REMOVED***
+
 			b, err := ts.RunAll()
 
 			if data.err ***REMOVED***
@@ -137,6 +171,12 @@ func TestThresholdsRunAll(t *testing.T) ***REMOVED***
 				assert.True(t, b)
 			***REMOVED*** else ***REMOVED***
 				assert.False(t, b)
+			***REMOVED***
+
+			if data.abort ***REMOVED***
+				assert.True(t, ts.Abort)
+			***REMOVED*** else ***REMOVED***
+				assert.False(t, ts.Abort)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -166,26 +206,57 @@ func TestThresholdsRun(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestThresholdsJSON(t *testing.T) ***REMOVED***
-	testdata := map[string][]string***REMOVED***
-		`[]`:                  ***REMOVED******REMOVED***,
-		`["1+1==2"]`:          ***REMOVED***"1+1==2"***REMOVED***,
-		`["1+1==2","1+1==3"]`: ***REMOVED***"1+1==2", "1+1==3"***REMOVED***,
+	var testdata = []struct ***REMOVED***
+		JSON        string
+		srcs        []string
+		abortOnFail bool
+		outputJSON  string
+	***REMOVED******REMOVED***
+		***REMOVED***`[]`, []string***REMOVED******REMOVED***, false, ""***REMOVED***,
+		***REMOVED***`["1+1==2"]`, []string***REMOVED***"1+1==2"***REMOVED***, false, ""***REMOVED***,
+		***REMOVED***`["1+1==2","1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, ""***REMOVED***,
+
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnTaint":true***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, true, ""***REMOVED***,
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnTaint":false***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***, "1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, `["1+1==2","1+1==3"]`***REMOVED***,
 	***REMOVED***
 
-	for data, srcs := range testdata ***REMOVED***
-		t.Run(data, func(t *testing.T) ***REMOVED***
+	for _, data := range testdata ***REMOVED***
+		t.Run(data.JSON, func(t *testing.T) ***REMOVED***
 			var ts Thresholds
-			assert.NoError(t, json.Unmarshal([]byte(data), &ts))
-			assert.Equal(t, len(srcs), len(ts.Thresholds))
-			for i, src := range srcs ***REMOVED***
+			assert.NoError(t, json.Unmarshal([]byte(data.JSON), &ts))
+			assert.Equal(t, len(data.srcs), len(ts.Thresholds))
+			for i, src := range data.srcs ***REMOVED***
 				assert.Equal(t, src, ts.Thresholds[i].Source)
+				assert.Equal(t, data.abortOnFail, ts.Thresholds[i].AbortOnFail)
 			***REMOVED***
 
 			t.Run("marshal", func(t *testing.T) ***REMOVED***
 				data2, err := json.Marshal(ts)
 				assert.NoError(t, err)
-				assert.Equal(t, data, string(data2))
+				output := data.JSON
+				if data.outputJSON != "" ***REMOVED***
+					output = data.outputJSON
+				***REMOVED***
+				assert.Equal(t, output, string(data2))
 			***REMOVED***)
 		***REMOVED***)
 	***REMOVED***
+
+	t.Run("bad JSON", func(t *testing.T) ***REMOVED***
+		var ts Thresholds
+		assert.Error(t, json.Unmarshal([]byte("42"), &ts))
+		assert.Nil(t, ts.Thresholds)
+		assert.Nil(t, ts.Runtime)
+		assert.False(t, ts.Abort)
+	***REMOVED***)
+
+	t.Run("bad source", func(t *testing.T) ***REMOVED***
+		var ts Thresholds
+		assert.Error(t, json.Unmarshal([]byte(`["="]`), &ts))
+		assert.Nil(t, ts.Thresholds)
+		assert.Nil(t, ts.Runtime)
+		assert.False(t, ts.Abort)
+	***REMOVED***)
 ***REMOVED***

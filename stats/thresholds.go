@@ -45,23 +45,25 @@ func init() ***REMOVED***
 ***REMOVED***
 
 type Threshold struct ***REMOVED***
-	Source string
-	Failed bool
+	Source      string
+	Failed      bool
+	AbortOnFail bool
 
 	pgm *goja.Program
 	rt  *goja.Runtime
 ***REMOVED***
 
-func NewThreshold(src string, rt *goja.Runtime) (*Threshold, error) ***REMOVED***
+func NewThreshold(src string, rt *goja.Runtime, abortOnFail bool) (*Threshold, error) ***REMOVED***
 	pgm, err := goja.Compile("__threshold__", src, true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	return &Threshold***REMOVED***
-		Source: src,
-		pgm:    pgm,
-		rt:     rt,
+		Source:      src,
+		AbortOnFail: abortOnFail,
+		pgm:         pgm,
+		rt:          rt,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -81,26 +83,62 @@ func (t *Threshold) Run() (bool, error) ***REMOVED***
 	return b, err
 ***REMOVED***
 
+type ThresholdConfig struct ***REMOVED***
+	Threshold    string `json:"threshold"`
+	AbortOnTaint bool   `json:"abortOnTaint"`
+***REMOVED***
+
+//used internally for JSON marshalling
+type rawThresholdConfig ThresholdConfig
+
+func (tc *ThresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
+	//shortcircuit unmarshalling for simple string format
+	if err := json.Unmarshal(data, &tc.Threshold); err == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	rawConfig := (*rawThresholdConfig)(tc)
+	return json.Unmarshal(data, rawConfig)
+***REMOVED***
+
+func (tc ThresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
+	if tc.AbortOnTaint ***REMOVED***
+		return json.Marshal(rawThresholdConfig(tc))
+	***REMOVED***
+	return json.Marshal(tc.Threshold)
+***REMOVED***
+
 type Thresholds struct ***REMOVED***
 	Runtime    *goja.Runtime
 	Thresholds []*Threshold
+	Abort      bool
 ***REMOVED***
 
 func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
+	tcs := make([]ThresholdConfig, len(sources))
+	for i, source := range sources ***REMOVED***
+		tcs[i].Threshold = source
+	***REMOVED***
+
+	return NewThresholdsWithConfig(tcs)
+***REMOVED***
+
+func NewThresholdsWithConfig(configs []ThresholdConfig) (Thresholds, error) ***REMOVED***
 	rt := goja.New()
 	if _, err := rt.RunProgram(jsEnv); err != nil ***REMOVED***
 		return Thresholds***REMOVED******REMOVED***, errors.Wrap(err, "builtin")
 	***REMOVED***
 
-	ts := make([]*Threshold, len(sources))
-	for i, src := range sources ***REMOVED***
-		t, err := NewThreshold(src, rt)
+	ts := make([]*Threshold, len(configs))
+	for i, config := range configs ***REMOVED***
+		t, err := NewThreshold(config.Threshold, rt, config.AbortOnTaint)
 		if err != nil ***REMOVED***
 			return Thresholds***REMOVED******REMOVED***, errors.Wrapf(err, "%d", i)
 		***REMOVED***
 		ts[i] = t
 	***REMOVED***
-	return Thresholds***REMOVED***rt, ts***REMOVED***, nil
+
+	return Thresholds***REMOVED***rt, ts, false***REMOVED***, nil
 ***REMOVED***
 
 func (ts *Thresholds) UpdateVM(sink Sink, t time.Duration) error ***REMOVED***
@@ -121,6 +159,9 @@ func (ts *Thresholds) RunAll() (bool, error) ***REMOVED***
 		***REMOVED***
 		if !b ***REMOVED***
 			succ = false
+			if !ts.Abort && th.AbortOnFail ***REMOVED***
+				ts.Abort = true
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return succ, nil
@@ -134,12 +175,11 @@ func (ts *Thresholds) Run(sink Sink, t time.Duration) (bool, error) ***REMOVED**
 ***REMOVED***
 
 func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
-	var sources []string
-	if err := json.Unmarshal(data, &sources); err != nil ***REMOVED***
+	var configs []ThresholdConfig
+	if err := json.Unmarshal(data, &configs); err != nil ***REMOVED***
 		return err
 	***REMOVED***
-
-	newts, err := NewThresholds(sources)
+	newts, err := NewThresholdsWithConfig(configs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -148,9 +188,10 @@ func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 func (ts Thresholds) MarshalJSON() ([]byte, error) ***REMOVED***
-	sources := make([]string, len(ts.Thresholds))
+	configs := make([]ThresholdConfig, len(ts.Thresholds))
 	for i, t := range ts.Thresholds ***REMOVED***
-		sources[i] = t.Source
+		configs[i].Threshold = t.Source
+		configs[i].AbortOnTaint = t.AbortOnFail
 	***REMOVED***
-	return json.Marshal(sources)
+	return json.Marshal(configs)
 ***REMOVED***
