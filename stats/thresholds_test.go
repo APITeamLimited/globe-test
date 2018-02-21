@@ -120,7 +120,7 @@ func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
 		for i, th := range ts.Thresholds ***REMOVED***
 			assert.Equal(t, configs[i].Threshold, th.Source)
 			assert.False(t, th.Failed)
-			assert.Equal(t, configs[i].AbortOnTaint, th.AbortOnFail)
+			assert.Equal(t, configs[i].AbortOnFail, th.AbortOnFail)
 			assert.NotNil(t, th.pgm)
 			assert.Equal(t, ts.Runtime, th.rt)
 		***REMOVED***
@@ -217,8 +217,8 @@ func TestThresholdsJSON(t *testing.T) ***REMOVED***
 		***REMOVED***`["1+1==2","1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, ""***REMOVED***,
 
 		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnTaint":true***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, true, ""***REMOVED***,
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnTaint":false***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnFail":true***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, true, ""***REMOVED***,
+		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnFail":false***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
 		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***, "1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, `["1+1==2","1+1==3"]`***REMOVED***,
 	***REMOVED***
 

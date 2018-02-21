@@ -84,8 +84,8 @@ func (t *Threshold) Run() (bool, error) ***REMOVED***
 ***REMOVED***
 
 type ThresholdConfig struct ***REMOVED***
-	Threshold    string `json:"threshold"`
-	AbortOnTaint bool   `json:"abortOnTaint"`
+	Threshold   string `json:"threshold"`
+	AbortOnFail bool   `json:"abortOnFail"`
 ***REMOVED***
 
 //used internally for JSON marshalling
@@ -102,7 +102,7 @@ func (tc *ThresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 func (tc ThresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
-	if tc.AbortOnTaint ***REMOVED***
+	if tc.AbortOnFail ***REMOVED***
 		return json.Marshal(rawThresholdConfig(tc))
 	***REMOVED***
 	return json.Marshal(tc.Threshold)
@@ -131,7 +131,7 @@ func NewThresholdsWithConfig(configs []ThresholdConfig) (Thresholds, error) ***R
 
 	ts := make([]*Threshold, len(configs))
 	for i, config := range configs ***REMOVED***
-		t, err := NewThreshold(config.Threshold, rt, config.AbortOnTaint)
+		t, err := NewThreshold(config.Threshold, rt, config.AbortOnFail)
 		if err != nil ***REMOVED***
 			return Thresholds***REMOVED******REMOVED***, errors.Wrapf(err, "%d", i)
 		***REMOVED***
@@ -191,7 +191,7 @@ func (ts Thresholds) MarshalJSON() ([]byte, error) ***REMOVED***
 	configs := make([]ThresholdConfig, len(ts.Thresholds))
 	for i, t := range ts.Thresholds ***REMOVED***
 		configs[i].Threshold = t.Source
-		configs[i].AbortOnTaint = t.AbortOnFail
+		configs[i].AbortOnFail = t.AbortOnFail
 	***REMOVED***
 	return json.Marshal(configs)
 ***REMOVED***

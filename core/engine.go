@@ -278,7 +278,7 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	defer e.MetricsLock.Unlock()
 
 	t := e.Executor.GetTime()
-	abortOnTaint := false
+	abortOnFail := false
 
 	e.thresholdsTainted = false
 	for _, m := range e.Metrics ***REMOVED***
@@ -297,13 +297,13 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 			e.logger.WithField("m", m.Name).Debug("Thresholds failed")
 			m.Tainted = null.BoolFrom(true)
 			e.thresholdsTainted = true
-			if !abortOnTaint && m.Thresholds.Abort ***REMOVED***
-				abortOnTaint = true
+			if !abortOnFail && m.Thresholds.Abort ***REMOVED***
+				abortOnFail = true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if abortOnTaint && abort != nil ***REMOVED***
+	if abortOnFail && abort != nil ***REMOVED***
 		abort()
 	***REMOVED***
 ***REMOVED***
