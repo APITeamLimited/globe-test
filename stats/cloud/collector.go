@@ -64,7 +64,7 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 	if conf.Name == "" ***REMOVED***
 		conf.Name = filepath.Base(src.Filename)
 	***REMOVED***
-	if conf.Name == "" ***REMOVED***
+	if conf.Name == "-" ***REMOVED***
 		conf.Name = TestName
 	***REMOVED***
 
