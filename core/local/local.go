@@ -418,7 +418,6 @@ func (e *Executor) GetVUs() int64 ***REMOVED***
 ***REMOVED***
 
 func (e *Executor) SetVUs(num int64) error ***REMOVED***
-	e.Logger.WithField("vus", num).Debug("Local: Setting VUs")
 	if num < 0 ***REMOVED***
 		return errors.New("vu count can't be negative")
 	***REMOVED***
@@ -426,6 +425,8 @@ func (e *Executor) SetVUs(num int64) error ***REMOVED***
 	if atomic.LoadInt64(&e.numVUs) == num ***REMOVED***
 		return nil
 	***REMOVED***
+
+	e.Logger.WithField("vus", num).Debug("Local: Setting VUs")
 
 	if numVUsMax := atomic.LoadInt64(&e.numVUsMax); num > numVUsMax ***REMOVED***
 		return errors.Errorf("can't raise vu count (to %d) above vu cap (%d)", num, numVUsMax)

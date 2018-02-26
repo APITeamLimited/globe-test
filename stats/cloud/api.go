@@ -42,10 +42,11 @@ type Sample struct ***REMOVED***
 ***REMOVED***
 
 type SampleData struct ***REMOVED***
-	Type  stats.MetricType  `json:"type"`
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  map[string]string `json:"tags,omitempty"`
+	Type   stats.MetricType   `json:"type"`
+	Time   time.Time          `json:"time"`
+	Value  float64            `json:"value"`
+	Values map[string]float64 `json:"values,omitempty"`
+	Tags   map[string]string  `json:"tags,omitempty"`
 ***REMOVED***
 
 type ThresholdResult map[string]map[string]bool
@@ -60,6 +61,13 @@ type TestRun struct ***REMOVED***
 
 type CreateTestRunResponse struct ***REMOVED***
 	ReferenceID string `json:"reference_id"`
+***REMOVED***
+
+type TestProgressResponse struct ***REMOVED***
+	RunStatusText string  `json:"run_status_text"`
+	RunStatus     int     `json:"run_status"`
+	ResultStatus  int     `json:"result_status"`
+	Progress      float64 `json:"progress"`
 ***REMOVED***
 
 type LoginResponse struct ***REMOVED***
@@ -179,6 +187,33 @@ func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, ta
 	***REMOVED***
 
 	req, err := c.NewRequest("POST", url, data)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return c.Do(req, nil)
+***REMOVED***
+
+func (c *Client) GetTestProgress(referenceID string) (*TestProgressResponse, error) ***REMOVED***
+	url := fmt.Sprintf("%s/test-progress/%s", c.baseURL, referenceID)
+	req, err := c.NewRequest("GET", url, nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	ctrr := TestProgressResponse***REMOVED******REMOVED***
+	err = c.Do(req, &ctrr)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return &ctrr, nil
+***REMOVED***
+
+func (c *Client) StopCloudTestRun(referenceID string) error ***REMOVED***
+	url := fmt.Sprintf("%s/tests/%s/stop", c.baseURL, referenceID)
+
+	req, err := c.NewRequest("POST", url, nil)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***

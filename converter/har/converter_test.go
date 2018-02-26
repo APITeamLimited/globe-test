@@ -59,7 +59,7 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	_, err = js.New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data:     []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 ***REMOVED***
 
