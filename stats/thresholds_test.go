@@ -23,8 +23,10 @@ package stats
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +34,8 @@ func TestNewThreshold(t *testing.T) ***REMOVED***
 	src := `1+1==2`
 	rt := goja.New()
 	abortOnFail := false
-	th, err := NewThreshold(src, rt, abortOnFail)
+	gracePeriod := types.NullDurationFrom(2 * time.Second)
+	th, err := NewThreshold(src, rt, abortOnFail, gracePeriod)
 	assert.NoError(t, err)
 
 	assert.Equal(t, src, th.Source)
@@ -40,11 +43,12 @@ func TestNewThreshold(t *testing.T) ***REMOVED***
 	assert.NotNil(t, th.pgm)
 	assert.Equal(t, rt, th.rt)
 	assert.Equal(t, abortOnFail, th.AbortOnFail)
+	assert.Equal(t, gracePeriod, th.AbortGracePeriod)
 ***REMOVED***
 
 func TestThresholdRun(t *testing.T) ***REMOVED***
 	t.Run("true", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==2`, goja.New(), false)
+		th, err := NewThreshold(`1+1==2`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
@@ -63,7 +67,7 @@ func TestThresholdRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("false", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==4`, goja.New(), false)
+		th, err := NewThreshold(`1+1==4`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
@@ -111,8 +115,8 @@ func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("two", func(t *testing.T) ***REMOVED***
 		configs := []ThresholdConfig***REMOVED***
-			***REMOVED***`1+1==2`, false***REMOVED***,
-			***REMOVED***`1+1==4`, true***REMOVED***,
+			***REMOVED***`1+1==2`, false, types.NullDuration***REMOVED******REMOVED******REMOVED***,
+			***REMOVED***`1+1==4`, true, types.NullDuration***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
 		ts, err := NewThresholdsWithConfig(configs)
 		assert.NoError(t, err)
@@ -135,31 +139,38 @@ func TestThresholdsUpdateVM(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestThresholdsRunAll(t *testing.T) ***REMOVED***
+	zero := types.NullDuration***REMOVED******REMOVED***
+	oneSec := types.NullDurationFrom(time.Second)
+	twoSec := types.NullDurationFrom(2 * time.Second)
 	testdata := map[string]struct ***REMOVED***
 		succ  bool
 		err   bool
 		abort bool
+		grace types.NullDuration
 		srcs  []string
 	***REMOVED******REMOVED***
-		"one passing":  ***REMOVED***true, false, false, []string***REMOVED***`1+1==2`***REMOVED******REMOVED***,
-		"one failing":  ***REMOVED***false, false, false, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
-		"two passing":  ***REMOVED***true, false, false, []string***REMOVED***`1+1==2`, `2+2==4`***REMOVED******REMOVED***,
-		"two failing":  ***REMOVED***false, false, false, []string***REMOVED***`1+1==4`, `2+2==2`***REMOVED******REMOVED***,
-		"two mixed":    ***REMOVED***false, false, false, []string***REMOVED***`1+1==2`, `1+1==4`***REMOVED******REMOVED***,
-		"one erroring": ***REMOVED***false, true, false, []string***REMOVED***`throw new Error('?!');`***REMOVED******REMOVED***,
-		"one aborting": ***REMOVED***false, false, true, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
+		"one passing":                ***REMOVED***true, false, false, zero, []string***REMOVED***`1+1==2`***REMOVED******REMOVED***,
+		"one failing":                ***REMOVED***false, false, false, zero, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
+		"two passing":                ***REMOVED***true, false, false, zero, []string***REMOVED***`1+1==2`, `2+2==4`***REMOVED******REMOVED***,
+		"two failing":                ***REMOVED***false, false, false, zero, []string***REMOVED***`1+1==4`, `2+2==2`***REMOVED******REMOVED***,
+		"two mixed":                  ***REMOVED***false, false, false, zero, []string***REMOVED***`1+1==2`, `1+1==4`***REMOVED******REMOVED***,
+		"one erroring":               ***REMOVED***false, true, false, zero, []string***REMOVED***`throw new Error('?!');`***REMOVED******REMOVED***,
+		"one aborting":               ***REMOVED***false, false, true, zero, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
+		"abort with grace period":    ***REMOVED***false, false, true, oneSec, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
+		"no abort with grace period": ***REMOVED***false, false, true, twoSec, []string***REMOVED***`1+1==4`***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ts, err := NewThresholds(data.srcs)
+			ts.Thresholds[0].AbortOnFail = data.abort
+			ts.Thresholds[0].AbortGracePeriod = data.grace
+
+			runDuration := 1500 * time.Millisecond
+
 			assert.NoError(t, err)
 
-			if data.abort ***REMOVED***
-				ts.Thresholds[0].AbortOnFail = true
-			***REMOVED***
-
-			b, err := ts.RunAll()
+			b, err := ts.RunAll(runDuration)
 
 			if data.err ***REMOVED***
 				assert.Error(t, err)
@@ -173,7 +184,7 @@ func TestThresholdsRunAll(t *testing.T) ***REMOVED***
 				assert.False(t, b)
 			***REMOVED***
 
-			if data.abort ***REMOVED***
+			if data.abort && data.grace.Duration < types.Duration(runDuration) ***REMOVED***
 				assert.True(t, ts.Abort)
 			***REMOVED*** else ***REMOVED***
 				assert.False(t, ts.Abort)
@@ -210,16 +221,65 @@ func TestThresholdsJSON(t *testing.T) ***REMOVED***
 		JSON        string
 		srcs        []string
 		abortOnFail bool
+		gracePeriod types.NullDuration
 		outputJSON  string
 	***REMOVED******REMOVED***
-		***REMOVED***`[]`, []string***REMOVED******REMOVED***, false, ""***REMOVED***,
-		***REMOVED***`["1+1==2"]`, []string***REMOVED***"1+1==2"***REMOVED***, false, ""***REMOVED***,
-		***REMOVED***`["1+1==2","1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, ""***REMOVED***,
-
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnFail":true***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, true, ""***REMOVED***,
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2","abortOnFail":false***REMOVED***]`, []string***REMOVED***"1+1==2"***REMOVED***, false, `["1+1==2"]`***REMOVED***,
-		***REMOVED***`[***REMOVED***"threshold":"1+1==2"***REMOVED***, "1+1==3"]`, []string***REMOVED***"1+1==2", "1+1==3"***REMOVED***, false, `["1+1==2","1+1==3"]`***REMOVED***,
+		***REMOVED***
+			`[]`,
+			[]string***REMOVED******REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			`["1+1==2"]`,
+			[]string***REMOVED***"1+1==2"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			`["1+1==2","1+1==3"]`,
+			[]string***REMOVED***"1+1==2", "1+1==3"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			`[***REMOVED***"threshold":"1+1==2"***REMOVED***]`,
+			[]string***REMOVED***"1+1==2"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			`["1+1==2"]`,
+		***REMOVED***,
+		***REMOVED***
+			`[***REMOVED***"threshold":"1+1==2","abortOnFail":true,"delayAbortEval":null***REMOVED***]`,
+			[]string***REMOVED***"1+1==2"***REMOVED***,
+			true,
+			types.NullDuration***REMOVED******REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			`[***REMOVED***"threshold":"1+1==2","abortOnFail":true,"delayAbortEval":"2s"***REMOVED***]`,
+			[]string***REMOVED***"1+1==2"***REMOVED***,
+			true,
+			types.NullDurationFrom(2 * time.Second),
+			"",
+		***REMOVED***,
+		***REMOVED***
+			`[***REMOVED***"threshold":"1+1==2","abortOnFail":false***REMOVED***]`,
+			[]string***REMOVED***"1+1==2"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			`["1+1==2"]`,
+		***REMOVED***,
+		***REMOVED***
+			`[***REMOVED***"threshold":"1+1==2"***REMOVED***, "1+1==3"]`,
+			[]string***REMOVED***"1+1==2", "1+1==3"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			`["1+1==2","1+1==3"]`,
+		***REMOVED***,
 	***REMOVED***
 
 	for _, data := range testdata ***REMOVED***
@@ -230,6 +290,7 @@ func TestThresholdsJSON(t *testing.T) ***REMOVED***
 			for i, src := range data.srcs ***REMOVED***
 				assert.Equal(t, src, ts.Thresholds[i].Source)
 				assert.Equal(t, data.abortOnFail, ts.Thresholds[i].AbortOnFail)
+				assert.Equal(t, data.gracePeriod, ts.Thresholds[i].AbortGracePeriod)
 			***REMOVED***
 
 			t.Run("marshal", func(t *testing.T) ***REMOVED***
