@@ -28,6 +28,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
@@ -151,7 +152,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				export default function() ***REMOVED******REMOVED***;
 			`)
 			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, lib.NullDurationFrom(10*time.Second), b.Options.Duration)
+				assert.Equal(t, types.NullDurationFrom(10*time.Second), b.Options.Duration)
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
@@ -217,7 +218,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`)
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -232,7 +233,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`)
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 1) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)
@@ -248,8 +249,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				`)
 				if assert.NoError(t, err) ***REMOVED***
 					if assert.Len(t, b.Options.Stages, 2) ***REMOVED***
-						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
-						assert.Equal(t, lib.Stage***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(10)***REMOVED***, b.Options.Stages[0])
+						assert.Equal(t, lib.Stage***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***, b.Options.Stages[1])
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***)

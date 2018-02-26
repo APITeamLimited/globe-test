@@ -28,6 +28,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -61,20 +62,20 @@ func TestExecutorStages(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		"one": ***REMOVED***
 			1 * time.Second,
-			[]lib.Stage***REMOVED******REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
+			[]lib.Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED***,
 		***REMOVED***,
 		"two": ***REMOVED***
 			2 * time.Second,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
 		"two/targeted": ***REMOVED***
 			2 * time.Second,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(5)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
@@ -93,8 +94,8 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	e := New(nil)
 	assert.NoError(t, e.SetVUsMax(10))
 	assert.NoError(t, e.SetVUs(10))
-	e.SetEndTime(lib.NullDurationFrom(1 * time.Second))
-	assert.Equal(t, lib.NullDurationFrom(1*time.Second), e.GetEndTime())
+	e.SetEndTime(types.NullDurationFrom(1 * time.Second))
+	assert.Equal(t, types.NullDurationFrom(1*time.Second), e.GetEndTime())
 
 	startTime := time.Now()
 	assert.NoError(t, e.Run(context.Background(), nil))
@@ -106,8 +107,8 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 		***REMOVED***))
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
-		e.SetEndTime(lib.NullDurationFrom(100 * time.Millisecond))
-		assert.Equal(t, lib.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
+		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
+		assert.Equal(t, types.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
 
 		l, hook := logtest.NewNullLogger()
 		e.SetLogger(l)
@@ -129,8 +130,8 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 		***REMOVED***))
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
-		e.SetEndTime(lib.NullDurationFrom(100 * time.Millisecond))
-		assert.Equal(t, lib.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
+		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
+		assert.Equal(t, types.NullDurationFrom(100*time.Millisecond), e.GetEndTime())
 
 		l, hook := logtest.NewNullLogger()
 		e.SetLogger(l)

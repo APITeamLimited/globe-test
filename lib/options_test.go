@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
@@ -52,7 +53,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: NullDurationFrom(2 * time.Minute)***REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: types.NullDurationFrom(2 * time.Minute)***REMOVED***)
 		assert.True(t, opts.Duration.Valid)
 		assert.Equal(t, "2m0s", opts.Duration.String())
 	***REMOVED***)
@@ -62,7 +63,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(1234), opts.Iterations.Int64)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED******REMOVED******REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Stages)
 		assert.Len(t, opts.Stages, 1)
 		assert.Equal(t, 1*time.Second, time.Duration(opts.Stages[0].Duration.Duration))
@@ -246,8 +247,8 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"123": null.IntFrom(123),
 		***REMOVED***,
 		***REMOVED***"Duration", "K6_DURATION"***REMOVED***: ***REMOVED***
-			"":    NullDuration***REMOVED******REMOVED***,
-			"10s": NullDurationFrom(10 * time.Second),
+			"":    types.NullDuration***REMOVED******REMOVED***,
+			"10s": types.NullDurationFrom(10 * time.Second),
 		***REMOVED***,
 		***REMOVED***"Iterations", "K6_ITERATIONS"***REMOVED***: ***REMOVED***
 			"":    null.Int***REMOVED******REMOVED***,
@@ -256,14 +257,14 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		***REMOVED***"Stages", "K6_STAGES"***REMOVED***: ***REMOVED***
 			// "": []Stage***REMOVED******REMOVED***,
 			"1s": []Stage***REMOVED******REMOVED***
-				Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
+				Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
 			***REMOVED***,
 			"1s:100": []Stage***REMOVED***
-				***REMOVED***Duration: NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 			"1s,2s:100": []Stage***REMOVED***
-				***REMOVED***Duration: NullDurationFrom(1 * time.Second)***REMOVED***,
-				***REMOVED***Duration: NullDurationFrom(2 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(2 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***"MaxRedirects", "K6_MAX_REDIRECTS"***REMOVED***: ***REMOVED***
