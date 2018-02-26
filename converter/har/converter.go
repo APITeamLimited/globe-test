@@ -26,20 +26,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/tidwall/pretty"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 )
 
-func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
+func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
-	if returnOnFailedCheck && !includeCodeCheck ***REMOVED***
+	if returnOnFailedCheck && !enableChecks ***REMOVED***
 		return "", errors.Errorf("return on failed check requires --enable-status-code-checks")
 	***REMOVED***
 
-	if includeCodeCheck ***REMOVED***
+	if correlate && !nobatch ***REMOVED***
+		return "", errors.Errorf("correlation requires --no-batch")
+	***REMOVED***
+
+	if enableChecks ***REMOVED***
 		fmt.Fprint(w, "import ***REMOVED*** group, check, sleep ***REMOVED*** from 'k6';\n")
 	***REMOVED*** else ***REMOVED***
 		fmt.Fprint(w, "import ***REMOVED*** group, sleep ***REMOVED*** from 'k6';\n")
@@ -97,15 +103,19 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 		sort.Sort(EntryByStarted(entries))
 
 		if nobatch ***REMOVED***
-			var recordedRedirectUrl string
+			var recordedRedirectURL string
+			var recordedRestID string
+			previousResponse := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
 
-			fmt.Fprint(w, "\t\tlet res, redirectUrl;\n")
+			fmt.Fprint(w, "\t\tlet res, redirectUrl, json;\n")
 
-			for _, e := range entries ***REMOVED***
+			for entryIndex, e := range entries ***REMOVED***
 
 				var params []string
 				var cookies []string
 				var body string
+
+				fmt.Fprintf(w, "\t\t// Request #%d\n", entryIndex)
 
 				if e.Request.PostData != nil ***REMOVED***
 					body = e.Request.PostData.Text
@@ -124,18 +134,44 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 
 				fmt.Fprintf(w, "\t\tres = http.%s(", strings.ToLower(e.Request.Method))
 
-				if correlate && recordedRedirectUrl != "" ***REMOVED***
-					if recordedRedirectUrl != e.Request.URL ***REMOVED***
+				if correlate && recordedRedirectURL != "" ***REMOVED***
+					if recordedRedirectURL != e.Request.URL ***REMOVED***
 						return "", errors.Errorf("The har file contained a redirect but the next request did not match that redirect. Possibly a misbehaving client or concurrent requests?")
 					***REMOVED***
 					fmt.Fprintf(w, "redirectUrl")
-					recordedRedirectUrl = ""
+					recordedRedirectURL = ""
 				***REMOVED*** else ***REMOVED***
-					fmt.Fprintf(w, "%q", e.Request.URL)
+					if recordedRestID != "" && strings.Contains(e.Request.URL, recordedRestID) ***REMOVED***
+						fmt.Fprintf(w, "`%s`", strings.Replace(e.Request.URL, recordedRestID, "$***REMOVED***restID***REMOVED***", -1))
+					***REMOVED*** else ***REMOVED***
+						fmt.Fprintf(w, "%q", e.Request.URL)
+					***REMOVED***
 				***REMOVED***
 
 				if e.Request.Method != "GET" ***REMOVED***
-					fmt.Fprintf(w, ", %q", body)
+					if correlate && e.Request.PostData != nil && strings.Contains(e.Request.PostData.MimeType, "json") ***REMOVED***
+						requestMap := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+
+						escapedPostdata := strings.Replace(e.Request.PostData.Text, "$", "\\$", -1)
+
+						if err := json.Unmarshal([]byte(escapedPostdata), &requestMap); err != nil ***REMOVED***
+							return "", err
+						***REMOVED***
+
+						if len(previousResponse) != 0 ***REMOVED***
+							traverseMaps(requestMap, previousResponse, nil)
+						***REMOVED***
+						requestText, err := json.Marshal(requestMap)
+						if err == nil ***REMOVED***
+							prettyJSONString := string(pretty.PrettyOptions(requestText, &pretty.Options***REMOVED***Width: 999999, Prefix: "\t\t\t", Indent: "\t", SortKeys: true***REMOVED***)[:])
+							fmt.Fprintf(w, ",\n\t\t\t`%s`", strings.TrimSpace(prettyJSONString))
+						***REMOVED*** else ***REMOVED***
+							return "", err
+						***REMOVED***
+
+					***REMOVED*** else ***REMOVED***
+						fmt.Fprintf(w, ",\n\t\t%q", body)
+					***REMOVED***
 				***REMOVED***
 
 				if len(params) > 0 ***REMOVED***
@@ -144,22 +180,42 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 
 				fmt.Fprintf(w, "\n\t\t)\n")
 
-				if includeCodeCheck ***REMOVED***
-					if e.Response.Status > 0 ***REMOVED***
-						if returnOnFailedCheck ***REMOVED***
-							fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
-						***REMOVED*** else ***REMOVED***
-							fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+				if e.Response != nil ***REMOVED***
+					// the response is nil if there is a failed request in the recording, or if responses were not recorded
+					if enableChecks ***REMOVED***
+						if e.Response.Status > 0 ***REMOVED***
+							if returnOnFailedCheck ***REMOVED***
+								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+							***REMOVED*** else ***REMOVED***
+								fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+							***REMOVED***
 						***REMOVED***
 					***REMOVED***
-				***REMOVED***
 
-				if e.Response.Headers != nil ***REMOVED***
-					for _, header := range e.Response.Headers ***REMOVED***
-						if header.Name == "Location" ***REMOVED***
-							fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
-							recordedRedirectUrl = header.Value
+					if e.Response.Headers != nil ***REMOVED***
+						for _, header := range e.Response.Headers ***REMOVED***
+							if header.Name == "Location" ***REMOVED***
+								fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
+								recordedRedirectURL = header.Value
+								guidRegexString := "[0-9a-f]***REMOVED***8***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***12***REMOVED***$"
+								re := regexp.MustCompile(guidRegexString)
+								if match := re.FindString(recordedRedirectURL); match != "" ***REMOVED***
+									recordedRestID = match
+									fmt.Fprintf(w, "\t\trestID = /%s/.exec(redirectUrl)[0];\n", guidRegexString)
+								***REMOVED***
+								break
+							***REMOVED***
 						***REMOVED***
+					***REMOVED***
+
+					responseMimeType := e.Response.Content.MimeType
+					if correlate &&
+						strings.Index(responseMimeType, "application/") == 0 &&
+						strings.Index(responseMimeType, "json") == len(responseMimeType)-4 ***REMOVED***
+						if err := json.Unmarshal([]byte(e.Response.Content.Text), &previousResponse); err != nil ***REMOVED***
+							return "", err
+						***REMOVED***
+						fmt.Fprint(w, "\t\tjson = JSON.parse(res.body);\n")
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
@@ -184,7 +240,7 @@ func Convert(h HAR, includeCodeCheck bool, returnOnFailedCheck bool, batchTime u
 				fmt.Fprint(w, "];\n")
 				fmt.Fprint(w, "\t\tres = http.batch(req);\n")
 
-				if includeCodeCheck ***REMOVED***
+				if enableChecks ***REMOVED***
 					for k, e := range batchEntries ***REMOVED***
 						if e.Response.Status > 0 ***REMOVED***
 							if returnOnFailedCheck ***REMOVED***
@@ -317,4 +373,67 @@ func buildK6Body(req *Request) ([]string, string, error) ***REMOVED***
 		return postParams, "", nil
 	***REMOVED***
 	return postParams, req.PostData.Text, nil
+***REMOVED***
+
+func traverseMaps(request map[string]interface***REMOVED******REMOVED***, response map[string]interface***REMOVED******REMOVED***, path []interface***REMOVED******REMOVED***) ***REMOVED***
+	if response == nil ***REMOVED***
+		// previous call reached a leaf in the response map so there's no point continuing
+		return
+	***REMOVED***
+	for key, val := range request ***REMOVED***
+		responseVal := response[key]
+		if responseVal == nil ***REMOVED***
+			// no corresponding value in response map (and the type conversion below would fail so we need an early exit)
+			continue
+		***REMOVED***
+		newPath := append(path, key)
+		switch concreteVal := val.(type) ***REMOVED***
+		case map[string]interface***REMOVED******REMOVED***:
+			traverseMaps(concreteVal, responseVal.(map[string]interface***REMOVED******REMOVED***), newPath)
+		case []interface***REMOVED******REMOVED***:
+			traverseArrays(concreteVal, responseVal.([]interface***REMOVED******REMOVED***), newPath)
+		default:
+			if responseVal == val ***REMOVED***
+				request[key] = jsObjectPath(newPath)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func traverseArrays(requestArray []interface***REMOVED******REMOVED***, responseArray []interface***REMOVED******REMOVED***, path []interface***REMOVED******REMOVED***) ***REMOVED***
+	for i, val := range requestArray ***REMOVED***
+		newPath := append(path, i)
+		if len(responseArray) <= i ***REMOVED***
+			// requestArray had more entries than responseArray
+			break
+		***REMOVED***
+		responseVal := responseArray[i]
+		switch concreteVal := val.(type) ***REMOVED***
+		case map[string]interface***REMOVED******REMOVED***:
+			traverseMaps(concreteVal, responseVal.(map[string]interface***REMOVED******REMOVED***), newPath)
+		case []interface***REMOVED******REMOVED***:
+			traverseArrays(concreteVal, responseVal.([]interface***REMOVED******REMOVED***), newPath)
+		case string:
+			if responseVal == val ***REMOVED***
+				requestArray[i] = jsObjectPath(newPath)
+			***REMOVED***
+		default:
+			panic(jsObjectPath(newPath))
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func jsObjectPath(path []interface***REMOVED******REMOVED***) string ***REMOVED***
+	s := "$***REMOVED***json"
+	for _, val := range path ***REMOVED***
+		// this may cause issues with non-array keys with numeric values. test this later.
+		switch concreteVal := val.(type) ***REMOVED***
+		case int:
+			s = s + "[" + fmt.Sprint(concreteVal) + "]"
+		case string:
+			s = s + "." + concreteVal
+		***REMOVED***
+	***REMOVED***
+	s = s + "***REMOVED***"
+	return s
 ***REMOVED***
