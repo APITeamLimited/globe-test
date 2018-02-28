@@ -57,7 +57,7 @@ export default function() ***REMOVED***
 		)
 		if (!check(res, ***REMOVED***"status is 201": (r) => r.status === 201 ***REMOVED***)) ***REMOVED*** return ***REMOVED***;
 		redirectUrl = res.headers.Location;
-		restID = /[0-9a-f]***REMOVED***8***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***12***REMOVED***$/.exec(redirectUrl)[0];
+		let restID = /[0-9a-f]***REMOVED***8***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***12***REMOVED***$/.exec(redirectUrl)[0];
 		json = JSON.parse(res.body);
 		// Request #1
 		res = http.get(redirectUrl,
