@@ -29,6 +29,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -378,15 +379,15 @@ func (e *Executor) GetTime() time.Duration ***REMOVED***
 	return time.Duration(atomic.LoadInt64(&e.time))
 ***REMOVED***
 
-func (e *Executor) GetEndTime() lib.NullDuration ***REMOVED***
+func (e *Executor) GetEndTime() types.NullDuration ***REMOVED***
 	v := atomic.LoadInt64(&e.endTime)
 	if v < 0 ***REMOVED***
-		return lib.NullDuration***REMOVED******REMOVED***
+		return types.NullDuration***REMOVED******REMOVED***
 	***REMOVED***
-	return lib.NullDurationFrom(time.Duration(v))
+	return types.NullDurationFrom(time.Duration(v))
 ***REMOVED***
 
-func (e *Executor) SetEndTime(t lib.NullDuration) ***REMOVED***
+func (e *Executor) SetEndTime(t types.NullDuration) ***REMOVED***
 	if !t.Valid ***REMOVED***
 		t.Duration = -1
 	***REMOVED***

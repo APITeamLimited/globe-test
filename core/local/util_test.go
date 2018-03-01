@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
 )
@@ -52,7 +53,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"one": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
@@ -64,7 +65,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"one/start": ***REMOVED***
 			5,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
@@ -76,7 +77,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"one/targeted": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
@@ -96,7 +97,7 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"one/targeted/start": ***REMOVED***
 			50,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second), Target: null.IntFrom(100)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.IntFrom(50)***REMOVED***,
@@ -116,8 +117,8 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"two": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
@@ -128,8 +129,8 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"two/start": ***REMOVED***
 			5,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
@@ -140,8 +141,8 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"two/targeted": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
@@ -161,9 +162,9 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"three": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(10 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(15 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(10 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(15 * time.Second)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(0, false)***REMOVED***,
@@ -176,9 +177,9 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"three/targeted": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(100)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(0)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
@@ -203,12 +204,12 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"mix": ***REMOVED***
 			0,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(2 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(20)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.IntFrom(0)***REMOVED***,
@@ -247,8 +248,8 @@ func TestProcessStages(t *testing.T) ***REMOVED***
 		"mix/start": ***REMOVED***
 			5,
 			[]lib.Stage***REMOVED***
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second)***REMOVED***,
-				***REMOVED***Duration: lib.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+				***REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(10)***REMOVED***,
 			***REMOVED***,
 			[]checkpoint***REMOVED***
 				***REMOVED***0 * time.Second, true, null.NewInt(5, false)***REMOVED***,
