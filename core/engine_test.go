@@ -22,17 +22,23 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/loadimpact/k6/core/local"
+	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
+	"github.com/mccutchen/go-httpbin/httpbin"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -471,6 +477,84 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			assert.Equal(t, data.pass, !e.IsTainted())
 			if data.abort ***REMOVED***
 				assert.True(t, abortCalled)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func getMetricSum(samples []stats.Sample, name string) (result float64) ***REMOVED***
+	for _, s := range samples ***REMOVED***
+		if s.Metric.Name == name ***REMOVED***
+			result += s.Value
+		***REMOVED***
+	***REMOVED***
+	return
+***REMOVED***
+func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
+	//t.Parallel()
+	srv := httptest.NewServer(httpbin.NewHTTPBin().Handler())
+	defer srv.Close()
+
+	burl := func(bytecount uint32) string ***REMOVED***
+		return fmt.Sprintf(`"%s/bytes/%d"`, srv.URL, bytecount)
+	***REMOVED***
+
+	expectedSingleData := 50000.0
+	r, err := js.New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			import http from "k6/http";
+			export default function() ***REMOVED***
+				http.get(` + burl(10000) + `);
+				http.batch([` + burl(10000) + `,` + burl(20000) + `,` + burl(10000) + `]);
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	testCases := []struct***REMOVED*** Iterations, VUs int64 ***REMOVED******REMOVED***
+		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***,
+	***REMOVED***
+
+	for testn, tc := range testCases ***REMOVED***
+		t.Run(fmt.Sprintf("SentReceivedMetrics_'%d'", testn), func(t *testing.T) ***REMOVED***
+			//t.Parallel()
+			options := lib.Options***REMOVED***
+				Iterations: null.IntFrom(tc.Iterations),
+				VUs:        null.IntFrom(tc.VUs),
+				VUsMax:     null.IntFrom(tc.VUs),
+			***REMOVED***
+			//TODO: test for differences with NoConnectionReuse enabled and disabled
+
+			engine, err := NewEngine(local.New(r), options)
+			require.NoError(t, err)
+
+			collector := &dummy.Collector***REMOVED******REMOVED***
+			engine.Collector = collector
+
+			ctx, cancel := context.WithCancel(context.Background())
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+			select ***REMOVED***
+			case <-time.After(5 * time.Second):
+				cancel()
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				cancel()
+				require.NoError(t, err)
+			***REMOVED***
+
+			receivedData := getMetricSum(collector.Samples, "data_received")
+			expectedDataMin := expectedSingleData * float64(tc.Iterations)
+			expectedDataMax := 1.05 * expectedDataMin // To account for headers
+			if receivedData < expectedDataMin || receivedData > expectedDataMax ***REMOVED***
+				t.Errorf(
+					"The received data should be in the interval [%f, %f] but was %f",
+					expectedDataMin,
+					expectedDataMax,
+					receivedData,
+				)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
