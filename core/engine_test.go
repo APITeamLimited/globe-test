@@ -513,11 +513,11 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	testCases := []struct***REMOVED*** Iterations, VUs int64 ***REMOVED******REMOVED***
-		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***,
+		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***,
 	***REMOVED***
 
 	for testn, tc := range testCases ***REMOVED***
-		t.Run(fmt.Sprintf("SentReceivedMetrics_'%d'", testn), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("SentReceivedMetrics_%d", testn), func(t *testing.T) ***REMOVED***
 			//t.Parallel()
 			options := lib.Options***REMOVED***
 				Iterations: null.IntFrom(tc.Iterations),
