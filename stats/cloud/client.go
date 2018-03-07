@@ -179,7 +179,12 @@ func checkResponse(r *http.Response) error ***REMOVED***
 		Error ErrorResponse `json:"error"`
 	***REMOVED***
 	if err := json.Unmarshal(data, &payload); err != nil ***REMOVED***
-		return errors.Errorf("Unknown Error: %s", string(data))
+		return errors.Errorf(
+			"Unexpected HTTP error from %s: %d %s",
+			r.Request.URL,
+			r.StatusCode,
+			http.StatusText(r.StatusCode),
+		)
 	***REMOVED***
 	return payload.Error
 ***REMOVED***
