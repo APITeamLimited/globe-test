@@ -896,3 +896,66 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
+func TestDefaultTags(t *testing.T) ***REMOVED***
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	logger := log.New()
+	logger.Level = log.DebugLevel
+	logger.Out = ioutil.Discard
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	state := &common.State***REMOVED***
+		Options: lib.Options***REMOVED***
+			MaxRedirects: null.IntFrom(10),
+			UserAgent:    null.StringFrom("TestUserAgent"),
+			Throw:        null.BoolFrom(false),
+		***REMOVED***,
+		Logger: logger,
+		Group:  root,
+		HTTPTransport: &http.Transport***REMOVED***
+			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
+				Timeout:   10 * time.Second,
+				KeepAlive: 60 * time.Second,
+				DualStack: true,
+			***REMOVED***)).DialContext,
+		***REMOVED***,
+		BPool: bpool.NewBufferPool(1),
+	***REMOVED***
+
+	ctx := new(context.Context)
+	*ctx = context.Background()
+	*ctx = common.WithState(*ctx, state)
+	*ctx = common.WithRuntime(*ctx, rt)
+	rt.Set("http", common.Bind(rt, New(), ctx))
+
+	defaultTagsTest := map[string]string***REMOVED***
+		"error":       "http://nonexistenturl.loadimpact.com",
+		"group":       "https://httpbin.org/",
+		"iter":        "https://httpbin.org/",
+		"method":      "https://httpbin.org/",
+		"name":        "https://httpbin.org/",
+		"ocsp_status": "https://stackoverflow.com/",
+		"proto":       "https://httpbin.org/",
+		"status":      "https://httpbin.org/",
+		"tls_version": "https://httpbin.org/",
+		"url":         "https://httpbin.org/",
+		"vu":          "https://httpbin.org/",
+	***REMOVED***
+	for _, expectedTag := range defaultTagsTest ***REMOVED***
+		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
+			state.Options.DefaultTags = map[string]bool***REMOVED***
+				expectedTag: true,
+			***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `http.get("https://httpbin.org/");`)
+			assert.NoError(t, err)
+			for _, sample := range state.Samples ***REMOVED***
+				for emittedTag := range sample.Tags ***REMOVED***
+					assert.Equal(t, expectedTag, emittedTag)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
