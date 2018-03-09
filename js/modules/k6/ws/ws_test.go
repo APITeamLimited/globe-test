@@ -314,3 +314,56 @@ func TestErrors(t *testing.T) ***REMOVED***
 		assertSessionMetricsEmitted(t, state.Samples, "", "ws://demos.kaazing.com/echo", 101, "")
 	***REMOVED***)
 ***REMOVED***
+
+func TestDefaultTags(t *testing.T) ***REMOVED***
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	dialer := netext.NewDialer(net.Dialer***REMOVED***
+		Timeout:   10 * time.Second,
+		KeepAlive: 60 * time.Second,
+		DualStack: true,
+	***REMOVED***)
+	state := &common.State***REMOVED***
+		Group:   root,
+		Dialer:  dialer,
+		Options: lib.Options***REMOVED******REMOVED***,
+	***REMOVED***
+
+	ctx := context.Background()
+	ctx = common.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, rt)
+
+	rt.Set("ws", common.Bind(rt, New(), &ctx))
+
+	defaultTagsTest := []string***REMOVED***"group", "status", "subprotocol", "url"***REMOVED***
+	for _, expectedTag := range defaultTagsTest ***REMOVED***
+		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
+			state.Options.DefaultTags = map[string]bool***REMOVED***
+				expectedTag: true,
+			***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = ws.connect("ws://demos.kaazing.com/echo", function(socket)***REMOVED***
+				socket.on("open", function() ***REMOVED***
+					socket.send("test")
+				***REMOVED***)
+				socket.on("message", function (data)***REMOVED***
+					if (!data=="test") ***REMOVED***
+						throw new Error ("echo'd data doesn't match our message!");
+					***REMOVED***
+					socket.close()
+				***REMOVED***);
+			***REMOVED***);
+			`)
+			assert.NoError(t, err)
+			for _, sample := range state.Samples ***REMOVED***
+				for emittedTag := range sample.Tags ***REMOVED***
+					assert.Equal(t, expectedTag, emittedTag)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
