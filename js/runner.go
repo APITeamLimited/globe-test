@@ -275,12 +275,12 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 
 	// Check collector options, update tags accordingly.
 	tags := map[string]string***REMOVED******REMOVED***
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu:id"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu:id"]) ***REMOVED***
+	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu"]) ||
+		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu"]) ***REMOVED***
 		tags["vu"] = strconv.FormatInt(u.ID, 10)
 	***REMOVED***
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu:iter"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu:iter"]) ***REMOVED***
+	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["iter"]) ||
+		(state.Options.DefaultTags != nil && state.Options.DefaultTags["iter"]) ***REMOVED***
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
 

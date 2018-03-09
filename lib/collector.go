@@ -49,6 +49,6 @@ type Collector interface ***REMOVED***
 
 // CollectorOptions holds options that allows the collector to control different aspects of the core.
 type CollectorOptions struct ***REMOVED***
-	// Which default tags to include with metrics, namespaced ("http:method", "vu:id" etc.)
+	// Which default tags to include with metrics ("method", "id" etc.)
 	DefaultTags Tags
 ***REMOVED***

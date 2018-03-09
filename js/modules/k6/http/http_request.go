@@ -149,33 +149,33 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		tags = map[string]string***REMOVED******REMOVED***
-		if state.Options.DefaultTags["http:proto"] ***REMOVED***
+		if state.Options.DefaultTags["proto"] ***REMOVED***
 			tags["proto"] = ""
 		***REMOVED***
-		if state.Options.DefaultTags["http:status"] ***REMOVED***
+		if state.Options.DefaultTags["status"] ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
-		if state.Options.DefaultTags["http:method"] ***REMOVED***
+		if state.Options.DefaultTags["method"] ***REMOVED***
 			tags["method"] = method
 		***REMOVED***
-		if state.Options.DefaultTags["http:url"] ***REMOVED***
+		if state.Options.DefaultTags["url"] ***REMOVED***
 			tags["url"] = url.URLString
 		***REMOVED***
-		if state.Options.DefaultTags["http:name"] ***REMOVED***
+		if state.Options.DefaultTags["name"] ***REMOVED***
 			tags["name"] = url.Name
 		***REMOVED***
-		if state.Options.DefaultTags["vu:group"] ***REMOVED***
+		if state.Options.DefaultTags["group"] ***REMOVED***
 			tags["group"] = state.Group.Path
 		***REMOVED***
 	***REMOVED***
 
 	// Check collector options, update tags accordingly.
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu:id"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu:id"]) ***REMOVED***
+	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu"]) ||
+		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu"]) ***REMOVED***
 		tags["vu"] = strconv.FormatInt(state.Vu, 10)
 	***REMOVED***
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu:iter"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu:iter"]) ***REMOVED***
+	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["iter"]) ||
+		(state.Options.DefaultTags != nil && state.Options.DefaultTags["iter"]) ***REMOVED***
 		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
@@ -366,7 +366,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 
 	if resErr != nil ***REMOVED***
 		resp.Error = resErr.Error()
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:error"] ***REMOVED***
+		if state.Options.DefaultTags == nil || state.Options.DefaultTags["error"] ***REMOVED***
 			tags["error"] = resp.Error
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -380,22 +380,22 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.Status = res.StatusCode
 		resp.Proto = res.Proto
 
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:url"] ***REMOVED***
+		if state.Options.DefaultTags == nil || state.Options.DefaultTags["url"] ***REMOVED***
 			tags["url"] = resp.URL
 		***REMOVED***
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:status"] ***REMOVED***
+		if state.Options.DefaultTags == nil || state.Options.DefaultTags["status"] ***REMOVED***
 			tags["status"] = strconv.Itoa(resp.Status)
 		***REMOVED***
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:proto"] ***REMOVED***
+		if state.Options.DefaultTags == nil || state.Options.DefaultTags["proto"] ***REMOVED***
 			tags["proto"] = resp.Proto
 		***REMOVED***
 
 		if res.TLS != nil ***REMOVED***
 			resp.setTLSInfo(res.TLS)
-			if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:tls_version"] ***REMOVED***
+			if state.Options.DefaultTags == nil || state.Options.DefaultTags["tls_version"] ***REMOVED***
 				tags["tls_version"] = resp.TLSVersion
 			***REMOVED***
-			if state.Options.DefaultTags == nil || state.Options.DefaultTags["http:ocsp_status"] ***REMOVED***
+			if state.Options.DefaultTags == nil || state.Options.DefaultTags["ocsp_status"] ***REMOVED***
 				tags["ocsp_status"] = resp.OCSP.Status
 			***REMOVED***
 		***REMOVED***
