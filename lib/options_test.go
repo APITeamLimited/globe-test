@@ -240,17 +240,16 @@ func TestOptions(t *testing.T) ***REMOVED***
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
 			t.Run("Array", func(t *testing.T) ***REMOVED***
 				var opts Options
-				jsonStr := `***REMOVED***"defaultTags":["vu","url"]***REMOVED***`
+				jsonStr := `***REMOVED***"defaultTags":["url"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, Tags***REMOVED***
-					"vu":  true,
 					"url": true,
 				***REMOVED***, opts.DefaultTags)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
 					data, err := json.Marshal(opts.DefaultTags)
 					assert.NoError(t, err)
-					assert.Equal(t, `["vu","url"]`, string(data))
+					assert.Equal(t, `["url"]`, string(data))
 					var vers2 Tags
 					assert.NoError(t, json.Unmarshal(data, &vers2))
 					assert.Equal(t, vers2, opts.DefaultTags)

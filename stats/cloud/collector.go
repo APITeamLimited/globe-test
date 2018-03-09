@@ -128,12 +128,7 @@ func (c *Collector) Init() error ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) GetOptions() lib.CollectorOptions ***REMOVED***
-	return lib.CollectorOptions***REMOVED***
-		DefaultTags: lib.Tags***REMOVED***
-			"vu":   true,
-			"iter": true,
-		***REMOVED***,
-	***REMOVED***
+	return lib.CollectorOptions***REMOVED******REMOVED***
 ***REMOVED***
 
 func (c *Collector) Link() string ***REMOVED***

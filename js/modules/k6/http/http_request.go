@@ -169,16 +169,6 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
-	// Check collector options, update tags accordingly.
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["vu"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["vu"]) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(state.Vu, 10)
-	***REMOVED***
-	if (state.CollectorOptions.DefaultTags != nil && state.CollectorOptions.DefaultTags["iter"]) ||
-		(state.Options.DefaultTags != nil && state.Options.DefaultTags["iter"]) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
-	***REMOVED***
-
 	redirects := state.Options.MaxRedirects
 	timeout := 60 * time.Second
 	throw := state.Options.Throw.Bool
