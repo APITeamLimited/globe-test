@@ -617,7 +617,7 @@ func writeWithCRLF(w io.Writer, buf []byte) (n int, err error) ***REMOVED***
 			if _, err = w.Write(crlf); err != nil ***REMOVED***
 				return n, err
 			***REMOVED***
-			n += 1
+			n++
 			buf = buf[1:]
 		***REMOVED***
 	***REMOVED***
