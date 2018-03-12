@@ -281,8 +281,8 @@ func ParseKeyBytes(buf []byte) ([]byte, Tags) ***REMOVED***
 	return buf[:i], tags
 ***REMOVED***
 
-func ParseTags(buf []byte) (Tags, error) ***REMOVED***
-	return parseTags(buf), nil
+func ParseTags(buf []byte) Tags ***REMOVED***
+	return parseTags(buf)
 ***REMOVED***
 
 func ParseName(buf []byte) ([]byte, error) ***REMOVED***
@@ -1528,9 +1528,12 @@ func parseTags(buf []byte) Tags ***REMOVED***
 		return nil
 	***REMOVED***
 
-	tags := make(Tags, 0, bytes.Count(buf, []byte(",")))
+	tags := make(Tags, bytes.Count(buf, []byte(",")))
+	p := 0
 	walkTags(buf, func(key, value []byte) bool ***REMOVED***
-		tags = append(tags, NewTag(key, value))
+		tags[p].Key = key
+		tags[p].Value = value
+		p++
 		return true
 	***REMOVED***)
 	return tags
@@ -1689,10 +1692,7 @@ func (p *point) UnmarshalBinary(b []byte) error ***REMOVED***
 	p.fields, b = b[:n], b[n:]
 
 	// Read timestamp.
-	if err := p.time.UnmarshalBinary(b); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	return nil
+	return p.time.UnmarshalBinary(b)
 ***REMOVED***
 
 // PrecisionString returns a string representation of the point. If there
@@ -2326,9 +2326,3 @@ func appendField(b []byte, k string, v interface***REMOVED******REMOVED***) []by
 
 	return b
 ***REMOVED***
-
-type byteSlices [][]byte
-
-func (a byteSlices) Len() int           ***REMOVED*** return len(a) ***REMOVED***
-func (a byteSlices) Less(i, j int) bool ***REMOVED*** return bytes.Compare(a[i], a[j]) == -1 ***REMOVED***
-func (a byteSlices) Swap(i, j int)      ***REMOVED*** a[i], a[j] = a[j], a[i] ***REMOVED***

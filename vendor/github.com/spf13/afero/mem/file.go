@@ -176,6 +176,9 @@ func (f *File) Read(b []byte) (n int, err error) ***REMOVED***
 	if len(b) > 0 && int(f.at) == len(f.fileData.data) ***REMOVED***
 		return 0, io.EOF
 	***REMOVED***
+	if int(f.at) > len(f.fileData.data) ***REMOVED***
+		return 0, io.ErrUnexpectedEOF
+	***REMOVED***
 	if len(f.fileData.data)-int(f.at) >= len(b) ***REMOVED***
 		n = len(b)
 	***REMOVED*** else ***REMOVED***

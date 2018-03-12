@@ -413,6 +413,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED*
 	return unsafe.Pointer(&sa.raw), sl, nil
 ***REMOVED***
 
+// SockaddrLinklayer implements the Sockaddr interface for AF_PACKET type sockets.
 type SockaddrLinklayer struct ***REMOVED***
 	Protocol uint16
 	Ifindex  int
@@ -439,6 +440,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) ***REM
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 ***REMOVED***
 
+// SockaddrNetlink implements the Sockaddr interface for AF_NETLINK type sockets.
 type SockaddrNetlink struct ***REMOVED***
 	Family uint16
 	Pad    uint16
@@ -455,6 +457,8 @@ func (sa *SockaddrNetlink) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOV
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrNetlink, nil
 ***REMOVED***
 
+// SockaddrHCI implements the Sockaddr interface for AF_BLUETOOTH type sockets
+// using the HCI protocol.
 type SockaddrHCI struct ***REMOVED***
 	Dev     uint16
 	Channel uint16
@@ -466,6 +470,31 @@ func (sa *SockaddrHCI) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED**
 	sa.raw.Dev = sa.Dev
 	sa.raw.Channel = sa.Channel
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrHCI, nil
+***REMOVED***
+
+// SockaddrL2 implements the Sockaddr interface for AF_BLUETOOTH type sockets
+// using the L2CAP protocol.
+type SockaddrL2 struct ***REMOVED***
+	PSM      uint16
+	CID      uint16
+	Addr     [6]uint8
+	AddrType uint8
+	raw      RawSockaddrL2
+***REMOVED***
+
+func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Family = AF_BLUETOOTH
+	psm := (*[2]byte)(unsafe.Pointer(&sa.raw.Psm))
+	psm[0] = byte(sa.PSM)
+	psm[1] = byte(sa.PSM >> 8)
+	for i := 0; i < len(sa.Addr); i++ ***REMOVED***
+		sa.raw.Bdaddr[i] = sa.Addr[len(sa.Addr)-1-i]
+	***REMOVED***
+	cid := (*[2]byte)(unsafe.Pointer(&sa.raw.Cid))
+	cid[0] = byte(sa.CID)
+	cid[1] = byte(sa.CID >> 8)
+	sa.raw.Bdaddr_type = sa.AddrType
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrL2, nil
 ***REMOVED***
 
 // SockaddrCAN implements the Sockaddr interface for AF_CAN type sockets.
@@ -806,6 +835,24 @@ func GetsockoptTCPInfo(fd, level, opt int) (*TCPInfo, error) ***REMOVED***
 	vallen := _Socklen(SizeofTCPInfo)
 	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 	return &value, err
+***REMOVED***
+
+// GetsockoptString returns the string value of the socket option opt for the
+// socket associated with fd at the given socket level.
+func GetsockoptString(fd, level, opt int) (string, error) ***REMOVED***
+	buf := make([]byte, 256)
+	vallen := _Socklen(len(buf))
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&buf[0]), &vallen)
+	if err != nil ***REMOVED***
+		if err == ERANGE ***REMOVED***
+			buf = make([]byte, vallen)
+			err = getsockopt(fd, level, opt, unsafe.Pointer(&buf[0]), &vallen)
+		***REMOVED***
+		if err != nil ***REMOVED***
+			return "", err
+		***REMOVED***
+	***REMOVED***
+	return string(buf[:vallen-1]), nil
 ***REMOVED***
 
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) ***REMOVED***
@@ -1172,22 +1219,6 @@ func ReadDirent(fd int, buf []byte) (n int, err error) ***REMOVED***
 	return Getdents(fd, buf)
 ***REMOVED***
 
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Ino), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Ino))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Reclen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Reclen))
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	reclen, ok := direntReclen(buf)
-	if !ok ***REMOVED***
-		return 0, false
-	***REMOVED***
-	return reclen - uint64(unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Name)), true
-***REMOVED***
-
 //sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (err error)
 
 func Mount(source string, target string, fstype string, flags uintptr, data string) (err error) ***REMOVED***
@@ -1293,6 +1324,7 @@ func Setgid(uid int) (err error) ***REMOVED***
 
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
+//sys	Statx(dirfd int, path string, flags int, mask int, stat *Statx_t) (err error)
 //sys	Sync()
 //sys	Syncfs(fd int) (err error)
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
@@ -1410,7 +1442,6 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) ***REMOVED***
 // Msgget
 // Msgrcv
 // Msgsnd
-// Newfstatat
 // Nfsservctl
 // Personality
 // Pselect6
@@ -1431,11 +1462,9 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) ***REMOVED***
 // RtSigtimedwait
 // SchedGetPriorityMax
 // SchedGetPriorityMin
-// SchedGetaffinity
 // SchedGetparam
 // SchedGetscheduler
 // SchedRrGetInterval
-// SchedSetaffinity
 // SchedSetparam
 // SchedYield
 // Security

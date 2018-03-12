@@ -88,6 +88,50 @@ type Dialer struct ***REMOVED***
 
 var errMalformedURL = errors.New("malformed ws or wss URL")
 
+// parseURL parses the URL.
+//
+// This function is a replacement for the standard library url.Parse function.
+// In Go 1.4 and earlier, url.Parse loses information from the path.
+func parseURL(s string) (*url.URL, error) ***REMOVED***
+	// From the RFC:
+	//
+	// ws-URI = "ws:" "//" host [ ":" port ] path [ "?" query ]
+	// wss-URI = "wss:" "//" host [ ":" port ] path [ "?" query ]
+	var u url.URL
+	switch ***REMOVED***
+	case strings.HasPrefix(s, "ws://"):
+		u.Scheme = "ws"
+		s = s[len("ws://"):]
+	case strings.HasPrefix(s, "wss://"):
+		u.Scheme = "wss"
+		s = s[len("wss://"):]
+	default:
+		return nil, errMalformedURL
+	***REMOVED***
+
+	if i := strings.Index(s, "?"); i >= 0 ***REMOVED***
+		u.RawQuery = s[i+1:]
+		s = s[:i]
+	***REMOVED***
+
+	if i := strings.Index(s, "/"); i >= 0 ***REMOVED***
+		u.Opaque = s[i:]
+		s = s[:i]
+	***REMOVED*** else ***REMOVED***
+		u.Opaque = "/"
+	***REMOVED***
+
+	u.Host = s
+
+	if strings.Contains(u.Host, "@") ***REMOVED***
+		// Don't bother parsing user information because user information is
+		// not allowed in websocket URIs.
+		return nil, errMalformedURL
+	***REMOVED***
+
+	return &u, nil
+***REMOVED***
+
 func hostPortNoPort(u *url.URL) (hostPort, hostNoPort string) ***REMOVED***
 	hostPort = u.Host
 	hostNoPort = u.Host
@@ -133,7 +177,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (*Conn, *http.Re
 		return nil, nil, err
 	***REMOVED***
 
-	u, err := url.Parse(urlStr)
+	u, err := parseURL(urlStr)
 	if err != nil ***REMOVED***
 		return nil, nil, err
 	***REMOVED***

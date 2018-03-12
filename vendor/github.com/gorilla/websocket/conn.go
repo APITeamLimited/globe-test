@@ -76,7 +76,7 @@ const (
 	// is UTF-8 encoded text.
 	PingMessage = 9
 
-	// PongMessage denotes a pong control message. The optional message payload
+	// PongMessage denotes a ping control message. The optional message payload
 	// is UTF-8 encoded text.
 	PongMessage = 10
 )
@@ -102,6 +102,7 @@ func (e *netError) Timeout() bool   ***REMOVED*** return e.timeout ***REMOVED***
 
 // CloseError represents close frame.
 type CloseError struct ***REMOVED***
+
 	// Code is defined in RFC 6455, section 11.7.
 	Code int
 
@@ -483,9 +484,6 @@ func (c *Conn) prepWrite(messageType int) error ***REMOVED***
 //
 // There can be at most one open writer on a connection. NextWriter closes the
 // previous writer if the application has not already done so.
-//
-// All message types (TextMessage, BinaryMessage, CloseMessage, PingMessage and
-// PongMessage) are supported.
 func (c *Conn) NextWriter(messageType int) (io.WriteCloser, error) ***REMOVED***
 	if err := c.prepWrite(messageType); err != nil ***REMOVED***
 		return nil, err
@@ -766,6 +764,7 @@ func (c *Conn) SetWriteDeadline(t time.Time) error ***REMOVED***
 // Read methods
 
 func (c *Conn) advanceFrame() (int, error) ***REMOVED***
+
 	// 1. Skip remainder of previous frame.
 
 	if c.readRemaining > 0 ***REMOVED***

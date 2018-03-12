@@ -299,6 +299,26 @@ func (t Tag) String() string ***REMOVED***
 	return string(buf[:t.genCoreBytes(buf[:])])
 ***REMOVED***
 
+// MarshalText implements encoding.TextMarshaler.
+func (t Tag) MarshalText() (text []byte, err error) ***REMOVED***
+	if t.str != "" ***REMOVED***
+		text = append(text, t.str...)
+	***REMOVED*** else if t.script == 0 && t.region == 0 ***REMOVED***
+		text = append(text, t.lang.String()...)
+	***REMOVED*** else ***REMOVED***
+		buf := [maxCoreSize]byte***REMOVED******REMOVED***
+		text = buf[:t.genCoreBytes(buf[:])]
+	***REMOVED***
+	return text, nil
+***REMOVED***
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (t *Tag) UnmarshalText(text []byte) error ***REMOVED***
+	tag, err := Raw.Parse(string(text))
+	*t = tag
+	return err
+***REMOVED***
+
 // Base returns the base language of the language tag. If the base language is
 // unspecified, an attempt will be made to infer it from the context.
 // It uses a variant of CLDR's Add Likely Subtags algorithm. This is subject to change.

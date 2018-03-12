@@ -153,6 +153,11 @@ func setTimeField(val string, structField reflect.StructField, value reflect.Val
 		return errors.New("Blank time format")
 	***REMOVED***
 
+	if val == "" ***REMOVED***
+		value.Set(reflect.ValueOf(time.Time***REMOVED******REMOVED***))
+		return nil
+	***REMOVED***
+
 	l := time.Local
 	if isUTC, _ := strconv.ParseBool(structField.Tag.Get("time_utc")); isUTC ***REMOVED***
 		l = time.UTC

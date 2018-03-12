@@ -341,7 +341,7 @@ func (c *Color) SprintlnFunc() func(a ...interface***REMOVED******REMOVED***) st
 	***REMOVED***
 ***REMOVED***
 
-// sequence returns a formatted SGR sequence to be plugged into a "\x1b[...m"
+// sequence returns a formated SGR sequence to be plugged into a "\x1b[...m"
 // an example output might be: "1;36" -> bold cyan
 func (c *Color) sequence() string ***REMOVED***
 	format := make([]string, len(c.params))

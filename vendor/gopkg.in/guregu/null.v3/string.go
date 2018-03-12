@@ -30,6 +30,14 @@ func StringFromPtr(s *string) String ***REMOVED***
 	return NewString(*s, true)
 ***REMOVED***
 
+// ValueOrZero returns the inner value if valid, otherwise zero.
+func (s String) ValueOrZero() string ***REMOVED***
+	if !s.Valid ***REMOVED***
+		return ""
+	***REMOVED***
+	return s.String
+***REMOVED***
+
 // NewString creates a new String
 func NewString(s string, valid bool) String ***REMOVED***
 	return String***REMOVED***

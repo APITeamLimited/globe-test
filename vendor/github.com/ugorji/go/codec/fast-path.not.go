@@ -1,3 +1,6 @@
+// Copyright (c) 2012-2018 Ugorji Nwoke. All rights reserved.
+// Use of this source code is governed by a MIT license found in the LICENSE file.
+
 // +build notfastpath
 
 package codec
@@ -18,17 +21,27 @@ func fastpathDecodeTypeSwitch(iv interface***REMOVED******REMOVED***, d *Decoder
 func fastpathEncodeTypeSwitch(iv interface***REMOVED******REMOVED***, e *Encoder) bool      ***REMOVED*** return false ***REMOVED***
 func fastpathEncodeTypeSwitchSlice(iv interface***REMOVED******REMOVED***, e *Encoder) bool ***REMOVED*** return false ***REMOVED***
 func fastpathEncodeTypeSwitchMap(iv interface***REMOVED******REMOVED***, e *Encoder) bool   ***REMOVED*** return false ***REMOVED***
+func fastpathDecodeSetZeroTypeSwitch(iv interface***REMOVED******REMOVED***) bool           ***REMOVED*** return false ***REMOVED***
 
 type fastpathT struct***REMOVED******REMOVED***
 type fastpathE struct ***REMOVED***
 	rtid  uintptr
 	rt    reflect.Type
-	encfn func(*encFnInfo, reflect.Value)
-	decfn func(*decFnInfo, reflect.Value)
+	encfn func(*Encoder, *codecFnInfo, reflect.Value)
+	decfn func(*Decoder, *codecFnInfo, reflect.Value)
 ***REMOVED***
 type fastpathA [0]fastpathE
 
 func (x fastpathA) index(rtid uintptr) int ***REMOVED*** return -1 ***REMOVED***
 
+func (_ fastpathT) DecSliceUint8V(v []uint8, canChange bool, d *Decoder) (_ []uint8, changed bool) ***REMOVED***
+	fn := d.cfer().get(uint8SliceTyp, true, true)
+	d.kSlice(&fn.i, reflect.ValueOf(&v).Elem())
+	return v, true
+***REMOVED***
+
 var fastpathAV fastpathA
 var fastpathTV fastpathT
+
+// ----
+type TestMammoth2Wrapper struct***REMOVED******REMOVED*** // to allow testMammoth work in notfastpath mode

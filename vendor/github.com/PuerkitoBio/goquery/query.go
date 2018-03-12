@@ -5,11 +5,7 @@ import "golang.org/x/net/html"
 // Is checks the current matched set of elements against a selector and
 // returns true if at least one of these elements matches.
 func (s *Selection) Is(selector string) bool ***REMOVED***
-	if len(s.Nodes) > 0 ***REMOVED***
-		return s.IsMatcher(compileMatcher(selector))
-	***REMOVED***
-
-	return false
+	return s.IsMatcher(compileMatcher(selector))
 ***REMOVED***
 
 // IsMatcher checks the current matched set of elements against a matcher and

@@ -1443,7 +1443,7 @@ func Undefined() Value ***REMOVED***
 
 // Null returns JS null value.
 func Null() Value ***REMOVED***
-	return _undefined
+	return _null
 ***REMOVED***
 
 func tryFunc(f func()) (err error) ***REMOVED***

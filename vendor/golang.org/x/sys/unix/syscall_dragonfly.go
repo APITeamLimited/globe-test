@@ -14,6 +14,7 @@ package unix
 
 import "unsafe"
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct ***REMOVED***
 	Len    uint8
 	Family uint8
@@ -56,22 +57,6 @@ func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 	return buf[0 : n/siz], nil
 ***REMOVED***
 
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Fileno), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Fileno))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	namlen, ok := direntNamlen(buf)
-	if !ok ***REMOVED***
-		return 0, false
-	***REMOVED***
-	return (16 + namlen + 1 + 7) &^ 7, true
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Namlen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Namlen))
-***REMOVED***
-
 //sysnb pipe() (r int, w int, err error)
 
 func Pipe(p []int) (err error) ***REMOVED***
@@ -108,6 +93,23 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 		nfd = 0
 	***REMOVED***
 	return
+***REMOVED***
+
+const ImplementsGetwd = true
+
+//sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+
+func Getwd() (string, error) ***REMOVED***
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	n := clen(buf[:])
+	if n < 1 ***REMOVED***
+		return "", EINVAL
+	***REMOVED***
+	return string(buf[:n]), nil
 ***REMOVED***
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) ***REMOVED***
@@ -167,6 +169,69 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) ***REMOVED***
 	var value Termios
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
 	return &value, err
+***REMOVED***
+
+func sysctlUname(mib []_C_int, old *byte, oldlen *uintptr) error ***REMOVED***
+	err := sysctl(mib, old, oldlen, nil, 0)
+	if err != nil ***REMOVED***
+		// Utsname members on Dragonfly are only 32 bytes and
+		// the syscall returns ENOMEM in case the actual value
+		// is longer.
+		if err == ENOMEM ***REMOVED***
+			err = nil
+		***REMOVED***
+	***REMOVED***
+	return err
+***REMOVED***
+
+func Uname(uname *Utsname) error ***REMOVED***
+	mib := []_C_int***REMOVED***CTL_KERN, KERN_OSTYPE***REMOVED***
+	n := unsafe.Sizeof(uname.Sysname)
+	if err := sysctlUname(mib, &uname.Sysname[0], &n); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	uname.Sysname[unsafe.Sizeof(uname.Sysname)-1] = 0
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_HOSTNAME***REMOVED***
+	n = unsafe.Sizeof(uname.Nodename)
+	if err := sysctlUname(mib, &uname.Nodename[0], &n); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	uname.Nodename[unsafe.Sizeof(uname.Nodename)-1] = 0
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_OSRELEASE***REMOVED***
+	n = unsafe.Sizeof(uname.Release)
+	if err := sysctlUname(mib, &uname.Release[0], &n); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	uname.Release[unsafe.Sizeof(uname.Release)-1] = 0
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_VERSION***REMOVED***
+	n = unsafe.Sizeof(uname.Version)
+	if err := sysctlUname(mib, &uname.Version[0], &n); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	// The version might have newlines or tabs in it, convert them to
+	// spaces.
+	for i, b := range uname.Version ***REMOVED***
+		if b == '\n' || b == '\t' ***REMOVED***
+			if i == len(uname.Version)-1 ***REMOVED***
+				uname.Version[i] = 0
+			***REMOVED*** else ***REMOVED***
+				uname.Version[i] = ' '
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_HW, HW_MACHINE***REMOVED***
+	n = unsafe.Sizeof(uname.Machine)
+	if err := sysctlUname(mib, &uname.Machine[0], &n); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	uname.Machine[unsafe.Sizeof(uname.Machine)-1] = 0
+
+	return nil
 ***REMOVED***
 
 /*

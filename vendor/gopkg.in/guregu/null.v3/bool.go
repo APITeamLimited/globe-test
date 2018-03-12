@@ -38,6 +38,11 @@ func BoolFromPtr(b *bool) Bool ***REMOVED***
 	return NewBool(*b, true)
 ***REMOVED***
 
+// ValueOrZero returns the inner value if valid, otherwise false.
+func (b Bool) ValueOrZero() bool ***REMOVED***
+	return b.Valid && b.Bool
+***REMOVED***
+
 // UnmarshalJSON implements json.Unmarshaler.
 // It supports number and null input.
 // 0 will not be considered a null Bool.

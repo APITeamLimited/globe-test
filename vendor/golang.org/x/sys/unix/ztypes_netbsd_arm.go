@@ -104,6 +104,10 @@ type Fsid struct ***REMOVED***
 	X__fsid_val [2]int32
 ***REMOVED***
 
+const (
+	PathMax = 0x400
+)
+
 type RawSockaddrInet4 struct ***REMOVED***
 	Len    uint8
 	Family uint8
@@ -429,4 +433,12 @@ type Sysctlnode struct ***REMOVED***
 	X_sysctl_func   [8]byte
 	X_sysctl_parent [8]byte
 	X_sysctl_desc   [8]byte
+***REMOVED***
+
+type Utsname struct ***REMOVED***
+	Sysname  [256]byte
+	Nodename [256]byte
+	Release  [256]byte
+	Version  [256]byte
+	Machine  [256]byte
 ***REMOVED***

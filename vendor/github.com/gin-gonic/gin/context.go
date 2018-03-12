@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gin-gonic/gin/render"
-	"gopkg.in/gin-contrib/sse.v0"
 )
 
 // Content-Type MIME of the most common data formats
@@ -85,13 +85,18 @@ func (c *Context) HandlerName() string ***REMOVED***
 	return nameOfFunction(c.handlers.Last())
 ***REMOVED***
 
+// Handler returns the main handler.
+func (c *Context) Handler() HandlerFunc ***REMOVED***
+	return c.handlers.Last()
+***REMOVED***
+
 /************************************/
 /*********** FLOW CONTROL ***********/
 /************************************/
 
 // Next should be used only inside middleware.
 // It executes the pending handlers in the chain inside the calling handler.
-// See example in github.
+// See example in GitHub.
 func (c *Context) Next() ***REMOVED***
 	c.index++
 	s := int8(len(c.handlers))
@@ -114,7 +119,7 @@ func (c *Context) Abort() ***REMOVED***
 ***REMOVED***
 
 // AbortWithStatus calls `Abort()` and writes the headers with the specified status code.
-// For example, a failed attempt to authentificate a request could use: context.AbortWithStatus(401).
+// For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
 func (c *Context) AbortWithStatus(code int) ***REMOVED***
 	c.Status(code)
 	c.Writer.WriteHeaderNow()
@@ -163,7 +168,7 @@ func (c *Context) Error(err error) *Error ***REMOVED***
 /******** METADATA MANAGEMENT********/
 /************************************/
 
-// Set is used to store a new key/value pair exclusivelly for this context.
+// Set is used to store a new key/value pair exclusively for this context.
 // It also lazy initializes  c.Keys if it was not used previously.
 func (c *Context) Set(key string, value interface***REMOVED******REMOVED***) ***REMOVED***
 	if c.Keys == nil ***REMOVED***
@@ -187,6 +192,94 @@ func (c *Context) MustGet(key string) interface***REMOVED******REMOVED*** ***REM
 	panic("Key \"" + key + "\" does not exist")
 ***REMOVED***
 
+// GetString returns the value associated with the key as a string.
+func (c *Context) GetString(key string) (s string) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		s, _ = val.(string)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetBool returns the value associated with the key as a boolean.
+func (c *Context) GetBool(key string) (b bool) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		b, _ = val.(bool)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetInt returns the value associated with the key as an integer.
+func (c *Context) GetInt(key string) (i int) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		i, _ = val.(int)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetInt64 returns the value associated with the key as an integer.
+func (c *Context) GetInt64(key string) (i64 int64) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		i64, _ = val.(int64)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetFloat64 returns the value associated with the key as a float64.
+func (c *Context) GetFloat64(key string) (f64 float64) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		f64, _ = val.(float64)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetTime returns the value associated with the key as time.
+func (c *Context) GetTime(key string) (t time.Time) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		t, _ = val.(time.Time)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetDuration returns the value associated with the key as a duration.
+func (c *Context) GetDuration(key string) (d time.Duration) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		d, _ = val.(time.Duration)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetStringSlice returns the value associated with the key as a slice of strings.
+func (c *Context) GetStringSlice(key string) (ss []string) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		ss, _ = val.([]string)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetStringMap returns the value associated with the key as a map of interfaces.
+func (c *Context) GetStringMap(key string) (sm map[string]interface***REMOVED******REMOVED***) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		sm, _ = val.(map[string]interface***REMOVED******REMOVED***)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetStringMapString returns the value associated with the key as a map of strings.
+func (c *Context) GetStringMapString(key string) (sms map[string]string) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		sms, _ = val.(map[string]string)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetStringMapStringSlice returns the value associated with the key as a map to a slice of strings.
+func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string) ***REMOVED***
+	if val, ok := c.Get(key); ok && val != nil ***REMOVED***
+		smss, _ = val.(map[string][]string)
+	***REMOVED***
+	return
+***REMOVED***
+
 /************************************/
 /************ INPUT DATA ************/
 /************************************/
@@ -202,7 +295,7 @@ func (c *Context) Param(key string) string ***REMOVED***
 ***REMOVED***
 
 // Query returns the keyed url query value if it exists,
-// othewise it returns an empty string `("")`.
+// otherwise it returns an empty string `("")`.
 // It is shortcut for `c.Request.URL.Query().Get(key)`
 // 		GET /path?id=1234&name=Manu&value=
 // 		c.Query("id") == "1234"
@@ -215,7 +308,7 @@ func (c *Context) Query(key string) string ***REMOVED***
 ***REMOVED***
 
 // DefaultQuery returns the keyed url query value if it exists,
-// othewise it returns the specified defaultValue string.
+// otherwise it returns the specified defaultValue string.
 // See: Query() and GetQuery() for further information.
 // 		GET /?name=Manu&lastname=
 // 		c.DefaultQuery("name", "unknown") == "Manu"
@@ -230,7 +323,7 @@ func (c *Context) DefaultQuery(key, defaultValue string) string ***REMOVED***
 
 // GetQuery is like Query(), it returns the keyed url query value
 // if it exists `(value, true)` (even when the value is an empty string),
-// othewise it returns `("", false)`.
+// otherwise it returns `("", false)`.
 // It is shortcut for `c.Request.URL.Query().Get(key)`
 // 		GET /?name=Manu&lastname=
 // 		("Manu", true) == c.GetQuery("name")
@@ -337,22 +430,30 @@ func (c *Context) MultipartForm() (*multipart.Form, error) ***REMOVED***
 // Like ParseBody() but this method also writes a 400 error if the json is not valid.
 func (c *Context) Bind(obj interface***REMOVED******REMOVED***) error ***REMOVED***
 	b := binding.Default(c.Request.Method, c.ContentType())
-	return c.BindWith(obj, b)
+	return c.MustBindWith(obj, b)
 ***REMOVED***
 
-// BindJSON is a shortcut for c.BindWith(obj, binding.JSON)
+// BindJSON is a shortcut for c.MustBindWith(obj, binding.JSON)
 func (c *Context) BindJSON(obj interface***REMOVED******REMOVED***) error ***REMOVED***
-	return c.BindWith(obj, binding.JSON)
+	return c.MustBindWith(obj, binding.JSON)
 ***REMOVED***
 
-// BindWith binds the passed struct pointer using the specified binding engine.
+// MustBindWith binds the passed struct pointer using the specified binding
+// engine. It will abort the request with HTTP 400 if any error ocurrs.
 // See the binding package.
-func (c *Context) BindWith(obj interface***REMOVED******REMOVED***, b binding.Binding) error ***REMOVED***
-	if err := b.Bind(c.Request, obj); err != nil ***REMOVED***
+func (c *Context) MustBindWith(obj interface***REMOVED******REMOVED***, b binding.Binding) (err error) ***REMOVED***
+	if err = c.ShouldBindWith(obj, b); err != nil ***REMOVED***
 		c.AbortWithError(400, err).SetType(ErrorTypeBind)
-		return err
 	***REMOVED***
-	return nil
+
+	return
+***REMOVED***
+
+// ShouldBindWith binds the passed struct pointer using the specified binding
+// engine.
+// See the binding package.
+func (c *Context) ShouldBindWith(obj interface***REMOVED******REMOVED***, b binding.Binding) error ***REMOVED***
+	return b.Bind(c.Request, obj)
 ***REMOVED***
 
 // ClientIP implements a best effort algorithm to return the real client IP, it parses
@@ -507,7 +608,7 @@ func (c *Context) HTML(code int, name string, obj interface***REMOVED******REMOV
 
 // IndentedJSON serializes the given struct as pretty JSON (indented + endlines) into the response body.
 // It also sets the Content-Type as "application/json".
-// WARNING: we recommend to use this only for development propuses since printing pretty JSON is
+// WARNING: we recommend to use this only for development purposes since printing pretty JSON is
 // more CPU and bandwidth consuming. Use Context.JSON() instead.
 func (c *Context) IndentedJSON(code int, obj interface***REMOVED******REMOVED***) ***REMOVED***
 	c.Render(code, render.IndentedJSON***REMOVED***Data: obj***REMOVED***)

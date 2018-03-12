@@ -143,6 +143,10 @@ type Fsid struct ***REMOVED***
 ***REMOVED***
 
 const (
+	PathMax = 0x400
+)
+
+const (
 	FADV_NORMAL     = 0x0
 	FADV_RANDOM     = 0x1
 	FADV_SEQUENTIAL = 0x2
@@ -541,4 +545,12 @@ const (
 
 type CapRights struct ***REMOVED***
 	Rights [2]uint64
+***REMOVED***
+
+type Utsname struct ***REMOVED***
+	Sysname  [256]byte
+	Nodename [256]byte
+	Release  [256]byte
+	Version  [256]byte
+	Machine  [256]byte
 ***REMOVED***

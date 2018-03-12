@@ -55,7 +55,7 @@ func (a *Assertions) DirExistsf(path string, msg string, args ...interface***REM
 // listB(array, slice...) ignoring the order of the elements. If there are duplicate elements,
 // the number of appearances of each of them in both lists should match.
 //
-// a.ElementsMatch([1, 3, 2, 3], [1, 3, 3, 2]))
+// a.ElementsMatch([1, 3, 2, 3], [1, 3, 3, 2])
 func (a *Assertions) ElementsMatch(listA interface***REMOVED******REMOVED***, listB interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	return ElementsMatch(a.t, listA, listB, msgAndArgs...)
 ***REMOVED***
@@ -64,7 +64,7 @@ func (a *Assertions) ElementsMatch(listA interface***REMOVED******REMOVED***, li
 // listB(array, slice...) ignoring the order of the elements. If there are duplicate elements,
 // the number of appearances of each of them in both lists should match.
 //
-// a.ElementsMatchf([1, 3, 2, 3], [1, 3, 3, 2], "error message %s", "formatted"))
+// a.ElementsMatchf([1, 3, 2, 3], [1, 3, 3, 2], "error message %s", "formatted")
 func (a *Assertions) ElementsMatchf(listA interface***REMOVED******REMOVED***, listB interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	return ElementsMatchf(a.t, listA, listB, msg, args...)
 ***REMOVED***

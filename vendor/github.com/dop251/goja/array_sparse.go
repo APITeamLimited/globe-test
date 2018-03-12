@@ -266,10 +266,10 @@ func (i *sparseArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	return i.a.baseObject._enumerate(i.recursive)()
 ***REMOVED***
 
-func (a *sparseArrayObject) _enumerate(recusrive bool) iterNextFunc ***REMOVED***
+func (a *sparseArrayObject) _enumerate(recursive bool) iterNextFunc ***REMOVED***
 	return (&sparseArrayPropIter***REMOVED***
 		a:         a,
-		recursive: recusrive,
+		recursive: recursive,
 	***REMOVED***).next
 ***REMOVED***
 

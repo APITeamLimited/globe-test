@@ -27,7 +27,7 @@ variables can be used:
   [default]     ***REMOVED******REMOVED***usage_default .***REMOVED******REMOVED***
   [required]    ***REMOVED******REMOVED***usage_required .***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***
 `
-	// DefaultTableFormat constant to use to display usage in a tabular format
+	// DefaultTableFormat constant to use to display usage in a tabluar format
 	DefaultTableFormat = `This application is configured via the environment. The following environment
 variables can be used:
 

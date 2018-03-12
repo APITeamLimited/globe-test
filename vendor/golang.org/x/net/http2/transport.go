@@ -306,7 +306,26 @@ func (sew stickyErrWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	return
 ***REMOVED***
 
-var ErrNoCachedConn = errors.New("http2: no cached connection was available")
+// noCachedConnError is the concrete type of ErrNoCachedConn, which
+// needs to be detected by net/http regardless of whether it's its
+// bundled version (in h2_bundle.go with a rewritten type name) or
+// from a user's x/net/http2. As such, as it has a unique method name
+// (IsHTTP2NoCachedConnError) that net/http sniffs for via func
+// isNoCachedConnError.
+type noCachedConnError struct***REMOVED******REMOVED***
+
+func (noCachedConnError) IsHTTP2NoCachedConnError() ***REMOVED******REMOVED***
+func (noCachedConnError) Error() string             ***REMOVED*** return "http2: no cached connection was available" ***REMOVED***
+
+// isNoCachedConnError reports whether err is of type noCachedConnError
+// or its equivalent renamed type in net/http2's h2_bundle.go. Both types
+// may coexist in the same running program.
+func isNoCachedConnError(err error) bool ***REMOVED***
+	_, ok := err.(interface***REMOVED*** IsHTTP2NoCachedConnError() ***REMOVED***)
+	return ok
+***REMOVED***
+
+var ErrNoCachedConn error = noCachedConnError***REMOVED******REMOVED***
 
 // RoundTripOpt are options for the Transport.RoundTripOpt method.
 type RoundTripOpt struct ***REMOVED***
@@ -811,7 +830,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
-	werr := cc.writeHeaders(cs.ID, endStream, hdrs)
+	werr := cc.writeHeaders(cs.ID, endStream, int(cc.maxFrameSize), hdrs)
 	cc.wmu.Unlock()
 	traceWroteHeaders(cs.trace)
 	cc.mu.Unlock()
@@ -964,13 +983,12 @@ func (cc *ClientConn) awaitOpenSlotForRequest(req *http.Request) error ***REMOVE
 ***REMOVED***
 
 // requires cc.wmu be held
-func (cc *ClientConn) writeHeaders(streamID uint32, endStream bool, hdrs []byte) error ***REMOVED***
+func (cc *ClientConn) writeHeaders(streamID uint32, endStream bool, maxFrameSize int, hdrs []byte) error ***REMOVED***
 	first := true // first frame written (HEADERS is first, then CONTINUATION)
-	frameSize := int(cc.maxFrameSize)
 	for len(hdrs) > 0 && cc.werr == nil ***REMOVED***
 		chunk := hdrs
-		if len(chunk) > frameSize ***REMOVED***
-			chunk = chunk[:frameSize]
+		if len(chunk) > maxFrameSize ***REMOVED***
+			chunk = chunk[:maxFrameSize]
 		***REMOVED***
 		hdrs = hdrs[len(chunk):]
 		endHeaders := len(hdrs) == 0
@@ -1087,13 +1105,17 @@ func (cs *clientStream) writeRequestBody(body io.Reader, bodyCloser io.Closer) (
 		***REMOVED***
 	***REMOVED***
 
+	cc.mu.Lock()
+	maxFrameSize := int(cc.maxFrameSize)
+	cc.mu.Unlock()
+
 	cc.wmu.Lock()
 	defer cc.wmu.Unlock()
 
 	// Two ways to send END_STREAM: either with trailers, or
 	// with an empty DATA frame.
 	if len(trls) > 0 ***REMOVED***
-		err = cc.writeHeaders(cs.ID, true, trls)
+		err = cc.writeHeaders(cs.ID, true, maxFrameSize, trls)
 	***REMOVED*** else ***REMOVED***
 		err = cc.fr.WriteData(cs.ID, true, nil)
 	***REMOVED***
@@ -1373,17 +1395,12 @@ func (cc *ClientConn) streamByID(id uint32, andRemove bool) *clientStream ***REM
 // clientConnReadLoop is the state owned by the clientConn's frame-reading readLoop.
 type clientConnReadLoop struct ***REMOVED***
 	cc            *ClientConn
-	activeRes     map[uint32]*clientStream // keyed by streamID
 	closeWhenIdle bool
 ***REMOVED***
 
 // readLoop runs in its own goroutine and reads and dispatches frames.
 func (cc *ClientConn) readLoop() ***REMOVED***
-	rl := &clientConnReadLoop***REMOVED***
-		cc:        cc,
-		activeRes: make(map[uint32]*clientStream),
-	***REMOVED***
-
+	rl := &clientConnReadLoop***REMOVED***cc: cc***REMOVED***
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
 	if ce, ok := cc.readerErr.(ConnectionError); ok ***REMOVED***
@@ -1438,10 +1455,8 @@ func (rl *clientConnReadLoop) cleanup() ***REMOVED***
 	***REMOVED*** else if err == io.EOF ***REMOVED***
 		err = io.ErrUnexpectedEOF
 	***REMOVED***
-	for _, cs := range rl.activeRes ***REMOVED***
-		cs.bufPipe.CloseWithError(err)
-	***REMOVED***
 	for _, cs := range cc.streams ***REMOVED***
+		cs.bufPipe.CloseWithError(err) // no-op if already closed
 		select ***REMOVED***
 		case cs.resc <- resAndError***REMOVED***err: err***REMOVED***:
 		default:
@@ -1519,7 +1534,7 @@ func (rl *clientConnReadLoop) run() error ***REMOVED***
 			***REMOVED***
 			return err
 		***REMOVED***
-		if rl.closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 ***REMOVED***
+		if rl.closeWhenIdle && gotReply && maybeIdle ***REMOVED***
 			cc.closeIfIdle()
 		***REMOVED***
 	***REMOVED***
@@ -1527,6 +1542,13 @@ func (rl *clientConnReadLoop) run() error ***REMOVED***
 
 func (rl *clientConnReadLoop) processHeaders(f *MetaHeadersFrame) error ***REMOVED***
 	cc := rl.cc
+	cs := cc.streamByID(f.StreamID, false)
+	if cs == nil ***REMOVED***
+		// We'd get here if we canceled a request while the
+		// server had its response still in flight. So if this
+		// was just something we canceled, ignore it.
+		return nil
+	***REMOVED***
 	if f.StreamEnded() ***REMOVED***
 		// Issue 20521: If the stream has ended, streamByID() causes
 		// clientStream.done to be closed, which causes the request's bodyWriter
@@ -1535,14 +1557,15 @@ func (rl *clientConnReadLoop) processHeaders(f *MetaHeadersFrame) error ***REMOV
 		// Deferring stream closure allows the header processing to occur first.
 		// clientConn.RoundTrip may still receive the bodyWriter error first, but
 		// the fix for issue 16102 prioritises any response.
-		defer cc.streamByID(f.StreamID, true)
-	***REMOVED***
-	cs := cc.streamByID(f.StreamID, false)
-	if cs == nil ***REMOVED***
-		// We'd get here if we canceled a request while the
-		// server had its response still in flight. So if this
-		// was just something we canceled, ignore it.
-		return nil
+		//
+		// Issue 22413: If there is no request body, we should close the
+		// stream before writing to cs.resc so that the stream is closed
+		// immediately once RoundTrip returns.
+		if cs.req.Body != nil ***REMOVED***
+			defer cc.forgetStreamID(f.StreamID)
+		***REMOVED*** else ***REMOVED***
+			cc.forgetStreamID(f.StreamID)
+		***REMOVED***
 	***REMOVED***
 	if !cs.firstByte ***REMOVED***
 		if cs.trace != nil ***REMOVED***
@@ -1567,15 +1590,13 @@ func (rl *clientConnReadLoop) processHeaders(f *MetaHeadersFrame) error ***REMOV
 		***REMOVED***
 		// Any other error type is a stream error.
 		cs.cc.writeStreamReset(f.StreamID, ErrCodeProtocol, err)
+		cc.forgetStreamID(cs.ID)
 		cs.resc <- resAndError***REMOVED***err: err***REMOVED***
 		return nil // return nil from process* funcs to keep conn alive
 	***REMOVED***
 	if res == nil ***REMOVED***
 		// (nil, nil) special case. See handleResponse docs.
 		return nil
-	***REMOVED***
-	if res.Body != noBody ***REMOVED***
-		rl.activeRes[cs.ID] = cs
 	***REMOVED***
 	cs.resTrailer = &res.Trailer
 	cs.resc <- resAndError***REMOVED***res: res***REMOVED***
@@ -1596,11 +1617,11 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 
 	status := f.PseudoValue("status")
 	if status == "" ***REMOVED***
-		return nil, errors.New("missing status pseudo header")
+		return nil, errors.New("malformed response from server: missing status pseudo header")
 	***REMOVED***
 	statusCode, err := strconv.Atoi(status)
 	if err != nil ***REMOVED***
-		return nil, errors.New("malformed non-numeric status pseudo header")
+		return nil, errors.New("malformed response from server: malformed non-numeric status pseudo header")
 	***REMOVED***
 
 	if statusCode == 100 ***REMOVED***
@@ -1915,7 +1936,6 @@ func (rl *clientConnReadLoop) endStreamError(cs *clientStream, err error) ***REM
 		rl.closeWhenIdle = true
 	***REMOVED***
 	cs.bufPipe.closeWithErrorAndCode(err, code)
-	delete(rl.activeRes, cs.ID)
 
 	select ***REMOVED***
 	case cs.resc <- resAndError***REMOVED***err: err***REMOVED***:
@@ -2042,7 +2062,6 @@ func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error ***REM
 		cs.bufPipe.CloseWithError(err)
 		cs.cc.cond.Broadcast() // wake up checkResetOrDone via clientStream.awaitFlowControl
 	***REMOVED***
-	delete(rl.activeRes, cs.ID)
 	return nil
 ***REMOVED***
 

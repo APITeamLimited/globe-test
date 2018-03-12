@@ -2,6 +2,7 @@ package goja
 
 import (
 	"fmt"
+	"github.com/go-sourcemap/sourcemap"
 	"sort"
 	"strings"
 )
@@ -16,56 +17,66 @@ type SrcFile struct ***REMOVED***
 
 	lineOffsets       []int
 	lastScannedOffset int
+	sourceMap         *sourcemap.Consumer
 ***REMOVED***
 
-func NewSrcFile(name, src string) *SrcFile ***REMOVED***
+func NewSrcFile(name, src string, sourceMap *sourcemap.Consumer) *SrcFile ***REMOVED***
 	return &SrcFile***REMOVED***
-		name: name,
-		src:  src,
+		name:      name,
+		src:       src,
+		sourceMap: sourceMap,
 	***REMOVED***
 ***REMOVED***
 
 func (f *SrcFile) Position(offset int) Position ***REMOVED***
 	var line int
 	if offset > f.lastScannedOffset ***REMOVED***
-		f.scanTo(offset)
-		line = len(f.lineOffsets) - 1
+		line = f.scanTo(offset)
 	***REMOVED*** else ***REMOVED***
-		if len(f.lineOffsets) > 0 ***REMOVED***
-			line = sort.SearchInts(f.lineOffsets, offset)
-		***REMOVED*** else ***REMOVED***
-			line = -1
-		***REMOVED***
-	***REMOVED***
-
-	if line >= 0 ***REMOVED***
-		if f.lineOffsets[line] > offset ***REMOVED***
-			line--
-		***REMOVED***
+		line = sort.Search(len(f.lineOffsets), func(x int) bool ***REMOVED*** return f.lineOffsets[x] > offset ***REMOVED***) - 1
 	***REMOVED***
 
 	var lineStart int
 	if line >= 0 ***REMOVED***
 		lineStart = f.lineOffsets[line]
 	***REMOVED***
+
+	row := line + 2
+	col := offset - lineStart + 1
+
+	if f.sourceMap != nil ***REMOVED***
+		if _, _, row, col, ok := f.sourceMap.Source(row, col); ok ***REMOVED***
+			return Position***REMOVED***
+				Line: row,
+				Col:  col,
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
 	return Position***REMOVED***
-		Line: line + 2,
-		Col:  offset - lineStart + 1,
+		Line: row,
+		Col:  col,
 	***REMOVED***
 ***REMOVED***
 
-func (f *SrcFile) scanTo(offset int) ***REMOVED***
+func (f *SrcFile) scanTo(offset int) int ***REMOVED***
 	o := f.lastScannedOffset
 	for o < offset ***REMOVED***
 		p := strings.Index(f.src[o:], "\n")
 		if p == -1 ***REMOVED***
-			o = len(f.src)
-			break
+			f.lastScannedOffset = len(f.src)
+			return len(f.lineOffsets) - 1
 		***REMOVED***
 		o = o + p + 1
 		f.lineOffsets = append(f.lineOffsets, o)
 	***REMOVED***
 	f.lastScannedOffset = o
+
+	if o == offset ***REMOVED***
+		return len(f.lineOffsets) - 1
+	***REMOVED***
+
+	return len(f.lineOffsets) - 2
 ***REMOVED***
 
 func (p Position) String() string ***REMOVED***

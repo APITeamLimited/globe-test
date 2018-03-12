@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
+	"time"
 )
 
 type resolveMapItem struct ***REMOVED***
@@ -75,7 +75,7 @@ func longTag(tag string) string ***REMOVED***
 
 func resolvableTag(tag string) bool ***REMOVED***
 	switch tag ***REMOVED***
-	case "", yaml_STR_TAG, yaml_BOOL_TAG, yaml_INT_TAG, yaml_FLOAT_TAG, yaml_NULL_TAG:
+	case "", yaml_STR_TAG, yaml_BOOL_TAG, yaml_INT_TAG, yaml_FLOAT_TAG, yaml_NULL_TAG, yaml_TIMESTAMP_TAG:
 		return true
 	***REMOVED***
 	return false
@@ -125,6 +125,15 @@ func resolve(tag string, in string) (rtag string, out interface***REMOVED******R
 
 		case 'D', 'S':
 			// Int, float, or timestamp.
+			// Only try values as a timestamp if the value is unquoted or there's an explicit
+			// !!timestamp tag.
+			if tag == "" || tag == yaml_TIMESTAMP_TAG ***REMOVED***
+				t, ok := parseTimestamp(in)
+				if ok ***REMOVED***
+					return yaml_TIMESTAMP_TAG, t
+				***REMOVED***
+			***REMOVED***
+
 			plain := strings.Replace(in, "_", "", -1)
 			intv, err := strconv.ParseInt(plain, 0, 64)
 			if err == nil ***REMOVED***
@@ -167,19 +176,11 @@ func resolve(tag string, in string) (rtag string, out interface***REMOVED******R
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			// XXX Handle timestamps here.
-
 		default:
 			panic("resolveTable item not yet handled: " + string(rune(hint)) + " (with " + in + ")")
 		***REMOVED***
 	***REMOVED***
-	if tag == yaml_BINARY_TAG ***REMOVED***
-		return yaml_BINARY_TAG, in
-	***REMOVED***
-	if utf8.ValidString(in) ***REMOVED***
-		return yaml_STR_TAG, in
-	***REMOVED***
-	return yaml_BINARY_TAG, encodeBase64(in)
+	return yaml_STR_TAG, in
 ***REMOVED***
 
 // encodeBase64 encodes s as base64 that is broken up into multiple lines
@@ -205,4 +206,40 @@ func encodeBase64(s string) string ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return string(out[:k])
+***REMOVED***
+
+// This is a subset of the formats allowed by the regular expression
+// defined at http://yaml.org/type/timestamp.html.
+var allowedTimestampFormats = []string***REMOVED***
+	"2006-1-2T15:4:5Z07:00",
+	"2006-1-2t15:4:5Z07:00", // RFC3339 with lower-case "t".
+	"2006-1-2 15:4:5",       // space separated with no time zone
+	"2006-1-2",              // date only
+	// Notable exception: time.Parse cannot handle: "2001-12-14 21:59:43.10 -5"
+	// from the set of examples.
+***REMOVED***
+
+// parseTimestamp parses s as a timestamp string and
+// returns the timestamp and reports whether it succeeded.
+// Timestamp formats are defined at http://yaml.org/type/timestamp.html
+func parseTimestamp(s string) (time.Time, bool) ***REMOVED***
+	// TODO write code to check all the formats supported by
+	// http://yaml.org/type/timestamp.html instead of using time.Parse.
+
+	// Quick check: all date formats start with YYYY-.
+	i := 0
+	for ; i < len(s); i++ ***REMOVED***
+		if c := s[i]; c < '0' || c > '9' ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+	if i != 4 || i == len(s) || s[i] != '-' ***REMOVED***
+		return time.Time***REMOVED******REMOVED***, false
+	***REMOVED***
+	for _, format := range allowedTimestampFormats ***REMOVED***
+		if t, err := time.Parse(format, s); err == nil ***REMOVED***
+			return t, true
+		***REMOVED***
+	***REMOVED***
+	return time.Time***REMOVED******REMOVED***, false
 ***REMOVED***

@@ -72,7 +72,7 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 	for i := 0; i < s.NumField(); i++ ***REMOVED***
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
-		if !f.CanSet() || isTrue(ftype.Tag.Get("ignored")) ***REMOVED***
+		if !f.CanSet() || ftype.Tag.Get("ignored") == "true" ***REMOVED***
 			continue
 		***REMOVED***
 
@@ -100,7 +100,7 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 		info.Key = info.Name
 
 		// Best effort to un-pick camel casing as separate words
-		if isTrue(ftype.Tag.Get("split_words")) ***REMOVED***
+		if ftype.Tag.Get("split_words") == "true" ***REMOVED***
 			words := expr.FindAllStringSubmatch(ftype.Name, -1)
 			if len(words) > 0 ***REMOVED***
 				var name []string
@@ -164,7 +164,7 @@ func Process(prefix string, spec interface***REMOVED******REMOVED***) error ***R
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" ***REMOVED***
-			if isTrue(req) ***REMOVED***
+			if req == "true" ***REMOVED***
 				return fmt.Errorf("required key %s missing value", info.Key)
 			***REMOVED***
 			continue
@@ -266,26 +266,24 @@ func processField(value string, field reflect.Value) error ***REMOVED***
 		***REMOVED***
 		field.Set(sl)
 	case reflect.Map:
+		pairs := strings.Split(value, ",")
 		mp := reflect.MakeMap(typ)
-		if len(strings.TrimSpace(value)) != 0 ***REMOVED***
-			pairs := strings.Split(value, ",")
-			for _, pair := range pairs ***REMOVED***
-				kvpair := strings.Split(pair, ":")
-				if len(kvpair) != 2 ***REMOVED***
-					return fmt.Errorf("invalid map item: %q", pair)
-				***REMOVED***
-				k := reflect.New(typ.Key()).Elem()
-				err := processField(kvpair[0], k)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-				v := reflect.New(typ.Elem()).Elem()
-				err = processField(kvpair[1], v)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-				mp.SetMapIndex(k, v)
+		for _, pair := range pairs ***REMOVED***
+			kvpair := strings.Split(pair, ":")
+			if len(kvpair) != 2 ***REMOVED***
+				return fmt.Errorf("invalid map item: %q", pair)
 			***REMOVED***
+			k := reflect.New(typ.Key()).Elem()
+			err := processField(kvpair[0], k)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			v := reflect.New(typ.Elem()).Elem()
+			err = processField(kvpair[1], v)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			mp.SetMapIndex(k, v)
 		***REMOVED***
 		field.Set(mp)
 	***REMOVED***
@@ -318,9 +316,4 @@ func setterFrom(field reflect.Value) (s Setter) ***REMOVED***
 func textUnmarshaler(field reflect.Value) (t encoding.TextUnmarshaler) ***REMOVED***
 	interfaceFrom(field, func(v interface***REMOVED******REMOVED***, ok *bool) ***REMOVED*** t, *ok = v.(encoding.TextUnmarshaler) ***REMOVED***)
 	return t
-***REMOVED***
-
-func isTrue(s string) bool ***REMOVED***
-	b, _ := strconv.ParseBool(s)
-	return b
 ***REMOVED***

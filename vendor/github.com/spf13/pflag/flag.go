@@ -202,18 +202,12 @@ func sortFlags(flags map[NormalizedName]*Flag) []*Flag ***REMOVED***
 func (f *FlagSet) SetNormalizeFunc(n func(f *FlagSet, name string) NormalizedName) ***REMOVED***
 	f.normalizeNameFunc = n
 	f.sortedFormal = f.sortedFormal[:0]
-	for fname, flag := range f.formal ***REMOVED***
-		nname := f.normalizeFlagName(flag.Name)
-		if fname == nname ***REMOVED***
-			continue
-		***REMOVED***
-		flag.Name = string(nname)
-		delete(f.formal, fname)
-		f.formal[nname] = flag
-		if _, set := f.actual[fname]; set ***REMOVED***
-			delete(f.actual, fname)
-			f.actual[nname] = flag
-		***REMOVED***
+	for k, v := range f.orderedFormal ***REMOVED***
+		delete(f.formal, NormalizedName(v.Name))
+		nname := f.normalizeFlagName(v.Name)
+		v.Name = string(nname)
+		f.formal[nname] = v
+		f.orderedFormal[k] = v
 	***REMOVED***
 ***REMOVED***
 
@@ -446,15 +440,13 @@ func (f *FlagSet) Set(name, value string) error ***REMOVED***
 		return fmt.Errorf("invalid argument %q for %q flag: %v", value, flagName, err)
 	***REMOVED***
 
-	if !flag.Changed ***REMOVED***
-		if f.actual == nil ***REMOVED***
-			f.actual = make(map[NormalizedName]*Flag)
-		***REMOVED***
-		f.actual[normalName] = flag
-		f.orderedActual = append(f.orderedActual, flag)
-
-		flag.Changed = true
+	if f.actual == nil ***REMOVED***
+		f.actual = make(map[NormalizedName]*Flag)
 	***REMOVED***
+	f.actual[normalName] = flag
+	f.orderedActual = append(f.orderedActual, flag)
+
+	flag.Changed = true
 
 	if flag.Deprecated != "" ***REMOVED***
 		fmt.Fprintf(f.out(), "Flag --%s has been deprecated, %s\n", flag.Name, flag.Deprecated)
@@ -564,14 +556,6 @@ func UnquoteUsage(flag *Flag) (name string, usage string) ***REMOVED***
 		name = "int"
 	case "uint64":
 		name = "uint"
-	case "stringSlice":
-		name = "strings"
-	case "intSlice":
-		name = "ints"
-	case "uintSlice":
-		name = "uints"
-	case "boolSlice":
-		name = "bools"
 	***REMOVED***
 
 	return
@@ -674,10 +658,6 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string ***REMOVED***
 				line += fmt.Sprintf("[=\"%s\"]", flag.NoOptDefVal)
 			case "bool":
 				if flag.NoOptDefVal != "true" ***REMOVED***
-					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
-				***REMOVED***
-			case "count":
-				if flag.NoOptDefVal != "+1" ***REMOVED***
 					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
 				***REMOVED***
 			default:
@@ -877,10 +857,8 @@ func VarP(value Value, name, shorthand, usage string) ***REMOVED***
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface***REMOVED******REMOVED***) error ***REMOVED***
 	err := fmt.Errorf(format, a...)
-	if f.errorHandling != ContinueOnError ***REMOVED***
-		fmt.Fprintln(f.out(), err)
-		f.usage()
-	***REMOVED***
+	fmt.Fprintln(f.out(), err)
+	f.usage()
 	return err
 ***REMOVED***
 
@@ -934,9 +912,6 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 	***REMOVED***
 
 	err = fn(flag, value)
-	if err != nil ***REMOVED***
-		f.failf(err.Error())
-	***REMOVED***
 	return
 ***REMOVED***
 
@@ -987,9 +962,6 @@ func (f *FlagSet) parseSingleShortArg(shorthands string, args []string, fn parse
 	***REMOVED***
 
 	err = fn(flag, value)
-	if err != nil ***REMOVED***
-		f.failf(err.Error())
-	***REMOVED***
 	return
 ***REMOVED***
 
@@ -1062,7 +1034,6 @@ func (f *FlagSet) Parse(arguments []string) error ***REMOVED***
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			fmt.Println(err)
 			os.Exit(2)
 		case PanicOnError:
 			panic(err)

@@ -23,6 +23,7 @@ type syscallFunc uintptr
 func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
 func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct ***REMOVED***
 	Family uint16
 	Index  uint16
@@ -32,31 +33,6 @@ type SockaddrDatalink struct ***REMOVED***
 	Slen   uint8
 	Data   [244]int8
 	raw    RawSockaddrDatalink
-***REMOVED***
-
-func clen(n []byte) int ***REMOVED***
-	for i := 0; i < len(n); i++ ***REMOVED***
-		if n[i] == 0 ***REMOVED***
-			return i
-		***REMOVED***
-	***REMOVED***
-	return len(n)
-***REMOVED***
-
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Ino), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Ino))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Reclen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Reclen))
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	reclen, ok := direntReclen(buf)
-	if !ok ***REMOVED***
-		return 0, false
-	***REMOVED***
-	return reclen - uint64(unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Name)), true
 ***REMOVED***
 
 //sysnb	pipe(p *[2]_C_int) (n int, err error)
@@ -137,6 +113,18 @@ func Getsockname(fd int) (sa Sockaddr, err error) ***REMOVED***
 		return
 	***REMOVED***
 	return anyToSockaddr(&rsa)
+***REMOVED***
+
+// GetsockoptString returns the string value of the socket option opt for the
+// socket associated with fd at the given socket level.
+func GetsockoptString(fd, level, opt int) (string, error) ***REMOVED***
+	buf := make([]byte, 256)
+	vallen := _Socklen(len(buf))
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&buf[0]), &vallen)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	return string(buf[:vallen-1]), nil
 ***REMOVED***
 
 const ImplementsGetwd = true
@@ -655,6 +643,7 @@ func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Rmdir(path string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = lseek
+//sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)

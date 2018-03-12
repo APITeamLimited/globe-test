@@ -188,12 +188,3 @@ func ld(s, t string, ignoreCase bool) int ***REMOVED***
 	***REMOVED***
 	return d[len(s)][len(t)]
 ***REMOVED***
-
-func stringInSlice(a string, list []string) bool ***REMOVED***
-	for _, b := range list ***REMOVED***
-		if b == a ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-	return false
-***REMOVED***

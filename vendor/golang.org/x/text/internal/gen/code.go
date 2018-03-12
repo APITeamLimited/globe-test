@@ -55,18 +55,36 @@ func (w *CodeWriter) WriteGoFile(filename, pkg string) ***REMOVED***
 		log.Fatalf("Could not create file %s: %v", filename, err)
 	***REMOVED***
 	defer f.Close()
-	if _, err = w.WriteGo(f, pkg); err != nil ***REMOVED***
+	if _, err = w.WriteGo(f, pkg, ""); err != nil ***REMOVED***
+		log.Fatalf("Error writing file %s: %v", filename, err)
+	***REMOVED***
+***REMOVED***
+
+// WriteVersionedGoFile appends the buffer with the total size of all created
+// structures and writes it as a Go file to the the given file with the given
+// package name and build tags for the current Unicode version,
+func (w *CodeWriter) WriteVersionedGoFile(filename, pkg string) ***REMOVED***
+	tags := buildTags()
+	if tags != "" ***REMOVED***
+		filename = insertVersion(filename, UnicodeVersion())
+	***REMOVED***
+	f, err := os.Create(filename)
+	if err != nil ***REMOVED***
+		log.Fatalf("Could not create file %s: %v", filename, err)
+	***REMOVED***
+	defer f.Close()
+	if _, err = w.WriteGo(f, pkg, tags); err != nil ***REMOVED***
 		log.Fatalf("Error writing file %s: %v", filename, err)
 	***REMOVED***
 ***REMOVED***
 
 // WriteGo appends the buffer with the total size of all created structures and
 // writes it as a Go file to the the given writer with the given package name.
-func (w *CodeWriter) WriteGo(out io.Writer, pkg string) (n int, err error) ***REMOVED***
+func (w *CodeWriter) WriteGo(out io.Writer, pkg, tags string) (n int, err error) ***REMOVED***
 	sz := w.Size
 	w.WriteComment("Total table size %d bytes (%dKiB); checksum: %X\n", sz, sz/1024, w.Hash.Sum32())
 	defer w.buf.Reset()
-	return WriteGo(out, pkg, w.buf.Bytes())
+	return WriteGo(out, pkg, tags, w.buf.Bytes())
 ***REMOVED***
 
 func (w *CodeWriter) printf(f string, x ...interface***REMOVED******REMOVED***) ***REMOVED***
