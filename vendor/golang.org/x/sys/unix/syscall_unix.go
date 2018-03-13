@@ -7,6 +7,7 @@
 package unix
 
 import (
+	"bytes"
 	"runtime"
 	"sync"
 	"syscall"
@@ -48,6 +49,15 @@ func errnoErr(e syscall.Errno) error ***REMOVED***
 		return errENOENT
 	***REMOVED***
 	return e
+***REMOVED***
+
+// clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+func clen(n []byte) int ***REMOVED***
+	i := bytes.IndexByte(n, 0)
+	if i == -1 ***REMOVED***
+		i = len(n)
+	***REMOVED***
+	return i
 ***REMOVED***
 
 // Mmap manager, for use by operating system-specific implementations.
@@ -138,16 +148,19 @@ func Write(fd int, p []byte) (n int, err error) ***REMOVED***
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
 
+// Sockaddr represents a socket address.
 type Sockaddr interface ***REMOVED***
 	sockaddr() (ptr unsafe.Pointer, len _Socklen, err error) // lowercase; only we can define Sockaddrs
 ***REMOVED***
 
+// SockaddrInet4 implements the Sockaddr interface for AF_INET type sockets.
 type SockaddrInet4 struct ***REMOVED***
 	Port int
 	Addr [4]byte
 	raw  RawSockaddrInet4
 ***REMOVED***
 
+// SockaddrInet6 implements the Sockaddr interface for AF_INET6 type sockets.
 type SockaddrInet6 struct ***REMOVED***
 	Port   int
 	ZoneId uint32
@@ -155,6 +168,7 @@ type SockaddrInet6 struct ***REMOVED***
 	raw    RawSockaddrInet6
 ***REMOVED***
 
+// SockaddrUnix implements the Sockaddr interface for AF_UNIX type sockets.
 type SockaddrUnix struct ***REMOVED***
 	Name string
 	raw  RawSockaddrUnix

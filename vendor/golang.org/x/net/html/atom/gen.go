@@ -665,6 +665,7 @@ var eventHandlers = []string***REMOVED***
 
 // extra are ad-hoc values not covered by any of the lists above.
 var extra = []string***REMOVED***
+	"acronym",
 	"align",
 	"annotation",
 	"annotation-xml",

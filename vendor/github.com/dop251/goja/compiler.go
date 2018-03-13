@@ -247,7 +247,7 @@ func (c *compiler) markBlockStart() ***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compile(in *ast.Program) ***REMOVED***
-	c.p.src = NewSrcFile(in.File.Name(), in.File.Source())
+	c.p.src = NewSrcFile(in.File.Name(), in.File.Source(), in.SourceMap)
 
 	if len(in.Body) > 0 ***REMOVED***
 		if !c.scope.strict ***REMOVED***
@@ -258,15 +258,8 @@ func (c *compiler) compile(in *ast.Program) ***REMOVED***
 	c.compileDeclList(in.DeclarationList, false)
 	c.compileFunctions(in.DeclarationList)
 
-	if len(in.Body) > 0 ***REMOVED***
-		for _, st := range in.Body[:len(in.Body)-1] ***REMOVED***
-			c.compileStatement(st, false)
-		***REMOVED***
-
-		c.compileStatement(in.Body[len(in.Body)-1], true)
-	***REMOVED*** else ***REMOVED***
-		c.compileStatement(&ast.EmptyStatement***REMOVED******REMOVED***, true)
-	***REMOVED***
+	c.markBlockStart()
+	c.compileStatements(in.Body, true)
 
 	c.p.code = append(c.p.code, halt)
 	code := c.p.code

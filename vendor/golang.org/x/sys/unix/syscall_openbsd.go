@@ -18,6 +18,7 @@ import (
 	"unsafe"
 )
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct ***REMOVED***
 	Len    uint8
 	Family uint8
@@ -42,18 +43,6 @@ func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 	return nil, EINVAL
 ***REMOVED***
 
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Fileno), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Fileno))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Reclen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Reclen))
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Namlen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Namlen))
-***REMOVED***
-
 //sysnb pipe(p *[2]_C_int) (err error)
 func Pipe(p []int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
@@ -69,6 +58,23 @@ func Pipe(p []int) (err error) ***REMOVED***
 //sys getdents(fd int, buf []byte) (n int, err error)
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) ***REMOVED***
 	return getdents(fd, buf)
+***REMOVED***
+
+const ImplementsGetwd = true
+
+//sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+
+func Getwd() (string, error) ***REMOVED***
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	n := clen(buf[:])
+	if n < 1 ***REMOVED***
+		return "", EINVAL
+	***REMOVED***
+	return string(buf[:n]), nil
 ***REMOVED***
 
 // TODO
@@ -133,6 +139,52 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) ***REMOVED***
 	var value Termios
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
 	return &value, err
+***REMOVED***
+
+func Uname(uname *Utsname) error ***REMOVED***
+	mib := []_C_int***REMOVED***CTL_KERN, KERN_OSTYPE***REMOVED***
+	n := unsafe.Sizeof(uname.Sysname)
+	if err := sysctl(mib, &uname.Sysname[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_HOSTNAME***REMOVED***
+	n = unsafe.Sizeof(uname.Nodename)
+	if err := sysctl(mib, &uname.Nodename[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_OSRELEASE***REMOVED***
+	n = unsafe.Sizeof(uname.Release)
+	if err := sysctl(mib, &uname.Release[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_VERSION***REMOVED***
+	n = unsafe.Sizeof(uname.Version)
+	if err := sysctl(mib, &uname.Version[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	// The version might have newlines or tabs in it, convert them to
+	// spaces.
+	for i, b := range uname.Version ***REMOVED***
+		if b == '\n' || b == '\t' ***REMOVED***
+			if i == len(uname.Version)-1 ***REMOVED***
+				uname.Version[i] = 0
+			***REMOVED*** else ***REMOVED***
+				uname.Version[i] = ' '
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_HW, HW_MACHINE***REMOVED***
+	n = unsafe.Sizeof(uname.Machine)
+	if err := sysctl(mib, &uname.Machine[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 /*

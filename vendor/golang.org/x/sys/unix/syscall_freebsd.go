@@ -14,6 +14,7 @@ package unix
 
 import "unsafe"
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct ***REMOVED***
 	Len    uint8
 	Family uint8
@@ -54,18 +55,6 @@ func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 	return buf[0 : n/siz], nil
 ***REMOVED***
 
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Fileno), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Fileno))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Reclen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Reclen))
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Namlen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Namlen))
-***REMOVED***
-
 //sysnb pipe() (r int, w int, err error)
 
 func Pipe(p []int) (err error) ***REMOVED***
@@ -103,6 +92,23 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 		nfd = 0
 	***REMOVED***
 	return
+***REMOVED***
+
+const ImplementsGetwd = true
+
+//sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+
+func Getwd() (string, error) ***REMOVED***
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	n := clen(buf[:])
+	if n < 1 ***REMOVED***
+		return "", EINVAL
+	***REMOVED***
+	return string(buf[:n]), nil
 ***REMOVED***
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) ***REMOVED***
@@ -276,7 +282,6 @@ func Listxattr(file string, dest []byte) (sz int, err error) ***REMOVED***
 
 	// FreeBSD won't allow you to list xattrs from multiple namespaces
 	s := 0
-	var e error
 	for _, nsid := range [...]int***REMOVED***EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM***REMOVED*** ***REMOVED***
 		stmp, e := ExtattrListFile(file, nsid, uintptr(d), destsiz)
 
@@ -288,7 +293,6 @@ func Listxattr(file string, dest []byte) (sz int, err error) ***REMOVED***
 		 * we don't have read permissions on, so don't ignore those errors
 		 */
 		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER ***REMOVED***
-			e = nil
 			continue
 		***REMOVED*** else if e != nil ***REMOVED***
 			return s, e
@@ -302,7 +306,7 @@ func Listxattr(file string, dest []byte) (sz int, err error) ***REMOVED***
 		d = initxattrdest(dest, s)
 	***REMOVED***
 
-	return s, e
+	return s, nil
 ***REMOVED***
 
 func Flistxattr(fd int, dest []byte) (sz int, err error) ***REMOVED***
@@ -310,11 +314,9 @@ func Flistxattr(fd int, dest []byte) (sz int, err error) ***REMOVED***
 	destsiz := len(dest)
 
 	s := 0
-	var e error
 	for _, nsid := range [...]int***REMOVED***EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM***REMOVED*** ***REMOVED***
 		stmp, e := ExtattrListFd(fd, nsid, uintptr(d), destsiz)
 		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER ***REMOVED***
-			e = nil
 			continue
 		***REMOVED*** else if e != nil ***REMOVED***
 			return s, e
@@ -328,7 +330,7 @@ func Flistxattr(fd int, dest []byte) (sz int, err error) ***REMOVED***
 		d = initxattrdest(dest, s)
 	***REMOVED***
 
-	return s, e
+	return s, nil
 ***REMOVED***
 
 func Llistxattr(link string, dest []byte) (sz int, err error) ***REMOVED***
@@ -336,11 +338,9 @@ func Llistxattr(link string, dest []byte) (sz int, err error) ***REMOVED***
 	destsiz := len(dest)
 
 	s := 0
-	var e error
 	for _, nsid := range [...]int***REMOVED***EXTATTR_NAMESPACE_USER, EXTATTR_NAMESPACE_SYSTEM***REMOVED*** ***REMOVED***
 		stmp, e := ExtattrListLink(link, nsid, uintptr(d), destsiz)
 		if e != nil && e == EPERM && nsid != EXTATTR_NAMESPACE_USER ***REMOVED***
-			e = nil
 			continue
 		***REMOVED*** else if e != nil ***REMOVED***
 			return s, e
@@ -354,7 +354,7 @@ func Llistxattr(link string, dest []byte) (sz int, err error) ***REMOVED***
 		d = initxattrdest(dest, s)
 	***REMOVED***
 
-	return s, e
+	return s, nil
 ***REMOVED***
 
 //sys   ioctl(fd int, req uint, arg uintptr) (err error)
@@ -394,6 +394,52 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) ***REMOVED***
 	var value Termios
 	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
 	return &value, err
+***REMOVED***
+
+func Uname(uname *Utsname) error ***REMOVED***
+	mib := []_C_int***REMOVED***CTL_KERN, KERN_OSTYPE***REMOVED***
+	n := unsafe.Sizeof(uname.Sysname)
+	if err := sysctl(mib, &uname.Sysname[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_HOSTNAME***REMOVED***
+	n = unsafe.Sizeof(uname.Nodename)
+	if err := sysctl(mib, &uname.Nodename[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_OSRELEASE***REMOVED***
+	n = unsafe.Sizeof(uname.Release)
+	if err := sysctl(mib, &uname.Release[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_KERN, KERN_VERSION***REMOVED***
+	n = unsafe.Sizeof(uname.Version)
+	if err := sysctl(mib, &uname.Version[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	// The version might have newlines or tabs in it, convert them to
+	// spaces.
+	for i, b := range uname.Version ***REMOVED***
+		if b == '\n' || b == '\t' ***REMOVED***
+			if i == len(uname.Version)-1 ***REMOVED***
+				uname.Version[i] = 0
+			***REMOVED*** else ***REMOVED***
+				uname.Version[i] = ' '
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	mib = []_C_int***REMOVED***CTL_HW, HW_MACHINE***REMOVED***
+	n = unsafe.Sizeof(uname.Machine)
+	if err := sysctl(mib, &uname.Machine[0], &n, nil, 0); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 /*
@@ -439,6 +485,7 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) ***REMOVED***
 //sys	Fstatfs(fd int, stat *Statfs_t) (err error)
 //sys	Fsync(fd int) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
+//sys	Getdents(fd int, buf []byte) (n int, err error)
 //sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
 //sys	Getdtablesize() (size int)
 //sysnb	Getegid() (egid int)

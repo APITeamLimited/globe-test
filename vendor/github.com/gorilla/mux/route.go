@@ -72,7 +72,13 @@ func (r *Route) Match(req *http.Request, match *RouteMatch) bool ***REMOVED***
 		return false
 	***REMOVED***
 
-	match.MatchErr = nil
+	if match.MatchErr == ErrMethodMismatch ***REMOVED***
+		// We found a route which matches request method, clear MatchErr
+		match.MatchErr = nil
+		// Then override the mis-matched handler
+		match.Handler = r.handler
+	***REMOVED***
+
 	// Yay, we have a match. Let's collect some info about it.
 	if match.Route == nil ***REMOVED***
 		match.Route = r
@@ -165,12 +171,12 @@ func (r *Route) addMatcher(m matcher) *Route ***REMOVED***
 ***REMOVED***
 
 // addRegexpMatcher adds a host or path matcher and builder to a route.
-func (r *Route) addRegexpMatcher(tpl string, matchHost, matchPrefix, matchQuery bool) error ***REMOVED***
+func (r *Route) addRegexpMatcher(tpl string, typ regexpType) error ***REMOVED***
 	if r.err != nil ***REMOVED***
 		return r.err
 	***REMOVED***
 	r.regexp = r.getRegexpGroup()
-	if !matchHost && !matchQuery ***REMOVED***
+	if typ == regexpTypePath || typ == regexpTypePrefix ***REMOVED***
 		if len(tpl) > 0 && tpl[0] != '/' ***REMOVED***
 			return fmt.Errorf("mux: path must start with a slash, got %q", tpl)
 		***REMOVED***
@@ -178,7 +184,10 @@ func (r *Route) addRegexpMatcher(tpl string, matchHost, matchPrefix, matchQuery 
 			tpl = strings.TrimRight(r.regexp.path.template, "/") + tpl
 		***REMOVED***
 	***REMOVED***
-	rr, err := newRouteRegexp(tpl, matchHost, matchPrefix, matchQuery, r.strictSlash, r.useEncodedPath)
+	rr, err := newRouteRegexp(tpl, typ, routeRegexpOptions***REMOVED***
+		strictSlash:    r.strictSlash,
+		useEncodedPath: r.useEncodedPath,
+	***REMOVED***)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -187,7 +196,7 @@ func (r *Route) addRegexpMatcher(tpl string, matchHost, matchPrefix, matchQuery 
 			return err
 		***REMOVED***
 	***REMOVED***
-	if matchHost ***REMOVED***
+	if typ == regexpTypeHost ***REMOVED***
 		if r.regexp.path != nil ***REMOVED***
 			if err = uniqueVars(rr.varsN, r.regexp.path.varsN); err != nil ***REMOVED***
 				return err
@@ -200,7 +209,7 @@ func (r *Route) addRegexpMatcher(tpl string, matchHost, matchPrefix, matchQuery 
 				return err
 			***REMOVED***
 		***REMOVED***
-		if matchQuery ***REMOVED***
+		if typ == regexpTypeQuery ***REMOVED***
 			r.regexp.queries = append(r.regexp.queries, rr)
 		***REMOVED*** else ***REMOVED***
 			r.regexp.path = rr
@@ -252,7 +261,8 @@ func (m headerRegexMatcher) Match(r *http.Request, match *RouteMatch) bool ***RE
 //               "X-Requested-With", "XMLHttpRequest")
 //
 // The above route will only match if both the request header matches both regular expressions.
-// It the value is an empty string, it will match any value if the key is set.
+// If the value is an empty string, it will match any value if the key is set.
+// Use the start and end of string anchors (^ and $) to match an exact value.
 func (r *Route) HeadersRegexp(pairs ...string) *Route ***REMOVED***
 	if r.err == nil ***REMOVED***
 		var headers map[string]*regexp.Regexp
@@ -282,7 +292,7 @@ func (r *Route) HeadersRegexp(pairs ...string) *Route ***REMOVED***
 // Variable names must be unique in a given route. They can be retrieved
 // calling mux.Vars(request).
 func (r *Route) Host(tpl string) *Route ***REMOVED***
-	r.err = r.addRegexpMatcher(tpl, true, false, false)
+	r.err = r.addRegexpMatcher(tpl, regexpTypeHost)
 	return r
 ***REMOVED***
 
@@ -342,7 +352,7 @@ func (r *Route) Methods(methods ...string) *Route ***REMOVED***
 // Variable names must be unique in a given route. They can be retrieved
 // calling mux.Vars(request).
 func (r *Route) Path(tpl string) *Route ***REMOVED***
-	r.err = r.addRegexpMatcher(tpl, false, false, false)
+	r.err = r.addRegexpMatcher(tpl, regexpTypePath)
 	return r
 ***REMOVED***
 
@@ -358,7 +368,7 @@ func (r *Route) Path(tpl string) *Route ***REMOVED***
 // Also note that the setting of Router.StrictSlash() has no effect on routes
 // with a PathPrefix matcher.
 func (r *Route) PathPrefix(tpl string) *Route ***REMOVED***
-	r.err = r.addRegexpMatcher(tpl, false, true, false)
+	r.err = r.addRegexpMatcher(tpl, regexpTypePrefix)
 	return r
 ***REMOVED***
 
@@ -389,7 +399,7 @@ func (r *Route) Queries(pairs ...string) *Route ***REMOVED***
 		return nil
 	***REMOVED***
 	for i := 0; i < length; i += 2 ***REMOVED***
-		if r.err = r.addRegexpMatcher(pairs[i]+"="+pairs[i+1], false, false, true); r.err != nil ***REMOVED***
+		if r.err = r.addRegexpMatcher(pairs[i]+"="+pairs[i+1], regexpTypeQuery); r.err != nil ***REMOVED***
 			return r
 		***REMOVED***
 	***REMOVED***
@@ -606,6 +616,44 @@ func (r *Route) GetPathRegexp() (string, error) ***REMOVED***
 		return "", errors.New("mux: route does not have a path")
 	***REMOVED***
 	return r.regexp.path.regexp.String(), nil
+***REMOVED***
+
+// GetQueriesRegexp returns the expanded regular expressions used to match the
+// route queries.
+// This is useful for building simple REST API documentation and for instrumentation
+// against third-party services.
+// An empty list will be returned if the route does not have queries.
+func (r *Route) GetQueriesRegexp() ([]string, error) ***REMOVED***
+	if r.err != nil ***REMOVED***
+		return nil, r.err
+	***REMOVED***
+	if r.regexp == nil || r.regexp.queries == nil ***REMOVED***
+		return nil, errors.New("mux: route doesn't have queries")
+	***REMOVED***
+	var queries []string
+	for _, query := range r.regexp.queries ***REMOVED***
+		queries = append(queries, query.regexp.String())
+	***REMOVED***
+	return queries, nil
+***REMOVED***
+
+// GetQueriesTemplates returns the templates used to build the
+// query matching.
+// This is useful for building simple REST API documentation and for instrumentation
+// against third-party services.
+// An empty list will be returned if the route does not define queries.
+func (r *Route) GetQueriesTemplates() ([]string, error) ***REMOVED***
+	if r.err != nil ***REMOVED***
+		return nil, r.err
+	***REMOVED***
+	if r.regexp == nil || r.regexp.queries == nil ***REMOVED***
+		return nil, errors.New("mux: route doesn't have queries")
+	***REMOVED***
+	var queries []string
+	for _, query := range r.regexp.queries ***REMOVED***
+		queries = append(queries, query.template)
+	***REMOVED***
+	return queries, nil
 ***REMOVED***
 
 // GetMethods returns the methods the route matches against

@@ -36,6 +36,7 @@ func Getwd() (string, error) ***REMOVED***
 	return "", ENOTSUP
 ***REMOVED***
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct ***REMOVED***
 	Len    uint8
 	Family uint8
@@ -74,18 +75,6 @@ func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 	return buf[0 : n/siz], nil
-***REMOVED***
-
-func direntIno(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Ino), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Ino))
-***REMOVED***
-
-func direntReclen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Reclen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Reclen))
-***REMOVED***
-
-func direntNamlen(buf []byte) (uint64, bool) ***REMOVED***
-	return readInt(buf, unsafe.Offsetof(Dirent***REMOVED******REMOVED***.Namlen), unsafe.Sizeof(Dirent***REMOVED******REMOVED***.Namlen))
 ***REMOVED***
 
 //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)

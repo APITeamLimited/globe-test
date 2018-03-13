@@ -236,16 +236,6 @@ func (r *Router) Handle(method, path string, handle Handle) ***REMOVED***
 	root.addRoute(path, handle)
 ***REMOVED***
 
-// Handler is an adapter which allows the usage of an http.Handler as a
-// request handle.
-func (r *Router) Handler(method, path string, handler http.Handler) ***REMOVED***
-	r.Handle(method, path,
-		func(w http.ResponseWriter, req *http.Request, _ Params) ***REMOVED***
-			handler.ServeHTTP(w, req)
-		***REMOVED***,
-	)
-***REMOVED***
-
 // HandlerFunc is an adapter which allows the usage of an http.HandlerFunc as a
 // request handle.
 func (r *Router) HandlerFunc(method, path string, handler http.HandlerFunc) ***REMOVED***

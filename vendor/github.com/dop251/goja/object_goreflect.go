@@ -377,10 +377,10 @@ func (i *goreflectPropIter) nextMethod() (propIterItem, iterNextFunc) ***REMOVED
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoReflect) _enumerate(recusrive bool) iterNextFunc ***REMOVED***
+func (o *objectGoReflect) _enumerate(recursive bool) iterNextFunc ***REMOVED***
 	r := &goreflectPropIter***REMOVED***
 		o:         o,
-		recursive: recusrive,
+		recursive: recursive,
 	***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		return r.nextField

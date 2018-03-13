@@ -10,17 +10,25 @@ import (
 )
 
 type (
+	Delims struct ***REMOVED***
+		Left  string
+		Right string
+	***REMOVED***
+
 	HTMLRender interface ***REMOVED***
 		Instance(string, interface***REMOVED******REMOVED***) Render
 	***REMOVED***
 
 	HTMLProduction struct ***REMOVED***
 		Template *template.Template
+		Delims   Delims
 	***REMOVED***
 
 	HTMLDebug struct ***REMOVED***
-		Files []string
-		Glob  string
+		Files   []string
+		Glob    string
+		Delims  Delims
+		FuncMap template.FuncMap
 	***REMOVED***
 
 	HTML struct ***REMOVED***
@@ -48,11 +56,14 @@ func (r HTMLDebug) Instance(name string, data interface***REMOVED******REMOVED**
 	***REMOVED***
 ***REMOVED***
 func (r HTMLDebug) loadTemplate() *template.Template ***REMOVED***
+	if r.FuncMap == nil ***REMOVED***
+		r.FuncMap = template.FuncMap***REMOVED******REMOVED***
+	***REMOVED***
 	if len(r.Files) > 0 ***REMOVED***
-		return template.Must(template.ParseFiles(r.Files...))
+		return template.Must(template.New("").Delims(r.Delims.Left, r.Delims.Right).Funcs(r.FuncMap).ParseFiles(r.Files...))
 	***REMOVED***
 	if len(r.Glob) > 0 ***REMOVED***
-		return template.Must(template.ParseGlob(r.Glob))
+		return template.Must(template.New("").Delims(r.Delims.Left, r.Delims.Right).Funcs(r.FuncMap).ParseGlob(r.Glob))
 	***REMOVED***
 	panic("the HTML debug render was created without files or glob pattern")
 ***REMOVED***

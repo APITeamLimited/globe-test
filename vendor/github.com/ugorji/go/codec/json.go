@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 Ugorji Nwoke. All rights reserved.
+// Copyright (c) 2012-2018 Ugorji Nwoke. All rights reserved.
 // Use of this source code is governed by a MIT license found in the LICENSE file.
 
 package codec
@@ -17,16 +17,6 @@ package codec
 // Note:
 //   - we cannot use strconv.Quote and strconv.Unquote because json quotes/unquotes differently.
 //     We implement it here.
-//   - Also, strconv.ParseXXX for floats and integers
-//     - only works on strings resulting in unnecessary allocation and []byte-string conversion.
-//     - it does a lot of redundant checks, because json numbers are simpler that what it supports.
-//   - We parse numbers (floats and integers) directly here.
-//     We only delegate parsing floats if it is a hairy float which could cause a loss of precision.
-//     In that case, we delegate to strconv.ParseFloat.
-//
-// Note:
-//   - encode does not beautify. There is no whitespace when encoding.
-//   - rpc calls which take single integer arguments or write single numeric arguments will need care.
 
 // Top-level methods of json(End|Dec)Driver (which are implementations of (en|de)cDriver
 // MUST not call one-another.
@@ -34,42 +24,41 @@ package codec
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
+	"math"
 	"reflect"
 	"strconv"
+	"time"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 )
 
 //--------------------------------
 
-var (
-	jsonLiterals = [...]byte***REMOVED***'t', 'r', 'u', 'e', 'f', 'a', 'l', 's', 'e', 'n', 'u', 'l', 'l'***REMOVED***
+var jsonLiterals = [...]byte***REMOVED***
+	'"', 't', 'r', 'u', 'e', '"',
+	'"', 'f', 'a', 'l', 's', 'e', '"',
+	'"', 'n', 'u', 'l', 'l', '"',
+***REMOVED***
 
-	jsonFloat64Pow10 = [...]float64***REMOVED***
-		1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
-		1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
-		1e20, 1e21, 1e22,
-	***REMOVED***
-
-	jsonUint64Pow10 = [...]uint64***REMOVED***
-		1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
-		1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
-	***REMOVED***
-
-	// jsonTabs and jsonSpaces are used as caches for indents
-	jsonTabs, jsonSpaces string
+const (
+	jsonLitTrueQ  = 0
+	jsonLitTrue   = 1
+	jsonLitFalseQ = 6
+	jsonLitFalse  = 7
+	jsonLitNullQ  = 13
+	jsonLitNull   = 14
 )
 
 const (
-	// jsonUnreadAfterDecNum controls whether we unread after decoding a number.
-	//
-	// instead of unreading, just update d.tok (iff it's not a whitespace char)
-	// However, doing this means that we may HOLD onto some data which belongs to another stream.
-	// Thus, it is safest to unread the data when done.
-	// keep behind a constant flag for now.
-	jsonUnreadAfterDecNum = true
+	jsonU4Chk2 = '0'
+	jsonU4Chk1 = 'a' - 10
+	jsonU4Chk0 = 'A' - 10
 
+	jsonScratchArrayLen = 64
+)
+
+const (
 	// If !jsonValidateSymbols, decoding will be faster, by skipping some checks:
 	//   - If we see first character of null, false or true,
 	//     do not validate subsequent characters.
@@ -78,48 +67,156 @@ const (
 	// P.S. Do not expect a significant decoding boost from this.
 	jsonValidateSymbols = true
 
-	// if jsonTruncateMantissa, truncate mantissa if trailing 0's.
-	// This is important because it could allow some floats to be decoded without
-	// deferring to strconv.ParseFloat.
-	jsonTruncateMantissa = true
-
-	// if mantissa >= jsonNumUintCutoff before multiplying by 10, this is an overflow
-	jsonNumUintCutoff = (1<<64-1)/uint64(10) + 1 // cutoff64(base)
-
-	// if mantissa >= jsonNumUintMaxVal, this is an overflow
-	jsonNumUintMaxVal = 1<<uint64(64) - 1
-
-	// jsonNumDigitsUint64Largest = 19
-
 	jsonSpacesOrTabsLen = 128
+
+	jsonAlwaysReturnInternString = false
+)
+
+var (
+	// jsonTabs and jsonSpaces are used as caches for indents
+	jsonTabs, jsonSpaces [jsonSpacesOrTabsLen]byte
+
+	jsonCharHtmlSafeSet   bitset128
+	jsonCharSafeSet       bitset128
+	jsonCharWhitespaceSet bitset256
+	jsonNumSet            bitset256
 )
 
 func init() ***REMOVED***
-	var bs [jsonSpacesOrTabsLen]byte
 	for i := 0; i < jsonSpacesOrTabsLen; i++ ***REMOVED***
-		bs[i] = ' '
+		jsonSpaces[i] = ' '
+		jsonTabs[i] = '\t'
 	***REMOVED***
-	jsonSpaces = string(bs[:])
 
-	for i := 0; i < jsonSpacesOrTabsLen; i++ ***REMOVED***
-		bs[i] = '\t'
+	// populate the safe values as true: note: ASCII control characters are (0-31)
+	// jsonCharSafeSet:     all true except (0-31) " \
+	// jsonCharHtmlSafeSet: all true except (0-31) " \ < > &
+	var i byte
+	for i = 32; i < utf8.RuneSelf; i++ ***REMOVED***
+		switch i ***REMOVED***
+		case '"', '\\':
+		case '<', '>', '&':
+			jsonCharSafeSet.set(i) // = true
+		default:
+			jsonCharSafeSet.set(i)
+			jsonCharHtmlSafeSet.set(i)
+		***REMOVED***
 	***REMOVED***
-	jsonTabs = string(bs[:])
+	for i = 0; i <= utf8.RuneSelf; i++ ***REMOVED***
+		switch i ***REMOVED***
+		case ' ', '\t', '\r', '\n':
+			jsonCharWhitespaceSet.set(i)
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'e', 'E', '.', '+', '-':
+			jsonNumSet.set(i)
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
-type jsonEncDriver struct ***REMOVED***
-	e  *Encoder
-	w  encWriter
-	h  *JsonHandle
-	b  [64]byte // scratch
-	bs []byte   // scratch
-	se setExtWrapper
-	ds string // indent string
-	dl uint16 // indent level
-	dt bool   // indent using tabs
-	d  bool   // indent
+// ----------------
+
+type jsonEncDriverTypical struct ***REMOVED***
+	w encWriter
+	// w  *encWriterSwitch
+	b  *[jsonScratchArrayLen]byte
+	tw bool // term white space
 	c  containerState
-	noBuiltInTypes
+***REMOVED***
+
+func (e *jsonEncDriverTypical) typical() ***REMOVED******REMOVED***
+
+func (e *jsonEncDriverTypical) reset(ee *jsonEncDriver) ***REMOVED***
+	e.w = ee.ew
+	// e.w = &ee.e.encWriterSwitch
+	e.b = &ee.b
+	e.tw = ee.h.TermWhitespace
+	e.c = 0
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteArrayStart(length int) ***REMOVED***
+	e.w.writen1('[')
+	e.c = containerArrayStart
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteArrayElem() ***REMOVED***
+	if e.c != containerArrayStart ***REMOVED***
+		e.w.writen1(',')
+	***REMOVED***
+	e.c = containerArrayElem
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteArrayEnd() ***REMOVED***
+	e.w.writen1(']')
+	e.c = containerArrayEnd
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteMapStart(length int) ***REMOVED***
+	e.w.writen1('***REMOVED***')
+	e.c = containerMapStart
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteMapElemKey() ***REMOVED***
+	if e.c != containerMapStart ***REMOVED***
+		e.w.writen1(',')
+	***REMOVED***
+	e.c = containerMapKey
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteMapElemValue() ***REMOVED***
+	e.w.writen1(':')
+	e.c = containerMapValue
+***REMOVED***
+
+func (e *jsonEncDriverTypical) WriteMapEnd() ***REMOVED***
+	e.w.writen1('***REMOVED***')
+	e.c = containerMapEnd
+***REMOVED***
+
+func (e *jsonEncDriverTypical) EncodeBool(b bool) ***REMOVED***
+	if b ***REMOVED***
+		e.w.writeb(jsonLiterals[jsonLitTrue : jsonLitTrue+4])
+	***REMOVED*** else ***REMOVED***
+		e.w.writeb(jsonLiterals[jsonLitFalse : jsonLitFalse+5])
+	***REMOVED***
+***REMOVED***
+
+func (e *jsonEncDriverTypical) EncodeFloat64(f float64) ***REMOVED***
+	fmt, prec := jsonFloatStrconvFmtPrec(f)
+	e.w.writeb(strconv.AppendFloat(e.b[:0], f, fmt, prec, 64))
+***REMOVED***
+
+func (e *jsonEncDriverTypical) EncodeInt(v int64) ***REMOVED***
+	e.w.writeb(strconv.AppendInt(e.b[:0], v, 10))
+***REMOVED***
+
+func (e *jsonEncDriverTypical) EncodeUint(v uint64) ***REMOVED***
+	e.w.writeb(strconv.AppendUint(e.b[:0], v, 10))
+***REMOVED***
+
+func (e *jsonEncDriverTypical) EncodeFloat32(f float32) ***REMOVED***
+	e.EncodeFloat64(float64(f))
+***REMOVED***
+
+func (e *jsonEncDriverTypical) atEndOfEncode() ***REMOVED***
+	if e.tw ***REMOVED***
+		e.w.writen1(' ')
+	***REMOVED***
+***REMOVED***
+
+// ----------------
+
+type jsonEncDriverGeneric struct ***REMOVED***
+	w encWriter // encWriter // *encWriterSwitch
+	b *[jsonScratchArrayLen]byte
+	c containerState
+	// ds string // indent string
+	di int8    // indent per
+	d  bool    // indenting?
+	dt bool    // indent using tabs
+	dl uint16  // indent level
+	ks bool    // map key as string
+	is byte    // integer as string
+	tw bool    // term white space
+	_  [7]byte // padding
 ***REMOVED***
 
 // indent is done as below:
@@ -127,115 +224,227 @@ type jsonEncDriver struct ***REMOVED***
 //   - newline and indent are added before each ending,
 //     except there was no entry (so we can have ***REMOVED******REMOVED*** or [])
 
-func (e *jsonEncDriver) sendContainerState(c containerState) ***REMOVED***
-	// determine whether to output separators
-	if c == containerMapKey ***REMOVED***
-		if e.c != containerMapStart ***REMOVED***
-			e.w.writen1(',')
-		***REMOVED***
-		if e.d ***REMOVED***
-			e.writeIndent()
-		***REMOVED***
-	***REMOVED*** else if c == containerMapValue ***REMOVED***
-		if e.d ***REMOVED***
-			e.w.writen2(':', ' ')
-		***REMOVED*** else ***REMOVED***
-			e.w.writen1(':')
-		***REMOVED***
-	***REMOVED*** else if c == containerMapEnd ***REMOVED***
-		if e.d ***REMOVED***
-			e.dl--
-			if e.c != containerMapStart ***REMOVED***
-				e.writeIndent()
-			***REMOVED***
-		***REMOVED***
-		e.w.writen1('***REMOVED***')
-	***REMOVED*** else if c == containerArrayElem ***REMOVED***
+func (e *jsonEncDriverGeneric) reset(ee *jsonEncDriver) ***REMOVED***
+	e.w = ee.ew
+	e.b = &ee.b
+	e.tw = ee.h.TermWhitespace
+	e.c = 0
+	e.d, e.dt, e.dl, e.di = false, false, 0, 0
+	h := ee.h
+	if h.Indent > 0 ***REMOVED***
+		e.d = true
+		e.di = int8(h.Indent)
+	***REMOVED*** else if h.Indent < 0 ***REMOVED***
+		e.d = true
+		e.dt = true
+		e.di = int8(-h.Indent)
+	***REMOVED***
+	e.ks = h.MapKeyAsString
+	e.is = h.IntegerAsString
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteArrayStart(length int) ***REMOVED***
+	if e.d ***REMOVED***
+		e.dl++
+	***REMOVED***
+	e.w.writen1('[')
+	e.c = containerArrayStart
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteArrayElem() ***REMOVED***
+	if e.c != containerArrayStart ***REMOVED***
+		e.w.writen1(',')
+	***REMOVED***
+	if e.d ***REMOVED***
+		e.writeIndent()
+	***REMOVED***
+	e.c = containerArrayElem
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteArrayEnd() ***REMOVED***
+	if e.d ***REMOVED***
+		e.dl--
 		if e.c != containerArrayStart ***REMOVED***
-			e.w.writen1(',')
-		***REMOVED***
-		if e.d ***REMOVED***
 			e.writeIndent()
 		***REMOVED***
-	***REMOVED*** else if c == containerArrayEnd ***REMOVED***
-		if e.d ***REMOVED***
-			e.dl--
-			if e.c != containerArrayStart ***REMOVED***
-				e.writeIndent()
-			***REMOVED***
-		***REMOVED***
-		e.w.writen1(']')
 	***REMOVED***
-	e.c = c
+	e.w.writen1(']')
+	e.c = containerArrayEnd
 ***REMOVED***
 
-func (e *jsonEncDriver) writeIndent() ***REMOVED***
+func (e *jsonEncDriverGeneric) WriteMapStart(length int) ***REMOVED***
+	if e.d ***REMOVED***
+		e.dl++
+	***REMOVED***
+	e.w.writen1('***REMOVED***')
+	e.c = containerMapStart
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteMapElemKey() ***REMOVED***
+	if e.c != containerMapStart ***REMOVED***
+		e.w.writen1(',')
+	***REMOVED***
+	if e.d ***REMOVED***
+		e.writeIndent()
+	***REMOVED***
+	e.c = containerMapKey
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteMapElemValue() ***REMOVED***
+	if e.d ***REMOVED***
+		e.w.writen2(':', ' ')
+	***REMOVED*** else ***REMOVED***
+		e.w.writen1(':')
+	***REMOVED***
+	e.c = containerMapValue
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) WriteMapEnd() ***REMOVED***
+	if e.d ***REMOVED***
+		e.dl--
+		if e.c != containerMapStart ***REMOVED***
+			e.writeIndent()
+		***REMOVED***
+	***REMOVED***
+	e.w.writen1('***REMOVED***')
+	e.c = containerMapEnd
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) writeIndent() ***REMOVED***
 	e.w.writen1('\n')
-	if x := len(e.ds) * int(e.dl); x <= jsonSpacesOrTabsLen ***REMOVED***
-		if e.dt ***REMOVED***
-			e.w.writestr(jsonTabs[:x])
+	x := int(e.di) * int(e.dl)
+	if e.dt ***REMOVED***
+		for x > jsonSpacesOrTabsLen ***REMOVED***
+			e.w.writeb(jsonTabs[:])
+			x -= jsonSpacesOrTabsLen
+		***REMOVED***
+		e.w.writeb(jsonTabs[:x])
+	***REMOVED*** else ***REMOVED***
+		for x > jsonSpacesOrTabsLen ***REMOVED***
+			e.w.writeb(jsonSpaces[:])
+			x -= jsonSpacesOrTabsLen
+		***REMOVED***
+		e.w.writeb(jsonSpaces[:x])
+	***REMOVED***
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) EncodeBool(b bool) ***REMOVED***
+	if e.ks && e.c == containerMapKey ***REMOVED***
+		if b ***REMOVED***
+			e.w.writeb(jsonLiterals[jsonLitTrueQ : jsonLitTrueQ+6])
 		***REMOVED*** else ***REMOVED***
-			e.w.writestr(jsonSpaces[:x])
+			e.w.writeb(jsonLiterals[jsonLitFalseQ : jsonLitFalseQ+7])
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		for i := uint16(0); i < e.dl; i++ ***REMOVED***
-			e.w.writestr(e.ds)
+		if b ***REMOVED***
+			e.w.writeb(jsonLiterals[jsonLitTrue : jsonLitTrue+4])
+		***REMOVED*** else ***REMOVED***
+			e.w.writeb(jsonLiterals[jsonLitFalse : jsonLitFalse+5])
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *jsonEncDriver) EncodeNil() ***REMOVED***
-	e.w.writeb(jsonLiterals[9:13]) // null
-***REMOVED***
+func (e *jsonEncDriverGeneric) EncodeFloat64(f float64) ***REMOVED***
+	// instead of using 'g', specify whether to use 'e' or 'f'
+	fmt, prec := jsonFloatStrconvFmtPrec(f)
 
-func (e *jsonEncDriver) EncodeBool(b bool) ***REMOVED***
-	if b ***REMOVED***
-		e.w.writeb(jsonLiterals[0:4]) // true
+	var blen int
+	if e.ks && e.c == containerMapKey ***REMOVED***
+		blen = 2 + len(strconv.AppendFloat(e.b[1:1], f, fmt, prec, 64))
+		e.b[0] = '"'
+		e.b[blen-1] = '"'
 	***REMOVED*** else ***REMOVED***
-		e.w.writeb(jsonLiterals[4:9]) // false
+		blen = len(strconv.AppendFloat(e.b[:0], f, fmt, prec, 64))
 	***REMOVED***
+	e.w.writeb(e.b[:blen])
 ***REMOVED***
 
-func (e *jsonEncDriver) EncodeFloat32(f float32) ***REMOVED***
-	e.encodeFloat(float64(f), 32)
-***REMOVED***
-
-func (e *jsonEncDriver) EncodeFloat64(f float64) ***REMOVED***
-	// e.w.writestr(strconv.FormatFloat(f, 'E', -1, 64))
-	e.encodeFloat(f, 64)
-***REMOVED***
-
-func (e *jsonEncDriver) encodeFloat(f float64, numbits int) ***REMOVED***
-	x := strconv.AppendFloat(e.b[:0], f, 'G', -1, numbits)
-	e.w.writeb(x)
-	if bytes.IndexByte(x, 'E') == -1 && bytes.IndexByte(x, '.') == -1 ***REMOVED***
-		e.w.writen2('.', '0')
-	***REMOVED***
-***REMOVED***
-
-func (e *jsonEncDriver) EncodeInt(v int64) ***REMOVED***
-	if x := e.h.IntegerAsString; x == 'A' || x == 'L' && (v > 1<<53 || v < -(1<<53)) ***REMOVED***
-		e.w.writen1('"')
-		e.w.writeb(strconv.AppendInt(e.b[:0], v, 10))
-		e.w.writen1('"')
+func (e *jsonEncDriverGeneric) EncodeInt(v int64) ***REMOVED***
+	x := e.is
+	if x == 'A' || x == 'L' && (v > 1<<53 || v < -(1<<53)) || (e.ks && e.c == containerMapKey) ***REMOVED***
+		blen := 2 + len(strconv.AppendInt(e.b[1:1], v, 10))
+		e.b[0] = '"'
+		e.b[blen-1] = '"'
+		e.w.writeb(e.b[:blen])
 		return
 	***REMOVED***
 	e.w.writeb(strconv.AppendInt(e.b[:0], v, 10))
 ***REMOVED***
 
-func (e *jsonEncDriver) EncodeUint(v uint64) ***REMOVED***
-	if x := e.h.IntegerAsString; x == 'A' || x == 'L' && v > 1<<53 ***REMOVED***
-		e.w.writen1('"')
-		e.w.writeb(strconv.AppendUint(e.b[:0], v, 10))
-		e.w.writen1('"')
+func (e *jsonEncDriverGeneric) EncodeUint(v uint64) ***REMOVED***
+	x := e.is
+	if x == 'A' || x == 'L' && v > 1<<53 || (e.ks && e.c == containerMapKey) ***REMOVED***
+		blen := 2 + len(strconv.AppendUint(e.b[1:1], v, 10))
+		e.b[0] = '"'
+		e.b[blen-1] = '"'
+		e.w.writeb(e.b[:blen])
 		return
 	***REMOVED***
 	e.w.writeb(strconv.AppendUint(e.b[:0], v, 10))
 ***REMOVED***
 
+func (e *jsonEncDriverGeneric) EncodeFloat32(f float32) ***REMOVED***
+	// e.encodeFloat(float64(f), 32)
+	// always encode all floats as IEEE 64-bit floating point.
+	// It also ensures that we can decode in full precision even if into a float32,
+	// as what is written is always to float64 precision.
+	e.EncodeFloat64(float64(f))
+***REMOVED***
+
+func (e *jsonEncDriverGeneric) atEndOfEncode() ***REMOVED***
+	if e.tw ***REMOVED***
+		if e.d ***REMOVED***
+			e.w.writen1('\n')
+		***REMOVED*** else ***REMOVED***
+			e.w.writen1(' ')
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// --------------------
+
+type jsonEncDriver struct ***REMOVED***
+	noBuiltInTypes
+	e  *Encoder
+	h  *JsonHandle
+	ew encWriter // encWriter // *encWriterSwitch
+	se extWrapper
+	// ---- cpu cache line boundary?
+	bs []byte // scratch
+	// ---- cpu cache line boundary?
+	b [jsonScratchArrayLen]byte // scratch (encode time,
+***REMOVED***
+
+func (e *jsonEncDriver) EncodeNil() ***REMOVED***
+	// We always encode nil as just null (never in quotes)
+	// This allows us to easily decode if a nil in the json stream
+	// ie if initial token is n.
+	e.ew.writeb(jsonLiterals[jsonLitNull : jsonLitNull+4])
+
+	// if e.h.MapKeyAsString && e.c == containerMapKey ***REMOVED***
+	// 	e.ew.writeb(jsonLiterals[jsonLitNullQ : jsonLitNullQ+6])
+	// ***REMOVED*** else ***REMOVED***
+	// 	e.ew.writeb(jsonLiterals[jsonLitNull : jsonLitNull+4])
+	// ***REMOVED***
+***REMOVED***
+
+func (e *jsonEncDriver) EncodeTime(t time.Time) ***REMOVED***
+	// Do NOT use MarshalJSON, as it allocates internally.
+	// instead, we call AppendFormat directly, using our scratch buffer (e.b)
+	if t.IsZero() ***REMOVED***
+		e.EncodeNil()
+	***REMOVED*** else ***REMOVED***
+		e.b[0] = '"'
+		b := t.AppendFormat(e.b[1:1], time.RFC3339Nano)
+		e.b[len(b)+1] = '"'
+		e.ew.writeb(e.b[:len(b)+2])
+	***REMOVED***
+	// v, err := t.MarshalJSON(); if err != nil ***REMOVED*** e.e.error(err) ***REMOVED*** e.ew.writeb(v)
+***REMOVED***
+
 func (e *jsonEncDriver) EncodeExt(rv interface***REMOVED******REMOVED***, xtag uint64, ext Ext, en *Encoder) ***REMOVED***
 	if v := ext.ConvertExt(rv); v == nil ***REMOVED***
-		e.w.writeb(jsonLiterals[9:13]) // null // e.EncodeNil()
+		e.EncodeNil()
 	***REMOVED*** else ***REMOVED***
 		en.encode(v)
 	***REMOVED***
@@ -244,76 +453,61 @@ func (e *jsonEncDriver) EncodeExt(rv interface***REMOVED******REMOVED***, xtag u
 func (e *jsonEncDriver) EncodeRawExt(re *RawExt, en *Encoder) ***REMOVED***
 	// only encodes re.Value (never re.Data)
 	if re.Value == nil ***REMOVED***
-		e.w.writeb(jsonLiterals[9:13]) // null // e.EncodeNil()
+		e.EncodeNil()
 	***REMOVED*** else ***REMOVED***
 		en.encode(re.Value)
 	***REMOVED***
 ***REMOVED***
 
-func (e *jsonEncDriver) EncodeArrayStart(length int) ***REMOVED***
-	if e.d ***REMOVED***
-		e.dl++
-	***REMOVED***
-	e.w.writen1('[')
-	e.c = containerArrayStart
-***REMOVED***
-
-func (e *jsonEncDriver) EncodeMapStart(length int) ***REMOVED***
-	if e.d ***REMOVED***
-		e.dl++
-	***REMOVED***
-	e.w.writen1('***REMOVED***')
-	e.c = containerMapStart
-***REMOVED***
-
 func (e *jsonEncDriver) EncodeString(c charEncoding, v string) ***REMOVED***
-	// e.w.writestr(strconv.Quote(v))
-	e.quoteStr(v)
-***REMOVED***
-
-func (e *jsonEncDriver) EncodeSymbol(v string) ***REMOVED***
-	// e.EncodeString(c_UTF8, v)
 	e.quoteStr(v)
 ***REMOVED***
 
 func (e *jsonEncDriver) EncodeStringBytes(c charEncoding, v []byte) ***REMOVED***
 	// if encoding raw bytes and RawBytesExt is configured, use it to encode
-	if c == c_RAW && e.se.i != nil ***REMOVED***
-		e.EncodeExt(v, 0, &e.se, e.e)
+	if v == nil ***REMOVED***
+		e.EncodeNil()
 		return
 	***REMOVED***
-	if c == c_RAW ***REMOVED***
-		slen := base64.StdEncoding.EncodedLen(len(v))
-		if cap(e.bs) >= slen ***REMOVED***
-			e.bs = e.bs[:slen]
-		***REMOVED*** else ***REMOVED***
-			e.bs = make([]byte, slen)
+	if c == cRAW ***REMOVED***
+		if e.se.InterfaceExt != nil ***REMOVED***
+			e.EncodeExt(v, 0, &e.se, e.e)
+			return
 		***REMOVED***
-		base64.StdEncoding.Encode(e.bs, v)
-		e.w.writen1('"')
-		e.w.writeb(e.bs)
-		e.w.writen1('"')
+
+		slen := base64.StdEncoding.EncodedLen(len(v))
+		if cap(e.bs) >= slen+2 ***REMOVED***
+			e.bs = e.bs[:slen+2]
+		***REMOVED*** else ***REMOVED***
+			e.bs = make([]byte, slen+2)
+		***REMOVED***
+		e.bs[0] = '"'
+		base64.StdEncoding.Encode(e.bs[1:], v)
+		e.bs[slen+1] = '"'
+		e.ew.writeb(e.bs)
 	***REMOVED*** else ***REMOVED***
-		// e.EncodeString(c, string(v))
 		e.quoteStr(stringView(v))
 	***REMOVED***
 ***REMOVED***
 
 func (e *jsonEncDriver) EncodeAsis(v []byte) ***REMOVED***
-	e.w.writeb(v)
+	e.ew.writeb(v)
 ***REMOVED***
 
 func (e *jsonEncDriver) quoteStr(s string) ***REMOVED***
 	// adapted from std pkg encoding/json
 	const hex = "0123456789abcdef"
-	w := e.w
+	w := e.ew
+	htmlasis := e.h.HTMLCharsAsIs
 	w.writen1('"')
-	start := 0
-	for i := 0; i < len(s); ***REMOVED***
+	var start int
+	for i, slen := 0, len(s); i < slen; ***REMOVED***
 		// encode all bytes < 0x20 (except \r, \n).
 		// also encode < > & to prevent security holes when served to some browsers.
 		if b := s[i]; b < utf8.RuneSelf ***REMOVED***
-			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' && b != '&' ***REMOVED***
+			// if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' && b != '&' ***REMOVED***
+			// if (htmlasis && jsonCharSafeSet.isset(b)) || jsonCharHtmlSafeSet.isset(b) ***REMOVED***
+			if jsonCharHtmlSafeSet.isset(b) || (htmlasis && jsonCharSafeSet.isset(b)) ***REMOVED***
 				i++
 				continue
 			***REMOVED***
@@ -333,13 +527,6 @@ func (e *jsonEncDriver) quoteStr(s string) ***REMOVED***
 				w.writen2('\\', 'f')
 			case '\t':
 				w.writen2('\\', 't')
-			case '<', '>', '&':
-				if e.h.HTMLCharsAsIs ***REMOVED***
-					w.writen1(b)
-				***REMOVED*** else ***REMOVED***
-					w.writestr(`\u00`)
-					w.writen2(hex[b>>4], hex[b&0xF])
-				***REMOVED***
 			default:
 				w.writestr(`\u00`)
 				w.writen2(hex[b>>4], hex[b&0xF])
@@ -378,123 +565,32 @@ func (e *jsonEncDriver) quoteStr(s string) ***REMOVED***
 	w.writen1('"')
 ***REMOVED***
 
-//--------------------------------
-
-type jsonNum struct ***REMOVED***
-	// bytes            []byte // may have [+-.eE0-9]
-	mantissa         uint64 // where mantissa ends, and maybe dot begins.
-	exponent         int16  // exponent value.
-	manOverflow      bool
-	neg              bool // started with -. No initial sign in the bytes above.
-	dot              bool // has dot
-	explicitExponent bool // explicit exponent
-***REMOVED***
-
-func (x *jsonNum) reset() ***REMOVED***
-	x.manOverflow = false
-	x.neg = false
-	x.dot = false
-	x.explicitExponent = false
-	x.mantissa = 0
-	x.exponent = 0
-***REMOVED***
-
-// uintExp is called only if exponent > 0.
-func (x *jsonNum) uintExp() (n uint64, overflow bool) ***REMOVED***
-	n = x.mantissa
-	e := x.exponent
-	if e >= int16(len(jsonUint64Pow10)) ***REMOVED***
-		overflow = true
-		return
-	***REMOVED***
-	n *= jsonUint64Pow10[e]
-	if n < x.mantissa || n > jsonNumUintMaxVal ***REMOVED***
-		overflow = true
-		return
-	***REMOVED***
-	return
-	// for i := int16(0); i < e; i++ ***REMOVED***
-	// 	if n >= jsonNumUintCutoff ***REMOVED***
-	// 		overflow = true
-	// 		return
-	// 	***REMOVED***
-	// 	n *= 10
-	// ***REMOVED***
-	// return
-***REMOVED***
-
-// these constants are only used withn floatVal.
-// They are brought out, so that floatVal can be inlined.
-const (
-	jsonUint64MantissaBits = 52
-	jsonMaxExponent        = int16(len(jsonFloat64Pow10)) - 1
-)
-
-func (x *jsonNum) floatVal() (f float64, parseUsingStrConv bool) ***REMOVED***
-	// We do not want to lose precision.
-	// Consequently, we will delegate to strconv.ParseFloat if any of the following happen:
-	//    - There are more digits than in math.MaxUint64: 18446744073709551615 (20 digits)
-	//      We expect up to 99.... (19 digits)
-	//    - The mantissa cannot fit into a 52 bits of uint64
-	//    - The exponent is beyond our scope ie beyong 22.
-	parseUsingStrConv = x.manOverflow ||
-		x.exponent > jsonMaxExponent ||
-		(x.exponent < 0 && -(x.exponent) > jsonMaxExponent) ||
-		x.mantissa>>jsonUint64MantissaBits != 0
-
-	if parseUsingStrConv ***REMOVED***
-		return
-	***REMOVED***
-
-	// all good. so handle parse here.
-	f = float64(x.mantissa)
-	// fmt.Printf(".Float: uint64 value: %v, float: %v\n", m, f)
-	if x.neg ***REMOVED***
-		f = -f
-	***REMOVED***
-	if x.exponent > 0 ***REMOVED***
-		f *= jsonFloat64Pow10[x.exponent]
-	***REMOVED*** else if x.exponent < 0 ***REMOVED***
-		f /= jsonFloat64Pow10[-x.exponent]
-	***REMOVED***
-	return
-***REMOVED***
-
 type jsonDecDriver struct ***REMOVED***
 	noBuiltInTypes
-	d *Decoder
-	h *JsonHandle
-	r decReader
+	d  *Decoder
+	h  *JsonHandle
+	r  decReader // *decReaderSwitch // decReader
+	se extWrapper
+
+	// ---- writable fields during execution --- *try* to keep in sep cache line
 
 	c containerState
 	// tok is used to store the token read right after skipWhiteSpace.
-	tok uint8
+	tok   uint8
+	fnull bool    // found null from appendStringAsBytes
+	bs    []byte  // scratch. Initialized from b. Used for parsing strings or numbers.
+	bstr  [8]byte // scratch used for string \UXXX parsing
+	// ---- cpu cache line boundary?
+	b  [jsonScratchArrayLen]byte // scratch 1, used for parsing strings or numbers or time.Time
+	b2 [jsonScratchArrayLen]byte // scratch 2, used only for readUntil, decNumBytes
 
-	bstr [8]byte  // scratch used for string \UXXX parsing
-	b    [64]byte // scratch, used for parsing strings or numbers
-	b2   [64]byte // scratch, used only for decodeBytes (after base64)
-	bs   []byte   // scratch. Initialized from b. Used for parsing strings or numbers.
-
-	se setExtWrapper
-
-	n jsonNum
+	_ [3]uint64 // padding
+	// n jsonNum
 ***REMOVED***
 
-func jsonIsWS(b byte) bool ***REMOVED***
-	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
-***REMOVED***
-
-// // This will skip whitespace characters and return the next byte to read.
-// // The next byte determines what the value will be one of.
-// func (d *jsonDecDriver) skipWhitespace() ***REMOVED***
-// 	// fast-path: do not enter loop. Just check first (in case no whitespace).
-// 	b := d.r.readn1()
-// 	if jsonIsWS(b) ***REMOVED***
-// 		r := d.r
-// 		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-// 		***REMOVED***
-// 	***REMOVED***
-// 	d.tok = b
+// func jsonIsWS(b byte) bool ***REMOVED***
+// 	// return b == ' ' || b == '\t' || b == '\r' || b == '\n'
+// 	return jsonCharWhitespaceSet.isset(b)
 // ***REMOVED***
 
 func (d *jsonDecDriver) uncacheRead() ***REMOVED***
@@ -504,110 +600,13 @@ func (d *jsonDecDriver) uncacheRead() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (d *jsonDecDriver) sendContainerState(c containerState) ***REMOVED***
-	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
-	***REMOVED***
-	var xc uint8 // char expected
-	if c == containerMapKey ***REMOVED***
-		if d.c != containerMapStart ***REMOVED***
-			xc = ','
-		***REMOVED***
-	***REMOVED*** else if c == containerMapValue ***REMOVED***
-		xc = ':'
-	***REMOVED*** else if c == containerMapEnd ***REMOVED***
-		xc = '***REMOVED***'
-	***REMOVED*** else if c == containerArrayElem ***REMOVED***
-		if d.c != containerArrayStart ***REMOVED***
-			xc = ','
-		***REMOVED***
-	***REMOVED*** else if c == containerArrayEnd ***REMOVED***
-		xc = ']'
-	***REMOVED***
-	if xc != 0 ***REMOVED***
-		if d.tok != xc ***REMOVED***
-			d.d.errorf("json: expect char '%c' but got char '%c'", xc, d.tok)
-		***REMOVED***
-		d.tok = 0
-	***REMOVED***
-	d.c = c
-***REMOVED***
-
-func (d *jsonDecDriver) CheckBreak() bool ***REMOVED***
-	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
-	***REMOVED***
-	if d.tok == '***REMOVED***' || d.tok == ']' ***REMOVED***
-		// d.tok = 0 // only checking, not consuming
-		return true
-	***REMOVED***
-	return false
-***REMOVED***
-
-func (d *jsonDecDriver) readStrIdx(fromIdx, toIdx uint8) ***REMOVED***
-	bs := d.r.readx(int(toIdx - fromIdx))
-	d.tok = 0
-	if jsonValidateSymbols ***REMOVED***
-		if !bytes.Equal(bs, jsonLiterals[fromIdx:toIdx]) ***REMOVED***
-			d.d.errorf("json: expecting %s: got %s", jsonLiterals[fromIdx:toIdx], bs)
-			return
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-func (d *jsonDecDriver) TryDecodeAsNil() bool ***REMOVED***
-	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
-	***REMOVED***
-	if d.tok == 'n' ***REMOVED***
-		d.readStrIdx(10, 13) // ull
-		return true
-	***REMOVED***
-	return false
-***REMOVED***
-
-func (d *jsonDecDriver) DecodeBool() bool ***REMOVED***
-	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
-	***REMOVED***
-	if d.tok == 'f' ***REMOVED***
-		d.readStrIdx(5, 9) // alse
-		return false
-	***REMOVED***
-	if d.tok == 't' ***REMOVED***
-		d.readStrIdx(1, 4) // rue
-		return true
-	***REMOVED***
-	d.d.errorf("json: decode bool: got first char %c", d.tok)
-	return false // "unreachable"
-***REMOVED***
-
 func (d *jsonDecDriver) ReadMapStart() int ***REMOVED***
 	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
-	if d.tok != '***REMOVED***' ***REMOVED***
-		d.d.errorf("json: expect char '%c' but got char '%c'", '***REMOVED***', d.tok)
+	const xc uint8 = '***REMOVED***'
+	if d.tok != xc ***REMOVED***
+		d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
 	***REMOVED***
 	d.tok = 0
 	d.c = containerMapStart
@@ -616,29 +615,168 @@ func (d *jsonDecDriver) ReadMapStart() int ***REMOVED***
 
 func (d *jsonDecDriver) ReadArrayStart() int ***REMOVED***
 	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
-	if d.tok != '[' ***REMOVED***
-		d.d.errorf("json: expect char '%c' but got char '%c'", '[', d.tok)
+	const xc uint8 = '['
+	if d.tok != xc ***REMOVED***
+		d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
 	***REMOVED***
 	d.tok = 0
 	d.c = containerArrayStart
 	return -1
 ***REMOVED***
 
+func (d *jsonDecDriver) CheckBreak() bool ***REMOVED***
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	return d.tok == '***REMOVED***' || d.tok == ']'
+***REMOVED***
+
+// For the ReadXXX methods below, we could just delegate to helper functions
+// readContainerState(c containerState, xc uint8, check bool)
+// - ReadArrayElem would become:
+//   readContainerState(containerArrayElem, ',', d.c != containerArrayStart)
+//
+// However, until mid-stack inlining (go 1.10?) comes, supporting inlining of
+// oneliners, we explicitly write them all 5 out to elide the extra func call.
+// TODO: For Go 1.10, if inlined, consider consolidating these.
+
+func (d *jsonDecDriver) ReadArrayElem() ***REMOVED***
+	const xc uint8 = ','
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	if d.c != containerArrayStart ***REMOVED***
+		if d.tok != xc ***REMOVED***
+			d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
+		***REMOVED***
+		d.tok = 0
+	***REMOVED***
+	d.c = containerArrayElem
+***REMOVED***
+
+func (d *jsonDecDriver) ReadArrayEnd() ***REMOVED***
+	const xc uint8 = ']'
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	if d.tok != xc ***REMOVED***
+		d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
+	***REMOVED***
+	d.tok = 0
+	d.c = containerArrayEnd
+***REMOVED***
+
+func (d *jsonDecDriver) ReadMapElemKey() ***REMOVED***
+	const xc uint8 = ','
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	if d.c != containerMapStart ***REMOVED***
+		if d.tok != xc ***REMOVED***
+			d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
+		***REMOVED***
+		d.tok = 0
+	***REMOVED***
+	d.c = containerMapKey
+***REMOVED***
+
+func (d *jsonDecDriver) ReadMapElemValue() ***REMOVED***
+	const xc uint8 = ':'
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	if d.tok != xc ***REMOVED***
+		d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
+	***REMOVED***
+	d.tok = 0
+	d.c = containerMapValue
+***REMOVED***
+
+func (d *jsonDecDriver) ReadMapEnd() ***REMOVED***
+	const xc uint8 = '***REMOVED***'
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	if d.tok != xc ***REMOVED***
+		d.d.errorf("expect char '%c' but got char '%c'", xc, d.tok)
+	***REMOVED***
+	d.tok = 0
+	d.c = containerMapEnd
+***REMOVED***
+
+func (d *jsonDecDriver) readLit(length, fromIdx uint8) ***REMOVED***
+	bs := d.r.readx(int(length))
+	d.tok = 0
+	if jsonValidateSymbols && !bytes.Equal(bs, jsonLiterals[fromIdx:fromIdx+length]) ***REMOVED***
+		d.d.errorf("expecting %s: got %s", jsonLiterals[fromIdx:fromIdx+length], bs)
+		return
+	***REMOVED***
+***REMOVED***
+
+func (d *jsonDecDriver) TryDecodeAsNil() bool ***REMOVED***
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	// we shouldn't try to see if "null" was here, right?
+	// only the plain string: `null` denotes a nil (ie not quotes)
+	if d.tok == 'n' ***REMOVED***
+		d.readLit(3, jsonLitNull+1) // (n)ull
+		return true
+	***REMOVED***
+	return false
+***REMOVED***
+
+func (d *jsonDecDriver) DecodeBool() (v bool) ***REMOVED***
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+	fquot := d.c == containerMapKey && d.tok == '"'
+	if fquot ***REMOVED***
+		d.tok = d.r.readn1()
+	***REMOVED***
+	switch d.tok ***REMOVED***
+	case 'f':
+		d.readLit(4, jsonLitFalse+1) // (f)alse
+		// v = false
+	case 't':
+		d.readLit(3, jsonLitTrue+1) // (t)rue
+		v = true
+	default:
+		d.d.errorf("decode bool: got first char %c", d.tok)
+		// v = false // "unreachable"
+	***REMOVED***
+	if fquot ***REMOVED***
+		d.r.readn1()
+	***REMOVED***
+	return
+***REMOVED***
+
+func (d *jsonDecDriver) DecodeTime() (t time.Time) ***REMOVED***
+	// read string, and pass the string into json.unmarshal
+	d.appendStringAsBytes()
+	if d.fnull ***REMOVED***
+		return
+	***REMOVED***
+	t, err := time.Parse(time.RFC3339, stringView(d.bs))
+	if err != nil ***REMOVED***
+		d.d.errorv(err)
+	***REMOVED***
+	return
+***REMOVED***
+
 func (d *jsonDecDriver) ContainerType() (vt valueType) ***REMOVED***
 	// check container type by checking the first char
 	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
+
+	// optimize this, so we don't do 4 checks but do one computation.
+	// return jsonContainerSet[d.tok]
+
+	// ContainerType is mostly called for Map and Array,
+	// so this conditional is good enough (max 2 checks typically)
 	if b := d.tok; b == '***REMOVED***' ***REMOVED***
 		return valueTypeMap
 	***REMOVED*** else if b == '[' ***REMOVED***
@@ -649,265 +787,87 @@ func (d *jsonDecDriver) ContainerType() (vt valueType) ***REMOVED***
 		return valueTypeString
 	***REMOVED***
 	return valueTypeUnset
-	// d.d.errorf("isContainerType: unsupported parameter: %v", vt)
-	// return false // "unreachable"
 ***REMOVED***
 
-func (d *jsonDecDriver) decNum(storeBytes bool) ***REMOVED***
-	// If it is has a . or an e|E, decode as a float; else decode as an int.
+func (d *jsonDecDriver) decNumBytes() (bs []byte) ***REMOVED***
+	// stores num bytes in d.bs
 	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
-	b := d.tok
-	var str bool
-	if b == '"' ***REMOVED***
-		str = true
-		b = d.r.readn1()
-	***REMOVED***
-	if !(b == '+' || b == '-' || b == '.' || (b >= '0' && b <= '9')) ***REMOVED***
-		d.d.errorf("json: decNum: got first char '%c'", b)
-		return
+	if d.tok == '"' ***REMOVED***
+		bs = d.r.readUntil(d.b2[:0], '"')
+		bs = bs[:len(bs)-1]
+	***REMOVED*** else ***REMOVED***
+		d.r.unreadn1()
+		bs = d.r.readTo(d.bs[:0], &jsonNumSet)
 	***REMOVED***
 	d.tok = 0
+	return bs
+***REMOVED***
 
-	const cutoff = (1<<64-1)/uint64(10) + 1 // cutoff64(base)
-	const jsonNumUintMaxVal = 1<<uint64(64) - 1
-
-	n := &d.n
-	r := d.r
-	n.reset()
-	d.bs = d.bs[:0]
-
-	if str && storeBytes ***REMOVED***
-		d.bs = append(d.bs, '"')
+func (d *jsonDecDriver) DecodeUint64() (u uint64) ***REMOVED***
+	bs := d.decNumBytes()
+	n, neg, badsyntax, overflow := jsonParseInteger(bs)
+	if overflow ***REMOVED***
+		d.d.errorf("overflow parsing unsigned integer: %s", bs)
+	***REMOVED*** else if neg ***REMOVED***
+		d.d.errorf("minus found parsing unsigned integer: %s", bs)
+	***REMOVED*** else if badsyntax ***REMOVED***
+		// fallback: try to decode as float, and cast
+		n = d.decUint64ViaFloat(stringView(bs))
 	***REMOVED***
+	return n
+***REMOVED***
 
-	// The format of a number is as below:
-	// parsing:     sign? digit* dot? digit* e?  sign? digit*
-	// states:  0   1*    2      3*   4      5*  6     7
-	// We honor this state so we can break correctly.
-	var state uint8 = 0
-	var eNeg bool
-	var e int16
-	var eof bool
-LOOP:
-	for !eof ***REMOVED***
-		// fmt.Printf("LOOP: b: %q\n", b)
-		switch b ***REMOVED***
-		case '+':
-			switch state ***REMOVED***
-			case 0:
-				state = 2
-				// do not add sign to the slice ...
-				b, eof = r.readn1eof()
-				continue
-			case 6: // typ = jsonNumFloat
-				state = 7
-			default:
-				break LOOP
-			***REMOVED***
-		case '-':
-			switch state ***REMOVED***
-			case 0:
-				state = 2
-				n.neg = true
-				// do not add sign to the slice ...
-				b, eof = r.readn1eof()
-				continue
-			case 6: // typ = jsonNumFloat
-				eNeg = true
-				state = 7
-			default:
-				break LOOP
-			***REMOVED***
-		case '.':
-			switch state ***REMOVED***
-			case 0, 2: // typ = jsonNumFloat
-				state = 4
-				n.dot = true
-			default:
-				break LOOP
-			***REMOVED***
-		case 'e', 'E':
-			switch state ***REMOVED***
-			case 0, 2, 4: // typ = jsonNumFloat
-				state = 6
-				// n.mantissaEndIndex = int16(len(n.bytes))
-				n.explicitExponent = true
-			default:
-				break LOOP
-			***REMOVED***
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			switch state ***REMOVED***
-			case 0:
-				state = 2
-				fallthrough
-			case 2:
-				fallthrough
-			case 4:
-				if n.dot ***REMOVED***
-					n.exponent--
-				***REMOVED***
-				if n.mantissa >= jsonNumUintCutoff ***REMOVED***
-					n.manOverflow = true
-					break
-				***REMOVED***
-				v := uint64(b - '0')
-				n.mantissa *= 10
-				if v != 0 ***REMOVED***
-					n1 := n.mantissa + v
-					if n1 < n.mantissa || n1 > jsonNumUintMaxVal ***REMOVED***
-						n.manOverflow = true // n+v overflows
-						break
-					***REMOVED***
-					n.mantissa = n1
-				***REMOVED***
-			case 6:
-				state = 7
-				fallthrough
-			case 7:
-				if !(b == '0' && e == 0) ***REMOVED***
-					e = e*10 + int16(b-'0')
-				***REMOVED***
-			default:
-				break LOOP
-			***REMOVED***
-		case '"':
-			if str ***REMOVED***
-				if storeBytes ***REMOVED***
-					d.bs = append(d.bs, '"')
-				***REMOVED***
-				b, eof = r.readn1eof()
-			***REMOVED***
-			break LOOP
-		default:
-			break LOOP
-		***REMOVED***
-		if storeBytes ***REMOVED***
-			d.bs = append(d.bs, b)
-		***REMOVED***
-		b, eof = r.readn1eof()
-	***REMOVED***
-
-	if jsonTruncateMantissa && n.mantissa != 0 ***REMOVED***
-		for n.mantissa%10 == 0 ***REMOVED***
-			n.mantissa /= 10
-			n.exponent++
-		***REMOVED***
-	***REMOVED***
-
-	if e != 0 ***REMOVED***
-		if eNeg ***REMOVED***
-			n.exponent -= e
+func (d *jsonDecDriver) DecodeInt64() (i int64) ***REMOVED***
+	const cutoff = uint64(1 << uint(64-1))
+	bs := d.decNumBytes()
+	n, neg, badsyntax, overflow := jsonParseInteger(bs)
+	if overflow ***REMOVED***
+		d.d.errorf("overflow parsing integer: %s", bs)
+	***REMOVED*** else if badsyntax ***REMOVED***
+		// d.d.errorf("invalid syntax for integer: %s", bs)
+		// fallback: try to decode as float, and cast
+		if neg ***REMOVED***
+			n = d.decUint64ViaFloat(stringView(bs[1:]))
 		***REMOVED*** else ***REMOVED***
-			n.exponent += e
+			n = d.decUint64ViaFloat(stringView(bs))
 		***REMOVED***
 	***REMOVED***
-
-	// d.n = n
-
-	if !eof ***REMOVED***
-		if jsonUnreadAfterDecNum ***REMOVED***
-			r.unreadn1()
-		***REMOVED*** else ***REMOVED***
-			if !jsonIsWS(b) ***REMOVED***
-				d.tok = b
-			***REMOVED***
+	if neg ***REMOVED***
+		if n > cutoff ***REMOVED***
+			d.d.errorf("overflow parsing integer: %s", bs)
 		***REMOVED***
-	***REMOVED***
-	// fmt.Printf("1: n: bytes: %s, neg: %v, dot: %v, exponent: %v, mantissaEndIndex: %v\n",
-	// 	n.bytes, n.neg, n.dot, n.exponent, n.mantissaEndIndex)
-	return
-***REMOVED***
-
-func (d *jsonDecDriver) DecodeInt(bitsize uint8) (i int64) ***REMOVED***
-	d.decNum(false)
-	n := &d.n
-	if n.manOverflow ***REMOVED***
-		d.d.errorf("json: overflow integer after: %v", n.mantissa)
-		return
-	***REMOVED***
-	var u uint64
-	if n.exponent == 0 ***REMOVED***
-		u = n.mantissa
-	***REMOVED*** else if n.exponent < 0 ***REMOVED***
-		d.d.errorf("json: fractional integer")
-		return
-	***REMOVED*** else if n.exponent > 0 ***REMOVED***
-		var overflow bool
-		if u, overflow = n.uintExp(); overflow ***REMOVED***
-			d.d.errorf("json: overflow integer")
-			return
+		i = -(int64(n))
+	***REMOVED*** else ***REMOVED***
+		if n >= cutoff ***REMOVED***
+			d.d.errorf("overflow parsing integer: %s", bs)
 		***REMOVED***
-	***REMOVED***
-	i = int64(u)
-	if n.neg ***REMOVED***
-		i = -i
-	***REMOVED***
-	if chkOvf.Int(i, bitsize) ***REMOVED***
-		d.d.errorf("json: overflow %v bits: %s", bitsize, d.bs)
-		return
-	***REMOVED***
-	// fmt.Printf("DecodeInt: %v\n", i)
-	return
-***REMOVED***
-
-// floatVal MUST only be called after a decNum, as d.bs now contains the bytes of the number
-func (d *jsonDecDriver) floatVal() (f float64) ***REMOVED***
-	f, useStrConv := d.n.floatVal()
-	if useStrConv ***REMOVED***
-		var err error
-		if f, err = strconv.ParseFloat(stringView(d.bs), 64); err != nil ***REMOVED***
-			panic(fmt.Errorf("parse float: %s, %v", d.bs, err))
-		***REMOVED***
-		if d.n.neg ***REMOVED***
-			f = -f
-		***REMOVED***
+		i = int64(n)
 	***REMOVED***
 	return
 ***REMOVED***
 
-func (d *jsonDecDriver) DecodeUint(bitsize uint8) (u uint64) ***REMOVED***
-	d.decNum(false)
-	n := &d.n
-	if n.neg ***REMOVED***
-		d.d.errorf("json: unsigned integer cannot be negative")
-		return
+func (d *jsonDecDriver) decUint64ViaFloat(s string) (u uint64) ***REMOVED***
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil ***REMOVED***
+		d.d.errorf("invalid syntax for integer: %s", s)
+		// d.d.errorv(err)
 	***REMOVED***
-	if n.manOverflow ***REMOVED***
-		d.d.errorf("json: overflow integer after: %v", n.mantissa)
-		return
+	fi, ff := math.Modf(f)
+	if ff > 0 ***REMOVED***
+		d.d.errorf("fractional part found parsing integer: %s", s)
+	***REMOVED*** else if fi > float64(math.MaxUint64) ***REMOVED***
+		d.d.errorf("overflow parsing integer: %s", s)
 	***REMOVED***
-	if n.exponent == 0 ***REMOVED***
-		u = n.mantissa
-	***REMOVED*** else if n.exponent < 0 ***REMOVED***
-		d.d.errorf("json: fractional integer")
-		return
-	***REMOVED*** else if n.exponent > 0 ***REMOVED***
-		var overflow bool
-		if u, overflow = n.uintExp(); overflow ***REMOVED***
-			d.d.errorf("json: overflow integer")
-			return
-		***REMOVED***
-	***REMOVED***
-	if chkOvf.Uint(u, bitsize) ***REMOVED***
-		d.d.errorf("json: overflow %v bits: %s", bitsize, d.bs)
-		return
-	***REMOVED***
-	// fmt.Printf("DecodeUint: %v\n", u)
-	return
+	return uint64(fi)
 ***REMOVED***
 
-func (d *jsonDecDriver) DecodeFloat(chkOverflow32 bool) (f float64) ***REMOVED***
-	d.decNum(true)
-	f = d.floatVal()
-	if chkOverflow32 && chkOvf.Float32(f) ***REMOVED***
-		d.d.errorf("json: overflow float32: %v, %s", f, d.bs)
-		return
+func (d *jsonDecDriver) DecodeFloat64() (f float64) ***REMOVED***
+	bs := d.decNumBytes()
+	f, err := strconv.ParseFloat(stringView(bs), 64)
+	if err != nil ***REMOVED***
+		d.d.errorv(err)
 	***REMOVED***
 	return
 ***REMOVED***
@@ -925,23 +885,31 @@ func (d *jsonDecDriver) DecodeExt(rv interface***REMOVED******REMOVED***, xtag u
 	return
 ***REMOVED***
 
-func (d *jsonDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOut []byte) ***REMOVED***
+func (d *jsonDecDriver) DecodeBytes(bs []byte, zerocopy bool) (bsOut []byte) ***REMOVED***
 	// if decoding into raw bytes, and the RawBytesExt is configured, use it to decode.
-	if !isstring && d.se.i != nil ***REMOVED***
+	if d.se.InterfaceExt != nil ***REMOVED***
 		bsOut = bs
 		d.DecodeExt(&bsOut, 0, &d.se)
 		return
 	***REMOVED***
-	d.appendStringAsBytes()
-	// if isstring, then just return the bytes, even if it is using the scratch buffer.
-	// the bytes will be converted to a string as needed.
-	if isstring ***REMOVED***
-		return d.bs
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
-	// if appendStringAsBytes returned a zero-len slice, then treat as nil.
-	// This should only happen for null, and "".
+	// check if an "array" of uint8's (see ContainerType for how to infer if an array)
+	if d.tok == '[' ***REMOVED***
+		bsOut, _ = fastpathTV.DecSliceUint8V(bs, true, d.d)
+		return
+	***REMOVED***
+	d.appendStringAsBytes()
+	// base64 encodes []byte***REMOVED******REMOVED*** as "", and we encode nil []byte as null.
+	// Consequently, base64 should decode null as a nil []byte, and "" as an empty []byte***REMOVED******REMOVED***.
+	// appendStringAsBytes returns a zero-len slice for both, so as not to reset d.bs.
+	// However, it sets a fnull field to true, so we can check if a null was found.
 	if len(d.bs) == 0 ***REMOVED***
-		return nil
+		if d.fnull ***REMOVED***
+			return nil
+		***REMOVED***
+		return []byte***REMOVED******REMOVED***
 	***REMOVED***
 	bs0 := d.bs
 	slen := base64.StdEncoding.DecodedLen(len(bs0))
@@ -954,7 +922,7 @@ func (d *jsonDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOut [
 	***REMOVED***
 	slen2, err := base64.StdEncoding.Decode(bsOut, bs0)
 	if err != nil ***REMOVED***
-		d.d.errorf("json: error decoding base64 binary '%s': %v", bs0, err)
+		d.d.errorf("error decoding base64 binary '%s': %v", bs0, err)
 		return nil
 	***REMOVED***
 	if slen != slen2 ***REMOVED***
@@ -965,172 +933,256 @@ func (d *jsonDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOut [
 
 func (d *jsonDecDriver) DecodeString() (s string) ***REMOVED***
 	d.appendStringAsBytes()
+	return d.bsToString()
+***REMOVED***
+
+func (d *jsonDecDriver) DecodeStringAsBytes() (s []byte) ***REMOVED***
+	d.appendStringAsBytes()
+	return d.bs
+***REMOVED***
+
+func (d *jsonDecDriver) appendStringAsBytes() ***REMOVED***
+	if d.tok == 0 ***REMOVED***
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
+	***REMOVED***
+
+	d.fnull = false
+	if d.tok != '"' ***REMOVED***
+		// d.d.errorf("expect char '%c' but got char '%c'", '"', d.tok)
+		// handle non-string scalar: null, true, false or a number
+		switch d.tok ***REMOVED***
+		case 'n':
+			d.readLit(3, jsonLitNull+1) // (n)ull
+			d.bs = d.bs[:0]
+			d.fnull = true
+		case 'f':
+			d.readLit(4, jsonLitFalse+1) // (f)alse
+			d.bs = d.bs[:5]
+			copy(d.bs, "false")
+		case 't':
+			d.readLit(3, jsonLitTrue+1) // (t)rue
+			d.bs = d.bs[:4]
+			copy(d.bs, "true")
+		default:
+			// try to parse a valid number
+			bs := d.decNumBytes()
+			if len(bs) <= cap(d.bs) ***REMOVED***
+				d.bs = d.bs[:len(bs)]
+			***REMOVED*** else ***REMOVED***
+				d.bs = make([]byte, len(bs))
+			***REMOVED***
+			copy(d.bs, bs)
+		***REMOVED***
+		return
+	***REMOVED***
+
+	d.tok = 0
+	r := d.r
+	var cs = r.readUntil(d.b2[:0], '"')
+	var cslen = len(cs)
+	var c uint8
+	v := d.bs[:0]
+	// append on each byte seen can be expensive, so we just
+	// keep track of where we last read a contiguous set of
+	// non-special bytes (using cursor variable),
+	// and when we see a special byte
+	// e.g. end-of-slice, " or \,
+	// we will append the full range into the v slice before proceeding
+	for i, cursor := 0, 0; ; ***REMOVED***
+		if i == cslen ***REMOVED***
+			v = append(v, cs[cursor:]...)
+			cs = r.readUntil(d.b2[:0], '"')
+			cslen = len(cs)
+			i, cursor = 0, 0
+		***REMOVED***
+		c = cs[i]
+		if c == '"' ***REMOVED***
+			v = append(v, cs[cursor:i]...)
+			break
+		***REMOVED***
+		if c != '\\' ***REMOVED***
+			i++
+			continue
+		***REMOVED***
+		v = append(v, cs[cursor:i]...)
+		i++
+		c = cs[i]
+		switch c ***REMOVED***
+		case '"', '\\', '/', '\'':
+			v = append(v, c)
+		case 'b':
+			v = append(v, '\b')
+		case 'f':
+			v = append(v, '\f')
+		case 'n':
+			v = append(v, '\n')
+		case 'r':
+			v = append(v, '\r')
+		case 't':
+			v = append(v, '\t')
+		case 'u':
+			var r rune
+			var rr uint32
+			if len(cs) < i+4 ***REMOVED*** // may help reduce bounds-checking
+				d.d.errorf("need at least 4 more bytes for unicode sequence")
+			***REMOVED***
+			// c = cs[i+4] // may help reduce bounds-checking
+			for j := 1; j < 5; j++ ***REMOVED***
+				// best to use explicit if-else
+				// - not a table, etc which involve memory loads, array lookup with bounds checks, etc
+				c = cs[i+j]
+				if c >= '0' && c <= '9' ***REMOVED***
+					rr = rr*16 + uint32(c-jsonU4Chk2)
+				***REMOVED*** else if c >= 'a' && c <= 'f' ***REMOVED***
+					rr = rr*16 + uint32(c-jsonU4Chk1)
+				***REMOVED*** else if c >= 'A' && c <= 'F' ***REMOVED***
+					rr = rr*16 + uint32(c-jsonU4Chk0)
+				***REMOVED*** else ***REMOVED***
+					r = unicode.ReplacementChar
+					i += 4
+					goto encode_rune
+				***REMOVED***
+			***REMOVED***
+			r = rune(rr)
+			i += 4
+			if utf16.IsSurrogate(r) ***REMOVED***
+				if len(cs) >= i+6 && cs[i+2] == 'u' && cs[i+1] == '\\' ***REMOVED***
+					i += 2
+					// c = cs[i+4] // may help reduce bounds-checking
+					var rr1 uint32
+					for j := 1; j < 5; j++ ***REMOVED***
+						c = cs[i+j]
+						if c >= '0' && c <= '9' ***REMOVED***
+							rr = rr*16 + uint32(c-jsonU4Chk2)
+						***REMOVED*** else if c >= 'a' && c <= 'f' ***REMOVED***
+							rr = rr*16 + uint32(c-jsonU4Chk1)
+						***REMOVED*** else if c >= 'A' && c <= 'F' ***REMOVED***
+							rr = rr*16 + uint32(c-jsonU4Chk0)
+						***REMOVED*** else ***REMOVED***
+							r = unicode.ReplacementChar
+							i += 4
+							goto encode_rune
+						***REMOVED***
+					***REMOVED***
+					r = utf16.DecodeRune(r, rune(rr1))
+					i += 4
+				***REMOVED*** else ***REMOVED***
+					r = unicode.ReplacementChar
+					goto encode_rune
+				***REMOVED***
+			***REMOVED***
+		encode_rune:
+			w2 := utf8.EncodeRune(d.bstr[:], r)
+			v = append(v, d.bstr[:w2]...)
+		default:
+			d.d.errorf("unsupported escaped value: %c", c)
+		***REMOVED***
+		i++
+		cursor = i
+	***REMOVED***
+	d.bs = v
+***REMOVED***
+
+func (d *jsonDecDriver) nakedNum(z *decNaked, bs []byte) (err error) ***REMOVED***
+	const cutoff = uint64(1 << uint(64-1))
+	var n uint64
+	var neg, badsyntax, overflow bool
+
+	if d.h.PreferFloat ***REMOVED***
+		goto F
+	***REMOVED***
+	n, neg, badsyntax, overflow = jsonParseInteger(bs)
+	if badsyntax || overflow ***REMOVED***
+		goto F
+	***REMOVED***
+	if neg ***REMOVED***
+		if n > cutoff ***REMOVED***
+			goto F
+		***REMOVED***
+		z.v = valueTypeInt
+		z.i = -(int64(n))
+	***REMOVED*** else if d.h.SignedInteger ***REMOVED***
+		if n >= cutoff ***REMOVED***
+			goto F
+		***REMOVED***
+		z.v = valueTypeInt
+		z.i = int64(n)
+	***REMOVED*** else ***REMOVED***
+		z.v = valueTypeUint
+		z.u = n
+	***REMOVED***
+	return
+F:
+	z.v = valueTypeFloat
+	z.f, err = strconv.ParseFloat(stringView(bs), 64)
+	return
+***REMOVED***
+
+func (d *jsonDecDriver) bsToString() string ***REMOVED***
 	// if x := d.s.sc; x != nil && x.so && x.st == '***REMOVED***' ***REMOVED*** // map key
-	if d.c == containerMapKey ***REMOVED***
+	if jsonAlwaysReturnInternString || d.c == containerMapKey ***REMOVED***
 		return d.d.string(d.bs)
 	***REMOVED***
 	return string(d.bs)
 ***REMOVED***
 
-func (d *jsonDecDriver) appendStringAsBytes() ***REMOVED***
-	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
-	***REMOVED***
-
-	// handle null as a string
-	if d.tok == 'n' ***REMOVED***
-		d.readStrIdx(10, 13) // ull
-		d.bs = d.bs[:0]
-		return
-	***REMOVED***
-
-	if d.tok != '"' ***REMOVED***
-		d.d.errorf("json: expect char '%c' but got char '%c'", '"', d.tok)
-	***REMOVED***
-	d.tok = 0
-
-	v := d.bs[:0]
-	var c uint8
-	r := d.r
-	for ***REMOVED***
-		c = r.readn1()
-		if c == '"' ***REMOVED***
-			break
-		***REMOVED*** else if c == '\\' ***REMOVED***
-			c = r.readn1()
-			switch c ***REMOVED***
-			case '"', '\\', '/', '\'':
-				v = append(v, c)
-			case 'b':
-				v = append(v, '\b')
-			case 'f':
-				v = append(v, '\f')
-			case 'n':
-				v = append(v, '\n')
-			case 'r':
-				v = append(v, '\r')
-			case 't':
-				v = append(v, '\t')
-			case 'u':
-				rr := d.jsonU4(false)
-				// fmt.Printf("$$$$$$$$$: is surrogate: %v\n", utf16.IsSurrogate(rr))
-				if utf16.IsSurrogate(rr) ***REMOVED***
-					rr = utf16.DecodeRune(rr, d.jsonU4(true))
-				***REMOVED***
-				w2 := utf8.EncodeRune(d.bstr[:], rr)
-				v = append(v, d.bstr[:w2]...)
-			default:
-				d.d.errorf("json: unsupported escaped value: %c", c)
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			v = append(v, c)
-		***REMOVED***
-	***REMOVED***
-	d.bs = v
-***REMOVED***
-
-func (d *jsonDecDriver) jsonU4(checkSlashU bool) rune ***REMOVED***
-	r := d.r
-	if checkSlashU && !(r.readn1() == '\\' && r.readn1() == 'u') ***REMOVED***
-		d.d.errorf(`json: unquoteStr: invalid unicode sequence. Expecting \u`)
-		return 0
-	***REMOVED***
-	// u, _ := strconv.ParseUint(string(d.bstr[:4]), 16, 64)
-	var u uint32
-	for i := 0; i < 4; i++ ***REMOVED***
-		v := r.readn1()
-		if '0' <= v && v <= '9' ***REMOVED***
-			v = v - '0'
-		***REMOVED*** else if 'a' <= v && v <= 'z' ***REMOVED***
-			v = v - 'a' + 10
-		***REMOVED*** else if 'A' <= v && v <= 'Z' ***REMOVED***
-			v = v - 'A' + 10
-		***REMOVED*** else ***REMOVED***
-			d.d.errorf(`json: unquoteStr: invalid hex char in \u unicode sequence: %q`, v)
-			return 0
-		***REMOVED***
-		u = u*16 + uint32(v)
-	***REMOVED***
-	return rune(u)
-***REMOVED***
-
 func (d *jsonDecDriver) DecodeNaked() ***REMOVED***
-	z := &d.d.n
+	z := d.d.n
 	// var decodeFurther bool
 
 	if d.tok == 0 ***REMOVED***
-		var b byte
-		r := d.r
-		for b = r.readn1(); jsonIsWS(b); b = r.readn1() ***REMOVED***
-		***REMOVED***
-		d.tok = b
+		d.tok = d.r.skip(&jsonCharWhitespaceSet)
 	***REMOVED***
 	switch d.tok ***REMOVED***
 	case 'n':
-		d.readStrIdx(10, 13) // ull
+		d.readLit(3, jsonLitNull+1) // (n)ull
 		z.v = valueTypeNil
 	case 'f':
-		d.readStrIdx(5, 9) // alse
+		d.readLit(4, jsonLitFalse+1) // (f)alse
 		z.v = valueTypeBool
 		z.b = false
 	case 't':
-		d.readStrIdx(1, 4) // rue
+		d.readLit(3, jsonLitTrue+1) // (t)rue
 		z.v = valueTypeBool
 		z.b = true
 	case '***REMOVED***':
-		z.v = valueTypeMap
-		// d.tok = 0 // don't consume. kInterfaceNaked will call ReadMapStart
-		// decodeFurther = true
+		z.v = valueTypeMap // don't consume. kInterfaceNaked will call ReadMapStart
 	case '[':
-		z.v = valueTypeArray
-		// d.tok = 0 // don't consume. kInterfaceNaked will call ReadArrayStart
-		// decodeFurther = true
+		z.v = valueTypeArray // don't consume. kInterfaceNaked will call ReadArrayStart
 	case '"':
-		z.v = valueTypeString
-		z.s = d.DecodeString()
-	default: // number
-		d.decNum(true)
-		n := &d.n
-		// if the string had a any of [.eE], then decode as float.
-		switch ***REMOVED***
-		case n.explicitExponent, n.dot, n.exponent < 0, n.manOverflow:
-			z.v = valueTypeFloat
-			z.f = d.floatVal()
-		case n.exponent == 0:
-			u := n.mantissa
-			switch ***REMOVED***
-			case n.neg:
-				z.v = valueTypeInt
-				z.i = -int64(u)
-			case d.h.SignedInteger:
-				z.v = valueTypeInt
-				z.i = int64(u)
+		// if a string, and MapKeyAsString, then try to decode it as a nil, bool or number first
+		d.appendStringAsBytes()
+		if len(d.bs) > 0 && d.c == containerMapKey && d.h.MapKeyAsString ***REMOVED***
+			switch stringView(d.bs) ***REMOVED***
+			case "null":
+				z.v = valueTypeNil
+			case "true":
+				z.v = valueTypeBool
+				z.b = true
+			case "false":
+				z.v = valueTypeBool
+				z.b = false
 			default:
-				z.v = valueTypeUint
-				z.u = u
+				// check if a number: float, int or uint
+				if err := d.nakedNum(z, d.bs); err != nil ***REMOVED***
+					z.v = valueTypeString
+					z.s = d.bsToString()
+				***REMOVED***
 			***REMOVED***
-		default:
-			u, overflow := n.uintExp()
-			switch ***REMOVED***
-			case overflow:
-				z.v = valueTypeFloat
-				z.f = d.floatVal()
-			case n.neg:
-				z.v = valueTypeInt
-				z.i = -int64(u)
-			case d.h.SignedInteger:
-				z.v = valueTypeInt
-				z.i = int64(u)
-			default:
-				z.v = valueTypeUint
-				z.u = u
-			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			z.v = valueTypeString
+			z.s = d.bsToString()
 		***REMOVED***
-		// fmt.Printf("DecodeNaked: Number: %T, %v\n", v, v)
+	default: // number
+		bs := d.decNumBytes()
+		if len(bs) == 0 ***REMOVED***
+			d.d.errorf("decode number from empty string")
+			return
+		***REMOVED***
+		if err := d.nakedNum(z, bs); err != nil ***REMOVED***
+			d.d.errorf("decode number from %s: %v", bs, err)
+			return
+		***REMOVED***
 	***REMOVED***
 	// if decodeFurther ***REMOVED***
 	// 	d.s.sc.retryRead()
@@ -1144,24 +1196,26 @@ func (d *jsonDecDriver) DecodeNaked() ***REMOVED***
 //
 // Json is comprehensively supported:
 //    - decodes numbers into interface***REMOVED******REMOVED*** as int, uint or float64
+//      based on how the number looks and some config parameters e.g. PreferFloat, SignedInt, etc.
+//    - decode integers from float formatted numbers e.g. 1.27e+8
+//    - decode any json value (numbers, bool, etc) from quoted strings
 //    - configurable way to encode/decode []byte .
 //      by default, encodes and decodes []byte using base64 Std Encoding
 //    - UTF-8 support for encoding and decoding
 //
 // It has better performance than the json library in the standard library,
-// by leveraging the performance improvements of the codec library and
-// minimizing allocations.
+// by leveraging the performance improvements of the codec library.
 //
 // In addition, it doesn't read more bytes than necessary during a decode, which allows
 // reading multiple values from a stream containing json and non-json content.
 // For example, a user can read a json value, then a cbor value, then a msgpack value,
 // all from the same stream in sequence.
+//
+// Note that, when decoding quoted strings, invalid UTF-8 or invalid UTF-16 surrogate pairs are
+// not treated as an error. Instead, they are replaced by the Unicode replacement character U+FFFD.
 type JsonHandle struct ***REMOVED***
 	textEncodingType
 	BasicHandle
-	// RawBytesExt, if configured, is used to encode and decode raw bytes in a custom way.
-	// If not configured, raw bytes are encoded to/from base64 text.
-	RawBytesExt InterfaceExt
 
 	// Indent indicates how a value is encoded.
 	//   - If positive, indent by that number of spaces.
@@ -1179,69 +1233,190 @@ type JsonHandle struct ***REMOVED***
 	//   - if 'A', then encode all integers as a json string
 	//             containing the exact integer representation as a decimal.
 	//   - else    encode all integers as a json number (default)
-	IntegerAsString uint8
+	IntegerAsString byte
 
 	// HTMLCharsAsIs controls how to encode some special characters to html: < > &
 	//
 	// By default, we encode them as \uXXX
 	// to prevent security holes when served from some browsers.
 	HTMLCharsAsIs bool
+
+	// PreferFloat says that we will default to decoding a number as a float.
+	// If not set, we will examine the characters of the number and decode as an
+	// integer type if it doesn't have any of the characters [.eE].
+	PreferFloat bool
+
+	// TermWhitespace says that we add a whitespace character
+	// at the end of an encoding.
+	//
+	// The whitespace is important, especially if using numbers in a context
+	// where multiple items are written to a stream.
+	TermWhitespace bool
+
+	// MapKeyAsString says to encode all map keys as strings.
+	//
+	// Use this to enforce strict json output.
+	// The only caveat is that nil value is ALWAYS written as null (never as "null")
+	MapKeyAsString bool
+
+	// _ [2]byte // padding
+
+	// Note: below, we store hardly-used items e.g. RawBytesExt is cached in the (en|de)cDriver.
+
+	// RawBytesExt, if configured, is used to encode and decode raw bytes in a custom way.
+	// If not configured, raw bytes are encoded to/from base64 text.
+	RawBytesExt InterfaceExt
+
+	_ [3]uint64 // padding
 ***REMOVED***
 
+// Name returns the name of the handle: json
+func (h *JsonHandle) Name() string            ***REMOVED*** return "json" ***REMOVED***
+func (h *JsonHandle) hasElemSeparators() bool ***REMOVED*** return true ***REMOVED***
+func (h *JsonHandle) typical() bool ***REMOVED***
+	return h.Indent == 0 && !h.MapKeyAsString && h.IntegerAsString != 'A' && h.IntegerAsString != 'L'
+***REMOVED***
+
+type jsonTypical interface ***REMOVED***
+	typical()
+***REMOVED***
+
+func (h *JsonHandle) recreateEncDriver(ed encDriver) (v bool) ***REMOVED***
+	_, v = ed.(jsonTypical)
+	return v != h.typical()
+***REMOVED***
+
+// SetInterfaceExt sets an extension
 func (h *JsonHandle) SetInterfaceExt(rt reflect.Type, tag uint64, ext InterfaceExt) (err error) ***REMOVED***
-	return h.SetExt(rt, tag, &setExtWrapper***REMOVED***i: ext***REMOVED***)
+	return h.SetExt(rt, tag, &extWrapper***REMOVED***bytesExtFailer***REMOVED******REMOVED***, ext***REMOVED***)
 ***REMOVED***
 
-func (h *JsonHandle) newEncDriver(e *Encoder) encDriver ***REMOVED***
-	hd := jsonEncDriver***REMOVED***e: e, h: h***REMOVED***
-	hd.bs = hd.b[:0]
+type jsonEncDriverTypicalImpl struct ***REMOVED***
+	jsonEncDriver
+	jsonEncDriverTypical
+	_ [1]uint64 // padding
+***REMOVED***
 
-	hd.reset()
+func (x *jsonEncDriverTypicalImpl) reset() ***REMOVED***
+	x.jsonEncDriver.reset()
+	x.jsonEncDriverTypical.reset(&x.jsonEncDriver)
+***REMOVED***
 
-	return &hd
+type jsonEncDriverGenericImpl struct ***REMOVED***
+	jsonEncDriver
+	jsonEncDriverGeneric
+***REMOVED***
+
+func (x *jsonEncDriverGenericImpl) reset() ***REMOVED***
+	x.jsonEncDriver.reset()
+	x.jsonEncDriverGeneric.reset(&x.jsonEncDriver)
+***REMOVED***
+
+func (h *JsonHandle) newEncDriver(e *Encoder) (ee encDriver) ***REMOVED***
+	var hd *jsonEncDriver
+	if h.typical() ***REMOVED***
+		var v jsonEncDriverTypicalImpl
+		ee = &v
+		hd = &v.jsonEncDriver
+	***REMOVED*** else ***REMOVED***
+		var v jsonEncDriverGenericImpl
+		ee = &v
+		hd = &v.jsonEncDriver
+	***REMOVED***
+	hd.e, hd.h, hd.bs = e, h, hd.b[:0]
+	hd.se.BytesExt = bytesExtFailer***REMOVED******REMOVED***
+	ee.reset()
+	return
 ***REMOVED***
 
 func (h *JsonHandle) newDecDriver(d *Decoder) decDriver ***REMOVED***
 	// d := jsonDecDriver***REMOVED***r: r.(*bytesDecReader), h: h***REMOVED***
 	hd := jsonDecDriver***REMOVED***d: d, h: h***REMOVED***
+	hd.se.BytesExt = bytesExtFailer***REMOVED******REMOVED***
 	hd.bs = hd.b[:0]
 	hd.reset()
 	return &hd
 ***REMOVED***
 
 func (e *jsonEncDriver) reset() ***REMOVED***
-	e.w = e.e.w
-	e.se.i = e.h.RawBytesExt
+	e.ew = e.e.w // e.e.w // &e.e.encWriterSwitch
+	e.se.InterfaceExt = e.h.RawBytesExt
 	if e.bs != nil ***REMOVED***
 		e.bs = e.bs[:0]
-	***REMOVED***
-	e.d, e.dt, e.dl, e.ds = false, false, 0, ""
-	e.c = 0
-	if e.h.Indent > 0 ***REMOVED***
-		e.d = true
-		e.ds = jsonSpaces[:e.h.Indent]
-	***REMOVED*** else if e.h.Indent < 0 ***REMOVED***
-		e.d = true
-		e.dt = true
-		e.ds = jsonTabs[:-(e.h.Indent)]
 	***REMOVED***
 ***REMOVED***
 
 func (d *jsonDecDriver) reset() ***REMOVED***
-	d.r = d.d.r
-	d.se.i = d.h.RawBytesExt
+	d.r = d.d.r // &d.d.decReaderSwitch // d.d.r
+	d.se.InterfaceExt = d.h.RawBytesExt
 	if d.bs != nil ***REMOVED***
 		d.bs = d.bs[:0]
 	***REMOVED***
 	d.c, d.tok = 0, 0
-	d.n.reset()
+	// d.n.reset()
 ***REMOVED***
 
-var jsonEncodeTerminate = []byte***REMOVED***' '***REMOVED***
+func jsonFloatStrconvFmtPrec(f float64) (fmt byte, prec int) ***REMOVED***
+	prec = -1
+	var abs = math.Abs(f)
+	if abs != 0 && (abs < 1e-6 || abs >= 1e21) ***REMOVED***
+		fmt = 'e'
+	***REMOVED*** else ***REMOVED***
+		fmt = 'f'
+		// set prec to 1 iff mod is 0.
+		//     better than using jsonIsFloatBytesB2 to check if a . or E in the float bytes.
+		// this ensures that every float has an e or .0 in it.
+		if abs <= 1 ***REMOVED***
+			if abs == 0 || abs == 1 ***REMOVED***
+				prec = 1
+			***REMOVED***
+		***REMOVED*** else if _, mod := math.Modf(abs); mod == 0 ***REMOVED***
+			prec = 1
+		***REMOVED***
+	***REMOVED***
+	return
+***REMOVED***
 
-func (h *JsonHandle) rpcEncodeTerminate() []byte ***REMOVED***
-	return jsonEncodeTerminate
+// custom-fitted version of strconv.Parse(Ui|I)nt.
+// Also ensures we don't have to search for .eE to determine if a float or not.
+func jsonParseInteger(s []byte) (n uint64, neg, badSyntax, overflow bool) ***REMOVED***
+	const maxUint64 = (1<<64 - 1)
+	const cutoff = maxUint64/10 + 1
+
+	if len(s) == 0 ***REMOVED***
+		badSyntax = true
+		return
+	***REMOVED***
+	switch s[0] ***REMOVED***
+	case '+':
+		s = s[1:]
+	case '-':
+		s = s[1:]
+		neg = true
+	***REMOVED***
+	for _, c := range s ***REMOVED***
+		if c < '0' || c > '9' ***REMOVED***
+			badSyntax = true
+			return
+		***REMOVED***
+		// unsigned integers don't overflow well on multiplication, so check cutoff here
+		// e.g. (maxUint64-5)*10 doesn't overflow well ...
+		if n >= cutoff ***REMOVED***
+			overflow = true
+			return
+		***REMOVED***
+		n *= 10
+		n1 := n + uint64(c-'0')
+		if n1 < n || n1 > maxUint64 ***REMOVED***
+			overflow = true
+			return
+		***REMOVED***
+		n = n1
+	***REMOVED***
+	return
 ***REMOVED***
 
 var _ decDriver = (*jsonDecDriver)(nil)
-var _ encDriver = (*jsonEncDriver)(nil)
+var _ encDriver = (*jsonEncDriverGenericImpl)(nil)
+var _ encDriver = (*jsonEncDriverTypicalImpl)(nil)
+var _ jsonTypical = (*jsonEncDriverTypical)(nil)

@@ -15,7 +15,7 @@ import (
 )
 
 // Version is Framework's version
-const Version = "v1.1.4"
+const Version = "v1.2"
 
 var default404Body = []byte("404 page not found")
 var default405Body = []byte("405 method not allowed")
@@ -45,7 +45,9 @@ type (
 	// Create an instance of Engine, by using New() or Default()
 	Engine struct ***REMOVED***
 		RouterGroup
+		delims      render.Delims
 		HTMLRender  render.HTMLRender
+		FuncMap     template.FuncMap
 		allNoRoute  HandlersChain
 		allNoMethod HandlersChain
 		noRoute     HandlersChain
@@ -111,6 +113,7 @@ func New() *Engine ***REMOVED***
 			basePath: "/",
 			root:     true,
 		***REMOVED***,
+		FuncMap:                template.FuncMap***REMOVED******REMOVED***,
 		RedirectTrailingSlash:  true,
 		RedirectFixedPath:      false,
 		HandleMethodNotAllowed: false,
@@ -119,6 +122,7 @@ func New() *Engine ***REMOVED***
 		UseRawPath:             false,
 		UnescapePathValues:     true,
 		trees:                  make(methodTrees, 0, 9),
+		delims:                 render.Delims***REMOVED***"***REMOVED******REMOVED***", "***REMOVED******REMOVED***"***REMOVED***,
 	***REMOVED***
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() interface***REMOVED******REMOVED*** ***REMOVED***
@@ -138,21 +142,26 @@ func (engine *Engine) allocateContext() *Context ***REMOVED***
 	return &Context***REMOVED***engine: engine***REMOVED***
 ***REMOVED***
 
+func (engine *Engine) Delims(left, right string) *Engine ***REMOVED***
+	engine.delims = render.Delims***REMOVED***left, right***REMOVED***
+	return engine
+***REMOVED***
+
 func (engine *Engine) LoadHTMLGlob(pattern string) ***REMOVED***
 	if IsDebugging() ***REMOVED***
-		debugPrintLoadTemplate(template.Must(template.ParseGlob(pattern)))
-		engine.HTMLRender = render.HTMLDebug***REMOVED***Glob: pattern***REMOVED***
+		debugPrintLoadTemplate(template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseGlob(pattern)))
+		engine.HTMLRender = render.HTMLDebug***REMOVED***Glob: pattern, FuncMap: engine.FuncMap, Delims: engine.delims***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		templ := template.Must(template.ParseGlob(pattern))
+		templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseGlob(pattern))
 		engine.SetHTMLTemplate(templ)
 	***REMOVED***
 ***REMOVED***
 
 func (engine *Engine) LoadHTMLFiles(files ...string) ***REMOVED***
 	if IsDebugging() ***REMOVED***
-		engine.HTMLRender = render.HTMLDebug***REMOVED***Files: files***REMOVED***
+		engine.HTMLRender = render.HTMLDebug***REMOVED***Files: files, FuncMap: engine.FuncMap, Delims: engine.delims***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		templ := template.Must(template.ParseFiles(files...))
+		templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseFiles(files...))
 		engine.SetHTMLTemplate(templ)
 	***REMOVED***
 ***REMOVED***
@@ -161,7 +170,12 @@ func (engine *Engine) SetHTMLTemplate(templ *template.Template) ***REMOVED***
 	if len(engine.trees) > 0 ***REMOVED***
 		debugPrintWARNINGSetHTMLTemplate()
 	***REMOVED***
-	engine.HTMLRender = render.HTMLProduction***REMOVED***Template: templ***REMOVED***
+
+	engine.HTMLRender = render.HTMLProduction***REMOVED***Template: templ.Funcs(engine.FuncMap)***REMOVED***
+***REMOVED***
+
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) ***REMOVED***
+	engine.FuncMap = funcMap
 ***REMOVED***
 
 // NoRoute adds handlers for NoRoute. It return a 404 code by default.
@@ -318,8 +332,8 @@ func (engine *Engine) handleHTTPRequest(context *Context) ***REMOVED***
 				context.Next()
 				context.writermem.WriteHeaderNow()
 				return
-
-			***REMOVED*** else if httpMethod != "CONNECT" && path != "/" ***REMOVED***
+			***REMOVED***
+			if httpMethod != "CONNECT" && path != "/" ***REMOVED***
 				if tsr && engine.RedirectTrailingSlash ***REMOVED***
 					redirectTrailingSlash(context)
 					return

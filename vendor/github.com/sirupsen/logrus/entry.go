@@ -94,38 +94,47 @@ func (entry Entry) log(level Level, msg string) ***REMOVED***
 	entry.Level = level
 	entry.Message = msg
 
-	entry.Logger.mu.Lock()
-	err := entry.Logger.Hooks.Fire(level, &entry)
-	entry.Logger.mu.Unlock()
-	if err != nil ***REMOVED***
-		entry.Logger.mu.Lock()
-		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
-		entry.Logger.mu.Unlock()
-	***REMOVED***
+	entry.fireHooks()
+
 	buffer = bufferPool.Get().(*bytes.Buffer)
 	buffer.Reset()
 	defer bufferPool.Put(buffer)
 	entry.Buffer = buffer
-	serialized, err := entry.Logger.Formatter.Format(&entry)
+
+	entry.write()
+
 	entry.Buffer = nil
-	if err != nil ***REMOVED***
-		entry.Logger.mu.Lock()
-		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
-		entry.Logger.mu.Unlock()
-	***REMOVED*** else ***REMOVED***
-		entry.Logger.mu.Lock()
-		_, err = entry.Logger.Out.Write(serialized)
-		if err != nil ***REMOVED***
-			fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
-		***REMOVED***
-		entry.Logger.mu.Unlock()
-	***REMOVED***
 
 	// To avoid Entry#log() returning a value that only would make sense for
 	// panic() to use in Entry#Panic(), we avoid the allocation by checking
 	// directly here.
 	if level <= PanicLevel ***REMOVED***
 		panic(&entry)
+	***REMOVED***
+***REMOVED***
+
+// This function is not declared with a pointer value because otherwise
+// race conditions will occur when using multiple goroutines
+func (entry Entry) fireHooks() ***REMOVED***
+	entry.Logger.mu.Lock()
+	defer entry.Logger.mu.Unlock()
+	err := entry.Logger.Hooks.Fire(entry.Level, &entry)
+	if err != nil ***REMOVED***
+		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
+	***REMOVED***
+***REMOVED***
+
+func (entry *Entry) write() ***REMOVED***
+	serialized, err := entry.Logger.Formatter.Format(entry)
+	entry.Logger.mu.Lock()
+	defer entry.Logger.mu.Unlock()
+	if err != nil ***REMOVED***
+		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
+	***REMOVED*** else ***REMOVED***
+		_, err = entry.Logger.Out.Write(serialized)
+		if err != nil ***REMOVED***
+			fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 

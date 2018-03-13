@@ -29,15 +29,6 @@ const (
 	backgroundMask      = (backgroundRed | backgroundBlue | backgroundGreen | backgroundIntensity)
 )
 
-const (
-	genericRead  = 0x80000000
-	genericWrite = 0x40000000
-)
-
-const (
-	consoleTextmodeBuffer = 0x1
-)
-
 type wchar uint16
 type short int16
 type dword uint32
@@ -78,17 +69,14 @@ var (
 	procGetConsoleCursorInfo       = kernel32.NewProc("GetConsoleCursorInfo")
 	procSetConsoleCursorInfo       = kernel32.NewProc("SetConsoleCursorInfo")
 	procSetConsoleTitle            = kernel32.NewProc("SetConsoleTitleW")
-	procCreateConsoleScreenBuffer  = kernel32.NewProc("CreateConsoleScreenBuffer")
 )
 
 // Writer provide colorable Writer to the console
 type Writer struct ***REMOVED***
-	out       io.Writer
-	handle    syscall.Handle
-	althandle syscall.Handle
-	oldattr   word
-	oldpos    coord
-	rest      bytes.Buffer
+	out     io.Writer
+	handle  syscall.Handle
+	oldattr word
+	oldpos  coord
 ***REMOVED***
 
 // NewColorable return new instance of Writer which handle escape sequence from File.
@@ -419,18 +407,7 @@ func (w *Writer) Write(data []byte) (n int, err error) ***REMOVED***
 	var csbi consoleScreenBufferInfo
 	procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 
-	handle := w.handle
-
-	var er *bytes.Reader
-	if w.rest.Len() > 0 ***REMOVED***
-		var rest bytes.Buffer
-		w.rest.WriteTo(&rest)
-		w.rest.Reset()
-		rest.Write(data)
-		er = bytes.NewReader(rest.Bytes())
-	***REMOVED*** else ***REMOVED***
-		er = bytes.NewReader(data)
-	***REMOVED***
+	er := bytes.NewReader(data)
 	var bw [1]byte
 loop:
 	for ***REMOVED***
@@ -448,52 +425,28 @@ loop:
 			break loop
 		***REMOVED***
 
-		switch c2 ***REMOVED***
-		case ']':
-			w.rest.WriteByte(c1)
-			w.rest.WriteByte(c2)
-			er.WriteTo(&w.rest)
-			if bytes.IndexByte(w.rest.Bytes(), 0x07) == -1 ***REMOVED***
+		if c2 == ']' ***REMOVED***
+			if err := doTitleSequence(er); err != nil ***REMOVED***
 				break loop
 			***REMOVED***
-			er = bytes.NewReader(w.rest.Bytes()[2:])
-			err := doTitleSequence(er)
-			if err != nil ***REMOVED***
-				break loop
-			***REMOVED***
-			w.rest.Reset()
-			continue
-		// https://github.com/mattn/go-colorable/issues/27
-		case '7':
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
-			w.oldpos = csbi.cursorPosition
-			continue
-		case '8':
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&w.oldpos)))
-			continue
-		case 0x5b:
-			// execute part after switch
-		default:
 			continue
 		***REMOVED***
-
-		w.rest.WriteByte(c1)
-		w.rest.WriteByte(c2)
-		er.WriteTo(&w.rest)
+		if c2 != 0x5b ***REMOVED***
+			continue
+		***REMOVED***
 
 		var buf bytes.Buffer
 		var m byte
-		for i, c := range w.rest.Bytes()[2:] ***REMOVED***
+		for ***REMOVED***
+			c, err := er.ReadByte()
+			if err != nil ***REMOVED***
+				break loop
+			***REMOVED***
 			if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '@' ***REMOVED***
 				m = c
-				er = bytes.NewReader(w.rest.Bytes()[2+i+1:])
-				w.rest.Reset()
 				break
 			***REMOVED***
 			buf.Write([]byte(string(c)))
-		***REMOVED***
-		if m == 0 ***REMOVED***
-			break loop
 		***REMOVED***
 
 		switch m ***REMOVED***
@@ -502,64 +455,61 @@ loop:
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.y -= short(n)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'B':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.y += short(n)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'C':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.x += short(n)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'D':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.x -= short(n)
-			if csbi.cursorPosition.x < 0 ***REMOVED***
-				csbi.cursorPosition.x = 0
-			***REMOVED***
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'E':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.x = 0
 			csbi.cursorPosition.y += short(n)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'F':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.x = 0
 			csbi.cursorPosition.y -= short(n)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'G':
 			n, err = strconv.Atoi(buf.String())
 			if err != nil ***REMOVED***
 				continue
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			csbi.cursorPosition.x = short(n - 1)
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'H', 'f':
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			if buf.Len() > 0 ***REMOVED***
 				token := strings.Split(buf.String(), ";")
 				switch len(token) ***REMOVED***
@@ -584,7 +534,7 @@ loop:
 			***REMOVED*** else ***REMOVED***
 				csbi.cursorPosition.y = 0
 			***REMOVED***
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&csbi.cursorPosition)))
 		case 'J':
 			n := 0
 			if buf.Len() > 0 ***REMOVED***
@@ -595,7 +545,7 @@ loop:
 			***REMOVED***
 			var count, written dword
 			var cursor coord
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			switch n ***REMOVED***
 			case 0:
 				cursor = coord***REMOVED***x: csbi.cursorPosition.x, y: csbi.cursorPosition.y***REMOVED***
@@ -607,8 +557,8 @@ loop:
 				cursor = coord***REMOVED***x: csbi.window.left, y: csbi.window.top***REMOVED***
 				count = dword(csbi.size.x - csbi.cursorPosition.x + (csbi.size.y-csbi.cursorPosition.y)*csbi.size.x)
 			***REMOVED***
-			procFillConsoleOutputCharacter.Call(uintptr(handle), uintptr(' '), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
-			procFillConsoleOutputAttribute.Call(uintptr(handle), uintptr(csbi.attributes), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
+			procFillConsoleOutputCharacter.Call(uintptr(w.handle), uintptr(' '), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
+			procFillConsoleOutputAttribute.Call(uintptr(w.handle), uintptr(csbi.attributes), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
 		case 'K':
 			n := 0
 			if buf.Len() > 0 ***REMOVED***
@@ -617,13 +567,13 @@ loop:
 					continue
 				***REMOVED***
 			***REMOVED***
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			var cursor coord
 			var count, written dword
 			switch n ***REMOVED***
 			case 0:
-				cursor = coord***REMOVED***x: csbi.cursorPosition.x, y: csbi.cursorPosition.y***REMOVED***
-				count = dword(csbi.size.x - csbi.cursorPosition.x)
+				cursor = coord***REMOVED***x: csbi.cursorPosition.x + 1, y: csbi.cursorPosition.y***REMOVED***
+				count = dword(csbi.size.x - csbi.cursorPosition.x - 1)
 			case 1:
 				cursor = coord***REMOVED***x: csbi.window.left, y: csbi.window.top + csbi.cursorPosition.y***REMOVED***
 				count = dword(csbi.size.x - csbi.cursorPosition.x)
@@ -631,14 +581,14 @@ loop:
 				cursor = coord***REMOVED***x: csbi.window.left, y: csbi.window.top + csbi.cursorPosition.y***REMOVED***
 				count = dword(csbi.size.x)
 			***REMOVED***
-			procFillConsoleOutputCharacter.Call(uintptr(handle), uintptr(' '), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
-			procFillConsoleOutputAttribute.Call(uintptr(handle), uintptr(csbi.attributes), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
+			procFillConsoleOutputCharacter.Call(uintptr(w.handle), uintptr(' '), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
+			procFillConsoleOutputAttribute.Call(uintptr(w.handle), uintptr(csbi.attributes), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&written)))
 		case 'm':
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			attr := csbi.attributes
 			cs := buf.String()
 			if cs == "" ***REMOVED***
-				procSetConsoleTextAttribute.Call(uintptr(handle), uintptr(w.oldattr))
+				procSetConsoleTextAttribute.Call(uintptr(w.handle), uintptr(w.oldattr))
 				continue
 			***REMOVED***
 			token := strings.Split(cs, ";")
@@ -677,21 +627,6 @@ loop:
 								attr |= n256foreAttr[n256]
 								i += 2
 							***REMOVED***
-						***REMOVED*** else if len(token) == 5 && token[i+1] == "2" ***REMOVED***
-							var r, g, b int
-							r, _ = strconv.Atoi(token[i+2])
-							g, _ = strconv.Atoi(token[i+3])
-							b, _ = strconv.Atoi(token[i+4])
-							i += 4
-							if r > 127 ***REMOVED***
-								attr |= foregroundRed
-							***REMOVED***
-							if g > 127 ***REMOVED***
-								attr |= foregroundGreen
-							***REMOVED***
-							if b > 127 ***REMOVED***
-								attr |= foregroundBlue
-							***REMOVED***
 						***REMOVED*** else ***REMOVED***
 							attr = attr & (w.oldattr & backgroundMask)
 						***REMOVED***
@@ -718,21 +653,6 @@ loop:
 								attr &= foregroundMask
 								attr |= n256backAttr[n256]
 								i += 2
-							***REMOVED***
-						***REMOVED*** else if len(token) == 5 && token[i+1] == "2" ***REMOVED***
-							var r, g, b int
-							r, _ = strconv.Atoi(token[i+2])
-							g, _ = strconv.Atoi(token[i+3])
-							b, _ = strconv.Atoi(token[i+4])
-							i += 4
-							if r > 127 ***REMOVED***
-								attr |= backgroundRed
-							***REMOVED***
-							if g > 127 ***REMOVED***
-								attr |= backgroundGreen
-							***REMOVED***
-							if b > 127 ***REMOVED***
-								attr |= backgroundBlue
 							***REMOVED***
 						***REMOVED*** else ***REMOVED***
 							attr = attr & (w.oldattr & foregroundMask)
@@ -765,52 +685,38 @@ loop:
 							attr |= backgroundBlue
 						***REMOVED***
 					***REMOVED***
-					procSetConsoleTextAttribute.Call(uintptr(handle), uintptr(attr))
+					procSetConsoleTextAttribute.Call(uintptr(w.handle), uintptr(attr))
 				***REMOVED***
 			***REMOVED***
 		case 'h':
 			var ci consoleCursorInfo
 			cs := buf.String()
 			if cs == "5>" ***REMOVED***
-				procGetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procGetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 				ci.visible = 0
-				procSetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procSetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 			***REMOVED*** else if cs == "?25" ***REMOVED***
-				procGetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procGetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 				ci.visible = 1
-				procSetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
-			***REMOVED*** else if cs == "?1049" ***REMOVED***
-				if w.althandle == 0 ***REMOVED***
-					h, _, _ := procCreateConsoleScreenBuffer.Call(uintptr(genericRead|genericWrite), 0, 0, uintptr(consoleTextmodeBuffer), 0, 0)
-					w.althandle = syscall.Handle(h)
-					if w.althandle != 0 ***REMOVED***
-						handle = w.althandle
-					***REMOVED***
-				***REMOVED***
+				procSetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 			***REMOVED***
 		case 'l':
 			var ci consoleCursorInfo
 			cs := buf.String()
 			if cs == "5>" ***REMOVED***
-				procGetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procGetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 				ci.visible = 1
-				procSetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procSetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 			***REMOVED*** else if cs == "?25" ***REMOVED***
-				procGetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
+				procGetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 				ci.visible = 0
-				procSetConsoleCursorInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&ci)))
-			***REMOVED*** else if cs == "?1049" ***REMOVED***
-				if w.althandle != 0 ***REMOVED***
-					syscall.CloseHandle(w.althandle)
-					w.althandle = 0
-					handle = w.handle
-				***REMOVED***
+				procSetConsoleCursorInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&ci)))
 			***REMOVED***
 		case 's':
-			procGetConsoleScreenBufferInfo.Call(uintptr(handle), uintptr(unsafe.Pointer(&csbi)))
+			procGetConsoleScreenBufferInfo.Call(uintptr(w.handle), uintptr(unsafe.Pointer(&csbi)))
 			w.oldpos = csbi.cursorPosition
 		case 'u':
-			procSetConsoleCursorPosition.Call(uintptr(handle), *(*uintptr)(unsafe.Pointer(&w.oldpos)))
+			procSetConsoleCursorPosition.Call(uintptr(w.handle), *(*uintptr)(unsafe.Pointer(&w.oldpos)))
 		***REMOVED***
 	***REMOVED***
 

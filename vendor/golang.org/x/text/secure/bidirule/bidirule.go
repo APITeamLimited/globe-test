@@ -203,10 +203,6 @@ func (t *Transformer) isRTL() bool ***REMOVED***
 	return t.seen&isRTL != 0
 ***REMOVED***
 
-func (t *Transformer) isFinal() bool ***REMOVED***
-	return t.state == ruleLTRFinal || t.state == ruleRTLFinal || t.state == ruleInitial
-***REMOVED***
-
 // Reset implements transform.Transformer.
 func (t *Transformer) Reset() ***REMOVED*** *t = Transformer***REMOVED******REMOVED*** ***REMOVED***
 

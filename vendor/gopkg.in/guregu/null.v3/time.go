@@ -60,6 +60,14 @@ func TimeFromPtr(t *time.Time) Time ***REMOVED***
 	return NewTime(*t, true)
 ***REMOVED***
 
+// ValueOrZero returns the inner value if valid, otherwise zero.
+func (t Time) ValueOrZero() time.Time ***REMOVED***
+	if !t.Valid ***REMOVED***
+		return time.Time***REMOVED******REMOVED***
+	***REMOVED***
+	return t.Time
+***REMOVED***
+
 // MarshalJSON implements json.Marshaler.
 // It will encode null if this time is null.
 func (t Time) MarshalJSON() ([]byte, error) ***REMOVED***

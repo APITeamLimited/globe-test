@@ -406,7 +406,7 @@ func (s *Server) ServeConn(c net.Conn, opts *ServeConnOpts) ***REMOVED***
 			// addresses during development.
 			//
 			// TODO: optionally enforce? Or enforce at the time we receive
-			// a new request, and verify the the ServerName matches the :authority?
+			// a new request, and verify the ServerName matches the :authority?
 			// But that precludes proxy situations, perhaps.
 			//
 			// So for now, do nothing here again.
@@ -2285,7 +2285,7 @@ func (rws *responseWriterState) hasTrailers() bool ***REMOVED*** return len(rws.
 func (rws *responseWriterState) declareTrailer(k string) ***REMOVED***
 	k = http.CanonicalHeaderKey(k)
 	if !ValidTrailerHeader(k) ***REMOVED***
-		// Forbidden by RFC 2616 14.40.
+		// Forbidden by RFC 7230, section 4.1.2.
 		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
 	***REMOVED***
@@ -2322,7 +2322,7 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) ***REMOV
 			clen = strconv.Itoa(len(p))
 		***REMOVED***
 		_, hasContentType := rws.snapHeader["Content-Type"]
-		if !hasContentType && bodyAllowedForStatus(rws.status) ***REMOVED***
+		if !hasContentType && bodyAllowedForStatus(rws.status) && len(p) > 0 ***REMOVED***
 			ctype = http.DetectContentType(p)
 		***REMOVED***
 		var date string
@@ -2406,7 +2406,7 @@ const TrailerPrefix = "Trailer:"
 // after the header has already been flushed. Because the Go
 // ResponseWriter interface has no way to set Trailers (only the
 // Header), and because we didn't want to expand the ResponseWriter
-// interface, and because nobody used trailers, and because RFC 2616
+// interface, and because nobody used trailers, and because RFC 7230
 // says you SHOULD (but not must) predeclare any trailers in the
 // header, the official ResponseWriter rules said trailers in Go must
 // be predeclared, and then we reuse the same ResponseWriter.Header()
@@ -2490,6 +2490,24 @@ func (w *responseWriter) Header() http.Header ***REMOVED***
 	return rws.handlerHeader
 ***REMOVED***
 
+// checkWriteHeaderCode is a copy of net/http's checkWriteHeaderCode.
+func checkWriteHeaderCode(code int) ***REMOVED***
+	// Issue 22880: require valid WriteHeader status codes.
+	// For now we only enforce that it's three digits.
+	// In the future we might block things over 599 (600 and above aren't defined
+	// at http://httpwg.org/specs/rfc7231.html#status.codes)
+	// and we might block under 200 (once we have more mature 1xx support).
+	// But for now any three digits.
+	//
+	// We used to send "HTTP/1.1 000 0" on the wire in responses but there's
+	// no equivalent bogus thing we can realistically send in HTTP/2,
+	// so we'll consistently panic instead and help people find their bugs
+	// early. (We can't return an error from WriteHeader even if we wanted to.)
+	if code < 100 || code > 999 ***REMOVED***
+		panic(fmt.Sprintf("invalid WriteHeader code %v", code))
+	***REMOVED***
+***REMOVED***
+
 func (w *responseWriter) WriteHeader(code int) ***REMOVED***
 	rws := w.rws
 	if rws == nil ***REMOVED***
@@ -2500,6 +2518,7 @@ func (w *responseWriter) WriteHeader(code int) ***REMOVED***
 
 func (rws *responseWriterState) writeHeader(code int) ***REMOVED***
 	if !rws.wroteHeader ***REMOVED***
+		checkWriteHeaderCode(code)
 		rws.wroteHeader = true
 		rws.status = code
 		if len(rws.handlerHeader) > 0 ***REMOVED***
@@ -2771,7 +2790,7 @@ func (sc *serverConn) startPush(msg *startPushRequest) ***REMOVED***
 ***REMOVED***
 
 // foreachHeaderElement splits v according to the "#rule" construction
-// in RFC 2616 section 2.1 and calls fn for each non-empty element.
+// in RFC 7230 section 7 and calls fn for each non-empty element.
 func foreachHeaderElement(v string, fn func(string)) ***REMOVED***
 	v = textproto.TrimString(v)
 	if v == "" ***REMOVED***

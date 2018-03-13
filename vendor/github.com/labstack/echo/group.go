@@ -20,9 +20,11 @@ func (g *Group) Use(middleware ...MiddlewareFunc) ***REMOVED***
 	g.middleware = append(g.middleware, middleware...)
 	// Allow all requests to reach the group as they might get dropped if router
 	// doesn't find a match, making none of the group middleware process.
-	g.echo.Any(path.Clean(g.prefix+"/*"), func(c Context) error ***REMOVED***
-		return NotFoundHandler(c)
-	***REMOVED***, g.middleware...)
+	for _, p := range []string***REMOVED***"", "/*"***REMOVED*** ***REMOVED***
+		g.echo.Any(path.Clean(g.prefix+p), func(c Context) error ***REMOVED***
+			return NotFoundHandler(c)
+		***REMOVED***, g.middleware...)
+	***REMOVED***
 ***REMOVED***
 
 // CONNECT implements `Echo#CONNECT()` for sub-routes within the Group.
@@ -71,17 +73,21 @@ func (g *Group) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route **
 ***REMOVED***
 
 // Any implements `Echo#Any()` for sub-routes within the Group.
-func (g *Group) Any(path string, handler HandlerFunc, middleware ...MiddlewareFunc) ***REMOVED***
-	for _, m := range methods ***REMOVED***
-		g.Add(m, path, handler, middleware...)
+func (g *Group) Any(path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*Route ***REMOVED***
+	routes := make([]*Route, len(methods))
+	for i, m := range methods ***REMOVED***
+		routes[i] = g.Add(m, path, handler, middleware...)
 	***REMOVED***
+	return routes
 ***REMOVED***
 
 // Match implements `Echo#Match()` for sub-routes within the Group.
-func (g *Group) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) ***REMOVED***
-	for _, m := range methods ***REMOVED***
-		g.Add(m, path, handler, middleware...)
+func (g *Group) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*Route ***REMOVED***
+	routes := make([]*Route, len(methods))
+	for i, m := range methods ***REMOVED***
+		routes[i] = g.Add(m, path, handler, middleware...)
 	***REMOVED***
+	return routes
 ***REMOVED***
 
 // Group creates a new sub-group with prefix and optional sub-group-level middleware.

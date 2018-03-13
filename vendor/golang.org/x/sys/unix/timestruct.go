@@ -6,6 +6,8 @@
 
 package unix
 
+import "time"
+
 // TimespecToNsec converts a Timespec value into a number of
 // nanoseconds since the Unix epoch.
 func TimespecToNsec(ts Timespec) int64 ***REMOVED*** return int64(ts.Sec)*1e9 + int64(ts.Nsec) ***REMOVED***
@@ -20,6 +22,24 @@ func NsecToTimespec(nsec int64) Timespec ***REMOVED***
 		sec--
 	***REMOVED***
 	return setTimespec(sec, nsec)
+***REMOVED***
+
+// TimeToTimespec converts t into a Timespec.
+// On some 32-bit systems the range of valid Timespec values are smaller
+// than that of time.Time values.  So if t is out of the valid range of
+// Timespec, it returns a zero Timespec and ERANGE.
+func TimeToTimespec(t time.Time) (Timespec, error) ***REMOVED***
+	sec := t.Unix()
+	nsec := int64(t.Nanosecond())
+	ts := setTimespec(sec, nsec)
+
+	// Currently all targets have either int32 or int64 for Timespec.Sec.
+	// If there were a new target with floating point type for it, we have
+	// to consider the rounding error.
+	if int64(ts.Sec) != sec ***REMOVED***
+		return Timespec***REMOVED******REMOVED***, ERANGE
+	***REMOVED***
+	return ts, nil
 ***REMOVED***
 
 // TimevalToNsec converts a Timeval value into a number of nanoseconds

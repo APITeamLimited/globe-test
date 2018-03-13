@@ -5,7 +5,7 @@
 // Package ocsp parses OCSP responses as specified in RFC 2560. OCSP responses
 // are signed messages attesting to the validity of a certificate for a small
 // period of time. This is used to manage revocation for X.509 certificates.
-package ocsp
+package ocsp // import "golang.org/x/crypto/ocsp"
 
 import (
 	"crypto"
@@ -760,7 +760,7 @@ func CreateResponse(issuer, responderCert *x509.Certificate, template Response, 
 	***REMOVED***
 	if template.Certificate != nil ***REMOVED***
 		response.Certificates = []asn1.RawValue***REMOVED***
-			asn1.RawValue***REMOVED***FullBytes: template.Certificate.Raw***REMOVED***,
+			***REMOVED***FullBytes: template.Certificate.Raw***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 	responseDER, err := asn1.Marshal(response)

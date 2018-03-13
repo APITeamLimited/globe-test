@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"strconv"
@@ -22,19 +23,22 @@ type node struct ***REMOVED***
 	kind         int
 	line, column int
 	tag          string
-	value        string
-	implicit     bool
-	children     []*node
-	anchors      map[string]*node
+	// For an alias node, alias holds the resolved alias.
+	alias    *node
+	value    string
+	implicit bool
+	children []*node
+	anchors  map[string]*node
 ***REMOVED***
 
 // ----------------------------------------------------------------------------
 // Parser, produces a node tree out of a libyaml event stream.
 
 type parser struct ***REMOVED***
-	parser yaml_parser_t
-	event  yaml_event_t
-	doc    *node
+	parser   yaml_parser_t
+	event    yaml_event_t
+	doc      *node
+	doneInit bool
 ***REMOVED***
 
 func newParser(b []byte) *parser ***REMOVED***
@@ -42,19 +46,28 @@ func newParser(b []byte) *parser ***REMOVED***
 	if !yaml_parser_initialize(&p.parser) ***REMOVED***
 		panic("failed to initialize YAML emitter")
 	***REMOVED***
-
 	if len(b) == 0 ***REMOVED***
 		b = []byte***REMOVED***'\n'***REMOVED***
 	***REMOVED***
-
 	yaml_parser_set_input_string(&p.parser, b)
-
-	p.skip()
-	if p.event.typ != yaml_STREAM_START_EVENT ***REMOVED***
-		panic("expected stream start event, got " + strconv.Itoa(int(p.event.typ)))
-	***REMOVED***
-	p.skip()
 	return &p
+***REMOVED***
+
+func newParserFromReader(r io.Reader) *parser ***REMOVED***
+	p := parser***REMOVED******REMOVED***
+	if !yaml_parser_initialize(&p.parser) ***REMOVED***
+		panic("failed to initialize YAML emitter")
+	***REMOVED***
+	yaml_parser_set_input_reader(&p.parser, r)
+	return &p
+***REMOVED***
+
+func (p *parser) init() ***REMOVED***
+	if p.doneInit ***REMOVED***
+		return
+	***REMOVED***
+	p.expect(yaml_STREAM_START_EVENT)
+	p.doneInit = true
 ***REMOVED***
 
 func (p *parser) destroy() ***REMOVED***
@@ -64,16 +77,35 @@ func (p *parser) destroy() ***REMOVED***
 	yaml_parser_delete(&p.parser)
 ***REMOVED***
 
-func (p *parser) skip() ***REMOVED***
-	if p.event.typ != yaml_NO_EVENT ***REMOVED***
-		if p.event.typ == yaml_STREAM_END_EVENT ***REMOVED***
-			failf("attempted to go past the end of stream; corrupted value?")
+// expect consumes an event from the event stream and
+// checks that it's of the expected type.
+func (p *parser) expect(e yaml_event_type_t) ***REMOVED***
+	if p.event.typ == yaml_NO_EVENT ***REMOVED***
+		if !yaml_parser_parse(&p.parser, &p.event) ***REMOVED***
+			p.fail()
 		***REMOVED***
-		yaml_event_delete(&p.event)
+	***REMOVED***
+	if p.event.typ == yaml_STREAM_END_EVENT ***REMOVED***
+		failf("attempted to go past the end of stream; corrupted value?")
+	***REMOVED***
+	if p.event.typ != e ***REMOVED***
+		p.parser.problem = fmt.Sprintf("expected %s event but got %s", e, p.event.typ)
+		p.fail()
+	***REMOVED***
+	yaml_event_delete(&p.event)
+	p.event.typ = yaml_NO_EVENT
+***REMOVED***
+
+// peek peeks at the next event in the event stream,
+// puts the results into p.event and returns the event type.
+func (p *parser) peek() yaml_event_type_t ***REMOVED***
+	if p.event.typ != yaml_NO_EVENT ***REMOVED***
+		return p.event.typ
 	***REMOVED***
 	if !yaml_parser_parse(&p.parser, &p.event) ***REMOVED***
 		p.fail()
 	***REMOVED***
+	return p.event.typ
 ***REMOVED***
 
 func (p *parser) fail() ***REMOVED***
@@ -103,7 +135,8 @@ func (p *parser) anchor(n *node, anchor []byte) ***REMOVED***
 ***REMOVED***
 
 func (p *parser) parse() *node ***REMOVED***
-	switch p.event.typ ***REMOVED***
+	p.init()
+	switch p.peek() ***REMOVED***
 	case yaml_SCALAR_EVENT:
 		return p.scalar()
 	case yaml_ALIAS_EVENT:
@@ -118,7 +151,7 @@ func (p *parser) parse() *node ***REMOVED***
 		// Happens when attempting to decode an empty buffer.
 		return nil
 	default:
-		panic("attempted to parse unknown event: " + strconv.Itoa(int(p.event.typ)))
+		panic("attempted to parse unknown event: " + p.event.typ.String())
 	***REMOVED***
 ***REMOVED***
 
@@ -134,19 +167,20 @@ func (p *parser) document() *node ***REMOVED***
 	n := p.node(documentNode)
 	n.anchors = make(map[string]*node)
 	p.doc = n
-	p.skip()
+	p.expect(yaml_DOCUMENT_START_EVENT)
 	n.children = append(n.children, p.parse())
-	if p.event.typ != yaml_DOCUMENT_END_EVENT ***REMOVED***
-		panic("expected end of document event but got " + strconv.Itoa(int(p.event.typ)))
-	***REMOVED***
-	p.skip()
+	p.expect(yaml_DOCUMENT_END_EVENT)
 	return n
 ***REMOVED***
 
 func (p *parser) alias() *node ***REMOVED***
 	n := p.node(aliasNode)
 	n.value = string(p.event.anchor)
-	p.skip()
+	n.alias = p.doc.anchors[n.value]
+	if n.alias == nil ***REMOVED***
+		failf("unknown anchor '%s' referenced", n.value)
+	***REMOVED***
+	p.expect(yaml_ALIAS_EVENT)
 	return n
 ***REMOVED***
 
@@ -156,29 +190,29 @@ func (p *parser) scalar() *node ***REMOVED***
 	n.tag = string(p.event.tag)
 	n.implicit = p.event.implicit
 	p.anchor(n, p.event.anchor)
-	p.skip()
+	p.expect(yaml_SCALAR_EVENT)
 	return n
 ***REMOVED***
 
 func (p *parser) sequence() *node ***REMOVED***
 	n := p.node(sequenceNode)
 	p.anchor(n, p.event.anchor)
-	p.skip()
-	for p.event.typ != yaml_SEQUENCE_END_EVENT ***REMOVED***
+	p.expect(yaml_SEQUENCE_START_EVENT)
+	for p.peek() != yaml_SEQUENCE_END_EVENT ***REMOVED***
 		n.children = append(n.children, p.parse())
 	***REMOVED***
-	p.skip()
+	p.expect(yaml_SEQUENCE_END_EVENT)
 	return n
 ***REMOVED***
 
 func (p *parser) mapping() *node ***REMOVED***
 	n := p.node(mappingNode)
 	p.anchor(n, p.event.anchor)
-	p.skip()
-	for p.event.typ != yaml_MAPPING_END_EVENT ***REMOVED***
+	p.expect(yaml_MAPPING_START_EVENT)
+	for p.peek() != yaml_MAPPING_END_EVENT ***REMOVED***
 		n.children = append(n.children, p.parse(), p.parse())
 	***REMOVED***
-	p.skip()
+	p.expect(yaml_MAPPING_END_EVENT)
 	return n
 ***REMOVED***
 
@@ -187,7 +221,7 @@ func (p *parser) mapping() *node ***REMOVED***
 
 type decoder struct ***REMOVED***
 	doc     *node
-	aliases map[string]bool
+	aliases map[*node]bool
 	mapType reflect.Type
 	terrors []string
 	strict  bool
@@ -198,11 +232,13 @@ var (
 	durationType   = reflect.TypeOf(time.Duration(0))
 	defaultMapType = reflect.TypeOf(map[interface***REMOVED******REMOVED***]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 	ifaceType      = defaultMapType.Elem()
+	timeType       = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
+	ptrTimeType    = reflect.TypeOf(&time.Time***REMOVED******REMOVED***)
 )
 
 func newDecoder(strict bool) *decoder ***REMOVED***
 	d := &decoder***REMOVED***mapType: defaultMapType, strict: strict***REMOVED***
-	d.aliases = make(map[string]bool)
+	d.aliases = make(map[*node]bool)
 	return d
 ***REMOVED***
 
@@ -308,16 +344,13 @@ func (d *decoder) document(n *node, out reflect.Value) (good bool) ***REMOVED***
 ***REMOVED***
 
 func (d *decoder) alias(n *node, out reflect.Value) (good bool) ***REMOVED***
-	an, ok := d.doc.anchors[n.value]
-	if !ok ***REMOVED***
-		failf("unknown anchor '%s' referenced", n.value)
-	***REMOVED***
-	if d.aliases[n.value] ***REMOVED***
+	if d.aliases[n] ***REMOVED***
+		// TODO this could actually be allowed in some circumstances.
 		failf("anchor '%s' value contains itself", n.value)
 	***REMOVED***
-	d.aliases[n.value] = true
-	good = d.unmarshal(an, out)
-	delete(d.aliases, n.value)
+	d.aliases[n] = true
+	good = d.unmarshal(n.alias, out)
+	delete(d.aliases, n)
 	return good
 ***REMOVED***
 
@@ -329,7 +362,7 @@ func resetMap(out reflect.Value) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (d *decoder) scalar(n *node, out reflect.Value) (good bool) ***REMOVED***
+func (d *decoder) scalar(n *node, out reflect.Value) bool ***REMOVED***
 	var tag string
 	var resolved interface***REMOVED******REMOVED***
 	if n.tag == "" && !n.implicit ***REMOVED***
@@ -353,9 +386,26 @@ func (d *decoder) scalar(n *node, out reflect.Value) (good bool) ***REMOVED***
 		***REMOVED***
 		return true
 	***REMOVED***
-	if s, ok := resolved.(string); ok && out.CanAddr() ***REMOVED***
-		if u, ok := out.Addr().Interface().(encoding.TextUnmarshaler); ok ***REMOVED***
-			err := u.UnmarshalText([]byte(s))
+	if resolvedv := reflect.ValueOf(resolved); out.Type() == resolvedv.Type() ***REMOVED***
+		// We've resolved to exactly the type we want, so use that.
+		out.Set(resolvedv)
+		return true
+	***REMOVED***
+	// Perhaps we can use the value as a TextUnmarshaler to
+	// set its value.
+	if out.CanAddr() ***REMOVED***
+		u, ok := out.Addr().Interface().(encoding.TextUnmarshaler)
+		if ok ***REMOVED***
+			var text []byte
+			if tag == yaml_BINARY_TAG ***REMOVED***
+				text = []byte(resolved.(string))
+			***REMOVED*** else ***REMOVED***
+				// We let any value be unmarshaled into TextUnmarshaler.
+				// That might be more lax than we'd like, but the
+				// TextUnmarshaler itself should bowl out any dubious values.
+				text = []byte(n.value)
+			***REMOVED***
+			err := u.UnmarshalText(text)
 			if err != nil ***REMOVED***
 				fail(err)
 			***REMOVED***
@@ -366,46 +416,53 @@ func (d *decoder) scalar(n *node, out reflect.Value) (good bool) ***REMOVED***
 	case reflect.String:
 		if tag == yaml_BINARY_TAG ***REMOVED***
 			out.SetString(resolved.(string))
-			good = true
-		***REMOVED*** else if resolved != nil ***REMOVED***
+			return true
+		***REMOVED***
+		if resolved != nil ***REMOVED***
 			out.SetString(n.value)
-			good = true
+			return true
 		***REMOVED***
 	case reflect.Interface:
 		if resolved == nil ***REMOVED***
 			out.Set(reflect.Zero(out.Type()))
+		***REMOVED*** else if tag == yaml_TIMESTAMP_TAG ***REMOVED***
+			// It looks like a timestamp but for backward compatibility
+			// reasons we set it as a string, so that code that unmarshals
+			// timestamp-like values into interface***REMOVED******REMOVED*** will continue to
+			// see a string and not a time.Time.
+			out.Set(reflect.ValueOf(n.value))
 		***REMOVED*** else ***REMOVED***
 			out.Set(reflect.ValueOf(resolved))
 		***REMOVED***
-		good = true
+		return true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		switch resolved := resolved.(type) ***REMOVED***
 		case int:
 			if !out.OverflowInt(int64(resolved)) ***REMOVED***
 				out.SetInt(int64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case int64:
 			if !out.OverflowInt(resolved) ***REMOVED***
 				out.SetInt(resolved)
-				good = true
+				return true
 			***REMOVED***
 		case uint64:
 			if resolved <= math.MaxInt64 && !out.OverflowInt(int64(resolved)) ***REMOVED***
 				out.SetInt(int64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case float64:
 			if resolved <= math.MaxInt64 && !out.OverflowInt(int64(resolved)) ***REMOVED***
 				out.SetInt(int64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case string:
 			if out.Type() == durationType ***REMOVED***
 				d, err := time.ParseDuration(resolved)
 				if err == nil ***REMOVED***
 					out.SetInt(int64(d))
-					good = true
+					return true
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -414,44 +471,49 @@ func (d *decoder) scalar(n *node, out reflect.Value) (good bool) ***REMOVED***
 		case int:
 			if resolved >= 0 && !out.OverflowUint(uint64(resolved)) ***REMOVED***
 				out.SetUint(uint64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case int64:
 			if resolved >= 0 && !out.OverflowUint(uint64(resolved)) ***REMOVED***
 				out.SetUint(uint64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case uint64:
 			if !out.OverflowUint(uint64(resolved)) ***REMOVED***
 				out.SetUint(uint64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		case float64:
 			if resolved <= math.MaxUint64 && !out.OverflowUint(uint64(resolved)) ***REMOVED***
 				out.SetUint(uint64(resolved))
-				good = true
+				return true
 			***REMOVED***
 		***REMOVED***
 	case reflect.Bool:
 		switch resolved := resolved.(type) ***REMOVED***
 		case bool:
 			out.SetBool(resolved)
-			good = true
+			return true
 		***REMOVED***
 	case reflect.Float32, reflect.Float64:
 		switch resolved := resolved.(type) ***REMOVED***
 		case int:
 			out.SetFloat(float64(resolved))
-			good = true
+			return true
 		case int64:
 			out.SetFloat(float64(resolved))
-			good = true
+			return true
 		case uint64:
 			out.SetFloat(float64(resolved))
-			good = true
+			return true
 		case float64:
 			out.SetFloat(resolved)
-			good = true
+			return true
+		***REMOVED***
+	case reflect.Struct:
+		if resolvedv := reflect.ValueOf(resolved); out.Type() == resolvedv.Type() ***REMOVED***
+			out.Set(resolvedv)
+			return true
 		***REMOVED***
 	case reflect.Ptr:
 		if out.Type().Elem() == reflect.TypeOf(resolved) ***REMOVED***
@@ -459,13 +521,11 @@ func (d *decoder) scalar(n *node, out reflect.Value) (good bool) ***REMOVED***
 			elem := reflect.New(out.Type().Elem())
 			elem.Elem().Set(reflect.ValueOf(resolved))
 			out.Set(elem)
-			good = true
+			return true
 		***REMOVED***
 	***REMOVED***
-	if !good ***REMOVED***
-		d.terror(n, tag, out)
-	***REMOVED***
-	return good
+	d.terror(n, tag, out)
+	return false
 ***REMOVED***
 
 func settableValueOf(i interface***REMOVED******REMOVED***) reflect.Value ***REMOVED***
@@ -561,12 +621,20 @@ func (d *decoder) mapping(n *node, out reflect.Value) (good bool) ***REMOVED***
 			***REMOVED***
 			e := reflect.New(et).Elem()
 			if d.unmarshal(n.children[i+1], e) ***REMOVED***
-				out.SetMapIndex(k, e)
+				d.setMapIndex(n.children[i+1], out, k, e)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	d.mapType = mapType
 	return true
+***REMOVED***
+
+func (d *decoder) setMapIndex(n *node, out, k, v reflect.Value) ***REMOVED***
+	if d.strict && out.MapIndex(k) != zeroValue ***REMOVED***
+		d.terrors = append(d.terrors, fmt.Sprintf("line %d: key %#v already set in map", n.line+1, k.Interface()))
+		return
+	***REMOVED***
+	out.SetMapIndex(k, v)
 ***REMOVED***
 
 func (d *decoder) mappingSlice(n *node, out reflect.Value) (good bool) ***REMOVED***
@@ -616,6 +684,10 @@ func (d *decoder) mappingStruct(n *node, out reflect.Value) (good bool) ***REMOV
 		elemType = inlineMap.Type().Elem()
 	***REMOVED***
 
+	var doneFields []bool
+	if d.strict ***REMOVED***
+		doneFields = make([]bool, len(sinfo.FieldsList))
+	***REMOVED***
 	for i := 0; i < l; i += 2 ***REMOVED***
 		ni := n.children[i]
 		if isMerge(ni) ***REMOVED***
@@ -626,6 +698,13 @@ func (d *decoder) mappingStruct(n *node, out reflect.Value) (good bool) ***REMOV
 			continue
 		***REMOVED***
 		if info, ok := sinfo.FieldsMap[name.String()]; ok ***REMOVED***
+			if d.strict ***REMOVED***
+				if doneFields[info.Id] ***REMOVED***
+					d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s already set in type %s", ni.line+1, name.String(), out.Type()))
+					continue
+				***REMOVED***
+				doneFields[info.Id] = true
+			***REMOVED***
 			var field reflect.Value
 			if info.Inline == nil ***REMOVED***
 				field = out.Field(info.Num)
@@ -639,9 +718,9 @@ func (d *decoder) mappingStruct(n *node, out reflect.Value) (good bool) ***REMOV
 			***REMOVED***
 			value := reflect.New(elemType).Elem()
 			d.unmarshal(n.children[i+1], value)
-			inlineMap.SetMapIndex(name, value)
+			d.setMapIndex(n.children[i+1], inlineMap, name, value)
 		***REMOVED*** else if d.strict ***REMOVED***
-			d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s not found in struct %s", n.line+1, name.String(), out.Type()))
+			d.terrors = append(d.terrors, fmt.Sprintf("line %d: field %s not found in type %s", ni.line+1, name.String(), out.Type()))
 		***REMOVED***
 	***REMOVED***
 	return true

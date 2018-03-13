@@ -23,8 +23,11 @@ package unix
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) ***REMOVED***
-	ts := Timespec***REMOVED***Sec: timeout.Sec, Nsec: timeout.Usec * 1000***REMOVED***
-	return Pselect(nfd, r, w, e, &ts, nil)
+	var ts *Timespec
+	if timeout != nil ***REMOVED***
+		ts = &Timespec***REMOVED***Sec: timeout.Sec, Nsec: timeout.Usec * 1000***REMOVED***
+	***REMOVED***
+	return Pselect(nfd, r, w, e, ts, nil)
 ***REMOVED***
 
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)

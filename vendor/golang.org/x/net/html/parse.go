@@ -25,12 +25,12 @@ type parser struct ***REMOVED***
 	hasSelfClosingToken bool
 	// doc is the document root element.
 	doc *Node
-	// The stack of open elements (section 12.2.3.2) and active formatting
-	// elements (section 12.2.3.3).
+	// The stack of open elements (section 12.2.4.2) and active formatting
+	// elements (section 12.2.4.3).
 	oe, afe nodeStack
-	// Element pointers (section 12.2.3.4).
+	// Element pointers (section 12.2.4.4).
 	head, form *Node
-	// Other parsing state flags (section 12.2.3.5).
+	// Other parsing state flags (section 12.2.4.5).
 	scripting, framesetOK bool
 	// im is the current insertion mode.
 	im insertionMode
@@ -38,7 +38,7 @@ type parser struct ***REMOVED***
 	// or inTableText insertion mode.
 	originalIM insertionMode
 	// fosterParenting is whether new elements should be inserted according to
-	// the foster parenting rules (section 12.2.5.3).
+	// the foster parenting rules (section 12.2.6.1).
 	fosterParenting bool
 	// quirks is whether the parser is operating in "quirks mode."
 	quirks bool
@@ -56,7 +56,7 @@ func (p *parser) top() *Node ***REMOVED***
 	return p.doc
 ***REMOVED***
 
-// Stop tags for use in popUntil. These come from section 12.2.3.2.
+// Stop tags for use in popUntil. These come from section 12.2.4.2.
 var (
 	defaultScopeStopTags = map[string][]a.Atom***REMOVED***
 		"":     ***REMOVED***a.Applet, a.Caption, a.Html, a.Table, a.Td, a.Th, a.Marquee, a.Object, a.Template***REMOVED***,
@@ -79,7 +79,7 @@ const (
 
 // popUntil pops the stack of open elements at the highest element whose tag
 // is in matchTags, provided there is no higher element in the scope's stop
-// tags (as defined in section 12.2.3.2). It returns whether or not there was
+// tags (as defined in section 12.2.4.2). It returns whether or not there was
 // such an element. If there was not, popUntil leaves the stack unchanged.
 //
 // For example, the set of stop tags for table scope is: "html", "table". If
@@ -234,7 +234,7 @@ func (p *parser) shouldFosterParent() bool ***REMOVED***
 ***REMOVED***
 
 // fosterParent adds a child node according to the foster parenting rules.
-// Section 12.2.5.3, "foster parenting".
+// Section 12.2.6.1, "foster parenting".
 func (p *parser) fosterParent(n *Node) ***REMOVED***
 	var table, parent, prev *Node
 	var i int
@@ -304,7 +304,7 @@ func (p *parser) addElement() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-// Section 12.2.3.3.
+// Section 12.2.4.3.
 func (p *parser) addFormattingElement() ***REMOVED***
 	tagAtom, attr := p.tok.DataAtom, p.tok.Attr
 	p.addElement()
@@ -351,7 +351,7 @@ findIdenticalElements:
 	p.afe = append(p.afe, p.top())
 ***REMOVED***
 
-// Section 12.2.3.3.
+// Section 12.2.4.3.
 func (p *parser) clearActiveFormattingElements() ***REMOVED***
 	for ***REMOVED***
 		n := p.afe.pop()
@@ -361,7 +361,7 @@ func (p *parser) clearActiveFormattingElements() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Section 12.2.3.3.
+// Section 12.2.4.3.
 func (p *parser) reconstructActiveFormattingElements() ***REMOVED***
 	n := p.afe.top()
 	if n == nil ***REMOVED***
@@ -390,12 +390,12 @@ func (p *parser) reconstructActiveFormattingElements() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Section 12.2.4.
+// Section 12.2.5.
 func (p *parser) acknowledgeSelfClosingTag() ***REMOVED***
 	p.hasSelfClosingToken = false
 ***REMOVED***
 
-// An insertion mode (section 12.2.3.1) is the state transition function from
+// An insertion mode (section 12.2.4.1) is the state transition function from
 // a particular state in the HTML5 parser's state machine. It updates the
 // parser's fields depending on parser.tok (where ErrorToken means EOF).
 // It returns whether the token was consumed.
@@ -403,7 +403,7 @@ type insertionMode func(*parser) bool
 
 // setOriginalIM sets the insertion mode to return to after completing a text or
 // inTableText insertion mode.
-// Section 12.2.3.1, "using the rules for".
+// Section 12.2.4.1, "using the rules for".
 func (p *parser) setOriginalIM() ***REMOVED***
 	if p.originalIM != nil ***REMOVED***
 		panic("html: bad parser state: originalIM was set twice")
@@ -411,7 +411,7 @@ func (p *parser) setOriginalIM() ***REMOVED***
 	p.originalIM = p.im
 ***REMOVED***
 
-// Section 12.2.3.1, "reset the insertion mode".
+// Section 12.2.4.1, "reset the insertion mode".
 func (p *parser) resetInsertionMode() ***REMOVED***
 	for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
 		n := p.oe[i]
@@ -452,7 +452,7 @@ func (p *parser) resetInsertionMode() ***REMOVED***
 
 const whitespace = " \t\r\n\f"
 
-// Section 12.2.5.4.1.
+// Section 12.2.6.4.1.
 func initialIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -479,7 +479,7 @@ func initialIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.2.
+// Section 12.2.6.4.2.
 func beforeHTMLIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case DoctypeToken:
@@ -517,7 +517,7 @@ func beforeHTMLIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.3.
+// Section 12.2.6.4.3.
 func beforeHeadIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -560,7 +560,7 @@ func beforeHeadIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.4.
+// Section 12.2.6.4.4.
 func inHeadIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -622,7 +622,7 @@ func inHeadIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.6.
+// Section 12.2.6.4.6.
 func afterHeadIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -697,7 +697,7 @@ func copyAttributes(dst *Node, src Token) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Section 12.2.5.4.7.
+// Section 12.2.6.4.7.
 func inBodyIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -1160,7 +1160,7 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 ***REMOVED***
 
 // inBodyEndTagOther performs the "any other end tag" algorithm for inBodyIM.
-// "Any other end tag" handling from 12.2.5.5 The rules for parsing tokens in foreign content
+// "Any other end tag" handling from 12.2.6.5 The rules for parsing tokens in foreign content
 // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inforeign
 func (p *parser) inBodyEndTagOther(tagAtom a.Atom) ***REMOVED***
 	for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
@@ -1174,7 +1174,7 @@ func (p *parser) inBodyEndTagOther(tagAtom a.Atom) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Section 12.2.5.4.8.
+// Section 12.2.6.4.8.
 func textIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case ErrorToken:
@@ -1203,7 +1203,7 @@ func textIM(p *parser) bool ***REMOVED***
 	return p.tok.Type == EndTagToken
 ***REMOVED***
 
-// Section 12.2.5.4.9.
+// Section 12.2.6.4.9.
 func inTableIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case ErrorToken:
@@ -1309,7 +1309,7 @@ func inTableIM(p *parser) bool ***REMOVED***
 	return inBodyIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.11.
+// Section 12.2.6.4.11.
 func inCaptionIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case StartTagToken:
@@ -1355,7 +1355,7 @@ func inCaptionIM(p *parser) bool ***REMOVED***
 	return inBodyIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.12.
+// Section 12.2.6.4.12.
 func inColumnGroupIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -1408,7 +1408,7 @@ func inColumnGroupIM(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Section 12.2.5.4.13.
+// Section 12.2.6.4.13.
 func inTableBodyIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case StartTagToken:
@@ -1460,7 +1460,7 @@ func inTableBodyIM(p *parser) bool ***REMOVED***
 	return inTableIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.14.
+// Section 12.2.6.4.14.
 func inRowIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case StartTagToken:
@@ -1511,7 +1511,7 @@ func inRowIM(p *parser) bool ***REMOVED***
 	return inTableIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.15.
+// Section 12.2.6.4.15.
 func inCellIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case StartTagToken:
@@ -1560,7 +1560,7 @@ func inCellIM(p *parser) bool ***REMOVED***
 	return inBodyIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.16.
+// Section 12.2.6.4.16.
 func inSelectIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case ErrorToken:
@@ -1632,7 +1632,7 @@ func inSelectIM(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Section 12.2.5.4.17.
+// Section 12.2.6.4.17.
 func inSelectInTableIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case StartTagToken, EndTagToken:
@@ -1650,7 +1650,7 @@ func inSelectInTableIM(p *parser) bool ***REMOVED***
 	return inSelectIM(p)
 ***REMOVED***
 
-// Section 12.2.5.4.18.
+// Section 12.2.6.4.19.
 func afterBodyIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case ErrorToken:
@@ -1688,7 +1688,7 @@ func afterBodyIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.19.
+// Section 12.2.6.4.20.
 func inFramesetIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case CommentToken:
@@ -1738,7 +1738,7 @@ func inFramesetIM(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Section 12.2.5.4.20.
+// Section 12.2.6.4.21.
 func afterFramesetIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case CommentToken:
@@ -1777,7 +1777,7 @@ func afterFramesetIM(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Section 12.2.5.4.21.
+// Section 12.2.6.4.22.
 func afterAfterBodyIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case ErrorToken:
@@ -1806,7 +1806,7 @@ func afterAfterBodyIM(p *parser) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-// Section 12.2.5.4.22.
+// Section 12.2.6.4.23.
 func afterAfterFramesetIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case CommentToken:
@@ -1844,7 +1844,7 @@ func afterAfterFramesetIM(p *parser) bool ***REMOVED***
 
 const whitespaceOrNUL = whitespace + "\x00"
 
-// Section 12.2.5.5.
+// Section 12.2.6.5
 func parseForeignContent(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
 	case TextToken:
@@ -1924,7 +1924,7 @@ func parseForeignContent(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Section 12.2.5.
+// Section 12.2.6.
 func (p *parser) inForeignContent() bool ***REMOVED***
 	if len(p.oe) == 0 ***REMOVED***
 		return false

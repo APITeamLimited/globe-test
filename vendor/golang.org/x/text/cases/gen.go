@@ -207,7 +207,7 @@ func genTables() ***REMOVED***
 	***REMOVED***
 
 	w := gen.NewCodeWriter()
-	defer w.WriteGoFile("tables.go", "cases")
+	defer w.WriteVersionedGoFile("tables.go", "cases")
 
 	gen.WriteUnicodeVersion(w)
 
@@ -761,7 +761,7 @@ func genTablesTest() ***REMOVED***
 
 	fmt.Fprintln(w, ")")
 
-	gen.WriteGoFile("tables_test.go", "cases", w.Bytes())
+	gen.WriteVersionedGoFile("tables_test.go", "cases", w.Bytes())
 ***REMOVED***
 
 // These functions are just used for verification that their definition have not

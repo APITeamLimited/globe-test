@@ -9,14 +9,12 @@ import (
 	"io"
 )
 
-// WriteJSON writes the JSON encoding of v as a message.
-//
-// Deprecated: Use c.WriteJSON instead.
+// WriteJSON is deprecated, use c.WriteJSON instead.
 func WriteJSON(c *Conn, v interface***REMOVED******REMOVED***) error ***REMOVED***
 	return c.WriteJSON(v)
 ***REMOVED***
 
-// WriteJSON writes the JSON encoding of v as a message.
+// WriteJSON writes the JSON encoding of v to the connection.
 //
 // See the documentation for encoding/json Marshal for details about the
 // conversion of Go values to JSON.
@@ -33,10 +31,7 @@ func (c *Conn) WriteJSON(v interface***REMOVED******REMOVED***) error ***REMOVED
 	return err2
 ***REMOVED***
 
-// ReadJSON reads the next JSON-encoded message from the connection and stores
-// it in the value pointed to by v.
-//
-// Deprecated: Use c.ReadJSON instead.
+// ReadJSON is deprecated, use c.ReadJSON instead.
 func ReadJSON(c *Conn, v interface***REMOVED******REMOVED***) error ***REMOVED***
 	return c.ReadJSON(v)
 ***REMOVED***

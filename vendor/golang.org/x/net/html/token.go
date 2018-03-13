@@ -1161,8 +1161,8 @@ func (z *Tokenizer) TagAttr() (key, val []byte, moreAttr bool) ***REMOVED***
 	return nil, nil, false
 ***REMOVED***
 
-// Token returns the next Token. The result's Data and Attr values remain valid
-// after subsequent Next calls.
+// Token returns the current Token. The result's Data and Attr values remain
+// valid after subsequent Next calls.
 func (z *Tokenizer) Token() Token ***REMOVED***
 	t := Token***REMOVED***Type: z.tt***REMOVED***
 	switch z.tt ***REMOVED***

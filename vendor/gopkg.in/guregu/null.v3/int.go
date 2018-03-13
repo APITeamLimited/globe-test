@@ -38,6 +38,14 @@ func IntFromPtr(i *int64) Int ***REMOVED***
 	return NewInt(*i, true)
 ***REMOVED***
 
+// ValueOrZero returns the inner value if valid, otherwise zero.
+func (i Int) ValueOrZero() int64 ***REMOVED***
+	if !i.Valid ***REMOVED***
+		return 0
+	***REMOVED***
+	return i.Int64
+***REMOVED***
+
 // UnmarshalJSON implements json.Unmarshaler.
 // It supports number and null input.
 // 0 will not be considered a null Int.

@@ -1,5 +1,7 @@
-// Copyright (c) 2012-2015 Ugorji Nwoke. All rights reserved.
+// Copyright (c) 2012-2018 Ugorji Nwoke. All rights reserved.
 // Use of this source code is governed by a MIT license found in the LICENSE file.
+
+// +build ignore
 
 package codec
 
@@ -89,8 +91,9 @@ func (h *noopDrv) EncodeArrayStart(length int)             ***REMOVED*** h.start
 func (h *noopDrv) EncodeMapStart(length int)               ***REMOVED*** h.start(false) ***REMOVED***
 func (h *noopDrv) EncodeEnd()                              ***REMOVED*** h.end() ***REMOVED***
 
-func (h *noopDrv) EncodeString(c charEncoding, v string)      ***REMOVED******REMOVED***
-func (h *noopDrv) EncodeSymbol(v string)                      ***REMOVED******REMOVED***
+func (h *noopDrv) EncodeString(c charEncoding, v string) ***REMOVED******REMOVED***
+
+// func (h *noopDrv) EncodeSymbol(v string)                      ***REMOVED******REMOVED***
 func (h *noopDrv) EncodeStringBytes(c charEncoding, v []byte) ***REMOVED******REMOVED***
 
 func (h *noopDrv) EncodeExt(rv interface***REMOVED******REMOVED***, xtag uint64, ext Ext, e *Encoder) ***REMOVED******REMOVED***
@@ -105,10 +108,9 @@ func (h *noopDrv) DecodeUint(bitsize uint8) (ui uint64)       ***REMOVED*** retu
 func (h *noopDrv) DecodeFloat(chkOverflow32 bool) (f float64) ***REMOVED*** return float64(h.m(95)) ***REMOVED***
 func (h *noopDrv) DecodeBool() (b bool)                       ***REMOVED*** return h.m(2) == 0 ***REMOVED***
 func (h *noopDrv) DecodeString() (s string)                   ***REMOVED*** return h.S[h.m(8)] ***REMOVED***
+func (h *noopDrv) DecodeStringAsBytes() []byte                ***REMOVED*** return h.DecodeBytes(nil, true) ***REMOVED***
 
-// func (h *noopDrv) DecodeStringAsBytes(bs []byte) []byte       ***REMOVED*** return h.DecodeBytes(bs) ***REMOVED***
-
-func (h *noopDrv) DecodeBytes(bs []byte, isstring, zerocopy bool) []byte ***REMOVED*** return h.B[h.m(len(h.B))] ***REMOVED***
+func (h *noopDrv) DecodeBytes(bs []byte, zerocopy bool) []byte ***REMOVED*** return h.B[h.m(len(h.B))] ***REMOVED***
 
 func (h *noopDrv) ReadEnd() ***REMOVED*** h.end() ***REMOVED***
 
@@ -118,9 +120,12 @@ func (h *noopDrv) ReadArrayStart() int ***REMOVED*** h.start(false); return h.m(
 
 func (h *noopDrv) ContainerType() (vt valueType) ***REMOVED***
 	// return h.m(2) == 0
-	// handle kStruct, which will bomb is it calls this and doesn't get back a map or array.
-	// consequently, if the return value is not map or array, reset it to one of them based on h.m(7) % 2
-	// for kstruct: at least one out of every 2 times, return one of valueTypeMap or Array (else kstruct bombs)
+	// handle kStruct, which will bomb is it calls this and
+	// doesn't get back a map or array.
+	// consequently, if the return value is not map or array,
+	// reset it to one of them based on h.m(7) % 2
+	// for kstruct: at least one out of every 2 times,
+	// return one of valueTypeMap or Array (else kstruct bombs)
 	// however, every 10th time it is called, we just return something else.
 	var vals = [...]valueType***REMOVED***valueTypeArray, valueTypeMap***REMOVED***
 	//  ------------ TAKE ------------
@@ -149,7 +154,8 @@ func (h *noopDrv) ContainerType() (vt valueType) ***REMOVED***
 	// ***REMOVED***
 	// return valueTypeUnset
 	// TODO: may need to tweak this so it works.
-	// if h.ct == valueTypeMap && vt == valueTypeArray || h.ct == valueTypeArray && vt == valueTypeMap ***REMOVED***
+	// if h.ct == valueTypeMap && vt == valueTypeArray ||
+	// 	h.ct == valueTypeArray && vt == valueTypeMap ***REMOVED***
 	// 	h.cb = !h.cb
 	// 	h.ct = vt
 	// 	return h.cb

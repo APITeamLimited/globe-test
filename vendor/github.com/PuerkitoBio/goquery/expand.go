@@ -41,6 +41,30 @@ func (s *Selection) AddNodes(nodes ...*html.Node) *Selection ***REMOVED***
 // AndSelf adds the previous set of elements on the stack to the current set.
 // It returns a new Selection object containing the current Selection combined
 // with the previous one.
+// Deprecated: This function has been deprecated and is now an alias for AddBack().
 func (s *Selection) AndSelf() *Selection ***REMOVED***
+	return s.AddBack()
+***REMOVED***
+
+// AddBack adds the previous set of elements on the stack to the current set.
+// It returns a new Selection object containing the current Selection combined
+// with the previous one.
+func (s *Selection) AddBack() *Selection ***REMOVED***
 	return s.AddSelection(s.prevSel)
+***REMOVED***
+
+// AddBackFiltered reduces the previous set of elements on the stack to those that
+// match the selector string, and adds them to the current set.
+// It returns a new Selection object containing the current Selection combined
+// with the filtered previous one
+func (s *Selection) AddBackFiltered(selector string) *Selection ***REMOVED***
+	return s.AddSelection(s.prevSel.Filter(selector))
+***REMOVED***
+
+// AddBackMatcher reduces the previous set of elements on the stack to those that match
+// the mateher, and adds them to the curernt set.
+// It returns a new Selection object containing the current Selection combined
+// with the filtered previous one
+func (s *Selection) AddBackMatcher(m Matcher) *Selection ***REMOVED***
+	return s.AddSelection(s.prevSel.FilterMatcher(m))
 ***REMOVED***
