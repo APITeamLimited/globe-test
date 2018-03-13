@@ -137,36 +137,18 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		req.Header.Set("User-Agent", userAgent.String)
 	***REMOVED***
 
-	var tags map[string]string
-	if state.Options.DefaultTags == nil ***REMOVED***
-		tags = map[string]string***REMOVED***
-			"proto":  "",
-			"status": "0",
-			"method": method,
-			"url":    url.URLString,
-			"name":   url.Name,
-			"group":  state.Group.Path,
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		tags = map[string]string***REMOVED******REMOVED***
-		if state.Options.DefaultTags["proto"] ***REMOVED***
-			tags["proto"] = ""
-		***REMOVED***
-		if state.Options.DefaultTags["status"] ***REMOVED***
-			tags["status"] = "0"
-		***REMOVED***
-		if state.Options.DefaultTags["method"] ***REMOVED***
-			tags["method"] = method
-		***REMOVED***
-		if state.Options.DefaultTags["url"] ***REMOVED***
-			tags["url"] = url.URLString
-		***REMOVED***
-		if state.Options.DefaultTags["name"] ***REMOVED***
-			tags["name"] = url.Name
-		***REMOVED***
-		if state.Options.DefaultTags["group"] ***REMOVED***
-			tags["group"] = state.Group.Path
-		***REMOVED***
+	tags := map[string]string***REMOVED******REMOVED***
+	if state.Options.SystemTags["method"] ***REMOVED***
+		tags["method"] = method
+	***REMOVED***
+	if state.Options.SystemTags["url"] ***REMOVED***
+		tags["url"] = url.URLString
+	***REMOVED***
+	if state.Options.SystemTags["name"] ***REMOVED***
+		tags["name"] = url.Name
+	***REMOVED***
+	if state.Options.SystemTags["group"] ***REMOVED***
+		tags["group"] = state.Group.Path
 	***REMOVED***
 
 	redirects := state.Options.MaxRedirects
@@ -356,7 +338,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 
 	if resErr != nil ***REMOVED***
 		resp.Error = resErr.Error()
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["error"] ***REMOVED***
+		if state.Options.SystemTags["error"] ***REMOVED***
 			tags["error"] = resp.Error
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -370,22 +352,22 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		resp.Status = res.StatusCode
 		resp.Proto = res.Proto
 
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["url"] ***REMOVED***
+		if state.Options.SystemTags["url"] ***REMOVED***
 			tags["url"] = resp.URL
 		***REMOVED***
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["status"] ***REMOVED***
+		if state.Options.SystemTags["status"] ***REMOVED***
 			tags["status"] = strconv.Itoa(resp.Status)
 		***REMOVED***
-		if state.Options.DefaultTags == nil || state.Options.DefaultTags["proto"] ***REMOVED***
+		if state.Options.SystemTags["proto"] ***REMOVED***
 			tags["proto"] = resp.Proto
 		***REMOVED***
 
 		if res.TLS != nil ***REMOVED***
 			resp.setTLSInfo(res.TLS)
-			if state.Options.DefaultTags == nil || state.Options.DefaultTags["tls_version"] ***REMOVED***
+			if state.Options.SystemTags["tls_version"] ***REMOVED***
 				tags["tls_version"] = resp.TLSVersion
 			***REMOVED***
-			if state.Options.DefaultTags == nil || state.Options.DefaultTags["ocsp_status"] ***REMOVED***
+			if state.Options.SystemTags["ocsp_status"] ***REMOVED***
 				tags["ocsp_status"] = resp.OCSP.Status
 			***REMOVED***
 		***REMOVED***

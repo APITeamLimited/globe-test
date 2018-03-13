@@ -106,6 +106,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			MaxRedirects: null.IntFrom(10),
 			UserAgent:    null.StringFrom("TestUserAgent"),
 			Throw:        null.BoolFrom(true),
+			SystemTags:   lib.GetTagSet(lib.DefaultSystemTagList...),
 		***REMOVED***,
 		Logger: logger,
 		Group:  root,
@@ -896,7 +897,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
-func TestDefaultTags(t *testing.T) ***REMOVED***
+func TestSystemTags(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
 
@@ -930,7 +931,7 @@ func TestDefaultTags(t *testing.T) ***REMOVED***
 	*ctx = common.WithRuntime(*ctx, rt)
 	rt.Set("http", common.Bind(rt, New(), ctx))
 
-	defaultTagsTest := map[string]string***REMOVED***
+	testedSystemTags := map[string]string***REMOVED***
 		"error":       "http://nonexistenturl.loadimpact.com",
 		"group":       "https://httpbin.org/",
 		"method":      "https://httpbin.org/",
@@ -941,9 +942,9 @@ func TestDefaultTags(t *testing.T) ***REMOVED***
 		"tls_version": "https://httpbin.org/",
 		"url":         "https://httpbin.org/",
 	***REMOVED***
-	for _, expectedTag := range defaultTagsTest ***REMOVED***
+	for _, expectedTag := range testedSystemTags ***REMOVED***
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
-			state.Options.DefaultTags = map[string]bool***REMOVED***
+			state.Options.SystemTags = map[string]bool***REMOVED***
 				expectedTag: true,
 			***REMOVED***
 			state.Samples = nil

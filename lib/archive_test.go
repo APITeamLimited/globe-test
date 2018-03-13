@@ -49,8 +49,11 @@ func TestAnonymizePath(t *testing.T) ***REMOVED***
 func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 	t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
 		arc1 := &Archive***REMOVED***
-			Type:     "js",
-			Options:  Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***,
+			Type: "js",
+			Options: Options***REMOVED***
+				VUs:        null.IntFrom(12345),
+				SystemTags: GetTagSet(DefaultSystemTagList...),
+			***REMOVED***,
 			Filename: "/path/to/script.js",
 			Data:     []byte(`// contents...`),
 			Pwd:      "/path/to",
@@ -76,8 +79,11 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 
 	t.Run("Anonymized", func(t *testing.T) ***REMOVED***
 		arc1 := &Archive***REMOVED***
-			Type:     "js",
-			Options:  Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***,
+			Type: "js",
+			Options: Options***REMOVED***
+				VUs:        null.IntFrom(12345),
+				SystemTags: GetTagSet(DefaultSystemTagList...),
+			***REMOVED***,
 			Filename: "/home/myname/script.js",
 			Data:     []byte(`// contents...`),
 			Pwd:      "/home/myname",
@@ -93,8 +99,11 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***
 		arc1Anon := &Archive***REMOVED***
-			Type:     "js",
-			Options:  Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***,
+			Type: "js",
+			Options: Options***REMOVED***
+				VUs:        null.IntFrom(12345),
+				SystemTags: GetTagSet(DefaultSystemTagList...),
+			***REMOVED***,
 			Filename: "/home/nobody/script.js",
 			Data:     []byte(`// contents...`),
 			Pwd:      "/home/nobody",

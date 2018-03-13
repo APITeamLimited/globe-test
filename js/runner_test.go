@@ -618,7 +618,10 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	r1.SetOptions(lib.Options***REMOVED***
+		Throw:      null.BoolFrom(true),
+		SystemTags: lib.GetTagSet("proto"),
+	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
