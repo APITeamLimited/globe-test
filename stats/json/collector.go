@@ -26,7 +26,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -67,10 +66,6 @@ func New(fs afero.Fs, fname string) (*Collector, error) ***REMOVED***
 
 func (c *Collector) Init() error ***REMOVED***
 	return nil
-***REMOVED***
-
-func (c *Collector) GetOptions() lib.CollectorOptions ***REMOVED***
-	return lib.CollectorOptions***REMOVED******REMOVED***
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***

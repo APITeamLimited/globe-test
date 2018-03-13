@@ -24,7 +24,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -36,10 +35,6 @@ type Collector struct ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
-
-func (c *Collector) GetOptions() lib.CollectorOptions ***REMOVED***
-	return lib.CollectorOptions***REMOVED******REMOVED***
-***REMOVED***
 
 func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*** return nil ***REMOVED***
 

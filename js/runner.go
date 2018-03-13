@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"strconv"
 	"time"
 
 	"github.com/dop251/goja"
@@ -50,10 +51,9 @@ type Runner struct ***REMOVED***
 	Logger       *log.Logger
 	defaultGroup *lib.Group
 
-	BaseDialer       net.Dialer
-	Resolver         *dnscache.Resolver
-	RPSLimit         *rate.Limiter
-	CollectorOptions lib.CollectorOptions
+	BaseDialer net.Dialer
+	Resolver   *dnscache.Resolver
+	RPSLimit   *rate.Limiter
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
@@ -193,10 +193,6 @@ func (r *Runner) SetOptions(opts lib.Options) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runner) SetCollectorOptions(opts lib.CollectorOptions) ***REMOVED***
-	r.CollectorOptions = opts
-***REMOVED***
-
 type VU struct ***REMOVED***
 	BundleInstance
 
@@ -244,17 +240,16 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	***REMOVED***
 
 	state := &common.State***REMOVED***
-		Logger:           u.Runner.Logger,
-		Options:          u.Runner.Bundle.Options,
-		CollectorOptions: u.Runner.CollectorOptions,
-		Group:            u.Runner.defaultGroup,
-		HTTPTransport:    u.HTTPTransport,
-		Dialer:           u.Dialer,
-		CookieJar:        cookieJar,
-		RPSLimit:         u.Runner.RPSLimit,
-		BPool:            u.BPool,
-		Vu:               u.ID,
-		Iteration:        u.Iteration,
+		Logger:        u.Runner.Logger,
+		Options:       u.Runner.Bundle.Options,
+		Group:         u.Runner.defaultGroup,
+		HTTPTransport: u.HTTPTransport,
+		Dialer:        u.Dialer,
+		CookieJar:     cookieJar,
+		RPSLimit:      u.Runner.RPSLimit,
+		BPool:         u.BPool,
+		Vu:            u.ID,
+		Iteration:     u.Iteration,
 	***REMOVED***
 	// Zero out the values, since we may be reusing a connection
 	u.Dialer.BytesRead = 0
@@ -265,16 +260,25 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	*u.Context = newctx
 
 	u.Runtime.Set("__ITER", u.Iteration)
+	iter := u.Iteration
 	u.Iteration++
 
 	startTime := time.Now()
 	_, err = u.Default(goja.Undefined()) // Actually run the JS script
 	t := time.Now()
 
+	tags := map[string]string***REMOVED******REMOVED***
+	if state.Options.SystemTags["vu"] ***REMOVED***
+		tags["vu"] = strconv.FormatInt(u.ID, 10)
+	***REMOVED***
+	if state.Options.SystemTags["iter"] ***REMOVED***
+		tags["iter"] = strconv.FormatInt(iter, 10)
+	***REMOVED***
+
 	samples := append(state.Samples,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten)***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead)***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime))***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: tags***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: tags***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: tags***REMOVED***,
 	)
 
 	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
