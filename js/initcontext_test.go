@@ -291,7 +291,7 @@ func TestInitContextOpenBinary(t *testing.T) ***REMOVED***
 		export let data = open("/path/to/file.bin", "b");
 		export default function() ***REMOVED*** console.log(data); ***REMOVED***
 		`),
-	***REMOVED***, fs)
+	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -348,7 +348,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 				return true;
 			***REMOVED***
 			`, srv.URL)),
-	***REMOVED***, fs)
+	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 
 	bi, err := b.Instantiate()
