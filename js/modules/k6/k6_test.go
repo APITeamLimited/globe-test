@@ -122,8 +122,16 @@ func TestCheck(t *testing.T) ***REMOVED***
 	*ctx = baseCtx
 	rt.Set("k6", common.Bind(rt, New(), ctx))
 
+	getState := func() *common.State ***REMOVED***
+		return &common.State***REMOVED***
+			Group: root,
+			Options: lib.Options***REMOVED***
+				SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...),
+			***REMOVED***,
+		***REMOVED***
+	***REMOVED***
 	t.Run("Object", func(t *testing.T) ***REMOVED***
-		state := &common.State***REMOVED***Group: root***REMOVED***
+		state := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
@@ -140,7 +148,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("Multiple", func(t *testing.T) ***REMOVED***
-			state := &common.State***REMOVED***Group: root***REMOVED***
+			state := getState()
 			*ctx = common.WithState(baseCtx, state)
 
 			_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
@@ -170,8 +178,9 @@ func TestCheck(t *testing.T) ***REMOVED***
 			assert.EqualError(t, err, "GoError: group and check names may not contain '::'")
 		***REMOVED***)
 	***REMOVED***)
+
 	t.Run("Array", func(t *testing.T) ***REMOVED***
-		state := &common.State***REMOVED***Group: root***REMOVED***
+		state := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, [ true ])`)
@@ -187,8 +196,9 @@ func TestCheck(t *testing.T) ***REMOVED***
 			***REMOVED***, state.Samples[0].Tags)
 		***REMOVED***
 	***REMOVED***)
+
 	t.Run("Literal", func(t *testing.T) ***REMOVED***
-		state := &common.State***REMOVED***Group: root***REMOVED***
+		state := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, 12345)`)
@@ -228,7 +238,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				for value, succ := range testdata ***REMOVED***
 					t.Run(value, func(t *testing.T) ***REMOVED***
-						state := &common.State***REMOVED***Group: root***REMOVED***
+						state := getState()
 						*ctx = common.WithState(baseCtx, state)
 
 						v, err := common.RunString(rt, fmt.Sprintf(tpl, value))
@@ -284,7 +294,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Tags", func(t *testing.T) ***REMOVED***
-		state := &common.State***REMOVED***Group: root***REMOVED***
+		state := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		v, err := common.RunString(rt, `k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)

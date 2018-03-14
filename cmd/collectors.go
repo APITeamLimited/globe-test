@@ -22,6 +22,7 @@ package cmd
 
 import (
 	"encoding"
+	"fmt"
 	"strings"
 
 	"github.com/kelseyhightower/envconfig"
@@ -51,7 +52,7 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func newCollector(t, arg string, src *lib.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
+func newCollector(collectorName, arg string, src *lib.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
 	loadConfig := func(out encoding.TextUnmarshaler) error ***REMOVED***
 		if err := envconfig.Process("k6", out); err != nil ***REMOVED***
 			return err
@@ -62,22 +63,46 @@ func newCollector(t, arg string, src *lib.SourceData, conf Config) (lib.Collecto
 		return nil
 	***REMOVED***
 
-	switch t ***REMOVED***
-	case collectorJSON:
-		return jsonc.New(afero.NewOsFs(), arg)
-	case collectorInfluxDB:
-		config := conf.Collectors.InfluxDB
-		if err := loadConfig(&config); err != nil ***REMOVED***
-			return nil, err
+	getCollector := func() (lib.Collector, error) ***REMOVED***
+		switch collectorName ***REMOVED***
+		case collectorJSON:
+			return jsonc.New(afero.NewOsFs(), arg)
+		case collectorInfluxDB:
+			config := conf.Collectors.InfluxDB
+			if err := loadConfig(&config); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			return influxdb.New(config)
+		case collectorCloud:
+			config := conf.Collectors.Cloud
+			if err := loadConfig(&config); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			return cloud.New(config, src, conf.Options, Version)
+		default:
+			return nil, errors.Errorf("unknown output type: %s", collectorName)
 		***REMOVED***
-		return influxdb.New(config)
-	case collectorCloud:
-		config := conf.Collectors.Cloud
-		if err := loadConfig(&config); err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		return cloud.New(config, src, conf.Options, Version)
-	default:
-		return nil, errors.Errorf("unknown output type: %s", t)
 	***REMOVED***
+
+	collector, err := getCollector()
+	if err != nil ***REMOVED***
+		return collector, err
+	***REMOVED***
+
+	// Check if all required tags are present
+	missingRequiredTags := []string***REMOVED******REMOVED***
+	for reqTag := range collector.GetRequiredSystemTags() ***REMOVED***
+		if !conf.SystemTags[reqTag] ***REMOVED***
+			missingRequiredTags = append(missingRequiredTags, reqTag)
+		***REMOVED***
+	***REMOVED***
+	if len(missingRequiredTags) > 0 ***REMOVED***
+		return collector, fmt.Errorf(
+			"The specified collector '%s' needs the following system tags enabled: %s",
+			collectorName,
+			strings.Join(missingRequiredTags, ", "),
+		)
+	***REMOVED***
+
+	return collector, nil
 ***REMOVED***
