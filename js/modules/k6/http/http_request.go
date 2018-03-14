@@ -25,11 +25,14 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/textproto"
 	neturl "net/url"
 	"strconv"
 	"strings"
@@ -103,14 +106,61 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
 		var data map[string]goja.Value
 		if rt.ExportTo(args[0], &data) == nil ***REMOVED***
-			bodyQuery := make(neturl.Values, len(data))
-			for k, v := range data ***REMOVED***
-				if v != goja.Undefined() ***REMOVED***
+			// handling multipart request
+			if requestContainsFile(data) ***REMOVED***
+				bodyBuf = &bytes.Buffer***REMOVED******REMOVED***
+				mpw := multipart.NewWriter(bodyBuf)
+
+				// For parameters of type common.FileData, created with open(file, "b"),
+				// we write the file boundary to the body buffer.
+				// Otherwise parameters are treated as standard form field.
+				for k, v := range data ***REMOVED***
+					switch ve := v.Export().(type) ***REMOVED***
+					case FileData:
+						// writing our own part to handle receiving
+						// different content-type than the default application/octet-stream
+						h := make(textproto.MIMEHeader)
+						escapedFilename := escapeQuotes(ve.Filename)
+						h.Set("Content-Disposition",
+							fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+								escapedFilename, escapedFilename))
+						h.Set("Content-Type", ve.ContentType)
+
+						// this writer will be closed either be the next part or
+						// the call to mpw.Close()
+						fw, err := mpw.CreatePart(h)
+						if err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+
+						if _, err := fw.Write(ve.Data); err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+					default:
+						fw, err := mpw.CreateFormField(k)
+						if err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+
+						if _, err := fw.Write([]byte(v.String())); err != nil ***REMOVED***
+							return nil, nil, err
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+
+				if err := mpw.Close(); err != nil ***REMOVED***
+					return nil, nil, err
+				***REMOVED***
+
+				contentType = mpw.FormDataContentType()
+			***REMOVED*** else ***REMOVED***
+				bodyQuery := make(neturl.Values, len(data))
+				for k, v := range data ***REMOVED***
 					bodyQuery.Set(k, v.String())
 				***REMOVED***
+				bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
+				contentType = "application/x-www-form-urlencoded"
 			***REMOVED***
-			bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
-			contentType = "application/x-www-form-urlencoded"
 		***REMOVED*** else ***REMOVED***
 			bodyBuf = bytes.NewBufferString(args[0].String())
 		***REMOVED***
@@ -478,4 +528,14 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 		***REMOVED***
 	***REMOVED***
 	return retval, err
+***REMOVED***
+
+func requestContainsFile(data map[string]goja.Value) bool ***REMOVED***
+	for _, v := range data ***REMOVED***
+		switch v.Export().(type) ***REMOVED***
+		case FileData:
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
 ***REMOVED***

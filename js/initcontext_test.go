@@ -21,12 +21,22 @@
 package js
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/netext"
+	"github.com/oxtoacart/bpool"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 )
@@ -268,4 +278,112 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 		assert.EqualError(t, err, "GoError: open /nonexistent.txt: file does not exist")
 	***REMOVED***)
+***REMOVED***
+
+func TestInitContextOpenBinary(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(`
+		export let data = open("/path/to/file.bin", "b");
+		export default function() ***REMOVED*** console.log(data); ***REMOVED***
+		`),
+	***REMOVED***, fs)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bi, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		t.Log(err)
+		return
+	***REMOVED***
+
+	bytes := []byte***REMOVED***104, 105, 33***REMOVED***
+	assert.Equal(t, bytes, bi.Runtime.Get("data").Export())
+***REMOVED***
+
+func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	ch := make(chan bool, 1)
+
+	h := func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		defer func() ***REMOVED***
+			ch <- true
+		***REMOVED***()
+
+		r.ParseMultipartForm(32 << 20)
+		file, _, err := r.FormFile("test.bin")
+		assert.NoError(t, err)
+		defer file.Close()
+		bytes := make([]byte, 3)
+		_, err = file.Read(bytes)
+		assert.NoError(t, err)
+		assert.Equal(t, []byte("hi!"), bytes)
+		assert.Equal(t, "this is a standard form field", r.FormValue("field"))
+	***REMOVED***
+
+	srv := httptest.NewServer(http.HandlerFunc(h))
+	defer srv.Close()
+
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(fmt.Sprintf(`
+			import http from "k6/http";
+			let binFile = open("/path/to/file.bin", "b");
+			export default function() ***REMOVED***
+				var data = ***REMOVED***
+					field: "this is a standard form field",
+					file: http.file(binFile, "test.bin")
+				***REMOVED***;
+				var res = http.post("%s", data);
+				return true;
+			***REMOVED***
+			`, srv.URL)),
+	***REMOVED***, fs)
+	assert.NoError(t, err)
+
+	bi, err := b.Instantiate()
+	assert.NoError(t, err)
+
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	logger := log.New()
+	logger.Level = log.DebugLevel
+	logger.Out = ioutil.Discard
+
+	state := &common.State***REMOVED***
+		Options: lib.Options***REMOVED******REMOVED***,
+		Logger:  logger,
+		Group:   root,
+		HTTPTransport: &http.Transport***REMOVED***
+			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
+				Timeout:   10 * time.Second,
+				KeepAlive: 60 * time.Second,
+				DualStack: true,
+			***REMOVED***)).DialContext,
+		***REMOVED***,
+		BPool: bpool.NewBufferPool(1),
+	***REMOVED***
+
+	ctx := context.Background()
+	ctx = common.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, bi.Runtime)
+	*bi.Context = ctx
+
+	v, err := bi.Default(goja.Undefined())
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+	assert.Equal(t, true, v.Export())
+
+	<-ch
 ***REMOVED***

@@ -50,55 +50,55 @@ func New() *Crypto ***REMOVED***
 	return &Crypto***REMOVED******REMOVED***
 ***REMOVED***
 
-func (c *Crypto) Md4(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Md4(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "md4")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Md5(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Md5(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "md5")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha1(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha1(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha1")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha256(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha256(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha256")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha384(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha384(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha384")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha512(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha512(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha512")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha512_224(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha512_224(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha512_224")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Sha512_256(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Sha512_256(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "sha512_256")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
 ***REMOVED***
 
-func (c *Crypto) Ripemd160(ctx context.Context, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Ripemd160(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHash(ctx, "ripemd160")
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
@@ -132,8 +132,8 @@ func (*Crypto) CreateHash(ctx context.Context, algorithm string) *Hasher ***REMO
 	return &hasher
 ***REMOVED***
 
-func (hasher *Hasher) Update(input string) ***REMOVED***
-	_, err := hasher.hash.Write([]byte(input))
+func (hasher *Hasher) Update(input []byte) ***REMOVED***
+	_, err := hasher.hash.Write(input)
 	if err != nil ***REMOVED***
 		common.Throw(common.GetRuntime(hasher.ctx), err)
 	***REMOVED***
@@ -195,7 +195,7 @@ func (c Crypto) CreateHMAC(ctx context.Context, algorithm string, key string) *H
 	return &hasher
 ***REMOVED***
 
-func (c *Crypto) Hmac(ctx context.Context, algorithm string, key string, input string, outputEncoding string) string ***REMOVED***
+func (c *Crypto) Hmac(ctx context.Context, algorithm string, key string, input []byte, outputEncoding string) string ***REMOVED***
 	hasher := c.CreateHMAC(ctx, algorithm, key)
 	hasher.Update(input)
 	return hasher.Digest(outputEncoding)
