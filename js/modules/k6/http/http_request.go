@@ -39,6 +39,7 @@ import (
 	"sync"
 	"time"
 
+	digest "github.com/Soontao/goHttpDigestClient"
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib/netext"
@@ -210,6 +211,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	redirects := state.Options.MaxRedirects
 	timeout := 60 * time.Second
 	throw := state.Options.Throw.Bool
+	auth := ""
 
 	var activeJar *cookiejar.Jar
 	if state.CookieJar != nil ***REMOVED***
@@ -294,6 +296,8 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 					for _, key := range tagObj.Keys() ***REMOVED***
 						tags[key] = tagObj.Get(key).String()
 					***REMOVED***
+				case "auth":
+					auth = params.Get(k).String()
 				case "timeout":
 					timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
 				case "throw":
@@ -352,10 +356,29 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***,
 	***REMOVED***
 
+	// if digest authentication option is passed, make an initial request to get the authentication params to compute the authorization header
+	if auth == "digest" ***REMOVED***
+		res, _ := client.Do(req.WithContext(ctx))
+		if res.StatusCode == http.StatusUnauthorized ***REMOVED***
+			username := url.URL.User.Username()
+			password, _ := url.URL.User.Password()
+			body := ""
+			if b, err := ioutil.ReadAll(res.Body); err == nil ***REMOVED***
+				body = string(b)
+			***REMOVED***
+
+			challenge := digest.GetChallengeFromHeader(&res.Header)
+			challenge.ComputeResponse(req.Method, req.URL.RequestURI(), body, username, password)
+			authorization := challenge.ToAuthorizationStr()
+			req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
+		***REMOVED***
+	***REMOVED***
+
 	tracer := netext.Tracer***REMOVED******REMOVED***
 	h.debugRequest(state, req, "Request")
 	res, resErr := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
 	h.debugResponse(state, res, "Response")
+
 	if resErr == nil && res != nil ***REMOVED***
 		switch res.Header.Get("Content-Encoding") ***REMOVED***
 		case "deflate":

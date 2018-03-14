@@ -592,6 +592,27 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 
+		t.Run("auth", func(t *testing.T) ***REMOVED***
+			t.Run("basic", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
+				_, err := common.RunString(rt, `
+				let res = http.request("GET", "https://bob:pass@httpbin.org/basic-auth/bob/pass", null, ***REMOVED******REMOVED***);
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://bob:pass@httpbin.org/basic-auth/bob/pass", "", 200, "")
+			***REMOVED***)
+			t.Run("digest", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
+				_, err := common.RunString(rt, `
+				let res = http.request("GET", "https://bob:pass@httpbin.org/digest-auth/auth/bob/pass", null, ***REMOVED*** auth: "digest" ***REMOVED***);
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				`)
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", "https://bob:pass@httpbin.org/digest-auth/auth/bob/pass", "", 200, "")
+			***REMOVED***)
+		***REMOVED***)
+
 		t.Run("headers", func(t *testing.T) ***REMOVED***
 			for _, literal := range []string***REMOVED***`null`, `undefined`***REMOVED*** ***REMOVED***
 				state.Samples = nil
