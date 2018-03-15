@@ -52,7 +52,7 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 			***REMOVED***
 
 			assert.Equal(t, strconv.Itoa(status), sample.Tags["status"])
-			assert.Equal(t, subprotocol, sample.Tags["subprotocol"])
+			assert.Equal(t, subprotocol, sample.Tags["subproto"])
 			assert.Equal(t, group, sample.Tags["group"])
 		***REMOVED***
 	***REMOVED***
@@ -84,7 +84,13 @@ func TestSession(t *testing.T) ***REMOVED***
 		KeepAlive: 60 * time.Second,
 		DualStack: true,
 	***REMOVED***)
-	state := &common.State***REMOVED***Group: root, Dialer: dialer***REMOVED***
+	state := &common.State***REMOVED***
+		Group:  root,
+		Dialer: dialer,
+		Options: lib.Options***REMOVED***
+			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto"),
+		***REMOVED***,
+	***REMOVED***
 
 	ctx := context.Background()
 	ctx = common.WithState(ctx, state)
@@ -272,7 +278,13 @@ func TestErrors(t *testing.T) ***REMOVED***
 		KeepAlive: 60 * time.Second,
 		DualStack: true,
 	***REMOVED***)
-	state := &common.State***REMOVED***Group: root, Dialer: dialer***REMOVED***
+	state := &common.State***REMOVED***
+		Group:  root,
+		Dialer: dialer,
+		Options: lib.Options***REMOVED***
+			SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...),
+		***REMOVED***,
+	***REMOVED***
 
 	ctx := context.Background()
 	ctx = common.WithState(ctx, state)
@@ -313,4 +325,58 @@ func TestErrors(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assertSessionMetricsEmitted(t, state.Samples, "", "ws://demos.kaazing.com/echo", 101, "")
 	***REMOVED***)
+***REMOVED***
+
+func TestSystemTags(t *testing.T) ***REMOVED***
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	dialer := netext.NewDialer(net.Dialer***REMOVED***
+		Timeout:   10 * time.Second,
+		KeepAlive: 60 * time.Second,
+		DualStack: true,
+	***REMOVED***)
+
+	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url"***REMOVED***
+	state := &common.State***REMOVED***
+		Group:   root,
+		Dialer:  dialer,
+		Options: lib.Options***REMOVED***SystemTags: lib.GetTagSet(testedSystemTags...)***REMOVED***,
+	***REMOVED***
+
+	ctx := context.Background()
+	ctx = common.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, rt)
+
+	rt.Set("ws", common.Bind(rt, New(), &ctx))
+
+	for _, expectedTag := range testedSystemTags ***REMOVED***
+		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
+			state.Options.SystemTags = map[string]bool***REMOVED***
+				expectedTag: true,
+			***REMOVED***
+			state.Samples = nil
+			_, err := common.RunString(rt, `
+			let res = ws.connect("ws://demos.kaazing.com/echo", function(socket)***REMOVED***
+				socket.on("open", function() ***REMOVED***
+					socket.send("test")
+				***REMOVED***)
+				socket.on("message", function (data)***REMOVED***
+					if (!data=="test") ***REMOVED***
+						throw new Error ("echo'd data doesn't match our message!");
+					***REMOVED***
+					socket.close()
+				***REMOVED***);
+			***REMOVED***);
+			`)
+			assert.NoError(t, err)
+			for _, sample := range state.Samples ***REMOVED***
+				for emittedTag := range sample.Tags ***REMOVED***
+					assert.Equal(t, expectedTag, emittedTag)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

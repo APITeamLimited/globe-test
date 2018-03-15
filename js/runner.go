@@ -267,9 +267,13 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
 	_, err = u.Default(goja.Undefined()) // Actually run the JS script
 	t := time.Now()
 
-	tags := map[string]string***REMOVED***
-		"vu":   strconv.FormatInt(u.ID, 10),
-		"iter": strconv.FormatInt(iter, 10)***REMOVED***
+	tags := map[string]string***REMOVED******REMOVED***
+	if state.Options.SystemTags["vu"] ***REMOVED***
+		tags["vu"] = strconv.FormatInt(u.ID, 10)
+	***REMOVED***
+	if state.Options.SystemTags["iter"] ***REMOVED***
+		tags["iter"] = strconv.FormatInt(iter, 10)
+	***REMOVED***
 
 	samples := append(state.Samples,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: tags***REMOVED***,

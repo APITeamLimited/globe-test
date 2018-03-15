@@ -31,6 +31,46 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+// DefaultSystemTagList includes all of the system tags emitted with metrics by default.
+// Other tags that are not enabled by default include: iter, vu, ocsp_status
+var DefaultSystemTagList = []string***REMOVED***
+	"proto", "subproto", "status", "method", "url", "name", "group", "check", "error", "tls_version",
+***REMOVED***
+
+// TagSet is a string to bool map (for lookup efficiency) that is used to keep track
+// which system tags should be included with with metrics.
+type TagSet map[string]bool
+
+// GetTagSet converts a the passed string tag names into the expected string to bool map.
+func GetTagSet(tags ...string) TagSet ***REMOVED***
+	result := TagSet***REMOVED******REMOVED***
+	for _, tag := range tags ***REMOVED***
+		result[tag] = true
+	***REMOVED***
+	return result
+***REMOVED***
+
+// MarshalJSON converts the tags map to a list (JS array).
+func (t TagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+	var tags []string
+	for tag := range t ***REMOVED***
+		tags = append(tags, tag)
+	***REMOVED***
+	return json.Marshal(tags)
+***REMOVED***
+
+// UnmarshalJSON converts the tag list back to a the expected set (string to bool map).
+func (t *TagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+	var tags []string
+	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if len(tags) != 0 ***REMOVED***
+		*t = GetTagSet(tags...)
+	***REMOVED***
+	return nil
+***REMOVED***
+
 // Describes a TLS version. Serialised to/from JSON as a string, eg. "tls1.2".
 type TLSVersion int
 
@@ -201,6 +241,9 @@ type Options struct ***REMOVED***
 
 	// Summary trend stats for trend metrics (response times) in CLI output
 	SummaryTrendStats []string `json:"SummaryTrendStats" envconfig:"summary_trend_stats"`
+
+	// Which system tags to include with metrics ("method", "vu" etc.)
+	SystemTags TagSet `json:"systemTags" envconfig:"system_tags"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -278,6 +321,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.SummaryTrendStats != nil ***REMOVED***
 		o.SummaryTrendStats = opts.SummaryTrendStats
+	***REMOVED***
+	if opts.SystemTags != nil ***REMOVED***
+		o.SystemTags = opts.SystemTags
 	***REMOVED***
 	return o
 ***REMOVED***
