@@ -138,12 +138,12 @@ func TestSetupTeardown(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`),
-	***REMOVED***, afero.NewMemMapFs())
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive())
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
