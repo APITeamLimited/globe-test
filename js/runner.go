@@ -347,7 +347,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
 
-    state.Samples := append(state.Samples,
+	state.Samples = append(state.Samples,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: tags***REMOVED***,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: tags***REMOVED***,
 		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: tags***REMOVED***,
