@@ -69,7 +69,7 @@ func L(r lib.Runner) lib.Executor ***REMOVED***
 ***REMOVED***
 
 func LF(fn func(ctx context.Context) ([]stats.Sample, error)) lib.Executor ***REMOVED***
-	return L(lib.RunnerFunc(fn))
+	return L(&lib.MiniRunner***REMOVED***Fn: fn***REMOVED***)
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
