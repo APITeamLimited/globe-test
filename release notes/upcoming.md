@@ -54,6 +54,29 @@ Thanks to @cstyan for their work on this!
 
 **Docs**: [Request information](https://docs.k6.io/docs/TODO)
 
+### Lifecycle: setup/teardown functions (#457)
+Finally k6 has the same basic test lifecycle hooks as many "normal" testing tools, setup and teardown, and you have the full JS API of k6 available within these functions which means you can make HTTP calls etc. that you can’t do in the global/init scope.
+
+To use the lifecycle hooks you simply define an exported setup() and/or teardown() function in your script:
+
+```js
+export function setup() ***REMOVED***
+	return ***REMOVED*** “data”: “passed to main and teardown function” ***REMOVED***;
+***REMOVED***
+
+export function teardown(data)  ***REMOVED***
+	console.log(JSON.stringify(data));
+***REMOVED***
+
+export default function(data) ***REMOVED***
+if (data.v != 1) ***REMOVED***
+		throw new Error("incorrect data: " + JSON.stringify(data));
+	***REMOVED***
+***REMOVED***
+```
+
+**Docs**: [Test life cycle](https://docs.k6.io/v1.0/docs/test-life-cycle)
+
 ### CLI: HTTP debug flag (#447)
 If you specify `--http-debug` when running a test k6 will now continuously print request and response information.
 
