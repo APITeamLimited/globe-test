@@ -151,8 +151,9 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	***REMOVED***
 
 	wsd := websocket.Dialer***REMOVED***
-		NetDial: netDial,
-		Proxy:   http.ProxyFromEnvironment,
+		NetDial:         netDial,
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: state.TLSConfig,
 	***REMOVED***
 
 	start := time.Now()
