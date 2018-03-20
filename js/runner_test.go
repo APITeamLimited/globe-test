@@ -35,6 +35,7 @@ import (
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
@@ -697,24 +698,28 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
-		Data: []byte(`
+		Data: []byte(tb.Replacer.Replace(`
 			import http from "k6/http";
 			export default function() ***REMOVED***
-				let preRes = http.get("https://httpbin.org/cookies");
+				let url = "HTTPBIN_URL";
+				let preRes = http.get(url + "/cookies");
 				if (preRes.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + preRes.status); ***REMOVED***
-				if (preRes.json().cookies.k1 || preRes.json().cookies.k2) ***REMOVED***
+				if (preRes.json().k1 || preRes.json().k2) ***REMOVED***
 					throw new Error("cookies persisted: " + preRes.body);
 				***REMOVED***
 
-				let res = http.get("https://httpbin.org/cookies/set?k2=v2&k1=v1");
+				let res = http.get(url + "/cookies/set?k2=v2&k1=v1");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
-				if (res.json().cookies.k1 != "v1" || res.json().cookies.k2 != "v2") ***REMOVED***
+				if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
 					throw new Error("wrong cookies: " + res.body);
 				***REMOVED***
 			***REMOVED***
-		`),
+		`)),
 	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
@@ -722,6 +727,7 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		MaxRedirects: null.IntFrom(10),
+		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
