@@ -52,7 +52,9 @@ func TestCollectorCollect(t *testing.T) ***REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		go func() ***REMOVED*** c.Run(ctx) ***REMOVED***()
-		time.Sleep(1 * time.Millisecond)
+		for !c.IsRunning() ***REMOVED***
+			time.Sleep(1 * time.Millisecond)
+		***REMOVED***
 		c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
 		assert.Len(t, c.Samples, 1)
 	***REMOVED***)

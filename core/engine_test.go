@@ -371,6 +371,68 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
+	t.Run("apply run tags", func(t *testing.T) ***REMOVED***
+		tags := map[string]string***REMOVED***"foo": "bar"***REMOVED***
+		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***RunTags: tags***REMOVED***)
+		assert.NoError(t, err)
+
+		c := &dummy.Collector***REMOVED******REMOVED***
+		e.Collector = c
+
+		t.Run("sample untagged", func(t *testing.T) ***REMOVED***
+			c.Samples = nil
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() ***REMOVED***
+				c.Run(ctx)
+			***REMOVED***()
+
+			for !c.IsRunning() ***REMOVED***
+				time.Sleep(time.Millisecond)
+			***REMOVED***
+
+			e.processSamples(
+				stats.Sample***REMOVED***
+					Metric: metric,
+					Value:  1.25,
+				***REMOVED***,
+			)
+
+			assert.Equal(t, tags, c.Samples[0].Tags)
+		***REMOVED***)
+		t.Run("sample tagged", func(t *testing.T) ***REMOVED***
+			c.Samples = nil
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			go func() ***REMOVED***
+				c.Run(ctx)
+			***REMOVED***()
+
+			//wait for the collector to start running
+			for !c.IsRunning() ***REMOVED***
+				time.Sleep(time.Millisecond)
+			***REMOVED***
+
+			e.processSamples(
+				stats.Sample***REMOVED***
+					Metric: metric,
+					Value:  1.25,
+					Tags:   map[string]string***REMOVED***"myTag": "foobar"***REMOVED***,
+				***REMOVED***,
+			)
+
+			assert.Equal(t, tags["foo"], c.Samples[0].Tags["foo"])
+		***REMOVED***)
+
+		e.processSamples(
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: nil***REMOVED***,
+		)
+
+	***REMOVED***)
 ***REMOVED***
 
 func TestEngine_runThresholds(t *testing.T) ***REMOVED***

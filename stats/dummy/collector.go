@@ -69,3 +69,8 @@ func (c *Collector) Link() string ***REMOVED***
 func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
 ***REMOVED***
+
+// IsRunning returns the current status of the collector
+func (c *Collector) IsRunning() bool ***REMOVED***
+	return c.running
+***REMOVED***
