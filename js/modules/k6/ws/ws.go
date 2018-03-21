@@ -22,6 +22,7 @@ package ws
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io/ioutil"
 	"net"
@@ -150,10 +151,17 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		return state.Dialer.DialContext(ctx, network, address)
 	***REMOVED***
 
+	// Overriding the NextProtos to avoid talking http2
+	var tlsConfig *tls.Config
+	if state.TLSConfig != nil ***REMOVED***
+		tlsConfig = state.TLSConfig.Clone()
+		tlsConfig.NextProtos = []string***REMOVED***"http/1.1"***REMOVED***
+	***REMOVED***
+
 	wsd := websocket.Dialer***REMOVED***
 		NetDial:         netDial,
 		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: state.TLSConfig,
+		TLSClientConfig: tlsConfig,
 	***REMOVED***
 
 	start := time.Now()
