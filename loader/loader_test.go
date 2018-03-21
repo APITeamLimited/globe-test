@@ -21,6 +21,7 @@
 package loader
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -118,12 +119,16 @@ func TestLoad(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 
-	//TODO: remove pastebin.com dependency
+	const responseStr = "export function fn() ***REMOVED***\r\n    return 1234;\r\n***REMOVED***"
+	tb.Mux.HandleFunc("/raw/something", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		fmt.Fprint(w, responseStr)
+	***REMOVED***)
+
 	t.Run("No _k6=1 Fallback", func(t *testing.T) ***REMOVED***
-		src, err := Load(nil, "/", "pastebin.com/raw/zngdRRDT")
+		src, err := Load(nil, "/", sr("HTTPSBIN_DOMAIN:HTTPSBIN_PORT/raw/something"))
 		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, src.Filename, "pastebin.com/raw/zngdRRDT")
-			assert.Equal(t, "export function fn() ***REMOVED***\r\n    return 1234;\r\n***REMOVED***", string(src.Data))
+			assert.Equal(t, src.Filename, sr("HTTPSBIN_DOMAIN:HTTPSBIN_PORT/raw/something"))
+			assert.Equal(t, responseStr, string(src.Data))
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

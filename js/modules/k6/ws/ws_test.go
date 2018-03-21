@@ -82,6 +82,7 @@ func assertMetricEmitted(t *testing.T, metric *stats.Metric, samples []stats.Sam
 ***REMOVED***
 
 func TLSServerMock(t *testing.T) (string, *tls.Config, func()) ***REMOVED***
+	//TODO: use NewHTTPMultiBin
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 		conn, err := websocket.Upgrade(w, req, w.Header(), 1024, 1024)
