@@ -557,7 +557,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					throw new Error("cookie 'key' unexpectedly found");
 				***REMOVED***
 				jar.set("HTTPBIN_URL/cookies", "key", "value", ***REMOVED*** expires: "Sat, 24 Jul 2083 17:01:02 GMT" ***REMOVED***);
-				jar.set("HTTPBIN_URL/cookies", "key", "value", ***REMOVED*** expires: "Sat, 24 Jul 2083 17:01:02 GMT" ***REMOVED***);
 				res = http.request("GET", "HTTPBIN_URL/cookies");
 				if (res.json().key != "value") ***REMOVED***
 					throw new Error("cookie 'key' not found");
@@ -724,7 +723,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("HEAD", func(t *testing.T) ***REMOVED***
 		state.Samples = nil
-		//TODO: convert use to local httpbin library
 		_, err := common.RunString(rt, sr(`
 		let res = http.head("HTTPBIN_URL/get?a=1&b=2");
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
