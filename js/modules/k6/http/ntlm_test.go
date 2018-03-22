@@ -21,9 +21,6 @@
 package http
 
 import (
-	"encoding/base64"
-	"encoding/binary"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -46,7 +43,7 @@ func TestGetCredentialsFromHeader(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNTLMServer(t *testing.T) ***REMOVED***
-	s := newNTLMServer("bob", "pass")
+	s := httptest.NewServer(http.HandlerFunc(ntlmHandler("bob", "pass")))
 	defer s.Close()
 
 	client := &http.Client***REMOVED***
@@ -63,113 +60,4 @@ func TestNTLMServer(t *testing.T) ***REMOVED***
 
 	body, _ := ioutil.ReadAll(res.Body)
 	assert.Equal(t, "authenticated", string(body))
-***REMOVED***
-
-func ntlmHandler(username, password string) func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-	return func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		// Make sure there is some kind of authentication
-		if r.Header.Get("Authorization") == "" ***REMOVED***
-			w.Header().Set("WWW-Authenticate", "NTLM")
-			w.WriteHeader(401)
-			return
-		***REMOVED***
-
-		// Parse the proxy authorization header
-		auth := r.Header.Get("Authorization")
-		parts := strings.SplitN(auth, " ", 2)
-		authType := parts[0]
-		authPayload := parts[1]
-
-		// Filter out unsupported authentication methods
-		if authType != "NTLM" ***REMOVED***
-			w.Header().Set("WWW-Authenticate", "NTLM")
-			w.WriteHeader(401)
-			return
-		***REMOVED***
-
-		// Decode base64 auth data and get NTLM message type
-		rawAuthPayload, _ := base64.StdEncoding.DecodeString(authPayload)
-		ntlmMessageType := binary.LittleEndian.Uint32(rawAuthPayload[8:12])
-
-		// Handle NTLM negotiate message
-		if ntlmMessageType == 1 ***REMOVED***
-			session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
-			if err != nil ***REMOVED***
-				return
-			***REMOVED***
-
-			session.SetUserInfo(username, password, "")
-
-			challenge, err := session.GenerateChallengeMessage()
-			if err != nil ***REMOVED***
-				return
-			***REMOVED***
-
-			challenges[r.RemoteAddr] = challenge
-
-			authPayload := base64.StdEncoding.EncodeToString(challenge.Bytes())
-
-			w.Header().Set("WWW-Authenticate", "NTLM "+authPayload)
-			w.WriteHeader(401)
-
-			return
-		***REMOVED***
-
-		if ntlmMessageType == 3 ***REMOVED***
-			challenge := challenges[r.RemoteAddr]
-			if challenge == nil ***REMOVED***
-				w.Header().Set("WWW-Authenticate", "NTLM")
-				w.WriteHeader(401)
-				return
-			***REMOVED***
-
-			msg, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 2)
-			if err != nil ***REMOVED***
-				msg2, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 1)
-
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session, err := ntlm.CreateServerSession(ntlm.Version1, ntlm.ConnectionOrientedMode)
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session.SetServerChallenge(challenge.ServerChallenge)
-				session.SetUserInfo(username, password, "")
-
-				err = session.ProcessAuthenticateMessage(msg2)
-				if err != nil ***REMOVED***
-					w.Header().Set("WWW-Authenticate", "NTLM")
-					w.WriteHeader(401)
-					return
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session.SetServerChallenge(challenge.ServerChallenge)
-				session.SetUserInfo(username, password, "")
-
-				err = session.ProcessAuthenticateMessage(msg)
-				if err != nil ***REMOVED***
-					w.Header().Set("WWW-Authenticate", "NTLM")
-					w.WriteHeader(401)
-					return
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		data := "authenticated"
-		w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-		fmt.Fprint(w, string(data))
-	***REMOVED***
-***REMOVED***
-
-func newNTLMServer(user, pass string) *httptest.Server ***REMOVED***
-	challenges = make(map[string]*ntlm.ChallengeMessage)
-	return httptest.NewServer(http.HandlerFunc(ntlmHandler(user, pass)))
 ***REMOVED***
