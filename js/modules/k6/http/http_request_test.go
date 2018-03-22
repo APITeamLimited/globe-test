@@ -92,6 +92,9 @@ func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, u
 func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, *goja.Runtime, *context.Context) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 
+	ntlmServer := newNTLMServer("bob", "pass")
+	defer ntlmServer.Close()
+
 	root, err := lib.NewGroup("", nil)
 	require.NoError(t, err)
 
@@ -625,6 +628,17 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				`, url))
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
+			***REMOVED***)
+			t.Run("ntlm", func(t *testing.T) ***REMOVED***
+				state.Samples = nil
+				url := strings.Replace(ntlmServer.URL, "http://", "http://bob:pass@", -1)
+
+				_, err := common.RunString(rt, fmt.Sprintf(`
+				let res = http.request("GET", "%s", null, ***REMOVED*** auth: "ntlm" ***REMOVED***);
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				`, url))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, state.Samples, "GET", url, url, 200, "")
 			***REMOVED***)
 		***REMOVED***)
 
