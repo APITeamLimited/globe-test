@@ -24,7 +24,6 @@ import (
 	"context"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
@@ -45,16 +44,10 @@ func TestCollectorRun(t *testing.T) ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED******REMOVED***
-	t.Run("no context", func(t *testing.T) ***REMOVED***
-		assert.Panics(t, func() ***REMOVED*** c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***) ***REMOVED***)
-	***REMOVED***)
 	t.Run("context", func(t *testing.T) ***REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		go func() ***REMOVED*** c.Run(ctx) ***REMOVED***()
-		for !c.IsRunning() ***REMOVED***
-			time.Sleep(1 * time.Millisecond)
-		***REMOVED***
 		c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
 		assert.Len(t, c.Samples, 1)
 	***REMOVED***)
