@@ -744,16 +744,25 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		assertRequestMetricsEmitted(t, state.Samples, "OPTIONS", sr("HTTPBIN_URL/?a=1&b=2"), "", 200, "")
 	***REMOVED***)
 
+	// DELETE HTTP requests shouldn't usually send a request body, they should use url parameters instead; references:
+	// https://golang.org/pkg/net/http/#Request.ParseForm
+	// https://stackoverflow.com/questions/299628/is-an-entity-body-allowed-for-an-http-delete-request
+	// https://tools.ietf.org/html/rfc7231#section-4.3.5
+	t.Run("DELETE", func(t *testing.T) ***REMOVED***
+		state.Samples = nil
+		_, err := common.RunString(rt, sr(`
+		let res = http.del("HTTPBIN_URL/delete?test=mest");
+		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+		if (res.json().args.test != "mest") ***REMOVED*** throw new Error("wrong args: " + JSON.stringify(res.json().args)); ***REMOVED***
+		`))
+		assert.NoError(t, err)
+		assertRequestMetricsEmitted(t, state.Samples, "DELETE", sr("HTTPBIN_URL/delete?test=mest"), "", 200, "")
+	***REMOVED***)
+
 	postMethods := map[string]string***REMOVED***
 		"POST":  "post",
 		"PUT":   "put",
 		"PATCH": "patch",
-
-		// "DELETE": "del",
-		// TODO: fix DELETE HTTP requests - they should probably send their parameters in the URL, not in the request body; references:
-		// https://golang.org/pkg/net/http/#Request.ParseForm
-		// https://stackoverflow.com/questions/299628/is-an-entity-body-allowed-for-an-http-delete-request
-		// https://tools.ietf.org/html/rfc7231#section-4.3.5
 	***REMOVED***
 	for method, fn := range postMethods ***REMOVED***
 		t.Run(method, func(t *testing.T) ***REMOVED***
