@@ -167,7 +167,7 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 				Metric: "http_req_li_all",
 				Data: SampleData***REMOVED***
 					Type:   samp.Metric.Type,
-					Time:   samp.Time,
+					Time:   Timestamp(samp.Time),
 					Tags:   samp.Tags,
 					Values: make(map[string]float64),
 				***REMOVED***,
@@ -180,7 +180,7 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 				Metric: "iter_li_all",
 				Data: SampleData***REMOVED***
 					Type:   samp.Metric.Type,
-					Time:   samp.Time,
+					Time:   Timestamp(samp.Time),
 					Tags:   samp.Tags,
 					Values: make(map[string]float64),
 				***REMOVED***,
@@ -197,7 +197,7 @@ func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
 				Metric: name,
 				Data: SampleData***REMOVED***
 					Type:  samp.Metric.Type,
-					Time:  samp.Time,
+					Time:  Timestamp(samp.Time),
 					Value: samp.Value,
 					Tags:  samp.Tags,
 				***REMOVED***,
