@@ -35,11 +35,11 @@ func TestTagURL(t *testing.T) ***REMOVED***
 	rt.Set("http", common.Bind(rt, New(), nil))
 
 	testdata := map[string]struct***REMOVED*** u, n string ***REMOVED******REMOVED***
-		`http://httpbin.org/anything/`:               ***REMOVED***"http://httpbin.org/anything/", "http://httpbin.org/anything/"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***"http://httpbin.org/anything/2", "http://httpbin.org/anything/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***"http://httpbin.org/anything/2/", "http://httpbin.org/anything/$***REMOVED******REMOVED***/"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***"http://httpbin.org/anything/2/3", "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
-		`http://httpbin.org/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***"http://httpbin.org/anything/2/3/", "http://httpbin.org/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://localhost/anything/`:               ***REMOVED***"http://localhost/anything/", "http://localhost/anything/"***REMOVED***,
+		`http://localhost/anything/$***REMOVED***1+1***REMOVED***`:         ***REMOVED***"http://localhost/anything/2", "http://localhost/anything/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/`:        ***REMOVED***"http://localhost/anything/2/", "http://localhost/anything/$***REMOVED******REMOVED***/"***REMOVED***,
+		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***`:  ***REMOVED***"http://localhost/anything/2/3", "http://localhost/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***"***REMOVED***,
+		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***"http://localhost/anything/2/3/", "http://localhost/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
 	***REMOVED***
 	for expr, data := range testdata ***REMOVED***
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
