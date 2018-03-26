@@ -316,7 +316,7 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 	e.MetricsLock.Lock()
 	defer e.MetricsLock.Unlock()
 
-	for _, sample := range samples ***REMOVED***
+	for i, sample := range samples ***REMOVED***
 		m, ok := e.Metrics[sample.Metric.Name]
 		if !ok ***REMOVED***
 			m = sample.Metric
@@ -345,6 +345,22 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 				e.Metrics[sm.Name] = sm.Metric
 			***REMOVED***
 			sm.Metric.Sink.Add(sample)
+		***REMOVED***
+
+		if e.Options.RunTags == nil ***REMOVED***
+			continue
+		***REMOVED***
+
+		if samples[i].Tags == nil ***REMOVED***
+			samples[i].Tags = e.Options.RunTags
+			continue
+		***REMOVED***
+
+		for k, v := range e.Options.RunTags ***REMOVED***
+			//only set tags that haven't been already set on the sample
+			if _, ok := samples[i].Tags[k]; !ok ***REMOVED***
+				samples[i].Tags[k] = v
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
