@@ -636,6 +636,9 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
 			***REMOVED***)
 			t.Run("ntlm", func(t *testing.T) ***REMOVED***
+				ntlmServer := httptest.NewServer(http.HandlerFunc(ntlmHandler("bob", "pass")))
+				defer ntlmServer.Close()
+
 				state.Samples = nil
 				url := strings.Replace(ntlmServer.URL, "http://", "http://bob:pass@", -1)
 
