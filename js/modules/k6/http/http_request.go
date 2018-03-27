@@ -322,17 +322,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 
 	respReq.Headers = req.Header
 
-	httpTransport := state.HTTPTransport
-
-	if auth == "ntlm" ***REMOVED***
-		httpTransport = NTLMNegotiator***REMOVED***
-			RoundTripper: state.HTTPTransport,
-		***REMOVED***
-	***REMOVED***
-
 	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: url.URLString, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
-		Transport: httpTransport,
+		Transport: state.HTTPTransport,
 		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			h.debugResponse(state, req.Response, "RedirectResponse")
@@ -403,6 +395,10 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 
 		statsSamples = append(statsSamples, tracer.Done().Samples(tags)...)
+	***REMOVED***
+
+	if auth == "ntlm" ***REMOVED***
+		ctx = netext.WithAuth(ctx, "ntlm")
 	***REMOVED***
 
 	tracer := netext.Tracer***REMOVED******REMOVED***

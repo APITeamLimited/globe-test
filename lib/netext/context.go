@@ -29,10 +29,23 @@ type ctxKey int
 
 const (
 	ctxKeyTracer ctxKey = iota
+	ctxKeyAuth
 )
 
 func WithTracer(ctx context.Context, tracer *Tracer) context.Context ***REMOVED***
 	ctx = httptrace.WithClientTrace(ctx, tracer.Trace())
 	ctx = context.WithValue(ctx, ctxKeyTracer, tracer)
 	return ctx
+***REMOVED***
+
+func WithAuth(ctx context.Context, auth string) context.Context ***REMOVED***
+	return context.WithValue(ctx, ctxKeyAuth, auth)
+***REMOVED***
+
+func GetAuth(ctx context.Context) string ***REMOVED***
+	v := ctx.Value(ctxKeyAuth)
+	if v == nil ***REMOVED***
+		return ""
+	***REMOVED***
+	return v.(string)
 ***REMOVED***
