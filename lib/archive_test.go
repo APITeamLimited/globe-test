@@ -22,26 +22,29 @@ package lib
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
 )
 
-func TestAnonymizePath(t *testing.T) ***REMOVED***
+func TestNormalizeAndAnonymizePath(t *testing.T) ***REMOVED***
 	testdata := map[string]string***REMOVED***
-		"/tmp":                                      "/tmp",
-		"/tmp/":                                     "/tmp/",
-		"/tmp/myfile.txt":                           "/tmp/myfile.txt",
-		"/home/myname":                              "/home/nobody",
-		"/home/myname/":                             "/home/nobody/",
-		"/home/myname/myfile.txt":                   "/home/nobody/myfile.txt",
-		"/Users/myname/myfile.txt":                  "/Users/nobody/myfile.txt",
-		"/Documents and Settings/myname/myfile.txt": "/Documents and Settings/nobody/myfile.txt",
+		"/tmp":                                           "/tmp",
+		"/tmp/":                                          "/tmp/",
+		"/tmp/myfile.txt":                                "/tmp/myfile.txt",
+		"/home/myname":                                   "/home/nobody",
+		"/home/myname/":                                  "/home/nobody/",
+		"/home/myname/myfile.txt":                        "/home/nobody/myfile.txt",
+		"/Users/myname/myfile.txt":                       "/Users/nobody/myfile.txt",
+		"/Documents and Settings/myname/myfile.txt":      "/Documents and Settings/nobody/myfile.txt",
+		"C:\\Users\\myname\\myfile.txt":                  "/C/Users/nobody/myfile.txt",
+		"D:\\Documents and Settings\\myname\\myfile.txt": "/D/Documents and Settings/nobody/myfile.txt",
 	***REMOVED***
 	for from, to := range testdata ***REMOVED***
 		t.Run("path="+from, func(t *testing.T) ***REMOVED***
-			assert.Equal(t, to, AnonymizePath(from))
+			assert.Equal(t, to, NormalizeAndAnonymizePath(from))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -78,53 +81,61 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Anonymized", func(t *testing.T) ***REMOVED***
-		arc1 := &Archive***REMOVED***
-			Type: "js",
-			Options: Options***REMOVED***
-				VUs:        null.IntFrom(12345),
-				SystemTags: GetTagSet(DefaultSystemTagList...),
-			***REMOVED***,
-			Filename: "/home/myname/script.js",
-			Data:     []byte(`// contents...`),
-			Pwd:      "/home/myname",
-			Scripts: map[string][]byte***REMOVED***
-				"/home/myname/a.js":         []byte(`// a contents`),
-				"/home/myname/b.js":         []byte(`// b contents`),
-				"cdnjs.com/libraries/Faker": []byte(`// faker contents`),
-			***REMOVED***,
-			Files: map[string][]byte***REMOVED***
-				"/home/myname/file1.txt":             []byte(`hi!`),
-				"/home/myname/file2.txt":             []byte(`bye!`),
-				"github.com/loadimpact/k6/README.md": []byte(`README`),
-			***REMOVED***,
+		testdata := []struct ***REMOVED***
+			Pwd, PwdNormAnon string
+		***REMOVED******REMOVED***
+			***REMOVED***"/home/myname", "/home/nobody"***REMOVED***,
+			***REMOVED***"C:\\Users\\Administrator", "/C/Users/nobody"***REMOVED***,
 		***REMOVED***
-		arc1Anon := &Archive***REMOVED***
-			Type: "js",
-			Options: Options***REMOVED***
-				VUs:        null.IntFrom(12345),
-				SystemTags: GetTagSet(DefaultSystemTagList...),
-			***REMOVED***,
-			Filename: "/home/nobody/script.js",
-			Data:     []byte(`// contents...`),
-			Pwd:      "/home/nobody",
-			Scripts: map[string][]byte***REMOVED***
-				"/home/nobody/a.js":         []byte(`// a contents`),
-				"/home/nobody/b.js":         []byte(`// b contents`),
-				"cdnjs.com/libraries/Faker": []byte(`// faker contents`),
-			***REMOVED***,
-			Files: map[string][]byte***REMOVED***
-				"/home/nobody/file1.txt":             []byte(`hi!`),
-				"/home/nobody/file2.txt":             []byte(`bye!`),
-				"github.com/loadimpact/k6/README.md": []byte(`README`),
-			***REMOVED***,
+		for _, entry := range testdata ***REMOVED***
+			arc1 := &Archive***REMOVED***
+				Type: "js",
+				Options: Options***REMOVED***
+					VUs:        null.IntFrom(12345),
+					SystemTags: GetTagSet(DefaultSystemTagList...),
+				***REMOVED***,
+				Filename: fmt.Sprintf("%s/script.js", entry.Pwd),
+				Data:     []byte(`// contents...`),
+				Pwd:      entry.Pwd,
+				Scripts: map[string][]byte***REMOVED***
+					fmt.Sprintf("%s/a.js", entry.Pwd): []byte(`// a contents`),
+					fmt.Sprintf("%s/b.js", entry.Pwd): []byte(`// b contents`),
+					"cdnjs.com/libraries/Faker":       []byte(`// faker contents`),
+				***REMOVED***,
+				Files: map[string][]byte***REMOVED***
+					fmt.Sprintf("%s/file1.txt", entry.Pwd): []byte(`hi!`),
+					fmt.Sprintf("%s/file2.txt", entry.Pwd): []byte(`bye!`),
+					"github.com/loadimpact/k6/README.md":   []byte(`README`),
+				***REMOVED***,
+			***REMOVED***
+			arc1Anon := &Archive***REMOVED***
+				Type: "js",
+				Options: Options***REMOVED***
+					VUs:        null.IntFrom(12345),
+					SystemTags: GetTagSet(DefaultSystemTagList...),
+				***REMOVED***,
+				Filename: fmt.Sprintf("%s/script.js", entry.PwdNormAnon),
+				Data:     []byte(`// contents...`),
+				Pwd:      entry.PwdNormAnon,
+				Scripts: map[string][]byte***REMOVED***
+					fmt.Sprintf("%s/a.js", entry.PwdNormAnon): []byte(`// a contents`),
+					fmt.Sprintf("%s/b.js", entry.PwdNormAnon): []byte(`// b contents`),
+					"cdnjs.com/libraries/Faker":               []byte(`// faker contents`),
+				***REMOVED***,
+				Files: map[string][]byte***REMOVED***
+					fmt.Sprintf("%s/file1.txt", entry.PwdNormAnon): []byte(`hi!`),
+					fmt.Sprintf("%s/file2.txt", entry.PwdNormAnon): []byte(`bye!`),
+					"github.com/loadimpact/k6/README.md":           []byte(`README`),
+				***REMOVED***,
+			***REMOVED***
+
+			buf := bytes.NewBuffer(nil)
+			assert.NoError(t, arc1.Write(buf))
+
+			arc2, err := ReadArchive(buf)
+			assert.NoError(t, err)
+			assert.Equal(t, arc1Anon, arc2)
 		***REMOVED***
-
-		buf := bytes.NewBuffer(nil)
-		assert.NoError(t, arc1.Write(buf))
-
-		arc2, err := ReadArchive(buf)
-		assert.NoError(t, err)
-		assert.Equal(t, arc1Anon, arc2)
 	***REMOVED***)
 ***REMOVED***
 

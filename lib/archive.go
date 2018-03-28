@@ -24,21 +24,25 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
-var homeDirRE = regexp.MustCompile(`^/(Users|home|Documents and Settings)/(?:[^/]+)`)
+var volumeRE = regexp.MustCompile(`^([a-zA-Z]):(.*)`)
+var homeDirRE = regexp.MustCompile(`^(/[a-zA-Z])?/(Users|home|Documents and Settings)/(?:[^/]+)`)
 
-// Anonymizes a file path, by scrubbing usernames from home directories.
-func AnonymizePath(path string) string ***REMOVED***
-	return homeDirRE.ReplaceAllString(path, `/$1/nobody`)
+// Normalizes (to use a / path separator) and anonymizes a file path, by scrubbing usernames from home directories.
+func NormalizeAndAnonymizePath(path string) string ***REMOVED***
+	p := volumeRE.ReplaceAllString(path, `/$1$2`)
+	p = strings.Replace(p, "\\", "/", -1)
+	return homeDirRE.ReplaceAllString(p, `$1/$2/nobody`)
 ***REMOVED***
 
 // An Archive is a rollup of all resources and options needed to reproduce a test identically elsewhere.
@@ -94,17 +98,24 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 			if err := json.Unmarshal(data, &arc); err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+			// Path separator normalization for older archives (<=0.20.0)
+			arc.Filename = NormalizeAndAnonymizePath(arc.Filename)
+			arc.Pwd = NormalizeAndAnonymizePath(arc.Pwd)
+			fmt.Printf("Pwd: %s, Filename: %s\n", arc.Filename, arc.Pwd)
 			continue
 		case "data":
 			arc.Data = data
 		***REMOVED***
 
-		idx := strings.IndexRune(hdr.Name, '/')
+		// Path separator normalization for older archives (<=0.20.0)
+		normPath := NormalizeAndAnonymizePath(hdr.Name)
+		fmt.Printf("Hdr.Name: %s, normPath: %s\n", hdr.Name, normPath)
+		idx := strings.IndexRune(normPath, '/')
 		if idx == -1 ***REMOVED***
 			continue
 		***REMOVED***
-		pfx := hdr.Name[:idx]
-		name := hdr.Name[idx+1:]
+		pfx := normPath[:idx]
+		name := normPath[idx+1:]
 		if name != "" && name[0] == '_' ***REMOVED***
 			name = name[1:]
 		***REMOVED***
@@ -135,8 +146,8 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 	t := time.Now()
 
 	metaArc := *arc
-	metaArc.Filename = AnonymizePath(metaArc.Filename)
-	metaArc.Pwd = AnonymizePath(metaArc.Pwd)
+	metaArc.Filename = NormalizeAndAnonymizePath(metaArc.Filename)
+	metaArc.Pwd = NormalizeAndAnonymizePath(metaArc.Pwd)
 	metadata, err := metaArc.json()
 	if err != nil ***REMOVED***
 		return err
@@ -188,11 +199,11 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 		foundDirs := make(map[string]bool)
 		paths := make([]string, 0, len(entry.files))
 		files := make(map[string][]byte, len(entry.files))
-		for path, data := range entry.files ***REMOVED***
-			path = AnonymizePath(path)
-			files[path] = data
-			paths = append(paths, path)
-			dir := filepath.Dir(path)
+		for filePath, data := range entry.files ***REMOVED***
+			filePath = NormalizeAndAnonymizePath(filePath)
+			files[filePath] = data
+			paths = append(paths, filePath)
+			dir := path.Dir(filePath)
 			for ***REMOVED***
 				foundDirs[dir] = true
 				idx := strings.LastIndexByte(dir, os.PathSeparator)
@@ -214,20 +225,20 @@ func (arc *Archive) Write(out io.Writer) error ***REMOVED***
 				dirpath = "_" + dirpath
 			***REMOVED***
 			_ = w.WriteHeader(&tar.Header***REMOVED***
-				Name:     filepath.Clean(entry.name + "/" + dirpath),
+				Name:     path.Clean(entry.name + "/" + dirpath),
 				Mode:     0755,
 				ModTime:  t,
 				Typeflag: tar.TypeDir,
 			***REMOVED***)
 		***REMOVED***
 
-		for _, path := range paths ***REMOVED***
-			data := files[path]
-			if path[0] == '/' ***REMOVED***
-				path = "_" + path
+		for _, filePath := range paths ***REMOVED***
+			data := files[filePath]
+			if filePath[0] == '/' ***REMOVED***
+				filePath = "_" + filePath
 			***REMOVED***
 			_ = w.WriteHeader(&tar.Header***REMOVED***
-				Name:     filepath.Clean(entry.name + "/" + path),
+				Name:     path.Clean(entry.name + "/" + filePath),
 				Mode:     0644,
 				Size:     int64(len(data)),
 				ModTime:  t,
