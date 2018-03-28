@@ -530,7 +530,7 @@ func getMetricSum(samples []stats.Sample, name string) (result float64) ***REMOV
 	return
 ***REMOVED***
 func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
-	//t.Parallel()
+	t.Parallel()
 	srv := httptest.NewServer(httpbin.NewHTTPBin().Handler())
 	defer srv.Close()
 
@@ -539,25 +539,28 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	expectedSingleData := 50000.0
-	r, err := js.New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			import http from "k6/http";
-			export default function() ***REMOVED***
-				http.get(` + burl(10000) + `);
-				http.batch([` + burl(10000) + `,` + burl(20000) + `,` + burl(10000) + `]);
-			***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	require.NoError(t, err)
 
-	testCases := []struct***REMOVED*** Iterations, VUs int64 ***REMOVED******REMOVED***
-		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***,
+	type testCase struct***REMOVED*** Iterations, VUs int64 ***REMOVED***
+	testCases := []testCase***REMOVED***
+		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
 	***REMOVED***
 
-	for testn, tc := range testCases ***REMOVED***
-		t.Run(fmt.Sprintf("SentReceivedMetrics_%d", testn), func(t *testing.T) ***REMOVED***
+	getTestCase := func(t *testing.T, tc testCase) func(t *testing.T) ***REMOVED***
+		return func(t *testing.T) ***REMOVED***
+			//TODO: figure out why it fails if we uncomment this:
 			//t.Parallel()
+			r, err := js.New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data: []byte(`
+					import http from "k6/http";
+					export default function() ***REMOVED***
+						http.get(` + burl(10000) + `);
+						http.batch([` + burl(10000) + `,` + burl(20000) + `,` + burl(10000) + `]);
+					***REMOVED***
+				`),
+			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			require.NoError(t, err)
+
 			options := lib.Options***REMOVED***
 				Iterations: null.IntFrom(tc.Iterations),
 				VUs:        null.IntFrom(tc.VUs),
@@ -595,6 +598,16 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 					receivedData,
 				)
 			***REMOVED***
-		***REMOVED***)
+		***REMOVED***
 	***REMOVED***
+
+	// This Run will not return until the parallel subtests complete.
+	t.Run("group", func(t *testing.T) ***REMOVED***
+		for testn, tc := range testCases ***REMOVED***
+			t.Run(
+				fmt.Sprintf("SentReceivedMetrics_%d(%d, %d)", testn, tc.Iterations, tc.VUs),
+				getTestCase(t, tc),
+			)
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
