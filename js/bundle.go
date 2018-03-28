@@ -151,6 +151,10 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 	initctx.files = arc.Files
 
 	env := arc.Env
+	if env == nil ***REMOVED***
+		// Older archives (<=0.20.0) don't have an "env" property
+		env = make(map[string]string)
+	***REMOVED***
 	for k, v := range rtOpts.Env ***REMOVED***
 		env[k] = v
 	***REMOVED***
