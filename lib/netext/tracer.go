@@ -167,9 +167,7 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 // If the connection is reused, this won't be called. Otherwise,
 // it will be called after ConnectDone() and before TLSHandshakeDone().
 func (t *Tracer) TLSHandshakeStart() ***REMOVED***
-	// This shouldn't be called multiple times so no synchronization here,
-	// it's better for the race detector to panic if we're wrong.
-	t.tlsHandshakeStart = now()
+	atomic.CompareAndSwapInt64(&t.tlsHandshakeStart, 0, now())
 ***REMOVED***
 
 // TLSHandshakeDone is called after the TLS handshake with either the
@@ -178,10 +176,10 @@ func (t *Tracer) TLSHandshakeStart() ***REMOVED***
 //
 // If the connection is reused, this won't be called. Otherwise,
 // it will be called after TLSHandshakeStart() and before GotConn().
+// If the request was cancelled, this could be called after the
+// RoundTrip() method has returned.
 func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) ***REMOVED***
-	// This shouldn't be called multiple times so no synchronization here,
-	// it's better for the race detector to panic if we're wrong.
-	t.tlsHandshakeDone = now()
+	atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now())
 
 	if err != nil ***REMOVED***
 		t.addError(err)
@@ -213,8 +211,6 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 // WroteRequest is called with the result of writing the
 // request and any body. It may be called multiple times
 // in the case of retried requests.
-//
-//
 func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) ***REMOVED***
 	atomic.CompareAndSwapInt64(&t.wroteRequest, 0, now())
 
@@ -225,10 +221,10 @@ func (t *Tracer) WroteRequest(info httptrace.WroteRequestInfo) ***REMOVED***
 
 // GotFirstResponseByte is called when the first byte of the response
 // headers is available.
+// If the request was cancelled, this could be called after the
+// RoundTrip() method has returned.
 func (t *Tracer) GotFirstResponseByte() ***REMOVED***
-	// This shouldn't be called multiple times so no synchronization here,
-	// it's better for the race detector to panic if we're wrong.
-	t.gotFirstResponseByte = now()
+	atomic.CompareAndSwapInt64(&t.gotFirstResponseByte, 0, now())
 ***REMOVED***
 
 // Done calculates all metrics and should be called when the request is finished.
@@ -238,38 +234,56 @@ func (t *Tracer) Done() Trail ***REMOVED***
 	trail := Trail***REMOVED***
 		ConnReused:     t.connReused,
 		ConnRemoteAddr: t.connRemoteAddr,
-		Errors:         t.protoErrors,
 	***REMOVED***
 
 	if t.gotConn != 0 && t.getConn != 0 ***REMOVED***
 		trail.Blocked = time.Duration(t.gotConn - t.getConn)
 	***REMOVED***
-	if t.connectDone != 0 && t.connectStart != 0 ***REMOVED***
-		trail.Connecting = time.Duration(t.connectDone - t.connectStart)
+
+	// It's possible for some of the methods of httptrace.ClientTrace to
+	// actually be called after the http.Client or http.RoundTripper have
+	// already returned our result and we've called Done(). This happens
+	// mostly for cancelled requests, but we have to use atomics here as
+	// well (or use global Tracer locking) so we can avoid data races.
+	connectStart := atomic.LoadInt64(&t.connectStart)
+	connectDone := atomic.LoadInt64(&t.connectDone)
+	tlsHandshakeStart := atomic.LoadInt64(&t.tlsHandshakeStart)
+	tlsHandshakeDone := atomic.LoadInt64(&t.tlsHandshakeDone)
+	wroteRequest := atomic.LoadInt64(&t.wroteRequest)
+	gotFirstResponseByte := atomic.LoadInt64(&t.gotFirstResponseByte)
+
+	if connectDone != 0 && connectStart != 0 ***REMOVED***
+		trail.Connecting = time.Duration(connectDone - connectStart)
 	***REMOVED***
-	if t.tlsHandshakeDone != 0 && t.tlsHandshakeStart != 0 ***REMOVED***
-		trail.TLSHandshaking = time.Duration(t.tlsHandshakeDone - t.tlsHandshakeStart)
+	if tlsHandshakeDone != 0 && tlsHandshakeStart != 0 ***REMOVED***
+		trail.TLSHandshaking = time.Duration(tlsHandshakeDone - tlsHandshakeStart)
 	***REMOVED***
-	if t.wroteRequest != 0 ***REMOVED***
-		trail.Sending = time.Duration(t.wroteRequest - t.connectDone)
+	if wroteRequest != 0 ***REMOVED***
+		trail.Sending = time.Duration(wroteRequest - connectDone)
 		// If the request was sent over TLS, we need to use
 		// TLS Handshake Done time to calculate sending duration
-		if t.tlsHandshakeDone != 0 ***REMOVED***
-			trail.Sending = time.Duration(t.wroteRequest - t.tlsHandshakeDone)
+		if tlsHandshakeDone != 0 ***REMOVED***
+			trail.Sending = time.Duration(wroteRequest - tlsHandshakeDone)
 		***REMOVED***
 
-		if t.gotFirstResponseByte != 0 ***REMOVED***
-			trail.Waiting = time.Duration(t.gotFirstResponseByte - t.wroteRequest)
+		if gotFirstResponseByte != 0 ***REMOVED***
+			trail.Waiting = time.Duration(gotFirstResponseByte - wroteRequest)
 		***REMOVED***
 	***REMOVED***
-	if t.gotFirstResponseByte != 0 ***REMOVED***
-		trail.Receiving = done.Sub(time.Unix(0, t.gotFirstResponseByte))
+	if gotFirstResponseByte != 0 ***REMOVED***
+		trail.Receiving = done.Sub(time.Unix(0, gotFirstResponseByte))
 	***REMOVED***
 
 	// Calculate total times using adjusted values.
 	trail.EndTime = done
 	trail.Duration = trail.Sending + trail.Waiting + trail.Receiving
 	trail.StartTime = trail.EndTime.Add(-trail.Duration)
+
+	t.protoErrorsMutex.Lock()
+	defer t.protoErrorsMutex.Unlock()
+	if len(t.protoErrors) > 0 ***REMOVED***
+		trail.Errors = append([]error***REMOVED******REMOVED***, t.protoErrors...)
+	***REMOVED***
 
 	return trail
 ***REMOVED***
