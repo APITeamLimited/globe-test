@@ -44,11 +44,6 @@ func TestCollectorRun(t *testing.T) ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED******REMOVED***
-	t.Run("context", func(t *testing.T) ***REMOVED***
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go func() ***REMOVED*** c.Run(ctx) ***REMOVED***()
-		c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
-		assert.Len(t, c.Samples, 1)
-	***REMOVED***)
+	c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
+	assert.Len(t, c.Samples, 1)
 ***REMOVED***

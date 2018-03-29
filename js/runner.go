@@ -165,13 +165,18 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	vu := &VU***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
-		HTTPTransport:  transport,
+		HTTPTransport:  netext.NewHTTPTransport(transport),
 		Dialer:         dialer,
 		TLSConfig:      tlsConfig,
 		Console:        NewConsole(),
 		BPool:          bpool.NewBufferPool(100),
 	***REMOVED***
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
+	common.BindToGlobal(vu.Runtime, map[string]interface***REMOVED******REMOVED******REMOVED***
+		"open": func() ***REMOVED***
+			common.Throw(vu.Runtime, errors.New("\"open\" function is only available to the init code (aka global scope), see https://docs.k6.io/docs/test-life-cycle for more information"))
+		***REMOVED***,
+	***REMOVED***)
 
 	// Give the VU an initial sense of identity.
 	if err := vu.Reconfigure(0); err != nil ***REMOVED***
@@ -245,7 +250,7 @@ type VU struct ***REMOVED***
 	BundleInstance
 
 	Runner        *Runner
-	HTTPTransport *http.Transport
+	HTTPTransport *netext.HTTPTransport
 	Dialer        *netext.Dialer
 	TLSConfig     *tls.Config
 	ID            int64

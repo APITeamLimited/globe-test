@@ -22,46 +22,38 @@ package dummy
 
 import (
 	"context"
-	"sync"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
 
+// Collector implements the lib.Collector interface and should be used only for testing
 type Collector struct ***REMOVED***
 	Samples []stats.Sample
-	running bool
-
-	lock sync.Mutex
 ***REMOVED***
 
+// Init does nothing, it's only included to satisfy the lib.Collector interface
 func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
 
+// MakeConfig does nothing, it's only included to satisfy the lib.Collector interface
 func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*** return nil ***REMOVED***
 
+// Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	c.lock.Lock()
-	c.running = true
-	c.lock.Unlock()
-
 	<-ctx.Done()
-
-	c.lock.Lock()
-	c.running = false
-	c.lock.Unlock()
 ***REMOVED***
 
+// Collect just appends all of the samples passed to it to the internal sample slice.
+// According to the the lib.Collector interface, it should never be called concurrently,
+// so there's no locking on purpose - that way Go's race condition detector can actually
+// detect incorrect usage.
+// Also, theoretically the collector doesn't have to actually Run() before samples start
+// being collected, it only has to be initialized.
 func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	//TODO: fix this check, was giving a hard time with testing
-	//if !c.running ***REMOVED***
-	//	panic("attempted to collect while not running")
-	//***REMOVED***
 	c.Samples = append(c.Samples, samples...)
 ***REMOVED***
 
+// Link returns a dummy string, it's only included to satisfy the lib.Collector interface
 func (c *Collector) Link() string ***REMOVED***
 	return "http://example.com/"
 ***REMOVED***
