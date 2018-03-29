@@ -22,17 +22,22 @@ package http
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
+	"net/http"
 	"net/http/cookiejar"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 	"github.com/oxtoacart/bpool"
@@ -112,7 +117,7 @@ func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, *goja.Run
 		Logger:        logger,
 		Group:         root,
 		TLSConfig:     tb.TLSClientConfig,
-		HTTPTransport: tb.HTTPTransport,
+		HTTPTransport: netext.NewHTTPTransport(tb.HTTPTransport),
 		BPool:         bpool.NewBufferPool(1),
 	***REMOVED***
 
@@ -626,6 +631,30 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
 			***REMOVED***)
+			t.Run("ntlm", func(t *testing.T) ***REMOVED***
+				tb.Mux.HandleFunc("/ntlm", http.HandlerFunc(ntlmHandler("bob", "pass")))
+
+				t.Run("success auth", func(t *testing.T) ***REMOVED***
+					state.Samples = nil
+					url := strings.Replace(tb.ServerHTTP.URL+"/ntlm", "http://", "http://bob:pass@", -1)
+					_, err := common.RunString(rt, fmt.Sprintf(`
+						let res = http.request("GET", "%s", null, ***REMOVED*** auth: "ntlm" ***REMOVED***);
+						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+						`, url))
+					assert.NoError(t, err)
+					assertRequestMetricsEmitted(t, state.Samples, "GET", url, url, 200, "")
+				***REMOVED***)
+				t.Run("failed auth", func(t *testing.T) ***REMOVED***
+					state.Samples = nil
+					url := strings.Replace(tb.ServerHTTP.URL+"/ntlm", "http://", "http://other:otherpass@", -1)
+					_, err := common.RunString(rt, fmt.Sprintf(`
+						let res = http.request("GET", "%s", null, ***REMOVED*** auth: "ntlm" ***REMOVED***);
+						if (res.status != 401) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+						`, url))
+					assert.NoError(t, err)
+					assertRequestMetricsEmitted(t, state.Samples, "GET", url, url, 401, "")
+				***REMOVED***)
+			***REMOVED***)
 		***REMOVED***)
 
 		t.Run("headers", func(t *testing.T) ***REMOVED***
@@ -980,5 +1009,111 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+// Simple NTLM mock handler
+func ntlmHandler(username, password string) func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	challenges := make(map[string]*ntlm.ChallengeMessage)
+	return func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		// Make sure there is some kind of authentication
+		if r.Header.Get("Authorization") == "" ***REMOVED***
+			w.Header().Set("WWW-Authenticate", "NTLM")
+			w.WriteHeader(401)
+			return
+		***REMOVED***
+
+		// Parse the proxy authorization header
+		auth := r.Header.Get("Authorization")
+		parts := strings.SplitN(auth, " ", 2)
+		authType := parts[0]
+		authPayload := parts[1]
+
+		// Filter out unsupported authentication methods
+		if authType != "NTLM" ***REMOVED***
+			w.Header().Set("WWW-Authenticate", "NTLM")
+			w.WriteHeader(401)
+			return
+		***REMOVED***
+
+		// Decode base64 auth data and get NTLM message type
+		rawAuthPayload, _ := base64.StdEncoding.DecodeString(authPayload)
+		ntlmMessageType := binary.LittleEndian.Uint32(rawAuthPayload[8:12])
+
+		// Handle NTLM negotiate message
+		if ntlmMessageType == 1 ***REMOVED***
+			session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
+			if err != nil ***REMOVED***
+				return
+			***REMOVED***
+
+			session.SetUserInfo(username, password, "")
+
+			challenge, err := session.GenerateChallengeMessage()
+			if err != nil ***REMOVED***
+				return
+			***REMOVED***
+
+			challenges[r.RemoteAddr] = challenge
+
+			authPayload := base64.StdEncoding.EncodeToString(challenge.Bytes())
+
+			w.Header().Set("WWW-Authenticate", "NTLM "+authPayload)
+			w.WriteHeader(401)
+
+			return
+		***REMOVED***
+
+		if ntlmMessageType == 3 ***REMOVED***
+			challenge := challenges[r.RemoteAddr]
+			if challenge == nil ***REMOVED***
+				w.Header().Set("WWW-Authenticate", "NTLM")
+				w.WriteHeader(401)
+				return
+			***REMOVED***
+
+			msg, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 2)
+			if err != nil ***REMOVED***
+				msg2, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 1)
+
+				if err != nil ***REMOVED***
+					return
+				***REMOVED***
+
+				session, err := ntlm.CreateServerSession(ntlm.Version1, ntlm.ConnectionOrientedMode)
+				if err != nil ***REMOVED***
+					return
+				***REMOVED***
+
+				session.SetServerChallenge(challenge.ServerChallenge)
+				session.SetUserInfo(username, password, "")
+
+				err = session.ProcessAuthenticateMessage(msg2)
+				if err != nil ***REMOVED***
+					w.Header().Set("WWW-Authenticate", "NTLM")
+					w.WriteHeader(401)
+					return
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
+				if err != nil ***REMOVED***
+					return
+				***REMOVED***
+
+				session.SetServerChallenge(challenge.ServerChallenge)
+				session.SetUserInfo(username, password, "")
+
+				err = session.ProcessAuthenticateMessage(msg)
+				if err != nil ***REMOVED***
+					w.Header().Set("WWW-Authenticate", "NTLM")
+					w.WriteHeader(401)
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+
+		data := "authenticated"
+		w.Header().Set("Content-Length", fmt.Sprint(len(data)))
+		fmt.Fprint(w, data)
 	***REMOVED***
 ***REMOVED***
