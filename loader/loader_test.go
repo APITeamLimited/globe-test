@@ -131,4 +131,17 @@ func TestLoad(t *testing.T) ***REMOVED***
 			assert.Equal(t, responseStr, string(src.Data))
 		***REMOVED***
 	***REMOVED***)
+
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		t.Run("Host", func(t *testing.T) ***REMOVED***
+			src, err := Load(nil, "/", "some-path-that-doesnt-exist.js")
+			assert.Nil(t, src)
+			assert.Error(t, err)
+		***REMOVED***)
+		t.Run("URL", func(t *testing.T) ***REMOVED***
+			src, err := Load(nil, "/", "192.168.0.%31")
+			assert.Nil(t, src)
+			assert.Error(t, err)
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
