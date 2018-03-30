@@ -22,7 +22,9 @@ package loader
 
 import (
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -119,15 +121,15 @@ func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
 	// If its not a file, check is it a remote location. HTTPS is enforced, because it's 2017, HTTPS is easy,
 	// running arbitrary, trivially MitM'd code (even sandboxed) is very, very bad.
 	origURL := "https://" + name
-	//parsedURL, err := url.Parse(origURL)
+	parsedURL, err := url.Parse(origURL)
 
-	//if err != nil ***REMOVED***
-	//	return nil, errors.Errorf(invalidScriptErrMsg, name)
-	//***REMOVED***
+	if err != nil ***REMOVED***
+		return nil, errors.Errorf(invalidScriptErrMsg, name)
+	***REMOVED***
 
-	//if _, err = net.LookupHost(parsedURL.Hostname()); err != nil ***REMOVED***
-	//	return nil, errors.Errorf(invalidScriptErrMsg, name)
-	//***REMOVED***
+	if _, err = net.LookupHost(parsedURL.Hostname()); err != nil ***REMOVED***
+		return nil, errors.Errorf(invalidScriptErrMsg, name)
+	***REMOVED***
 
 	// Load it and have a look.
 	url := origURL
