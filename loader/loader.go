@@ -118,7 +118,7 @@ func Load(fs afero.Fs, pwd, name string) (*lib.SourceData, error) ***REMOVED***
 		return &lib.SourceData***REMOVED***Filename: name, Data: data***REMOVED***, nil
 	***REMOVED***
 
-	// If its not a file, check is it a remote location. HTTPS is enforced, because it's 2017, HTTPS is easy,
+	// If it's not a file, check is it a remote location. HTTPS is enforced, because it's 2017, HTTPS is easy,
 	// running arbitrary, trivially MitM'd code (even sandboxed) is very, very bad.
 	origURL := "https://" + name
 	parsedURL, err := url.Parse(origURL)
