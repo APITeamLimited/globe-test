@@ -148,46 +148,35 @@ func NewGroup(name string, parent *Group) (*Group, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-// Create a child group belonging to this group.
+// Group creates a child group belonging to this group.
 // This is safe to call from multiple goroutines simultaneously.
 func (g *Group) Group(name string) (*Group, error) ***REMOVED***
-	snapshot := g.Groups
-	group, ok := snapshot[name]
+	g.groupMutex.Lock()
+	defer g.groupMutex.Unlock()
+	group, ok := g.Groups[name]
 	if !ok ***REMOVED***
-		g.groupMutex.Lock()
-		defer g.groupMutex.Unlock()
-
-		group, ok := g.Groups[name]
-		if !ok ***REMOVED***
-			group, err := NewGroup(name, g)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			g.Groups[name] = group
-			return group, nil
+		group, err := NewGroup(name, g)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+		g.Groups[name] = group
 		return group, nil
 	***REMOVED***
 	return group, nil
 ***REMOVED***
 
-// Create a check belonging to this group.
+// Check creates a child check belonging to this group.
 // This is safe to call from multiple goroutines simultaneously.
 func (g *Group) Check(name string) (*Check, error) ***REMOVED***
-	snapshot := g.Checks
-	check, ok := snapshot[name]
+	g.checkMutex.Lock()
+	defer g.checkMutex.Unlock()
+	check, ok := g.Checks[name]
 	if !ok ***REMOVED***
-		g.checkMutex.Lock()
-		defer g.checkMutex.Unlock()
-		check, ok := g.Checks[name]
-		if !ok ***REMOVED***
-			check, err := NewCheck(name, g)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			g.Checks[name] = check
-			return check, nil
+		check, err := NewCheck(name, g)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+		g.Checks[name] = check
 		return check, nil
 	***REMOVED***
 	return check, nil
