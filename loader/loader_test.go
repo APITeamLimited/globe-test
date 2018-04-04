@@ -121,6 +121,10 @@ func TestLoad(t *testing.T) ***REMOVED***
 
 	const responseStr = "export function fn() ***REMOVED***\r\n    return 1234;\r\n***REMOVED***"
 	tb.Mux.HandleFunc("/raw/something", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		if _, ok := r.URL.Query()["_k6"]; ok ***REMOVED***
+			http.Error(w, "Internal server error", 500)
+			return
+		***REMOVED***
 		fmt.Fprint(w, responseStr)
 	***REMOVED***)
 
@@ -130,5 +134,26 @@ func TestLoad(t *testing.T) ***REMOVED***
 			assert.Equal(t, src.Filename, sr("HTTPSBIN_DOMAIN:HTTPSBIN_PORT/raw/something"))
 			assert.Equal(t, responseStr, string(src.Data))
 		***REMOVED***
+	***REMOVED***)
+
+	tb.Mux.HandleFunc("/invalid", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		http.Error(w, "Internal server error", 500)
+	***REMOVED***)
+
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		src, err := Load(nil, "/", sr("HTTPSBIN_DOMAIN:HTTPSBIN_PORT/invalid"))
+		assert.Nil(t, src)
+		assert.Error(t, err)
+
+		t.Run("Host", func(t *testing.T) ***REMOVED***
+			src, err := Load(nil, "/", "some-path-that-doesnt-exist.js")
+			assert.Nil(t, src)
+			assert.Error(t, err)
+		***REMOVED***)
+		t.Run("URL", func(t *testing.T) ***REMOVED***
+			src, err := Load(nil, "/", "192.168.0.%31")
+			assert.Nil(t, src)
+			assert.Error(t, err)
+		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
