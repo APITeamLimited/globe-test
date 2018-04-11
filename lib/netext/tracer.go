@@ -55,7 +55,7 @@ type Trail struct ***REMOVED***
 ***REMOVED***
 
 // Samples returns a slice with all of the pre-calculated sample values for the request
-func (tr Trail) Samples(tags map[string]string) []stats.Sample ***REMOVED***
+func (tr Trail) Samples(tags *stats.SampleTags) []stats.Sample ***REMOVED***
 	return []stats.Sample***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,

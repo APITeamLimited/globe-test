@@ -35,7 +35,7 @@ type Envelope struct ***REMOVED***
 type JSONSample struct ***REMOVED***
 	Time  time.Time         `json:"time"`
 	Value float64           `json:"value"`
-	Tags  map[string]string `json:"tags"`
+	Tags  *stats.SampleTags `json:"tags"`
 ***REMOVED***
 
 func NewJSONSample(sample *stats.Sample) *JSONSample ***REMOVED***

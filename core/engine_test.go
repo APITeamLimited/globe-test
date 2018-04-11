@@ -29,6 +29,7 @@ import (
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -342,7 +343,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
@@ -361,53 +362,14 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		sms := e.submetrics["my_metric"]
 		assert.Len(t, sms, 1)
 		assert.Equal(t, "my_metric***REMOVED***a:1***REMOVED***", sms[0].Name)
-		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags)
+		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags.CloneTags())
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
-	***REMOVED***)
-	t.Run("apply run tags", func(t *testing.T) ***REMOVED***
-		tags := map[string]string***REMOVED***"foo": "bar"***REMOVED***
-		e, err, _ := newTestEngine(nil, lib.Options***REMOVED***RunTags: tags***REMOVED***)
-		assert.NoError(t, err)
-
-		c := &dummy.Collector***REMOVED******REMOVED***
-		e.Collector = c
-
-		t.Run("sample untagged", func(t *testing.T) ***REMOVED***
-			c.Samples = nil
-
-			e.processSamples(
-				stats.Sample***REMOVED***
-					Metric: metric,
-					Value:  1.25,
-				***REMOVED***,
-			)
-
-			assert.Equal(t, tags, c.Samples[0].Tags)
-		***REMOVED***)
-		t.Run("sample tagged", func(t *testing.T) ***REMOVED***
-			c.Samples = nil
-
-			e.processSamples(
-				stats.Sample***REMOVED***
-					Metric: metric,
-					Value:  1.25,
-					Tags:   map[string]string***REMOVED***"myTag": "foobar"***REMOVED***,
-				***REMOVED***,
-			)
-
-			assert.Equal(t, tags["foo"], c.Samples[0].Tags["foo"])
-		***REMOVED***)
-
-		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: nil***REMOVED***,
-		)
-
 	***REMOVED***)
 ***REMOVED***
 
@@ -425,7 +387,7 @@ func TestEngine_runThresholds(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 		)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -448,7 +410,7 @@ func TestEngine_runThresholds(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 		)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -501,7 +463,7 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 
 			e.processSamples(
-				stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+				stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 			)
 
 			abortCalled := false
@@ -610,4 +572,124 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 			)
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestRunTags(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	runTagsMap := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
+	runTags := stats.NewSampleTags(runTagsMap)
+
+	script := []byte(tb.Replacer.Replace(`
+		import http from "k6/http";
+		import ws from "k6/ws";
+		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+		import ***REMOVED*** group, check, fail ***REMOVED*** from "k6";
+
+		let customTags =  ***REMOVED*** "over": "the rainbow" ***REMOVED***;
+		let params = ***REMOVED*** "tags": customTags***REMOVED***;
+		let statusCheck = ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***
+
+		let myCounter = new Counter("mycounter");
+
+		export default function() ***REMOVED***
+
+			group("http", function() ***REMOVED***
+				check(http.get("HTTPSBIN_URL", params), statusCheck, customTags);
+				check(http.get("HTTPBIN_URL/status/418", params), statusCheck, customTags);
+			***REMOVED***)
+
+			group("websockets", function() ***REMOVED***
+				var response = ws.connect("wss://HTTPSBIN_IP:HTTPSBIN_PORT/ws-close", params, function (socket) ***REMOVED***
+					socket.close()
+					/*
+					//TODO: enable these and use /ws-echo endpoint when data race is fixed
+					socket.on('open', function open() ***REMOVED***
+						console.log('connected');
+						socket.send("hello");
+					***REMOVED***);
+
+					socket.on('message', function (message) ***REMOVED***
+						if (message != "hello") ***REMOVED***
+							fail("Expected to receive 'hello' but got '" + message + "' instead !");
+						***REMOVED***
+					***REMOVED***);
+
+					socket.on('close', function () ***REMOVED***
+						console.log('disconnected');
+					***REMOVED***);
+					*/
+				***REMOVED***);
+				check(response, ***REMOVED*** "status is 101": (r) => r && r.status === 101 ***REMOVED***, customTags);
+			***REMOVED***)
+
+			myCounter.add(1, customTags);
+		***REMOVED***
+	`))
+
+	r, err := js.New(
+		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
+		afero.NewMemMapFs(),
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	options := lib.Options***REMOVED***
+		Iterations:            null.IntFrom(3),
+		VUs:                   null.IntFrom(2),
+		VUsMax:                null.IntFrom(2),
+		Hosts:                 tb.Dialer.Hosts,
+		RunTags:               runTags,
+		SystemTags:            lib.GetTagSet(lib.DefaultSystemTagList...),
+		InsecureSkipTLSVerify: null.BoolFrom(true),
+	***REMOVED***
+
+	r.SetOptions(options)
+	engine, err := NewEngine(local.New(r), options)
+	require.NoError(t, err)
+
+	collector := &dummy.Collector***REMOVED******REMOVED***
+	engine.Collector = collector
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+	***REMOVED***
+
+	systemMetrics := []*stats.Metric***REMOVED***
+		metrics.VUs, metrics.VUsMax, metrics.Iterations, metrics.IterationDuration,
+		metrics.GroupDuration, metrics.DataSent, metrics.DataReceived,
+	***REMOVED***
+
+	getExpectedOverVal := func(metricName string) string ***REMOVED***
+		for _, sysMetric := range systemMetrics ***REMOVED***
+			if sysMetric.Name == metricName ***REMOVED***
+				return runTagsMap["over"]
+			***REMOVED***
+		***REMOVED***
+		return "the rainbow"
+	***REMOVED***
+
+	for _, s := range collector.Samples ***REMOVED***
+		for key, expVal := range runTagsMap ***REMOVED***
+			val, ok := s.Tags.Get(key)
+
+			if key == "over" ***REMOVED***
+				expVal = getExpectedOverVal(s.Metric.Name)
+			***REMOVED***
+
+			assert.True(t, ok)
+			assert.Equalf(t, expVal, val, "Wrong tag value in sample for metric %#v", s.Metric)
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***

@@ -61,7 +61,8 @@ func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, u
 	seenWaiting := false
 	seenReceiving := false
 	for _, sample := range samples ***REMOVED***
-		if sample.Tags["url"] == url ***REMOVED***
+		tags := sample.Tags.CloneTags()
+		if tags["url"] == url ***REMOVED***
 			switch sample.Metric ***REMOVED***
 			case metrics.HTTPReqDuration:
 				seenDuration = true
@@ -79,10 +80,10 @@ func assertRequestMetricsEmitted(t *testing.T, samples []stats.Sample, method, u
 				seenReceiving = true
 			***REMOVED***
 
-			assert.Equal(t, strconv.Itoa(status), sample.Tags["status"])
-			assert.Equal(t, method, sample.Tags["method"])
-			assert.Equal(t, group, sample.Tags["group"])
-			assert.Equal(t, name, sample.Tags["name"])
+			assert.Equal(t, strconv.Itoa(status), tags["status"])
+			assert.Equal(t, method, tags["method"])
+			assert.Equal(t, group, tags["group"])
+			assert.Equal(t, name, tags["name"])
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenDuration, "url %s didn't emit Duration", url)
@@ -309,7 +310,9 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assertRequestMetricsEmitted(t, state.Samples, "GET", "https://http2.akamai.com/demo", "", 200, "")
 		for _, sample := range state.Samples ***REMOVED***
-			assert.Equal(t, "HTTP/2.0", sample.Tags["proto"])
+			proto, ok := sample.Tags.Get("proto")
+			assert.True(t, ok)
+			assert.Equal(t, "HTTP/2.0", proto)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("TLS", func(t *testing.T) ***REMOVED***
@@ -719,7 +722,9 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 				for _, sample := range state.Samples ***REMOVED***
-					assert.Equal(t, "value", sample.Tags["tag"])
+					tagValue, ok := sample.Tags.Get("tag")
+					assert.True(t, ok)
+					assert.Equal(t, "value", tagValue)
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
@@ -1004,7 +1009,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			assert.NotEmpty(t, state.Samples)
 			for _, sample := range state.Samples ***REMOVED***
 				assert.NotEmpty(t, sample.Tags)
-				for emittedTag := range sample.Tags ***REMOVED***
+				for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
 					assert.Equal(t, expectedTag, emittedTag)
 				***REMOVED***
 			***REMOVED***

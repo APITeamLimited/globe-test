@@ -188,7 +188,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		req.Header.Set("User-Agent", userAgent.String)
 	***REMOVED***
 
-	tags := map[string]string***REMOVED******REMOVED***
+	tags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["method"] ***REMOVED***
 		tags["method"] = method
 	***REMOVED***
@@ -394,7 +394,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 		***REMOVED***
 
-		statsSamples = append(statsSamples, tracer.Done().Samples(tags)...)
+		statsSamples = append(statsSamples, tracer.Done().Samples(stats.NewSampleTags(tags))...)
 	***REMOVED***
 
 	if auth == "ntlm" ***REMOVED***
@@ -517,7 +517,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
-	statsSamples = append(statsSamples, trail.Samples(tags)...)
+	statsSamples = append(statsSamples, trail.Samples(stats.IntoSampleTags(&tags))...)
 	return resp, statsSamples, nil
 ***REMOVED***
 

@@ -22,22 +22,19 @@ package ws
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/gorilla/websocket"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,7 +45,8 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 	seenConnecting := false
 
 	for _, sample := range samples ***REMOVED***
-		if sample.Tags["url"] == url ***REMOVED***
+		tags := sample.Tags.CloneTags()
+		if tags["url"] == url ***REMOVED***
 			switch sample.Metric ***REMOVED***
 			case metrics.WSConnecting:
 				seenConnecting = true
@@ -58,9 +56,9 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 				seenSessions = true
 			***REMOVED***
 
-			assert.Equal(t, strconv.Itoa(status), sample.Tags["status"])
-			assert.Equal(t, subprotocol, sample.Tags["subproto"])
-			assert.Equal(t, group, sample.Tags["group"])
+			assert.Equal(t, strconv.Itoa(status), tags["status"])
+			assert.Equal(t, subprotocol, tags["subproto"])
+			assert.Equal(t, group, tags["group"])
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenConnecting, "url %s didn't emit Connecting", url)
@@ -72,31 +70,15 @@ func assertMetricEmitted(t *testing.T, metric *stats.Metric, samples []stats.Sam
 	seenMetric := false
 
 	for _, sample := range samples ***REMOVED***
-		if sample.Tags["url"] == url ***REMOVED***
+		surl, ok := sample.Tags.Get("url")
+		assert.True(t, ok)
+		if surl == url ***REMOVED***
 			if sample.Metric == metric ***REMOVED***
 				seenMetric = true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenMetric, "url %s didn't emit %s", url, metric.Name)
-***REMOVED***
-
-func TLSServerMock(t *testing.T) (string, *tls.Config, func()) ***REMOVED***
-	//TODO: use NewHTTPMultiBin
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) ***REMOVED***
-		conn, err := websocket.Upgrade(w, req, w.Header(), 1024, 1024)
-		assert.NoError(t, err)
-
-		if err := conn.Close(); err != nil ***REMOVED***
-			t.Logf("Close: %v", err)
-			return
-		***REMOVED***
-	***REMOVED***)
-
-	srv := httptest.NewTLSServer(mux)
-
-	return srv.URL, srv.TLS, srv.Close
 ***REMOVED***
 
 func makeWsProto(s string) string ***REMOVED***
@@ -403,7 +385,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			`)
 			assert.NoError(t, err)
 			for _, sample := range state.Samples ***REMOVED***
-				for emittedTag := range sample.Tags ***REMOVED***
+				for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
 					assert.Equal(t, expectedTag, emittedTag)
 				***REMOVED***
 			***REMOVED***
@@ -436,10 +418,10 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
-	baseURL, tlsConfig, teardown := TLSServerMock(t)
-	defer teardown()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
 
-	url := makeWsProto(baseURL)
+	url := makeWsProto(tb.ServerHTTPS.URL) + "/ws-close"
 
 	t.Run("insecure skip verify", func(t *testing.T) ***REMOVED***
 		state.TLSConfig = &tls.Config***REMOVED***
@@ -457,21 +439,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 	assertSessionMetricsEmitted(t, state.Samples, "", url, 101, "")
 
 	t.Run("custom certificates", func(t *testing.T) ***REMOVED***
-		certs := x509.NewCertPool()
-		for _, c := range tlsConfig.Certificates ***REMOVED***
-			roots, err := x509.ParseCertificates(c.Certificate[len(c.Certificate)-1])
-			if err != nil ***REMOVED***
-				t.Fatalf("error parsing server's root cert: %v", err)
-			***REMOVED***
-			for _, root := range roots ***REMOVED***
-				certs.AddCert(root)
-			***REMOVED***
-		***REMOVED***
-
-		state.TLSConfig = &tls.Config***REMOVED***
-			RootCAs:            certs,
-			InsecureSkipVerify: false,
-		***REMOVED***
+		state.TLSConfig = tb.TLSClientConfig
 
 		_, err := common.RunString(rt, fmt.Sprintf(`
 		let res = ws.connect("%s", function(socket)***REMOVED***

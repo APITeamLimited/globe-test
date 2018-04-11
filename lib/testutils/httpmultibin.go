@@ -33,8 +33,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/mccutchen/go-httpbin/httpbin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 )
@@ -77,10 +79,35 @@ type HTTPMultiBin struct ***REMOVED***
 	Cleanup         func()
 ***REMOVED***
 
+func getWebsocketEchoHandler(t *testing.T) http.Handler ***REMOVED***
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+
+		mt, message, err := conn.ReadMessage()
+		assert.NoError(t, err)
+		assert.NoError(t, conn.WriteMessage(mt, message))
+		assert.NoError(t, conn.Close())
+	***REMOVED***)
+***REMOVED***
+func getWebsocketCloserHandler(t *testing.T) http.Handler ***REMOVED***
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		assert.NoError(t, conn.Close())
+	***REMOVED***)
+***REMOVED***
+
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
 func NewHTTPMultiBin(t *testing.T) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
 	mux := http.NewServeMux()
+	mux.Handle("/ws-echo", getWebsocketEchoHandler(t))
+	mux.Handle("/ws-close", getWebsocketCloserHandler(t))
 	mux.Handle("/", httpbin.NewHTTPBin().Handler())
 
 	// Initialize the HTTP server and get its details

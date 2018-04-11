@@ -21,6 +21,7 @@
 package stats
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -160,11 +161,106 @@ func (t ValueType) String() string ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// SampleTags is an immutable string[string] map for tags. Once a tag
+// set is created, direct modification is prohibited. It has
+// copy-on-write semantics and uses pointers for faster comparison
+// between maps, since the same tag set is often used for multiple samples.
+// All methods should not panic, even if they are called on a nil pointer.
+type SampleTags struct ***REMOVED***
+	tags map[string]string
+	json []byte
+***REMOVED***
+
+// Get returns an empty string and false if the the requested key is not
+// present or its value and true if it is.
+func (st *SampleTags) Get(key string) (string, bool) ***REMOVED***
+	if st == nil ***REMOVED***
+		return "", false
+	***REMOVED***
+	val, ok := st.tags[key]
+	return val, ok
+***REMOVED***
+
+// IsEqual trues to compare two tag sets with maximum efficiency.
+func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
+	if st == other ***REMOVED***
+		return true
+	***REMOVED***
+	if st == nil || other == nil || len(st.tags) != len(other.tags) ***REMOVED***
+		return false
+	***REMOVED***
+	for k, v := range st.tags ***REMOVED***
+		if otherv, ok := other.tags[k]; !ok || v != otherv ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+	return true
+***REMOVED***
+
+// MarshalJSON serializes SampleTags to a JSON string and caches
+// the result. It is not thread safe in the sense that the Go race
+// detector will complain if it's used concurrently, but no data
+// should be corrupted.
+func (st *SampleTags) MarshalJSON() ([]byte, error) ***REMOVED***
+	if st == nil ***REMOVED***
+		return []byte("null"), nil
+	***REMOVED***
+	if st.json != nil ***REMOVED***
+		return st.json, nil
+	***REMOVED***
+	res, err := json.Marshal(st.tags)
+	if err != nil ***REMOVED***
+		return res, err
+	***REMOVED***
+	st.json = res
+	return res, nil
+***REMOVED***
+
+// UnmarshalJSON deserializes SampleTags from a JSON string.
+func (st *SampleTags) UnmarshalJSON(data []byte) error ***REMOVED***
+	if st == nil ***REMOVED***
+		*st = SampleTags***REMOVED******REMOVED***
+	***REMOVED***
+	return json.Unmarshal(data, &st.tags)
+***REMOVED***
+
+// CloneTags copies and sample tags and underlying tag set returns
+// the result. If the receiver is nil, it returns an empty non-nil map.
+func (st *SampleTags) CloneTags() map[string]string ***REMOVED***
+	res := map[string]string***REMOVED******REMOVED***
+	if st != nil ***REMOVED***
+		for k, v := range st.tags ***REMOVED***
+			res[k] = v
+		***REMOVED***
+	***REMOVED***
+	return res
+***REMOVED***
+
+// NewSampleTags *copies* the supplied tag set and returns a new SampleTags
+// instance with the key-value pairs from it.
+func NewSampleTags(data map[string]string) *SampleTags ***REMOVED***
+	tags := map[string]string***REMOVED******REMOVED***
+	for k, v := range data ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+	return &SampleTags***REMOVED***tags: tags***REMOVED***
+***REMOVED***
+
+// IntoSampleTags "consumes" the passed map and creates a new SampleTags
+// struct with the data. The map is set to nil as a hint that it shouldn't
+// be changed after it has been transformed into an "immutable" tag set.
+// Oh, how I miss Rust and move semantics... :)
+func IntoSampleTags(data *map[string]string) *SampleTags ***REMOVED***
+	res := SampleTags***REMOVED***tags: *data***REMOVED***
+	*data = nil
+	return &res
+***REMOVED***
+
 // A Sample is a single measurement.
 type Sample struct ***REMOVED***
 	Metric *Metric
 	Time   time.Time
-	Tags   map[string]string
+	Tags   *SampleTags
 	Value  float64
 ***REMOVED***
 
@@ -231,11 +327,11 @@ func (m *Metric) HumanizeValue(v float64) string ***REMOVED***
 
 // A Submetric represents a filtered dataset based on a parent metric.
 type Submetric struct ***REMOVED***
-	Name   string            `json:"name"`
-	Parent string            `json:"parent"`
-	Suffix string            `json:"suffix"`
-	Tags   map[string]string `json:"tags"`
-	Metric *Metric           `json:"-"`
+	Name   string      `json:"name"`
+	Parent string      `json:"parent"`
+	Suffix string      `json:"suffix"`
+	Tags   *SampleTags `json:"tags"`
+	Metric *Metric     `json:"-"`
 ***REMOVED***
 
 // Creates a submetric from a name.
@@ -262,7 +358,7 @@ func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
 		tags[key] = value
 	***REMOVED***
-	return parts[0], &Submetric***REMOVED***Name: name, Parent: parts[0], Suffix: parts[1], Tags: tags***REMOVED***
+	return parts[0], &Submetric***REMOVED***Name: name, Parent: parts[0], Suffix: parts[1], Tags: IntoSampleTags(&tags)***REMOVED***
 ***REMOVED***
 
 func (m *Metric) Summary(t time.Duration) *Summary ***REMOVED***
