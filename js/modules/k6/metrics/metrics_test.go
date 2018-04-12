@@ -33,6 +33,7 @@ import (
 )
 
 func TestMetrics(t *testing.T) ***REMOVED***
+	t.Parallel()
 	types := map[string]stats.MetricType***REMOVED***
 		"Counter": stats.Counter,
 		"Gauge":   stats.Gauge,
@@ -50,8 +51,10 @@ func TestMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for fn, mtyp := range types ***REMOVED***
 		t.Run(fn, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for isTime, valueType := range map[bool]stats.ValueType***REMOVED***false: stats.Default, true: stats.Time***REMOVED*** ***REMOVED***
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					rt := goja.New()
 					rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
@@ -61,7 +64,10 @@ func TestMetrics(t *testing.T) ***REMOVED***
 
 					root, _ := lib.NewGroup("", nil)
 					child, _ := root.Group("child")
-					state := &common.State***REMOVED***Group: root***REMOVED***
+					state := &common.State***REMOVED***
+						Options: lib.Options***REMOVED***SystemTags: lib.GetTagSet("group")***REMOVED***,
+						Group:   root,
+					***REMOVED***
 
 					isTimeString := ""
 					if isTime ***REMOVED***
@@ -98,7 +104,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 											assert.Equal(t, state.Samples[0].Value, val.Float)
 											assert.Equal(t, map[string]string***REMOVED***
 												"group": g.Path,
-											***REMOVED***, state.Samples[0].Tags)
+											***REMOVED***, state.Samples[0].Tags.CloneTags())
 											assert.Equal(t, "my_metric", state.Samples[0].Metric.Name)
 											assert.Equal(t, mtyp, state.Samples[0].Metric.Type)
 											assert.Equal(t, valueType, state.Samples[0].Metric.Contains)
@@ -114,7 +120,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 											assert.Equal(t, map[string]string***REMOVED***
 												"group": g.Path,
 												"a":     "1",
-											***REMOVED***, state.Samples[0].Tags)
+											***REMOVED***, state.Samples[0].Tags.CloneTags())
 											assert.Equal(t, "my_metric", state.Samples[0].Metric.Name)
 											assert.Equal(t, mtyp, state.Samples[0].Metric.Type)
 											assert.Equal(t, valueType, state.Samples[0].Metric.Contains)

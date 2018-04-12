@@ -75,7 +75,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 			_, err = io.Copy(ioutil.Discard, res.Body)
 			assert.NoError(t, err)
 			assert.NoError(t, res.Body.Close())
-			samples := tracer.Done().Samples(map[string]string***REMOVED***"tag": "value"***REMOVED***)
+			samples := tracer.Done().Samples(stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
 
 			assert.Empty(t, tracer.protoErrors)
 			assertLaterOrZero(t, tracer.getConn, isReuse)
@@ -95,7 +95,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 				seenMetrics[s.Metric] = true
 
 				assert.False(t, s.Time.IsZero())
-				assert.Equal(t, map[string]string***REMOVED***"tag": "value"***REMOVED***, s.Tags)
+				assert.Equal(t, map[string]string***REMOVED***"tag": "value"***REMOVED***, s.Tags.CloneTags())
 
 				switch s.Metric ***REMOVED***
 				case metrics.HTTPReqs:

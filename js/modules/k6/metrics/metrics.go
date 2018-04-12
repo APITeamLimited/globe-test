@@ -51,9 +51,11 @@ func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime 
 func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]string) ***REMOVED***
 	state := common.GetState(ctx)
 
-	tags := map[string]string***REMOVED***
-		"group": state.Group.Path,
+	tags := state.Options.RunTags.CloneTags()
+	if state.Options.SystemTags["group"] ***REMOVED***
+		tags["group"] = state.Group.Path
 	***REMOVED***
+
 	for _, ts := range addTags ***REMOVED***
 		for k, v := range ts ***REMOVED***
 			tags[k] = v
@@ -66,7 +68,7 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 	***REMOVED***
 
 	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: tags***REMOVED***,
+		stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: stats.IntoSampleTags(&tags)***REMOVED***,
 	)
 ***REMOVED***
 

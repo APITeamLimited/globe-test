@@ -68,7 +68,7 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	ret, err := fn(goja.Undefined())
 	t := time.Now()
 
-	tags := map[string]string***REMOVED******REMOVED***
+	tags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["group"] ***REMOVED***
 		tags["group"] = g.Path
 	***REMOVED***
@@ -83,7 +83,7 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 		stats.Sample***REMOVED***
 			Time:   t,
 			Metric: metrics.GroupDuration,
-			Tags:   tags,
+			Tags:   stats.IntoSampleTags(&tags),
 			Value:  stats.D(t.Sub(startTime)),
 		***REMOVED***,
 	)
@@ -96,7 +96,7 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 	t := time.Now()
 
 	// Prepare tags, make sure the `group` tag can't be overwritten.
-	commonTags := map[string]string***REMOVED******REMOVED***
+	commonTags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["group"] ***REMOVED***
 		commonTags["group"] = state.Group.Path
 	***REMOVED***
@@ -135,12 +135,14 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 		// Resolve callables into values.
 		fn, ok := goja.AssertFunction(val)
 		if ok ***REMOVED***
-			val_, err := fn(goja.Undefined(), arg0)
+			tmpVal, err := fn(goja.Undefined(), arg0)
 			if err != nil ***REMOVED***
 				return false, err
 			***REMOVED***
-			val = val_
+			val = tmpVal
 		***REMOVED***
+
+		sampleTags := stats.IntoSampleTags(&tags)
 
 		// Emit! (But only if we have a valid context.)
 		select ***REMOVED***
@@ -149,12 +151,12 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 			if val.ToBoolean() ***REMOVED***
 				atomic.AddInt64(&check.Passes, 1)
 				state.Samples = append(state.Samples,
-					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 1***REMOVED***,
+					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 1***REMOVED***,
 				)
 			***REMOVED*** else ***REMOVED***
 				atomic.AddInt64(&check.Fails, 1)
 				state.Samples = append(state.Samples,
-					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: tags, Value: 0***REMOVED***,
+					stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 0***REMOVED***,
 				)
 
 				// A single failure makes the return value false.

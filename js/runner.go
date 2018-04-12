@@ -348,7 +348,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 	v, err := fn(goja.Undefined(), args...) // Actually run the JS script
 	t := time.Now()
 
-	tags := map[string]string***REMOVED******REMOVED***
+	tags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["vu"] ***REMOVED***
 		tags["vu"] = strconv.FormatInt(u.ID, 10)
 	***REMOVED***
@@ -356,10 +356,12 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
 
+	sampleTags := stats.IntoSampleTags(&tags)
+
 	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: tags***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: tags***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: tags***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: sampleTags***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: sampleTags***REMOVED***,
+		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: sampleTags***REMOVED***,
 	)
 
 	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
