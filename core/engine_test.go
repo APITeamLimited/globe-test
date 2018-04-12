@@ -495,81 +495,105 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	script := []byte(tb.Replacer.Replace(`
-		import http from "k6/http";
-		export default function() ***REMOVED***
-			http.get("HTTPBIN_URL/bytes/5000");
-			http.get("HTTPSBIN_URL/bytes/5000");
-			http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
+	const expectedHeaderMaxLength = 500
+
+	type testScript struct ***REMOVED***
+		Code                 string
+		NumRequests          int64
+		ExpectedDataSent     int64
+		ExpectedDataReceived int64
+	***REMOVED***
+	testScripts := []testScript***REMOVED***
 		***REMOVED***
-	`))
-	expectedSingleData := 50000.0
+			tb.Replacer.Replace(`
+			import http from "k6/http";
+			export default function() ***REMOVED***
+				http.get("HTTPBIN_URL/bytes/5000");
+				http.get("HTTPSBIN_URL/bytes/5000");
+				http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
+			***REMOVED***`), 5, 0, 50000,
+		***REMOVED***,
+		//TODO: test websockets
+	***REMOVED***
 
 	type testCase struct***REMOVED*** Iterations, VUs int64 ***REMOVED***
 	testCases := []testCase***REMOVED***
 		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
 	***REMOVED***
 
-	getTestCase := func(t *testing.T, tc testCase) func(t *testing.T) ***REMOVED***
-		return func(t *testing.T) ***REMOVED***
-			t.Parallel()
-			r, err := js.New(
-				&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-				afero.NewMemMapFs(),
-				lib.RuntimeOptions***REMOVED******REMOVED***,
-			)
+	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
+		r, err := js.New(
+			&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(ts.Code)***REMOVED***,
+			afero.NewMemMapFs(),
+			lib.RuntimeOptions***REMOVED******REMOVED***,
+		)
+		require.NoError(t, err)
+
+		options := lib.Options***REMOVED***
+			Iterations: null.IntFrom(tc.Iterations),
+			VUs:        null.IntFrom(tc.VUs),
+			VUsMax:     null.IntFrom(tc.VUs),
+			Hosts:      tb.Dialer.Hosts,
+			InsecureSkipTLSVerify: null.BoolFrom(true),
+			NoConnectionReuse:     null.BoolFrom(noConnReuse),
+		***REMOVED***
+
+		r.SetOptions(options)
+		engine, err := NewEngine(local.New(r), options)
+		require.NoError(t, err)
+
+		collector := &dummy.Collector***REMOVED******REMOVED***
+		engine.Collector = collector
+
+		ctx, cancel := context.WithCancel(context.Background())
+		errC := make(chan error)
+		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+		select ***REMOVED***
+		case <-time.After(10 * time.Second):
+			cancel()
+			t.Fatal("Test timed out")
+		case err := <-errC:
+			cancel()
 			require.NoError(t, err)
+		***REMOVED***
 
-			options := lib.Options***REMOVED***
-				Iterations: null.IntFrom(tc.Iterations),
-				VUs:        null.IntFrom(tc.VUs),
-				VUsMax:     null.IntFrom(tc.VUs),
-				Hosts:      tb.Dialer.Hosts,
-				InsecureSkipTLSVerify: null.BoolFrom(true),
-			***REMOVED***
-			//TODO: test for differences with NoConnectionReuse enabled and disabled
+		checkData := func(name string, expected int64) float64 ***REMOVED***
+			data := getMetricSum(collector.Samples, name)
+			expectedDataMin := float64(expected * tc.Iterations)
+			expectedDataMax := float64((expected + ts.NumRequests*expectedHeaderMaxLength) * tc.Iterations)
 
-			r.SetOptions(options)
-			engine, err := NewEngine(local.New(r), options)
-			require.NoError(t, err)
-
-			collector := &dummy.Collector***REMOVED******REMOVED***
-			engine.Collector = collector
-
-			ctx, cancel := context.WithCancel(context.Background())
-			errC := make(chan error)
-			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
-
-			select ***REMOVED***
-			case <-time.After(10 * time.Second):
-				cancel()
-				t.Fatal("Test timed out")
-			case err := <-errC:
-				cancel()
-				require.NoError(t, err)
-			***REMOVED***
-
-			receivedData := getMetricSum(collector.Samples, "data_received")
-			expectedDataMin := expectedSingleData * float64(tc.Iterations)
-			expectedDataMax := 1.05 * expectedDataMin // To account for headers
-			if receivedData < expectedDataMin || receivedData > expectedDataMax ***REMOVED***
+			if data < expectedDataMin || data > expectedDataMax ***REMOVED***
 				t.Errorf(
-					"The received data should be in the interval [%f, %f] but was %f",
-					expectedDataMin,
-					expectedDataMax,
-					receivedData,
+					"The %s sum should be in the interval [%f, %f] but was %f",
+					name, expectedDataMin, expectedDataMax, data,
 				)
 			***REMOVED***
+			return data
+		***REMOVED***
+
+		return checkData("data_sent", ts.ExpectedDataSent),
+			checkData("data_received", ts.ExpectedDataReceived)
+	***REMOVED***
+
+	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
+		return func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			runTest(t, ts, tc, false)
+			runTest(t, ts, tc, true)
+			//TODO: test for differences with NoConnectionReuse enabled and disabled
 		***REMOVED***
 	***REMOVED***
 
 	// This Run will not return until the parallel subtests complete.
 	t.Run("group", func(t *testing.T) ***REMOVED***
-		for testn, tc := range testCases ***REMOVED***
-			t.Run(
-				fmt.Sprintf("SentReceivedMetrics_%d(%d, %d)", testn, tc.Iterations, tc.VUs),
-				getTestCase(t, tc),
-			)
+		for tsNum, ts := range testScripts ***REMOVED***
+			for tcNum, tc := range testCases ***REMOVED***
+				t.Run(
+					fmt.Sprintf("SentReceivedMetrics_script[%d]_case[%d](%d, %d)", tsNum, tcNum, tc.Iterations, tc.VUs),
+					getTestCase(t, ts, tc),
+				)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
