@@ -494,6 +494,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
+	tr := tb.Replacer.Replace
 
 	const expectedHeaderMaxLength = 500
 
@@ -504,21 +505,40 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		ExpectedDataReceived int64
 	***REMOVED***
 	testScripts := []testScript***REMOVED***
-		***REMOVED***
-			tb.Replacer.Replace(`
-			import http from "k6/http";
+		***REMOVED***tr(`import http from "k6/http";
+			export default function() ***REMOVED***
+				http.get("HTTPBIN_URL/bytes/15000");
+			***REMOVED***`), 1, 0, 15000***REMOVED***,
+		***REMOVED***tr(`import http from "k6/http";
 			export default function() ***REMOVED***
 				http.get("HTTPBIN_URL/bytes/5000");
 				http.get("HTTPSBIN_URL/bytes/5000");
 				http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
-			***REMOVED***`), 5, 0, 50000,
-		***REMOVED***,
-		//TODO: test websockets
+			***REMOVED***`), 5, 0, 50000***REMOVED***,
+		***REMOVED***tr(`import http from "k6/http";
+			let data = "0123456789".repeat(100);
+			export default function() ***REMOVED***
+				http.post("HTTPBIN_URL/ip", ***REMOVED***
+					file: http.file(data, "test.txt")
+				***REMOVED***);
+			***REMOVED***`), 1, 1000, 100***REMOVED***,
+		***REMOVED***tr(`import ws from "k6/ws";
+			let data = "0123456789".repeat(100);
+			export default function() ***REMOVED***
+				ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo", null, function (socket) ***REMOVED***
+					socket.on('open', function open() ***REMOVED***
+						socket.send(data);
+					***REMOVED***);
+					socket.on('message', function (message) ***REMOVED***
+						socket.close();
+					***REMOVED***);
+				***REMOVED***);
+			***REMOVED***`), 2, 1000, 1000***REMOVED***,
 	***REMOVED***
 
 	type testCase struct***REMOVED*** Iterations, VUs int64 ***REMOVED***
 	testCases := []testCase***REMOVED***
-		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
+		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
 	***REMOVED***
 
 	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
@@ -579,9 +599,15 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
 		return func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			runTest(t, ts, tc, false)
-			runTest(t, ts, tc, true)
-			//TODO: test for differences with NoConnectionReuse enabled and disabled
+			noReuseSent, noReuseReceived := runTest(t, ts, tc, true)
+			reuseSent, reuseReceived := runTest(t, ts, tc, false)
+
+			if noReuseSent < reuseSent ***REMOVED***
+				t.Errorf("noReuseSent=%f is greater than reuseSent=%f", noReuseSent, reuseSent)
+			***REMOVED***
+			if noReuseReceived < reuseReceived ***REMOVED***
+				t.Errorf("noReuseReceived=%f is greater than reuseReceived=%f", noReuseReceived, reuseReceived)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
@@ -590,7 +616,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		for tsNum, ts := range testScripts ***REMOVED***
 			for tcNum, tc := range testCases ***REMOVED***
 				t.Run(
-					fmt.Sprintf("SentReceivedMetrics_script[%d]_case[%d](%d, %d)", tsNum, tcNum, tc.Iterations, tc.VUs),
+					fmt.Sprintf("SentReceivedMetrics_script[%d]_case[%d](%d,%d)", tsNum, tcNum, tc.Iterations, tc.VUs),
 					getTestCase(t, ts, tc),
 				)
 			***REMOVED***
