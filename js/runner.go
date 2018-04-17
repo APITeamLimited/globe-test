@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja"
@@ -332,9 +333,6 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		Vu:            u.ID,
 		Iteration:     u.Iteration,
 	***REMOVED***
-	// Zero out the values, since we may be reusing a connection
-	u.Dialer.BytesRead = 0
-	u.Dialer.BytesWritten = 0
 
 	newctx := common.WithRuntime(ctx, u.Runtime)
 	newctx = common.WithState(newctx, state)
@@ -346,7 +344,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 
 	startTime := time.Now()
 	v, err := fn(goja.Undefined(), args...) // Actually run the JS script
-	t := time.Now()
+	endTime := time.Now()
 
 	tags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["vu"] ***REMOVED***
@@ -355,17 +353,32 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 	if state.Options.SystemTags["iter"] ***REMOVED***
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
-
 	sampleTags := stats.IntoSampleTags(&tags)
-
-	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataSent, Value: float64(u.Dialer.BytesWritten), Tags: sampleTags***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.DataReceived, Value: float64(u.Dialer.BytesRead), Tags: sampleTags***REMOVED***,
-		stats.Sample***REMOVED***Time: t, Metric: metrics.IterationDuration, Value: stats.D(t.Sub(startTime)), Tags: sampleTags***REMOVED***,
-	)
 
 	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
+
+	bytesWritten := atomic.SwapInt64(&u.Dialer.BytesWritten, 0)
+	bytesRead := atomic.SwapInt64(&u.Dialer.BytesRead, 0)
+
+	state.Samples = append(state.Samples,
+		stats.Sample***REMOVED***
+			Time:   endTime,
+			Metric: metrics.DataSent,
+			Value:  float64(bytesWritten),
+			Tags:   sampleTags***REMOVED***,
+		stats.Sample***REMOVED***
+			Time:   endTime,
+			Metric: metrics.DataReceived,
+			Value:  float64(bytesRead),
+			Tags:   sampleTags***REMOVED***,
+		stats.Sample***REMOVED***
+			Time:   endTime,
+			Metric: metrics.IterationDuration,
+			Value:  stats.D(endTime.Sub(startTime)),
+			Tags:   sampleTags***REMOVED***,
+	)
+
 	return v, state, err
 ***REMOVED***

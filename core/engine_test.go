@@ -494,82 +494,132 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
+	tr := tb.Replacer.Replace
 
-	script := []byte(tb.Replacer.Replace(`
-		import http from "k6/http";
-		export default function() ***REMOVED***
-			http.get("HTTPBIN_URL/bytes/5000");
-			http.get("HTTPSBIN_URL/bytes/5000");
-			http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
-		***REMOVED***
-	`))
-	expectedSingleData := 50000.0
+	const expectedHeaderMaxLength = 500
+
+	type testScript struct ***REMOVED***
+		Code                 string
+		NumRequests          int64
+		ExpectedDataSent     int64
+		ExpectedDataReceived int64
+	***REMOVED***
+	testScripts := []testScript***REMOVED***
+		***REMOVED***tr(`import http from "k6/http";
+			export default function() ***REMOVED***
+				http.get("HTTPBIN_URL/bytes/15000");
+			***REMOVED***`), 1, 0, 15000***REMOVED***,
+		***REMOVED***tr(`import http from "k6/http";
+			export default function() ***REMOVED***
+				http.get("HTTPBIN_URL/bytes/5000");
+				http.get("HTTPSBIN_URL/bytes/5000");
+				http.batch(["HTTPBIN_URL/bytes/10000", "HTTPBIN_URL/bytes/20000", "HTTPSBIN_URL/bytes/10000"]);
+			***REMOVED***`), 5, 0, 50000***REMOVED***,
+		***REMOVED***tr(`import http from "k6/http";
+			let data = "0123456789".repeat(100);
+			export default function() ***REMOVED***
+				http.post("HTTPBIN_URL/ip", ***REMOVED***
+					file: http.file(data, "test.txt")
+				***REMOVED***);
+			***REMOVED***`), 1, 1000, 100***REMOVED***,
+		***REMOVED***tr(`import ws from "k6/ws";
+			let data = "0123456789".repeat(100);
+			export default function() ***REMOVED***
+				ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo", null, function (socket) ***REMOVED***
+					socket.on('open', function open() ***REMOVED***
+						socket.send(data);
+					***REMOVED***);
+					socket.on('message', function (message) ***REMOVED***
+						socket.close();
+					***REMOVED***);
+				***REMOVED***);
+			***REMOVED***`), 2, 1000, 1000***REMOVED***,
+	***REMOVED***
 
 	type testCase struct***REMOVED*** Iterations, VUs int64 ***REMOVED***
 	testCases := []testCase***REMOVED***
-		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***2, 2***REMOVED***, ***REMOVED***3, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***10, 3***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
+		***REMOVED***1, 1***REMOVED***, ***REMOVED***1, 2***REMOVED***, ***REMOVED***2, 1***REMOVED***, ***REMOVED***5, 2***REMOVED***, ***REMOVED***25, 2***REMOVED***, ***REMOVED***50, 5***REMOVED***,
 	***REMOVED***
 
-	getTestCase := func(t *testing.T, tc testCase) func(t *testing.T) ***REMOVED***
+	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
+		r, err := js.New(
+			&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(ts.Code)***REMOVED***,
+			afero.NewMemMapFs(),
+			lib.RuntimeOptions***REMOVED******REMOVED***,
+		)
+		require.NoError(t, err)
+
+		options := lib.Options***REMOVED***
+			Iterations: null.IntFrom(tc.Iterations),
+			VUs:        null.IntFrom(tc.VUs),
+			VUsMax:     null.IntFrom(tc.VUs),
+			Hosts:      tb.Dialer.Hosts,
+			InsecureSkipTLSVerify: null.BoolFrom(true),
+			NoConnectionReuse:     null.BoolFrom(noConnReuse),
+		***REMOVED***
+
+		r.SetOptions(options)
+		engine, err := NewEngine(local.New(r), options)
+		require.NoError(t, err)
+
+		collector := &dummy.Collector***REMOVED******REMOVED***
+		engine.Collector = collector
+
+		ctx, cancel := context.WithCancel(context.Background())
+		errC := make(chan error)
+		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+		select ***REMOVED***
+		case <-time.After(10 * time.Second):
+			cancel()
+			t.Fatal("Test timed out")
+		case err := <-errC:
+			cancel()
+			require.NoError(t, err)
+		***REMOVED***
+
+		checkData := func(name string, expected int64) float64 ***REMOVED***
+			data := getMetricSum(collector.Samples, name)
+			expectedDataMin := float64(expected * tc.Iterations)
+			expectedDataMax := float64((expected + ts.NumRequests*expectedHeaderMaxLength) * tc.Iterations)
+
+			if data < expectedDataMin || data > expectedDataMax ***REMOVED***
+				t.Errorf(
+					"The %s sum should be in the interval [%f, %f] but was %f",
+					name, expectedDataMin, expectedDataMax, data,
+				)
+			***REMOVED***
+			return data
+		***REMOVED***
+
+		return checkData("data_sent", ts.ExpectedDataSent),
+			checkData("data_received", ts.ExpectedDataReceived)
+	***REMOVED***
+
+	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
 		return func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			r, err := js.New(
-				&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-				afero.NewMemMapFs(),
-				lib.RuntimeOptions***REMOVED******REMOVED***,
-			)
-			require.NoError(t, err)
+			noReuseSent, noReuseReceived := runTest(t, ts, tc, true)
+			reuseSent, reuseReceived := runTest(t, ts, tc, false)
 
-			options := lib.Options***REMOVED***
-				Iterations: null.IntFrom(tc.Iterations),
-				VUs:        null.IntFrom(tc.VUs),
-				VUsMax:     null.IntFrom(tc.VUs),
-				Hosts:      tb.Dialer.Hosts,
-				InsecureSkipTLSVerify: null.BoolFrom(true),
+			if noReuseSent < reuseSent ***REMOVED***
+				t.Errorf("noReuseSent=%f is greater than reuseSent=%f", noReuseSent, reuseSent)
 			***REMOVED***
-			//TODO: test for differences with NoConnectionReuse enabled and disabled
-
-			r.SetOptions(options)
-			engine, err := NewEngine(local.New(r), options)
-			require.NoError(t, err)
-
-			collector := &dummy.Collector***REMOVED******REMOVED***
-			engine.Collector = collector
-
-			ctx, cancel := context.WithCancel(context.Background())
-			errC := make(chan error)
-			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
-
-			select ***REMOVED***
-			case <-time.After(10 * time.Second):
-				cancel()
-				t.Fatal("Test timed out")
-			case err := <-errC:
-				cancel()
-				require.NoError(t, err)
-			***REMOVED***
-
-			receivedData := getMetricSum(collector.Samples, "data_received")
-			expectedDataMin := expectedSingleData * float64(tc.Iterations)
-			expectedDataMax := 1.05 * expectedDataMin // To account for headers
-			if receivedData < expectedDataMin || receivedData > expectedDataMax ***REMOVED***
-				t.Errorf(
-					"The received data should be in the interval [%f, %f] but was %f",
-					expectedDataMin,
-					expectedDataMax,
-					receivedData,
-				)
+			if noReuseReceived < reuseReceived ***REMOVED***
+				t.Errorf("noReuseReceived=%f is greater than reuseReceived=%f", noReuseReceived, reuseReceived)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	// This Run will not return until the parallel subtests complete.
 	t.Run("group", func(t *testing.T) ***REMOVED***
-		for testn, tc := range testCases ***REMOVED***
-			t.Run(
-				fmt.Sprintf("SentReceivedMetrics_%d(%d, %d)", testn, tc.Iterations, tc.VUs),
-				getTestCase(t, tc),
-			)
+		for tsNum, ts := range testScripts ***REMOVED***
+			for tcNum, tc := range testCases ***REMOVED***
+				t.Run(
+					fmt.Sprintf("SentReceivedMetrics_script[%d]_case[%d](%d,%d)", tsNum, tcNum, tc.Iterations, tc.VUs),
+					getTestCase(t, ts, tc),
+				)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
@@ -602,26 +652,30 @@ func TestRunTags(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			group("websockets", function() ***REMOVED***
-				var response = ws.connect("wss://HTTPSBIN_IP:HTTPSBIN_PORT/ws-close", params, function (socket) ***REMOVED***
-					socket.close()
-					/*
-					//TODO: enable these and use /ws-echo endpoint when data race is fixed
+				var response = ws.connect("wss://HTTPSBIN_IP:HTTPSBIN_PORT/ws-echo", params, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
-						console.log('connected');
+						console.log('ws open and say hello');
 						socket.send("hello");
 					***REMOVED***);
 
 					socket.on('message', function (message) ***REMOVED***
+						console.log('ws got message ' + message);
 						if (message != "hello") ***REMOVED***
 							fail("Expected to receive 'hello' but got '" + message + "' instead !");
 						***REMOVED***
+						console.log('ws closing socket...');
+						socket.close();
 					***REMOVED***);
 
 					socket.on('close', function () ***REMOVED***
-						console.log('disconnected');
+						console.log('ws close');
 					***REMOVED***);
-					*/
+
+					socket.on('error', function (e) ***REMOVED***
+						console.log('ws error: ' + e.error());
+					***REMOVED***);
 				***REMOVED***);
+				console.log('connect returned');
 				check(response, ***REMOVED*** "status is 101": (r) => r && r.status === 101 ***REMOVED***, customTags);
 			***REMOVED***)
 
