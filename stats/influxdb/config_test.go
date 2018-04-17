@@ -47,14 +47,13 @@ func TestConfigText(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for str, data := range testdata ***REMOVED***
 		t.Run(str, func(t *testing.T) ***REMOVED***
-			var config Config
-			assert.NoError(t, config.UnmarshalText([]byte(str)))
+			config, err := ParseURL(str)
+			assert.NoError(t, err)
 			assert.Equal(t, data, config)
 
 			for q, qdata := range queries ***REMOVED***
 				t.Run(q, func(t *testing.T) ***REMOVED***
-					var config Config
-					err := config.UnmarshalText([]byte(str + q))
+					config, err := ParseURL(str + q)
 					if qdata.Err != "" ***REMOVED***
 						assert.EqualError(t, err, qdata.Err)
 					***REMOVED*** else ***REMOVED***

@@ -21,7 +21,6 @@
 package influxdb
 
 import (
-	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
@@ -29,13 +28,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ConfigFields struct ***REMOVED***
+type Config struct ***REMOVED***
 	// Connection.
 	Addr        string `json:"addr" envconfig:"INFLUXDB_ADDR"`
 	Username    string `json:"username,omitempty" envconfig:"INFLUXDB_USERNAME"`
 	Password    string `json:"password,omitempty" envconfig:"INFLUXDB_PASSWORD"`
 	Insecure    bool   `json:"insecure,omitempty" envconfig:"INFLUXDB_INSECURE"`
-	PayloadSize int    `json:"payload_size,omitempty" envconfig:"INFLUXDB_PAYLOAD_SIZE"`
+	PayloadSize int    `json:"payloadSize,omitempty" envconfig:"INFLUXDB_PAYLOAD_SIZE"`
 
 	// Samples.
 	DB           string   `json:"db" envconfig:"INFLUXDB_DB"`
@@ -45,14 +44,13 @@ type ConfigFields struct ***REMOVED***
 	TagsAsFields []string `json:"tagsAsFields,omitempty" envconfig:"INFLUXDB_TAGS_AS_FIELDS"`
 ***REMOVED***
 
-type Config ConfigFields
-
 func NewConfig() *Config ***REMOVED***
 	c := &Config***REMOVED***TagsAsFields: []string***REMOVED***"vu", "iter", "url"***REMOVED******REMOVED***
 	return c
 ***REMOVED***
 
 func (c Config) Apply(cfg Config) Config ***REMOVED***
+	//TODO: fix this, use nullable values like all other configs...
 	if cfg.Addr != "" ***REMOVED***
 		c.Addr = cfg.Addr
 	***REMOVED***
@@ -86,10 +84,11 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	return c
 ***REMOVED***
 
-func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
-	u, err := url.Parse(string(text))
+func ParseURL(text string) (Config, error) ***REMOVED***
+	c := Config***REMOVED******REMOVED***
+	u, err := url.Parse(text)
 	if err != nil ***REMOVED***
-		return err
+		return c, err
 	***REMOVED***
 	if u.Host != "" ***REMOVED***
 		c.Addr = u.Scheme + "://" + u.Host
@@ -111,7 +110,7 @@ func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
 			case "true":
 				c.Insecure = true
 			default:
-				return errors.Errorf("insecure must be true or false, not %s", vs[0])
+				return c, errors.Errorf("insecure must be true or false, not %s", vs[0])
 			***REMOVED***
 		case "payload_size":
 			c.PayloadSize, err = strconv.Atoi(vs[0])
@@ -124,21 +123,8 @@ func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
 		case "tagsAsFields":
 			c.TagsAsFields = vs
 		default:
-			return errors.Errorf("unknown query parameter: %s", k)
+			return c, errors.Errorf("unknown query parameter: %s", k)
 		***REMOVED***
 	***REMOVED***
-	return err
-***REMOVED***
-
-func (c *Config) UnmarshalJSON(data []byte) error ***REMOVED***
-	fields := ConfigFields(*c)
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	*c = Config(fields)
-	return nil
-***REMOVED***
-
-func (c Config) MarshalJSON() ([]byte, error) ***REMOVED***
-	return json.Marshal(ConfigFields(c))
+	return c, err
 ***REMOVED***

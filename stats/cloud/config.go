@@ -21,52 +21,73 @@
 package cloud
 
 import (
-	"encoding/json"
+	"time"
+
+	"github.com/loadimpact/k6/lib/types"
+	"gopkg.in/guregu/null.v3"
 )
 
-type ConfigFields struct ***REMOVED***
-	Token           string `json:"token" mapstructure:"token" envconfig:"CLOUD_TOKEN"`
-	Name            string `json:"name" mapstructure:"name" envconfig:"CLOUD_NAME"`
-	Host            string `json:"host" mapstructure:"host" envconfig:"CLOUD_HOST"`
-	NoCompress      bool   `json:"no_compress" mapstructure:"no_compress" envconfig:"CLOUD_NO_COMPRESS"`
-	ProjectID       int    `json:"project_id" mapstructure:"projectID" envconfig:"CLOUD_PROJECT_ID"`
-	DeprecatedToken string `envconfig:"K6CLOUD_TOKEN"`
+// Config holds all the neccessary data and options for sending metrics to the Load Impact cloud.
+type Config struct ***REMOVED***
+	Token              null.String        `json:"token" envconfig:"CLOUD_TOKEN"`
+	DeprecatedToken    null.String        `envconfig:"K6CLOUD_TOKEN"`
+	Name               null.String        `json:"name" envconfig:"CLOUD_NAME"`
+	Host               null.String        `json:"host" envconfig:"CLOUD_HOST"`
+	NoCompress         null.Bool          `json:"noCompress" envconfig:"CLOUD_NO_COMPRESS"`
+	ProjectID          null.Int           `json:"projectID" envconfig:"CLOUD_PROJECT_ID"`
+	MetricPushInterval types.NullDuration `json:"metricPushInterval" envconfig:"CLOUD_METRIC_PUSH_INTERVAL"`
+
+	// If specified and greater than 0, sample aggregation with that period is enabled.
+	AggregationPeriod types.NullDuration `json:"aggregationPeriod" envconfig:"CLOUD_AGGREGATION_PERIOD"`
+
+	// If aggregation is enabled, this specifies how long we'll wait for period samples to accomulate before pushing them to the cloud.
+	AggregationPushDelay types.NullDuration `json:"aggregationPushDelay" envconfig:"CLOUD_AGGREGATION_PUSH_DELAY"`
+
+	// If AggregationPeriod is positive, but the collected samples for a certain period are less than this number, they won't be aggregated.
+	AggregationMinSamples null.Int `json:"aggregationMinSamples" envconfig:"CLOUD_AGGREGATION_MIN_SAMPLES"`
 ***REMOVED***
 
-type Config ConfigFields
+// NewConfig creates a new Config instance with default values for some fields.
+func NewConfig() Config ***REMOVED***
+	return Config***REMOVED***
+		Host:                  null.StringFrom("https://ingest.loadimpact.com"),
+		MetricPushInterval:    types.NullDurationFrom(1 * time.Second),
+		AggregationPushDelay:  types.NullDurationFrom(3 * time.Second),
+		AggregationMinSamples: null.IntFrom(100),
+	***REMOVED***
+***REMOVED***
 
+// Apply saves config non-zero config values from the passed config in the receiver.
 func (c Config) Apply(cfg Config) Config ***REMOVED***
-	if cfg.Token != "" ***REMOVED***
+	if cfg.Token.Valid ***REMOVED***
 		c.Token = cfg.Token
 	***REMOVED***
-	if cfg.Name != "" ***REMOVED***
+	if cfg.DeprecatedToken.Valid ***REMOVED***
+		c.DeprecatedToken = cfg.DeprecatedToken
+	***REMOVED***
+	if cfg.Name.Valid ***REMOVED***
 		c.Name = cfg.Name
 	***REMOVED***
-	if cfg.Host != "" ***REMOVED***
+	if cfg.Host.Valid ***REMOVED***
 		c.Host = cfg.Host
 	***REMOVED***
-	if cfg.ProjectID != 0 ***REMOVED***
+	if cfg.NoCompress.Valid ***REMOVED***
+		c.NoCompress = cfg.NoCompress
+	***REMOVED***
+	if cfg.ProjectID.Valid ***REMOVED***
 		c.ProjectID = cfg.ProjectID
 	***REMOVED***
+	if cfg.MetricPushInterval.Valid ***REMOVED***
+		c.MetricPushInterval = cfg.MetricPushInterval
+	***REMOVED***
+	if cfg.AggregationPeriod.Valid ***REMOVED***
+		c.AggregationPeriod = cfg.AggregationPeriod
+	***REMOVED***
+	if cfg.AggregationPushDelay.Valid ***REMOVED***
+		c.AggregationPushDelay = cfg.AggregationPushDelay
+	***REMOVED***
+	if cfg.AggregationMinSamples.Valid ***REMOVED***
+		c.AggregationMinSamples = cfg.AggregationMinSamples
+	***REMOVED***
 	return c
-***REMOVED***
-
-func (c *Config) UnmarshalText(data []byte) error ***REMOVED***
-	if s := string(data); s != "" ***REMOVED***
-		c.Name = s
-	***REMOVED***
-	return nil
-***REMOVED***
-
-func (c *Config) UnmarshalJSON(data []byte) error ***REMOVED***
-	fields := ConfigFields(*c)
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	*c = Config(fields)
-	return nil
-***REMOVED***
-
-func (c Config) MarshalJSON() ([]byte, error) ***REMOVED***
-	return json.Marshal(ConfigFields(c))
 ***REMOVED***
