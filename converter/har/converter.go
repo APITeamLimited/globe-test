@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
 	"net/url"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -188,22 +187,6 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 							***REMOVED*** else ***REMOVED***
 								fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
-							***REMOVED***
-						***REMOVED***
-					***REMOVED***
-
-					if e.Response.Headers != nil ***REMOVED***
-						for _, header := range e.Response.Headers ***REMOVED***
-							if header.Name == "Location" ***REMOVED***
-								fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
-								recordedRedirectURL = header.Value
-								guidRegexString := "[0-9a-f]***REMOVED***8***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***4***REMOVED***-[0-9a-f]***REMOVED***12***REMOVED***$"
-								re := regexp.MustCompile(guidRegexString)
-								if match := re.FindString(recordedRedirectURL); match != "" ***REMOVED***
-									recordedRestID = match
-									fmt.Fprintf(w, "\t\tlet restID = /%s/.exec(redirectUrl)[0];\n", guidRegexString)
-								***REMOVED***
-								break
 							***REMOVED***
 						***REMOVED***
 					***REMOVED***
