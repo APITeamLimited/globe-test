@@ -2,7 +2,7 @@
   "vus": 100,
   "collectors": ***REMOVED***
     "influxdb": ***REMOVED***
-      "tagsAsFields": ["vu","iter"]
+      "tagsAsFields": ["vu","iter", "url", "name"]
     ***REMOVED***
   ***REMOVED***
 ***REMOVED***
