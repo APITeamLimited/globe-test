@@ -103,7 +103,6 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 
 		if nobatch ***REMOVED***
 			var recordedRedirectURL string
-			var recordedRestID string
 			previousResponse := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
 
 			fmt.Fprint(w, "\t\tlet res, redirectUrl, json;\n")
@@ -140,11 +139,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 					fmt.Fprintf(w, "redirectUrl")
 					recordedRedirectURL = ""
 				***REMOVED*** else ***REMOVED***
-					if recordedRestID != "" && strings.Contains(e.Request.URL, recordedRestID) ***REMOVED***
-						fmt.Fprintf(w, "`%s`", strings.Replace(e.Request.URL, recordedRestID, "$***REMOVED***restID***REMOVED***", -1))
-					***REMOVED*** else ***REMOVED***
-						fmt.Fprintf(w, "%q", e.Request.URL)
-					***REMOVED***
+					fmt.Fprintf(w, "%q", e.Request.URL)
 				***REMOVED***
 
 				if e.Request.Method != "GET" ***REMOVED***
@@ -187,6 +182,16 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 							***REMOVED*** else ***REMOVED***
 								fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+							***REMOVED***
+						***REMOVED***
+					***REMOVED***
+
+					if e.Response.Headers != nil ***REMOVED***
+						for _, header := range e.Response.Headers ***REMOVED***
+							if header.Name == "Location" ***REMOVED***
+								fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
+								recordedRedirectURL = header.Value
+								break
 							***REMOVED***
 						***REMOVED***
 					***REMOVED***

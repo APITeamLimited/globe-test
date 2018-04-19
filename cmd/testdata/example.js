@@ -56,9 +56,10 @@ export default function() ***REMOVED***
 			***REMOVED***
 		)
 		if (!check(res, ***REMOVED***"status is 201": (r) => r.status === 201 ***REMOVED***)) ***REMOVED*** return ***REMOVED***;
+		redirectUrl = res.headers.Location;
 		json = JSON.parse(res.body);
 		// Request #1
-		res = http.get("https://some-host.example.com/checkout/v3/orders/570714bf-3c2b-452e-90cd-f7c5e552bb25",
+		res = http.get(redirectUrl,
 			***REMOVED***
 				"headers": ***REMOVED***
 					"Authorization": "Basic stuffz",
