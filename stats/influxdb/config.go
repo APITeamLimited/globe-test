@@ -47,6 +47,11 @@ type ConfigFields struct ***REMOVED***
 
 type Config ConfigFields
 
+func NewConfig() *Config ***REMOVED***
+	c := &Config***REMOVED***TagsAsFields: []string***REMOVED***"vu", "iter", "url"***REMOVED******REMOVED***
+	return c
+***REMOVED***
+
 func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.Addr != "" ***REMOVED***
 		c.Addr = cfg.Addr
@@ -82,7 +87,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 ***REMOVED***
 
 func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
-	c.defaultValues()
 	u, err := url.Parse(string(text))
 	if err != nil ***REMOVED***
 		return err
@@ -127,7 +131,6 @@ func (c *Config) UnmarshalText(text []byte) error ***REMOVED***
 ***REMOVED***
 
 func (c *Config) UnmarshalJSON(data []byte) error ***REMOVED***
-	c.defaultValues()
 	fields := ConfigFields(*c)
 	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
 		return err
@@ -138,10 +141,4 @@ func (c *Config) UnmarshalJSON(data []byte) error ***REMOVED***
 
 func (c Config) MarshalJSON() ([]byte, error) ***REMOVED***
 	return json.Marshal(ConfigFields(c))
-***REMOVED***
-
-func (c *Config) defaultValues() ***REMOVED***
-	if len(c.TagsAsFields) == 0 ***REMOVED***
-		c.TagsAsFields = []string***REMOVED***"vu", "iter", "url"***REMOVED***
-	***REMOVED***
 ***REMOVED***

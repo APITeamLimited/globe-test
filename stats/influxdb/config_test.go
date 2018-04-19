@@ -27,24 +27,23 @@ import (
 )
 
 func TestConfigText(t *testing.T) ***REMOVED***
-	defaultTagsAsFields := []string***REMOVED***"vu", "iter", "url"***REMOVED***
 	testdata := map[string]Config***REMOVED***
-		"":                             ***REMOVED***TagsAsFields: defaultTagsAsFields***REMOVED***,
-		"dbname":                       ***REMOVED***DB: "dbname", TagsAsFields: defaultTagsAsFields***REMOVED***,
-		"/dbname":                      ***REMOVED***DB: "dbname", TagsAsFields: defaultTagsAsFields***REMOVED***,
-		"http://localhost:8086":        ***REMOVED***Addr: "http://localhost:8086", TagsAsFields: defaultTagsAsFields***REMOVED***,
-		"http://localhost:8086/dbname": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname", TagsAsFields: defaultTagsAsFields***REMOVED***,
+		"":                             ***REMOVED******REMOVED***,
+		"dbname":                       ***REMOVED***DB: "dbname"***REMOVED***,
+		"/dbname":                      ***REMOVED***DB: "dbname"***REMOVED***,
+		"http://localhost:8086":        ***REMOVED***Addr: "http://localhost:8086"***REMOVED***,
+		"http://localhost:8086/dbname": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname"***REMOVED***,
 	***REMOVED***
 	queries := map[string]struct ***REMOVED***
 		Config Config
 		Err    string
 	***REMOVED******REMOVED***
-		"?":                ***REMOVED***Config***REMOVED***TagsAsFields: defaultTagsAsFields***REMOVED***, ""***REMOVED***,
-		"?insecure=false":  ***REMOVED***Config***REMOVED***Insecure: false, TagsAsFields: defaultTagsAsFields***REMOVED***, ""***REMOVED***,
-		"?insecure=true":   ***REMOVED***Config***REMOVED***Insecure: true, TagsAsFields: defaultTagsAsFields***REMOVED***, ""***REMOVED***,
-		"?insecure=ture":   ***REMOVED***Config***REMOVED***TagsAsFields: defaultTagsAsFields***REMOVED***, "insecure must be true or false, not ture"***REMOVED***,
-		"?payload_size=69": ***REMOVED***Config***REMOVED***PayloadSize: 69, TagsAsFields: defaultTagsAsFields***REMOVED***, ""***REMOVED***,
-		"?payload_size=a":  ***REMOVED***Config***REMOVED***TagsAsFields: defaultTagsAsFields***REMOVED***, "strconv.Atoi: parsing \"a\": invalid syntax"***REMOVED***,
+		"?":                ***REMOVED***Config***REMOVED******REMOVED***, ""***REMOVED***,
+		"?insecure=false":  ***REMOVED***Config***REMOVED***Insecure: false***REMOVED***, ""***REMOVED***,
+		"?insecure=true":   ***REMOVED***Config***REMOVED***Insecure: true***REMOVED***, ""***REMOVED***,
+		"?insecure=ture":   ***REMOVED***Config***REMOVED******REMOVED***, "insecure must be true or false, not ture"***REMOVED***,
+		"?payload_size=69": ***REMOVED***Config***REMOVED***PayloadSize: 69***REMOVED***, ""***REMOVED***,
+		"?payload_size=a":  ***REMOVED***Config***REMOVED******REMOVED***, "strconv.Atoi: parsing \"a\": invalid syntax"***REMOVED***,
 	***REMOVED***
 	for str, data := range testdata ***REMOVED***
 		t.Run(str, func(t *testing.T) ***REMOVED***
