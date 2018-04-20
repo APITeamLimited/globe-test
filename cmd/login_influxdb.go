@@ -46,7 +46,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			return err
 		***REMOVED***
 
-		conf := config.Collectors.InfluxDB
+		conf := influxdb.NewConfig().Apply(config.Collectors.InfluxDB)
 		if len(args) > 0 ***REMOVED***
 			if err := conf.UnmarshalText([]byte(args[0])); err != nil ***REMOVED***
 				return err

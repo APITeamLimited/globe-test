@@ -107,11 +107,29 @@ func (c *Collector) commit() ***REMOVED***
 		return
 	***REMOVED***
 
+	type cacheItem struct ***REMOVED***
+		tags   map[string]string
+		values map[string]interface***REMOVED******REMOVED***
+	***REMOVED***
+	cache := map[*stats.SampleTags]cacheItem***REMOVED******REMOVED***
 	for _, sample := range samples ***REMOVED***
+		var tags map[string]string
+		var values = make(map[string]interface***REMOVED******REMOVED***)
+		if cached, ok := cache[sample.Tags]; ok ***REMOVED***
+			tags = cached.tags
+			for k, v := range cached.values ***REMOVED***
+				values[k] = v
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			tags = sample.Tags.CloneTags()
+			c.extractTagsToValues(tags, values)
+			cache[sample.Tags] = cacheItem***REMOVED***tags, values***REMOVED***
+		***REMOVED***
+		values["value"] = sample.Value
 		p, err := client.NewPoint(
 			sample.Metric.Name,
-			sample.Tags.CloneTags(), //TODO: optimize when implementing https://github.com/loadimpact/k6/issues/569
-			map[string]interface***REMOVED******REMOVED******REMOVED***"value": sample.Value***REMOVED***,
+			tags,
+			values,
 			sample.Time,
 		)
 		if err != nil ***REMOVED***
@@ -128,6 +146,16 @@ func (c *Collector) commit() ***REMOVED***
 	***REMOVED***
 	t := time.Since(startTime)
 	log.WithField("t", t).Debug("InfluxDB: Batch written!")
+***REMOVED***
+
+func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+	for _, tag := range c.Config.TagsAsFields ***REMOVED***
+		if val, ok := tags[tag]; ok ***REMOVED***
+			values[tag] = val
+			delete(tags, tag)
+		***REMOVED***
+	***REMOVED***
+	return values
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
