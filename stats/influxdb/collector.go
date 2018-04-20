@@ -107,27 +107,25 @@ func (c *Collector) commit() ***REMOVED***
 		return
 	***REMOVED***
 
-	cache := map[*stats.SampleTags]struct ***REMOVED***
+	type cacheItem struct ***REMOVED***
 		tags   map[string]string
 		values map[string]interface***REMOVED******REMOVED***
-	***REMOVED******REMOVED******REMOVED***
-
-	var tags map[string]string
-	var values map[string]interface***REMOVED******REMOVED***
+	***REMOVED***
+	cache := map[*stats.SampleTags]cacheItem***REMOVED******REMOVED***
 	for _, sample := range samples ***REMOVED***
+		var tags map[string]string
+		var values = make(map[string]interface***REMOVED******REMOVED***)
 		if cached, ok := cache[sample.Tags]; ok ***REMOVED***
 			tags = cached.tags
-			values = cached.values
-			values["value"] = sample.Value // Overwrite the "value" field
+			for k, v := range cached.values ***REMOVED***
+				values[k] = v
+			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			tags = sample.Tags.CloneTags()
-			values = c.extractFields(tags)
-			values["value"] = sample.Value // Ok since the "value" field will always be overwritten
-			cache[sample.Tags] = struct ***REMOVED***
-				tags   map[string]string
-				values map[string]interface***REMOVED******REMOVED***
-			***REMOVED******REMOVED***sample.Tags.CloneTags(), values***REMOVED***
+			c.extractTagsToValues(tags, values)
+			cache[sample.Tags] = cacheItem***REMOVED***tags, values***REMOVED***
 		***REMOVED***
+		values["value"] = sample.Value
 		p, err := client.NewPoint(
 			sample.Metric.Name,
 			tags,
@@ -150,15 +148,14 @@ func (c *Collector) commit() ***REMOVED***
 	log.WithField("t", t).Debug("InfluxDB: Batch written!")
 ***REMOVED***
 
-func (c *Collector) extractFields(tags map[string]string) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
-	fields := make(map[string]interface***REMOVED******REMOVED***)
+func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	for _, tag := range c.Config.TagsAsFields ***REMOVED***
 		if val, ok := tags[tag]; ok ***REMOVED***
-			fields[tag] = val
+			values[tag] = val
 			delete(tags, tag)
 		***REMOVED***
 	***REMOVED***
-	return fields
+	return values
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
