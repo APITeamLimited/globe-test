@@ -273,6 +273,9 @@ type VU struct ***REMOVED***
 	interruptCancel     context.CancelFunc
 ***REMOVED***
 
+// Verify that VU implements lib.VU
+var _ lib.VU = &VU***REMOVED******REMOVED***
+
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
 	u.Iteration = 0
@@ -280,7 +283,7 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+func (u *VU) RunOnce(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 	// Track the context and interrupt JS execution if it's cancelled.
 	if u.interruptTrackedCtx != ctx ***REMOVED***
 		interCtx, interCancel := context.WithCancel(context.Background())
@@ -362,22 +365,32 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 	bytesWritten := atomic.SwapInt64(&u.Dialer.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&u.Dialer.BytesRead, 0)
 
-	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.DataSent,
-			Value:  float64(bytesWritten),
-			Tags:   sampleTags***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.DataReceived,
-			Value:  float64(bytesRead),
-			Tags:   sampleTags***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.IterationDuration,
-			Value:  stats.D(endTime.Sub(startTime)),
-			Tags:   sampleTags***REMOVED***,
+	state.Samples = append(
+		state.Samples,
+		stats.ConnectedSamples***REMOVED***
+			Samples: []stats.Sample***REMOVED***
+				stats.Sample***REMOVED***
+					Time:   endTime,
+					Metric: metrics.DataSent,
+					Value:  float64(bytesWritten),
+					Tags:   sampleTags,
+				***REMOVED***,
+				stats.Sample***REMOVED***
+					Time:   endTime,
+					Metric: metrics.DataReceived,
+					Value:  float64(bytesRead),
+					Tags:   sampleTags,
+				***REMOVED***,
+				stats.Sample***REMOVED***
+					Time:   endTime,
+					Metric: metrics.IterationDuration,
+					Value:  stats.D(endTime.Sub(startTime)),
+					Tags:   sampleTags,
+				***REMOVED***,
+			***REMOVED***,
+			Tags: sampleTags,
+			Time: endTime,
+		***REMOVED***,
 	)
 
 	return v, state, err

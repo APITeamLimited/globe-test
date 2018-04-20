@@ -406,23 +406,27 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 
 			samples, err := vu.RunOnce(context.Background())
 			assert.NoError(t, err)
-			assert.Len(t, samples, 4)
-			for i, s := range samples ***REMOVED***
-				switch i ***REMOVED***
-				case 0:
-					assert.Equal(t, 5.0, s.Value)
-					assert.Equal(t, "my_metric", s.Metric.Name)
-					assert.Equal(t, stats.Trend, s.Metric.Type)
-				case 1:
-					assert.Equal(t, 0.0, s.Value)
-					assert.Equal(t, metrics.DataSent, s.Metric, "`data_sent` sample is before `data_received` and `iteration_duration`")
-				case 2:
-					assert.Equal(t, 0.0, s.Value)
-					assert.Equal(t, metrics.DataReceived, s.Metric, "`data_received` sample is after `data_received`")
-				case 3:
-					assert.Equal(t, metrics.IterationDuration, s.Metric, "`iteration-duration` sample is after `data_received`")
+			sampleCount := 0
+			for i, sampleC := range samples ***REMOVED***
+				for j, s := range sampleC.GetSamples() ***REMOVED***
+					sampleCount++
+					switch i + j ***REMOVED***
+					case 0:
+						assert.Equal(t, 5.0, s.Value)
+						assert.Equal(t, "my_metric", s.Metric.Name)
+						assert.Equal(t, stats.Trend, s.Metric.Type)
+					case 1:
+						assert.Equal(t, 0.0, s.Value)
+						assert.Equal(t, metrics.DataSent, s.Metric, "`data_sent` sample is before `data_received` and `iteration_duration`")
+					case 2:
+						assert.Equal(t, 0.0, s.Value)
+						assert.Equal(t, metrics.DataReceived, s.Metric, "`data_received` sample is after `data_received`")
+					case 3:
+						assert.Equal(t, metrics.IterationDuration, s.Metric, "`iteration-duration` sample is after `data_received`")
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
+			assert.Equal(t, sampleCount, 4)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -686,10 +690,12 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 
 			protoFound := false
-			for _, sample := range samples ***REMOVED***
-				if proto, ok := sample.Tags.Get("proto"); ok ***REMOVED***
-					protoFound = true
-					assert.Equal(t, "HTTP/2.0", proto)
+			for _, sampleC := range samples ***REMOVED***
+				for _, sample := range sampleC.GetSamples() ***REMOVED***
+					if proto, ok := sample.Tags.Get("proto"); ok ***REMOVED***
+						protoFound = true
+						assert.Equal(t, "HTTP/2.0", proto)
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 			assert.True(t, protoFound)

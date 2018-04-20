@@ -38,6 +38,9 @@ type Collector struct ***REMOVED***
 	seenMetrics []string
 ***REMOVED***
 
+// Verify that Collector implements lib.Collector
+var _ lib.Collector = &Collector***REMOVED******REMOVED***
+
 func (c *Collector) HasSeenMetric(str string) bool ***REMOVED***
 	for _, n := range c.seenMetrics ***REMOVED***
 		if n == str ***REMOVED***
@@ -97,8 +100,8 @@ func (c *Collector) HandleMetric(m *stats.Metric) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
-	for _, sample := range samples ***REMOVED***
+func (c *Collector) Collect(samples stats.SampleContainer) ***REMOVED***
+	for _, sample := range samples.GetSamples() ***REMOVED***
 		c.HandleMetric(sample.Metric)
 
 		env := WrapSample(&sample)

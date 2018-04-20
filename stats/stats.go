@@ -264,6 +264,80 @@ type Sample struct ***REMOVED***
 	Value  float64
 ***REMOVED***
 
+// SampleContainer is a simple abstraction that allows sample
+// producers to attach extra information to samples they return
+type SampleContainer interface ***REMOVED***
+	GetSamples() []Sample
+***REMOVED***
+
+// Samples is just the simplest SampleContainer implementation
+// that will be used when there's no need for extra information
+type Samples []Sample
+
+// GetSamples just implements the SampleContainer interface
+func (s Samples) GetSamples() []Sample ***REMOVED***
+	return s
+***REMOVED***
+
+// ConnectedSampleContainer is an extension of the SampleContainer
+// interface that should be implemented when emitted samples
+// are connected and share the same time and tags.
+type ConnectedSampleContainer interface ***REMOVED***
+	SampleContainer
+	GetTags() *SampleTags
+	GetTime() time.Time
+***REMOVED***
+
+// ConnectedSamples is the simplest ConnectedSampleContainer
+// implementation that will be used when there's no need for
+// extra information
+type ConnectedSamples struct ***REMOVED***
+	Samples []Sample
+	Tags    *SampleTags
+	Time    time.Time
+***REMOVED***
+
+// GetSamples implements the SampleContainer and ConnectedSampleContainer
+// interfaces and returns the stored slice with samples.
+func (cs ConnectedSamples) GetSamples() []Sample ***REMOVED***
+	return cs.Samples
+***REMOVED***
+
+// GetTags implements ConnectedSampleContainer interface and returns stored tags.
+func (cs ConnectedSamples) GetTags() *SampleTags ***REMOVED***
+	return cs.Tags
+***REMOVED***
+
+// GetTime implements ConnectedSampleContainer interface and returns stored time.
+func (cs ConnectedSamples) GetTime() time.Time ***REMOVED***
+	return cs.Time
+***REMOVED***
+
+// GetSamples implement the ConnectedSampleContainer interface
+// for a single Sample, since it's obviously connected with itself :)
+func (s Sample) GetSamples() []Sample ***REMOVED***
+	return []Sample***REMOVED***s***REMOVED***
+***REMOVED***
+
+// GetTags implements ConnectedSampleContainer interface
+// and returns the sample's tags.
+func (s Sample) GetTags() *SampleTags ***REMOVED***
+	return s.Tags
+***REMOVED***
+
+// GetTime just implements ConnectedSampleContainer interface
+// and returns the sample's time.
+func (s Sample) GetTime() time.Time ***REMOVED***
+	return s.Time
+***REMOVED***
+
+// Ensure that interfaces are implemented correctly
+var _ SampleContainer = Sample***REMOVED******REMOVED***
+var _ SampleContainer = Samples***REMOVED******REMOVED***
+
+var _ ConnectedSampleContainer = Sample***REMOVED******REMOVED***
+var _ ConnectedSampleContainer = ConnectedSamples***REMOVED******REMOVED***
+
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
 	Name       string       `json:"name"`

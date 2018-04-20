@@ -161,7 +161,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Run the executor.
-	out := make(chan []stats.Sample)
+	out := make(chan []stats.SampleContainer)
 	errC := make(chan error)
 	subwg.Add(1)
 	go func() ***REMOVED***
@@ -184,8 +184,10 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			subwg.Wait()
 			close(out)
 		***REMOVED***()
-		for samples := range out ***REMOVED***
-			e.processSamples(samples...)
+		for sampleContainers := range out ***REMOVED***
+			for _, sampleContainer := range sampleContainers ***REMOVED***
+				e.processSamples(sampleContainer)
+			***REMOVED***
 		***REMOVED***
 
 		// Emit final metrics.
@@ -203,8 +205,10 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 	for ***REMOVED***
 		select ***REMOVED***
-		case samples := <-out:
-			e.processSamples(samples...)
+		case sampleContainers := <-out:
+			for _, sampleContainer := range sampleContainers ***REMOVED***
+				e.processSamples(sampleContainer)
+			***REMOVED***
 		case err := <-errC:
 			errC = nil
 			if err != nil ***REMOVED***
@@ -248,20 +252,23 @@ func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
 func (e *Engine) emitMetrics() ***REMOVED***
 	t := time.Now()
 
-	e.processSamples(
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.VUs,
-			Value:  float64(e.Executor.GetVUs()),
-			Tags:   e.Options.RunTags,
+	e.processSamples(stats.ConnectedSamples***REMOVED***
+		Samples: []stats.Sample***REMOVED***
+			***REMOVED***
+				Time:   t,
+				Metric: metrics.VUs,
+				Value:  float64(e.Executor.GetVUs()),
+				Tags:   e.Options.RunTags,
+			***REMOVED***, ***REMOVED***
+				Time:   t,
+				Metric: metrics.VUsMax,
+				Value:  float64(e.Executor.GetVUsMax()),
+				Tags:   e.Options.RunTags,
+			***REMOVED***,
 		***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.VUsMax,
-			Value:  float64(e.Executor.GetVUsMax()),
-			Tags:   e.Options.RunTags,
-		***REMOVED***,
-	)
+		Tags: e.Options.RunTags,
+		Time: t,
+	***REMOVED***)
 ***REMOVED***
 
 func (e *Engine) runThresholds(ctx context.Context, abort func()) ***REMOVED***
@@ -311,7 +318,13 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
+func (e *Engine) processSamples(sampleCointainer stats.SampleContainer) ***REMOVED***
+	if sampleCointainer == nil ***REMOVED***
+		return
+	***REMOVED***
+
+	samples := sampleCointainer.GetSamples()
+
 	if len(samples) == 0 ***REMOVED***
 		return
 	***REMOVED***
@@ -344,6 +357,6 @@ func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if e.Collector != nil ***REMOVED***
-		e.Collector.Collect(samples)
+		e.Collector.Collect(sampleCointainer)
 	***REMOVED***
 ***REMOVED***
