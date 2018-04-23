@@ -79,6 +79,19 @@ func (tr *Trail) GetSamples() []stats.Sample ***REMOVED***
 	return tr.Samples
 ***REMOVED***
 
+// GetTags implements the stats.ConnectedSampleContainer interface.
+func (tr *Trail) GetTags() *stats.SampleTags ***REMOVED***
+	return tr.Tags
+***REMOVED***
+
+// GetTime implements the stats.ConnectedSampleContainer interface.
+func (tr *Trail) GetTime() time.Time ***REMOVED***
+	return tr.EndTime
+***REMOVED***
+
+// Ensure that interfaces are implemented correctly
+var _ stats.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
+
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to
 // add it), you must call Done() at the end of the request to get the full timings.
