@@ -99,19 +99,19 @@ func (d *Dialer) GetTrail(startTime, endTime time.Time, tags *stats.SampleTags) 
 		EndTime:      endTime,
 		Tags:         tags,
 		Samples: []stats.Sample***REMOVED***
-			stats.Sample***REMOVED***
+			***REMOVED***
 				Time:   endTime,
 				Metric: metrics.DataSent,
 				Value:  float64(bytesWritten),
 				Tags:   tags,
 			***REMOVED***,
-			stats.Sample***REMOVED***
+			***REMOVED***
 				Time:   endTime,
 				Metric: metrics.DataReceived,
 				Value:  float64(bytesRead),
 				Tags:   tags,
 			***REMOVED***,
-			stats.Sample***REMOVED***
+			***REMOVED***
 				Time:   endTime,
 				Metric: metrics.IterationDuration,
 				Value:  stats.D(endTime.Sub(startTime)),
@@ -121,7 +121,7 @@ func (d *Dialer) GetTrail(startTime, endTime time.Time, tags *stats.SampleTags) 
 	***REMOVED***
 ***REMOVED***
 
-// NetTrail contains information about the exchanged data size and lenght of a
+// NetTrail contains information about the exchanged data size and length of a
 // series of connections from a particular netext.Dialer
 type NetTrail struct ***REMOVED***
 	BytesRead    int64
