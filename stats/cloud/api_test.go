@@ -65,7 +65,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 		***REMOVED***
 			Type:   "Point",
 			Metric: "metric",
-			Data: SampleData***REMOVED***
+			Data: SampleDataSingle***REMOVED***
 				Type:  1,
 				Time:  time.Now(),
 				Value: 1.2,
@@ -98,7 +98,7 @@ func TestFinished(t *testing.T) ***REMOVED***
 func TestAuthorizedError(t *testing.T) ***REMOVED***
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
 	***REMOVED***))
@@ -116,7 +116,7 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 func TestRetry(t *testing.T) ***REMOVED***
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		w.WriteHeader(500)
 	***REMOVED***))
 	defer server.Close()
@@ -133,7 +133,7 @@ func TestRetry(t *testing.T) ***REMOVED***
 func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	called := 1
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		if called == 2 ***REMOVED***
 			fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
 			return

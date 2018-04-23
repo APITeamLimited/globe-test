@@ -22,21 +22,23 @@ package cloud
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
+
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	TestName           = "k6 test"
-	MetricPushInterval = 1 * time.Second
-)
+// TestName is the default Load Impact Cloud test name
+const TestName = "k6 test"
 
 // Collector sends result data to the Load Impact cloud service.
 type Collector struct ***REMOVED***
@@ -49,23 +51,29 @@ type Collector struct ***REMOVED***
 
 	anonymous bool
 
-	sampleBuffer []*Sample
-	sampleMu     sync.Mutex
+	bufferMutex      sync.Mutex
+	bufferHTTPTrails []*netext.Trail
+	bufferSamples    []*Sample
+
+	aggBuckets map[int64]aggregationBucket
 ***REMOVED***
+
+// Verify that Collector implements lib.Collector
+var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
 // New creates a new cloud collector
 func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
 	if val, ok := opts.External["loadimpact"]; ok ***REMOVED***
-		if err := mapstructure.Decode(val, &conf); err != nil ***REMOVED***
+		if err := json.Unmarshal(val, &conf); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
 
-	if conf.Name == "" ***REMOVED***
-		conf.Name = filepath.Base(src.Filename)
+	if !conf.Name.Valid ***REMOVED***
+		conf.Name = null.StringFrom(filepath.Base(src.Filename))
 	***REMOVED***
-	if conf.Name == "-" ***REMOVED***
-		conf.Name = TestName
+	if conf.Name.String == "-" ***REMOVED***
+		conf.Name = null.StringFrom(TestName)
 	***REMOVED***
 
 	thresholds := make(map[string][]*stats.Threshold)
@@ -81,7 +89,7 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
 	***REMOVED***
 
-	if conf.Token == "" && conf.DeprecatedToken != "" ***REMOVED***
+	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
 		log.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
 		conf.Token = conf.DeprecatedToken
 	***REMOVED***
@@ -89,9 +97,10 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 	return &Collector***REMOVED***
 		config:     conf,
 		thresholds: thresholds,
-		client:     NewClient(conf.Token, conf.Host, version),
-		anonymous:  conf.Token == "",
+		client:     NewClient(conf.Token.String, conf.Host.String, version),
+		anonymous:  !conf.Token.Valid,
 		duration:   duration,
+		aggBuckets: map[int64]aggregationBucket***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -105,8 +114,8 @@ func (c *Collector) Init() error ***REMOVED***
 	***REMOVED***
 
 	testRun := &TestRun***REMOVED***
-		Name:       c.config.Name,
-		ProjectID:  c.config.ProjectID,
+		Name:       c.config.Name.String,
+		ProjectID:  c.config.ProjectID.Int64,
 		Thresholds: thresholds,
 		Duration:   c.duration,
 	***REMOVED***
@@ -132,15 +141,41 @@ func (c *Collector) Link() string ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	timer := time.NewTicker(MetricPushInterval)
+	wg := sync.WaitGroup***REMOVED******REMOVED***
 
+	// If enabled, start periodically aggregating the collected HTTP trails
+	if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
+		wg.Add(1)
+		aggregationTicker := time.NewTicker(time.Duration(c.config.AggregationCalcInterval.Duration))
+
+		go func() ***REMOVED***
+			for ***REMOVED***
+				select ***REMOVED***
+				case <-aggregationTicker.C:
+					c.aggregateHTTPTrails()
+				case <-ctx.Done():
+					c.aggregateHTTPTrails()
+					c.flushHTTPTrails()
+					c.pushMetrics()
+					wg.Done()
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***()
+	***REMOVED***
+
+	defer func() ***REMOVED***
+		wg.Wait()
+		c.testFinished()
+	***REMOVED***()
+
+	pushTicker := time.NewTicker(time.Duration(c.config.MetricPushInterval.Duration))
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-timer.C:
+		case <-pushTicker.C:
 			c.pushMetrics()
 		case <-ctx.Done():
 			c.pushMetrics()
-			c.testFinished()
 			return
 		***REMOVED***
 	***REMOVED***
@@ -150,86 +185,101 @@ func (c *Collector) IsReady() bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
 	if c.referenceID == "" ***REMOVED***
 		return
 	***REMOVED***
 
-	var cloudSamples []*Sample
-	var httpJSON *Sample
-	var iterationJSON *Sample
-	for _, samp := range samples ***REMOVED***
+	newSamples := []*Sample***REMOVED******REMOVED***
+	newHTTPTrails := []*netext.Trail***REMOVED******REMOVED***
 
-		name := samp.Metric.Name
-		if name == "http_reqs" ***REMOVED***
-			httpJSON = &Sample***REMOVED***
-				Type:   "Points",
-				Metric: "http_req_li_all",
-				Data: SampleData***REMOVED***
-					Type:   samp.Metric.Type,
-					Time:   samp.Time,
-					Tags:   samp.Tags,
-					Values: make(map[string]float64),
-				***REMOVED***,
+	for _, sampleContainer := range sampleContainers ***REMOVED***
+		switch sc := sampleContainer.(type) ***REMOVED***
+		case *netext.Trail:
+			// Check if aggregation is enabled,
+			if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
+				newHTTPTrails = append(newHTTPTrails, sc)
+			***REMOVED*** else ***REMOVED***
+				newSamples = append(newSamples, NewSampleFromTrail(sc))
 			***REMOVED***
-			httpJSON.Data.Values[name] = samp.Value
-			cloudSamples = append(cloudSamples, httpJSON)
-		***REMOVED*** else if name == "data_sent" ***REMOVED***
-			iterationJSON = &Sample***REMOVED***
+		case *netext.NetTrail:
+			//TODO: aggregate?
+			newSamples = append(newSamples, &Sample***REMOVED***
 				Type:   "Points",
 				Metric: "iter_li_all",
-				Data: SampleData***REMOVED***
-					Type:   samp.Metric.Type,
-					Time:   samp.Time,
-					Tags:   samp.Tags,
-					Values: make(map[string]float64),
-				***REMOVED***,
+				Data: SampleDataMap***REMOVED***
+					Time: sc.GetTime(),
+					Tags: sc.GetTags(),
+					Values: map[string]float64***REMOVED***
+						metrics.DataSent.Name:          float64(sc.BytesWritten),
+						metrics.DataReceived.Name:      float64(sc.BytesRead),
+						metrics.IterationDuration.Name: stats.D(sc.EndTime.Sub(sc.StartTime)),
+					***REMOVED***,
+				***REMOVED******REMOVED***)
+		default:
+			for _, sample := range sampleContainer.GetSamples() ***REMOVED***
+				newSamples = append(newSamples, &Sample***REMOVED***
+					Type:   "Point",
+					Metric: sample.Metric.Name,
+					Data: SampleDataSingle***REMOVED***
+						Type:  sample.Metric.Type,
+						Time:  sample.Time,
+						Tags:  sample.Tags,
+						Value: sample.Value,
+					***REMOVED***,
+				***REMOVED***)
 			***REMOVED***
-			iterationJSON.Data.Values[name] = samp.Value
-			cloudSamples = append(cloudSamples, iterationJSON)
-		***REMOVED*** else if name == "data_received" || name == "iteration_duration" ***REMOVED***
-			//TODO: make sure that tags match
-			iterationJSON.Data.Values[name] = samp.Value
-		***REMOVED*** else if strings.HasPrefix(name, "http_req_") ***REMOVED***
-			//TODO: make sure that tags match
-			httpJSON.Data.Values[name] = samp.Value
-		***REMOVED*** else ***REMOVED***
-			sampleJSON := &Sample***REMOVED***
-				Type:   "Point",
-				Metric: name,
-				Data: SampleData***REMOVED***
-					Type:  samp.Metric.Type,
-					Time:  samp.Time,
-					Value: samp.Value,
-					Tags:  samp.Tags,
-				***REMOVED***,
-			***REMOVED***
-			cloudSamples = append(cloudSamples, sampleJSON)
 		***REMOVED***
 	***REMOVED***
 
-	if len(cloudSamples) > 0 ***REMOVED***
-		c.sampleMu.Lock()
-		c.sampleBuffer = append(c.sampleBuffer, cloudSamples...)
-		c.sampleMu.Unlock()
+	if len(newSamples) > 0 || len(newHTTPTrails) > 0 ***REMOVED***
+		c.bufferMutex.Lock()
+		c.bufferSamples = append(c.bufferSamples, newSamples...)
+		c.bufferHTTPTrails = append(c.bufferHTTPTrails, newHTTPTrails...)
+		c.bufferMutex.Unlock()
 	***REMOVED***
 ***REMOVED***
 
+func (c *Collector) aggregateHTTPTrails() ***REMOVED***
+	//TODO, this is just a placeholder so I can commit without a broken build
+	c.flushHTTPTrails()
+***REMOVED***
+
+func (c *Collector) flushHTTPTrails() ***REMOVED***
+	c.bufferMutex.Lock()
+	defer c.bufferMutex.Unlock()
+
+	newSamples := []*Sample***REMOVED******REMOVED***
+	for _, trail := range c.bufferHTTPTrails ***REMOVED***
+		newSamples = append(newSamples, NewSampleFromTrail(trail))
+	***REMOVED***
+	for _, bucket := range c.aggBuckets ***REMOVED***
+		for _, trails := range bucket ***REMOVED***
+			for _, trail := range trails ***REMOVED***
+				newSamples = append(newSamples, NewSampleFromTrail(trail))
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	c.bufferHTTPTrails = nil
+	c.aggBuckets = map[int64]aggregationBucket***REMOVED******REMOVED***
+	c.bufferSamples = append(c.bufferSamples, newSamples...)
+***REMOVED***
 func (c *Collector) pushMetrics() ***REMOVED***
-	c.sampleMu.Lock()
-	if len(c.sampleBuffer) == 0 ***REMOVED***
-		c.sampleMu.Unlock()
+	c.bufferMutex.Lock()
+	if len(c.bufferSamples) == 0 ***REMOVED***
+		c.bufferMutex.Unlock()
 		return
 	***REMOVED***
-	buffer := c.sampleBuffer
-	c.sampleBuffer = nil
-	c.sampleMu.Unlock()
+	buffer := c.bufferSamples
+	c.bufferSamples = nil
+	c.bufferMutex.Unlock()
 
 	log.WithFields(log.Fields***REMOVED***
 		"samples": len(buffer),
 	***REMOVED***).Debug("Pushing metrics to cloud")
 
-	err := c.client.PushMetric(c.referenceID, c.config.NoCompress, buffer)
+	err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer)
 	if err != nil ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"error": err,
