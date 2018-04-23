@@ -85,10 +85,12 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) Collect(samples stats.SampleContainer) ***REMOVED***
+func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 	c.bufferLock.Lock()
-	c.buffer = append(c.buffer, samples.GetSamples()...)
-	c.bufferLock.Unlock()
+	defer c.bufferLock.Unlock()
+	for _, sc := range scs ***REMOVED***
+		c.buffer = append(c.buffer, sc.GetSamples()...)
+	***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Link() string ***REMOVED***

@@ -53,9 +53,11 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 // detect incorrect usage.
 // Also, theoretically the collector doesn't have to actually Run() before samples start
 // being collected, it only has to be initialized.
-func (c *Collector) Collect(sc stats.SampleContainer) ***REMOVED***
-	c.SampleContainers = append(c.SampleContainers, sc)
-	c.Samples = append(c.Samples, sc.GetSamples()...)
+func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
+	for _, sc := range scs ***REMOVED***
+		c.SampleContainers = append(c.SampleContainers, sc)
+		c.Samples = append(c.Samples, sc.GetSamples()...)
+	***REMOVED***
 ***REMOVED***
 
 // Link returns a dummy string, it's only included to satisfy the lib.Collector interface
