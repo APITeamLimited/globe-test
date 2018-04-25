@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/k0kubun/pp"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
@@ -192,22 +193,25 @@ func (c *Client) StartCloudTestRun(name string, projectID int, arc *lib.Archive)
 	return ctrr.ReferenceID, nil
 ***REMOVED***
 
-func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool) error ***REMOVED***
+func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool, runStatus int) error ***REMOVED***
 	url := fmt.Sprintf("%s/tests/%s", c.baseURL, referenceID)
 
-	status := 0
+	resultStatus := 0
 	if tained ***REMOVED***
-		status = 1
+		resultStatus = 1
 	***REMOVED***
 
 	data := struct ***REMOVED***
 		ResultStatus int             `json:"result_status"`
+		RunStatus    int             `json:"run_status"`
 		Thresholds   ThresholdResult `json:"thresholds"`
 	***REMOVED******REMOVED***
-		status,
+		resultStatus,
+		runStatus,
 		thresholds,
 	***REMOVED***
 
+	pp.Println("sending", data)
 	req, err := c.NewRequest("POST", url, data)
 	if err != nil ***REMOVED***
 		return err

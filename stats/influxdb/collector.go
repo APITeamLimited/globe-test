@@ -162,3 +162,5 @@ func (c *Collector) extractTagsToValues(tags map[string]string, values map[strin
 func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
 ***REMOVED***
+
+func (c *Collector) SetRunStatus(status int) ***REMOVED******REMOVED***

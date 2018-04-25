@@ -51,6 +51,9 @@ type Collector struct ***REMOVED***
 
 	sampleBuffer []*Sample
 	sampleMu     sync.Mutex
+
+	runStatus   int
+	runStatusMu sync.Mutex
 ***REMOVED***
 
 // New creates a new cloud collector
@@ -259,7 +262,14 @@ func (c *Collector) testFinished() ***REMOVED***
 		"tainted": testTainted,
 	***REMOVED***).Debug("Sending test finished")
 
-	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted)
+	runStatus := lib.RunStatusFinished
+	c.runStatusMu.Lock()
+	if c.runStatus != 0 ***REMOVED***
+		runStatus = c.runStatus
+	***REMOVED***
+	c.runStatusMu.Unlock()
+
+	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted, runStatus)
 	if err != nil ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"error": err,
@@ -279,4 +289,11 @@ func sumStages(stages []lib.Stage) int64 ***REMOVED***
 // GetRequiredSystemTags returns which sample tags are needed by this collector
 func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.GetTagSet("name", "method", "status", "error", "check", "group")
+***REMOVED***
+
+func (c *Collector) SetRunStatus(status int) ***REMOVED***
+	c.runStatusMu.Lock()
+	defer c.runStatusMu.Unlock()
+
+	c.runStatus = status
 ***REMOVED***

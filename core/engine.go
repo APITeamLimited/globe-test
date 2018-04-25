@@ -104,6 +104,14 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 	return e, nil
 ***REMOVED***
 
+func (e *Engine) setRunStatus(status int) ***REMOVED***
+	if e.Collector == nil ***REMOVED***
+		return
+	***REMOVED***
+
+	e.Collector.SetRunStatus(status)
+***REMOVED***
+
 func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
@@ -209,12 +217,14 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			errC = nil
 			if err != nil ***REMOVED***
 				e.logger.WithError(err).Debug("run: executor returned an error")
+				e.setRunStatus(lib.RunStatusAbortedSystem)
 				return err
 			***REMOVED***
 			e.logger.Debug("run: executor terminated")
 			return nil
 		case <-ctx.Done():
 			e.logger.Debug("run: context expired; exiting...")
+			e.setRunStatus(lib.RunStatusAbortedUser)
 			return nil
 		***REMOVED***
 	***REMOVED***
@@ -307,6 +317,8 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	***REMOVED***
 
 	if abortOnFail && abort != nil ***REMOVED***
+		//TODO: When sending this status we get a 422 Unprocessable Entity
+		e.setRunStatus(lib.RunStatusAbortedThreshold)
 		abort()
 	***REMOVED***
 ***REMOVED***
