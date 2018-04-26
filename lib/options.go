@@ -332,7 +332,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.SystemTags != nil ***REMOVED***
 		o.SystemTags = opts.SystemTags
 	***REMOVED***
-	if opts.RunTags != nil ***REMOVED***
+	if !opts.RunTags.IsEmpty() ***REMOVED***
 		o.RunTags = opts.RunTags
 	***REMOVED***
 	return o

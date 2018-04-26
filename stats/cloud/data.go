@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 	"time"
 
@@ -52,6 +53,7 @@ type SampleDataSingle struct ***REMOVED***
 // requests (`http_req_li_all`).
 type SampleDataMap struct ***REMOVED***
 	Time   Timestamp          `json:"time"`
+	Type   stats.MetricType   `json:"type"`
 	Tags   *stats.SampleTags  `json:"tags,omitempty"`
 	Values map[string]float64 `json:"values,omitempty"`
 ***REMOVED***
@@ -97,36 +99,59 @@ type SampleDataAggregatedHTTPReqs struct ***REMOVED***
 	***REMOVED*** `json:"values"`
 ***REMOVED***
 
+// Add updates all agregated values with the supplied trail data
+func (sdagg *SampleDataAggregatedHTTPReqs) Add(trail *netext.Trail) ***REMOVED***
+	sdagg.Count++
+	sdagg.Values.Duration.Add(trail.Duration)
+	sdagg.Values.Blocked.Add(trail.Blocked)
+	sdagg.Values.Connecting.Add(trail.Connecting)
+	sdagg.Values.TLSHandshaking.Add(trail.TLSHandshaking)
+	sdagg.Values.Sending.Add(trail.Sending)
+	sdagg.Values.Waiting.Add(trail.Waiting)
+	sdagg.Values.Receiving.Add(trail.Receiving)
+***REMOVED***
+
 // CalcAverages calculates and sets all `Avg` properties in the `Values` struct
 func (sdagg *SampleDataAggregatedHTTPReqs) CalcAverages() ***REMOVED***
 	count := float64(sdagg.Count)
-	sdagg.Values.Duration.Avg = float64(sdagg.Values.Duration.sum) / count
-	sdagg.Values.Blocked.Avg = float64(sdagg.Values.Blocked.sum) / count
-	sdagg.Values.Connecting.Avg = float64(sdagg.Values.Connecting.sum) / count
-	sdagg.Values.TLSHandshaking.Avg = float64(sdagg.Values.TLSHandshaking.sum) / count
-	sdagg.Values.Sending.Avg = float64(sdagg.Values.Sending.sum) / count
-	sdagg.Values.Waiting.Avg = float64(sdagg.Values.Waiting.sum) / count
-	sdagg.Values.Receiving.Avg = float64(sdagg.Values.Receiving.sum) / count
+	sdagg.Values.Duration.Calc(count)
+	sdagg.Values.Blocked.Calc(count)
+	sdagg.Values.Connecting.Calc(count)
+	sdagg.Values.TLSHandshaking.Calc(count)
+	sdagg.Values.Sending.Calc(count)
+	sdagg.Values.Waiting.Calc(count)
+	sdagg.Values.Receiving.Calc(count)
 ***REMOVED***
 
 // AggregatedMetric is used to store aggregated information for a
 // particular metric in an SampleDataAggregatedMap.
 type AggregatedMetric struct ***REMOVED***
-	Min time.Duration `json:"min"`
-	Max time.Duration `json:"max"`
-	sum time.Duration `json:"-"`   // ignored in JSON output because of SampleDataAggregatedHTTPReqs.Count
-	Avg float64       `json:"avg"` // not updated automatically, has to be set externally
+	// Used by Add() to keep working state
+	minD time.Duration
+	maxD time.Duration
+	sumD time.Duration
+	// Updated by Calc() and used in the JSON output
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+	Avg float64 `json:"avg"`
 ***REMOVED***
 
 // Add the new duration to the internal sum and update Min and Max if necessary
 func (am *AggregatedMetric) Add(t time.Duration) ***REMOVED***
-	if am.sum == 0 || am.Min > t ***REMOVED***
-		am.Min = t
+	if am.sumD == 0 || am.minD > t ***REMOVED***
+		am.minD = t
 	***REMOVED***
-	if am.Max < t ***REMOVED***
-		am.Max = t
+	if am.maxD < t ***REMOVED***
+		am.maxD = t
 	***REMOVED***
-	am.sum += t
+	am.sumD += t
+***REMOVED***
+
+// Calc populates the float fields for min and max and calulates the average value
+func (am *AggregatedMetric) Calc(count float64) ***REMOVED***
+	am.Min = stats.D(am.minD)
+	am.Max = stats.D(am.maxD)
+	am.Avg = stats.D(am.sumD) / count
 ***REMOVED***
 
 type aggregationBucket map[*stats.SampleTags][]*netext.Trail
@@ -142,6 +167,7 @@ func (d durations) GetNormalBounds(iqrCoef float64) (min, max time.Duration) ***
 		return
 	***REMOVED***
 
+	sort.Sort(d)
 	var q1, q3 time.Duration
 	if l%4 == 0 ***REMOVED***
 		q1 = d[l/4]

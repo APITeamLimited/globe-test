@@ -181,6 +181,12 @@ func (st *SampleTags) Get(key string) (string, bool) ***REMOVED***
 	return val, ok
 ***REMOVED***
 
+// IsEmpty checks for a nil pointer or zero tags.
+// It's necessary because of this envconfig issue: https://github.com/kelseyhightower/envconfig/issues/113
+func (st *SampleTags) IsEmpty() bool ***REMOVED***
+	return st == nil || len(st.tags) == 0
+***REMOVED***
+
 // IsEqual tries to compare two tag sets with maximum efficiency.
 func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
 	if st == other ***REMOVED***
@@ -202,7 +208,7 @@ func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
 // detector will complain if it's used concurrently, but no data
 // should be corrupted.
 func (st *SampleTags) MarshalJSON() ([]byte, error) ***REMOVED***
-	if st == nil ***REMOVED***
+	if st.IsEmpty() ***REMOVED***
 		return []byte("null"), nil
 	***REMOVED***
 	if st.json != nil ***REMOVED***
@@ -239,6 +245,10 @@ func (st *SampleTags) CloneTags() map[string]string ***REMOVED***
 // NewSampleTags *copies* the supplied tag set and returns a new SampleTags
 // instance with the key-value pairs from it.
 func NewSampleTags(data map[string]string) *SampleTags ***REMOVED***
+	if len(data) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
 	tags := map[string]string***REMOVED******REMOVED***
 	for k, v := range data ***REMOVED***
 		tags[k] = v
@@ -251,6 +261,10 @@ func NewSampleTags(data map[string]string) *SampleTags ***REMOVED***
 // be changed after it has been transformed into an "immutable" tag set.
 // Oh, how I miss Rust and move semantics... :)
 func IntoSampleTags(data *map[string]string) *SampleTags ***REMOVED***
+	if len(*data) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
 	res := SampleTags***REMOVED***tags: *data***REMOVED***
 	*data = nil
 	return &res
