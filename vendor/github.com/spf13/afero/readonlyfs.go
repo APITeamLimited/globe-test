@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var _ Lstater = (*ReadOnlyFs)(nil)
+
 type ReadOnlyFs struct ***REMOVED***
 	source Fs
 ***REMOVED***
@@ -32,6 +34,14 @@ func (r *ReadOnlyFs) Name() string ***REMOVED***
 
 func (r *ReadOnlyFs) Stat(name string) (os.FileInfo, error) ***REMOVED***
 	return r.source.Stat(name)
+***REMOVED***
+
+func (r *ReadOnlyFs) LstatIfPossible(name string) (os.FileInfo, bool, error) ***REMOVED***
+	if lsf, ok := r.source.(Lstater); ok ***REMOVED***
+		return lsf.LstatIfPossible(name)
+	***REMOVED***
+	fi, err := r.Stat(name)
+	return fi, false, err
 ***REMOVED***
 
 func (r *ReadOnlyFs) Rename(o, n string) error ***REMOVED***
