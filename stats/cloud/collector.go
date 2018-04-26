@@ -214,7 +214,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 				Type:   "Points",
 				Metric: "iter_li_all",
 				Data: SampleDataMap***REMOVED***
-					Time: sc.GetTime(),
+					Time: Timestamp(sc.GetTime()),
 					Tags: sc.GetTags(),
 					Values: map[string]float64***REMOVED***
 						metrics.DataSent.Name:          float64(sc.BytesWritten),
@@ -229,7 +229,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 					Metric: sample.Metric.Name,
 					Data: SampleDataSingle***REMOVED***
 						Type:  sample.Metric.Type,
-						Time:  sample.Time,
+						Time:  Timestamp(sample.Time),
 						Tags:  sample.Tags,
 						Value: sample.Value,
 					***REMOVED***,
@@ -314,7 +314,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 			minReqDur, maxReqDur := reqDurations.GetNormalBounds(outliersCoef)
 
 			aggData := SampleDataAggregatedHTTPReqs***REMOVED***
-				Time: time.Unix(0, bucketID*aggrPeriod+aggrPeriod/2),
+				Time: Timestamp(time.Unix(0, bucketID*aggrPeriod+aggrPeriod/2)),
 				Type: "aggregated_trend",
 				Tags: tags,
 			***REMOVED***

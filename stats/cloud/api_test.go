@@ -21,6 +21,7 @@
 package cloud
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -28,12 +29,56 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func init() ***REMOVED***
 	_ = os.Setenv("K6CLOUD_HOST", "")
 	_ = os.Setenv("K6CLOUD_TOKEN", "")
+***REMOVED***
+
+func TestTimestampMarshaling(t *testing.T) ***REMOVED***
+	oldTimeFormat, err := time.Parse(
+		time.RFC3339,
+		//1521806137415652223 as a unix nanosecond timestamp
+		"2018-03-23T13:55:37.415652223+02:00",
+	)
+	require.NoError(t, err)
+
+	testCases := []struct ***REMOVED***
+		t   time.Time
+		exp string
+	***REMOVED******REMOVED***
+		***REMOVED***oldTimeFormat, `"1521806137415652"`***REMOVED***,
+		***REMOVED***time.Unix(1521806137, 415652223), `"1521806137415652"`***REMOVED***,
+		***REMOVED***time.Unix(1521806137, 0), `"1521806137000000"`***REMOVED***,
+		***REMOVED***time.Unix(0, 0), `"0"`***REMOVED***,
+		***REMOVED***time.Unix(0, 1), `"0"`***REMOVED***,
+		***REMOVED***time.Unix(0, 1000), `"1"`***REMOVED***,
+		***REMOVED***time.Unix(1, 0), `"1000000"`***REMOVED***,
+	***REMOVED***
+
+	for i, tc := range testCases ***REMOVED***
+		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) ***REMOVED***
+			res, err := json.Marshal(Timestamp(tc.t))
+			require.NoError(t, err)
+			assert.Equal(t, string(res), tc.exp)
+
+			var rev Timestamp
+			require.NoError(t, json.Unmarshal(res, &rev))
+			diff := tc.t.Sub(time.Time(rev))
+			if diff < -time.Microsecond || diff > time.Microsecond ***REMOVED***
+				t.Errorf(
+					"Expected the difference to be under a microsecond, but is %s (%d and %d)",
+					diff,
+					tc.t.UnixNano(),
+					time.Time(rev).UnixNano(),
+				)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestCreateTestRun(t *testing.T) ***REMOVED***
@@ -67,7 +112,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 			Metric: "metric",
 			Data: SampleDataSingle***REMOVED***
 				Type:  1,
-				Time:  time.Now(),
+				Time:  Timestamp(time.Now()),
 				Value: 1.2,
 			***REMOVED***,
 		***REMOVED***,
