@@ -1,13 +1,14 @@
 package afero
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 )
+
+var _ Lstater = (*BasePathFs)(nil)
 
 // The BasePathFs restricts all operations to a given path within an Fs.
 // The given file name to the operations on this Fs will be prepended with
@@ -22,6 +23,16 @@ type BasePathFs struct ***REMOVED***
 	path   string
 ***REMOVED***
 
+type BasePathFile struct ***REMOVED***
+	File
+	path string
+***REMOVED***
+
+func (f *BasePathFile) Name() string ***REMOVED***
+	sourcename := f.File.Name()
+	return strings.TrimPrefix(sourcename, filepath.Clean(f.path))
+***REMOVED***
+
 func NewBasePathFs(source Fs, path string) Fs ***REMOVED***
 	return &BasePathFs***REMOVED***source: source, path: path***REMOVED***
 ***REMOVED***
@@ -30,7 +41,7 @@ func NewBasePathFs(source Fs, path string) Fs ***REMOVED***
 // else the given file with the base path prepended
 func (b *BasePathFs) RealPath(name string) (path string, err error) ***REMOVED***
 	if err := validateBasePathName(name); err != nil ***REMOVED***
-		return "", err
+		return name, err
 	***REMOVED***
 
 	bpath := filepath.Clean(b.path)
@@ -52,7 +63,7 @@ func validateBasePathName(name string) error ***REMOVED***
 	// On Windows a common mistake would be to provide an absolute OS path
 	// We could strip out the base part, but that would not be very portable.
 	if filepath.IsAbs(name) ***REMOVED***
-		return &os.PathError***REMOVED***Op: "realPath", Path: name, Err: errors.New("got a real OS path instead of a virtual")***REMOVED***
+		return os.ErrNotExist
 	***REMOVED***
 
 	return nil
@@ -111,14 +122,22 @@ func (b *BasePathFs) OpenFile(name string, flag int, mode os.FileMode) (f File, 
 	if name, err = b.RealPath(name); err != nil ***REMOVED***
 		return nil, &os.PathError***REMOVED***Op: "openfile", Path: name, Err: err***REMOVED***
 	***REMOVED***
-	return b.source.OpenFile(name, flag, mode)
+	sourcef, err := b.source.OpenFile(name, flag, mode)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return &BasePathFile***REMOVED***sourcef, b.path***REMOVED***, nil
 ***REMOVED***
 
 func (b *BasePathFs) Open(name string) (f File, err error) ***REMOVED***
 	if name, err = b.RealPath(name); err != nil ***REMOVED***
 		return nil, &os.PathError***REMOVED***Op: "open", Path: name, Err: err***REMOVED***
 	***REMOVED***
-	return b.source.Open(name)
+	sourcef, err := b.source.Open(name)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return &BasePathFile***REMOVED***File: sourcef, path: b.path***REMOVED***, nil
 ***REMOVED***
 
 func (b *BasePathFs) Mkdir(name string, mode os.FileMode) (err error) ***REMOVED***
@@ -139,7 +158,23 @@ func (b *BasePathFs) Create(name string) (f File, err error) ***REMOVED***
 	if name, err = b.RealPath(name); err != nil ***REMOVED***
 		return nil, &os.PathError***REMOVED***Op: "create", Path: name, Err: err***REMOVED***
 	***REMOVED***
-	return b.source.Create(name)
+	sourcef, err := b.source.Create(name)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return &BasePathFile***REMOVED***File: sourcef, path: b.path***REMOVED***, nil
+***REMOVED***
+
+func (b *BasePathFs) LstatIfPossible(name string) (os.FileInfo, bool, error) ***REMOVED***
+	name, err := b.RealPath(name)
+	if err != nil ***REMOVED***
+		return nil, false, &os.PathError***REMOVED***Op: "lstat", Path: name, Err: err***REMOVED***
+	***REMOVED***
+	if lstater, ok := b.source.(Lstater); ok ***REMOVED***
+		return lstater.LstatIfPossible(name)
+	***REMOVED***
+	fi, err := b.source.Stat(name)
+	return fi, false, err
 ***REMOVED***
 
 // vim: ts=4 sw=4 noexpandtab nolist syn=go

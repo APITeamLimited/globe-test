@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var _ Lstater = (*CopyOnWriteFs)(nil)
+
 // The CopyOnWriteFs is a union filesystem: a read only base file system with
 // a possibly writeable layer on top. Changes to the file system will only
 // be made in the overlay: Changing an existing file in the base layer which
@@ -76,16 +78,53 @@ func (u *CopyOnWriteFs) Chmod(name string, mode os.FileMode) error ***REMOVED***
 func (u *CopyOnWriteFs) Stat(name string) (os.FileInfo, error) ***REMOVED***
 	fi, err := u.layer.Stat(name)
 	if err != nil ***REMOVED***
-		origErr := err
-		if e, ok := err.(*os.PathError); ok ***REMOVED***
-			err = e.Err
-		***REMOVED***
-		if err == os.ErrNotExist || err == syscall.ENOENT || err == syscall.ENOTDIR ***REMOVED***
+		isNotExist := u.isNotExist(err)
+		if isNotExist ***REMOVED***
 			return u.base.Stat(name)
 		***REMOVED***
-		return nil, origErr
+		return nil, err
 	***REMOVED***
 	return fi, nil
+***REMOVED***
+
+func (u *CopyOnWriteFs) LstatIfPossible(name string) (os.FileInfo, bool, error) ***REMOVED***
+	llayer, ok1 := u.layer.(Lstater)
+	lbase, ok2 := u.base.(Lstater)
+
+	if ok1 ***REMOVED***
+		fi, b, err := llayer.LstatIfPossible(name)
+		if err == nil ***REMOVED***
+			return fi, b, nil
+		***REMOVED***
+
+		if !u.isNotExist(err) ***REMOVED***
+			return nil, b, err
+		***REMOVED***
+	***REMOVED***
+
+	if ok2 ***REMOVED***
+		fi, b, err := lbase.LstatIfPossible(name)
+		if err == nil ***REMOVED***
+			return fi, b, nil
+		***REMOVED***
+		if !u.isNotExist(err) ***REMOVED***
+			return nil, b, err
+		***REMOVED***
+	***REMOVED***
+
+	fi, err := u.Stat(name)
+
+	return fi, false, err
+***REMOVED***
+
+func (u *CopyOnWriteFs) isNotExist(err error) bool ***REMOVED***
+	if e, ok := err.(*os.PathError); ok ***REMOVED***
+		err = e.Err
+	***REMOVED***
+	if err == os.ErrNotExist || err == syscall.ENOENT || err == syscall.ENOTDIR ***REMOVED***
+		return true
+	***REMOVED***
+	return false
 ***REMOVED***
 
 // Renaming files present only in the base layer is not permitted
@@ -219,7 +258,7 @@ func (u *CopyOnWriteFs) Open(name string) (File, error) ***REMOVED***
 		return nil, fmt.Errorf("BaseErr: %v\nOverlayErr: %v", bErr, lErr)
 	***REMOVED***
 
-	return &UnionFile***REMOVED***base: bfile, layer: lfile***REMOVED***, nil
+	return &UnionFile***REMOVED***Base: bfile, Layer: lfile***REMOVED***, nil
 ***REMOVED***
 
 func (u *CopyOnWriteFs) Mkdir(name string, perm os.FileMode) error ***REMOVED***
