@@ -120,7 +120,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			***REMOVED***
 		***REMOVED***
 		name := cloudConfig.Name.String
-		if !cloudConfig.Name.Valid ***REMOVED***
+		if !cloudConfig.Name.Valid || cloudConfig.Name.String == "" ***REMOVED***
 			name = filepath.Base(filename)
 		***REMOVED***
 

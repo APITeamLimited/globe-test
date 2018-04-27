@@ -120,13 +120,6 @@ func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, at
 		req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
 	***REMOVED***
 	req.Header.Set("User-Agent", "k6cloud/"+c.version)
-	/*
-		dump, err := httputil.DumpRequestOut(req, true)
-		if err != nil ***REMOVED***
-			return false, err
-		***REMOVED***
-		log.Warn(fmt.Printf("%s\n\n", dump))
-	*/
 	resp, err := c.client.Do(req)
 
 	defer func() ***REMOVED***
