@@ -1,7 +1,28 @@
+/*
+ *
+ * k6 - a next-generation load testing tool
+ * Copyright (C) 2018 Load Impact
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 package cloud
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -10,6 +31,10 @@ import (
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 )
+
+const DataTypeSingle = "Point"
+const DataTypeMap = "Points"
+const DataTypeAggregatedHTTPReqs = "AggregatedPoints"
 
 // Timestamp is used for sending times encoded as microsecond UNIX timestamps to the cloud servers
 type Timestamp time.Time
@@ -40,6 +65,40 @@ type Sample struct ***REMOVED***
 	Data   interface***REMOVED******REMOVED*** `json:"data"`
 ***REMOVED***
 
+// UnmarshalJSON decodes the Data into the corresponding struct
+func (ct *Sample) UnmarshalJSON(p []byte) error ***REMOVED***
+	var tmpSample struct ***REMOVED***
+		Type   string          `json:"type"`
+		Metric string          `json:"metric"`
+		Data   json.RawMessage `json:"data"`
+	***REMOVED***
+	if err := json.Unmarshal(p, &tmpSample); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	s := Sample***REMOVED***
+		Type:   tmpSample.Type,
+		Metric: tmpSample.Metric,
+	***REMOVED***
+
+	switch tmpSample.Type ***REMOVED***
+	case DataTypeSingle:
+		s.Data = new(SampleDataSingle)
+	case DataTypeMap:
+		s.Data = new(SampleDataMap)
+	case DataTypeAggregatedHTTPReqs:
+		s.Data = new(SampleDataAggregatedHTTPReqs)
+	default:
+		return fmt.Errorf("Unknown sample type '%s'", tmpSample.Type)
+	***REMOVED***
+
+	if err := json.Unmarshal(tmpSample.Data, &s.Data); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	*ct = s
+	return nil
+***REMOVED***
+
 // SampleDataSingle is used in all simple un-aggregated single-value samples.
 type SampleDataSingle struct ***REMOVED***
 	Time  Timestamp         `json:"time"`
@@ -62,9 +121,9 @@ type SampleDataMap struct ***REMOVED***
 // directly from a netext.Trail.
 func NewSampleFromTrail(trail *netext.Trail) *Sample ***REMOVED***
 	return &Sample***REMOVED***
-		Type:   "Points",
+		Type:   DataTypeMap,
 		Metric: "http_req_li_all",
-		Data: SampleDataMap***REMOVED***
+		Data: &SampleDataMap***REMOVED***
 			Time: Timestamp(trail.GetTime()),
 			Tags: trail.GetTags(),
 			Values: map[string]float64***REMOVED***
