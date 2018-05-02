@@ -23,6 +23,7 @@ package dummy
 import (
 	"context"
 
+	"github.com/labstack/gommon/log"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
@@ -30,6 +31,8 @@ import (
 // Collector implements the lib.Collector interface and should be used only for testing
 type Collector struct ***REMOVED***
 	Samples []stats.Sample
+
+	runStatus int
 ***REMOVED***
 
 // Init does nothing, it's only included to satisfy the lib.Collector interface
@@ -41,6 +44,7 @@ func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*
 // Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	<-ctx.Done()
+	log.Debugf("finished status: %s", c.runStatus)
 ***REMOVED***
 
 // Collect just appends all of the samples passed to it to the internal sample slice.
@@ -63,4 +67,6 @@ func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
 ***REMOVED***
 
-func (c *Collector) SetRunStatus(status int) ***REMOVED******REMOVED***
+func (c *Collector) SetRunStatus(status int) ***REMOVED***
+	c.runStatus = status
+***REMOVED***
