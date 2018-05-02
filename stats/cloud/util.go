@@ -24,7 +24,7 @@ import "fmt"
 
 func URLForResults(refID string, config Config) string ***REMOVED***
 	path := "runs"
-	if !config.Token.Valid ***REMOVED***
+	if config.Token.String == "" ***REMOVED***
 		path = "anonymous"
 	***REMOVED***
 	return fmt.Sprintf("%s/k6/%s/%s", config.WebAppURL.String, path, refID)
