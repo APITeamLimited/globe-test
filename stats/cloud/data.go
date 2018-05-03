@@ -23,6 +23,7 @@ package cloud
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -220,24 +221,91 @@ type durations []time.Duration
 func (d durations) Len() int           ***REMOVED*** return len(d) ***REMOVED***
 func (d durations) Swap(i, j int)      ***REMOVED*** d[i], d[j] = d[j], d[i] ***REMOVED***
 func (d durations) Less(i, j int) bool ***REMOVED*** return d[i] < d[j] ***REMOVED***
-func (d durations) GetNormalBounds(iqrCoef float64) (min, max time.Duration) ***REMOVED***
-	l := len(d)
-	if l == 0 ***REMOVED***
+
+// This is currently used only for benchmark comparisons and tests.
+func (d durations) SortGetNormalBounds(radius, iqrLowerCoef, iqrUpperCoef float64) (min, max time.Duration) ***REMOVED***
+	if len(d) == 0 ***REMOVED***
 		return
 	***REMOVED***
-
 	sort.Sort(d)
-	var q1, q3 time.Duration
-	if l%4 == 0 ***REMOVED***
-		q1 = d[l/4]
-		q3 = d[(l/4)*3]
-	***REMOVED*** else ***REMOVED***
-		q1 = (d[l/4] + d[(l/4)+1]) / 2
-		q3 = (d[(l/4)*3] + d[(l/4)*3+1]) / 2
+	last := float64(len(d) - 1)
+	radius = math.Min(0.5, radius)
+	q1 := d[int(last*(0.5-radius))]
+	q3 := d[int(last*(0.5+radius))]
+	iqr := float64(q3 - q1)
+	min = q1 - time.Duration(iqrLowerCoef*iqr)
+	max = q3 + time.Duration(iqrUpperCoef*iqr)
+	return
+***REMOVED***
+
+// Reworked and translated in Go from:
+// https://github.com/haifengl/smile/blob/master/math/src/main/java/smile/sort/QuickSelect.java
+// Originally Copyright (c) 2010 Haifeng Li
+// Licensed under the Apache License, Version 2.0
+func (d durations) quickSelect(k int) time.Duration ***REMOVED***
+	n := len(d)
+	l := 0
+	ir := n - 1
+
+	var a time.Duration
+	var i, j, mid int
+	for ***REMOVED***
+		if ir <= l+1 ***REMOVED***
+			if ir == l+1 && d[ir] < d[l] ***REMOVED***
+				d.Swap(l, ir)
+			***REMOVED***
+			return d[k]
+		***REMOVED***
+		mid = (l + ir) >> 1
+		d.Swap(mid, l+1)
+		if d[l] > d[ir] ***REMOVED***
+			d.Swap(l, ir)
+		***REMOVED***
+		if d[l+1] > d[ir] ***REMOVED***
+			d.Swap(l+1, ir)
+		***REMOVED***
+		if d[l] > d[l+1] ***REMOVED***
+			d.Swap(l, l+1)
+		***REMOVED***
+		i = l + 1
+		j = ir
+		a = d[l+1]
+		for ***REMOVED***
+			for i++; d[i] < a; i++ ***REMOVED***
+			***REMOVED***
+			for j--; d[j] > a; j-- ***REMOVED***
+			***REMOVED***
+
+			if j < i ***REMOVED***
+				break
+			***REMOVED***
+			d.Swap(i, j)
+		***REMOVED***
+		d[l+1] = d[j]
+		d[j] = a
+		if j >= k ***REMOVED***
+			ir = j - 1
+		***REMOVED***
+		if j <= k ***REMOVED***
+			l = i
+		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+// Uses Quickselect to avoid sorting the whole slice
+// https://en.wikipedia.org/wiki/Quickselect
+func (d durations) SelectGetNormalBounds(radius, iqrLowerCoef, iqrUpperCoef float64) (min, max time.Duration) ***REMOVED***
+	if len(d) == 0 ***REMOVED***
+		return
+	***REMOVED***
+	radius = math.Min(0.5, radius)
+	last := float64(len(d) - 1)
+
+	q1 := d.quickSelect(int(last * (0.5 - radius)))
+	q3 := d.quickSelect(int(last * (0.5 + radius)))
 
 	iqr := float64(q3 - q1)
-	min = q1 - time.Duration(iqrCoef*iqr)
-	max = q3 + time.Duration(iqrCoef*iqr)
+	min = q1 - time.Duration(iqrLowerCoef*iqr)
+	max = q3 + time.Duration(iqrUpperCoef*iqr)
 	return
 ***REMOVED***

@@ -23,6 +23,7 @@ package cloud
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -149,5 +150,105 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 		newJSON, err := json.Marshal(newS)
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(sJSON), string(newJSON))
+	***REMOVED***
+***REMOVED***
+
+// For more realistic request time distributions, import
+// "gonum.org/v1/gonum/stat/distuv" and use something like this:
+//
+// randSrc := rand.NewSource(uint64(time.Now().UnixNano()))
+// dist := distuv.LogNormal***REMOVED***Mu: 0, Sigma: 0.5, Src: randSrc***REMOVED***
+//
+// then set the data elements to time.Duration(dist.Rand() * multiplier)
+//
+// I've not used that after the initial tests because it's a big
+// external dependency that's not really needed for the tests at
+// this point.
+func getDurations(count int, min, multiplier float64) durations ***REMOVED***
+	data := make(durations, count)
+	for j := 0; j < count; j++ ***REMOVED***
+		data[j] = time.Duration(min + rand.Float64()*multiplier)
+	***REMOVED***
+	return data
+***REMOVED***
+func BenchmarkDurationBounds(b *testing.B) ***REMOVED***
+	iqrRadius := 0.25 // If it's something different, the Q in IQR won't make much sense...
+	iqrLowerCoef := 1.5
+	iqrUpperCoef := 1.5
+
+	getData := func(b *testing.B, count int) durations ***REMOVED***
+		b.StopTimer()
+		defer b.StartTimer()
+		return getDurations(count, 0.1*float64(time.Second), float64(time.Second))
+	***REMOVED***
+
+	for count := 100; count <= 5000; count += 500 ***REMOVED***
+		b.Run(fmt.Sprintf("Sort-%d-elements", count), func(b *testing.B) ***REMOVED***
+			for i := 0; i < b.N; i++ ***REMOVED***
+				data := getData(b, count)
+				data.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
+			***REMOVED***
+		***REMOVED***)
+		b.Run(fmt.Sprintf("Select-%d-elements", count), func(b *testing.B) ***REMOVED***
+			for i := 0; i < b.N; i++ ***REMOVED***
+				data := getData(b, count)
+				data.SelectGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
+	t.Parallel()
+	mult := time.Millisecond
+	for _, count := range []int***REMOVED***1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100, 250 + rand.Intn(100)***REMOVED*** ***REMOVED***
+		count := count
+		t.Run(fmt.Sprintf("simple-%d", count), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			data := make(durations, count)
+			for i := 0; i < count; i++ ***REMOVED***
+				data[i] = time.Duration(i) * mult
+			***REMOVED***
+			rand.Shuffle(len(data), data.Swap)
+			for i := 0; i < 10; i++ ***REMOVED***
+				dataCopy := make(durations, count)
+				assert.Equal(t, count, copy(dataCopy, data))
+				k := rand.Intn(count)
+				assert.Equal(t, dataCopy.quickSelect(k), time.Duration(k)*mult)
+			***REMOVED***
+		***REMOVED***)
+		t.Run(fmt.Sprintf("random-%d", count), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			testCases := []struct***REMOVED*** r, l, u float64 ***REMOVED******REMOVED***
+				***REMOVED***0.25, 1.5, 1.5***REMOVED***, // Textbook
+				***REMOVED***0.25, 1.5, 1.3***REMOVED***, // Defaults
+				***REMOVED***0.1, 0.5, 0.3***REMOVED***,  // Extreme narrow
+				***REMOVED***0.3, 2, 1.8***REMOVED***,    // Extreme wide
+			***REMOVED***
+
+			for tcNum, tc := range testCases ***REMOVED***
+				tc := tc
+				data := getDurations(count, 0.3*float64(time.Second), 2*float64(time.Second))
+				dataForSort := make(durations, count)
+				dataForSelect := make(durations, count)
+				assert.Equal(t, count, copy(dataForSort, data))
+				assert.Equal(t, count, copy(dataForSelect, data))
+				assert.Equal(t, dataForSort, dataForSelect)
+
+				t.Run(fmt.Sprintf("bounds-tc%d", tcNum), func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					sortMin, sortMax := dataForSort.SortGetNormalBounds(tc.r, tc.l, tc.u)
+					selectMin, selectMax := dataForSelect.SelectGetNormalBounds(tc.r, tc.l, tc.u)
+					assert.Equal(t, sortMin, selectMin)
+					assert.Equal(t, sortMax, selectMax)
+
+					k := rand.Intn(count)
+					assert.Equal(t, dataForSort[k], dataForSelect.quickSelect(k))
+					assert.Equal(t, dataForSort[k], data.quickSelect(k))
+				***REMOVED***)
+			***REMOVED***
+
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
