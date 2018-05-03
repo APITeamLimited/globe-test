@@ -198,10 +198,10 @@ func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
 ***REMOVED***
 
 func (st *SampleTags) Contains(other *SampleTags) bool ***REMOVED***
-	if st == other ***REMOVED***
+	if st == other || other == nil ***REMOVED***
 		return true
 	***REMOVED***
-	if st == nil || other == nil || len(st.tags) < len(other.tags) ***REMOVED***
+	if st == nil || len(st.tags) < len(other.tags) ***REMOVED***
 		return false
 	***REMOVED***
 
