@@ -21,32 +21,33 @@ import (
 // successful read in the overlay will move the cursor position in the base layer
 // by the number of bytes read.
 type UnionFile struct ***REMOVED***
-	base  File
-	layer File
-	off   int
-	files []os.FileInfo
+	Base   File
+	Layer  File
+	Merger DirsMerger
+	off    int
+	files  []os.FileInfo
 ***REMOVED***
 
 func (f *UnionFile) Close() error ***REMOVED***
 	// first close base, so we have a newer timestamp in the overlay. If we'd close
 	// the overlay first, we'd get a cacheStale the next time we access this file
 	// -> cache would be useless ;-)
-	if f.base != nil ***REMOVED***
-		f.base.Close()
+	if f.Base != nil ***REMOVED***
+		f.Base.Close()
 	***REMOVED***
-	if f.layer != nil ***REMOVED***
-		return f.layer.Close()
+	if f.Layer != nil ***REMOVED***
+		return f.Layer.Close()
 	***REMOVED***
 	return BADFD
 ***REMOVED***
 
 func (f *UnionFile) Read(s []byte) (int, error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		n, err := f.layer.Read(s)
-		if (err == nil || err == io.EOF) && f.base != nil ***REMOVED***
+	if f.Layer != nil ***REMOVED***
+		n, err := f.Layer.Read(s)
+		if (err == nil || err == io.EOF) && f.Base != nil ***REMOVED***
 			// advance the file position also in the base file, the next
 			// call may be a write at this position (or a seek with SEEK_CUR)
-			if _, seekErr := f.base.Seek(int64(n), os.SEEK_CUR); seekErr != nil ***REMOVED***
+			if _, seekErr := f.Base.Seek(int64(n), os.SEEK_CUR); seekErr != nil ***REMOVED***
 				// only overwrite err in case the seek fails: we need to
 				// report an eventual io.EOF to the caller
 				err = seekErr
@@ -54,105 +55,135 @@ func (f *UnionFile) Read(s []byte) (int, error) ***REMOVED***
 		***REMOVED***
 		return n, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Read(s)
+	if f.Base != nil ***REMOVED***
+		return f.Base.Read(s)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***
 
 func (f *UnionFile) ReadAt(s []byte, o int64) (int, error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		n, err := f.layer.ReadAt(s, o)
-		if (err == nil || err == io.EOF) && f.base != nil ***REMOVED***
-			_, err = f.base.Seek(o+int64(n), os.SEEK_SET)
+	if f.Layer != nil ***REMOVED***
+		n, err := f.Layer.ReadAt(s, o)
+		if (err == nil || err == io.EOF) && f.Base != nil ***REMOVED***
+			_, err = f.Base.Seek(o+int64(n), os.SEEK_SET)
 		***REMOVED***
 		return n, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.ReadAt(s, o)
+	if f.Base != nil ***REMOVED***
+		return f.Base.ReadAt(s, o)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***
 
 func (f *UnionFile) Seek(o int64, w int) (pos int64, err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		pos, err = f.layer.Seek(o, w)
-		if (err == nil || err == io.EOF) && f.base != nil ***REMOVED***
-			_, err = f.base.Seek(o, w)
+	if f.Layer != nil ***REMOVED***
+		pos, err = f.Layer.Seek(o, w)
+		if (err == nil || err == io.EOF) && f.Base != nil ***REMOVED***
+			_, err = f.Base.Seek(o, w)
 		***REMOVED***
 		return pos, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Seek(o, w)
+	if f.Base != nil ***REMOVED***
+		return f.Base.Seek(o, w)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***
 
 func (f *UnionFile) Write(s []byte) (n int, err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		n, err = f.layer.Write(s)
-		if err == nil && f.base != nil ***REMOVED*** // hmm, do we have fixed size files where a write may hit the EOF mark?
-			_, err = f.base.Write(s)
+	if f.Layer != nil ***REMOVED***
+		n, err = f.Layer.Write(s)
+		if err == nil && f.Base != nil ***REMOVED*** // hmm, do we have fixed size files where a write may hit the EOF mark?
+			_, err = f.Base.Write(s)
 		***REMOVED***
 		return n, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Write(s)
+	if f.Base != nil ***REMOVED***
+		return f.Base.Write(s)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***
 
 func (f *UnionFile) WriteAt(s []byte, o int64) (n int, err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		n, err = f.layer.WriteAt(s, o)
-		if err == nil && f.base != nil ***REMOVED***
-			_, err = f.base.WriteAt(s, o)
+	if f.Layer != nil ***REMOVED***
+		n, err = f.Layer.WriteAt(s, o)
+		if err == nil && f.Base != nil ***REMOVED***
+			_, err = f.Base.WriteAt(s, o)
 		***REMOVED***
 		return n, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.WriteAt(s, o)
+	if f.Base != nil ***REMOVED***
+		return f.Base.WriteAt(s, o)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***
 
 func (f *UnionFile) Name() string ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		return f.layer.Name()
+	if f.Layer != nil ***REMOVED***
+		return f.Layer.Name()
 	***REMOVED***
-	return f.base.Name()
+	return f.Base.Name()
+***REMOVED***
+
+// DirsMerger is how UnionFile weaves two directories together.
+// It takes the FileInfo slices from the layer and the base and returns a
+// single view.
+type DirsMerger func(lofi, bofi []os.FileInfo) ([]os.FileInfo, error)
+
+var defaultUnionMergeDirsFn = func(lofi, bofi []os.FileInfo) ([]os.FileInfo, error) ***REMOVED***
+	var files = make(map[string]os.FileInfo)
+
+	for _, fi := range lofi ***REMOVED***
+		files[fi.Name()] = fi
+	***REMOVED***
+
+	for _, fi := range bofi ***REMOVED***
+		if _, exists := files[fi.Name()]; !exists ***REMOVED***
+			files[fi.Name()] = fi
+		***REMOVED***
+	***REMOVED***
+
+	rfi := make([]os.FileInfo, len(files))
+
+	i := 0
+	for _, fi := range files ***REMOVED***
+		rfi[i] = fi
+		i++
+	***REMOVED***
+
+	return rfi, nil
+
 ***REMOVED***
 
 // Readdir will weave the two directories together and
 // return a single view of the overlayed directories
 func (f *UnionFile) Readdir(c int) (ofi []os.FileInfo, err error) ***REMOVED***
+	var merge DirsMerger = f.Merger
+	if merge == nil ***REMOVED***
+		merge = defaultUnionMergeDirsFn
+	***REMOVED***
+
 	if f.off == 0 ***REMOVED***
-		var files = make(map[string]os.FileInfo)
-		var rfi []os.FileInfo
-		if f.layer != nil ***REMOVED***
-			rfi, err = f.layer.Readdir(-1)
+		var lfi []os.FileInfo
+		if f.Layer != nil ***REMOVED***
+			lfi, err = f.Layer.Readdir(-1)
 			if err != nil ***REMOVED***
 				return nil, err
-			***REMOVED***
-			for _, fi := range rfi ***REMOVED***
-				files[fi.Name()] = fi
 			***REMOVED***
 		***REMOVED***
 
-		if f.base != nil ***REMOVED***
-			rfi, err = f.base.Readdir(-1)
+		var bfi []os.FileInfo
+		if f.Base != nil ***REMOVED***
+			bfi, err = f.Base.Readdir(-1)
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			for _, fi := range rfi ***REMOVED***
-				if _, exists := files[fi.Name()]; !exists ***REMOVED***
-					files[fi.Name()] = fi
-				***REMOVED***
-			***REMOVED***
+
 		***REMOVED***
-		for _, fi := range files ***REMOVED***
-			f.files = append(f.files, fi)
+		merged, err := merge(lfi, bfi)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+		f.files = append(f.files, merged...)
 	***REMOVED***
 	if c == -1 ***REMOVED***
 		return f.files[f.off:], nil
@@ -174,53 +205,53 @@ func (f *UnionFile) Readdirnames(c int) ([]string, error) ***REMOVED***
 ***REMOVED***
 
 func (f *UnionFile) Stat() (os.FileInfo, error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		return f.layer.Stat()
+	if f.Layer != nil ***REMOVED***
+		return f.Layer.Stat()
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Stat()
+	if f.Base != nil ***REMOVED***
+		return f.Base.Stat()
 	***REMOVED***
 	return nil, BADFD
 ***REMOVED***
 
 func (f *UnionFile) Sync() (err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		err = f.layer.Sync()
-		if err == nil && f.base != nil ***REMOVED***
-			err = f.base.Sync()
+	if f.Layer != nil ***REMOVED***
+		err = f.Layer.Sync()
+		if err == nil && f.Base != nil ***REMOVED***
+			err = f.Base.Sync()
 		***REMOVED***
 		return err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Sync()
+	if f.Base != nil ***REMOVED***
+		return f.Base.Sync()
 	***REMOVED***
 	return BADFD
 ***REMOVED***
 
 func (f *UnionFile) Truncate(s int64) (err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		err = f.layer.Truncate(s)
-		if err == nil && f.base != nil ***REMOVED***
-			err = f.base.Truncate(s)
+	if f.Layer != nil ***REMOVED***
+		err = f.Layer.Truncate(s)
+		if err == nil && f.Base != nil ***REMOVED***
+			err = f.Base.Truncate(s)
 		***REMOVED***
 		return err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.Truncate(s)
+	if f.Base != nil ***REMOVED***
+		return f.Base.Truncate(s)
 	***REMOVED***
 	return BADFD
 ***REMOVED***
 
 func (f *UnionFile) WriteString(s string) (n int, err error) ***REMOVED***
-	if f.layer != nil ***REMOVED***
-		n, err = f.layer.WriteString(s)
-		if err == nil && f.base != nil ***REMOVED***
-			_, err = f.base.WriteString(s)
+	if f.Layer != nil ***REMOVED***
+		n, err = f.Layer.WriteString(s)
+		if err == nil && f.Base != nil ***REMOVED***
+			_, err = f.Base.WriteString(s)
 		***REMOVED***
 		return n, err
 	***REMOVED***
-	if f.base != nil ***REMOVED***
-		return f.base.WriteString(s)
+	if f.Base != nil ***REMOVED***
+		return f.Base.WriteString(s)
 	***REMOVED***
 	return 0, BADFD
 ***REMOVED***

@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+var _ Lstater = (*OsFs)(nil)
+
 // OsFs is a Fs implementation that uses functions provided by the os package.
 //
 // For details in any method, check the documentation of the os package
@@ -91,4 +93,9 @@ func (OsFs) Chmod(name string, mode os.FileMode) error ***REMOVED***
 
 func (OsFs) Chtimes(name string, atime time.Time, mtime time.Time) error ***REMOVED***
 	return os.Chtimes(name, atime, mtime)
+***REMOVED***
+
+func (OsFs) LstatIfPossible(name string) (os.FileInfo, bool, error) ***REMOVED***
+	fi, err := os.Lstat(name)
+	return fi, true, err
 ***REMOVED***

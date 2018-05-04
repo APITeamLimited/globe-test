@@ -628,15 +628,30 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, state.Samples, "GET", url, "", 200, "")
 			***REMOVED***)
 			t.Run("digest", func(t *testing.T) ***REMOVED***
-				state.Samples = nil
-				url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
+				t.Run("success", func(t *testing.T) ***REMOVED***
+					state.Samples = nil
+					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
 
-				_, err := common.RunString(rt, fmt.Sprintf(`
-				let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest" ***REMOVED***);
-				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				`, url))
-				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
+					_, err := common.RunString(rt, fmt.Sprintf(`
+					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest" ***REMOVED***);
+					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+					`, url))
+					assert.NoError(t, err)
+					assertRequestMetricsEmitted(t, state.Samples, "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
+				***REMOVED***)
+				t.Run("failure", func(t *testing.T) ***REMOVED***
+					tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+						time.Sleep(2 * time.Second)
+					***REMOVED***))
+
+					state.Samples = nil
+					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/failure")
+
+					_, err := common.RunString(rt, fmt.Sprintf(`
+					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest", timeout: 1, throw: false ***REMOVED***);
+					`, url))
+					assert.NoError(t, err)
+				***REMOVED***)
 			***REMOVED***)
 			t.Run("ntlm", func(t *testing.T) ***REMOVED***
 				tb.Mux.HandleFunc("/ntlm", http.HandlerFunc(ntlmHandler("bob", "pass")))

@@ -340,7 +340,7 @@ func (e *Engine) processSamples(sampleCointainers ...stats.SampleContainer) ***R
 			m.Sink.Add(sample)
 
 			for _, sm := range m.Submetrics ***REMOVED***
-				if !sm.Tags.IsEqual(sample.Tags) ***REMOVED***
+				if !sample.Tags.Contains(sm.Tags) ***REMOVED***
 					continue
 				***REMOVED***
 
