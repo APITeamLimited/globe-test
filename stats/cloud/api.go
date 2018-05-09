@@ -66,9 +66,6 @@ func (c *Client) CreateTestRun(testRun *TestRun) (*CreateTestRunResponse, error)
 		return nil, err
 	***REMOVED***
 
-	// TODO: add option to either overwrite certain aggregation options
-	// or to require that they are set
-
 	ctrr := CreateTestRunResponse***REMOVED******REMOVED***
 	err = c.Do(req, &ctrr)
 	if err != nil ***REMOVED***

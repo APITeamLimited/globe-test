@@ -135,7 +135,7 @@ func (c *Collector) Init() error ***REMOVED***
 		log.WithFields(log.Fields***REMOVED***
 			"override": response.ConfigOverride,
 		***REMOVED***).Debug("Cloud: overriding config options")
-		c.config.Apply(*response.ConfigOverride)
+		c.config = c.config.Apply(*response.ConfigOverride)
 	***REMOVED***
 
 	log.WithFields(log.Fields***REMOVED***
