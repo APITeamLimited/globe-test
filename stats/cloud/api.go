@@ -44,7 +44,8 @@ type TestRun struct ***REMOVED***
 ***REMOVED***
 
 type CreateTestRunResponse struct ***REMOVED***
-	ReferenceID string `json:"reference_id"`
+	ReferenceID    string  `json:"reference_id"`
+	ConfigOverride *Config `json:"config"`
 ***REMOVED***
 
 type TestProgressResponse struct ***REMOVED***

@@ -126,11 +126,17 @@ func (c *Collector) Init() error ***REMOVED***
 	***REMOVED***
 
 	response, err := c.client.CreateTestRun(testRun)
-
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	c.referenceID = response.ReferenceID
+
+	if response.ConfigOverride != nil ***REMOVED***
+		log.WithFields(log.Fields***REMOVED***
+			"override": response.ConfigOverride,
+		***REMOVED***).Debug("Cloud: overriding config options")
+		c.config.Apply(*response.ConfigOverride)
+	***REMOVED***
 
 	log.WithFields(log.Fields***REMOVED***
 		"name":        c.config.Name,
