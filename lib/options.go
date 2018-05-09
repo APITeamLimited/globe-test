@@ -275,8 +275,12 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Iterations.Valid ***REMOVED***
 		o.Iterations = opts.Iterations
 	***REMOVED***
-	if opts.Stages != nil ***REMOVED***
-		o.Stages = opts.Stages
+	if len(opts.Stages) > 0 ***REMOVED***
+		for _, s := range opts.Stages ***REMOVED***
+			if s.Duration.Valid && s.Target.Valid ***REMOVED***
+				o.Stages = append(o.Stages, s)
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 	if opts.SetupTimeout.Valid ***REMOVED***
 		o.SetupTimeout = opts.SetupTimeout
