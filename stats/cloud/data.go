@@ -40,6 +40,12 @@ const DataTypeAggregatedHTTPReqs = "AggregatedPoints"
 // Timestamp is used for sending times encoded as microsecond UNIX timestamps to the cloud servers
 type Timestamp time.Time
 
+// Equal will return true if the difference between the timestamps is less than 1 microsecond
+func (ct Timestamp) Equal(other Timestamp) bool ***REMOVED***
+	diff := time.Time(ct).Sub(time.Time(other))
+	return diff > -time.Microsecond && diff < time.Microsecond
+***REMOVED***
+
 // MarshalJSON encodes the microsecond UNIX timestamps as strings because JavaScripts doesn't have actual integers and tends to round big numbers
 func (ct Timestamp) MarshalJSON() ([]byte, error) ***REMOVED***
 	return []byte(`"` + strconv.FormatInt(time.Time(ct).UnixNano()/1000, 10) + `"`), nil

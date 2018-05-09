@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +39,7 @@ func init() ***REMOVED***
 
 func TestCreateTestRun(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
+		fmt.Fprintf(w, `***REMOVED***"reference_id": "1", "config": ***REMOVED***"aggregationPeriod": "2s"***REMOVED******REMOVED***`)
 	***REMOVED***))
 	defer server.Close()
 
@@ -51,6 +52,10 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 
 	assert.Nil(t, err)
 	assert.Equal(t, resp.ReferenceID, "1")
+	assert.NotNil(t, resp.ConfigOverride)
+	assert.True(t, resp.ConfigOverride.AggregationPeriod.Valid)
+	assert.Equal(t, types.Duration(2*time.Second), resp.ConfigOverride.AggregationPeriod.Duration)
+	assert.False(t, resp.ConfigOverride.AggregationMinSamples.Valid)
 ***REMOVED***
 
 func TestPublishMetric(t *testing.T) ***REMOVED***
