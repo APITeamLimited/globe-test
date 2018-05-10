@@ -277,7 +277,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if len(opts.Stages) > 0 ***REMOVED***
 		for _, s := range opts.Stages ***REMOVED***
-			if s.Duration.Valid && s.Target.Valid ***REMOVED***
+			if s.Duration.Valid ***REMOVED***
 				o.Stages = append(o.Stages, s)
 			***REMOVED***
 		***REMOVED***
