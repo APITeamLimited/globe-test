@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -1004,35 +1005,53 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 ***REMOVED***
 func TestSystemTags(t *testing.T) ***REMOVED***
 	tb, state, rt, _ := newRuntime(t)
+	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		w.Header().Add("Location", "%")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	***REMOVED***)
 	defer tb.Cleanup()
 
-	testedSystemTags := map[string]string***REMOVED***
-		"proto":       tb.ServerHTTP.URL,
-		"status":      tb.ServerHTTP.URL,
-		"method":      tb.ServerHTTP.URL,
-		"url":         tb.ServerHTTP.URL,
-		"name":        tb.ServerHTTP.URL,
-		"group":       tb.ServerHTTP.URL,
-		"vu":          tb.ServerHTTP.URL,
-		"iter":        tb.ServerHTTP.URL,
-		"tls_version": tb.ServerHTTPS.URL,
-		"ocsp_status": tb.ServerHTTPS.URL,
+	httpGet := fmt.Sprintf(`http.get("%s");`, tb.ServerHTTP.URL)
+	httpsGet := fmt.Sprintf(`http.get("%s");`, tb.ServerHTTPS.URL)
+
+	httpURL, err := url.Parse(tb.ServerHTTP.URL)
+	require.NoError(t, err)
+
+	testedSystemTags := []struct***REMOVED*** tag, code, expVal string ***REMOVED******REMOVED***
+		***REMOVED***"proto", httpGet, "HTTP/1.1"***REMOVED***,
+		***REMOVED***"status", httpGet, "200"***REMOVED***,
+		***REMOVED***"method", httpGet, "GET"***REMOVED***,
+		***REMOVED***"url", httpGet, tb.ServerHTTP.URL***REMOVED***,
+		***REMOVED***"url", httpsGet, tb.ServerHTTPS.URL***REMOVED***,
+		***REMOVED***"ip", httpGet, httpURL.Hostname()***REMOVED***,
+		***REMOVED***"name", httpGet, tb.ServerHTTP.URL***REMOVED***,
+		***REMOVED***"group", httpGet, ""***REMOVED***,
+		***REMOVED***"vu", httpGet, "0"***REMOVED***,
+		***REMOVED***"iter", httpGet, "0"***REMOVED***,
+		***REMOVED***"tls_version", httpsGet, "tls1.2"***REMOVED***,
+		***REMOVED***"ocsp_status", httpsGet, "unknown"***REMOVED***,
+		***REMOVED***
+			"error",
+			tb.Replacer.Replace(`http.get("HTTPBIN_IP_URL/wrong-redirect");`),
+			tb.Replacer.Replace(`Get HTTPBIN_IP_URL/wrong-redirect: failed to parse Location header "%": parse %: invalid URL escape "%"`),
+		***REMOVED***,
 	***REMOVED***
 
-	//TODO: test error
+	state.Options.Throw = null.BoolFrom(false)
 
-	for expectedTag, url := range testedSystemTags ***REMOVED***
-		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
-			state.Options.SystemTags = lib.GetTagSet(expectedTag)
+	for num, tc := range testedSystemTags ***REMOVED***
+		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
+			state.Options.SystemTags = lib.GetTagSet(tc.tag)
 			state.Samples = nil
-			_, err := common.RunString(rt, fmt.Sprintf(`http.get("%s");`, url))
+			_, err := common.RunString(rt, tc.code)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, state.Samples)
 			for _, sampleC := range state.Samples ***REMOVED***
 				for _, sample := range sampleC.GetSamples() ***REMOVED***
 					assert.NotEmpty(t, sample.Tags)
-					for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
-						assert.Equal(t, expectedTag, emittedTag)
+					for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
+						assert.Equal(t, tc.tag, emittedTag)
+						assert.Equal(t, tc.expVal, emittedVal)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
