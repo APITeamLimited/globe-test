@@ -355,7 +355,9 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		DualStack: true,
 	***REMOVED***)
 
-	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url"***REMOVED***
+	//TODO: test for actual tag values after removing the dependency on the
+	// external service demos.kaazing.com (https://github.com/loadimpact/k6/issues/537)
+	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url", "ip"***REMOVED***
 	state := &common.State***REMOVED***
 		Group:   root,
 		Dialer:  dialer,
@@ -415,7 +417,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		Group:  root,
 		Dialer: dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto"),
+			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto", "ip"),
 		***REMOVED***,
 	***REMOVED***
 
