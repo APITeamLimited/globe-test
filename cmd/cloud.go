@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -31,7 +32,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -98,16 +98,16 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		r.SetOptions(conf.Options)
 
 		// Cloud config
-		cloudConfig := conf.Collectors.Cloud
+		cloudConfig := cloud.NewConfig().Apply(conf.Collectors.Cloud)
 		if err := envconfig.Process("k6", &cloudConfig); err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		if cloudConfig.Token == "" ***REMOVED***
+		if !cloudConfig.Token.Valid ***REMOVED***
 			return errors.New("Not logged in, please use `k6 login cloud`.")
 		***REMOVED***
 
 		// Start cloud test run
-		client := cloud.NewClient(cloudConfig.Token, cloudConfig.Host, Version)
+		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, Version)
 
 		arc := r.MakeArchive()
 		if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
@@ -115,16 +115,16 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		if val, ok := arc.Options.External["loadimpact"]; ok ***REMOVED***
-			if err := mapstructure.Decode(val, &cloudConfig); err != nil ***REMOVED***
+			if err := json.Unmarshal(val, &cloudConfig); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED***
-		name := cloudConfig.Name
-		if name == "" ***REMOVED***
+		name := cloudConfig.Name.String
+		if !cloudConfig.Name.Valid || cloudConfig.Name.String == "" ***REMOVED***
 			name = filepath.Base(filename)
 		***REMOVED***
 
-		refID, err := client.StartCloudTestRun(name, cloudConfig.ProjectID, arc)
+		refID, err := client.StartCloudTestRun(name, cloudConfig.ProjectID.Int64, arc)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

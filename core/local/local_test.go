@@ -33,6 +33,7 @@ import (
 	"github.com/pkg/errors"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
 )
 
@@ -184,7 +185,7 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	assert.True(t, time.Now().After(startTime.Add(1*time.Second)), "test did not take 1s")
 
 	t.Run("Runtime Errors", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 			return nil, errors.New("hi")
 		***REMOVED******REMOVED***)
 		assert.NoError(t, e.SetVUsMax(10))
@@ -206,7 +207,7 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("End Errors", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 			<-ctx.Done()
 			return nil, errors.New("hi")
 		***REMOVED******REMOVED***)
@@ -230,30 +231,31 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
 	var i int64
-	e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+	e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
 			atomic.AddInt64(&i, 1)
 		***REMOVED***
-		return []stats.Sample***REMOVED******REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
+		return []stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
 	***REMOVED******REMOVED***)
 	assert.NoError(t, e.SetVUsMax(1))
 	assert.NoError(t, e.SetVUs(1))
 	e.SetEndIterations(null.IntFrom(100))
 	assert.Equal(t, null.IntFrom(100), e.GetEndIterations())
 
-	samples := make(chan []stats.Sample, 101)
+	samples := make(chan []stats.SampleContainer, 101)
 	assert.NoError(t, e.Run(context.Background(), samples))
 	assert.Equal(t, int64(100), e.GetIterations())
 	assert.Equal(t, int64(100), i)
-
 	for i := 0; i < 100; i++ ***REMOVED***
 		samples := <-samples
 		if assert.Len(t, samples, 2) ***REMOVED***
 			assert.Equal(t, stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, samples[0])
-			assert.Equal(t, metrics.Iterations, samples[1].Metric)
-			assert.Equal(t, float64(1), samples[1].Value)
+			sample, ok := (samples[1]).(stats.Sample)
+			require.True(t, ok)
+			assert.Equal(t, metrics.Iterations, sample.Metric)
+			assert.Equal(t, float64(1), sample.Value)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -316,7 +318,7 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Raise", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 			return nil, nil
 		***REMOVED******REMOVED***)
 		e.ctx = context.Background()

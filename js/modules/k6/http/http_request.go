@@ -101,7 +101,7 @@ func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, ar
 	return res, err
 ***REMOVED***
 
-func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url URL, args ...goja.Value) (*HTTPResponse, []stats.Sample, error) ***REMOVED***
+func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url URL, args ...goja.Value) (*HTTPResponse, []stats.SampleContainer, error) ***REMOVED***
 	var bodyBuf *bytes.Buffer
 	var contentType string
 	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
@@ -356,7 +356,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***,
 	***REMOVED***
 
-	statsSamples := []stats.Sample***REMOVED******REMOVED***
+	statsSamples := []stats.SampleContainer***REMOVED******REMOVED***
 	// if digest authentication option is passed, make an initial request to get the authentication params to compute the authorization header
 	if auth == "digest" ***REMOVED***
 		username := url.URL.User.Username()
@@ -396,8 +396,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			authorization := challenge.ToAuthorizationStr()
 			req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 		***REMOVED***
-
-		statsSamples = append(statsSamples, tracer.Done().Samples(stats.NewSampleTags(tags))...)
+		trail := tracer.Done()
+		trail.SaveSamples(stats.NewSampleTags(tags))
+		statsSamples = append(statsSamples, trail)
 	***REMOVED***
 
 	if auth == "ntlm" ***REMOVED***
@@ -520,7 +521,8 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
-	statsSamples = append(statsSamples, trail.Samples(stats.IntoSampleTags(&tags))...)
+	trail.SaveSamples(stats.IntoSampleTags(&tags))
+	statsSamples = append(statsSamples, trail)
 	return resp, statsSamples, nil
 ***REMOVED***
 

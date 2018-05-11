@@ -21,7 +21,6 @@
 package cloud
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -29,8 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,51 +37,9 @@ func init() ***REMOVED***
 	_ = os.Setenv("K6CLOUD_TOKEN", "")
 ***REMOVED***
 
-func TestTimestampMarshaling(t *testing.T) ***REMOVED***
-	oldTimeFormat, err := time.Parse(
-		time.RFC3339,
-		//1521806137415652223 as a unix nanosecond timestamp
-		"2018-03-23T13:55:37.415652223+02:00",
-	)
-	require.NoError(t, err)
-
-	testCases := []struct ***REMOVED***
-		t   time.Time
-		exp string
-	***REMOVED******REMOVED***
-		***REMOVED***oldTimeFormat, `"1521806137415652"`***REMOVED***,
-		***REMOVED***time.Unix(1521806137, 415652223), `"1521806137415652"`***REMOVED***,
-		***REMOVED***time.Unix(1521806137, 0), `"1521806137000000"`***REMOVED***,
-		***REMOVED***time.Unix(0, 0), `"0"`***REMOVED***,
-		***REMOVED***time.Unix(0, 1), `"0"`***REMOVED***,
-		***REMOVED***time.Unix(0, 1000), `"1"`***REMOVED***,
-		***REMOVED***time.Unix(1, 0), `"1000000"`***REMOVED***,
-	***REMOVED***
-
-	for i, tc := range testCases ***REMOVED***
-		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) ***REMOVED***
-			res, err := json.Marshal(Timestamp(tc.t))
-			require.NoError(t, err)
-			assert.Equal(t, string(res), tc.exp)
-
-			var rev Timestamp
-			require.NoError(t, json.Unmarshal(res, &rev))
-			diff := tc.t.Sub(time.Time(rev))
-			if diff < -time.Microsecond || diff > time.Microsecond ***REMOVED***
-				t.Errorf(
-					"Expected the difference to be under a microsecond, but is %s (%d and %d)",
-					diff,
-					tc.t.UnixNano(),
-					time.Time(rev).UnixNano(),
-				)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestCreateTestRun(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
+		fmt.Fprintf(w, `***REMOVED***"reference_id": "1", "config": ***REMOVED***"aggregationPeriod": "2s"***REMOVED******REMOVED***`)
 	***REMOVED***))
 	defer server.Close()
 
@@ -96,6 +52,10 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 
 	assert.Nil(t, err)
 	assert.Equal(t, resp.ReferenceID, "1")
+	assert.NotNil(t, resp.ConfigOverride)
+	assert.True(t, resp.ConfigOverride.AggregationPeriod.Valid)
+	assert.Equal(t, types.Duration(2*time.Second), resp.ConfigOverride.AggregationPeriod.Duration)
+	assert.False(t, resp.ConfigOverride.AggregationMinSamples.Valid)
 ***REMOVED***
 
 func TestPublishMetric(t *testing.T) ***REMOVED***
@@ -110,7 +70,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 		***REMOVED***
 			Type:   "Point",
 			Metric: "metric",
-			Data: SampleData***REMOVED***
+			Data: &SampleDataSingle***REMOVED***
 				Type:  1,
 				Time:  Timestamp(time.Now()),
 				Value: 1.2,
@@ -143,7 +103,7 @@ func TestFinished(t *testing.T) ***REMOVED***
 func TestAuthorizedError(t *testing.T) ***REMOVED***
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		w.WriteHeader(http.StatusForbidden)
 		fmt.Fprintf(w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
 	***REMOVED***))
@@ -161,7 +121,7 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 func TestRetry(t *testing.T) ***REMOVED***
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		w.WriteHeader(500)
 	***REMOVED***))
 	defer server.Close()
@@ -178,7 +138,7 @@ func TestRetry(t *testing.T) ***REMOVED***
 func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	called := 1
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		called += 1
+		called++
 		if called == 2 ***REMOVED***
 			fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
 			return

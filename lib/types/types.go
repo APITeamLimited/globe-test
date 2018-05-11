@@ -77,6 +77,11 @@ type NullDuration struct ***REMOVED***
 	Valid bool
 ***REMOVED***
 
+// NewNullDuration is a simple helper constructor function
+func NewNullDuration(d time.Duration, valid bool) NullDuration ***REMOVED***
+	return NullDuration***REMOVED***Duration(d), valid***REMOVED***
+***REMOVED***
+
 // Creates a valid NullDuration from a time.Duration.
 func NullDurationFrom(d time.Duration) NullDuration ***REMOVED***
 	return NullDuration***REMOVED***Duration(d), true***REMOVED***

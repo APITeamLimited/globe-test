@@ -28,13 +28,11 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
 	"github.com/oxtoacart/bpool"
@@ -273,6 +271,9 @@ type VU struct ***REMOVED***
 	interruptCancel     context.CancelFunc
 ***REMOVED***
 
+// Verify that VU implements lib.VU
+var _ lib.VU = &VU***REMOVED******REMOVED***
+
 func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	u.ID = id
 	u.Iteration = 0
@@ -280,7 +281,7 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (u *VU) RunOnce(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
+func (u *VU) RunOnce(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
 	// Track the context and interrupt JS execution if it's cancelled.
 	if u.interruptTrackedCtx != ctx ***REMOVED***
 		interCtx, interCancel := context.WithCancel(context.Background())
@@ -359,26 +360,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
 
-	bytesWritten := atomic.SwapInt64(&u.Dialer.BytesWritten, 0)
-	bytesRead := atomic.SwapInt64(&u.Dialer.BytesRead, 0)
-
-	state.Samples = append(state.Samples,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.DataSent,
-			Value:  float64(bytesWritten),
-			Tags:   sampleTags***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.DataReceived,
-			Value:  float64(bytesRead),
-			Tags:   sampleTags***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   endTime,
-			Metric: metrics.IterationDuration,
-			Value:  stats.D(endTime.Sub(startTime)),
-			Tags:   sampleTags***REMOVED***,
-	)
+	state.Samples = append(state.Samples, u.Dialer.GetTrail(startTime, endTime, sampleTags))
 
 	return v, state, err
 ***REMOVED***

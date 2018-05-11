@@ -38,6 +38,9 @@ type Collector struct ***REMOVED***
 	seenMetrics []string
 ***REMOVED***
 
+// Verify that Collector implements lib.Collector
+var _ lib.Collector = &Collector***REMOVED******REMOVED***
+
 func (c *Collector) HasSeenMetric(str string) bool ***REMOVED***
 	for _, n := range c.seenMetrics ***REMOVED***
 		if n == str ***REMOVED***
@@ -97,24 +100,26 @@ func (c *Collector) HandleMetric(m *stats.Metric) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
-	for _, sample := range samples ***REMOVED***
-		c.HandleMetric(sample.Metric)
+func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
+	for _, sc := range scs ***REMOVED***
+		for _, sample := range sc.GetSamples() ***REMOVED***
+			c.HandleMetric(sample.Metric)
 
-		env := WrapSample(&sample)
-		row, err := json.Marshal(env)
+			env := WrapSample(&sample)
+			row, err := json.Marshal(env)
 
-		if err != nil || env == nil ***REMOVED***
-			// Skip metric if it can't be made into JSON or envelope is null.
-			log.WithField("filename", c.fname).Warning(
-				"JSON: Envelope is nil or Sample couldn't be marshalled to JSON")
-			continue
-		***REMOVED***
-		row = append(row, '\n')
-		_, err = c.outfile.Write(row)
-		if err != nil ***REMOVED***
-			log.WithField("filename", c.fname).Error("JSON: Error writing to file")
-			continue
+			if err != nil || env == nil ***REMOVED***
+				// Skip metric if it can't be made into JSON or envelope is null.
+				log.WithField("filename", c.fname).Warning(
+					"JSON: Envelope is nil or Sample couldn't be marshalled to JSON")
+				continue
+			***REMOVED***
+			row = append(row, '\n')
+			_, err = c.outfile.Write(row)
+			if err != nil ***REMOVED***
+				log.WithField("filename", c.fname).Error("JSON: Error writing to file")
+				continue
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

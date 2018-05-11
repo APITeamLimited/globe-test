@@ -44,6 +44,6 @@ func TestCollectorRun(t *testing.T) ***REMOVED***
 
 func TestCollectorCollect(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED******REMOVED***
-	c.Collect([]stats.Sample***REMOVED******REMOVED******REMOVED******REMOVED***)
+	c.Collect([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED******REMOVED******REMOVED***)
 	assert.Len(t, c.Samples, 1)
 ***REMOVED***

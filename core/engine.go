@@ -161,7 +161,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Run the executor.
-	out := make(chan []stats.Sample)
+	out := make(chan []stats.SampleContainer)
 	errC := make(chan error)
 	subwg.Add(1)
 	go func() ***REMOVED***
@@ -184,8 +184,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			subwg.Wait()
 			close(out)
 		***REMOVED***()
-		for samples := range out ***REMOVED***
-			e.processSamples(samples...)
+		for sampleContainers := range out ***REMOVED***
+			e.processSamples(sampleContainers...)
 		***REMOVED***
 
 		// Emit final metrics.
@@ -203,8 +203,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 	for ***REMOVED***
 		select ***REMOVED***
-		case samples := <-out:
-			e.processSamples(samples...)
+		case sampleContainers := <-out:
+			e.processSamples(sampleContainers...)
 		case err := <-errC:
 			errC = nil
 			if err != nil ***REMOVED***
@@ -248,20 +248,23 @@ func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
 func (e *Engine) emitMetrics() ***REMOVED***
 	t := time.Now()
 
-	e.processSamples(
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.VUs,
-			Value:  float64(e.Executor.GetVUs()),
-			Tags:   e.Options.RunTags,
+	e.processSamples(stats.ConnectedSamples***REMOVED***
+		Samples: []stats.Sample***REMOVED***
+			***REMOVED***
+				Time:   t,
+				Metric: metrics.VUs,
+				Value:  float64(e.Executor.GetVUs()),
+				Tags:   e.Options.RunTags,
+			***REMOVED***, ***REMOVED***
+				Time:   t,
+				Metric: metrics.VUsMax,
+				Value:  float64(e.Executor.GetVUsMax()),
+				Tags:   e.Options.RunTags,
+			***REMOVED***,
 		***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   t,
-			Metric: metrics.VUsMax,
-			Value:  float64(e.Executor.GetVUsMax()),
-			Tags:   e.Options.RunTags,
-		***REMOVED***,
-	)
+		Tags: e.Options.RunTags,
+		Time: t,
+	***REMOVED***)
 ***REMOVED***
 
 func (e *Engine) runThresholds(ctx context.Context, abort func()) ***REMOVED***
@@ -311,39 +314,47 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Engine) processSamples(samples ...stats.Sample) ***REMOVED***
-	if len(samples) == 0 ***REMOVED***
+func (e *Engine) processSamples(sampleCointainers ...stats.SampleContainer) ***REMOVED***
+	if len(sampleCointainers) == 0 ***REMOVED***
 		return
 	***REMOVED***
 
 	e.MetricsLock.Lock()
 	defer e.MetricsLock.Unlock()
 
-	for _, sample := range samples ***REMOVED***
-		m, ok := e.Metrics[sample.Metric.Name]
-		if !ok ***REMOVED***
-			m = stats.New(sample.Metric.Name, sample.Metric.Type, sample.Metric.Contains)
-			m.Thresholds = e.thresholds[m.Name]
-			m.Submetrics = e.submetrics[m.Name]
-			e.Metrics[m.Name] = m
+	for _, sampleCointainer := range sampleCointainers ***REMOVED***
+		samples := sampleCointainer.GetSamples()
+
+		if len(samples) == 0 ***REMOVED***
+			continue
 		***REMOVED***
-		m.Sink.Add(sample)
 
-		for _, sm := range m.Submetrics ***REMOVED***
-			if !sample.Tags.Contains(sm.Tags) ***REMOVED***
-				continue
+		for _, sample := range samples ***REMOVED***
+			m, ok := e.Metrics[sample.Metric.Name]
+			if !ok ***REMOVED***
+				m = stats.New(sample.Metric.Name, sample.Metric.Type, sample.Metric.Contains)
+				m.Thresholds = e.thresholds[m.Name]
+				m.Submetrics = e.submetrics[m.Name]
+				e.Metrics[m.Name] = m
 			***REMOVED***
+			m.Sink.Add(sample)
 
-			if sm.Metric == nil ***REMOVED***
-				sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
-				sm.Metric.Sub = *sm
-				sm.Metric.Thresholds = e.thresholds[sm.Name]
-				e.Metrics[sm.Name] = sm.Metric
+			for _, sm := range m.Submetrics ***REMOVED***
+				if !sample.Tags.Contains(sm.Tags) ***REMOVED***
+					continue
+				***REMOVED***
+
+				if sm.Metric == nil ***REMOVED***
+					sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
+					sm.Metric.Sub = *sm
+					sm.Metric.Thresholds = e.thresholds[sm.Name]
+					e.Metrics[sm.Name] = sm.Metric
+				***REMOVED***
+				sm.Metric.Sink.Add(sample)
 			***REMOVED***
-			sm.Metric.Sink.Add(sample)
 		***REMOVED***
 	***REMOVED***
 	if e.Collector != nil ***REMOVED***
-		e.Collector.Collect(samples)
+		e.Collector.Collect(sampleCointainers)
 	***REMOVED***
 ***REMOVED***

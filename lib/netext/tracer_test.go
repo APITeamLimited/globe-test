@@ -75,7 +75,9 @@ func TestTracer(t *testing.T) ***REMOVED***
 			_, err = io.Copy(ioutil.Discard, res.Body)
 			assert.NoError(t, err)
 			assert.NoError(t, res.Body.Close())
-			samples := tracer.Done().Samples(stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
+			trail := tracer.Done()
+			trail.SaveSamples(stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
+			samples := trail.GetSamples()
 
 			assert.Empty(t, tracer.protoErrors)
 			assertLaterOrZero(t, tracer.getConn, isReuse)

@@ -21,9 +21,10 @@
 package cmd
 
 import (
-	"encoding"
 	"fmt"
 	"strings"
+
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
@@ -53,30 +54,28 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 ***REMOVED***
 
 func newCollector(collectorName, arg string, src *lib.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
-	loadConfig := func(out encoding.TextUnmarshaler) error ***REMOVED***
-		if err := envconfig.Process("k6", out); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := out.UnmarshalText([]byte(arg)); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		return nil
-	***REMOVED***
-
 	getCollector := func() (lib.Collector, error) ***REMOVED***
 		switch collectorName ***REMOVED***
 		case collectorJSON:
 			return jsonc.New(afero.NewOsFs(), arg)
 		case collectorInfluxDB:
 			config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
-			if err := loadConfig(&config); err != nil ***REMOVED***
+			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+			urlConfig, err := influxdb.ParseURL(arg)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			config = config.Apply(urlConfig)
 			return influxdb.New(config)
 		case collectorCloud:
-			config := conf.Collectors.Cloud
-			if err := loadConfig(&config); err != nil ***REMOVED***
+			config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
+			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
 				return nil, err
+			***REMOVED***
+			if arg != "" ***REMOVED***
+				config.Name = null.StringFrom(arg)
 			***REMOVED***
 			return cloud.New(config, src, conf.Options, Version)
 		default:

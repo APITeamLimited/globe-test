@@ -30,6 +30,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMetrics(t *testing.T) ***REMOVED***
@@ -50,9 +51,11 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		"False": ***REMOVED***`false`, 0.0***REMOVED***,
 	***REMOVED***
 	for fn, mtyp := range types ***REMOVED***
+		fn, mtyp := fn, mtyp
 		t.Run(fn, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for isTime, valueType := range map[bool]stats.ValueType***REMOVED***false: stats.Default, true: stats.Time***REMOVED*** ***REMOVED***
+				isTime, valueType := isTime, valueType
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					rt := goja.New()
@@ -100,14 +103,17 @@ func TestMetrics(t *testing.T) ***REMOVED***
 										_, err := common.RunString(rt, fmt.Sprintf(`m.add(%v)`, val.JS))
 										assert.NoError(t, err)
 										if assert.Len(t, state.Samples, 1) ***REMOVED***
-											assert.NotZero(t, state.Samples[0].Time)
-											assert.Equal(t, state.Samples[0].Value, val.Float)
+											sample, ok := state.Samples[0].(stats.Sample)
+											require.True(t, ok)
+
+											assert.NotZero(t, sample.Time)
+											assert.Equal(t, sample.Value, val.Float)
 											assert.Equal(t, map[string]string***REMOVED***
 												"group": g.Path,
-											***REMOVED***, state.Samples[0].Tags.CloneTags())
-											assert.Equal(t, "my_metric", state.Samples[0].Metric.Name)
-											assert.Equal(t, mtyp, state.Samples[0].Metric.Type)
-											assert.Equal(t, valueType, state.Samples[0].Metric.Contains)
+											***REMOVED***, sample.Tags.CloneTags())
+											assert.Equal(t, "my_metric", sample.Metric.Name)
+											assert.Equal(t, mtyp, sample.Metric.Type)
+											assert.Equal(t, valueType, sample.Metric.Contains)
 										***REMOVED***
 									***REMOVED***)
 									t.Run("Tags", func(t *testing.T) ***REMOVED***
@@ -115,15 +121,18 @@ func TestMetrics(t *testing.T) ***REMOVED***
 										_, err := common.RunString(rt, fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS))
 										assert.NoError(t, err)
 										if assert.Len(t, state.Samples, 1) ***REMOVED***
-											assert.NotZero(t, state.Samples[0].Time)
-											assert.Equal(t, state.Samples[0].Value, val.Float)
+											sample, ok := state.Samples[0].(stats.Sample)
+											require.True(t, ok)
+
+											assert.NotZero(t, sample.Time)
+											assert.Equal(t, sample.Value, val.Float)
 											assert.Equal(t, map[string]string***REMOVED***
 												"group": g.Path,
 												"a":     "1",
-											***REMOVED***, state.Samples[0].Tags.CloneTags())
-											assert.Equal(t, "my_metric", state.Samples[0].Metric.Name)
-											assert.Equal(t, mtyp, state.Samples[0].Metric.Type)
-											assert.Equal(t, valueType, state.Samples[0].Metric.Contains)
+											***REMOVED***, sample.Tags.CloneTags())
+											assert.Equal(t, "my_metric", sample.Metric.Name)
+											assert.Equal(t, mtyp, sample.Metric.Type)
+											assert.Equal(t, valueType, sample.Metric.Contains)
 										***REMOVED***
 									***REMOVED***)
 								***REMOVED***)
