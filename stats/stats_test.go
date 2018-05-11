@@ -120,6 +120,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for m, values := range data ***REMOVED***
+		m, values := m, values
 		t.Run(fmt.Sprintf("type=%s,contains=%s", m.Type.String(), m.Contains.String()), func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for v, s := range values ***REMOVED***
@@ -144,6 +145,7 @@ func TestNew(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
+		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			m := New("my_metric", data.Type)
@@ -160,7 +162,7 @@ func TestNewSubmetric(t *testing.T) ***REMOVED***
 		tags   map[string]string
 	***REMOVED******REMOVED***
 		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
-		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", map[string]string***REMOVED******REMOVED******REMOVED***,
+		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", nil***REMOVED***,
 		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
 		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
 		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
@@ -170,6 +172,7 @@ func TestNewSubmetric(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
+		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			parent, sm := NewSubmetric(name)
