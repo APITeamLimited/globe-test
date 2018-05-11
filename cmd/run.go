@@ -125,10 +125,8 @@ a commandline interface for interacting with it.`,
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
 		// on top to give them priority.
 		fmt.Fprintf(stdout, "%s options\r", initBar.String())
-		cliConf, err := getConfig(cmd.Flags())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+
+		defaultConf := Config***REMOVED***Options: r.GetOptions()***REMOVED***
 		fileConf, _, err := readDiskConfig(fs)
 		if err != nil ***REMOVED***
 			return err
@@ -137,7 +135,11 @@ a commandline interface for interacting with it.`,
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		conf := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf)
+		cliConf, err := getConfig(cmd.Flags())
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		conf := defaultConf.Apply(fileConf).Apply(envConf).Apply(cliConf)
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
 		if !conf.VUsMax.Valid ***REMOVED***
@@ -188,16 +190,18 @@ a commandline interface for interacting with it.`,
 
 		// Create a collector and assign it to the engine if requested.
 		fmt.Fprintf(stdout, "%s   collector\r", initBar.String())
-		if conf.Out.Valid ***REMOVED***
-			t, arg := parseCollector(conf.Out.String)
-			collector, err := newCollector(t, arg, src, conf)
-			if err != nil ***REMOVED***
-				return err
+		for _, out := range conf.Out ***REMOVED***
+			if out.Valid ***REMOVED***
+				t, arg := parseCollector(out.String)
+				collector, err := newCollector(t, arg, src, conf)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				if err := collector.Init(); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				engine.Collectors = append(engine.Collectors, collector)
 			***REMOVED***
-			if err := collector.Init(); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			engine.Collector = collector
 		***REMOVED***
 
 		// Create an API server.
@@ -212,10 +216,17 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 			out := "-"
 			link := ""
-			if engine.Collector != nil ***REMOVED***
-				out = conf.Out.String
-				if l := engine.Collector.Link(); l != "" ***REMOVED***
-					link = " (" + l + ")"
+			if engine.Collectors != nil ***REMOVED***
+				for idx, collector := range engine.Collectors ***REMOVED***
+					if out != "-" ***REMOVED***
+						out = out + "; " + conf.Out[idx].String
+					***REMOVED*** else ***REMOVED***
+						out = conf.Out[idx].String
+					***REMOVED***
+
+					if l := collector.Link(); l != "" ***REMOVED***
+						link = link + " (" + l + ")"
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 

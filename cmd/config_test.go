@@ -29,6 +29,60 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+type testCmdData struct ***REMOVED***
+	Name  string
+	Tests []testCmdTest
+***REMOVED***
+
+type testCmdTest struct ***REMOVED***
+	Args     []string
+	Expected []null.String
+	Name     string
+***REMOVED***
+
+func TestConfigCmd(t *testing.T) ***REMOVED***
+
+	testdata := []testCmdData***REMOVED***
+		***REMOVED***
+			Name: "Out",
+
+			Tests: []testCmdTest***REMOVED***
+				***REMOVED***
+					Name:     "NoArgs",
+					Args:     []string***REMOVED***""***REMOVED***,
+					Expected: []null.String***REMOVED******REMOVED******REMOVED******REMOVED***,
+				***REMOVED***,
+				***REMOVED***
+					Name:     "SingleArg",
+					Args:     []string***REMOVED***"--out", "influxdb=http://localhost:8086/k6"***REMOVED***,
+					Expected: []null.String***REMOVED***null.StringFrom("influxdb=http://localhost:8086/k6")***REMOVED***,
+				***REMOVED***,
+				***REMOVED***
+					Name:     "MultiArg",
+					Args:     []string***REMOVED***"--out", "influxdb=http://localhost:8086/k6", "--out", "json=test.json"***REMOVED***,
+					Expected: []null.String***REMOVED***null.StringFrom("influxdb=http://localhost:8086/k6"), null.StringFrom("json=test.json")***REMOVED***,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, data := range testdata ***REMOVED***
+		t.Run(data.Name, func(t *testing.T) ***REMOVED***
+			for _, test := range data.Tests ***REMOVED***
+				t.Run(`"`+test.Name+`"`, func(t *testing.T) ***REMOVED***
+					fs := configFlagSet()
+					fs.AddFlagSet(optionFlagSet())
+					fs.Parse(test.Args)
+
+					config, err := getConfig(fs)
+					assert.NoError(t, err)
+					assert.Equal(t, test.Expected, config.Out)
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestConfigEnv(t *testing.T) ***REMOVED***
 	testdata := map[struct***REMOVED*** Name, Key string ***REMOVED***]map[string]func(Config)***REMOVED***
 		***REMOVED***"Linger", "K6_LINGER"***REMOVED***: ***REMOVED***
@@ -42,8 +96,8 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 			"false": func(c Config) ***REMOVED*** assert.Equal(t, null.BoolFrom(false), c.NoUsageReport) ***REMOVED***,
 		***REMOVED***,
 		***REMOVED***"Out", "K6_OUT"***REMOVED***: ***REMOVED***
-			"":         func(c Config) ***REMOVED*** assert.Equal(t, null.String***REMOVED******REMOVED***, c.Out) ***REMOVED***,
-			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, null.StringFrom("influxdb"), c.Out) ***REMOVED***,
+			"":         func(c Config) ***REMOVED*** assert.Equal(t, []null.String***REMOVED******REMOVED******REMOVED******REMOVED***, c.Out) ***REMOVED***,
+			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED***, c.Out) ***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
@@ -71,7 +125,10 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, null.BoolFrom(true), conf.NoUsageReport)
 	***REMOVED***)
 	t.Run("Out", func(t *testing.T) ***REMOVED***
-		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: null.StringFrom("influxdb")***REMOVED***)
-		assert.Equal(t, null.StringFrom("influxdb"), conf.Out)
+		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED******REMOVED***)
+		assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED***, conf.Out)
+
+		conf = Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []null.String***REMOVED***null.StringFrom("influxdb"), null.StringFrom("json")***REMOVED******REMOVED***)
+		assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb"), null.StringFrom("json")***REMOVED***, conf.Out)
 	***REMOVED***)
 ***REMOVED***

@@ -51,7 +51,7 @@ func configFileFlagSet() *pflag.FlagSet ***REMOVED***
 func configFlagSet() *pflag.FlagSet ***REMOVED***
 	flags := pflag.NewFlagSet("", 0)
 	flags.SortFlags = false
-	flags.StringP("out", "o", "", "`uri` for an external metrics database")
+	flags.StringArrayP("out", "o", []string***REMOVED******REMOVED***, "`uri` for an external metrics database")
 	flags.BoolP("linger", "l", false, "keep the API server alive past test end")
 	flags.Bool("no-usage-report", false, "don't send anonymous stats to the developers")
 	flags.Bool("no-thresholds", false, "don't run thresholds")
@@ -62,10 +62,10 @@ func configFlagSet() *pflag.FlagSet ***REMOVED***
 type Config struct ***REMOVED***
 	lib.Options
 
-	Out           null.String `json:"out" envconfig:"out"`
-	Linger        null.Bool   `json:"linger" envconfig:"linger"`
-	NoUsageReport null.Bool   `json:"noUsageReport" envconfig:"no_usage_report"`
-	NoThresholds  null.Bool   `json:"noThresholds" envconfig:"no_thresholds"`
+	Out           []null.String `json:"out" envconfig:"out"`
+	Linger        null.Bool     `json:"linger" envconfig:"linger"`
+	NoUsageReport null.Bool     `json:"noUsageReport" envconfig:"no_usage_report"`
+	NoThresholds  null.Bool     `json:"noThresholds" envconfig:"no_thresholds"`
 
 	Collectors struct ***REMOVED***
 		InfluxDB influxdb.Config `json:"influxdb"`
@@ -75,9 +75,12 @@ type Config struct ***REMOVED***
 
 func (c Config) Apply(cfg Config) Config ***REMOVED***
 	c.Options = c.Options.Apply(cfg.Options)
-	if cfg.Out.Valid ***REMOVED***
-		c.Out = cfg.Out
+	for _, o := range cfg.Out ***REMOVED***
+		if o.Valid ***REMOVED***
+			c.Out = append(c.Out, o)
+		***REMOVED***
 	***REMOVED***
+
 	if cfg.Linger.Valid ***REMOVED***
 		c.Linger = cfg.Linger
 	***REMOVED***
@@ -100,7 +103,7 @@ func getConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 	***REMOVED***
 	return Config***REMOVED***
 		Options:       opts,
-		Out:           getNullString(flags, "out"),
+		Out:           getNullStrings(flags, "out"),
 		Linger:        getNullBool(flags, "linger"),
 		NoUsageReport: getNullBool(flags, "no-usage-report"),
 		NoThresholds:  getNullBool(flags, "no-thresholds"),
