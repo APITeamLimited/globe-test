@@ -51,9 +51,11 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		"False": ***REMOVED***`false`, 0.0***REMOVED***,
 	***REMOVED***
 	for fn, mtyp := range types ***REMOVED***
+		fn, mtyp := fn, mtyp
 		t.Run(fn, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for isTime, valueType := range map[bool]stats.ValueType***REMOVED***false: stats.Default, true: stats.Time***REMOVED*** ***REMOVED***
+				isTime, valueType := isTime, valueType
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					rt := goja.New()
