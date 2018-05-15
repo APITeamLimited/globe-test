@@ -100,25 +100,6 @@ func getNullString(flags *pflag.FlagSet, key string) null.String ***REMOVED***
 	return null.NewString(v, flags.Changed(key))
 ***REMOVED***
 
-func getNullStrings(flags *pflag.FlagSet, key string) []null.String ***REMOVED***
-	var v []null.String
-
-	vals, err := flags.GetStringArray(key)
-	if err != nil ***REMOVED***
-		panic(err)
-	***REMOVED***
-
-	if len(vals) == 0 ***REMOVED***
-		return []null.String***REMOVED******REMOVED******REMOVED******REMOVED***
-	***REMOVED***
-
-	for _, val := range vals ***REMOVED***
-		v = append(v, null.NewString(val, flags.Changed(key)))
-	***REMOVED***
-
-	return v
-***REMOVED***
-
 func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs ***REMOVED***
 	return func(cmd *cobra.Command, args []string) error ***REMOVED***
 		if len(args) != n ***REMOVED***

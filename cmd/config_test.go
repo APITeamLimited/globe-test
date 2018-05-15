@@ -36,7 +36,7 @@ type testCmdData struct ***REMOVED***
 
 type testCmdTest struct ***REMOVED***
 	Args     []string
-	Expected []null.String
+	Expected []string
 	Name     string
 ***REMOVED***
 
@@ -50,17 +50,17 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 				***REMOVED***
 					Name:     "NoArgs",
 					Args:     []string***REMOVED***""***REMOVED***,
-					Expected: []null.String***REMOVED******REMOVED******REMOVED******REMOVED***,
+					Expected: []string***REMOVED******REMOVED***,
 				***REMOVED***,
 				***REMOVED***
 					Name:     "SingleArg",
 					Args:     []string***REMOVED***"--out", "influxdb=http://localhost:8086/k6"***REMOVED***,
-					Expected: []null.String***REMOVED***null.StringFrom("influxdb=http://localhost:8086/k6")***REMOVED***,
+					Expected: []string***REMOVED***"influxdb=http://localhost:8086/k6"***REMOVED***,
 				***REMOVED***,
 				***REMOVED***
 					Name:     "MultiArg",
 					Args:     []string***REMOVED***"--out", "influxdb=http://localhost:8086/k6", "--out", "json=test.json"***REMOVED***,
-					Expected: []null.String***REMOVED***null.StringFrom("influxdb=http://localhost:8086/k6"), null.StringFrom("json=test.json")***REMOVED***,
+					Expected: []string***REMOVED***"influxdb=http://localhost:8086/k6", "json=test.json"***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
@@ -96,8 +96,8 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 			"false": func(c Config) ***REMOVED*** assert.Equal(t, null.BoolFrom(false), c.NoUsageReport) ***REMOVED***,
 		***REMOVED***,
 		***REMOVED***"Out", "K6_OUT"***REMOVED***: ***REMOVED***
-			"":         func(c Config) ***REMOVED*** assert.Equal(t, []null.String***REMOVED******REMOVED******REMOVED******REMOVED***, c.Out) ***REMOVED***,
-			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED***, c.Out) ***REMOVED***,
+			"":         func(c Config) ***REMOVED*** assert.Equal(t, []string***REMOVED***""***REMOVED***, c.Out) ***REMOVED***,
+			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, []string***REMOVED***"influxdb"***REMOVED***, c.Out) ***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
@@ -125,10 +125,10 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 		assert.Equal(t, null.BoolFrom(true), conf.NoUsageReport)
 	***REMOVED***)
 	t.Run("Out", func(t *testing.T) ***REMOVED***
-		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED******REMOVED***)
-		assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb")***REMOVED***, conf.Out)
+		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []string***REMOVED***"influxdb"***REMOVED******REMOVED***)
+		assert.Equal(t, []string***REMOVED***"influxdb"***REMOVED***, conf.Out)
 
-		conf = Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []null.String***REMOVED***null.StringFrom("influxdb"), null.StringFrom("json")***REMOVED******REMOVED***)
-		assert.Equal(t, []null.String***REMOVED***null.StringFrom("influxdb"), null.StringFrom("json")***REMOVED***, conf.Out)
+		conf = Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []string***REMOVED***"influxdb", "json"***REMOVED******REMOVED***)
+		assert.Equal(t, []string***REMOVED***"influxdb", "json"***REMOVED***, conf.Out)
 	***REMOVED***)
 ***REMOVED***

@@ -191,17 +191,15 @@ a commandline interface for interacting with it.`,
 		// Create a collector and assign it to the engine if requested.
 		fmt.Fprintf(stdout, "%s   collector\r", initBar.String())
 		for _, out := range conf.Out ***REMOVED***
-			if out.Valid ***REMOVED***
-				t, arg := parseCollector(out.String)
-				collector, err := newCollector(t, arg, src, conf)
-				if err != nil ***REMOVED***
-					return err
-				***REMOVED***
-				if err := collector.Init(); err != nil ***REMOVED***
-					return err
-				***REMOVED***
-				engine.Collectors = append(engine.Collectors, collector)
+			t, arg := parseCollector(out)
+			collector, err := newCollector(t, arg, src, conf)
+			if err != nil ***REMOVED***
+				return err
 			***REMOVED***
+			if err := collector.Init(); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			engine.Collectors = append(engine.Collectors, collector)
 		***REMOVED***
 
 		// Create an API server.
@@ -219,9 +217,9 @@ a commandline interface for interacting with it.`,
 			if engine.Collectors != nil ***REMOVED***
 				for idx, collector := range engine.Collectors ***REMOVED***
 					if out != "-" ***REMOVED***
-						out = out + "; " + conf.Out[idx].String
+						out = out + "; " + conf.Out[idx]
 					***REMOVED*** else ***REMOVED***
-						out = conf.Out[idx].String
+						out = conf.Out[idx]
 					***REMOVED***
 
 					if l := collector.Link(); l != "" ***REMOVED***
