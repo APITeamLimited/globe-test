@@ -125,8 +125,10 @@ a commandline interface for interacting with it.`,
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
 		// on top to give them priority.
 		fmt.Fprintf(stdout, "%s options\r", initBar.String())
-
-		defaultConf := Config***REMOVED***Options: r.GetOptions()***REMOVED***
+		cliConf, err := getConfig(cmd.Flags())
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
 		fileConf, _, err := readDiskConfig(fs)
 		if err != nil ***REMOVED***
 			return err
@@ -135,11 +137,7 @@ a commandline interface for interacting with it.`,
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		cliConf, err := getConfig(cmd.Flags())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		conf := defaultConf.Apply(fileConf).Apply(envConf).Apply(cliConf)
+		conf := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf)
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
 		if !conf.VUsMax.Valid ***REMOVED***
