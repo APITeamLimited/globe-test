@@ -275,7 +275,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		c := &dummy.Collector***REMOVED******REMOVED***
-		e.Collector = c
+		e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
 		errC := make(chan error)
@@ -314,7 +314,7 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	c := &dummy.Collector***REMOVED******REMOVED***
-	e.Collector = c
+	e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
 	assert.NoError(t, e.Run(context.Background()))
 
@@ -565,7 +565,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		collector := &dummy.Collector***REMOVED******REMOVED***
-		engine.Collector = collector
+		engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
 		errC := make(chan error)
@@ -707,7 +707,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
-	engine.Collector = collector
+	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errC := make(chan error)
