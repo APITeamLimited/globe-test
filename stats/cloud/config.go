@@ -112,16 +112,19 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.DeprecatedToken.Valid ***REMOVED***
 		c.DeprecatedToken = cfg.DeprecatedToken
 	***REMOVED***
-	if cfg.Name.Valid ***REMOVED***
+	if cfg.Name.Valid && cfg.Name.String != "" ***REMOVED***
 		c.Name = cfg.Name
 	***REMOVED***
-	if cfg.Host.Valid ***REMOVED***
+	if cfg.Host.Valid && cfg.Host.String != "" ***REMOVED***
 		c.Host = cfg.Host
+	***REMOVED***
+	if cfg.WebAppURL.Valid ***REMOVED***
+		c.WebAppURL = cfg.WebAppURL
 	***REMOVED***
 	if cfg.NoCompress.Valid ***REMOVED***
 		c.NoCompress = cfg.NoCompress
 	***REMOVED***
-	if cfg.ProjectID.Valid ***REMOVED***
+	if cfg.ProjectID.Valid && cfg.ProjectID.Int64 > 0 ***REMOVED***
 		c.ProjectID = cfg.ProjectID
 	***REMOVED***
 	if cfg.MetricPushInterval.Valid ***REMOVED***
