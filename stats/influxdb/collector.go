@@ -104,10 +104,36 @@ func (c *Collector) commit() ***REMOVED***
 	c.bufferLock.Unlock()
 
 	log.Debug("InfluxDB: Committing...")
+
+	batch, err := c.batchFromSamples(samples)
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+
+	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
+	startTime := time.Now()
+	if err := c.Client.Write(batch); err != nil ***REMOVED***
+		log.WithError(err).Error("InfluxDB: Couldn't write stats")
+	***REMOVED***
+	t := time.Since(startTime)
+	log.WithField("t", t).Debug("InfluxDB: Batch written!")
+***REMOVED***
+
+func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+	for _, tag := range c.Config.TagsAsFields ***REMOVED***
+		if val, ok := tags[tag]; ok ***REMOVED***
+			values[tag] = val
+			delete(tags, tag)
+		***REMOVED***
+	***REMOVED***
+	return values
+***REMOVED***
+
+func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints, error) ***REMOVED***
 	batch, err := client.NewBatchPoints(c.BatchConf)
 	if err != nil ***REMOVED***
 		log.WithError(err).Error("InfluxDB: Couldn't make a batch")
-		return
+		return nil, err
 	***REMOVED***
 
 	type cacheItem struct ***REMOVED***
@@ -137,28 +163,28 @@ func (c *Collector) commit() ***REMOVED***
 		)
 		if err != nil ***REMOVED***
 			log.WithError(err).Error("InfluxDB: Couldn't make point from sample!")
-			return
+			return nil, err
 		***REMOVED***
 		batch.AddPoint(p)
 	***REMOVED***
 
-	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
-	startTime := time.Now()
-	if err := c.Client.Write(batch); err != nil ***REMOVED***
-		log.WithError(err).Error("InfluxDB: Couldn't write stats")
-	***REMOVED***
-	t := time.Since(startTime)
-	log.WithField("t", t).Debug("InfluxDB: Batch written!")
+	return batch, err
 ***REMOVED***
 
-func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
-	for _, tag := range c.Config.TagsAsFields ***REMOVED***
-		if val, ok := tags[tag]; ok ***REMOVED***
-			values[tag] = val
-			delete(tags, tag)
-		***REMOVED***
+// Format returns a string array of metrics in influx line-protocol
+func (c *Collector) Format(samples []stats.Sample) ([]string, error) ***REMOVED***
+	var metrics []string
+	batch, err := c.batchFromSamples(samples)
+
+	if err != nil ***REMOVED***
+		return metrics, err
 	***REMOVED***
-	return values
+
+	for _, point := range batch.Points() ***REMOVED***
+		metrics = append(metrics, point.String())
+	***REMOVED***
+
+	return metrics, nil
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
