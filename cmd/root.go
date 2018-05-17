@@ -97,7 +97,7 @@ func init() ***REMOVED***
 	must(cobra.MarkFlagFilename(RootCmd.PersistentFlags(), "config"))
 ***REMOVED***
 
-// RawFormatter it does nothgin with the message just prints it
+// RawFormatter it does nothing with the message just prints it
 type RawFormater struct***REMOVED******REMOVED***
 
 // Format renders a single log entry
