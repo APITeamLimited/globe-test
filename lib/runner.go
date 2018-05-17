@@ -48,6 +48,12 @@ type Runner interface ***REMOVED***
 	// Runs pre-test setup, if applicable.
 	Setup(ctx context.Context) error
 
+	// Returns the setup data if setup() is specified and run, nil otherwise
+	GetSetupData() interface***REMOVED******REMOVED***
+
+	// Saves the externally supplied setup data in the runner
+	SetSetupData(interface***REMOVED******REMOVED***)
+
 	// Runs post-test teardown, if applicable.
 	Teardown(ctx context.Context) error
 
@@ -75,8 +81,10 @@ type VU interface ***REMOVED***
 // MiniRunner wraps a function in a runner whose VUs will simply call that function.
 type MiniRunner struct ***REMOVED***
 	Fn         func(ctx context.Context) ([]stats.SampleContainer, error)
-	SetupFn    func(ctx context.Context) error
+	SetupFn    func(ctx context.Context) (interface***REMOVED******REMOVED***, error)
 	TeardownFn func(ctx context.Context) error
+
+	setupData interface***REMOVED******REMOVED***
 
 	Group   *Group
 	Options Options
@@ -96,9 +104,21 @@ func (r MiniRunner) NewVU() (VU, error) ***REMOVED***
 
 func (r MiniRunner) Setup(ctx context.Context) error ***REMOVED***
 	if fn := r.SetupFn; fn != nil ***REMOVED***
-		return fn(ctx)
+		data, err := fn(ctx)
+		r.setupData = data
+		return err
 	***REMOVED***
 	return nil
+***REMOVED***
+
+// GetSetupData returns the setup data if Setup() was executed, nil otherwise
+func (r MiniRunner) GetSetupData() interface***REMOVED******REMOVED*** ***REMOVED***
+	return r.setupData
+***REMOVED***
+
+// SetSetupData saves the externally supplied setup data in the runner
+func (r MiniRunner) SetSetupData(data interface***REMOVED******REMOVED***) ***REMOVED***
+	r.setupData = data
 ***REMOVED***
 
 func (r MiniRunner) Teardown(ctx context.Context) error ***REMOVED***
