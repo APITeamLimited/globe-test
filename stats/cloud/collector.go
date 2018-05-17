@@ -56,6 +56,8 @@ type Collector struct ***REMOVED***
 	bufferHTTPTrails []*netext.Trail
 	bufferSamples    []*Sample
 
+	opts lib.Options
+
 	aggrBuckets map[int64]aggregationBucket
 ***REMOVED***
 
@@ -71,7 +73,7 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 	***REMOVED***
 
 	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags["vu"] || opts.SystemTags["iter"]) ***REMOVED***
-		return nil, errors.New("aggregatoion cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
+		return nil, errors.New("Aggregatoion cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
 	***REMOVED***
 
 	if !conf.Name.Valid || conf.Name.String == "" ***REMOVED***
@@ -94,6 +96,10 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
 	***REMOVED***
 
+	if duration == -1 ***REMOVED***
+		return nil, errors.New("Tests with unspecified duration are not allowed when using Load Impact Insights")
+	***REMOVED***
+
 	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
 		log.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
 		conf.Token = conf.DeprecatedToken
@@ -105,6 +111,7 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		client:      NewClient(conf.Token.String, conf.Host.String, version),
 		anonymous:   !conf.Token.Valid,
 		duration:    duration,
+		opts:        opts,
 		aggrBuckets: map[int64]aggregationBucket***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
@@ -121,6 +128,7 @@ func (c *Collector) Init() error ***REMOVED***
 	testRun := &TestRun***REMOVED***
 		Name:       c.config.Name.String,
 		ProjectID:  c.config.ProjectID.Int64,
+		VUsMax:     c.opts.VUsMax.Int64,
 		Thresholds: thresholds,
 		Duration:   c.duration,
 	***REMOVED***
