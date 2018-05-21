@@ -210,25 +210,25 @@ func SummarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func NonTrendMetricValueForSum(t time.Duration, m *stats.Metric) (data string, extra []string) ***REMOVED***
+func NonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric) (data string, extra []string) ***REMOVED***
 	switch sink := m.Sink.(type) ***REMOVED***
 	case *stats.CounterSink:
 		value := sink.Value
 		rate := value / (float64(t) / float64(time.Second))
-		return m.HumanizeValue(value), []string***REMOVED***m.HumanizeValue(rate) + "/s"***REMOVED***
+		return m.HumanizeValue(value, timeUnit), []string***REMOVED***m.HumanizeValue(rate, timeUnit) + "/s"***REMOVED***
 	case *stats.GaugeSink:
 		value := sink.Value
 		min := sink.Min
 		max := sink.Max
-		return m.HumanizeValue(value), []string***REMOVED***
-			"min=" + m.HumanizeValue(min),
-			"max=" + m.HumanizeValue(max),
+		return m.HumanizeValue(value, timeUnit), []string***REMOVED***
+			"min=" + m.HumanizeValue(min, timeUnit),
+			"max=" + m.HumanizeValue(max, timeUnit),
 		***REMOVED***
 	case *stats.RateSink:
 		value := float64(sink.Trues) / float64(sink.Total)
 		passes := sink.Trues
 		fails := sink.Total - sink.Trues
-		return m.HumanizeValue(value), []string***REMOVED***
+		return m.HumanizeValue(value, timeUnit), []string***REMOVED***
 			"✓ " + strconv.FormatInt(passes, 10),
 			"✗ " + strconv.FormatInt(fails, 10),
 		***REMOVED***
@@ -251,7 +251,7 @@ func IndentForMetric(m *stats.Metric) string ***REMOVED***
 	return ""
 ***REMOVED***
 
-func SummarizeMetrics(w io.Writer, indent string, t time.Duration, metrics map[string]*stats.Metric) ***REMOVED***
+func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit string, metrics map[string]*stats.Metric) ***REMOVED***
 	names := []string***REMOVED******REMOVED***
 	nameLenMax := 0
 
@@ -276,7 +276,7 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, metrics map[s
 		if sink, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
 			cols := make([]string, len(TrendColumns))
 			for i, col := range TrendColumns ***REMOVED***
-				value := m.HumanizeValue(col.Get(sink))
+				value := m.HumanizeValue(col.Get(sink), timeUnit)
 				if l := StrWidth(value); l > trendColMaxLens[i] ***REMOVED***
 					trendColMaxLens[i] = l
 				***REMOVED***
@@ -286,7 +286,7 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, metrics map[s
 			continue
 		***REMOVED***
 
-		value, extra := NonTrendMetricValueForSum(t, m)
+		value, extra := NonTrendMetricValueForSum(t, timeUnit, m)
 		values[name] = value
 		if l := StrWidth(value); l > valueMaxLen ***REMOVED***
 			valueMaxLen = l
@@ -354,5 +354,5 @@ func Summarize(w io.Writer, indent string, data SummaryData) ***REMOVED***
 	if data.Root != nil ***REMOVED***
 		SummarizeGroup(w, indent+"    ", data.Root)
 	***REMOVED***
-	SummarizeMetrics(w, indent+"  ", data.Time, data.Metrics)
+	SummarizeMetrics(w, indent+"  ", data.Time, data.Opts.SummaryTimeUnit.String, data.Metrics)
 ***REMOVED***
