@@ -26,7 +26,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfigText(t *testing.T) ***REMOVED***
+func TestParseArg(t *testing.T) ***REMOVED***
+	testdata := map[string]Config***REMOVED***
+		"":                                                                   ***REMOVED******REMOVED***,
+		"db=dbname":                                                          ***REMOVED***DB: "dbname"***REMOVED***,
+		"addr=http://localhost:8086":                                         ***REMOVED***Addr: "http://localhost:8086"***REMOVED***,
+		"addr=http://localhost:8086,db=dbname":                               ***REMOVED***Addr: "http://localhost:8086", DB: "dbname"***REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname", Insecure: false, PayloadSize: 69***REMOVED***,
+	***REMOVED***
+
+	for str, expConfig := range testdata ***REMOVED***
+		t.Run(str, func(t *testing.T) ***REMOVED***
+			config, err := ParseArg(str)
+
+			assert.NoError(t, err)
+			assert.Equal(t, expConfig, config)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestParseURL(t *testing.T) ***REMOVED***
 	testdata := map[string]Config***REMOVED***
 		"":                             ***REMOVED******REMOVED***,
 		"dbname":                       ***REMOVED***DB: "dbname"***REMOVED***,

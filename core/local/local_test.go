@@ -54,9 +54,9 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 		setupC := make(chan struct***REMOVED******REMOVED***)
 		teardownC := make(chan struct***REMOVED******REMOVED***)
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) error ***REMOVED***
+			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 				close(setupC)
-				return nil
+				return nil, nil
 			***REMOVED***,
 			TeardownFn: func(ctx context.Context) error ***REMOVED***
 				close(teardownC)
@@ -74,8 +74,8 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) error ***REMOVED***
-				return errors.New("setup error")
+			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				return nil, errors.New("setup error")
 			***REMOVED***,
 			TeardownFn: func(ctx context.Context) error ***REMOVED***
 				return errors.New("teardown error")
@@ -85,8 +85,8 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 
 		t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context) error ***REMOVED***
-					return errors.New("setup error")
+				SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+					return nil, errors.New("setup error")
 				***REMOVED***,
 				TeardownFn: func(ctx context.Context) error ***REMOVED***
 					return errors.New("teardown error")
@@ -101,8 +101,8 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) error ***REMOVED***
-				return nil
+			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				return nil, nil
 			***REMOVED***,
 			TeardownFn: func(ctx context.Context) error ***REMOVED***
 				return errors.New("teardown error")
@@ -115,8 +115,8 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 
 		t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context) error ***REMOVED***
-					return nil
+				SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+					return nil, nil
 				***REMOVED***,
 				TeardownFn: func(ctx context.Context) error ***REMOVED***
 					return errors.New("teardown error")
