@@ -181,6 +181,12 @@ func (st *SampleTags) Get(key string) (string, bool) ***REMOVED***
 	return val, ok
 ***REMOVED***
 
+// IsEmpty checks for a nil pointer or zero tags.
+// It's necessary because of this envconfig issue: https://github.com/kelseyhightower/envconfig/issues/113
+func (st *SampleTags) IsEmpty() bool ***REMOVED***
+	return st == nil || len(st.tags) == 0
+***REMOVED***
+
 // IsEqual tries to compare two tag sets with maximum efficiency.
 func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
 	if st == other ***REMOVED***
@@ -197,12 +203,29 @@ func (st *SampleTags) IsEqual(other *SampleTags) bool ***REMOVED***
 	return true
 ***REMOVED***
 
+func (st *SampleTags) Contains(other *SampleTags) bool ***REMOVED***
+	if st == other || other == nil ***REMOVED***
+		return true
+	***REMOVED***
+	if st == nil || len(st.tags) < len(other.tags) ***REMOVED***
+		return false
+	***REMOVED***
+
+	for k, v := range other.tags ***REMOVED***
+		if st.tags[k] != v ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+
+	return true
+***REMOVED***
+
 // MarshalJSON serializes SampleTags to a JSON string and caches
 // the result. It is not thread safe in the sense that the Go race
 // detector will complain if it's used concurrently, but no data
 // should be corrupted.
 func (st *SampleTags) MarshalJSON() ([]byte, error) ***REMOVED***
-	if st == nil ***REMOVED***
+	if st.IsEmpty() ***REMOVED***
 		return []byte("null"), nil
 	***REMOVED***
 	if st.json != nil ***REMOVED***
@@ -239,6 +262,10 @@ func (st *SampleTags) CloneTags() map[string]string ***REMOVED***
 // NewSampleTags *copies* the supplied tag set and returns a new SampleTags
 // instance with the key-value pairs from it.
 func NewSampleTags(data map[string]string) *SampleTags ***REMOVED***
+	if len(data) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
 	tags := map[string]string***REMOVED******REMOVED***
 	for k, v := range data ***REMOVED***
 		tags[k] = v
@@ -251,6 +278,10 @@ func NewSampleTags(data map[string]string) *SampleTags ***REMOVED***
 // be changed after it has been transformed into an "immutable" tag set.
 // Oh, how I miss Rust and move semantics... :)
 func IntoSampleTags(data *map[string]string) *SampleTags ***REMOVED***
+	if len(*data) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
 	res := SampleTags***REMOVED***tags: *data***REMOVED***
 	*data = nil
 	return &res
@@ -263,6 +294,80 @@ type Sample struct ***REMOVED***
 	Tags   *SampleTags
 	Value  float64
 ***REMOVED***
+
+// SampleContainer is a simple abstraction that allows sample
+// producers to attach extra information to samples they return
+type SampleContainer interface ***REMOVED***
+	GetSamples() []Sample
+***REMOVED***
+
+// Samples is just the simplest SampleContainer implementation
+// that will be used when there's no need for extra information
+type Samples []Sample
+
+// GetSamples just implements the SampleContainer interface
+func (s Samples) GetSamples() []Sample ***REMOVED***
+	return s
+***REMOVED***
+
+// ConnectedSampleContainer is an extension of the SampleContainer
+// interface that should be implemented when emitted samples
+// are connected and share the same time and tags.
+type ConnectedSampleContainer interface ***REMOVED***
+	SampleContainer
+	GetTags() *SampleTags
+	GetTime() time.Time
+***REMOVED***
+
+// ConnectedSamples is the simplest ConnectedSampleContainer
+// implementation that will be used when there's no need for
+// extra information
+type ConnectedSamples struct ***REMOVED***
+	Samples []Sample
+	Tags    *SampleTags
+	Time    time.Time
+***REMOVED***
+
+// GetSamples implements the SampleContainer and ConnectedSampleContainer
+// interfaces and returns the stored slice with samples.
+func (cs ConnectedSamples) GetSamples() []Sample ***REMOVED***
+	return cs.Samples
+***REMOVED***
+
+// GetTags implements ConnectedSampleContainer interface and returns stored tags.
+func (cs ConnectedSamples) GetTags() *SampleTags ***REMOVED***
+	return cs.Tags
+***REMOVED***
+
+// GetTime implements ConnectedSampleContainer interface and returns stored time.
+func (cs ConnectedSamples) GetTime() time.Time ***REMOVED***
+	return cs.Time
+***REMOVED***
+
+// GetSamples implement the ConnectedSampleContainer interface
+// for a single Sample, since it's obviously connected with itself :)
+func (s Sample) GetSamples() []Sample ***REMOVED***
+	return []Sample***REMOVED***s***REMOVED***
+***REMOVED***
+
+// GetTags implements ConnectedSampleContainer interface
+// and returns the sample's tags.
+func (s Sample) GetTags() *SampleTags ***REMOVED***
+	return s.Tags
+***REMOVED***
+
+// GetTime just implements ConnectedSampleContainer interface
+// and returns the sample's time.
+func (s Sample) GetTime() time.Time ***REMOVED***
+	return s.Time
+***REMOVED***
+
+// Ensure that interfaces are implemented correctly
+var _ SampleContainer = Sample***REMOVED******REMOVED***
+var _ SampleContainer = Samples***REMOVED******REMOVED***
+
+var _ ConnectedSampleContainer = Sample***REMOVED******REMOVED***
+var _ ConnectedSampleContainer = ConnectedSamples***REMOVED******REMOVED***
 
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***

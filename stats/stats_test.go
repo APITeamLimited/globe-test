@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -119,6 +120,7 @@ func TestMetricHumanizeValue(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for m, values := range data ***REMOVED***
+		m, values := m, values
 		t.Run(fmt.Sprintf("type=%s,contains=%s", m.Type.String(), m.Contains.String()), func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for v, s := range values ***REMOVED***
@@ -143,6 +145,7 @@ func TestNew(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
+		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			m := New("my_metric", data.Type)
@@ -159,7 +162,7 @@ func TestNewSubmetric(t *testing.T) ***REMOVED***
 		tags   map[string]string
 	***REMOVED******REMOVED***
 		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
-		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", map[string]string***REMOVED******REMOVED******REMOVED***,
+		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", nil***REMOVED***,
 		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
 		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
 		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
@@ -169,6 +172,7 @@ func TestNewSubmetric(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
+		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			parent, sm := NewSubmetric(name)
@@ -197,21 +201,21 @@ func TestSampleTags(t *testing.T) ***REMOVED***
 	// Empty SampleTags
 	emptyTagMap := map[string]string***REMOVED******REMOVED***
 	emptyTags := NewSampleTags(emptyTagMap)
-	assert.NotNil(t, emptyTags)
+	assert.Nil(t, emptyTags)
 	assert.True(t, emptyTags.IsEqual(emptyTags))
-	assert.False(t, emptyTags.IsEqual(nilTags))
+	assert.True(t, emptyTags.IsEqual(nilTags))
 	assert.Equal(t, emptyTagMap, emptyTags.CloneTags())
 
 	emptyJSON, err := json.Marshal(emptyTags)
 	assert.NoError(t, err)
-	assert.Equal(t, "***REMOVED******REMOVED***", string(emptyJSON))
+	assert.Equal(t, "null", string(emptyJSON))
 
 	var emptyTagsUnmarshaled *SampleTags
 	err = json.Unmarshal(emptyJSON, &emptyTagsUnmarshaled)
 	assert.NoError(t, err)
-	assert.NotNil(t, emptyTagsUnmarshaled)
+	assert.Nil(t, emptyTagsUnmarshaled)
 	assert.True(t, emptyTagsUnmarshaled.IsEqual(emptyTags))
-	assert.False(t, emptyTagsUnmarshaled.IsEqual(nilTags))
+	assert.True(t, emptyTagsUnmarshaled.IsEqual(nilTags))
 	assert.Equal(t, emptyTagMap, emptyTagsUnmarshaled.CloneTags())
 
 	// SampleTags with keys and values
@@ -222,6 +226,8 @@ func TestSampleTags(t *testing.T) ***REMOVED***
 	assert.False(t, tags.IsEqual(nilTags))
 	assert.False(t, tags.IsEqual(emptyTags))
 	assert.False(t, tags.IsEqual(IntoSampleTags(&map[string]string***REMOVED***"key1": "val1", "key2": "val3"***REMOVED***)))
+	assert.True(t, tags.Contains(IntoSampleTags(&map[string]string***REMOVED***"key1": "val1"***REMOVED***)))
+	assert.False(t, tags.Contains(IntoSampleTags(&map[string]string***REMOVED***"key3": "val1"***REMOVED***)))
 	assert.Equal(t, tagMap, tags.CloneTags())
 
 	assert.Nil(t, tags.json) // No cache
@@ -238,4 +244,29 @@ func TestSampleTags(t *testing.T) ***REMOVED***
 	assert.True(t, tagsUnmarshaled.IsEqual(tags))
 	assert.False(t, tagsUnmarshaled.IsEqual(nilTags))
 	assert.Equal(t, tagMap, tagsUnmarshaled.CloneTags())
+***REMOVED***
+
+func TestSampleImplementations(t *testing.T) ***REMOVED***
+	tagMap := map[string]string***REMOVED***"key1": "val1", "key2": "val2"***REMOVED***
+	now := time.Now()
+
+	sample := Sample***REMOVED***
+		Metric: New("test_metric", Counter),
+		Time:   now,
+		Tags:   NewSampleTags(tagMap),
+		Value:  1.0,
+	***REMOVED***
+	samples := Samples(sample.GetSamples())
+	cSamples := ConnectedSamples***REMOVED***
+		Samples: []Sample***REMOVED***sample***REMOVED***,
+		Time:    now,
+		Tags:    NewSampleTags(tagMap),
+	***REMOVED***
+	exp := []Sample***REMOVED***sample***REMOVED***
+	assert.Equal(t, exp, sample.GetSamples())
+	assert.Equal(t, exp, samples.GetSamples())
+	assert.Equal(t, exp, cSamples.GetSamples())
+	assert.Equal(t, now, sample.GetTime())
+	assert.Equal(t, now, cSamples.GetTime())
+	assert.Equal(t, sample.GetTags(), sample.GetTags())
 ***REMOVED***

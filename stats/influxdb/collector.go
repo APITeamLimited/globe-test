@@ -35,6 +35,7 @@ const (
 	pushInterval = 1 * time.Second
 )
 
+// Verify that Collector implements lib.Collector
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
 type Collector struct ***REMOVED***
@@ -84,10 +85,12 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) Collect(samples []stats.Sample) ***REMOVED***
+func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 	c.bufferLock.Lock()
-	c.buffer = append(c.buffer, samples...)
-	c.bufferLock.Unlock()
+	defer c.bufferLock.Unlock()
+	for _, sc := range scs ***REMOVED***
+		c.buffer = append(c.buffer, sc.GetSamples()...)
+	***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Link() string ***REMOVED***

@@ -39,26 +39,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotocol, url string, status int, group string) ***REMOVED***
+func assertSessionMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, subprotocol, url string, status int, group string) ***REMOVED***
 	seenSessions := false
 	seenSessionDuration := false
 	seenConnecting := false
 
-	for _, sample := range samples ***REMOVED***
-		tags := sample.Tags.CloneTags()
-		if tags["url"] == url ***REMOVED***
-			switch sample.Metric ***REMOVED***
-			case metrics.WSConnecting:
-				seenConnecting = true
-			case metrics.WSSessionDuration:
-				seenSessionDuration = true
-			case metrics.WSSessions:
-				seenSessions = true
-			***REMOVED***
+	for _, sampleContainer := range sampleContainers ***REMOVED***
+		for _, sample := range sampleContainer.GetSamples() ***REMOVED***
+			tags := sample.Tags.CloneTags()
+			if tags["url"] == url ***REMOVED***
+				switch sample.Metric ***REMOVED***
+				case metrics.WSConnecting:
+					seenConnecting = true
+				case metrics.WSSessionDuration:
+					seenSessionDuration = true
+				case metrics.WSSessions:
+					seenSessions = true
+				***REMOVED***
 
-			assert.Equal(t, strconv.Itoa(status), tags["status"])
-			assert.Equal(t, subprotocol, tags["subproto"])
-			assert.Equal(t, group, tags["group"])
+				assert.Equal(t, strconv.Itoa(status), tags["status"])
+				assert.Equal(t, subprotocol, tags["subproto"])
+				assert.Equal(t, group, tags["group"])
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	assert.True(t, seenConnecting, "url %s didn't emit Connecting", url)
@@ -66,15 +68,17 @@ func assertSessionMetricsEmitted(t *testing.T, samples []stats.Sample, subprotoc
 	assert.True(t, seenSessionDuration, "url %s didn't emit SessionDuration", url)
 ***REMOVED***
 
-func assertMetricEmitted(t *testing.T, metric *stats.Metric, samples []stats.Sample, url string) ***REMOVED***
+func assertMetricEmitted(t *testing.T, metric *stats.Metric, sampleContainers []stats.SampleContainer, url string) ***REMOVED***
 	seenMetric := false
 
-	for _, sample := range samples ***REMOVED***
-		surl, ok := sample.Tags.Get("url")
-		assert.True(t, ok)
-		if surl == url ***REMOVED***
-			if sample.Metric == metric ***REMOVED***
-				seenMetric = true
+	for _, sampleContainer := range sampleContainers ***REMOVED***
+		for _, sample := range sampleContainer.GetSamples() ***REMOVED***
+			surl, ok := sample.Tags.Get("url")
+			assert.True(t, ok)
+			if surl == url ***REMOVED***
+				if sample.Metric == metric ***REMOVED***
+					seenMetric = true
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -351,7 +355,9 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		DualStack: true,
 	***REMOVED***)
 
-	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url"***REMOVED***
+	//TODO: test for actual tag values after removing the dependency on the
+	// external service demos.kaazing.com (https://github.com/loadimpact/k6/issues/537)
+	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url", "ip"***REMOVED***
 	state := &common.State***REMOVED***
 		Group:   root,
 		Dialer:  dialer,
@@ -384,9 +390,12 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			***REMOVED***);
 			`)
 			assert.NoError(t, err)
-			for _, sample := range state.Samples ***REMOVED***
-				for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
-					assert.Equal(t, expectedTag, emittedTag)
+
+			for _, sampleContainer := range state.Samples ***REMOVED***
+				for _, sample := range sampleContainer.GetSamples() ***REMOVED***
+					for emittedTag := range sample.Tags.CloneTags() ***REMOVED***
+						assert.Equal(t, expectedTag, emittedTag)
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
@@ -408,7 +417,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		Group:  root,
 		Dialer: dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto"),
+			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto", "ip"),
 		***REMOVED***,
 	***REMOVED***
 

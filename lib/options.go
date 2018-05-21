@@ -32,7 +32,7 @@ import (
 )
 
 // DefaultSystemTagList includes all of the system tags emitted with metrics by default.
-// Other tags that are not enabled by default include: iter, vu, ocsp_status
+// Other tags that are not enabled by default include: iter, vu, ocsp_status, ip
 var DefaultSystemTagList = []string***REMOVED***
 	"proto", "subproto", "status", "method", "url", "name", "group", "check", "error", "tls_version",
 ***REMOVED***
@@ -241,7 +241,7 @@ type Options struct ***REMOVED***
 
 	// These values are for third party collectors' benefit.
 	// Can't be set through env vars.
-	External map[string]interface***REMOVED******REMOVED*** `json:"ext" ignored:"true"`
+	External map[string]json.RawMessage `json:"ext" ignored:"true"`
 
 	// Summary trend stats for trend metrics (response times) in CLI output
 	SummaryTrendStats []string `json:"summaryTrendStats" envconfig:"summary_trend_stats"`
@@ -275,8 +275,12 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Iterations.Valid ***REMOVED***
 		o.Iterations = opts.Iterations
 	***REMOVED***
-	if opts.Stages != nil ***REMOVED***
-		o.Stages = opts.Stages
+	if len(opts.Stages) > 0 ***REMOVED***
+		for _, s := range opts.Stages ***REMOVED***
+			if s.Duration.Valid ***REMOVED***
+				o.Stages = append(o.Stages, s)
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 	if opts.SetupTimeout.Valid ***REMOVED***
 		o.SetupTimeout = opts.SetupTimeout
@@ -338,7 +342,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.SystemTags != nil ***REMOVED***
 		o.SystemTags = opts.SystemTags
 	***REMOVED***
-	if opts.RunTags != nil ***REMOVED***
+	if !opts.RunTags.IsEmpty() ***REMOVED***
 		o.RunTags = opts.RunTags
 	***REMOVED***
 	return o

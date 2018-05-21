@@ -219,6 +219,7 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 			if assert.NoError(t, err) && rt.ExportTo(v, &elems) == nil ***REMOVED***
 				assert.Equal(t, 3, len(elems))
 				assert.Equal(t, "option 1", elems[0])
+				assert.Equal(t, "option 2", elems[1])
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Invalid arg", func(t *testing.T) ***REMOVED***

@@ -68,7 +68,7 @@ func L(r lib.Runner) lib.Executor ***REMOVED***
 	return local.New(r)
 ***REMOVED***
 
-func LF(fn func(ctx context.Context) ([]stats.Sample, error)) lib.Executor ***REMOVED***
+func LF(fn func(ctx context.Context) ([]stats.SampleContainer, error)) lib.Executor ***REMOVED***
 	return L(&lib.MiniRunner***REMOVED***Fn: fn***REMOVED***)
 ***REMOVED***
 
@@ -250,7 +250,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 		var e *Engine
-		e, err, _ := newTestEngine(LF(func(ctx context.Context) (samples []stats.Sample, err error) ***REMOVED***
+		e, err, _ := newTestEngine(LF(func(ctx context.Context) (samples []stats.SampleContainer, err error) ***REMOVED***
 			samples = append(samples, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 			close(signalChan)
 			<-ctx.Done()
@@ -275,7 +275,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		c := &dummy.Collector***REMOVED******REMOVED***
-		e.Collector = c
+		e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
 		errC := make(chan error)
@@ -308,13 +308,13 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 func TestEngineCollector(t *testing.T) ***REMOVED***
 	testMetric := stats.New("test_metric", stats.Trend)
 
-	e, err, _ := newTestEngine(LF(func(ctx context.Context) ([]stats.Sample, error) ***REMOVED***
-		return []stats.Sample***REMOVED******REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
+	e, err, _ := newTestEngine(LF(func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
+		return []stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
 	***REMOVED***), lib.Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1), Iterations: null.IntFrom(1)***REMOVED***)
 	assert.NoError(t, err)
 
 	c := &dummy.Collector***REMOVED******REMOVED***
-	e.Collector = c
+	e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
 	assert.NoError(t, e.Run(context.Background()))
 
@@ -365,7 +365,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags.CloneTags())
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED***,
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
@@ -482,10 +482,12 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func getMetricSum(samples []stats.Sample, name string) (result float64) ***REMOVED***
-	for _, s := range samples ***REMOVED***
-		if s.Metric.Name == name ***REMOVED***
-			result += s.Value
+func getMetricSum(collector *dummy.Collector, name string) (result float64) ***REMOVED***
+	for _, sc := range collector.SampleContainers ***REMOVED***
+		for _, s := range sc.GetSamples() ***REMOVED***
+			if s.Metric.Name == name ***REMOVED***
+				result += s.Value
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return
@@ -563,7 +565,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		collector := &dummy.Collector***REMOVED******REMOVED***
-		engine.Collector = collector
+		engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
 		errC := make(chan error)
@@ -579,7 +581,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		checkData := func(name string, expected int64) float64 ***REMOVED***
-			data := getMetricSum(collector.Samples, name)
+			data := getMetricSum(collector, name)
 			expectedDataMin := float64(expected * tc.Iterations)
 			expectedDataMax := float64((expected + ts.NumRequests*expectedHeaderMaxLength) * tc.Iterations)
 
@@ -592,8 +594,8 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 			return data
 		***REMOVED***
 
-		return checkData("data_sent", ts.ExpectedDataSent),
-			checkData("data_received", ts.ExpectedDataReceived)
+		return checkData(metrics.DataSent.Name, ts.ExpectedDataSent),
+			checkData(metrics.DataReceived.Name, ts.ExpectedDataReceived)
 	***REMOVED***
 
 	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
@@ -705,7 +707,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
-	engine.Collector = collector
+	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errC := make(chan error)

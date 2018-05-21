@@ -67,6 +67,8 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.NotNil(t, opts.Stages)
 		assert.Len(t, opts.Stages, 1)
 		assert.Equal(t, 1*time.Second, time.Duration(opts.Stages[0].Duration.Duration))
+
+		assert.Nil(t, Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***).Stages)
 	***REMOVED***)
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
@@ -304,8 +306,9 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.NotEmpty(t, opts.Thresholds)
 	***REMOVED***)
 	t.Run("External", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***External: map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED******REMOVED***)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"a": 1***REMOVED***, opts.External)
+		ext := map[string]json.RawMessage***REMOVED***"a": json.RawMessage("1")***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***External: ext***REMOVED***)
+		assert.Equal(t, ext, opts.External)
 	***REMOVED***)
 
 	t.Run("JSON", func(t *testing.T) ***REMOVED***

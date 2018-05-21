@@ -38,6 +38,9 @@ type Trail struct ***REMOVED***
 	StartTime time.Time
 	EndTime   time.Time
 
+	// Total connect time (Connecting + TLSHandshaking)
+	ConnDuration time.Duration
+
 	// Total request duration, excluding DNS lookup and connect time.
 	Duration time.Duration
 
@@ -52,21 +55,45 @@ type Trail struct ***REMOVED***
 	ConnReused     bool
 	ConnRemoteAddr net.Addr
 	Errors         []error
+
+	// Populated by SaveSamples()
+	Tags    *stats.SampleTags
+	Samples []stats.Sample
 ***REMOVED***
 
-// Samples returns a slice with all of the pre-calculated sample values for the request
-func (tr Trail) Samples(tags *stats.SampleTags) []stats.Sample ***REMOVED***
-	return []stats.Sample***REMOVED***
+// SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
+func (tr *Trail) SaveSamples(tags *stats.SampleTags) ***REMOVED***
+	tr.Tags = tags
+	tr.Samples = []stats.Sample***REMOVED***
 		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
+
 		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: metrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
 		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
 	***REMOVED***
 ***REMOVED***
+
+// GetSamples implements the stats.SampleContainer interface.
+func (tr *Trail) GetSamples() []stats.Sample ***REMOVED***
+	return tr.Samples
+***REMOVED***
+
+// GetTags implements the stats.ConnectedSampleContainer interface.
+func (tr *Trail) GetTags() *stats.SampleTags ***REMOVED***
+	return tr.Tags
+***REMOVED***
+
+// GetTime implements the stats.ConnectedSampleContainer interface.
+func (tr *Trail) GetTime() time.Time ***REMOVED***
+	return tr.EndTime
+***REMOVED***
+
+// Ensure that interfaces are implemented correctly
+var _ stats.ConnectedSampleContainer = &Trail***REMOVED******REMOVED***
 
 // A Tracer wraps "net/http/httptrace" to collect granular timings for HTTP requests.
 // Note that since there is not yet an event for the end of a request (there's a PR to
@@ -228,7 +255,7 @@ func (t *Tracer) GotFirstResponseByte() ***REMOVED***
 ***REMOVED***
 
 // Done calculates all metrics and should be called when the request is finished.
-func (t *Tracer) Done() Trail ***REMOVED***
+func (t *Tracer) Done() *Trail ***REMOVED***
 	done := time.Now()
 
 	trail := Trail***REMOVED***
@@ -276,6 +303,7 @@ func (t *Tracer) Done() Trail ***REMOVED***
 
 	// Calculate total times using adjusted values.
 	trail.EndTime = done
+	trail.ConnDuration = trail.Connecting + trail.TLSHandshaking
 	trail.Duration = trail.Sending + trail.Waiting + trail.Receiving
 	trail.StartTime = trail.EndTime.Add(-trail.Duration)
 
@@ -285,5 +313,5 @@ func (t *Tracer) Done() Trail ***REMOVED***
 		trail.Errors = append([]error***REMOVED******REMOVED***, t.protoErrors...)
 	***REMOVED***
 
-	return trail
+	return &trail
 ***REMOVED***
