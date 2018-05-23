@@ -21,6 +21,7 @@
 package http
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/dop251/goja"
@@ -33,13 +34,22 @@ type URL struct ***REMOVED***
 	URLString string   `js:"url"`  // http://example.com/thing/1234/
 ***REMOVED***
 
-func ToURL(v goja.Value) (URL, error) ***REMOVED***
-	if v.ExportType() == typeURL ***REMOVED***
-		return v.Export().(URL), nil
+// ToURL tries to convert anything passed to it to a k6 URL struct
+func ToURL(u interface***REMOVED******REMOVED***) (URL, error) ***REMOVED***
+	switch tu := u.(type) ***REMOVED***
+	case URL:
+		// Handling of http.url`http://example.com/***REMOVED***$id***REMOVED***`
+		return tu, nil
+	case string:
+		// Handling of "http://example.com/"
+		u, err := url.Parse(tu)
+		return URL***REMOVED***u, tu, tu***REMOVED***, err
+	case goja.Value:
+		// Unwrap goja values
+		return ToURL(tu.Export())
+	default:
+		return URL***REMOVED******REMOVED***, fmt.Errorf("Invalid URL value '%#v'", u)
 	***REMOVED***
-	s := v.String()
-	u, err := url.Parse(s)
-	return URL***REMOVED***u, s, s***REMOVED***, err
 ***REMOVED***
 
 func (http *HTTP) Url(parts []string, pieces ...string) (URL, error) ***REMOVED***

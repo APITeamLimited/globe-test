@@ -33,7 +33,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/textproto"
-	neturl "net/url"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,147 +56,322 @@ type HTTPRequest struct ***REMOVED***
 	Cookies map[string][]*HTTPRequestCookie
 ***REMOVED***
 
-func (http *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, HTTP_METHOD_GET, url, args...)
+	return h.Request(ctx, HTTP_METHOD_GET, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return http.Request(ctx, HTTP_METHOD_HEAD, url, args...)
+	return h.Request(ctx, HTTP_METHOD_HEAD, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, HTTP_METHOD_POST, url, args...)
+func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return h.Request(ctx, HTTP_METHOD_POST, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, HTTP_METHOD_PUT, url, args...)
+func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return h.Request(ctx, HTTP_METHOD_PUT, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, HTTP_METHOD_PATCH, url, args...)
+func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return h.Request(ctx, HTTP_METHOD_PATCH, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, HTTP_METHOD_DELETE, url, args...)
+func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return h.Request(ctx, HTTP_METHOD_DELETE, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	return http.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
+func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+	return h.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
 ***REMOVED***
 
-func (http *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
-	state := common.GetState(ctx)
-
+func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
 	u, err := ToURL(url)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	res, samples, err := http.request(ctx, rt, state, method, u, args...)
+
+	var body interface***REMOVED******REMOVED***
+	var params goja.Value
+
+	if len(args) > 0 ***REMOVED***
+		body = args[0].Export()
+	***REMOVED***
+	if len(args) > 1 ***REMOVED***
+		params = args[1]
+	***REMOVED***
+
+	req, err := h.parseRequest(ctx, method, u, body, params)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	state := common.GetState(ctx)
+	res, samples, err := h.request(ctx, state, req)
 	state.Samples = append(state.Samples, samples...)
 	return res, err
 ***REMOVED***
 
-func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.State, method string, url URL, args ...goja.Value) (*HTTPResponse, []stats.SampleContainer, error) ***REMOVED***
-	var bodyBuf *bytes.Buffer
-	var contentType string
-	if len(args) > 0 && !goja.IsUndefined(args[0]) && !goja.IsNull(args[0]) ***REMOVED***
-		var data map[string]goja.Value
-		if rt.ExportTo(args[0], &data) == nil ***REMOVED***
-			// handling multipart request
-			if requestContainsFile(data) ***REMOVED***
-				bodyBuf = &bytes.Buffer***REMOVED******REMOVED***
-				mpw := multipart.NewWriter(bodyBuf)
+type parsedHTTPRequest struct ***REMOVED***
+	url           *URL
+	body          *bytes.Buffer
+	req           *http.Request
+	timeout       time.Duration
+	auth          string
+	throw         bool
+	redirects     null.Int
+	activeJar     *cookiejar.Jar
+	cookies       map[string]*HTTPRequestCookie
+	mergedCookies map[string][]*HTTPRequestCookie
+	tags          map[string]string
+***REMOVED***
 
-				// For parameters of type common.FileData, created with open(file, "b"),
-				// we write the file boundary to the body buffer.
-				// Otherwise parameters are treated as standard form field.
-				for k, v := range data ***REMOVED***
-					switch ve := v.Export().(type) ***REMOVED***
-					case FileData:
-						// writing our own part to handle receiving
-						// different content-type than the default application/octet-stream
-						h := make(textproto.MIMEHeader)
-						escapedFilename := escapeQuotes(ve.Filename)
-						h.Set("Content-Disposition",
-							fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-								k, escapedFilename))
-						h.Set("Content-Type", ve.ContentType)
+func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body interface***REMOVED******REMOVED***, params goja.Value) (*parsedHTTPRequest, error) ***REMOVED***
+	rt := common.GetRuntime(ctx)
+	state := common.GetState(ctx)
 
-						// this writer will be closed either by the next part or
-						// the call to mpw.Close()
-						fw, err := mpw.CreatePart(h)
-						if err != nil ***REMOVED***
-							return nil, nil, err
-						***REMOVED***
+	result := &parsedHTTPRequest***REMOVED***
+		url: &reqURL,
+		req: &http.Request***REMOVED***
+			Method: method,
+			URL:    reqURL.URL,
+			Header: make(http.Header),
+		***REMOVED***,
+		timeout:   60 * time.Second,
+		throw:     state.Options.Throw.Bool,
+		redirects: state.Options.MaxRedirects,
+		cookies:   make(map[string]*HTTPRequestCookie),
+		tags:      make(map[string]string),
+	***REMOVED***
 
-						if _, err := fw.Write(ve.Data); err != nil ***REMOVED***
-							return nil, nil, err
-						***REMOVED***
-					default:
-						fw, err := mpw.CreateFormField(k)
-						if err != nil ***REMOVED***
-							return nil, nil, err
-						***REMOVED***
+	formatFormVal := func(v interface***REMOVED******REMOVED***) string ***REMOVED***
+		//TODO: handle/warn about unsupported/nested values
+		return fmt.Sprintf("%v", v)
+	***REMOVED***
 
-						if _, err := fw.Write([]byte(v.String())); err != nil ***REMOVED***
-							return nil, nil, err
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-
-				if err := mpw.Close(); err != nil ***REMOVED***
-					return nil, nil, err
-				***REMOVED***
-
-				contentType = mpw.FormDataContentType()
-			***REMOVED*** else ***REMOVED***
-				bodyQuery := make(neturl.Values, len(data))
-				for k, v := range data ***REMOVED***
-					bodyQuery.Set(k, v.String())
-				***REMOVED***
-				bodyBuf = bytes.NewBufferString(bodyQuery.Encode())
-				contentType = "application/x-www-form-urlencoded"
+	handleObjectBody := func(data map[string]interface***REMOVED******REMOVED***) error ***REMOVED***
+		if !requestContainsFile(data) ***REMOVED***
+			bodyQuery := make(url.Values, len(data))
+			for k, v := range data ***REMOVED***
+				bodyQuery.Set(k, formatFormVal(v))
 			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			bodyBuf = bytes.NewBufferString(args[0].String())
+			result.body = bytes.NewBufferString(bodyQuery.Encode())
+			result.req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			return nil
+		***REMOVED***
+
+		// handling multipart request
+		result.body = &bytes.Buffer***REMOVED******REMOVED***
+		mpw := multipart.NewWriter(result.body)
+
+		// For parameters of type common.FileData, created with open(file, "b"),
+		// we write the file boundary to the body buffer.
+		// Otherwise parameters are treated as standard form field.
+		for k, v := range data ***REMOVED***
+			switch ve := v.(type) ***REMOVED***
+			case FileData:
+				// writing our own part to handle receiving
+				// different content-type than the default application/octet-stream
+				h := make(textproto.MIMEHeader)
+				escapedFilename := escapeQuotes(ve.Filename)
+				h.Set("Content-Disposition",
+					fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+						k, escapedFilename))
+				h.Set("Content-Type", ve.ContentType)
+
+				// this writer will be closed either by the next part or
+				// the call to mpw.Close()
+				fw, err := mpw.CreatePart(h)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+
+				if _, err := fw.Write(ve.Data); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+			default:
+				fw, err := mpw.CreateFormField(k)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+
+				if _, err := fw.Write([]byte(formatFormVal(v))); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+
+		if err := mpw.Close(); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		result.req.Header.Set("Content-Type", mpw.FormDataContentType())
+		return nil
+	***REMOVED***
+
+	if body != nil ***REMOVED***
+		switch data := body.(type) ***REMOVED***
+		case map[string]goja.Value:
+			//TODO: fix forms submission and serialization in k6/html before fixing this..
+			newData := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
+			for k, v := range data ***REMOVED***
+				newData[k] = v.Export()
+			***REMOVED***
+			if err := handleObjectBody(newData); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		case map[string]interface***REMOVED******REMOVED***:
+			if err := handleObjectBody(data); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		case string:
+			result.body = bytes.NewBufferString(data)
+		case []byte:
+			result.body = bytes.NewBuffer(data)
+		default:
+			return nil, fmt.Errorf("Unknown request body type %T", body)
 		***REMOVED***
 	***REMOVED***
 
-	req := &http.Request***REMOVED***
-		Method: method,
-		URL:    url.URL,
-		Header: make(http.Header),
+	if result.body != nil ***REMOVED***
+		result.req.Body = ioutil.NopCloser(result.body)
+		result.req.ContentLength = int64(result.body.Len())
 	***REMOVED***
-	respReq := &HTTPRequest***REMOVED***
-		Method: req.Method,
-		URL:    req.URL.String(),
-	***REMOVED***
-	if bodyBuf != nil ***REMOVED***
-		req.Body = ioutil.NopCloser(bodyBuf)
-		req.ContentLength = int64(bodyBuf.Len())
-		respReq.Body = bodyBuf.String()
-	***REMOVED***
-	if contentType != "" ***REMOVED***
-		req.Header.Set("Content-Type", contentType)
-	***REMOVED***
+
 	if userAgent := state.Options.UserAgent; userAgent.String != "" ***REMOVED***
-		req.Header.Set("User-Agent", userAgent.String)
+		result.req.Header.Set("User-Agent", userAgent.String)
+	***REMOVED***
+
+	if state.CookieJar != nil ***REMOVED***
+		result.activeJar = state.CookieJar
+	***REMOVED***
+
+	// TODO: ditch goja.Value and use type assertions?
+	if params != nil && !goja.IsUndefined(params) && !goja.IsNull(params) ***REMOVED***
+		params := params.ToObject(rt)
+		for _, k := range params.Keys() ***REMOVED***
+			switch k ***REMOVED***
+			case "cookies":
+				cookiesV := params.Get(k)
+				if goja.IsUndefined(cookiesV) || goja.IsNull(cookiesV) ***REMOVED***
+					continue
+				***REMOVED***
+				cookies := cookiesV.ToObject(rt)
+				if cookies == nil ***REMOVED***
+					continue
+				***REMOVED***
+				for _, key := range cookies.Keys() ***REMOVED***
+					cookieV := cookies.Get(key)
+					if goja.IsUndefined(cookieV) || goja.IsNull(cookieV) ***REMOVED***
+						continue
+					***REMOVED***
+					switch cookieV.ExportType() ***REMOVED***
+					case typeMapKeyStringValueInterface:
+						result.cookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: "", Replace: false***REMOVED***
+						cookie := cookieV.ToObject(rt)
+						for _, attr := range cookie.Keys() ***REMOVED***
+							switch strings.ToLower(attr) ***REMOVED***
+							case "replace":
+								result.cookies[key].Replace = cookie.Get(attr).ToBoolean()
+							case "value":
+								result.cookies[key].Value = cookie.Get(attr).String()
+							***REMOVED***
+						***REMOVED***
+					default:
+						result.cookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: cookieV.String(), Replace: false***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			case "headers":
+				headersV := params.Get(k)
+				if goja.IsUndefined(headersV) || goja.IsNull(headersV) ***REMOVED***
+					continue
+				***REMOVED***
+				headers := headersV.ToObject(rt)
+				if headers == nil ***REMOVED***
+					continue
+				***REMOVED***
+				for _, key := range headers.Keys() ***REMOVED***
+					str := headers.Get(key).String()
+					switch strings.ToLower(key) ***REMOVED***
+					case "host":
+						result.req.Host = str
+					default:
+						result.req.Header.Set(key, str)
+					***REMOVED***
+				***REMOVED***
+			case "jar":
+				jarV := params.Get(k)
+				if goja.IsUndefined(jarV) || goja.IsNull(jarV) ***REMOVED***
+					continue
+				***REMOVED***
+				switch v := jarV.Export().(type) ***REMOVED***
+				case *HTTPCookieJar:
+					result.activeJar = v.jar
+				***REMOVED***
+			case "redirects":
+				result.redirects = null.IntFrom(params.Get(k).ToInteger())
+			case "tags":
+				tagsV := params.Get(k)
+				if goja.IsUndefined(tagsV) || goja.IsNull(tagsV) ***REMOVED***
+					continue
+				***REMOVED***
+				tagObj := tagsV.ToObject(rt)
+				if tagObj == nil ***REMOVED***
+					continue
+				***REMOVED***
+				for _, key := range tagObj.Keys() ***REMOVED***
+					result.tags[key] = tagObj.Get(key).String()
+				***REMOVED***
+			case "auth":
+				result.auth = params.Get(k).String()
+			case "timeout":
+				result.timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
+			case "throw":
+				result.throw = params.Get(k).ToBoolean()
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	if result.activeJar != nil ***REMOVED***
+		result.mergedCookies = h.mergeCookies(result.req, result.activeJar, result.cookies)
+		h.setRequestCookies(result.req, result.mergedCookies)
+	***REMOVED***
+
+	return result, nil
+***REMOVED***
+
+// request() shouldn't mess with the goja runtime or other thread-unsafe
+// things because it's called concurrently by Batch()
+func (h *HTTP) request(ctx context.Context, state *common.State, preq *parsedHTTPRequest) (*HTTPResponse, []stats.SampleContainer, error) ***REMOVED***
+
+	respReq := &HTTPRequest***REMOVED***
+		Method:  preq.req.Method,
+		URL:     preq.req.URL.String(),
+		Cookies: preq.mergedCookies,
+		Headers: preq.req.Header,
+	***REMOVED***
+	if preq.body != nil ***REMOVED***
+		respReq.Body = preq.body.String()
 	***REMOVED***
 
 	tags := state.Options.RunTags.CloneTags()
+	for k, v := range preq.tags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+
 	if state.Options.SystemTags["method"] ***REMOVED***
-		tags["method"] = method
+		tags["method"] = preq.req.Method
 	***REMOVED***
 	if state.Options.SystemTags["url"] ***REMOVED***
-		tags["url"] = url.URLString
+		tags["url"] = preq.url.URLString
 	***REMOVED***
-	if state.Options.SystemTags["name"] ***REMOVED***
-		tags["name"] = url.Name
+
+	// Only set the name system tag if the user didn't explicitly set it beforehand
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags["name"] ***REMOVED***
+		tags["name"] = preq.url.Name
 	***REMOVED***
 	if state.Options.SystemTags["group"] ***REMOVED***
 		tags["group"] = state.Group.Path
@@ -208,111 +383,6 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
-	redirects := state.Options.MaxRedirects
-	timeout := 60 * time.Second
-	throw := state.Options.Throw.Bool
-	auth := ""
-
-	var activeJar *cookiejar.Jar
-	if state.CookieJar != nil ***REMOVED***
-		activeJar = state.CookieJar
-	***REMOVED***
-	reqCookies := make(map[string]*HTTPRequestCookie)
-
-	if len(args) > 1 ***REMOVED***
-		paramsV := args[1]
-		if !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) ***REMOVED***
-			params := paramsV.ToObject(rt)
-			for _, k := range params.Keys() ***REMOVED***
-				switch k ***REMOVED***
-				case "cookies":
-					cookiesV := params.Get(k)
-					if goja.IsUndefined(cookiesV) || goja.IsNull(cookiesV) ***REMOVED***
-						continue
-					***REMOVED***
-					cookies := cookiesV.ToObject(rt)
-					if cookies == nil ***REMOVED***
-						continue
-					***REMOVED***
-					for _, key := range cookies.Keys() ***REMOVED***
-						cookieV := cookies.Get(key)
-						if goja.IsUndefined(cookieV) || goja.IsNull(cookieV) ***REMOVED***
-							continue
-						***REMOVED***
-						switch cookieV.ExportType() ***REMOVED***
-						case typeMapKeyStringValueInterface:
-							reqCookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: "", Replace: false***REMOVED***
-							cookie := cookieV.ToObject(rt)
-							for _, attr := range cookie.Keys() ***REMOVED***
-								switch strings.ToLower(attr) ***REMOVED***
-								case "replace":
-									reqCookies[key].Replace = cookie.Get(attr).ToBoolean()
-								case "value":
-									reqCookies[key].Value = cookie.Get(attr).String()
-								***REMOVED***
-							***REMOVED***
-						default:
-							reqCookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: cookieV.String(), Replace: false***REMOVED***
-						***REMOVED***
-					***REMOVED***
-				case "headers":
-					headersV := params.Get(k)
-					if goja.IsUndefined(headersV) || goja.IsNull(headersV) ***REMOVED***
-						continue
-					***REMOVED***
-					headers := headersV.ToObject(rt)
-					if headers == nil ***REMOVED***
-						continue
-					***REMOVED***
-					for _, key := range headers.Keys() ***REMOVED***
-						str := headers.Get(key).String()
-						switch strings.ToLower(key) ***REMOVED***
-						case "host":
-							req.Host = str
-						default:
-							req.Header.Set(key, str)
-						***REMOVED***
-					***REMOVED***
-				case "jar":
-					jarV := params.Get(k)
-					if goja.IsUndefined(jarV) || goja.IsNull(jarV) ***REMOVED***
-						continue
-					***REMOVED***
-					switch v := jarV.Export().(type) ***REMOVED***
-					case *HTTPCookieJar:
-						activeJar = v.jar
-					***REMOVED***
-				case "redirects":
-					redirects = null.IntFrom(params.Get(k).ToInteger())
-				case "tags":
-					tagsV := params.Get(k)
-					if goja.IsUndefined(tagsV) || goja.IsNull(tagsV) ***REMOVED***
-						continue
-					***REMOVED***
-					tagObj := tagsV.ToObject(rt)
-					if tagObj == nil ***REMOVED***
-						continue
-					***REMOVED***
-					for _, key := range tagObj.Keys() ***REMOVED***
-						tags[key] = tagObj.Get(key).String()
-					***REMOVED***
-				case "auth":
-					auth = params.Get(k).String()
-				case "timeout":
-					timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
-				case "throw":
-					throw = params.Get(k).ToBoolean()
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	if activeJar != nil ***REMOVED***
-		mergedCookies := h.mergeCookies(req, activeJar, reqCookies)
-		respReq.Cookies = mergedCookies
-		h.setRequestCookies(req, mergedCookies)
-	***REMOVED***
-
 	// Check rate limit *after* we've prepared a request; no need to wait with that part.
 	if rpsLimit := state.RPSLimit; rpsLimit != nil ***REMOVED***
 		if err := rpsLimit.Wait(ctx); err != nil ***REMOVED***
@@ -320,28 +390,26 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		***REMOVED***
 	***REMOVED***
 
-	respReq.Headers = req.Header
-
-	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: url.URLString, Request: *respReq***REMOVED***
+	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: preq.url.URLString, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: state.HTTPTransport,
-		Timeout:   timeout,
+		Timeout:   preq.timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			h.debugResponse(state, req.Response, "RedirectResponse")
 
 			// Update active jar with cookies found in "Set-Cookie" header(s) of redirect response
-			if activeJar != nil ***REMOVED***
+			if preq.activeJar != nil ***REMOVED***
 				if respCookies := req.Response.Cookies(); len(respCookies) > 0 ***REMOVED***
-					activeJar.SetCookies(req.URL, respCookies)
+					preq.activeJar.SetCookies(req.URL, respCookies)
 				***REMOVED***
 				req.Header.Del("Cookie")
-				mergedCookies := h.mergeCookies(req, activeJar, reqCookies)
+				mergedCookies := h.mergeCookies(req, preq.activeJar, preq.cookies)
 
 				h.setRequestCookies(req, mergedCookies)
 			***REMOVED***
 
-			if l := len(via); int64(l) > redirects.Int64 ***REMOVED***
-				if !redirects.Valid ***REMOVED***
+			if l := len(via); int64(l) > preq.redirects.Int64 ***REMOVED***
+				if !preq.redirects.Valid ***REMOVED***
 					url := req.URL
 					if l > 0 ***REMOVED***
 						url = via[0].URL
@@ -349,26 +417,25 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 					state.Logger.WithFields(log.Fields***REMOVED***"url": url.String()***REMOVED***).Warnf("Stopped after %d redirects and returned the redirection; pass ***REMOVED*** redirects: n ***REMOVED*** in request params or set global maxRedirects to silence this", l)
 				***REMOVED***
 				return http.ErrUseLastResponse
-			***REMOVED*** else ***REMOVED***
-				h.debugRequest(state, req, "RedirectRequest")
 			***REMOVED***
+			h.debugRequest(state, req, "RedirectRequest")
 			return nil
 		***REMOVED***,
 	***REMOVED***
 
 	statsSamples := []stats.SampleContainer***REMOVED******REMOVED***
 	// if digest authentication option is passed, make an initial request to get the authentication params to compute the authorization header
-	if auth == "digest" ***REMOVED***
-		username := url.URL.User.Username()
-		password, _ := url.URL.User.Password()
+	if preq.auth == "digest" ***REMOVED***
+		username := preq.url.URL.User.Username()
+		password, _ := preq.url.URL.User.Password()
 
 		// removing user from URL to avoid sending the authorization header fo basic auth
-		req.URL.User = nil
+		preq.req.URL.User = nil
 
 		tracer := netext.Tracer***REMOVED******REMOVED***
-		h.debugRequest(state, req, "DigestRequest")
-		res, err := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
-		h.debugRequest(state, req, "DigestResponse")
+		h.debugRequest(state, preq.req, "DigestRequest")
+		res, err := client.Do(preq.req.WithContext(netext.WithTracer(ctx, &tracer)))
+		h.debugRequest(state, preq.req, "DigestResponse")
 		if err != nil ***REMOVED***
 			// Do *not* log errors about the contex being cancelled.
 			select ***REMOVED***
@@ -377,7 +444,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 				state.Logger.WithField("error", res).Warn("Digest request failed")
 			***REMOVED***
 
-			if throw ***REMOVED***
+			if preq.throw ***REMOVED***
 				return nil, nil, err
 			***REMOVED***
 
@@ -392,9 +459,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			***REMOVED***
 
 			challenge := digest.GetChallengeFromHeader(&res.Header)
-			challenge.ComputeResponse(req.Method, req.URL.RequestURI(), body, username, password)
+			challenge.ComputeResponse(preq.req.Method, preq.req.URL.RequestURI(), body, username, password)
 			authorization := challenge.ToAuthorizationStr()
-			req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
+			preq.req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 		***REMOVED***
 		trail := tracer.Done()
 
@@ -408,13 +475,13 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 		statsSamples = append(statsSamples, trail)
 	***REMOVED***
 
-	if auth == "ntlm" ***REMOVED***
+	if preq.auth == "ntlm" ***REMOVED***
 		ctx = netext.WithAuth(ctx, "ntlm")
 	***REMOVED***
 
 	tracer := netext.Tracer***REMOVED******REMOVED***
-	h.debugRequest(state, req, "Request")
-	res, resErr := client.Do(req.WithContext(netext.WithTracer(ctx, &tracer)))
+	h.debugRequest(state, preq.req, "Request")
+	res, resErr := client.Do(preq.req.WithContext(netext.WithTracer(ctx, &tracer)))
 	h.debugResponse(state, res, "Response")
 	if resErr == nil && res != nil ***REMOVED***
 		switch res.Header.Get("Content-Encoding") ***REMOVED***
@@ -464,9 +531,9 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if activeJar != nil ***REMOVED***
+		if preq.activeJar != nil ***REMOVED***
 			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
-				activeJar.SetCookies(res.Request.URL, rc)
+				preq.activeJar.SetCookies(res.Request.URL, rc)
 			***REMOVED***
 		***REMOVED***
 
@@ -523,7 +590,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
 		***REMOVED***
 
-		if throw ***REMOVED***
+		if preq.throw ***REMOVED***
 			return nil, nil, resErr
 		***REMOVED***
 	***REMOVED***
@@ -538,7 +605,7 @@ func (h *HTTP) request(ctx context.Context, rt *goja.Runtime, state *common.Stat
 	return resp, statsSamples, nil
 ***REMOVED***
 
-func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
+func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 
@@ -551,71 +618,104 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 	globalLimiter := NewSlotLimiter(int(state.Options.Batch.Int64))
 	perHostLimiter := NewMultiSlotLimiter(int(state.Options.BatchPerHost.Int64))
 
-	reqs := reqsV.ToObject(rt)
-	keys := reqs.Keys()
-	for _, k := range keys ***REMOVED***
-		k := k
-		v := reqs.Get(k)
-
+	parseBatchRequest := func(key string, val goja.Value) (result *parsedHTTPRequest, err error) ***REMOVED***
 		method := HTTP_METHOD_GET
-		var url URL
-		var args []goja.Value
+		ok := false
+		var reqURL URL
+		var body interface***REMOVED******REMOVED***
+		var params goja.Value
 
-		// Shorthand: "http://example.com/" -> ["GET", "http://example.com/"]
-		switch v.ExportType() ***REMOVED***
-		case typeURL:
-			url = v.Export().(URL)
-		case typeString:
-			u, err := ToURL(v)
-			if err != nil ***REMOVED***
-				return goja.Undefined(), err
+		switch data := val.Export().(type) ***REMOVED***
+		case []interface***REMOVED******REMOVED***:
+			// Handling of ["GET", "http://example.com/"]
+			dataLen := len(data)
+			if dataLen < 2 ***REMOVED***
+				return nil, fmt.Errorf("Invalid batch request '%#v'", data)
 			***REMOVED***
-			url = u
-		default:
-			obj := v.ToObject(rt)
-			objkeys := obj.Keys()
-			for _, objk := range objkeys ***REMOVED***
-				objv := obj.Get(objk)
-				switch objk ***REMOVED***
-				case "0", "method":
-					method = strings.ToUpper(objv.String())
-					if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
-						args = []goja.Value***REMOVED***goja.Undefined()***REMOVED***
-					***REMOVED***
-				case "1", "url":
-					u, err := ToURL(objv)
-					if err != nil ***REMOVED***
-						return goja.Undefined(), err
-					***REMOVED***
-					url = u
-				default:
-					args = append(args, objv)
+			method, ok = data[0].(string)
+			if !ok ***REMOVED***
+				return nil, fmt.Errorf("Invalid method type '%#v'", data[0])
+			***REMOVED***
+			reqURL, err = ToURL(data[1])
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			if dataLen > 2 ***REMOVED***
+				body = data[2]
+			***REMOVED***
+			if dataLen > 3 ***REMOVED***
+				params = rt.ToValue(data[3])
+			***REMOVED***
+
+		case map[string]interface***REMOVED******REMOVED***:
+			// Handling of ***REMOVED***method: "GET", url: "http://test.loadimpact.com"***REMOVED***
+			if murl, ok := data["url"]; !ok ***REMOVED***
+				return nil, fmt.Errorf("Batch request %s doesn't have an url key", key)
+			***REMOVED*** else if reqURL, err = ToURL(murl); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+
+			body = data["body"] // It's fine if it's missing, the map lookup will return
+
+			if newMethod, ok := data["method"]; ok ***REMOVED***
+				if method, ok = newMethod.(string); !ok ***REMOVED***
+					return nil, fmt.Errorf("Invalid method type '%#v'", newMethod)
 				***REMOVED***
+				method = strings.ToUpper(method)
+				if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
+					body = nil
+				***REMOVED***
+			***REMOVED***
+
+			if p, ok := data["params"]; ok ***REMOVED***
+				params = rt.ToValue(p)
+			***REMOVED***
+
+		default:
+			// Handling of "http://example.com/" or http.url`http://example.com/***REMOVED***$id***REMOVED***`
+			reqURL, err = ToURL(data)
+			if err != nil ***REMOVED***
+				return
 			***REMOVED***
 		***REMOVED***
 
-		go func() ***REMOVED***
+		return h.parseRequest(ctx, method, reqURL, body, params)
+	***REMOVED***
+
+	reqs := reqsV.ToObject(rt)
+	keys := reqs.Keys()
+	parsedReqs := map[string]*parsedHTTPRequest***REMOVED******REMOVED***
+	for _, key := range keys ***REMOVED***
+		parsedReq, err := parseBatchRequest(key, reqs.Get(key))
+		if err != nil ***REMOVED***
+			return retval, err
+		***REMOVED***
+		parsedReqs[key] = parsedReq
+	***REMOVED***
+
+	for k, pr := range parsedReqs ***REMOVED***
+		go func(key string, parsedReq *parsedHTTPRequest) ***REMOVED***
 			globalLimiter.Begin()
 			defer globalLimiter.End()
 
-			if hl := perHostLimiter.Slot(url.URL.Host); hl != nil ***REMOVED***
+			if hl := perHostLimiter.Slot(parsedReq.url.URL.Host); hl != nil ***REMOVED***
 				hl.Begin()
 				defer hl.End()
 			***REMOVED***
 
-			res, samples, err := http.request(ctx, rt, state, method, url, args...)
+			res, samples, err := h.request(ctx, state, parsedReq)
 			if err != nil ***REMOVED***
 				errs <- err
 				return
 			***REMOVED***
 
 			mutex.Lock()
-			_ = retval.Set(k, res)
+			_ = retval.Set(key, res)
 			state.Samples = append(state.Samples, samples...)
 			mutex.Unlock()
 
 			errs <- nil
-		***REMOVED***()
+		***REMOVED***(k, pr)
 	***REMOVED***
 
 	var err error
@@ -627,9 +727,9 @@ func (http *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, erro
 	return retval, err
 ***REMOVED***
 
-func requestContainsFile(data map[string]goja.Value) bool ***REMOVED***
+func requestContainsFile(data map[string]interface***REMOVED******REMOVED***) bool ***REMOVED***
 	for _, v := range data ***REMOVED***
-		switch v.Export().(type) ***REMOVED***
+		switch v.(type) ***REMOVED***
 		case FileData:
 			return true
 		***REMOVED***
