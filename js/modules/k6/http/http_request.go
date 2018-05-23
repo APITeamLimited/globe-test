@@ -34,6 +34,7 @@ import (
 	"net/http/cookiejar"
 	"net/textproto"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -249,7 +250,7 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 		result.activeJar = state.CookieJar
 	***REMOVED***
 
-	// TODO: ditch goja.Value and use type assertions?
+	// TODO: ditch goja.Value, reflections and Object and use a simple go map and type assertions?
 	if params != nil && !goja.IsUndefined(params) && !goja.IsNull(params) ***REMOVED***
 		params := params.ToObject(rt)
 		for _, k := range params.Keys() ***REMOVED***
@@ -269,7 +270,7 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 						continue
 					***REMOVED***
 					switch cookieV.ExportType() ***REMOVED***
-					case typeMapKeyStringValueInterface:
+					case reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***):
 						result.cookies[key] = &HTTPRequestCookie***REMOVED***Name: key, Value: "", Replace: false***REMOVED***
 						cookie := cookieV.ToObject(rt)
 						for _, attr := range cookie.Keys() ***REMOVED***
@@ -620,7 +621,7 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 
 	parseBatchRequest := func(key string, val goja.Value) (result *parsedHTTPRequest, err error) ***REMOVED***
 		method := HTTP_METHOD_GET
-		ok := false
+		var ok bool
 		var reqURL URL
 		var body interface***REMOVED******REMOVED***
 		var params goja.Value

@@ -24,19 +24,12 @@ import (
 	"context"
 	"net/http"
 	"net/http/cookiejar"
-	"reflect"
 
 	"fmt"
 	"net/http/httputil"
 
 	"github.com/loadimpact/k6/js/common"
 	log "github.com/sirupsen/logrus"
-)
-
-var (
-	typeString                     = reflect.TypeOf("")
-	typeURL                        = reflect.TypeOf(URL***REMOVED******REMOVED***)
-	typeMapKeyStringValueInterface = reflect.TypeOf(map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 )
 
 const (
