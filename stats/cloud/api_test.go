@@ -95,7 +95,7 @@ func TestFinished(t *testing.T) ***REMOVED***
 			"max < 10": true,
 		***REMOVED***,
 	***REMOVED***
-	err := client.TestFinished("1", thresholds, true)
+	err := client.TestFinished("1", thresholds, true, 0)
 
 	assert.Nil(t, err)
 ***REMOVED***

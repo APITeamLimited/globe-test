@@ -191,3 +191,5 @@ func (c *Collector) Format(samples []stats.Sample) ([]string, error) ***REMOVED*
 func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
 ***REMOVED***
+
+func (c *Collector) SetRunStatus(status int) ***REMOVED******REMOVED***
