@@ -37,6 +37,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 	"github.com/mccutchen/go-httpbin/httpbin"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -119,6 +120,65 @@ func TestTracer(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+type failingConn struct ***REMOVED***
+	net.Conn
+***REMOVED***
+
+var start int64 = time.Now().UnixNano()
+
+func (c failingConn) Write(b []byte) (int, error) ***REMOVED***
+	now := time.Now().UnixNano()
+	if (now - start) > int64(250*time.Millisecond) ***REMOVED***
+		start = now
+		return 0, errors.New("write error")
+	***REMOVED***
+
+	return c.Conn.Write(b)
+***REMOVED***
+
+func TestTracerNegativeHttpSendingValues(t *testing.T) ***REMOVED***
+	t.Parallel()
+	srv := httptest.NewTLSServer(httpbin.NewHTTPBin().Handler())
+	defer srv.Close()
+
+	transport, ok := srv.Client().Transport.(*http.Transport)
+	assert.True(t, ok)
+
+	dialer := &net.Dialer***REMOVED******REMOVED***
+	transport.DialContext = func(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
+		conn, err := dialer.DialContext(ctx, proto, addr)
+		return failingConn***REMOVED***conn***REMOVED***, err
+	***REMOVED***
+
+	req, err := http.NewRequest("GET", srv.URL+"/get", nil)
+	require.NoError(t, err)
+
+	***REMOVED***
+		tracer := &Tracer***REMOVED******REMOVED***
+		res, err := transport.RoundTrip(req.WithContext(WithTracer(context.Background(), tracer)))
+		require.NoError(t, err)
+		_, err = io.Copy(ioutil.Discard, res.Body)
+		assert.NoError(t, err)
+		assert.NoError(t, res.Body.Close())
+		tracer.Done()
+	***REMOVED***
+	// wait before making the request, so it fails on writing the request
+	time.Sleep(300 * time.Millisecond)
+
+	***REMOVED***
+		tracer := &Tracer***REMOVED******REMOVED***
+		res, err := transport.RoundTrip(req.WithContext(WithTracer(context.Background(), tracer)))
+		require.NoError(t, err)
+		_, err = io.Copy(ioutil.Discard, res.Body)
+		assert.NoError(t, err)
+		assert.NoError(t, res.Body.Close())
+		trail := tracer.Done()
+		trail.SaveSamples(nil)
+
+		require.True(t, trail.Sending > 0)
 	***REMOVED***
 ***REMOVED***
 
