@@ -290,9 +290,7 @@ a commandline interface for interacting with it.`,
 				if err != nil ***REMOVED***
 					panic(err) // This should never happen!!
 				***REMOVED***
-				if _, err := http.Post(u, mime, bytes.NewBuffer(body)); err != nil ***REMOVED***
-					log.WithError(err).Debug("Couldn't send usage blip")
-				***REMOVED***
+				_, _ = http.Post(u, mime, bytes.NewBuffer(body))
 			***REMOVED***()
 		***REMOVED***
 
