@@ -146,15 +146,9 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 	defer e.runLock.Unlock()
 
 	if e.Runner != nil && e.runSetup ***REMOVED***
-		setupCtx, setupCancel := context.WithTimeout(
-			parent,
-			time.Duration(e.Runner.GetOptions().SetupTimeout.Duration),
-		)
-		if err := e.Runner.Setup(setupCtx); err != nil ***REMOVED***
-			setupCancel()
+		if err := e.Runner.Setup(parent); err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		setupCancel()
 	***REMOVED***
 
 	ctx, cancel := context.WithCancel(parent)
@@ -170,12 +164,12 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 	var cutoff time.Time
 	defer func() ***REMOVED***
 		if e.Runner != nil && e.runTeardown ***REMOVED***
-			teardownCtx, teardownCancel := context.WithTimeout(
-				parent,
-				time.Duration(e.Runner.GetOptions().TeardownTimeout.Duration),
-			)
-			reterr = e.Runner.Teardown(teardownCtx)
-			teardownCancel()
+			err := e.Runner.Teardown(parent)
+			if reterr == nil ***REMOVED***
+				reterr = err
+			***REMOVED*** else if err != nil ***REMOVED***
+				reterr = fmt.Errorf("Teardown error %#v\nPrevious error: %#v", err, reterr)
+			***REMOVED***
 		***REMOVED***
 
 		close(vuFlow)
