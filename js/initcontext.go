@@ -41,7 +41,8 @@ type programWithSource struct ***REMOVED***
 // Provides APIs for use in the init context.
 type InitContext struct ***REMOVED***
 	// Bound runtime; used to instantiate objects.
-	runtime *goja.Runtime
+	runtime  *goja.Runtime
+	compiler *compiler.Compiler
 
 	// Pointer to a context that bridged modules are invoked with.
 	ctxPtr *context.Context
@@ -55,12 +56,13 @@ type InitContext struct ***REMOVED***
 	files    map[string][]byte
 ***REMOVED***
 
-func NewInitContext(rt *goja.Runtime, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
+func NewInitContext(rt *goja.Runtime, compiler *compiler.Compiler, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
-		runtime: rt,
-		ctxPtr:  ctxPtr,
-		fs:      fs,
-		pwd:     pwd,
+		runtime:  rt,
+		compiler: compiler,
+		ctxPtr:   ctxPtr,
+		fs:       fs,
+		pwd:      pwd,
 
 		programs: make(map[string]programWithSource),
 		files:    make(map[string][]byte),
@@ -156,7 +158,7 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
-	pgm, _, err := compiler.Compile(src, filename, "(function()***REMOVED***", "***REMOVED***)()", true)
+	pgm, _, err := i.compiler.Compile(src, filename, "(function()***REMOVED***", "***REMOVED***)()", true)
 	return pgm, err
 ***REMOVED***
 

@@ -56,6 +56,11 @@ type BundleInstance struct ***REMOVED***
 
 // Creates a new bundle from a source file and a filesystem.
 func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bundle, error) ***REMOVED***
+	compiler, err := compiler.New()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	// Compile sources, both ES5 and ES6 are supported.
 	code := string(src.Data)
 	pgm, _, err := compiler.Compile(code, src.Filename, "", "", true)
@@ -75,7 +80,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 		Filename:        src.Filename,
 		Source:          code,
 		Program:         pgm,
-		BaseInitContext: NewInitContext(rt, new(context.Context), cachedFS, loader.Dir(src.Filename)),
+		BaseInitContext: NewInitContext(rt, compiler, new(context.Context), cachedFS, loader.Dir(src.Filename)),
 		Env:             rtOpts.Env,
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
@@ -126,6 +131,11 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 ***REMOVED***
 
 func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle, error) ***REMOVED***
+	compiler, err := compiler.New()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	if arc.Type != "js" ***REMOVED***
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
@@ -135,7 +145,7 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		return nil, err
 	***REMOVED***
 
-	initctx := NewInitContext(goja.New(), new(context.Context), nil, arc.Pwd)
+	initctx := NewInitContext(goja.New(), compiler, new(context.Context), nil, arc.Pwd)
 	for filename, data := range arc.Scripts ***REMOVED***
 		src := string(data)
 		pgm, err := initctx.compileImport(src, filename)
@@ -217,7 +227,7 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
-	if _, err := rt.RunProgram(jslib.CoreJS); err != nil ***REMOVED***
+	if _, err := rt.RunProgram(jslib.GetCoreJS()); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 

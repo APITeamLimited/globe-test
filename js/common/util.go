@@ -27,7 +27,12 @@ import (
 
 // Runs an ES6 string in the given runtime. Use this rather than writing ES5 in tests.
 func RunString(rt *goja.Runtime, src string) (goja.Value, error) ***REMOVED***
-	src, _, err := compiler.Transform(src, "__string__")
+	compiler, err := compiler.New()
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+
+	src, _, err = compiler.Transform(src, "__string__")
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
