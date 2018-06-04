@@ -127,12 +127,11 @@ type failingConn struct ***REMOVED***
 	net.Conn
 ***REMOVED***
 
-var start int64 = time.Now().UnixNano()
+var failOnConnWrite = false
 
 func (c failingConn) Write(b []byte) (int, error) ***REMOVED***
-	now := time.Now().UnixNano()
-	if (now - start) > int64(250*time.Millisecond) ***REMOVED***
-		start = now
+	if failOnConnWrite ***REMOVED***
+		failOnConnWrite = false
 		return 0, errors.New("write error")
 	***REMOVED***
 
@@ -165,8 +164,9 @@ func TestTracerNegativeHttpSendingValues(t *testing.T) ***REMOVED***
 		assert.NoError(t, res.Body.Close())
 		tracer.Done()
 	***REMOVED***
-	// wait before making the request, so it fails on writing the request
-	time.Sleep(300 * time.Millisecond)
+
+	// make the next connection write fail
+	failOnConnWrite = true
 
 	***REMOVED***
 		tracer := &Tracer***REMOVED******REMOVED***
