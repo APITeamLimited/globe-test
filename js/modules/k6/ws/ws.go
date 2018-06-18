@@ -275,44 +275,40 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 			sampleTags := stats.IntoSampleTags(&tags)
 
-			samples := []stats.SampleContainer***REMOVED***
-				stats.ConnectedSamples***REMOVED***
-					[]stats.Sample***REMOVED***
-						***REMOVED***Metric: metrics.WSSessions, Time: start, Tags: sampleTags, Value: 1***REMOVED***,
-						***REMOVED***Metric: metrics.WSConnecting, Time: start, Tags: sampleTags, Value: connectionDuration***REMOVED***,
-						***REMOVED***Metric: metrics.WSSessionDuration, Time: start, Tags: sampleTags, Value: sessionDuration***REMOVED***,
-					***REMOVED***, sampleTags, start,
-				***REMOVED***,
+			state.Samples <- stats.ConnectedSamples***REMOVED***
+				[]stats.Sample***REMOVED***
+					***REMOVED***Metric: metrics.WSSessions, Time: start, Tags: sampleTags, Value: 1***REMOVED***,
+					***REMOVED***Metric: metrics.WSConnecting, Time: start, Tags: sampleTags, Value: connectionDuration***REMOVED***,
+					***REMOVED***Metric: metrics.WSSessionDuration, Time: start, Tags: sampleTags, Value: sessionDuration***REMOVED***,
+				***REMOVED***, sampleTags, start,
 			***REMOVED***
 
 			for _, msgSentTimestamp := range socket.msgSentTimestamps ***REMOVED***
-				samples = append(samples, stats.Sample***REMOVED***
+				state.Samples <- stats.Sample***REMOVED***
 					Metric: metrics.WSMessagesSent,
 					Time:   msgSentTimestamp,
 					Tags:   sampleTags,
 					Value:  1,
-				***REMOVED***)
+				***REMOVED***
 			***REMOVED***
 
 			for _, msgReceivedTimestamp := range socket.msgReceivedTimestamps ***REMOVED***
-				samples = append(samples, stats.Sample***REMOVED***
+				state.Samples <- stats.Sample***REMOVED***
 					Metric: metrics.WSMessagesReceived,
 					Time:   msgReceivedTimestamp,
 					Tags:   sampleTags,
 					Value:  1,
-				***REMOVED***)
+				***REMOVED***
 			***REMOVED***
 
 			for _, pingDelta := range socket.pingTimestamps ***REMOVED***
-				samples = append(samples, stats.Sample***REMOVED***
+				state.Samples <- stats.Sample***REMOVED***
 					Metric: metrics.WSPing,
 					Time:   pingDelta.pong,
 					Tags:   sampleTags,
 					Value:  stats.D(pingDelta.pong.Sub(pingDelta.ping)),
-				***REMOVED***)
+				***REMOVED***
 			***REMOVED***
-
-			state.Samples = append(state.Samples, samples...)
 
 			return wsResponse, nil
 		***REMOVED***

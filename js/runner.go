@@ -102,15 +102,15 @@ func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
 	return r.Bundle.MakeArchive()
 ***REMOVED***
 
-func (r *Runner) NewVU() (lib.VU, error) ***REMOVED***
-	vu, err := r.newVU()
+func (r *Runner) NewVU(samplesOut chan<- stats.SampleContainer) (lib.VU, error) ***REMOVED***
+	vu, err := r.newVU(samplesOut)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	return lib.VU(vu), nil
 ***REMOVED***
 
-func (r *Runner) newVU() (*VU, error) ***REMOVED***
+func (r *Runner) newVU(samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate()
 	if err != nil ***REMOVED***
@@ -172,6 +172,7 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 		TLSConfig:      tlsConfig,
 		Console:        NewConsole(),
 		BPool:          bpool.NewBufferPool(100),
+		Samples:        samplesOut,
 	***REMOVED***
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 	common.BindToGlobal(vu.Runtime, map[string]interface***REMOVED******REMOVED******REMOVED***
@@ -188,14 +189,14 @@ func (r *Runner) newVU() (*VU, error) ***REMOVED***
 	return vu, nil
 ***REMOVED***
 
-func (r *Runner) Setup(ctx context.Context) error ***REMOVED***
+func (r *Runner) Setup(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 	setupCtx, setupCancel := context.WithTimeout(
 		ctx,
 		time.Duration(r.Bundle.Options.SetupTimeout.Duration),
 	)
 	defer setupCancel()
 
-	v, err := r.runPart(setupCtx, "setup", nil)
+	v, err := r.runPart(setupCtx, out, "setup", nil)
 	if err != nil ***REMOVED***
 		return errors.Wrap(err, "setup")
 	***REMOVED***
@@ -216,14 +217,14 @@ func (r *Runner) SetSetupData(data interface***REMOVED******REMOVED***) ***REMOV
 	r.setupData = data
 ***REMOVED***
 
-func (r *Runner) Teardown(ctx context.Context) error ***REMOVED***
+func (r *Runner) Teardown(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 	teardownCtx, teardownCancel := context.WithTimeout(
 		ctx,
 		time.Duration(r.Bundle.Options.TeardownTimeout.Duration),
 	)
 	defer teardownCancel()
 
-	_, err := r.runPart(teardownCtx, "teardown", r.setupData)
+	_, err := r.runPart(teardownCtx, out, "teardown", r.setupData)
 	return err
 ***REMOVED***
 
@@ -246,8 +247,8 @@ func (r *Runner) SetOptions(opts lib.Options) ***REMOVED***
 
 // Runs an exported function in its own temporary VU, optionally with an argument. Execution is
 // interrupted if the context expires. No error is returned if the part does not exist.
-func (r *Runner) runPart(ctx context.Context, name string, arg interface***REMOVED******REMOVED***) (goja.Value, error) ***REMOVED***
-	vu, err := r.newVU()
+func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, name string, arg interface***REMOVED******REMOVED***) (goja.Value, error) ***REMOVED***
+	vu, err := r.newVU(out)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
@@ -265,7 +266,13 @@ func (r *Runner) runPart(ctx context.Context, name string, arg interface***REMOV
 		<-ctx.Done()
 		vu.Runtime.Interrupt(errInterrupt)
 	***REMOVED***()
-	v, _, err := vu.runFn(ctx, fn, vu.Runtime.ToValue(arg))
+
+	group, err := lib.NewGroup(name, r.GetDefaultGroup())
+	if err != nil ***REMOVED***
+		return goja.Undefined(), err
+	***REMOVED***
+
+	v, _, err := vu.runFn(ctx, group, fn, vu.Runtime.ToValue(arg))
 	cancel()
 	return v, err
 ***REMOVED***
@@ -282,6 +289,8 @@ type VU struct ***REMOVED***
 
 	Console *Console
 	BPool   *bpool.BufferPool
+
+	Samples chan<- stats.SampleContainer
 
 	setupData goja.Value
 
@@ -306,7 +315,7 @@ func (u *VU) Reconfigure(id int64) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (u *VU) RunOnce(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
+func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	// Track the context and interrupt JS execution if it's cancelled.
 	if u.interruptTrackedCtx != ctx ***REMOVED***
 		interCtx, interCancel := context.WithCancel(context.Background())
@@ -333,14 +342,11 @@ func (u *VU) RunOnce(ctx context.Context) ([]stats.SampleContainer, error) ***RE
 	***REMOVED***
 
 	// Call the default function.
-	_, state, err := u.runFn(ctx, u.Default, u.setupData)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	return state.Samples, nil
+	_, _, err := u.runFn(ctx, u.Runner.defaultGroup, u.Default, u.setupData)
+	return err
 ***REMOVED***
 
-func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (goja.Value, *common.State, error) ***REMOVED***
+func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args ...goja.Value) (goja.Value, *common.State, error) ***REMOVED***
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), nil, err
@@ -349,7 +355,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 	state := &common.State***REMOVED***
 		Logger:        u.Runner.Logger,
 		Options:       u.Runner.Bundle.Options,
-		Group:         u.Runner.defaultGroup,
+		Group:         group,
 		HTTPTransport: u.HTTPTransport,
 		Dialer:        u.Dialer,
 		TLSConfig:     u.TLSConfig,
@@ -357,6 +363,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		RPSLimit:      u.Runner.RPSLimit,
 		BPool:         u.BPool,
 		Vu:            u.ID,
+		Samples:       u.Samples,
 		Iteration:     u.Iteration,
 	***REMOVED***
 
@@ -385,7 +392,7 @@ func (u *VU) runFn(ctx context.Context, fn goja.Callable, args ...goja.Value) (g
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
 
-	state.Samples = append(state.Samples, u.Dialer.GetTrail(startTime, endTime, sampleTags))
+	state.Samples <- u.Dialer.GetTrail(startTime, endTime, sampleTags)
 
 	return v, state, err
 ***REMOVED***

@@ -84,9 +84,10 @@ func HandleSetSetupData(rw http.ResponseWriter, r *http.Request, p httprouter.Pa
 
 // HandleRunSetup executes the runner's Setup() method and returns the result
 func HandleRunSetup(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
-	runner := common.GetEngine(r.Context()).Executor.GetRunner()
+	engine := common.GetEngine(r.Context())
+	runner := engine.Executor.GetRunner()
 
-	if err := runner.Setup(r.Context()); err != nil ***REMOVED***
+	if err := runner.Setup(r.Context(), engine.Samples); err != nil ***REMOVED***
 		apiError(rw, "Error executing setup", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
@@ -96,9 +97,10 @@ func HandleRunSetup(rw http.ResponseWriter, r *http.Request, p httprouter.Params
 
 // HandleRunTeardown executes the runner's Teardown() method
 func HandleRunTeardown(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+	engine := common.GetEngine(r.Context())
 	runner := common.GetEngine(r.Context()).Executor.GetRunner()
 
-	if err := runner.Teardown(r.Context()); err != nil ***REMOVED***
+	if err := runner.Teardown(r.Context(), engine.Samples); err != nil ***REMOVED***
 		apiError(rw, "Error executing teardown", err.Error(), http.StatusInternalServerError)
 	***REMOVED***
 ***REMOVED***

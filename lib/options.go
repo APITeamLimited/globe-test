@@ -254,6 +254,9 @@ type Options struct ***REMOVED***
 
 	// Tags to be applied to all samples for this running
 	RunTags *stats.SampleTags `json:"tags" envconfig:"tags"`
+
+	// Buffer size of the channel for metric samples; 0 means unbuffered
+	MetricSamplesBufferSize null.Int `json:"metricSamplesBufferSize" envconfig:"metric_samples_buffer_size"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -350,6 +353,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if !opts.RunTags.IsEmpty() ***REMOVED***
 		o.RunTags = opts.RunTags
+	***REMOVED***
+	if opts.MetricSamplesBufferSize.Valid ***REMOVED***
+		o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
 	***REMOVED***
 	return o
 ***REMOVED***

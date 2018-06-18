@@ -89,6 +89,8 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		// TODO: find a saner and more dev-friendly and error-proof way to handle options
 		SetupTimeout:    types.NullDuration***REMOVED***Duration: types.Duration(10 * time.Second), Valid: false***REMOVED***,
 		TeardownTimeout: types.NullDuration***REMOVED***Duration: types.Duration(10 * time.Second), Valid: false***REMOVED***,
+
+		MetricSamplesBufferSize: null.NewInt(1000, false),
 	***REMOVED***
 
 	stageStrings, err := flags.GetStringSlice("stage")
