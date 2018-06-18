@@ -267,7 +267,11 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.NoConnectionReuse.Valid)
 		assert.True(t, opts.NoConnectionReuse.Bool)
 	***REMOVED***)
-
+	t.Run("NoVUConnectionReuse", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoVUConnectionReuse: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.NoVUConnectionReuse.Valid)
+		assert.True(t, opts.NoVUConnectionReuse.Bool)
+	***REMOVED***)
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*net.IPNet***REMOVED******REMOVED***
@@ -409,6 +413,11 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		// TLSVersion
 		// TLSAuth
 		***REMOVED***"NoConnectionReuse", "K6_NO_CONNECTION_REUSE"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		***REMOVED***"NoVUConnectionReuse", "K6_NO_VU_CONNECTION_REUSE"***REMOVED***: ***REMOVED***
 			"":      null.Bool***REMOVED******REMOVED***,
 			"true":  null.BoolFrom(true),
 			"false": null.BoolFrom(false),
