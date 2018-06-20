@@ -89,7 +89,7 @@ func TestGroup(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	rt := goja.New()
-	state := &common.State***REMOVED***Group: root***REMOVED***
+	state := &common.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
 
 	ctx := context.Background()
 	ctx = common.WithState(ctx, state)
@@ -112,7 +112,6 @@ func TestGroup(t *testing.T) ***REMOVED***
 		assert.EqualError(t, err, "GoError: group and check names may not contain '::'")
 	***REMOVED***)
 ***REMOVED***
-
 func TestCheck(t *testing.T) ***REMOVED***
 	rt := goja.New()
 
@@ -125,23 +124,26 @@ func TestCheck(t *testing.T) ***REMOVED***
 	*ctx = baseCtx
 	rt.Set("k6", common.Bind(rt, New(), ctx))
 
-	getState := func() *common.State ***REMOVED***
+	getState := func() (*common.State, chan stats.SampleContainer) ***REMOVED***
+		samples := make(chan stats.SampleContainer, 1000)
 		return &common.State***REMOVED***
 			Group: root,
 			Options: lib.Options***REMOVED***
 				SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...),
 			***REMOVED***,
-		***REMOVED***
+			Samples: samples,
+		***REMOVED***, samples
 	***REMOVED***
 	t.Run("Object", func(t *testing.T) ***REMOVED***
-		state := getState()
+		state, samples := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 		assert.NoError(t, err)
 
-		if assert.Len(t, state.Samples, 1) ***REMOVED***
-			sample, ok := state.Samples[0].(stats.Sample)
+		bufSamples := stats.GetBufferedSamples(samples)
+		if assert.Len(t, bufSamples, 1) ***REMOVED***
+			sample, ok := bufSamples[0].(stats.Sample)
 			require.True(t, ok)
 
 			assert.NotZero(t, sample.Time)
@@ -154,15 +156,16 @@ func TestCheck(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("Multiple", func(t *testing.T) ***REMOVED***
-			state := getState()
+			state, samples := getState()
 			*ctx = common.WithState(baseCtx, state)
 
 			_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
 			assert.NoError(t, err)
 
-			assert.Len(t, state.Samples, 2)
+			bufSamples := stats.GetBufferedSamples(samples)
+			assert.Len(t, bufSamples, 2)
 			var foundA, foundB bool
-			for _, sampleC := range state.Samples ***REMOVED***
+			for _, sampleC := range bufSamples ***REMOVED***
 				for _, sample := range sampleC.GetSamples() ***REMOVED***
 					name, ok := sample.Tags.Get("check")
 					assert.True(t, ok)
@@ -189,14 +192,15 @@ func TestCheck(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Array", func(t *testing.T) ***REMOVED***
-		state := getState()
+		state, samples := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, [ true ])`)
 		assert.NoError(t, err)
 
-		if assert.Len(t, state.Samples, 1) ***REMOVED***
-			sample, ok := state.Samples[0].(stats.Sample)
+		bufSamples := stats.GetBufferedSamples(samples)
+		if assert.Len(t, bufSamples, 1) ***REMOVED***
+			sample, ok := bufSamples[0].(stats.Sample)
 			require.True(t, ok)
 
 			assert.NotZero(t, sample.Time)
@@ -210,15 +214,18 @@ func TestCheck(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Literal", func(t *testing.T) ***REMOVED***
-		state := getState()
+		state, samples := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		_, err := common.RunString(rt, `k6.check(null, 12345)`)
 		assert.NoError(t, err)
-		assert.Len(t, state.Samples, 0)
+		assert.Len(t, stats.GetBufferedSamples(samples), 0)
 	***REMOVED***)
 
 	t.Run("Throws", func(t *testing.T) ***REMOVED***
+		state, _ := getState()
+		*ctx = common.WithState(baseCtx, state)
+
 		_, err := common.RunString(rt, `
 		k6.check(null, ***REMOVED***
 			"a": function() ***REMOVED*** throw new Error("error A") ***REMOVED***,
@@ -250,7 +257,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				for value, succ := range testdata ***REMOVED***
 					t.Run(value, func(t *testing.T) ***REMOVED***
-						state := getState()
+						state, samples := getState()
 						*ctx = common.WithState(baseCtx, state)
 
 						v, err := common.RunString(rt, fmt.Sprintf(tpl, value))
@@ -258,8 +265,9 @@ func TestCheck(t *testing.T) ***REMOVED***
 							assert.Equal(t, succ, v.Export())
 						***REMOVED***
 
-						if assert.Len(t, state.Samples, 1) ***REMOVED***
-							sample, ok := state.Samples[0].(stats.Sample)
+						bufSamples := stats.GetBufferedSamples(samples)
+						if assert.Len(t, bufSamples, 1) ***REMOVED***
+							sample, ok := bufSamples[0].(stats.Sample)
 							require.True(t, ok)
 
 							assert.NotZero(t, sample.Time)
@@ -283,7 +291,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			root, err := lib.NewGroup("", nil)
 			assert.NoError(t, err)
 
-			state := &common.State***REMOVED***Group: root***REMOVED***
+			state := &common.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
 			ctx2, cancel := context.WithCancel(common.WithState(baseCtx, state))
 			*ctx = ctx2
 
@@ -309,7 +317,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Tags", func(t *testing.T) ***REMOVED***
-		state := getState()
+		state, samples := getState()
 		*ctx = common.WithState(baseCtx, state)
 
 		v, err := common.RunString(rt, `k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
@@ -317,8 +325,9 @@ func TestCheck(t *testing.T) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
 
-		if assert.Len(t, state.Samples, 1) ***REMOVED***
-			sample, ok := state.Samples[0].(stats.Sample)
+		bufSamples := stats.GetBufferedSamples(samples)
+		if assert.Len(t, bufSamples, 1) ***REMOVED***
+			sample, ok := bufSamples[0].(stats.Sample)
 			require.True(t, ok)
 
 			assert.NotZero(t, sample.Time)

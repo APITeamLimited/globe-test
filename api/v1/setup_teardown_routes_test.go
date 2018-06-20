@@ -79,6 +79,10 @@ func TestSetupData(t *testing.T) ***REMOVED***
 	engine, err := core.NewEngine(executor, runner.GetOptions())
 	require.NoError(t, err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
 	handler := NewHandler()
 
 	checkSetup := func(method, body, expResult string) ***REMOVED***
@@ -101,10 +105,6 @@ func TestSetupData(t *testing.T) ***REMOVED***
 	checkSetup("GET", "", `***REMOVED***"data": ***REMOVED***"v":1***REMOVED******REMOVED***`)
 	checkSetup("PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`)
 	checkSetup("GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 	engine.Executor.SetPaused(false)
 

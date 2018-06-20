@@ -54,11 +54,11 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 		setupC := make(chan struct***REMOVED******REMOVED***)
 		teardownC := make(chan struct***REMOVED******REMOVED***)
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 				close(setupC)
 				return nil, nil
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 				close(teardownC)
 				return nil
 			***REMOVED***,
@@ -66,7 +66,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
 		err := make(chan error, 1)
-		go func() ***REMOVED*** err <- e.Run(ctx, nil) ***REMOVED***()
+		go func() ***REMOVED*** err <- e.Run(ctx, make(chan stats.SampleContainer, 100)) ***REMOVED***()
 		cancel()
 		<-setupC
 		<-teardownC
@@ -74,21 +74,21 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***)
-		assert.EqualError(t, e.Run(context.Background(), nil), "setup error")
+		assert.EqualError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 100)), "setup error")
 
 		t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 					return nil, errors.New("setup error")
 				***REMOVED***,
-				TeardownFn: func(ctx context.Context) error ***REMOVED***
+				TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 					return errors.New("teardown error")
 				***REMOVED***,
 			***REMOVED***)
@@ -96,29 +96,29 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 			e.SetEndIterations(null.IntFrom(1))
 			assert.NoError(t, e.SetVUsMax(1))
 			assert.NoError(t, e.SetVUs(1))
-			assert.EqualError(t, e.Run(context.Background(), nil), "teardown error")
+			assert.EqualError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 100)), "teardown error")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 				return nil, nil
 			***REMOVED***,
-			TeardownFn: func(ctx context.Context) error ***REMOVED***
+			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***)
 		e.SetEndIterations(null.IntFrom(1))
 		assert.NoError(t, e.SetVUsMax(1))
 		assert.NoError(t, e.SetVUs(1))
-		assert.EqualError(t, e.Run(context.Background(), nil), "teardown error")
+		assert.EqualError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 100)), "teardown error")
 
 		t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 					return nil, nil
 				***REMOVED***,
-				TeardownFn: func(ctx context.Context) error ***REMOVED***
+				TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 					return errors.New("teardown error")
 				***REMOVED***,
 			***REMOVED***)
@@ -126,7 +126,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 			e.SetEndIterations(null.IntFrom(1))
 			assert.NoError(t, e.SetVUsMax(1))
 			assert.NoError(t, e.SetVUs(1))
-			assert.NoError(t, e.Run(context.Background(), nil))
+			assert.NoError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 100)))
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -164,30 +164,48 @@ func TestExecutorStages(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			e := New(nil)
+			e := New(&lib.MiniRunner***REMOVED***
+				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+					time.Sleep(100 * time.Millisecond)
+					return nil
+				***REMOVED***,
+				Options: lib.Options***REMOVED***
+					MetricSamplesBufferSize: null.IntFrom(500),
+				***REMOVED***,
+			***REMOVED***)
 			assert.NoError(t, e.SetVUsMax(10))
 			e.SetStages(data.Stages)
-			assert.NoError(t, e.Run(context.Background(), nil))
+			assert.NoError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 500)))
 			assert.True(t, e.GetTime() >= data.Duration)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
 func TestExecutorEndTime(t *testing.T) ***REMOVED***
-	e := New(nil)
+	e := New(&lib.MiniRunner***REMOVED***
+		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			time.Sleep(100 * time.Millisecond)
+			return nil
+		***REMOVED***,
+		Options: lib.Options***REMOVED***MetricSamplesBufferSize: null.IntFrom(200)***REMOVED***,
+	***REMOVED***)
 	assert.NoError(t, e.SetVUsMax(10))
 	assert.NoError(t, e.SetVUs(10))
 	e.SetEndTime(types.NullDurationFrom(1 * time.Second))
 	assert.Equal(t, types.NullDurationFrom(1*time.Second), e.GetEndTime())
 
 	startTime := time.Now()
-	assert.NoError(t, e.Run(context.Background(), nil))
+	assert.NoError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 200)))
 	assert.True(t, time.Now().After(startTime.Add(1*time.Second)), "test did not take 1s")
 
 	t.Run("Runtime Errors", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
-			return nil, errors.New("hi")
-		***REMOVED******REMOVED***)
+		e := New(&lib.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+				time.Sleep(10 * time.Millisecond)
+				return errors.New("hi")
+			***REMOVED***,
+			Options: lib.Options***REMOVED***MetricSamplesBufferSize: null.IntFrom(200)***REMOVED***,
+		***REMOVED***)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
 		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
@@ -197,7 +215,7 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 		e.SetLogger(l)
 
 		startTime := time.Now()
-		assert.NoError(t, e.Run(context.Background(), nil))
+		assert.NoError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 200)))
 		assert.True(t, time.Now().After(startTime.Add(100*time.Millisecond)), "test did not take 100ms")
 
 		assert.NotEmpty(t, hook.Entries)
@@ -207,10 +225,13 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("End Errors", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
-			<-ctx.Done()
-			return nil, errors.New("hi")
-		***REMOVED******REMOVED***)
+		e := New(&lib.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+				<-ctx.Done()
+				return errors.New("hi")
+			***REMOVED***,
+			Options: lib.Options***REMOVED***MetricSamplesBufferSize: null.IntFrom(200)***REMOVED***,
+		***REMOVED***)
 		assert.NoError(t, e.SetVUsMax(10))
 		assert.NoError(t, e.SetVUs(10))
 		e.SetEndTime(types.NullDurationFrom(100 * time.Millisecond))
@@ -220,7 +241,7 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 		e.SetLogger(l)
 
 		startTime := time.Now()
-		assert.NoError(t, e.Run(context.Background(), nil))
+		assert.NoError(t, e.Run(context.Background(), make(chan stats.SampleContainer, 200)))
 		assert.True(t, time.Now().After(startTime.Add(100*time.Millisecond)), "test did not take 100ms")
 
 		assert.Empty(t, hook.Entries)
@@ -231,32 +252,34 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
 	var i int64
-	e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
+	e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
 			atomic.AddInt64(&i, 1)
 		***REMOVED***
-		return []stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED******REMOVED***, nil
+		out <- stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***
+		return nil
 	***REMOVED******REMOVED***)
 	assert.NoError(t, e.SetVUsMax(1))
 	assert.NoError(t, e.SetVUs(1))
 	e.SetEndIterations(null.IntFrom(100))
 	assert.Equal(t, null.IntFrom(100), e.GetEndIterations())
 
-	samples := make(chan []stats.SampleContainer, 101)
+	samples := make(chan stats.SampleContainer, 201)
 	assert.NoError(t, e.Run(context.Background(), samples))
 	assert.Equal(t, int64(100), e.GetIterations())
 	assert.Equal(t, int64(100), i)
 	for i := 0; i < 100; i++ ***REMOVED***
-		samples := <-samples
-		if assert.Len(t, samples, 2) ***REMOVED***
-			assert.Equal(t, stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, samples[0])
-			sample, ok := (samples[1]).(stats.Sample)
-			require.True(t, ok)
-			assert.Equal(t, metrics.Iterations, sample.Metric)
-			assert.Equal(t, float64(1), sample.Value)
-		***REMOVED***
+		mySample, ok := <-samples
+		require.True(t, ok)
+		assert.Equal(t, stats.Sample***REMOVED***Metric: metric, Value: 1.0***REMOVED***, mySample)
+		sample, ok := <-samples
+		require.True(t, ok)
+		iterSample, ok := (sample).(stats.Sample)
+		require.True(t, ok)
+		assert.Equal(t, metrics.Iterations, iterSample.Metric)
+		assert.Equal(t, float64(1), iterSample.Value)
 	***REMOVED***
 ***REMOVED***
 
@@ -318,8 +341,8 @@ func TestExecutorSetVUs(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Raise", func(t *testing.T) ***REMOVED***
-		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
-			return nil, nil
+		e := New(&lib.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			return nil
 		***REMOVED******REMOVED***)
 		e.ctx = context.Background()
 

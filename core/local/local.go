@@ -130,6 +130,11 @@ type Executor struct ***REMOVED***
 ***REMOVED***
 
 func New(r lib.Runner) *Executor ***REMOVED***
+	var bufferSize int64
+	if r != nil ***REMOVED***
+		bufferSize = r.GetOptions().MetricSamplesBufferSize.Int64
+	***REMOVED***
+
 	return &Executor***REMOVED***
 		Runner:      r,
 		Logger:      log.StandardLogger(),
@@ -137,7 +142,7 @@ func New(r lib.Runner) *Executor ***REMOVED***
 		runTeardown: true,
 		endIters:    -1,
 		endTime:     -1,
-		vuOut:       make(chan stats.SampleContainer, r.GetOptions().MetricSamplesBufferSize.Int64),
+		vuOut:       make(chan stats.SampleContainer, bufferSize),
 		iterDone:    make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***
 ***REMOVED***
