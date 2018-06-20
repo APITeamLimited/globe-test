@@ -184,6 +184,7 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		subwg.Done()
 	***REMOVED***()
 
+	sampleContainers := []stats.SampleContainer***REMOVED******REMOVED***
 	defer func() ***REMOVED***
 		// Shut down subsystems.
 		subcancel()
@@ -199,11 +200,12 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			close(e.Samples)
 		***REMOVED***()
 
-		sampleContainers := []stats.SampleContainer***REMOVED******REMOVED***
 		for sc := range e.Samples ***REMOVED***
 			sampleContainers = append(sampleContainers, sc)
 		***REMOVED***
-		e.processSamples(sampleContainers)
+		if len(sampleContainers) > 0 ***REMOVED***
+			e.processSamples(sampleContainers)
+		***REMOVED***
 
 		// Emit final metrics.
 		e.emitMetrics()
@@ -219,7 +221,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	***REMOVED***()
 
 	ticker := time.NewTicker(CollectRate)
-	sampleContainers := []stats.SampleContainer***REMOVED******REMOVED***
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
