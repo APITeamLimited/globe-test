@@ -386,13 +386,15 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 	if state.Options.SystemTags["iter"] ***REMOVED***
 		tags["iter"] = strconv.FormatInt(iter, 10)
 	***REMOVED***
-	sampleTags := stats.IntoSampleTags(&tags)
+	if state.Options.SystemTags["group"] ***REMOVED***
+		tags["group"] = group.Path
+	***REMOVED***
 
 	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
 
-	state.Samples <- u.Dialer.GetTrail(startTime, endTime, sampleTags)
+	state.Samples <- u.Dialer.GetTrail(startTime, endTime, stats.IntoSampleTags(&tags))
 
 	return v, state, err
 ***REMOVED***
