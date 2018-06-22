@@ -161,6 +161,7 @@ func (r *Runner) newVU(samplesOut chan<- stats.SampleContainer) (*VU, error) ***
 		TLSClientConfig:    tlsConfig,
 		DialContext:        dialer.DialContext,
 		DisableCompression: true,
+		DisableKeepAlives:  r.Bundle.Options.NoConnectionReuse.Bool,
 	***REMOVED***
 	_ = http2.ConfigureTransport(transport)
 
@@ -390,7 +391,7 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 		tags["group"] = group.Path
 	***REMOVED***
 
-	if u.Runner.Bundle.Options.NoConnectionReuse.Bool ***REMOVED***
+	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
 

@@ -84,6 +84,29 @@ func TestSleep(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func TestRandSeed(t *testing.T) ***REMOVED***
+	rt := goja.New()
+
+	ctx := context.Background()
+	ctx = common.WithRuntime(ctx, rt)
+
+	rt.Set("k6", common.Bind(rt, New(), &ctx))
+
+	rand := 0.8487305991992138
+	_, err := common.RunString(rt, fmt.Sprintf(`
+		let rnd = Math.random();
+		if (rnd == %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
+	`, rand))
+	assert.NoError(t, err)
+
+	_, err = common.RunString(rt, fmt.Sprintf(`
+		k6.randomSeed(12345)
+		let rnd = Math.random();
+		if (rnd != %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
+	`, rand))
+	assert.NoError(t, err)
+***REMOVED***
+
 func TestGroup(t *testing.T) ***REMOVED***
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
