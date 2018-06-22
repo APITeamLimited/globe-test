@@ -749,3 +749,70 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
+
+func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	script := []byte(tb.Replacer.Replace(`
+		import http from "k6/http";
+		import ***REMOVED*** check ***REMOVED*** from "k6";
+		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+		let statusCheck = ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***
+		let myCounter = new Counter("setup_teardown");
+
+		export let options = ***REMOVED***
+			iterations: 5,
+			thresholds: ***REMOVED***
+				"setup_teardown": ["count == 2"],
+				"iterations": ["count == 5"],
+				"http_reqs": ["count == 7"],
+			***REMOVED***,
+		***REMOVED***;
+
+		export function setup() ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck) && myCounter.add(1);
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck);
+		***REMOVED***;
+
+		export function teardown() ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck) && myCounter.add(1);
+		***REMOVED***;
+	`))
+
+	runner, err := js.New(
+		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
+		afero.NewMemMapFs(),
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+	runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
+		SystemTags:      lib.GetTagSet(lib.DefaultSystemTagList...),
+		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
+		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
+		VUs:             null.IntFrom(3),
+		VUsMax:          null.IntFrom(3),
+	***REMOVED***))
+
+	engine, err := NewEngine(local.New(runner), runner.GetOptions())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+		require.False(t, engine.IsTainted())
+	***REMOVED***
+***REMOVED***
