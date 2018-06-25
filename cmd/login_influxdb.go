@@ -54,34 +54,28 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			***REMOVED***
 			conf = conf.Apply(urlConf)
 		***REMOVED***
-		if conf.Addr == "" ***REMOVED***
-			conf.Addr = "http://localhost:8086"
-		***REMOVED***
-		if conf.DB == "" ***REMOVED***
-			conf.DB = "k6"
-		***REMOVED***
 
 		form := ui.Form***REMOVED***
 			Fields: []ui.Field***REMOVED***
 				ui.StringField***REMOVED***
 					Key:     "Addr",
 					Label:   "Address",
-					Default: conf.Addr,
+					Default: conf.Addr.String,
 				***REMOVED***,
 				ui.StringField***REMOVED***
 					Key:     "DB",
 					Label:   "Database",
-					Default: conf.DB,
+					Default: conf.DB.String,
 				***REMOVED***,
 				ui.StringField***REMOVED***
 					Key:     "Username",
 					Label:   "Username",
-					Default: conf.Username,
+					Default: conf.Username.String,
 				***REMOVED***,
 				ui.StringField***REMOVED***
 					Key:     "Password",
 					Label:   "Password",
-					Default: conf.Password,
+					Default: conf.Password.String,
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***

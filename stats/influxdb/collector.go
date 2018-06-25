@@ -94,7 +94,7 @@ func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) Link() string ***REMOVED***
-	return c.Config.Addr
+	return c.Config.Addr.String
 ***REMOVED***
 
 func (c *Collector) commit() ***REMOVED***
