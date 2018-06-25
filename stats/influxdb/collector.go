@@ -192,4 +192,5 @@ func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
 ***REMOVED***
 
-func (c *Collector) SetRunStatus(status int) ***REMOVED******REMOVED***
+// SetRunStatus does nothing in the InfluxDB collector
+func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED***
