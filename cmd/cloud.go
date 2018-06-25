@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
@@ -168,7 +169,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			case <-ticker.C:
 				testProgress, progressErr = client.GetTestProgress(refID)
 				if progressErr == nil ***REMOVED***
-					if (testProgress.RunStatus > 2) || (exitOnRunning && testProgress.RunStatus == 2) ***REMOVED***
+					if (testProgress.RunStatus > lib.RunStatusRunning) || (exitOnRunning && testProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
 						shouldExitLoop = true
 					***REMOVED***
 					progress.Progress = testProgress.Progress
@@ -180,17 +181,22 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 					break runningLoop
 				***REMOVED***
 			case sig := <-sigC:
-				log.WithField("sig", sig).Debug("Exiting in response to signal")
+				log.WithField("sig", sig).Print("Exiting in response to signal...")
 				err := client.StopCloudTestRun(refID)
 				if err != nil ***REMOVED***
 					log.WithError(err).Error("Stop cloud test error")
 				***REMOVED***
-				shouldExitLoop = true
+				shouldExitLoop = true // Exit after the next GetTestProgress call
 			***REMOVED***
 		***REMOVED***
+
+		if testProgress == nil ***REMOVED***
+			return ExitCode***REMOVED***errors.New("Test progress error"), 98***REMOVED***
+		***REMOVED***
+
 		fmt.Fprintf(stdout, "     test status: %s\n", ui.ValueColor.Sprint(testProgress.RunStatusText))
 
-		if testProgress.ResultStatus == 1 ***REMOVED***
+		if testProgress.ResultStatus == cloud.ResultStatusFailed ***REMOVED***
 			return ExitCode***REMOVED***errors.New("The test has failed"), 99***REMOVED***
 		***REMOVED***
 
