@@ -375,7 +375,10 @@ var _ ConnectedSampleContainer = ConnectedSamples***REMOVED******REMOVED***
 func GetBufferedSamples(input <-chan SampleContainer) (result []SampleContainer) ***REMOVED***
 	for ***REMOVED***
 		select ***REMOVED***
-		case val := <-input:
+		case val, ok := <-input:
+			if !ok ***REMOVED***
+				return
+			***REMOVED***
 			result = append(result, val)
 		default:
 			return
