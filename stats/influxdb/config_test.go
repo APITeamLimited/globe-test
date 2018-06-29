@@ -24,15 +24,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	null "gopkg.in/guregu/null.v3"
 )
 
 func TestParseArg(t *testing.T) ***REMOVED***
 	testdata := map[string]Config***REMOVED***
-		"":                                                                   ***REMOVED******REMOVED***,
-		"db=dbname":                                                          ***REMOVED***DB: "dbname"***REMOVED***,
-		"addr=http://localhost:8086":                                         ***REMOVED***Addr: "http://localhost:8086"***REMOVED***,
-		"addr=http://localhost:8086,db=dbname":                               ***REMOVED***Addr: "http://localhost:8086", DB: "dbname"***REMOVED***,
-		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname", Insecure: false, PayloadSize: 69***REMOVED***,
+		"":                                                                                       ***REMOVED******REMOVED***,
+		"db=dbname":                                                                              ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
+		"addr=http://localhost:8086":                                                             ***REMOVED***Addr: null.StringFrom("http://localhost:8086")***REMOVED***,
+		"addr=http://localhost:8086,db=dbname":                                                   ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname")***REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,":                    ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69)***REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,tagsAsFields=***REMOVED***fake***REMOVED***": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), TagsAsFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for str, expConfig := range testdata ***REMOVED***
@@ -48,20 +50,20 @@ func TestParseArg(t *testing.T) ***REMOVED***
 func TestParseURL(t *testing.T) ***REMOVED***
 	testdata := map[string]Config***REMOVED***
 		"":                             ***REMOVED******REMOVED***,
-		"dbname":                       ***REMOVED***DB: "dbname"***REMOVED***,
-		"/dbname":                      ***REMOVED***DB: "dbname"***REMOVED***,
-		"http://localhost:8086":        ***REMOVED***Addr: "http://localhost:8086"***REMOVED***,
-		"http://localhost:8086/dbname": ***REMOVED***Addr: "http://localhost:8086", DB: "dbname"***REMOVED***,
+		"dbname":                       ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
+		"/dbname":                      ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
+		"http://localhost:8086":        ***REMOVED***Addr: null.StringFrom("http://localhost:8086")***REMOVED***,
+		"http://localhost:8086/dbname": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname")***REMOVED***,
 	***REMOVED***
 	queries := map[string]struct ***REMOVED***
 		Config Config
 		Err    string
 	***REMOVED******REMOVED***
 		"?":                ***REMOVED***Config***REMOVED******REMOVED***, ""***REMOVED***,
-		"?insecure=false":  ***REMOVED***Config***REMOVED***Insecure: false***REMOVED***, ""***REMOVED***,
-		"?insecure=true":   ***REMOVED***Config***REMOVED***Insecure: true***REMOVED***, ""***REMOVED***,
+		"?insecure=false":  ***REMOVED***Config***REMOVED***Insecure: null.BoolFrom(false)***REMOVED***, ""***REMOVED***,
+		"?insecure=true":   ***REMOVED***Config***REMOVED***Insecure: null.BoolFrom(true)***REMOVED***, ""***REMOVED***,
 		"?insecure=ture":   ***REMOVED***Config***REMOVED******REMOVED***, "insecure must be true or false, not ture"***REMOVED***,
-		"?payload_size=69": ***REMOVED***Config***REMOVED***PayloadSize: 69***REMOVED***, ""***REMOVED***,
+		"?payload_size=69": ***REMOVED***Config***REMOVED***PayloadSize: null.IntFrom(69)***REMOVED***, ""***REMOVED***,
 		"?payload_size=a":  ***REMOVED***Config***REMOVED******REMOVED***, "strconv.Atoi: parsing \"a\": invalid syntax"***REMOVED***,
 	***REMOVED***
 	for str, data := range testdata ***REMOVED***

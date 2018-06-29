@@ -24,35 +24,36 @@ import (
 	"strings"
 
 	client "github.com/influxdata/influxdb/client/v2"
+	null "gopkg.in/guregu/null.v3"
 )
 
 func MakeClient(conf Config) (client.Client, error) ***REMOVED***
-	if strings.HasPrefix(conf.Addr, "udp://") ***REMOVED***
+	if strings.HasPrefix(conf.Addr.String, "udp://") ***REMOVED***
 		return client.NewUDPClient(client.UDPConfig***REMOVED***
-			Addr:        strings.TrimPrefix(conf.Addr, "udp://"),
-			PayloadSize: conf.PayloadSize,
+			Addr:        strings.TrimPrefix(conf.Addr.String, "udp://"),
+			PayloadSize: int(conf.PayloadSize.Int64),
 		***REMOVED***)
 	***REMOVED***
-	if conf.Addr == "" ***REMOVED***
-		conf.Addr = "http://localhost:8086"
+	if conf.Addr.String == "" ***REMOVED***
+		conf.Addr = null.StringFrom("http://localhost:8086")
 	***REMOVED***
 	return client.NewHTTPClient(client.HTTPConfig***REMOVED***
-		Addr:               conf.Addr,
-		Username:           conf.Username,
-		Password:           conf.Password,
+		Addr:               conf.Addr.String,
+		Username:           conf.Username.String,
+		Password:           conf.Password.String,
 		UserAgent:          "k6",
-		InsecureSkipVerify: conf.Insecure,
+		InsecureSkipVerify: conf.Insecure.Bool,
 	***REMOVED***)
 ***REMOVED***
 
 func MakeBatchConfig(conf Config) client.BatchPointsConfig ***REMOVED***
-	if conf.DB == "" ***REMOVED***
-		conf.DB = "k6"
+	if !conf.DB.Valid || conf.DB.String == "" ***REMOVED***
+		conf.DB = null.StringFrom("k6")
 	***REMOVED***
 	return client.BatchPointsConfig***REMOVED***
-		Precision:        conf.Precision,
-		Database:         conf.DB,
-		RetentionPolicy:  conf.Retention,
-		WriteConsistency: conf.Consistency,
+		Precision:        conf.Precision.String,
+		Database:         conf.DB.String,
+		RetentionPolicy:  conf.Retention.String,
+		WriteConsistency: conf.Consistency.String,
 	***REMOVED***
 ***REMOVED***

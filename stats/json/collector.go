@@ -72,7 +72,7 @@ func (c *Collector) Init() error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (c *Collector) SetRunStatus(status int) ***REMOVED******REMOVED***
+func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	log.WithField("filename", c.fname).Debug("JSON: Writing JSON metrics")

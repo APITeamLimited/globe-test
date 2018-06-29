@@ -107,7 +107,7 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 	return e, nil
 ***REMOVED***
 
-func (e *Engine) setRunStatus(status int) ***REMOVED***
+func (e *Engine) setRunStatus(status lib.RunStatus) ***REMOVED***
 	if len(e.Collectors) == 0 ***REMOVED***
 		return
 	***REMOVED***
