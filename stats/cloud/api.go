@@ -33,6 +33,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+type ResultStatus int
+
+const (
+	ResultStatusPassed ResultStatus = 0
+	ResultStatusFailed ResultStatus = 1
+)
+
 type ThresholdResult map[string]map[string]bool
 
 type TestRun struct ***REMOVED***
@@ -50,10 +57,10 @@ type CreateTestRunResponse struct ***REMOVED***
 ***REMOVED***
 
 type TestProgressResponse struct ***REMOVED***
-	RunStatusText string  `json:"run_status_text"`
-	RunStatus     int     `json:"run_status"`
-	ResultStatus  int     `json:"result_status"`
-	Progress      float64 `json:"progress"`
+	RunStatusText string        `json:"run_status_text"`
+	RunStatus     lib.RunStatus `json:"run_status"`
+	ResultStatus  ResultStatus  `json:"result_status"`
+	Progress      float64       `json:"progress"`
 ***REMOVED***
 
 type LoginResponse struct ***REMOVED***
@@ -156,17 +163,17 @@ func (c *Client) StartCloudTestRun(name string, projectID int64, arc *lib.Archiv
 	return ctrr.ReferenceID, nil
 ***REMOVED***
 
-func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool, runStatus int) error ***REMOVED***
+func (c *Client) TestFinished(referenceID string, thresholds ThresholdResult, tained bool, runStatus lib.RunStatus) error ***REMOVED***
 	url := fmt.Sprintf("%s/tests/%s", c.baseURL, referenceID)
 
-	resultStatus := 0
+	resultStatus := ResultStatusPassed
 	if tained ***REMOVED***
-		resultStatus = 1
+		resultStatus = ResultStatusFailed
 	***REMOVED***
 
 	data := struct ***REMOVED***
-		ResultStatus int             `json:"result_status"`
-		RunStatus    int             `json:"run_status"`
+		ResultStatus ResultStatus    `json:"result_status"`
+		RunStatus    lib.RunStatus   `json:"run_status"`
 		Thresholds   ThresholdResult `json:"thresholds"`
 	***REMOVED******REMOVED***
 		resultStatus,

@@ -51,7 +51,7 @@ type Collector struct ***REMOVED***
 	client     *Client
 
 	anonymous bool
-	runStatus int
+	runStatus lib.RunStatus
 
 	bufferMutex      sync.Mutex
 	bufferHTTPTrails []*netext.Trail
@@ -457,6 +457,6 @@ func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.GetTagSet("name", "method", "status", "error", "check", "group")
 ***REMOVED***
 
-func (c *Collector) SetRunStatus(status int) ***REMOVED***
+func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED***
 	c.runStatus = status
 ***REMOVED***
