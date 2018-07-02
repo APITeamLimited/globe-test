@@ -370,6 +370,22 @@ var _ SampleContainer = Samples***REMOVED******REMOVED***
 var _ ConnectedSampleContainer = Sample***REMOVED******REMOVED***
 var _ ConnectedSampleContainer = ConnectedSamples***REMOVED******REMOVED***
 
+// GetBufferedSamples will read all present (i.e. buffered or currently being pushed)
+// values in the input channel and return them as a slice.
+func GetBufferedSamples(input <-chan SampleContainer) (result []SampleContainer) ***REMOVED***
+	for ***REMOVED***
+		select ***REMOVED***
+		case val, ok := <-input:
+			if !ok ***REMOVED***
+				return
+			***REMOVED***
+			result = append(result, val)
+		default:
+			return
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 // A Metric defines the shape of a set of data.
 type Metric struct ***REMOVED***
 	Name       string       `json:"name"`

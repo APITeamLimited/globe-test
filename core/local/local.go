@@ -36,6 +36,12 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+// TODO: totally rewrite this!
+// This is an overcomplicated and probably buggy piece of code that is a major PITA to refactor...
+// It does a ton of stuff in a very convoluted way, has a and uses a very incomprehensible mix
+// of all possible Go synchronization mechanisms (channels, mutexes, rwmutexes, atomics,
+// and waitgroups) and has a bunch of contexts and tickers on top...
+
 var _ lib.Executor = &Executor***REMOVED******REMOVED***
 
 type vuHandle struct ***REMOVED***
@@ -45,7 +51,7 @@ type vuHandle struct ***REMOVED***
 	cancel context.CancelFunc
 ***REMOVED***
 
-func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, out chan<- []stats.SampleContainer) ***REMOVED***
+func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, iterDone chan<- struct***REMOVED******REMOVED***) ***REMOVED***
 	h.RLock()
 	ctx := h.ctx
 	h.RUnlock()
@@ -60,21 +66,12 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, out chan<- []stats
 			return
 		***REMOVED***
 
-		var samples []stats.SampleContainer
 		if h.vu != nil ***REMOVED***
-			// TODO: Refactor this if we want better aggregation...
-			// As seen below, at the moment test scripts will emit their
-			// metric samples only after they've finished executing. This
-			// means that long-running scripts will emit samples with
-			// times long in the past, long after their respective time buckets
-			// have been sent to the cloud. If we instead pass on the out
-			// SampleContainer channel directly to the VU, we could Collect()
-			// those samples as soon as they are emitted.
-
-			runSamples, err := h.vu.RunOnce(ctx)
+			err := h.vu.RunOnce(ctx)
 			if err != nil ***REMOVED***
 				select ***REMOVED***
 				case <-ctx.Done():
+				// Don't log errors from cancelled iterations
 				default:
 					if s, ok := err.(fmt.Stringer); ok ***REMOVED***
 						logger.Error(s.String())
@@ -83,9 +80,8 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, out chan<- []stats
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			samples = runSamples
 		***REMOVED***
-		out <- samples
+		iterDone <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -123,14 +119,22 @@ type Executor struct ***REMOVED***
 	// Current context, nil if a test isn't running right now.
 	ctx context.Context
 
-	// Engineward output channel for samples.
-	out chan<- []stats.SampleContainer
+	// Output channel to which VUs send samples.
+	vuOut chan stats.SampleContainer
+
+	// Channel on which VUs sigal that iterations are completed
+	iterDone chan struct***REMOVED******REMOVED***
 
 	// Flow control for VUs; iterations are run only after reading from this channel.
 	flow chan int64
 ***REMOVED***
 
 func New(r lib.Runner) *Executor ***REMOVED***
+	var bufferSize int64
+	if r != nil ***REMOVED***
+		bufferSize = r.GetOptions().MetricSamplesBufferSize.Int64
+	***REMOVED***
+
 	return &Executor***REMOVED***
 		Runner:      r,
 		Logger:      log.StandardLogger(),
@@ -138,33 +142,34 @@ func New(r lib.Runner) *Executor ***REMOVED***
 		runTeardown: true,
 		endIters:    -1,
 		endTime:     -1,
+		vuOut:       make(chan stats.SampleContainer, bufferSize),
+		iterDone:    make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***
 ***REMOVED***
 
-func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContainer) (reterr error) ***REMOVED***
+func (e *Executor) Run(parent context.Context, engineOut chan<- stats.SampleContainer) (reterr error) ***REMOVED***
 	e.runLock.Lock()
 	defer e.runLock.Unlock()
 
 	if e.Runner != nil && e.runSetup ***REMOVED***
-		if err := e.Runner.Setup(parent); err != nil ***REMOVED***
+		if err := e.Runner.Setup(parent, engineOut); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 
 	ctx, cancel := context.WithCancel(parent)
-	vuOut := make(chan []stats.SampleContainer)
 	vuFlow := make(chan int64)
-
 	e.lock.Lock()
+	vuOut := e.vuOut
+	iterDone := e.iterDone
 	e.ctx = ctx
-	e.out = vuOut
 	e.flow = vuFlow
 	e.lock.Unlock()
 
 	var cutoff time.Time
 	defer func() ***REMOVED***
 		if e.Runner != nil && e.runTeardown ***REMOVED***
-			err := e.Runner.Teardown(parent)
+			err := e.Runner.Teardown(parent, engineOut)
 			if reterr == nil ***REMOVED***
 				reterr = err
 			***REMOVED*** else if err != nil ***REMOVED***
@@ -177,7 +182,7 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 
 		e.lock.Lock()
 		e.ctx = nil
-		e.out = nil
+		e.vuOut = nil
 		e.flow = nil
 		e.lock.Unlock()
 
@@ -187,22 +192,19 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 			close(wait)
 		***REMOVED***()
 
-		var samples []stats.SampleContainer
 		for ***REMOVED***
 			select ***REMOVED***
-			case newSampleContainers := <-vuOut:
+			case <-iterDone:
+				// Spool through all remaining iterations, do not emit stats since the Run() is over
+			case newSampleContainer := <-vuOut:
 				if cutoff.IsZero() ***REMOVED***
-					samples = append(samples, newSampleContainers...)
+					engineOut <- newSampleContainer
+				***REMOVED*** else if csc, ok := newSampleContainer.(stats.ConnectedSampleContainer); ok && csc.GetTime().Before(cutoff) ***REMOVED***
+					engineOut <- newSampleContainer
 				***REMOVED*** else ***REMOVED***
-					for _, nsc := range newSampleContainers ***REMOVED***
-						if csc, ok := nsc.(stats.ConnectedSampleContainer); ok && csc.GetTime().Before(cutoff) ***REMOVED***
-							samples = append(samples, nsc)
-						***REMOVED*** else if nsc != nil ***REMOVED***
-							for _, s := range nsc.GetSamples() ***REMOVED***
-								if s.Time.Before(cutoff) ***REMOVED***
-									samples = append(samples, s)
-								***REMOVED***
-							***REMOVED***
+					for _, s := range newSampleContainer.GetSamples() ***REMOVED***
+						if s.Time.Before(cutoff) ***REMOVED***
+							engineOut <- s
 						***REMOVED***
 					***REMOVED***
 				***REMOVED***
@@ -211,9 +213,6 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 			select ***REMOVED***
 			case <-wait:
 				close(vuOut)
-				if out != nil && len(samples) > 0 ***REMOVED***
-					out <- samples
-				***REMOVED***
 				return
 			default:
 			***REMOVED***
@@ -291,21 +290,20 @@ func (e *Executor) Run(parent context.Context, out chan<- []stats.SampleContaine
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-		case samples := <-vuOut:
-			// Every iteration ends with a write to vuOut. Check if we've hit the end point.
+		case sampleContainer := <-vuOut:
+			engineOut <- sampleContainer
+		case <-iterDone:
+			// Every iteration ends with a write to iterDone. Check if we've hit the end point.
 			// If not, make sure to include an Iterations bump in the list!
-			if out != nil ***REMOVED***
-				var tags *stats.SampleTags
-				if e.Runner != nil ***REMOVED***
-					tags = e.Runner.GetOptions().RunTags
-				***REMOVED***
-				samples = append(samples, stats.Sample***REMOVED***
-					Time:   time.Now(),
-					Metric: metrics.Iterations,
-					Value:  1,
-					Tags:   tags,
-				***REMOVED***)
-				out <- samples
+			var tags *stats.SampleTags
+			if e.Runner != nil ***REMOVED***
+				tags = e.Runner.GetOptions().RunTags
+			***REMOVED***
+			engineOut <- stats.Sample***REMOVED***
+				Time:   time.Now(),
+				Metric: metrics.Iterations,
+				Value:  1,
+				Tags:   tags,
 			***REMOVED***
 
 			end := atomic.LoadInt64(&e.endIters)
@@ -332,7 +330,7 @@ func (e *Executor) scale(ctx context.Context, num int64) error ***REMOVED***
 
 	e.lock.RLock()
 	flow := e.flow
-	out := e.out
+	iterDone := e.iterDone
 	e.lock.RUnlock()
 
 	for i, handle := range e.vus ***REMOVED***
@@ -357,7 +355,7 @@ func (e *Executor) scale(ctx context.Context, num int64) error ***REMOVED***
 
 				e.wg.Add(1)
 				go func() ***REMOVED***
-					handle.run(e.Logger, flow, out)
+					handle.run(e.Logger, flow, iterDone)
 					e.wg.Done()
 				***REMOVED***()
 			***REMOVED***
@@ -514,6 +512,10 @@ func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
 		return nil
 	***REMOVED***
 
+	e.lock.RLock()
+	vuOut := e.vuOut
+	e.lock.RUnlock()
+
 	e.vusLock.Lock()
 	defer e.vusLock.Unlock()
 
@@ -521,7 +523,7 @@ func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
 	for i := numVUsMax; i < max; i++ ***REMOVED***
 		var handle vuHandle
 		if e.Runner != nil ***REMOVED***
-			vu, err := e.Runner.NewVU()
+			vu, err := e.Runner.NewVU(vuOut)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

@@ -56,6 +56,9 @@ func applyNullLogger(e *Engine) *logtest.Hook ***REMOVED***
 
 // Wrapper around newEngine that applies a null logger.
 func newTestEngine(ex lib.Executor, opts lib.Options) (*Engine, error, *logtest.Hook) ***REMOVED***
+	if !opts.MetricSamplesBufferSize.Valid ***REMOVED***
+		opts.MetricSamplesBufferSize = null.IntFrom(200)
+	***REMOVED***
 	e, err := NewEngine(ex, opts)
 	if err != nil ***REMOVED***
 		return e, err, nil
@@ -64,12 +67,8 @@ func newTestEngine(ex lib.Executor, opts lib.Options) (*Engine, error, *logtest.
 	return e, nil, hook
 ***REMOVED***
 
-func L(r lib.Runner) lib.Executor ***REMOVED***
-	return local.New(r)
-***REMOVED***
-
-func LF(fn func(ctx context.Context) ([]stats.SampleContainer, error)) lib.Executor ***REMOVED***
-	return L(&lib.MiniRunner***REMOVED***Fn: fn***REMOVED***)
+func LF(fn func(ctx context.Context, out chan<- stats.SampleContainer) error) lib.Executor ***REMOVED***
+	return local.New(&lib.MiniRunner***REMOVED***Fn: fn***REMOVED***)
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
@@ -250,8 +249,8 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 		var e *Engine
-		e, err, _ := newTestEngine(LF(func(ctx context.Context) (samples []stats.SampleContainer, err error) ***REMOVED***
-			samples = append(samples, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+		e, err, _ := newTestEngine(LF(func(ctx context.Context, samples chan<- stats.SampleContainer) error ***REMOVED***
+			samples <- stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***
 			close(signalChan)
 			<-ctx.Done()
 
@@ -263,8 +262,8 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 			// 2. Sometimes the `case samples := <-vuOut` gets selected before the `<-ctx.Done()` in
 			//    core/local/local.go:Run() causing all samples from this mocked "RunOnce()" function to be accepted.
 			time.Sleep(time.Millisecond * 10)
-			samples = append(samples, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 2***REMOVED***)
-			return samples, err
+			samples <- stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 2***REMOVED***
+			return nil
 		***REMOVED***), lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			VUsMax:     null.IntFrom(1),
@@ -308,8 +307,9 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 func TestEngineCollector(t *testing.T) ***REMOVED***
 	testMetric := stats.New("test_metric", stats.Trend)
 
-	e, err, _ := newTestEngine(LF(func(ctx context.Context) ([]stats.SampleContainer, error) ***REMOVED***
-		return []stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: testMetric***REMOVED******REMOVED***, nil
+	e, err, _ := newTestEngine(LF(func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		out <- stats.Sample***REMOVED***Metric: testMetric***REMOVED***
+		return nil
 	***REMOVED***), lib.Options***REMOVED***VUs: null.IntFrom(1), VUsMax: null.IntFrom(1), Iterations: null.IntFrom(1)***REMOVED***)
 	assert.NoError(t, err)
 
@@ -343,7 +343,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
@@ -365,7 +365,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms[0].Tags.CloneTags())
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED***,
+			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
@@ -387,7 +387,7 @@ func TestEngine_runThresholds(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -410,7 +410,7 @@ func TestEngine_runThresholds(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		e.processSamples(
-			stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -463,7 +463,7 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 
 			e.processSamples(
-				stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+				[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 			)
 
 			abortCalled := false
@@ -747,5 +747,72 @@ func TestRunTags(t *testing.T) ***REMOVED***
 			assert.True(t, ok)
 			assert.Equalf(t, expVal, val, "Wrong tag value in sample for metric %#v", s.Metric)
 		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	script := []byte(tb.Replacer.Replace(`
+		import http from "k6/http";
+		import ***REMOVED*** check ***REMOVED*** from "k6";
+		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+		let statusCheck = ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***
+		let myCounter = new Counter("setup_teardown");
+
+		export let options = ***REMOVED***
+			iterations: 5,
+			thresholds: ***REMOVED***
+				"setup_teardown": ["count == 2"],
+				"iterations": ["count == 5"],
+				"http_reqs": ["count == 7"],
+			***REMOVED***,
+		***REMOVED***;
+
+		export function setup() ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck) && myCounter.add(1);
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck);
+		***REMOVED***;
+
+		export function teardown() ***REMOVED***
+			check(http.get("HTTPBIN_IP_URL"), statusCheck) && myCounter.add(1);
+		***REMOVED***;
+	`))
+
+	runner, err := js.New(
+		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
+		afero.NewMemMapFs(),
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+	runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
+		SystemTags:      lib.GetTagSet(lib.DefaultSystemTagList...),
+		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
+		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
+		VUs:             null.IntFrom(3),
+		VUsMax:          null.IntFrom(3),
+	***REMOVED***))
+
+	engine, err := NewEngine(local.New(runner), runner.GetOptions())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+		require.False(t, engine.IsTainted())
 	***REMOVED***
 ***REMOVED***
