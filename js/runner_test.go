@@ -40,7 +40,6 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -538,32 +537,21 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
-	srv := &http.Server***REMOVED***
-		Addr: ":8080",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
-			_, _ = fmt.Fprintf(w, "ok")
-		***REMOVED***),
-		ErrorLog: stdlog.New(ioutil.Discard, "", 0),
-	***REMOVED***
-	go func() ***REMOVED***
-		require.NoError(t, srv.ListenAndServe())
-	***REMOVED***()
-	defer func() ***REMOVED***
-		require.NoError(t, srv.Shutdown(context.TODO()))
-	***REMOVED***()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
 
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
-		Data: []byte(`
+		Data: []byte(tb.Replacer.Replace(`
 					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
 					import http from "k6/http";
 					export default function() ***REMOVED***
-						let res = http.get("http://test.loadimpact.com:8080/");
+						let res = http.get("http://test.loadimpact.com:HTTPBIN_PORT/");
 						check(res, ***REMOVED***
 							"is correct IP": (r) => r.remote_ip === "127.0.0.1"
 						***REMOVED***) || fail("failed to override dns");
 					***REMOVED***
-				`),
+				`)),
 	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
