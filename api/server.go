@@ -70,6 +70,8 @@ func WithEngine(engine *core.Engine) negroni.HandlerFunc ***REMOVED***
 func HandlePing() http.Handler ***REMOVED***
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprint(rw, "ok")
+		if _, err := fmt.Fprint(rw, "ok"); err != nil ***REMOVED***
+			log.WithError(err).Error("Error while printing ok")
+		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

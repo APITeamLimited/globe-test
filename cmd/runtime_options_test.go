@@ -215,7 +215,7 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 
 			archive := runner.MakeArchive()
 			archiveBuf := &bytes.Buffer***REMOVED******REMOVED***
-			archive.Write(archiveBuf)
+			assert.NoError(t, archive.Write(archiveBuf))
 
 			getRunnerErr := func(rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
 				r, err := newRunner(

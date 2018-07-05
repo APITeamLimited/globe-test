@@ -317,10 +317,12 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			ch <- true
 		***REMOVED***()
 
-		r.ParseMultipartForm(32 << 20)
+		assert.NoError(t, r.ParseMultipartForm(32<<20))
 		file, _, err := r.FormFile("file")
 		assert.NoError(t, err)
-		defer file.Close()
+		defer func() ***REMOVED***
+			assert.NoError(t, file.Close())
+		***REMOVED***()
 		bytes := make([]byte, 3)
 		_, err = file.Read(bytes)
 		assert.NoError(t, err)

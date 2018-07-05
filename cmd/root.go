@@ -22,6 +22,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -104,6 +105,15 @@ func init() ***REMOVED***
 	RootCmd.PersistentFlags().StringVarP(&address, "address", "a", "localhost:6565", "address for the api server")
 	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file"+defaultConfigPathMsg)
 	must(cobra.MarkFlagFilename(RootCmd.PersistentFlags(), "config"))
+***REMOVED***
+
+// fprintf panics when where's an error writing to the supplied io.Writer
+func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED***) (n int) ***REMOVED***
+	n, err := fmt.Fprintf(w, format, a...)
+	if err != nil ***REMOVED***
+		panic(err.Error())
+	***REMOVED***
+	return n
 ***REMOVED***
 
 // RawFormatter it does nothing with the message just prints it
