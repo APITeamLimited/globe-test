@@ -26,12 +26,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"sort"
 	"strings"
 
+	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
+	null "gopkg.in/guregu/null.v3"
 )
 
 // fprint panics when where's an error writing to the supplied io.Writer
@@ -56,9 +59,30 @@ func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED**
 	return n
 ***REMOVED***
 
-func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
+// TODO: refactor this to have fewer parameters... or just refactor in general...
+func Convert(h HAR, optionsFilePath string, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
+
+	// recordings include redirections as separate requests, and we dont want to trigger them twice
+	scriptOptions := lib.Options***REMOVED***MaxRedirects: null.IntFrom(0)***REMOVED***
+
+	if optionsFilePath != "" ***REMOVED***
+		optionsFileContents, err := ioutil.ReadFile(optionsFilePath)
+		if err != nil ***REMOVED***
+			return "", err
+		***REMOVED***
+		var injectedOptions lib.Options
+		if err := json.Unmarshal(optionsFileContents, &injectedOptions); err != nil ***REMOVED***
+			return "", err
+		***REMOVED***
+		scriptOptions = scriptOptions.Apply(injectedOptions)
+	***REMOVED***
+
+	scriptOptionsSrc, err := json.Marshal(scriptOptions)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
 	if returnOnFailedCheck && !enableChecks ***REMOVED***
 		return "", errors.Errorf("return on failed check requires --enable-status-code-checks")
@@ -84,8 +108,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 		fprintf(w, "// %v\n", h.Log.Comment)
 	***REMOVED***
 
-	// recordings include redirections as separate requests, and we dont want to trigger them twice
-	fprint(w, "\nexport let options = ***REMOVED*** maxRedirects: 0 ***REMOVED***;\n\n")
+	fprintf(w, "\nexport let options = %s;\n\n", scriptOptionsSrc)
 
 	fprint(w, "export default function() ***REMOVED***\n\n")
 
