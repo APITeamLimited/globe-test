@@ -25,17 +25,47 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
 
+	"github.com/loadimpact/k6/lib"
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
 )
 
-func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
+// fprint panics when where's an error writing to the supplied io.Writer
+// since this will be used on in-memory expandable buffers, that should
+// happen only when we run out of memory...
+func fprint(w io.Writer, a ...interface***REMOVED******REMOVED***) int ***REMOVED***
+	n, err := fmt.Fprint(w, a...)
+	if err != nil ***REMOVED***
+		panic(err.Error())
+	***REMOVED***
+	return n
+***REMOVED***
+
+// fprintf panics when where's an error writing to the supplied io.Writer
+// since this will be used on in-memory expandable buffers, that should
+// happen only when we run out of memory...
+func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED***) int ***REMOVED***
+	n, err := fmt.Fprintf(w, format, a...)
+	if err != nil ***REMOVED***
+		panic(err.Error())
+	***REMOVED***
+	return n
+***REMOVED***
+
+// TODO: refactor this to have fewer parameters... or just refactor in general...
+func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
+
+	scriptOptionsSrc, err := options.GetPrettyJSON("", "    ")
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
 
 	if returnOnFailedCheck && !enableChecks ***REMOVED***
 		return "", errors.Errorf("return on failed check requires --enable-status-code-checks")
@@ -46,25 +76,24 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 	***REMOVED***
 
 	if enableChecks ***REMOVED***
-		fmt.Fprint(w, "import ***REMOVED*** group, check, sleep ***REMOVED*** from 'k6';\n")
+		fprint(w, "import ***REMOVED*** group, check, sleep ***REMOVED*** from 'k6';\n")
 	***REMOVED*** else ***REMOVED***
-		fmt.Fprint(w, "import ***REMOVED*** group, sleep ***REMOVED*** from 'k6';\n")
+		fprint(w, "import ***REMOVED*** group, sleep ***REMOVED*** from 'k6';\n")
 	***REMOVED***
-	fmt.Fprint(w, "import http from 'k6/http';\n\n")
+	fprint(w, "import http from 'k6/http';\n\n")
 
-	fmt.Fprintf(w, "// Version: %v\n", h.Log.Version)
-	fmt.Fprintf(w, "// Creator: %v\n", h.Log.Creator.Name)
+	fprintf(w, "// Version: %v\n", h.Log.Version)
+	fprintf(w, "// Creator: %v\n", h.Log.Creator.Name)
 	if h.Log.Browser != nil ***REMOVED***
-		fmt.Fprintf(w, "// Browser: %v\n", h.Log.Browser.Name)
+		fprintf(w, "// Browser: %v\n", h.Log.Browser.Name)
 	***REMOVED***
 	if h.Log.Comment != "" ***REMOVED***
-		fmt.Fprintf(w, "// %v\n", h.Log.Comment)
+		fprintf(w, "// %v\n", h.Log.Comment)
 	***REMOVED***
 
-	// recordings include redirections as separate requests, and we dont want to trigger them twice
-	fmt.Fprint(w, "\nexport let options = ***REMOVED*** maxRedirects: 0 ***REMOVED***;\n\n")
+	fprintf(w, "\nexport let options = %s;\n\n", scriptOptionsSrc)
 
-	fmt.Fprint(w, "export default function() ***REMOVED***\n\n")
+	fprint(w, "export default function() ***REMOVED***\n\n")
 
 	pages := h.Log.Pages
 	sort.Sort(PageByStarted(pages))
@@ -98,7 +127,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 	for i, page := range pages ***REMOVED***
 
 		entries := pageEntries[page.ID]
-		fmt.Fprintf(w, "\tgroup(\"%s - %s\", function() ***REMOVED***\n", page.ID, page.Title)
+		fprintf(w, "\tgroup(\"%s - %s\", function() ***REMOVED***\n", page.ID, page.Title)
 
 		sort.Sort(EntryByStarted(entries))
 
@@ -106,7 +135,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 			var recordedRedirectURL string
 			previousResponse := map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***
 
-			fmt.Fprint(w, "\t\tlet res, redirectUrl, json;\n")
+			fprint(w, "\t\tlet res, redirectUrl, json;\n")
 
 			for entryIndex, e := range entries ***REMOVED***
 
@@ -114,7 +143,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 				var cookies []string
 				var body string
 
-				fmt.Fprintf(w, "\t\t// Request #%d\n", entryIndex)
+				fprintf(w, "\t\t// Request #%d\n", entryIndex)
 
 				if e.Request.PostData != nil ***REMOVED***
 					body = e.Request.PostData.Text
@@ -131,16 +160,16 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 					params = append(params, fmt.Sprintf("\"headers\": ***REMOVED***\n\t\t\t\t\t%s\n\t\t\t\t***REMOVED***", strings.Join(headers, ",\n\t\t\t\t\t")))
 				***REMOVED***
 
-				fmt.Fprintf(w, "\t\tres = http.%s(", strings.ToLower(e.Request.Method))
+				fprintf(w, "\t\tres = http.%s(", strings.ToLower(e.Request.Method))
 
 				if correlate && recordedRedirectURL != "" ***REMOVED***
 					if recordedRedirectURL != e.Request.URL ***REMOVED***
 						return "", errors.Errorf("The har file contained a redirect but the next request did not match that redirect. Possibly a misbehaving client or concurrent requests?")
 					***REMOVED***
-					fmt.Fprintf(w, "redirectUrl")
+					fprintf(w, "redirectUrl")
 					recordedRedirectURL = ""
 				***REMOVED*** else ***REMOVED***
-					fmt.Fprintf(w, "%q", e.Request.URL)
+					fprintf(w, "%q", e.Request.URL)
 				***REMOVED***
 
 				if e.Request.Method != "GET" ***REMOVED***
@@ -159,30 +188,30 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 						requestText, err := json.Marshal(requestMap)
 						if err == nil ***REMOVED***
 							prettyJSONString := string(pretty.PrettyOptions(requestText, &pretty.Options***REMOVED***Width: 999999, Prefix: "\t\t\t", Indent: "\t", SortKeys: true***REMOVED***)[:])
-							fmt.Fprintf(w, ",\n\t\t\t`%s`", strings.TrimSpace(prettyJSONString))
+							fprintf(w, ",\n\t\t\t`%s`", strings.TrimSpace(prettyJSONString))
 						***REMOVED*** else ***REMOVED***
 							return "", err
 						***REMOVED***
 
 					***REMOVED*** else ***REMOVED***
-						fmt.Fprintf(w, ",\n\t\t%q", body)
+						fprintf(w, ",\n\t\t%q", body)
 					***REMOVED***
 				***REMOVED***
 
 				if len(params) > 0 ***REMOVED***
-					fmt.Fprintf(w, ",\n\t\t\t***REMOVED***\n\t\t\t\t%s\n\t\t\t***REMOVED***", strings.Join(params, ",\n\t\t\t"))
+					fprintf(w, ",\n\t\t\t***REMOVED***\n\t\t\t\t%s\n\t\t\t***REMOVED***", strings.Join(params, ",\n\t\t\t"))
 				***REMOVED***
 
-				fmt.Fprintf(w, "\n\t\t)\n")
+				fprintf(w, "\n\t\t)\n")
 
 				if e.Response != nil ***REMOVED***
 					// the response is nil if there is a failed request in the recording, or if responses were not recorded
 					if enableChecks ***REMOVED***
 						if e.Response.Status > 0 ***REMOVED***
 							if returnOnFailedCheck ***REMOVED***
-								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+								fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 							***REMOVED*** else ***REMOVED***
-								fmt.Fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
+								fprintf(w, "\t\tcheck(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", e.Response.Status, e.Response.Status)
 							***REMOVED***
 						***REMOVED***
 					***REMOVED***
@@ -190,7 +219,7 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 					if e.Response.Headers != nil ***REMOVED***
 						for _, header := range e.Response.Headers ***REMOVED***
 							if header.Name == "Location" ***REMOVED***
-								fmt.Fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
+								fprintf(w, "\t\tredirectUrl = res.headers.Location;\n")
 								recordedRedirectURL = header.Value
 								break
 							***REMOVED***
@@ -204,38 +233,38 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 						if err := json.Unmarshal([]byte(e.Response.Content.Text), &previousResponse); err != nil ***REMOVED***
 							return "", err
 						***REMOVED***
-						fmt.Fprint(w, "\t\tjson = JSON.parse(res.body);\n")
+						fprint(w, "\t\tjson = JSON.parse(res.body);\n")
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			batches := SplitEntriesInBatches(entries, batchTime)
 
-			fmt.Fprint(w, "\t\tlet req, res;\n")
+			fprint(w, "\t\tlet req, res;\n")
 
 			for j, batchEntries := range batches ***REMOVED***
 
-				fmt.Fprint(w, "\t\treq = [")
+				fprint(w, "\t\treq = [")
 				for k, e := range batchEntries ***REMOVED***
 					r, err := buildK6RequestObject(e.Request)
 					if err != nil ***REMOVED***
 						return "", err
 					***REMOVED***
-					fmt.Fprintf(w, "%v", r)
+					fprintf(w, "%v", r)
 					if k != len(batchEntries)-1 ***REMOVED***
-						fmt.Fprint(w, ",")
+						fprint(w, ",")
 					***REMOVED***
 				***REMOVED***
-				fmt.Fprint(w, "];\n")
-				fmt.Fprint(w, "\t\tres = http.batch(req);\n")
+				fprint(w, "];\n")
+				fprint(w, "\t\tres = http.batch(req);\n")
 
 				if enableChecks ***REMOVED***
 					for k, e := range batchEntries ***REMOVED***
 						if e.Response.Status > 0 ***REMOVED***
 							if returnOnFailedCheck ***REMOVED***
-								fmt.Fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
+								fprintf(w, "\t\tif (!check(res, ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***)) ***REMOVED*** return ***REMOVED***;\n", e.Response.Status, e.Response.Status)
 							***REMOVED*** else ***REMOVED***
-								fmt.Fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
+								fprintf(w, "\t\tcheck(res[%v], ***REMOVED***\"status is %v\": (r) => r.status === %v ***REMOVED***);\n", k, e.Response.Status, e.Response.Status)
 							***REMOVED***
 						***REMOVED***
 					***REMOVED***
@@ -245,14 +274,14 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 					lastBatchEntry := batchEntries[len(batchEntries)-1]
 					firstBatchEntry := batches[j+1][0]
 					t := firstBatchEntry.StartedDateTime.Sub(lastBatchEntry.StartedDateTime).Seconds()
-					fmt.Fprintf(w, "\t\tsleep(%.2f);\n", t)
+					fprintf(w, "\t\tsleep(%.2f);\n", t)
 				***REMOVED***
 			***REMOVED***
 
 			if i == len(pages)-1 ***REMOVED***
 				// Last page; add random sleep time at the group completion
-				fmt.Fprint(w, "\t\t// Random sleep between 20s and 40s\n")
-				fmt.Fprint(w, "\t\tsleep(Math.floor(Math.random()*20+20));\n")
+				fprintf(w, "\t\t// Random sleep between %ds and %ds\n", minSleep, maxSleep)
+				fprintf(w, "\t\tsleep(Math.floor(Math.random()*%d+%d));\n", maxSleep-minSleep, minSleep)
 			***REMOVED*** else ***REMOVED***
 				// Add sleep time at the end of the group
 				nextPage := pages[i+1]
@@ -261,14 +290,14 @@ func Convert(h HAR, enableChecks bool, returnOnFailedCheck bool, batchTime uint,
 				if t < 0.01 ***REMOVED***
 					t = 0.5
 				***REMOVED***
-				fmt.Fprintf(w, "\t\tsleep(%.2f);\n", t)
+				fprintf(w, "\t\tsleep(%.2f);\n", t)
 			***REMOVED***
 		***REMOVED***
 
-		fmt.Fprint(w, "\t***REMOVED***);\n")
+		fprint(w, "\t***REMOVED***);\n")
 	***REMOVED***
 
-	fmt.Fprint(w, "\n***REMOVED***\n")
+	fprint(w, "\n***REMOVED***\n")
 	if err := w.Flush(); err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
@@ -279,22 +308,22 @@ func buildK6RequestObject(req *Request) (string, error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
 
-	fmt.Fprint(w, "***REMOVED***\n")
+	fprint(w, "***REMOVED***\n")
 
 	method := strings.ToLower(req.Method)
 	if method == "delete" ***REMOVED***
 		method = "del"
 	***REMOVED***
-	fmt.Fprintf(w, `"method": %q, "url": %q`, method, req.URL)
+	fprintf(w, `"method": %q, "url": %q`, method, req.URL)
 
 	if req.PostData != nil && method != "get" ***REMOVED***
 		postParams, plainText, err := buildK6Body(req)
 		if err != nil ***REMOVED***
 			return "", err
 		***REMOVED*** else if len(postParams) > 0 ***REMOVED***
-			fmt.Fprintf(w, `, "body": ***REMOVED*** %s ***REMOVED***`, strings.Join(postParams, ", "))
+			fprintf(w, `, "body": ***REMOVED*** %s ***REMOVED***`, strings.Join(postParams, ", "))
 		***REMOVED*** else if plainText != "" ***REMOVED***
-			fmt.Fprintf(w, `, "body": %q`, plainText)
+			fprintf(w, `, "body": %q`, plainText)
 		***REMOVED***
 	***REMOVED***
 
@@ -312,10 +341,10 @@ func buildK6RequestObject(req *Request) (string, error) ***REMOVED***
 	***REMOVED***
 
 	if len(params) > 0 ***REMOVED***
-		fmt.Fprintf(w, `, "params": ***REMOVED*** %s ***REMOVED***`, strings.Join(params, ", "))
+		fprintf(w, `, "params": ***REMOVED*** %s ***REMOVED***`, strings.Join(params, ", "))
 	***REMOVED***
 
-	fmt.Fprint(w, "***REMOVED***")
+	fprint(w, "***REMOVED***")
 	if err := w.Flush(); err != nil ***REMOVED***
 		return "", err
 	***REMOVED***

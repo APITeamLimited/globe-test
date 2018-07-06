@@ -22,6 +22,7 @@ package cloud
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() ***REMOVED***
@@ -37,9 +39,15 @@ func init() ***REMOVED***
 	_ = os.Setenv("K6CLOUD_TOKEN", "")
 ***REMOVED***
 
+func fprintf(t *testing.T, w io.Writer, format string, a ...interface***REMOVED******REMOVED***) int ***REMOVED***
+	n, err := fmt.Fprintf(w, format, a...)
+	require.NoError(t, err)
+	return n
+***REMOVED***
+
 func TestCreateTestRun(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		fmt.Fprintf(w, `***REMOVED***"reference_id": "1", "config": ***REMOVED***"aggregationPeriod": "2s"***REMOVED******REMOVED***`)
+		fprintf(t, w, `***REMOVED***"reference_id": "1", "config": ***REMOVED***"aggregationPeriod": "2s"***REMOVED******REMOVED***`)
 	***REMOVED***))
 	defer server.Close()
 
@@ -60,7 +68,7 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 
 func TestPublishMetric(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		fmt.Fprintf(w, "")
+		fprintf(t, w, "")
 	***REMOVED***))
 	defer server.Close()
 
@@ -84,7 +92,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 
 func TestFinished(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		fmt.Fprintf(w, "")
+		fprintf(t, w, "")
 	***REMOVED***))
 	defer server.Close()
 
@@ -105,7 +113,7 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		called++
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
+		fprintf(t, w, `***REMOVED***"error": ***REMOVED***"code": 5, "message": "Not allowed"***REMOVED******REMOVED***`)
 	***REMOVED***))
 	defer server.Close()
 
@@ -140,7 +148,7 @@ func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		called++
 		if called == 2 ***REMOVED***
-			fmt.Fprintf(w, `***REMOVED***"reference_id": "1"***REMOVED***`)
+			fprintf(t, w, `***REMOVED***"reference_id": "1"***REMOVED***`)
 			return
 		***REMOVED***
 		w.WriteHeader(500)

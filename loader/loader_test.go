@@ -125,7 +125,8 @@ func TestLoad(t *testing.T) ***REMOVED***
 			http.Error(w, "Internal server error", 500)
 			return
 		***REMOVED***
-		fmt.Fprint(w, responseStr)
+		_, err := fmt.Fprint(w, responseStr)
+		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("No _k6=1 Fallback", func(t *testing.T) ***REMOVED***
