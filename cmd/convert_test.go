@@ -132,18 +132,18 @@ func TestIntegrationConvertCmd(t *testing.T) ***REMOVED***
 		buf := &bytes.Buffer***REMOVED******REMOVED***
 		defaultWriter = buf
 
-		convertCmd.Flags().Set("correlate", "true")
-		convertCmd.Flags().Set("no-batch", "true")
-		convertCmd.Flags().Set("enable-status-code-checks", "true")
-		convertCmd.Flags().Set("return-on-failed-check", "true")
+		assert.NoError(t, convertCmd.Flags().Set("correlate", "true"))
+		assert.NoError(t, convertCmd.Flags().Set("no-batch", "true"))
+		assert.NoError(t, convertCmd.Flags().Set("enable-status-code-checks", "true"))
+		assert.NoError(t, convertCmd.Flags().Set("return-on-failed-check", "true"))
 
 		err = convertCmd.RunE(convertCmd, []string***REMOVED***"/input.har"***REMOVED***)
 
 		// reset the convertCmd to default flags. There must be a nicer and less error prone way to do this...
-		convertCmd.Flags().Set("correlate", "false")
-		convertCmd.Flags().Set("no-batch", "false")
-		convertCmd.Flags().Set("enable-status-code-checks", "false")
-		convertCmd.Flags().Set("return-on-failed-check", "false")
+		assert.NoError(t, convertCmd.Flags().Set("correlate", "false"))
+		assert.NoError(t, convertCmd.Flags().Set("no-batch", "false"))
+		assert.NoError(t, convertCmd.Flags().Set("enable-status-code-checks", "false"))
+		assert.NoError(t, convertCmd.Flags().Set("return-on-failed-check", "false"))
 
 		if assert.NoError(t, err) ***REMOVED***
 			// assert.Equal suppresses the diff it is too big, so we add it as the test error message manually as well.

@@ -47,7 +47,9 @@ type Form struct ***REMOVED***
 // Runs the form against the specified input and output.
 func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED******REMOVED***, error) ***REMOVED***
 	if f.Banner != "" ***REMOVED***
-		fmt.Fprintln(w, color.BlueString(f.Banner)+"\n")
+		if _, err := fmt.Fprintln(w, color.BlueString(f.Banner)+"\n"); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 	***REMOVED***
 
 	buf := bufio.NewReader(r)
@@ -58,7 +60,9 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 			if extra := field.GetLabelExtra(); extra != "" ***REMOVED***
 				displayLabel += " " + color.New(color.Faint, color.FgCyan).Sprint("["+extra+"]")
 			***REMOVED***
-			fmt.Fprintf(w, "  "+displayLabel+": ")
+			if _, err := fmt.Fprintf(w, "  "+displayLabel+": "); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 
 			color.Set(color.FgCyan)
 			s, err := buf.ReadString('\n')
@@ -69,7 +73,9 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 
 			v, err := field.Clean(s)
 			if err != nil ***REMOVED***
-				fmt.Fprintln(w, color.RedString("- "+err.Error()))
+				if _, printErr := fmt.Fprintln(w, color.RedString("- "+err.Error())); printErr != nil ***REMOVED***
+					return nil, printErr
+				***REMOVED***
 				continue
 			***REMOVED***
 

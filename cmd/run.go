@@ -99,7 +99,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Create the Runner.
-		fmt.Fprintf(stdout, "%s runner\r", initBar.String())
+		fprintf(stdout, "%s runner\r", initBar.String())
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
 			return err
@@ -124,7 +124,7 @@ a commandline interface for interacting with it.`,
 		// Assemble options; start with the CLI-provided options to get shadowed (non-Valid)
 		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
 		// on top to give them priority.
-		fmt.Fprintf(stdout, "%s options\r", initBar.String())
+		fprintf(stdout, "%s options\r", initBar.String())
 		cliConf, err := getConfig(cmd.Flags())
 		if err != nil ***REMOVED***
 			return err
@@ -165,7 +165,7 @@ a commandline interface for interacting with it.`,
 		r.SetOptions(conf.Options)
 
 		// Create a local executor wrapping the runner.
-		fmt.Fprintf(stdout, "%s executor\r", initBar.String())
+		fprintf(stdout, "%s executor\r", initBar.String())
 		ex := local.New(r)
 		if runNoSetup ***REMOVED***
 			ex.SetRunSetup(false)
@@ -175,7 +175,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Create an engine.
-		fmt.Fprintf(stdout, "%s   engine\r", initBar.String())
+		fprintf(stdout, "%s   engine\r", initBar.String())
 		engine, err := core.NewEngine(ex, conf.Options)
 		if err != nil ***REMOVED***
 			return err
@@ -187,7 +187,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Create a collector and assign it to the engine if requested.
-		fmt.Fprintf(stdout, "%s   collector\r", initBar.String())
+		fprintf(stdout, "%s   collector\r", initBar.String())
 		for _, out := range conf.Out ***REMOVED***
 			t, arg := parseCollector(out)
 			collector, err := newCollector(t, arg, src, conf)
@@ -201,7 +201,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Create an API server.
-		fmt.Fprintf(stdout, "%s   server\r", initBar.String())
+		fprintf(stdout, "%s   server\r", initBar.String())
 		go func() ***REMOVED***
 			if err := api.ListenAndServe(address, engine); err != nil ***REMOVED***
 				log.WithError(err).Warn("Error from API server")
@@ -226,10 +226,10 @@ a commandline interface for interacting with it.`,
 				***REMOVED***
 			***REMOVED***
 
-			fmt.Fprintf(stdout, "  execution: %s\n", ui.ValueColor.Sprint("local"))
-			fmt.Fprintf(stdout, "     output: %s%s\n", ui.ValueColor.Sprint(out), ui.ExtraColor.Sprint(link))
-			fmt.Fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
-			fmt.Fprintf(stdout, "\n")
+			fprintf(stdout, "  execution: %s\n", ui.ValueColor.Sprint("local"))
+			fprintf(stdout, "     output: %s%s\n", ui.ValueColor.Sprint(out), ui.ExtraColor.Sprint(link))
+			fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
+			fprintf(stdout, "\n")
 
 			duration := ui.GrayColor.Sprint("-")
 			iterations := ui.GrayColor.Sprint("-")
@@ -249,13 +249,13 @@ a commandline interface for interacting with it.`,
 			durationPad := strings.Repeat(" ", leftWidth-ui.StrWidth(duration))
 			vusPad := strings.Repeat(" ", leftWidth-ui.StrWidth(vus))
 
-			fmt.Fprintf(stdout, "    duration: %s,%s iterations: %s\n", duration, durationPad, iterations)
-			fmt.Fprintf(stdout, "         vus: %s,%s max: %s\n", vus, vusPad, max)
-			fmt.Fprintf(stdout, "\n")
+			fprintf(stdout, "    duration: %s,%s iterations: %s\n", duration, durationPad, iterations)
+			fprintf(stdout, "         vus: %s,%s max: %s\n", vus, vusPad, max)
+			fprintf(stdout, "\n")
 		***REMOVED***
 
 		// Run the engine with a cancellable context.
-		fmt.Fprintf(stdout, "%s starting\r", initBar.String())
+		fprintf(stdout, "%s starting\r", initBar.String())
 		ctx, cancel := context.WithCancel(context.Background())
 		errC := make(chan error)
 		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
@@ -371,7 +371,7 @@ a commandline interface for interacting with it.`,
 					***REMOVED***
 				***REMOVED***
 				progress.Progress = prog
-				fmt.Fprintf(stdout, "%s\x1b[0K\r", progress.String())
+				fprintf(stdout, "%s\x1b[0K\r", progress.String())
 			case err := <-errC:
 				if err != nil ***REMOVED***
 					log.WithError(err).Error("Engine error")
@@ -397,7 +397,7 @@ a commandline interface for interacting with it.`,
 			fn("Test finished")
 		***REMOVED*** else ***REMOVED***
 			progress.Progress = 1
-			fmt.Fprintf(stdout, "%s\x1b[0K\n", progress.String())
+			fprintf(stdout, "%s\x1b[0K\n", progress.String())
 		***REMOVED***
 
 		// Warn if no iterations could be completed.
@@ -407,14 +407,14 @@ a commandline interface for interacting with it.`,
 
 		// Print the end-of-test summary.
 		if !quiet ***REMOVED***
-			fmt.Fprintf(stdout, "\n")
+			fprintf(stdout, "\n")
 			ui.Summarize(stdout, "", ui.SummaryData***REMOVED***
 				Opts:    conf.Options,
 				Root:    engine.Executor.GetRunner().GetDefaultGroup(),
 				Metrics: engine.Metrics,
 				Time:    engine.Executor.GetTime(),
 			***REMOVED***)
-			fmt.Fprintf(stdout, "\n")
+			fprintf(stdout, "\n")
 		***REMOVED***
 
 		if conf.Linger.Bool ***REMOVED***
