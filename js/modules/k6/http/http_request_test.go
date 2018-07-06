@@ -147,6 +147,18 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
 	***REMOVED***))
+	tb.Mux.HandleFunc("/set-cookie-before-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		cookie := http.Cookie***REMOVED***
+			Name:   "key-foo",
+			Value:  "value-bar",
+			Path:   "/",
+			Domain: sr("HTTPBIN_DOMAIN"),
+		***REMOVED***
+
+		http.SetCookie(w, &cookie)
+
+		http.Redirect(w, r, sr("HTTPBIN_URL/get"), 301)
+	***REMOVED***))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
 		t.Run("10", func(t *testing.T) ***REMOVED***
@@ -491,25 +503,60 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			t.Run("redirect", func(t *testing.T) ***REMOVED***
-				cookieJar, err := cookiejar.New(nil)
-				assert.NoError(t, err)
-				state.CookieJar = cookieJar
-				_, err = common.RunString(rt, sr(`
-				http.cookieJar().set("HTTPBIN_URL/cookies", "key", "value");
-				let res = http.request("GET", "HTTPBIN_URL/cookies/set?key2=value2");
-				if (res.json().key != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.body); ***REMOVED***
-				if (res.json().key2 != "value2") ***REMOVED*** throw new Error("wrong cookie value 2: " + res.body); ***REMOVED***
-				`))
-				assert.NoError(t, err)
-				assertRequestMetricsEmitted(
-					t,
-					stats.GetBufferedSamples(samples),
-					"GET",
-					sr("HTTPBIN_URL/cookies"),
-					sr("HTTPBIN_URL/cookies/set?key2=value2"),
-					200,
-					"",
-				)
+				t.Run("set cookie before redirect", func(t *testing.T) ***REMOVED***
+					cookieJar, err := cookiejar.New(nil)
+					assert.NoError(t, err)
+					state.CookieJar = cookieJar
+					_, err = common.RunString(rt, sr(`
+						let res = http.request("GET", "HTTPBIN_URL/set-cookie-before-redirect");
+						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+					`))
+					assert.NoError(t, err)
+
+					redirectUrl, err := url.Parse(sr("HTTPBIN_URL"))
+					assert.NoError(t, err)
+					require.Len(t, cookieJar.Cookies(redirectUrl), 1)
+					assert.Equal(t, "key-foo", cookieJar.Cookies(redirectUrl)[0].Name)
+					assert.Equal(t, "value-bar", cookieJar.Cookies(redirectUrl)[0].Value)
+
+					assertRequestMetricsEmitted(
+						t,
+						stats.GetBufferedSamples(samples),
+						"GET",
+						sr("HTTPBIN_URL/get"),
+						sr("HTTPBIN_URL/set-cookie-before-redirect"),
+						200,
+						"",
+					)
+				***REMOVED***)
+				t.Run("set cookie after redirect", func(t *testing.T) ***REMOVED***
+					cookieJar, err := cookiejar.New(nil)
+					assert.NoError(t, err)
+					state.CookieJar = cookieJar
+					_, err = common.RunString(rt, sr(`
+						let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/cookies/set?key=value");
+						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+					`))
+					assert.NoError(t, err)
+
+					redirectUrl, err := url.Parse(sr("HTTPSBIN_URL"))
+					assert.NoError(t, err)
+
+					require.Len(t, cookieJar.Cookies(redirectUrl), 1)
+					assert.Equal(t, "key", cookieJar.Cookies(redirectUrl)[0].Name)
+					assert.Equal(t, "value", cookieJar.Cookies(redirectUrl)[0].Value)
+
+					assertRequestMetricsEmitted(
+						t,
+						stats.GetBufferedSamples(samples),
+						"GET",
+						sr("HTTPSBIN_URL/cookies"),
+						sr("HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/cookies/set?key=value"),
+						200,
+						"",
+					)
+				***REMOVED***)
+
 			***REMOVED***)
 
 			t.Run("domain", func(t *testing.T) ***REMOVED***
