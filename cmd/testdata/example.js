@@ -4,7 +4,9 @@ import http from 'k6/http';
 // Version: 1.2
 // Creator: BrowserMob Proxy
 
-export let options = ***REMOVED*** maxRedirects: 0 ***REMOVED***;
+export let options = ***REMOVED***
+    "maxRedirects": 0
+***REMOVED***;
 
 export default function() ***REMOVED***
 
