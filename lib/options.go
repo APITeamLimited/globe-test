@@ -21,6 +21,7 @@
 package lib
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"net"
@@ -364,4 +365,27 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 		o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
 	***REMOVED***
 	return o
+***REMOVED***
+
+// GetCleanJSON is a massive hack that works arround the fact that some
+// of the null-able types used in Options are marshalled to `null` when
+// their `valid` flag is false.
+func (o Options) GetCleanJSON() ([]byte, error) ***REMOVED***
+	nullyResult, err := json.Marshal(o)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	var tmpMap map[string]json.RawMessage
+	if err := json.Unmarshal(nullyResult, &tmpMap); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	null := []byte("null")
+	for k, v := range tmpMap ***REMOVED***
+		if bytes.Equal(v, null) ***REMOVED***
+			delete(tmpMap, k)
+		***REMOVED***
+	***REMOVED***
+	return json.Marshal(tmpMap)
 ***REMOVED***
