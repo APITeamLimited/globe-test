@@ -101,6 +101,7 @@ package pflag
 import (
 	"bytes"
 	"errors"
+	goflag "flag"
 	"fmt"
 	"io"
 	"os"
@@ -123,6 +124,12 @@ const (
 	PanicOnError
 )
 
+// ParseErrorsWhitelist defines the parsing errors that can be ignored
+type ParseErrorsWhitelist struct ***REMOVED***
+	// UnknownFlags will ignore unknown flags errors and continue parsing rest of the flags
+	UnknownFlags bool
+***REMOVED***
+
 // NormalizedName is a flag name that has been normalized according to rules
 // for the FlagSet (e.g. making '-' and '_' equivalent).
 type NormalizedName string
@@ -137,6 +144,9 @@ type FlagSet struct ***REMOVED***
 	// SortFlags is used to indicate, if user wants to have sorted flags in
 	// help/usage messages.
 	SortFlags bool
+
+	// ParseErrorsWhitelist is used to configure a whitelist of errors
+	ParseErrorsWhitelist ParseErrorsWhitelist
 
 	name              string
 	parsed            bool
@@ -153,6 +163,8 @@ type FlagSet struct ***REMOVED***
 	output            io.Writer // nil means stderr; use out() accessor
 	interspersed      bool      // allow interspersed option/non-option args
 	normalizeNameFunc func(f *FlagSet, name string) NormalizedName
+
+	addedGoFlagSets []*goflag.FlagSet
 ***REMOVED***
 
 // A Flag represents the state of a flag.
@@ -202,12 +214,18 @@ func sortFlags(flags map[NormalizedName]*Flag) []*Flag ***REMOVED***
 func (f *FlagSet) SetNormalizeFunc(n func(f *FlagSet, name string) NormalizedName) ***REMOVED***
 	f.normalizeNameFunc = n
 	f.sortedFormal = f.sortedFormal[:0]
-	for k, v := range f.orderedFormal ***REMOVED***
-		delete(f.formal, NormalizedName(v.Name))
-		nname := f.normalizeFlagName(v.Name)
-		v.Name = string(nname)
-		f.formal[nname] = v
-		f.orderedFormal[k] = v
+	for fname, flag := range f.formal ***REMOVED***
+		nname := f.normalizeFlagName(flag.Name)
+		if fname == nname ***REMOVED***
+			continue
+		***REMOVED***
+		flag.Name = string(nname)
+		delete(f.formal, fname)
+		f.formal[nname] = flag
+		if _, set := f.actual[fname]; set ***REMOVED***
+			delete(f.actual, fname)
+			f.actual[nname] = flag
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -261,16 +279,16 @@ func (f *FlagSet) VisitAll(fn func(*Flag)) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// HasFlags returns a bool to indicate if the FlagSet has any flags definied.
+// HasFlags returns a bool to indicate if the FlagSet has any flags defined.
 func (f *FlagSet) HasFlags() bool ***REMOVED***
 	return len(f.formal) > 0
 ***REMOVED***
 
 // HasAvailableFlags returns a bool to indicate if the FlagSet has any flags
-// definied that are not hidden or deprecated.
+// that are not hidden.
 func (f *FlagSet) HasAvailableFlags() bool ***REMOVED***
 	for _, flag := range f.formal ***REMOVED***
-		if !flag.Hidden && len(flag.Deprecated) == 0 ***REMOVED***
+		if !flag.Hidden ***REMOVED***
 			return true
 		***REMOVED***
 	***REMOVED***
@@ -380,6 +398,7 @@ func (f *FlagSet) MarkDeprecated(name string, usageMessage string) error ***REMO
 		return fmt.Errorf("deprecated message for flag %q must be set", name)
 	***REMOVED***
 	flag.Deprecated = usageMessage
+	flag.Hidden = true
 	return nil
 ***REMOVED***
 
@@ -440,13 +459,15 @@ func (f *FlagSet) Set(name, value string) error ***REMOVED***
 		return fmt.Errorf("invalid argument %q for %q flag: %v", value, flagName, err)
 	***REMOVED***
 
-	if f.actual == nil ***REMOVED***
-		f.actual = make(map[NormalizedName]*Flag)
-	***REMOVED***
-	f.actual[normalName] = flag
-	f.orderedActual = append(f.orderedActual, flag)
+	if !flag.Changed ***REMOVED***
+		if f.actual == nil ***REMOVED***
+			f.actual = make(map[NormalizedName]*Flag)
+		***REMOVED***
+		f.actual[normalName] = flag
+		f.orderedActual = append(f.orderedActual, flag)
 
-	flag.Changed = true
+		flag.Changed = true
+	***REMOVED***
 
 	if flag.Deprecated != "" ***REMOVED***
 		fmt.Fprintf(f.out(), "Flag --%s has been deprecated, %s\n", flag.Name, flag.Deprecated)
@@ -556,6 +577,14 @@ func UnquoteUsage(flag *Flag) (name string, usage string) ***REMOVED***
 		name = "int"
 	case "uint64":
 		name = "uint"
+	case "stringSlice":
+		name = "strings"
+	case "intSlice":
+		name = "ints"
+	case "uintSlice":
+		name = "uints"
+	case "boolSlice":
+		name = "bools"
 	***REMOVED***
 
 	return
@@ -570,11 +599,14 @@ func wrapN(i, slop int, s string) (string, string) ***REMOVED***
 		return s, ""
 	***REMOVED***
 
-	w := strings.LastIndexAny(s[:i], " \t")
+	w := strings.LastIndexAny(s[:i], " \t\n")
 	if w <= 0 ***REMOVED***
 		return s, ""
 	***REMOVED***
-
+	nlPos := strings.LastIndex(s[:i], "\n")
+	if nlPos > 0 && nlPos < w ***REMOVED***
+		return s[:nlPos], s[nlPos+1:]
+	***REMOVED***
 	return s[:w], s[w+1:]
 ***REMOVED***
 
@@ -583,7 +615,7 @@ func wrapN(i, slop int, s string) (string, string) ***REMOVED***
 // caller). Pass `w` == 0 to do no wrapping
 func wrap(i, w int, s string) string ***REMOVED***
 	if w == 0 ***REMOVED***
-		return s
+		return strings.Replace(s, "\n", "\n"+strings.Repeat(" ", i), -1)
 	***REMOVED***
 
 	// space between indent i and end of line width w into which
@@ -601,7 +633,7 @@ func wrap(i, w int, s string) string ***REMOVED***
 	***REMOVED***
 	// If still not enough space then don't even try to wrap.
 	if wrap < 24 ***REMOVED***
-		return s
+		return strings.Replace(s, "\n", r, -1)
 	***REMOVED***
 
 	// Try to avoid short orphan words on the final line, by
@@ -613,14 +645,14 @@ func wrap(i, w int, s string) string ***REMOVED***
 	// Handle first line, which is indented by the caller (or the
 	// special case above)
 	l, s = wrapN(wrap, slop, s)
-	r = r + l
+	r = r + strings.Replace(l, "\n", "\n"+strings.Repeat(" ", i), -1)
 
 	// Now wrap the rest
 	for s != "" ***REMOVED***
 		var t string
 
 		t, s = wrapN(wrap, slop, s)
-		r = r + "\n" + strings.Repeat(" ", i) + t
+		r = r + "\n" + strings.Repeat(" ", i) + strings.Replace(t, "\n", "\n"+strings.Repeat(" ", i), -1)
 	***REMOVED***
 
 	return r
@@ -637,7 +669,7 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string ***REMOVED***
 
 	maxlen := 0
 	f.VisitAll(func(flag *Flag) ***REMOVED***
-		if flag.Deprecated != "" || flag.Hidden ***REMOVED***
+		if flag.Hidden ***REMOVED***
 			return
 		***REMOVED***
 
@@ -660,6 +692,10 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string ***REMOVED***
 				if flag.NoOptDefVal != "true" ***REMOVED***
 					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
 				***REMOVED***
+			case "count":
+				if flag.NoOptDefVal != "+1" ***REMOVED***
+					line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
+				***REMOVED***
 			default:
 				line += fmt.Sprintf("[=%s]", flag.NoOptDefVal)
 			***REMOVED***
@@ -679,6 +715,9 @@ func (f *FlagSet) FlagUsagesWrapped(cols int) string ***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				line += fmt.Sprintf(" (default %s)", flag.DefValue)
 			***REMOVED***
+		***REMOVED***
+		if len(flag.Deprecated) != 0 ***REMOVED***
+			line += fmt.Sprintf(" (DEPRECATED: %s)", flag.Deprecated)
 		***REMOVED***
 
 		lines = append(lines, line)
@@ -857,8 +896,10 @@ func VarP(value Value, name, shorthand, usage string) ***REMOVED***
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface***REMOVED******REMOVED***) error ***REMOVED***
 	err := fmt.Errorf(format, a...)
-	fmt.Fprintln(f.out(), err)
-	f.usage()
+	if f.errorHandling != ContinueOnError ***REMOVED***
+		fmt.Fprintln(f.out(), err)
+		f.usage()
+	***REMOVED***
 	return err
 ***REMOVED***
 
@@ -874,6 +915,25 @@ func (f *FlagSet) usage() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+//--unknown (args will be empty)
+//--unknown --next-flag ... (args will be --next-flag ...)
+//--unknown arg ... (args will be arg ...)
+func stripUnknownFlagValue(args []string) []string ***REMOVED***
+	if len(args) == 0 ***REMOVED***
+		//--unknown
+		return args
+	***REMOVED***
+
+	first := args[0]
+	if first[0] == '-' ***REMOVED***
+		//--unknown --next-flag ...
+		return args
+	***REMOVED***
+
+	//--unknown arg ... (args will be arg ...)
+	return args[1:]
+***REMOVED***
+
 func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []string, err error) ***REMOVED***
 	a = args
 	name := s[2:]
@@ -885,13 +945,24 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 	split := strings.SplitN(name, "=", 2)
 	name = split[0]
 	flag, exists := f.formal[f.normalizeFlagName(name)]
+
 	if !exists ***REMOVED***
-		if name == "help" ***REMOVED*** // special case for nice help message.
+		switch ***REMOVED***
+		case name == "help":
 			f.usage()
 			return a, ErrHelp
+		case f.ParseErrorsWhitelist.UnknownFlags:
+			// --unknown=unknownval arg ...
+			// we do not want to lose arg in this case
+			if len(split) >= 2 ***REMOVED***
+				return a, nil
+			***REMOVED***
+
+			return stripUnknownFlagValue(a), nil
+		default:
+			err = f.failf("unknown flag: --%s", name)
+			return
 		***REMOVED***
-		err = f.failf("unknown flag: --%s", name)
-		return
 	***REMOVED***
 
 	var value string
@@ -912,6 +983,9 @@ func (f *FlagSet) parseLongArg(s string, args []string, fn parseFunc) (a []strin
 	***REMOVED***
 
 	err = fn(flag, value)
+	if err != nil ***REMOVED***
+		f.failf(err.Error())
+	***REMOVED***
 	return
 ***REMOVED***
 
@@ -926,13 +1000,25 @@ func (f *FlagSet) parseSingleShortArg(shorthands string, args []string, fn parse
 
 	flag, exists := f.shorthands[c]
 	if !exists ***REMOVED***
-		if c == 'h' ***REMOVED*** // special case for nice help message.
+		switch ***REMOVED***
+		case c == 'h':
 			f.usage()
 			err = ErrHelp
 			return
+		case f.ParseErrorsWhitelist.UnknownFlags:
+			// '-f=arg arg ...'
+			// we do not want to lose arg in this case
+			if len(shorthands) > 2 && shorthands[1] == '=' ***REMOVED***
+				outShorts = ""
+				return
+			***REMOVED***
+
+			outArgs = stripUnknownFlagValue(outArgs)
+			return
+		default:
+			err = f.failf("unknown shorthand flag: %q in -%s", c, shorthands)
+			return
 		***REMOVED***
-		err = f.failf("unknown shorthand flag: %q in -%s", c, shorthands)
-		return
 	***REMOVED***
 
 	var value string
@@ -962,6 +1048,9 @@ func (f *FlagSet) parseSingleShortArg(shorthands string, args []string, fn parse
 	***REMOVED***
 
 	err = fn(flag, value)
+	if err != nil ***REMOVED***
+		f.failf(err.Error())
+	***REMOVED***
 	return
 ***REMOVED***
 
@@ -1016,6 +1105,11 @@ func (f *FlagSet) parseArgs(args []string, fn parseFunc) (err error) ***REMOVED*
 // are defined and before flags are accessed by the program.
 // The return value will be ErrHelp if -help was set but not defined.
 func (f *FlagSet) Parse(arguments []string) error ***REMOVED***
+	if f.addedGoFlagSets != nil ***REMOVED***
+		for _, goFlagSet := range f.addedGoFlagSets ***REMOVED***
+			goFlagSet.Parse(nil)
+		***REMOVED***
+	***REMOVED***
 	f.parsed = true
 
 	if len(arguments) < 0 ***REMOVED***
@@ -1034,6 +1128,7 @@ func (f *FlagSet) Parse(arguments []string) error ***REMOVED***
 		case ContinueOnError:
 			return err
 		case ExitOnError:
+			fmt.Println(err)
 			os.Exit(2)
 		case PanicOnError:
 			panic(err)
