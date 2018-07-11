@@ -16,14 +16,14 @@ func legacyArgs(cmd *Command, args []string) error ***REMOVED***
 		return nil
 	***REMOVED***
 
-	// root command with subcommands, do subcommand checking
+	// root command with subcommands, do subcommand checking.
 	if !cmd.HasParent() && len(args) > 0 ***REMOVED***
 		return fmt.Errorf("unknown command %q for %q%s", args[0], cmd.CommandPath(), cmd.findSuggestions(args[0]))
 	***REMOVED***
 	return nil
 ***REMOVED***
 
-// NoArgs returns an error if any args are included
+// NoArgs returns an error if any args are included.
 func NoArgs(cmd *Command, args []string) error ***REMOVED***
 	if len(args) > 0 ***REMOVED***
 		return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
@@ -31,7 +31,7 @@ func NoArgs(cmd *Command, args []string) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// OnlyValidArgs returns an error if any args are not in the list of ValidArgs
+// OnlyValidArgs returns an error if any args are not in the list of ValidArgs.
 func OnlyValidArgs(cmd *Command, args []string) error ***REMOVED***
 	if len(cmd.ValidArgs) > 0 ***REMOVED***
 		for _, v := range args ***REMOVED***
@@ -43,21 +43,12 @@ func OnlyValidArgs(cmd *Command, args []string) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func stringInSlice(a string, list []string) bool ***REMOVED***
-	for _, b := range list ***REMOVED***
-		if b == a ***REMOVED***
-			return true
-		***REMOVED***
-	***REMOVED***
-	return false
-***REMOVED***
-
-// ArbitraryArgs never returns an error
+// ArbitraryArgs never returns an error.
 func ArbitraryArgs(cmd *Command, args []string) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// MinimumNArgs returns an error if there is not at least N args
+// MinimumNArgs returns an error if there is not at least N args.
 func MinimumNArgs(n int) PositionalArgs ***REMOVED***
 	return func(cmd *Command, args []string) error ***REMOVED***
 		if len(args) < n ***REMOVED***
@@ -67,7 +58,7 @@ func MinimumNArgs(n int) PositionalArgs ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// MaximumNArgs returns an error if there are more than N args
+// MaximumNArgs returns an error if there are more than N args.
 func MaximumNArgs(n int) PositionalArgs ***REMOVED***
 	return func(cmd *Command, args []string) error ***REMOVED***
 		if len(args) > n ***REMOVED***
@@ -77,7 +68,7 @@ func MaximumNArgs(n int) PositionalArgs ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// ExactArgs returns an error if there are not exactly n args
+// ExactArgs returns an error if there are not exactly n args.
 func ExactArgs(n int) PositionalArgs ***REMOVED***
 	return func(cmd *Command, args []string) error ***REMOVED***
 		if len(args) != n ***REMOVED***
@@ -87,7 +78,7 @@ func ExactArgs(n int) PositionalArgs ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// RangeArgs returns an error if the number of args is not within the expected range
+// RangeArgs returns an error if the number of args is not within the expected range.
 func RangeArgs(min int, max int) PositionalArgs ***REMOVED***
 	return func(cmd *Command, args []string) error ***REMOVED***
 		if len(args) < min || len(args) > max ***REMOVED***
