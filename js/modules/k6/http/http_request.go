@@ -470,7 +470,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 		trail.SaveSamples(stats.NewSampleTags(tags))
 		delete(tags, "ip")
-		state.Samples <- trail
+		stats.PushIfNotCancelled(ctx, state.Samples, trail)
 	***REMOVED***
 
 	if preq.auth == "ntlm" ***REMOVED***
@@ -599,7 +599,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 	***REMOVED***
 	trail.SaveSamples(stats.IntoSampleTags(&tags))
-	state.Samples <- trail
+	stats.PushIfNotCancelled(ctx, state.Samples, trail)
 	return resp, nil
 ***REMOVED***
 
