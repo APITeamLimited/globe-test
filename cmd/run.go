@@ -141,7 +141,7 @@ a commandline interface for interacting with it.`,
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
 		if !conf.VUsMax.Valid ***REMOVED***
-			conf.VUsMax = null.IntFrom(conf.VUs.Int64)
+			conf.VUsMax = null.NewInt(conf.VUs.Int64, conf.VUs.Valid)
 			for _, stage := range conf.Stages ***REMOVED***
 				if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
 					conf.VUsMax = stage.Target
