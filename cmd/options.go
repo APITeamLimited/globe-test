@@ -138,11 +138,12 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return opts, err
 	***REMOVED***
-	if summaryTimeUnit != "" && summaryTimeUnit != "s" && summaryTimeUnit != "ms" && summaryTimeUnit != "us" ***REMOVED***
-		return opts, errors.New("invalid summary time unit. Use: 's', 'ms' or 'us'")
+	if summaryTimeUnit != "" ***REMOVED***
+		if summaryTimeUnit != "s" && summaryTimeUnit != "ms" && summaryTimeUnit != "us" ***REMOVED***
+			return opts, errors.New("invalid summary time unit. Use: 's', 'ms' or 'us'")
+		***REMOVED***
+		opts.SummaryTimeUnit = null.StringFrom(summaryTimeUnit)
 	***REMOVED***
-
-	opts.SummaryTimeUnit = null.StringFrom(summaryTimeUnit)
 
 	systemTagList, err := flags.GetStringSlice("system-tags")
 	if err != nil ***REMOVED***

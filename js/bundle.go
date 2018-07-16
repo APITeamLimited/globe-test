@@ -182,7 +182,11 @@ func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
 		Filename: b.Filename,
 		Data:     []byte(b.Source),
 		Pwd:      b.BaseInitContext.pwd,
-		Env:      b.Env,
+		Env:      make(map[string]string, len(b.Env)),
+	***REMOVED***
+	// Copy env so changes in the archive are not reflected in the source Bundle
+	for k, v := range b.Env ***REMOVED***
+		arc.Env[k] = v
 	***REMOVED***
 
 	arc.Scripts = make(map[string][]byte, len(b.BaseInitContext.programs))
@@ -213,6 +217,17 @@ func (b *Bundle) Instantiate() (*BundleInstance, error) ***REMOVED***
 	if !ok || def == nil ***REMOVED***
 		panic("exported default is not a function")
 	***REMOVED***
+
+	jsOptions := rt.Get("options")
+	var jsOptionsObj *goja.Object
+	if jsOptions == nil ***REMOVED***
+		jsOptionsObj = rt.NewObject()
+	***REMOVED*** else ***REMOVED***
+		jsOptionsObj = jsOptions.ToObject(rt)
+	***REMOVED***
+	b.Options.ForEachValid("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
+		jsOptionsObj.Set(key, val)
+	***REMOVED***)
 
 	return &BundleInstance***REMOVED***
 		Runtime: rt,
