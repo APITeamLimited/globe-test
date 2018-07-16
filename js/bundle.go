@@ -198,8 +198,8 @@ func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
 	return arc
 ***REMOVED***
 
-// Instantiates a new runtime from this bundle.
-func (b *Bundle) Instantiate() (*BundleInstance, error) ***REMOVED***
+// Instantiate creates a new runtime from this bundle.
+func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 	// Placeholder for a real context.
 	ctxPtr := new(context.Context)
 
@@ -226,14 +226,16 @@ func (b *Bundle) Instantiate() (*BundleInstance, error) ***REMOVED***
 		jsOptionsObj = jsOptions.ToObject(rt)
 	***REMOVED***
 	b.Options.ForEachValid("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
-		jsOptionsObj.Set(key, val)
+		if err := jsOptionsObj.Set(key, val); err != nil ***REMOVED***
+			instErr = err
+		***REMOVED***
 	***REMOVED***)
 
 	return &BundleInstance***REMOVED***
 		Runtime: rt,
 		Context: ctxPtr,
 		Default: def,
-	***REMOVED***, nil
+	***REMOVED***, instErr
 ***REMOVED***
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
