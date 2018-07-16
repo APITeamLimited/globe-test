@@ -23,6 +23,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	golog "log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -74,8 +75,9 @@ var RootCmd = &cobra.Command***REMOVED***
 		setupLoggers(logFmt)
 		if noColor ***REMOVED***
 			stdout.Writer = colorable.NewNonColorable(os.Stdout)
-			stdout.Writer = colorable.NewNonColorable(os.Stderr)
+			stderr.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
+		golog.SetOutput(log.StandardLogger().Writer())
 	***REMOVED***,
 ***REMOVED***
 
