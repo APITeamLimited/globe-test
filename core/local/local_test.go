@@ -549,7 +549,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	getDummyTrail := func(group string) stats.SampleContainer ***REMOVED***
-		return netext.NewDialer(net.Dialer***REMOVED******REMOVED***).GetTrail(time.Now(), time.Now(), getTags("group", group))
+		return netext.NewDialer(net.Dialer***REMOVED******REMOVED***).GetTrail(time.Now(), time.Now(), true, getTags("group", group))
 	***REMOVED***
 
 	// Initially give a long time (5s) for the executor to start

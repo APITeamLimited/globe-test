@@ -396,7 +396,15 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 		u.HTTPTransport.CloseIdleConnections()
 	***REMOVED***
 
-	stats.PushIfNotCancelled(ctx, state.Samples, u.Dialer.GetTrail(startTime, endTime, stats.IntoSampleTags(&tags)))
+	var isFullIteration bool
+	select ***REMOVED***
+	case <-ctx.Done():
+		isFullIteration = false
+	default:
+		isFullIteration = true
+	***REMOVED***
+
+	state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, stats.IntoSampleTags(&tags))
 
 	return v, state, err
 ***REMOVED***
