@@ -95,7 +95,7 @@ import http from 'k6/http';
 // Creator: WebInspector
 
 export let options = ***REMOVED***
-    "maxRedirects": 0
+    maxRedirects: 0,
 ***REMOVED***;
 
 export default function() ***REMOVED***

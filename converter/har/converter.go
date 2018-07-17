@@ -58,14 +58,9 @@ func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED**
 ***REMOVED***
 
 // TODO: refactor this to have fewer parameters... or just refactor in general...
-func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (string, error) ***REMOVED***
+func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks bool, returnOnFailedCheck bool, batchTime uint, nobatch bool, correlate bool, only, skip []string) (result string, convertErr error) ***REMOVED***
 	var b bytes.Buffer
 	w := bufio.NewWriter(&b)
-
-	scriptOptionsSrc, err := options.GetPrettyJSON("", "    ")
-	if err != nil ***REMOVED***
-		return "", err
-	***REMOVED***
 
 	if returnOnFailedCheck && !enableChecks ***REMOVED***
 		return "", errors.Errorf("return on failed check requires --enable-status-code-checks")
@@ -91,7 +86,18 @@ func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks b
 		fprintf(w, "// %v\n", h.Log.Comment)
 	***REMOVED***
 
-	fprintf(w, "\nexport let options = %s;\n\n", scriptOptionsSrc)
+	fprint(w, "\nexport let options = ***REMOVED***\n")
+	options.ForEachValid("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
+		if valJSON, err := json.MarshalIndent(val, "    ", "    "); err != nil ***REMOVED***
+			convertErr = err
+		***REMOVED*** else ***REMOVED***
+			fprintf(w, "    %s: %s,\n", key, valJSON)
+		***REMOVED***
+	***REMOVED***)
+	if convertErr != nil ***REMOVED***
+		return "", convertErr
+	***REMOVED***
+	fprint(w, "***REMOVED***;\n\n")
 
 	fprint(w, "export default function() ***REMOVED***\n\n")
 
