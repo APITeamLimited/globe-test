@@ -36,6 +36,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
@@ -118,6 +119,36 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(false)***REMOVED***)
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, true), r.Bundle.Options.Paused)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestOptions(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+
+	src := &lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export let options = ***REMOVED*** setupTimeout: "1s" ***REMOVED***;
+			export default function() ***REMOVED***  ***REMOVED***;
+		`),
+	***REMOVED***
+
+	r1, err := New(src, fs, lib.RuntimeOptions***REMOVED***IncludeSystemEnvVars: null.BoolFrom(true), Env: map[string]string***REMOVED***"K6_SETUPTIMEOUT": "5s"***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(time.Duration(3) * time.Second)***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			assert.Equal(t, lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(time.Duration(3) * time.Second)***REMOVED***, r.GetOptions())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
