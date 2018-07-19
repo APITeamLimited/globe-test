@@ -160,12 +160,6 @@ func checkResponse(r *http.Response) error ***REMOVED***
 		return nil
 	***REMOVED***
 
-	if r.StatusCode == 401 ***REMOVED***
-		return ErrNotAuthenticated
-	***REMOVED*** else if r.StatusCode == 403 ***REMOVED***
-		return ErrNotAuthorized
-	***REMOVED***
-
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil ***REMOVED***
 		return err
@@ -175,6 +169,12 @@ func checkResponse(r *http.Response) error ***REMOVED***
 		Error ErrorResponse `json:"error"`
 	***REMOVED***
 	if err := json.Unmarshal(data, &payload); err != nil ***REMOVED***
+		if r.StatusCode == http.StatusUnauthorized ***REMOVED***
+			return ErrNotAuthenticated
+		***REMOVED***
+		if r.StatusCode == http.StatusForbidden ***REMOVED***
+			return ErrNotAuthorized
+		***REMOVED***
 		return errors.Errorf(
 			"Unexpected HTTP error from %s: %d %s",
 			r.Request.URL,
@@ -182,6 +182,7 @@ func checkResponse(r *http.Response) error ***REMOVED***
 			http.StatusText(r.StatusCode),
 		)
 	***REMOVED***
+	payload.Error.Response = r
 	return payload.Error
 ***REMOVED***
 
