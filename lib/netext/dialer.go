@@ -89,47 +89,53 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 
 // GetTrail creates a new NetTrail instance with the Dialer
 // sent and received data metrics and the supplied times and tags.
-func (d *Dialer) GetTrail(startTime, endTime time.Time, tags *stats.SampleTags) *NetTrail ***REMOVED***
+func (d *Dialer) GetTrail(startTime, endTime time.Time, fullIteration bool, tags *stats.SampleTags) *NetTrail ***REMOVED***
 	bytesWritten := atomic.SwapInt64(&d.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&d.BytesRead, 0)
-	return &NetTrail***REMOVED***
-		BytesRead:    bytesRead,
-		BytesWritten: bytesWritten,
-		StartTime:    startTime,
-		EndTime:      endTime,
-		Tags:         tags,
-		Samples: []stats.Sample***REMOVED***
-			***REMOVED***
-				Time:   endTime,
-				Metric: metrics.DataSent,
-				Value:  float64(bytesWritten),
-				Tags:   tags,
-			***REMOVED***,
-			***REMOVED***
-				Time:   endTime,
-				Metric: metrics.DataReceived,
-				Value:  float64(bytesRead),
-				Tags:   tags,
-			***REMOVED***,
-			***REMOVED***
-				Time:   endTime,
-				Metric: metrics.IterationDuration,
-				Value:  stats.D(endTime.Sub(startTime)),
-				Tags:   tags,
-			***REMOVED***,
+	samples := []stats.Sample***REMOVED***
+		***REMOVED***
+			Time:   endTime,
+			Metric: metrics.DataSent,
+			Value:  float64(bytesWritten),
+			Tags:   tags,
 		***REMOVED***,
+		***REMOVED***
+			Time:   endTime,
+			Metric: metrics.DataReceived,
+			Value:  float64(bytesRead),
+			Tags:   tags,
+		***REMOVED***,
+	***REMOVED***
+	if fullIteration ***REMOVED***
+		samples = append(samples, stats.Sample***REMOVED***
+			Time:   endTime,
+			Metric: metrics.IterationDuration,
+			Value:  stats.D(endTime.Sub(startTime)),
+			Tags:   tags,
+		***REMOVED***)
+	***REMOVED***
+
+	return &NetTrail***REMOVED***
+		BytesRead:     bytesRead,
+		BytesWritten:  bytesWritten,
+		FullIteration: fullIteration,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		Tags:          tags,
+		Samples:       samples,
 	***REMOVED***
 ***REMOVED***
 
 // NetTrail contains information about the exchanged data size and length of a
 // series of connections from a particular netext.Dialer
 type NetTrail struct ***REMOVED***
-	BytesRead    int64
-	BytesWritten int64
-	StartTime    time.Time
-	EndTime      time.Time
-	Tags         *stats.SampleTags
-	Samples      []stats.Sample
+	BytesRead     int64
+	BytesWritten  int64
+	FullIteration bool
+	StartTime     time.Time
+	EndTime       time.Time
+	Tags          *stats.SampleTags
+	Samples       []stats.Sample
 ***REMOVED***
 
 // Ensure that interfaces are implemented correctly
