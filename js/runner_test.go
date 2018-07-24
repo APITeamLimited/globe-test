@@ -124,9 +124,53 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
-	fs := afero.NewMemMapFs()
+func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
+	t.Parallel()
 
+	optionVariants := []string***REMOVED***
+		"",
+		"let options = null;",
+		"let options = undefined;",
+		"let options = ***REMOVED******REMOVED***;",
+		"let options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
+	***REMOVED***
+
+	for i, variant := range optionVariants ***REMOVED***
+		variant := variant
+		t.Run(fmt.Sprintf("Variant#%d", i), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			src := &lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data: []byte(variant + `
+					export default function() ***REMOVED***
+						if (!options) ***REMOVED***
+							throw new Error("Expected options to be defined!");
+						***REMOVED***
+						if (options.teardownTimeout != __ENV.expectedTeardownTimeout) ***REMOVED***
+							throw new Error("expected teardownTimeout to be " + __ENV.expectedTeardownTimeout + " but it was " + options.teardownTimeout);
+						***REMOVED***
+					***REMOVED***;
+				`),
+			***REMOVED***
+			r, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
+			require.NoError(t, err)
+
+			newOptions := lib.Options***REMOVED***TeardownTimeout: types.NullDurationFrom(4 * time.Second)***REMOVED***
+			r.SetOptions(newOptions)
+			require.Equal(t, newOptions, r.GetOptions())
+
+			samples := make(chan stats.SampleContainer, 100)
+			vu, err := r.NewVU(samples)
+			if assert.NoError(t, err) ***REMOVED***
+				err := vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
+	t.Parallel()
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
@@ -146,7 +190,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	expScriptOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
-	r1, err := New(src, fs, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
+	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 

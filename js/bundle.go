@@ -220,8 +220,9 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 
 	jsOptions := rt.Get("options")
 	var jsOptionsObj *goja.Object
-	if jsOptions == nil ***REMOVED***
+	if jsOptions == nil || goja.IsNull(jsOptions) || goja.IsUndefined(jsOptions) ***REMOVED***
 		jsOptionsObj = rt.NewObject()
+		rt.Set("options", jsOptionsObj)
 	***REMOVED*** else ***REMOVED***
 		jsOptionsObj = jsOptions.ToObject(rt)
 	***REMOVED***
