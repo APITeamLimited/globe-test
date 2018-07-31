@@ -131,6 +131,9 @@ func (f *File) Sync() error ***REMOVED***
 ***REMOVED***
 
 func (f *File) Readdir(count int) (res []os.FileInfo, err error) ***REMOVED***
+	if !f.fileData.dir ***REMOVED***
+		return nil, &os.PathError***REMOVED***Op: "readdir", Path: f.fileData.name, Err: errors.New("not a dir")***REMOVED***
+	***REMOVED***
 	var outLength int64
 
 	f.fileData.Lock()

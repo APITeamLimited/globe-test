@@ -70,7 +70,8 @@ func AddTemplateFuncs(tmplFuncs template.FuncMap) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// OnInitialize takes a series of func() arguments and appends them to a slice of func().
+// OnInitialize sets the passed functions to be run when each command's
+// Execute method is called.
 func OnInitialize(y ...func()) ***REMOVED***
 	initializers = append(initializers, y...)
 ***REMOVED***
@@ -187,4 +188,13 @@ func ld(s, t string, ignoreCase bool) int ***REMOVED***
 
 	***REMOVED***
 	return d[len(s)][len(t)]
+***REMOVED***
+
+func stringInSlice(a string, list []string) bool ***REMOVED***
+	for _, b := range list ***REMOVED***
+		if b == a ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
 ***REMOVED***

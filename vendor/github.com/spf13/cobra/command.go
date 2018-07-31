@@ -27,6 +27,9 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+// FParseErrWhitelist configures Flag parse errors to be ignored
+type FParseErrWhitelist flag.ParseErrorsWhitelist
+
 // Command is just that, a command for your application.
 // E.g.  'go run ...' - 'run' is the command. Cobra requires
 // you to define the usage and description as part of your command
@@ -75,6 +78,11 @@ type Command struct ***REMOVED***
 	// group commands.
 	Annotations map[string]string
 
+	// Version defines the version for this command. If this value is non-empty and the command does not
+	// define a "version" flag, a "version" boolean flag will be added to the command and, if specified,
+	// will print content of the "Version" variable.
+	Version string
+
 	// The *Run functions are executed in the following order:
 	//   * PersistentPreRun()
 	//   * PreRun()
@@ -118,6 +126,10 @@ type Command struct ***REMOVED***
 	// will be printed by generating docs for this command.
 	DisableAutoGenTag bool
 
+	// DisableFlagsInUseLine will disable the addition of [flags] to the usage
+	// line of a command when printing help or generating docs
+	DisableFlagsInUseLine bool
+
 	// DisableSuggestions disables the suggestions based on Levenshtein distance
 	// that go along with 'unknown command' messages.
 	DisableSuggestions bool
@@ -127,6 +139,9 @@ type Command struct ***REMOVED***
 
 	// TraverseChildren parses flags on all parents before executing child command.
 	TraverseChildren bool
+
+	//FParseErrWhitelist flag parse errors to be ignored
+	FParseErrWhitelist FParseErrWhitelist
 
 	// commands is the list of commands supported by this program.
 	commands []*Command
@@ -138,6 +153,11 @@ type Command struct ***REMOVED***
 	commandsMaxNameLen        int
 	// commandsAreSorted defines, if command slice are sorted or not.
 	commandsAreSorted bool
+	// commandCalledAs is the name or alias value used to call this command.
+	commandCalledAs struct ***REMOVED***
+		name   string
+		called bool
+	***REMOVED***
 
 	// args is actual args parsed from flags.
 	args []string
@@ -173,6 +193,8 @@ type Command struct ***REMOVED***
 	// helpCommand is command with usage 'help'. If it's not defined by user,
 	// cobra uses default help command.
 	helpCommand *Command
+	// versionTemplate is the version template defined by user.
+	versionTemplate string
 ***REMOVED***
 
 // SetArgs sets arguments for the command. It is set to os.Args[1:] by default, if desired, can be overridden
@@ -216,6 +238,11 @@ func (c *Command) SetHelpCommand(cmd *Command) ***REMOVED***
 // SetHelpTemplate sets help template to be used. Application can use it to set custom template.
 func (c *Command) SetHelpTemplate(s string) ***REMOVED***
 	c.helpTemplate = s
+***REMOVED***
+
+// SetVersionTemplate sets version template to be used. Application can use it to set custom template.
+func (c *Command) SetVersionTemplate(s string) ***REMOVED***
+	c.versionTemplate = s
 ***REMOVED***
 
 // SetGlobalNormalizationFunc sets a normalization function to all flag sets and also to child commands.
@@ -407,6 +434,19 @@ func (c *Command) HelpTemplate() string ***REMOVED***
 ***REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***if or .Runnable .HasSubCommands***REMOVED******REMOVED******REMOVED******REMOVED***.UsageString***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED***`
 ***REMOVED***
 
+// VersionTemplate return version template for the command.
+func (c *Command) VersionTemplate() string ***REMOVED***
+	if c.versionTemplate != "" ***REMOVED***
+		return c.versionTemplate
+	***REMOVED***
+
+	if c.HasParent() ***REMOVED***
+		return c.parent.VersionTemplate()
+	***REMOVED***
+	return `***REMOVED******REMOVED***with .Name***REMOVED******REMOVED******REMOVED******REMOVED***printf "%s " .***REMOVED******REMOVED******REMOVED******REMOVED***end***REMOVED******REMOVED******REMOVED******REMOVED***printf "version %s" .Version***REMOVED******REMOVED***
+`
+***REMOVED***
+
 func hasNoOptDefVal(name string, fs *flag.FlagSet) bool ***REMOVED***
 	flag := fs.Lookup(name)
 	if flag == nil ***REMOVED***
@@ -441,6 +481,9 @@ Loop:
 		s := args[0]
 		args = args[1:]
 		switch ***REMOVED***
+		case s == "--":
+			// "--" terminates the flags
+			break Loop
 		case strings.HasPrefix(s, "--") && !strings.Contains(s, "=") && !hasNoOptDefVal(s[2:], flags):
 			// If '--flag arg' then
 			// delete arg from args.
@@ -528,6 +571,7 @@ func (c *Command) findNext(next string) *Command ***REMOVED***
 	matches := make([]*Command, 0)
 	for _, cmd := range c.commands ***REMOVED***
 		if cmd.Name() == next || cmd.HasAlias(next) ***REMOVED***
+			cmd.commandCalledAs.name = next
 			return cmd
 		***REMOVED***
 		if EnablePrefixMatching && cmd.hasNameOrAliasPrefix(next) ***REMOVED***
@@ -538,6 +582,7 @@ func (c *Command) findNext(next string) *Command ***REMOVED***
 	if len(matches) == 1 ***REMOVED***
 		return matches[0]
 	***REMOVED***
+
 	return nil
 ***REMOVED***
 
@@ -621,10 +666,8 @@ func (c *Command) Root() *Command ***REMOVED***
 	return c
 ***REMOVED***
 
-// ArgsLenAtDash will return the length of f.Args at the moment when a -- was
-// found during arg parsing. This allows your program to know which args were
-// before the -- and which came after. (Description from
-// https://godoc.org/github.com/spf13/pflag#FlagSet.ArgsLenAtDash).
+// ArgsLenAtDash will return the length of c.Flags().Args at the moment
+// when a -- was found during args parsing.
 func (c *Command) ArgsLenAtDash() int ***REMOVED***
 	return c.Flags().ArgsLenAtDash()
 ***REMOVED***
@@ -638,9 +681,10 @@ func (c *Command) execute(a []string) (err error) ***REMOVED***
 		c.Printf("Command %q is deprecated, %s\n", c.Name(), c.Deprecated)
 	***REMOVED***
 
-	// initialize help flag as the last point possible to allow for user
+	// initialize help and version flag at the last point possible to allow for user
 	// overriding
 	c.InitDefaultHelpFlag()
+	c.InitDefaultVersionFlag()
 
 	err = c.ParseFlags(a)
 	if err != nil ***REMOVED***
@@ -657,7 +701,27 @@ func (c *Command) execute(a []string) (err error) ***REMOVED***
 		return err
 	***REMOVED***
 
-	if helpVal || !c.Runnable() ***REMOVED***
+	if helpVal ***REMOVED***
+		return flag.ErrHelp
+	***REMOVED***
+
+	// for back-compat, only add version flag behavior if version is defined
+	if c.Version != "" ***REMOVED***
+		versionVal, err := c.Flags().GetBool("version")
+		if err != nil ***REMOVED***
+			c.Println("\"version\" flag declared as non-bool. Please correct your code")
+			return err
+		***REMOVED***
+		if versionVal ***REMOVED***
+			err := tmpl(c.OutOrStdout(), c.VersionTemplate(), c)
+			if err != nil ***REMOVED***
+				c.Println(err)
+			***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+
+	if !c.Runnable() ***REMOVED***
 		return flag.ErrHelp
 	***REMOVED***
 
@@ -780,6 +844,11 @@ func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
 		return c, err
 	***REMOVED***
 
+	cmd.commandCalledAs.called = true
+	if cmd.commandCalledAs.name == "" ***REMOVED***
+		cmd.commandCalledAs.name = cmd.Name()
+	***REMOVED***
+
 	err = cmd.execute(flags)
 	if err != nil ***REMOVED***
 		// Always show help if requested, even if SilenceErrors is in
@@ -825,7 +894,7 @@ func (c *Command) validateRequiredFlags() error ***REMOVED***
 	***REMOVED***)
 
 	if len(missingFlagNames) > 0 ***REMOVED***
-		return fmt.Errorf(`Required flag(s) "%s" have/has not been set`, strings.Join(missingFlagNames, `", "`))
+		return fmt.Errorf(`required flag(s) "%s" not set`, strings.Join(missingFlagNames, `", "`))
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -843,6 +912,27 @@ func (c *Command) InitDefaultHelpFlag() ***REMOVED***
 			usage += c.Name()
 		***REMOVED***
 		c.Flags().BoolP("help", "h", false, usage)
+	***REMOVED***
+***REMOVED***
+
+// InitDefaultVersionFlag adds default version flag to c.
+// It is called automatically by executing the c.
+// If c already has a version flag, it will do nothing.
+// If c.Version is empty, it will do nothing.
+func (c *Command) InitDefaultVersionFlag() ***REMOVED***
+	if c.Version == "" ***REMOVED***
+		return
+	***REMOVED***
+
+	c.mergePersistentFlags()
+	if c.Flags().Lookup("version") == nil ***REMOVED***
+		usage := "version for "
+		if c.Name() == "" ***REMOVED***
+			usage += "this command"
+		***REMOVED*** else ***REMOVED***
+			usage += c.Name()
+		***REMOVED***
+		c.Flags().Bool("version", false, usage)
 	***REMOVED***
 ***REMOVED***
 
@@ -877,7 +967,7 @@ Simply type ` + c.Name() + ` help [path to command] for full details.`,
 	c.AddCommand(c.helpCommand)
 ***REMOVED***
 
-// ResetCommands used for testing.
+// ResetCommands delete parent, subcommand and help command from c.
 func (c *Command) ResetCommands() ***REMOVED***
 	c.parent = nil
 	c.commands = nil
@@ -996,6 +1086,9 @@ func (c *Command) UseLine() string ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		useline = c.Use
 	***REMOVED***
+	if c.DisableFlagsInUseLine ***REMOVED***
+		return useline
+	***REMOVED***
 	if c.HasAvailableFlags() && !strings.Contains(useline, "[flags]") ***REMOVED***
 		useline += " [flags]"
 	***REMOVED***
@@ -1063,14 +1156,25 @@ func (c *Command) HasAlias(s string) bool ***REMOVED***
 	return false
 ***REMOVED***
 
+// CalledAs returns the command name or alias that was used to invoke
+// this command or an empty string if the command has not been called.
+func (c *Command) CalledAs() string ***REMOVED***
+	if c.commandCalledAs.called ***REMOVED***
+		return c.commandCalledAs.name
+	***REMOVED***
+	return ""
+***REMOVED***
+
 // hasNameOrAliasPrefix returns true if the Name or any of aliases start
 // with prefix
 func (c *Command) hasNameOrAliasPrefix(prefix string) bool ***REMOVED***
 	if strings.HasPrefix(c.Name(), prefix) ***REMOVED***
+		c.commandCalledAs.name = c.Name()
 		return true
 	***REMOVED***
 	for _, alias := range c.Aliases ***REMOVED***
 		if strings.HasPrefix(alias, prefix) ***REMOVED***
+			c.commandCalledAs.name = alias
 			return true
 		***REMOVED***
 	***REMOVED***
@@ -1163,7 +1267,7 @@ func (c *Command) HasAvailableSubCommands() bool ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	// the command either has no sub comamnds, or no available (non deprecated/help/hidden)
+	// the command either has no sub commands, or no available (non deprecated/help/hidden)
 	// sub commands
 	return false
 ***REMOVED***
@@ -1173,7 +1277,7 @@ func (c *Command) HasParent() bool ***REMOVED***
 	return c.parent != nil
 ***REMOVED***
 
-// GlobalNormalizationFunc returns the global normalization function or nil if doesn't exists.
+// GlobalNormalizationFunc returns the global normalization function or nil if it doesn't exist.
 func (c *Command) GlobalNormalizationFunc() func(f *flag.FlagSet, name string) flag.NormalizedName ***REMOVED***
 	return c.globNormFunc
 ***REMOVED***
@@ -1273,7 +1377,7 @@ func (c *Command) PersistentFlags() *flag.FlagSet ***REMOVED***
 	return c.pflags
 ***REMOVED***
 
-// ResetFlags is used in testing.
+// ResetFlags deletes all flags from command.
 func (c *Command) ResetFlags() ***REMOVED***
 	c.flagErrorBuf = new(bytes.Buffer)
 	c.flagErrorBuf.Reset()
@@ -1365,6 +1469,10 @@ func (c *Command) ParseFlags(args []string) error ***REMOVED***
 	***REMOVED***
 	beforeErrorBufLen := c.flagErrorBuf.Len()
 	c.mergePersistentFlags()
+
+	//do it here after merging all flags and just before parse
+	c.Flags().ParseErrorsWhitelist = flag.ParseErrorsWhitelist(c.FParseErrWhitelist)
+
 	err := c.Flags().Parse(args)
 	// Print warnings if they occurred (e.g. deprecated flag messages).
 	if c.flagErrorBuf.Len()-beforeErrorBufLen > 0 && err == nil ***REMOVED***

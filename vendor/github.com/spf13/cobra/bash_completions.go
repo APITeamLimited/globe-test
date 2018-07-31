@@ -21,8 +21,8 @@ const (
 
 func writePreamble(buf *bytes.Buffer, name string) ***REMOVED***
 	buf.WriteString(fmt.Sprintf("# bash completion for %-36s -*- shell-script -*-\n", name))
-	buf.WriteString(`
-__debug()
+	buf.WriteString(fmt.Sprintf(`
+__%[1]s_debug()
 ***REMOVED***
     if [[ -n $***REMOVED***BASH_COMP_DEBUG_FILE***REMOVED*** ]]; then
         echo "$*" >> "$***REMOVED***BASH_COMP_DEBUG_FILE***REMOVED***"
@@ -31,13 +31,13 @@ __debug()
 
 # Homebrew on Macs have version 1.3 of bash-completion which doesn't include
 # _init_completion. This is a very minimal version of that function.
-__my_init_completion()
+__%[1]s_init_completion()
 ***REMOVED***
     COMPREPLY=()
     _get_comp_words_by_ref "$@" cur prev words cword
 ***REMOVED***
 
-__index_of_word()
+__%[1]s_index_of_word()
 ***REMOVED***
     local w word=$1
     shift
@@ -49,7 +49,7 @@ __index_of_word()
     index=-1
 ***REMOVED***
 
-__contains_word()
+__%[1]s_contains_word()
 ***REMOVED***
     local w word=$1; shift
     for w in "$@"; do
@@ -58,9 +58,9 @@ __contains_word()
     return 1
 ***REMOVED***
 
-__handle_reply()
+__%[1]s_handle_reply()
 ***REMOVED***
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***"
     case $cur in
         -*)
             if [[ $(type -t compopt) = "builtin" ]]; then
@@ -85,7 +85,7 @@ __handle_reply()
 
                 local index flag
                 flag="$***REMOVED***cur%%=****REMOVED***"
-                __index_of_word "$***REMOVED***flag***REMOVED***" "$***REMOVED***flags_with_completion[@]***REMOVED***"
+                __%[1]s_index_of_word "$***REMOVED***flag***REMOVED***" "$***REMOVED***flags_with_completion[@]***REMOVED***"
                 COMPREPLY=()
                 if [[ $***REMOVED***index***REMOVED*** -ge 0 ]]; then
                     PREFIX=""
@@ -103,7 +103,7 @@ __handle_reply()
 
     # check if we are handling a flag with special work handling
     local index
-    __index_of_word "$***REMOVED***prev***REMOVED***" "$***REMOVED***flags_with_completion[@]***REMOVED***"
+    __%[1]s_index_of_word "$***REMOVED***prev***REMOVED***" "$***REMOVED***flags_with_completion[@]***REMOVED***"
     if [[ $***REMOVED***index***REMOVED*** -ge 0 ]]; then
         $***REMOVED***flags_completion[$***REMOVED***index***REMOVED***]***REMOVED***
         return
@@ -136,24 +136,30 @@ __handle_reply()
     if declare -F __ltrim_colon_completions >/dev/null; then
         __ltrim_colon_completions "$cur"
     fi
+
+    # If there is only 1 completion and it is a flag with an = it will be completed
+    # but we don't want a space after the =
+    if [[ "$***REMOVED***#COMPREPLY[@]***REMOVED***" -eq "1" ]] && [[ $(type -t compopt) = "builtin" ]] && [[ "$***REMOVED***COMPREPLY[0]***REMOVED***" == --*= ]]; then
+       compopt -o nospace
+    fi
 ***REMOVED***
 
 # The arguments should be in the form "ext1|ext2|extn"
-__handle_filename_extension_flag()
+__%[1]s_handle_filename_extension_flag()
 ***REMOVED***
     local ext="$1"
     _filedir "@($***REMOVED***ext***REMOVED***)"
 ***REMOVED***
 
-__handle_subdirs_in_dir_flag()
+__%[1]s_handle_subdirs_in_dir_flag()
 ***REMOVED***
     local dir="$1"
     pushd "$***REMOVED***dir***REMOVED***" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1
 ***REMOVED***
 
-__handle_flag()
+__%[1]s_handle_flag()
 ***REMOVED***
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
 
     # if a command required a flag, and we found it, unset must_have_one_flag()
     local flagname=$***REMOVED***words[c]***REMOVED***
@@ -164,27 +170,30 @@ __handle_flag()
         flagname=$***REMOVED***flagname%%=****REMOVED*** # strip everything after the =
         flagname="$***REMOVED***flagname***REMOVED***=" # but put the = back
     fi
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: looking for $***REMOVED***flagname***REMOVED***"
-    if __contains_word "$***REMOVED***flagname***REMOVED***" "$***REMOVED***must_have_one_flag[@]***REMOVED***"; then
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: looking for $***REMOVED***flagname***REMOVED***"
+    if __%[1]s_contains_word "$***REMOVED***flagname***REMOVED***" "$***REMOVED***must_have_one_flag[@]***REMOVED***"; then
         must_have_one_flag=()
     fi
 
     # if you set a flag which only applies to this command, don't show subcommands
-    if __contains_word "$***REMOVED***flagname***REMOVED***" "$***REMOVED***local_nonpersistent_flags[@]***REMOVED***"; then
+    if __%[1]s_contains_word "$***REMOVED***flagname***REMOVED***" "$***REMOVED***local_nonpersistent_flags[@]***REMOVED***"; then
       commands=()
     fi
 
     # keep flag value with flagname as flaghash
-    if [ -n "$***REMOVED***flagvalue***REMOVED***" ] ; then
-        flaghash[$***REMOVED***flagname***REMOVED***]=$***REMOVED***flagvalue***REMOVED***
-    elif [ -n "$***REMOVED***words[ $((c+1)) ]***REMOVED***" ] ; then
-        flaghash[$***REMOVED***flagname***REMOVED***]=$***REMOVED***words[ $((c+1)) ]***REMOVED***
-    else
-        flaghash[$***REMOVED***flagname***REMOVED***]="true" # pad "true" for bool flag
+    # flaghash variable is an associative array which is only supported in bash > 3.
+    if [[ -z "$***REMOVED***BASH_VERSION***REMOVED***" || "$***REMOVED***BASH_VERSINFO[0]***REMOVED***" -gt 3 ]]; then
+        if [ -n "$***REMOVED***flagvalue***REMOVED***" ] ; then
+            flaghash[$***REMOVED***flagname***REMOVED***]=$***REMOVED***flagvalue***REMOVED***
+        elif [ -n "$***REMOVED***words[ $((c+1)) ]***REMOVED***" ] ; then
+            flaghash[$***REMOVED***flagname***REMOVED***]=$***REMOVED***words[ $((c+1)) ]***REMOVED***
+        else
+            flaghash[$***REMOVED***flagname***REMOVED***]="true" # pad "true" for bool flag
+        fi
     fi
 
     # skip the argument to a two word flag
-    if __contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***two_word_flags[@]***REMOVED***"; then
+    if __%[1]s_contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***two_word_flags[@]***REMOVED***"; then
         c=$((c+1))
         # if we are looking for a flags value, don't show commands
         if [[ $c -eq $cword ]]; then
@@ -196,13 +205,13 @@ __handle_flag()
 
 ***REMOVED***
 
-__handle_noun()
+__%[1]s_handle_noun()
 ***REMOVED***
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
 
-    if __contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***must_have_one_noun[@]***REMOVED***"; then
+    if __%[1]s_contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***must_have_one_noun[@]***REMOVED***"; then
         must_have_one_noun=()
-    elif __contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***noun_aliases[@]***REMOVED***"; then
+    elif __%[1]s_contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***noun_aliases[@]***REMOVED***"; then
         must_have_one_noun=()
     fi
 
@@ -210,45 +219,53 @@ __handle_noun()
     c=$((c+1))
 ***REMOVED***
 
-__handle_command()
+__%[1]s_handle_command()
 ***REMOVED***
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
 
     local next_command
     if [[ -n $***REMOVED***last_command***REMOVED*** ]]; then
         next_command="_$***REMOVED***last_command***REMOVED***_$***REMOVED***words[c]//:/__***REMOVED***"
     else
         if [[ $c -eq 0 ]]; then
-            next_command="_$(basename "$***REMOVED***words[c]//:/__***REMOVED***")"
+            next_command="_%[1]s_root_command"
         else
             next_command="_$***REMOVED***words[c]//:/__***REMOVED***"
         fi
     fi
     c=$((c+1))
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: looking for $***REMOVED***next_command***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: looking for $***REMOVED***next_command***REMOVED***"
     declare -F "$next_command" >/dev/null && $next_command
 ***REMOVED***
 
-__handle_word()
+__%[1]s_handle_word()
 ***REMOVED***
     if [[ $c -ge $cword ]]; then
-        __handle_reply
+        __%[1]s_handle_reply
         return
     fi
-    __debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
+    __%[1]s_debug "$***REMOVED***FUNCNAME[0]***REMOVED***: c is $c words[c] is $***REMOVED***words[c]***REMOVED***"
     if [[ "$***REMOVED***words[c]***REMOVED***" == -* ]]; then
-        __handle_flag
-    elif __contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***commands[@]***REMOVED***"; then
-        __handle_command
-    elif [[ $c -eq 0 ]] && __contains_word "$(basename "$***REMOVED***words[c]***REMOVED***")" "$***REMOVED***commands[@]***REMOVED***"; then
-        __handle_command
+        __%[1]s_handle_flag
+    elif __%[1]s_contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***commands[@]***REMOVED***"; then
+        __%[1]s_handle_command
+    elif [[ $c -eq 0 ]]; then
+        __%[1]s_handle_command
+    elif __%[1]s_contains_word "$***REMOVED***words[c]***REMOVED***" "$***REMOVED***command_aliases[@]***REMOVED***"; then
+        # aliashash variable is an associative array which is only supported in bash > 3.
+        if [[ -z "$***REMOVED***BASH_VERSION***REMOVED***" || "$***REMOVED***BASH_VERSINFO[0]***REMOVED***" -gt 3 ]]; then
+            words[c]=$***REMOVED***aliashash[$***REMOVED***words[c]***REMOVED***]***REMOVED***
+            __%[1]s_handle_command
+        else
+            __%[1]s_handle_noun
+        fi
     else
-        __handle_noun
+        __%[1]s_handle_noun
     fi
-    __handle_word
+    __%[1]s_handle_word
 ***REMOVED***
 
-`)
+`, name))
 ***REMOVED***
 
 func writePostscript(buf *bytes.Buffer, name string) ***REMOVED***
@@ -257,10 +274,11 @@ func writePostscript(buf *bytes.Buffer, name string) ***REMOVED***
 	buf.WriteString(fmt.Sprintf(`***REMOVED***
     local cur prev words cword
     declare -A flaghash 2>/dev/null || :
+    declare -A aliashash 2>/dev/null || :
     if declare -F _init_completion >/dev/null 2>&1; then
         _init_completion -s || return
     else
-        __my_init_completion -n "=" || return
+        __%[1]s_init_completion -n "=" || return
     fi
 
     local c=0
@@ -269,13 +287,13 @@ func writePostscript(buf *bytes.Buffer, name string) ***REMOVED***
     local local_nonpersistent_flags=()
     local flags_with_completion=()
     local flags_completion=()
-    local commands=("%s")
+    local commands=("%[1]s")
     local must_have_one_flag=()
     local must_have_one_noun=()
     local last_command
     local nouns=()
 
-    __handle_word
+    __%[1]s_handle_word
 ***REMOVED***
 
 `, name))
@@ -296,11 +314,12 @@ func writeCommands(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 			continue
 		***REMOVED***
 		buf.WriteString(fmt.Sprintf("    commands+=(%q)\n", c.Name()))
+		writeCmdAliases(buf, c)
 	***REMOVED***
 	buf.WriteString("\n")
 ***REMOVED***
 
-func writeFlagHandler(buf *bytes.Buffer, name string, annotations map[string][]string) ***REMOVED***
+func writeFlagHandler(buf *bytes.Buffer, name string, annotations map[string][]string, cmd *Command) ***REMOVED***
 	for key, value := range annotations ***REMOVED***
 		switch key ***REMOVED***
 		case BashCompFilenameExt:
@@ -308,7 +327,7 @@ func writeFlagHandler(buf *bytes.Buffer, name string, annotations map[string][]s
 
 			var ext string
 			if len(value) > 0 ***REMOVED***
-				ext = "__handle_filename_extension_flag " + strings.Join(value, "|")
+				ext = fmt.Sprintf("__%s_handle_filename_extension_flag ", cmd.Root().Name()) + strings.Join(value, "|")
 			***REMOVED*** else ***REMOVED***
 				ext = "_filedir"
 			***REMOVED***
@@ -326,7 +345,7 @@ func writeFlagHandler(buf *bytes.Buffer, name string, annotations map[string][]s
 
 			var ext string
 			if len(value) == 1 ***REMOVED***
-				ext = "__handle_subdirs_in_dir_flag " + value[0]
+				ext = fmt.Sprintf("__%s_handle_subdirs_in_dir_flag ", cmd.Root().Name()) + value[0]
 			***REMOVED*** else ***REMOVED***
 				ext = "_filedir -d"
 			***REMOVED***
@@ -335,7 +354,7 @@ func writeFlagHandler(buf *bytes.Buffer, name string, annotations map[string][]s
 	***REMOVED***
 ***REMOVED***
 
-func writeShortFlag(buf *bytes.Buffer, flag *pflag.Flag) ***REMOVED***
+func writeShortFlag(buf *bytes.Buffer, flag *pflag.Flag, cmd *Command) ***REMOVED***
 	name := flag.Shorthand
 	format := "    "
 	if len(flag.NoOptDefVal) == 0 ***REMOVED***
@@ -343,10 +362,10 @@ func writeShortFlag(buf *bytes.Buffer, flag *pflag.Flag) ***REMOVED***
 	***REMOVED***
 	format += "flags+=(\"-%s\")\n"
 	buf.WriteString(fmt.Sprintf(format, name))
-	writeFlagHandler(buf, "-"+name, flag.Annotations)
+	writeFlagHandler(buf, "-"+name, flag.Annotations, cmd)
 ***REMOVED***
 
-func writeFlag(buf *bytes.Buffer, flag *pflag.Flag) ***REMOVED***
+func writeFlag(buf *bytes.Buffer, flag *pflag.Flag, cmd *Command) ***REMOVED***
 	name := flag.Name
 	format := "    flags+=(\"--%s"
 	if len(flag.NoOptDefVal) == 0 ***REMOVED***
@@ -354,7 +373,7 @@ func writeFlag(buf *bytes.Buffer, flag *pflag.Flag) ***REMOVED***
 	***REMOVED***
 	format += "\")\n"
 	buf.WriteString(fmt.Sprintf(format, name))
-	writeFlagHandler(buf, "--"+name, flag.Annotations)
+	writeFlagHandler(buf, "--"+name, flag.Annotations, cmd)
 ***REMOVED***
 
 func writeLocalNonPersistentFlag(buf *bytes.Buffer, flag *pflag.Flag) ***REMOVED***
@@ -380,9 +399,9 @@ func writeFlags(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 		if nonCompletableFlag(flag) ***REMOVED***
 			return
 		***REMOVED***
-		writeFlag(buf, flag)
+		writeFlag(buf, flag, cmd)
 		if len(flag.Shorthand) > 0 ***REMOVED***
-			writeShortFlag(buf, flag)
+			writeShortFlag(buf, flag, cmd)
 		***REMOVED***
 		if localNonPersistentFlags.Lookup(flag.Name) != nil ***REMOVED***
 			writeLocalNonPersistentFlag(buf, flag)
@@ -392,9 +411,9 @@ func writeFlags(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 		if nonCompletableFlag(flag) ***REMOVED***
 			return
 		***REMOVED***
-		writeFlag(buf, flag)
+		writeFlag(buf, flag, cmd)
 		if len(flag.Shorthand) > 0 ***REMOVED***
-			writeShortFlag(buf, flag)
+			writeShortFlag(buf, flag, cmd)
 		***REMOVED***
 	***REMOVED***)
 
@@ -434,6 +453,21 @@ func writeRequiredNouns(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func writeCmdAliases(buf *bytes.Buffer, cmd *Command) ***REMOVED***
+	if len(cmd.Aliases) == 0 ***REMOVED***
+		return
+	***REMOVED***
+
+	sort.Sort(sort.StringSlice(cmd.Aliases))
+
+	buf.WriteString(fmt.Sprint(`    if [[ -z "$***REMOVED***BASH_VERSION***REMOVED***" || "$***REMOVED***BASH_VERSINFO[0]***REMOVED***" -gt 3 ]]; then`, "\n"))
+	for _, value := range cmd.Aliases ***REMOVED***
+		buf.WriteString(fmt.Sprintf("        command_aliases+=(%q)\n", value))
+		buf.WriteString(fmt.Sprintf("        aliashash[%q]=%q\n", value, cmd.Name()))
+	***REMOVED***
+	buf.WriteString(`    fi`)
+	buf.WriteString("\n")
+***REMOVED***
 func writeArgAliases(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 	buf.WriteString("    noun_aliases=()\n")
 	sort.Sort(sort.StringSlice(cmd.ArgAliases))
@@ -452,8 +486,18 @@ func gen(buf *bytes.Buffer, cmd *Command) ***REMOVED***
 	commandName := cmd.CommandPath()
 	commandName = strings.Replace(commandName, " ", "_", -1)
 	commandName = strings.Replace(commandName, ":", "__", -1)
-	buf.WriteString(fmt.Sprintf("_%s()\n***REMOVED***\n", commandName))
+
+	if cmd.Root() == cmd ***REMOVED***
+		buf.WriteString(fmt.Sprintf("_%s_root_command()\n***REMOVED***\n", commandName))
+	***REMOVED*** else ***REMOVED***
+		buf.WriteString(fmt.Sprintf("_%s()\n***REMOVED***\n", commandName))
+	***REMOVED***
+
 	buf.WriteString(fmt.Sprintf("    last_command=%q\n", commandName))
+	buf.WriteString("\n")
+	buf.WriteString("    command_aliases=()\n")
+	buf.WriteString("\n")
+
 	writeCommands(buf, cmd)
 	writeFlags(buf, cmd)
 	writeRequiredFlag(buf, cmd)
@@ -491,17 +535,20 @@ func (c *Command) GenBashCompletionFile(filename string) error ***REMOVED***
 	return c.GenBashCompletion(outFile)
 ***REMOVED***
 
-// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag, if it exists.
+// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag if it exists,
+// and causes your command to report an error if invoked without the flag.
 func (c *Command) MarkFlagRequired(name string) error ***REMOVED***
 	return MarkFlagRequired(c.Flags(), name)
 ***REMOVED***
 
-// MarkPersistentFlagRequired adds the BashCompOneRequiredFlag annotation to the named persistent flag, if it exists.
+// MarkPersistentFlagRequired adds the BashCompOneRequiredFlag annotation to the named persistent flag if it exists,
+// and causes your command to report an error if invoked without the flag.
 func (c *Command) MarkPersistentFlagRequired(name string) error ***REMOVED***
 	return MarkFlagRequired(c.PersistentFlags(), name)
 ***REMOVED***
 
-// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag in the flag set, if it exists.
+// MarkFlagRequired adds the BashCompOneRequiredFlag annotation to the named flag if it exists,
+// and causes your command to report an error if invoked without the flag.
 func MarkFlagRequired(flags *pflag.FlagSet, name string) error ***REMOVED***
 	return flags.SetAnnotation(name, BashCompOneRequiredFlag, []string***REMOVED***"true"***REMOVED***)
 ***REMOVED***
