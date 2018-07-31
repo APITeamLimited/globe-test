@@ -272,6 +272,11 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.NoVUConnectionReuse.Valid)
 		assert.True(t, opts.NoVUConnectionReuse.Bool)
 	***REMOVED***)
+	t.Run("NoCookiesReset", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***NoCookiesReset: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.NoCookiesReset.Valid)
+		assert.True(t, opts.NoCookiesReset.Bool)
+	***REMOVED***)
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*net.IPNet***REMOVED******REMOVED***
@@ -427,6 +432,11 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"Hi!": null.StringFrom("Hi!"),
 		***REMOVED***,
 		***REMOVED***"Throw", "K6_THROW"***REMOVED***: ***REMOVED***
+			"":      null.Bool***REMOVED******REMOVED***,
+			"true":  null.BoolFrom(true),
+			"false": null.BoolFrom(false),
+		***REMOVED***,
+		***REMOVED***"NoCookiesReset", "K6_NO_COOKIES_RESET"***REMOVED***: ***REMOVED***
 			"":      null.Bool***REMOVED******REMOVED***,
 			"true":  null.BoolFrom(true),
 			"false": null.BoolFrom(false),
