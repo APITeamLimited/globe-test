@@ -51,7 +51,13 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		fs := afero.NewOsFs()
-		config, cdir, err := readDiskConfig(fs)
+
+		k6Conf, err := getConsolidatedConfig(fs, cmd.Flags(), nil)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		currentDiskConf, cdir, err := readDiskConfig(fs)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -60,15 +66,15 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 		reset := getNullBool(cmd.Flags(), "reset")
 		token := getNullString(cmd.Flags(), "token")
 
-		conf := cloud.NewConfig().Apply(config.Collectors.Cloud)
+		newCloudConf := cloud.NewConfig().Apply(currentDiskConf.Collectors.Cloud)
 
 		switch ***REMOVED***
 		case reset.Valid:
-			conf.Token = null.StringFromPtr(nil)
+			newCloudConf.Token = null.StringFromPtr(nil)
 			fprintf(stdout, "  token reset\n")
 		case show.Bool:
 		case token.Valid:
-			conf.Token = token
+			newCloudConf.Token = token
 		default:
 			form := ui.Form***REMOVED***
 				Fields: []ui.Field***REMOVED***
@@ -89,7 +95,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 			email := vals["Email"].(string)
 			password := vals["Password"].(string)
 
-			client := cloud.NewClient("", conf.Host.String, Version)
+			client := cloud.NewClient("", k6Conf.Collectors.Cloud.Host.String, Version)
 			res, err := client.Login(email, password)
 			if err != nil ***REMOVED***
 				return err
@@ -99,16 +105,16 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 				return errors.New(`Your account has no API token, please generate one: "https://app.loadimpact.com/account/token".`)
 			***REMOVED***
 
-			conf.Token = null.StringFrom(res.Token)
+			newCloudConf.Token = null.StringFrom(res.Token)
 		***REMOVED***
 
-		config.Collectors.Cloud = conf
-		if err := writeDiskConfig(fs, cdir, config); err != nil ***REMOVED***
+		currentDiskConf.Collectors.Cloud = newCloudConf
+		if err := writeDiskConfig(fs, cdir, currentDiskConf); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
-		if conf.Token.Valid ***REMOVED***
-			fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(conf.Token.String))
+		if newCloudConf.Token.Valid ***REMOVED***
+			fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(newCloudConf.Token.String))
 		***REMOVED***
 		return nil
 	***REMOVED***,

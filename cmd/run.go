@@ -42,14 +42,12 @@ import (
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	null "gopkg.in/guregu/null.v3"
 )
 
 const (
@@ -116,46 +114,18 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, afero.NewOsFs(), runtimeOptions)
+		r, err := newRunner(src, runType, fs, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
-		// Assemble options; start with the CLI-provided options to get shadowed (non-Valid)
-		// defaults in there, override with Runner-provided ones, then merge the CLI opts in
-		// on top to give them priority.
 		fprintf(stdout, "%s options\r", initBar.String())
-		cliConf, err := getConfig(cmd.Flags())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		fileConf, _, err := readDiskConfig(fs)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		envConf, err := readEnvConfig()
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		conf := cliConf.Apply(fileConf).Apply(Config***REMOVED***Options: r.GetOptions()***REMOVED***).Apply(envConf).Apply(cliConf)
 
-		// If -m/--max isn't specified, figure out the max that should be needed.
-		if !conf.VUsMax.Valid ***REMOVED***
-			conf.VUsMax = null.NewInt(conf.VUs.Int64, conf.VUs.Valid)
-			for _, stage := range conf.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
-					conf.VUsMax = stage.Target
-				***REMOVED***
-			***REMOVED***
+		conf, err := getConsolidatedConfig(fs, cmd.Flags(), r)
+		if err != nil ***REMOVED***
+			return err
 		***REMOVED***
-		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
-		if !conf.Duration.Valid && !conf.Iterations.Valid && conf.Stages == nil ***REMOVED***
-			conf.Iterations = null.IntFrom(1)
-		***REMOVED***
-		// If duration is explicitly set to 0, it means run forever.
-		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
-			conf.Duration = types.NullDuration***REMOVED******REMOVED***
-		***REMOVED***
+
 		// If summary trend stats are defined, update the UI to reflect them
 		if len(conf.SummaryTrendStats) > 0 ***REMOVED***
 			ui.UpdateTrendColumns(conf.SummaryTrendStats)

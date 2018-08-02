@@ -27,6 +27,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/kafka"
@@ -154,4 +155,55 @@ func writeDiskConfig(fs afero.Fs, cdir *configdir.Config, conf Config) error ***
 func readEnvConfig() (conf Config, err error) ***REMOVED***
 	err = envconfig.Process("k6", &conf)
 	return conf, err
+***REMOVED***
+
+// Assemble the final consolidated configuration from all of the different sources:
+// - start with the CLI-provided options to get shadowed (non-Valid) defaults in there
+// - add the global file config options
+// - if supplied, add the Runner-provided options
+// - add the environment variables
+// - merge the user-supplied CLI flags back in on top, to give them the greatest priority
+// - set some defaults if they weren't previously specified
+// TODO: add better validation, improve consistency between formats
+func getConsolidatedConfig(fs afero.Fs, flags *pflag.FlagSet, runner lib.Runner) (conf Config, err error) ***REMOVED***
+	cliConf, err := getConfig(flags)
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+	fileConf, _, err := readDiskConfig(fs)
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+	envConf, err := readEnvConfig()
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+
+	conf = cliConf.Apply(fileConf)
+	if runner != nil ***REMOVED***
+		conf = conf.Apply(Config***REMOVED***Options: runner.GetOptions()***REMOVED***)
+	***REMOVED***
+	conf = conf.Apply(envConf).Apply(cliConf)
+
+	// If -m/--max isn't specified, figure out the max that should be needed.
+	if !conf.VUsMax.Valid ***REMOVED***
+		conf.VUsMax = null.NewInt(conf.VUs.Int64, conf.VUs.Valid)
+		for _, stage := range conf.Stages ***REMOVED***
+			if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
+				conf.VUsMax = stage.Target
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
+	if !conf.Duration.Valid && !conf.Iterations.Valid && conf.Stages == nil ***REMOVED***
+		conf.Iterations = null.IntFrom(1)
+	***REMOVED***
+
+	// If duration is explicitly set to 0, it means run forever.
+	if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
+		conf.Duration = types.NullDuration***REMOVED******REMOVED***
+	***REMOVED***
+
+	return conf, nil
 ***REMOVED***
