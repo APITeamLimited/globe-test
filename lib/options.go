@@ -262,6 +262,9 @@ type Options struct ***REMOVED***
 
 	// Buffer size of the channel for metric samples; 0 means unbuffered
 	MetricSamplesBufferSize null.Int `json:"metricSamplesBufferSize" envconfig:"metric_samples_buffer_size"`
+
+	// Do not reset cookies after a VU iteration
+	NoCookiesReset null.Bool `json:"noCookiesReset" envconfig:"no_cookies_reset"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -346,6 +349,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.NoVUConnectionReuse.Valid ***REMOVED***
 		o.NoVUConnectionReuse = opts.NoVUConnectionReuse
+	***REMOVED***
+	if opts.NoCookiesReset.Valid ***REMOVED***
+		o.NoCookiesReset = opts.NoCookiesReset
 	***REMOVED***
 	if opts.External != nil ***REMOVED***
 		o.External = opts.External

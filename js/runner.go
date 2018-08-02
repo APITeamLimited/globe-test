@@ -165,11 +165,17 @@ func (r *Runner) newVU(samplesOut chan<- stats.SampleContainer) (*VU, error) ***
 	***REMOVED***
 	_ = http2.ConfigureTransport(transport)
 
+	cookieJar, err := cookiejar.New(nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	vu := &VU***REMOVED***
 		BundleInstance: *bi,
 		Runner:         r,
 		HTTPTransport:  netext.NewHTTPTransport(transport),
 		Dialer:         dialer,
+		CookieJar:      cookieJar,
 		TLSConfig:      tlsConfig,
 		Console:        NewConsole(),
 		BPool:          bpool.NewBufferPool(100),
@@ -284,6 +290,7 @@ type VU struct ***REMOVED***
 	Runner        *Runner
 	HTTPTransport *netext.HTTPTransport
 	Dialer        *netext.Dialer
+	CookieJar     *cookiejar.Jar
 	TLSConfig     *tls.Config
 	ID            int64
 	Iteration     int64
@@ -351,6 +358,10 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), nil, err
+	***REMOVED***
+
+	if u.Runner.Bundle.Options.NoCookiesReset.Valid && u.Runner.Bundle.Options.NoCookiesReset.Bool ***REMOVED***
+		cookieJar = u.CookieJar
 	***REMOVED***
 
 	state := &common.State***REMOVED***

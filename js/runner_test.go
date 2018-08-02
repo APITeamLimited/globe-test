@@ -814,7 +814,8 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	assert.EqualError(t, err, "GoError: \"open\" function is only available to the init code (aka global scope), see https://docs.k6.io/docs/test-life-cycle for more information")
 ***REMOVED***
 
-func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
+func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
+
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
@@ -863,6 +864,66 @@ func TestVUIntegrationCookies(t *testing.T) ***REMOVED***
 				err = vu.RunOnce(context.Background())
 				assert.NoError(t, err)
 			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(tb.Replacer.Replace(`
+			import http from "k6/http";
+			export default function() ***REMOVED***
+				let url = "HTTPBIN_URL";
+				if (__ITER == 0) ***REMOVED***
+					let res = http.get(url + "/cookies/set?k2=v2&k1=v1");
+					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
+						throw new Error("wrong cookies: " + res.body);
+					***REMOVED***
+				***REMOVED***
+
+				if (__ITER == 1) ***REMOVED***
+					let res = http.get(url + "/cookies");
+					if (res.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + res.status); ***REMOVED***
+					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
+						throw new Error("wrong cookies: " + res.body);
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		`)),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	r1.SetOptions(lib.Options***REMOVED***
+		Throw:          null.BoolFrom(true),
+		MaxRedirects:   null.IntFrom(10),
+		Hosts:          tb.Dialer.Hosts,
+		NoCookiesReset: null.BoolFrom(true),
+	***REMOVED***)
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+
+			err = vu.RunOnce(context.Background())
+			assert.NoError(t, err)
+
+			err = vu.RunOnce(context.Background())
+			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
