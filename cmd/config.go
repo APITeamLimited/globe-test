@@ -91,6 +91,7 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	***REMOVED***
 	c.Collectors.InfluxDB = c.Collectors.InfluxDB.Apply(cfg.Collectors.InfluxDB)
 	c.Collectors.Cloud = c.Collectors.Cloud.Apply(cfg.Collectors.Cloud)
+	c.Collectors.Kafka = c.Collectors.Kafka.Apply(cfg.Collectors.Kafka)
 	return c
 ***REMOVED***
 
@@ -152,6 +153,53 @@ func writeDiskConfig(fs afero.Fs, cdir *configdir.Config, conf Config) error ***
 
 // Reads configuration variables from the environment.
 func readEnvConfig() (conf Config, err error) ***REMOVED***
-	err = envconfig.Process("k6", &conf)
-	return conf, err
+	// TODO: replace envconfig and refactor the whole configuration from the groun up :/
+	for _, err := range []error***REMOVED***
+		envconfig.Process("k6", &conf),
+		envconfig.Process("k6", &conf.Collectors.Cloud),
+		envconfig.Process("k6", &conf.Collectors.InfluxDB),
+		envconfig.Process("k6", &conf.Collectors.Kafka),
+	***REMOVED*** ***REMOVED***
+		return conf, err
+	***REMOVED***
+	return conf, nil
+***REMOVED***
+
+// Assemble the final consolidated configuration from all of the different sources:
+// - start with the CLI-provided options to get shadowed (non-Valid) defaults in there
+// - add the global file config options
+// - if supplied, add the Runner-provided options
+// - add the environment variables
+// - merge the user-supplied CLI flags back in on top, to give them the greatest priority
+// - set some defaults if they weren't previously specified
+// TODO: add better validation, more explicit default values and improve consistency between formats
+func getConsolidatedConfig(fs afero.Fs, flags *pflag.FlagSet, runner lib.Runner) (conf Config, err error) ***REMOVED***
+	cliConf := Config***REMOVED******REMOVED***
+	if flags != nil ***REMOVED***
+		cliConf, err = getConfig(flags)
+		if err != nil ***REMOVED***
+			return conf, err
+		***REMOVED***
+	***REMOVED***
+
+	cliConf.Collectors.InfluxDB = influxdb.NewConfig().Apply(cliConf.Collectors.InfluxDB)
+	cliConf.Collectors.Cloud = cloud.NewConfig().Apply(cliConf.Collectors.Cloud)
+	cliConf.Collectors.Kafka = kafka.NewConfig().Apply(cliConf.Collectors.Kafka)
+
+	fileConf, _, err := readDiskConfig(fs)
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+	envConf, err := readEnvConfig()
+	if err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+
+	conf = cliConf.Apply(fileConf)
+	if runner != nil ***REMOVED***
+		conf = conf.Apply(Config***REMOVED***Options: runner.GetOptions()***REMOVED***)
+	***REMOVED***
+	conf = conf.Apply(envConf).Apply(cliConf)
+
+	return conf, nil
 ***REMOVED***
