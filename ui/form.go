@@ -21,7 +21,6 @@
 package ui
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 
@@ -30,9 +29,10 @@ import (
 
 // A Field in a form.
 type Field interface ***REMOVED***
-	GetKey() string        // Key for the data map.
-	GetLabel() string      // Label to print as the prompt.
-	GetLabelExtra() string // Extra info for the label, eg. defaults.
+	GetKey() string                        // Key for the data map.
+	GetLabel() string                      // Label to print as the prompt.
+	GetLabelExtra() string                 // Extra info for the label, eg. defaults.
+	GetContents(io.Reader) (string, error) // Read the field contents from the supplied reader
 
 	// Sanitize user input and return the field's native type.
 	Clean(s string) (interface***REMOVED******REMOVED***, error)
@@ -44,7 +44,7 @@ type Form struct ***REMOVED***
 	Fields []Field
 ***REMOVED***
 
-// Runs the form against the specified input and output.
+// Run executes the form against the specified input and output.
 func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED******REMOVED***, error) ***REMOVED***
 	if f.Banner != "" ***REMOVED***
 		if _, err := fmt.Fprintln(w, color.BlueString(f.Banner)+"\n"); err != nil ***REMOVED***
@@ -52,7 +52,6 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 		***REMOVED***
 	***REMOVED***
 
-	buf := bufio.NewReader(r)
 	data := make(map[string]interface***REMOVED******REMOVED***, len(f.Fields))
 	for _, field := range f.Fields ***REMOVED***
 		for ***REMOVED***
@@ -65,7 +64,7 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 			***REMOVED***
 
 			color.Set(color.FgCyan)
-			s, err := buf.ReadString('\n')
+			s, err := field.GetContents(r)
 			color.Unset()
 			if err != nil ***REMOVED***
 				return nil, err
