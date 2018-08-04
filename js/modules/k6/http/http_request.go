@@ -114,17 +114,18 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 ***REMOVED***
 
 type parsedHTTPRequest struct ***REMOVED***
-	url           *URL
-	body          *bytes.Buffer
-	req           *http.Request
-	timeout       time.Duration
-	auth          string
-	throw         bool
-	redirects     null.Int
-	activeJar     *cookiejar.Jar
-	cookies       map[string]*HTTPRequestCookie
-	mergedCookies map[string][]*HTTPRequestCookie
-	tags          map[string]string
+	url                 *URL
+	body                *bytes.Buffer
+	req                 *http.Request
+	timeout             time.Duration
+	auth                string
+	throw               bool
+	discardResponseBody bool
+	redirects           null.Int
+	activeJar           *cookiejar.Jar
+	cookies             map[string]*HTTPRequestCookie
+	mergedCookies       map[string][]*HTTPRequestCookie
+	tags                map[string]string
 ***REMOVED***
 
 func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body interface***REMOVED******REMOVED***, params goja.Value) (*parsedHTTPRequest, error) ***REMOVED***
@@ -138,11 +139,12 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 			URL:    reqURL.URL,
 			Header: make(http.Header),
 		***REMOVED***,
-		timeout:   60 * time.Second,
-		throw:     state.Options.Throw.Bool,
-		redirects: state.Options.MaxRedirects,
-		cookies:   make(map[string]*HTTPRequestCookie),
-		tags:      make(map[string]string),
+		timeout:             60 * time.Second,
+		throw:               state.Options.Throw.Bool,
+		discardResponseBody: state.Options.DiscardResponseBody.Bool,
+		redirects:           state.Options.MaxRedirects,
+		cookies:             make(map[string]*HTTPRequestCookie),
+		tags:                make(map[string]string),
 	***REMOVED***
 
 	formatFormVal := func(v interface***REMOVED******REMOVED***) string ***REMOVED***
@@ -329,6 +331,8 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 				result.timeout = time.Duration(params.Get(k).ToFloat() * float64(time.Millisecond))
 			case "throw":
 				result.throw = params.Get(k).ToBoolean()
+			case "discardresponsebody":
+				result.discardResponseBody = params.Get(k).ToBoolean()
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -490,14 +494,19 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 	***REMOVED***
 	if resErr == nil && res != nil ***REMOVED***
-		buf := state.BPool.Get()
-		buf.Reset()
-		defer state.BPool.Put(buf)
-		_, err := io.Copy(buf, res.Body)
-		if err != nil && err != io.EOF ***REMOVED***
-			resErr = err
+		if !preq.discardResponseBody ***REMOVED***
+			buf := state.BPool.Get()
+			buf.Reset()
+			defer state.BPool.Put(buf)
+			_, err := io.Copy(buf, res.Body)
+			if err != nil && err != io.EOF ***REMOVED***
+				resErr = err
+			***REMOVED***
+			resp.Body = buf.String()
+		***REMOVED*** else ***REMOVED***
+			io.Copy(ioutil.Discard, res.Body)
+			resp.Body = ""
 		***REMOVED***
-		resp.Body = buf.String()
 		_ = res.Body.Close()
 	***REMOVED***
 	trail := tracer.Done()
