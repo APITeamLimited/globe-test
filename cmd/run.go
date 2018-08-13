@@ -123,7 +123,11 @@ a commandline interface for interacting with it.`,
 
 		fprintf(stdout, "%s options\r", initBar.String())
 
-		conf, err := getConsolidatedConfig(fs, cmd.Flags(), r)
+		cliConf, err := getConfig(cmd.Flags())
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		conf, err := getConsolidatedConfig(fs, cliConf, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
