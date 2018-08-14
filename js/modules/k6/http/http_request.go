@@ -504,7 +504,10 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 			***REMOVED***
 			resp.Body = buf.String()
 		***REMOVED*** else ***REMOVED***
-			io.Copy(ioutil.Discard, res.Body)
+			_, err := io.Copy(ioutil.Discard, res.Body)
+			if err != nil && err != io.EOF ***REMOVED***
+				resErr = err
+			***REMOVED***
 			resp.Body = ""
 		***REMOVED***
 		_ = res.Body.Close()
