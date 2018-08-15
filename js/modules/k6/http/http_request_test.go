@@ -440,6 +440,17 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 
+		t.Run("discardResponseBody", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+			let params = ***REMOVED*** headers: ***REMOVED*** "Accept-Encoding": "deflate",  ***REMOVED***, discardResponseBody: true ***REMOVED***;
+			let res = http.get("HTTPBIN_URL/bytes/15000", params);
+				if (res.body.length >0 ) ***REMOVED***
+					throw new Error("response body size should be 0 (" + res.body.length +")")
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+
 		t.Run("cookies", func(t *testing.T) ***REMOVED***
 			t.Run("access", func(t *testing.T) ***REMOVED***
 				cookieJar, err := cookiejar.New(nil)
