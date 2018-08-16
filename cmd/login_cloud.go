@@ -52,7 +52,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		fs := afero.NewOsFs()
 
-		k6Conf, err := getConsolidatedConfig(fs, nil, nil)
+		k6Conf, err := getConsolidatedConfig(fs, Config***REMOVED******REMOVED***, nil)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

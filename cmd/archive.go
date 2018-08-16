@@ -66,7 +66,11 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 
-		conf, err := getConsolidatedConfig(fs, cmd.Flags(), r)
+		cliOpts, err := getOptions(cmd.Flags())
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		conf, err := getConsolidatedConfig(fs, Config***REMOVED***Options: cliOpts***REMOVED***, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
