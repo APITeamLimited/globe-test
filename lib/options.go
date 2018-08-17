@@ -265,6 +265,9 @@ type Options struct ***REMOVED***
 
 	// Do not reset cookies after a VU iteration
 	NoCookiesReset null.Bool `json:"noCookiesReset" envconfig:"no_cookies_reset"`
+
+	// Discard Http Responses Body
+	DiscardResponseBody null.Bool `json:"discardResponseBody" envconfig:"discard_response_body"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -370,6 +373,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.MetricSamplesBufferSize.Valid ***REMOVED***
 		o.MetricSamplesBufferSize = opts.MetricSamplesBufferSize
+	***REMOVED***
+	if opts.DiscardResponseBody.Valid ***REMOVED***
+		o.DiscardResponseBody = opts.DiscardResponseBody
 	***REMOVED***
 	return o
 ***REMOVED***
