@@ -202,10 +202,16 @@ func BenchmarkDurationBounds(b *testing.B) ***REMOVED***
 	***REMOVED***
 
 	for count := 100; count <= 5000; count += 500 ***REMOVED***
-		b.Run(fmt.Sprintf("Sort-%d-elements", count), func(b *testing.B) ***REMOVED***
+		b.Run(fmt.Sprintf("Sort-no-interp-%d-elements", count), func(b *testing.B) ***REMOVED***
 			for i := 0; i < b.N; i++ ***REMOVED***
 				data := getData(b, count)
-				data.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
+				data.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, false)
+			***REMOVED***
+		***REMOVED***)
+		b.Run(fmt.Sprintf("Sort-with-interp-%d-elements", count), func(b *testing.B) ***REMOVED***
+			for i := 0; i < b.N; i++ ***REMOVED***
+				data := getData(b, count)
+				data.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
 			***REMOVED***
 		***REMOVED***)
 		b.Run(fmt.Sprintf("Select-%d-elements", count), func(b *testing.B) ***REMOVED***
@@ -257,7 +263,7 @@ func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 
 				t.Run(fmt.Sprintf("bounds-tc%d", tcNum), func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					sortMin, sortMax := dataForSort.SortGetNormalBounds(tc.r, tc.l, tc.u)
+					sortMin, sortMax := dataForSort.SortGetNormalBounds(tc.r, tc.l, tc.u, false)
 					selectMin, selectMax := dataForSelect.SelectGetNormalBounds(tc.r, tc.l, tc.u)
 					assert.Equal(t, sortMin, selectMin)
 					assert.Equal(t, sortMax, selectMax)
@@ -270,4 +276,20 @@ func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestSortInterpolation(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	// Super contrived example to make the checks easy - 11 values from 0 to 10 seconds inclusive
+	count := 11
+	data := make(durations, count)
+	for i := 0; i < count; i++ ***REMOVED***
+		data[i] = time.Duration(i) * time.Second
+	***REMOVED***
+
+	min, max := data.SortGetNormalBounds(0.25, 1, 1, true)
+	// Expected values: Q1=2.5, Q3=7.5, IQR=5, so with 1 for coefficients we can expect min=-2,5, max=12.5 seconds
+	assert.Equal(t, min, -2500*time.Millisecond)
+	assert.Equal(t, max, 12500*time.Millisecond)
 ***REMOVED***
