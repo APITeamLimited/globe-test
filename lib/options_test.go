@@ -367,10 +367,10 @@ func TestOptions(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RunTags: tags***REMOVED***)
 		assert.Equal(t, tags, opts.RunTags)
 	***REMOVED***)
-	t.Run("DiscardResponseBody", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***DiscardResponseBody: null.BoolFrom(true)***REMOVED***)
-		assert.True(t, opts.DiscardResponseBody.Valid)
-		assert.True(t, opts.DiscardResponseBody.Bool)
+	t.Run("DiscardResponseBodies", func(t *testing.T) ***REMOVED***
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***DiscardResponseBodies: null.BoolFrom(true)***REMOVED***)
+		assert.True(t, opts.DiscardResponseBodies.Valid)
+		assert.True(t, opts.DiscardResponseBodies.Bool)
 	***REMOVED***)
 
 ***REMOVED***

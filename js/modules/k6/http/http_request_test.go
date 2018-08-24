@@ -21,10 +21,12 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -138,6 +140,7 @@ func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, chan stat
 ***REMOVED***
 
 func TestRequestAndBatch(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb, state, samples, rt, ctx := newRuntime(t)
 	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
@@ -439,17 +442,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
 		***REMOVED***
-
-		t.Run("discardResponseBody", func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, sr(`
-			let params = ***REMOVED*** headers: ***REMOVED*** "Accept-Encoding": "deflate",  ***REMOVED***, discardResponseBody: true ***REMOVED***;
-			let res = http.get("HTTPBIN_URL/bytes/15000", params);
-				if (res.body.length >0 ) ***REMOVED***
-					throw new Error("response body size should be 0 (" + res.body.length +")")
-				***REMOVED***
-			`))
-			assert.NoError(t, err)
-		***REMOVED***)
 
 		t.Run("cookies", func(t *testing.T) ***REMOVED***
 			t.Run("access", func(t *testing.T) ***REMOVED***
@@ -1135,6 +1127,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 func TestSystemTags(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb, state, samples, rt, _ := newRuntime(t)
 	defer tb.Cleanup()
 
@@ -1191,6 +1184,118 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestResponseTypes(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	// We don't expect any failed requests
+	state.Options.Throw = null.BoolFrom(true)
+
+	text := `•?((¯°·._.• ţ€$ţɨɲǥ µɲɨȼ๏ď€ ɨɲ Ќ6 •._.·°¯))؟•`
+	textLen := len(text)
+	tb.Mux.HandleFunc("/get-text", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		n, err := w.Write([]byte(text))
+		assert.NoError(t, err)
+		assert.Equal(t, textLen, n)
+	***REMOVED***))
+	tb.Mux.HandleFunc("/compare-text", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		body, err := ioutil.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.Equal(t, text, string(body))
+	***REMOVED***))
+
+	binaryLen := 300
+	binary := make([]byte, binaryLen)
+	for i := 0; i < binaryLen; i++ ***REMOVED***
+		binary[i] = byte(i)
+	***REMOVED***
+	tb.Mux.HandleFunc("/get-bin", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		n, err := w.Write(binary)
+		assert.NoError(t, err)
+		assert.Equal(t, binaryLen, n)
+	***REMOVED***))
+	tb.Mux.HandleFunc("/compare-bin", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		body, err := ioutil.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.True(t, bytes.Equal(binary, body))
+	***REMOVED***))
+
+	replace := func(s string) string ***REMOVED***
+		return strings.NewReplacer(
+			"EXP_TEXT", text,
+			"EXP_BIN_LEN", strconv.Itoa(binaryLen),
+		).Replace(tb.Replacer.Replace(s))
+	***REMOVED***
+
+	_, err := common.RunString(rt, replace(`
+		let expText = "EXP_TEXT";
+		let expBinLength = EXP_BIN_LEN;
+
+		// Check default behaviour with a unicode text
+		let respTextImplicit = http.get("HTTPBIN_URL/get-text").body;
+		if (respTextImplicit !== expText) ***REMOVED***
+			throw new Error("default response body should be '" + expText + "' but was '" + respTextImplicit + "'");
+		***REMOVED***
+		http.post("HTTPBIN_URL/compare-text", respTextImplicit);
+
+		// Check discarding of responses
+		let respNone = http.get("HTTPBIN_URL/get-text", ***REMOVED*** responseType: "none" ***REMOVED***).body;
+		if (respNone != null) ***REMOVED***
+			throw new Error("none response body should be null but was " + respNone);
+		***REMOVED***
+
+		// Check binary transmission of the text response as well
+		let respTextInBin = http.get("HTTPBIN_URL/get-text", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
+
+		// Hack to convert a utf-8 array to a JS string
+		let strConv = "";
+		function pad(n) ***REMOVED*** return n.length < 2 ? "0" + n : n; ***REMOVED***
+		for( let i = 0; i < respTextInBin.length; i++ ) ***REMOVED***
+			strConv += ( "%" + pad(respTextInBin[i].toString(16)));
+		***REMOVED***
+		strConv = decodeURIComponent(strConv);
+		if (strConv !== expText) ***REMOVED***
+			throw new Error("converted response body should be '" + expText + "' but was '" + strConv + "'");
+		***REMOVED***
+		http.post("HTTPBIN_URL/compare-text", respTextInBin);
+
+		// Check binary response
+		let respBin = http.get("HTTPBIN_URL/get-bin", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
+		if (respBin.length !== expBinLength) ***REMOVED***
+			throw new Error("response body length should be '" + expBinLength + "' but was '" + respBin.length + "'");
+		***REMOVED***
+		for( let i = 0; i < respBin.length; i++ ) ***REMOVED***
+			if ( respBin[i] !== i%256 ) ***REMOVED***
+				throw new Error("expected value " + (i%256) + " to be at position " + i + " but it was " + respBin[i]);
+			***REMOVED***
+		***REMOVED***
+		http.post("HTTPBIN_URL/compare-bin", respBin);
+	`))
+	assert.NoError(t, err)
+
+	// Verify that if we enable discardResponseBodies globally, the default value is none
+	state.Options.DiscardResponseBodies = null.BoolFrom(true)
+
+	_, err = common.RunString(rt, replace(`
+		let expText = "EXP_TEXT";
+
+		// Check default behaviour
+		let respDefault = http.get("HTTPBIN_URL/get-text").body;
+		if (respDefault !== null) ***REMOVED***
+			throw new Error("default response body should be discarded and null but was " + respDefault);
+		***REMOVED***
+
+		// Check explicit text response
+		let respTextExplicit = http.get("HTTPBIN_URL/get-text", ***REMOVED*** responseType: "text" ***REMOVED***).body;
+		if (respTextExplicit !== expText) ***REMOVED***
+			throw new Error("text response body should be '" + expText + "' but was '" + respTextExplicit + "'");
+		***REMOVED***
+		http.post("HTTPBIN_URL/compare-text", respTextExplicit);
+	`))
+	assert.NoError(t, err)
 ***REMOVED***
 
 // Simple NTLM mock handler

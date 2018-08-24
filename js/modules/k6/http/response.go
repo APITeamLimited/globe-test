@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 
 	"fmt"
 	"net/url"
@@ -56,7 +57,7 @@ type HTTPResponse struct ***REMOVED***
 	Proto          string
 	Headers        map[string]string
 	Cookies        map[string][]*HTTPCookie
-	Body           string
+	Body           interface***REMOVED******REMOVED***
 	Timings        HTTPResponseTimings
 	TLSVersion     string
 	TLSCipherSuite string
@@ -127,7 +128,16 @@ func (res *HTTPResponse) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 func (res *HTTPResponse) Json() goja.Value ***REMOVED***
 	if res.cachedJSON == nil ***REMOVED***
 		var v interface***REMOVED******REMOVED***
-		if err := json.Unmarshal([]byte(res.Body), &v); err != nil ***REMOVED***
+		var body []byte
+		switch b := res.Body.(type) ***REMOVED***
+		case []byte:
+			body = b
+		case string:
+			body = []byte(b)
+		default:
+			common.Throw(common.GetRuntime(res.ctx), errors.New("Invalid response type"))
+		***REMOVED***
+		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
 			common.Throw(common.GetRuntime(res.ctx), err)
 		***REMOVED***
 		res.cachedJSON = common.GetRuntime(res.ctx).ToValue(v)
@@ -136,7 +146,17 @@ func (res *HTTPResponse) Json() goja.Value ***REMOVED***
 ***REMOVED***
 
 func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
-	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, res.Body)
+	var body string
+	switch b := res.Body.(type) ***REMOVED***
+	case []byte:
+		body = string(b)
+	case string:
+		body = b
+	default:
+		common.Throw(common.GetRuntime(res.ctx), errors.New("Invalid response type"))
+	***REMOVED***
+
+	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, body)
 	if err != nil ***REMOVED***
 		common.Throw(common.GetRuntime(res.ctx), err)
 	***REMOVED***
