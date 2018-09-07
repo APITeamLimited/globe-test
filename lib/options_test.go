@@ -63,12 +63,28 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, int64(1234), opts.Iterations.Int64)
 	***REMOVED***)
 	t.Run("Stages", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(1 * time.Second)***REMOVED******REMOVED******REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED***
+			***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(10)***REMOVED***,
+			***REMOVED***Duration: types.NullDurationFrom(2 * time.Second), Target: null.IntFrom(20)***REMOVED***,
+		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Stages)
-		assert.Len(t, opts.Stages, 1)
+		assert.Len(t, opts.Stages, 2)
 		assert.Equal(t, 1*time.Second, time.Duration(opts.Stages[0].Duration.Duration))
+		assert.Equal(t, int64(10), opts.Stages[0].Target.Int64)
+		assert.Equal(t, 2*time.Second, time.Duration(opts.Stages[1].Duration.Duration))
+		assert.Equal(t, int64(20), opts.Stages[1].Target.Int64)
 
-		assert.Nil(t, Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***).Stages)
+		emptyStages := []Stage***REMOVED******REMOVED***
+		assert.Equal(t, emptyStages, Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***).Stages)
+		assert.Equal(t, emptyStages, Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED***).Stages)
+		assert.Equal(t, emptyStages, opts.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED***).Stages)
+		assert.Equal(t, emptyStages, opts.Apply(Options***REMOVED***Stages: []Stage***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***).Stages)
+
+		assert.Equal(t, opts.Stages, opts.Apply(opts).Stages)
+
+		oneStage := []Stage***REMOVED******REMOVED***Duration: types.NullDurationFrom(5 * time.Second), Target: null.IntFrom(50)***REMOVED******REMOVED***
+		assert.Equal(t, oneStage, opts.Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
+		assert.Equal(t, oneStage, Options***REMOVED******REMOVED***.Apply(opts).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 	***REMOVED***)
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
