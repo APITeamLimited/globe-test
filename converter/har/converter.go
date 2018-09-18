@@ -291,12 +291,15 @@ func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks b
 			***REMOVED*** else ***REMOVED***
 				// Add sleep time at the end of the group
 				nextPage := pages[i+1]
-				lastEntry := entries[len(entries)-1]
-				t := nextPage.StartedDateTime.Sub(lastEntry.StartedDateTime).Seconds()
-				if t < 0.01 ***REMOVED***
-					t = 0.5
+				sleepTime := 0.5
+				if len(entries) > 0 ***REMOVED***
+					lastEntry := entries[len(entries)-1]
+					t := nextPage.StartedDateTime.Sub(lastEntry.StartedDateTime).Seconds()
+					if t >= 0.01 ***REMOVED***
+						sleepTime = t
+					***REMOVED***
 				***REMOVED***
-				fprintf(w, "\t\tsleep(%.2f);\n", t)
+				fprintf(w, "\t\tsleep(%.2f);\n", sleepTime)
 			***REMOVED***
 		***REMOVED***
 
