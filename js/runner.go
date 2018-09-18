@@ -157,11 +157,13 @@ func (r *Runner) newVU(samplesOut chan<- stats.SampleContainer) (*VU, error) ***
 		Renegotiation:      tls.RenegotiateFreelyAsClient,
 	***REMOVED***
 	transport := &http.Transport***REMOVED***
-		Proxy:              http.ProxyFromEnvironment,
-		TLSClientConfig:    tlsConfig,
-		DialContext:        dialer.DialContext,
-		DisableCompression: true,
-		DisableKeepAlives:  r.Bundle.Options.NoConnectionReuse.Bool,
+		Proxy:               http.ProxyFromEnvironment,
+		TLSClientConfig:     tlsConfig,
+		DialContext:         dialer.DialContext,
+		DisableCompression:  true,
+		DisableKeepAlives:   r.Bundle.Options.NoConnectionReuse.Bool,
+		MaxIdleConns:        int(r.Bundle.Options.Batch.Int64),
+		MaxIdleConnsPerHost: int(r.Bundle.Options.BatchPerHost.Int64),
 	***REMOVED***
 	_ = http2.ConfigureTransport(transport)
 
