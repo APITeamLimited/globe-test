@@ -21,8 +21,10 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/dop251/goja"
 	"net/http"
 	"net/url"
 	"testing"
@@ -54,6 +56,30 @@ const testGetFormHTML = `
 	</form>
 </body>
 `
+const jsonData = `***REMOVED***"glossary": ***REMOVED***
+    "friends": [
+      ***REMOVED***"first": "Dale", "last": "Murphy", "age": 44***REMOVED***,
+      ***REMOVED***"first": "Roger", "last": "Craig", "age": 68***REMOVED***,
+      ***REMOVED***"first": "Jane", "last": "Murphy", "age": 47***REMOVED***],
+	"GlossDiv": ***REMOVED***
+	  "title": "S",
+	  "GlossList": ***REMOVED***
+	    "GlossEntry": ***REMOVED***
+	      "ID": "SGML",
+	      "SortAs": "SGML",
+	      "GlossTerm": "Standard Generalized Markup Language",
+	      "Acronym": "SGML",
+	      "Abbrev": "ISO 8879:1986",
+	      "GlossDef": ***REMOVED***
+            "int": 1123456,
+            "null": null,
+            "intArray": [1,2,3],
+            "mixedArray": ["123",123,true,null],
+            "boolean": true,
+            "title": "example glossary",
+            "para": "A meta-markup language, used to create markup languages such as DocBook.",
+	  "GlossSeeAlso": ["GML","XML"]***REMOVED***,
+	"GlossSee": "markup"***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***`
 
 func myFormHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	var body []byte
@@ -77,6 +103,14 @@ func myFormHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	_, _ = w.Write(body)
 ***REMOVED***
 
+func jsonHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	body := []byte(jsonData)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+	w.WriteHeader(200)
+	_, _ = w.Write(body)
+***REMOVED***
+
 func TestResponse(t *testing.T) ***REMOVED***
 	tb, state, samples, rt, _ := newRuntime(t)
 	defer tb.Cleanup()
@@ -84,6 +118,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 	sr := tb.Replacer.Replace
 
 	tb.Mux.HandleFunc("/myforms/get", myFormHandler)
+	tb.Mux.HandleFunc("/json", jsonHandler)
 
 	t.Run("Html", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
@@ -146,6 +181,48 @@ func TestResponse(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`http.request("GET", "HTTPBIN_URL/html").json();`))
 			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
 		***REMOVED***)
+	***REMOVED***)
+	t.Run("JsonSelector", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, sr(`
+			let res = http.request("GET", "HTTPBIN_URL/json");
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+
+			var value = res.json("glossary.friends.1")
+	        if (typeof value != "object")
+				***REMOVED*** throw new Error("wrong type of result value: " + value); ***REMOVED***
+	        if (value["first"] != "Roger")
+				***REMOVED*** throw new Error("Expected Roger for key first but got: " + value["first"]); ***REMOVED***
+
+			value = res.json("glossary.int1")
+	        if (value != undefined)
+				***REMOVED*** throw new Error("Expected undefined, but got: " + value); ***REMOVED***
+
+			value = res.json("glossary.null") 
+	        if (value != null)
+				***REMOVED*** throw new Error("Expected null, but got: " + value); ***REMOVED***
+
+			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.intArray.#")
+	        if (value != 3)
+				***REMOVED*** throw new Error("Expected num 3, but got: " + value); ***REMOVED***
+
+			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.intArray")[2]
+	        if (value != 3)
+ 				***REMOVED*** throw new Error("Expected, num 3, but got: " + value); ***REMOVED***
+
+			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.boolean")
+	        if (value != true)
+				***REMOVED*** throw new Error("Expected boolean true, but got: " + value); ***REMOVED***
+
+			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.title") 
+	        if (value != "example glossary") 
+				***REMOVED*** throw new Error("Expected 'example glossary'', but got: " + value); ***REMOVED***
+
+			value =	res.json("glossary.friends.#.first")[0]
+	        if (value != "Dale")
+				***REMOVED*** throw new Error("Expected 'Dale', but got: " + value); ***REMOVED***
+		`))
+		assert.NoError(t, err)
+		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/json"), "", 200, "")
 	***REMOVED***)
 
 	t.Run("SubmitForm", func(t *testing.T) ***REMOVED***
@@ -291,5 +368,38 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get"), "", 200, "")
 		***REMOVED***)
+	***REMOVED***)
+***REMOVED***
+
+func BenchmarkResponseJson(b *testing.B) ***REMOVED***
+	ctx := context.Background()
+	rt := goja.New()
+	ctx = common.WithRuntime(ctx, rt)
+	testCases := []struct ***REMOVED***
+		selector string
+	***REMOVED******REMOVED***
+		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.title"***REMOVED***,
+		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.int"***REMOVED***,
+		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.intArray"***REMOVED***,
+		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.mixedArray"***REMOVED***,
+		***REMOVED***"glossary.friends"***REMOVED***,
+		***REMOVED***"glossary.friends.#.first"***REMOVED***,
+		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.GlossDef"***REMOVED***,
+		***REMOVED***"glossary"***REMOVED***,
+	***REMOVED***
+	for _, tc := range testCases ***REMOVED***
+		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
+			for n := 0; n < b.N; n++ ***REMOVED***
+				resp := &HTTPResponse***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+				resp.Json(tc.selector)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+
+	b.Run("Without selector", func(b *testing.B) ***REMOVED***
+		for n := 0; n < b.N; n++ ***REMOVED***
+			resp := &HTTPResponse***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+			resp.Json()
+		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

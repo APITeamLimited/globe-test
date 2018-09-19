@@ -25,8 +25,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-
 	"fmt"
+	"github.com/tidwall/gjson"
 	"net/url"
 	"strings"
 
@@ -65,7 +65,8 @@ type HTTPResponse struct ***REMOVED***
 	Error          string
 	Request        HTTPRequest
 
-	cachedJSON goja.Value
+	cachedJSON    goja.Value
+	validatedJSON bool
 ***REMOVED***
 
 func (res *HTTPResponse) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
@@ -125,8 +126,9 @@ func (res *HTTPResponse) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 	res.OCSP = ocspStapledRes
 ***REMOVED***
 
-func (res *HTTPResponse) Json() goja.Value ***REMOVED***
-	if res.cachedJSON == nil ***REMOVED***
+func (res *HTTPResponse) Json(selector ...string) goja.Value ***REMOVED***
+	hasSelector := len(selector) > 0
+	if res.cachedJSON == nil || hasSelector ***REMOVED***
 		var v interface***REMOVED******REMOVED***
 		var body []byte
 		switch b := res.Body.(type) ***REMOVED***
@@ -137,9 +139,28 @@ func (res *HTTPResponse) Json() goja.Value ***REMOVED***
 		default:
 			common.Throw(common.GetRuntime(res.ctx), errors.New("Invalid response type"))
 		***REMOVED***
+
+		if hasSelector ***REMOVED***
+
+			if !res.validatedJSON ***REMOVED***
+				if !gjson.ValidBytes(body) ***REMOVED***
+					return goja.Undefined()
+				***REMOVED***
+				res.validatedJSON = true
+			***REMOVED***
+
+			result := gjson.GetBytes(body, selector[0])
+
+			if !result.Exists() ***REMOVED***
+				return goja.Undefined()
+			***REMOVED***
+			return common.GetRuntime(res.ctx).ToValue(result.Value())
+		***REMOVED***
+
 		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
 			common.Throw(common.GetRuntime(res.ctx), err)
 		***REMOVED***
+		res.validatedJSON = true
 		res.cachedJSON = common.GetRuntime(res.ctx).ToValue(v)
 	***REMOVED***
 	return res.cachedJSON
