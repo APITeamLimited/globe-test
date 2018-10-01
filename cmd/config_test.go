@@ -83,6 +83,8 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+//TODO: write end-to-end configuration tests - how the config file, in-script options, environment variables and CLI flags are parsed and interact... and how the end result is then propagated back into the script
+
 func TestConfigEnv(t *testing.T) ***REMOVED***
 	testdata := map[struct***REMOVED*** Name, Key string ***REMOVED***]map[string]func(Config)***REMOVED***
 		***REMOVED***"Linger", "K6_LINGER"***REMOVED***: ***REMOVED***

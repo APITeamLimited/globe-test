@@ -143,7 +143,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
-		if !conf.Duration.Valid && !conf.Iterations.Valid && conf.Stages == nil ***REMOVED***
+		if !conf.Duration.Valid && !conf.Iterations.Valid && len(conf.Stages) == 0 ***REMOVED***
 			conf.Iterations = null.IntFrom(1)
 		***REMOVED***
 

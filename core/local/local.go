@@ -279,7 +279,7 @@ func (e *Executor) Run(parent context.Context, engineOut chan<- stats.SampleCont
 			***REMOVED***
 
 			stages := e.stages
-			if stages != nil ***REMOVED***
+			if len(stages) > 0 ***REMOVED***
 				vus, keepRunning := ProcessStages(startVUs, stages, at)
 				if !keepRunning ***REMOVED***
 					e.Logger.WithField("at", at).Debug("Local: Ran out of stages")

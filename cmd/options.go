@@ -96,18 +96,22 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(1000, false),
 	***REMOVED***
 
-	stageStrings, err := flags.GetStringSlice("stage")
-	if err != nil ***REMOVED***
-		return opts, err
-	***REMOVED***
-	if len(stageStrings) > 0 ***REMOVED***
-		opts.Stages = make([]lib.Stage, len(stageStrings))
+	// Using Lookup() because GetStringSlice() doesn't differentiate between --stage="" and no value
+	if flags.Lookup("stage").Changed ***REMOVED***
+		stageStrings, err := flags.GetStringSlice("stage")
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		opts.Stages = []lib.Stage***REMOVED******REMOVED***
 		for i, s := range stageStrings ***REMOVED***
 			var stage lib.Stage
 			if err := stage.UnmarshalText([]byte(s)); err != nil ***REMOVED***
 				return opts, errors.Wrapf(err, "stage %d", i)
 			***REMOVED***
-			opts.Stages[i] = stage
+			if !stage.Duration.Valid ***REMOVED***
+				return opts, fmt.Errorf("stage %d doesn't have a specified duration", i)
+			***REMOVED***
+			opts.Stages = append(opts.Stages, stage)
 		***REMOVED***
 	***REMOVED***
 
