@@ -212,7 +212,10 @@ func NonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric
 	switch sink := m.Sink.(type) ***REMOVED***
 	case *stats.CounterSink:
 		value := sink.Value
-		rate := value / (float64(t) / float64(time.Second))
+		rate := 0.0
+		if t > 0 ***REMOVED***
+			rate = value / (float64(t) / float64(time.Second))
+		***REMOVED***
 		return m.HumanizeValue(value, timeUnit), []string***REMOVED***m.HumanizeValue(rate, timeUnit) + "/s"***REMOVED***
 	case *stats.GaugeSink:
 		value := sink.Value
