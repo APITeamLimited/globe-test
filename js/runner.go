@@ -393,6 +393,14 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 	v, err := fn(goja.Undefined(), args...) // Actually run the JS script
 	endTime := time.Now()
 
+	var isFullIteration bool
+	select ***REMOVED***
+	case <-ctx.Done():
+		isFullIteration = false
+	default:
+		isFullIteration = true
+	***REMOVED***
+
 	tags := state.Options.RunTags.CloneTags()
 	if state.Options.SystemTags["vu"] ***REMOVED***
 		tags["vu"] = strconv.FormatInt(u.ID, 10)
@@ -406,14 +414,6 @@ func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args
 
 	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***
 		u.HTTPTransport.CloseIdleConnections()
-	***REMOVED***
-
-	var isFullIteration bool
-	select ***REMOVED***
-	case <-ctx.Done():
-		isFullIteration = false
-	default:
-		isFullIteration = true
 	***REMOVED***
 
 	state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, stats.IntoSampleTags(&tags))

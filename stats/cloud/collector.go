@@ -232,17 +232,22 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 			***REMOVED***
 		case *netext.NetTrail:
 			//TODO: aggregate?
+			values := map[string]float64***REMOVED***
+				metrics.DataSent.Name:     float64(sc.BytesWritten),
+				metrics.DataReceived.Name: float64(sc.BytesRead),
+			***REMOVED***
+
+			if sc.FullIteration ***REMOVED***
+				values[metrics.IterationDuration.Name] = stats.D(sc.EndTime.Sub(sc.StartTime))
+			***REMOVED***
+
 			newSamples = append(newSamples, &Sample***REMOVED***
 				Type:   DataTypeMap,
 				Metric: "iter_li_all",
 				Data: &SampleDataMap***REMOVED***
-					Time: Timestamp(sc.GetTime()),
-					Tags: sc.GetTags(),
-					Values: map[string]float64***REMOVED***
-						metrics.DataSent.Name:          float64(sc.BytesWritten),
-						metrics.DataReceived.Name:      float64(sc.BytesRead),
-						metrics.IterationDuration.Name: stats.D(sc.EndTime.Sub(sc.StartTime)),
-					***REMOVED***,
+					Time:   Timestamp(sc.GetTime()),
+					Tags:   sc.GetTags(),
+					Values: values,
 				***REMOVED******REMOVED***)
 		default:
 			for _, sample := range sampleContainer.GetSamples() ***REMOVED***
