@@ -45,14 +45,16 @@ func (sd SetupData) GetID() string ***REMOVED***
 	return "default"
 ***REMOVED***
 
-func handleSetupDataOutput(rw http.ResponseWriter, setupData interface***REMOVED******REMOVED***) ***REMOVED***
+func handleSetupDataOutput(rw http.ResponseWriter, setupData []byte) ***REMOVED***
 	rw.Header().Set("Content-Type", "application/json")
-
-	data, err := jsonapi.Marshal(SetupData***REMOVED***setupData***REMOVED***)
+	var tmp interface***REMOVED******REMOVED***
+	_ = json.Unmarshal(setupData, &tmp)
+	data, err := jsonapi.Marshal(SetupData***REMOVED***tmp***REMOVED***)
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
+
 	_, _ = rw.Write(data)
 ***REMOVED***
 
@@ -70,14 +72,16 @@ func HandleSetSetupData(rw http.ResponseWriter, r *http.Request, p httprouter.Pa
 		return
 	***REMOVED***
 
-	var setupData interface***REMOVED******REMOVED***
-	if err := json.Unmarshal(body, &setupData); err != nil ***REMOVED***
-		apiError(rw, "Error parsing request body", err.Error(), http.StatusBadRequest)
-		return
+	var data interface***REMOVED******REMOVED***
+	if len(body) > 0 ***REMOVED***
+		if err := json.Unmarshal(body, &data); err != nil ***REMOVED***
+			apiError(rw, "Error parsing request body", err.Error(), http.StatusBadRequest)
+			return
+		***REMOVED***
 	***REMOVED***
 
 	runner := common.GetEngine(r.Context()).Executor.GetRunner()
-	runner.SetSetupData(setupData)
+	runner.SetSetupData(body)
 
 	handleSetupDataOutput(rw, runner.GetSetupData())
 ***REMOVED***

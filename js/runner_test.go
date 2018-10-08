@@ -215,7 +215,6 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
-
 func TestSetupTeardown(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
@@ -261,6 +260,62 @@ func TestSetupTeardown(t *testing.T) ***REMOVED***
 			if assert.NoError(t, err) ***REMOVED***
 				err := vu.RunOnce(context.Background())
 				assert.NoError(t, err)
+			***REMOVED***
+
+			assert.NoError(t, r.Teardown(context.Background(), samples))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestSetupDataIsolation(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			export let options = ***REMOVED***
+				setupTimeout: "10s",
+				teardownTimeout: "10s",
+			***REMOVED***;
+
+			export function setup() ***REMOVED***
+				return ***REMOVED*** v: 1 ***REMOVED***;
+			***REMOVED***
+			export function teardown(data) ***REMOVED***
+				if (data.v != 1) ***REMOVED***
+					throw new Error("teardown: wrong data: " + data.v)
+				***REMOVED***
+				data.v = 2
+			***REMOVED***
+			export default function(data) ***REMOVED***
+				if (data.v != 1) ***REMOVED***
+					throw new Error("default: wrong data: " + JSON.stringify(data))
+				***REMOVED***
+				data.v = 2
+			***REMOVED***
+		`),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		samples := make(chan stats.SampleContainer, 100)
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			if !assert.NoError(t, r.Setup(context.Background(), samples)) ***REMOVED***
+				return
+			***REMOVED***
+
+			vu, err := r.NewVU(samples)
+			if assert.NoError(t, err) ***REMOVED***
+				for i := 0; i < 10; i++ ***REMOVED***
+					err := vu.RunOnce(context.Background())
+					assert.NoError(t, err)
+				***REMOVED***
 			***REMOVED***
 
 			assert.NoError(t, r.Teardown(context.Background(), samples))
@@ -1036,7 +1091,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
-		Throw: null.BoolFrom(true),
+		Throw:                 null.BoolFrom(true),
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***)
 
