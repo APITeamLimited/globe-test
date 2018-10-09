@@ -219,58 +219,6 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestSetupTeardown(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			export let options = ***REMOVED***
-				setupTimeout: "1s",
-				teardownTimeout: "1s"
-			***REMOVED***;
-
-			export function setup() ***REMOVED***
-				return ***REMOVED*** v: 1 ***REMOVED***;
-			***REMOVED***
-			export function teardown(data) ***REMOVED***
-				if (data.v != 1) ***REMOVED***
-					throw new Error("teardown: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***
-			export default function(data) ***REMOVED***
-				if (data.v != 1) ***REMOVED***
-					throw new Error("default: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
-		samples := make(chan stats.SampleContainer, 100)
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			if !assert.NoError(t, r.Setup(context.Background(), samples)) ***REMOVED***
-				return
-			***REMOVED***
-
-			vu, err := r.NewVU(samples)
-			if assert.NoError(t, err) ***REMOVED***
-				err := vu.RunOnce(context.Background())
-				assert.NoError(t, err)
-			***REMOVED***
-
-			assert.NoError(t, r.Teardown(context.Background(), samples))
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := testutils.NewHTTPMultiBin(t)
@@ -344,20 +292,16 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func testSetupDataHelper(t *testing.T, src *lib.SourceData) ***REMOVED***
-	expScriptOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
-	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
+	t.Helper()
+	expScriptOptions := lib.Options***REMOVED***
+		SetupTimeout:    types.NullDurationFrom(1 * time.Second),
+		TeardownTimeout: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***)
-	require.NoError(t, err)
-	require.Equal(t, expScriptOptions, r2.GetOptions())
-
-	newOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(3 * time.Second)***REMOVED***
-	r2.SetOptions(newOptions)
-	require.Equal(t, newOptions, r2.GetOptions())
-
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	testdata := map[string]*Runner***REMOVED***"Source": r1***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			samples := make(chan stats.SampleContainer, 100)
@@ -378,7 +322,7 @@ func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
+			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 			export function setup() ***REMOVED***
 				return 42;
 			***REMOVED***
@@ -403,15 +347,16 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
+			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 			export default function(data) ***REMOVED***
-				if (data != null) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
 					throw new Error("default: wrong data: " + JSON.stringify(data))
 				***REMOVED***
 			***REMOVED***;
 
 			export function teardown(data) ***REMOVED***
-				if (data != null) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
+					console.log(data);
 					throw new Error("teardown: wrong data: " + JSON.stringify(data))
 				***REMOVED***
 			***REMOVED***;
@@ -425,16 +370,16 @@ func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
+			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 			export function setup() ***REMOVED*** ***REMOVED***
 			export default function(data) ***REMOVED***
-				if (data != null) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
 					throw new Error("default: wrong data: " + JSON.stringify(data))
 				***REMOVED***
 			***REMOVED***;
 
 			export function teardown(data) ***REMOVED***
-				if (data != null) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
 					throw new Error("teardown: wrong data: " + JSON.stringify(data))
 				***REMOVED***
 			***REMOVED***;
