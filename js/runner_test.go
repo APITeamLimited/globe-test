@@ -32,17 +32,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loadimpact/k6/core"
+	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
+	"github.com/loadimpact/k6/stats/dummy"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
+	null "gopkg.in/guregu/null.v3"
 )
 
 func TestRunnerNew(t *testing.T) ***REMOVED***
@@ -269,59 +272,75 @@ func TestSetupTeardown(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataIsolation(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			export let options = ***REMOVED***
-				setupTimeout: "10s",
-				teardownTimeout: "10s",
-			***REMOVED***;
+	t.Parallel()
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
 
-			export function setup() ***REMOVED***
-				return ***REMOVED*** v: 1 ***REMOVED***;
+	script := []byte(tb.Replacer.Replace(`
+		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+		export let options = ***REMOVED***
+			vus: 2,
+			vusMax: 10,
+			iterations: 10000,
+			teardownTimeout: "1s",
+			setupTimeout: "1s",
+		***REMOVED***;
+		let myCounter = new Counter("mycounter");
+
+		export function setup() ***REMOVED***
+			return ***REMOVED*** v: 0 ***REMOVED***;
+		***REMOVED***
+
+		export default function(data) ***REMOVED***
+			if (data.v !== __ITER) ***REMOVED***
+				throw new Error("default: wrong data for iter " + __ITER + ": " + JSON.stringify(data));
 			***REMOVED***
-			export function teardown(data) ***REMOVED***
-				if (data.v != 1) ***REMOVED***
-					throw new Error("teardown: wrong data: " + data.v)
-				***REMOVED***
-				data.v = 2
+			data.v += 1;
+			myCounter.add(1);
+		***REMOVED***
+
+		export function teardown(data) ***REMOVED***
+			if (data.v !== 0) ***REMOVED***
+				throw new Error("teardown: wrong data: " + data.v);
 			***REMOVED***
-			export default function(data) ***REMOVED***
-				if (data.v != 1) ***REMOVED***
-					throw new Error("default: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-				data.v = 2
-			***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
+			myCounter.add(1);
+		***REMOVED***
+	`))
+
+	runner, err := New(
+		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
+		afero.NewMemMapFs(),
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	engine, err := core.NewEngine(local.New(runner), runner.GetOptions())
+	require.NoError(t, err)
+
+	collector := &dummy.Collector***REMOVED******REMOVED***
+	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+		require.False(t, engine.IsTainted())
 	***REMOVED***
-
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
+	var count int
+	for _, s := range collector.Samples ***REMOVED***
+		if s.Metric.Name == "mycounter" ***REMOVED***
+			count += int(s.Value)
+		***REMOVED***
 	***REMOVED***
-
-	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range testdata ***REMOVED***
-		samples := make(chan stats.SampleContainer, 100)
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			if !assert.NoError(t, r.Setup(context.Background(), samples)) ***REMOVED***
-				return
-			***REMOVED***
-
-			vu, err := r.NewVU(samples)
-			if assert.NoError(t, err) ***REMOVED***
-				for i := 0; i < 10; i++ ***REMOVED***
-					err := vu.RunOnce(context.Background())
-					assert.NoError(t, err)
-				***REMOVED***
-			***REMOVED***
-
-			assert.NoError(t, r.Teardown(context.Background(), samples))
-		***REMOVED***)
-	***REMOVED***
+	require.Equal(t, 10001, count, "mycounter should be the number of iterations + 1 for the teardown")
 ***REMOVED***
 
 func testSetupDataHelper(t *testing.T, src *lib.SourceData) ***REMOVED***
