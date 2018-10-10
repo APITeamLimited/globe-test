@@ -43,12 +43,42 @@ import (
 
 func TestSetupData(t *testing.T) ***REMOVED***
 	t.Parallel()
-	runner, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(`
+	var testCases = []struct ***REMOVED***
+		name      string
+		script    []byte
+		setupRuns [][3]string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name: "setupReturns",
+			script: []byte(`
 			export function setup() ***REMOVED***
 				return ***REMOVED***"v": 1***REMOVED***;
 			***REMOVED***
 
+			export default function(data) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
+					throw new Error("incorrect data: " + JSON.stringify(data));
+				***REMOVED***
+			***REMOVED***;
+
+			export function teardown(data) ***REMOVED***
+				if (data !== undefined) ***REMOVED***
+					throw new Error("incorrect teardown data: " + JSON.stringify(data));
+				***REMOVED***
+			***REMOVED*** `),
+			setupRuns: [][3]string***REMOVED***
+				***REMOVED***"GET", "", "***REMOVED******REMOVED***"***REMOVED***,
+				***REMOVED***"POST", "", `***REMOVED***"data": ***REMOVED***"v":1***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ***REMOVED***"v":1***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED******REMOVED***`***REMOVED***,
+			***REMOVED***,
+		***REMOVED***, ***REMOVED***
+
+			name: "noSetup",
+			script: []byte(`
 			export default function(data) ***REMOVED***
 				if (!data || data.v != 2) ***REMOVED***
 					throw new Error("incorrect data: " + JSON.stringify(data));
@@ -59,61 +89,102 @@ func TestSetupData(t *testing.T) ***REMOVED***
 				if (!data || data.v != 2) ***REMOVED***
 					throw new Error("incorrect teardown data: " + JSON.stringify(data));
 				***REMOVED***
+			***REMOVED*** `),
+			setupRuns: [][3]string***REMOVED***
+				***REMOVED***"GET", "", "***REMOVED******REMOVED***"***REMOVED***,
+				***REMOVED***"POST", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+			***REMOVED***,
+		***REMOVED***, ***REMOVED***
+			name: "setupNoReturn",
+			script: []byte(`
+			export function setup() ***REMOVED***
+				let a = ***REMOVED***"v": 1***REMOVED***;
+			***REMOVED***
+			export default function(data) ***REMOVED***
+				if (data === undefined || data !== "") ***REMOVED***
+					throw new Error("incorrect data: " + JSON.stringify(data));
+				***REMOVED***
+			***REMOVED***;
+
+			export function teardown(data) ***REMOVED***
+				if (data === udefined || data !== "") ***REMOVED***
+					throw new Error("incorrect teardown data: " + JSON.stringify(data));
+				***REMOVED***
+			***REMOVED*** `),
+			setupRuns: [][3]string***REMOVED***
+				***REMOVED***"GET", "", "***REMOVED******REMOVED***"***REMOVED***,
+				***REMOVED***"POST", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`***REMOVED***,
+				***REMOVED***"PUT", "\"\"", `***REMOVED***"data": ""***REMOVED***`***REMOVED***,
+				***REMOVED***"GET", "", `***REMOVED***"data": ""***REMOVED***`***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	for _, testCase := range testCases ***REMOVED***
+		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			runner, err := js.New(
+				&lib.SourceData***REMOVED***Filename: "/script.js", Data: testCase.script***REMOVED***,
+				afero.NewMemMapFs(),
+				lib.RuntimeOptions***REMOVED******REMOVED***,
+			)
+			require.NoError(t, err)
+			runner.SetOptions(lib.Options***REMOVED***
+				Paused:          null.BoolFrom(true),
+				VUs:             null.IntFrom(2),
+				VUsMax:          null.IntFrom(2),
+				Iterations:      null.IntFrom(3),
+				SetupTimeout:    types.NullDurationFrom(1 * time.Second),
+				TeardownTimeout: types.NullDurationFrom(1 * time.Second),
+			***REMOVED***)
+			executor := local.New(runner)
+			executor.SetRunSetup(false)
+			engine, err := core.NewEngine(executor, runner.GetOptions())
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+			handler := NewHandler()
+
+			checkSetup := func(method, body, expResult string) ***REMOVED***
+				rw := httptest.NewRecorder()
+				handler.ServeHTTP(rw, newRequestWithEngine(engine, method, "/v1/setup", bytes.NewBufferString(body)))
+				res := rw.Result()
+				assert.Equal(t, http.StatusOK, res.StatusCode)
+
+				var doc jsonapi.Document
+				assert.NoError(t, json.Unmarshal(rw.Body.Bytes(), &doc))
+				if !assert.NotNil(t, doc.Data.DataObject) ***REMOVED***
+					return
+				***REMOVED***
+				assert.Equal(t, "setupData", doc.Data.DataObject.Type)
+				assert.JSONEq(t, expResult, string(doc.Data.DataObject.Attributes))
 			***REMOVED***
 
-		`)***REMOVED***,
-		afero.NewMemMapFs(),
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
-	require.NoError(t, err)
-	runner.SetOptions(lib.Options***REMOVED***
-		Paused:          null.BoolFrom(true),
-		VUs:             null.IntFrom(2),
-		VUsMax:          null.IntFrom(2),
-		Iterations:      null.IntFrom(3),
-		SetupTimeout:    types.NullDurationFrom(1 * time.Second),
-		TeardownTimeout: types.NullDurationFrom(1 * time.Second),
-	***REMOVED***)
-	executor := local.New(runner)
-	executor.SetRunSetup(false)
-	engine, err := core.NewEngine(executor, runner.GetOptions())
-	require.NoError(t, err)
+			for _, setupRun := range testCase.setupRuns ***REMOVED***
+				checkSetup(setupRun[0], setupRun[1], setupRun[2])
+			***REMOVED***
 
-	ctx, cancel := context.WithCancel(context.Background())
-	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			engine.Executor.SetPaused(false)
 
-	handler := NewHandler()
-
-	checkSetup := func(method, body, expResult string) ***REMOVED***
-		rw := httptest.NewRecorder()
-		handler.ServeHTTP(rw, newRequestWithEngine(engine, method, "/v1/setup", bytes.NewBufferString(body)))
-		res := rw.Result()
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-
-		var doc jsonapi.Document
-		assert.NoError(t, json.Unmarshal(rw.Body.Bytes(), &doc))
-		if !assert.NotNil(t, doc.Data.DataObject) ***REMOVED***
-			return
-		***REMOVED***
-		assert.Equal(t, "setupData", doc.Data.DataObject.Type)
-		assert.JSONEq(t, expResult, string(doc.Data.DataObject.Attributes))
-	***REMOVED***
-
-	checkSetup("GET", "", `***REMOVED***"data": null***REMOVED***`)
-	checkSetup("POST", "", `***REMOVED***"data": ***REMOVED***"v":1***REMOVED******REMOVED***`)
-	checkSetup("GET", "", `***REMOVED***"data": ***REMOVED***"v":1***REMOVED******REMOVED***`)
-	checkSetup("PUT", `***REMOVED***"v":2, "test":"mest"***REMOVED***`, `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`)
-	checkSetup("GET", "", `***REMOVED***"data": ***REMOVED***"v":2, "test":"mest"***REMOVED******REMOVED***`)
-
-	engine.Executor.SetPaused(false)
-
-	select ***REMOVED***
-	case <-time.After(10 * time.Second):
-		cancel()
-		t.Fatal("Test timed out")
-	case err := <-errC:
-		cancel()
-		require.NoError(t, err)
+			select ***REMOVED***
+			case <-time.After(10 * time.Second):
+				cancel()
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				cancel()
+				require.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
