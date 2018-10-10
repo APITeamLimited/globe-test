@@ -30,6 +30,12 @@ import (
 	"github.com/manyminds/api2go/jsonapi"
 )
 
+// NullSetupData is wrapper around null to satisfy jsonapi
+type NullSetupData struct ***REMOVED***
+	SetupData
+	Data interface***REMOVED******REMOVED*** `json:"data,omitempty" yaml:"data"`
+***REMOVED***
+
 // SetupData is just a simple wrapper to satisfy jsonapi
 type SetupData struct ***REMOVED***
 	Data interface***REMOVED******REMOVED*** `json:"data" yaml:"data"`
@@ -45,14 +51,21 @@ func (sd SetupData) GetID() string ***REMOVED***
 	return "default"
 ***REMOVED***
 
-func handleSetupDataOutput(rw http.ResponseWriter, setupData interface***REMOVED******REMOVED***) ***REMOVED***
+func handleSetupDataOutput(rw http.ResponseWriter, setupData json.RawMessage) ***REMOVED***
 	rw.Header().Set("Content-Type", "application/json")
+	var err error
+	var data []byte
 
-	data, err := jsonapi.Marshal(SetupData***REMOVED***setupData***REMOVED***)
+	if setupData == nil ***REMOVED***
+		data, err = jsonapi.Marshal(NullSetupData***REMOVED***Data: nil***REMOVED***)
+	***REMOVED*** else ***REMOVED***
+		data, err = jsonapi.Marshal(SetupData***REMOVED***setupData***REMOVED***)
+	***REMOVED***
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
 	***REMOVED***
+
 	_, _ = rw.Write(data)
 ***REMOVED***
 
@@ -70,14 +83,21 @@ func HandleSetSetupData(rw http.ResponseWriter, r *http.Request, p httprouter.Pa
 		return
 	***REMOVED***
 
-	var setupData interface***REMOVED******REMOVED***
-	if err := json.Unmarshal(body, &setupData); err != nil ***REMOVED***
-		apiError(rw, "Error parsing request body", err.Error(), http.StatusBadRequest)
-		return
+	var data interface***REMOVED******REMOVED***
+	if len(body) > 0 ***REMOVED***
+		if err := json.Unmarshal(body, &data); err != nil ***REMOVED***
+			apiError(rw, "Error parsing request body", err.Error(), http.StatusBadRequest)
+			return
+		***REMOVED***
 	***REMOVED***
 
 	runner := common.GetEngine(r.Context()).Executor.GetRunner()
-	runner.SetSetupData(setupData)
+
+	if len(body) == 0 ***REMOVED***
+		runner.SetSetupData(nil)
+	***REMOVED*** else ***REMOVED***
+		runner.SetSetupData(body)
+	***REMOVED***
 
 	handleSetupDataOutput(rw, runner.GetSetupData())
 ***REMOVED***

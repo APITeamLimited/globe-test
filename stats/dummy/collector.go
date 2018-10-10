@@ -48,7 +48,7 @@ func (c *Collector) MakeConfig() interface***REMOVED******REMOVED*** ***REMOVED*
 // Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	<-ctx.Done()
-	log.Debugf("finished status: %s", c.RunStatus)
+	log.Debugf("finished status: %d", c.RunStatus)
 ***REMOVED***
 
 // Collect just appends all of the samples passed to it to the internal sample slice.

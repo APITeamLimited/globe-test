@@ -58,7 +58,7 @@ type Runner struct ***REMOVED***
 	Resolver   *dnscache.Resolver
 	RPSLimit   *rate.Limiter
 
-	setupData interface***REMOVED******REMOVED***
+	setupData []byte
 ***REMOVED***
 
 func New(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
@@ -209,20 +209,27 @@ func (r *Runner) Setup(ctx context.Context, out chan<- stats.SampleContainer) er
 	if err != nil ***REMOVED***
 		return errors.Wrap(err, "setup")
 	***REMOVED***
-	data, err := json.Marshal(v.Export())
+	// r.setupData = nil is special it means undefined from this moment forward
+	if goja.IsUndefined(v) ***REMOVED***
+		r.setupData = nil
+		return nil
+	***REMOVED***
+
+	r.setupData, err = json.Marshal(v.Export())
 	if err != nil ***REMOVED***
 		return errors.Wrap(err, "setup")
 	***REMOVED***
-	return json.Unmarshal(data, &r.setupData)
+	var tmp interface***REMOVED******REMOVED***
+	return json.Unmarshal(r.setupData, &tmp)
 ***REMOVED***
 
-// GetSetupData returns the setup data if Setup() was specified and executed, nil otherwise
-func (r *Runner) GetSetupData() interface***REMOVED******REMOVED*** ***REMOVED***
+// GetSetupData returns the setup data as json if Setup() was specified and executed, nil otherwise
+func (r *Runner) GetSetupData() []byte ***REMOVED***
 	return r.setupData
 ***REMOVED***
 
-// SetSetupData saves the externally supplied setup data in the runner, so it can be used in VUs
-func (r *Runner) SetSetupData(data interface***REMOVED******REMOVED***) ***REMOVED***
+// SetSetupData saves the externally supplied setup data as json in the runner, so it can be used in VUs
+func (r *Runner) SetSetupData(data []byte) ***REMOVED***
 	r.setupData = data
 ***REMOVED***
 
@@ -233,7 +240,15 @@ func (r *Runner) Teardown(ctx context.Context, out chan<- stats.SampleContainer)
 	)
 	defer teardownCancel()
 
-	_, err := r.runPart(teardownCtx, out, "teardown", r.setupData)
+	var data interface***REMOVED******REMOVED***
+	if r.setupData != nil ***REMOVED***
+		if err := json.Unmarshal(r.setupData, &data); err != nil ***REMOVED***
+			return errors.Wrap(err, "Teardown")
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		data = goja.Undefined()
+	***REMOVED***
+	_, err := r.runPart(teardownCtx, out, "teardown", data)
 	return err
 ***REMOVED***
 
@@ -343,12 +358,18 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 		***REMOVED***()
 	***REMOVED***
 
-	// Lazily JS-ify setupData on first run. This is lightweight enough that we can get away with
-	// it, and alleviates a problem where setupData wouldn't get populated properly if NewVU() was
-	// called before Setup(), which is hard to avoid with how the Executor works w/o complicating
-	// the local executor further by deferring SetVUsMax() calls to within the Run() function.
-	if u.setupData == nil && u.Runner.setupData != nil ***REMOVED***
-		u.setupData = u.Runtime.ToValue(u.Runner.setupData)
+	// Unmarshall the setupData only the first time for each VU so that VUs are isolated but we
+	// still don't use too much CPU in the middle test
+	if u.setupData == nil ***REMOVED***
+		if u.Runner.setupData != nil ***REMOVED***
+			var data interface***REMOVED******REMOVED***
+			if err := json.Unmarshal(u.Runner.setupData, &data); err != nil ***REMOVED***
+				return errors.Wrap(err, "RunOnce")
+			***REMOVED***
+			u.setupData = u.Runtime.ToValue(data)
+		***REMOVED*** else ***REMOVED***
+			u.setupData = goja.Undefined()
+		***REMOVED***
 	***REMOVED***
 
 	// Call the default function.

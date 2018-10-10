@@ -49,11 +49,11 @@ type Runner interface ***REMOVED***
 	// Runs pre-test setup, if applicable.
 	Setup(ctx context.Context, out chan<- stats.SampleContainer) error
 
-	// Returns the setup data if setup() is specified and run, nil otherwise
-	GetSetupData() interface***REMOVED******REMOVED***
+	// Returns json representation of the setup data if setup() is specified and run, nil otherwise
+	GetSetupData() []byte
 
-	// Saves the externally supplied setup data in the runner
-	SetSetupData(interface***REMOVED******REMOVED***)
+	// Saves the externally supplied setup data as json in the runner
+	SetSetupData([]byte)
 
 	// Runs post-test teardown, if applicable.
 	Teardown(ctx context.Context, out chan<- stats.SampleContainer) error
@@ -82,10 +82,10 @@ type VU interface ***REMOVED***
 // MiniRunner wraps a function in a runner whose VUs will simply call that function.
 type MiniRunner struct ***REMOVED***
 	Fn         func(ctx context.Context, out chan<- stats.SampleContainer) error
-	SetupFn    func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error)
+	SetupFn    func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error)
 	TeardownFn func(ctx context.Context, out chan<- stats.SampleContainer) error
 
-	setupData interface***REMOVED******REMOVED***
+	setupData []byte
 
 	Group   *Group
 	Options Options
@@ -110,13 +110,13 @@ func (r *MiniRunner) Setup(ctx context.Context, out chan<- stats.SampleContainer
 	return
 ***REMOVED***
 
-// GetSetupData returns the setup data if Setup() was executed, nil otherwise
-func (r MiniRunner) GetSetupData() interface***REMOVED******REMOVED*** ***REMOVED***
+// GetSetupData returns json representation of the setup data if setup() is specified and run, nil otherwise
+func (r MiniRunner) GetSetupData() []byte ***REMOVED***
 	return r.setupData
 ***REMOVED***
 
-// SetSetupData saves the externally supplied setup data in the runner
-func (r *MiniRunner) SetSetupData(data interface***REMOVED******REMOVED***) ***REMOVED***
+// SetSetupData saves the externally supplied setup data as json in the runner
+func (r *MiniRunner) SetSetupData(data []byte) ***REMOVED***
 	r.setupData = data
 ***REMOVED***
 

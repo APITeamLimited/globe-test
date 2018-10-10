@@ -59,7 +59,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 		setupC := make(chan struct***REMOVED******REMOVED***)
 		teardownC := make(chan struct***REMOVED******REMOVED***)
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
 				close(setupC)
 				return nil, nil
 			***REMOVED***,
@@ -79,7 +79,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Setup Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
 			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -90,7 +90,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 
 		t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
 					return nil, errors.New("setup error")
 				***REMOVED***,
 				TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -106,7 +106,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
 		e := New(&lib.MiniRunner***REMOVED***
-			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
 				return nil, nil
 			***REMOVED***,
 			TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -120,7 +120,7 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 
 		t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 			e := New(&lib.MiniRunner***REMOVED***
-				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+				SetupFn: func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error) ***REMOVED***
 					return nil, nil
 				***REMOVED***,
 				TeardownFn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
