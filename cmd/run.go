@@ -147,6 +147,13 @@ a commandline interface for interacting with it.`,
 			conf.Iterations = null.IntFrom(1)
 		***REMOVED***
 
+		if conf.Iterations.Valid && conf.Iterations.Int64 < conf.VUsMax.Int64 ***REMOVED***
+			log.Warnf(
+				"All iterations (%d in this test run) are shared between all VUs, so some of the %d VUs will not execute even a single iteration!",
+				conf.Iterations.Int64, conf.VUsMax.Int64,
+			)
+		***REMOVED***
+
 		// If duration is explicitly set to 0, it means run forever.
 		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
 			conf.Duration = types.NullDuration***REMOVED******REMOVED***
