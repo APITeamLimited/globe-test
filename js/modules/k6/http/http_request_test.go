@@ -23,8 +23,6 @@ package http
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -35,12 +33,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 	"github.com/oxtoacart/bpool"
@@ -112,22 +108,23 @@ func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, chan stat
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
+	options := lib.Options***REMOVED***
+		MaxRedirects: null.IntFrom(10),
+		UserAgent:    null.StringFrom("TestUserAgent"),
+		Throw:        null.BoolFrom(true),
+		SystemTags:   lib.GetTagSet(lib.DefaultSystemTagList...),
+		//HttpDebug:    null.StringFrom("full"),
+	***REMOVED***
 	samples := make(chan stats.SampleContainer, 1000)
 
 	state := &common.State***REMOVED***
-		Options: lib.Options***REMOVED***
-			MaxRedirects: null.IntFrom(10),
-			UserAgent:    null.StringFrom("TestUserAgent"),
-			Throw:        null.BoolFrom(true),
-			SystemTags:   lib.GetTagSet(lib.DefaultSystemTagList...),
-			//HttpDebug:    null.StringFrom("full"),
-		***REMOVED***,
-		Logger:        logger,
-		Group:         root,
-		TLSConfig:     tb.TLSClientConfig,
-		HTTPTransport: netext.NewHTTPTransport(tb.HTTPTransport),
-		BPool:         bpool.NewBufferPool(1),
-		Samples:       samples,
+		Options:   options,
+		Logger:    logger,
+		Group:     root,
+		TLSConfig: tb.TLSClientConfig,
+		Transport: tb.HTTPTransport,
+		BPool:     bpool.NewBufferPool(1),
+		Samples:   samples,
 	***REMOVED***
 
 	ctx := new(context.Context)
@@ -146,7 +143,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	sr := tb.Replacer.Replace
 
 	// Handple paths with custom logic
-	tb.Mux.HandleFunc("/ntlm", http.HandlerFunc(ntlmHandler("bob", "pass")))
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
 	***REMOVED***))
@@ -164,6 +160,26 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
+		t.Run("tracing", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+			let res = http.get("HTTPBIN_URL/redirect/9");
+			`))
+			assert.NoError(t, err)
+			bufSamples := stats.GetBufferedSamples(samples)
+
+			reqsCount := 0
+			for _, container := range bufSamples ***REMOVED***
+				for _, sample := range container.GetSamples() ***REMOVED***
+					if sample.Metric.Name == "http_reqs" ***REMOVED***
+						reqsCount++
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+
+			assert.Equal(t, 10, reqsCount)
+			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get"), sr("HTTPBIN_URL/redirect/9"), 200, "")
+		***REMOVED***)
+
 		t.Run("10", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`http.get("HTTPBIN_URL/redirect/10")`))
 			assert.NoError(t, err)
@@ -686,7 +702,10 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`, url))
 					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
+
+					sampleContainers := stats.GetBufferedSamples(samples)
+					assertRequestMetricsEmitted(t, sampleContainers[0:1], "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 401, "")
+					assertRequestMetricsEmitted(t, sampleContainers[1:2], "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
 				***REMOVED***)
 				t.Run("failure", func(t *testing.T) ***REMOVED***
 					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/failure")
@@ -695,26 +714,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest", timeout: 1, throw: false ***REMOVED***);
 					`, url))
 					assert.NoError(t, err)
-				***REMOVED***)
-			***REMOVED***)
-			t.Run("ntlm", func(t *testing.T) ***REMOVED***
-				t.Run("success auth", func(t *testing.T) ***REMOVED***
-					url := strings.Replace(tb.ServerHTTP.URL+"/ntlm", "http://", "http://bob:pass@", -1)
-					_, err := common.RunString(rt, fmt.Sprintf(`
-						let res = http.request("GET", "%s", null, ***REMOVED*** auth: "ntlm" ***REMOVED***);
-						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-						`, url))
-					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", url, url, 200, "")
-				***REMOVED***)
-				t.Run("failed auth", func(t *testing.T) ***REMOVED***
-					url := strings.Replace(tb.ServerHTTP.URL+"/ntlm", "http://", "http://other:otherpass@", -1)
-					_, err := common.RunString(rt, fmt.Sprintf(`
-						let res = http.request("GET", "%s", null, ***REMOVED*** auth: "ntlm" ***REMOVED***);
-						if (res.status != 401) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-						`, url))
-					assert.NoError(t, err)
-					assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", url, url, 401, "")
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED***)
@@ -1158,8 +1157,8 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		***REMOVED***"ocsp_status", httpsGet, "unknown"***REMOVED***,
 		***REMOVED***
 			"error",
-			tb.Replacer.Replace(`http.get("HTTPBIN_IP_URL/wrong-redirect");`),
-			tb.Replacer.Replace(`Get HTTPBIN_IP_URL/wrong-redirect: failed to parse Location header "%": parse %: invalid URL escape "%"`),
+			tb.Replacer.Replace(`http.get("http://127.0.0.1");`),
+			tb.Replacer.Replace(`dial tcp 127.0.0.1:80: connect: connection refused`),
 		***REMOVED***,
 	***REMOVED***
 
@@ -1168,12 +1167,14 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	for num, tc := range testedSystemTags ***REMOVED***
 		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
 			state.Options.SystemTags = lib.GetTagSet(tc.tag)
+
 			_, err := common.RunString(rt, tc.code)
 			assert.NoError(t, err)
 
 			bufSamples := stats.GetBufferedSamples(samples)
 			assert.NotEmpty(t, bufSamples)
 			for _, sampleC := range bufSamples ***REMOVED***
+
 				for _, sample := range sampleC.GetSamples() ***REMOVED***
 					assert.NotEmpty(t, sample.Tags)
 					for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
@@ -1296,112 +1297,4 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 		http.post("HTTPBIN_URL/compare-text", respTextExplicit);
 	`))
 	assert.NoError(t, err)
-***REMOVED***
-
-// Simple NTLM mock handler
-func ntlmHandler(username, password string) func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-	challenges := make(map[string]*ntlm.ChallengeMessage)
-	return func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		// Make sure there is some kind of authentication
-		if r.Header.Get("Authorization") == "" ***REMOVED***
-			w.Header().Set("WWW-Authenticate", "NTLM")
-			w.WriteHeader(401)
-			return
-		***REMOVED***
-
-		// Parse the proxy authorization header
-		auth := r.Header.Get("Authorization")
-		parts := strings.SplitN(auth, " ", 2)
-		authType := parts[0]
-		authPayload := parts[1]
-
-		// Filter out unsupported authentication methods
-		if authType != "NTLM" ***REMOVED***
-			w.Header().Set("WWW-Authenticate", "NTLM")
-			w.WriteHeader(401)
-			return
-		***REMOVED***
-
-		// Decode base64 auth data and get NTLM message type
-		rawAuthPayload, _ := base64.StdEncoding.DecodeString(authPayload)
-		ntlmMessageType := binary.LittleEndian.Uint32(rawAuthPayload[8:12])
-
-		// Handle NTLM negotiate message
-		if ntlmMessageType == 1 ***REMOVED***
-			session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
-			if err != nil ***REMOVED***
-				return
-			***REMOVED***
-
-			session.SetUserInfo(username, password, "")
-
-			challenge, err := session.GenerateChallengeMessage()
-			if err != nil ***REMOVED***
-				return
-			***REMOVED***
-
-			challenges[r.RemoteAddr] = challenge
-
-			authPayload := base64.StdEncoding.EncodeToString(challenge.Bytes())
-
-			w.Header().Set("WWW-Authenticate", "NTLM "+authPayload)
-			w.WriteHeader(401)
-
-			return
-		***REMOVED***
-
-		if ntlmMessageType == 3 ***REMOVED***
-			challenge := challenges[r.RemoteAddr]
-			if challenge == nil ***REMOVED***
-				w.Header().Set("WWW-Authenticate", "NTLM")
-				w.WriteHeader(401)
-				return
-			***REMOVED***
-
-			msg, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 2)
-			if err != nil ***REMOVED***
-				msg2, err := ntlm.ParseAuthenticateMessage(rawAuthPayload, 1)
-
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session, err := ntlm.CreateServerSession(ntlm.Version1, ntlm.ConnectionOrientedMode)
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session.SetServerChallenge(challenge.ServerChallenge)
-				session.SetUserInfo(username, password, "")
-
-				err = session.ProcessAuthenticateMessage(msg2)
-				if err != nil ***REMOVED***
-					w.Header().Set("WWW-Authenticate", "NTLM")
-					w.WriteHeader(401)
-					return
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionOrientedMode)
-				if err != nil ***REMOVED***
-					return
-				***REMOVED***
-
-				session.SetServerChallenge(challenge.ServerChallenge)
-				session.SetUserInfo(username, password, "")
-
-				err = session.ProcessAuthenticateMessage(msg)
-				if err != nil ***REMOVED***
-					w.Header().Set("WWW-Authenticate", "NTLM")
-					w.WriteHeader(401)
-					return
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		data := "authenticated"
-		w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-		if _, err := fmt.Fprint(w, data); err != nil ***REMOVED***
-			panic(err.Error())
-		***REMOVED***
-	***REMOVED***
 ***REMOVED***

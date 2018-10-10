@@ -368,7 +368,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 		Options: lib.Options***REMOVED******REMOVED***,
 		Logger:  logger,
 		Group:   root,
-		HTTPTransport: &http.Transport***REMOVED***
+		Transport: &http.Transport***REMOVED***
 			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
 				Timeout:   10 * time.Second,
 				KeepAlive: 60 * time.Second,

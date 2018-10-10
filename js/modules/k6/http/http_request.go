@@ -40,6 +40,7 @@ import (
 	"sync"
 	"time"
 
+	ntlmssp "github.com/Azure/go-ntlmssp"
 	digest "github.com/Soontao/goHttpDigestClient"
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
@@ -425,9 +426,17 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 	***REMOVED***
 
+	tracerTransport := netext.NewTransport(state.Transport, state.Samples, &state.Options, tags)
+	var transport http.RoundTripper = tracerTransport
+	if preq.auth == "ntlm" ***REMOVED***
+		transport = ntlmssp.Negotiator***REMOVED***
+			RoundTripper: tracerTransport,
+		***REMOVED***
+	***REMOVED***
+
 	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: preq.url.URLString, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
-		Transport: state.HTTPTransport,
+		Transport: transport,
 		Timeout:   preq.timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			h.debugResponse(state, req.Response, "RedirectResponse")
@@ -466,9 +475,8 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		// removing user from URL to avoid sending the authorization header fo basic auth
 		preq.req.URL.User = nil
 
-		tracer := netext.Tracer***REMOVED******REMOVED***
 		h.debugRequest(state, preq.req, "DigestRequest")
-		res, err := client.Do(preq.req.WithContext(netext.WithTracer(ctx, &tracer)))
+		res, err := client.Do(preq.req.WithContext(ctx))
 		h.debugRequest(state, preq.req, "DigestResponse")
 		if err != nil ***REMOVED***
 			// Do *not* log errors about the contex being cancelled.
@@ -497,25 +505,10 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 			authorization := challenge.ToAuthorizationStr()
 			preq.req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 		***REMOVED***
-		trail := tracer.Done()
-
-		if state.Options.SystemTags["ip"] && trail.ConnRemoteAddr != nil ***REMOVED***
-			if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
-				tags["ip"] = ip
-			***REMOVED***
-		***REMOVED***
-		trail.SaveSamples(stats.NewSampleTags(tags))
-		delete(tags, "ip")
-		stats.PushIfNotCancelled(ctx, state.Samples, trail)
 	***REMOVED***
 
-	if preq.auth == "ntlm" ***REMOVED***
-		ctx = netext.WithAuth(ctx, "ntlm")
-	***REMOVED***
-
-	tracer := netext.Tracer***REMOVED******REMOVED***
 	h.debugRequest(state, preq.req, "Request")
-	res, resErr := client.Do(preq.req.WithContext(netext.WithTracer(ctx, &tracer)))
+	res, resErr := client.Do(preq.req.WithContext(ctx))
 	h.debugResponse(state, res, "Response")
 	if resErr == nil && res != nil ***REMOVED***
 		switch res.Header.Get("Content-Encoding") ***REMOVED***
@@ -553,7 +546,9 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 		_ = res.Body.Close()
 	***REMOVED***
-	trail := tracer.Done()
+
+	trail := tracerTransport.GetTrail()
+
 	if trail.ConnRemoteAddr != nil ***REMOVED***
 		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
 		remotePort, _ := strconv.Atoi(remotePortStr)
@@ -572,15 +567,6 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 
 	if resErr != nil ***REMOVED***
 		resp.Error = resErr.Error()
-		if state.Options.SystemTags["error"] ***REMOVED***
-			tags["error"] = resp.Error
-		***REMOVED***
-
-		//TODO: expand/replace this so we can recognize the different non-HTTP
-		// errors, probably by using a type switch for resErr
-		if state.Options.SystemTags["status"] ***REMOVED***
-			tags["status"] = "0"
-		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		if preq.activeJar != nil ***REMOVED***
 			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
@@ -592,24 +578,8 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		resp.Status = res.StatusCode
 		resp.Proto = res.Proto
 
-		if state.Options.SystemTags["url"] ***REMOVED***
-			tags["url"] = resp.URL
-		***REMOVED***
-		if state.Options.SystemTags["status"] ***REMOVED***
-			tags["status"] = strconv.Itoa(resp.Status)
-		***REMOVED***
-		if state.Options.SystemTags["proto"] ***REMOVED***
-			tags["proto"] = resp.Proto
-		***REMOVED***
-
 		if res.TLS != nil ***REMOVED***
 			resp.setTLSInfo(res.TLS)
-			if state.Options.SystemTags["tls_version"] ***REMOVED***
-				tags["tls_version"] = resp.TLSVersion
-			***REMOVED***
-			if state.Options.SystemTags["ocsp_status"] ***REMOVED***
-				tags["ocsp_status"] = resp.OCSP.Status
-			***REMOVED***
 		***REMOVED***
 
 		resp.Headers = make(map[string]string, len(res.Header))
@@ -646,13 +616,6 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 	***REMOVED***
 
-	if state.Options.SystemTags["ip"] && trail.ConnRemoteAddr != nil ***REMOVED***
-		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
-			tags["ip"] = ip
-		***REMOVED***
-	***REMOVED***
-	trail.SaveSamples(stats.IntoSampleTags(&tags))
-	stats.PushIfNotCancelled(ctx, state.Samples, trail)
 	return resp, nil
 ***REMOVED***
 
