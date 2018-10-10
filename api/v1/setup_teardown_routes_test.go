@@ -114,7 +114,7 @@ func TestSetupData(t *testing.T) ***REMOVED***
 			***REMOVED***;
 
 			export function teardown(data) ***REMOVED***
-				if (data === udefined || data !== "") ***REMOVED***
+				if (data === undefined || data !== "") ***REMOVED***
 					throw new Error("incorrect teardown data: " + JSON.stringify(data));
 				***REMOVED***
 			***REMOVED*** `),
