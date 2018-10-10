@@ -317,7 +317,6 @@ func testSetupDataHelper(t *testing.T, src *lib.SourceData) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
-	t.Parallel()
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
@@ -342,7 +341,6 @@ func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
-	t.Parallel()
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
@@ -365,7 +363,6 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
-	t.Parallel()
 	src := &lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
