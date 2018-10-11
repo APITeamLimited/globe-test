@@ -26,9 +26,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"net/url"
 	"strings"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
@@ -36,33 +37,34 @@ import (
 	"github.com/loadimpact/k6/lib/netext"
 )
 
-type OCSP struct ***REMOVED***
-	ProducedAt, ThisUpdate, NextUpdate, RevokedAt int64
-	RevocationReason                              string
-	Status                                        string
-***REMOVED***
-
 type HTTPResponseTimings struct ***REMOVED***
-	Duration, Blocked, LookingUp, Connecting, TLSHandshaking, Sending, Waiting, Receiving float64
+	Duration       float64 `json:"duration"`
+	Blocked        float64 `json:"blocked"`
+	LookingUp      float64 `json:"looking_up"`
+	Connecting     float64 `json:"connecting"`
+	TLSHandshaking float64 `json:"tls_handshaking"`
+	Sending        float64 `json:"sending"`
+	Waiting        float64 `json:"waiting"`
+	Receiving      float64 `json:"receiving"`
 ***REMOVED***
 
 type HTTPResponse struct ***REMOVED***
 	ctx context.Context
 
-	RemoteIP       string
-	RemotePort     int
-	URL            string
-	Status         int
-	Proto          string
-	Headers        map[string]string
-	Cookies        map[string][]*HTTPCookie
-	Body           interface***REMOVED******REMOVED***
-	Timings        HTTPResponseTimings
-	TLSVersion     string
-	TLSCipherSuite string
-	OCSP           netext.OCSP `js:"ocsp"`
-	Error          string
-	Request        HTTPRequest
+	RemoteIP       string                   `json:"remote_ip"`
+	RemotePort     int                      `json:"remote_port"`
+	URL            string                   `json:"url"`
+	Status         int                      `json:"status"`
+	Proto          string                   `json:"proto"`
+	Headers        map[string]string        `json:"headers"`
+	Cookies        map[string][]*HTTPCookie `json:"cookies"`
+	Body           interface***REMOVED******REMOVED***              `json:"body"`
+	Timings        HTTPResponseTimings      `json:"timings"`
+	TLSVersion     string                   `json:"tls_version"`
+	TLSCipherSuite string                   `json:"tls_cipher_suite"`
+	OCSP           netext.OCSP              `js:"ocsp" json:"ocsp"`
+	Error          string                   `json:"error"`
+	Request        HTTPRequest              `json:"request"`
 
 	cachedJSON    goja.Value
 	validatedJSON bool
