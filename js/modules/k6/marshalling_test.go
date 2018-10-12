@@ -1,7 +1,7 @@
 /*
  *
  * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
+ * Copyright (C) 2018 Load Impact
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -22,7 +22,6 @@ package k6_test
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
@@ -34,7 +33,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
 )
 
 func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
@@ -45,8 +43,6 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 		import http from "k6/http";
 		import html from "k6/html";
 		import ws from "k6/ws";
-		export let options = ***REMOVED*** setupTimeout: "10s" ***REMOVED***;
-
 
 		function make_jar() ***REMOVED***
 			let jar = http.cookieJar();
@@ -55,9 +51,9 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		export function setup() ***REMOVED***
-			let res = http.get("http://test.loadimpact.com:HTTPBIN_PORT");
+			let res = http.get("HTTPBIN_URL/html");
 			let html_selection = html.parseHTML(res.body); 
-			let ws_res = ws.connect("ws://test.loadimpact.com:HTTPBIN_PORT/ws-echo", function(socket)***REMOVED***
+			let ws_res = ws.connect("ws://HTTPBIN_DOMAIN:HTTPBIN_PORT/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test")
 				***REMOVED***)
@@ -88,7 +84,9 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 			if (first.length != second.length) ***REMOVED***
 				return false
 			***REMOVED***
-			return first.every(element => second.includes(element))
+			return first.every(function(element, idx) ***REMOVED***
+				return element === second[idx]
+			***REMOVED***);
 		***REMOVED***
 
 		function diff_object_properties(name, first, second) ***REMOVED***
@@ -111,7 +109,6 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		export default function (data) ***REMOVED***
-			let first_properties = get_non_function_properties(data).sort();
 			diff_object_properties("setupdata", data, setup());
 		***REMOVED***
 	`))
@@ -119,16 +116,12 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	runner, err := js.New(
 		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
 		afero.NewMemMapFs(),
-		lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"setupTimeout": "10s"***REMOVED******REMOVED***,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 
 	runner.SetOptions(lib.Options***REMOVED***
 		SetupTimeout: types.NullDurationFrom(1 * time.Second),
-		MaxRedirects: null.IntFrom(10),
-		Throw:        null.BoolFrom(true),
-		Hosts: map[string]net.IP***REMOVED***
-			"test.loadimpact.com": net.ParseIP("127.0.0.1"),
-		***REMOVED***,
+		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
 
 	require.NoError(t, err)
