@@ -25,10 +25,10 @@ type Element struct ***REMOVED***
 ***REMOVED***
 
 type Attribute struct ***REMOVED***
-	OwnerElement *Element
-	Name         string
+	OwnerElement *Element `json:"owner_element"`
+	Name         string   `json:"name"`
 	nsPrefix     string
-	Value        string
+	Value        string `json:"value"`
 ***REMOVED***
 
 func (e Element) attrAsString(name string) string ***REMOVED***

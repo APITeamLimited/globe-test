@@ -63,11 +63,11 @@ type Socket struct ***REMOVED***
 ***REMOVED***
 
 type WSHTTPResponse struct ***REMOVED***
-	URL     string
-	Status  int
-	Headers map[string]string
-	Body    string
-	Error   string
+	URL     string            `json:"url"`
+	Status  int               `json:"status"`
+	Headers map[string]string `json:"headers"`
+	Body    string            `json:"body"`
+	Error   string            `json:"error"`
 ***REMOVED***
 
 const writeWait = 10 * time.Second
