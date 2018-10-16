@@ -35,6 +35,10 @@ import (
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/js/modules/k6"
+	k6http "github.com/loadimpact/k6/js/modules/k6/http"
+	k6metrics "github.com/loadimpact/k6/js/modules/k6/metrics"
+	"github.com/loadimpact/k6/js/modules/k6/ws"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
@@ -1217,4 +1221,106 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	_, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(tb.Replacer.Replace(`
+					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
+					import http from "k6/http";
+					let res = http.get("HTTPBIN_URL/");
+					export default function() ***REMOVED***
+						console.log(test);ci
+					***REMOVED***
+				`)),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if assert.Error(t, err) ***REMOVED***
+		assert.Equal(
+			t,
+			"GoError: "+k6http.ErrHTTPForbiddenInInitContext.Error(),
+			err.Error())
+	***REMOVED***
+***REMOVED***
+
+func TestInitContextForbidden(t *testing.T) ***REMOVED***
+	var table = [...][3]string***REMOVED***
+		***REMOVED***
+			"http.request",
+			`import http from "k6/http";
+			 let res = http.get("HTTPBIN_URL");
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6http.ErrHTTPForbiddenInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"http.batch",
+			`import http from "k6/http";
+			 let res = http.batch("HTTPBIN_URL/something", "HTTPBIN_URL/else");
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6http.ErrBatchForbiddenInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"http.cookieJar",
+			`import http from "k6/http";
+			 let jar = http.cookieJar();
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6http.ErrJarForbiddenInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"check",
+			`import ***REMOVED*** check ***REMOVED*** from "k6";
+			 check("test", ***REMOVED***'is test': (test) => test == "test"***REMOVED***)
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6.ErrCheckInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"group",
+			`import ***REMOVED*** group ***REMOVED*** from "k6";
+			 group("group1", function () ***REMOVED*** console.log("group1");***REMOVED***)
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6.ErrGroupInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"ws",
+			`import ws from "k6/ws";
+			 var url = "ws://echo.websocket.org";
+			 var params = ***REMOVED*** "tags": ***REMOVED*** "my_tag": "hello" ***REMOVED*** ***REMOVED***;
+			 var response = ws.connect(url, params, function (socket) ***REMOVED***
+			   socket.on('open', function open() ***REMOVED***
+					console.log('connected');
+			   ***REMOVED***)
+		   ***REMOVED***);
+
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			ws.ErrWSInInitContext.Error(),
+		***REMOVED***,
+		***REMOVED***
+			"metric",
+			`import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+			 let counter = Counter("myCounter");
+			 counter.add(1);
+			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			k6metrics.ErrMetricsAddInInitContext.Error(),
+		***REMOVED***,
+	***REMOVED***
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	for _, test := range table ***REMOVED***
+		t.Run(test[0], func(t *testing.T) ***REMOVED***
+			_, err := New(&lib.SourceData***REMOVED***
+				Filename: "/script.js",
+				Data:     []byte(tb.Replacer.Replace(test[1])),
+			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			if assert.Error(t, err) ***REMOVED***
+				assert.Equal(
+					t,
+					"GoError: "+test[2],
+					err.Error())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

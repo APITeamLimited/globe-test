@@ -43,6 +43,9 @@ const (
 	HTTP_METHOD_OPTIONS = "OPTIONS"
 )
 
+// ErrJarForbiddenInInitContext is used when a cookie jar was made in the init context
+var ErrJarForbiddenInInitContext = common.NewInitContextError("Making cookie jars in the init context is not supported")
+
 type HTTPCookie struct ***REMOVED***
 	Name, Value, Domain, Path string
 	HttpOnly, Secure          bool
@@ -104,9 +107,12 @@ func (*HTTP) XCookieJar(ctx *context.Context) *HTTPCookieJar ***REMOVED***
 	return newCookieJar(ctx)
 ***REMOVED***
 
-func (*HTTP) CookieJar(ctx context.Context) *HTTPCookieJar ***REMOVED***
+func (*HTTP) CookieJar(ctx context.Context) (*HTTPCookieJar, error) ***REMOVED***
 	state := common.GetState(ctx)
-	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***
+	if state == nil ***REMOVED***
+		return nil, ErrJarForbiddenInInitContext
+	***REMOVED***
+	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***, nil
 ***REMOVED***
 
 func (*HTTP) mergeCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) map[string][]*HTTPRequestCookie ***REMOVED***
