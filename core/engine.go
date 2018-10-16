@@ -53,6 +53,7 @@ type Engine struct ***REMOVED***
 	Options      lib.Options
 	Collectors   []lib.Collector
 	NoThresholds bool
+	NoSummary    bool
 
 	logger *log.Logger
 
@@ -343,14 +344,7 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *Engine) processSamples(sampleCointainers []stats.SampleContainer) ***REMOVED***
-	if len(sampleCointainers) == 0 ***REMOVED***
-		return
-	***REMOVED***
-
-	e.MetricsLock.Lock()
-	defer e.MetricsLock.Unlock()
-
+func (e *Engine) processSamplesForMetrics(sampleCointainers []stats.SampleContainer) ***REMOVED***
 	for _, sampleCointainer := range sampleCointainers ***REMOVED***
 		samples := sampleCointainer.GetSamples()
 
@@ -383,6 +377,22 @@ func (e *Engine) processSamples(sampleCointainers []stats.SampleContainer) ***RE
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (e *Engine) processSamples(sampleCointainers []stats.SampleContainer) ***REMOVED***
+	if len(sampleCointainers) == 0 ***REMOVED***
+		return
+	***REMOVED***
+
+	// TODO: optimize this...
+	e.MetricsLock.Lock()
+	defer e.MetricsLock.Unlock()
+
+	// TODO: run this and the below code in goroutines?
+	if !(e.NoSummary && e.NoThresholds) ***REMOVED***
+		e.processSamplesForMetrics(sampleCointainers)
+	***REMOVED***
+
 	if len(e.Collectors) > 0 ***REMOVED***
 		for _, collector := range e.Collectors ***REMOVED***
 			collector.Collect(sampleCointainers)

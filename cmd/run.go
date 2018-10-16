@@ -188,6 +188,9 @@ a commandline interface for interacting with it.`,
 		if conf.NoThresholds.Valid ***REMOVED***
 			engine.NoThresholds = conf.NoThresholds.Bool
 		***REMOVED***
+		if conf.NoSummary.Valid ***REMOVED***
+			engine.NoSummary = conf.NoSummary.Bool
+		***REMOVED***
 
 		// Create a collector and assign it to the engine if requested.
 		fprintf(stdout, "%s   collector\r", initBar.String())
@@ -409,7 +412,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Print the end-of-test summary.
-		if !quiet ***REMOVED***
+		if !quiet && !conf.NoSummary.Bool ***REMOVED***
 			fprintf(stdout, "\n")
 			ui.Summarize(stdout, "", ui.SummaryData***REMOVED***
 				Opts:    conf.Options,
