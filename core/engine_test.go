@@ -563,10 +563,10 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		options := lib.Options***REMOVED***
-			Iterations: null.IntFrom(tc.Iterations),
-			VUs:        null.IntFrom(tc.VUs),
-			VUsMax:     null.IntFrom(tc.VUs),
-			Hosts:      tb.Dialer.Hosts,
+			Iterations:            null.IntFrom(tc.Iterations),
+			VUs:                   null.IntFrom(tc.VUs),
+			VUsMax:                null.IntFrom(tc.VUs),
+			Hosts:                 tb.Dialer.Hosts,
 			InsecureSkipTLSVerify: null.BoolFrom(true),
 			NoVUConnectionReuse:   null.BoolFrom(noConnReuse),
 		***REMOVED***
