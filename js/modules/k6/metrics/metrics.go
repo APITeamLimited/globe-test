@@ -23,12 +23,25 @@ package metrics
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/stats"
 )
+
+// ErrInvalidMetricName is the error returned when the name of the metric is not containeing only
+// letters, numbers, hyphens, dots, underscores, dots and both normal and square brackets
+var ErrInvalidMetricName = errors.New("Invalid metric name")
+
+var nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ -]***REMOVED***1,128***REMOVED***$"
+
+var compileNameRegex = regexp.MustCompile(nameRegexString)
+
+func checkName(name string) bool ***REMOVED***
+	return compileNameRegex.Match([]byte(name))
+***REMOVED***
 
 type Metric struct ***REMOVED***
 	metric *stats.Metric
@@ -40,6 +53,11 @@ var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics i
 func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime []bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	if common.GetState(*ctxPtr) != nil ***REMOVED***
 		return nil, errors.New("Metrics must be declared in the init context")
+	***REMOVED***
+
+	//TODO: move verification outside the JS
+	if !checkName(name) ***REMOVED***
+		return nil, ErrInvalidMetricName
 	***REMOVED***
 
 	valueType := stats.Default
