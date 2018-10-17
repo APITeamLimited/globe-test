@@ -349,6 +349,7 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 		***REMOVED***
 		u.interruptCancel = interCancel
 		u.interruptTrackedCtx = ctx
+		defer interCancel()
 		go func() ***REMOVED***
 			select ***REMOVED***
 			case <-interCtx.Done():
