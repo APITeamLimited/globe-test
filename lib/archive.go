@@ -33,6 +33,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/spf13/afero"
 )
 
 var volumeRE = regexp.MustCompile(`^([a-zA-Z]):(.*)`)
@@ -47,6 +49,18 @@ func NormalizeAndAnonymizePath(path string) string ***REMOVED***
 	p = strings.Replace(p, "\\", "/", -1)
 	p = sharedRE.ReplaceAllString(p, `/nobody`)
 	return homeDirRE.ReplaceAllString(p, `$1/$2/nobody`)
+***REMOVED***
+
+type normalizedFS struct ***REMOVED***
+	afero.Fs
+***REMOVED***
+
+func (m *normalizedFS) Open(name string) (afero.File, error) ***REMOVED***
+	return m.Fs.Open(NormalizeAndAnonymizePath(name))
+***REMOVED***
+
+func (m *normalizedFS) OpenFile(name string, flag int, mode os.FileMode) (afero.File, error) ***REMOVED***
+	return m.Fs.OpenFile(NormalizeAndAnonymizePath(name), flag, mode)
 ***REMOVED***
 
 // An Archive is a rollup of all resources and options needed to reproduce a test identically elsewhere.
@@ -68,6 +82,8 @@ type Archive struct ***REMOVED***
 	Scripts map[string][]byte `json:"-"` // included scripts
 	Files   map[string][]byte `json:"-"` // non-script resources
 
+	FS afero.Fs `json:"-"`
+
 	// Environment variables
 	Env map[string]string `json:"env"`
 ***REMOVED***
@@ -78,6 +94,7 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 	arc := &Archive***REMOVED***
 		Scripts: make(map[string][]byte),
 		Files:   make(map[string][]byte),
+		FS:      &normalizedFS***REMOVED***Fs: afero.NewMemMapFs()***REMOVED***,
 	***REMOVED***
 
 	for ***REMOVED***
@@ -133,6 +150,11 @@ func ReadArchive(in io.Reader) (*Archive, error) ***REMOVED***
 		***REMOVED***
 
 		dst[name] = data
+
+		err = afero.WriteFile(arc.FS, name, data, os.ModePerm)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 	***REMOVED***
 
 	return arc, nil

@@ -23,6 +23,7 @@ package js
 import (
 	"context"
 	"encoding/json"
+	"os"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
@@ -54,7 +55,7 @@ type BundleInstance struct ***REMOVED***
 	Default goja.Callable
 ***REMOVED***
 
-// Creates a new bundle from a source file and a filesystem.
+// NewBundle creates a new bundle from a source file and a filesystem.
 func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bundle, error) ***REMOVED***
 	compiler, err := compiler.New()
 	if err != nil ***REMOVED***
@@ -130,6 +131,7 @@ func NewBundle(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Bu
 	return &bundle, nil
 ***REMOVED***
 
+// NewBundleFromArchive creates a new bundle from an lib.Archive.
 func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle, error) ***REMOVED***
 	compiler, err := compiler.New()
 	if err != nil ***REMOVED***
@@ -140,19 +142,10 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
 
-	pgm, _, err := compiler.Compile(string(arc.Data), arc.Filename, "", "", true)
+	initctx := NewInitContext(goja.New(), compiler, new(context.Context), arc.FS, arc.Pwd)
+	pgm, err := initctx.compileImport(string(arc.Data), arc.Filename)
 	if err != nil ***REMOVED***
 		return nil, err
-	***REMOVED***
-
-	initctx := NewInitContext(goja.New(), compiler, new(context.Context), nil, arc.Pwd)
-	for filename, data := range arc.Scripts ***REMOVED***
-		src := string(data)
-		pgm, err := initctx.compileImport(src, filename)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		initctx.programs[filename] = programWithSource***REMOVED***pgm, src***REMOVED***
 	***REMOVED***
 	initctx.files = arc.Files
 
@@ -175,9 +168,10 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 	***REMOVED***, nil
 ***REMOVED***
 
-func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
+func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 	arc := &lib.Archive***REMOVED***
 		Type:     "js",
+		FS:       afero.NewMemMapFs(),
 		Options:  b.Options,
 		Filename: b.Filename,
 		Data:     []byte(b.Source),
@@ -192,6 +186,10 @@ func (b *Bundle) MakeArchive() *lib.Archive ***REMOVED***
 	arc.Scripts = make(map[string][]byte, len(b.BaseInitContext.programs))
 	for name, pgm := range b.BaseInitContext.programs ***REMOVED***
 		arc.Scripts[name] = []byte(pgm.src)
+		err := afero.WriteFile(arc.FS, name, []byte(pgm.src), os.ModePerm)
+		if err != nil ***REMOVED***
+			return nil
+		***REMOVED***
 	***REMOVED***
 	arc.Files = b.BaseInitContext.files
 
