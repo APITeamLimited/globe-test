@@ -80,6 +80,11 @@ const jsonData = `***REMOVED***"glossary": ***REMOVED***
 	  "GlossSeeAlso": ["GML","XML"]***REMOVED***,
 	"GlossSee": "markup"***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***`
 
+const invalidJSONData = `***REMOVED***			
+	"a":"apple",
+	"t":testing"
+***REMOVED***`
+
 func myFormHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	var body []byte
 	var err error
@@ -110,6 +115,14 @@ func jsonHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	_, _ = w.Write(body)
 ***REMOVED***
 
+func invalidJSONHandler(w http.ResponseWriter, r *http.Request) ***REMOVED***
+	body := []byte(invalidJSONData)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+	w.WriteHeader(200)
+	_, _ = w.Write(body)
+***REMOVED***
+
 func TestResponse(t *testing.T) ***REMOVED***
 	tb, state, samples, rt, _ := newRuntime(t)
 	defer tb.Cleanup()
@@ -118,6 +131,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 	tb.Mux.HandleFunc("/myforms/get", myFormHandler)
 	tb.Mux.HandleFunc("/json", jsonHandler)
+	tb.Mux.HandleFunc("/invalidjson", invalidJSONHandler)
 
 	t.Run("Html", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
@@ -178,7 +192,14 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`http.request("GET", "HTTPBIN_URL/html").json();`))
-			assert.EqualError(t, err, "GoError: invalid character '<' looking for beginning of value")
+			//nolint:lll
+			assert.EqualError(t, err, "GoError: cannot parse json due to an error at line 1, character 2 , error: invalid character '<' looking for beginning of value")
+		***REMOVED***)
+
+		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`http.request("GET", "HTTPBIN_URL/invalidjson").json();`))
+			//nolint:lll
+			assert.EqualError(t, err, "GoError: cannot parse json due to an error at line 3, character 9 , error: invalid character 'e' in literal true (expecting 'r')")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("JsonSelector", func(t *testing.T) ***REMOVED***

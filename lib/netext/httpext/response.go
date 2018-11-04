@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/pkg/errors"
@@ -54,6 +55,17 @@ const (
 	// default value for all requests if the global discardResponseBodies is enablled.
 	ResponseTypeNone
 )
+
+type jsonError struct ***REMOVED***
+	line      int
+	character int
+	err       error
+***REMOVED***
+
+func (j jsonError) Error() string ***REMOVED***
+	errMessage := "cannot parse json due to an error at line"
+	return fmt.Sprintf("%s %d, character %d , error: %v", errMessage, j.line, j.character, j.err)
+***REMOVED***
 
 // ResponseTimings is a struct to put all timings for a given HTTP response/request
 type ResponseTimings struct ***REMOVED***
@@ -127,7 +139,6 @@ func (res *Response) JSON(selector ...string) (interface***REMOVED******REMOVED*
 		***REMOVED***
 
 		if hasSelector ***REMOVED***
-
 			if !res.validatedJSON ***REMOVED***
 				if !gjson.ValidBytes(body) ***REMOVED***
 					return nil, nil
@@ -144,11 +155,35 @@ func (res *Response) JSON(selector ...string) (interface***REMOVED******REMOVED*
 		***REMOVED***
 
 		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
+			if syntaxError, ok := err.(*json.SyntaxError); ok ***REMOVED***
+				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
+			***REMOVED***
 			return nil, err
 		***REMOVED***
 		res.validatedJSON = true
 		res.cachedJSON = v
 	***REMOVED***
 	return res.cachedJSON, nil
+***REMOVED***
 
+func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
+	lf := '\n'
+	str := string(input)
+
+	// Humans tend to count from 1.
+	line := 1
+	character := 0
+
+	for i, b := range str ***REMOVED***
+		if b == lf ***REMOVED***
+			line++
+			character = 0
+		***REMOVED***
+		character++
+		if i == offset ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+
+	return jsonError***REMOVED***line: line, character: character, err: err***REMOVED***
 ***REMOVED***
