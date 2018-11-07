@@ -34,12 +34,11 @@ import (
 )
 
 type programWithSource struct ***REMOVED***
-	pgm     *goja.Program
-	src     string
-	exports goja.Value
+	pgm *goja.Program
+	src string
 ***REMOVED***
 
-// InitContext provides APIs for use in the init context.
+// Provides APIs for use in the init context.
 type InitContext struct ***REMOVED***
 	// Bound runtime; used to instantiate objects.
 	runtime  *goja.Runtime
@@ -57,7 +56,6 @@ type InitContext struct ***REMOVED***
 	files    map[string][]byte
 ***REMOVED***
 
-// NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(rt *goja.Runtime, compiler *compiler.Compiler, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
 		runtime:  rt,
@@ -85,7 +83,6 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 	***REMOVED***
 ***REMOVED***
 
-// Require is called when a module/file needs to be loaded by a script
 func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 	switch ***REMOVED***
 	case arg == "k6", strings.HasPrefix(arg, "k6/"):
@@ -118,23 +115,23 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 	// Resolve the file path, push the target directory as pwd to make relative imports work.
 	pwd := i.pwd
 	filename := loader.Resolve(pwd, name)
+	i.pwd = loader.Dir(filename)
+	defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
+
+	// Swap the importing scope's exports out, then put it back again.
+	oldExports := i.runtime.Get("exports")
+	defer i.runtime.Set("exports", oldExports)
+	oldModule := i.runtime.Get("module")
+	defer i.runtime.Set("module", oldModule)
+	exports := i.runtime.NewObject()
+	i.runtime.Set("exports", exports)
+	module := i.runtime.NewObject()
+	_ = module.Set("exports", exports)
+	i.runtime.Set("module", module)
 
 	// First, check if we have a cached program already.
 	pgm, ok := i.programs[filename]
 	if !ok ***REMOVED***
-		i.pwd = loader.Dir(filename)
-		defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
-
-		// Swap the importing scope's exports out, then put it back again.
-		oldExports := i.runtime.Get("exports")
-		defer i.runtime.Set("exports", oldExports)
-		oldModule := i.runtime.Get("module")
-		defer i.runtime.Set("module", oldModule)
-		exports := i.runtime.NewObject()
-		i.runtime.Set("exports", exports)
-		module := i.runtime.NewObject()
-		_ = module.Set("exports", exports)
-		i.runtime.Set("module", module)
 		// Load the sources; the loader takes care of remote loading, etc.
 		data, err := loader.Load(i.fs, pwd, name)
 		if err != nil ***REMOVED***
@@ -143,26 +140,22 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 
 		// Compile the sources; this handles ES5 vs ES6 automatically.
 		src := string(data.Data)
-		newPgm, err := i.compileImport(src, data.Filename)
+		pgm_, err := i.compileImport(src, data.Filename)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
 
-		// Run the program.
-		if _, err := i.runtime.RunProgram(newPgm); err != nil ***REMOVED***
-			return goja.Undefined(), err
-		***REMOVED***
-
 		// Cache the compiled program.
-		pgm = programWithSource***REMOVED***
-			pgm:     newPgm,
-			src:     src,
-			exports: module.Get("exports"),
-		***REMOVED***
+		pgm = programWithSource***REMOVED***pgm_, src***REMOVED***
 		i.programs[filename] = pgm
 	***REMOVED***
 
-	return pgm.exports, nil
+	// Run the program.
+	if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
+		return goja.Undefined(), err
+	***REMOVED***
+
+	return module.Get("exports"), nil
 ***REMOVED***
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
@@ -170,17 +163,16 @@ func (i *InitContext) compileImport(src, filename string) (*goja.Program, error)
 	return pgm, err
 ***REMOVED***
 
-// Open is the imlementation of open() and is used to open files from inside k6 scripts
 func (i *InitContext) Open(name string, args ...string) (goja.Value, error) ***REMOVED***
 	filename := loader.Resolve(i.pwd, name)
 	data, ok := i.files[filename]
 	if !ok ***REMOVED***
-		sourceData, err := loader.Load(i.fs, i.pwd, name)
+		data_, err := loader.Load(i.fs, i.pwd, name)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		i.files[filename] = sourceData.Data
-		data = sourceData.Data
+		i.files[filename] = data_.Data
+		data = data_.Data
 	***REMOVED***
 
 	if len(args) > 0 && args[0] == "b" ***REMOVED***
