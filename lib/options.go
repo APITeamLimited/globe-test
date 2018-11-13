@@ -244,6 +244,10 @@ type Options struct ***REMOVED***
 	// errors about running out of file handles or sockets, or being unable to bind addresses.
 	NoVUConnectionReuse null.Bool `json:"noVUConnectionReuse" envconfig:"no_vu_connection_reuse"`
 
+	// MinIterationDuration can be used to force VUs to pause between iterations if a specific
+	// iteration is shorter than the specified value.
+	MinIterationDuration types.NullDuration `json:"minIterationDuration" envconfig:"min_iteration_duration"`
+
 	// These values are for third party collectors' benefit.
 	// Can't be set through env vars.
 	External map[string]json.RawMessage `json:"ext" ignored:"true"`
@@ -353,6 +357,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.NoVUConnectionReuse.Valid ***REMOVED***
 		o.NoVUConnectionReuse = opts.NoVUConnectionReuse
+	***REMOVED***
+	if opts.MinIterationDuration.Valid ***REMOVED***
+		o.MinIterationDuration = opts.MinIterationDuration
 	***REMOVED***
 	if opts.NoCookiesReset.Valid ***REMOVED***
 		o.NoCookiesReset = opts.NoCookiesReset

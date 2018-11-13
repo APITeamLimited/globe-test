@@ -915,3 +915,54 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	durationSum := getMetricSum(collector, metrics.IterationDuration.Name)
 	assert.InDelta(t, 1.7, durationSum/(1000*durationCount), 0.1)
 ***REMOVED***
+
+func TestMinIterationDuration(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	runner, err := js.New(
+		&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(`
+		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+		let testCounter = new Counter("testcounter");
+
+		export let options = ***REMOVED***
+			minIterationDuration: "1s",
+			vus: 2,
+			vusMax: 2,
+			duration: "1.9s",
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+			testCounter.add(1);
+		***REMOVED***;`)***REMOVED***,
+		afero.NewMemMapFs(),
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	engine, err := NewEngine(local.New(runner), runner.GetOptions())
+	require.NoError(t, err)
+
+	collector := &dummy.Collector***REMOVED******REMOVED***
+	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+		require.False(t, engine.IsTainted())
+	***REMOVED***
+
+	// Only 2 full iterations are expected to be completed due to the 1 second minIterationDuration
+	assert.Equal(t, 2.0, getMetricSum(collector, metrics.Iterations.Name))
+
+	// But we expect the custom counter to be added to 4 times
+	assert.Equal(t, 4.0, getMetricSum(collector, "testcounter"))
+***REMOVED***
