@@ -49,7 +49,7 @@ func TestExecutorRun(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	err := make(chan error, 1)
-	go func() ***REMOVED*** err <- e.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** err <- e.Run(ctx, make(chan stats.SampleContainer, 100)) ***REMOVED***()
 	cancel()
 	assert.NoError(t, <-err)
 ***REMOVED***
