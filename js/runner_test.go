@@ -1395,7 +1395,7 @@ func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestArchiveNotPanicing(t *testing.T) ***REMOVED***
+func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
@@ -1427,5 +1427,71 @@ func TestArchiveNotPanicing(t *testing.T) ***REMOVED***
 				require.Error(t, err)
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestStuffNotPanicking(t *testing.T) ***REMOVED***
+	tb := testutils.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	r, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(tb.Replacer.Replace(`
+			import http from "k6/http";
+			import ws from "k6/ws";
+			import ***REMOVED*** group ***REMOVED*** from "k6";
+			import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
+
+			export let options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
+
+			export default function() ***REMOVED***
+				const doc = parseHTML(http.get("HTTPBIN_URL/html").body);
+
+				let testCases = [
+					() => group(),
+					() => group("test"),
+					() => group("test", "wat"),
+					() => doc.find('p').each(),
+					() => doc.find('p').each("wat"),
+					() => doc.find('p').map(),
+					() => doc.find('p').map("wat"),
+					() => ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo"),
+				];
+
+				testCases.forEach(function(fn, idx) ***REMOVED***
+					var hasException;
+					try ***REMOVED***
+						fn();
+						hasException = false;
+					***REMOVED*** catch (e) ***REMOVED***
+						hasException = true;
+					***REMOVED***
+
+					if (hasException === false) ***REMOVED***
+						throw new Error("Expected test case #" + idx + " to return an error");
+					***REMOVED*** else if (hasException === undefined) ***REMOVED***
+						throw new Error("Something strange happened with test case #" + idx);
+					***REMOVED***
+				***REMOVED***);
+			***REMOVED***
+		`)),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	ch := make(chan stats.SampleContainer, 1000)
+	vu, err := r.NewVU(ch)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- vu.RunOnce(ctx) ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(15 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
 	***REMOVED***
 ***REMOVED***

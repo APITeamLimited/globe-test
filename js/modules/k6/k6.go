@@ -72,6 +72,10 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 		return nil, ErrGroupInInitContext
 	***REMOVED***
 
+	if fn == nil ***REMOVED***
+		return nil, errors.New("group() requires a callback as a second argument")
+	***REMOVED***
+
 	g, err := state.Group.Group(name)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
