@@ -241,70 +241,95 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func TestInitContextOpen(t *testing.T) ***REMOVED***
+func createAndReadFile(t *testing.T, file string, content []byte, expectedLength int, binary bool) (*BundleInstance, error) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
-	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte("hi!"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/"+file, []byte(content), 0644))
+
+	afero.WriteFile(fs, "/path/to/"+file, []byte(content), 0644)
+	binaryArg := ""
+	if binary ***REMOVED***
+		binaryArg = ",\"b\""
+	***REMOVED***
+
+	b, err := NewBundle(&lib.SourceData***REMOVED***
+		Filename: "/path/to/script.js",
+		Data: []byte(fmt.Sprintf(`
+				export let data = open("/path/to/%s"%s);
+				var expectedLength = %d;
+				if (data.length != expectedLength) ***REMOVED***
+					throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data.length);
+				***REMOVED***
+				export default function() ***REMOVED******REMOVED***
+				`, file, binaryArg, expectedLength)),
+	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+
+	if !assert.NoError(t, err) ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	bi, err := b.Instantiate()
+	if !assert.NoError(t, err) ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return bi, nil
+***REMOVED***
+
+func TestInitContextOpen(t *testing.T) ***REMOVED***
+
+	testCases := []struct ***REMOVED***
+		content []byte
+		file    string
+		length  int
+	***REMOVED******REMOVED***
+		***REMOVED***[]byte("hello world!"), "ascii", 12***REMOVED***,
+		***REMOVED***[]byte("?((¯°·._.• ţ€$ţɨɲǥ µɲɨȼ๏ď€ΣSЫ ɨɲ Ќ6 •._.·°¯))؟•"), "utf", 47***REMOVED***,
+		***REMOVED***[]byte***REMOVED***044, 226, 130, 172***REMOVED***, "utf-8", 2***REMOVED***, // $€
+		//***REMOVED***[]byte***REMOVED***00, 36, 32, 127***REMOVED***, "utf-16", 2***REMOVED***,   // $€
+	***REMOVED***
+	for _, tc := range testCases ***REMOVED***
+		t.Run(tc.file, func(t *testing.T) ***REMOVED***
+			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, false)
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.Equal(t, string(tc.content), bi.Runtime.Get("data").Export())
+		***REMOVED***)
+	***REMOVED***
+
+	t.Run("Binary", func(t *testing.T) ***REMOVED***
+		bi, err := createAndReadFile(t, "/path/to/file.bin", []byte("hi!\x0f\xff\x01"), 6, true)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		bytes := []byte***REMOVED***104, 105, 33, 15, 255, 1***REMOVED***
+		assert.Equal(t, bytes, bi.Runtime.Get("data").Export())
+	***REMOVED***)
 
 	testdata := map[string]string***REMOVED***
-		"Absolute": "/path/to/file.txt",
-		"Relative": "./file.txt",
+		"Absolute": "/path/to/file",
+		"Relative": "./file",
 	***REMOVED***
+
 	for name, loadPath := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			b, err := NewBundle(&lib.SourceData***REMOVED***
-				Filename: "/path/to/script.js",
-				Data: []byte(fmt.Sprintf(`
-				export let data = open("%s");
-				export default function() ***REMOVED******REMOVED***
-				`, loadPath)),
-			***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, false)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
-
-			bi, err := b.Instantiate()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-
-			assert.Equal(t, "hi!", bi.Runtime.Get("data").Export())
 		***REMOVED***)
 	***REMOVED***
 
 	t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
+		fs := afero.NewMemMapFs()
+
 		_, err := NewBundle(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
 			Data:     []byte(`open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`),
 		***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
 		assert.EqualError(t, err, "GoError: open /nonexistent.txt: file does not exist")
 	***REMOVED***)
-***REMOVED***
 
-func TestInitContextOpenBinary(t *testing.T) ***REMOVED***
-	fs := afero.NewMemMapFs()
-	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
-	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
-
-	b, err := NewBundle(&lib.SourceData***REMOVED***
-		Filename: "/path/to/script.js",
-		Data: []byte(`
-		export let data = open("/path/to/file.bin", "b");
-		export default function() ***REMOVED*** console.log(data); ***REMOVED***
-		`),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	bi, err := b.Instantiate()
-	if !assert.NoError(t, err) ***REMOVED***
-		t.Log(err)
-		return
-	***REMOVED***
-
-	bytes := []byte***REMOVED***104, 105, 33***REMOVED***
-	assert.Equal(t, bytes, bi.Runtime.Get("data").Export())
 ***REMOVED***
 
 func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
