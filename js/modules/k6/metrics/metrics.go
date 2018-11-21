@@ -32,7 +32,7 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-var nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ -]***REMOVED***1,128***REMOVED***$"
+var nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ !\\?/&#\\(\\)<>%-]***REMOVED***1,128***REMOVED***$"
 
 var compileNameRegex = regexp.MustCompile(nameRegexString)
 
