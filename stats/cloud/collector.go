@@ -76,8 +76,20 @@ var _ lib.Collector = &Collector***REMOVED******REMOVED***
 // New creates a new cloud collector
 func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
 	if val, ok := opts.External["loadimpact"]; ok ***REMOVED***
-		if err := json.Unmarshal(val, &conf); err != nil ***REMOVED***
+		// TODO: Important! Separate configs and fix the whole 2 configs mess!
+		tmpConfig := Config***REMOVED******REMOVED***
+		if err := json.Unmarshal(val, &tmpConfig); err != nil ***REMOVED***
 			return nil, err
+		***REMOVED***
+		// Only take out the ProjectID, Name and Token from the options.ext.loadimpact map:
+		if tmpConfig.ProjectID.Valid ***REMOVED***
+			conf.ProjectID = tmpConfig.ProjectID
+		***REMOVED***
+		if tmpConfig.Name.Valid ***REMOVED***
+			conf.Name = tmpConfig.Name
+		***REMOVED***
+		if tmpConfig.Token.Valid ***REMOVED***
+			conf.Token = tmpConfig.Token
 		***REMOVED***
 	***REMOVED***
 
