@@ -39,6 +39,8 @@ type Config struct ***REMOVED***
 	WebAppURL  null.String `json:"webAppURL" envconfig:"CLOUD_WEB_APP_URL"`
 	NoCompress null.Bool   `json:"noCompress" envconfig:"CLOUD_NO_COMPRESS"`
 
+	MaxMetricSamplesPerPackage null.Int `json:"maxMetricSamplesPerPackage" envconfig:"CLOUD_MAX_METRIC_SAMPLES_PER_PACKAGE"`
+
 	// The time interval between periodic API calls for sending samples to the cloud ingest service.
 	MetricPushInterval types.NullDuration `json:"metricPushInterval" envconfig:"CLOUD_METRIC_PUSH_INTERVAL"`
 
@@ -147,10 +149,10 @@ type Config struct ***REMOVED***
 // NewConfig creates a new Config instance with default values for some fields.
 func NewConfig() Config ***REMOVED***
 	return Config***REMOVED***
-		Host:               null.NewString("https://ingest.loadimpact.com", false),
-		WebAppURL:          null.NewString("https://app.loadimpact.com", false),
-		MetricPushInterval: types.NewNullDuration(1*time.Second, false),
-
+		Host:                       null.NewString("https://ingest.loadimpact.com", false),
+		WebAppURL:                  null.NewString("https://app.loadimpact.com", false),
+		MetricPushInterval:         types.NewNullDuration(1*time.Second, false),
+		MaxMetricSamplesPerPackage: null.NewInt(100000, false),
 		// Aggregation is disabled by default, since AggregationPeriod has no default value
 		// but if it's enabled manually or from the cloud service, those are the default values it will use:
 		AggregationCalcInterval:         types.NewNullDuration(3*time.Second, false),
@@ -188,6 +190,9 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	***REMOVED***
 	if cfg.MetricPushInterval.Valid ***REMOVED***
 		c.MetricPushInterval = cfg.MetricPushInterval
+	***REMOVED***
+	if cfg.MaxMetricSamplesPerPackage.Valid ***REMOVED***
+		c.MaxMetricSamplesPerPackage = cfg.MaxMetricSamplesPerPackage
 	***REMOVED***
 	if cfg.AggregationPeriod.Valid ***REMOVED***
 		c.AggregationPeriod = cfg.AggregationPeriod

@@ -137,6 +137,8 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 	***REMOVED***, nil
 ***REMOVED***
 
+// Init is called between the collector's creation and the call to Run().
+// You should do any lengthy setup here rather than in New.
 func (c *Collector) Init() error ***REMOVED***
 	thresholds := make(map[string][]string)
 
@@ -176,10 +178,13 @@ func (c *Collector) Init() error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// Link return a link that is shown to the user.
 func (c *Collector) Link() string ***REMOVED***
 	return URLForResults(c.referenceID, c.config)
 ***REMOVED***
 
+// Run is called in a goroutine and starts the collector. Should commit samples to the backend
+// at regular intervals and when the context is terminated.
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 
@@ -221,10 +226,8 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) IsReady() bool ***REMOVED***
-	return true
-***REMOVED***
-
+// Collect receives a set of samples. This method is never called concurrently, and only while
+// the context for Run() is valid, but should defer as much work as possible to Run().
 func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
 	if c.referenceID == "" ***REMOVED***
 		return
@@ -443,11 +446,18 @@ func (c *Collector) pushMetrics() ***REMOVED***
 		"samples": len(buffer),
 	***REMOVED***).Debug("Pushing metrics to cloud")
 
-	err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer)
-	if err != nil ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
-			"error": err,
-		***REMOVED***).Warn("Failed to send metrics to cloud")
+	for len(buffer) > 0 ***REMOVED***
+		var size = len(buffer)
+		if size > int(c.config.MaxMetricSamplesPerPackage.Int64) ***REMOVED***
+			size = int(c.config.MaxMetricSamplesPerPackage.Int64)
+		***REMOVED***
+		err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer[:size])
+		if err != nil ***REMOVED***
+			log.WithFields(log.Fields***REMOVED***
+				"error": err,
+			***REMOVED***).Warn("Failed to send metrics to cloud")
+		***REMOVED***
+		buffer = buffer[size:]
 	***REMOVED***
 ***REMOVED***
 
@@ -500,6 +510,7 @@ func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
 	return lib.GetTagSet("name", "method", "status", "error", "check", "group")
 ***REMOVED***
 
+// SetRunStatus Set run status
 func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED***
 	c.runStatus = status
 ***REMOVED***
