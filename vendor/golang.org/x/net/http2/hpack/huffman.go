@@ -47,6 +47,7 @@ var ErrInvalidHuffman = errors.New("hpack: invalid Huffman-encoded data")
 // If maxLen is greater than 0, attempts to write more to buf than
 // maxLen bytes will return ErrStringLength.
 func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error ***REMOVED***
+	rootHuffmanNode := getRootHuffmanNode()
 	n := rootHuffmanNode
 	// cur is the bit buffer that has not been fed into n.
 	// cbits is the number of low order bits in cur that are valid.
@@ -106,7 +107,7 @@ func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error ***REMOVED***
 
 type node struct ***REMOVED***
 	// children is non-nil for internal nodes
-	children []*node
+	children *[256]*node
 
 	// The following are only valid if children is nil:
 	codeLen uint8 // number of bits that led to the output of sym
@@ -114,22 +115,31 @@ type node struct ***REMOVED***
 ***REMOVED***
 
 func newInternalNode() *node ***REMOVED***
-	return &node***REMOVED***children: make([]*node, 256)***REMOVED***
+	return &node***REMOVED***children: new([256]*node)***REMOVED***
 ***REMOVED***
 
-var rootHuffmanNode = newInternalNode()
+var (
+	buildRootOnce       sync.Once
+	lazyRootHuffmanNode *node
+)
 
-func init() ***REMOVED***
+func getRootHuffmanNode() *node ***REMOVED***
+	buildRootOnce.Do(buildRootHuffmanNode)
+	return lazyRootHuffmanNode
+***REMOVED***
+
+func buildRootHuffmanNode() ***REMOVED***
 	if len(huffmanCodes) != 256 ***REMOVED***
 		panic("unexpected size")
 	***REMOVED***
+	lazyRootHuffmanNode = newInternalNode()
 	for i, code := range huffmanCodes ***REMOVED***
 		addDecoderNode(byte(i), code, huffmanCodeLen[i])
 	***REMOVED***
 ***REMOVED***
 
 func addDecoderNode(sym byte, code uint32, codeLen uint8) ***REMOVED***
-	cur := rootHuffmanNode
+	cur := lazyRootHuffmanNode
 	for codeLen > 8 ***REMOVED***
 		codeLen -= 8
 		i := uint8(code >> codeLen)

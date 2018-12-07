@@ -7,15 +7,21 @@ package http2
 import (
 	"net/http"
 	"strings"
+	"sync"
 )
 
 var (
-	commonLowerHeader = map[string]string***REMOVED******REMOVED*** // Go-Canonical-Case -> lower-case
-	commonCanonHeader = map[string]string***REMOVED******REMOVED*** // lower-case -> Go-Canonical-Case
+	commonBuildOnce   sync.Once
+	commonLowerHeader map[string]string // Go-Canonical-Case -> lower-case
+	commonCanonHeader map[string]string // lower-case -> Go-Canonical-Case
 )
 
-func init() ***REMOVED***
-	for _, v := range []string***REMOVED***
+func buildCommonHeaderMapsOnce() ***REMOVED***
+	commonBuildOnce.Do(buildCommonHeaderMaps)
+***REMOVED***
+
+func buildCommonHeaderMaps() ***REMOVED***
+	common := []string***REMOVED***
 		"accept",
 		"accept-charset",
 		"accept-encoding",
@@ -63,7 +69,10 @@ func init() ***REMOVED***
 		"vary",
 		"via",
 		"www-authenticate",
-	***REMOVED*** ***REMOVED***
+	***REMOVED***
+	commonLowerHeader = make(map[string]string, len(common))
+	commonCanonHeader = make(map[string]string, len(common))
+	for _, v := range common ***REMOVED***
 		chk := http.CanonicalHeaderKey(v)
 		commonLowerHeader[chk] = v
 		commonCanonHeader[v] = chk
@@ -71,6 +80,7 @@ func init() ***REMOVED***
 ***REMOVED***
 
 func lowerHeader(v string) string ***REMOVED***
+	buildCommonHeaderMapsOnce()
 	if s, ok := commonLowerHeader[v]; ok ***REMOVED***
 		return s
 	***REMOVED***

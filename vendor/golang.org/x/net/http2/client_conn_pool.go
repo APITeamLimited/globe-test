@@ -52,9 +52,31 @@ const (
 	noDialOnMiss = false
 )
 
+// shouldTraceGetConn reports whether getClientConn should call any
+// ClientTrace.GetConn hook associated with the http.Request.
+//
+// This complexity is needed to avoid double calls of the GetConn hook
+// during the back-and-forth between net/http and x/net/http2 (when the
+// net/http.Transport is upgraded to also speak http2), as well as support
+// the case where x/net/http2 is being used directly.
+func (p *clientConnPool) shouldTraceGetConn(st clientConnIdleState) bool ***REMOVED***
+	// If our Transport wasn't made via ConfigureTransport, always
+	// trace the GetConn hook if provided, because that means the
+	// http2 package is being used directly and it's the one
+	// dialing, as opposed to net/http.
+	if _, ok := p.t.ConnPool.(noDialClientConnPool); !ok ***REMOVED***
+		return true
+	***REMOVED***
+	// Otherwise, only use the GetConn hook if this connection has
+	// been used previously for other requests. For fresh
+	// connections, the net/http package does the dialing.
+	return !st.freshConn
+***REMOVED***
+
 func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMiss bool) (*ClientConn, error) ***REMOVED***
 	if isConnectionCloseRequest(req) && dialOnMiss ***REMOVED***
 		// It gets its own connection.
+		traceGetConn(req, addr)
 		const singleUse = true
 		cc, err := p.t.dialClientConn(addr, singleUse)
 		if err != nil ***REMOVED***
@@ -64,7 +86,10 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 	***REMOVED***
 	p.mu.Lock()
 	for _, cc := range p.conns[addr] ***REMOVED***
-		if cc.CanTakeNewRequest() ***REMOVED***
+		if st := cc.idleState(); st.canTakeNewRequest ***REMOVED***
+			if p.shouldTraceGetConn(st) ***REMOVED***
+				traceGetConn(req, addr)
+			***REMOVED***
 			p.mu.Unlock()
 			return cc, nil
 		***REMOVED***
@@ -73,6 +98,7 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 		p.mu.Unlock()
 		return nil, ErrNoCachedConn
 	***REMOVED***
+	traceGetConn(req, addr)
 	call := p.getStartDialLocked(addr)
 	p.mu.Unlock()
 	<-call.done

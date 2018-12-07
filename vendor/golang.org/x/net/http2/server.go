@@ -28,6 +28,7 @@ package http2
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -46,6 +47,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
 )
 
@@ -208,12 +210,14 @@ func ConfigureServer(s *http.Server, conf *Server) error ***REMOVED***
 		conf = new(Server)
 	***REMOVED***
 	conf.state = &serverInternalState***REMOVED***activeConns: make(map[*serverConn]struct***REMOVED******REMOVED***)***REMOVED***
-	if err := configureServer18(s, conf); err != nil ***REMOVED***
-		return err
+	if h1, h2 := s, conf; h2.IdleTimeout == 0 ***REMOVED***
+		if h1.IdleTimeout != 0 ***REMOVED***
+			h2.IdleTimeout = h1.IdleTimeout
+		***REMOVED*** else ***REMOVED***
+			h2.IdleTimeout = h1.ReadTimeout
+		***REMOVED***
 	***REMOVED***
-	if err := configureServer19(s, conf); err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	s.RegisterOnShutdown(conf.state.startGracefulShutdown)
 
 	if s.TLSConfig == nil ***REMOVED***
 		s.TLSConfig = new(tls.Config)
@@ -434,6 +438,15 @@ func (s *Server) ServeConn(c net.Conn, opts *ServeConnOpts) ***REMOVED***
 	sc.serve()
 ***REMOVED***
 
+func serverConnBaseContext(c net.Conn, opts *ServeConnOpts) (ctx context.Context, cancel func()) ***REMOVED***
+	ctx, cancel = context.WithCancel(context.Background())
+	ctx = context.WithValue(ctx, http.LocalAddrContextKey, c.LocalAddr())
+	if hs := opts.baseConfig(); hs != nil ***REMOVED***
+		ctx = context.WithValue(ctx, http.ServerContextKey, hs)
+	***REMOVED***
+	return
+***REMOVED***
+
 func (sc *serverConn) rejectConn(err ErrCode, debug string) ***REMOVED***
 	sc.vlogf("http2: server rejecting conn: %v, %s", err, debug)
 	// ignoring errors. hanging up anyway.
@@ -449,7 +462,7 @@ type serverConn struct ***REMOVED***
 	conn             net.Conn
 	bw               *bufferedWriter // writing to conn
 	handler          http.Handler
-	baseCtx          contextContext
+	baseCtx          context.Context
 	framer           *Framer
 	doneServing      chan struct***REMOVED******REMOVED***          // closed when serverConn.serve ends
 	readFrameCh      chan readFrameResult   // written by serverConn.readFrames
@@ -529,7 +542,7 @@ type stream struct ***REMOVED***
 	id        uint32
 	body      *pipe       // non-nil if expecting DATA frames
 	cw        closeWaiter // closed wait stream transitions to closed state
-	ctx       contextContext
+	ctx       context.Context
 	cancelCtx func()
 
 	// owned by serverConn's serve loop:
@@ -662,6 +675,7 @@ func (sc *serverConn) condlogf(err error, format string, args ...interface***REM
 
 func (sc *serverConn) canonicalHeader(v string) string ***REMOVED***
 	sc.serveG.check()
+	buildCommonHeaderMapsOnce()
 	cv, ok := commonCanonHeader[v]
 	if ok ***REMOVED***
 		return cv
@@ -1108,7 +1122,7 @@ func (sc *serverConn) startFrameWrite(wr FrameWriteRequest) ***REMOVED***
 
 // errHandlerPanicked is the error given to any callers blocked in a read from
 // Request.Body when the main goroutine panics. Since most handlers read in the
-// the main ServeHTTP goroutine, this will show up rarely.
+// main ServeHTTP goroutine, this will show up rarely.
 var errHandlerPanicked = errors.New("http2: handler panicked")
 
 // wroteFrame is called on the serve goroutine with the result of
@@ -1486,6 +1500,12 @@ func (sc *serverConn) processSettings(f *SettingsFrame) error ***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***
+	if f.NumSettings() > 100 || f.HasDuplicates() ***REMOVED***
+		// This isn't actually in the spec, but hang up on
+		// suspiciously large settings frames or those with
+		// duplicate entries.
+		return ConnectionError(ErrCodeProtocol)
+	***REMOVED***
 	if err := f.ForeachSetting(sc.processSetting); err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -1574,6 +1594,12 @@ func (sc *serverConn) processData(f *DataFrame) error ***REMOVED***
 		// type PROTOCOL_ERROR."
 		return ConnectionError(ErrCodeProtocol)
 	***REMOVED***
+	// RFC 7540, sec 6.1: If a DATA frame is received whose stream is not in
+	// "open" or "half-closed (local)" state, the recipient MUST respond with a
+	// stream error (Section 5.4.2) of type STREAM_CLOSED.
+	if state == stateClosed ***REMOVED***
+		return streamError(id, ErrCodeStreamClosed)
+	***REMOVED***
 	if st == nil || state != stateOpen || st.gotTrailerHeader || st.resetQueued ***REMOVED***
 		// This includes sending a RST_STREAM if the stream is
 		// in stateHalfClosedLocal (which currently means that
@@ -1607,7 +1633,10 @@ func (sc *serverConn) processData(f *DataFrame) error ***REMOVED***
 	// Sender sending more than they'd declared?
 	if st.declBodyBytes != -1 && st.bodyBytes+int64(len(data)) > st.declBodyBytes ***REMOVED***
 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
-		return streamError(id, ErrCodeStreamClosed)
+		// RFC 7540, sec 8.1.2.6: A request or response is also malformed if the
+		// value of a content-length header field does not equal the sum of the
+		// DATA frame payload lengths that form the body.
+		return streamError(id, ErrCodeProtocol)
 	***REMOVED***
 	if f.Length > 0 ***REMOVED***
 		// Check whether the client has flow control quota.
@@ -1717,6 +1746,13 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error ***REMOVED***
 			// processing this frame.
 			return nil
 		***REMOVED***
+		// RFC 7540, sec 5.1: If an endpoint receives additional frames, other than
+		// WINDOW_UPDATE, PRIORITY, or RST_STREAM, for a stream that is in
+		// this state, it MUST respond with a stream error (Section 5.4.2) of
+		// type STREAM_CLOSED.
+		if st.state == stateHalfClosedRemote ***REMOVED***
+			return streamError(id, ErrCodeStreamClosed)
+		***REMOVED***
 		return st.processTrailerHeaders(f)
 	***REMOVED***
 
@@ -1817,7 +1853,7 @@ func (st *stream) processTrailerHeaders(f *MetaHeadersFrame) error ***REMOVED***
 	if st.trailer != nil ***REMOVED***
 		for _, hf := range f.RegularFields() ***REMOVED***
 			key := sc.canonicalHeader(hf.Name)
-			if !ValidTrailerHeader(key) ***REMOVED***
+			if !httpguts.ValidTrailerHeader(key) ***REMOVED***
 				// TODO: send more details to the peer somehow. But http2 has
 				// no way to send debug data at a stream level. Discuss with
 				// HTTP folk.
@@ -1858,7 +1894,7 @@ func (sc *serverConn) newStream(id, pusherID uint32, state streamState) *stream 
 		panic("internal error: cannot create stream with id 0")
 	***REMOVED***
 
-	ctx, cancelCtx := contextWithCancel(sc.baseCtx)
+	ctx, cancelCtx := context.WithCancel(sc.baseCtx)
 	st := &stream***REMOVED***
 		sc:        sc,
 		id:        id,
@@ -2024,7 +2060,7 @@ func (sc *serverConn) newWriterAndRequestNoBody(st *stream, rp requestParam) (*r
 		Body:       body,
 		Trailer:    trailer,
 	***REMOVED***
-	req = requestWithContext(req, st.ctx)
+	req = req.WithContext(st.ctx)
 
 	rws := responseWriterStatePool.Get().(*responseWriterState)
 	bwSave := rws.bw
@@ -2052,7 +2088,7 @@ func (sc *serverConn) runHandler(rw *responseWriter, req *http.Request, handler 
 				stream: rw.rws.stream,
 			***REMOVED***)
 			// Same as net/http:
-			if shouldLogPanic(e) ***REMOVED***
+			if e != nil && e != http.ErrAbortHandler ***REMOVED***
 				const size = 64 << 10
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
@@ -2284,7 +2320,7 @@ func (rws *responseWriterState) hasTrailers() bool ***REMOVED*** return len(rws.
 // written in the trailers at the end of the response.
 func (rws *responseWriterState) declareTrailer(k string) ***REMOVED***
 	k = http.CanonicalHeaderKey(k)
-	if !ValidTrailerHeader(k) ***REMOVED***
+	if !httpguts.ValidTrailerHeader(k) ***REMOVED***
 		// Forbidden by RFC 7230, section 4.1.2.
 		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
@@ -2333,6 +2369,19 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) ***REMOV
 
 		for _, v := range rws.snapHeader["Trailer"] ***REMOVED***
 			foreachHeaderElement(v, rws.declareTrailer)
+		***REMOVED***
+
+		// "Connection" headers aren't allowed in HTTP/2 (RFC 7540, 8.1.2.2),
+		// but respect "Connection" == "close" to mean sending a GOAWAY and tearing
+		// down the TCP connection when idle, like we do for HTTP/1.
+		// TODO: remove more Connection-specific header fields here, in addition
+		// to "Connection".
+		if _, ok := rws.snapHeader["Connection"]; ok ***REMOVED***
+			v := rws.snapHeader.Get("Connection")
+			delete(rws.snapHeader, "Connection")
+			if v == "close" ***REMOVED***
+				rws.conn.startGracefulShutdown()
+			***REMOVED***
 		***REMOVED***
 
 		endStream := (rws.handlerDone && !rws.hasTrailers() && len(p) == 0) || isHeadResp
@@ -2601,14 +2650,9 @@ var (
 	ErrPushLimitReached = errors.New("http2: push would exceed peer's SETTINGS_MAX_CONCURRENT_STREAMS")
 )
 
-// pushOptions is the internal version of http.PushOptions, which we
-// cannot include here because it's only defined in Go 1.8 and later.
-type pushOptions struct ***REMOVED***
-	Method string
-	Header http.Header
-***REMOVED***
+var _ http.Pusher = (*responseWriter)(nil)
 
-func (w *responseWriter) push(target string, opts pushOptions) error ***REMOVED***
+func (w *responseWriter) Push(target string, opts *http.PushOptions) error ***REMOVED***
 	st := w.rws.stream
 	sc := st.sc
 	sc.serveG.checkNotOn()
@@ -2617,6 +2661,10 @@ func (w *responseWriter) push(target string, opts pushOptions) error ***REMOVED*
 	// http://tools.ietf.org/html/rfc7540#section-6.6
 	if st.isPushed() ***REMOVED***
 		return ErrRecursivePush
+	***REMOVED***
+
+	if opts == nil ***REMOVED***
+		opts = new(http.PushOptions)
 	***REMOVED***
 
 	// Default options.
@@ -2836,41 +2884,6 @@ func new400Handler(err error) http.HandlerFunc ***REMOVED***
 	return func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	***REMOVED***
-***REMOVED***
-
-// ValidTrailerHeader reports whether name is a valid header field name to appear
-// in trailers.
-// See: http://tools.ietf.org/html/rfc7230#section-4.1.2
-func ValidTrailerHeader(name string) bool ***REMOVED***
-	name = http.CanonicalHeaderKey(name)
-	if strings.HasPrefix(name, "If-") || badTrailer[name] ***REMOVED***
-		return false
-	***REMOVED***
-	return true
-***REMOVED***
-
-var badTrailer = map[string]bool***REMOVED***
-	"Authorization":       true,
-	"Cache-Control":       true,
-	"Connection":          true,
-	"Content-Encoding":    true,
-	"Content-Length":      true,
-	"Content-Range":       true,
-	"Content-Type":        true,
-	"Expect":              true,
-	"Host":                true,
-	"Keep-Alive":          true,
-	"Max-Forwards":        true,
-	"Pragma":              true,
-	"Proxy-Authenticate":  true,
-	"Proxy-Authorization": true,
-	"Proxy-Connection":    true,
-	"Range":               true,
-	"Realm":               true,
-	"Te":                  true,
-	"Trailer":             true,
-	"Transfer-Encoding":   true,
-	"Www-Authenticate":    true,
 ***REMOVED***
 
 // h1ServerKeepAlivesDisabled reports whether hs has its keep-alives

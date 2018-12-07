@@ -32,6 +32,8 @@ type parser struct ***REMOVED***
 	head, form *Node
 	// Other parsing state flags (section 12.2.4.5).
 	scripting, framesetOK bool
+	// The stack of template insertion modes
+	templateStack insertionModeStack
 	// im is the current insertion mode.
 	im insertionMode
 	// originalIM is the insertion mode to go back to after completing a text
@@ -126,7 +128,7 @@ func (p *parser) indexOfElementInScope(s scope, matchTags ...a.Atom) int ***REMO
 					return -1
 				***REMOVED***
 			case tableScope:
-				if tagAtom == a.Html || tagAtom == a.Table ***REMOVED***
+				if tagAtom == a.Html || tagAtom == a.Table || tagAtom == a.Template ***REMOVED***
 					return -1
 				***REMOVED***
 			case selectScope:
@@ -162,17 +164,17 @@ func (p *parser) clearStackToContext(s scope) ***REMOVED***
 		tagAtom := p.oe[i].DataAtom
 		switch s ***REMOVED***
 		case tableScope:
-			if tagAtom == a.Html || tagAtom == a.Table ***REMOVED***
+			if tagAtom == a.Html || tagAtom == a.Table || tagAtom == a.Template ***REMOVED***
 				p.oe = p.oe[:i+1]
 				return
 			***REMOVED***
 		case tableRowScope:
-			if tagAtom == a.Html || tagAtom == a.Tr ***REMOVED***
+			if tagAtom == a.Html || tagAtom == a.Tr || tagAtom == a.Template ***REMOVED***
 				p.oe = p.oe[:i+1]
 				return
 			***REMOVED***
 		case tableBodyScope:
-			if tagAtom == a.Html || tagAtom == a.Tbody || tagAtom == a.Tfoot || tagAtom == a.Thead ***REMOVED***
+			if tagAtom == a.Html || tagAtom == a.Tbody || tagAtom == a.Tfoot || tagAtom == a.Thead || tagAtom == a.Template ***REMOVED***
 				p.oe = p.oe[:i+1]
 				return
 			***REMOVED***
@@ -183,7 +185,7 @@ func (p *parser) clearStackToContext(s scope) ***REMOVED***
 ***REMOVED***
 
 // generateImpliedEndTags pops nodes off the stack of open elements as long as
-// the top node has a tag name of dd, dt, li, option, optgroup, p, rp, or rt.
+// the top node has a tag name of dd, dt, li, optgroup, option, p, rb, rp, rt or rtc.
 // If exceptions are specified, nodes with that name will not be popped off.
 func (p *parser) generateImpliedEndTags(exceptions ...string) ***REMOVED***
 	var i int
@@ -192,7 +194,7 @@ loop:
 		n := p.oe[i]
 		if n.Type == ElementNode ***REMOVED***
 			switch n.DataAtom ***REMOVED***
-			case a.Dd, a.Dt, a.Li, a.Option, a.Optgroup, a.P, a.Rp, a.Rt:
+			case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc:
 				for _, except := range exceptions ***REMOVED***
 					if n.Data == except ***REMOVED***
 						break loop
@@ -236,13 +238,26 @@ func (p *parser) shouldFosterParent() bool ***REMOVED***
 // fosterParent adds a child node according to the foster parenting rules.
 // Section 12.2.6.1, "foster parenting".
 func (p *parser) fosterParent(n *Node) ***REMOVED***
-	var table, parent, prev *Node
+	var table, parent, prev, template *Node
 	var i int
 	for i = len(p.oe) - 1; i >= 0; i-- ***REMOVED***
 		if p.oe[i].DataAtom == a.Table ***REMOVED***
 			table = p.oe[i]
 			break
 		***REMOVED***
+	***REMOVED***
+
+	var j int
+	for j = len(p.oe) - 1; j >= 0; j-- ***REMOVED***
+		if p.oe[j].DataAtom == a.Template ***REMOVED***
+			template = p.oe[j]
+			break
+		***REMOVED***
+	***REMOVED***
+
+	if template != nil && (table == nil || j > i) ***REMOVED***
+		template.AppendChild(n)
+		return
 	***REMOVED***
 
 	if table == nil ***REMOVED***
@@ -415,14 +430,34 @@ func (p *parser) setOriginalIM() ***REMOVED***
 func (p *parser) resetInsertionMode() ***REMOVED***
 	for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
 		n := p.oe[i]
-		if i == 0 && p.context != nil ***REMOVED***
+		last := i == 0
+		if last && p.context != nil ***REMOVED***
 			n = p.context
 		***REMOVED***
 
 		switch n.DataAtom ***REMOVED***
 		case a.Select:
+			if !last ***REMOVED***
+				for ancestor, first := n, p.oe[0]; ancestor != first; ***REMOVED***
+					if ancestor == first ***REMOVED***
+						break
+					***REMOVED***
+					ancestor = p.oe[p.oe.index(ancestor)-1]
+					switch ancestor.DataAtom ***REMOVED***
+					case a.Template:
+						p.im = inSelectIM
+						return
+					case a.Table:
+						p.im = inSelectInTableIM
+						return
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
 			p.im = inSelectIM
 		case a.Td, a.Th:
+			// TODO: remove this divergence from the HTML5 spec.
+			//
+			// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
 			p.im = inCellIM
 		case a.Tr:
 			p.im = inRowIM
@@ -434,20 +469,36 @@ func (p *parser) resetInsertionMode() ***REMOVED***
 			p.im = inColumnGroupIM
 		case a.Table:
 			p.im = inTableIM
+		case a.Template:
+			// TODO: remove this divergence from the HTML5 spec.
+			if n.Namespace != "" ***REMOVED***
+				continue
+			***REMOVED***
+			p.im = p.templateStack.top()
 		case a.Head:
-			p.im = inBodyIM
+			// TODO: remove this divergence from the HTML5 spec.
+			//
+			// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
+			p.im = inHeadIM
 		case a.Body:
 			p.im = inBodyIM
 		case a.Frameset:
 			p.im = inFramesetIM
 		case a.Html:
-			p.im = beforeHeadIM
+			if p.head == nil ***REMOVED***
+				p.im = beforeHeadIM
+			***REMOVED*** else ***REMOVED***
+				p.im = afterHeadIM
+			***REMOVED***
 		default:
+			if last ***REMOVED***
+				p.im = inBodyIM
+				return
+			***REMOVED***
 			continue
 		***REMOVED***
 		return
 	***REMOVED***
-	p.im = inBodyIM
 ***REMOVED***
 
 const whitespace = " \t\r\n\f"
@@ -590,19 +641,41 @@ func inHeadIM(p *parser) bool ***REMOVED***
 		case a.Head:
 			// Ignore the token.
 			return true
+		case a.Template:
+			p.addElement()
+			p.afe = append(p.afe, &scopeMarker)
+			p.framesetOK = false
+			p.im = inTemplateIM
+			p.templateStack = append(p.templateStack, inTemplateIM)
+			return true
 		***REMOVED***
 	case EndTagToken:
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Head:
-			n := p.oe.pop()
-			if n.DataAtom != a.Head ***REMOVED***
-				panic("html: bad parser state: <head> element not found, in the in-head insertion mode")
-			***REMOVED***
+			p.oe.pop()
 			p.im = afterHeadIM
 			return true
 		case a.Body, a.Html, a.Br:
 			p.parseImpliedToken(EndTagToken, a.Head, a.Head.String())
 			return false
+		case a.Template:
+			if !p.oe.contains(a.Template) ***REMOVED***
+				return true
+			***REMOVED***
+			// TODO: remove this divergence from the HTML5 spec.
+			//
+			// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
+			p.generateImpliedEndTags()
+			for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
+				if n := p.oe[i]; n.Namespace == "" && n.DataAtom == a.Template ***REMOVED***
+					p.oe = p.oe[:i]
+					break
+				***REMOVED***
+			***REMOVED***
+			p.clearActiveFormattingElements()
+			p.templateStack.pop()
+			p.resetInsertionMode()
+			return true
 		default:
 			// Ignore the token.
 			return true
@@ -648,7 +721,7 @@ func afterHeadIM(p *parser) bool ***REMOVED***
 			p.addElement()
 			p.im = inFramesetIM
 			return true
-		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Title:
+		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Template, a.Title:
 			p.oe = append(p.oe, p.head)
 			defer p.oe.remove(p.head)
 			return inHeadIM(p)
@@ -660,6 +733,8 @@ func afterHeadIM(p *parser) bool ***REMOVED***
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Body, a.Html, a.Br:
 			// Drop down to creating an implied <body> tag.
+		case a.Template:
+			return inHeadIM(p)
 		default:
 			// Ignore the token.
 			return true
@@ -727,10 +802,16 @@ func inBodyIM(p *parser) bool ***REMOVED***
 	case StartTagToken:
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Html:
+			if p.oe.contains(a.Template) ***REMOVED***
+				return true
+			***REMOVED***
 			copyAttributes(p.oe[0], p.tok)
-		case a.Base, a.Basefont, a.Bgsound, a.Command, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Title:
+		case a.Base, a.Basefont, a.Bgsound, a.Command, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Template, a.Title:
 			return inHeadIM(p)
 		case a.Body:
+			if p.oe.contains(a.Template) ***REMOVED***
+				return true
+			***REMOVED***
 			if len(p.oe) >= 2 ***REMOVED***
 				body := p.oe[1]
 				if body.Type == ElementNode && body.DataAtom == a.Body ***REMOVED***
@@ -767,9 +848,13 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			// The newline, if any, will be dealt with by the TextToken case.
 			p.framesetOK = false
 		case a.Form:
-			if p.form == nil ***REMOVED***
-				p.popUntil(buttonScope, a.P)
-				p.addElement()
+			if p.form != nil && !p.oe.contains(a.Template) ***REMOVED***
+				// Ignore the token
+				return true
+			***REMOVED***
+			p.popUntil(buttonScope, a.P)
+			p.addElement()
+			if !p.oe.contains(a.Template) ***REMOVED***
 				p.form = p.top()
 			***REMOVED***
 		case a.Li:
@@ -903,6 +988,14 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			p.acknowledgeSelfClosingTag()
 			p.popUntil(buttonScope, a.P)
 			p.parseImpliedToken(StartTagToken, a.Form, a.Form.String())
+			if p.form == nil ***REMOVED***
+				// NOTE: The 'isindex' element has been removed,
+				// and the 'template' element has not been designed to be
+				// collaborative with the index element.
+				//
+				// Ignore the token.
+				return true
+			***REMOVED***
 			if action != "" ***REMOVED***
 				p.form.Attr = []Attribute***REMOVED******REMOVED***Key: "action", Val: action***REMOVED******REMOVED***
 			***REMOVED***
@@ -952,9 +1045,14 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			***REMOVED***
 			p.reconstructActiveFormattingElements()
 			p.addElement()
-		case a.Rp, a.Rt:
+		case a.Rb, a.Rtc:
 			if p.elementInScope(defaultScope, a.Ruby) ***REMOVED***
 				p.generateImpliedEndTags()
+			***REMOVED***
+			p.addElement()
+		case a.Rp, a.Rt:
+			if p.elementInScope(defaultScope, a.Ruby) ***REMOVED***
+				p.generateImpliedEndTags("rtc")
 			***REMOVED***
 			p.addElement()
 		case a.Math, a.Svg:
@@ -993,15 +1091,29 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.Address, a.Article, a.Aside, a.Blockquote, a.Button, a.Center, a.Details, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Listing, a.Menu, a.Nav, a.Ol, a.Pre, a.Section, a.Summary, a.Ul:
 			p.popUntil(defaultScope, p.tok.DataAtom)
 		case a.Form:
-			node := p.form
-			p.form = nil
-			i := p.indexOfElementInScope(defaultScope, a.Form)
-			if node == nil || i == -1 || p.oe[i] != node ***REMOVED***
-				// Ignore the token.
-				return true
+			if p.oe.contains(a.Template) ***REMOVED***
+				i := p.indexOfElementInScope(defaultScope, a.Form)
+				if i == -1 ***REMOVED***
+					// Ignore the token.
+					return true
+				***REMOVED***
+				p.generateImpliedEndTags()
+				if p.oe[i].DataAtom != a.Form ***REMOVED***
+					// Ignore the token.
+					return true
+				***REMOVED***
+				p.popUntil(defaultScope, a.Form)
+			***REMOVED*** else ***REMOVED***
+				node := p.form
+				p.form = nil
+				i := p.indexOfElementInScope(defaultScope, a.Form)
+				if node == nil || i == -1 || p.oe[i] != node ***REMOVED***
+					// Ignore the token.
+					return true
+				***REMOVED***
+				p.generateImpliedEndTags()
+				p.oe.remove(node)
 			***REMOVED***
-			p.generateImpliedEndTags()
-			p.oe.remove(node)
 		case a.P:
 			if !p.elementInScope(buttonScope, a.P) ***REMOVED***
 				p.parseImpliedToken(StartTagToken, a.P, a.P.String())
@@ -1022,6 +1134,8 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.Br:
 			p.tok.Type = StartTagToken
 			return false
+		case a.Template:
+			return inHeadIM(p)
 		default:
 			p.inBodyEndTagOther(p.tok.DataAtom)
 		***REMOVED***
@@ -1030,6 +1144,21 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			Type: CommentNode,
 			Data: p.tok.Data,
 		***REMOVED***)
+	case ErrorToken:
+		// TODO: remove this divergence from the HTML5 spec.
+		if len(p.templateStack) > 0 ***REMOVED***
+			p.im = inTemplateIM
+			return false
+		***REMOVED*** else ***REMOVED***
+			for _, e := range p.oe ***REMOVED***
+				switch e.DataAtom ***REMOVED***
+				case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc, a.Tbody, a.Td, a.Tfoot, a.Th,
+					a.Thead, a.Tr, a.Body, a.Html:
+				default:
+					return true
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
 	return true
@@ -1206,9 +1335,6 @@ func textIM(p *parser) bool ***REMOVED***
 // Section 12.2.6.4.9.
 func inTableIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
-	case ErrorToken:
-		// Stop parsing.
-		return true
 	case TextToken:
 		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
 		switch p.oe.top().DataAtom ***REMOVED***
@@ -1249,7 +1375,7 @@ func inTableIM(p *parser) bool ***REMOVED***
 			***REMOVED***
 			// Ignore the token.
 			return true
-		case a.Style, a.Script:
+		case a.Style, a.Script, a.Template:
 			return inHeadIM(p)
 		case a.Input:
 			for _, t := range p.tok.Attr ***REMOVED***
@@ -1261,7 +1387,7 @@ func inTableIM(p *parser) bool ***REMOVED***
 			***REMOVED***
 			// Otherwise drop down to the default action.
 		case a.Form:
-			if p.form != nil ***REMOVED***
+			if p.oe.contains(a.Template) || p.form != nil ***REMOVED***
 				// Ignore the token.
 				return true
 			***REMOVED***
@@ -1291,6 +1417,8 @@ func inTableIM(p *parser) bool ***REMOVED***
 		case a.Body, a.Caption, a.Col, a.Colgroup, a.Html, a.Tbody, a.Td, a.Tfoot, a.Th, a.Thead, a.Tr:
 			// Ignore the token.
 			return true
+		case a.Template:
+			return inHeadIM(p)
 		***REMOVED***
 	case CommentToken:
 		p.addChild(&Node***REMOVED***
@@ -1301,6 +1429,8 @@ func inTableIM(p *parser) bool ***REMOVED***
 	case DoctypeToken:
 		// Ignore the token.
 		return true
+	case ErrorToken:
+		return inBodyIM(p)
 	***REMOVED***
 
 	p.fosterParenting = true
@@ -1386,11 +1516,13 @@ func inColumnGroupIM(p *parser) bool ***REMOVED***
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			return true
+		case a.Template:
+			return inHeadIM(p)
 		***REMOVED***
 	case EndTagToken:
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Colgroup:
-			if p.oe.top().DataAtom != a.Html ***REMOVED***
+			if p.oe.top().DataAtom == a.Colgroup ***REMOVED***
 				p.oe.pop()
 				p.im = inTableIM
 			***REMOVED***
@@ -1398,14 +1530,18 @@ func inColumnGroupIM(p *parser) bool ***REMOVED***
 		case a.Col:
 			// Ignore the token.
 			return true
+		case a.Template:
+			return inHeadIM(p)
 		***REMOVED***
+	case ErrorToken:
+		return inBodyIM(p)
 	***REMOVED***
-	if p.oe.top().DataAtom != a.Html ***REMOVED***
-		p.oe.pop()
-		p.im = inTableIM
-		return false
+	if p.oe.top().DataAtom != a.Colgroup ***REMOVED***
+		return true
 	***REMOVED***
-	return true
+	p.oe.pop()
+	p.im = inTableIM
+	return false
 ***REMOVED***
 
 // Section 12.2.6.4.13.
@@ -1563,9 +1699,6 @@ func inCellIM(p *parser) bool ***REMOVED***
 // Section 12.2.6.4.16.
 func inSelectIM(p *parser) bool ***REMOVED***
 	switch p.tok.Type ***REMOVED***
-	case ErrorToken:
-		// Stop parsing.
-		return true
 	case TextToken:
 		p.addText(strings.Replace(p.tok.Data, "\x00", "", -1))
 	case StartTagToken:
@@ -1597,7 +1730,7 @@ func inSelectIM(p *parser) bool ***REMOVED***
 			p.tokenizer.NextIsNotRawText()
 			// Ignore the token.
 			return true
-		case a.Script:
+		case a.Script, a.Template:
 			return inHeadIM(p)
 		***REMOVED***
 	case EndTagToken:
@@ -1618,6 +1751,8 @@ func inSelectIM(p *parser) bool ***REMOVED***
 			if p.popUntil(selectScope, a.Select) ***REMOVED***
 				p.resetInsertionMode()
 			***REMOVED***
+		case a.Template:
+			return inHeadIM(p)
 		***REMOVED***
 	case CommentToken:
 		p.addChild(&Node***REMOVED***
@@ -1627,6 +1762,8 @@ func inSelectIM(p *parser) bool ***REMOVED***
 	case DoctypeToken:
 		// Ignore the token.
 		return true
+	case ErrorToken:
+		return inBodyIM(p)
 	***REMOVED***
 
 	return true
@@ -1648,6 +1785,72 @@ func inSelectInTableIM(p *parser) bool ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return inSelectIM(p)
+***REMOVED***
+
+// Section 12.2.6.4.18.
+func inTemplateIM(p *parser) bool ***REMOVED***
+	switch p.tok.Type ***REMOVED***
+	case TextToken, CommentToken, DoctypeToken:
+		return inBodyIM(p)
+	case StartTagToken:
+		switch p.tok.DataAtom ***REMOVED***
+		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Template, a.Title:
+			return inHeadIM(p)
+		case a.Caption, a.Colgroup, a.Tbody, a.Tfoot, a.Thead:
+			p.templateStack.pop()
+			p.templateStack = append(p.templateStack, inTableIM)
+			p.im = inTableIM
+			return false
+		case a.Col:
+			p.templateStack.pop()
+			p.templateStack = append(p.templateStack, inColumnGroupIM)
+			p.im = inColumnGroupIM
+			return false
+		case a.Tr:
+			p.templateStack.pop()
+			p.templateStack = append(p.templateStack, inTableBodyIM)
+			p.im = inTableBodyIM
+			return false
+		case a.Td, a.Th:
+			p.templateStack.pop()
+			p.templateStack = append(p.templateStack, inRowIM)
+			p.im = inRowIM
+			return false
+		default:
+			p.templateStack.pop()
+			p.templateStack = append(p.templateStack, inBodyIM)
+			p.im = inBodyIM
+			return false
+		***REMOVED***
+	case EndTagToken:
+		switch p.tok.DataAtom ***REMOVED***
+		case a.Template:
+			return inHeadIM(p)
+		default:
+			// Ignore the token.
+			return true
+		***REMOVED***
+	case ErrorToken:
+		if !p.oe.contains(a.Template) ***REMOVED***
+			// Ignore the token.
+			return true
+		***REMOVED***
+		// TODO: remove this divergence from the HTML5 spec.
+		//
+		// See https://bugs.chromium.org/p/chromium/issues/detail?id=829668
+		p.generateImpliedEndTags()
+		for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
+			if n := p.oe[i]; n.Namespace == "" && n.DataAtom == a.Template ***REMOVED***
+				p.oe = p.oe[:i]
+				break
+			***REMOVED***
+		***REMOVED***
+		p.clearActiveFormattingElements()
+		p.templateStack.pop()
+		p.resetInsertionMode()
+		return false
+	***REMOVED***
+	return false
 ***REMOVED***
 
 // Section 12.2.6.4.19.
@@ -2012,6 +2215,15 @@ func (p *parser) parse() error ***REMOVED***
 ***REMOVED***
 
 // Parse returns the parse tree for the HTML from the given Reader.
+//
+// It implements the HTML5 parsing algorithm
+// (https://html.spec.whatwg.org/multipage/syntax.html#tree-construction),
+// which is very complicated. The resultant tree can contain implicitly created
+// nodes that have no explicit <tag> listed in r's data, and nodes' parents can
+// differ from the nesting implied by a naive processing of start and end
+// <tag>s. Conversely, explicit <tag>s in r's data can be silently dropped,
+// with no corresponding node in the resulting tree.
+//
 // The input is assumed to be UTF-8 encoded.
 func Parse(r io.Reader) (*Node, error) ***REMOVED***
 	p := &parser***REMOVED***
@@ -2033,6 +2245,8 @@ func Parse(r io.Reader) (*Node, error) ***REMOVED***
 // ParseFragment parses a fragment of HTML and returns the nodes that were
 // found. If the fragment is the InnerHTML for an existing element, pass that
 // element in context.
+//
+// It has the same intricacies as Parse.
 func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
 	contextTag := ""
 	if context != nil ***REMOVED***
@@ -2064,6 +2278,9 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
 	***REMOVED***
 	p.doc.AppendChild(root)
 	p.oe = nodeStack***REMOVED***root***REMOVED***
+	if context != nil && context.DataAtom == a.Template ***REMOVED***
+		p.templateStack = append(p.templateStack, inTemplateIM)
+	***REMOVED***
 	p.resetInsertionMode()
 
 	for n := context; n != nil; n = n.Parent ***REMOVED***

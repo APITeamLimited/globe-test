@@ -14,8 +14,8 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/lex/httplex"
 )
 
 const frameHeaderLen = 9
@@ -733,32 +733,67 @@ func (f *SettingsFrame) IsAck() bool ***REMOVED***
 	return f.FrameHeader.Flags.Has(FlagSettingsAck)
 ***REMOVED***
 
-func (f *SettingsFrame) Value(s SettingID) (v uint32, ok bool) ***REMOVED***
+func (f *SettingsFrame) Value(id SettingID) (v uint32, ok bool) ***REMOVED***
 	f.checkValid()
-	buf := f.p
-	for len(buf) > 0 ***REMOVED***
-		settingID := SettingID(binary.BigEndian.Uint16(buf[:2]))
-		if settingID == s ***REMOVED***
-			return binary.BigEndian.Uint32(buf[2:6]), true
+	for i := 0; i < f.NumSettings(); i++ ***REMOVED***
+		if s := f.Setting(i); s.ID == id ***REMOVED***
+			return s.Val, true
 		***REMOVED***
-		buf = buf[6:]
 	***REMOVED***
 	return 0, false
+***REMOVED***
+
+// Setting returns the setting from the frame at the given 0-based index.
+// The index must be >= 0 and less than f.NumSettings().
+func (f *SettingsFrame) Setting(i int) Setting ***REMOVED***
+	buf := f.p
+	return Setting***REMOVED***
+		ID:  SettingID(binary.BigEndian.Uint16(buf[i*6 : i*6+2])),
+		Val: binary.BigEndian.Uint32(buf[i*6+2 : i*6+6]),
+	***REMOVED***
+***REMOVED***
+
+func (f *SettingsFrame) NumSettings() int ***REMOVED*** return len(f.p) / 6 ***REMOVED***
+
+// HasDuplicates reports whether f contains any duplicate setting IDs.
+func (f *SettingsFrame) HasDuplicates() bool ***REMOVED***
+	num := f.NumSettings()
+	if num == 0 ***REMOVED***
+		return false
+	***REMOVED***
+	// If it's small enough (the common case), just do the n^2
+	// thing and avoid a map allocation.
+	if num < 10 ***REMOVED***
+		for i := 0; i < num; i++ ***REMOVED***
+			idi := f.Setting(i).ID
+			for j := i + 1; j < num; j++ ***REMOVED***
+				idj := f.Setting(j).ID
+				if idi == idj ***REMOVED***
+					return true
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		return false
+	***REMOVED***
+	seen := map[SettingID]bool***REMOVED******REMOVED***
+	for i := 0; i < num; i++ ***REMOVED***
+		id := f.Setting(i).ID
+		if seen[id] ***REMOVED***
+			return true
+		***REMOVED***
+		seen[id] = true
+	***REMOVED***
+	return false
 ***REMOVED***
 
 // ForeachSetting runs fn for each setting.
 // It stops and returns the first error.
 func (f *SettingsFrame) ForeachSetting(fn func(Setting) error) error ***REMOVED***
 	f.checkValid()
-	buf := f.p
-	for len(buf) > 0 ***REMOVED***
-		if err := fn(Setting***REMOVED***
-			SettingID(binary.BigEndian.Uint16(buf[:2])),
-			binary.BigEndian.Uint32(buf[2:6]),
-		***REMOVED***); err != nil ***REMOVED***
+	for i := 0; i < f.NumSettings(); i++ ***REMOVED***
+		if err := fn(f.Setting(i)); err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		buf = buf[6:]
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -1442,7 +1477,7 @@ func (fr *Framer) maxHeaderStringLen() int ***REMOVED***
 ***REMOVED***
 
 // readMetaFrame returns 0 or more CONTINUATION frames from fr and
-// merge them into into the provided hf and returns a MetaHeadersFrame
+// merge them into the provided hf and returns a MetaHeadersFrame
 // with the decoded hpack values.
 func (fr *Framer) readMetaFrame(hf *HeadersFrame) (*MetaHeadersFrame, error) ***REMOVED***
 	if fr.AllowIllegalReads ***REMOVED***
@@ -1462,7 +1497,7 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (*MetaHeadersFrame, error) ***
 		if VerboseLogs && fr.logReads ***REMOVED***
 			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
 		***REMOVED***
-		if !httplex.ValidHeaderFieldValue(hf.Value) ***REMOVED***
+		if !httpguts.ValidHeaderFieldValue(hf.Value) ***REMOVED***
 			invalid = headerFieldValueError(hf.Value)
 		***REMOVED***
 		isPseudo := strings.HasPrefix(hf.Name, ":")

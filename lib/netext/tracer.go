@@ -180,9 +180,9 @@ func (t *Tracer) ConnectDone(network, addr string, err error) ***REMOVED***
 	// If using dual-stack dialing, it's possible to get this
 	// multiple times, so the atomic compareAndSwap ensures
 	// that only the first call's time is recorded
-	atomic.CompareAndSwapInt64(&t.connectDone, 0, now())
-
-	if err != nil ***REMOVED***
+	if err == nil ***REMOVED***
+		atomic.CompareAndSwapInt64(&t.connectDone, 0, now())
+	***REMOVED*** else ***REMOVED***
 		t.addError(err)
 	***REMOVED***
 ***REMOVED***
@@ -206,9 +206,9 @@ func (t *Tracer) TLSHandshakeStart() ***REMOVED***
 // If the request was cancelled, this could be called after the
 // RoundTrip() method has returned.
 func (t *Tracer) TLSHandshakeDone(state tls.ConnectionState, err error) ***REMOVED***
-	atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now())
-
-	if err != nil ***REMOVED***
+	if err == nil ***REMOVED***
+		atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now())
+	***REMOVED*** else ***REMOVED***
 		t.addError(err)
 	***REMOVED***
 ***REMOVED***
@@ -229,9 +229,34 @@ func (t *Tracer) GotConn(info httptrace.GotConnInfo) ***REMOVED***
 	t.connReused = info.Reused
 	t.connRemoteAddr = info.Conn.RemoteAddr()
 
-	if t.connReused ***REMOVED***
+	// The Go stdlib's http module can start connecting to a remote server, only
+	// to abandon that connection even before it was fully established and reuse
+	// a recently freed already existing connection.
+	// We overwrite the different timestamps here, so the other callbacks don't
+	// put incorrect values in them (they use CompareAndSwap)
+	_, isConnTLS := info.Conn.(*tls.Conn)
+	if info.Reused ***REMOVED***
+		atomic.SwapInt64(&t.connectStart, now)
+		atomic.SwapInt64(&t.connectDone, now)
+		if isConnTLS ***REMOVED***
+			atomic.SwapInt64(&t.tlsHandshakeStart, now)
+			atomic.SwapInt64(&t.tlsHandshakeDone, now)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		// There's a bug in the Go stdlib where an HTTP/2 connection can be reused
+		// but the httptrace.GotConnInfo struct will contain a false Reused property...
+		// That's probably from a previously made connection that was abandoned and
+		// directly put in the connection pool in favor of a just-freed already
+		// established connection...
+		//
+		// Using CompareAndSwap here because the HTTP/2 roundtripper has retries and
+		// it's possible this isn't actually the first request attempt...
 		atomic.CompareAndSwapInt64(&t.connectStart, 0, now)
 		atomic.CompareAndSwapInt64(&t.connectDone, 0, now)
+		if isConnTLS ***REMOVED***
+			atomic.CompareAndSwapInt64(&t.tlsHandshakeStart, 0, now)
+			atomic.CompareAndSwapInt64(&t.tlsHandshakeDone, 0, now)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -263,7 +288,7 @@ func (t *Tracer) Done() *Trail ***REMOVED***
 		ConnRemoteAddr: t.connRemoteAddr,
 	***REMOVED***
 
-	if t.gotConn != 0 && t.getConn != 0 ***REMOVED***
+	if t.gotConn != 0 && t.getConn != 0 && t.gotConn > t.getConn ***REMOVED***
 		trail.Blocked = time.Duration(t.gotConn - t.getConn)
 	***REMOVED***
 
@@ -276,6 +301,7 @@ func (t *Tracer) Done() *Trail ***REMOVED***
 	connectDone := atomic.LoadInt64(&t.connectDone)
 	tlsHandshakeStart := atomic.LoadInt64(&t.tlsHandshakeStart)
 	tlsHandshakeDone := atomic.LoadInt64(&t.tlsHandshakeDone)
+	gotConn := atomic.LoadInt64(&t.gotConn)
 	wroteRequest := atomic.LoadInt64(&t.wroteRequest)
 	gotFirstResponseByte := atomic.LoadInt64(&t.gotFirstResponseByte)
 
@@ -286,14 +312,22 @@ func (t *Tracer) Done() *Trail ***REMOVED***
 		trail.TLSHandshaking = time.Duration(tlsHandshakeDone - tlsHandshakeStart)
 	***REMOVED***
 	if wroteRequest != 0 ***REMOVED***
-		trail.Sending = time.Duration(wroteRequest - connectDone)
-		// If the request was sent over TLS, we need to use
-		// TLS Handshake Done time to calculate sending duration
 		if tlsHandshakeDone != 0 ***REMOVED***
+			// If the request was sent over TLS, we need to use
+			// TLS Handshake Done time to calculate sending duration
 			trail.Sending = time.Duration(wroteRequest - tlsHandshakeDone)
+		***REMOVED*** else if connectDone != 0 ***REMOVED***
+			// Otherwise, use the end of the normal connection
+			trail.Sending = time.Duration(wroteRequest - connectDone)
+		***REMOVED*** else ***REMOVED***
+			// Finally, this handles the strange HTTP/2 case where the GotConn() hook
+			// gets called first, but with Reused=false
+			trail.Sending = time.Duration(wroteRequest - gotConn)
 		***REMOVED***
 
-		if gotFirstResponseByte != 0 ***REMOVED***
+		if gotFirstResponseByte != 0 && gotFirstResponseByte > wroteRequest ***REMOVED***
+			// For some requests, especially HTTP/2, the server starts responding before the
+			// client has finished sending the full request
 			trail.Waiting = time.Duration(gotFirstResponseByte - wroteRequest)
 		***REMOVED***
 	***REMOVED***

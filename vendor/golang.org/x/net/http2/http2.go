@@ -29,7 +29,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/lex/httplex"
+	"golang.org/x/net/http/httpguts"
 )
 
 var (
@@ -179,7 +179,7 @@ var (
 )
 
 // validWireHeaderFieldName reports whether v is a valid header field
-// name (key). See httplex.ValidHeaderName for the base rules.
+// name (key). See httpguts.ValidHeaderName for the base rules.
 //
 // Further, http2 says:
 //   "Just as in HTTP/1.x, header field names are strings of ASCII
@@ -191,7 +191,7 @@ func validWireHeaderFieldName(v string) bool ***REMOVED***
 		return false
 	***REMOVED***
 	for _, r := range v ***REMOVED***
-		if !httplex.IsTokenRune(r) ***REMOVED***
+		if !httpguts.IsTokenRune(r) ***REMOVED***
 			return false
 		***REMOVED***
 		if 'A' <= r && r <= 'Z' ***REMOVED***
@@ -201,19 +201,12 @@ func validWireHeaderFieldName(v string) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-var httpCodeStringCommon = map[int]string***REMOVED******REMOVED*** // n -> strconv.Itoa(n)
-
-func init() ***REMOVED***
-	for i := 100; i <= 999; i++ ***REMOVED***
-		if v := http.StatusText(i); v != "" ***REMOVED***
-			httpCodeStringCommon[i] = strconv.Itoa(i)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
 func httpCodeString(code int) string ***REMOVED***
-	if s, ok := httpCodeStringCommon[code]; ok ***REMOVED***
-		return s
+	switch code ***REMOVED***
+	case 200:
+		return "200"
+	case 404:
+		return "404"
 	***REMOVED***
 	return strconv.Itoa(code)
 ***REMOVED***

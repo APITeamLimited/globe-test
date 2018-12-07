@@ -97,8 +97,16 @@ func isSpecialElement(element *Node) bool ***REMOVED***
 	switch element.Namespace ***REMOVED***
 	case "", "html":
 		return isSpecialElementMap[element.Data]
+	case "math":
+		switch element.Data ***REMOVED***
+		case "mi", "mo", "mn", "ms", "mtext", "annotation-xml":
+			return true
+		***REMOVED***
 	case "svg":
-		return element.Data == "foreignObject"
+		switch element.Data ***REMOVED***
+		case "foreignObject", "desc", "title":
+			return true
+		***REMOVED***
 	***REMOVED***
 	return false
 ***REMOVED***

@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
@@ -21,15 +22,17 @@ import (
 	mathrand "math/rand"
 	"net"
 	"net/http"
+	"net/http/httptrace"
+	"net/textproto"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
 	"golang.org/x/net/idna"
-	"golang.org/x/net/lex/httplex"
 )
 
 const (
@@ -94,6 +97,16 @@ type Transport struct ***REMOVED***
 	// to mean no limit.
 	MaxHeaderListSize uint32
 
+	// StrictMaxConcurrentStreams controls whether the server's
+	// SETTINGS_MAX_CONCURRENT_STREAMS should be respected
+	// globally. If false, new TCP connections are created to the
+	// server as needed to keep each under the per-connection
+	// SETTINGS_MAX_CONCURRENT_STREAMS limit. If true, the
+	// server's SETTINGS_MAX_CONCURRENT_STREAMS is interpreted as
+	// a global limit and callers of RoundTrip block when needed,
+	// waiting for their turn.
+	StrictMaxConcurrentStreams bool
+
 	// t1, if non-nil, is the standard library Transport using
 	// this transport. Its settings are used (but not its
 	// RoundTrip method, etc).
@@ -117,14 +130,54 @@ func (t *Transport) disableCompression() bool ***REMOVED***
 	return t.DisableCompression || (t.t1 != nil && t.t1.DisableCompression)
 ***REMOVED***
 
-var errTransportVersion = errors.New("http2: ConfigureTransport is only supported starting at Go 1.6")
-
 // ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
-// It requires Go 1.6 or later and returns an error if the net/http package is too old
-// or if t1 has already been HTTP/2-enabled.
+// It returns an error if t1 has already been HTTP/2-enabled.
 func ConfigureTransport(t1 *http.Transport) error ***REMOVED***
-	_, err := configureTransport(t1) // in configure_transport.go (go1.6) or not_go16.go
+	_, err := configureTransport(t1)
 	return err
+***REMOVED***
+
+func configureTransport(t1 *http.Transport) (*Transport, error) ***REMOVED***
+	connPool := new(clientConnPool)
+	t2 := &Transport***REMOVED***
+		ConnPool: noDialClientConnPool***REMOVED***connPool***REMOVED***,
+		t1:       t1,
+	***REMOVED***
+	connPool.t = t2
+	if err := registerHTTPSProtocol(t1, noDialH2RoundTripper***REMOVED***t2***REMOVED***); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if t1.TLSClientConfig == nil ***REMOVED***
+		t1.TLSClientConfig = new(tls.Config)
+	***REMOVED***
+	if !strSliceContains(t1.TLSClientConfig.NextProtos, "h2") ***REMOVED***
+		t1.TLSClientConfig.NextProtos = append([]string***REMOVED***"h2"***REMOVED***, t1.TLSClientConfig.NextProtos...)
+	***REMOVED***
+	if !strSliceContains(t1.TLSClientConfig.NextProtos, "http/1.1") ***REMOVED***
+		t1.TLSClientConfig.NextProtos = append(t1.TLSClientConfig.NextProtos, "http/1.1")
+	***REMOVED***
+	upgradeFn := func(authority string, c *tls.Conn) http.RoundTripper ***REMOVED***
+		addr := authorityAddr("https", authority)
+		if used, err := connPool.addConnIfNeeded(addr, t2, c); err != nil ***REMOVED***
+			go c.Close()
+			return erringRoundTripper***REMOVED***err***REMOVED***
+		***REMOVED*** else if !used ***REMOVED***
+			// Turns out we don't need this c.
+			// For example, two goroutines made requests to the same host
+			// at the same time, both kicking off TCP dials. (since protocol
+			// was unknown)
+			go c.Close()
+		***REMOVED***
+		return t2
+	***REMOVED***
+	if m := t1.TLSNextProto; len(m) == 0 ***REMOVED***
+		t1.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper***REMOVED***
+			"h2": upgradeFn,
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		m["h2"] = upgradeFn
+	***REMOVED***
+	return t2, nil
 ***REMOVED***
 
 func (t *Transport) connPool() ClientConnPool ***REMOVED***
@@ -159,6 +212,7 @@ type ClientConn struct ***REMOVED***
 	cond            *sync.Cond // hold mu; broadcast on flow/closed changes
 	flow            flow       // our conn-level flow control quota (cs.flow is per stream)
 	inflow          flow       // peer's conn-level flow control
+	closing         bool
 	closed          bool
 	wantSettingsAck bool                     // we sent a SETTINGS frame and haven't heard back
 	goAway          *GoAwayFrame             // if non-nil, the GoAwayFrame we received
@@ -190,7 +244,7 @@ type ClientConn struct ***REMOVED***
 type clientStream struct ***REMOVED***
 	cc            *ClientConn
 	req           *http.Request
-	trace         *clientTrace // or nil
+	trace         *httptrace.ClientTrace // or nil
 	ID            uint32
 	resc          chan resAndError
 	bufPipe       pipe // buffered pipe with the flow-controlled response payload
@@ -211,9 +265,10 @@ type clientStream struct ***REMOVED***
 	done chan struct***REMOVED******REMOVED*** // closed when stream remove from cc.streams map; close calls guarded by cc.mu
 
 	// owned by clientConnReadLoop:
-	firstByte    bool // got the first response byte
-	pastHeaders  bool // got first MetaHeadersFrame (actual headers)
-	pastTrailers bool // got optional second MetaHeadersFrame (trailers)
+	firstByte    bool  // got the first response byte
+	pastHeaders  bool  // got first MetaHeadersFrame (actual headers)
+	pastTrailers bool  // got optional second MetaHeadersFrame (trailers)
+	num1xx       uint8 // number of 1xx responses seen
 
 	trailer    http.Header  // accumulated trailers
 	resTrailer *http.Header // client's Response.Trailer
@@ -223,7 +278,7 @@ type clientStream struct ***REMOVED***
 // channel to be signaled. A non-nil error is returned only if the request was
 // canceled.
 func awaitRequestCancel(req *http.Request, done <-chan struct***REMOVED******REMOVED***) error ***REMOVED***
-	ctx := reqContext(req)
+	ctx := req.Context()
 	if req.Cancel == nil && ctx.Done() == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -235,6 +290,17 @@ func awaitRequestCancel(req *http.Request, done <-chan struct***REMOVED******REM
 	case <-done:
 		return nil
 	***REMOVED***
+***REMOVED***
+
+var got1xxFuncForTests func(int, textproto.MIMEHeader) error
+
+// get1xxTraceFunc returns the value of request's httptrace.ClientTrace.Got1xxResponse func,
+// if any. It returns nil if not set or if the Go version is too old.
+func (cs *clientStream) get1xxTraceFunc() func(int, textproto.MIMEHeader) error ***REMOVED***
+	if fn := got1xxFuncForTests; fn != nil ***REMOVED***
+		return fn
+	***REMOVED***
+	return traceGot1xxResponseFunc(cs.trace)
 ***REMOVED***
 
 // awaitRequestCancel waits for the user to cancel a request, its context to
@@ -387,8 +453,8 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 				select ***REMOVED***
 				case <-time.After(time.Second * time.Duration(backoff)):
 					continue
-				case <-reqContext(req).Done():
-					return nil, reqContext(req).Err()
+				case <-req.Context().Done():
+					return nil, req.Context().Err()
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -423,27 +489,35 @@ func shouldRetryRequest(req *http.Request, err error, afterBodyWrite bool) (*htt
 	if !canRetryError(err) ***REMOVED***
 		return nil, err
 	***REMOVED***
+	// If the Body is nil (or http.NoBody), it's safe to reuse
+	// this request and its Body.
+	if req.Body == nil || req.Body == http.NoBody ***REMOVED***
+		return req, nil
+	***REMOVED***
+
+	// If the request body can be reset back to its original
+	// state via the optional req.GetBody, do that.
+	if req.GetBody != nil ***REMOVED***
+		// TODO: consider a req.Body.Close here? or audit that all caller paths do?
+		body, err := req.GetBody()
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		newReq := *req
+		newReq.Body = body
+		return &newReq, nil
+	***REMOVED***
+
+	// The Request.Body can't reset back to the beginning, but we
+	// don't seem to have started to read from it yet, so reuse
+	// the request directly. The "afterBodyWrite" means the
+	// bodyWrite process has started, which becomes true before
+	// the first Read.
 	if !afterBodyWrite ***REMOVED***
 		return req, nil
 	***REMOVED***
-	// If the Body is nil (or http.NoBody), it's safe to reuse
-	// this request and its Body.
-	if req.Body == nil || reqBodyIsNoBody(req.Body) ***REMOVED***
-		return req, nil
-	***REMOVED***
-	// Otherwise we depend on the Request having its GetBody
-	// func defined.
-	getBody := reqGetBody(req) // Go 1.8: getBody = req.GetBody
-	if getBody == nil ***REMOVED***
-		return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
-	***REMOVED***
-	body, err := getBody()
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	newReq := *req
-	newReq.Body = body
-	return &newReq, nil
+
+	return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
 ***REMOVED***
 
 func canRetryError(err error) bool ***REMOVED***
@@ -471,7 +545,7 @@ func (t *Transport) dialClientConn(addr string, singleUse bool) (*ClientConn, er
 func (t *Transport) newTLSConfig(host string) *tls.Config ***REMOVED***
 	cfg := new(tls.Config)
 	if t.TLSClientConfig != nil ***REMOVED***
-		*cfg = *cloneTLSConfig(t.TLSClientConfig)
+		*cfg = *t.TLSClientConfig.Clone()
 	***REMOVED***
 	if !strSliceContains(cfg.NextProtos, NextProtoTLS) ***REMOVED***
 		cfg.NextProtos = append([]string***REMOVED***NextProtoTLS***REMOVED***, cfg.NextProtos...)
@@ -522,7 +596,7 @@ func (t *Transport) expectContinueTimeout() time.Duration ***REMOVED***
 	if t.t1 == nil ***REMOVED***
 		return 0
 	***REMOVED***
-	return transportExpectContinueTimeout(t.t1)
+	return t.t1.ExpectContinueTimeout
 ***REMOVED***
 
 func (t *Transport) NewClientConn(c net.Conn) (*ClientConn, error) ***REMOVED***
@@ -566,6 +640,10 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	// TODO: SetMaxDynamicTableSize, SetMaxDynamicTableSizeLimit on
 	// henc in response to SETTINGS frames?
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
+
+	if t.AllowHTTP ***REMOVED***
+		cc.nextStreamID = 3
+	***REMOVED***
 
 	if cs, ok := c.(connectionStater); ok ***REMOVED***
 		state := cs.ConnectionState()
@@ -626,12 +704,43 @@ func (cc *ClientConn) CanTakeNewRequest() bool ***REMOVED***
 	return cc.canTakeNewRequestLocked()
 ***REMOVED***
 
-func (cc *ClientConn) canTakeNewRequestLocked() bool ***REMOVED***
+// clientConnIdleState describes the suitability of a client
+// connection to initiate a new RoundTrip request.
+type clientConnIdleState struct ***REMOVED***
+	canTakeNewRequest bool
+	freshConn         bool // whether it's unused by any previous request
+***REMOVED***
+
+func (cc *ClientConn) idleState() clientConnIdleState ***REMOVED***
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	return cc.idleStateLocked()
+***REMOVED***
+
+func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) ***REMOVED***
 	if cc.singleUse && cc.nextStreamID > 1 ***REMOVED***
-		return false
+		return
 	***REMOVED***
-	return cc.goAway == nil && !cc.closed &&
-		int64(cc.nextStreamID)+int64(cc.pendingRequests) < math.MaxInt32
+	var maxConcurrentOkay bool
+	if cc.t.StrictMaxConcurrentStreams ***REMOVED***
+		// We'll tell the caller we can take a new request to
+		// prevent the caller from dialing a new TCP
+		// connection, but then we'll block later before
+		// writing it.
+		maxConcurrentOkay = true
+	***REMOVED*** else ***REMOVED***
+		maxConcurrentOkay = int64(len(cc.streams)+1) < int64(cc.maxConcurrentStreams)
+	***REMOVED***
+
+	st.canTakeNewRequest = cc.goAway == nil && !cc.closed && !cc.closing && maxConcurrentOkay &&
+		int64(cc.nextStreamID)+2*int64(cc.pendingRequests) < math.MaxInt32
+	st.freshConn = cc.nextStreamID == 1 && st.canTakeNewRequest
+	return
+***REMOVED***
+
+func (cc *ClientConn) canTakeNewRequestLocked() bool ***REMOVED***
+	st := cc.idleStateLocked()
+	return st.canTakeNewRequest
 ***REMOVED***
 
 // onIdleTimeout is called from a time.AfterFunc goroutine. It will
@@ -659,6 +768,87 @@ func (cc *ClientConn) closeIfIdle() ***REMOVED***
 		cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, nextID-2)
 	***REMOVED***
 	cc.tconn.Close()
+***REMOVED***
+
+var shutdownEnterWaitStateHook = func() ***REMOVED******REMOVED***
+
+// Shutdown gracefully close the client connection, waiting for running streams to complete.
+func (cc *ClientConn) Shutdown(ctx context.Context) error ***REMOVED***
+	if err := cc.sendGoAway(); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	// Wait for all in-flight streams to complete or connection to close
+	done := make(chan error, 1)
+	cancelled := false // guarded by cc.mu
+	go func() ***REMOVED***
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
+		for ***REMOVED***
+			if len(cc.streams) == 0 || cc.closed ***REMOVED***
+				cc.closed = true
+				done <- cc.tconn.Close()
+				break
+			***REMOVED***
+			if cancelled ***REMOVED***
+				break
+			***REMOVED***
+			cc.cond.Wait()
+		***REMOVED***
+	***REMOVED***()
+	shutdownEnterWaitStateHook()
+	select ***REMOVED***
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		cc.mu.Lock()
+		// Free the goroutine above
+		cancelled = true
+		cc.cond.Broadcast()
+		cc.mu.Unlock()
+		return ctx.Err()
+	***REMOVED***
+***REMOVED***
+
+func (cc *ClientConn) sendGoAway() error ***REMOVED***
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.wmu.Lock()
+	defer cc.wmu.Unlock()
+	if cc.closing ***REMOVED***
+		// GOAWAY sent already
+		return nil
+	***REMOVED***
+	// Send a graceful shutdown frame to server
+	maxStreamID := cc.nextStreamID
+	if err := cc.fr.WriteGoAway(maxStreamID, ErrCodeNo, nil); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	if err := cc.bw.Flush(); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	// Prevent new requests
+	cc.closing = true
+	return nil
+***REMOVED***
+
+// Close closes the client connection immediately.
+//
+// In-flight requests are interrupted. For a graceful shutdown, use Shutdown instead.
+func (cc *ClientConn) Close() error ***REMOVED***
+	cc.mu.Lock()
+	defer cc.cond.Broadcast()
+	defer cc.mu.Unlock()
+	err := errors.New("http2: client connection force closed via ClientConn.Close")
+	for id, cs := range cc.streams ***REMOVED***
+		select ***REMOVED***
+		case cs.resc <- resAndError***REMOVED***err: err***REMOVED***:
+		default:
+		***REMOVED***
+		cs.bufPipe.CloseWithError(err)
+		delete(cc.streams, id)
+	***REMOVED***
+	cc.closed = true
+	return cc.tconn.Close()
 ***REMOVED***
 
 const maxAllocFrameSize = 512 << 10
@@ -743,7 +933,7 @@ func checkConnHeaders(req *http.Request) error ***REMOVED***
 	if vv := req.Header["Transfer-Encoding"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "chunked") ***REMOVED***
 		return fmt.Errorf("http2: invalid Transfer-Encoding request header: %q", vv)
 	***REMOVED***
-	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "close" && vv[0] != "keep-alive") ***REMOVED***
+	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !strings.EqualFold(vv[0], "close") && !strings.EqualFold(vv[0], "keep-alive")) ***REMOVED***
 		return fmt.Errorf("http2: invalid Connection request header: %q", vv)
 	***REMOVED***
 	return nil
@@ -753,7 +943,7 @@ func checkConnHeaders(req *http.Request) error ***REMOVED***
 // req.ContentLength, where 0 actually means zero (not unknown) and -1
 // means unknown.
 func actualContentLength(req *http.Request) int64 ***REMOVED***
-	if req.Body == nil || reqBodyIsNoBody(req.Body) ***REMOVED***
+	if req.Body == nil || req.Body == http.NoBody ***REMOVED***
 		return 0
 	***REMOVED***
 	if req.ContentLength != 0 ***REMOVED***
@@ -823,7 +1013,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 
 	cs := cc.newStream()
 	cs.req = req
-	cs.trace = requestTrace(req)
+	cs.trace = httptrace.ContextClientTrace(req.Context())
 	cs.requestedGzip = requestedGzip
 	bodyWriter := cc.t.getBodyWriterState(cs, body)
 	cs.on100 = bodyWriter.on100
@@ -861,7 +1051,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 
 	readLoopResCh := cs.resc
 	bodyWritten := false
-	ctx := reqContext(req)
+	ctx := req.Context()
 
 	handleReadLoopResponse := func(re resAndError) (*http.Response, bool, error) ***REMOVED***
 		res := re.res
@@ -931,6 +1121,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			default:
 			***REMOVED***
 			if err != nil ***REMOVED***
+				cc.forgetStreamID(cs.ID)
 				return nil, cs.getStartedWrite(), err
 			***REMOVED***
 			bodyWritten = true
@@ -951,6 +1142,9 @@ func (cc *ClientConn) awaitOpenSlotForRequest(req *http.Request) error ***REMOVE
 	for ***REMOVED***
 		cc.lastActive = time.Now()
 		if cc.closed || !cc.canTakeNewRequestLocked() ***REMOVED***
+			if waitingForConn != nil ***REMOVED***
+				close(waitingForConn)
+			***REMOVED***
 			return errClientConnUnusable
 		***REMOVED***
 		if int64(len(cc.streams))+1 <= int64(cc.maxConcurrentStreams) ***REMOVED***
@@ -1049,6 +1243,7 @@ func (cs *clientStream) writeRequestBody(body io.Reader, bodyCloser io.Closer) (
 			sawEOF = true
 			err = nil
 		***REMOVED*** else if err != nil ***REMOVED***
+			cc.writeStreamReset(cs.ID, ErrCodeCancel, err)
 			return err
 		***REMOVED***
 
@@ -1174,7 +1369,7 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 	if host == "" ***REMOVED***
 		host = req.URL.Host
 	***REMOVED***
-	host, err := httplex.PunycodeHostPort(host)
+	host, err := httpguts.PunycodeHostPort(host)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -1199,11 +1394,11 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 	// potentially pollute our hpack state. (We want to be able to
 	// continue to reuse the hpack encoder for future requests)
 	for k, vv := range req.Header ***REMOVED***
-		if !httplex.ValidHeaderFieldName(k) ***REMOVED***
+		if !httpguts.ValidHeaderFieldName(k) ***REMOVED***
 			return nil, fmt.Errorf("invalid HTTP header name %q", k)
 		***REMOVED***
 		for _, v := range vv ***REMOVED***
-			if !httplex.ValidHeaderFieldValue(v) ***REMOVED***
+			if !httpguts.ValidHeaderFieldValue(v) ***REMOVED***
 				return nil, fmt.Errorf("invalid HTTP header value %q for header %q", v, k)
 			***REMOVED***
 		***REMOVED***
@@ -1284,9 +1479,16 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 		return nil, errRequestHeaderListSize
 	***REMOVED***
 
+	trace := httptrace.ContextClientTrace(req.Context())
+	traceHeaders := traceHasWroteHeaderField(trace)
+
 	// Header list size is ok. Write the headers.
 	enumerateHeaders(func(name, value string) ***REMOVED***
-		cc.writeHeader(strings.ToLower(name), value)
+		name = strings.ToLower(name)
+		cc.writeHeader(name, value)
+		if traceHeaders ***REMOVED***
+			traceWroteHeaderField(trace, name, value)
+		***REMOVED***
 	***REMOVED***)
 
 	return cc.hbuf.Bytes(), nil
@@ -1608,8 +1810,7 @@ func (rl *clientConnReadLoop) processHeaders(f *MetaHeadersFrame) error ***REMOV
 // is the detail.
 //
 // As a special case, handleResponse may return (nil, nil) to skip the
-// frame (currently only used for 100 expect continue). This special
-// case is going away after Issue 13851 is fixed.
+// frame (currently only used for 1xx responses).
 func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFrame) (*http.Response, error) ***REMOVED***
 	if f.Truncated ***REMOVED***
 		return nil, errResponseHeaderListSize
@@ -1622,15 +1823,6 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 	statusCode, err := strconv.Atoi(status)
 	if err != nil ***REMOVED***
 		return nil, errors.New("malformed response from server: malformed non-numeric status pseudo header")
-	***REMOVED***
-
-	if statusCode == 100 ***REMOVED***
-		traceGot100Continue(cs.trace)
-		if cs.on100 != nil ***REMOVED***
-			cs.on100() // forces any write delay timer to fire
-		***REMOVED***
-		cs.pastHeaders = false // do it all again
-		return nil, nil
 	***REMOVED***
 
 	header := make(http.Header)
@@ -1655,6 +1847,27 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 		***REMOVED*** else ***REMOVED***
 			header[key] = append(header[key], hf.Value)
 		***REMOVED***
+	***REMOVED***
+
+	if statusCode >= 100 && statusCode <= 199 ***REMOVED***
+		cs.num1xx++
+		const max1xxResponses = 5 // arbitrary bound on number of informational responses, same as net/http
+		if cs.num1xx > max1xxResponses ***REMOVED***
+			return nil, errors.New("http2: too many 1xx informational responses")
+		***REMOVED***
+		if fn := cs.get1xxTraceFunc(); fn != nil ***REMOVED***
+			if err := fn(statusCode, textproto.MIMEHeader(header)); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		***REMOVED***
+		if statusCode == 100 ***REMOVED***
+			traceGot100Continue(cs.trace)
+			if cs.on100 != nil ***REMOVED***
+				cs.on100() // forces any write delay timer to fire
+			***REMOVED***
+		***REMOVED***
+		cs.pastHeaders = false // do it all again
+		return nil, nil
 	***REMOVED***
 
 	streamEnded := f.StreamEnded()
@@ -1689,7 +1902,7 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 		res.Header.Del("Content-Length")
 		res.ContentLength = -1
 		res.Body = &gzipReader***REMOVED***body: res.Body***REMOVED***
-		setResponseUncompressed(res)
+		res.Uncompressed = true
 	***REMOVED***
 	return res, nil
 ***REMOVED***
@@ -2066,8 +2279,7 @@ func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error ***REM
 ***REMOVED***
 
 // Ping sends a PING frame to the server and waits for the ack.
-// Public implementation is in go17.go and not_go17.go
-func (cc *ClientConn) ping(ctx contextContext) error ***REMOVED***
+func (cc *ClientConn) Ping(ctx context.Context) error ***REMOVED***
 	c := make(chan struct***REMOVED******REMOVED***)
 	// Generate a random payload
 	var p [8]byte
@@ -2244,7 +2456,7 @@ func (t *Transport) getBodyWriterState(cs *clientStream, body io.Reader) (s body
 	***REMOVED***
 	s.delay = t.expectContinueTimeout()
 	if s.delay == 0 ||
-		!httplex.HeaderValuesContainsToken(
+		!httpguts.HeaderValuesContainsToken(
 			cs.req.Header["Expect"],
 			"100-continue") ***REMOVED***
 		return
@@ -2299,5 +2511,93 @@ func (s bodyWriterState) scheduleBodyWrite() ***REMOVED***
 // isConnectionCloseRequest reports whether req should use its own
 // connection for a single request and then close the connection.
 func isConnectionCloseRequest(req *http.Request) bool ***REMOVED***
-	return req.Close || httplex.HeaderValuesContainsToken(req.Header["Connection"], "close")
+	return req.Close || httpguts.HeaderValuesContainsToken(req.Header["Connection"], "close")
+***REMOVED***
+
+// registerHTTPSProtocol calls Transport.RegisterProtocol but
+// converting panics into errors.
+func registerHTTPSProtocol(t *http.Transport, rt noDialH2RoundTripper) (err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if e := recover(); e != nil ***REMOVED***
+			err = fmt.Errorf("%v", e)
+		***REMOVED***
+	***REMOVED***()
+	t.RegisterProtocol("https", rt)
+	return nil
+***REMOVED***
+
+// noDialH2RoundTripper is a RoundTripper which only tries to complete the request
+// if there's already has a cached connection to the host.
+// (The field is exported so it can be accessed via reflect from net/http; tested
+// by TestNoDialH2RoundTripperType)
+type noDialH2RoundTripper struct***REMOVED*** *Transport ***REMOVED***
+
+func (rt noDialH2RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) ***REMOVED***
+	res, err := rt.Transport.RoundTrip(req)
+	if isNoCachedConnError(err) ***REMOVED***
+		return nil, http.ErrSkipAltProtocol
+	***REMOVED***
+	return res, err
+***REMOVED***
+
+func (t *Transport) idleConnTimeout() time.Duration ***REMOVED***
+	if t.t1 != nil ***REMOVED***
+		return t.t1.IdleConnTimeout
+	***REMOVED***
+	return 0
+***REMOVED***
+
+func traceGetConn(req *http.Request, hostPort string) ***REMOVED***
+	trace := httptrace.ContextClientTrace(req.Context())
+	if trace == nil || trace.GetConn == nil ***REMOVED***
+		return
+	***REMOVED***
+	trace.GetConn(hostPort)
+***REMOVED***
+
+func traceGotConn(req *http.Request, cc *ClientConn) ***REMOVED***
+	trace := httptrace.ContextClientTrace(req.Context())
+	if trace == nil || trace.GotConn == nil ***REMOVED***
+		return
+	***REMOVED***
+	ci := httptrace.GotConnInfo***REMOVED***Conn: cc.tconn***REMOVED***
+	cc.mu.Lock()
+	ci.Reused = cc.nextStreamID > 1
+	ci.WasIdle = len(cc.streams) == 0 && ci.Reused
+	if ci.WasIdle && !cc.lastActive.IsZero() ***REMOVED***
+		ci.IdleTime = time.Now().Sub(cc.lastActive)
+	***REMOVED***
+	cc.mu.Unlock()
+
+	trace.GotConn(ci)
+***REMOVED***
+
+func traceWroteHeaders(trace *httptrace.ClientTrace) ***REMOVED***
+	if trace != nil && trace.WroteHeaders != nil ***REMOVED***
+		trace.WroteHeaders()
+	***REMOVED***
+***REMOVED***
+
+func traceGot100Continue(trace *httptrace.ClientTrace) ***REMOVED***
+	if trace != nil && trace.Got100Continue != nil ***REMOVED***
+		trace.Got100Continue()
+	***REMOVED***
+***REMOVED***
+
+func traceWait100Continue(trace *httptrace.ClientTrace) ***REMOVED***
+	if trace != nil && trace.Wait100Continue != nil ***REMOVED***
+		trace.Wait100Continue()
+	***REMOVED***
+***REMOVED***
+
+func traceWroteRequest(trace *httptrace.ClientTrace, err error) ***REMOVED***
+	if trace != nil && trace.WroteRequest != nil ***REMOVED***
+		trace.WroteRequest(httptrace.WroteRequestInfo***REMOVED***Err: err***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func traceFirstResponseByte(trace *httptrace.ClientTrace) ***REMOVED***
+	if trace != nil && trace.GotFirstResponseByte != nil ***REMOVED***
+		trace.GotFirstResponseByte()
+	***REMOVED***
 ***REMOVED***

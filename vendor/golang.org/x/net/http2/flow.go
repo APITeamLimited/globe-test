@@ -41,10 +41,10 @@ func (f *flow) take(n int32) ***REMOVED***
 // add adds n bytes (positive or negative) to the flow control window.
 // It returns false if the sum would exceed 2^31-1.
 func (f *flow) add(n int32) bool ***REMOVED***
-	remain := (1<<31 - 1) - f.n
-	if n > remain ***REMOVED***
-		return false
+	sum := f.n + n
+	if (sum > n) == (f.n > 0) ***REMOVED***
+		f.n = sum
+		return true
 	***REMOVED***
-	f.n += n
-	return true
+	return false
 ***REMOVED***
