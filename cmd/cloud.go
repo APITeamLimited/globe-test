@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"os/signal"
@@ -103,19 +104,41 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return errors.New("Not logged in, please use `k6 login cloud`.")
 		***REMOVED***
 
-		// Start cloud test run
-		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, Version)
-
 		arc := r.MakeArchive()
+		// TODO: Fix this
+		// We reuse cloud.Config for parsing options.ext.loadimpact, but this probably shouldn't be
+		// done as the idea of options.ext is that they are extensible without touching k6. But in
+		// order for this to happen we shouldn't actually marshall cloud.Config on top of it because
+		// it will be missing some fields that aren't actually mentioned in the struct.
+		// So in order for use to copy the fields that we need for loadimpact's api we unmarshal in
+		// map[string]interface***REMOVED******REMOVED*** and copy what we need if it isn't set already
+		var tmpCloudConfig map[string]interface***REMOVED******REMOVED***
 		if val, ok := arc.Options.External["loadimpact"]; ok ***REMOVED***
-			if err := json.Unmarshal(val, &cloudConfig); err != nil ***REMOVED***
+			var dec = json.NewDecoder(bytes.NewReader(val))
+			dec.UseNumber() // otherwise float64 are used
+			if err := dec.Decode(&tmpCloudConfig); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED***
+
+		if tmpCloudConfig == nil ***REMOVED***
+			tmpCloudConfig = make(map[string]interface***REMOVED******REMOVED***, 3)
+		***REMOVED***
+
+		if _, ok := tmpCloudConfig["token"]; !ok && cloudConfig.Token.Valid ***REMOVED***
+			tmpCloudConfig["token"] = cloudConfig.Token
+		***REMOVED***
+		if _, ok := tmpCloudConfig["name"]; !ok && cloudConfig.Name.Valid ***REMOVED***
+			tmpCloudConfig["name"] = cloudConfig.Name
+		***REMOVED***
+		if _, ok := tmpCloudConfig["projectID"]; !ok && cloudConfig.ProjectID.Valid ***REMOVED***
+			tmpCloudConfig["projectID"] = cloudConfig.ProjectID
+		***REMOVED***
+
 		if arc.Options.External == nil ***REMOVED***
 			arc.Options.External = make(map[string]json.RawMessage)
 		***REMOVED***
-		arc.Options.External["loadimpact"], err = json.Marshal(cloudConfig)
+		arc.Options.External["loadimpact"], err = json.Marshal(tmpCloudConfig)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -125,6 +148,8 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			name = filepath.Base(filename)
 		***REMOVED***
 
+		// Start cloud test run
+		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, Version)
 		if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
 			return err
 		***REMOVED***
