@@ -73,13 +73,13 @@ type Collector struct ***REMOVED***
 // Verify that Collector implements lib.Collector
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
-// New creates a new cloud collector
-func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
-	if val, ok := opts.External["loadimpact"]; ok ***REMOVED***
+// MergeFromExternal merges three fields from json in a loadimact key of the provided external map
+func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error ***REMOVED***
+	if val, ok := external["loadimpact"]; ok ***REMOVED***
 		// TODO: Important! Separate configs and fix the whole 2 configs mess!
 		tmpConfig := Config***REMOVED******REMOVED***
 		if err := json.Unmarshal(val, &tmpConfig); err != nil ***REMOVED***
-			return nil, err
+			return err
 		***REMOVED***
 		// Only take out the ProjectID, Name and Token from the options.ext.loadimpact map:
 		if tmpConfig.ProjectID.Valid ***REMOVED***
@@ -91,6 +91,14 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		if tmpConfig.Token.Valid ***REMOVED***
 			conf.Token = tmpConfig.Token
 		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// New creates a new cloud collector
+func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
+	if err := MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
 	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags["vu"] || opts.SystemTags["iter"]) ***REMOVED***
