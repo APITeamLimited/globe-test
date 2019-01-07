@@ -55,6 +55,12 @@ import (
 const (
 	typeJS      = "js"
 	typeArchive = "archive"
+
+	thresholdHaveFailedErroCode = 99
+	setupTimeoutErrorCode       = 100
+	teardownTimeoutErrorCode    = 101
+	genericTimeoutErrorCode     = 102
+	genericEngineErrorCode      = 103
 )
 
 var (
@@ -379,13 +385,29 @@ a commandline interface for interacting with it.`,
 				progress.Progress = prog
 				fprintf(stdout, "%s\x1b[0K\r", progress.String())
 			case err := <-errC:
-				if err != nil ***REMOVED***
-					log.WithError(err).Error("Engine error")
-				***REMOVED*** else ***REMOVED***
-					log.Debug("Engine terminated cleanly")
-				***REMOVED***
 				cancel()
-				break mainLoop
+				if err == nil ***REMOVED***
+					log.Debug("Engine terminated cleanly")
+					break mainLoop
+				***REMOVED***
+
+				switch e := errors.Cause(err).(type) ***REMOVED***
+				case lib.TimeoutError:
+					switch string(e) ***REMOVED***
+					case "setup":
+						log.WithError(err).Error("Setup timeout")
+						return ExitCode***REMOVED***errors.New("Setup timeout"), setupTimeoutErrorCode***REMOVED***
+					case "teardown":
+						log.WithError(err).Error("Teardown timeout")
+						return ExitCode***REMOVED***errors.New("Teardown timeout"), teardownTimeoutErrorCode***REMOVED***
+					default:
+						log.WithError(err).Error("Engine timeout")
+						return ExitCode***REMOVED***errors.New("Engine timeout"), genericTimeoutErrorCode***REMOVED***
+					***REMOVED***
+				default:
+					log.WithError(err).Error("Engine error")
+					return ExitCode***REMOVED***errors.New("Engine Error"), genericEngineErrorCode***REMOVED***
+				***REMOVED***
 			case sig := <-sigC:
 				log.WithField("sig", sig).Debug("Exiting in response to signal")
 				cancel()
@@ -429,7 +451,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if engine.IsTainted() ***REMOVED***
-			return ExitCode***REMOVED***errors.New("some thresholds have failed"), 99***REMOVED***
+			return ExitCode***REMOVED***errors.New("some thresholds have failed"), thresholdHaveFailedErroCode***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
