@@ -35,11 +35,11 @@ func TestNewThreshold(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	abortOnFail := false
 	gracePeriod := types.NullDurationFrom(2 * time.Second)
-	th, err := NewThreshold(src, rt, abortOnFail, gracePeriod)
+	th, err := newThreshold(src, rt, abortOnFail, gracePeriod)
 	assert.NoError(t, err)
 
 	assert.Equal(t, src, th.Source)
-	assert.False(t, th.Failed)
+	assert.False(t, th.LastFailed)
 	assert.NotNil(t, th.pgm)
 	assert.Equal(t, rt, th.rt)
 	assert.Equal(t, abortOnFail, th.AbortOnFail)
@@ -48,40 +48,40 @@ func TestNewThreshold(t *testing.T) ***REMOVED***
 
 func TestThresholdRun(t *testing.T) ***REMOVED***
 	t.Run("true", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==2`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
+		th, err := newThreshold(`1+1==2`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
-			b, err := th.RunNoTaint()
+			b, err := th.runNoTaint()
 			assert.NoError(t, err)
 			assert.True(t, b)
-			assert.False(t, th.Failed)
+			assert.False(t, th.LastFailed)
 		***REMOVED***)
 
 		t.Run("taint", func(t *testing.T) ***REMOVED***
-			b, err := th.Run()
+			b, err := th.run()
 			assert.NoError(t, err)
 			assert.True(t, b)
-			assert.False(t, th.Failed)
+			assert.False(t, th.LastFailed)
 		***REMOVED***)
 	***REMOVED***)
 
 	t.Run("false", func(t *testing.T) ***REMOVED***
-		th, err := NewThreshold(`1+1==4`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
+		th, err := newThreshold(`1+1==4`, goja.New(), false, types.NullDuration***REMOVED******REMOVED***)
 		assert.NoError(t, err)
 
 		t.Run("no taint", func(t *testing.T) ***REMOVED***
-			b, err := th.RunNoTaint()
+			b, err := th.runNoTaint()
 			assert.NoError(t, err)
 			assert.False(t, b)
-			assert.False(t, th.Failed)
+			assert.False(t, th.LastFailed)
 		***REMOVED***)
 
 		t.Run("taint", func(t *testing.T) ***REMOVED***
-			b, err := th.Run()
+			b, err := th.run()
 			assert.NoError(t, err)
 			assert.False(t, b)
-			assert.True(t, th.Failed)
+			assert.True(t, th.LastFailed)
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -99,7 +99,7 @@ func TestNewThresholds(t *testing.T) ***REMOVED***
 		assert.Len(t, ts.Thresholds, 2)
 		for i, th := range ts.Thresholds ***REMOVED***
 			assert.Equal(t, sources[i], th.Source)
-			assert.False(t, th.Failed)
+			assert.False(t, th.LastFailed)
 			assert.False(t, th.AbortOnFail)
 			assert.NotNil(t, th.pgm)
 			assert.Equal(t, ts.Runtime, th.rt)
@@ -114,16 +114,16 @@ func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
 		assert.Len(t, ts.Thresholds, 0)
 	***REMOVED***)
 	t.Run("two", func(t *testing.T) ***REMOVED***
-		configs := []ThresholdConfig***REMOVED***
+		configs := []thresholdConfig***REMOVED***
 			***REMOVED***`1+1==2`, false, types.NullDuration***REMOVED******REMOVED******REMOVED***,
 			***REMOVED***`1+1==4`, true, types.NullDuration***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
-		ts, err := NewThresholdsWithConfig(configs)
+		ts, err := newThresholdsWithConfig(configs)
 		assert.NoError(t, err)
 		assert.Len(t, ts.Thresholds, 2)
 		for i, th := range ts.Thresholds ***REMOVED***
 			assert.Equal(t, configs[i].Threshold, th.Source)
-			assert.False(t, th.Failed)
+			assert.False(t, th.LastFailed)
 			assert.Equal(t, configs[i].AbortOnFail, th.AbortOnFail)
 			assert.NotNil(t, th.pgm)
 			assert.Equal(t, ts.Runtime, th.rt)
@@ -134,7 +134,7 @@ func TestNewThresholdsWithConfig(t *testing.T) ***REMOVED***
 func TestThresholdsUpdateVM(t *testing.T) ***REMOVED***
 	ts, err := NewThresholds(nil)
 	assert.NoError(t, err)
-	assert.NoError(t, ts.UpdateVM(DummySink***REMOVED***"a": 1234.5***REMOVED***, 0))
+	assert.NoError(t, ts.updateVM(DummySink***REMOVED***"a": 1234.5***REMOVED***, 0))
 	assert.Equal(t, 1234.5, ts.Runtime.Get("a").ToFloat())
 ***REMOVED***
 
@@ -170,7 +170,7 @@ func TestThresholdsRunAll(t *testing.T) ***REMOVED***
 
 			assert.NoError(t, err)
 
-			b, err := ts.RunAll(runDuration)
+			b, err := ts.runAll(runDuration)
 
 			if data.err ***REMOVED***
 				assert.Error(t, err)
