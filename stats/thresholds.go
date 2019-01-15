@@ -45,17 +45,23 @@ func init() ***REMOVED***
 	jsEnv = pgm
 ***REMOVED***
 
+// Threshold is a representation of a single threshold for a single metric
 type Threshold struct ***REMOVED***
-	Source           string
-	Failed           bool
-	AbortOnFail      bool
+	// Source is the text based source of the threshold
+	Source string
+	// LastFailed is a makrer if the last testing of this threshold failed
+	LastFailed bool
+	// AbortOnFail marks if a given threshold fails that the whole test should be aborted
+	AbortOnFail bool
+	// AbortGracePeriod is a the minimum amount of time a test should be running before a failing
+	// this threshold will abort the test
 	AbortGracePeriod types.NullDuration
 
 	pgm *goja.Program
 	rt  *goja.Runtime
 ***REMOVED***
 
-func NewThreshold(src string, rt *goja.Runtime, abortOnFail bool, gracePeriod types.NullDuration) (*Threshold, error) ***REMOVED***
+func newThreshold(src string, newThreshold *goja.Runtime, abortOnFail bool, gracePeriod types.NullDuration) (*Threshold, error) ***REMOVED***
 	pgm, err := goja.Compile("__threshold__", src, true)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -66,11 +72,11 @@ func NewThreshold(src string, rt *goja.Runtime, abortOnFail bool, gracePeriod ty
 		AbortOnFail:      abortOnFail,
 		AbortGracePeriod: gracePeriod,
 		pgm:              pgm,
-		rt:               rt,
+		rt:               newThreshold,
 	***REMOVED***, nil
 ***REMOVED***
 
-func (t Threshold) RunNoTaint() (bool, error) ***REMOVED***
+func (t Threshold) runNoTaint() (bool, error) ***REMOVED***
 	v, err := t.rt.RunProgram(t.pgm)
 	if err != nil ***REMOVED***
 		return false, err
@@ -78,24 +84,22 @@ func (t Threshold) RunNoTaint() (bool, error) ***REMOVED***
 	return v.ToBoolean(), nil
 ***REMOVED***
 
-func (t *Threshold) Run() (bool, error) ***REMOVED***
-	b, err := t.RunNoTaint()
-	if !b ***REMOVED***
-		t.Failed = true
-	***REMOVED***
+func (t *Threshold) run() (bool, error) ***REMOVED***
+	b, err := t.runNoTaint()
+	t.LastFailed = !b
 	return b, err
 ***REMOVED***
 
-type ThresholdConfig struct ***REMOVED***
+type thresholdConfig struct ***REMOVED***
 	Threshold        string             `json:"threshold"`
 	AbortOnFail      bool               `json:"abortOnFail"`
 	AbortGracePeriod types.NullDuration `json:"delayAbortEval"`
 ***REMOVED***
 
 //used internally for JSON marshalling
-type rawThresholdConfig ThresholdConfig
+type rawThresholdConfig thresholdConfig
 
-func (tc *ThresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
+func (tc *thresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
 	//shortcircuit unmarshalling for simple string format
 	if err := json.Unmarshal(data, &tc.Threshold); err == nil ***REMOVED***
 		return nil
@@ -105,29 +109,31 @@ func (tc *ThresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
 	return json.Unmarshal(data, rawConfig)
 ***REMOVED***
 
-func (tc ThresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
+func (tc thresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
 	if tc.AbortOnFail ***REMOVED***
 		return json.Marshal(rawThresholdConfig(tc))
 	***REMOVED***
 	return json.Marshal(tc.Threshold)
 ***REMOVED***
 
+// Thresholds is the combination of all Thresholds for a given metric
 type Thresholds struct ***REMOVED***
 	Runtime    *goja.Runtime
 	Thresholds []*Threshold
 	Abort      bool
 ***REMOVED***
 
+// NewThresholds returns Thresholds objects representing the provided source strings
 func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
-	tcs := make([]ThresholdConfig, len(sources))
+	tcs := make([]thresholdConfig, len(sources))
 	for i, source := range sources ***REMOVED***
 		tcs[i].Threshold = source
 	***REMOVED***
 
-	return NewThresholdsWithConfig(tcs)
+	return newThresholdsWithConfig(tcs)
 ***REMOVED***
 
-func NewThresholdsWithConfig(configs []ThresholdConfig) (Thresholds, error) ***REMOVED***
+func newThresholdsWithConfig(configs []thresholdConfig) (Thresholds, error) ***REMOVED***
 	rt := goja.New()
 	if _, err := rt.RunProgram(jsEnv); err != nil ***REMOVED***
 		return Thresholds***REMOVED******REMOVED***, errors.Wrap(err, "builtin")
@@ -135,7 +141,7 @@ func NewThresholdsWithConfig(configs []ThresholdConfig) (Thresholds, error) ***R
 
 	ts := make([]*Threshold, len(configs))
 	for i, config := range configs ***REMOVED***
-		t, err := NewThreshold(config.Threshold, rt, config.AbortOnFail, config.AbortGracePeriod)
+		t, err := newThreshold(config.Threshold, rt, config.AbortOnFail, config.AbortGracePeriod)
 		if err != nil ***REMOVED***
 			return Thresholds***REMOVED******REMOVED***, errors.Wrapf(err, "%d", i)
 		***REMOVED***
@@ -145,7 +151,7 @@ func NewThresholdsWithConfig(configs []ThresholdConfig) (Thresholds, error) ***R
 	return Thresholds***REMOVED***rt, ts, false***REMOVED***, nil
 ***REMOVED***
 
-func (ts *Thresholds) UpdateVM(sink Sink, t time.Duration) error ***REMOVED***
+func (ts *Thresholds) updateVM(sink Sink, t time.Duration) error ***REMOVED***
 	ts.Runtime.Set("__sink__", sink)
 	f := sink.Format(t)
 	for k, v := range f ***REMOVED***
@@ -154,10 +160,10 @@ func (ts *Thresholds) UpdateVM(sink Sink, t time.Duration) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (ts *Thresholds) RunAll(t time.Duration) (bool, error) ***REMOVED***
+func (ts *Thresholds) runAll(t time.Duration) (bool, error) ***REMOVED***
 	succ := true
 	for i, th := range ts.Thresholds ***REMOVED***
-		b, err := th.Run()
+		b, err := th.run()
 		if err != nil ***REMOVED***
 			return false, errors.Wrapf(err, "%d", i)
 		***REMOVED***
@@ -175,19 +181,22 @@ func (ts *Thresholds) RunAll(t time.Duration) (bool, error) ***REMOVED***
 	return succ, nil
 ***REMOVED***
 
+// Run processes all the thresholds with the provided Sink at the provided time and returns if any
+// of them fails
 func (ts *Thresholds) Run(sink Sink, t time.Duration) (bool, error) ***REMOVED***
-	if err := ts.UpdateVM(sink, t); err != nil ***REMOVED***
+	if err := ts.updateVM(sink, t); err != nil ***REMOVED***
 		return false, err
 	***REMOVED***
-	return ts.RunAll(t)
+	return ts.runAll(t)
 ***REMOVED***
 
+// UnmarshalJSON is implementation of json.Unmarshaler
 func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
-	var configs []ThresholdConfig
+	var configs []thresholdConfig
 	if err := json.Unmarshal(data, &configs); err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	newts, err := NewThresholdsWithConfig(configs)
+	newts, err := newThresholdsWithConfig(configs)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -195,8 +204,9 @@ func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// MarshalJSON is implementation of json.Marshaler
 func (ts Thresholds) MarshalJSON() ([]byte, error) ***REMOVED***
-	configs := make([]ThresholdConfig, len(ts.Thresholds))
+	configs := make([]thresholdConfig, len(ts.Thresholds))
 	for i, t := range ts.Thresholds ***REMOVED***
 		configs[i].Threshold = t.Source
 		configs[i].AbortOnFail = t.AbortOnFail
@@ -204,3 +214,6 @@ func (ts Thresholds) MarshalJSON() ([]byte, error) ***REMOVED***
 	***REMOVED***
 	return json.Marshal(configs)
 ***REMOVED***
+
+var _ json.Unmarshaler = &Thresholds***REMOVED******REMOVED***
+var _ json.Marshaler = &Thresholds***REMOVED******REMOVED***
