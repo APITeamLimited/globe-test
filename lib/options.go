@@ -272,6 +272,9 @@ type Options struct ***REMOVED***
 
 	// Discard Http Responses Body
 	DiscardResponseBodies null.Bool `json:"discardResponseBodies" envconfig:"discard_response_bodies"`
+
+	// Redirect console logging to a file
+	ConsoleOutput null.String `json:"-" envconfig:"console_output"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -385,6 +388,10 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.DiscardResponseBodies.Valid ***REMOVED***
 		o.DiscardResponseBodies = opts.DiscardResponseBodies
 	***REMOVED***
+	if opts.ConsoleOutput.Valid ***REMOVED***
+		o.ConsoleOutput = opts.ConsoleOutput
+	***REMOVED***
+
 	return o
 ***REMOVED***
 

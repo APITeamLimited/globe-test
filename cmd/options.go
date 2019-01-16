@@ -67,6 +67,7 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.String("summary-time-unit", "", "define the time unit used to display the trend stats. Possible units are: 's', 'ms' and 'us'")
 	flags.StringSlice("system-tags", lib.DefaultSystemTagList, "only include these system tags in metrics")
 	flags.StringSlice("tag", nil, "add a `tag` to be applied to all samples, as `[name]=[value]`")
+	flags.String("console-output", "", "redirects the console logging to the provided output file")
 	flags.Bool("discard-response-bodies", false, "Read but don't process or save HTTP response bodies")
 	return flags
 ***REMOVED***
@@ -172,6 +173,15 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			parsedRunTags[name] = value
 		***REMOVED***
 		opts.RunTags = stats.IntoSampleTags(&parsedRunTags)
+	***REMOVED***
+
+	redirectConFile, err := flags.GetString("console-output")
+	if err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+
+	if redirectConFile != "" ***REMOVED***
+		opts.ConsoleOutput = null.StringFrom(redirectConFile)
 	***REMOVED***
 
 	return opts, nil

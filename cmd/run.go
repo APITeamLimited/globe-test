@@ -171,7 +171,9 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Write options back to the runner too.
-		r.SetOptions(conf.Options)
+		if err = r.SetOptions(conf.Options); err != nil ***REMOVED***
+			return err
+		***REMOVED***
 
 		// Create a local executor wrapping the runner.
 		fprintf(stdout, "%s executor\r", initBar.String())
