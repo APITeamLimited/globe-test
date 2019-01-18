@@ -22,21 +22,37 @@ package js
 
 import (
 	"context"
+	"os"
 	"strconv"
 
 	"github.com/dop251/goja"
 	log "github.com/sirupsen/logrus"
 )
 
-type Console struct ***REMOVED***
+// console represents a JS console implemented as a logrus.Logger.
+type console struct ***REMOVED***
 	Logger *log.Logger
 ***REMOVED***
 
-func NewConsole() *Console ***REMOVED***
-	return &Console***REMOVED***log.StandardLogger()***REMOVED***
+// Creates a console with the standard logrus logger.
+func newConsole() *console ***REMOVED***
+	return &console***REMOVED***log.StandardLogger()***REMOVED***
 ***REMOVED***
 
-func (c Console) log(ctx *context.Context, level log.Level, msgobj goja.Value, args ...goja.Value) ***REMOVED***
+// Creates a console logger with its output set to the file at the provided `filepath`.
+func newFileConsole(filepath string) (*console, error) ***REMOVED***
+	f, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	l := log.New()
+	l.SetOutput(f)
+
+	return &console***REMOVED***l***REMOVED***, nil
+***REMOVED***
+
+func (c console) log(ctx *context.Context, level log.Level, msgobj goja.Value, args ...goja.Value) ***REMOVED***
 	if ctx != nil && *ctx != nil ***REMOVED***
 		select ***REMOVED***
 		case <-(*ctx).Done():
@@ -63,22 +79,22 @@ func (c Console) log(ctx *context.Context, level log.Level, msgobj goja.Value, a
 	***REMOVED***
 ***REMOVED***
 
-func (c Console) Log(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
+func (c console) Log(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
 	c.Info(ctx, msg, args...)
 ***REMOVED***
 
-func (c Console) Debug(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
+func (c console) Debug(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
 	c.log(ctx, log.DebugLevel, msg, args...)
 ***REMOVED***
 
-func (c Console) Info(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
+func (c console) Info(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
 	c.log(ctx, log.InfoLevel, msg, args...)
 ***REMOVED***
 
-func (c Console) Warn(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
+func (c console) Warn(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
 	c.log(ctx, log.WarnLevel, msg, args...)
 ***REMOVED***
 
-func (c Console) Error(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
+func (c console) Error(ctx *context.Context, msg goja.Value, args ...goja.Value) ***REMOVED***
 	c.log(ctx, log.ErrorLevel, msg, args...)
 ***REMOVED***

@@ -65,7 +65,7 @@ type Runner interface ***REMOVED***
 	// `export let options = ***REMOVED******REMOVED***`); cmd/run.go will mix this in with CLI-, config- and env-provided
 	// values and write it back to the runner.
 	GetOptions() Options
-	SetOptions(opts Options)
+	SetOptions(opts Options) error
 ***REMOVED***
 
 // A VU is a Virtual User, that can be scheduled by an Executor.
@@ -138,8 +138,9 @@ func (r MiniRunner) GetOptions() Options ***REMOVED***
 	return r.Options
 ***REMOVED***
 
-func (r *MiniRunner) SetOptions(opts Options) ***REMOVED***
+func (r *MiniRunner) SetOptions(opts Options) error ***REMOVED***
 	r.Options = opts
+	return nil
 ***REMOVED***
 
 // A VU spawned by a MiniRunner.

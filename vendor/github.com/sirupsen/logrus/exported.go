@@ -2,6 +2,7 @@ package logrus
 
 import (
 	"io"
+	"time"
 )
 
 var (
@@ -15,37 +16,38 @@ func StandardLogger() *Logger ***REMOVED***
 
 // SetOutput sets the standard logger output.
 func SetOutput(out io.Writer) ***REMOVED***
-	std.mu.Lock()
-	defer std.mu.Unlock()
-	std.Out = out
+	std.SetOutput(out)
 ***REMOVED***
 
 // SetFormatter sets the standard logger formatter.
 func SetFormatter(formatter Formatter) ***REMOVED***
-	std.mu.Lock()
-	defer std.mu.Unlock()
-	std.Formatter = formatter
+	std.SetFormatter(formatter)
+***REMOVED***
+
+// SetReportCaller sets whether the standard logger will include the calling
+// method as a field.
+func SetReportCaller(include bool) ***REMOVED***
+	std.SetReportCaller(include)
 ***REMOVED***
 
 // SetLevel sets the standard logger level.
 func SetLevel(level Level) ***REMOVED***
-	std.mu.Lock()
-	defer std.mu.Unlock()
 	std.SetLevel(level)
 ***REMOVED***
 
 // GetLevel returns the standard logger level.
 func GetLevel() Level ***REMOVED***
-	std.mu.Lock()
-	defer std.mu.Unlock()
-	return std.level()
+	return std.GetLevel()
+***REMOVED***
+
+// IsLevelEnabled checks if the log level of the standard logger is greater than the level param
+func IsLevelEnabled(level Level) bool ***REMOVED***
+	return std.IsLevelEnabled(level)
 ***REMOVED***
 
 // AddHook adds a hook to the standard logger hooks.
 func AddHook(hook Hook) ***REMOVED***
-	std.mu.Lock()
-	defer std.mu.Unlock()
-	std.Hooks.Add(hook)
+	std.AddHook(hook)
 ***REMOVED***
 
 // WithError creates an entry from the standard logger and adds an error to it, using the value defined in ErrorKey as key.
@@ -70,6 +72,20 @@ func WithField(key string, value interface***REMOVED******REMOVED***) *Entry ***
 // or Panic on the Entry it returns.
 func WithFields(fields Fields) *Entry ***REMOVED***
 	return std.WithFields(fields)
+***REMOVED***
+
+// WithTime creats an entry from the standard logger and overrides the time of
+// logs generated with it.
+//
+// Note that it doesn't log until you call Debug, Print, Info, Warn, Fatal
+// or Panic on the Entry it returns.
+func WithTime(t time.Time) *Entry ***REMOVED***
+	return std.WithTime(t)
+***REMOVED***
+
+// Trace logs a message at level Trace on the standard logger.
+func Trace(args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	std.Trace(args...)
 ***REMOVED***
 
 // Debug logs a message at level Debug on the standard logger.
@@ -107,9 +123,14 @@ func Panic(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Panic(args...)
 ***REMOVED***
 
-// Fatal logs a message at level Fatal on the standard logger.
+// Fatal logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Fatal(args...)
+***REMOVED***
+
+// Tracef logs a message at level Trace on the standard logger.
+func Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	std.Tracef(format, args...)
 ***REMOVED***
 
 // Debugf logs a message at level Debug on the standard logger.
@@ -147,9 +168,14 @@ func Panicf(format string, args ...interface***REMOVED******REMOVED***) ***REMOV
 	std.Panicf(format, args...)
 ***REMOVED***
 
-// Fatalf logs a message at level Fatal on the standard logger.
+// Fatalf logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatalf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Fatalf(format, args...)
+***REMOVED***
+
+// Traceln logs a message at level Trace on the standard logger.
+func Traceln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	std.Traceln(args...)
 ***REMOVED***
 
 // Debugln logs a message at level Debug on the standard logger.
@@ -187,7 +213,7 @@ func Panicln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Panicln(args...)
 ***REMOVED***
 
-// Fatalln logs a message at level Fatal on the standard logger.
+// Fatalln logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatalln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Fatalln(args...)
 ***REMOVED***

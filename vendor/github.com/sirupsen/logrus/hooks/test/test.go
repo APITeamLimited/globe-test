@@ -15,7 +15,7 @@ type Hook struct ***REMOVED***
 	// Entries is an array of all entries that have been received by this hook.
 	// For safe access, use the AllEntries() method, rather than reading this
 	// value directly.
-	Entries []*logrus.Entry
+	Entries []logrus.Entry
 	mu      sync.RWMutex
 ***REMOVED***
 
@@ -52,7 +52,7 @@ func NewNullLogger() (*logrus.Logger, *Hook) ***REMOVED***
 func (t *Hook) Fire(e *logrus.Entry) error ***REMOVED***
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.Entries = append(t.Entries, e)
+	t.Entries = append(t.Entries, *e)
 	return nil
 ***REMOVED***
 
@@ -68,9 +68,7 @@ func (t *Hook) LastEntry() *logrus.Entry ***REMOVED***
 	if i < 0 ***REMOVED***
 		return nil
 	***REMOVED***
-	// Make a copy, for safety
-	e := *t.Entries[i]
-	return &e
+	return &t.Entries[i]
 ***REMOVED***
 
 // AllEntries returns all entries that were logged.
@@ -79,10 +77,9 @@ func (t *Hook) AllEntries() []*logrus.Entry ***REMOVED***
 	defer t.mu.RUnlock()
 	// Make a copy so the returned value won't race with future log requests
 	entries := make([]*logrus.Entry, len(t.Entries))
-	for i, entry := range t.Entries ***REMOVED***
+	for i := 0; i < len(t.Entries); i++ ***REMOVED***
 		// Make a copy, for safety
-		e := *entry
-		entries[i] = &e
+		entries[i] = &t.Entries[i]
 	***REMOVED***
 	return entries
 ***REMOVED***
@@ -91,5 +88,5 @@ func (t *Hook) AllEntries() []*logrus.Entry ***REMOVED***
 func (t *Hook) Reset() ***REMOVED***
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.Entries = make([]*logrus.Entry, 0)
+	t.Entries = make([]logrus.Entry, 0)
 ***REMOVED***
