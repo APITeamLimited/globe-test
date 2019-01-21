@@ -109,8 +109,9 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 
 	t.Run("Files", func(t *testing.T) ***REMOVED***
 		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
+			path := filepath.FromSlash("/nonexistent.js")
 			_, err := getSimpleBundle("/script.js", `import "/nonexistent.js"; export default function() ***REMOVED******REMOVED***`)
-			assert.EqualError(t, err, "GoError: open /nonexistent.js: file does not exist")
+			assert.EqualError(t, err, fmt.Sprintf("GoError: open %s: file does not exist", path))
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
@@ -322,12 +323,12 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 
 	t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
 		fs := afero.NewMemMapFs()
-
+		path := filepath.FromSlash("/nonexistent.txt")
 		_, err := NewBundle(&lib.SourceData***REMOVED***
 			Filename: "/script.js",
 			Data:     []byte(`open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`),
 		***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-		assert.EqualError(t, err, "GoError: open /nonexistent.txt: file does not exist")
+		assert.EqualError(t, err, fmt.Sprintf("GoError: open %s: file does not exist", path))
 	***REMOVED***)
 
 ***REMOVED***

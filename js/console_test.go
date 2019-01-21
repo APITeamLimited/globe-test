@@ -27,7 +27,7 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/guregu/null.v3"
+	null "gopkg.in/guregu/null.v3"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
@@ -128,81 +128,116 @@ func TestConsole(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestFileConsole(t *testing.T) ***REMOVED***
-	logFile := "/tmp/loadtest.log"
-	levels := map[string]log.Level***REMOVED***
-		"log":   log.InfoLevel,
-		"debug": log.DebugLevel,
-		"info":  log.InfoLevel,
-		"warn":  log.WarnLevel,
-		"error": log.ErrorLevel,
-	***REMOVED***
-	argsets := map[string]struct ***REMOVED***
-		Message string
-		Data    log.Fields
-	***REMOVED******REMOVED***
-		`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
-		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
-	***REMOVED***
+	var (
+		levels = map[string]log.Level***REMOVED***
+			"log":   log.InfoLevel,
+			"debug": log.DebugLevel,
+			"info":  log.InfoLevel,
+			"warn":  log.WarnLevel,
+			"error": log.ErrorLevel,
+		***REMOVED***
+		argsets = map[string]struct ***REMOVED***
+			Message string
+			Data    log.Fields
+		***REMOVED******REMOVED***
+			`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
+			`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
+			`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
+		***REMOVED***
+		preExisting = map[string]bool***REMOVED***
+			"log exists":        false,
+			"log doesn't exist": true,
+		***REMOVED***
+		preExistingText = "Prexisting file\n"
+	)
 	for name, level := range levels ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for args, result := range argsets ***REMOVED***
 				t.Run(args, func(t *testing.T) ***REMOVED***
-					r, err := New(&lib.SourceData***REMOVED***
-						Filename: "/script",
-						Data: []byte(fmt.Sprintf(
-							`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
-							name, args,
-						)),
-					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-					assert.NoError(t, err)
+					// whether the file is existed before logging
+					for msg, deleteFile := range preExisting ***REMOVED***
+						t.Run(msg, func(t *testing.T) ***REMOVED***
+							var f, err = ioutil.TempFile("", "")
+							if err != nil ***REMOVED***
+								t.Fatalf("Couldn't create temporary file for testing: %s", err)
+							***REMOVED***
+							var logFilename = f.Name()
+							defer os.Remove(logFilename)
+							// close it as we will want to reopen it and maybe remove it
+							if deleteFile ***REMOVED***
+								f.Close()
+								if err := os.Remove(logFilename); err != nil ***REMOVED***
+									t.Fatalf("Couldn't remove tempfile: %s", err)
+								***REMOVED***
+							***REMOVED*** else ***REMOVED***
+								// TODO: handle case where the string was no written in full ?
+								_, err := f.WriteString(preExistingText)
+								f.Close()
+								if err != nil ***REMOVED***
+									t.Fatalf("Error while writing text to preexisting logfile: %s", err)
+								***REMOVED***
 
-					err = r.SetOptions(lib.Options***REMOVED***
-						ConsoleOutput: null.StringFrom(logFile),
-					***REMOVED***)
-					assert.NoError(t, err)
+							***REMOVED***
+							r, err := New(&lib.SourceData***REMOVED***
+								Filename: "/script",
+								Data: []byte(fmt.Sprintf(
+									`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+									name, args,
+								)),
+							***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+							assert.NoError(t, err)
 
-					samples := make(chan stats.SampleContainer, 100)
-					vu, err := r.newVU(samples)
-					assert.NoError(t, err)
+							err = r.SetOptions(lib.Options***REMOVED***
+								ConsoleOutput: null.StringFrom(logFilename),
+							***REMOVED***)
+							assert.NoError(t, err)
 
-					vu.Console.Logger.Level = log.DebugLevel
-					hook := logtest.NewLocal(vu.Console.Logger)
+							samples := make(chan stats.SampleContainer, 100)
+							vu, err := r.newVU(samples)
+							assert.NoError(t, err)
 
-					err = vu.RunOnce(context.Background())
-					assert.NoError(t, err)
+							vu.Console.Logger.Level = log.DebugLevel
+							hook := logtest.NewLocal(vu.Console.Logger)
 
-					// Test if the file was created.
-					_, err = os.Stat(logFile)
-					assert.NoError(t, err)
+							err = vu.RunOnce(context.Background())
+							assert.NoError(t, err)
 
-					entry := hook.LastEntry()
-					if assert.NotNil(t, entry, "nothing logged") ***REMOVED***
-						assert.Equal(t, level, entry.Level)
-						assert.Equal(t, result.Message, entry.Message)
+							// Test if the file was created.
+							_, err = os.Stat(logFilename)
+							assert.NoError(t, err)
 
-						data := result.Data
-						if data == nil ***REMOVED***
-							data = make(log.Fields)
-						***REMOVED***
-						assert.Equal(t, data, entry.Data)
+							entry := hook.LastEntry()
+							if assert.NotNil(t, entry, "nothing logged") ***REMOVED***
+								assert.Equal(t, level, entry.Level)
+								assert.Equal(t, result.Message, entry.Message)
 
-						// Test if what we logged to the hook is the same as what we logged
-						// to the file.
-						entryStr, err := entry.String()
-						assert.NoError(t, err)
+								data := result.Data
+								if data == nil ***REMOVED***
+									data = make(log.Fields)
+								***REMOVED***
+								assert.Equal(t, data, entry.Data)
 
-						f, err := os.Open(logFile)
-						assert.NoError(t, err)
+								// Test if what we logged to the hook is the same as what we logged
+								// to the file.
+								entryStr, err := entry.String()
+								assert.NoError(t, err)
 
-						fileContent, err := ioutil.ReadAll(f)
-						assert.NoError(t, err)
+								f, err := os.Open(logFilename)
+								assert.NoError(t, err)
 
-						assert.Equal(t, entryStr, string(fileContent))
+								fileContent, err := ioutil.ReadAll(f)
+								assert.NoError(t, err)
+
+								var expectedStr = entryStr
+								if !deleteFile ***REMOVED***
+									expectedStr = preExistingText + expectedStr
+								***REMOVED***
+								assert.Equal(t, expectedStr, string(fileContent))
+							***REMOVED***
+
+						***REMOVED***)
 					***REMOVED***
-
-					os.Remove(logFile)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)

@@ -43,6 +43,9 @@ import (
 )
 
 func TestTracer(t *testing.T) ***REMOVED***
+	if runtime.GOOS == "windows" ***REMOVED***
+		t.Skip()
+	***REMOVED***
 	t.Parallel()
 	srv := httptest.NewTLSServer(httpbin.NewHTTPBin().Handler())
 	defer srv.Close()
@@ -139,6 +142,9 @@ func (c failingConn) Write(b []byte) (int, error) ***REMOVED***
 ***REMOVED***
 
 func TestTracerNegativeHttpSendingValues(t *testing.T) ***REMOVED***
+	if runtime.GOOS == "windows" ***REMOVED***
+		t.Skip()
+	***REMOVED***
 	t.Parallel()
 	srv := httptest.NewTLSServer(httpbin.NewHTTPBin().Handler())
 	defer srv.Close()

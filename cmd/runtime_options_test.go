@@ -24,6 +24,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/loadimpact/k6/lib"
@@ -31,6 +33,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var envVars []string
+
+func init() ***REMOVED***
+	envVars = os.Environ()
+***REMOVED***
 
 type EnvVarTest struct ***REMOVED***
 	name      string
@@ -201,6 +209,14 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 				)
 			***REMOVED***
 			jsCode += "***REMOVED***"
+
+			// windows requires the environment variables to be loaded to gerenate the rand source
+			if runtime.GOOS == "windows" ***REMOVED***
+				for _, e := range envVars ***REMOVED***
+					parts := strings.Split(e, "=")
+					os.Setenv(parts[0], parts[1])
+				***REMOVED***
+			***REMOVED***
 
 			runner, err := newRunner(
 				&lib.SourceData***REMOVED***
