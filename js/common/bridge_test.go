@@ -43,10 +43,14 @@ type bridgeTestFieldsType struct ***REMOVED***
 
 type bridgeTestMethodsType struct***REMOVED******REMOVED***
 
-func (bridgeTestMethodsType) ExportedFn()   ***REMOVED******REMOVED***
+func (bridgeTestMethodsType) ExportedFn() ***REMOVED******REMOVED***
+
+//lint:ignore U1000 needed for the actual test to check that it won't be seen
 func (bridgeTestMethodsType) unexportedFn() ***REMOVED******REMOVED***
 
-func (*bridgeTestMethodsType) ExportedPtrFn()   ***REMOVED******REMOVED***
+func (*bridgeTestMethodsType) ExportedPtrFn() ***REMOVED******REMOVED***
+
+//lint:ignore U1000 needed for the actual test to check that it won't be seen
 func (*bridgeTestMethodsType) unexportedPtrFn() ***REMOVED******REMOVED***
 
 type bridgeTestOddFieldsType struct ***REMOVED***

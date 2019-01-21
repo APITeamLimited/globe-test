@@ -270,7 +270,7 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 		case []byte:
 			result.body = bytes.NewBuffer(data)
 		default:
-			return nil, fmt.Errorf("Unknown request body type %T", body)
+			return nil, fmt.Errorf("unknown request body type %T", body)
 		***REMOVED***
 	***REMOVED***
 
@@ -550,7 +550,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 			case ResponseTypeBinary:
 				resp.Body = buf.Bytes()
 			default:
-				resErr = fmt.Errorf("Unknown responseType %s", preq.responseType)
+				resErr = fmt.Errorf("unknown responseType %s", preq.responseType)
 			***REMOVED***
 		***REMOVED***
 		_ = res.Body.Close()
@@ -656,11 +656,11 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 			// Handling of ["GET", "http://example.com/"]
 			dataLen := len(data)
 			if dataLen < 2 ***REMOVED***
-				return nil, fmt.Errorf("Invalid batch request '%#v'", data)
+				return nil, fmt.Errorf("invalid batch request '%#v'", data)
 			***REMOVED***
 			method, ok = data[0].(string)
 			if !ok ***REMOVED***
-				return nil, fmt.Errorf("Invalid method type '%#v'", data[0])
+				return nil, fmt.Errorf("invalid method type '%#v'", data[0])
 			***REMOVED***
 			reqURL, err = ToURL(data[1])
 			if err != nil ***REMOVED***
@@ -676,7 +676,7 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 		case map[string]interface***REMOVED******REMOVED***:
 			// Handling of ***REMOVED***method: "GET", url: "http://test.loadimpact.com"***REMOVED***
 			if murl, ok := data["url"]; !ok ***REMOVED***
-				return nil, fmt.Errorf("Batch request %s doesn't have an url key", key)
+				return nil, fmt.Errorf("batch request %s doesn't have an url key", key)
 			***REMOVED*** else if reqURL, err = ToURL(murl); err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
@@ -685,7 +685,7 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 
 			if newMethod, ok := data["method"]; ok ***REMOVED***
 				if method, ok = newMethod.(string); !ok ***REMOVED***
-					return nil, fmt.Errorf("Invalid method type '%#v'", newMethod)
+					return nil, fmt.Errorf("invalid method type '%#v'", newMethod)
 				***REMOVED***
 				method = strings.ToUpper(method)
 				if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***

@@ -48,7 +48,7 @@ func ToURL(u interface***REMOVED******REMOVED***) (URL, error) ***REMOVED***
 		// Unwrap goja values
 		return ToURL(tu.Export())
 	default:
-		return URL***REMOVED******REMOVED***, fmt.Errorf("Invalid URL value '%#v'", u)
+		return URL***REMOVED******REMOVED***, fmt.Errorf("invalid URL value '%#v'", u)
 	***REMOVED***
 ***REMOVED***
 
