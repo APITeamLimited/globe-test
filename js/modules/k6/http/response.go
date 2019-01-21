@@ -88,7 +88,7 @@ func (res *HTTPResponse) Json(selector ...string) goja.Value ***REMOVED***
 		case string:
 			body = []byte(b)
 		default:
-			common.Throw(common.GetRuntime(res.ctx), errors.New("Invalid response type"))
+			common.Throw(common.GetRuntime(res.ctx), errors.New("invalid response type"))
 		***REMOVED***
 
 		if hasSelector ***REMOVED***
@@ -125,7 +125,7 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 	case string:
 		body = b
 	default:
-		common.Throw(common.GetRuntime(res.ctx), errors.New("Invalid response type"))
+		common.Throw(common.GetRuntime(res.ctx), errors.New("invalid response type"))
 	***REMOVED***
 
 	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, body)

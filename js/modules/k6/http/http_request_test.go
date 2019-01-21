@@ -156,7 +156,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 		http.SetCookie(w, &cookie)
 
-		http.Redirect(w, r, sr("HTTPBIN_URL/get"), 301)
+		http.Redirect(w, r, sr("HTTPBIN_URL/get"), http.StatusMovedPermanently)
 	***REMOVED***))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***

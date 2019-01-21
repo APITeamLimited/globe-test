@@ -84,11 +84,11 @@ func (s Selection) Serialize() string ***REMOVED***
 	for i := range formValues ***REMOVED***
 		formValue := formValues[i]
 		value := formValue.Value.Export()
-		switch value.(type) ***REMOVED***
+		switch v := value.(type) ***REMOVED***
 		case string:
-			urlValues.Set(formValue.Name, value.(string))
+			urlValues.Set(formValue.Name, v)
 		case []string:
-			urlValues[formValue.Name] = value.([]string)
+			urlValues[formValue.Name] = v
 		***REMOVED***
 	***REMOVED***
 	return urlValues.Encode()

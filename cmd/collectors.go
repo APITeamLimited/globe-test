@@ -112,7 +112,7 @@ func newCollector(collectorName, arg string, src *lib.SourceData, conf Config) (
 	***REMOVED***
 	if len(missingRequiredTags) > 0 ***REMOVED***
 		return collector, fmt.Errorf(
-			"The specified collector '%s' needs the following system tags enabled: %s",
+			"the specified collector '%s' needs the following system tags enabled: %s",
 			collectorName,
 			strings.Join(missingRequiredTags, ", "),
 		)
