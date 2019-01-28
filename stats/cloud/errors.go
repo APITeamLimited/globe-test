@@ -38,26 +38,65 @@ var (
 type ErrorResponse struct ***REMOVED***
 	Response *http.Response `json:"-"`
 
-	Code    int               `json:"code"`
-	Message string            `json:"message"`
-	Details map[string]string `json:"details"`
+	Code        int                 `json:"code"`
+	Message     string              `json:"message"`
+	Details     map[string][]string `json:"details"`
+	FieldErrors map[string][]string `json:"field_errors"`
+	Errors      []string            `json:"errors"`
+***REMOVED***
+
+func contains(s []string, e string) bool ***REMOVED***
+	for _, a := range s ***REMOVED***
+		if a == e ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
 ***REMOVED***
 
 func (e ErrorResponse) Error() string ***REMOVED***
 	msg := e.Message
-	if e.Response != nil ***REMOVED***
-		msg = fmt.Sprintf("%d %s", e.Response.StatusCode, msg)
-	***REMOVED***
-	if e.Code != 0 ***REMOVED***
-		msg = fmt.Sprintf("%s [err code %d]", msg, e.Code)
+
+	for _, v := range e.Errors ***REMOVED***
+		// atm: `errors` and `message` could be duplicated
+		// TODO: remove condition when the API changes
+		if v != msg ***REMOVED***
+			msg += "\n " + v
+		***REMOVED***
 	***REMOVED***
 
+	// `e.Details` is the old API version
+	// TODO: do not handle `details` when the old API becomes obsolete
 	var details []string
+	var detail string
 	for k, v := range e.Details ***REMOVED***
-		details = append(details, k+" ("+v+")")
+		detail = k + ": " + strings.Join(v, ", ")
+		details = append(details, detail)
 	***REMOVED***
+
+	for k, v := range e.FieldErrors ***REMOVED***
+		detail = k + ": " + strings.Join(v, ", ")
+		// atm: `details` and `field_errors` could be duplicated
+		if !contains(details, detail) ***REMOVED***
+			details = append(details, detail)
+		***REMOVED***
+	***REMOVED***
+
 	if len(details) > 0 ***REMOVED***
-		msg += ": " + strings.Join(details, ", ")
+		msg += "\n " + strings.Join(details, "\n")
+	***REMOVED***
+
+	var code string
+	if e.Code > 0 && e.Response != nil ***REMOVED***
+		code = fmt.Sprintf("%d/E%d", e.Response.StatusCode, e.Code)
+	***REMOVED*** else if e.Response != nil ***REMOVED***
+		code = fmt.Sprintf("%d", e.Response.StatusCode)
+	***REMOVED*** else if e.Code > 0 ***REMOVED***
+		code = fmt.Sprintf("E%d", e.Code)
+	***REMOVED***
+
+	if len(code) > 0 ***REMOVED***
+		msg = fmt.Sprintf("(%s) %s", code, msg)
 	***REMOVED***
 
 	return msg
