@@ -509,7 +509,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*Response,
 				return nil, err
 			***REMOVED***
 
-			resp.Error = err.Error()
+			resp.setError(err)
 			return resp, nil
 		***REMOVED***
 
@@ -585,7 +585,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*Response,
 	***REMOVED***
 
 	if resErr != nil ***REMOVED***
-		resp.Error = resErr.Error()
+		resp.setError(resErr)
 	***REMOVED*** else ***REMOVED***
 		if preq.activeJar != nil ***REMOVED***
 			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
@@ -594,7 +594,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*Response,
 		***REMOVED***
 
 		resp.URL = res.Request.URL.String()
-		resp.Status = res.StatusCode
+		resp.setStatusCode(res.StatusCode)
 		resp.Proto = res.Proto
 
 		if res.TLS != nil ***REMOVED***
