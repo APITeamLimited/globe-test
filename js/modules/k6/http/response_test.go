@@ -390,16 +390,16 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
 			for n := 0; n < b.N; n++ ***REMOVED***
-				resp := &HTTPResponse***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
-				resp.Json(tc.selector)
+				resp := &Response***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+				resp.JSON(tc.selector)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 
 	b.Run("Without selector", func(b *testing.B) ***REMOVED***
 		for n := 0; n < b.N; n++ ***REMOVED***
-			resp := &HTTPResponse***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
-			resp.Json()
+			resp := &Response***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+			resp.JSON()
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

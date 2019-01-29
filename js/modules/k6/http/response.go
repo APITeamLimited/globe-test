@@ -37,7 +37,8 @@ import (
 	"github.com/loadimpact/k6/lib/netext"
 )
 
-type HTTPResponseTimings struct ***REMOVED***
+// ResponseTimings is a struct to put all timings for a given HTTP response/request
+type ResponseTimings struct ***REMOVED***
 	Duration       float64 `json:"duration"`
 	Blocked        float64 `json:"blocked"`
 	LookingUp      float64 `json:"looking_up"`
@@ -48,7 +49,8 @@ type HTTPResponseTimings struct ***REMOVED***
 	Receiving      float64 `json:"receiving"`
 ***REMOVED***
 
-type HTTPResponse struct ***REMOVED***
+// Response is a representation of an HTTP response to be returned to the goja VM
+type Response struct ***REMOVED***
 	ctx context.Context
 
 	RemoteIP       string                   `json:"remote_ip"`
@@ -59,25 +61,26 @@ type HTTPResponse struct ***REMOVED***
 	Headers        map[string]string        `json:"headers"`
 	Cookies        map[string][]*HTTPCookie `json:"cookies"`
 	Body           interface***REMOVED******REMOVED***              `json:"body"`
-	Timings        HTTPResponseTimings      `json:"timings"`
+	Timings        ResponseTimings          `json:"timings"`
 	TLSVersion     string                   `json:"tls_version"`
 	TLSCipherSuite string                   `json:"tls_cipher_suite"`
 	OCSP           netext.OCSP              `js:"ocsp" json:"ocsp"`
 	Error          string                   `json:"error"`
-	Request        HTTPRequest              `json:"request"`
+	Request        Request                  `json:"request"`
 
 	cachedJSON    goja.Value
 	validatedJSON bool
 ***REMOVED***
 
-func (res *HTTPResponse) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
+func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 	tlsInfo, oscp := netext.ParseTLSConnState(tlsState)
 	res.TLSVersion = tlsInfo.Version
 	res.TLSCipherSuite = tlsInfo.CipherSuite
 	res.OCSP = oscp
 ***REMOVED***
 
-func (res *HTTPResponse) Json(selector ...string) goja.Value ***REMOVED***
+// JSON parses the body of a response as json and returns it to the goja VM
+func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
 	hasSelector := len(selector) > 0
 	if res.cachedJSON == nil || hasSelector ***REMOVED***
 		var v interface***REMOVED******REMOVED***
@@ -117,7 +120,8 @@ func (res *HTTPResponse) Json(selector ...string) goja.Value ***REMOVED***
 	return res.cachedJSON
 ***REMOVED***
 
-func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
+// HTML returns the body as an html.Selection
+func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
 	var body string
 	switch b := res.Body.(type) ***REMOVED***
 	case []byte:
@@ -139,7 +143,9 @@ func (res *HTTPResponse) Html(selector ...string) html.Selection ***REMOVED***
 	return sel
 ***REMOVED***
 
-func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// SubmitForm parses the body as an html looking for a from and then submitting it
+// TODO: document the actual arguments that can be provided
+func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVED***
 	rt := common.GetRuntime(res.ctx)
 
 	formSelector := "form"
@@ -164,7 +170,7 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 		***REMOVED***
 	***REMOVED***
 
-	form := res.Html(formSelector)
+	form := res.HTML(formSelector)
 	if form.Size() == 0 ***REMOVED***
 		common.Throw(rt, fmt.Errorf("no form found for selector '%s' in response '%s'", formSelector, res.URL))
 	***REMOVED***
@@ -178,22 +184,22 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 		requestMethod = strings.ToUpper(methodAttr.String())
 	***REMOVED***
 
-	responseUrl, err := url.Parse(res.URL)
+	responseURL, err := url.Parse(res.URL)
 	if err != nil ***REMOVED***
 		common.Throw(rt, err)
 	***REMOVED***
 
 	actionAttr := form.Attr("action")
-	var requestUrl *url.URL
+	var requestURL *url.URL
 	if actionAttr == goja.Undefined() ***REMOVED***
 		// Use the url of the response if no action is set
-		requestUrl = responseUrl
+		requestURL = responseURL
 	***REMOVED*** else ***REMOVED***
-		actionUrl, err := url.Parse(actionAttr.String())
+		actionURL, err := url.Parse(actionAttr.String())
 		if err != nil ***REMOVED***
 			common.Throw(rt, err)
 		***REMOVED***
-		requestUrl = responseUrl.ResolveReference(actionUrl)
+		requestURL = responseURL.ResolveReference(actionURL)
 	***REMOVED***
 
 	// Set the body based on the form values
@@ -217,13 +223,15 @@ func (res *HTTPResponse) SubmitForm(args ...goja.Value) (*HTTPResponse, error) *
 		for k, v := range values ***REMOVED***
 			q.Add(k, v.String())
 		***REMOVED***
-		requestUrl.RawQuery = q.Encode()
-		return New().Request(res.ctx, requestMethod, rt.ToValue(requestUrl.String()), goja.Null(), requestParams)
+		requestURL.RawQuery = q.Encode()
+		return New().Request(res.ctx, requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
 	***REMOVED***
-	return New().Request(res.ctx, requestMethod, rt.ToValue(requestUrl.String()), rt.ToValue(values), requestParams)
+	return New().Request(res.ctx, requestMethod, rt.ToValue(requestURL.String()), rt.ToValue(values), requestParams)
 ***REMOVED***
 
-func (res *HTTPResponse) ClickLink(args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// ClickLink parses the body as an html, looks for a link and than makes a request as if the link was
+// clicked
+func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED***
 	rt := common.GetRuntime(res.ctx)
 
 	selector := "a[href]"
@@ -240,12 +248,12 @@ func (res *HTTPResponse) ClickLink(args ...goja.Value) (*HTTPResponse, error) **
 		***REMOVED***
 	***REMOVED***
 
-	responseUrl, err := url.Parse(res.URL)
+	responseURL, err := url.Parse(res.URL)
 	if err != nil ***REMOVED***
 		common.Throw(rt, err)
 	***REMOVED***
 
-	link := res.Html(selector)
+	link := res.HTML(selector)
 	if link.Size() == 0 ***REMOVED***
 		common.Throw(rt, fmt.Errorf("no element found for selector '%s' in response '%s'", selector, res.URL))
 	***REMOVED***
@@ -253,11 +261,11 @@ func (res *HTTPResponse) ClickLink(args ...goja.Value) (*HTTPResponse, error) **
 	if hrefAttr == goja.Undefined() ***REMOVED***
 		common.Throw(rt, fmt.Errorf("no valid href attribute value found on element '%s' in response '%s'", selector, res.URL))
 	***REMOVED***
-	hrefUrl, err := url.Parse(hrefAttr.String())
+	hrefURL, err := url.Parse(hrefAttr.String())
 	if err != nil ***REMOVED***
 		common.Throw(rt, err)
 	***REMOVED***
-	requestUrl := responseUrl.ResolveReference(hrefUrl)
+	requestURL := responseURL.ResolveReference(hrefURL)
 
-	return New().Get(res.ctx, rt.ToValue(requestUrl.String()), requestParams)
+	return New().Get(res.ctx, rt.ToValue(requestURL.String()), requestParams)
 ***REMOVED***

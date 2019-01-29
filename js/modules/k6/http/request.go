@@ -56,7 +56,8 @@ var ErrHTTPForbiddenInInitContext = common.NewInitContextError("Making http requ
 // ErrBatchForbiddenInInitContext is used when batch was made in the init context
 var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in the init context is not supported")
 
-type HTTPRequest struct ***REMOVED***
+// Request represent an http request
+type Request struct ***REMOVED***
 	Method  string                          `json:"method"`
 	URL     string                          `json:"url"`
 	Headers map[string][]string             `json:"headers"`
@@ -64,39 +65,48 @@ type HTTPRequest struct ***REMOVED***
 	Cookies map[string][]*HTTPRequestCookie `json:"cookies"`
 ***REMOVED***
 
-func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Get makes an HTTP GET request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 	return h.Request(ctx, HTTP_METHOD_GET, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Head makes an HTTP HEAD request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 	return h.Request(ctx, HTTP_METHOD_HEAD, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Post makes an HTTP POST request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	return h.Request(ctx, HTTP_METHOD_POST, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Put makes an HTTP PUT request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	return h.Request(ctx, HTTP_METHOD_PUT, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Patch makes a patch request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	return h.Request(ctx, HTTP_METHOD_PATCH, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Del makes an HTTP DELETE and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	return h.Request(ctx, HTTP_METHOD_DELETE, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Options makes an HTTP OPTIONS request and returns a corresponding response by taking goja.Values as arguments
+func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	return h.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
 ***REMOVED***
 
-func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*HTTPResponse, error) ***REMOVED***
+// Request makes an http request of the provided `method` and returns a corresponding response by
+// taking goja.Values as arguments
+func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
 	u, err := ToURL(url)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -389,10 +399,10 @@ func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL URL, body
 
 // request() shouldn't mess with the goja runtime or other thread-unsafe
 // things because it's called concurrently by Batch()
-func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPResponse, error) ***REMOVED***
+func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*Response, error) ***REMOVED***
 	state := common.GetState(ctx)
 
-	respReq := &HTTPRequest***REMOVED***
+	respReq := &Request***REMOVED***
 		Method:  preq.req.Method,
 		URL:     preq.req.URL.String(),
 		Cookies: preq.mergedCookies,
@@ -443,7 +453,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		***REMOVED***
 	***REMOVED***
 
-	resp := &HTTPResponse***REMOVED***ctx: ctx, URL: preq.url.URLString, Request: *respReq***REMOVED***
+	resp := &Response***REMOVED***ctx: ctx, URL: preq.url.URLString, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: transport,
 		Timeout:   preq.timeout,
@@ -564,7 +574,7 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 		resp.RemoteIP = remoteHost
 		resp.RemotePort = remotePort
 	***REMOVED***
-	resp.Timings = HTTPResponseTimings***REMOVED***
+	resp.Timings = ResponseTimings***REMOVED***
 		Duration:       stats.D(trail.Duration),
 		Blocked:        stats.D(trail.Blocked),
 		Connecting:     stats.D(trail.Connecting),
@@ -628,97 +638,36 @@ func (h *HTTP) request(ctx context.Context, preq *parsedHTTPRequest) (*HTTPRespo
 	return resp, nil
 ***REMOVED***
 
+// Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
+// objects. Batch returns an array of responses and/or error
 func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
 	state := common.GetState(ctx)
 	if state == nil ***REMOVED***
 		return nil, ErrBatchForbiddenInInitContext
 	***REMOVED***
-
-	// Return values; retval must be guarded by the mutex.
-	var mutex sync.Mutex
-	retval := rt.NewObject()
-	errs := make(chan error)
-
-	// Concurrency limits.
-	globalLimiter := NewSlotLimiter(int(state.Options.Batch.Int64))
-	perHostLimiter := NewMultiSlotLimiter(int(state.Options.BatchPerHost.Int64))
-
-	parseBatchRequest := func(key string, val goja.Value) (result *parsedHTTPRequest, err error) ***REMOVED***
-		method := HTTP_METHOD_GET
-		var ok bool
-		var reqURL URL
-		var body interface***REMOVED******REMOVED***
-		var params goja.Value
-
-		switch data := val.Export().(type) ***REMOVED***
-		case []interface***REMOVED******REMOVED***:
-			// Handling of ["GET", "http://example.com/"]
-			dataLen := len(data)
-			if dataLen < 2 ***REMOVED***
-				return nil, fmt.Errorf("invalid batch request '%#v'", data)
-			***REMOVED***
-			method, ok = data[0].(string)
-			if !ok ***REMOVED***
-				return nil, fmt.Errorf("invalid method type '%#v'", data[0])
-			***REMOVED***
-			reqURL, err = ToURL(data[1])
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if dataLen > 2 ***REMOVED***
-				body = data[2]
-			***REMOVED***
-			if dataLen > 3 ***REMOVED***
-				params = rt.ToValue(data[3])
-			***REMOVED***
-
-		case map[string]interface***REMOVED******REMOVED***:
-			// Handling of ***REMOVED***method: "GET", url: "http://test.loadimpact.com"***REMOVED***
-			if murl, ok := data["url"]; !ok ***REMOVED***
-				return nil, fmt.Errorf("batch request %s doesn't have an url key", key)
-			***REMOVED*** else if reqURL, err = ToURL(murl); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-
-			body = data["body"] // It's fine if it's missing, the map lookup will return
-
-			if newMethod, ok := data["method"]; ok ***REMOVED***
-				if method, ok = newMethod.(string); !ok ***REMOVED***
-					return nil, fmt.Errorf("invalid method type '%#v'", newMethod)
-				***REMOVED***
-				method = strings.ToUpper(method)
-				if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
-					body = nil
-				***REMOVED***
-			***REMOVED***
-
-			if p, ok := data["params"]; ok ***REMOVED***
-				params = rt.ToValue(p)
-			***REMOVED***
-
-		default:
-			// Handling of "http://example.com/" or http.url`http://example.com/***REMOVED***$id***REMOVED***`
-			reqURL, err = ToURL(data)
-			if err != nil ***REMOVED***
-				return
-			***REMOVED***
-		***REMOVED***
-
-		return h.parseRequest(ctx, method, reqURL, body, params)
-	***REMOVED***
+	rt := common.GetRuntime(ctx)
 
 	reqs := reqsV.ToObject(rt)
 	keys := reqs.Keys()
 	parsedReqs := map[string]*parsedHTTPRequest***REMOVED******REMOVED***
 	for _, key := range keys ***REMOVED***
-		parsedReq, err := parseBatchRequest(key, reqs.Get(key))
+		parsedReq, err := h.parseBatchRequest(ctx, key, reqs.Get(key))
 		if err != nil ***REMOVED***
-			return retval, err
+			return nil, err
 		***REMOVED***
 		parsedReqs[key] = parsedReq
 	***REMOVED***
 
+	var (
+		// Return values; retval must be guarded by the mutex.
+		mutex  sync.Mutex
+		retval = rt.NewObject()
+		errs   = make(chan error)
+
+		// Concurrency limits.
+		globalLimiter  = NewSlotLimiter(int(state.Options.Batch.Int64))
+		perHostLimiter = NewMultiSlotLimiter(int(state.Options.BatchPerHost.Int64))
+	)
 	for k, pr := range parsedReqs ***REMOVED***
 		go func(key string, parsedReq *parsedHTTPRequest) ***REMOVED***
 			globalLimiter.Begin()
@@ -750,6 +699,74 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 		***REMOVED***
 	***REMOVED***
 	return retval, err
+***REMOVED***
+
+func (h *HTTP) parseBatchRequest(ctx context.Context, key string, val goja.Value) (*parsedHTTPRequest, error) ***REMOVED***
+	var (
+		method = HTTP_METHOD_GET
+		ok     bool
+		err    error
+		reqURL URL
+		body   interface***REMOVED******REMOVED***
+		params goja.Value
+		rt     = common.GetRuntime(ctx)
+	)
+
+	switch data := val.Export().(type) ***REMOVED***
+	case []interface***REMOVED******REMOVED***:
+		// Handling of ["GET", "http://example.com/"]
+		dataLen := len(data)
+		if dataLen < 2 ***REMOVED***
+			return nil, fmt.Errorf("invalid batch request '%#v'", data)
+		***REMOVED***
+		method, ok = data[0].(string)
+		if !ok ***REMOVED***
+			return nil, fmt.Errorf("invalid method type '%#v'", data[0])
+		***REMOVED***
+		reqURL, err = ToURL(data[1])
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if dataLen > 2 ***REMOVED***
+			body = data[2]
+		***REMOVED***
+		if dataLen > 3 ***REMOVED***
+			params = rt.ToValue(data[3])
+		***REMOVED***
+
+	case map[string]interface***REMOVED******REMOVED***:
+		// Handling of ***REMOVED***method: "GET", url: "http://test.loadimpact.com"***REMOVED***
+		if murl, ok := data["url"]; !ok ***REMOVED***
+			return nil, fmt.Errorf("batch request %s doesn't have an url key", key)
+		***REMOVED*** else if reqURL, err = ToURL(murl); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+
+		body = data["body"] // It's fine if it's missing, the map lookup will return
+
+		if newMethod, ok := data["method"]; ok ***REMOVED***
+			if method, ok = newMethod.(string); !ok ***REMOVED***
+				return nil, fmt.Errorf("invalid method type '%#v'", newMethod)
+			***REMOVED***
+			method = strings.ToUpper(method)
+			if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
+				body = nil
+			***REMOVED***
+		***REMOVED***
+
+		if p, ok := data["params"]; ok ***REMOVED***
+			params = rt.ToValue(p)
+		***REMOVED***
+
+	default:
+		// Handling of "http://example.com/" or http.url`http://example.com/***REMOVED***$id***REMOVED***`
+		reqURL, err = ToURL(data)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+	***REMOVED***
+
+	return h.parseRequest(ctx, method, reqURL, body, params)
 ***REMOVED***
 
 func requestContainsFile(data map[string]interface***REMOVED******REMOVED***) bool ***REMOVED***

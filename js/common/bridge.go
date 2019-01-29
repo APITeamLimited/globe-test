@@ -65,6 +65,13 @@ func FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED***
 	return snaker.CamelToSnake(f.Name)
 ***REMOVED***
 
+// if a methodName is the key of this map exactly than the value for the given key should be used as
+// the name of the method in js
+var methodNameExceptions map[string]string = map[string]string***REMOVED***
+	"JSON": "json",
+	"HTML": "html",
+***REMOVED***
+
 // Returns the JS name for an exported method. The first letter of the method's name is
 // lowercased, otherwise it is unaltered.
 func MethodName(t reflect.Type, m reflect.Method) string ***REMOVED***
@@ -74,6 +81,9 @@ func MethodName(t reflect.Type, m reflect.Method) string ***REMOVED***
 		return m.Name[1:]
 	***REMOVED***
 
+	if exception, ok := methodNameExceptions[m.Name]; ok ***REMOVED***
+		return exception
+	***REMOVED***
 	// Lowercase the first character of the method name.
 	return strings.ToLower(m.Name[0:1]) + m.Name[1:]
 ***REMOVED***
