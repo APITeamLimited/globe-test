@@ -46,31 +46,6 @@ func GetParsedConfig(name, configType string, rawJSON []byte) (result Config, er
 		return nil, fmt.Errorf("unknown execution scheduler type '%s'", configType)
 	***REMOVED***
 	return constructor(name, rawJSON)
-	/*
-		switch configType ***REMOVED***
-		case constantLoopingVUsType:
-			config := NewConstantLoopingVUsConfig(name)
-			err = json.Unmarshal(rawJSON, &config)
-			result = config
-		case variableLoopingVUsType:
-			config := NewVariableLoopingVUsConfig(name)
-			err = json.Unmarshal(rawJSON, &config)
-			result = config
-		case sharedIterationsType:
-			config := NewSharedIterationsConfig(name)
-			err = json.Unmarshal(rawJSON, &config)
-			result = config
-		case perVUIterationsType:
-			config := NewPerVUIterationsConfig(name)
-			err = json.Unmarshal(rawJSON, &config)
-			result = config
-		case constantArrivalRateType:
-
-		case variableArrivalRateType:
-			config := NewVariableArrivalRateConfig(name)
-			err = json.Unmarshal(rawJSON, &config)
-			result = config
-	*/
 ***REMOVED***
 
 // UnmarshalJSON implements the json.Unmarshaler interface in a two-step manner,
