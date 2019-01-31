@@ -11,6 +11,14 @@ import (
 
 const variableArrivalRateType = "variable-arrival-rate"
 
+func init() ***REMOVED***
+	RegisterConfigType(variableArrivalRateType, func(name string, rawJSON []byte) (Config, error) ***REMOVED***
+		config := NewVariableArrivalRateConfig(name)
+		err := json.Unmarshal(rawJSON, &config)
+		return config, err
+	***REMOVED***)
+***REMOVED***
+
 // VariableArrivalRateConfig stores config for the variable arrival-rate scheduler
 type VariableArrivalRateConfig struct ***REMOVED***
 	BaseConfig

@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -9,6 +10,14 @@ import (
 )
 
 const constantLoopingVUsType = "constant-looping-vus"
+
+func init() ***REMOVED***
+	RegisterConfigType(constantLoopingVUsType, func(name string, rawJSON []byte) (Config, error) ***REMOVED***
+		config := NewConstantLoopingVUsConfig(name)
+		err := json.Unmarshal(rawJSON, &config)
+		return config, err
+	***REMOVED***)
+***REMOVED***
 
 // The minimum duration we'll allow users to schedule. This doesn't affect the stages
 // configuration, where 0-duration virtual stages are allowed for instantaneous VU jumps
