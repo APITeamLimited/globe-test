@@ -53,7 +53,7 @@ func New() *Crypto ***REMOVED***
 
 func (*Crypto) RandomBytes(ctx context.Context, size int) []byte ***REMOVED***
 	if size < 1 ***REMOVED***
-		common.Throw(common.GetRuntime(ctx), errors.New("Invalid size"))
+		common.Throw(common.GetRuntime(ctx), errors.New("invalid size"))
 	***REMOVED***
 	bytes := make([]byte, size)
 	_, err := rand.Read(bytes)
