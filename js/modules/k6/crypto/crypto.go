@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -48,6 +49,18 @@ type Hasher struct ***REMOVED***
 
 func New() *Crypto ***REMOVED***
 	return &Crypto***REMOVED******REMOVED***
+***REMOVED***
+
+func (*Crypto) RandomBytes(ctx context.Context, size int) []byte ***REMOVED***
+	if size < 1 ***REMOVED***
+		common.Throw(common.GetRuntime(ctx), errors.New("Invalid size"))
+	***REMOVED***
+	bytes := make([]byte, size)
+	_, err := rand.Read(bytes)
+	if err != nil ***REMOVED***
+		common.Throw(common.GetRuntime(ctx), err)
+	***REMOVED***
+	return bytes
 ***REMOVED***
 
 func (c *Crypto) Md4(ctx context.Context, input []byte, outputEncoding string) string ***REMOVED***
