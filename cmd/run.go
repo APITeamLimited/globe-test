@@ -37,6 +37,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
@@ -61,7 +63,7 @@ const (
 	teardownTimeoutErrorCode    = 101
 	genericTimeoutErrorCode     = 102
 	genericEngineErrorCode      = 103
-	invalidOptionsErrorCode     = 104
+	//invalidOptionsErrorCode     = 104
 )
 
 var (
@@ -167,14 +169,16 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		//TODO: move a bunch of the logic above to a config "constructor" and to the Validate() method
+		spew.Dump(conf.Execution)
 		if errList := conf.Validate(); len(errList) != 0 ***REMOVED***
-			errMsg := []string***REMOVED***
-				fmt.Sprintf("There were %d errors with the script options:", len(errList)),
-			***REMOVED***
+
+			errMsg := []string***REMOVED***"There were problems with the specified script configuration:"***REMOVED***
 			for _, err := range errList ***REMOVED***
 				errMsg = append(errMsg, fmt.Sprintf("\t- %s", err.Error()))
 			***REMOVED***
-			return ExitCode***REMOVED***errors.New(strings.Join(errMsg, "\n")), invalidOptionsErrorCode***REMOVED***
+			//TODO: re-enable exiting with validation errors
+			log.Warn(errors.New(strings.Join(errMsg, "\n")))
+			//return ExitCode***REMOVED***errors.New(strings.Join(errMsg, "\n")), invalidOptionsErrorCode***REMOVED***
 		***REMOVED***
 
 		// If summary trend stats are defined, update the UI to reflect them

@@ -50,9 +50,19 @@ func GetParsedConfig(name, configType string, rawJSON []byte) (result Config, er
 
 // UnmarshalJSON implements the json.Unmarshaler interface in a two-step manner,
 // creating the correct type of configs based on the `type` property.
-func (scs *ConfigMap) UnmarshalJSON(b []byte) error ***REMOVED***
+func (scs *ConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
+	if len(data) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
+	if len(data) == 4 && string(data) == "null" ***REMOVED***
+		return nil
+	***REMOVED***
+
+	//TODO: use a more sophisticated combination of dec.Token() and dec.More(),
+	// which would allow us to support both arrays and maps for this config?
 	var protoConfigs map[string]protoConfig
-	if err := json.Unmarshal(b, &protoConfigs); err != nil ***REMOVED***
+	if err := strictJSONUnmarshal(data, &protoConfigs); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 

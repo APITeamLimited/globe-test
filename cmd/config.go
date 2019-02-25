@@ -27,10 +27,13 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/kafka"
+	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
@@ -171,6 +174,71 @@ func readEnvConfig() (conf Config, err error) ***REMOVED***
 	return conf, nil
 ***REMOVED***
 
+// This checks for conflicting options and turns any shortcut options (i.e. duration, iterations,
+// stages) into the proper scheduler configuration
+func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
+	result := conf
+	if conf.Duration.Valid ***REMOVED***
+		if conf.Iterations.Valid ***REMOVED***
+			//TODO: make this an error in the next version
+			log.Warnf("Specifying both duration and iterations is deprecated and won't be supported in the future k6 versions")
+		***REMOVED***
+
+		if conf.Stages != nil ***REMOVED***
+			//TODO: make this an error in the next version
+			log.Warnf("Specifying both duration and stages is deprecated and won't be supported in the future k6 versions")
+		***REMOVED***
+
+		if conf.Execution != nil ***REMOVED***
+			return result, errors.New("specifying both duration and execution is not supported")
+		***REMOVED***
+
+		ds := scheduler.NewConstantLoopingVUsConfig(lib.DefaultSchedulerName)
+		ds.VUs = conf.VUs
+		ds.Duration = conf.Duration
+		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+	***REMOVED*** else if conf.Stages != nil ***REMOVED***
+		if conf.Iterations.Valid ***REMOVED***
+			//TODO: make this an error in the next version
+			log.Warnf("Specifying both iterations and stages is deprecated and won't be supported in the future k6 versions")
+		***REMOVED***
+
+		if conf.Execution != nil ***REMOVED***
+			return conf, errors.New("specifying both stages and execution is not supported")
+		***REMOVED***
+
+		ds := scheduler.NewVariableLoopingVUsConfig(lib.DefaultSchedulerName)
+		ds.StartVUs = conf.VUs
+		for _, s := range conf.Stages ***REMOVED***
+			if s.Duration.Valid ***REMOVED***
+				ds.Stages = append(ds.Stages, scheduler.Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
+			***REMOVED***
+		***REMOVED***
+		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+	***REMOVED*** else if conf.Iterations.Valid || conf.Execution == nil ***REMOVED***
+		// Either shared iterations were explicitly specified via the shortcut option, or no execution
+		// parameters were specified in any way, which will run the default 1 iteration in 1 VU
+		if conf.Iterations.Valid && conf.Execution != nil ***REMOVED***
+			return conf, errors.New("specifying both iterations and execution is not supported")
+		***REMOVED***
+
+		ds := scheduler.NewSharedIterationsConfig(lib.DefaultSchedulerName)
+		ds.VUs = conf.VUs
+		if conf.Iterations.Valid ***REMOVED*** // TODO: fix where the default iterations value is set... sigh...
+			ds.Iterations = conf.Iterations
+		***REMOVED***
+
+		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+	***REMOVED***
+
+	//TODO: validate the config; questions:
+	// - separately validate the duration, iterations and stages for better error messages?
+	// - or reuse the execution validation somehow, at the end? or something mixed?
+	// - here or in getConsolidatedConfig() or somewhere else?
+
+	return result, nil
+***REMOVED***
+
 // Assemble the final consolidated configuration from all of the different sources:
 // - start with the CLI-provided options to get shadowed (non-Valid) defaults in there
 // - add the global file config options
@@ -179,6 +247,7 @@ func readEnvConfig() (conf Config, err error) ***REMOVED***
 // - merge the user-supplied CLI flags back in on top, to give them the greatest priority
 // - set some defaults if they weren't previously specified
 // TODO: add better validation, more explicit default values and improve consistency between formats
+// TODO: accumulate all errors and differentiate between the layers?
 func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf Config, err error) ***REMOVED***
 	cliConf.Collectors.InfluxDB = influxdb.NewConfig().Apply(cliConf.Collectors.InfluxDB)
 	cliConf.Collectors.Cloud = cloud.NewConfig().Apply(cliConf.Collectors.Cloud)
@@ -199,5 +268,5 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	***REMOVED***
 	conf = conf.Apply(envConf).Apply(cliConf)
 
-	return conf, nil
+	return buildExecutionConfig(conf)
 ***REMOVED***

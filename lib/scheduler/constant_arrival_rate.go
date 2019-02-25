@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,7 +13,7 @@ const constantArrivalRateType = "constant-arrival-rate"
 func init() ***REMOVED***
 	RegisterConfigType(constantArrivalRateType, func(name string, rawJSON []byte) (Config, error) ***REMOVED***
 		config := NewConstantArrivalRateConfig(name)
-		err := json.Unmarshal(rawJSON, &config)
+		err := strictJSONUnmarshal(rawJSON, &config)
 		return config, err
 	***REMOVED***)
 ***REMOVED***
@@ -23,7 +22,7 @@ func init() ***REMOVED***
 type ConstantArrivalRateConfig struct ***REMOVED***
 	BaseConfig
 	Rate     null.Int           `json:"rate"`
-	TimeUnit types.NullDuration `json:"timeUnit"` //TODO: rename to something else?
+	TimeUnit types.NullDuration `json:"timeUnit"`
 	Duration types.NullDuration `json:"duration"`
 
 	// Initialize `PreAllocatedVUs` number of VUs, and if more than that are needed,
@@ -38,7 +37,6 @@ func NewConstantArrivalRateConfig(name string) ConstantArrivalRateConfig ***REMO
 	return ConstantArrivalRateConfig***REMOVED***
 		BaseConfig: NewBaseConfig(name, constantArrivalRateType, false),
 		TimeUnit:   types.NewNullDuration(1*time.Second, false),
-		//TODO: set some default values for PreAllocatedVUs and MaxVUs?
 	***REMOVED***
 ***REMOVED***
 
@@ -54,7 +52,7 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 		errors = append(errors, fmt.Errorf("the iteration rate should be positive"))
 	***REMOVED***
 
-	if time.Duration(carc.TimeUnit.Duration) < 0 ***REMOVED***
+	if time.Duration(carc.TimeUnit.Duration) <= 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the timeUnit should be more than 0"))
 	***REMOVED***
 
@@ -79,4 +77,19 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	***REMOVED***
 
 	return errors
+***REMOVED***
+
+// GetMaxVUs returns the absolute maximum number of possible concurrently running VUs
+func (carc ConstantArrivalRateConfig) GetMaxVUs() int64 ***REMOVED***
+	return carc.MaxVUs.Int64
+***REMOVED***
+
+// GetMaxDuration returns the maximum duration time for this scheduler, including
+// the specified iterationTimeout, if the iterations are uninterruptible
+func (carc ConstantArrivalRateConfig) GetMaxDuration() time.Duration ***REMOVED***
+	maxDuration := carc.Duration.Duration
+	if !carc.Interruptible.Bool ***REMOVED***
+		maxDuration += carc.IterationTimeout.Duration
+	***REMOVED***
+	return time.Duration(maxDuration)
 ***REMOVED***

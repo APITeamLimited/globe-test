@@ -21,14 +21,11 @@ type BaseConfig struct ***REMOVED***
 	Interruptible    null.Bool          `json:"interruptible"`
 	IterationTimeout types.NullDuration `json:"iterationTimeout"`
 	Env              map[string]string  `json:"env"`
-	Exec             string             `json:"exec"` // function name, externally validated
+	Exec             null.String        `json:"exec"` // function name, externally validated
 	Percentage       float64            `json:"-"`    // 100, unless Split() was called
 
-	// Future extensions: tags, distribution, others?
+	//TODO: future extensions like tags, distribution, others?
 ***REMOVED***
-
-// Make sure we implement the Config interface, even with the BaseConfig!
-var _ Config = &BaseConfig***REMOVED******REMOVED***
 
 // NewBaseConfig returns a default base config with the default values
 func NewBaseConfig(name, configType string, interruptible bool) BaseConfig ***REMOVED***
@@ -56,6 +53,9 @@ func (bc BaseConfig) Validate() (errors []error) ***REMOVED***
 			"percentage should be between %f and 100, but is %f", minPercentage, bc.Percentage,
 		))
 	***REMOVED***
+	if bc.Exec.Valid && bc.Exec.String == "" ***REMOVED***
+		errors = append(errors, fmt.Errorf("exec value cannot be empty"))
+	***REMOVED***
 	// The actually reasonable checks:
 	if bc.StartTime.Valid && bc.StartTime.Duration < 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("scheduler start time should be positive"))
@@ -80,16 +80,4 @@ func (bc BaseConfig) CopyWithPercentage(percentage float64) *BaseConfig ***REMOV
 	c := bc
 	c.Percentage = percentage
 	return &c
-***REMOVED***
-
-// Split splits the BaseConfig with the accurate percentages
-func (bc BaseConfig) Split(percentages []float64) ([]Config, error) ***REMOVED***
-	if err := checkPercentagesSum(percentages); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	configs := make([]Config, len(percentages))
-	for i, p := range percentages ***REMOVED***
-		configs[i] = bc.CopyWithPercentage(p)
-	***REMOVED***
-	return configs, nil
 ***REMOVED***

@@ -1,8 +1,8 @@
 package scheduler
 
 import (
-	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/loadimpact/k6/lib/types"
 	null "gopkg.in/guregu/null.v3"
@@ -13,7 +13,7 @@ const variableLoopingVUsType = "variable-looping-vus"
 func init() ***REMOVED***
 	RegisterConfigType(variableLoopingVUsType, func(name string, rawJSON []byte) (Config, error) ***REMOVED***
 		config := NewVariableLoopingVUsConfig(name)
-		err := json.Unmarshal(rawJSON, &config)
+		err := strictJSONUnmarshal(rawJSON, &config)
 		return config, err
 	***REMOVED***)
 ***REMOVED***
@@ -21,7 +21,7 @@ func init() ***REMOVED***
 // Stage contains
 type Stage struct ***REMOVED***
 	Duration types.NullDuration `json:"duration"`
-	Target   null.Int           `json:"target"` // TODO: maybe rename this to endVUs?
+	Target   null.Int           `json:"target"` // TODO: maybe rename this to endVUs? something else?
 ***REMOVED***
 
 // VariableLoopingVUsConfig stores the configuration for the stages scheduler
@@ -40,29 +40,35 @@ func NewVariableLoopingVUsConfig(name string) VariableLoopingVUsConfig ***REMOVE
 var _ Config = &VariableLoopingVUsConfig***REMOVED******REMOVED***
 
 // Validate makes sure all options are configured and valid
-func (ls VariableLoopingVUsConfig) Validate() []error ***REMOVED***
-	errors := ls.BaseConfig.Validate()
-	if ls.StartVUs.Int64 < 0 ***REMOVED***
+func (vlvc VariableLoopingVUsConfig) Validate() []error ***REMOVED***
+	errors := vlvc.BaseConfig.Validate()
+	if vlvc.StartVUs.Int64 < 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of start VUs shouldn't be negative"))
 	***REMOVED***
 
-	if len(ls.Stages) == 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("at least one stage has to be specified"))
-	***REMOVED*** else ***REMOVED***
-		for i, s := range ls.Stages ***REMOVED***
-			stageNum := i + 1
-			if !s.Duration.Valid ***REMOVED***
-				errors = append(errors, fmt.Errorf("stage %d doesn't have a duration", stageNum))
-			***REMOVED*** else if s.Duration.Duration < 0 ***REMOVED***
-				errors = append(errors, fmt.Errorf("the duration for stage %d shouldn't be negative", stageNum))
-			***REMOVED***
-			if !s.Target.Valid ***REMOVED***
-				errors = append(errors, fmt.Errorf("stage %d doesn't have a target", stageNum))
-			***REMOVED*** else if s.Target.Int64 < 0 ***REMOVED***
-				errors = append(errors, fmt.Errorf("the target for stage %d shouldn't be negative", stageNum))
-			***REMOVED***
+	return append(errors, validateStages(vlvc.Stages)...)
+***REMOVED***
+
+// GetMaxVUs returns the absolute maximum number of possible concurrently running VUs
+func (vlvc VariableLoopingVUsConfig) GetMaxVUs() int64 ***REMOVED***
+	maxVUs := vlvc.StartVUs.Int64
+	for _, s := range vlvc.Stages ***REMOVED***
+		if s.Target.Int64 > maxVUs ***REMOVED***
+			maxVUs = s.Target.Int64
 		***REMOVED***
 	***REMOVED***
+	return maxVUs
+***REMOVED***
 
-	return errors
+// GetMaxDuration returns the maximum duration time for this scheduler, including
+// the specified iterationTimeout, if the iterations are uninterruptible
+func (vlvc VariableLoopingVUsConfig) GetMaxDuration() time.Duration ***REMOVED***
+	var maxDuration types.Duration
+	for _, s := range vlvc.Stages ***REMOVED***
+		maxDuration += s.Duration.Duration
+	***REMOVED***
+	if !vlvc.Interruptible.Bool ***REMOVED***
+		maxDuration += vlvc.IterationTimeout.Duration
+	***REMOVED***
+	return time.Duration(maxDuration)
 ***REMOVED***

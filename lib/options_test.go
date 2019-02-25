@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,17 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, oneStage, opts.Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 		assert.Equal(t, oneStage, Options***REMOVED******REMOVED***.Apply(opts).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 	***REMOVED***)
+	t.Run("Execution", func(t *testing.T) ***REMOVED***
+		sched := scheduler.NewConstantLoopingVUsConfig("test")
+		sched.VUs = null.IntFrom(123)
+		sched.Duration = types.NullDurationFrom(3 * time.Minute)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Execution: scheduler.ConfigMap***REMOVED***"test": sched***REMOVED******REMOVED***)
+		cs, ok := opts.Execution["test"].(scheduler.ConstantLoopingVUsConfig)
+		assert.True(t, ok)
+		assert.Equal(t, int64(123), cs.VUs.Int64)
+		assert.Equal(t, "3m0s", cs.Duration.String())
+	***REMOVED***)
+	//TODO: test that any execution option overwrites any other lower-level options
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.RPS.Valid)
