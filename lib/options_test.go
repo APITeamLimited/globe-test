@@ -34,7 +34,8 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/guregu/null.v3"
+	"github.com/stretchr/testify/require"
+	null "gopkg.in/guregu/null.v3"
 )
 
 func TestOptions(t *testing.T) ***REMOVED***
@@ -490,5 +491,25 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+
+	var testMatrix = map[string]map[string]bool***REMOVED***
+		"":                         ***REMOVED******REMOVED***,
+		"test":                     ***REMOVED***"test": true***REMOVED***,
+		"test1,test2":              ***REMOVED***"test1": true, "test2": true***REMOVED***,
+		"   test1  ,  test2  ":     ***REMOVED***"test1": true, "test2": true***REMOVED***,
+		"   test1  ,   ,  test2  ": ***REMOVED***"test1": true, "test2": true***REMOVED***,
+		"   test1  ,,  test2  ,,":  ***REMOVED***"test1": true, "test2": true***REMOVED***,
+	***REMOVED***
+
+	for input, expected := range testMatrix ***REMOVED***
+		var set = new(TagSet)
+		err := set.UnmarshalText([]byte(input))
+		require.NoError(t, err)
+
+		require.Equal(t, (map[string]bool)(*set), expected)
 	***REMOVED***
 ***REMOVED***

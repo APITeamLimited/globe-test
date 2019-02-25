@@ -22,6 +22,8 @@ package crypto
 
 import (
 	"context"
+	"crypto/rand"
+	"errors"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -29,6 +31,12 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/stretchr/testify/assert"
 )
+
+type MockReader struct***REMOVED******REMOVED***
+
+func (MockReader) Read(p []byte) (n int, err error) ***REMOVED***
+	return -1, errors.New("Contrived failure")
+***REMOVED***
 
 func TestCryptoAlgorithms(t *testing.T) ***REMOVED***
 	if testing.Short() ***REMOVED***
@@ -40,6 +48,33 @@ func TestCryptoAlgorithms(t *testing.T) ***REMOVED***
 	ctx := context.Background()
 	ctx = common.WithRuntime(ctx, rt)
 	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+
+	t.Run("RandomBytesSuccess", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+		let bytes = crypto.randomBytes(5);
+		if (bytes.length !== 5) ***REMOVED***
+			throw new Error("Incorrect size: " + bytes.length);
+		***REMOVED***`)
+
+		assert.NoError(t, err)
+	***REMOVED***)
+
+	t.Run("RandomBytesInvalidSize", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, `
+		crypto.randomBytes(-1);`)
+
+		assert.Error(t, err)
+	***REMOVED***)
+
+	t.Run("RandomBytesFailure", func(t *testing.T) ***REMOVED***
+		SavedReader := rand.Reader
+		rand.Reader = MockReader***REMOVED******REMOVED***
+		_, err := common.RunString(rt, `
+		crypto.randomBytes(5);`)
+		rand.Reader = SavedReader
+
+		assert.Error(t, err)
+	***REMOVED***)
 
 	t.Run("MD4", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
