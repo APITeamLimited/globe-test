@@ -326,15 +326,15 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	// Still, if more than one of those options is simultaneously specified in the same
 	// config tier, they will be preserved, so the validation after we've consolidated
 	// all of the options can return an error.
-	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || o.Execution != nil ***REMOVED***
-		//TODO: uncomment this after we start using the new schedulers
-		/*
+	//TODO: uncomment this after we start using the new schedulers
+	/*
+		if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || o.Execution != nil ***REMOVED***
 			o.Duration = types.NewNullDuration(0, false)
 			o.Iterations = null.NewInt(0, false)
 			o.Stages = nil
 			o.Execution = nil
-		*/
-	***REMOVED***
+		***REMOVED***
+	*/
 
 	if opts.Duration.Valid ***REMOVED***
 		o.Duration = opts.Duration

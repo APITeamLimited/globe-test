@@ -73,8 +73,8 @@ var testCases = []configMapTestCase***REMOVED***
 			sched.IterationTimeout = types.NullDurationFrom(15 * time.Second)
 			sched.StartVUs = null.IntFrom(20)
 			sched.Stages = []Stage***REMOVED***
-				Stage***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(60 * time.Second)***REMOVED***,
-				Stage***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(120 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(60 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(120 * time.Second)***REMOVED***,
 			***REMOVED***
 			require.Equal(t, cm, ConfigMap***REMOVED***"varloops": sched***REMOVED***)
 			assert.Equal(t, int64(30), cm["varloops"].GetMaxVUs())
@@ -160,8 +160,8 @@ var testCases = []configMapTestCase***REMOVED***
 			sched := NewVariableArrivalRateConfig("varrival")
 			sched.StartRate = null.IntFrom(10)
 			sched.Stages = []Stage***REMOVED***
-				Stage***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(180 * time.Second)***REMOVED***,
-				Stage***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(300 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(180 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(300 * time.Second)***REMOVED***,
 			***REMOVED***
 			sched.TimeUnit = types.NullDurationFrom(30 * time.Second)
 			sched.PreAllocatedVUs = null.IntFrom(20)
