@@ -19,7 +19,7 @@ type configMapTestCase struct ***REMOVED***
 	customValidator       func(t *testing.T, cm ConfigMap)
 ***REMOVED***
 
-var testCases = []configMapTestCase***REMOVED***
+var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***"", true, false, nil***REMOVED***,
 	***REMOVED***"1234", true, false, nil***REMOVED***,
 	***REMOVED***"asdf", true, false, nil***REMOVED***,
@@ -183,7 +183,8 @@ var testCases = []configMapTestCase***REMOVED***
 ***REMOVED***
 
 func TestConfigMapParsingAndValidation(t *testing.T) ***REMOVED***
-	for i, tc := range testCases ***REMOVED***
+	t.Parallel()
+	for i, tc := range configMapTestCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) ***REMOVED***
 			var result ConfigMap
