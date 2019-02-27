@@ -44,7 +44,7 @@ import (
 
 // GetTLSClientConfig returns a TLS config that trusts the supplied
 // httptest.Server certificate as well as all the system root certificates
-func GetTLSClientConfig(t *testing.T, srv *httptest.Server) *tls.Config ***REMOVED***
+func GetTLSClientConfig(t testing.TB, srv *httptest.Server) *tls.Config ***REMOVED***
 	var err error
 
 	certs := x509.NewCertPool()
@@ -87,7 +87,7 @@ type HTTPMultiBin struct ***REMOVED***
 	Cleanup         func()
 ***REMOVED***
 
-func getWebsocketEchoHandler(t *testing.T) http.Handler ***REMOVED***
+func getWebsocketEchoHandler(t testing.TB) http.Handler ***REMOVED***
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 		t.Logf("[%p %s] Upgrading to websocket connection...", req, req.URL)
 		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
@@ -104,7 +104,7 @@ func getWebsocketEchoHandler(t *testing.T) http.Handler ***REMOVED***
 		t.Logf("[%p %s] Wrote back message '%s' of type %d and closed the connection", req, req.URL, message, mt)
 	***REMOVED***)
 ***REMOVED***
-func getWebsocketCloserHandler(t *testing.T) http.Handler ***REMOVED***
+func getWebsocketCloserHandler(t testing.TB) http.Handler ***REMOVED***
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
 		if !assert.NoError(t, err) ***REMOVED***
@@ -115,7 +115,7 @@ func getWebsocketCloserHandler(t *testing.T) http.Handler ***REMOVED***
 ***REMOVED***
 
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
-func NewHTTPMultiBin(t *testing.T) *HTTPMultiBin ***REMOVED***
+func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
 	mux := http.NewServeMux()
 	mux.Handle("/ws-echo", getWebsocketEchoHandler(t))
