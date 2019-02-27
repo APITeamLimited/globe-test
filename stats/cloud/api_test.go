@@ -123,7 +123,25 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 
 	assert.Equal(t, 1, called)
 	assert.Nil(t, resp)
-	assert.EqualError(t, err, "403 Not allowed [err code 5]")
+	assert.EqualError(t, err, "(403/E5) Not allowed")
+***REMOVED***
+
+func TestDetailsError(t *testing.T) ***REMOVED***
+	called := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		called++
+		w.WriteHeader(http.StatusForbidden)
+		fprintf(t, w, `***REMOVED***"error": ***REMOVED***"code": 0, "message": "Validation failed", "details": ***REMOVED*** "name": ["Shorter than minimum length 2."]***REMOVED******REMOVED******REMOVED***`)
+	***REMOVED***))
+	defer server.Close()
+
+	client := NewClient("token", server.URL, "1.0")
+
+	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
+
+	assert.Equal(t, 1, called)
+	assert.Nil(t, resp)
+	assert.EqualError(t, err, "(403) Validation failed\n name: Shorter than minimum length 2.")
 ***REMOVED***
 
 func TestRetry(t *testing.T) ***REMOVED***
