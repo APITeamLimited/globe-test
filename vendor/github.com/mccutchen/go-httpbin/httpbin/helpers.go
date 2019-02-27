@@ -27,16 +27,6 @@ func getRequestHeaders(r *http.Request) http.Header ***REMOVED***
 	return h
 ***REMOVED***
 
-// Copies all headers from src to dst
-// From https://golang.org/src/net/http/httputil/reverseproxy.go#L109
-func copyHeader(dst, src http.Header) ***REMOVED***
-	for k, vv := range src ***REMOVED***
-		for _, v := range vv ***REMOVED***
-			dst.Add(k, v)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
 func getOrigin(r *http.Request) string ***REMOVED***
 	origin := r.Header.Get("X-Forwarded-For")
 	if origin == "" ***REMOVED***

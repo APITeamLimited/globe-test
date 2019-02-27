@@ -8,7 +8,7 @@ import (
 
 // Default configuration values
 const (
-	DefaultMaxMemory   int64 = 1024 * 1024
+	DefaultMaxBodySize int64 = 1024 * 1024
 	DefaultMaxDuration       = 10 * time.Second
 )
 
@@ -76,20 +76,17 @@ type streamResponse struct ***REMOVED***
 	URL     string      `json:"url"`
 ***REMOVED***
 
-// Options are used to configure HTTPBin
-type Options struct ***REMOVED***
-	// How much memory a request is allowed to consume in bytes, as a limit on
-	// the size of incoming request bodies and on responses generated
-	MaxMemory int64
-
-	// Maximum duration of a request, for those requests that allow user
-	// control over timing (e.g. /delay)
-	MaxDuration time.Duration
-***REMOVED***
-
 // HTTPBin contains the business logic
 type HTTPBin struct ***REMOVED***
-	options *Options
+	// Max size of an incoming request generated response body, in bytes
+	MaxBodySize int64
+
+	// Max duration of a request, for those requests that allow user control
+	// over timing (e.g. /delay)
+	MaxDuration time.Duration
+
+	// Observer called with the result of each handled request
+	Observer Observer
 ***REMOVED***
 
 // Handler returns an http.Handler that exposes all HTTPBin endpoints
@@ -173,25 +170,49 @@ func (h *HTTPBin) Handler() http.Handler ***REMOVED***
 	// Apply global middleware
 	var handler http.Handler
 	handler = mux
-	handler = limitRequestSize(h.options.MaxMemory, handler)
-	handler = metaRequests(handler)
-	handler = logger(handler)
+	handler = limitRequestSize(h.MaxBodySize, handler)
+	handler = preflight(handler)
+	handler = autohead(handler)
+	if h.Observer != nil ***REMOVED***
+		handler = observe(h.Observer, handler)
+	***REMOVED***
+
 	return handler
 ***REMOVED***
 
-// NewHTTPBin creates a new HTTPBin instance with default options
-func NewHTTPBin() *HTTPBin ***REMOVED***
-	return &HTTPBin***REMOVED***
-		options: &Options***REMOVED***
-			MaxMemory:   DefaultMaxMemory,
-			MaxDuration: DefaultMaxDuration,
-		***REMOVED***,
+// New creates a new HTTPBin instance
+func New(opts ...OptionFunc) *HTTPBin ***REMOVED***
+	h := &HTTPBin***REMOVED***
+		MaxBodySize: DefaultMaxBodySize,
+		MaxDuration: DefaultMaxDuration,
+	***REMOVED***
+	for _, opt := range opts ***REMOVED***
+		opt(h)
+	***REMOVED***
+	return h
+***REMOVED***
+
+// OptionFunc uses the "functional options" pattern to customize an HTTPBin
+// instance
+type OptionFunc func(*HTTPBin)
+
+// WithMaxBodySize sets the maximum amount of memory
+func WithMaxBodySize(m int64) OptionFunc ***REMOVED***
+	return func(h *HTTPBin) ***REMOVED***
+		h.MaxBodySize = m
 	***REMOVED***
 ***REMOVED***
 
-// NewHTTPBinWithOptions creates a new HTTPBin instance with the given options
-func NewHTTPBinWithOptions(options *Options) *HTTPBin ***REMOVED***
-	return &HTTPBin***REMOVED***
-		options: options,
+// WithMaxDuration sets the maximum amount of time httpbin may take to respond
+func WithMaxDuration(d time.Duration) OptionFunc ***REMOVED***
+	return func(h *HTTPBin) ***REMOVED***
+		h.MaxDuration = d
+	***REMOVED***
+***REMOVED***
+
+// WithObserver sets the request observer callback
+func WithObserver(o Observer) OptionFunc ***REMOVED***
+	return func(h *HTTPBin) ***REMOVED***
+		h.Observer = o
 	***REMOVED***
 ***REMOVED***

@@ -178,29 +178,29 @@ func (h *HTTPBin) Status(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		303: redirectHeaders,
 		305: redirectHeaders,
 		307: redirectHeaders,
-		401: &statusCase***REMOVED***
+		401: ***REMOVED***
 			headers: map[string]string***REMOVED***
 				"WWW-Authenticate": `Basic realm="Fake Realm"`,
 			***REMOVED***,
 		***REMOVED***,
-		402: &statusCase***REMOVED***
+		402: ***REMOVED***
 			body: []byte("Fuck you, pay me!"),
 			headers: map[string]string***REMOVED***
 				"X-More-Info": "http://vimeo.com/22053820",
 			***REMOVED***,
 		***REMOVED***,
-		406: &statusCase***REMOVED***
+		406: ***REMOVED***
 			body: notAcceptableBody,
 			headers: map[string]string***REMOVED***
 				"Content-Type": jsonContentType,
 			***REMOVED***,
 		***REMOVED***,
-		407: &statusCase***REMOVED***
+		407: ***REMOVED***
 			headers: map[string]string***REMOVED***
 				"Proxy-Authenticate": `Basic realm="Fake Realm"`,
 			***REMOVED***,
 		***REMOVED***,
-		418: &statusCase***REMOVED***
+		418: ***REMOVED***
 			body: []byte("I'm a teapot!"),
 			headers: map[string]string***REMOVED***
 				"X-More-Info": "http://tools.ietf.org/html/rfc2324",
@@ -462,7 +462,7 @@ func (h *HTTPBin) Delay(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		return
 	***REMOVED***
 
-	delay, err := parseBoundedDuration(parts[2], 0, h.options.MaxDuration)
+	delay, err := parseBoundedDuration(parts[2], 0, h.MaxDuration)
 	if err != nil ***REMOVED***
 		http.Error(w, "Invalid duration", http.StatusBadRequest)
 		return
@@ -490,7 +490,7 @@ func (h *HTTPBin) Drip(w http.ResponseWriter, r *http.Request) ***REMOVED***
 
 	userDuration := q.Get("duration")
 	if userDuration != "" ***REMOVED***
-		duration, err = parseBoundedDuration(userDuration, 0, h.options.MaxDuration)
+		duration, err = parseBoundedDuration(userDuration, 0, h.MaxDuration)
 		if err != nil ***REMOVED***
 			http.Error(w, "Invalid duration", http.StatusBadRequest)
 			return
@@ -499,7 +499,7 @@ func (h *HTTPBin) Drip(w http.ResponseWriter, r *http.Request) ***REMOVED***
 
 	userDelay := q.Get("delay")
 	if userDelay != "" ***REMOVED***
-		delay, err = parseBoundedDuration(userDelay, 0, h.options.MaxDuration)
+		delay, err = parseBoundedDuration(userDelay, 0, h.MaxDuration)
 		if err != nil ***REMOVED***
 			http.Error(w, "Invalid delay", http.StatusBadRequest)
 			return
@@ -509,7 +509,7 @@ func (h *HTTPBin) Drip(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	userNumBytes := q.Get("numbytes")
 	if userNumBytes != "" ***REMOVED***
 		numbytes, err = strconv.ParseInt(userNumBytes, 10, 64)
-		if err != nil || numbytes <= 0 || numbytes > h.options.MaxMemory ***REMOVED***
+		if err != nil || numbytes <= 0 || numbytes > h.MaxBodySize ***REMOVED***
 			http.Error(w, "Invalid numbytes", http.StatusBadRequest)
 			return
 		***REMOVED***
@@ -524,7 +524,7 @@ func (h *HTTPBin) Drip(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if duration+delay > h.options.MaxDuration ***REMOVED***
+	if duration+delay > h.MaxDuration ***REMOVED***
 		http.Error(w, "Too much time", http.StatusBadRequest)
 		return
 	***REMOVED***
@@ -573,7 +573,7 @@ func (h *HTTPBin) Range(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	w.Header().Add("ETag", fmt.Sprintf("range%d", numBytes))
 	w.Header().Add("Accept-Ranges", "bytes")
 
-	if numBytes <= 0 || numBytes > h.options.MaxMemory ***REMOVED***
+	if numBytes <= 0 || numBytes > h.MaxBodySize ***REMOVED***
 		http.Error(w, "Invalid number of bytes", http.StatusBadRequest)
 		return
 	***REMOVED***
