@@ -22,37 +22,30 @@ package http
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/dop251/goja"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 )
 
-// A URL wraps net.URL, and preserves the template (if any) the URL was constructed from.
-type URL struct ***REMOVED***
-	URL       *url.URL `js:"-"`
-	Name      string   `js:"name"` // http://example.com/thing/$***REMOVED******REMOVED***/
-	URLString string   `js:"url"`  // http://example.com/thing/1234/
-***REMOVED***
-
 // ToURL tries to convert anything passed to it to a k6 URL struct
-func ToURL(u interface***REMOVED******REMOVED***) (URL, error) ***REMOVED***
+func ToURL(u interface***REMOVED******REMOVED***) (httpext.URL, error) ***REMOVED***
 	switch tu := u.(type) ***REMOVED***
-	case URL:
+	case httpext.URL:
 		// Handling of http.url`http://example.com/***REMOVED***$id***REMOVED***`
 		return tu, nil
 	case string:
 		// Handling of "http://example.com/"
-		u, err := url.Parse(tu)
-		return URL***REMOVED***u, tu, tu***REMOVED***, err
+		return httpext.NewURL(tu, tu)
 	case goja.Value:
 		// Unwrap goja values
 		return ToURL(tu.Export())
 	default:
-		return URL***REMOVED******REMOVED***, fmt.Errorf("invalid URL value '%#v'", u)
+		return httpext.URL***REMOVED******REMOVED***, fmt.Errorf("invalid URL value '%#v'", u)
 	***REMOVED***
 ***REMOVED***
 
-func (http *HTTP) Url(parts []string, pieces ...string) (URL, error) ***REMOVED***
+// URL creates new URL from the provided parts
+func (http *HTTP) URL(parts []string, pieces ...string) (httpext.URL, error) ***REMOVED***
 	var name, urlstr string
 	for i, part := range parts ***REMOVED***
 		name += part
@@ -62,6 +55,5 @@ func (http *HTTP) Url(parts []string, pieces ...string) (URL, error) ***REMOVED*
 			urlstr += pieces[i]
 		***REMOVED***
 	***REMOVED***
-	u, err := url.Parse(urlstr)
-	return URL***REMOVED***u, name, urlstr***REMOVED***, err
+	return httpext.NewURL(urlstr, name)
 ***REMOVED***

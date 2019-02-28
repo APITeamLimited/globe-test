@@ -29,6 +29,7 @@ import (
 
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/pkg/errors"
 
 	"gopkg.in/guregu/null.v3"
@@ -54,7 +55,7 @@ type Collector struct ***REMOVED***
 	runStatus lib.RunStatus
 
 	bufferMutex      sync.Mutex
-	bufferHTTPTrails []*netext.Trail
+	bufferHTTPTrails []*httpext.Trail
 	bufferSamples    []*Sample
 
 	opts lib.Options
@@ -242,11 +243,11 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 	***REMOVED***
 
 	newSamples := []*Sample***REMOVED******REMOVED***
-	newHTTPTrails := []*netext.Trail***REMOVED******REMOVED***
+	newHTTPTrails := []*httpext.Trail***REMOVED******REMOVED***
 
 	for _, sampleContainer := range sampleContainers ***REMOVED***
 		switch sc := sampleContainer.(type) ***REMOVED***
-		case *netext.Trail:
+		case *httpext.Trail:
 			// Check if aggregation is enabled,
 			if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
 				newHTTPTrails = append(newHTTPTrails, sc)

@@ -22,122 +22,41 @@ package http
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 
-	"github.com/tidwall/gjson"
-
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/modules/k6/html"
-	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 )
 
-// ResponseTimings is a struct to put all timings for a given HTTP response/request
-type ResponseTimings struct ***REMOVED***
-	Duration       float64 `json:"duration"`
-	Blocked        float64 `json:"blocked"`
-	LookingUp      float64 `json:"looking_up"`
-	Connecting     float64 `json:"connecting"`
-	TLSHandshaking float64 `json:"tls_handshaking"`
-	Sending        float64 `json:"sending"`
-	Waiting        float64 `json:"waiting"`
-	Receiving      float64 `json:"receiving"`
-***REMOVED***
-
 // Response is a representation of an HTTP response to be returned to the goja VM
-type Response struct ***REMOVED***
-	ctx context.Context
+// TODO: refactor after https://github.com/dop251/goja/issues/84
+type Response httpext.Response
 
-	RemoteIP       string                   `json:"remote_ip"`
-	RemotePort     int                      `json:"remote_port"`
-	URL            string                   `json:"url"`
-	Status         int                      `json:"status"`
-	Proto          string                   `json:"proto"`
-	Headers        map[string]string        `json:"headers"`
-	Cookies        map[string][]*HTTPCookie `json:"cookies"`
-	Body           interface***REMOVED******REMOVED***              `json:"body"`
-	Timings        ResponseTimings          `json:"timings"`
-	TLSVersion     string                   `json:"tls_version"`
-	TLSCipherSuite string                   `json:"tls_cipher_suite"`
-	OCSP           netext.OCSP              `js:"ocsp" json:"ocsp"`
-	Error          string                   `json:"error"`
-	ErrorCode      int                      `json:"error_code"`
-	Request        Request                  `json:"request"`
-
-	cachedJSON    goja.Value
-	validatedJSON bool
+// GetCtx returns the Context of the httpext.Response
+func (res *Response) GetCtx() context.Context ***REMOVED***
+	return ((*httpext.Response)(res)).GetCtx()
 ***REMOVED***
 
-// This should be used instead of setting Error as it will correctly set ErrorCode as well
-func (res *Response) setError(err error) ***REMOVED***
-	var errorCode, errorMsg = errorCodeForError(err)
-	res.ErrorCode = int(errorCode)
-	if errorMsg == "" ***REMOVED***
-		errorMsg = err.Error()
-	***REMOVED***
-	res.Error = errorMsg
-***REMOVED***
-
-// This should be used instead of setting Error as it will correctly set ErrorCode as well
-func (res *Response) setStatusCode(statusCode int) ***REMOVED***
-	res.Status = statusCode
-	if statusCode >= 400 && statusCode < 600 ***REMOVED***
-		res.ErrorCode = 1000 + statusCode
-		// TODO: maybe set the res.Error to some custom message
-	***REMOVED***
-***REMOVED***
-
-func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
-	tlsInfo, oscp := netext.ParseTLSConnState(tlsState)
-	res.TLSVersion = tlsInfo.Version
-	res.TLSCipherSuite = tlsInfo.CipherSuite
-	res.OCSP = oscp
+func responseFromHttpext(resp *httpext.Response) *Response ***REMOVED***
+	res := Response(*resp)
+	return &res
 ***REMOVED***
 
 // JSON parses the body of a response as json and returns it to the goja VM
 func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
-	hasSelector := len(selector) > 0
-	if res.cachedJSON == nil || hasSelector ***REMOVED***
-		var v interface***REMOVED******REMOVED***
-		var body []byte
-		switch b := res.Body.(type) ***REMOVED***
-		case []byte:
-			body = b
-		case string:
-			body = []byte(b)
-		default:
-			common.Throw(common.GetRuntime(res.ctx), errors.New("invalid response type"))
-		***REMOVED***
-
-		if hasSelector ***REMOVED***
-
-			if !res.validatedJSON ***REMOVED***
-				if !gjson.ValidBytes(body) ***REMOVED***
-					return goja.Undefined()
-				***REMOVED***
-				res.validatedJSON = true
-			***REMOVED***
-
-			result := gjson.GetBytes(body, selector[0])
-
-			if !result.Exists() ***REMOVED***
-				return goja.Undefined()
-			***REMOVED***
-			return common.GetRuntime(res.ctx).ToValue(result.Value())
-		***REMOVED***
-
-		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
-			common.Throw(common.GetRuntime(res.ctx), err)
-		***REMOVED***
-		res.validatedJSON = true
-		res.cachedJSON = common.GetRuntime(res.ctx).ToValue(v)
+	v, err := ((*httpext.Response)(res)).JSON(selector...)
+	if err != nil ***REMOVED***
+		common.Throw(common.GetRuntime(res.GetCtx()), err)
 	***REMOVED***
-	return res.cachedJSON
+	if v == nil ***REMOVED***
+		return goja.Undefined()
+	***REMOVED***
+	return common.GetRuntime(res.GetCtx()).ToValue(v)
 ***REMOVED***
 
 // HTML returns the body as an html.Selection
@@ -149,12 +68,12 @@ func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
 	case string:
 		body = b
 	default:
-		common.Throw(common.GetRuntime(res.ctx), errors.New("invalid response type"))
+		common.Throw(common.GetRuntime(res.GetCtx()), errors.New("invalid response type"))
 	***REMOVED***
 
-	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.ctx, body)
+	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.GetCtx(), body)
 	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.ctx), err)
+		common.Throw(common.GetRuntime(res.GetCtx()), err)
 	***REMOVED***
 	sel.URL = res.URL
 	if len(selector) > 0 ***REMOVED***
@@ -166,7 +85,7 @@ func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
 // SubmitForm parses the body as an html looking for a from and then submitting it
 // TODO: document the actual arguments that can be provided
 func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVED***
-	rt := common.GetRuntime(res.ctx)
+	rt := common.GetRuntime(res.GetCtx())
 
 	formSelector := "form"
 	submitSelector := "[type=\"submit\"]"
@@ -244,15 +163,15 @@ func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVE
 			q.Add(k, v.String())
 		***REMOVED***
 		requestURL.RawQuery = q.Encode()
-		return New().Request(res.ctx, requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
+		return New().Request(res.GetCtx(), requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
 	***REMOVED***
-	return New().Request(res.ctx, requestMethod, rt.ToValue(requestURL.String()), rt.ToValue(values), requestParams)
+	return New().Request(res.GetCtx(), requestMethod, rt.ToValue(requestURL.String()), rt.ToValue(values), requestParams)
 ***REMOVED***
 
 // ClickLink parses the body as an html, looks for a link and than makes a request as if the link was
 // clicked
 func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED***
-	rt := common.GetRuntime(res.ctx)
+	rt := common.GetRuntime(res.GetCtx())
 
 	selector := "a[href]"
 	requestParams := goja.Null()
@@ -287,5 +206,5 @@ func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED
 	***REMOVED***
 	requestURL := responseURL.ResolveReference(hrefURL)
 
-	return New().Get(res.ctx, rt.ToValue(requestURL.String()), requestParams)
+	return New().Get(res.GetCtx(), rt.ToValue(requestURL.String()), requestParams)
 ***REMOVED***

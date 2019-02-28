@@ -21,15 +21,14 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dop251/goja"
 	"net/http"
 	"net/url"
 	"testing"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 )
@@ -372,9 +371,6 @@ func TestResponse(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func BenchmarkResponseJson(b *testing.B) ***REMOVED***
-	ctx := context.Background()
-	rt := goja.New()
-	ctx = common.WithRuntime(ctx, rt)
 	testCases := []struct ***REMOVED***
 		selector string
 	***REMOVED******REMOVED***
@@ -390,7 +386,7 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
 			for n := 0; n < b.N; n++ ***REMOVED***
-				resp := &Response***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+				resp := responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
 				resp.JSON(tc.selector)
 			***REMOVED***
 		***REMOVED***)
@@ -398,7 +394,7 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 
 	b.Run("Without selector", func(b *testing.B) ***REMOVED***
 		for n := 0; n < b.N; n++ ***REMOVED***
-			resp := &Response***REMOVED***ctx: ctx, Body: jsonData***REMOVED***
+			resp := responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
 			resp.JSON()
 		***REMOVED***
 	***REMOVED***)

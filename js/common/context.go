@@ -29,21 +29,8 @@ import (
 type ctxKey int
 
 const (
-	ctxKeyState ctxKey = iota
-	ctxKeyRuntime
+	ctxKeyRuntime ctxKey = iota
 )
-
-func WithState(ctx context.Context, state *State) context.Context ***REMOVED***
-	return context.WithValue(ctx, ctxKeyState, state)
-***REMOVED***
-
-func GetState(ctx context.Context) *State ***REMOVED***
-	v := ctx.Value(ctxKeyState)
-	if v == nil ***REMOVED***
-		return nil
-	***REMOVED***
-	return v.(*State)
-***REMOVED***
 
 func WithRuntime(ctx context.Context, rt *goja.Runtime) context.Context ***REMOVED***
 	return context.WithValue(ctx, ctxKeyRuntime, rt)

@@ -44,7 +44,13 @@ var (
 	)
 )
 
-// Returns the JS name for an exported struct field. The name is snake_cased, with respect for
+// if a fieldName is the key of this map exactly than the value for the given key should be used as
+// the name of the field in js
+var fieldNameExceptions = map[string]string***REMOVED***
+	"OCSP": "ocsp",
+***REMOVED***
+
+// FieldName Returns the JS name for an exported struct field. The name is snake_cased, with respect for
 // certain common initialisms (URL, ID, HTTP, etc).
 func FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED***
 	// PkgPath is non-empty for unexported fields.
@@ -61,18 +67,24 @@ func FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED***
 		return tag
 	***REMOVED***
 
+	if exception, ok := fieldNameExceptions[f.Name]; ok ***REMOVED***
+		return exception
+	***REMOVED***
+
 	// Default to lowercasing the first character of the field name.
 	return snaker.CamelToSnake(f.Name)
 ***REMOVED***
 
 // if a methodName is the key of this map exactly than the value for the given key should be used as
 // the name of the method in js
-var methodNameExceptions map[string]string = map[string]string***REMOVED***
+var methodNameExceptions = map[string]string***REMOVED***
 	"JSON": "json",
 	"HTML": "html",
+	"URL":  "url",
+	"OCSP": "ocsp",
 ***REMOVED***
 
-// Returns the JS name for an exported method. The first letter of the method's name is
+// MethodName Returns the JS name for an exported method. The first letter of the method's name is
 // lowercased, otherwise it is unaltered.
 func MethodName(t reflect.Type, m reflect.Method) string ***REMOVED***
 	// A field with a name beginning with an X is a constructor, and just gets the prefix stripped.
@@ -91,11 +103,15 @@ func MethodName(t reflect.Type, m reflect.Method) string ***REMOVED***
 // FieldNameMapper for goja.Runtime.SetFieldNameMapper()
 type FieldNameMapper struct***REMOVED******REMOVED***
 
+// FieldName is part of the goja.FieldNameMapper interface
+// https://godoc.org/github.com/dop251/goja#FieldNameMapper
 func (FieldNameMapper) FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED*** return FieldName(t, f) ***REMOVED***
 
+// MethodName is part of the goja.FieldNameMapper interface
+// https://godoc.org/github.com/dop251/goja#FieldNameMapper
 func (FieldNameMapper) MethodName(t reflect.Type, m reflect.Method) string ***REMOVED*** return MethodName(t, m) ***REMOVED***
 
-// Binds an object's members to the global scope. Returns a function that un-binds them.
+// BindToGlobal Binds an object's members to the global scope. Returns a function that un-binds them.
 // Note that this will panic if passed something that isn't a struct; please don't do that.
 func BindToGlobal(rt *goja.Runtime, data map[string]interface***REMOVED******REMOVED***) func() ***REMOVED***
 	keys := make([]string, len(data))
@@ -113,6 +129,7 @@ func BindToGlobal(rt *goja.Runtime, data map[string]interface***REMOVED******REM
 	***REMOVED***
 ***REMOVED***
 
+// Bind the provided value v to the provided runtime
 func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *context.Context) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	exports := make(map[string]interface***REMOVED******REMOVED***)
 
