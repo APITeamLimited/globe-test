@@ -50,6 +50,8 @@ type PerVUIteationsConfig struct ***REMOVED***
 func NewPerVUIterationsConfig(name string) PerVUIteationsConfig ***REMOVED***
 	return PerVUIteationsConfig***REMOVED***
 		BaseConfig:  NewBaseConfig(name, perVUIterationsType, false),
+		VUs:         null.NewInt(1, false),
+		Iterations:  null.NewInt(1, false),
 		MaxDuration: types.NewNullDuration(1*time.Hour, false),
 	***REMOVED***
 ***REMOVED***
@@ -60,15 +62,11 @@ var _ Config = &PerVUIteationsConfig***REMOVED******REMOVED***
 // Validate makes sure all options are configured and valid
 func (pvic PerVUIteationsConfig) Validate() []error ***REMOVED***
 	errors := pvic.BaseConfig.Validate()
-	if !pvic.VUs.Valid ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of VUs isn't specified"))
-	***REMOVED*** else if pvic.VUs.Int64 <= 0 ***REMOVED***
+	if pvic.VUs.Int64 <= 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of VUs should be more than 0"))
 	***REMOVED***
 
-	if !pvic.Iterations.Valid ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of iterations isn't specified"))
-	***REMOVED*** else if pvic.Iterations.Int64 <= 0 ***REMOVED***
+	if pvic.Iterations.Int64 <= 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of iterations should be more than 0"))
 	***REMOVED***
 
