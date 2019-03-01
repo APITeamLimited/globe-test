@@ -239,8 +239,11 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 		ds.VUs = conf.VUs
 		ds.Iterations = conf.Iterations
 		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
-	***REMOVED*** else if conf.Execution == nil ***REMOVED***
-		// If no execution parameters were specified, we'll create a per-VU iterations config
+	***REMOVED*** else if conf.Execution != nil ***REMOVED***
+		//TODO: remove this warning in the next version
+		log.Warnf("The execution settings are not functional in this k6 release, they will be ignored")
+	***REMOVED*** else ***REMOVED***
+		// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
 		// with 1 VU and 1 iteration. We're choosing the per-VU config, since that one could also
 		// be executed both locally, and in the cloud.
 		result.Execution = scheduler.ConfigMap***REMOVED***
