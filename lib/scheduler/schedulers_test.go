@@ -121,6 +121,9 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, 3630*time.Second, cm["ishared"].GetMaxDuration())
 			assert.Empty(t, cm["ishared"].Validate())
 		***REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations"***REMOVED******REMOVED***`, false, false, nil***REMOVED***, // Has 1 VU & 1 iter default values
+	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations", "iterations": 20***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
+	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations", "vus": 10***REMOVED******REMOVED***`, false, true, nil***REMOVED***, // error because VUs are more than iters
 	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "30m"***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ishared": ***REMOVED***"type": "shared-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
@@ -139,9 +142,10 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, 3630*time.Second, cm["ipervu"].GetMaxDuration())
 			assert.Empty(t, cm["ipervu"].Validate())
 		***REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations"***REMOVED******REMOVED***`, false, false, nil***REMOVED***, // Has 1 VU & 1 iter default values
+	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
+	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "vus": 10***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20, "vus": 10***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
-	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "vus": 10***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "-3m"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20, "vus": 10, "maxDuration": "0s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"ipervu": ***REMOVED***"type": "per-vu-iterations", "iterations": 20, "vus": -10***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
@@ -207,6 +211,7 @@ func TestConfigMapParsingAndValidation(t *testing.T) ***REMOVED***
 	for i, tc := range configMapTestCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) ***REMOVED***
+			t.Logf(tc.rawJSON)
 			var result ConfigMap
 			err := json.Unmarshal([]byte(tc.rawJSON), &result)
 			if tc.expectParseError ***REMOVED***
