@@ -93,7 +93,7 @@ func verifyConstantLoopingVUs(vus int64, duration time.Duration) func(t *testing
 ***REMOVED***
 
 func mostFlagSets() []*pflag.FlagSet ***REMOVED***
-	//TODO: make this unneccesary... currently these are the only commands in which
+	//TODO: make this unnecessary... currently these are the only commands in which
 	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
 	return []*pflag.FlagSet***REMOVED***runCmdFlagSet(), archiveCmdFlagSet(), cloudCmdFlagSet()***REMOVED***
