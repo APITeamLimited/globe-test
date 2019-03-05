@@ -25,11 +25,11 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/loadimpact/k6/lib/scheduler"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 
 	"github.com/spf13/afero"
@@ -97,33 +97,6 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// A simple logrus hook that could be used to check if log messages were outputted
-type simpleLogrusHook struct ***REMOVED***
-	mutex        sync.Mutex
-	levels       []log.Level
-	messageCache []log.Entry
-***REMOVED***
-
-func (smh *simpleLogrusHook) Levels() []log.Level ***REMOVED***
-	return smh.levels
-***REMOVED***
-func (smh *simpleLogrusHook) Fire(e *log.Entry) error ***REMOVED***
-	smh.mutex.Lock()
-	defer smh.mutex.Unlock()
-	smh.messageCache = append(smh.messageCache, *e)
-	return nil
-***REMOVED***
-
-func (smh *simpleLogrusHook) drain() []log.Entry ***REMOVED***
-	smh.mutex.Lock()
-	defer smh.mutex.Unlock()
-	res := smh.messageCache
-	smh.messageCache = []log.Entry***REMOVED******REMOVED***
-	return res
-***REMOVED***
-
-var _ log.Hook = &simpleLogrusHook***REMOVED******REMOVED***
-
 // A helper funcion for setting arbitrary environment variables and
 // restoring the old ones at the end, usually by deferring the returned callback
 //TODO: remove these hacks when we improve the configuration... we shouldn't
@@ -156,7 +129,7 @@ func setEnv(t *testing.T, newEnv []string) (restoreEnv func()) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-var verifyOneIterPerOneVU = func(t *testing.T, c Config) ***REMOVED***
+func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	// No config anywhere should result in a 1 VU with a 1 uninterruptible iteration config
 	sched := c.Execution[lib.DefaultSchedulerName]
 	require.NotEmpty(t, sched)
@@ -169,7 +142,7 @@ var verifyOneIterPerOneVU = func(t *testing.T, c Config) ***REMOVED***
 	//TODO: verify shortcut options as well?
 ***REMOVED***
 
-var verifySharedIters = func(vus, iters int64) func(t *testing.T, c Config) ***REMOVED***
+func verifySharedIters(vus, iters int64) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		sched := c.Execution[lib.DefaultSchedulerName]
 		require.NotEmpty(t, sched)
@@ -182,7 +155,7 @@ var verifySharedIters = func(vus, iters int64) func(t *testing.T, c Config) ***R
 	***REMOVED***
 ***REMOVED***
 
-var verifyConstantLoopingVUs = func(vus int64, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
+func verifyConstantLoopingVUs(vus int64, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		sched := c.Execution[lib.DefaultSchedulerName]
 		require.NotEmpty(t, sched)
@@ -197,6 +170,8 @@ var verifyConstantLoopingVUs = func(vus int64, duration time.Duration) func(t *t
 ***REMOVED***
 
 func mostFlagSets() []*pflag.FlagSet ***REMOVED***
+	//TODO: make this unneccesary... currently these are the only commands in which
+	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
 	return []*pflag.FlagSet***REMOVED***runCmdFlagSet(), archiveCmdFlagSet(), cloudCmdFlagSet()***REMOVED***
 ***REMOVED***
@@ -212,7 +187,8 @@ type opts struct ***REMOVED***
 // exp contains the different events or errors we expect our test case to trigger.
 // for space and clarity, we use the fact that by default, all of the struct values are false
 type exp struct ***REMOVED***
-	cliError           bool
+	cliParseError      bool
+	cliReadError       bool
 	consolidationError bool
 	validationErrors   bool
 	logWarning         bool //TODO: remove in the next version?
@@ -229,11 +205,11 @@ var configConsolidationTestCases = []configConsolidationTestCase***REMOVED***
 	// Check that no options will result in 1 VU 1 iter value for execution
 	***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 	// Verify some CLI errors
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--blah", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--iterations", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliError: true***REMOVED***, nil***REMOVED***,
+	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--blah", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--iterations", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
 	// Check if CLI shortcuts generate correct execution values
 	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(1, 5)***REMOVED***,
 	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(2, 6)***REMOVED***,
@@ -261,36 +237,40 @@ var configConsolidationTestCases = []configConsolidationTestCase***REMOVED***
 ***REMOVED***
 
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
-	logHook := simpleLogrusHook***REMOVED***levels: []log.Level***REMOVED***log.WarnLevel***REMOVED******REMOVED***
+	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
+	// to mess with shared global objects (env vars, variables, the log, ... santa?)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []log.Level***REMOVED***log.WarnLevel***REMOVED******REMOVED***
 	log.AddHook(&logHook)
 	log.SetOutput(ioutil.Discard)
 	defer log.SetOutput(os.Stderr)
 
 	runTestCase := func(t *testing.T, testCase configConsolidationTestCase, flagSet *pflag.FlagSet) ***REMOVED***
 		t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
-		logHook.drain()
+		logHook.Drain()
 
 		restoreEnv := setEnv(t, testCase.options.env)
 		defer restoreEnv()
 
-		//TODO: also remove these hacks when we improve the configuration...
-		getTestCaseCliConf := func() (Config, error) ***REMOVED***
-			if err := flagSet.Parse(testCase.options.cli); err != nil ***REMOVED***
-				return Config***REMOVED******REMOVED***, err
-			***REMOVED***
-			if flagSet.Lookup("out") != nil ***REMOVED***
-				return getConfig(flagSet)
-			***REMOVED***
-			opts, errOpts := getOptions(flagSet)
-			return Config***REMOVED***Options: opts***REMOVED***, errOpts
-		***REMOVED***
-
-		cliConf, err := getTestCaseCliConf()
-		if testCase.expected.cliError ***REMOVED***
-			require.Error(t, err)
+		cliErr := flagSet.Parse(testCase.options.cli)
+		if testCase.expected.cliParseError ***REMOVED***
+			require.Error(t, cliErr)
 			return
 		***REMOVED***
-		require.NoError(t, err)
+		require.NoError(t, cliErr)
+
+		//TODO: remove these hacks when we improve the configuration...
+		var cliConf Config
+		if flagSet.Lookup("out") != nil ***REMOVED***
+			cliConf, cliErr = getConfig(flagSet)
+		***REMOVED*** else ***REMOVED***
+			opts, errOpts := getOptions(flagSet)
+			cliConf, cliErr = Config***REMOVED***Options: opts***REMOVED***, errOpts
+		***REMOVED***
+		if testCase.expected.cliReadError ***REMOVED***
+			require.Error(t, cliErr)
+			return
+		***REMOVED***
+		require.NoError(t, cliErr)
 
 		var runner lib.Runner
 		if testCase.options.runner != nil ***REMOVED***
@@ -304,7 +284,7 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 		***REMOVED***
 		require.NoError(t, err)
 
-		warnings := logHook.drain()
+		warnings := logHook.Drain()
 		if testCase.expected.logWarning ***REMOVED***
 			assert.NotEmpty(t, warnings)
 		***REMOVED*** else ***REMOVED***
