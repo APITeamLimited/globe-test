@@ -102,25 +102,6 @@ type Response struct ***REMOVED***
 	validatedJSON bool
 ***REMOVED***
 
-// This should be used instead of setting Error as it will correctly set ErrorCode as well
-func (res *Response) setError(err error) ***REMOVED***
-	var errorCode, errorMsg = errorCodeForError(err)
-	res.ErrorCode = int(errorCode)
-	if errorMsg == "" ***REMOVED***
-		errorMsg = err.Error()
-	***REMOVED***
-	res.Error = errorMsg
-***REMOVED***
-
-// This should be used instead of setting Error as it will correctly set ErrorCode as well
-func (res *Response) setStatusCode(statusCode int) ***REMOVED***
-	res.Status = statusCode
-	if statusCode >= 400 && statusCode < 600 ***REMOVED***
-		res.ErrorCode = 1000 + statusCode
-		// TODO: maybe set the res.Error to some custom message
-	***REMOVED***
-***REMOVED***
-
 func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 	tlsInfo, oscp := netext.ParseTLSConnState(tlsState)
 	res.TLSVersion = tlsInfo.Version

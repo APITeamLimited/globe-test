@@ -40,6 +40,8 @@ type transport struct ***REMOVED***
 	options   *lib.Options
 	tags      map[string]string
 	trail     *Trail
+	errorMsg  string
+	errorCode errCode
 	tlsInfo   netext.TLSInfo
 	samplesCh chan<- stats.SampleContainer
 ***REMOVED***
@@ -90,12 +92,15 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 	resp, err := t.roundTripper.RoundTrip(reqWithTracer)
 	trail := tracer.Done()
 	if err != nil ***REMOVED***
+		t.errorCode, t.errorMsg = errorCodeForError(err)
 		if t.options.SystemTags["error"] ***REMOVED***
-			tags["error"] = err.Error()
+			tags["error"] = t.errorMsg
 		***REMOVED***
 
-		//TODO: expand/replace this so we can recognize the different non-HTTP
-		// errors, probably by using a type switch for resErr
+		if t.options.SystemTags["error_code"] ***REMOVED***
+			tags["error_code"] = strconv.Itoa(int(t.errorCode))
+		***REMOVED***
+
 		if t.options.SystemTags["status"] ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
@@ -105,6 +110,12 @@ func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error)
 		***REMOVED***
 		if t.options.SystemTags["status"] ***REMOVED***
 			tags["status"] = strconv.Itoa(resp.StatusCode)
+		***REMOVED***
+		if resp.StatusCode >= 400 ***REMOVED***
+			if t.options.SystemTags["error_code"] ***REMOVED***
+				t.errorCode = errCode(1000 + resp.StatusCode)
+				tags["error_code"] = strconv.Itoa(int(t.errorCode))
+			***REMOVED***
 		***REMOVED***
 		if t.options.SystemTags["proto"] ***REMOVED***
 			tags["proto"] = resp.Proto

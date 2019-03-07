@@ -200,6 +200,8 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		debugRequest(state, preq.Req, "DigestRequest")
 		res, err := client.Do(preq.Req.WithContext(ctx))
 		debugRequest(state, preq.Req, "DigestResponse")
+		resp.Error = tracerTransport.errorMsg
+		resp.ErrorCode = int(tracerTransport.errorCode)
 		if err != nil ***REMOVED***
 			// Do *not* log errors about the contex being cancelled.
 			select ***REMOVED***
@@ -208,11 +210,10 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 				state.Logger.WithField("error", res).Warn("Digest request failed")
 			***REMOVED***
 
-			if preq.Throw ***REMOVED***
+			if preq.Throw || resp.Error == "" ***REMOVED***
 				return nil, err
 			***REMOVED***
 
-			resp.setError(err)
 			return resp, nil
 		***REMOVED***
 
@@ -232,6 +233,8 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	debugRequest(state, preq.Req, "Request")
 	res, resErr := client.Do(preq.Req.WithContext(ctx))
 	debugResponse(state, res, "Response")
+	resp.Error = tracerTransport.errorMsg
+	resp.ErrorCode = int(tracerTransport.errorCode)
 	if resErr == nil && res != nil ***REMOVED***
 		switch res.Header.Get("Content-Encoding") ***REMOVED***
 		case "deflate":
@@ -287,9 +290,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		Receiving:      stats.D(trail.Receiving),
 	***REMOVED***
 
-	if resErr != nil ***REMOVED***
-		resp.setError(resErr)
-	***REMOVED*** else ***REMOVED***
+	if resErr == nil ***REMOVED***
 		if preq.ActiveJar != nil ***REMOVED***
 			if rc := res.Cookies(); len(rc) > 0 ***REMOVED***
 				preq.ActiveJar.SetCookies(res.Request.URL, rc)
@@ -297,7 +298,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 
 		resp.URL = res.Request.URL.String()
-		resp.setStatusCode(res.StatusCode)
+		resp.Status = res.StatusCode
 		resp.Proto = res.Proto
 
 		if res.TLS != nil ***REMOVED***
@@ -333,7 +334,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
 		***REMOVED***
 
-		if preq.Throw ***REMOVED***
+		if preq.Throw || resp.Error == "" ***REMOVED***
 			return nil, resErr
 		***REMOVED***
 	***REMOVED***
