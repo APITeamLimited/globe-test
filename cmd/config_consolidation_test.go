@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -111,20 +112,62 @@ func verifyConstantLoopingVUs(vus int64, duration time.Duration) func(t *testing
 	***REMOVED***
 ***REMOVED***
 
-func mostFlagSets() []*pflag.FlagSet ***REMOVED***
+func mostFlagSets() []flagSetInit ***REMOVED***
 	//TODO: make this unnecessary... currently these are the only commands in which
 	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
-	return []*pflag.FlagSet***REMOVED***runCmdFlagSet(), archiveCmdFlagSet(), cloudCmdFlagSet()***REMOVED***
+	result := []flagSetInit***REMOVED******REMOVED***
+	for i, fsi := range []flagSetInit***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
+		i, fsi := i, fsi // go...
+		result = append(result, func() *pflag.FlagSet ***REMOVED***
+			flags := pflag.NewFlagSet(fmt.Sprintf("superContrivedFlags_%d", i), pflag.ContinueOnError)
+			flags.AddFlagSet(rootCmdPersistentFlagSet())
+			flags.AddFlagSet(fsi())
+			return flags
+		***REMOVED***)
+	***REMOVED***
+	return result
 ***REMOVED***
 
+type flagSetInit func() *pflag.FlagSet
+
 type opts struct ***REMOVED***
-	cliFlagSets []*pflag.FlagSet
-	cli         []string
-	env         []string
-	runner      *lib.Options
-	//TODO: test the JSON config as well... after most of https://github.com/loadimpact/k6/issues/883#issuecomment-468646291 is fixed
+	cli    []string
+	env    []string
+	runner *lib.Options
+
+	//TODO: remove this when the configuration is more reproducible and sane...
+	// We use a func, because initializing a FlagSet that points to variables
+	// actually will change those variables to their default values :| In our
+	// case, this happens only some of the time, for global variables that
+	// are configurable only via CLI flags, but not environment variables.
+	//
+	// For the rest, their default value is their current value, since that
+	// has been set from the environment variable. That has a bunch of other
+	// issues on its own, and the func() doesn't help at all, and we need to
+	// use the resetStickyGlobalVars() hack on top of that...
+	cliFlagSetInits []flagSetInit
 ***REMOVED***
+
+func resetStickyGlobalVars() ***REMOVED***
+	//TODO: remove after fixing the config, obviously a dirty hack
+	exitOnRunning = false
+	configFilePath = ""
+	runType = ""
+	runNoSetup = false
+	runNoTeardown = false
+***REMOVED***
+
+// Something that makes the test also be a valid io.Writer, useful for passing it
+// as an output for logs and CLI flag help messages...
+type testOutput struct***REMOVED*** *testing.T ***REMOVED***
+
+func (to testOutput) Write(p []byte) (n int, err error) ***REMOVED***
+	to.Logf("%s", p)
+	return len(p), nil
+***REMOVED***
+
+var _ io.Writer = testOutput***REMOVED******REMOVED***
 
 // exp contains the different events or errors we expect our test case to trigger.
 // for space and clarity, we use the fact that by default, all of the struct values are false
@@ -178,12 +221,18 @@ var configConsolidationTestCases = []configConsolidationTestCase***REMOVED***
 	//TODO: more tests in general...
 ***REMOVED***
 
-func runTestCase(t *testing.T, testCase configConsolidationTestCase, flagSet *pflag.FlagSet, logHook *testutils.SimpleLogrusHook) ***REMOVED***
+func runTestCase(t *testing.T, testCase configConsolidationTestCase, newFlagSet flagSetInit, logHook *testutils.SimpleLogrusHook) ***REMOVED***
 	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
+	log.SetOutput(testOutput***REMOVED***t***REMOVED***)
 	logHook.Drain()
 
 	restoreEnv := setEnv(t, testCase.options.env)
 	defer restoreEnv()
+
+	flagSet := newFlagSet()
+	defer resetStickyGlobalVars()
+	flagSet.SetOutput(testOutput***REMOVED***t***REMOVED***)
+	flagSet.PrintDefaults()
 
 	cliErr := flagSet.Parse(testCase.options.cli)
 	if testCase.expected.cliParseError ***REMOVED***
@@ -246,11 +295,11 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	defer log.SetOutput(os.Stderr)
 
 	for tcNum, testCase := range configConsolidationTestCases ***REMOVED***
-		flagSets := testCase.options.cliFlagSets
-		if flagSets == nil ***REMOVED*** // handle the most common case
-			flagSets = mostFlagSets()
+		flagSetInits := testCase.options.cliFlagSetInits
+		if flagSetInits == nil ***REMOVED*** // handle the most common case
+			flagSetInits = mostFlagSets()
 		***REMOVED***
-		for fsNum, flagSet := range flagSets ***REMOVED***
+		for fsNum, flagSet := range flagSetInits ***REMOVED***
 			// I want to paralelize this, but I cannot... due to global variables and other
 			// questionable architectural choices... :|
 			t.Run(
