@@ -129,12 +129,25 @@ func mostFlagSets() []flagSetInit ***REMOVED***
 	return result
 ***REMOVED***
 
+type file struct ***REMOVED***
+	filepath, contents string
+***REMOVED***
+
+func getFS(files []file) afero.Fs ***REMOVED***
+	fs := afero.NewMemMapFs()
+	for _, f := range files ***REMOVED***
+		must(afero.WriteFile(fs, f.filepath, []byte(f.contents), 0644)) // modes don't matter in the afero.MemMapFs
+	***REMOVED***
+	return fs
+***REMOVED***
+
 type flagSetInit func() *pflag.FlagSet
 
 type opts struct ***REMOVED***
 	cli    []string
 	env    []string
 	runner *lib.Options
+	fs     afero.Fs
 
 	//TODO: remove this when the configuration is more reproducible and sane...
 	// We use a func, because initializing a FlagSet that points to variables
@@ -186,39 +199,55 @@ type configConsolidationTestCase struct ***REMOVED***
 	customValidator func(t *testing.T, c Config)
 ***REMOVED***
 
-var configConsolidationTestCases = []configConsolidationTestCase***REMOVED***
-	// Check that no options will result in 1 VU 1 iter value for execution
-	***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
-	// Verify some CLI errors
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--blah", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--iterations", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
-	// Check if CLI shortcuts generate correct execution values
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(1, 5)***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(2, 6)***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "30s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(3, 30*time.Second)***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(4, 1*time.Minute)***REMOVED***,
-	//TODO: verify stages
-	// This should get a validation error since VUs are more than the shared iterations
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(10, 6)***REMOVED***,
-	// These should emit a warning
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-	***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-	// Test if environment variable shortcuts are working as expected
-	***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(5, 15)***REMOVED***,
-	***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(10, 20*time.Second)***REMOVED***,
+func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED***
+	// This is a function, because some of these test cases actually need for the init() functions
+	// to be executed, since they depend on defaultConfigFilePath
+	return []configConsolidationTestCase***REMOVED***
+		// Check that no options will result in 1 VU 1 iter value for execution
+		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
+		// Verify some CLI errors
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--blah", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--iterations", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
+		// Check if CLI shortcuts generate correct execution values
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(1, 5)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(2, 6)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "30s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(3, 30*time.Second)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(4, 1*time.Minute)***REMOVED***,
+		//TODO: verify stages
+		// This should get a validation error since VUs are more than the shared iterations
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(10, 6)***REMOVED***,
+		// These should emit a warning
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
+		// Test if environment variable shortcuts are working as expected
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(5, 15)***REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(10, 20*time.Second)***REMOVED***,
+		//TODO: more env var tests
 
-	//TODO: test combinations between options and levels
-	//TODO: test the future full overwriting of the duration/iterations/stages/execution options
+		// Test if JSON configs work as expected
+		***REMOVED***opts***REMOVED***fs: getFS([]file***REMOVED******REMOVED***defaultConfigFilePath, `***REMOVED***"iterations": 77, "vus": 7***REMOVED***`***REMOVED******REMOVED***)***REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(7, 77)***REMOVED***,
+		***REMOVED***opts***REMOVED***fs: getFS([]file***REMOVED******REMOVED***defaultConfigFilePath, `wrong-json`***REMOVED******REMOVED***)***REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***fs: getFS(nil), cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***
+				fs:  getFS([]file***REMOVED******REMOVED***"/my/config.file", `***REMOVED***"vus": 8, "duration": "2m"***REMOVED***`***REMOVED******REMOVED***),
+				cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED***,
+			***REMOVED***, exp***REMOVED******REMOVED***, verifyConstantLoopingVUs(8, 120*time.Second),
+		***REMOVED***,
 
-	// Just in case, verify that no options will result in the same 1 vu 1 iter config
-	***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
-	//TODO: test for differences between flagsets
-	//TODO: more tests in general...
+		//TODO: test combinations between options and levels
+		//TODO: test the future full overwriting of the duration/iterations/stages/execution options
+
+		// Just in case, verify that no options will result in the same 1 vu 1 iter config
+		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
+		//TODO: test for differences between flagsets
+		//TODO: more tests in general...
+	***REMOVED***
 ***REMOVED***
 
 func runTestCase(t *testing.T, testCase configConsolidationTestCase, newFlagSet flagSetInit, logHook *testutils.SimpleLogrusHook) ***REMOVED***
@@ -259,8 +288,12 @@ func runTestCase(t *testing.T, testCase configConsolidationTestCase, newFlagSet 
 	if testCase.options.runner != nil ***REMOVED***
 		runner = &lib.MiniRunner***REMOVED***Options: *testCase.options.runner***REMOVED***
 	***REMOVED***
-	fs := afero.NewMemMapFs() //TODO: test JSON configs as well!
-	result, err := getConsolidatedConfig(fs, cliConf, runner)
+	if testCase.options.fs == nil ***REMOVED***
+		t.Logf("Creating an empty FS for this test")
+		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
+	***REMOVED***
+
+	result, err := getConsolidatedConfig(testCase.options.fs, cliConf, runner)
 	if testCase.expected.consolidationError ***REMOVED***
 		require.Error(t, err)
 		return
@@ -294,7 +327,7 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	log.SetOutput(ioutil.Discard)
 	defer log.SetOutput(os.Stderr)
 
-	for tcNum, testCase := range configConsolidationTestCases ***REMOVED***
+	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		flagSetInits := testCase.options.cliFlagSetInits
 		if flagSetInits == nil ***REMOVED*** // handle the most common case
 			flagSetInits = mostFlagSets()
