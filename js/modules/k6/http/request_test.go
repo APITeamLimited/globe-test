@@ -456,6 +456,14 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***(state.Options.Throw)
 		state.Options.Throw = null.BoolFrom(false)
 
+		tb.Mux.HandleFunc("/no-location-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			w.WriteHeader(302)
+		***REMOVED***))
+		tb.Mux.HandleFunc("/bad-location-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			w.Header().Set("Location", "h\t:/") // \n is forbidden
+			w.WriteHeader(302)
+		***REMOVED***))
+
 		var checkErrorCode = func(t testing.TB, tags *stats.SampleTags, code int, msg string) ***REMOVED***
 			var errorMsg, ok = tags.Get("error")
 			if msg == "" ***REMOVED***
@@ -473,12 +481,13 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		var testCases = []struct ***REMOVED***
-			name              string
-			status            int
-			moreSamples       int
-			expectedErrorCode int
-			expectedErrorMsg  string
-			script            string
+			name                string
+			status              int
+			moreSamples         int
+			expectedErrorCode   int
+			expectedErrorMsg    string
+			expectedScriptError string
+			script              string
 		***REMOVED******REMOVED***
 			***REMOVED***
 				name:              "Unroutable",
@@ -499,6 +508,20 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				expectedErrorMsg:  "lookup: no such host",
 				moreSamples:       1,
 				script:            `let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=http://dafsgdhfjg/");`,
+			***REMOVED***,
+			***REMOVED***
+				name:                "Non location redirect",
+				expectedErrorCode:   0,
+				expectedErrorMsg:    "",
+				script:              `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
+				expectedScriptError: sr(`GoError: Get HTTPBIN_URL/no-location-redirect: 302 response missing Location header`),
+			***REMOVED***,
+			***REMOVED***
+				name:                "Bad location redirect",
+				expectedErrorCode:   0,
+				expectedErrorMsg:    "",
+				script:              `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
+				expectedScriptError: sr("GoError: Get HTTPBIN_URL/bad-location-redirect: failed to parse Location header \"h\\t:/\": parse h\t:/: first path segment in URL cannot contain colon"),
 			***REMOVED***,
 			***REMOVED***
 				name:              "Missing protocol",
@@ -525,7 +548,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			if (res.error != '%s') ***REMOVED*** throw new Error("wrong error: "+ res.error);***REMOVED***
 			if (res.error_code != %d) ***REMOVED*** throw new Error("wrong error_code: "+ res.error_code);***REMOVED***
 			`, testCase.status, testCase.expectedErrorMsg, testCase.expectedErrorCode)))
-				assert.NoError(t, err)
+				if testCase.expectedScriptError == "" ***REMOVED***
+					require.NoError(t, err)
+				***REMOVED*** else ***REMOVED***
+					require.Error(t, err)
+					require.Equal(t, err.Error(), testCase.expectedScriptError)
+				***REMOVED***
 				var cs = stats.GetBufferedSamples(samples)
 				assert.Len(t, cs, 1+testCase.moreSamples)
 				for _, c := range cs[len(cs)-1:] ***REMOVED***
