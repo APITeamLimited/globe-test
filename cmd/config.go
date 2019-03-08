@@ -1,7 +1,7 @@
 /*
  *
  * k6 - a next-generation load testing tool
- * Copyright (C) 2016 Load Impact
+ * Copyright (C) 2019 Load Impact
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -22,8 +22,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
@@ -34,24 +34,11 @@ import (
 	"github.com/loadimpact/k6/stats/kafka"
 	"github.com/loadimpact/k6/stats/statsd/common"
 	"github.com/pkg/errors"
-	"github.com/shibukawa/configdir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 )
-
-const configFilename = "config.json"
-
-var configDirs = configdir.New("loadimpact", "k6")
-var configFile = os.Getenv("K6_CONFIG") // overridden by `-c` flag!
-
-// configFileFlagSet returns a FlagSet that contains flags needed for specifying a config file.
-func configFileFlagSet() *pflag.FlagSet ***REMOVED***
-	flags := pflag.NewFlagSet("", 0)
-	flags.StringVarP(&configFile, "config", "c", configFile, "specify config file to read")
-	return flags
-***REMOVED***
 
 // configFlagSet returns a FlagSet with the default run configuration flags.
 func configFlagSet() *pflag.FlagSet ***REMOVED***
@@ -62,7 +49,6 @@ func configFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Bool("no-usage-report", false, "don't send anonymous stats to the developers")
 	flags.Bool("no-thresholds", false, "don't run thresholds")
 	flags.Bool("no-summary", false, "don't show the summary at the end of the test")
-	flags.AddFlagSet(configFileFlagSet())
 	return flags
 ***REMOVED***
 
@@ -129,41 +115,51 @@ func getConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 	***REMOVED***, nil
 ***REMOVED***
 
-// Reads a configuration file from disk.
-func readDiskConfig(fs afero.Fs) (Config, *configdir.Config, error) ***REMOVED***
-	if configFile != "" ***REMOVED***
-		data, err := ioutil.ReadFile(configFile)
-		if err != nil ***REMOVED***
-			return Config***REMOVED******REMOVED***, nil, err
-		***REMOVED***
-		var conf Config
-		err = json.Unmarshal(data, &conf)
-		return conf, nil, err
+// Reads the configuration file from the supplied filesystem and returns it and its path.
+// It will first try to see if the user explicitly specified a custom config file and will
+// try to read that. If there's a custom config specified and it couldn't be read or parsed,
+// an error will be returned.
+// If there's no custom config specified and no file exists in the default config path, it will
+// return an empty config struct, the default config location and *no* error.
+func readDiskConfig(fs afero.Fs) (Config, string, error) ***REMOVED***
+	realConfigFilePath := configFilePath
+	if realConfigFilePath == "" ***REMOVED***
+		// The user didn't specify K6_CONFIG or --config, use the default path
+		realConfigFilePath = defaultConfigFilePath
 	***REMOVED***
 
-	cdir := configDirs.QueryFolderContainsFile(configFilename)
-	if cdir == nil ***REMOVED***
-		return Config***REMOVED******REMOVED***, configDirs.QueryFolders(configdir.Global)[0], nil
+	// Try to see if the file exists in the supplied filesystem
+	if _, err := fs.Stat(realConfigFilePath); err != nil ***REMOVED***
+		if os.IsNotExist(err) && configFilePath == "" ***REMOVED***
+			// If the file doesn't exist, but it was the default config file (i.e. the user
+			// didn't specify anything), silence the error
+			err = nil
+		***REMOVED***
+		return Config***REMOVED******REMOVED***, realConfigFilePath, err
 	***REMOVED***
-	data, err := cdir.ReadFile(configFilename)
+
+	data, err := afero.ReadFile(fs, realConfigFilePath)
 	if err != nil ***REMOVED***
-		return Config***REMOVED******REMOVED***, cdir, err
+		return Config***REMOVED******REMOVED***, realConfigFilePath, err
 	***REMOVED***
 	var conf Config
 	err = json.Unmarshal(data, &conf)
-	return conf, cdir, err
+	return conf, realConfigFilePath, err
 ***REMOVED***
 
-// Writes configuration back to disk.
-func writeDiskConfig(fs afero.Fs, cdir *configdir.Config, conf Config) error ***REMOVED***
+// Serializes the configuration to a JSON file and writes it in the supplied
+// location on the supplied filesystem
+func writeDiskConfig(fs afero.Fs, configPath string, conf Config) error ***REMOVED***
 	data, err := json.MarshalIndent(conf, "", "  ")
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	if configFile != "" ***REMOVED***
-		return afero.WriteFile(fs, configFilename, data, 0644)
+
+	if err := fs.MkdirAll(filepath.Dir(configPath), 0755); err != nil ***REMOVED***
+		return err
 	***REMOVED***
-	return cdir.WriteFile(configFilename, data)
+
+	return afero.WriteFile(fs, configPath, data, 0644)
 ***REMOVED***
 
 // Reads configuration variables from the environment.
@@ -239,15 +235,19 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 		ds.VUs = conf.VUs
 		ds.Iterations = conf.Iterations
 		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
-	***REMOVED*** else if conf.Execution != nil ***REMOVED***
-		//TODO: remove this warning in the next version
-		log.Warnf("The execution settings are not functional in this k6 release, they will be ignored")
 	***REMOVED*** else ***REMOVED***
-		// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
-		// with 1 VU and 1 iteration. We're choosing the per-VU config, since that one could also
-		// be executed both locally, and in the cloud.
-		result.Execution = scheduler.ConfigMap***REMOVED***
-			lib.DefaultSchedulerName: scheduler.NewPerVUIterationsConfig(lib.DefaultSchedulerName),
+		if conf.Execution != nil ***REMOVED*** // If someone set this, regardless if its empty
+			//TODO: remove this warning in the next version
+			log.Warnf("The execution settings are not functional in this k6 release, they will be ignored")
+		***REMOVED***
+
+		if len(conf.Execution) == 0 ***REMOVED*** // If unset or set to empty
+			// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
+			// with 1 VU and 1 iteration. We're choosing the per-VU config, since that one could also
+			// be executed both locally, and in the cloud.
+			result.Execution = scheduler.ConfigMap***REMOVED***
+				lib.DefaultSchedulerName: scheduler.NewPerVUIterationsConfig(lib.DefaultSchedulerName),
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
