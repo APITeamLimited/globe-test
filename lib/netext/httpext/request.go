@@ -104,6 +104,8 @@ func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRe
 ***REMOVED***
 
 // MakeRequest makes http request for tor the provided ParsedHTTPRequest
+//TODO break this function up
+//nolint: gocyclo
 func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error) ***REMOVED***
 	state := lib.GetState(ctx)
 
@@ -180,7 +182,9 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 					if l > 0 ***REMOVED***
 						url = via[0].URL
 					***REMOVED***
-					state.Logger.WithFields(log.Fields***REMOVED***"url": url.String()***REMOVED***).Warnf("Stopped after %d redirects and returned the redirection; pass ***REMOVED*** redirects: n ***REMOVED*** in request params or set global maxRedirects to silence this", l)
+					state.Logger.WithFields(log.Fields***REMOVED***"url": url.String()***REMOVED***).Warnf(
+						"Stopped after %d redirects and returned the redirection; pass ***REMOVED*** redirects: n ***REMOVED***"+
+							" in request params or set global maxRedirects to silence this", l)
 				***REMOVED***
 				return http.ErrUseLastResponse
 			***REMOVED***
@@ -189,7 +193,8 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***,
 	***REMOVED***
 
-	// if digest authentication option is passed, make an initial request to get the authentication params to compute the authorization header
+	// if digest authentication option is passed, make an initial request
+	// to get the authentication params to compute the authorization header
 	if preq.Auth == "digest" ***REMOVED***
 		username := preq.URL.u.User.Username()
 		password, _ := preq.URL.u.User.Password()

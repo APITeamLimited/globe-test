@@ -199,7 +199,12 @@ func TestTracerError(t *testing.T) ***REMOVED***
 	req, err := http.NewRequest("GET", srv.URL+"/get", nil)
 	require.NoError(t, err)
 
-	_, err = http.DefaultTransport.RoundTrip(req.WithContext(httptrace.WithClientTrace(context.Background(), tracer.Trace())))
+	_, err = http.DefaultTransport.RoundTrip(
+		req.WithContext(
+			httptrace.WithClientTrace(
+				context.Background(),
+				tracer.Trace())))
+
 	assert.Error(t, err)
 
 	assert.Len(t, tracer.protoErrors, 1)

@@ -116,7 +116,11 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 	return responseFromHttpext(resp), nil
 ***REMOVED***
 
-func (h *HTTP) parseRequest(ctx context.Context, method string, reqURL httpext.URL, body interface***REMOVED******REMOVED***, params goja.Value) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
+//TODO break this function up
+//nolint: gocyclo
+func (h *HTTP) parseRequest(
+	ctx context.Context, method string, reqURL httpext.URL, body interface***REMOVED******REMOVED***, params goja.Value,
+) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***

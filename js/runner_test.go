@@ -587,6 +587,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
+		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			vu, err := r.newVU(make(chan stats.SampleContainer, 100))
 			if !assert.NoError(t, err) ***REMOVED***

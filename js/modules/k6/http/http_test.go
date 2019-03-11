@@ -43,6 +43,7 @@ func TestTagURL(t *testing.T) ***REMOVED***
 		`http://localhost/anything/$***REMOVED***1+1***REMOVED***/$***REMOVED***1+2***REMOVED***/`: ***REMOVED***"http://localhost/anything/2/3/", "http://localhost/anything/$***REMOVED******REMOVED***/$***REMOVED******REMOVED***/"***REMOVED***,
 	***REMOVED***
 	for expr, data := range testdata ***REMOVED***
+		expr, data := expr, data
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
 			tag, err := httpext.NewURL(data.u, data.n)
 			require.NoError(t, err)

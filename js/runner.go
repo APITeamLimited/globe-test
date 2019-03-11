@@ -402,7 +402,9 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	return err
 ***REMOVED***
 
-func (u *VU) runFn(ctx context.Context, group *lib.Group, fn goja.Callable, args ...goja.Value) (goja.Value, *lib.State, error) ***REMOVED***
+func (u *VU) runFn(
+	ctx context.Context, group *lib.Group, fn goja.Callable, args ...goja.Value,
+) (goja.Value, *lib.State, error) ***REMOVED***
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), nil, err
