@@ -29,6 +29,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -48,7 +49,7 @@ type Metric struct ***REMOVED***
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
 func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime []bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	if common.GetState(*ctxPtr) != nil ***REMOVED***
+	if lib.GetState(*ctxPtr) != nil ***REMOVED***
 		return nil, errors.New("metrics must be declared in the init context")
 	***REMOVED***
 
@@ -67,7 +68,7 @@ func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime 
 ***REMOVED***
 
 func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]string) (bool, error) ***REMOVED***
-	state := common.GetState(ctx)
+	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***

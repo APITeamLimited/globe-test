@@ -22,15 +22,10 @@ package http
 
 import (
 	"context"
-	"net/http"
-	"net/http/cookiejar"
-
-	"fmt"
-	"net/http/httputil"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -45,18 +40,6 @@ const (
 
 // ErrJarForbiddenInInitContext is used when a cookie jar was made in the init context
 var ErrJarForbiddenInInitContext = common.NewInitContextError("Making cookie jars in the init context is not supported")
-
-type HTTPCookie struct ***REMOVED***
-	Name, Value, Domain, Path string
-	HttpOnly, Secure          bool
-	MaxAge                    int
-	Expires                   int64
-***REMOVED***
-
-type HTTPRequestCookie struct ***REMOVED***
-	Name, Value string
-	Replace     bool
-***REMOVED***
 
 type HTTP struct ***REMOVED***
 	SSL_3_0                            string `js:"SSL_3_0"`
@@ -108,56 +91,9 @@ func (*HTTP) XCookieJar(ctx *context.Context) *HTTPCookieJar ***REMOVED***
 ***REMOVED***
 
 func (*HTTP) CookieJar(ctx context.Context) (*HTTPCookieJar, error) ***REMOVED***
-	state := common.GetState(ctx)
+	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***
 		return nil, ErrJarForbiddenInInitContext
 	***REMOVED***
 	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***, nil
-***REMOVED***
-
-func (*HTTP) mergeCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) map[string][]*HTTPRequestCookie ***REMOVED***
-	allCookies := make(map[string][]*HTTPRequestCookie)
-	for _, c := range jar.Cookies(req.URL) ***REMOVED***
-		allCookies[c.Name] = append(allCookies[c.Name], &HTTPRequestCookie***REMOVED***Name: c.Name, Value: c.Value***REMOVED***)
-	***REMOVED***
-	for key, reqCookie := range reqCookies ***REMOVED***
-		if jc := allCookies[key]; jc != nil && reqCookie.Replace ***REMOVED***
-			allCookies[key] = []*HTTPRequestCookie***REMOVED******REMOVED***Name: key, Value: reqCookie.Value***REMOVED******REMOVED***
-		***REMOVED*** else ***REMOVED***
-			allCookies[key] = append(allCookies[key], &HTTPRequestCookie***REMOVED***Name: key, Value: reqCookie.Value***REMOVED***)
-		***REMOVED***
-	***REMOVED***
-	return allCookies
-***REMOVED***
-
-func (*HTTP) setRequestCookies(req *http.Request, reqCookies map[string][]*HTTPRequestCookie) ***REMOVED***
-	for _, cookies := range reqCookies ***REMOVED***
-		for _, c := range cookies ***REMOVED***
-			req.AddCookie(&http.Cookie***REMOVED***Name: c.Name, Value: c.Value***REMOVED***)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-func (*HTTP) debugRequest(state *common.State, req *http.Request, description string) ***REMOVED***
-	if state.Options.HttpDebug.String != "" ***REMOVED***
-		dump, err := httputil.DumpRequestOut(req, state.Options.HttpDebug.String == "full")
-		if err != nil ***REMOVED***
-			log.Fatal(err)
-		***REMOVED***
-		logDump(description, dump)
-	***REMOVED***
-***REMOVED***
-
-func (*HTTP) debugResponse(state *common.State, res *http.Response, description string) ***REMOVED***
-	if state.Options.HttpDebug.String != "" && res != nil ***REMOVED***
-		dump, err := httputil.DumpResponse(res, state.Options.HttpDebug.String == "full")
-		if err != nil ***REMOVED***
-			log.Fatal(err)
-		***REMOVED***
-		logDump(description, dump)
-	***REMOVED***
-***REMOVED***
-
-func logDump(description string, dump []byte) ***REMOVED***
-	fmt.Printf("%s:\n%s\n", description, dump)
 ***REMOVED***

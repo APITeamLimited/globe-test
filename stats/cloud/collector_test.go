@@ -39,7 +39,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -100,7 +100,7 @@ func getSampleChecker(t *testing.T, expSamples <-chan []Sample) http.HandlerFunc
 	***REMOVED***
 ***REMOVED***
 
-func skewTrail(t netext.Trail, minCoef, maxCoef float64) netext.Trail ***REMOVED***
+func skewTrail(t httpext.Trail, minCoef, maxCoef float64) httpext.Trail ***REMOVED***
 	coef := minCoef + rand.Float64()*(maxCoef-minCoef)
 	addJitter := func(d *time.Duration) ***REMOVED***
 		*d = time.Duration(float64(*d) * coef)
@@ -198,7 +198,7 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED******REMOVED***
 
-	simpleTrail := netext.Trail***REMOVED***
+	simpleTrail := httpext.Trail***REMOVED***
 		Blocked:        100 * time.Millisecond,
 		Connecting:     200 * time.Millisecond,
 		TLSHandshaking: 300 * time.Millisecond,
@@ -329,7 +329,7 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
 		var container = make([]stats.SampleContainer, 0, 500)
 		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
-			container = append(container, &netext.Trail***REMOVED***
+			container = append(container, &httpext.Trail***REMOVED***
 				Blocked:        i % 200 * 100 * time.Millisecond,
 				Connecting:     i % 200 * 200 * time.Millisecond,
 				TLSHandshaking: i % 200 * 300 * time.Millisecond,

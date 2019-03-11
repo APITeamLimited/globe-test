@@ -103,7 +103,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		DualStack: true,
 	***REMOVED***)
 	samples := make(chan stats.SampleContainer, 1000)
-	state := &common.State***REMOVED***
+	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: dialer,
 		Options: lib.Options***REMOVED***
@@ -113,7 +113,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
+	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
@@ -298,7 +298,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		DualStack: true,
 	***REMOVED***)
 	samples := make(chan stats.SampleContainer, 1000)
-	state := &common.State***REMOVED***
+	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: dialer,
 		Options: lib.Options***REMOVED***
@@ -308,7 +308,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
+	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
@@ -363,7 +363,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	testedSystemTags := []string***REMOVED***"group", "status", "subproto", "url", "ip"***REMOVED***
 
 	samples := make(chan stats.SampleContainer, 1000)
-	state := &common.State***REMOVED***
+	state := &lib.State***REMOVED***
 		Group:   root,
 		Dialer:  dialer,
 		Options: lib.Options***REMOVED***SystemTags: lib.GetTagSet(testedSystemTags...)***REMOVED***,
@@ -371,7 +371,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
+	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
@@ -419,7 +419,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		DualStack: true,
 	***REMOVED***)
 	samples := make(chan stats.SampleContainer, 1000)
-	state := &common.State***REMOVED***
+	state := &lib.State***REMOVED***
 		Group:  root,
 		Dialer: dialer,
 		Options: lib.Options***REMOVED***
@@ -429,7 +429,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	ctx := context.Background()
-	ctx = common.WithState(ctx, state)
+	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
