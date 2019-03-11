@@ -58,7 +58,10 @@ func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 		***REMOVED***`123`, true, &someElement***REMOVED******REMOVED***, nil***REMOVED***,
 		***REMOVED***`"blah"`, true, &someElement***REMOVED******REMOVED***, nil***REMOVED***,
 		***REMOVED***`null`, false, &someElement***REMOVED******REMOVED***, &someElement***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***`***REMOVED***"data": 123, "props": ***REMOVED***"test": "mest"***REMOVED******REMOVED***`, false, &someElement***REMOVED******REMOVED***, &someElement***REMOVED***123, map[string]string***REMOVED***"test": "mest"***REMOVED******REMOVED******REMOVED***,
+		***REMOVED***
+			`***REMOVED***"data": 123, "props": ***REMOVED***"test": "mest"***REMOVED******REMOVED***`, false, &someElement***REMOVED******REMOVED***,
+			&someElement***REMOVED***123, map[string]string***REMOVED***"test": "mest"***REMOVED******REMOVED***,
+		***REMOVED***,
 		***REMOVED***`***REMOVED***"data": 123, "props": ***REMOVED***"test": "mest"***REMOVED******REMOVED***asdg`, true, &someElement***REMOVED******REMOVED***, nil***REMOVED***,
 	***REMOVED***
 	for i, tc := range testCases ***REMOVED***

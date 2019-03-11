@@ -439,6 +439,7 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 		for fsNum, flagSet := range flagSetInits ***REMOVED***
 			// I want to paralelize this, but I cannot... due to global variables and other
 			// questionable architectural choices... :|
+			testCase, flagSet := testCase, flagSet
 			t.Run(
 				fmt.Sprintf("TestCase#%d_FlagSet#%d", tcNum, fsNum),
 				func(t *testing.T) ***REMOVED*** runTestCase(t, testCase, flagSet, &logHook) ***REMOVED***,

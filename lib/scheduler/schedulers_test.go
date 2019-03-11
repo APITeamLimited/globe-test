@@ -39,6 +39,7 @@ type configMapTestCase struct ***REMOVED***
 	customValidator       func(t *testing.T, cm ConfigMap)
 ***REMOVED***
 
+//nolint:lll,gochecknoglobals
 var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***"", true, false, nil***REMOVED***,
 	***REMOVED***"1234", true, false, nil***REMOVED***,
