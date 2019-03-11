@@ -97,7 +97,9 @@ func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 	assert.True(t, seenReceiving, "url %s didn't emit Receiving", url)
 ***REMOVED***
 
-func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, chan stats.SampleContainer, *goja.Runtime, *context.Context) ***REMOVED***
+func newRuntime(
+	t *testing.T,
+) (*testutils.HTTPMultiBin, *lib.State, chan stats.SampleContainer, *goja.Runtime, *context.Context) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 
 	root, err := lib.NewGroup("", nil)
@@ -118,7 +120,7 @@ func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, chan stat
 	***REMOVED***
 	samples := make(chan stats.SampleContainer, 1000)
 
-	state := &common.State***REMOVED***
+	state := &lib.State***REMOVED***
 		Options:   options,
 		Logger:    logger,
 		Group:     root,
@@ -130,7 +132,7 @@ func newRuntime(t *testing.T) (*testutils.HTTPMultiBin, *common.State, chan stat
 
 	ctx := new(context.Context)
 	*ctx = context.Background()
-	*ctx = common.WithState(*ctx, state)
+	*ctx = lib.WithState(*ctx, state)
 	*ctx = common.WithRuntime(*ctx, rt)
 	rt.Set("http", common.Bind(rt, New(), ctx))
 
@@ -470,6 +472,16 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				_, err = common.RunString(rt, sr(`
 				let res = http.request("GET", "HTTPBIN_URL/cookies/set?key=value", null, ***REMOVED*** redirects: 0 ***REMOVED***);
 				if (res.cookies.key[0].value != "value") ***REMOVED*** throw new Error("wrong cookie value: " + res.cookies.key[0].value); ***REMOVED***
+				const props = ["name", "value", "domain", "path", "expires", "max_age", "secure", "http_only"];
+				let cookie = res.cookies.key[0];
+				for (let i = 0; i < props.length; i++) ***REMOVED***
+					if (cookie[props[i]] === undefined) ***REMOVED***
+						throw new Error("cookie property not found: " + props[i]);
+					***REMOVED***
+				***REMOVED***
+				if (Object.keys(cookie).length != props.length) ***REMOVED***
+					throw new Error("cookie has more properties than expected: " + JSON.stringify(Object.keys(cookie)));
+				***REMOVED***
 				`))
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/cookies/set?key=value"), "", 302, "")
@@ -535,11 +547,11 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					`))
 					assert.NoError(t, err)
 
-					redirectUrl, err := url.Parse(sr("HTTPBIN_URL"))
+					redirectURL, err := url.Parse(sr("HTTPBIN_URL"))
 					assert.NoError(t, err)
-					require.Len(t, cookieJar.Cookies(redirectUrl), 1)
-					assert.Equal(t, "key-foo", cookieJar.Cookies(redirectUrl)[0].Name)
-					assert.Equal(t, "value-bar", cookieJar.Cookies(redirectUrl)[0].Value)
+					require.Len(t, cookieJar.Cookies(redirectURL), 1)
+					assert.Equal(t, "key-foo", cookieJar.Cookies(redirectURL)[0].Name)
+					assert.Equal(t, "value-bar", cookieJar.Cookies(redirectURL)[0].Value)
 
 					assertRequestMetricsEmitted(
 						t,
@@ -561,12 +573,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					`))
 					assert.NoError(t, err)
 
-					redirectUrl, err := url.Parse(sr("HTTPSBIN_URL"))
+					redirectURL, err := url.Parse(sr("HTTPSBIN_URL"))
 					assert.NoError(t, err)
 
-					require.Len(t, cookieJar.Cookies(redirectUrl), 1)
-					assert.Equal(t, "key", cookieJar.Cookies(redirectUrl)[0].Name)
-					assert.Equal(t, "value", cookieJar.Cookies(redirectUrl)[0].Value)
+					require.Len(t, cookieJar.Cookies(redirectURL), 1)
+					assert.Equal(t, "key", cookieJar.Cookies(redirectURL)[0].Name)
+					assert.Equal(t, "value", cookieJar.Cookies(redirectURL)[0].Value)
 
 					assertRequestMetricsEmitted(
 						t,
@@ -703,6 +715,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					_, err := common.RunString(rt, fmt.Sprintf(`
 					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest" ***REMOVED***);
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+					if (res.error_code != 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
 					`, url))
 					assert.NoError(t, err)
 
@@ -1167,6 +1180,11 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			tb.Replacer.Replace(`http.get("http://127.0.0.1:56789");`),
 			tb.Replacer.Replace(`dial tcp 127.0.0.1:56789: ` + connectionRefusedErrorText),
 		***REMOVED***,
+		***REMOVED***
+			"error_code",
+			tb.Replacer.Replace(`http.get("http://127.0.0.1:56789");`),
+			"1210",
+		***REMOVED***,
 	***REMOVED***
 
 	state.Options.Throw = null.BoolFrom(false)
@@ -1304,4 +1322,142 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 		http.post("HTTPBIN_URL/compare-text", respTextExplicit);
 	`))
 	assert.NoError(t, err)
+***REMOVED***
+
+func checkErrorCode(t testing.TB, tags *stats.SampleTags, code int, msg string) ***REMOVED***
+	var errorMsg, ok = tags.Get("error")
+	if msg == "" ***REMOVED***
+		assert.False(t, ok)
+	***REMOVED*** else ***REMOVED***
+		assert.Equal(t, msg, errorMsg)
+	***REMOVED***
+	errorCodeStr, ok := tags.Get("error_code")
+	if code == 0 ***REMOVED***
+		assert.False(t, ok)
+	***REMOVED*** else ***REMOVED***
+		var errorCode, err = strconv.Atoi(errorCodeStr)
+		assert.NoError(t, err)
+		assert.Equal(t, code, errorCode)
+	***REMOVED***
+***REMOVED***
+
+func TestErrorCodes(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, samples, rt, _ := newRuntime(t)
+	state.Options.Throw = null.BoolFrom(false)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+
+	// Handple paths with custom logic
+	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		time.Sleep(2 * time.Second)
+	***REMOVED***))
+	tb.Mux.HandleFunc("/set-cookie-before-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		cookie := http.Cookie***REMOVED***
+			Name:   "key-foo",
+			Value:  "value-bar",
+			Path:   "/",
+			Domain: sr("HTTPBIN_DOMAIN"),
+		***REMOVED***
+
+		http.SetCookie(w, &cookie)
+
+		http.Redirect(w, r, sr("HTTPBIN_URL/get"), http.StatusMovedPermanently)
+	***REMOVED***))
+
+	tb.Mux.HandleFunc("/no-location-redirect", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) ***REMOVED***
+		w.WriteHeader(302)
+	***REMOVED***))
+	tb.Mux.HandleFunc("/bad-location-redirect", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) ***REMOVED***
+		w.Header().Set("Location", "h\t:/") // \n is forbidden
+		w.WriteHeader(302)
+	***REMOVED***))
+
+	var testCases = []struct ***REMOVED***
+		name                string
+		status              int
+		moreSamples         int
+		expectedErrorCode   int
+		expectedErrorMsg    string
+		expectedScriptError string
+		script              string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:              "Unroutable",
+			expectedErrorCode: 1101,
+			expectedErrorMsg:  "lookup: no such host",
+			script:            `let res = http.request("GET", "http://sdafsgdhfjg/");`,
+		***REMOVED***,
+
+		***REMOVED***
+			name:              "404",
+			status:            404,
+			expectedErrorCode: 1404,
+			script:            `let res = http.request("GET", "HTTPBIN_URL/status/404");`,
+		***REMOVED***,
+		***REMOVED***
+			name:              "Unroutable redirect",
+			expectedErrorCode: 1101,
+			expectedErrorMsg:  "lookup: no such host",
+			moreSamples:       1,
+			script:            `let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=http://dafsgdhfjg/");`,
+		***REMOVED***,
+		***REMOVED***
+			name:                "Non location redirect",
+			expectedErrorCode:   0,
+			expectedErrorMsg:    "",
+			script:              `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
+			expectedScriptError: sr(`GoError: Get HTTPBIN_URL/no-location-redirect: 302 response missing Location header`),
+		***REMOVED***,
+		***REMOVED***
+			name:              "Bad location redirect",
+			expectedErrorCode: 0,
+			expectedErrorMsg:  "",
+			script:            `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
+			expectedScriptError: sr(
+				"GoError: Get HTTPBIN_URL/bad-location-redirect: failed to parse Location header" +
+					" \"h\\t:/\": parse h\t:/: first path segment in URL cannot contain colon"),
+		***REMOVED***,
+		***REMOVED***
+			name:              "Missing protocol",
+			expectedErrorCode: 1000,
+			expectedErrorMsg:  `unsupported protocol scheme ""`,
+			script:            `let res = http.request("GET", "dafsgdhfjg/");`,
+		***REMOVED***,
+		***REMOVED***
+			name:   "Too many redirects",
+			status: 302,
+			script: `
+			let res = http.get("HTTPBIN_URL/redirect/1", ***REMOVED***redirects: 0***REMOVED***);
+			if (res.url != "HTTPBIN_URL/redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***`,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, testCase := range testCases ***REMOVED***
+		testCase := testCase
+		// clear the Samples
+		stats.GetBufferedSamples(samples)
+		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt,
+				sr(testCase.script+"\n"+fmt.Sprintf(`
+			if (res.status != %d) ***REMOVED*** throw new Error("wrong status: "+ res.status);***REMOVED***
+			if (res.error != '%s') ***REMOVED*** throw new Error("wrong error: "+ res.error);***REMOVED***
+			if (res.error_code != %d) ***REMOVED*** throw new Error("wrong error_code: "+ res.error_code);***REMOVED***
+			`, testCase.status, testCase.expectedErrorMsg, testCase.expectedErrorCode)))
+			if testCase.expectedScriptError == "" ***REMOVED***
+				require.NoError(t, err)
+			***REMOVED*** else ***REMOVED***
+				require.Error(t, err)
+				require.Equal(t, err.Error(), testCase.expectedScriptError)
+			***REMOVED***
+			var cs = stats.GetBufferedSamples(samples)
+			assert.Len(t, cs, 1+testCase.moreSamples)
+			for _, c := range cs[len(cs)-1:] ***REMOVED***
+				assert.NotZero(t, len(c.GetSamples()))
+				for _, sample := range c.GetSamples() ***REMOVED***
+					checkErrorCode(t, sample.GetTags(), testCase.expectedErrorCode, testCase.expectedErrorMsg)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

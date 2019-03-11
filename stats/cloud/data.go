@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -125,8 +125,8 @@ type SampleDataMap struct ***REMOVED***
 ***REMOVED***
 
 // NewSampleFromTrail just creates a ready-to-send Sample instance
-// directly from a netext.Trail.
-func NewSampleFromTrail(trail *netext.Trail) *Sample ***REMOVED***
+// directly from a httpext.Trail.
+func NewSampleFromTrail(trail *httpext.Trail) *Sample ***REMOVED***
 	return &Sample***REMOVED***
 		Type:   DataTypeMap,
 		Metric: "http_req_li_all",
@@ -166,7 +166,7 @@ type SampleDataAggregatedHTTPReqs struct ***REMOVED***
 ***REMOVED***
 
 // Add updates all agregated values with the supplied trail data
-func (sdagg *SampleDataAggregatedHTTPReqs) Add(trail *netext.Trail) ***REMOVED***
+func (sdagg *SampleDataAggregatedHTTPReqs) Add(trail *httpext.Trail) ***REMOVED***
 	sdagg.Count++
 	sdagg.Values.Duration.Add(trail.Duration)
 	sdagg.Values.Blocked.Add(trail.Blocked)
@@ -220,7 +220,7 @@ func (am *AggregatedMetric) Calc(count float64) ***REMOVED***
 	am.Avg = stats.D(am.sumD) / count
 ***REMOVED***
 
-type aggregationBucket map[*stats.SampleTags][]*netext.Trail
+type aggregationBucket map[*stats.SampleTags][]*httpext.Trail
 
 type durations []time.Duration
 
