@@ -215,6 +215,8 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 				state.Logger.WithField("error", res).Warn("Digest request failed")
 			***REMOVED***
 
+			// In case we have an error but resp.Error is not set it means the error is not from
+			// the transport. For all such errors currently we just return them as if throw is true
 			if preq.Throw || resp.Error == "" ***REMOVED***
 				return nil, err
 			***REMOVED***
@@ -339,6 +341,8 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
 		***REMOVED***
 
+		// In case we have an error but resp.Error is not set it means the error is not from
+		// the transport. For all such errors currently we just return them as if throw is true
 		if preq.Throw || resp.Error == "" ***REMOVED***
 			return nil, resErr
 		***REMOVED***
