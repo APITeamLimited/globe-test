@@ -76,10 +76,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, int64(10), cm["someKey"].GetMaxVUs())
 			assert.Empty(t, cm["someKey"].Validate())
 		***REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "duration": "60s"***REMOVED******REMOVED***`, false, false, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"": ***REMOVED***"type": "constant-looping-vus", "vus": 10, "duration": "60s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
+	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": 0.5***REMOVED******REMOVED***`, true, false, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": 10***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
-	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "duration": "60s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
+	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": 0, "duration": "60s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": -1, "duration": "60s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": 10, "duration": "0s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,
 	***REMOVED***`***REMOVED***"aname": ***REMOVED***"type": "constant-looping-vus", "vus": 10, "duration": "10s", "startTime": "-10s"***REMOVED******REMOVED***`, false, true, nil***REMOVED***,

@@ -194,7 +194,7 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 			log.Warnf("Specifying both duration and iterations is deprecated and won't be supported in the future k6 versions")
 		***REMOVED***
 
-		if conf.Stages != nil ***REMOVED***
+		if len(conf.Stages) > 0 ***REMOVED*** // stages isn't nil (not set) and isn't explicitly set to empty
 			//TODO: make this an executionConflictConfigError in the next version
 			log.Warnf("Specifying both duration and stages is deprecated and won't be supported in the future k6 versions")
 		***REMOVED***
@@ -214,7 +214,7 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 			result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
 		***REMOVED***
 
-	case conf.Stages != nil:
+	case len(conf.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
 		if conf.Iterations.Valid ***REMOVED***
 			//TODO: make this an executionConflictConfigError in the next version
 			log.Warnf("Specifying both iterations and stages is deprecated and won't be supported in the future k6 versions")

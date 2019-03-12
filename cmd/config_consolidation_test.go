@@ -84,21 +84,21 @@ func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	assert.Equal(t, null.NewInt(1, false), perVuIters.VUs)
 ***REMOVED***
 
-func verifySharedIters(vus, iters int64) func(t *testing.T, c Config) ***REMOVED***
+func verifySharedIters(vus, iters null.Int) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		sched := c.Execution[lib.DefaultSchedulerName]
 		require.NotEmpty(t, sched)
 		require.IsType(t, scheduler.SharedIteationsConfig***REMOVED******REMOVED***, sched)
 		sharedIterConfig, ok := sched.(scheduler.SharedIteationsConfig)
 		require.True(t, ok)
-		assert.Equal(t, null.NewInt(vus, true), sharedIterConfig.VUs)
-		assert.Equal(t, null.NewInt(iters, true), sharedIterConfig.Iterations)
-		assert.Equal(t, null.NewInt(vus, true), c.VUs)
-		assert.Equal(t, null.NewInt(iters, true), c.Iterations)
+		assert.Equal(t, vus, sharedIterConfig.VUs)
+		assert.Equal(t, iters, sharedIterConfig.Iterations)
+		assert.Equal(t, vus, c.VUs)
+		assert.Equal(t, iters, c.Iterations)
 	***REMOVED***
 ***REMOVED***
 
-func verifyConstLoopingVUs(vus int64, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
+func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		sched := c.Execution[lib.DefaultSchedulerName]
 		require.NotEmpty(t, sched)
@@ -106,14 +106,14 @@ func verifyConstLoopingVUs(vus int64, duration time.Duration) func(t *testing.T,
 		clvc, ok := sched.(scheduler.ConstantLoopingVUsConfig)
 		require.True(t, ok)
 		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
-		assert.Equal(t, null.NewInt(vus, true), clvc.VUs)
+		assert.Equal(t, vus, clvc.VUs)
 		assert.Equal(t, types.NullDurationFrom(duration), clvc.Duration)
-		assert.Equal(t, null.NewInt(vus, true), c.VUs)
+		assert.Equal(t, vus, c.VUs)
 		assert.Equal(t, types.NullDurationFrom(duration), c.Duration)
 	***REMOVED***
 ***REMOVED***
 
-func verifyVarLoopingVUs(startVus int64, startVUsSet bool, stages []scheduler.Stage) func(t *testing.T, c Config) ***REMOVED***
+func verifyVarLoopingVUs(startVus null.Int, stages []scheduler.Stage) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		sched := c.Execution[lib.DefaultSchedulerName]
 		require.NotEmpty(t, sched)
@@ -121,8 +121,8 @@ func verifyVarLoopingVUs(startVus int64, startVUsSet bool, stages []scheduler.St
 		clvc, ok := sched.(scheduler.VariableLoopingVUsConfig)
 		require.True(t, ok)
 		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
-		assert.Equal(t, null.NewInt(startVus, startVUsSet), clvc.StartVUs)
-		assert.Equal(t, null.NewInt(startVus, startVUsSet), c.VUs)
+		assert.Equal(t, startVus, clvc.StartVUs)
+		assert.Equal(t, startVus, c.VUs)
 		assert.Equal(t, stages, clvc.Stages)
 		assert.Len(t, c.Stages, len(stages))
 		for i, s := range stages ***REMOVED***
@@ -241,6 +241,7 @@ type configConsolidationTestCase struct ***REMOVED***
 ***REMOVED***
 
 func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED***
+	I := null.IntFrom // shortcut for "Valid" (i.e. user-specified) ints
 	// This is a function, because some of these test cases actually need for the init() functions
 	// to be executed, since they depend on defaultConfigFilePath
 	return []configConsolidationTestCase***REMOVED***
@@ -253,20 +254,21 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
 		// Check if CLI shortcuts generate correct execution values
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(1, 5)***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(2, 6)***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "30s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(3, 30*time.Second)***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(4, 1*time.Minute)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(1), I(5))***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(2), I(6))***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-d", "123s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(null.NewInt(1, false), 123*time.Second)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "30s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(3), 30*time.Second)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(4), 1*time.Minute)***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***cli: []string***REMOVED***"--stage", "20s:10", "-s", "3m:5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(1, false, buildStages(20, 10, 180, 5)),
+			verifyVarLoopingVUs(null.NewInt(1, false), buildStages(20, 10, 180, 5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(10, true, buildStages(66, 5)),
+			verifyVarLoopingVUs(null.NewInt(10, true), buildStages(66, 5)),
 		***REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(10, 6)***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(I(10), I(6))***REMOVED***,
 		// These should emit a warning
 		//TODO: in next version, those should be an error
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
@@ -282,18 +284,18 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"execution": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 		// Test if environment variable shortcuts are working as expected
-		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(5, 15)***REMOVED***,
-		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(10, 20*time.Second)***REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(15))***REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 20*time.Second)***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=2m30s:11,1h1m:100"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(1, false, buildStages(150, 11, 3660, 100)),
+			verifyVarLoopingVUs(null.NewInt(1, false), buildStages(150, 11, 3660, 100)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=100s:100,0m30s:0", "K6_VUS=0"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(0, true, buildStages(100, 100, 30, 0)),
+			verifyVarLoopingVUs(null.NewInt(0, true), buildStages(100, 100, 30, 0)),
 		***REMOVED***,
 		// Test if JSON configs work as expected
-		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"iterations": 77, "vus": 7***REMOVED***`)***REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(7, 77)***REMOVED***,
+		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"iterations": 77, "vus": 7***REMOVED***`)***REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(7), I(77))***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`wrong-json`)***REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: getFS(nil), cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
 
@@ -302,7 +304,15 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			opts***REMOVED***
 				fs:  getFS([]file***REMOVED******REMOVED***"/my/config.file", `***REMOVED***"vus": 8, "duration": "2m"***REMOVED***`***REMOVED******REMOVED***),
 				cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED***,
-			***REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(8, 120*time.Second),
+			***REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(8), 120*time.Second),
+		***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***
+				fs:  defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s", "target": 20***REMOVED***], "vus": 10***REMOVED***`),
+				env: []string***REMOVED***"K6_DURATION=15s"***REMOVED***,
+				cli: []string***REMOVED***"--stage", ""***REMOVED***,
+			***REMOVED***,
+			exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 15*time.Second),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -310,7 +320,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				cli:    []string***REMOVED***"--iterations", "5"***REMOVED***,
 			***REMOVED***,
 			//TODO: this shouldn't be a warning in the next version, but the result will be different
-			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(5, 50*time.Second),
+			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(I(5), 50*time.Second),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -318,7 +328,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(5, true, buildStages(20, 10)),
+			verifyVarLoopingVUs(null.NewInt(5, true), buildStages(20, 10)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -327,7 +337,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				env:    []string***REMOVED***"K6_VUS=15", "K6_ITERATIONS=15"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED***logWarning: true***REMOVED***, //TODO: this won't be a warning in the next version, but the result will be different
-			verifyVarLoopingVUs(15, true, buildStages(20, 10)),
+			verifyVarLoopingVUs(null.NewInt(15, true), buildStages(20, 10)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -337,7 +347,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				cli:    []string***REMOVED***"--stage", "44s:44", "-s", "55s:55"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(33, true, buildStages(44, 44, 55, 55)),
+			verifyVarLoopingVUs(null.NewInt(33, true), buildStages(44, 44, 55, 55)),
 		***REMOVED***,
 
 		//TODO: test the future full overwriting of the duration/iterations/stages/execution options

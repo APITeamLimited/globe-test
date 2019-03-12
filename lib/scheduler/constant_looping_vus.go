@@ -51,7 +51,10 @@ type ConstantLoopingVUsConfig struct ***REMOVED***
 
 // NewConstantLoopingVUsConfig returns a ConstantLoopingVUsConfig with default values
 func NewConstantLoopingVUsConfig(name string) ConstantLoopingVUsConfig ***REMOVED***
-	return ConstantLoopingVUsConfig***REMOVED***BaseConfig: NewBaseConfig(name, constantLoopingVUsType, false)***REMOVED***
+	return ConstantLoopingVUsConfig***REMOVED***
+		BaseConfig: NewBaseConfig(name, constantLoopingVUsType, false),
+		VUs:        null.NewInt(1, false),
+	***REMOVED***
 ***REMOVED***
 
 // Make sure we implement the Config interface
@@ -60,10 +63,8 @@ var _ Config = &ConstantLoopingVUsConfig***REMOVED******REMOVED***
 // Validate makes sure all options are configured and valid
 func (lcv ConstantLoopingVUsConfig) Validate() []error ***REMOVED***
 	errors := lcv.BaseConfig.Validate()
-	if !lcv.VUs.Valid ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of VUs isn't specified"))
-	***REMOVED*** else if lcv.VUs.Int64 < 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of VUs shouldn't be negative"))
+	if lcv.VUs.Int64 <= 0 ***REMOVED***
+		errors = append(errors, fmt.Errorf("the number of VUs should be more than 0"))
 	***REMOVED***
 
 	if !lcv.Duration.Valid ***REMOVED***

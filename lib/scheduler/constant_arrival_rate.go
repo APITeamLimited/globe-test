@@ -69,7 +69,7 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	if !carc.Rate.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the iteration rate isn't specified"))
 	***REMOVED*** else if carc.Rate.Int64 <= 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("the iteration rate should be positive"))
+		errors = append(errors, fmt.Errorf("the iteration rate should be more than 0"))
 	***REMOVED***
 
 	if time.Duration(carc.TimeUnit.Duration) <= 0 ***REMOVED***
