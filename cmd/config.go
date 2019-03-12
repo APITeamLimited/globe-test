@@ -305,6 +305,8 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	return buildExecutionConfig(conf)
 ***REMOVED***
 
+//TODO: remove ↓
+//nolint:unparam
 func validateConfig(conf Config) error ***REMOVED***
 	errList := conf.Validate()
 	if len(errList) == 0 ***REMOVED***
