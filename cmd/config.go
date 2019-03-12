@@ -22,8 +22,12 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"errors"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
@@ -299,4 +303,21 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	conf = conf.Apply(envConf).Apply(cliConf)
 
 	return buildExecutionConfig(conf)
+***REMOVED***
+
+func validateConfig(conf Config) error ***REMOVED***
+	errList := conf.Validate()
+	if len(errList) == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+
+	errMsgParts := []string***REMOVED***"There were problems with the specified script configuration:"***REMOVED***
+	for _, err := range errList ***REMOVED***
+		errMsgParts = append(errMsgParts, fmt.Sprintf("\t- %s", err.Error()))
+	***REMOVED***
+	errMsg := errors.New(strings.Join(errMsgParts, "\n"))
+
+	//TODO: actually return the error here instead of warning, so k6 aborts on config validation errors
+	log.Warn(errMsg)
+	return nil
 ***REMOVED***

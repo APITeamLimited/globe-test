@@ -95,6 +95,10 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return err
 		***REMOVED***
 
+		if cerr := validateConfig(conf); cerr != nil ***REMOVED***
+			return ExitCode***REMOVED***cerr, invalidConfigErrorCode***REMOVED***
+		***REMOVED***
+
 		err = r.SetOptions(conf.Options)
 		if err != nil ***REMOVED***
 			return err
