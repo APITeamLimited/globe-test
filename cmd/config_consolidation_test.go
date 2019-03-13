@@ -351,6 +351,18 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 
 		//TODO: test the future full overwriting of the duration/iterations/stages/execution options
+		***REMOVED***
+			opts***REMOVED***
+				fs: defaultConfig(`***REMOVED***
+					"execution": ***REMOVED*** "someKey": ***REMOVED***
+						"type": "constant-looping-vus", "vus": 10, "duration": "60s", "interruptible": false,
+						"iterationTimeout": "10s", "startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"
+					***REMOVED******REMOVED******REMOVED***`),
+				env: []string***REMOVED***"K6_ITERATIONS=25"***REMOVED***,
+				cli: []string***REMOVED***"--vus", "12"***REMOVED***,
+			***REMOVED***,
+			exp***REMOVED******REMOVED***, verifySharedIters(I(12), I(25)),
+		***REMOVED***,
 
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
