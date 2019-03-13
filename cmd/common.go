@@ -68,6 +68,8 @@ func (w consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	return
 ***REMOVED***
 
+//TODO: refactor the CLI config so these functions aren't needed - they
+// can mask errors by failing only at runtime, not at compile time
 func getNullBool(flags *pflag.FlagSet, key string) null.Bool ***REMOVED***
 	v, err := flags.GetBool(key)
 	if err != nil ***REMOVED***

@@ -57,7 +57,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 			return err
 		***REMOVED***
 
-		currentDiskConf, cdir, err := readDiskConfig(fs)
+		currentDiskConf, configPath, err := readDiskConfig(fs)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -109,7 +109,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 		***REMOVED***
 
 		currentDiskConf.Collectors.Cloud = newCloudConf
-		if err := writeDiskConfig(fs, cdir, currentDiskConf); err != nil ***REMOVED***
+		if err := writeDiskConfig(fs, configPath, currentDiskConf); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 

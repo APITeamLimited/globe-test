@@ -91,7 +91,7 @@ func Convert(h HAR, options lib.Options, minSleep, maxSleep uint, enableChecks b
 	***REMOVED***
 
 	fprint(w, "\nexport let options = ***REMOVED***\n")
-	options.ForEachValid("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
+	options.ForEachSpecified("json", func(key string, val interface***REMOVED******REMOVED***) ***REMOVED***
 		if valJSON, err := json.MarshalIndent(val, "    ", "    "); err != nil ***REMOVED***
 			convertErr = err
 		***REMOVED*** else ***REMOVED***

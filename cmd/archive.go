@@ -25,6 +25,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var archiveOut = "archive.tar"
@@ -75,6 +76,10 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 
+		if cerr := validateConfig(conf); cerr != nil ***REMOVED***
+			return ExitCode***REMOVED***cerr, invalidConfigErrorCode***REMOVED***
+		***REMOVED***
+
 		err = r.SetOptions(conf.Options)
 		if err != nil ***REMOVED***
 			return err
@@ -90,11 +95,18 @@ An archive is a fully self-contained test run, and can be executed identically e
 	***REMOVED***,
 ***REMOVED***
 
+func archiveCmdFlagSet() *pflag.FlagSet ***REMOVED***
+	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
+	flags.SortFlags = false
+	flags.AddFlagSet(optionFlagSet())
+	flags.AddFlagSet(runtimeOptionFlagSet(false))
+	//TODO: figure out a better way to handle the CLI flags - global variables are not very testable... :/
+	flags.StringVarP(&archiveOut, "archive-out", "O", archiveOut, "archive output filename")
+	return flags
+***REMOVED***
+
 func init() ***REMOVED***
 	RootCmd.AddCommand(archiveCmd)
 	archiveCmd.Flags().SortFlags = false
-	archiveCmd.Flags().AddFlagSet(optionFlagSet())
-	archiveCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
-	archiveCmd.Flags().AddFlagSet(configFileFlagSet())
-	archiveCmd.Flags().StringVarP(&archiveOut, "archive-out", "O", archiveOut, "archive output filename")
+	archiveCmd.Flags().AddFlagSet(archiveCmdFlagSet())
 ***REMOVED***
