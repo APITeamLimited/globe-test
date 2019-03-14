@@ -263,6 +263,7 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		const correctBase64 = "XrY7u+Ae7tCTyyK7j1rNww==";
 		const correctBase64URL = "XrY7u-Ae7tCTyyK7j1rNww=="
 		const correctBase64RawURL = "XrY7u-Ae7tCTyyK7j1rNww";
+		const correctBinary = [94,182,59,187,224,30,238,208,147,203,34,187,143,90,205,195];
 
 		let hasher = crypto.createHash("md5");
 		hasher.update("hello world");
@@ -285,6 +286,23 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		const resultBase64RawURL = hasher.digest("base64rawurl");
 		if (resultBase64RawURL !== correctBase64RawURL) ***REMOVED***
 			throw new Error("Base64 raw URL encoding mismatch: " + resultBase64RawURL);
+		***REMOVED***
+
+		// https://stackoverflow.com/a/16436975/5427244
+		function arraysEqual(a, b) ***REMOVED***
+		  if (a === b) return true;
+		  if (a == null || b == null) return false;
+		  if (a.length != b.length) return false;
+
+		  for (var i = 0; i < a.length; ++i) ***REMOVED***
+			if (a[i] !== b[i]) return false;
+		  ***REMOVED***
+		  return true;
+		***REMOVED***
+
+		const resultBinary = hasher.digest("binary");
+		if (!arraysEqual(resultBinary,  correctBinary)) ***REMOVED***
+			throw new Error("Binary encoding mismatch: " + JSON.stringify(resultBinary));
 		***REMOVED***
 		`)
 
@@ -388,4 +406,54 @@ func TestHMac(t *testing.T) ***REMOVED***
 			assert.EqualError(t, err, "GoError: Invalid algorithm: "+algorithm)
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestAWSv4(t *testing.T) ***REMOVED***
+	// example values from https://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	ctx := context.Background()
+	ctx = common.WithRuntime(ctx, rt)
+	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+
+	_, err := common.RunString(rt, `
+		let HexEncode = crypto.hexEncode;
+		let HmacSHA256 = function(data, key) ***REMOVED***
+			return crypto.hmac("sha256",key, data, "binary");
+		***REMOVED***;
+
+		let expectedKDate    = '969fbb94feb542b71ede6f87fe4d5fa29c789342b0f407474670f0c2489e0a0d'
+		let expectedKRegion  = '69daa0209cd9c5ff5c8ced464a696fd4252e981430b10e3d3fd8e2f197d7a70c'
+		let expectedKService = 'f72cfd46f26bc4643f06a11eabb6c0ba18780c19a8da0c31ace671265e3c87fa'
+		let expectedKSigning = 'f4780e2d9f65fa895f9c67b32ce1baf0b0d8a43505a000a1a9e090d414db404d'
+
+		let key = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY';
+		let dateStamp = '20120215';
+		let regionName = 'us-east-1';
+		let serviceName = 'iam';
+
+		let kDate = HmacSHA256(dateStamp, "AWS4" + key);
+		let kRegion = HmacSHA256(regionName, kDate);
+		let kService = HmacSHA256(serviceName, kRegion);
+		let kSigning = HmacSHA256("aws4_request", kService);
+
+
+		let hexKDate = HexEncode(kDate);
+		if (expectedKDate != hexKDate) ***REMOVED***
+			throw new Error("Wrong kDate: expected '" + expectedKDate + "' got '" + hexKDate + "'");
+		***REMOVED***
+		let hexKRegion = HexEncode(kRegion);
+		if (expectedKRegion != hexKRegion) ***REMOVED***
+			throw new Error("Wrong kRegion: expected '" + expectedKRegion + "' got '" + hexKRegion + "'");
+		***REMOVED***
+		let hexKService = HexEncode(kService);
+		if (expectedKService != hexKService) ***REMOVED***
+			throw new Error("Wrong kService: expected '" + expectedKService + "' got '" + hexKService + "'");
+		***REMOVED***
+		let hexKSigning = HexEncode(kSigning);
+		if (expectedKSigning != hexKSigning) ***REMOVED***
+			throw new Error("Wrong kSigning: expected '" + expectedKSigning + "' got '" + hexKSigning + "'");
+		***REMOVED***
+		`)
+	assert.NoError(t, err)
 ***REMOVED***
