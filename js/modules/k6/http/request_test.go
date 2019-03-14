@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -1347,6 +1348,13 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 	state.Options.Throw = null.BoolFrom(false)
 	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
+	var badLocationRedirectMsg = "first path segment in URL cannot contain colon"
+	for _, tag := range build.Default.ReleaseTags ***REMOVED***
+		if tag == "go1.12" ***REMOVED***
+			badLocationRedirectMsg = "net/url: invalid control character in URL"
+			break
+		***REMOVED***
+	***REMOVED***
 
 	// Handple paths with custom logic
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -1416,7 +1424,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			script:            `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
 			expectedScriptError: sr(
 				"GoError: Get HTTPBIN_URL/bad-location-redirect: failed to parse Location header" +
-					" \"h\\t:/\": parse h\t:/: first path segment in URL cannot contain colon"),
+					" \"h\\t:/\": parse h\t:/: " + badLocationRedirectMsg),
 		***REMOVED***,
 		***REMOVED***
 			name:              "Missing protocol",
