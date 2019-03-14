@@ -18,7 +18,7 @@ export let options = ***REMOVED***
         ***REMOVED*** duration: "10s", target: 5 ***REMOVED***,
 
         // Stay at rest on 5 VUs for 5s
-        ***REMOVED*** duration: "5s" ***REMOVED***,
+        ***REMOVED*** duration: "5s", target: 5 ***REMOVED***,
 
         // Ramp-down from 5 to 0 VUs for 5s
         ***REMOVED*** duration: "5s", target: 0 ***REMOVED***
