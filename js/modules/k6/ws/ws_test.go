@@ -202,8 +202,8 @@ func TestSession(t *testing.T) ***REMOVED***
 				socket.close();
 			***REMOVED***, 500);
 		***REMOVED***);
-		if (ellapsed > 2000 || ellapsed < 500) ***REMOVED***
-			throw new Error ("setTimeout occurred after " + ellapsed + "ms, expected 500<T<2000");
+		if (ellapsed > 3000 || ellapsed < 500) ***REMOVED***
+			throw new Error ("setTimeout occurred after " + ellapsed + "ms, expected 500<T<3000");
 		***REMOVED***
 		`)
 		assert.NoError(t, err)
