@@ -52,7 +52,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 
 		export function setup() ***REMOVED***
 			let res = http.get("HTTPBIN_URL/html");
-			let html_selection = html.parseHTML(res.body); 
+			let html_selection = html.parseHTML(res.body);
 			let ws_res = ws.connect("ws://HTTPBIN_DOMAIN:HTTPBIN_PORT/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test")
@@ -102,7 +102,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 			first_properties.
 				filter(element => typeof(first[element]) === "object").
 					forEach(function(element) ***REMOVED***
-						diff_object_properties(name+"."+element, 
+						diff_object_properties(name+"."+element,
 											   first[element],
 											   second[element]);
 			***REMOVED***);
@@ -122,7 +122,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	err = runner.SetOptions(lib.Options***REMOVED***
-		SetupTimeout: types.NullDurationFrom(1 * time.Second),
+		SetupTimeout: types.NullDurationFrom(5 * time.Second),
 		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
 

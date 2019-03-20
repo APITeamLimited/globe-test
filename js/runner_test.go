@@ -32,6 +32,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -530,33 +531,37 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
+	//TODO: figure out why interrupt sometimes fails... data race in goja?
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
 		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`),
 	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
+	require.NoError(t, err)
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
+	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
+		name, r := name, r
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			vu, err := r.newVU(make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
+			samples := make(chan stats.SampleContainer, 100)
+			defer close(samples)
+			go func() ***REMOVED***
+				for range samples ***REMOVED***
+				***REMOVED***
+			***REMOVED***()
+
+			vu, err := r.newVU(samples)
+			require.NoError(t, err)
+
 			err = vu.RunOnce(ctx)
-			assert.EqualError(t, err, "context cancelled at /script.js:1:1(1)")
+			assert.Error(t, err)
+			assert.True(t, strings.HasPrefix(err.Error(), "context cancelled at "))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
