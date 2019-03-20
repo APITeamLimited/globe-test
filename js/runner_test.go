@@ -32,6 +32,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -532,6 +533,10 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	//TODO: figure out why interrupt sometimes fails... data race in goja?
+	if runtime.GOOS == "windows" ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
