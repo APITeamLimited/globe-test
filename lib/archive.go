@@ -63,6 +63,10 @@ func (m *normalizedFS) OpenFile(name string, flag int, mode os.FileMode) (afero.
 	return m.Fs.OpenFile(NormalizeAndAnonymizePath(name), flag, mode)
 ***REMOVED***
 
+func (m *normalizedFS) Stat(name string) (os.FileInfo, error) ***REMOVED***
+	return m.Fs.Stat(NormalizeAndAnonymizePath(name))
+***REMOVED***
+
 // An Archive is a rollup of all resources and options needed to reproduce a test identically elsewhere.
 type Archive struct ***REMOVED***
 	// The runner to use, eg. "js".

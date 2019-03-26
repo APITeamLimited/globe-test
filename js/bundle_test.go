@@ -23,6 +23,11 @@ package js
 import (
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +36,7 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -402,6 +408,158 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 	assert.Equal(t, "hi!", v2.Export())
+***REMOVED***
+
+func TestOpen(t *testing.T) ***REMOVED***
+	var testCases = [...]struct ***REMOVED***
+		name           string
+		openPath       string
+		pwd            string
+		isError        bool
+		isArchiveError bool
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:     "notOpeningUrls",
+			openPath: "github.com",
+			isError:  true,
+			pwd:      "/path/to",
+		***REMOVED***,
+		***REMOVED***
+			name:     "simple",
+			openPath: "file.txt",
+			pwd:      "/path/to",
+		***REMOVED***,
+		***REMOVED***
+			name:     "simple with dot",
+			openPath: "./file.txt",
+			pwd:      "/path/to",
+		***REMOVED***,
+		***REMOVED***
+			name:     "simple with two dots",
+			openPath: "../to/file.txt",
+			pwd:      "/path/not",
+		***REMOVED***,
+		***REMOVED***
+			name:     "fullpath",
+			openPath: "/path/to/file.txt",
+			pwd:      "/path/to",
+		***REMOVED***,
+		***REMOVED***
+			name:     "fullpath2",
+			openPath: "/path/to/file.txt",
+			pwd:      "/path",
+		***REMOVED***,
+		***REMOVED***
+			name:     "file is dir",
+			openPath: "/path/to/",
+			pwd:      "/path/to",
+			isError:  true,
+		***REMOVED***,
+		***REMOVED***
+			name:     "file is missing",
+			openPath: "/path/to/missing.txt",
+			isError:  true,
+		***REMOVED***,
+		***REMOVED***
+			name:     "relative1",
+			openPath: "to/file.txt",
+			pwd:      "/path",
+		***REMOVED***,
+		***REMOVED***
+			name:     "relative2",
+			openPath: "./path/to/file.txt",
+			pwd:      "/",
+		***REMOVED***,
+		***REMOVED***
+			name:     "relative wonky",
+			openPath: "../path/to/file.txt",
+			pwd:      "/path",
+		***REMOVED***,
+		***REMOVED***
+			name:     "empty open doesn't panic",
+			openPath: "",
+			pwd:      "/path",
+			isError:  true,
+		***REMOVED***,
+	***REMOVED***
+	fss := map[string]func() (afero.Fs, string, func())***REMOVED***
+		"MemMapFS": func() (afero.Fs, string, func()) ***REMOVED***
+			fs := afero.NewMemMapFs()
+			require.NoError(t, fs.MkdirAll("/path/to", 0755))
+			require.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644))
+			return fs, "", func() ***REMOVED******REMOVED***
+		***REMOVED***,
+		"OsFS": func() (afero.Fs, string, func()) ***REMOVED***
+			prefix, err := ioutil.TempDir("", "k6_open_test")
+			require.NoError(t, err)
+			fs := afero.NewOsFs()
+			require.NoError(t, fs.MkdirAll(filepath.Join(prefix, "/path/to"), 0755))
+			require.NoError(t, afero.WriteFile(fs, filepath.Join(prefix, "/path/to/file.txt"), []byte(`hi`), 0644))
+			return fs, prefix, func() ***REMOVED*** require.NoError(t, os.RemoveAll(prefix)) ***REMOVED***
+		***REMOVED***,
+	***REMOVED***
+
+	for name, fsInit := range fss ***REMOVED***
+		fs, prefix, cleanUp := fsInit()
+		defer cleanUp()
+		fs = afero.NewReadOnlyFs(fs)
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			for _, tCase := range testCases ***REMOVED***
+				tCase := tCase
+
+				var testFunc = func(t *testing.T) ***REMOVED***
+					var openPath = tCase.openPath
+					// if fullpath prepend prefix
+					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
+						openPath = filepath.Join(prefix, openPath)
+					***REMOVED***
+					if runtime.GOOS == "windows" ***REMOVED***
+						openPath = strings.Replace(openPath, `\`, `\\`, -1)
+					***REMOVED***
+					var pwd = tCase.pwd
+					if pwd == "" ***REMOVED***
+						pwd = "/path/to/"
+					***REMOVED***
+					src := &lib.SourceData***REMOVED***
+						Filename: filepath.Join(prefix, filepath.Join(pwd, "script.js")),
+						Data: []byte(`
+			export let file = open("` + openPath + `");
+			export default function() ***REMOVED*** return file ***REMOVED***;
+		`),
+					***REMOVED***
+					sourceBundle, err := NewBundle(src, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+					if tCase.isError ***REMOVED***
+						assert.Error(t, err)
+						return
+					***REMOVED***
+					require.NoError(t, err)
+
+					arcBundle, err := NewBundleFromArchive(sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+
+					require.NoError(t, err)
+
+					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
+						b := b
+						t.Run(source, func(t *testing.T) ***REMOVED***
+							bi, err := b.Instantiate()
+							require.NoError(t, err)
+							v, err := bi.Default(goja.Undefined())
+							require.NoError(t, err)
+							assert.Equal(t, "hi", v.Export())
+						***REMOVED***)
+					***REMOVED***
+				***REMOVED***
+
+				t.Run(tCase.name, testFunc)
+				if runtime.GOOS == "windows" ***REMOVED***
+					// windowsify the testcase
+					tCase.openPath = strings.Replace(tCase.openPath, `/`, `\`, -1)
+					tCase.pwd = strings.Replace(tCase.pwd, `/`, `\`, -1)
+					t.Run(tCase.name+" with windows slash", testFunc)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestBundleInstantiate(t *testing.T) ***REMOVED***
