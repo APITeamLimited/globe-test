@@ -35,11 +35,12 @@ import (
 )
 
 type programWithSource struct ***REMOVED***
-	pgm *goja.Program
-	src string
+	pgm     *goja.Program
+	src     string
+	exports goja.Value
 ***REMOVED***
 
-// Provides APIs for use in the init context.
+// InitContext provides APIs for use in the init context.
 type InitContext struct ***REMOVED***
 	// Bound runtime; used to instantiate objects.
 	runtime  *goja.Runtime
@@ -57,7 +58,10 @@ type InitContext struct ***REMOVED***
 	files    map[string][]byte
 ***REMOVED***
 
-func NewInitContext(rt *goja.Runtime, compiler *compiler.Compiler, ctxPtr *context.Context, fs afero.Fs, pwd string) *InitContext ***REMOVED***
+// NewInitContext creates a new initcontext with the provided arguments
+func NewInitContext(
+	rt *goja.Runtime, compiler *compiler.Compiler, ctxPtr *context.Context, fs afero.Fs, pwd string,
+) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
 		runtime:  rt,
 		compiler: compiler,
@@ -71,6 +75,16 @@ func NewInitContext(rt *goja.Runtime, compiler *compiler.Compiler, ctxPtr *conte
 ***REMOVED***
 
 func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Runtime) *InitContext ***REMOVED***
+	// we don't copy the exports as otherwise they will be shared and we don't want this.
+	// this means that all the files will be executed again but once again only once per compilation
+	// of the main file.
+	var programs = make(map[string]programWithSource, len(base.programs))
+	for key, program := range base.programs ***REMOVED***
+		programs[key] = programWithSource***REMOVED***
+			src: program.src,
+			pgm: program.pgm,
+		***REMOVED***
+	***REMOVED***
 	return &InitContext***REMOVED***
 		runtime: rt,
 		ctxPtr:  ctxPtr,
@@ -79,11 +93,12 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 		pwd:      base.pwd,
 		compiler: base.compiler,
 
-		programs: base.programs,
+		programs: programs,
 		files:    base.files,
 	***REMOVED***
 ***REMOVED***
 
+// Require is called when a module/file needs to be loaded by a script
 func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 	switch ***REMOVED***
 	case arg == "k6", strings.HasPrefix(arg, "k6/"):
@@ -116,47 +131,48 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 	// Resolve the file path, push the target directory as pwd to make relative imports work.
 	pwd := i.pwd
 	filename := loader.Resolve(pwd, name)
-	i.pwd = loader.Dir(filename)
-	defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
-
-	// Swap the importing scope's exports out, then put it back again.
-	oldExports := i.runtime.Get("exports")
-	defer i.runtime.Set("exports", oldExports)
-	oldModule := i.runtime.Get("module")
-	defer i.runtime.Set("module", oldModule)
-	exports := i.runtime.NewObject()
-	i.runtime.Set("exports", exports)
-	module := i.runtime.NewObject()
-	_ = module.Set("exports", exports)
-	i.runtime.Set("module", module)
 
 	// First, check if we have a cached program already.
 	pgm, ok := i.programs[filename]
-	if !ok ***REMOVED***
-		// Load the sources; the loader takes care of remote loading, etc.
-		data, err := loader.Load(i.fs, pwd, name)
-		if err != nil ***REMOVED***
-			return goja.Undefined(), err
+	if !ok || pgm.exports == nil ***REMOVED***
+		i.pwd = loader.Dir(filename)
+		defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
+
+		// Swap the importing scope's exports out, then put it back again.
+		oldExports := i.runtime.Get("exports")
+		defer i.runtime.Set("exports", oldExports)
+		oldModule := i.runtime.Get("module")
+		defer i.runtime.Set("module", oldModule)
+		exports := i.runtime.NewObject()
+		i.runtime.Set("exports", exports)
+		module := i.runtime.NewObject()
+		_ = module.Set("exports", exports)
+		i.runtime.Set("module", module)
+		if pgm.pgm == nil ***REMOVED***
+			// Load the sources; the loader takes care of remote loading, etc.
+			data, err := loader.Load(i.fs, pwd, name)
+			if err != nil ***REMOVED***
+				return goja.Undefined(), err
+			***REMOVED***
+			pgm.src = string(data.Data)
+
+			// Compile the sources; this handles ES5 vs ES6 automatically.
+			pgm.pgm, err = i.compileImport(pgm.src, data.Filename)
+			if err != nil ***REMOVED***
+				return goja.Undefined(), err
+			***REMOVED***
 		***REMOVED***
 
-		// Compile the sources; this handles ES5 vs ES6 automatically.
-		src := string(data.Data)
-		pgm_, err := i.compileImport(src, data.Filename)
-		if err != nil ***REMOVED***
-			return goja.Undefined(), err
-		***REMOVED***
-
-		// Cache the compiled program.
-		pgm = programWithSource***REMOVED***pgm_, src***REMOVED***
+		pgm.exports = module.Get("exports")
 		i.programs[filename] = pgm
+
+		// Run the program.
+		if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
+			return goja.Undefined(), err
+		***REMOVED***
 	***REMOVED***
 
-	// Run the program.
-	if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
-		return goja.Undefined(), err
-	***REMOVED***
-
-	return module.Get("exports"), nil
+	return pgm.exports, nil
 ***REMOVED***
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
