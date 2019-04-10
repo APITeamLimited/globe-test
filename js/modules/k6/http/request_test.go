@@ -1348,6 +1348,11 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
+	var connectionRefusedErrorText = "connect: connection refused"
+	if runtime.GOOS == "windows" ***REMOVED***
+		connectionRefusedErrorText = "connectex: No connection could be made because the target machine actively refused it."
+	***REMOVED***
+
 	// Handple paths with custom logic
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
@@ -1425,11 +1430,22 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			script:            `let res = http.request("GET", "dafsgdhfjg/");`,
 		***REMOVED***,
 		***REMOVED***
-			name:   "Too many redirects",
-			status: 302,
+			name:        "Too many redirects",
+			status:      302,
+			moreSamples: 2,
 			script: `
-			let res = http.get("HTTPBIN_URL/redirect/1", ***REMOVED***redirects: 0***REMOVED***);
-			if (res.url != "HTTPBIN_URL/redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***`,
+			let res = http.get("HTTPBIN_URL/relative-redirect/3", ***REMOVED***redirects: 2***REMOVED***);
+			if (res.url != "HTTPBIN_URL/relative-redirect/1") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***`,
+		***REMOVED***,
+		***REMOVED***
+			name:              "Connection refused redirect",
+			status:            0,
+			moreSamples:       1,
+			expectedErrorMsg:  `dial tcp 127.0.0.1:1: ` + connectionRefusedErrorText,
+			expectedErrorCode: 1210,
+			script: `
+			let res = http.get("HTTPBIN_URL/redirect-to?url=http%3A%2F%2F127.0.0.1%3A1%2Fpesho");
+			if (res.url != "http://127.0.0.1:1/pesho") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***`,
 		***REMOVED***,
 	***REMOVED***
 
