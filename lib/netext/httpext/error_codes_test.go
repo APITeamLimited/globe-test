@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"runtime"
 	"syscall"
 	"testing"
@@ -114,7 +115,8 @@ func TestTCPErrors(t *testing.T) ***REMOVED***
 		nonTCPError       = &net.OpError***REMOVED***Net: "something", Err: errors.New("non tcp error")***REMOVED***
 		econnreset        = &net.OpError***REMOVED***Net: "tcp", Op: "write", Err: syscall.ECONNRESET***REMOVED***
 		epipeerror        = &net.OpError***REMOVED***Net: "tcp", Op: "write", Err: syscall.EPIPE***REMOVED***
-		econnrefused      = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: syscall.ECONNREFUSED***REMOVED***
+		econnrefused      = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: &os.SyscallError***REMOVED***Err: syscall.ECONNREFUSED***REMOVED******REMOVED***
+		errnounknown      = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: &os.SyscallError***REMOVED***Err: syscall.E2BIG***REMOVED******REMOVED***
 		tcperror          = &net.OpError***REMOVED***Net: "tcp", Err: errors.New("tcp error")***REMOVED***
 		timeoutedError    = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: timeoutError(true)***REMOVED***
 		notTimeoutedError = &net.OpError***REMOVED***Net: "tcp", Op: "dial", Err: timeoutError(false)***REMOVED***
@@ -125,6 +127,7 @@ func TestTCPErrors(t *testing.T) ***REMOVED***
 		tcpResetByPeerErrorCode:   econnreset,
 		tcpBrokenPipeErrorCode:    epipeerror,
 		tcpDialRefusedErrorCode:   econnrefused,
+		tcpDialUnknownErrnoCode:   errnounknown,
 		defaultTCPErrorCode:       tcperror,
 		tcpDialErrorCode:          notTimeoutedError,
 		tcpDialTimeoutErrorCode:   timeoutedError,

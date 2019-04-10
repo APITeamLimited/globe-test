@@ -1157,10 +1157,6 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 
 	httpURL, err := url.Parse(tb.ServerHTTP.URL)
 	require.NoError(t, err)
-	var connectionRefusedErrorText = "connect: connection refused"
-	if runtime.GOOS == "windows" ***REMOVED***
-		connectionRefusedErrorText = "connectex: No connection could be made because the target machine actively refused it."
-	***REMOVED***
 
 	testedSystemTags := []struct***REMOVED*** tag, code, expVal string ***REMOVED******REMOVED***
 		***REMOVED***"proto", httpGet, "HTTP/1.1"***REMOVED***,
@@ -1177,13 +1173,13 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		***REMOVED***"ocsp_status", httpsGet, "unknown"***REMOVED***,
 		***REMOVED***
 			"error",
-			tb.Replacer.Replace(`http.get("http://127.0.0.1:56789");`),
-			tb.Replacer.Replace(`dial tcp 127.0.0.1:56789: ` + connectionRefusedErrorText),
+			tb.Replacer.Replace(`http.get("http://127.0.0.1:1");`),
+			`dial: connection refused`,
 		***REMOVED***,
 		***REMOVED***
 			"error_code",
-			tb.Replacer.Replace(`http.get("http://127.0.0.1:56789");`),
-			"1210",
+			tb.Replacer.Replace(`http.get("http://127.0.0.1:1");`),
+			"1212",
 		***REMOVED***,
 	***REMOVED***
 
@@ -1348,11 +1344,6 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
-	var connectionRefusedErrorText = "connect: connection refused"
-	if runtime.GOOS == "windows" ***REMOVED***
-		connectionRefusedErrorText = "connectex: No connection could be made because the target machine actively refused it."
-	***REMOVED***
-
 	// Handple paths with custom logic
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
@@ -1441,8 +1432,8 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			name:              "Connection refused redirect",
 			status:            0,
 			moreSamples:       1,
-			expectedErrorMsg:  `dial tcp 127.0.0.1:1: ` + connectionRefusedErrorText,
-			expectedErrorCode: 1210,
+			expectedErrorMsg:  `dial: connection refused`,
+			expectedErrorCode: 1212,
 			script: `
 			let res = http.get("HTTPBIN_URL/redirect-to?url=http%3A%2F%2F127.0.0.1%3A1%2Fpesho");
 			if (res.url != "http://127.0.0.1:1/pesho") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***`,
