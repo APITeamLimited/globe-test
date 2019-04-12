@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -235,11 +234,6 @@ func (h *HTTP) parseRequest(
 		***REMOVED***
 	***REMOVED***
 
-	if result.Body != nil ***REMOVED***
-		result.Req.Body = ioutil.NopCloser(result.Body)
-		result.Req.ContentLength = int64(result.Body.Len())
-	***REMOVED***
-
 	if userAgent := state.Options.UserAgent; userAgent.String != "" ***REMOVED***
 		result.Req.Header.Set("User-Agent", userAgent.String)
 	***REMOVED***
@@ -309,6 +303,22 @@ func (h *HTTP) parseRequest(
 				switch v := jarV.Export().(type) ***REMOVED***
 				case *HTTPCookieJar:
 					result.ActiveJar = v.jar
+				***REMOVED***
+			case "compression":
+				var algosString = strings.TrimSpace(params.Get(k).ToString().String())
+				if algosString == "" ***REMOVED***
+					continue
+				***REMOVED***
+				var algos = strings.Split(algosString, ",")
+				var err error
+				result.Compressions = make([]httpext.CompressionType, len(algos))
+				for index, algo := range algos ***REMOVED***
+					algo = strings.TrimSpace(algo)
+					result.Compressions[index], err = httpext.CompressionTypeString(algo)
+					if err != nil ***REMOVED***
+						return nil, fmt.Errorf("unknown compression algorithm %s, supported algorithms are %s",
+							algo, httpext.CompressionTypeValues())
+					***REMOVED***
 				***REMOVED***
 			case "redirects":
 				result.Redirects = null.IntFrom(params.Get(k).ToInteger())

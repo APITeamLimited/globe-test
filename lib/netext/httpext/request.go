@@ -45,6 +45,10 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+const compressionHeaderOverwriteMessage = "Both compression and the `%s` header were specified " +
+	"in the %s request for '%s', the custom header has precedence and won't be overwritten. " +
+	"This will likely result in invalid data being sent to the server."
+
 // HTTPRequestCookie is a representation of a cookie used for request objects
 type HTTPRequestCookie struct ***REMOVED***
 	Name, Value string
@@ -70,6 +74,22 @@ func (u URL) GetURL() *url.URL ***REMOVED***
 	return u.u
 ***REMOVED***
 
+// CompressionType is used to specify what compression is to be used to compress the body of a
+// request
+// The conversion and validation methods are auto-generated with https://github.com/alvaroloes/enumer:
+//nolint: lll
+//go:generate enumer -type=CompressionType -transform=snake -trimprefix CompressionType -output compression_type_gen.go
+type CompressionType uint
+
+const (
+	// CompressionTypeGzip compresses through gzip
+	CompressionTypeGzip CompressionType = iota
+	// CompressionTypeDeflate compresses through flate
+	CompressionTypeDeflate
+	// TODO: add compress(lzw), brotli maybe bzip2 and others listed at
+	// https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
+)
+
 // Request represent an http request
 type Request struct ***REMOVED***
 	Method  string                          `json:"method"`
@@ -88,6 +108,7 @@ type ParsedHTTPRequest struct ***REMOVED***
 	Auth         string
 	Throw        bool
 	ResponseType ResponseType
+	Compressions []CompressionType
 	Redirects    null.Int
 	ActiveJar    *cookiejar.Jar
 	Cookies      map[string]*HTTPRequestCookie
@@ -103,6 +124,44 @@ func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRe
 	return result
 ***REMOVED***
 
+func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64, string, error) ***REMOVED***
+	var contentEncoding string
+	var prevBuf io.Reader = body
+	var buf *bytes.Buffer
+	for _, compressionType := range algos ***REMOVED***
+		if buf != nil ***REMOVED***
+			prevBuf = buf
+		***REMOVED***
+		buf = new(bytes.Buffer)
+
+		if contentEncoding != "" ***REMOVED***
+			contentEncoding += ", "
+		***REMOVED***
+		contentEncoding += compressionType.String()
+		var w io.WriteCloser
+		switch compressionType ***REMOVED***
+		case CompressionTypeGzip:
+			w = gzip.NewWriter(buf)
+		case CompressionTypeDeflate:
+			w = zlib.NewWriter(buf)
+		default:
+			return nil, 0, "", fmt.Errorf("unknown compressionType %s", compressionType)
+		***REMOVED***
+		// we don't close in defer because zlib will write it's checksum again if it closes twice :(
+		var _, err = io.Copy(w, prevBuf)
+		if err != nil ***REMOVED***
+			_ = w.Close()
+			return nil, 0, "", err
+		***REMOVED***
+
+		if err = w.Close(); err != nil ***REMOVED***
+			return nil, 0, "", err
+		***REMOVED***
+	***REMOVED***
+
+	return buf, int64(buf.Len()), contentEncoding, body.Close()
+***REMOVED***
+
 // MakeRequest makes http request for tor the provided ParsedHTTPRequest
 //TODO break this function up
 //nolint: gocyclo
@@ -115,8 +174,45 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		Cookies: stdCookiesToHTTPRequestCookies(preq.Req.Cookies()),
 		Headers: preq.Req.Header,
 	***REMOVED***
+
+	if contentLength := preq.Req.Header.Get("Content-Length"); contentLength != "" ***REMOVED***
+		length, err := strconv.Atoi(contentLength)
+		if err == nil ***REMOVED***
+			preq.Req.ContentLength = int64(length)
+		***REMOVED***
+		// TODO: maybe do something in the other case ... but no error
+	***REMOVED***
+
 	if preq.Body != nil ***REMOVED***
+		preq.Req.Body = ioutil.NopCloser(preq.Body)
+
+		// TODO: maybe hide this behind of flag in order for this to not happen for big post/puts?
+		// should we set this after the compression? what will be the point ?
 		respReq.Body = preq.Body.String()
+
+		switch ***REMOVED***
+		case len(preq.Compressions) > 0:
+			compressedBody, length, contentEncoding, err := compressBody(preq.Compressions, preq.Req.Body)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+
+			preq.Req.Body = ioutil.NopCloser(compressedBody)
+			if preq.Req.Header.Get("Content-Length") == "" ***REMOVED***
+				preq.Req.ContentLength = length
+			***REMOVED*** else ***REMOVED***
+				state.Logger.Warningf(compressionHeaderOverwriteMessage, "Content-Length", preq.Req.Method, preq.Req.URL)
+			***REMOVED***
+			if preq.Req.Header.Get("Content-Encoding") == "" ***REMOVED***
+				preq.Req.Header.Set("Content-Encoding", contentEncoding)
+			***REMOVED*** else ***REMOVED***
+				state.Logger.Warningf(compressionHeaderOverwriteMessage, "Content-Encoding", preq.Req.Method, preq.Req.URL)
+			***REMOVED***
+		case preq.Req.Header.Get("Content-Length") == "":
+			preq.Req.ContentLength = int64(preq.Body.Len())
+		***REMOVED***
+		// TODO: print some message in case we have Content-Length set so that we can warn users
+		// that setting it manually can lead to bad requests
 	***REMOVED***
 
 	tags := state.Options.RunTags.CloneTags()
@@ -244,11 +340,19 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	resp.Error = tracerTransport.errorMsg
 	resp.ErrorCode = int(tracerTransport.errorCode)
 	if resErr == nil && res != nil ***REMOVED***
-		switch res.Header.Get("Content-Encoding") ***REMOVED***
-		case "deflate":
-			res.Body, resErr = zlib.NewReader(res.Body)
-		case "gzip":
-			res.Body, resErr = gzip.NewReader(res.Body)
+		compression, err := CompressionTypeString(strings.TrimSpace(res.Header.Get("Content-Encoding")))
+		if err == nil ***REMOVED*** // in case of error we just won't uncompress
+			switch compression ***REMOVED***
+			case CompressionTypeDeflate:
+				res.Body, resErr = zlib.NewReader(res.Body)
+			case CompressionTypeGzip:
+				res.Body, resErr = gzip.NewReader(res.Body)
+			default:
+				// We have not implemented a compression ... :(
+				resErr = fmt.Errorf(
+					"unsupported compressionType %s for uncompression. This is a bug in k6 please report it",
+					compression)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if resErr == nil && res != nil ***REMOVED***

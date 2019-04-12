@@ -22,8 +22,11 @@ package http
 
 import (
 	"bytes"
+	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -1206,6 +1209,145 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestRequestCompression(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	// We don't expect any failed requests
+	state.Options.Throw = null.BoolFrom(true)
+
+	var text = `
+	Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+	Maecenas sed pharetra sapien. Nunc laoreet molestie ante ac gravida.
+	Etiam interdum dui viverra posuere egestas. Pellentesque at dolor tristique,
+	mattis turpis eget, commodo purus. Nunc orci aliquam.`
+
+	var decompress = func(algo string, input io.Reader) io.Reader ***REMOVED***
+		switch algo ***REMOVED***
+		case "gzip":
+			w, err := gzip.NewReader(input)
+			if err != nil ***REMOVED***
+				t.Fatal(err)
+			***REMOVED***
+			return w
+		case "deflate":
+			w, err := zlib.NewReader(input)
+			if err != nil ***REMOVED***
+				t.Fatal(err)
+			***REMOVED***
+			return w
+		default:
+			t.Fatal("unknown algorithm " + algo)
+		***REMOVED***
+		return nil // unreachable
+	***REMOVED***
+
+	var (
+		expectedEncoding string
+		actualEncoding   string
+	)
+	tb.Mux.HandleFunc("/compressed-text", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		require.Equal(t, expectedEncoding, r.Header.Get("Content-Encoding"))
+
+		expectedLength, err := strconv.Atoi(r.Header.Get("Content-Length"))
+		require.NoError(t, err)
+		var algos = strings.Split(actualEncoding, ", ")
+		var compressedBuf = new(bytes.Buffer)
+		n, err := io.Copy(compressedBuf, r.Body)
+		require.Equal(t, int(n), expectedLength)
+		require.NoError(t, err)
+		var prev io.Reader = compressedBuf
+
+		if expectedEncoding != "" ***REMOVED***
+			for i := len(algos) - 1; i >= 0; i-- ***REMOVED***
+				prev = decompress(algos[i], prev)
+			***REMOVED***
+		***REMOVED***
+
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, prev)
+		require.NoError(t, err)
+		require.Equal(t, text, buf.String())
+	***REMOVED***))
+
+	var testCases = []struct ***REMOVED***
+		name          string
+		compression   string
+		expectedError string
+	***REMOVED******REMOVED***
+		***REMOVED***compression: ""***REMOVED***,
+		***REMOVED***compression: "  "***REMOVED***,
+		***REMOVED***compression: "gzip"***REMOVED***,
+		***REMOVED***compression: "gzip, gzip"***REMOVED***,
+		***REMOVED***compression: "gzip,   gzip "***REMOVED***,
+		***REMOVED***compression: "gzip,gzip"***REMOVED***,
+		***REMOVED***compression: "gzip, gzip, gzip, gzip, gzip, gzip, gzip"***REMOVED***,
+		***REMOVED***compression: "deflate"***REMOVED***,
+		***REMOVED***compression: "deflate, gzip"***REMOVED***,
+		***REMOVED***compression: "gzip,deflate, gzip"***REMOVED***,
+		***REMOVED***
+			compression:   "George",
+			expectedError: `unknown compression algorithm George`,
+		***REMOVED***,
+		***REMOVED***
+			compression:   "gzip, George",
+			expectedError: `unknown compression algorithm George`,
+		***REMOVED***,
+	***REMOVED***
+	for _, testCase := range testCases ***REMOVED***
+		testCase := testCase
+		t.Run(testCase.compression, func(t *testing.T) ***REMOVED***
+			var algos = strings.Split(testCase.compression, ",")
+			for i, algo := range algos ***REMOVED***
+				algos[i] = strings.TrimSpace(algo)
+			***REMOVED***
+			expectedEncoding = strings.Join(algos, ", ")
+			actualEncoding = expectedEncoding
+			_, err := common.RunString(rt, tb.Replacer.Replace(`
+		http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,  ***REMOVED***"compression": "`+testCase.compression+`"***REMOVED***);
+	`))
+			if testCase.expectedError == "" ***REMOVED***
+				require.NoError(t, err)
+			***REMOVED*** else ***REMOVED***
+				require.Error(t, err)
+				require.Contains(t, err.Error(), testCase.expectedError)
+			***REMOVED***
+
+		***REMOVED***)
+	***REMOVED***
+
+	t.Run("custom set header", func(t *testing.T) ***REMOVED***
+		expectedEncoding = "not, valid"
+		actualEncoding = "gzip, deflate"
+		t.Run("encoding", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
+					***REMOVED***"compression": "`+actualEncoding+`",
+					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`"***REMOVED***
+					***REMOVED***
+				);
+			`))
+			require.NoError(t, err)
+
+		***REMOVED***)
+
+		t.Run("encoding and length", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
+					***REMOVED***"compression": "`+actualEncoding+`",
+					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`",
+								 "Content-Length": "12"***REMOVED***
+					***REMOVED***
+				);
+			`))
+			require.Error(t, err)
+			// TODO: This probably shouldn't be like this
+			require.Contains(t, err.Error(), "http: ContentLength=12 with Body length 211")
+		***REMOVED***)
+	***REMOVED***)
 ***REMOVED***
 
 func TestResponseTypes(t *testing.T) ***REMOVED***
