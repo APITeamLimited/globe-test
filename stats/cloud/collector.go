@@ -47,9 +47,10 @@ type Collector struct ***REMOVED***
 	config      Config
 	referenceID string
 
-	duration   int64
-	thresholds map[string][]*stats.Threshold
-	client     *Client
+	executionPlan []lib.ExecutionStep
+	duration      int64 // in seconds
+	thresholds    map[string][]*stats.Threshold
+	client        *Client
 
 	anonymous bool
 	runStatus lib.RunStatus
@@ -97,7 +98,9 @@ func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error 
 ***REMOVED***
 
 // New creates a new cloud collector
-func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
+func New(
+	conf Config, src *lib.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
+) (*Collector, error) ***REMOVED***
 	if err := MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -118,15 +121,8 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 		thresholds[name] = append(thresholds[name], t.Thresholds...)
 	***REMOVED***
 
-	// Sum test duration from options. -1 for unknown duration.
-	var duration int64 = -1
-	if len(opts.Stages) > 0 ***REMOVED***
-		duration = sumStages(opts.Stages)
-	***REMOVED*** else if opts.Duration.Valid ***REMOVED***
-		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
-	***REMOVED***
-
-	if duration == -1 ***REMOVED***
+	duration, testEnds := lib.GetEndOffset(executionPlan)
+	if !testEnds ***REMOVED***
 		return nil, errors.New("Tests with unspecified duration are not allowed when using Load Impact Insights")
 	***REMOVED***
 
@@ -136,13 +132,14 @@ func New(conf Config, src *lib.SourceData, opts lib.Options, version string) (*C
 	***REMOVED***
 
 	return &Collector***REMOVED***
-		config:      conf,
-		thresholds:  thresholds,
-		client:      NewClient(conf.Token.String, conf.Host.String, version),
-		anonymous:   !conf.Token.Valid,
-		duration:    duration,
-		opts:        opts,
-		aggrBuckets: map[int64]aggregationBucket***REMOVED******REMOVED***,
+		config:        conf,
+		thresholds:    thresholds,
+		client:        NewClient(conf.Token.String, conf.Host.String, version),
+		anonymous:     !conf.Token.Valid,
+		executionPlan: executionPlan,
+		duration:      int64(duration / time.Second),
+		opts:          opts,
+		aggrBuckets:   map[int64]aggregationBucket***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -156,11 +153,12 @@ func (c *Collector) Init() error ***REMOVED***
 			thresholds[name] = append(thresholds[name], threshold.Source)
 		***REMOVED***
 	***REMOVED***
+	maxVUs := lib.GetMaxPossibleVUs(c.executionPlan)
 
 	testRun := &TestRun***REMOVED***
 		Name:       c.config.Name.String,
 		ProjectID:  c.config.ProjectID.Int64,
-		VUsMax:     c.opts.VUsMax.Int64,
+		VUsMax:     int64(maxVUs),
 		Thresholds: thresholds,
 		Duration:   c.duration,
 	***REMOVED***
@@ -503,15 +501,6 @@ func (c *Collector) testFinished() ***REMOVED***
 			"error": err,
 		***REMOVED***).Warn("Failed to send test finished to cloud")
 	***REMOVED***
-***REMOVED***
-
-func sumStages(stages []lib.Stage) int64 ***REMOVED***
-	var total time.Duration
-	for _, stage := range stages ***REMOVED***
-		total += time.Duration(stage.Duration.Duration)
-	***REMOVED***
-
-	return int64(total.Seconds())
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
