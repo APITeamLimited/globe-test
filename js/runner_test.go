@@ -37,6 +37,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js/common"
@@ -46,6 +48,7 @@ import (
 	"github.com/loadimpact/k6/js/modules/k6/ws"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	_ "github.com/loadimpact/k6/lib/scheduler" //TODO: figure out something better
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -259,11 +262,15 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
 
 		export let options = ***REMOVED***
-			vus: 2,
-			vusMax: 10,
-			iterations: 500,
-			teardownTimeout: "1s",
-			setupTimeout: "1s",
+			execution: ***REMOVED***
+				shared_iters: ***REMOVED***
+					type: "shared-iterations",
+					vus: 5,
+					iterations: 500,
+				***REMOVED***,
+			***REMOVED***,
+			teardownTimeout: "5s",
+			setupTimeout: "5s",
 		***REMOVED***;
 		let myCounter = new Counter("mycounter");
 
@@ -294,13 +301,20 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	engine, err := core.NewEngine(local.New(runner), runner.GetOptions())
+	options := runner.GetOptions()
+	require.Empty(t, options.Validate())
+
+	executor, err := local.New(runner, logrus.StandardLogger())
 	require.NoError(t, err)
+	engine, err := core.NewEngine(executor, options, logrus.StandardLogger())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	require.NoError(t, engine.Init(ctx))
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
-	ctx, cancel := context.WithCancel(context.Background())
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 

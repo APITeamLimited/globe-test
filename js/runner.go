@@ -271,6 +271,8 @@ func (r *Runner) SetOptions(opts lib.Options) error ***REMOVED***
 		r.RPSLimit = rate.NewLimiter(rate.Limit(rps.Int64), 1)
 	***REMOVED***
 
+	//TODO: validate that all exec values are either nil or valid exported methods (or HTTP requests in the future)
+
 	if opts.ConsoleOutput.Valid ***REMOVED***
 		c, err := newFileConsole(opts.ConsoleOutput.String)
 		if err != nil ***REMOVED***
@@ -317,6 +319,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
 		// we could have an error that is not errInterrupt in which case we should return it instead
 		if err, ok := err.(*goja.InterruptedError); ok && v != nil && err.Value() != errInterrupt ***REMOVED***
+			//TODO: silence this error?
 			return v, err
 		***REMOVED***
 		// otherwise we have timeouted
