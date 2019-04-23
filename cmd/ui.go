@@ -47,7 +47,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	origLen := len(p)
 	if w.IsTTY ***REMOVED***
 		//TODO: check how cross-platform this is...
-		p = bytes.ReplaceAll(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***)
+		p = bytes.Replace(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1)
 	***REMOVED***
 
 	w.Mutex.Lock()
