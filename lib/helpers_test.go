@@ -18,7 +18,7 @@
  *
  */
 
-package scheduler
+package lib
 
 import (
 	"fmt"
@@ -27,19 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestCheckPercentagesSum(t *testing.T) ***REMOVED***
-	t.Parallel()
-	assert.NoError(t, checkPercentagesSum([]float64***REMOVED***100***REMOVED***))
-	assert.NoError(t, checkPercentagesSum([]float64***REMOVED***50, 50***REMOVED***))
-	assert.NoError(t, checkPercentagesSum([]float64***REMOVED***100.0 / 3, 100.0 / 3, 100.0 / 3***REMOVED***))
-	assert.NoError(t, checkPercentagesSum([]float64***REMOVED***33.33, 33.33, 33.34***REMOVED***))
-
-	assert.Error(t, checkPercentagesSum([]float64***REMOVED******REMOVED***))
-	assert.Error(t, checkPercentagesSum([]float64***REMOVED***100 / 3, 100 / 3, 100 / 3***REMOVED***))
-	assert.Error(t, checkPercentagesSum([]float64***REMOVED***33.33, 33.33, 33.33***REMOVED***))
-	assert.Error(t, checkPercentagesSum([]float64***REMOVED***40, 40, 40***REMOVED***))
-***REMOVED***
 
 func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 	t.Parallel()
@@ -67,7 +54,7 @@ func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 	for i, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("TestCase#%d", i), func(t *testing.T) ***REMOVED***
-			err := strictJSONUnmarshal([]byte(tc.data), &tc.destination)
+			err := StrictJSONUnmarshal([]byte(tc.data), &tc.destination)
 			if tc.expectedError ***REMOVED***
 				require.Error(t, err)
 				return
@@ -77,3 +64,5 @@ func TestStrictJSONUnmarshal(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+//TODO: test EventStream very thoroughly
