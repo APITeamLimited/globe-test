@@ -25,6 +25,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	null "gopkg.in/guregu/null.v3"
@@ -81,6 +83,8 @@ func NullDecoder(f reflect.Type, t reflect.Type, data interface***REMOVED******R
 	return data, nil
 ***REMOVED***
 
+//TODO: something better that won't reuire so much boilerplate and casts for NullDuration values...
+
 // Duration is an alias for time.Duration that de/serialises to JSON as human-readable strings.
 type Duration time.Duration
 
@@ -88,8 +92,37 @@ func (d Duration) String() string ***REMOVED***
 	return time.Duration(d).String()
 ***REMOVED***
 
+// ParseExtendedDuration is a helper function that allows for string duration
+// values containing days.
+func ParseExtendedDuration(data string) (result time.Duration, err error) ***REMOVED***
+	dPos := strings.IndexByte(data, 'd')
+	if dPos < 0 ***REMOVED***
+		return time.ParseDuration(data)
+	***REMOVED***
+
+	var hours time.Duration
+	if dPos+1 < len(data) ***REMOVED*** // case "12d"
+		hours, err = time.ParseDuration(data[dPos+1:])
+		if err != nil ***REMOVED***
+			return
+		***REMOVED***
+		if hours < 0 ***REMOVED***
+			return 0, fmt.Errorf("invalid time format '%s'", data[dPos+1:])
+		***REMOVED***
+	***REMOVED***
+
+	days, err := strconv.ParseInt(data[:dPos], 10, 64)
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+	if days < 0 ***REMOVED***
+		hours = -hours
+	***REMOVED***
+	return time.Duration(days)*24*time.Hour + hours, nil
+***REMOVED***
+
 func (d *Duration) UnmarshalText(data []byte) error ***REMOVED***
-	v, err := time.ParseDuration(string(data))
+	v, err := ParseExtendedDuration(string(data))
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -104,7 +137,7 @@ func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
 			return err
 		***REMOVED***
 
-		v, err := time.ParseDuration(str)
+		v, err := ParseExtendedDuration(str)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

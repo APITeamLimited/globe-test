@@ -23,6 +23,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -99,6 +100,55 @@ func TestNullDecoder(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestParseExtendedDuration(t *testing.T) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		durStr string
+		expErr bool
+		expDur time.Duration
+	***REMOVED******REMOVED***
+		***REMOVED***"", true, 0***REMOVED***,
+		***REMOVED***"d", true, 0***REMOVED***,
+		***REMOVED***"d2h", true, 0***REMOVED***,
+		***REMOVED***"d2h", true, 0***REMOVED***,
+		***REMOVED***"2.1d", true, 0***REMOVED***,
+		***REMOVED***"2d-2h", true, 0***REMOVED***,
+		***REMOVED***"-2d-2h", true, 0***REMOVED***,
+		***REMOVED***"2+d", true, 0***REMOVED***,
+		***REMOVED***"2da", true, 0***REMOVED***,
+		***REMOVED***"2-d", true, 0***REMOVED***,
+		***REMOVED***"1.12s", false, 1120 * time.Millisecond***REMOVED***,
+		***REMOVED***"0d1.12s", false, 1120 * time.Millisecond***REMOVED***,
+		***REMOVED***"10d1.12s", false, 240*time.Hour + 1120*time.Millisecond***REMOVED***,
+		***REMOVED***"1s", false, 1 * time.Second***REMOVED***,
+		***REMOVED***"1d", false, 24 * time.Hour***REMOVED***,
+		***REMOVED***"20d", false, 480 * time.Hour***REMOVED***,
+		***REMOVED***"1d23h", false, 47 * time.Hour***REMOVED***,
+		***REMOVED***"1d24h15m", false, 48*time.Hour + 15*time.Minute***REMOVED***,
+		***REMOVED***"1d25h80m", false, 50*time.Hour + 20*time.Minute***REMOVED***,
+		***REMOVED***"0d25h120m80s", false, 27*time.Hour + 80*time.Second***REMOVED***,
+		***REMOVED***"-1d2h", false, -26 * time.Hour***REMOVED***,
+		***REMOVED***"-1d24h", false, -48 * time.Hour***REMOVED***,
+		***REMOVED***"2d1ns", false, 48*time.Hour + 1***REMOVED***,
+		***REMOVED***"-2562047h47m16.854775807s", false, time.Duration(math.MinInt64 + 1)***REMOVED***,
+		***REMOVED***"-106751d23h47m16.854775807s", false, time.Duration(math.MinInt64 + 1)***REMOVED***,
+		***REMOVED***"2562047h47m16.854775807s", false, time.Duration(math.MaxInt64)***REMOVED***,
+		***REMOVED***"106751d23h47m16.854775807s", false, time.Duration(math.MaxInt64)***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("tc_%s_exp", tc.durStr), func(t *testing.T) ***REMOVED***
+			result, err := ParseExtendedDuration(tc.durStr)
+			if tc.expErr ***REMOVED***
+				assert.Error(t, err)
+			***REMOVED*** else ***REMOVED***
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expDur, result)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestDuration(t *testing.T) ***REMOVED***
 	t.Run("String", func(t *testing.T) ***REMOVED***
 		assert.Equal(t, "1m15s", Duration(75*time.Second).String())
@@ -119,6 +169,11 @@ func TestDuration(t *testing.T) ***REMOVED***
 				var d Duration
 				assert.NoError(t, json.Unmarshal([]byte(`"1m15s"`), &d))
 				assert.Equal(t, Duration(75*time.Second), d)
+			***REMOVED***)
+			t.Run("Extended", func(t *testing.T) ***REMOVED***
+				var d Duration
+				assert.NoError(t, json.Unmarshal([]byte(`"1d2h1m15s"`), &d))
+				assert.Equal(t, Duration(26*time.Hour+75*time.Second), d)
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Marshal", func(t *testing.T) ***REMOVED***

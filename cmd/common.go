@@ -21,11 +21,9 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/spf13/afero"
@@ -49,23 +47,6 @@ func must(err error) ***REMOVED***
 type ExitCode struct ***REMOVED***
 	error
 	Code int
-***REMOVED***
-
-// A writer that syncs writes with a mutex and, if the output is a TTY, clears before newlines.
-type consoleWriter struct ***REMOVED***
-	Writer io.Writer
-	IsTTY  bool
-	Mutex  *sync.Mutex
-***REMOVED***
-
-func (w consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
-	if w.IsTTY ***REMOVED***
-		p = bytes.Replace(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1)
-	***REMOVED***
-	w.Mutex.Lock()
-	n, err = w.Writer.Write(p)
-	w.Mutex.Unlock()
-	return
 ***REMOVED***
 
 //TODO: refactor the CLI config so these functions aren't needed - they
