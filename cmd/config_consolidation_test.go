@@ -21,7 +21,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -73,13 +72,12 @@ func setEnv(t *testing.T, newEnv []string) (restoreEnv func()) ***REMOVED***
 ***REMOVED***
 
 func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
-	// No config anywhere should result in a 1 VU with a 1 uninterruptible iteration config
+	// No config anywhere should result in a 1 VU with a 1 iteration config
 	sched := c.Execution[lib.DefaultSchedulerName]
 	require.NotEmpty(t, sched)
 	require.IsType(t, scheduler.PerVUIteationsConfig***REMOVED******REMOVED***, sched)
 	perVuIters, ok := sched.(scheduler.PerVUIteationsConfig)
 	require.True(t, ok)
-	assert.Equal(t, null.NewBool(false, false), perVuIters.Interruptible)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.Iterations)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.VUs)
 ***REMOVED***
@@ -105,7 +103,6 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 		require.IsType(t, scheduler.ConstantLoopingVUsConfig***REMOVED******REMOVED***, sched)
 		clvc, ok := sched.(scheduler.ConstantLoopingVUsConfig)
 		require.True(t, ok)
-		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
 		assert.Equal(t, vus, clvc.VUs)
 		assert.Equal(t, types.NullDurationFrom(duration), clvc.Duration)
 		assert.Equal(t, vus, c.VUs)
@@ -120,7 +117,6 @@ func verifyVarLoopingVUs(startVus null.Int, stages []scheduler.Stage) func(t *te
 		require.IsType(t, scheduler.VariableLoopingVUsConfig***REMOVED******REMOVED***, sched)
 		clvc, ok := sched.(scheduler.VariableLoopingVUsConfig)
 		require.True(t, ok)
-		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
 		assert.Equal(t, startVus, clvc.StartVUs)
 		assert.Equal(t, startVus, c.VUs)
 		assert.Equal(t, stages, clvc.Stages)
@@ -208,20 +204,7 @@ func resetStickyGlobalVars() ***REMOVED***
 	exitOnRunning = false
 	configFilePath = ""
 	runType = ""
-	runNoSetup = false
-	runNoTeardown = false
 ***REMOVED***
-
-// Something that makes the test also be a valid io.Writer, useful for passing it
-// as an output for logs and CLI flag help messages...
-type testOutput struct***REMOVED*** *testing.T ***REMOVED***
-
-func (to testOutput) Write(p []byte) (n int, err error) ***REMOVED***
-	to.Logf("%s", p)
-	return len(p), nil
-***REMOVED***
-
-var _ io.Writer = testOutput***REMOVED******REMOVED***
 
 // exp contains the different events or errors we expect our test case to trigger.
 // for space and clarity, we use the fact that by default, all of the struct values are false
@@ -230,7 +213,7 @@ type exp struct ***REMOVED***
 	cliReadError       bool
 	consolidationError bool
 	validationErrors   bool
-	logWarning         bool //TODO: remove in the next version?
+	logWarning         bool
 ***REMOVED***
 
 // A hell of a complicated test case, that still doesn't test things fully...
@@ -272,17 +255,17 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-s", "10s:5", "-s", "10s:"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s"***REMOVED***], "vus": 10***REMOVED***`)***REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		// These should emit a warning
-		//TODO: in next version, those should be an error
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
+		//TODO: these should probably emit a validation error?
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***runner: &lib.Options***REMOVED***
 				VUs:        null.IntFrom(5),
 				Duration:   types.NullDurationFrom(44 * time.Second),
 				Iterations: null.IntFrom(10),
-			***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil,
+			***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil,
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"execution": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 		// Test if environment variable shortcuts are working as expected
@@ -314,15 +297,14 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				env: []string***REMOVED***"K6_DURATION=15s"***REMOVED***,
 				cli: []string***REMOVED***"--stage", ""***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 15*time.Second),
+			exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU,
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5), Duration: types.NullDurationFrom(50 * time.Second)***REMOVED***,
 				cli:    []string***REMOVED***"--iterations", "5"***REMOVED***,
 			***REMOVED***,
-			//TODO: this shouldn't be a warning in the next version, but the result will be different
-			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(I(5), 50*time.Second),
+			exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -330,16 +312,16 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(5, true), buildStages(20, 10)),
+			verifyVarLoopingVUs(I(5), buildStages(20, 10)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
 				fs:     defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s", "target": 10***REMOVED***]***REMOVED***`),
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***,
-				env:    []string***REMOVED***"K6_VUS=15", "K6_ITERATIONS=15"***REMOVED***,
+				env:    []string***REMOVED***"K6_VUS=15", "K6_ITERATIONS=17"***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED***logWarning: true***REMOVED***, //TODO: this won't be a warning in the next version, but the result will be different
-			verifyVarLoopingVUs(null.NewInt(15, true), buildStages(20, 10)),
+			exp***REMOVED******REMOVED***,
+			verifySharedIters(I(15), I(17)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -357,14 +339,17 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			opts***REMOVED***
 				fs: defaultConfig(`***REMOVED***
 					"execution": ***REMOVED*** "someKey": ***REMOVED***
-						"type": "constant-looping-vus", "vus": 10, "duration": "60s", "interruptible": false,
-						"iterationTimeout": "10s", "startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"
+						"type": "constant-looping-vus", "vus": 10, "duration": "60s", "gracefulStop": "10s",
+						"startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"
 					***REMOVED******REMOVED******REMOVED***`),
 				env: []string***REMOVED***"K6_ITERATIONS=25"***REMOVED***,
 				cli: []string***REMOVED***"--vus", "12"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***, verifySharedIters(I(12), I(25)),
 		***REMOVED***,
+
+		//TODO: test manual execution
+		//TODO: test execution-segment
 
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
@@ -380,7 +365,8 @@ func runTestCase(
 	logHook *testutils.SimpleLogrusHook,
 ) ***REMOVED***
 	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
-	log.SetOutput(testOutput***REMOVED***t***REMOVED***)
+	output := testutils.NewTestOutput(t)
+	log.SetOutput(output)
 	logHook.Drain()
 
 	restoreEnv := setEnv(t, testCase.options.env)
@@ -388,7 +374,7 @@ func runTestCase(
 
 	flagSet := newFlagSet()
 	defer resetStickyGlobalVars()
-	flagSet.SetOutput(testOutput***REMOVED***t***REMOVED***)
+	flagSet.SetOutput(output)
 	//flagSet.PrintDefaults()
 
 	cliErr := flagSet.Parse(testCase.options.cli)
