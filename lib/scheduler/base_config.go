@@ -22,39 +22,34 @@ package scheduler
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/loadimpact/k6/lib/types"
 	null "gopkg.in/guregu/null.v3"
 )
 
-const minPercentage = 0.01
-
-// The maximum time k6 will wait after an iteration is supposed to be done
-const maxIterationTimeout = 300 * time.Second
+var schedulerNameWhitelist = regexp.MustCompile(`^[0-9a-zA-Z_-]+$`) //nolint:gochecknoglobals
 
 // BaseConfig contains the common config fields for all schedulers
 type BaseConfig struct ***REMOVED***
-	Name             string             `json:"-"` // set via the JS object key
-	Type             string             `json:"type"`
-	StartTime        types.NullDuration `json:"startTime"`
-	Interruptible    null.Bool          `json:"interruptible"`
-	IterationTimeout types.NullDuration `json:"iterationTimeout"`
-	Env              map[string]string  `json:"env"`
-	Exec             null.String        `json:"exec"` // function name, externally validated
-	Percentage       float64            `json:"-"`    // 100, unless Split() was called
+	Name         string             `json:"-"` // set via the JS object key
+	Type         string             `json:"type"`
+	StartTime    types.NullDuration `json:"startTime"`
+	GracefulStop types.NullDuration `json:"gracefulStop"`
+	Env          map[string]string  `json:"env"`
+	Exec         null.String        `json:"exec"` // function name, externally validated
 
 	//TODO: future extensions like tags, distribution, others?
 ***REMOVED***
 
 // NewBaseConfig returns a default base config with the default values
-func NewBaseConfig(name, configType string, interruptible bool) BaseConfig ***REMOVED***
+func NewBaseConfig(name, configType string) BaseConfig ***REMOVED***
 	return BaseConfig***REMOVED***
-		Name:             name,
-		Type:             configType,
-		Interruptible:    null.NewBool(interruptible, false),
-		IterationTimeout: types.NewNullDuration(30*time.Second, false),
-		Percentage:       100,
+		Name:         name,
+		Type:         configType,
+		GracefulStop: types.NewNullDuration(30*time.Second, false),
 	***REMOVED***
 ***REMOVED***
 
@@ -65,39 +60,83 @@ func (bc BaseConfig) Validate() (errors []error) ***REMOVED***
 	if bc.Name == "" ***REMOVED***
 		errors = append(errors, fmt.Errorf("scheduler name shouldn't be empty"))
 	***REMOVED***
-	if bc.Type == "" ***REMOVED***
-		errors = append(errors, fmt.Errorf("missing or empty type field"))
-	***REMOVED***
-	if bc.Percentage < minPercentage || bc.Percentage > 100 ***REMOVED***
+	if !schedulerNameWhitelist.MatchString(bc.Name) ***REMOVED***
 		errors = append(errors, fmt.Errorf(
-			"percentage should be between %f and 100, but is %f", minPercentage, bc.Percentage,
+			"the scheduler name should contain only numbers, latin letters, underscores, and dashes",
 		))
 	***REMOVED***
 	if bc.Exec.Valid && bc.Exec.String == "" ***REMOVED***
 		errors = append(errors, fmt.Errorf("exec value cannot be empty"))
 	***REMOVED***
+	if bc.Type == "" ***REMOVED***
+		errors = append(errors, fmt.Errorf("missing or empty type field"))
+	***REMOVED***
 	// The actually reasonable checks:
 	if bc.StartTime.Duration < 0 ***REMOVED***
-		errors = append(errors, fmt.Errorf("scheduler start time can't be negative"))
+		errors = append(errors, fmt.Errorf("the startTime can't be negative"))
 	***REMOVED***
-	iterTimeout := time.Duration(bc.IterationTimeout.Duration)
-	if iterTimeout < 0 || iterTimeout > maxIterationTimeout ***REMOVED***
-		errors = append(errors, fmt.Errorf(
-			"the iteration timeout should be between 0 and %s, but is %s", maxIterationTimeout, iterTimeout,
-		))
+	if bc.GracefulStop.Duration < 0 ***REMOVED***
+		errors = append(errors, fmt.Errorf("the gracefulStop timeout can't be negative"))
 	***REMOVED***
 	return errors
 ***REMOVED***
 
-// GetBaseConfig just returns itself
-func (bc BaseConfig) GetBaseConfig() BaseConfig ***REMOVED***
-	return bc
+// GetName returns the name of the scheduler.
+func (bc BaseConfig) GetName() string ***REMOVED***
+	return bc.Name
 ***REMOVED***
 
-// CopyWithPercentage is a helper function that just sets the percentage to
-// the specified amount.
-func (bc BaseConfig) CopyWithPercentage(percentage float64) *BaseConfig ***REMOVED***
-	c := bc
-	c.Percentage = percentage
-	return &c
+// GetType returns the scheduler's type as a string ID.
+func (bc BaseConfig) GetType() string ***REMOVED***
+	return bc.Type
+***REMOVED***
+
+// GetStartTime returns the starting time, relative to the beginning of the
+// actual test, that this scheduler is supposed to execute.
+func (bc BaseConfig) GetStartTime() time.Duration ***REMOVED***
+	return time.Duration(bc.StartTime.Duration)
+***REMOVED***
+
+// GetGracefulStop returns how long k6 is supposed to wait for any still
+// running iterations to finish executing at the end of the normal scheduler
+// duration, before it actually kills them.
+//
+// Of course, that doesn't count when the user manually interrupts the test,
+// then iterations are immediately stopped.
+func (bc BaseConfig) GetGracefulStop() time.Duration ***REMOVED***
+	return time.Duration(bc.GracefulStop.Duration)
+***REMOVED***
+
+// GetEnv returns any specific environment key=value pairs that
+// are configured for the scheduler.
+func (bc BaseConfig) GetEnv() map[string]string ***REMOVED***
+	return bc.Env
+***REMOVED***
+
+// GetExec returns the configured custom exec value, if any.
+func (bc BaseConfig) GetExec() null.String ***REMOVED***
+	return bc.Exec
+***REMOVED***
+
+// IsDistributable returns true since by default all schedulers could be run in
+// a distributed manner.
+func (bc BaseConfig) IsDistributable() bool ***REMOVED***
+	return true
+***REMOVED***
+
+// getBaseInfo is a helper method for the the "parent" String methods.
+func (bc BaseConfig) getBaseInfo(facts ...string) string ***REMOVED***
+	if bc.Exec.Valid ***REMOVED***
+		facts = append(facts, fmt.Sprintf("exec: %s", bc.Exec.String))
+	***REMOVED***
+	if bc.StartTime.Duration > 0 ***REMOVED***
+		facts = append(facts, fmt.Sprintf("startTime: %s", bc.StartTime.Duration))
+	***REMOVED***
+	if bc.GracefulStop.Duration > 0 ***REMOVED***
+		facts = append(facts, fmt.Sprintf("gracefulStop: %s", bc.GracefulStop.Duration))
+	***REMOVED***
+	if len(facts) == 0 ***REMOVED***
+		return ""
+	***REMOVED***
+	return " (" + strings.Join(facts, ", ") + ")"
 ***REMOVED***

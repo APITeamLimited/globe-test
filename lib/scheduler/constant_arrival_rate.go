@@ -21,21 +21,31 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
+	"math"
+	"sync/atomic"
 	"time"
 
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
+	"github.com/loadimpact/k6/ui/pb"
+	"github.com/sirupsen/logrus"
 	null "gopkg.in/guregu/null.v3"
 )
 
 const constantArrivalRateType = "constant-arrival-rate"
 
 func init() ***REMOVED***
-	RegisterConfigType(constantArrivalRateType, func(name string, rawJSON []byte) (Config, error) ***REMOVED***
-		config := NewConstantArrivalRateConfig(name)
-		err := strictJSONUnmarshal(rawJSON, &config)
-		return config, err
-	***REMOVED***)
+	lib.RegisterSchedulerConfigType(
+		constantArrivalRateType,
+		func(name string, rawJSON []byte) (lib.SchedulerConfig, error) ***REMOVED***
+			config := NewConstantArrivalRateConfig(name)
+			err := lib.StrictJSONUnmarshal(rawJSON, &config)
+			return config, err
+		***REMOVED***,
+	)
 ***REMOVED***
 
 // ConstantArrivalRateConfig stores config for the constant arrival-rate scheduler
@@ -55,13 +65,39 @@ type ConstantArrivalRateConfig struct ***REMOVED***
 // NewConstantArrivalRateConfig returns a ConstantArrivalRateConfig with default values
 func NewConstantArrivalRateConfig(name string) ConstantArrivalRateConfig ***REMOVED***
 	return ConstantArrivalRateConfig***REMOVED***
-		BaseConfig: NewBaseConfig(name, constantArrivalRateType, false),
+		BaseConfig: NewBaseConfig(name, constantArrivalRateType),
 		TimeUnit:   types.NewNullDuration(1*time.Second, false),
 	***REMOVED***
 ***REMOVED***
 
-// Make sure we implement the Config interface
-var _ Config = &ConstantArrivalRateConfig***REMOVED******REMOVED***
+// Make sure we implement the lib.SchedulerConfig interface
+var _ lib.SchedulerConfig = &ConstantArrivalRateConfig***REMOVED******REMOVED***
+
+// GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
+func (carc ConstantArrivalRateConfig) GetPreAllocatedVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
+	return es.Scale(carc.PreAllocatedVUs.Int64)
+***REMOVED***
+
+// GetMaxVUs is just a helper method that returns the scaled max VUs.
+func (carc ConstantArrivalRateConfig) GetMaxVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
+	return es.Scale(carc.MaxVUs.Int64)
+***REMOVED***
+
+// GetDescription returns a human-readable description of the scheduler options
+func (carc ConstantArrivalRateConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
+	preAllocatedVUs, maxVUs := carc.GetPreAllocatedVUs(es), carc.GetMaxVUs(es)
+	maxVUsRange := fmt.Sprintf("maxVUs: %d", preAllocatedVUs)
+	if maxVUs > preAllocatedVUs ***REMOVED***
+		maxVUsRange += fmt.Sprintf("-%d", maxVUs)
+	***REMOVED***
+
+	timeUnit := time.Duration(carc.TimeUnit.Duration)
+	arrRate := getScaledArrivalRate(es, carc.Rate.Int64, timeUnit)
+	arrRatePerSec, _ := getArrivalRatePerSec(arrRate).Float64()
+
+	return fmt.Sprintf("%.2f iterations/s for %s%s", arrRatePerSec, carc.Duration.Duration,
+		carc.getBaseInfo(maxVUsRange))
+***REMOVED***
 
 // Validate makes sure all options are configured and valid
 func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
@@ -99,17 +135,136 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	return errors
 ***REMOVED***
 
-// GetMaxVUs returns the absolute maximum number of possible concurrently running VUs
-func (carc ConstantArrivalRateConfig) GetMaxVUs() int64 ***REMOVED***
-	return carc.MaxVUs.Int64
+// GetExecutionRequirements just reserves the number of specified VUs for the
+// whole duration of the scheduler, including the maximum waiting time for
+// iterations to gracefully stop.
+func (carc ConstantArrivalRateConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+	return []lib.ExecutionStep***REMOVED***
+		***REMOVED***
+			TimeOffset:      0,
+			PlannedVUs:      uint64(es.Scale(carc.PreAllocatedVUs.Int64)),
+			MaxUnplannedVUs: uint64(es.Scale(carc.MaxVUs.Int64 - carc.PreAllocatedVUs.Int64)),
+		***REMOVED***, ***REMOVED***
+			TimeOffset:      time.Duration(carc.Duration.Duration + carc.GracefulStop.Duration),
+			PlannedVUs:      0,
+			MaxUnplannedVUs: 0,
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
-// GetMaxDuration returns the maximum duration time for this scheduler, including
-// the specified iterationTimeout, if the iterations are uninterruptible
-func (carc ConstantArrivalRateConfig) GetMaxDuration() time.Duration ***REMOVED***
-	maxDuration := carc.Duration.Duration
-	if !carc.Interruptible.Bool ***REMOVED***
-		maxDuration += carc.IterationTimeout.Duration
+// NewScheduler creates a new ConstantArrivalRate scheduler
+func (carc ConstantArrivalRateConfig) NewScheduler(
+	es *lib.ExecutorState, logger *logrus.Entry) (lib.Scheduler, error) ***REMOVED***
+
+	return ConstantArrivalRate***REMOVED***
+		BaseScheduler: NewBaseScheduler(carc, es, logger),
+		config:        carc,
+	***REMOVED***, nil
+***REMOVED***
+
+// ConstantArrivalRate tries to execute a specific number of iterations for a
+// specific period.
+type ConstantArrivalRate struct ***REMOVED***
+	*BaseScheduler
+	config ConstantArrivalRateConfig
+***REMOVED***
+
+// Make sure we implement the lib.Scheduler interface.
+var _ lib.Scheduler = &ConstantArrivalRate***REMOVED******REMOVED***
+
+// Run executes a specific number of iterations with each confugured VU.
+//
+// TODO: Reuse the variable arrival rate method?
+func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+	segment := car.executorState.Options.ExecutionSegment
+	gracefulStop := car.config.GetGracefulStop()
+	duration := time.Duration(car.config.Duration.Duration)
+	preAllocatedVUs := car.config.GetPreAllocatedVUs(segment)
+	maxVUs := car.config.GetMaxVUs(segment)
+
+	arrivalRate := getScaledArrivalRate(segment, car.config.Rate.Int64, time.Duration(car.config.TimeUnit.Duration))
+	tickerPeriod := time.Duration(getTickerPeriod(arrivalRate).Duration)
+	arrivalRatePerSec, _ := getArrivalRatePerSec(arrivalRate).Float64()
+
+	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
+	defer cancel()
+	ticker := time.NewTicker(tickerPeriod) // the rate can't be 0 because of the validation
+
+	// Make sure the log and the progress bar have accurate information
+	car.logger.WithFields(logrus.Fields***REMOVED***
+		"maxVUs": maxVUs, "preAllocatedVUs": preAllocatedVUs, "duration": duration,
+		"tickerPeriod": tickerPeriod, "type": car.config.GetType(),
+	***REMOVED***).Debug("Starting scheduler run...")
+
+	// Pre-allocate VUs, but reserve space in the buffer for up to MaxVUs
+	vus := make(chan lib.VU, maxVUs)
+	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
+		vu, err := car.executorState.GetPlannedVU(ctx, car.logger)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		vus <- vu
 	***REMOVED***
-	return time.Duration(maxDuration)
+
+	initialisedVUs := new(uint64)
+	*initialisedVUs = uint64(preAllocatedVUs)
+
+	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
+	fmtStr := pb.GetFixedLengthFloatFormat(arrivalRatePerSec, 2) +
+		" iters/s, " + vusFmt + " out of " + vusFmt + " VUs active"
+
+	progresFn := func() (float64, string) ***REMOVED***
+		spent := time.Since(startTime)
+		currentInitialisedVUs := atomic.LoadUint64(initialisedVUs)
+		vusInBuffer := uint64(len(vus))
+		return math.Min(1, float64(spent)/float64(duration)), fmt.Sprintf(fmtStr,
+			arrivalRatePerSec, currentInitialisedVUs-vusInBuffer, currentInitialisedVUs,
+		)
+	***REMOVED***
+	car.progress.Modify(pb.WithProgress(progresFn))
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, car, progresFn)
+
+	regDurationDone := regDurationCtx.Done()
+	runIterationBasic := getIterationRunner(car.executorState, car.logger, out)
+	runIteration := func(vu lib.VU) ***REMOVED***
+		runIterationBasic(maxDurationCtx, vu)
+		vus <- vu
+	***REMOVED***
+
+	remainingUnplannedVUs := maxVUs - preAllocatedVUs
+	// Make sure we put back planned and unplanned VUs back in the global
+	// buffer, and as an extra incentive, this replaces a waitgroup.
+	defer func() ***REMOVED***
+		unplannedVUs := maxVUs - remainingUnplannedVUs
+		for i := int64(0); i < unplannedVUs; i++ ***REMOVED***
+			car.executorState.ReturnVU(<-vus)
+		***REMOVED***
+	***REMOVED***()
+
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-ticker.C:
+			select ***REMOVED***
+			case vu := <-vus:
+				// ideally, we get the VU from the buffer without any issues
+				go runIteration(vu)
+			default:
+				if remainingUnplannedVUs == 0 ***REMOVED***
+					//TODO: emit an error metric?
+					car.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot allocate more", maxVUs)
+					break
+				***REMOVED***
+				remainingUnplannedVUs--
+				vu, err := car.executorState.GetUnplannedVU(maxDurationCtx, car.logger)
+				if err != nil ***REMOVED***
+					remainingUnplannedVUs++
+					return err
+				***REMOVED***
+				atomic.AddUint64(initialisedVUs, 1)
+				go runIteration(vu)
+			***REMOVED***
+		case <-regDurationDone:
+			return nil
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
