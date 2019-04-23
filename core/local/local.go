@@ -23,527 +23,363 @@ package local
 import (
 	"context"
 	"fmt"
-	"sync"
+	"runtime"
 	"sync/atomic"
 	"time"
 
+	"github.com/loadimpact/k6/ui/pb"
+
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
+	"github.com/sirupsen/logrus"
 )
 
-// TODO: totally rewrite this!
-// This is an overcomplicated and probably buggy piece of code that is a major PITA to refactor...
-// It does a ton of stuff in a very convoluted way, has a and uses a very incomprehensible mix
-// of all possible Go synchronization mechanisms (channels, mutexes, rwmutexes, atomics,
-// and waitgroups) and has a bunch of contexts and tickers on top...
+// Executor is the local implementation of lib.Executor
+type Executor struct ***REMOVED***
+	runner  lib.Runner
+	options lib.Options
+	logger  *logrus.Logger
 
+	initProgress   *pb.ProgressBar
+	schedulers     []lib.Scheduler // sorted by (startTime, ID)
+	executionPlan  []lib.ExecutionStep
+	maxDuration    time.Duration // cached value derived from the execution plan
+	maxPossibleVUs uint64        // cached value derived from the execution plan
+	state          *lib.ExecutorState
+***REMOVED***
+
+// Check to see if we implement the lib.Executor interface
 var _ lib.Executor = &Executor***REMOVED******REMOVED***
 
-type vuHandle struct ***REMOVED***
-	sync.RWMutex
-	vu     lib.VU
-	ctx    context.Context
-	cancel context.CancelFunc
-***REMOVED***
+// New creates and returns a new local lib.Executor instance, without
+// initializing it beyond the bare minimum. Specifically, it creates the needed
+// schedulers instances and a lot of state placeholders, but it doesn't
+// initialize the schedulers and it doesn't initialize or run any VUs.
+func New(runner lib.Runner, logger *logrus.Logger) (*Executor, error) ***REMOVED***
+	options := runner.GetOptions()
 
-func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, iterDone chan<- struct***REMOVED******REMOVED***) ***REMOVED***
-	h.RLock()
-	ctx := h.ctx
-	h.RUnlock()
+	executionPlan := options.Execution.GetFullExecutionRequirements(options.ExecutionSegment)
+	maxPlannedVUs := lib.GetMaxPlannedVUs(executionPlan)
+	maxPossibleVUs := lib.GetMaxPossibleVUs(executionPlan)
 
-	for ***REMOVED***
-		select ***REMOVED***
-		case _, ok := <-flow:
-			if !ok ***REMOVED***
-				return
-			***REMOVED***
-		case <-ctx.Done():
-			return
+	executorState := lib.NewExecutorState(options, maxPlannedVUs, maxPossibleVUs)
+	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
+
+	schedulerConfigs := options.Execution.GetSortedSchedulerConfigs()
+	schedulers := make([]lib.Scheduler, len(schedulerConfigs))
+	for i, sc := range schedulerConfigs ***REMOVED***
+		s, err := sc.NewScheduler(executorState, logger.WithField("scheduler", sc.GetName()))
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
-
-		if h.vu != nil ***REMOVED***
-			err := h.vu.RunOnce(ctx)
-			select ***REMOVED***
-			case <-ctx.Done():
-			// Don't log errors or emit iterations metrics from cancelled iterations
-			default:
-				if err != nil ***REMOVED***
-					if s, ok := err.(fmt.Stringer); ok ***REMOVED***
-						logger.Error(s.String())
-					***REMOVED*** else ***REMOVED***
-						logger.Error(err.Error())
-					***REMOVED***
-				***REMOVED***
-				iterDone <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			iterDone <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-		***REMOVED***
+		schedulers[i] = s
 	***REMOVED***
-***REMOVED***
 
-type Executor struct ***REMOVED***
-	Runner lib.Runner
-	Logger *log.Logger
-
-	runLock sync.Mutex
-	wg      sync.WaitGroup
-
-	runSetup    bool
-	runTeardown bool
-
-	vus       []*vuHandle
-	vusLock   sync.RWMutex
-	numVUs    int64
-	numVUsMax int64
-	nextVUID  int64
-
-	iters     int64 // Completed iterations
-	partIters int64 // Partial, incomplete iterations
-	endIters  int64 // End test at this many iterations
-
-	time    int64 // Current time
-	endTime int64 // End test at this timestamp
-
-	pauseLock sync.RWMutex
-	pause     chan interface***REMOVED******REMOVED***
-
-	stages []lib.Stage
-
-	// Lock for: ctx, flow, out
-	lock sync.RWMutex
-
-	// Current context, nil if a test isn't running right now.
-	ctx context.Context
-
-	// Output channel to which VUs send samples.
-	vuOut chan stats.SampleContainer
-
-	// Channel on which VUs sigal that iterations are completed
-	iterDone chan struct***REMOVED******REMOVED***
-
-	// Flow control for VUs; iterations are run only after reading from this channel.
-	flow chan int64
-***REMOVED***
-
-func New(r lib.Runner) *Executor ***REMOVED***
-	var bufferSize int64
-	if r != nil ***REMOVED***
-		bufferSize = r.GetOptions().MetricSamplesBufferSize.Int64
+	if options.Paused.Bool ***REMOVED***
+		if err := executorState.Pause(); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 	***REMOVED***
 
 	return &Executor***REMOVED***
-		Runner:      r,
-		Logger:      log.StandardLogger(),
-		runSetup:    true,
-		runTeardown: true,
-		endIters:    -1,
-		endTime:     -1,
-		vuOut:       make(chan stats.SampleContainer, bufferSize),
-		iterDone:    make(chan struct***REMOVED******REMOVED***),
-	***REMOVED***
+		runner:  runner,
+		logger:  logger,
+		options: options,
+
+		initProgress:   pb.New(pb.WithConstLeft("Init")),
+		schedulers:     schedulers,
+		executionPlan:  executionPlan,
+		maxDuration:    maxDuration,
+		maxPossibleVUs: maxPossibleVUs,
+		state:          executorState,
+	***REMOVED***, nil
 ***REMOVED***
 
-func (e *Executor) Run(parent context.Context, engineOut chan<- stats.SampleContainer) (reterr error) ***REMOVED***
-	e.runLock.Lock()
-	defer e.runLock.Unlock()
+// GetRunner returns the wrapped lib.Runner instance.
+func (e *Executor) GetRunner() lib.Runner ***REMOVED***
+	return e.runner
+***REMOVED***
 
-	if e.Runner != nil && e.runSetup ***REMOVED***
-		if err := e.Runner.Setup(parent, engineOut); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+// GetState returns a pointer to the executor state struct for the local
+// executor. It's guaranteed to be initialized and present, though see
+// the documentation in lib/executor.go for caveats about its usage.
+// The most important one is that none of the methods beyond the pause-related
+// ones should be used for synchronization.
+func (e *Executor) GetState() *lib.ExecutorState ***REMOVED***
+	return e.state
+***REMOVED***
+
+// GetSchedulers returns the slice of configured scheduler instances, sorted by
+// their (startTime, name) in an ascending order.
+func (e *Executor) GetSchedulers() []lib.Scheduler ***REMOVED***
+	return e.schedulers
+***REMOVED***
+
+// GetInitProgressBar returns a the progress bar assotiated with the Init
+// function. After the Init is done, it is "hijacked" to display real-time
+// execution statistics as a text bar.
+func (e *Executor) GetInitProgressBar() *pb.ProgressBar ***REMOVED***
+	return e.initProgress
+***REMOVED***
+
+// GetExecutionPlan is a helper method so users of the local executor don't have
+// to calculate the execution plan again.
+func (e *Executor) GetExecutionPlan() []lib.ExecutionStep ***REMOVED***
+	return e.executionPlan
+***REMOVED***
+
+// initVU is just a helper method that's used to both initialize the planned VUs
+// in the Init() method, and also passed to schedulers so they can initialize
+// any unplanned VUs themselves.
+//TODO: actually use the context...
+func (e *Executor) initVU(
+	_ context.Context, logger *logrus.Entry, engineOut chan<- stats.SampleContainer,
+) (lib.VU, error) ***REMOVED***
+
+	vu, err := e.runner.NewVU(engineOut)
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("error while initializing a VU: '%s'", err)
 	***REMOVED***
 
-	ctx, cancel := context.WithCancel(parent)
-	vuFlow := make(chan int64)
-	e.lock.Lock()
-	vuOut := e.vuOut
-	iterDone := e.iterDone
-	e.ctx = ctx
-	e.flow = vuFlow
-	e.lock.Unlock()
+	// Get the VU ID here, so that the VUs are (mostly) ordered by their
+	// number in the channel buffer
+	vuID := e.state.GetUniqueVUIdentifier()
+	if err := vu.Reconfigure(int64(vuID)); err != nil ***REMOVED***
+		return nil, fmt.Errorf("error while reconfiguring VU #%d: '%s'", vuID, err)
 
-	var cutoff time.Time
-	defer func() ***REMOVED***
-		if e.Runner != nil && e.runTeardown ***REMOVED***
-			err := e.Runner.Teardown(parent, engineOut)
-			if reterr == nil ***REMOVED***
-				reterr = err
-			***REMOVED*** else if err != nil ***REMOVED***
-				reterr = fmt.Errorf("teardown error %#v\nPrevious error: %#v", err, reterr)
-			***REMOVED***
+	***REMOVED***
+	logger.Debugf("Initialized VU #%d", vuID)
+	return vu, nil
+***REMOVED***
+
+// getRunStats is a helper function that can be used as the executor's
+// progressbar substitute (i.e. hijack).
+func (e *Executor) getRunStats() string ***REMOVED***
+	status := "running"
+	if e.state.IsPaused() ***REMOVED***
+		status = "paused"
+	***REMOVED***
+	if e.state.HasStarted() ***REMOVED***
+		dur := e.state.GetCurrentTestRunDuration()
+		status = fmt.Sprintf("%s (%s)", status, pb.GetFixedLengthDuration(dur, e.maxDuration))
+	***REMOVED***
+
+	vusFmt := pb.GetFixedLengthIntFormat(int64(e.maxPossibleVUs))
+	return fmt.Sprintf(
+		"%s, "+vusFmt+"/"+vusFmt+" VUs, %d complete and %d incomplete iterations",
+		status, e.state.GetCurrentlyActiveVUsCount(), e.state.GetInitializedVUsCount(),
+		e.state.GetFullIterationCount(), e.state.GetPartialIterationCount(),
+	)
+***REMOVED***
+
+// Init concurrently initializes all of the planned VUs and then sequentially
+// initializes all of the configured schedulers.
+func (e *Executor) Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
+	logger := e.logger.WithField("phase", "local-executor-init")
+
+	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
+	logger.WithFields(logrus.Fields***REMOVED***
+		"neededVUs":       vusToInitialize,
+		"schedulersCount": len(e.schedulers),
+	***REMOVED***).Debugf("Start of initialization")
+
+	doneInits := make(chan error, vusToInitialize) // poor man's early-return waitgroup
+	//TODO: make this an option?
+	initConcurrency := runtime.NumCPU()
+	limiter := make(chan struct***REMOVED******REMOVED***, initConcurrency)
+	subctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	initPlannedVU := func() ***REMOVED***
+		newVU, err := e.initVU(ctx, logger, engineOut)
+		if err == nil ***REMOVED***
+			e.state.AddInitializedVU(newVU)
+			<-limiter
 		***REMOVED***
+		doneInits <- err
+	***REMOVED***
 
-		close(vuFlow)
-		cancel()
-
-		e.lock.Lock()
-		e.ctx = nil
-		e.vuOut = nil
-		e.flow = nil
-		e.lock.Unlock()
-
-		wait := make(chan interface***REMOVED******REMOVED***)
-		go func() ***REMOVED***
-			e.wg.Wait()
-			close(wait)
-		***REMOVED***()
-
-		for ***REMOVED***
+	go func() ***REMOVED***
+		for vuNum := uint64(0); vuNum < vusToInitialize; vuNum++ ***REMOVED***
 			select ***REMOVED***
-			case <-iterDone:
-				// Spool through all remaining iterations, do not emit stats since the Run() is over
-			case newSampleContainer := <-vuOut:
-				if cutoff.IsZero() ***REMOVED***
-					engineOut <- newSampleContainer
-				***REMOVED*** else if csc, ok := newSampleContainer.(stats.ConnectedSampleContainer); ok && csc.GetTime().Before(cutoff) ***REMOVED***
-					engineOut <- newSampleContainer
-				***REMOVED*** else ***REMOVED***
-					for _, s := range newSampleContainer.GetSamples() ***REMOVED***
-						if s.Time.Before(cutoff) ***REMOVED***
-							engineOut <- s
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-			case <-wait:
-			***REMOVED***
-			select ***REMOVED***
-			case <-wait:
-				close(vuOut)
+			case limiter <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+				go initPlannedVU()
+			case <-subctx.Done():
 				return
-			default:
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
-	startVUs := atomic.LoadInt64(&e.numVUs)
-	if err := e.scale(ctx, lib.Max(0, startVUs)); err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	initializedVUs := new(uint64)
+	vusFmt := pb.GetFixedLengthIntFormat(int64(vusToInitialize))
+	e.initProgress.Modify(
+		pb.WithProgress(func() (float64, string) ***REMOVED***
+			doneVUs := atomic.LoadUint64(initializedVUs)
+			return float64(doneVUs) / float64(vusToInitialize),
+				fmt.Sprintf(vusFmt+"/%d VUs initialized", doneVUs, vusToInitialize)
+		***REMOVED***),
+	)
 
-	ticker := time.NewTicker(1 * time.Millisecond)
-	defer ticker.Stop()
-
-	lastTick := time.Now()
-	for ***REMOVED***
-		// If the test is paused, sleep until either the pause or the test ends.
-		// Also shift the last tick to omit time spent paused, but not partial ticks.
-		e.pauseLock.RLock()
-		pause := e.pause
-		e.pauseLock.RUnlock()
-		if pause != nil ***REMOVED***
-			e.Logger.Debug("Local: Pausing!")
-			leftovers := time.Since(lastTick)
-			select ***REMOVED***
-			case <-pause:
-				e.Logger.Debug("Local: No longer paused")
-				lastTick = time.Now().Add(-leftovers)
-			case <-ctx.Done():
-				e.Logger.Debug("Local: Terminated while in paused state")
-				return nil
-			***REMOVED***
-		***REMOVED***
-
-		// Dumb hack: we don't wanna start any more iterations than the max, but we can't
-		// conditionally select on a channel either...so, we cheat: swap out the flow channel for a
-		// nil channel (writing to nil always blocks) if we don't wanna write an iteration.
-		flow := vuFlow
-		end := atomic.LoadInt64(&e.endIters)
-		partials := atomic.LoadInt64(&e.partIters)
-		if end >= 0 && partials >= end ***REMOVED***
-			flow = nil
-		***REMOVED***
-
+	for vuNum := uint64(0); vuNum < vusToInitialize; vuNum++ ***REMOVED***
 		select ***REMOVED***
-		case flow <- partials:
-			// Start an iteration if there's a VU waiting. See also: the big comment block above.
-			atomic.AddInt64(&e.partIters, 1)
-		case t := <-ticker.C:
-			// Every tick, increment the clock, see if we passed the end point, and process stages.
-			// If the test ends this way, set a cutoff point; any samples collected past the cutoff
-			// point are excluded.
-			d := t.Sub(lastTick)
-			lastTick = t
-
-			end := time.Duration(atomic.LoadInt64(&e.endTime))
-			at := time.Duration(atomic.AddInt64(&e.time, int64(d)))
-			if end >= 0 && at >= end ***REMOVED***
-				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit time limit")
-				cutoff = time.Now()
-				return nil
-			***REMOVED***
-
-			stages := e.stages
-			if len(stages) > 0 ***REMOVED***
-				vus, keepRunning := ProcessStages(startVUs, stages, at)
-				if !keepRunning ***REMOVED***
-					e.Logger.WithField("at", at).Debug("Local: Ran out of stages")
-					cutoff = time.Now()
-					return nil
-				***REMOVED***
-				if vus.Valid ***REMOVED***
-					if err := e.SetVUs(vus.Int64); err != nil ***REMOVED***
-						return err
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
-		case sampleContainer := <-vuOut:
-			engineOut <- sampleContainer
-		case <-iterDone:
-			// Every iteration ends with a write to iterDone. Check if we've hit the end point.
-			// If not, make sure to include an Iterations bump in the list!
-			var tags *stats.SampleTags
-			if e.Runner != nil ***REMOVED***
-				tags = e.Runner.GetOptions().RunTags
-			***REMOVED***
-			engineOut <- stats.Sample***REMOVED***
-				Time:   time.Now(),
-				Metric: metrics.Iterations,
-				Value:  1,
-				Tags:   tags,
-			***REMOVED***
-
-			end := atomic.LoadInt64(&e.endIters)
-			at := atomic.AddInt64(&e.iters, 1)
-			if end >= 0 && at >= end ***REMOVED***
-				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit iteration limit")
-				return nil
-			***REMOVED***
-		case <-ctx.Done():
-			// If the test is cancelled, just set the cutoff point to now and proceed down the same
-			// logic as if the time limit was hit.
-			e.Logger.Debug("Local: Exiting with context")
-			cutoff = time.Now()
-			return nil
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-func (e *Executor) scale(ctx context.Context, num int64) error ***REMOVED***
-	e.Logger.WithField("num", num).Debug("Local: Scaling...")
-
-	e.vusLock.Lock()
-	defer e.vusLock.Unlock()
-
-	e.lock.RLock()
-	flow := e.flow
-	iterDone := e.iterDone
-	e.lock.RUnlock()
-
-	for i, handle := range e.vus ***REMOVED***
-		handle := handle
-		handle.RLock()
-		cancel := handle.cancel
-		handle.RUnlock()
-
-		if i < int(num) ***REMOVED***
-			if cancel == nil ***REMOVED***
-				vuctx, cancel := context.WithCancel(ctx)
-				handle.Lock()
-				handle.ctx = vuctx
-				handle.cancel = cancel
-				handle.Unlock()
-
-				if handle.vu != nil ***REMOVED***
-					if err := handle.vu.Reconfigure(atomic.AddInt64(&e.nextVUID, 1)); err != nil ***REMOVED***
-						return err
-					***REMOVED***
-				***REMOVED***
-
-				e.wg.Add(1)
-				go func() ***REMOVED***
-					handle.run(e.Logger, flow, iterDone)
-					e.wg.Done()
-				***REMOVED***()
-			***REMOVED***
-		***REMOVED*** else if cancel != nil ***REMOVED***
-			handle.Lock()
-			handle.cancel()
-			handle.cancel = nil
-			handle.Unlock()
-		***REMOVED***
-	***REMOVED***
-
-	atomic.StoreInt64(&e.numVUs, num)
-	return nil
-***REMOVED***
-
-func (e *Executor) IsRunning() bool ***REMOVED***
-	e.lock.RLock()
-	defer e.lock.RUnlock()
-	return e.ctx != nil
-***REMOVED***
-
-func (e *Executor) GetRunner() lib.Runner ***REMOVED***
-	return e.Runner
-***REMOVED***
-
-func (e *Executor) SetLogger(l *log.Logger) ***REMOVED***
-	e.Logger = l
-***REMOVED***
-
-func (e *Executor) GetLogger() *log.Logger ***REMOVED***
-	return e.Logger
-***REMOVED***
-
-func (e *Executor) GetStages() []lib.Stage ***REMOVED***
-	return e.stages
-***REMOVED***
-
-func (e *Executor) SetStages(s []lib.Stage) ***REMOVED***
-	e.stages = s
-***REMOVED***
-
-func (e *Executor) GetIterations() int64 ***REMOVED***
-	return atomic.LoadInt64(&e.iters)
-***REMOVED***
-
-func (e *Executor) GetEndIterations() null.Int ***REMOVED***
-	v := atomic.LoadInt64(&e.endIters)
-	if v < 0 ***REMOVED***
-		return null.Int***REMOVED******REMOVED***
-	***REMOVED***
-	return null.IntFrom(v)
-***REMOVED***
-
-func (e *Executor) SetEndIterations(i null.Int) ***REMOVED***
-	if !i.Valid ***REMOVED***
-		i.Int64 = -1
-	***REMOVED***
-	e.Logger.WithField("i", i.Int64).Debug("Local: Setting end iterations")
-	atomic.StoreInt64(&e.endIters, i.Int64)
-***REMOVED***
-
-func (e *Executor) GetTime() time.Duration ***REMOVED***
-	return time.Duration(atomic.LoadInt64(&e.time))
-***REMOVED***
-
-func (e *Executor) GetEndTime() types.NullDuration ***REMOVED***
-	v := atomic.LoadInt64(&e.endTime)
-	if v < 0 ***REMOVED***
-		return types.NullDuration***REMOVED******REMOVED***
-	***REMOVED***
-	return types.NullDurationFrom(time.Duration(v))
-***REMOVED***
-
-func (e *Executor) SetEndTime(t types.NullDuration) ***REMOVED***
-	if !t.Valid ***REMOVED***
-		t.Duration = -1
-	***REMOVED***
-	e.Logger.WithField("d", t.Duration).Debug("Local: Setting end time")
-	atomic.StoreInt64(&e.endTime, int64(t.Duration))
-***REMOVED***
-
-func (e *Executor) IsPaused() bool ***REMOVED***
-	e.pauseLock.RLock()
-	defer e.pauseLock.RUnlock()
-	return e.pause != nil
-***REMOVED***
-
-func (e *Executor) SetPaused(paused bool) ***REMOVED***
-	e.Logger.WithField("paused", paused).Debug("Local: Setting paused")
-	e.pauseLock.Lock()
-	defer e.pauseLock.Unlock()
-
-	if paused && e.pause == nil ***REMOVED***
-		e.pause = make(chan interface***REMOVED******REMOVED***)
-	***REMOVED*** else if !paused && e.pause != nil ***REMOVED***
-		close(e.pause)
-		e.pause = nil
-	***REMOVED***
-***REMOVED***
-
-func (e *Executor) GetVUs() int64 ***REMOVED***
-	return atomic.LoadInt64(&e.numVUs)
-***REMOVED***
-
-func (e *Executor) SetVUs(num int64) error ***REMOVED***
-	if num < 0 ***REMOVED***
-		return errors.New("vu count can't be negative")
-	***REMOVED***
-
-	if atomic.LoadInt64(&e.numVUs) == num ***REMOVED***
-		return nil
-	***REMOVED***
-
-	e.Logger.WithField("vus", num).Debug("Local: Setting VUs")
-
-	if numVUsMax := atomic.LoadInt64(&e.numVUsMax); num > numVUsMax ***REMOVED***
-		return errors.Errorf("can't raise vu count (to %d) above vu cap (%d)", num, numVUsMax)
-	***REMOVED***
-
-	if ctx := e.ctx; ctx != nil ***REMOVED***
-		if err := e.scale(ctx, num); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		atomic.StoreInt64(&e.numVUs, num)
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
-func (e *Executor) GetVUsMax() int64 ***REMOVED***
-	return atomic.LoadInt64(&e.numVUsMax)
-***REMOVED***
-
-func (e *Executor) SetVUsMax(max int64) error ***REMOVED***
-	e.Logger.WithField("max", max).Debug("Local: Setting max VUs")
-	if max < 0 ***REMOVED***
-		return errors.New("vu cap can't be negative")
-	***REMOVED***
-
-	numVUsMax := atomic.LoadInt64(&e.numVUsMax)
-
-	if numVUsMax == max ***REMOVED***
-		return nil
-	***REMOVED***
-
-	if numVUs := atomic.LoadInt64(&e.numVUs); max < numVUs ***REMOVED***
-		return errors.Errorf("can't lower vu cap (to %d) below vu count (%d)", max, numVUs)
-	***REMOVED***
-
-	if max < numVUsMax ***REMOVED***
-		e.vus = e.vus[:max]
-		atomic.StoreInt64(&e.numVUsMax, max)
-		return nil
-	***REMOVED***
-
-	e.lock.RLock()
-	vuOut := e.vuOut
-	e.lock.RUnlock()
-
-	e.vusLock.Lock()
-	defer e.vusLock.Unlock()
-
-	vus := e.vus
-	for i := numVUsMax; i < max; i++ ***REMOVED***
-		var handle vuHandle
-		if e.Runner != nil ***REMOVED***
-			vu, err := e.Runner.NewVU(vuOut)
+		case err := <-doneInits:
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			handle.vu = vu
+			atomic.AddUint64(initializedVUs, 1)
+		case <-ctx.Done():
+			return ctx.Err()
 		***REMOVED***
-		vus = append(vus, &handle)
 	***REMOVED***
-	e.vus = vus
 
-	atomic.StoreInt64(&e.numVUsMax, max)
+	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry) (lib.VU, error) ***REMOVED***
+		return e.initVU(ctx, logger, engineOut)
+	***REMOVED***)
 
+	logger.Debugf("Finished initializing needed VUs, start initializing schedulers...")
+	for _, sched := range e.schedulers ***REMOVED***
+		schedConfig := sched.GetConfig()
+
+		if err := sched.Init(ctx); err != nil ***REMOVED***
+			return fmt.Errorf("error while initializing scheduler %s: %s", schedConfig.GetName(), err)
+		***REMOVED***
+		logger.Debugf("Initialized scheduler %s", schedConfig.GetName())
+	***REMOVED***
+
+	logger.Debugf("Initization completed")
 	return nil
 ***REMOVED***
 
-func (e *Executor) SetRunSetup(r bool) ***REMOVED***
-	e.runSetup = r
+// Run the Executor, funneling all generated metric samples through the supplied
+// out channel.
+func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
+	schedulersCount := len(e.schedulers)
+	logger := e.logger.WithField("phase", "local-executor-run")
+	e.initProgress.Modify(pb.WithConstLeft("Run"))
+
+	if e.state.IsPaused() ***REMOVED***
+		logger.Debug("Execution is paused, waiting for resume or interrupt...")
+		e.initProgress.Modify(pb.WithConstProgress(1, "paused"))
+		select ***REMOVED***
+		case <-e.state.ResumeNotify():
+			// continue
+		case <-ctx.Done():
+			return nil
+		***REMOVED***
+	***REMOVED***
+
+	e.state.MarkStarted()
+	defer e.state.MarkEnded()
+	e.initProgress.Modify(pb.WithConstProgress(1, "running"))
+
+	logger.WithFields(logrus.Fields***REMOVED***"schedulersCount": schedulersCount***REMOVED***).Debugf("Start of test run")
+
+	runResults := make(chan error, schedulersCount) // nil values are successful runs
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel() // just in case, and to shut up go vet...
+
+	// Run setup() before any schedulers, if it's not disabled
+	if !e.options.NoSetup.Bool ***REMOVED***
+		logger.Debug("Running setup()")
+		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
+		if err := e.runner.Setup(runCtx, engineOut); err != nil ***REMOVED***
+			logger.WithField("error", err).Debug("setup() aborted by error")
+			return err
+		***REMOVED***
+	***REMOVED***
+	e.initProgress.Modify(pb.WithHijack(e.getRunStats))
+
+	runCtxDone := runCtx.Done()
+	runScheduler := func(sched lib.Scheduler) ***REMOVED***
+		schedConfig := sched.GetConfig()
+		schedStartTime := schedConfig.GetStartTime()
+		schedLogger := logger.WithFields(logrus.Fields***REMOVED***
+			"scheduler": schedConfig.GetName(),
+			"type":      schedConfig.GetType(),
+			"startTime": schedStartTime,
+		***REMOVED***)
+		schedProgress := sched.GetProgress()
+
+		// Check if we have to wait before starting the actual scheduler execution
+		if schedStartTime > 0 ***REMOVED***
+			startTime := time.Now()
+			schedProgress.Modify(pb.WithProgress(func() (float64, string) ***REMOVED***
+				remWait := (schedStartTime - time.Since(startTime))
+				return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, schedStartTime))
+			***REMOVED***))
+
+			schedLogger.Debugf("Waiting for scheduler start time...")
+			select ***REMOVED***
+			case <-runCtxDone:
+				runResults <- nil // no error since scheduler hasn't started yet
+				return
+			case <-time.After(schedStartTime):
+				// continue
+			***REMOVED***
+		***REMOVED***
+
+		schedProgress.Modify(pb.WithConstProgress(0, "started"))
+		schedLogger.Debugf("Starting scheduler")
+		err := sched.Run(runCtx, engineOut) // scheduler should handle context cancel itself
+		if err == nil ***REMOVED***
+			schedLogger.Debugf("Scheduler finished successfully")
+		***REMOVED*** else ***REMOVED***
+			schedLogger.WithField("error", err).Errorf("Scheduler error")
+		***REMOVED***
+		runResults <- err
+	***REMOVED***
+
+	// Start all schedulers at their particular startTime in a separate goroutine...
+	logger.Debug("Start all schedulers...")
+	for _, sched := range e.schedulers ***REMOVED***
+		go runScheduler(sched)
+	***REMOVED***
+
+	// Wait for all schedulers to finish
+	var firstErr error
+	for range e.schedulers ***REMOVED***
+		err := <-runResults
+		if err != nil && firstErr == nil ***REMOVED***
+			firstErr = err
+			cancel()
+		***REMOVED***
+	***REMOVED***
+
+	// Run teardown() after all schedulers are done, if it's not disabled
+	if !e.options.NoTeardown.Bool ***REMOVED***
+		logger.Debug("Running teardown()")
+		if err := e.runner.Teardown(ctx, engineOut); err != nil ***REMOVED***
+			logger.WithField("error", err).Debug("teardown() aborted by error")
+			return err
+		***REMOVED***
+	***REMOVED***
+
+	return firstErr
 ***REMOVED***
 
-func (e *Executor) SetRunTeardown(r bool) ***REMOVED***
-	e.runTeardown = r
+// SetPaused pauses a test, if called with true. And if called with
+// false, tries to start/resume it. See the lib.Executor interface documentation
+// of the methods for the various caveats about its usage.
+func (e *Executor) SetPaused(pause bool) error ***REMOVED***
+	if !e.state.HasStarted() && e.state.IsPaused() ***REMOVED***
+		if pause ***REMOVED***
+			return fmt.Errorf("execution is already paused")
+		***REMOVED***
+		e.logger.Debug("Starting execution")
+		return e.state.Resume()
+	***REMOVED***
+
+	for _, sched := range e.schedulers ***REMOVED***
+		if !sched.IsPausable() ***REMOVED***
+			return fmt.Errorf(
+				"%s scheduler '%s' doesn't support pause and resume operations after its start",
+				sched.GetConfig().GetType(), sched.GetConfig().GetName(),
+			)
+		***REMOVED***
+		if err := sched.LiveUpdate(pause, nil); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return nil
 ***REMOVED***

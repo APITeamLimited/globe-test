@@ -22,15 +22,15 @@ package core
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -47,15 +47,18 @@ const (
 
 // The Engine is the beating heart of K6.
 type Engine struct ***REMOVED***
-	runLock sync.Mutex
+	runLock sync.Mutex // y tho? TODO: remove?
 
-	Executor     lib.Executor
+	//TODO: make most of the stuff here private!
+	Executor      lib.Executor
+	executorState *lib.ExecutorState
+
 	Options      lib.Options
 	Collectors   []lib.Collector
 	NoThresholds bool
 	NoSummary    bool
 
-	logger *log.Logger
+	logger *logrus.Logger
 
 	Metrics     map[string]*stats.Metric
 	MetricsLock sync.Mutex
@@ -70,29 +73,21 @@ type Engine struct ***REMOVED***
 	thresholdsTainted bool
 ***REMOVED***
 
-func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
+// NewEngine instantiates a new Engine, without doing any heavy initialization.
+func NewEngine(ex lib.Executor, o lib.Options, logger *logrus.Logger) (*Engine, error) ***REMOVED***
 	if ex == nil ***REMOVED***
-		ex = local.New(nil)
+		return nil, errors.New("missing executor instance")
 	***REMOVED***
 
 	e := &Engine***REMOVED***
-		Executor: ex,
-		Options:  o,
-		Metrics:  make(map[string]*stats.Metric),
-		Samples:  make(chan stats.SampleContainer, o.MetricSamplesBufferSize.Int64),
-	***REMOVED***
-	e.SetLogger(log.StandardLogger())
+		Executor:      ex,
+		executorState: ex.GetState(),
 
-	if err := ex.SetVUsMax(o.VUsMax.Int64); err != nil ***REMOVED***
-		return nil, err
+		Options: o,
+		Metrics: make(map[string]*stats.Metric),
+		Samples: make(chan stats.SampleContainer, o.MetricSamplesBufferSize.Int64),
+		logger:  logger,
 	***REMOVED***
-	if err := ex.SetVUs(o.VUs.Int64); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	ex.SetPaused(o.Paused.Bool)
-	ex.SetStages(o.Stages)
-	ex.SetEndTime(o.Duration)
-	ex.SetEndIterations(o.Iterations)
 
 	e.thresholds = o.Thresholds
 	e.submetrics = make(map[string][]*stats.Submetric)
@@ -106,6 +101,11 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 	***REMOVED***
 
 	return e, nil
+***REMOVED***
+
+// Init is used to initialize the executor. That's a costly operation, since it initializes all of
+func (e *Engine) Init(ctx context.Context) error ***REMOVED***
+	return e.Executor.Init(ctx, e.Samples)
 ***REMOVED***
 
 func (e *Engine) setRunStatus(status lib.RunStatus) ***REMOVED***
@@ -123,25 +123,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 	defer e.runLock.Unlock()
 
 	e.logger.Debug("Engine: Starting with parameters...")
-	for i, st := range e.Executor.GetStages() ***REMOVED***
-		fields := make(log.Fields)
-		if st.Target.Valid ***REMOVED***
-			fields["tgt"] = st.Target.Int64
-		***REMOVED***
-		if st.Duration.Valid ***REMOVED***
-			fields["d"] = st.Duration.Duration
-		***REMOVED***
-		e.logger.WithFields(fields).Debugf(" - stage #%d", i)
-	***REMOVED***
-
-	fields := make(log.Fields)
-	if endTime := e.Executor.GetEndTime(); endTime.Valid ***REMOVED***
-		fields["time"] = endTime.Duration
-	***REMOVED***
-	if endIter := e.Executor.GetEndIterations(); endIter.Valid ***REMOVED***
-		fields["iter"] = endIter.Int64
-	***REMOVED***
-	e.logger.WithFields(fields).Debug(" - end conditions (if any)")
 
 	collectorwg := sync.WaitGroup***REMOVED******REMOVED***
 	collectorctx, collectorcancel := context.WithCancel(context.Background())
@@ -208,9 +189,6 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 			e.processSamples(sampleContainers)
 		***REMOVED***
 
-		// Emit final metrics.
-		e.emitMetrics()
-
 		// Process final thresholds.
 		if !e.NoThresholds ***REMOVED***
 			e.processThresholds(nil)
@@ -252,15 +230,6 @@ func (e *Engine) IsTainted() bool ***REMOVED***
 	return e.thresholdsTainted
 ***REMOVED***
 
-func (e *Engine) SetLogger(l *log.Logger) ***REMOVED***
-	e.logger = l
-	e.Executor.SetLogger(l)
-***REMOVED***
-
-func (e *Engine) GetLogger() *log.Logger ***REMOVED***
-	return e.logger
-***REMOVED***
-
 func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
 	ticker := time.NewTicker(MetricsRate)
 	for ***REMOVED***
@@ -276,17 +245,18 @@ func (e *Engine) runMetricsEmission(ctx context.Context) ***REMOVED***
 func (e *Engine) emitMetrics() ***REMOVED***
 	t := time.Now()
 
+	executorState := e.Executor.GetState()
 	e.processSamples([]stats.SampleContainer***REMOVED***stats.ConnectedSamples***REMOVED***
 		Samples: []stats.Sample***REMOVED***
 			***REMOVED***
 				Time:   t,
 				Metric: metrics.VUs,
-				Value:  float64(e.Executor.GetVUs()),
+				Value:  float64(executorState.GetCurrentlyActiveVUsCount()),
 				Tags:   e.Options.RunTags,
 			***REMOVED***, ***REMOVED***
 				Time:   t,
 				Metric: metrics.VUsMax,
-				Value:  float64(e.Executor.GetVUsMax()),
+				Value:  float64(executorState.GetInitializedVUsCount()),
 				Tags:   e.Options.RunTags,
 			***REMOVED***,
 		***REMOVED***,
@@ -311,7 +281,7 @@ func (e *Engine) processThresholds(abort func()) ***REMOVED***
 	e.MetricsLock.Lock()
 	defer e.MetricsLock.Unlock()
 
-	t := e.Executor.GetTime()
+	t := e.executorState.GetCurrentTestRunDuration()
 	abortOnFail := false
 
 	e.thresholdsTainted = false
