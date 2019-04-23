@@ -30,7 +30,9 @@ import (
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
 	"github.com/manyminds/api2go/jsonapi"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetGroups(t *testing.T) ***REMOVED***
@@ -41,8 +43,10 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	g2, err := g1.Group("group 2")
 	assert.NoError(t, err)
 
-	engine, err := core.NewEngine(local.New(&lib.MiniRunner***REMOVED***Group: g0***REMOVED***), lib.Options***REMOVED******REMOVED***)
-	assert.NoError(t, err)
+	executor, err := local.New(&lib.MiniRunner***REMOVED***Group: g0***REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
+	engine, err := core.NewEngine(executor, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
 		rw := httptest.NewRecorder()
