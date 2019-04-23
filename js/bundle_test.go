@@ -139,17 +139,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				assert.Equal(t, null.IntFrom(100), b.Options.VUs)
 			***REMOVED***
 		***REMOVED***)
-		t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
-				export let options = ***REMOVED***
-					vusMax: 100,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
-			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(100), b.Options.VUsMax)
-			***REMOVED***
-		***REMOVED***)
 		t.Run("Duration", func(t *testing.T) ***REMOVED***
 			b, err := getSimpleBundle("/script.js", `
 				export let options = ***REMOVED***

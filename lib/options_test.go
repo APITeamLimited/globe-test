@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
@@ -48,11 +47,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.VUs.Valid)
 		assert.Equal(t, int64(12345), opts.VUs.Int64)
-	***REMOVED***)
-	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUsMax: null.IntFrom(12345)***REMOVED***)
-		assert.True(t, opts.VUsMax.Valid)
-		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: types.NullDurationFrom(2 * time.Minute)***REMOVED***)
@@ -88,17 +82,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, oneStage, opts.Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 		assert.Equal(t, oneStage, Options***REMOVED******REMOVED***.Apply(opts).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 	***REMOVED***)
-	t.Run("Execution", func(t *testing.T) ***REMOVED***
-		sched := scheduler.NewConstantLoopingVUsConfig("test")
-		sched.VUs = null.IntFrom(123)
-		sched.Duration = types.NullDurationFrom(3 * time.Minute)
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Execution: scheduler.ConfigMap***REMOVED***"test": sched***REMOVED******REMOVED***)
-		cs, ok := opts.Execution["test"].(scheduler.ConstantLoopingVUsConfig)
-		assert.True(t, ok)
-		assert.Equal(t, int64(123), cs.VUs.Int64)
-		assert.Equal(t, "3m0s", cs.Duration.String())
-	***REMOVED***)
-	//TODO: test that any execution option overwrites any other lower-level options
+	// Execution overwriting is tested by the config consolidation test in cmd
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.RPS.Valid)
@@ -412,10 +396,6 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"false": null.BoolFrom(false),
 		***REMOVED***,
 		***REMOVED***"VUs", "K6_VUS"***REMOVED***: ***REMOVED***
-			"":    null.Int***REMOVED******REMOVED***,
-			"123": null.IntFrom(123),
-		***REMOVED***,
-		***REMOVED***"VUsMax", "K6_VUS_MAX"***REMOVED***: ***REMOVED***
 			"":    null.Int***REMOVED******REMOVED***,
 			"123": null.IntFrom(123),
 		***REMOVED***,

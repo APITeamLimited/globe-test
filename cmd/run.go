@@ -65,12 +65,9 @@ const (
 	invalidConfigErrorCode      = 104
 )
 
-var (
 	//TODO: fix this, global variables are not very testable...
-	runType       = os.Getenv("K6_TYPE")
-	runNoSetup    = os.Getenv("K6_NO_SETUP") != ""
-	runNoTeardown = os.Getenv("K6_NO_TEARDOWN") != ""
-)
+//nolint:gochecknoglobals
+var runType = os.Getenv("K6_TYPE")
 
 // runCmd represents the run command.
 var runCmd = &cobra.Command***REMOVED***
@@ -140,36 +137,6 @@ a commandline interface for interacting with it.`,
 		conf, err := getConsolidatedConfig(fs, cliConf, r)
 		if err != nil ***REMOVED***
 			return err
-		***REMOVED***
-
-		// If -m/--max isn't specified, figure out the max that should be needed.
-		if !conf.VUsMax.Valid ***REMOVED***
-			conf.VUsMax = null.NewInt(conf.VUs.Int64, conf.VUs.Valid)
-			for _, stage := range conf.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
-					conf.VUsMax = stage.Target
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
-		if !conf.Duration.Valid && !conf.Iterations.Valid && len(conf.Stages) == 0 ***REMOVED***
-			conf.Iterations = null.IntFrom(1)
-		***REMOVED***
-
-		if conf.Iterations.Valid && conf.Iterations.Int64 < conf.VUsMax.Int64 ***REMOVED***
-			log.Warnf(
-				"All iterations (%d in this test run) are shared between all VUs, so some of the %d VUs will not execute even a single iteration!",
-				conf.Iterations.Int64, conf.VUsMax.Int64,
-			)
-		***REMOVED***
-
-		//TODO: move a bunch of the logic above to a config "constructor" and to the Validate() method
-
-		// If duration is explicitly set to 0, it means run forever.
-		//TODO: just... handle this differently, e.g. as a part of the manual executor
-		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
-			conf.Duration = types.NullDuration***REMOVED******REMOVED***
 		***REMOVED***
 
 		if cerr := validateConfig(conf); cerr != nil ***REMOVED***
@@ -486,11 +453,6 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	// - and finally, global variables are not very testable... :/
 	flags.StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
 	flags.Lookup("type").DefValue = ""
-	flags.BoolVar(&runNoSetup, "no-setup", runNoSetup, "don't run setup()")
-	falseStr := "false" // avoiding goconst warnings...
-	flags.Lookup("no-setup").DefValue = falseStr
-	flags.BoolVar(&runNoTeardown, "no-teardown", runNoTeardown, "don't run teardown()")
-	flags.Lookup("no-teardown").DefValue = falseStr
 	return flags
 ***REMOVED***
 
