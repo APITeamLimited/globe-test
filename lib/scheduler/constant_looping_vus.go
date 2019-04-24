@@ -161,13 +161,15 @@ func (clv ConstantLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, clv, progresFn)
 
 	// Actually schedule the VUs and iterations...
-	wg := sync.WaitGroup***REMOVED******REMOVED***
+	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
+	defer activeVUs.Wait()
+
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(clv.executorState, clv.logger, out)
 
 	handleVU := func(vu lib.VU) ***REMOVED***
 		defer clv.executorState.ReturnVU(vu)
-		defer wg.Done()
+		defer activeVUs.Done()
 
 		for ***REMOVED***
 			select ***REMOVED***
@@ -181,14 +183,14 @@ func (clv ConstantLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 	***REMOVED***
 
 	for i := int64(0); i < numVUs; i++ ***REMOVED***
-		wg.Add(1)
-		vu, err := clv.executorState.GetPlannedVU(ctx, clv.logger)
+		vu, err := clv.executorState.GetPlannedVU(clv.logger)
 		if err != nil ***REMOVED***
+			cancel()
 			return err
 		***REMOVED***
+		activeVUs.Add(1)
 		go handleVU(vu)
 	***REMOVED***
 
-	wg.Wait()
 	return nil
 ***REMOVED***

@@ -458,15 +458,13 @@ func (es *ExecutorState) ResumeNotify() <-chan struct***REMOVED******REMOVED*** 
 // we reach that timeout more than MaxRetriesGetPlannedVU number of times, this
 // function will return an error, since we either have a bug with some
 // scheduler, or the machine is very, very overloaded.
-func (es *ExecutorState) GetPlannedVU(ctx context.Context, logger *logrus.Entry) (VU, error) ***REMOVED***
+func (es *ExecutorState) GetPlannedVU(logger *logrus.Entry) (VU, error) ***REMOVED***
 	for i := 1; i <= MaxRetriesGetPlannedVU; i++ ***REMOVED***
 		select ***REMOVED***
 		case vu := <-es.vus:
 			atomic.AddUint64(es.activeVUs, 1)
 			//TODO: set environment and exec
 			return vu, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
 		case <-time.After(MaxTimeToWaitForPlannedVU):
 			logger.Warnf("Could not get a VU from the buffer for %s", time.Duration(i)*MaxTimeToWaitForPlannedVU)
 		***REMOVED***
@@ -499,7 +497,7 @@ func (es *ExecutorState) GetUnplannedVU(ctx context.Context, logger *logrus.Entr
 	if remVUs < 0 ***REMOVED***
 		logger.Debug("Reusing a previously initialized unplanned VU")
 		atomic.AddInt64(es.uninitializedUnplannedVUs, 1)
-		return es.GetPlannedVU(ctx, logger)
+		return es.GetPlannedVU(logger)
 	***REMOVED***
 	if es.initVUFunc == nil ***REMOVED***
 		return nil, fmt.Errorf("initVUFunc wasn't set in the executor state")
