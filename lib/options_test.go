@@ -308,7 +308,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
-			BlacklistIPs: []*net.IPNet***REMOVED******REMOVED***
+			BlacklistIPs: []*IPNet***REMOVED******REMOVED***
 				IP:   net.IPv4zero,
 				Mask: net.CIDRMask(1, 1),
 			***REMOVED******REMOVED***,
@@ -511,5 +511,49 @@ func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		require.Equal(t, (map[string]bool)(*set), expected)
+	***REMOVED***
+***REMOVED***
+
+func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
+
+	var testData = []struct ***REMOVED***
+		input          string
+		expectedOutput *IPNet
+		expactFailure  bool
+	***REMOVED******REMOVED***
+		***REMOVED***
+			"10.0.0.0/8",
+			&IPNet***REMOVED***
+				IP:   net.IP***REMOVED***10, 0, 0, 0***REMOVED***,
+				Mask: net.IPv4Mask(255, 0, 0, 0),
+			***REMOVED***,
+			false,
+		***REMOVED***,
+		***REMOVED***
+			"fc00:1234:5678::/48",
+			&IPNet***REMOVED***
+				IP:   net.ParseIP("fc00:1234:5678::"),
+				Mask: net.CIDRMask(48, 128),
+			***REMOVED***,
+			false,
+		***REMOVED***,
+		***REMOVED***"10.0.0.0", nil, true***REMOVED***,
+		***REMOVED***"fc00:1234:5678::", nil, true***REMOVED***,
+		***REMOVED***"fc00::1234::/48", nil, true***REMOVED***,
+	***REMOVED***
+
+	for _, data := range testData ***REMOVED***
+		data := data
+		t.Run(data.input, func(t *testing.T) ***REMOVED***
+			actualIPNet := &IPNet***REMOVED******REMOVED***
+			err := actualIPNet.UnmarshalText([]byte(data.input))
+
+			if data.expactFailure ***REMOVED***
+				require.EqualError(t, err, "Failed to parse CIDR: invalid CIDR address: "+data.input)
+			***REMOVED*** else ***REMOVED***
+				require.NoError(t, err)
+				assert.Equal(t, data.expectedOutput, actualIPNet)
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

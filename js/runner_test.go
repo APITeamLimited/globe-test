@@ -747,7 +747,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
+func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 	r1, err := New(&lib.SourceData***REMOVED***
 		Filename: "/script.js",
 		Data: []byte(`
@@ -759,13 +759,13 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	_, cidr, err := net.ParseCIDR("10.0.0.0/8")
+	cidr, err := lib.ParseCIDR("10.0.0.0/8")
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
-		BlacklistIPs: []*net.IPNet***REMOVED***cidr***REMOVED***,
+		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
@@ -775,6 +775,44 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			err = vu.RunOnce(context.Background())
+			assert.EqualError(t, err, "GoError: Get http://10.1.2.3/: IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+					import http from "k6/http";
+
+					export let options = ***REMOVED***
+						throw: true,
+						blacklistIPs: ["10.0.0.0/8"],
+					***REMOVED***;
+
+					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+				`),
+	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+
+	for name, r := range runners ***REMOVED***
+		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
 			if !assert.NoError(t, err) ***REMOVED***

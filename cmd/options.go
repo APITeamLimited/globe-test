@@ -22,7 +22,6 @@ package cmd
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
@@ -122,9 +121,9 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		return opts, err
 	***REMOVED***
 	for _, s := range blacklistIPStrings ***REMOVED***
-		_, net, err := net.ParseCIDR(s)
-		if err != nil ***REMOVED***
-			return opts, errors.Wrap(err, "blacklist-ip")
+		net, parseErr := lib.ParseCIDR(s)
+		if parseErr != nil ***REMOVED***
+			return opts, errors.Wrap(parseErr, "blacklist-ip")
 		***REMOVED***
 		opts.BlacklistIPs = append(opts.BlacklistIPs, net)
 	***REMOVED***
