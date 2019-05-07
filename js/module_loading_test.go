@@ -318,3 +318,68 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestBrowserified(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	//nolint: lll
+	require.NoError(t, afero.WriteFile(fs, "/browserified.js", []byte(`
+		(function(f)***REMOVED***if(typeof exports==="object"&&typeof module!=="undefined")***REMOVED***module.exports=f()***REMOVED***else if(typeof define==="function"&&define.amd)***REMOVED***define([],f)***REMOVED***else***REMOVED***var g;if(typeof window!=="undefined")***REMOVED***g=window***REMOVED***else if(typeof global!=="undefined")***REMOVED***g=global***REMOVED***else if(typeof self!=="undefined")***REMOVED***g=self***REMOVED***else***REMOVED***g=this***REMOVED***g.npmlibs = f()***REMOVED******REMOVED***)(function()***REMOVED***var define,module,exports;return (function()***REMOVED***function r(e,n,t)***REMOVED***function o(i,f)***REMOVED***if(!n[i])***REMOVED***if(!e[i])***REMOVED***var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a***REMOVED***var p=n[i]=***REMOVED***exports:***REMOVED******REMOVED******REMOVED***;e[i][0].call(p.exports,function(r)***REMOVED***var n=e[i][1][r];return o(n||r)***REMOVED***,p,p.exports,r,e,n,t)***REMOVED***return n[i].exports***REMOVED***for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o***REMOVED***return r***REMOVED***)()(***REMOVED***1:[function(require,module,exports)***REMOVED***
+		module.exports.A = function () ***REMOVED***
+			return "a";
+		***REMOVED***
+
+		***REMOVED***,***REMOVED******REMOVED***],2:[function(require,module,exports)***REMOVED***
+		exports.B = function() ***REMOVED***
+		return "b";
+		***REMOVED***
+
+		***REMOVED***,***REMOVED******REMOVED***],3:[function(require,module,exports)***REMOVED***
+		exports.alpha = require('./a.js');
+		exports.bravo = require('./b.js');
+
+		***REMOVED***,***REMOVED***"./a.js":1,"./b.js":2***REMOVED***]***REMOVED***,***REMOVED******REMOVED***,[3])(3)
+		***REMOVED***);
+	`), os.ModePerm))
+
+	r1, err := New(&lib.SourceData***REMOVED***
+		Filename: "/script.js",
+		Data: []byte(`
+			import ***REMOVED***alpha, bravo ***REMOVED*** from "./browserified.js";
+
+			export default function(data) ***REMOVED***
+				if (alpha.A === undefined) ***REMOVED***
+					throw new Error("alpha.A is undefined");
+				***REMOVED***
+				if (alpha.A() != "a") ***REMOVED***
+					throw new Error("alpha.A() != 'a'    (" + alpha.A() + ") != 'a'");
+				***REMOVED***
+
+				if (bravo.B === undefined) ***REMOVED***
+					throw new Error("bravo.B is undefined");
+				***REMOVED***
+				if (bravo.B() != "b") ***REMOVED***
+					throw new Error("bravo.B() != 'b'    (" + bravo.B() + ") != 'b'");
+				***REMOVED***
+			***REMOVED***
+		`),
+	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	arc := r1.MakeArchive()
+	arc.Files = make(map[string][]byte)
+	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ch := make(chan stats.SampleContainer, 100)
+			defer close(ch)
+			vu, err := r.NewVU(ch)
+			require.NoError(t, err)
+			err = vu.RunOnce(context.Background())
+			require.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***

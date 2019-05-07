@@ -170,6 +170,8 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 		if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
 			return goja.Undefined(), err
 		***REMOVED***
+
+		pgm.exports = module.Get("exports")
 	***REMOVED***
 
 	return pgm.exports, nil
