@@ -162,7 +162,10 @@ a commandline interface for interacting with it.`,
 		initBar = executor.GetInitProgressBar()
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
-		go showProgress(ctx, progressBarWG, conf, executor)
+		go func() ***REMOVED***
+			showProgress(ctx, conf, executor)
+			progressBarWG.Done()
+		***REMOVED***()
 
 		// Create an engine.
 		initBar.Modify(pb.WithConstProgress(0, "Init engine"))
@@ -285,9 +288,6 @@ a commandline interface for interacting with it.`,
 						"goos":        runtime.GOOS,
 						"goarch":      runtime.GOARCH,
 					***REMOVED***)
-					if err != nil ***REMOVED***
-						panic(err) // This should never happen!!
-					***REMOVED***
 					if err != nil ***REMOVED***
 						panic(err) // This should never happen!!
 					***REMOVED***

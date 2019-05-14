@@ -91,7 +91,7 @@ var RootCmd = &cobra.Command***REMOVED***
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
 		setupLoggers(logFmt)
 		if noColor ***REMOVED***
-			// TODO: figure our something else... currently, with the wrappers
+			// TODO: figure out something else... currently, with the wrappers
 			// below, we're stripping any colors from the output after we've
 			// added them. The problem is that, besides being very inefficient,
 			// this actually also strips other special characters from the
