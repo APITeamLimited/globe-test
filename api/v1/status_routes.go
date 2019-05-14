@@ -21,11 +21,14 @@
 package v1
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/loadimpact/k6/api/common"
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/manyminds/api2go/jsonapi"
 )
 
@@ -39,6 +42,16 @@ func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 		return
 	***REMOVED***
 	_, _ = rw.Write(data)
+***REMOVED***
+
+func getFirstManualExecutionScheduler(executor lib.Executor) (*scheduler.ManualExecution, error) ***REMOVED***
+	schedulers := executor.GetSchedulers()
+	for _, s := range schedulers ***REMOVED***
+		if mex, ok := s.(*scheduler.ManualExecution); ok ***REMOVED***
+			return mex, nil
+		***REMOVED***
+	***REMOVED***
+	return nil, fmt.Errorf("a manual-execution scheduler needs to be configured for live configuration updates")
 ***REMOVED***
 
 func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
@@ -63,21 +76,27 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 		***REMOVED***
 	***REMOVED***
 
-	/*
-		//TODO: handle manual executor update
+	if status.VUsMax.Valid || status.VUs.Valid ***REMOVED***
+		//TODO: add ability to specify the actual scheduler id? though thus should
+		//likely be in the v2 REST API, where we could implement it in a way that
+		//may allow us to eventually support other scheduler types
+		scheduler, uptateErr := getFirstManualExecutionScheduler(engine.Executor)
+		if uptateErr != nil ***REMOVED***
+			apiError(rw, "Execution config error", uptateErr.Error(), http.StatusInternalServerError)
+			return
+		***REMOVED***
+		newConfig := scheduler.GetCurrentConfig().ManualExecutionControlConfig
 		if status.VUsMax.Valid ***REMOVED***
-			if err := engine.Executor.SetVUsMax(status.VUsMax.Int64); err != nil ***REMOVED***
-				apiError(rw, "Couldn't change cap", err.Error(), http.StatusBadRequest)
-				return
-			***REMOVED***
+			newConfig.MaxVUs = status.VUsMax
 		***REMOVED***
 		if status.VUs.Valid ***REMOVED***
-			if err := engine.Executor.SetVUs(status.VUs.Int64); err != nil ***REMOVED***
-				apiError(rw, "Couldn't scale", err.Error(), http.StatusBadRequest)
-				return
-			***REMOVED***
+			newConfig.VUs = status.VUs
 		***REMOVED***
-	*/
+		if uptateErr := scheduler.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
+			apiError(rw, "Config update error", uptateErr.Error(), http.StatusInternalServerError)
+			return
+		***REMOVED***
+	***REMOVED***
 	data, err := jsonapi.Marshal(NewStatus(engine))
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)

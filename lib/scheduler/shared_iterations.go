@@ -183,7 +183,7 @@ func (si SharedIteations) Run(ctx context.Context, out chan<- stats.SampleContai
 
 	attemptedIters := new(uint64)
 	handleVU := func(vu lib.VU) ***REMOVED***
-		defer si.executorState.ReturnVU(vu)
+		defer si.executorState.ReturnVU(vu, true)
 		defer activeVUs.Done()
 
 		for ***REMOVED***
@@ -204,7 +204,7 @@ func (si SharedIteations) Run(ctx context.Context, out chan<- stats.SampleContai
 	***REMOVED***
 
 	for i := int64(0); i < numVUs; i++ ***REMOVED***
-		vu, err := si.executorState.GetPlannedVU(si.logger)
+		vu, err := si.executorState.GetPlannedVU(si.logger, true)
 		if err != nil ***REMOVED***
 			cancel()
 			return err
