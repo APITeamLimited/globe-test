@@ -177,7 +177,7 @@ func (es *ExecutionSegment) Split(numParts int64) ([]*ExecutionSegment, error) *
 	***REMOVED***
 
 	if from.Cmp(to) != 0 ***REMOVED***
-		return nil, fmt.Errorf("Expected %s and %s to be equal", from, to)
+		return nil, fmt.Errorf("expected %s and %s to be equal", from, to)
 	***REMOVED***
 
 	return results, nil
