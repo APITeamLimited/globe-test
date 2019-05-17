@@ -150,7 +150,40 @@ func (es *ExecutionSegment) FloatLength() float64 ***REMOVED***
 	return res
 ***REMOVED***
 
-//TODO: add a NewFromString() and Split() methods
+// Split evenly dividies the execution segment into the specified number of
+// equal consecutive execution sub-segments.
+func (es *ExecutionSegment) Split(numParts int64) ([]*ExecutionSegment, error) ***REMOVED***
+	if numParts < 1 ***REMOVED***
+		return nil, fmt.Errorf("the number of parts should be at least 1, %d received", numParts)
+	***REMOVED***
+
+	from, to := zeroRat, oneRat
+	if es != nil ***REMOVED***
+		from, to = es.from, es.to
+	***REMOVED***
+
+	increment := new(big.Rat).Sub(to, from)
+	increment.Denom().Mul(increment.Denom(), big.NewInt(numParts))
+
+	results := make([]*ExecutionSegment, numParts)
+	for i := int64(0); i < numParts; i++ ***REMOVED***
+		segmentTo := new(big.Rat).Add(from, increment)
+		segment, err := NewExecutionSegment(from, segmentTo)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		results[i] = segment
+		from = segmentTo
+	***REMOVED***
+
+	if from.Cmp(to) != 0 ***REMOVED***
+		return nil, fmt.Errorf("Expected %s and %s to be equal", from, to)
+	***REMOVED***
+
+	return results, nil
+***REMOVED***
+
+//TODO: add a NewFromString() method
 
 // helper function for rounding (up) of rational numbers to big.Int values
 func roundUp(rat *big.Rat) *big.Int ***REMOVED***
