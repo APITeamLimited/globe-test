@@ -158,14 +158,18 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		env[k] = v
 	***REMOVED***
 
-	return &Bundle***REMOVED***
+	bundle := &Bundle***REMOVED***
 		Filename:        arc.Filename,
 		Source:          string(arc.Data),
 		Program:         pgm,
 		Options:         arc.Options,
 		BaseInitContext: initctx,
 		Env:             env,
-	***REMOVED***, nil
+	***REMOVED***
+	if err := bundle.instantiate(bundle.BaseInitContext.runtime, bundle.BaseInitContext); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return bundle, nil
 ***REMOVED***
 
 func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
