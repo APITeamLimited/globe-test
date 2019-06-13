@@ -162,9 +162,91 @@ func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64
 	return buf, int64(buf.Len()), contentEncoding, body.Close()
 ***REMOVED***
 
+func readResponseBody(
+	state *lib.State, respType ResponseType, resp *http.Response, respErr error,
+) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+
+	if resp == nil || respErr != nil ***REMOVED***
+		return nil, respErr
+	***REMOVED***
+
+	if respType == ResponseTypeNone ***REMOVED***
+		_, err := io.Copy(ioutil.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if err != nil ***REMOVED***
+			respErr = err
+		***REMOVED***
+		return nil, respErr
+	***REMOVED***
+
+	// Transperently decompress the body if it's has a content-encoding we
+	// support. If not, simply return it as it is.
+	contentEncoding := strings.TrimSpace(resp.Header.Get("Content-Encoding"))
+	if compression, err := CompressionTypeString(contentEncoding); err == nil ***REMOVED***
+		switch compression ***REMOVED***
+		case CompressionTypeDeflate:
+			resp.Body, respErr = zlib.NewReader(resp.Body)
+		case CompressionTypeGzip:
+			resp.Body, respErr = gzip.NewReader(resp.Body)
+		default:
+			// We have not implemented a compression ... :(
+			respErr = fmt.Errorf(
+				"unsupported compression type %s for decompression - this is a bug in k6, please report it",
+				compression,
+			)
+		***REMOVED***
+	***REMOVED***
+
+	buf := state.BPool.Get()
+	defer state.BPool.Put(buf)
+	buf.Reset()
+	_, err := io.Copy(buf, resp.Body)
+	_ = resp.Body.Close()
+	if err != nil ***REMOVED***
+		respErr = err
+	***REMOVED***
+
+	var result interface***REMOVED******REMOVED***
+	// Binary or string
+	switch respType ***REMOVED***
+	case ResponseTypeText:
+		result = buf.String()
+	case ResponseTypeBinary:
+		// Copy the data to a new slice before we return the buffer to the pool,
+		// because buf.Bytes() points to the underlying buffer byte slice.
+		binData := make([]byte, buf.Len())
+		copy(binData, buf.Bytes())
+		result = binData
+	default:
+		respErr = fmt.Errorf("unknown responseType %s", respType)
+	***REMOVED***
+
+	return result, respErr
+***REMOVED***
+
+func updateK6Response(k6Response *Response, finishedReq *finishedRequest) ***REMOVED***
+	k6Response.ErrorCode = int(finishedReq.errorCode)
+	k6Response.Error = finishedReq.errorMsg
+	trail := finishedReq.trail
+
+	if trail.ConnRemoteAddr != nil ***REMOVED***
+		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
+		remotePort, _ := strconv.Atoi(remotePortStr)
+		k6Response.RemoteIP = remoteHost
+		k6Response.RemotePort = remotePort
+	***REMOVED***
+	k6Response.Timings = ResponseTimings***REMOVED***
+		Duration:       stats.D(trail.Duration),
+		Blocked:        stats.D(trail.Blocked),
+		Connecting:     stats.D(trail.Connecting),
+		TLSHandshaking: stats.D(trail.TLSHandshaking),
+		Sending:        stats.D(trail.Sending),
+		Waiting:        stats.D(trail.Waiting),
+		Receiving:      stats.D(trail.Receiving),
+	***REMOVED***
+***REMOVED***
+
 // MakeRequest makes http request for tor the provided ParsedHTTPRequest
-//TODO break this function up
-//nolint: gocyclo
 func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error) ***REMOVED***
 	state := lib.GetState(ctx)
 
@@ -248,7 +330,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 	***REMOVED***
 
-	tracerTransport := newTransport(state.Transport, state.Samples, &state.Options, tags)
+	tracerTransport := newTransport(state, tags)
 	var transport http.RoundTripper = tracerTransport
 	if preq.Auth == "ntlm" ***REMOVED***
 		transport = ntlmssp.Negotiator***REMOVED***
@@ -293,6 +375,11 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	// if digest authentication option is passed, make an initial request
 	// to get the authentication params to compute the authorization header
 	if preq.Auth == "digest" ***REMOVED***
+		// TODO: fix - this is very broken! we're always making 2 HTTP requests
+		// when digest authentication is enabled... we should refactor it as a
+		// separate transport, like how NTLM auth works
+		//
+		// Github issue: https://github.com/loadimpact/k6/issues/800
 		username := preq.URL.u.User.Username()
 		password, _ := preq.URL.u.User.Password()
 
@@ -301,15 +388,20 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 
 		debugRequest(state, preq.Req, "DigestRequest")
 		res, err := client.Do(preq.Req.WithContext(ctx))
-		debugRequest(state, preq.Req, "DigestResponse")
-		resp.Error = tracerTransport.errorMsg
-		resp.ErrorCode = int(tracerTransport.errorCode)
+		debugResponse(state, res, "DigestResponse")
+		body, err := readResponseBody(state, ResponseTypeText, res, err)
+		finishedReq := tracerTransport.processLastSavedRequest()
+		if finishedReq != nil ***REMOVED***
+			resp.ErrorCode = int(finishedReq.errorCode)
+			resp.Error = finishedReq.errorMsg
+		***REMOVED***
+
 		if err != nil ***REMOVED***
 			// Do *not* log errors about the contex being cancelled.
 			select ***REMOVED***
 			case <-ctx.Done():
 			default:
-				state.Logger.WithField("error", res).Warn("Digest request failed")
+				state.Logger.WithField("error", err).Warn("Digest request failed")
 			***REMOVED***
 
 			// In case we have an error but resp.Error is not set it means the error is not from
@@ -322,84 +414,22 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 
 		if res.StatusCode == http.StatusUnauthorized ***REMOVED***
-			body := ""
-			if b, err := ioutil.ReadAll(res.Body); err == nil ***REMOVED***
-				body = string(b)
-			***REMOVED***
-
 			challenge := digest.GetChallengeFromHeader(&res.Header)
-			challenge.ComputeResponse(preq.Req.Method, preq.Req.URL.RequestURI(), body, username, password)
+			challenge.ComputeResponse(preq.Req.Method, preq.Req.URL.RequestURI(), body.(string), username, password)
 			authorization := challenge.ToAuthorizationStr()
 			preq.Req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
 		***REMOVED***
 	***REMOVED***
 
 	debugRequest(state, preq.Req, "Request")
-	res, resErr := client.Do(preq.Req.WithContext(ctx))
+	mreq := preq.Req.WithContext(ctx)
+	res, resErr := client.Do(mreq)
 	debugResponse(state, res, "Response")
-	resp.Error = tracerTransport.errorMsg
-	resp.ErrorCode = int(tracerTransport.errorCode)
-	if resErr == nil && res != nil ***REMOVED***
-		compression, err := CompressionTypeString(strings.TrimSpace(res.Header.Get("Content-Encoding")))
-		if err == nil ***REMOVED*** // in case of error we just won't uncompress
-			switch compression ***REMOVED***
-			case CompressionTypeDeflate:
-				res.Body, resErr = zlib.NewReader(res.Body)
-			case CompressionTypeGzip:
-				res.Body, resErr = gzip.NewReader(res.Body)
-			default:
-				// We have not implemented a compression ... :(
-				resErr = fmt.Errorf(
-					"unsupported compressionType %s for uncompression. This is a bug in k6 please report it",
-					compression)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	if resErr == nil && res != nil ***REMOVED***
-		if preq.ResponseType == ResponseTypeNone ***REMOVED***
-			_, err := io.Copy(ioutil.Discard, res.Body)
-			if err != nil && err != io.EOF ***REMOVED***
-				resErr = err
-			***REMOVED***
-			resp.Body = nil
-		***REMOVED*** else ***REMOVED***
-			// Binary or string
-			buf := state.BPool.Get()
-			buf.Reset()
-			defer state.BPool.Put(buf)
-			_, err := io.Copy(buf, res.Body)
-			if err != nil && err != io.EOF ***REMOVED***
-				resErr = err
-			***REMOVED***
 
-			switch preq.ResponseType ***REMOVED***
-			case ResponseTypeText:
-				resp.Body = buf.String()
-			case ResponseTypeBinary:
-				resp.Body = buf.Bytes()
-			default:
-				resErr = fmt.Errorf("unknown responseType %s", preq.ResponseType)
-			***REMOVED***
-		***REMOVED***
-		_ = res.Body.Close()
-	***REMOVED***
-
-	trail := tracerTransport.GetTrail()
-
-	if trail.ConnRemoteAddr != nil ***REMOVED***
-		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
-		remotePort, _ := strconv.Atoi(remotePortStr)
-		resp.RemoteIP = remoteHost
-		resp.RemotePort = remotePort
-	***REMOVED***
-	resp.Timings = ResponseTimings***REMOVED***
-		Duration:       stats.D(trail.Duration),
-		Blocked:        stats.D(trail.Blocked),
-		Connecting:     stats.D(trail.Connecting),
-		TLSHandshaking: stats.D(trail.TLSHandshaking),
-		Sending:        stats.D(trail.Sending),
-		Waiting:        stats.D(trail.Waiting),
-		Receiving:      stats.D(trail.Receiving),
+	resp.Body, resErr = readResponseBody(state, preq.ResponseType, res, resErr)
+	finishedReq := tracerTransport.processLastSavedRequest()
+	if finishedReq != nil ***REMOVED***
+		updateK6Response(resp, finishedReq)
 	***REMOVED***
 
 	if resErr == nil ***REMOVED***

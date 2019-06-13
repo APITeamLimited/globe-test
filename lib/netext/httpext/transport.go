@@ -21,29 +21,48 @@
 package httpext
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/http/httptrace"
 	"strconv"
+	"sync"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
 )
 
-// transport is an implemenation of http.RoundTripper that will measure different metrics for each
-// roundtrip
+// transport is an implemenation of http.RoundTripper that will measure and emit
+// different metrics for each roundtrip
 type transport struct ***REMOVED***
-	roundTripper http.RoundTripper
-	// TODO: maybe just take the SystemTags field as it is the only thing used
-	options   *lib.Options
-	tags      map[string]string
+	state *lib.State
+	tags  map[string]string
+
+	lastRequest     *unfinishedRequest
+	lastRequestLock *sync.Mutex
+***REMOVED***
+
+// unfinishedRequest stores the request and the raw result returned from the
+// underlying http.RoundTripper, but before its body has been read
+type unfinishedRequest struct ***REMOVED***
+	ctx      context.Context
+	tracer   *Tracer
+	request  *http.Request
+	response *http.Response
+	err      error
+***REMOVED***
+
+// finishedRequest is produced once the request has been finalized; it is
+// triggered either by a subsequent RoundTrip, or for the last request in the
+// chain - by the MakeRequest function manually calling the transport method
+// processLastSavedRequest(), after reading the HTTP response body.
+type finishedRequest struct ***REMOVED***
+	*unfinishedRequest
 	trail     *Trail
-	errorMsg  string
-	errorCode errCode
 	tlsInfo   netext.TLSInfo
-	samplesCh chan<- stats.SampleContainer
+	errorCode errCode
+	errorMsg  string
 ***REMOVED***
 
 var _ http.RoundTripper = &transport***REMOVED******REMOVED***
@@ -51,104 +70,126 @@ var _ http.RoundTripper = &transport***REMOVED******REMOVED***
 // NewTransport returns a new Transport wrapping around the provide Roundtripper and will send
 // samples on the provided channel adding the tags in accordance to the Options provided
 func newTransport(
-	roundTripper http.RoundTripper,
-	samplesCh chan<- stats.SampleContainer,
-	options *lib.Options,
+	state *lib.State,
 	tags map[string]string,
 ) *transport ***REMOVED***
 	return &transport***REMOVED***
-		roundTripper: roundTripper,
-		tags:         tags,
-		options:      options,
-		samplesCh:    samplesCh,
+		state:           state,
+		tags:            tags,
+		lastRequestLock: new(sync.Mutex),
 	***REMOVED***
 ***REMOVED***
 
-// SetOptions sets the options that should be used
-func (t *transport) SetOptions(options *lib.Options) ***REMOVED***
-	t.options = options
-***REMOVED***
+// Helper method to finish the tracer trail, assemble the tag values and emits
+// the metric samples for the supplied unfinished request.
+func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRequest ***REMOVED***
+	trail := unfReq.tracer.Done()
 
-// GetTrail returns the Trail for the last request through the Transport
-func (t *transport) GetTrail() *Trail ***REMOVED***
-	return t.trail
-***REMOVED***
-
-// TLSInfo returns the TLSInfo of the last tls request through the transport
-func (t *transport) TLSInfo() netext.TLSInfo ***REMOVED***
-	return t.tlsInfo
-***REMOVED***
-
-// RoundTrip is the implementation of http.RoundTripper
-func (t *transport) RoundTrip(req *http.Request) (res *http.Response, err error) ***REMOVED***
-	if t.roundTripper == nil ***REMOVED***
-		return nil, errors.New("no roundtrip defined")
-	***REMOVED***
-
-	t.errorCode, t.errorMsg = 0, ""
 	tags := map[string]string***REMOVED******REMOVED***
 	for k, v := range t.tags ***REMOVED***
 		tags[k] = v
 	***REMOVED***
 
-	ctx := req.Context()
-	tracer := Tracer***REMOVED******REMOVED***
-	reqWithTracer := req.WithContext(httptrace.WithClientTrace(ctx, tracer.Trace()))
+	result := &finishedRequest***REMOVED***
+		unfinishedRequest: unfReq,
+		trail:             trail,
+	***REMOVED***
 
-	resp, err := t.roundTripper.RoundTrip(reqWithTracer)
-	trail := tracer.Done()
-	if err != nil ***REMOVED***
-		t.errorCode, t.errorMsg = errorCodeForError(err)
-		if t.options.SystemTags["error"] ***REMOVED***
-			tags["error"] = t.errorMsg
+	enabledTags := t.state.Options.SystemTags
+	if unfReq.err != nil ***REMOVED***
+		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
+		if enabledTags["error"] ***REMOVED***
+			tags["error"] = result.errorMsg
 		***REMOVED***
 
-		if t.options.SystemTags["error_code"] ***REMOVED***
-			tags["error_code"] = strconv.Itoa(int(t.errorCode))
+		if enabledTags["error_code"] ***REMOVED***
+			tags["error_code"] = strconv.Itoa(int(result.errorCode))
 		***REMOVED***
 
-		if t.options.SystemTags["status"] ***REMOVED***
+		if enabledTags["status"] ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if t.options.SystemTags["url"] ***REMOVED***
-			tags["url"] = req.URL.String()
+		if enabledTags["url"] ***REMOVED***
+			tags["url"] = unfReq.request.URL.String()
 		***REMOVED***
-		if t.options.SystemTags["status"] ***REMOVED***
-			tags["status"] = strconv.Itoa(resp.StatusCode)
+		if enabledTags["status"] ***REMOVED***
+			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		***REMOVED***
-		if resp.StatusCode >= 400 ***REMOVED***
-			if t.options.SystemTags["error_code"] ***REMOVED***
-				t.errorCode = errCode(1000 + resp.StatusCode)
-				tags["error_code"] = strconv.Itoa(int(t.errorCode))
+		if unfReq.response.StatusCode >= 400 ***REMOVED***
+			if enabledTags["error_code"] ***REMOVED***
+				result.errorCode = errCode(1000 + unfReq.response.StatusCode)
+				tags["error_code"] = strconv.Itoa(int(result.errorCode))
 			***REMOVED***
 		***REMOVED***
-		if t.options.SystemTags["proto"] ***REMOVED***
-			tags["proto"] = resp.Proto
+		if enabledTags["proto"] ***REMOVED***
+			tags["proto"] = unfReq.response.Proto
 		***REMOVED***
 
-		if resp.TLS != nil ***REMOVED***
-			tlsInfo, oscp := netext.ParseTLSConnState(resp.TLS)
-			if t.options.SystemTags["tls_version"] ***REMOVED***
+		if unfReq.response.TLS != nil ***REMOVED***
+			tlsInfo, oscp := netext.ParseTLSConnState(unfReq.response.TLS)
+			if enabledTags["tls_version"] ***REMOVED***
 				tags["tls_version"] = tlsInfo.Version
 			***REMOVED***
-			if t.options.SystemTags["ocsp_status"] ***REMOVED***
+			if enabledTags["ocsp_status"] ***REMOVED***
 				tags["ocsp_status"] = oscp.Status
 			***REMOVED***
-
-			t.tlsInfo = tlsInfo
+			result.tlsInfo = tlsInfo
 		***REMOVED***
 	***REMOVED***
-	if t.options.SystemTags["ip"] && trail.ConnRemoteAddr != nil ***REMOVED***
-		var ip string
-		if ip, _, err = net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
+	if enabledTags["ip"] && trail.ConnRemoteAddr != nil ***REMOVED***
+		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***
 	***REMOVED***
 
-	t.trail = trail
 	trail.SaveSamples(stats.IntoSampleTags(&tags))
-	stats.PushIfNotCancelled(ctx, t.samplesCh, trail)
+	stats.PushIfNotCancelled(unfReq.ctx, t.state.Samples, trail)
+
+	return result
+***REMOVED***
+
+func (t *transport) saveCurrentRequest(currentRequest *unfinishedRequest) ***REMOVED***
+	t.lastRequestLock.Lock()
+	unprocessedRequest := t.lastRequest
+	t.lastRequest = currentRequest
+	t.lastRequestLock.Unlock()
+
+	if unprocessedRequest != nil ***REMOVED***
+		// This shouldn't happen, since we have one transport per request, but just in case...
+		t.state.Logger.Warnf("TracerTransport: unexpected unprocessed request for %s", unprocessedRequest.request.URL)
+		t.measureAndEmitMetrics(unprocessedRequest)
+	***REMOVED***
+***REMOVED***
+
+func (t *transport) processLastSavedRequest() *finishedRequest ***REMOVED***
+	t.lastRequestLock.Lock()
+	unprocessedRequest := t.lastRequest
+	t.lastRequest = nil
+	t.lastRequestLock.Unlock()
+
+	if unprocessedRequest != nil ***REMOVED***
+		return t.measureAndEmitMetrics(unprocessedRequest)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// RoundTrip is the implementation of http.RoundTripper
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) ***REMOVED***
+	t.processLastSavedRequest()
+
+	ctx := req.Context()
+	tracer := &Tracer***REMOVED******REMOVED***
+	reqWithTracer := req.WithContext(httptrace.WithClientTrace(ctx, tracer.Trace()))
+	resp, err := t.state.Transport.RoundTrip(reqWithTracer)
+
+	t.saveCurrentRequest(&unfinishedRequest***REMOVED***
+		ctx:      ctx,
+		tracer:   tracer,
+		request:  req,
+		response: resp,
+		err:      err,
+	***REMOVED***)
 
 	return resp, err
 ***REMOVED***

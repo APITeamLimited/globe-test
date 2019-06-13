@@ -22,6 +22,7 @@
 package testutils
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -84,6 +85,7 @@ type HTTPMultiBin struct ***REMOVED***
 	TLSClientConfig *tls.Config
 	Dialer          *netext.Dialer
 	HTTPTransport   *http.Transport
+	Context         context.Context
 	Cleanup         func()
 ***REMOVED***
 
@@ -155,6 +157,7 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	***REMOVED***
 	require.NoError(t, http2.ConfigureTransport(transport))
 
+	ctx, ctxCancel := context.WithCancel(context.Background())
 	return &HTTPMultiBin***REMOVED***
 		Mux:         mux,
 		ServerHTTP:  httpSrv,
@@ -174,9 +177,11 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 		TLSClientConfig: tlsConfig,
 		Dialer:          dialer,
 		HTTPTransport:   transport,
+		Context:         ctx,
 		Cleanup: func() ***REMOVED***
 			httpsSrv.Close()
 			httpSrv.Close()
+			ctxCancel()
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
