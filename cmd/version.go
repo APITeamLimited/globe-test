@@ -23,6 +23,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/loadimpact/k6/lib/consts"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ var versionCmd = &cobra.Command***REMOVED***
 	Short: "Show application version",
 	Long:  `Show the application version and exit.`,
 	Run: func(cmd *cobra.Command, args []string) ***REMOVED***
-		fmt.Println("k6 v" + Version)
+		fmt.Println("k6 v" + consts.Version)
 	***REMOVED***,
 ***REMOVED***
 
