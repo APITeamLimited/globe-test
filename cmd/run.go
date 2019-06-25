@@ -173,7 +173,8 @@ a commandline interface for interacting with it.`,
 			conf.Duration = types.NullDuration***REMOVED******REMOVED***
 		***REMOVED***
 
-		if cerr := validateConfig(conf); cerr != nil ***REMOVED***
+		conf, cerr := deriveAndValidateConfig(conf)
+		if cerr != nil ***REMOVED***
 			return ExitCode***REMOVED***cerr, invalidConfigErrorCode***REMOVED***
 		***REMOVED***
 

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"errors"
@@ -32,6 +33,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/scheduler"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/datadog"
 	"github.com/loadimpact/k6/stats/influxdb"
@@ -187,9 +189,49 @@ func (e executionConflictConfigError) Error() string ***REMOVED***
 
 var _ error = executionConflictConfigError("")
 
+func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) scheduler.ConfigMap ***REMOVED***
+	ds := scheduler.NewConstantLoopingVUsConfig(lib.DefaultSchedulerName)
+	ds.VUs = vus
+	ds.Duration = duration
+	return scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) scheduler.ConfigMap ***REMOVED***
+	ds := scheduler.NewVariableLoopingVUsConfig(lib.DefaultSchedulerName)
+	ds.StartVUs = startVUs
+	for _, s := range stages ***REMOVED***
+		if s.Duration.Valid ***REMOVED***
+			ds.Stages = append(ds.Stages, scheduler.Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+	return scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+func getSharedIterationsExecution(iterations null.Int, vus null.Int) scheduler.ConfigMap ***REMOVED***
+	ds := scheduler.NewSharedIterationsConfig(lib.DefaultSchedulerName)
+	ds.VUs = vus
+	ds.Iterations = iterations
+	return scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+func checkExecutionMismatch(observedExecution, derivedExecution scheduler.ConfigMap, shortcutField string) error ***REMOVED***
+	if observedExecution == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	// Work around the v0.24.0 archive metadata.js options that wrongly contain execution
+	if !reflect.DeepEqual(observedExecution, derivedExecution) ***REMOVED***
+		errMsg := fmt.Sprintf("specifying both `%s` and `execution` is not supported", shortcutField)
+		return executionConflictConfigError(errMsg)
+	***REMOVED***
+
+	log.Warnf("ignoring the specified `execution` options because they match the ones derived from `%s`", shortcutField)
+	return nil
+***REMOVED***
+
 // This checks for conflicting options and turns any shortcut options (i.e. duration, iterations,
 // stages) into the proper scheduler configuration
-func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
+func deriveExecutionConfig(conf Config) (Config, error) ***REMOVED***
 	result := conf
 	switch ***REMOVED***
 	case conf.Duration.Valid:
@@ -203,19 +245,16 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 			log.Warnf("Specifying both duration and stages is deprecated and won't be supported in the future k6 versions")
 		***REMOVED***
 
-		if conf.Execution != nil ***REMOVED***
-			return result, executionConflictConfigError("specifying both duration and execution is not supported")
+		derivedExecConfig := getConstantLoopingVUsExecution(conf.Duration, conf.VUs)
+		if err := checkExecutionMismatch(conf.Execution, derivedExecConfig, "duration"); err != nil ***REMOVED***
+			return conf, err
 		***REMOVED***
 
 		if conf.Duration.Duration <= 0 ***REMOVED***
 			//TODO: make this an executionConflictConfigError in the next version
 			log.Warnf("Specifying infinite duration in this way is deprecated and won't be supported in the future k6 versions")
 		***REMOVED*** else ***REMOVED***
-			ds := scheduler.NewConstantLoopingVUsConfig(lib.DefaultSchedulerName)
-			ds.VUs = conf.VUs
-			ds.Duration = conf.Duration
-			ds.Interruptible = null.NewBool(true, false) // Preserve backwards compatibility
-			result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+			result.Execution = derivedExecConfig
 		***REMOVED***
 
 	case len(conf.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
@@ -224,30 +263,17 @@ func buildExecutionConfig(conf Config) (Config, error) ***REMOVED***
 			log.Warnf("Specifying both iterations and stages is deprecated and won't be supported in the future k6 versions")
 		***REMOVED***
 
-		if conf.Execution != nil ***REMOVED***
-			return conf, executionConflictConfigError("specifying both stages and execution is not supported")
+		result.Execution = getVariableLoopingVUsExecution(conf.Stages, conf.VUs)
+		if err := checkExecutionMismatch(conf.Execution, result.Execution, "stages"); err != nil ***REMOVED***
+			return conf, err
 		***REMOVED***
-
-		ds := scheduler.NewVariableLoopingVUsConfig(lib.DefaultSchedulerName)
-		ds.StartVUs = conf.VUs
-		for _, s := range conf.Stages ***REMOVED***
-			if s.Duration.Valid ***REMOVED***
-				ds.Stages = append(ds.Stages, scheduler.Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
-			***REMOVED***
-		***REMOVED***
-		ds.Interruptible = null.NewBool(true, false) // Preserve backwards compatibility
-		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
 
 	case conf.Iterations.Valid:
-		if conf.Execution != nil ***REMOVED***
-			return conf, executionConflictConfigError("specifying both iterations and execution is not supported")
+		result.Execution = getSharedIterationsExecution(conf.Iterations, conf.VUs)
+		if err := checkExecutionMismatch(conf.Execution, result.Execution, "iterations"); err != nil ***REMOVED***
+			return conf, err
 		***REMOVED***
 		// TODO: maybe add a new flag that will be used as a shortcut to per-VU iterations?
-
-		ds := scheduler.NewSharedIterationsConfig(lib.DefaultSchedulerName)
-		ds.VUs = conf.VUs
-		ds.Iterations = conf.Iterations
-		result.Execution = scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
 
 	default:
 		if conf.Execution != nil ***REMOVED*** // If someone set this, regardless if its empty
@@ -302,7 +328,15 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	***REMOVED***
 	conf = conf.Apply(envConf).Apply(cliConf)
 
-	return buildExecutionConfig(conf)
+	return conf, nil
+***REMOVED***
+
+func deriveAndValidateConfig(conf Config) (Config, error) ***REMOVED***
+	result, err := deriveExecutionConfig(conf)
+	if err != nil ***REMOVED***
+		return result, err
+	***REMOVED***
+	return result, validateConfig(conf)
 ***REMOVED***
 
 //TODO: remove ↓

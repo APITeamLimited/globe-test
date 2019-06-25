@@ -79,7 +79,6 @@ func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	require.IsType(t, scheduler.PerVUIteationsConfig***REMOVED******REMOVED***, sched)
 	perVuIters, ok := sched.(scheduler.PerVUIteationsConfig)
 	require.True(t, ok)
-	assert.Equal(t, null.NewBool(false, false), perVuIters.Interruptible)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.Iterations)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.VUs)
 ***REMOVED***
@@ -105,7 +104,6 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 		require.IsType(t, scheduler.ConstantLoopingVUsConfig***REMOVED******REMOVED***, sched)
 		clvc, ok := sched.(scheduler.ConstantLoopingVUsConfig)
 		require.True(t, ok)
-		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
 		assert.Equal(t, vus, clvc.VUs)
 		assert.Equal(t, types.NullDurationFrom(duration), clvc.Duration)
 		assert.Equal(t, vus, c.VUs)
@@ -120,7 +118,6 @@ func verifyVarLoopingVUs(startVus null.Int, stages []scheduler.Stage) func(t *te
 		require.IsType(t, scheduler.VariableLoopingVUsConfig***REMOVED******REMOVED***, sched)
 		clvc, ok := sched.(scheduler.VariableLoopingVUsConfig)
 		require.True(t, ok)
-		assert.Equal(t, null.NewBool(true, false), clvc.Interruptible)
 		assert.Equal(t, startVus, clvc.StartVUs)
 		assert.Equal(t, startVus, c.VUs)
 		assert.Equal(t, stages, clvc.Stages)
@@ -229,6 +226,7 @@ type exp struct ***REMOVED***
 	cliParseError      bool
 	cliReadError       bool
 	consolidationError bool
+	derivationError    bool
 	validationErrors   bool
 	logWarning         bool //TODO: remove in the next version?
 ***REMOVED***
@@ -365,7 +363,42 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			***REMOVED***,
 			exp***REMOVED******REMOVED***, verifySharedIters(I(12), I(25)),
 		***REMOVED***,
-
+		***REMOVED***
+			opts***REMOVED***
+				fs: defaultConfig(`
+					***REMOVED***
+						"execution": ***REMOVED***
+							"default": ***REMOVED***
+								"type": "constant-looping-vus",
+								"vus": 10,
+								"duration": "60s"
+							***REMOVED***
+						***REMOVED***,
+						"vus": 20,
+						"duration": "60s"
+					***REMOVED***`,
+				),
+			***REMOVED***,
+			exp***REMOVED***derivationError: true***REMOVED***, nil,
+		***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***
+				fs: defaultConfig(`
+					***REMOVED***
+						"execution": ***REMOVED***
+							"default": ***REMOVED***
+								"type": "constant-looping-vus",
+								"vus": 10,
+								"duration": "60s"
+							***REMOVED***
+						***REMOVED***,
+						"vus": 10,
+						"duration": "60s"
+					***REMOVED***`,
+				),
+			***REMOVED***,
+			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(I(10), 60*time.Second),
+		***REMOVED***,
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 		//TODO: test for differences between flagsets
@@ -421,8 +454,15 @@ func runTestCase(
 		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
 	***REMOVED***
 
-	result, err := getConsolidatedConfig(testCase.options.fs, cliConf, runner)
+	consolidatedConfig, err := getConsolidatedConfig(testCase.options.fs, cliConf, runner)
 	if testCase.expected.consolidationError ***REMOVED***
+		require.Error(t, err)
+		return
+	***REMOVED***
+	require.NoError(t, err)
+
+	derivedConfig, err := deriveExecutionConfig(consolidatedConfig)
+	if testCase.expected.derivationError ***REMOVED***
 		require.Error(t, err)
 		return
 	***REMOVED***
@@ -435,7 +475,7 @@ func runTestCase(
 		assert.Empty(t, warnings)
 	***REMOVED***
 
-	validationErrors := result.Validate()
+	validationErrors := derivedConfig.Validate()
 	if testCase.expected.validationErrors ***REMOVED***
 		assert.NotEmpty(t, validationErrors)
 	***REMOVED*** else ***REMOVED***
@@ -443,7 +483,7 @@ func runTestCase(
 	***REMOVED***
 
 	if testCase.customValidator != nil ***REMOVED***
-		testCase.customValidator(t, result)
+		testCase.customValidator(t, derivedConfig)
 	***REMOVED***
 ***REMOVED***
 
