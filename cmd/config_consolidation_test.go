@@ -265,21 +265,27 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
 			verifyVarLoopingVUs(null.NewInt(10, true), buildStages(66, 5)),
 		***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			verifySharedIters(I(1), I(6))(t, c)
+			sharedIterConfig := c.Execution[lib.DefaultSchedulerName].(scheduler.SharedIteationsConfig)
+			assert.Equal(t, time.Duration(sharedIterConfig.MaxDuration.Duration), 10*time.Second)
+		***REMOVED******REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(I(10), I(6))***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-s", "10s:5", "-s", "10s:"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s"***REMOVED***], "vus": 10***REMOVED***`)***REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		// These should emit a warning
 		//TODO: in next version, those should be an error
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***runner: &lib.Options***REMOVED***
-				VUs:        null.IntFrom(5),
-				Duration:   types.NullDurationFrom(44 * time.Second),
-				Iterations: null.IntFrom(10),
+				VUs:      null.IntFrom(5),
+				Duration: types.NullDurationFrom(44 * time.Second),
+				Stages: []lib.Stage***REMOVED***
+					***REMOVED***Duration: types.NullDurationFrom(3 * time.Second), Target: I(20)***REMOVED***,
+				***REMOVED***,
 			***REMOVED******REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, nil,
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"execution": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
@@ -317,7 +323,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***
 			opts***REMOVED***
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5), Duration: types.NullDurationFrom(50 * time.Second)***REMOVED***,
-				cli:    []string***REMOVED***"--iterations", "5"***REMOVED***,
+				cli:    []string***REMOVED***"--stage", "5s:5"***REMOVED***,
 			***REMOVED***,
 			//TODO: this shouldn't be a warning in the next version, but the result will be different
 			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(I(5), 50*time.Second),
@@ -337,7 +343,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				env:    []string***REMOVED***"K6_VUS=15", "K6_ITERATIONS=15"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED***logWarning: true***REMOVED***, //TODO: this won't be a warning in the next version, but the result will be different
-			verifyVarLoopingVUs(null.NewInt(15, true), buildStages(20, 10)),
+			verifySharedIters(I(15), I(15)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
