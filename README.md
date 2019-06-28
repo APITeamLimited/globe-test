@@ -315,8 +315,8 @@ export default function () ***REMOVED***
     group("Static Assets", function () ***REMOVED***
         // Execute multiple requests in parallel like a browser, to fetch some static resources
         let resps = http.batch([
-            ["GET", "https://test.loadimpact.com/style.css", ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
-            ["GET", "https://test.loadimpact.com/images/logo.png", ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***]
+            ["GET", "https://test.loadimpact.com/style.css", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
+            ["GET", "https://test.loadimpact.com/images/logo.png", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***]
         ]);
         // Combine check() call with failure tracking
         failureRate.add(!check(resps, ***REMOVED***
