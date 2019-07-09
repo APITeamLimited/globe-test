@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"errors"
@@ -217,21 +216,6 @@ func getSharedIterationsExecution(iterations null.Int, duration types.NullDurati
 	return scheduler.ConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
 ***REMOVED***
 
-func checkExecutionMismatch(observedExecution, derivedExecution scheduler.ConfigMap, shortcutField string) error ***REMOVED***
-	if observedExecution == nil ***REMOVED***
-		return nil
-	***REMOVED***
-
-	// Work around the v0.24.0 archive metadata.js options that wrongly contain execution
-	if !reflect.DeepEqual(observedExecution, derivedExecution) ***REMOVED***
-		errMsg := fmt.Sprintf("specifying both `%s` and `execution` is not supported", shortcutField)
-		return executionConflictConfigError(errMsg)
-	***REMOVED***
-
-	log.Warnf("ignoring the specified `execution` options because they match the ones derived from `%s`", shortcutField)
-	return nil
-***REMOVED***
-
 // This checks for conflicting options and turns any shortcut options (i.e. duration, iterations,
 // stages) into the proper scheduler configuration
 func deriveExecutionConfig(conf Config) (Config, error) ***REMOVED***
@@ -244,9 +228,6 @@ func deriveExecutionConfig(conf Config) (Config, error) ***REMOVED***
 		***REMOVED***
 
 		result.Execution = getSharedIterationsExecution(conf.Iterations, conf.Duration, conf.VUs)
-		if err := checkExecutionMismatch(conf.Execution, result.Execution, "iterations"); err != nil ***REMOVED***
-			return conf, err
-		***REMOVED***
 		// TODO: maybe add a new flag that will be used as a shortcut to per-VU iterations?
 
 	case conf.Duration.Valid:
@@ -255,23 +236,15 @@ func deriveExecutionConfig(conf Config) (Config, error) ***REMOVED***
 			log.Warnf("Specifying both duration and stages is deprecated and won't be supported in the future k6 versions")
 		***REMOVED***
 
-		derivedExecConfig := getConstantLoopingVUsExecution(conf.Duration, conf.VUs)
-		if err := checkExecutionMismatch(conf.Execution, derivedExecConfig, "duration"); err != nil ***REMOVED***
-			return conf, err
-		***REMOVED***
-
 		if conf.Duration.Duration <= 0 ***REMOVED***
 			//TODO: make this an executionConflictConfigError in the next version
 			log.Warnf("Specifying infinite duration in this way is deprecated and won't be supported in the future k6 versions")
 		***REMOVED*** else ***REMOVED***
-			result.Execution = derivedExecConfig
+			result.Execution = getConstantLoopingVUsExecution(conf.Duration, conf.VUs)
 		***REMOVED***
 
 	case len(conf.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
 		result.Execution = getVariableLoopingVUsExecution(conf.Stages, conf.VUs)
-		if err := checkExecutionMismatch(conf.Execution, result.Execution, "stages"); err != nil ***REMOVED***
-			return conf, err
-		***REMOVED***
 
 	default:
 		if conf.Execution != nil ***REMOVED*** // If someone set this, regardless if its empty

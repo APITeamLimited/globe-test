@@ -380,30 +380,12 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 								"duration": "60s"
 							***REMOVED***
 						***REMOVED***,
-						"vus": 20,
-						"duration": "60s"
-					***REMOVED***`,
-				),
-			***REMOVED***,
-			exp***REMOVED***derivationError: true***REMOVED***, nil,
-		***REMOVED***,
-		***REMOVED***
-			opts***REMOVED***
-				fs: defaultConfig(`
-					***REMOVED***
-						"execution": ***REMOVED***
-							"default": ***REMOVED***
-								"type": "constant-looping-vus",
-								"vus": 10,
-								"duration": "60s"
-							***REMOVED***
-						***REMOVED***,
 						"vus": 10,
 						"duration": "60s"
 					***REMOVED***`,
 				),
 			***REMOVED***,
-			exp***REMOVED***logWarning: true***REMOVED***, verifyConstLoopingVUs(I(10), 60*time.Second),
+			exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 60*time.Second),
 		***REMOVED***,
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
