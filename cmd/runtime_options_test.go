@@ -178,6 +178,14 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 		false,
 		map[string]string***REMOVED***"test1": "value 1", "test2": "value 2"***REMOVED***,
 	***REMOVED***,
+	***REMOVED***
+		"valid env vars with special chars",
+		true,
+		map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
+		[]string***REMOVED***"--env", "test2=value,2", "-e", `test3= ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "value 1", "test2": "value,2", "test3": ` ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+	***REMOVED***,
 ***REMOVED***
 
 func TestEnvVars(t *testing.T) ***REMOVED***
@@ -204,7 +212,7 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 			jsCode := "export default function() ***REMOVED***\n"
 			for key, val := range tc.expEnv ***REMOVED***
 				jsCode += fmt.Sprintf(
-					"if (__ENV.%s !== '%s') ***REMOVED*** throw new Error('Invalid %s: ' + __ENV.%s); ***REMOVED***\n",
+					"if (__ENV.%s !== `%s`) ***REMOVED*** throw new Error('Invalid %s: ' + __ENV.%s); ***REMOVED***\n",
 					key, val, key, key,
 				)
 			***REMOVED***
