@@ -49,6 +49,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
+	"github.com/klauspost/compress/zstd"
 )
 
 func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, method, url, name string, status int, group string) ***REMOVED***
@@ -310,6 +311,15 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				let res = http.get("HTTPBIN_URL/deflate");
 				if (res.json()['deflated'] != true) ***REMOVED***
 					throw new Error("unexpected body data: " + res.json()['deflated'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("zstd", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPSBIN_IP_URL/zstd");
+				if (res.json()['compression'] != 'zstd') ***REMOVED***
+					throw new Error("unexpected body data: " + res.json()['compression'])
 				***REMOVED***
 			`))
 			assert.NoError(t, err)
@@ -1238,6 +1248,12 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 				t.Fatal(err)
 			***REMOVED***
 			return w
+		case "zstd":
+			w, err := zstd.NewReader(input)
+			if err != nil ***REMOVED***
+				t.Fatal(err)
+			***REMOVED***
+			return w
 		default:
 			t.Fatal("unknown algorithm " + algo)
 		***REMOVED***
@@ -1287,6 +1303,8 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***compression: "deflate"***REMOVED***,
 		***REMOVED***compression: "deflate, gzip"***REMOVED***,
 		***REMOVED***compression: "gzip,deflate, gzip"***REMOVED***,
+		***REMOVED***compression: "zstd"***REMOVED***,
+		***REMOVED***compression: "zstd, gzip, deflate"***REMOVED***,
 		***REMOVED***
 			compression:   "George",
 			expectedError: `unknown compression algorithm George`,
