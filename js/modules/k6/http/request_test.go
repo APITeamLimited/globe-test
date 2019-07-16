@@ -37,7 +37,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/dop251/goja"
+	"github.com/klauspost/compress/zstd"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
@@ -49,7 +51,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
-	"github.com/klauspost/compress/zstd"
 )
 
 func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, method, url, name string, status int, group string) ***REMOVED***
@@ -319,6 +320,15 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
 				let res = http.get("HTTPSBIN_IP_URL/zstd");
 				if (res.json()['compression'] != 'zstd') ***REMOVED***
+					throw new Error("unexpected body data: " + res.json()['compression'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("brotli", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPSBIN_IP_URL/brotli");
+				if (res.json()['compression'] != 'br') ***REMOVED***
 					throw new Error("unexpected body data: " + res.json()['compression'])
 				***REMOVED***
 			`))
@@ -1236,6 +1246,9 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 	var decompress = func(algo string, input io.Reader) io.Reader ***REMOVED***
 		switch algo ***REMOVED***
+		case "br":
+			w := brotli.NewReader(input)
+			return w
 		case "gzip":
 			w, err := gzip.NewReader(input)
 			if err != nil ***REMOVED***
@@ -1305,6 +1318,8 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***compression: "gzip,deflate, gzip"***REMOVED***,
 		***REMOVED***compression: "zstd"***REMOVED***,
 		***REMOVED***compression: "zstd, gzip, deflate"***REMOVED***,
+		***REMOVED***compression: "br"***REMOVED***,
+		***REMOVED***compression: "br, gzip, deflate"***REMOVED***,
 		***REMOVED***
 			compression:   "George",
 			expectedError: `unknown compression algorithm George`,
