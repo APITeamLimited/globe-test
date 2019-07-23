@@ -25,7 +25,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -35,9 +37,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/gorilla/websocket"
+	"github.com/klauspost/compress/zstd"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/mccutchen/go-httpbin/httpbin"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
@@ -89,6 +95,11 @@ type HTTPMultiBin struct ***REMOVED***
 	Cleanup         func()
 ***REMOVED***
 
+type jsonBody struct ***REMOVED***
+	Header      http.Header `json:"headers"`
+	Compression string      `json:"compression"`
+***REMOVED***
+
 func getWebsocketEchoHandler(t testing.TB) http.Handler ***REMOVED***
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 		t.Logf("[%p %s] Upgrading to websocket connection...", req, req.URL)
@@ -116,12 +127,51 @@ func getWebsocketCloserHandler(t testing.TB) http.Handler ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func writeJSON(w io.Writer, v interface***REMOVED******REMOVED***) error ***REMOVED***
+	e := json.NewEncoder(w)
+	e.SetIndent("", "  ")
+	return errors.Wrap(e.Encode(v), "failed to encode JSON")
+***REMOVED***
+
+func getEncodedHandler(t testing.TB, compressionType httpext.CompressionType) http.Handler ***REMOVED***
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+		var (
+			encoding string
+			err      error
+			encw     io.WriteCloser
+		)
+
+		switch compressionType ***REMOVED***
+		case httpext.CompressionTypeBr:
+			encw = brotli.NewWriter(rw)
+			encoding = "br"
+		case httpext.CompressionTypeZstd:
+			encw, _ = zstd.NewWriter(rw)
+			encoding = "zstd"
+		***REMOVED***
+
+		rw.Header().Set("Content-Type", "application/json")
+		rw.Header().Add("Content-Encoding", encoding)
+		data := jsonBody***REMOVED***
+			Header:      req.Header,
+			Compression: encoding,
+		***REMOVED***
+		err = writeJSON(encw, data)
+		_ = encw.Close()
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
+
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
 func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
 	mux := http.NewServeMux()
+	mux.Handle("/brotli", getEncodedHandler(t, httpext.CompressionTypeBr))
 	mux.Handle("/ws-echo", getWebsocketEchoHandler(t))
 	mux.Handle("/ws-close", getWebsocketCloserHandler(t))
+	mux.Handle("/zstd", getEncodedHandler(t, httpext.CompressionTypeZstd))
 	mux.Handle("/", httpbin.New().Handler())
 
 	// Initialize the HTTP server and get its details

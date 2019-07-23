@@ -39,6 +39,8 @@ import (
 
 	ntlmssp "github.com/Azure/go-ntlmssp"
 	digest "github.com/Soontao/goHttpDigestClient"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	log "github.com/sirupsen/logrus"
@@ -86,7 +88,11 @@ const (
 	CompressionTypeGzip CompressionType = iota
 	// CompressionTypeDeflate compresses through flate
 	CompressionTypeDeflate
-	// TODO: add compress(lzw), brotli maybe bzip2 and others listed at
+	// CompressionTypeZstd compresses through zstd
+	CompressionTypeZstd
+	// CompressionTypeBr compresses through brotli
+	CompressionTypeBr
+	// TODO: add compress(lzw), maybe bzip2 and others listed at
 	// https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
 )
 
@@ -113,6 +119,27 @@ type ParsedHTTPRequest struct ***REMOVED***
 	ActiveJar    *cookiejar.Jar
 	Cookies      map[string]*HTTPRequestCookie
 	Tags         map[string]string
+***REMOVED***
+
+// Matches non-compliant io.Closer implementations (e.g. zstd.Decoder)
+type ncloser interface ***REMOVED***
+	Close()
+***REMOVED***
+
+type readCloser struct ***REMOVED***
+	io.Reader
+***REMOVED***
+
+// Close readers with differing Close() implementations
+func (r readCloser) Close() error ***REMOVED***
+	var err error
+	switch v := r.Reader.(type) ***REMOVED***
+	case io.Closer:
+		err = v.Close()
+	case ncloser:
+		v.Close()
+	***REMOVED***
+	return err
 ***REMOVED***
 
 func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRequestCookie ***REMOVED***
@@ -144,6 +171,10 @@ func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64
 			w = gzip.NewWriter(buf)
 		case CompressionTypeDeflate:
 			w = zlib.NewWriter(buf)
+		case CompressionTypeZstd:
+			w, _ = zstd.NewWriter(buf)
+		case CompressionTypeBr:
+			w = brotli.NewWriter(buf)
 		default:
 			return nil, 0, "", fmt.Errorf("unknown compressionType %s", compressionType)
 		***REMOVED***
@@ -179,15 +210,33 @@ func readResponseBody(
 		return nil, respErr
 	***REMOVED***
 
-	// Transperently decompress the body if it's has a content-encoding we
+	rc := &readCloser***REMOVED***resp.Body***REMOVED***
+	// Ensure that the entire response body is read and closed, e.g. in case of decoding errors
+	defer func(respBody io.ReadCloser) ***REMOVED***
+		_, _ = io.Copy(ioutil.Discard, respBody)
+		_ = respBody.Close()
+	***REMOVED***(resp.Body)
+
+	// Transparently decompress the body if it's has a content-encoding we
 	// support. If not, simply return it as it is.
 	contentEncoding := strings.TrimSpace(resp.Header.Get("Content-Encoding"))
 	if compression, err := CompressionTypeString(contentEncoding); err == nil ***REMOVED***
+		var decoder io.ReadCloser
 		switch compression ***REMOVED***
 		case CompressionTypeDeflate:
-			resp.Body, respErr = zlib.NewReader(resp.Body)
+			decoder, respErr = zlib.NewReader(resp.Body)
+			rc = &readCloser***REMOVED***decoder***REMOVED***
 		case CompressionTypeGzip:
-			resp.Body, respErr = gzip.NewReader(resp.Body)
+			decoder, respErr = gzip.NewReader(resp.Body)
+			rc = &readCloser***REMOVED***decoder***REMOVED***
+		case CompressionTypeZstd:
+			var zstdecoder *zstd.Decoder
+			zstdecoder, respErr = zstd.NewReader(resp.Body)
+			rc = &readCloser***REMOVED***zstdecoder***REMOVED***
+		case CompressionTypeBr:
+			var brdecoder *brotli.Reader
+			brdecoder = brotli.NewReader(resp.Body)
+			rc = &readCloser***REMOVED***brdecoder***REMOVED***
 		default:
 			// We have not implemented a compression ... :(
 			respErr = fmt.Errorf(
@@ -200,8 +249,11 @@ func readResponseBody(
 	buf := state.BPool.Get()
 	defer state.BPool.Put(buf)
 	buf.Reset()
-	_, err := io.Copy(buf, resp.Body)
-	_ = resp.Body.Close()
+	_, err := io.Copy(buf, rc.Reader)
+	if err != nil ***REMOVED***
+		respErr = err
+	***REMOVED***
+	err = rc.Close()
 	if err != nil ***REMOVED***
 		respErr = err
 	***REMOVED***
