@@ -298,8 +298,20 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 		conf = conf.Apply(Config***REMOVED***Options: runner.GetOptions()***REMOVED***)
 	***REMOVED***
 	conf = conf.Apply(envConf).Apply(cliConf)
+	conf = applyDefault(conf)
 
 	return conf, nil
+***REMOVED***
+
+// applyDefault applys default options value if it is not specified by any mechenisms. This happens with types
+// which does not support by "gopkg.in/guregu/null.v3".
+//
+// Note that if you add option default value here, also add it in command line argument help text.
+func applyDefault(conf Config) Config ***REMOVED***
+	if conf.Options.SystemTags == nil ***REMOVED***
+		conf = conf.Apply(Config***REMOVED***Options: lib.Options***REMOVED***SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...)***REMOVED******REMOVED***)
+	***REMOVED***
+	return conf
 ***REMOVED***
 
 func deriveAndValidateConfig(conf Config) (Config, error) ***REMOVED***

@@ -65,7 +65,13 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.StringSlice("blacklist-ip", nil, "blacklist an `ip range` from being called")
 	flags.StringSlice("summary-trend-stats", nil, "define `stats` for trend metrics (response times), one or more as 'avg,p(95),...'")
 	flags.String("summary-time-unit", "", "define the time unit used to display the trend stats. Possible units are: 's', 'ms' and 'us'")
-	flags.StringSlice("system-tags", lib.DefaultSystemTagList, "only include these system tags in metrics")
+	// system-tags must have a default value, but we can't specify it here, otherwiese, it will always override others.
+	// set it to nil here, and add the default in applyDefault() instead.
+	systemTagsCliHelpText := fmt.Sprintf(
+		"only include these system tags in metrics (default %s)",
+		lib.DefaultSystemTagList,
+	)
+	flags.StringSlice("system-tags", nil, systemTagsCliHelpText)
 	flags.StringSlice("tag", nil, "add a `tag` to be applied to all samples, as `[name]=[value]`")
 	flags.String("console-output", "", "redirects the console logging to the provided output file")
 	flags.Bool("discard-response-bodies", false, "Read but don't process or save HTTP response bodies")
@@ -98,8 +104,8 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(1000, false),
 	***REMOVED***
 
-	// Using Lookup() because GetStringSlice() doesn't differentiate between --stage="" and no value
-	if flags.Lookup("stage").Changed ***REMOVED***
+	// Using Changed() because GetStringSlice() doesn't differentiate between empty and no value
+	if flags.Changed("stage") ***REMOVED***
 		stageStrings, err := flags.GetStringSlice("stage")
 		if err != nil ***REMOVED***
 			return opts, err
@@ -115,6 +121,14 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			***REMOVED***
 			opts.Stages = append(opts.Stages, stage)
 		***REMOVED***
+	***REMOVED***
+
+	if flags.Changed("system-tags") ***REMOVED***
+		systemTagList, err := flags.GetStringSlice("system-tags")
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		opts.SystemTags = lib.GetTagSet(systemTagList...)
 	***REMOVED***
 
 	blacklistIPStrings, err := flags.GetStringSlice("blacklist-ip")
@@ -151,12 +165,6 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		***REMOVED***
 		opts.SummaryTimeUnit = null.StringFrom(summaryTimeUnit)
 	***REMOVED***
-
-	systemTagList, err := flags.GetStringSlice("system-tags")
-	if err != nil ***REMOVED***
-		return opts, err
-	***REMOVED***
-	opts.SystemTags = lib.GetTagSet(systemTagList...)
 
 	runTags, err := flags.GetStringSlice("tag")
 	if err != nil ***REMOVED***

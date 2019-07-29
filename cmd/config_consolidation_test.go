@@ -389,6 +389,21 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
+
+		// Test system tags
+		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.GetTagSet(lib.DefaultSystemTagList...), c.Options.SystemTags)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--system-tags", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.GetTagSet(), c.Options.SystemTags)
+		***REMOVED******REMOVED***,
+		***REMOVED***
+			opts***REMOVED***runner: &lib.Options***REMOVED***SystemTags: lib.GetTagSet([]string***REMOVED***"proto", "url"***REMOVED***...)***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, lib.GetTagSet("proto", "url"), c.Options.SystemTags)
+			***REMOVED***,
+		***REMOVED***,
 		//TODO: test for differences between flagsets
 		//TODO: more tests in general, especially ones not related to execution parameters...
 	***REMOVED***
