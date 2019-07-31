@@ -941,53 +941,6 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
-			import http from "k6/http";
-			export default function() ***REMOVED***
-				let res = http.request("GET", "https://http2.akamai.com/demo");
-				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
-				if (res.proto != "HTTP/2.0") ***REMOVED*** throw new Error("wrong proto: " + res.proto) ***REMOVED***
-			***REMOVED***
-		`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-		Throw:      null.BoolFrom(true),
-		SystemTags: stats.NewSystemTagSet(stats.TagProto),
-	***REMOVED***))
-
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			samples := make(chan stats.SampleContainer, 100)
-			vu, err := r.NewVU(samples)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-			err = vu.RunOnce(context.Background())
-			assert.NoError(t, err)
-
-			protoFound := false
-			for _, sampleC := range stats.GetBufferedSamples(samples) ***REMOVED***
-				for _, sample := range sampleC.GetSamples() ***REMOVED***
-					if proto, ok := sample.Tags.Get("proto"); ok ***REMOVED***
-						protoFound = true
-						assert.Equal(t, "HTTP/2.0", proto)
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
-			assert.True(t, protoFound)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner("/script.js", `
 			export default function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
