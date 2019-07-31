@@ -32,6 +32,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
 	"github.com/pkg/errors"
@@ -71,8 +72,8 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		filename := args[0]
-		fs := afero.NewOsFs()
-		src, err := readSource(filename, pwd, fs, os.Stdin)
+		filesystems := loader.CreateFilesystems()
+		src, err := loader.ReadSource(filename, pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -82,7 +83,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, fs, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -91,7 +92,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		conf, err := getConsolidatedConfig(fs, Config***REMOVED***Options: cliOpts***REMOVED***, r)
+		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

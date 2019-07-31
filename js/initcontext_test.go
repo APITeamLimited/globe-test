@@ -40,6 +40,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInitContextRequire(t *testing.T) ***REMOVED***
@@ -111,25 +112,20 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
 			path := filepath.FromSlash("/nonexistent.js")
 			_, err := getSimpleBundle("/script.js", `import "/nonexistent.js"; export default function() ***REMOVED******REMOVED***`)
-			assert.EqualError(t, err, fmt.Sprintf("GoError: open %s: file does not exist", path))
+			assert.Contains(t, err.Error(), fmt.Sprintf(`"file://%s" couldn't be found on local disk`, filepath.ToSlash(path)))
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/file.js", []byte***REMOVED***0x00***REMOVED***, 0755))
-			_, err := NewBundle(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data:     []byte(`import "/file.js"; export default function() ***REMOVED******REMOVED***`),
-			***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-			assert.Contains(t, err.Error(), "SyntaxError: /file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
+			_, err := getSimpleBundleWithFs("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "SyntaxError: file:///file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 		***REMOVED***)
 		t.Run("Error", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0755))
-			_, err := NewBundle(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data:     []byte(`import "/file.js"; export default function() ***REMOVED******REMOVED***`),
-			***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-			assert.EqualError(t, err, "Error: aaaa at /file.js:2:7(4)")
+			_, err := getSimpleBundleWithFs("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
+			assert.EqualError(t, err, "Error: aaaa at file:///file.js:2:7(4)")
 		***REMOVED***)
 
 		imports := map[string]struct ***REMOVED***
@@ -162,23 +158,16 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			***REMOVED******REMOVED***,
 		***REMOVED***
 		for libName, data := range imports ***REMOVED***
+			libName, data := libName, data
 			t.Run("lib=\""+libName+"\"", func(t *testing.T) ***REMOVED***
 				for constName, constPath := range data.ConstPaths ***REMOVED***
+					constName, constPath := constName, constPath
 					name := "inline"
 					if constName != "" ***REMOVED***
 						name = "const=\"" + constName + "\""
 					***REMOVED***
 					t.Run(name, func(t *testing.T) ***REMOVED***
 						fs := afero.NewMemMapFs()
-						src := &lib.SourceData***REMOVED***
-							Filename: `/path/to/script.js`,
-							Data: []byte(fmt.Sprintf(`
-								import fn from "%s";
-								let v = fn();
-								export default function() ***REMOVED***
-								***REMOVED***;
-							`, libName)),
-						***REMOVED***
 
 						jsLib := `export default function() ***REMOVED*** return 12345; ***REMOVED***`
 						if constName != "" ***REMOVED***
@@ -195,12 +184,17 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 						assert.NoError(t, fs.MkdirAll(filepath.Dir(data.LibPath), 0755))
 						assert.NoError(t, afero.WriteFile(fs, data.LibPath, []byte(jsLib), 0644))
 
-						b, err := NewBundle(src, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+						data := fmt.Sprintf(`
+								import fn from "%s";
+								let v = fn();
+								export default function() ***REMOVED******REMOVED***;`,
+							libName)
+						b, err := getSimpleBundleWithFs("/path/to/script.js", data, fs)
 						if !assert.NoError(t, err) ***REMOVED***
 							return
 						***REMOVED***
 						if constPath != "" ***REMOVED***
-							assert.Contains(t, b.BaseInitContext.programs, constPath)
+							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
 						_, err = b.Instantiate()
@@ -216,18 +210,15 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/a.js", []byte(`const myvar = "a";`), 0644))
 			assert.NoError(t, afero.WriteFile(fs, "/b.js", []byte(`const myvar = "b";`), 0644))
-			b, err := NewBundle(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data: []byte(`
+			data := `
 				import "./a.js";
 				import "./b.js";
 				export default function() ***REMOVED***
 					if (typeof myvar != "undefined") ***REMOVED***
 						throw new Error("myvar is set in global scope");
 					***REMOVED***
-				***REMOVED***;
-				`),
-			***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+				***REMOVED***;`
+			b, err := getSimpleBundleWithFs("/script.js", data, fs)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -253,17 +244,15 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		binaryArg = ",\"b\""
 	***REMOVED***
 
-	b, err := NewBundle(&lib.SourceData***REMOVED***
-		Filename: "/path/to/script.js",
-		Data: []byte(fmt.Sprintf(`
-				export let data = open("/path/to/%s"%s);
-				var expectedLength = %d;
-				if (data.length != expectedLength) ***REMOVED***
-					throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data.length);
-				***REMOVED***
-				export default function() ***REMOVED******REMOVED***
-				`, file, binaryArg, expectedLength)),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+	data := fmt.Sprintf(`
+		export let data = open("/path/to/%s"%s);
+		var expectedLength = %d;
+		if (data.length != expectedLength) ***REMOVED***
+			throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data.length);
+		***REMOVED***
+		export default function() ***REMOVED******REMOVED***
+	`, file, binaryArg, expectedLength)
+	b, err := getSimpleBundleWithFs("/path/to/script.js", data, fs)
 
 	if !assert.NoError(t, err) ***REMOVED***
 		return nil, err
@@ -322,12 +311,8 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
-		fs := afero.NewMemMapFs()
 		path := filepath.FromSlash("/nonexistent.txt")
-		_, err := NewBundle(&lib.SourceData***REMOVED***
-			Filename: "/script.js",
-			Data:     []byte(`open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`),
-		***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		_, err := getSimpleBundle("/script.js", `open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`)
 		assert.EqualError(t, err, fmt.Sprintf("GoError: open %s: file does not exist", path))
 	***REMOVED***)
 
@@ -363,9 +348,8 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
 	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
 
-	b, err := NewBundle(&lib.SourceData***REMOVED***
-		Filename: "/path/to/script.js",
-		Data: []byte(fmt.Sprintf(`
+	b, err := getSimpleBundleWithFs("/path/to/script.js",
+		fmt.Sprintf(`
 			import http from "k6/http";
 			let binFile = open("/path/to/file.bin", "b");
 			export default function() ***REMOVED***
@@ -376,9 +360,8 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 				var res = http.post("%s", data);
 				return true;
 			***REMOVED***
-			`, srv.URL)),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-	assert.NoError(t, err)
+			`, srv.URL), fs)
+	require.NoError(t, err)
 
 	bi, err := b.Instantiate()
 	assert.NoError(t, err)

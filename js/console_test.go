@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"testing"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -68,7 +70,29 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 		assert.Equal(t, "b", entry.Message)
 	***REMOVED***
 ***REMOVED***
+func getSimpleRunner(path, data string) (*Runner, error) ***REMOVED***
+	return getSimpleRunnerWithFileFs(path, data, afero.NewMemMapFs())
+***REMOVED***
 
+func getSimpleRunnerWithOptions(path, data string, options lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	return New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
+		Data: []byte(data),
+	***REMOVED***, map[string]afero.Fs***REMOVED***
+		"file":  afero.NewMemMapFs(),
+		"https": afero.NewMemMapFs()***REMOVED***,
+		options)
+***REMOVED***
+
+func getSimpleRunnerWithFileFs(path, data string, fileFs afero.Fs) (*Runner, error) ***REMOVED***
+	return New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
+		Data: []byte(data),
+	***REMOVED***, map[string]afero.Fs***REMOVED***
+		"file":  fileFs,
+		"https": afero.NewMemMapFs()***REMOVED***,
+		lib.RuntimeOptions***REMOVED******REMOVED***)
+***REMOVED***
 func TestConsole(t *testing.T) ***REMOVED***
 	levels := map[string]log.Level***REMOVED***
 		"log":   log.InfoLevel,
@@ -87,16 +111,15 @@ func TestConsole(t *testing.T) ***REMOVED***
 		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
+		name, level := name, level
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for args, result := range argsets ***REMOVED***
+				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
-					r, err := New(&lib.SourceData***REMOVED***
-						Filename: "/script",
-						Data: []byte(fmt.Sprintf(
-							`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
-							name, args,
-						)),
-					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					r, err := getSimpleRunner("/script.js", fmt.Sprintf(
+						`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+						name, args,
+					))
 					assert.NoError(t, err)
 
 					samples := make(chan stats.SampleContainer, 100)
@@ -179,13 +202,11 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								***REMOVED***
 
 							***REMOVED***
-							r, err := New(&lib.SourceData***REMOVED***
-								Filename: "/script",
-								Data: []byte(fmt.Sprintf(
+							r, err := getSimpleRunner("/script",
+								fmt.Sprintf(
 									`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,
-								)),
-							***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+								))
 							assert.NoError(t, err)
 
 							err = r.SetOptions(lib.Options***REMOVED***

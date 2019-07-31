@@ -26,12 +26,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -116,8 +113,8 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 		filename := args[0]
-		fs := afero.NewOsFs()
-		src, err := readSource(filename, pwd, fs, os.Stdin)
+		filesystems := loader.CreateFilesystems()
+		src, err := loader.ReadSource(filename, pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -127,7 +124,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, fs, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -138,7 +135,7 @@ a commandline interface for interacting with it.`,
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		conf, err := getConsolidatedConfig(fs, cliConf, r)
+		conf, err := getConsolidatedConfig(afero.NewOsFs(), cliConf, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -503,29 +500,15 @@ func init() ***REMOVED***
 	runCmd.Flags().AddFlagSet(runCmdFlagSet())
 ***REMOVED***
 
-// Reads a source file from any supported destination.
-func readSource(src, pwd string, fs afero.Fs, stdin io.Reader) (*lib.SourceData, error) ***REMOVED***
-	if src == "-" ***REMOVED***
-		data, err := ioutil.ReadAll(stdin)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		return &lib.SourceData***REMOVED***Filename: "-", Data: data***REMOVED***, nil
-	***REMOVED***
-	abspath := filepath.Join(pwd, src)
-	if ok, _ := afero.Exists(fs, abspath); ok ***REMOVED***
-		src = abspath
-	***REMOVED***
-	return loader.Load(fs, pwd, src)
-***REMOVED***
-
 // Creates a new runner.
-func newRunner(src *lib.SourceData, typ string, fs afero.Fs, rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
+func newRunner(
+	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
+) (lib.Runner, error) ***REMOVED***
 	switch typ ***REMOVED***
 	case "":
-		return newRunner(src, detectType(src.Data), fs, rtOpts)
+		return newRunner(src, detectType(src.Data), filesystems, rtOpts)
 	case typeJS:
-		return js.New(src, fs, rtOpts)
+		return js.New(src, filesystems, rtOpts)
 	case typeArchive:
 		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
 		if err != nil ***REMOVED***

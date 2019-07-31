@@ -29,6 +29,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/datadog"
 	"github.com/loadimpact/k6/stats/influxdb"
@@ -61,7 +62,7 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func newCollector(collectorName, arg string, src *lib.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
+func newCollector(collectorName, arg string, src *loader.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
 	getCollector := func() (lib.Collector, error) ***REMOVED***
 		switch collectorName ***REMOVED***
 		case collectorJSON:

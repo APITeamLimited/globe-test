@@ -21,23 +21,64 @@
 package loader
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGithub(t *testing.T) ***REMOVED***
 	path := "github.com/github/gitignore/Go.gitignore"
+	expectedEndSrc := "https://raw.githubusercontent.com/github/gitignore/master/Go.gitignore"
 	name, loader, parts := pickLoader(path)
 	assert.Equal(t, "github", name)
 	assert.Equal(t, []string***REMOVED***"github", "gitignore", "Go.gitignore"***REMOVED***, parts)
 	src, err := loader(path, parts)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://raw.githubusercontent.com/github/gitignore/master/Go.gitignore", src)
-	data, err := Load(afero.NewMemMapFs(), "/", path)
-	if assert.NoError(t, err) ***REMOVED***
-		assert.Equal(t, path, data.Filename)
+	assert.Equal(t, expectedEndSrc, src)
+
+	var root = &url.URL***REMOVED***Scheme: "https", Host: "example.com", Path: "/something/"***REMOVED***
+	resolvedURL, err := Resolve(root, path)
+	require.NoError(t, err)
+	require.Empty(t, resolvedURL.Scheme)
+	require.Equal(t, path, resolvedURL.Opaque)
+	t.Run("not cached", func(t *testing.T) ***REMOVED***
+		data, err := Load(map[string]afero.Fs***REMOVED***"https": afero.NewMemMapFs()***REMOVED***, resolvedURL, path)
+		require.NoError(t, err)
+		assert.Equal(t, data.URL, resolvedURL)
+		assert.Equal(t, path, data.URL.String())
 		assert.NotEmpty(t, data.Data)
-	***REMOVED***
+	***REMOVED***)
+
+	t.Run("cached", func(t *testing.T) ***REMOVED***
+		fs := afero.NewMemMapFs()
+		testData := []byte("test data")
+
+		err := afero.WriteFile(fs, "/github.com/github/gitignore/Go.gitignore", testData, 0644)
+		require.NoError(t, err)
+
+		data, err := Load(map[string]afero.Fs***REMOVED***"https": fs***REMOVED***, resolvedURL, path)
+		require.NoError(t, err)
+		assert.Equal(t, path, data.URL.String())
+		assert.Equal(t, data.Data, testData)
+	***REMOVED***)
+
+	t.Run("relative", func(t *testing.T) ***REMOVED***
+		var tests = map[string]string***REMOVED***
+			"./something.else":  "github.com/github/gitignore/something.else",
+			"../something.else": "github.com/github/something.else",
+			"/something.else":   "github.com/something.else",
+		***REMOVED***
+		for relative, expected := range tests ***REMOVED***
+			relativeURL, err := Resolve(Dir(resolvedURL), relative)
+			require.NoError(t, err)
+			assert.Equal(t, expected, relativeURL.String())
+		***REMOVED***
+	***REMOVED***)
+
+	t.Run("dir", func(t *testing.T) ***REMOVED***
+		require.Equal(t, &url.URL***REMOVED***Opaque: "github.com/github/gitignore"***REMOVED***, Dir(resolvedURL))
+	***REMOVED***)
 ***REMOVED***

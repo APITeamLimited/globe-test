@@ -23,6 +23,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -51,8 +52,8 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 		filename := args[0]
-		fs := afero.NewOsFs()
-		src, err := readSource(filename, pwd, fs, os.Stdin)
+		filesystems := loader.CreateFilesystems()
+		src, err := loader.ReadSource(filename, pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -62,7 +63,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, fs, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -71,7 +72,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		conf, err := getConsolidatedConfig(fs, Config***REMOVED***Options: cliOpts***REMOVED***, r)
+		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

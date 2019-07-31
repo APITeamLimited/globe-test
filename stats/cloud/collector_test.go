@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ import (
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -134,9 +136,9 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer tb.Cleanup()
 
-	script := &lib.SourceData***REMOVED***
-		Data:     []byte(""),
-		Filename: "/script.js",
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***
 
 	options := lib.Options***REMOVED***
@@ -280,9 +282,9 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer tb.Cleanup()
 
-	script := &lib.SourceData***REMOVED***
-		Data:     []byte(""),
-		Filename: "/script.js",
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***
 
 	options := lib.Options***REMOVED***

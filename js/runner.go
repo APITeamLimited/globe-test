@@ -34,6 +34,7 @@ import (
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 	"github.com/oxtoacart/bpool"
 	"github.com/pkg/errors"
@@ -62,8 +63,9 @@ type Runner struct ***REMOVED***
 	setupData []byte
 ***REMOVED***
 
-func New(src *lib.SourceData, fs afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundle(src, fs, rtOpts)
+// New returns a new Runner for the provide source
+func New(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundle(src, filesystems, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

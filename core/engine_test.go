@@ -23,6 +23,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -32,11 +33,11 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
@@ -556,8 +557,8 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 
 	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
 		r, err := js.New(
-			&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(ts.Code)***REMOVED***,
-			afero.NewMemMapFs(),
+			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
+			nil,
 			lib.RuntimeOptions***REMOVED******REMOVED***,
 		)
 		require.NoError(t, err)
@@ -697,8 +698,8 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	`))
 
 	r, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 	require.NoError(t, err)
@@ -797,8 +798,8 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	`))
 
 	runner, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 	require.NoError(t, err)
@@ -860,8 +861,8 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	`))
 
 	runner, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 	require.NoError(t, err)
@@ -920,7 +921,7 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	runner, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: []byte(`
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(`
 		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
 
 		let testCounter = new Counter("testcounter");
@@ -935,7 +936,7 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 		export default function () ***REMOVED***
 			testCounter.add(1);
 		***REMOVED***;`)***REMOVED***,
-		afero.NewMemMapFs(),
+		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 	require.NoError(t, err)
