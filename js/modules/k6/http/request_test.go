@@ -244,6 +244,24 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			assert.NoError(t, err)
 		***REMOVED***)
+
+		t.Run("post body", func(t *testing.T) ***REMOVED***
+
+			tb.Mux.HandleFunc("/post-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+				require.Equal(t, r.Method, "POST")
+				_, _ = io.Copy(ioutil.Discard, r.Body)
+				http.Redirect(w, r, sr("HTTPBIN_URL/post"), http.StatusPermanentRedirect)
+			***REMOVED***))
+			_, err := common.RunString(rt, sr(`
+			let res = http.post("HTTPBIN_URL/post-redirect", "pesho", ***REMOVED***redirects: 1***REMOVED***);
+
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+			if (res.url != "HTTPBIN_URL/post") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
+			if (res.json().data != "pesho") ***REMOVED*** throw new Error("incorrect data : " + res.json().data) ***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+
 	***REMOVED***)
 	t.Run("Timeout", func(t *testing.T) ***REMOVED***
 		t.Run("10s", func(t *testing.T) ***REMOVED***

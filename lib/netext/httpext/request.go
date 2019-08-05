@@ -151,7 +151,7 @@ func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRe
 	return result
 ***REMOVED***
 
-func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64, string, error) ***REMOVED***
+func compressBody(algos []CompressionType, body io.ReadCloser) (*bytes.Buffer, string, error) ***REMOVED***
 	var contentEncoding string
 	var prevBuf io.Reader = body
 	var buf *bytes.Buffer
@@ -176,21 +176,21 @@ func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64
 		case CompressionTypeBr:
 			w = brotli.NewWriter(buf)
 		default:
-			return nil, 0, "", fmt.Errorf("unknown compressionType %s", compressionType)
+			return nil, "", fmt.Errorf("unknown compressionType %s", compressionType)
 		***REMOVED***
 		// we don't close in defer because zlib will write it's checksum again if it closes twice :(
 		var _, err = io.Copy(w, prevBuf)
 		if err != nil ***REMOVED***
 			_ = w.Close()
-			return nil, 0, "", err
+			return nil, "", err
 		***REMOVED***
 
 		if err = w.Close(); err != nil ***REMOVED***
-			return nil, 0, "", err
+			return nil, "", err
 		***REMOVED***
 	***REMOVED***
 
-	return buf, int64(buf.Len()), contentEncoding, body.Close()
+	return buf, contentEncoding, body.Close()
 ***REMOVED***
 
 func readResponseBody(
@@ -318,7 +318,6 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	if preq.Body != nil ***REMOVED***
-		preq.Req.Body = ioutil.NopCloser(preq.Body)
 
 		// TODO: maybe hide this behind of flag in order for this to not happen for big post/puts?
 		// should we set this after the compression? what will be the point ?
@@ -326,14 +325,17 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 
 		switch ***REMOVED***
 		case len(preq.Compressions) > 0:
-			compressedBody, length, contentEncoding, err := compressBody(preq.Compressions, preq.Req.Body)
+			var (
+				contentEncoding string
+				err             error
+			)
+			preq.Body, contentEncoding, err = compressBody(preq.Compressions, ioutil.NopCloser(preq.Body))
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
 
-			preq.Req.Body = ioutil.NopCloser(compressedBody)
 			if preq.Req.Header.Get("Content-Length") == "" ***REMOVED***
-				preq.Req.ContentLength = length
+				preq.Req.ContentLength = int64(preq.Body.Len())
 			***REMOVED*** else ***REMOVED***
 				state.Logger.Warningf(compressionHeaderOverwriteMessage, "Content-Length", preq.Req.Method, preq.Req.URL)
 			***REMOVED***
@@ -347,6 +349,14 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 		// TODO: print some message in case we have Content-Length set so that we can warn users
 		// that setting it manually can lead to bad requests
+
+		preq.Req.GetBody = func() (io.ReadCloser, error) ***REMOVED***
+			//  using `Bytes()` should reuse the same buffer and as such help with the memory usage. We
+			//  should not be writing to it any way so there shouldn't be way to corrupt it (?)
+			return ioutil.NopCloser(bytes.NewBuffer(preq.Body.Bytes())), nil
+		***REMOVED***
+		// as per the documentation using GetBody still requires setting the Body.
+		preq.Req.Body, _ = preq.Req.GetBody()
 	***REMOVED***
 
 	tags := state.Options.RunTags.CloneTags()
