@@ -45,6 +45,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
+	"github.com/mccutchen/go-httpbin/httpbin"
 	"github.com/oxtoacart/bpool"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -1592,20 +1593,16 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			script:            `let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=http://dafsgdhfjg/");`,
 		***REMOVED***,
 		***REMOVED***
-			name:                "Non location redirect",
-			expectedErrorCode:   0,
-			expectedErrorMsg:    "",
-			script:              `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
-			expectedScriptError: sr(`GoError: Get HTTPBIN_URL/no-location-redirect: 302 response missing Location header`),
+			name:              "Non location redirect",
+			expectedErrorCode: 1000,
+			expectedErrorMsg:  "302 response missing Location header",
+			script:            `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
 		***REMOVED***,
 		***REMOVED***
 			name:              "Bad location redirect",
-			expectedErrorCode: 0,
-			expectedErrorMsg:  "",
+			expectedErrorCode: 1000,
+			expectedErrorMsg:  "failed to parse Location header \"h\\t:/\": parse h\t:/: net/url: invalid control character in URL", //nolint: lll
 			script:            `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
-			expectedScriptError: sr(
-				"GoError: Get HTTPBIN_URL/bad-location-redirect: failed to parse Location header" +
-					" \"h\\t:/\": parse h\t:/: net/url: invalid control character in URL"),
 		***REMOVED***,
 		***REMOVED***
 			name:              "Missing protocol",
@@ -1641,7 +1638,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt,
 				sr(testCase.script+"\n"+fmt.Sprintf(`
 			if (res.status != %d) ***REMOVED*** throw new Error("wrong status: "+ res.status);***REMOVED***
-			if (res.error != '%s') ***REMOVED*** throw new Error("wrong error: "+ res.error);***REMOVED***
+			if (res.error != %q) ***REMOVED*** throw new Error("wrong error: '" + res.error + "'");***REMOVED***
 			if (res.error_code != %d) ***REMOVED*** throw new Error("wrong error_code: "+ res.error_code);***REMOVED***
 			`, testCase.status, testCase.expectedErrorMsg, testCase.expectedErrorCode)))
 			if testCase.expectedScriptError == "" ***REMOVED***
@@ -1823,4 +1820,64 @@ func BenchmarkHandlingOfResponseBodies(b *testing.B) ***REMOVED***
 	b.Run("text", testResponseType("text"))
 	b.Run("binary", testResponseType("binary"))
 	b.Run("none", testResponseType("none"))
+***REMOVED***
+
+func TestErrorsWithDecompression(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	state.Options.Throw = null.BoolFrom(false)
+
+	tb.Mux.HandleFunc("/broken-archive", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		enc := r.URL.Query()["encoding"][0]
+		w.Header().Set("Content-Encoding", enc)
+		_, _ = fmt.Fprintf(w, "Definitely not %s, but it's all cool...", enc)
+	***REMOVED***))
+
+	_, err := common.RunString(rt, tb.Replacer.Replace(`
+		function handleResponseEncodingError (encoding) ***REMOVED***
+			let resp = http.get("HTTPBIN_URL/broken-archive?encoding=" + encoding);
+			if (resp.error_code != 1701) ***REMOVED***
+				throw new Error("Expected error_code 1701 for '" + encoding +"', but got " + resp.error_code);
+			***REMOVED***
+		***REMOVED***
+
+		["gzip", "deflate", "br", "zstd"].forEach(handleResponseEncodingError);
+	`))
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, samples, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	state.Options.Throw = null.BoolFrom(true)
+	state.Options.HttpDebug = null.StringFrom("full")
+
+	tb.Mux.HandleFunc("/digest-auth-with-post/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		require.Equal(t, "POST", r.Method)
+		body, err := ioutil.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Equal(t, "super secret body", string(body))
+		httpbin.New().DigestAuth(w, r) // this doesn't read the body
+	***REMOVED***))
+
+	// TODO: fix, the metric tags shouldn't have credentials (https://github.com/loadimpact/k6/issues/1103)
+	urlWithCreds := tb.Replacer.Replace(
+		"http://testuser:testpwd@HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd",
+	)
+
+	_, err := common.RunString(rt, fmt.Sprintf(`
+		let res = http.post(%q, "super secret body", ***REMOVED*** auth: "digest" ***REMOVED***);
+		if (res.status !== 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+		if (res.error_code !== 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
+	`, urlWithCreds))
+	require.NoError(t, err)
+
+	expectedURL := tb.Replacer.Replace("HTTPBIN_IP_URL/digest-auth-with-post/auth/testuser/testpwd")
+	sampleContainers := stats.GetBufferedSamples(samples)
+	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, urlWithCreds, 401, "")
+	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, urlWithCreds, 200, "")
 ***REMOVED***
