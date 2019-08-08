@@ -36,9 +36,9 @@ import (
 )
 
 type programWithSource struct ***REMOVED***
-	pgm     *goja.Program
-	src     string
-	exports goja.Value
+	pgm    *goja.Program
+	src    string
+	module *goja.Object
 ***REMOVED***
 
 // InitContext provides APIs for use in the init context.
@@ -135,20 +135,13 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 
 	// First, check if we have a cached program already.
 	pgm, ok := i.programs[fileURL.String()]
-	if !ok || pgm.exports == nil ***REMOVED***
+	if !ok || pgm.module == nil ***REMOVED***
 		i.pwd = loader.Dir(fileURL)
 		defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
-
-		// Swap the importing scope's exports out, then put it back again.
-		oldExports := i.runtime.Get("exports")
-		defer i.runtime.Set("exports", oldExports)
-		oldModule := i.runtime.Get("module")
-		defer i.runtime.Set("module", oldModule)
 		exports := i.runtime.NewObject()
-		i.runtime.Set("exports", exports)
-		module := i.runtime.NewObject()
-		_ = module.Set("exports", exports)
-		i.runtime.Set("module", module)
+		pgm.module = i.runtime.NewObject()
+		_ = pgm.module.Set("exports", exports)
+
 		if pgm.pgm == nil ***REMOVED***
 			// Load the sources; the loader takes care of remote loading, etc.
 			data, err := loader.Load(i.filesystems, fileURL, name)
@@ -165,22 +158,26 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 
-		pgm.exports = module.Get("exports")
 		i.programs[fileURL.String()] = pgm
 
 		// Run the program.
-		if _, err := i.runtime.RunProgram(pgm.pgm); err != nil ***REMOVED***
+		f, err := i.runtime.RunProgram(pgm.pgm)
+		if err != nil ***REMOVED***
+			delete(i.programs, fileURL.String())
 			return goja.Undefined(), err
 		***REMOVED***
-
-		pgm.exports = module.Get("exports")
+		if call, ok := goja.AssertFunction(f); ok ***REMOVED***
+			if _, err = call(exports, pgm.module, exports); err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
-	return pgm.exports, nil
+	return pgm.module.Get("exports"), nil
 ***REMOVED***
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
-	pgm, _, err := i.compiler.Compile(src, filename, "(function()***REMOVED***\n", "\n***REMOVED***)()\n", true)
+	pgm, _, err := i.compiler.Compile(src, filename, "(function(module, exports)***REMOVED***\n", "\n***REMOVED***)\n", true)
 	return pgm, err
 ***REMOVED***
 
