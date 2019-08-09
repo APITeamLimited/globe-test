@@ -34,6 +34,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	null "gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
@@ -43,12 +50,6 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/ui"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	null "gopkg.in/guregu/null.v3"
 )
 
 const (
@@ -156,7 +157,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if conf.Iterations.Valid && conf.Iterations.Int64 < conf.VUsMax.Int64 ***REMOVED***
-			log.Warnf(
+			logrus.Warnf(
 				"All iterations (%d in this test run) are shared between all VUs, so some of the %d VUs will not execute even a single iteration!",
 				conf.Iterations.Int64, conf.VUsMax.Int64,
 			)
@@ -228,7 +229,7 @@ a commandline interface for interacting with it.`,
 		fprintf(stdout, "%s   server\r", initBar.String())
 		go func() ***REMOVED***
 			if err := api.ListenAndServe(address, engine); err != nil ***REMOVED***
-				log.WithError(err).Warn("Error from API server")
+				logrus.WithError(err).Warn("Error from API server")
 			***REMOVED***
 		***REMOVED***()
 
@@ -365,7 +366,7 @@ a commandline interface for interacting with it.`,
 			select ***REMOVED***
 			case <-ticker.C:
 				if quiet || !stdoutTTY ***REMOVED***
-					l := log.WithFields(log.Fields***REMOVED***
+					l := logrus.WithFields(logrus.Fields***REMOVED***
 						"t": engine.Executor.GetTime(),
 						"i": engine.Executor.GetIterations(),
 					***REMOVED***)
@@ -399,7 +400,7 @@ a commandline interface for interacting with it.`,
 			case err := <-errC:
 				cancel()
 				if err == nil ***REMOVED***
-					log.Debug("Engine terminated cleanly")
+					logrus.Debug("Engine terminated cleanly")
 					break mainLoop
 				***REMOVED***
 
@@ -407,26 +408,26 @@ a commandline interface for interacting with it.`,
 				case lib.TimeoutError:
 					switch string(e) ***REMOVED***
 					case "setup":
-						log.WithError(err).Error("Setup timeout")
+						logrus.WithError(err).Error("Setup timeout")
 						return ExitCode***REMOVED***errors.New("Setup timeout"), setupTimeoutErrorCode***REMOVED***
 					case "teardown":
-						log.WithError(err).Error("Teardown timeout")
+						logrus.WithError(err).Error("Teardown timeout")
 						return ExitCode***REMOVED***errors.New("Teardown timeout"), teardownTimeoutErrorCode***REMOVED***
 					default:
-						log.WithError(err).Error("Engine timeout")
+						logrus.WithError(err).Error("Engine timeout")
 						return ExitCode***REMOVED***errors.New("Engine timeout"), genericTimeoutErrorCode***REMOVED***
 					***REMOVED***
 				default:
-					log.WithError(err).Error("Engine error")
+					logrus.WithError(err).Error("Engine error")
 					return ExitCode***REMOVED***errors.New("Engine Error"), genericEngineErrorCode***REMOVED***
 				***REMOVED***
 			case sig := <-sigC:
-				log.WithField("sig", sig).Debug("Exiting in response to signal")
+				logrus.WithField("sig", sig).Debug("Exiting in response to signal")
 				cancel()
 			***REMOVED***
 		***REMOVED***
 		if quiet || !stdoutTTY ***REMOVED***
-			e := log.WithFields(log.Fields***REMOVED***
+			e := logrus.WithFields(logrus.Fields***REMOVED***
 				"t": engine.Executor.GetTime(),
 				"i": engine.Executor.GetIterations(),
 			***REMOVED***)
@@ -442,7 +443,7 @@ a commandline interface for interacting with it.`,
 
 		// Warn if no iterations could be completed.
 		if engine.Executor.GetIterations() == 0 ***REMOVED***
-			log.Warn("No data generated, because no script iterations finished, consider making the test duration longer")
+			logrus.Warn("No data generated, because no script iterations finished, consider making the test duration longer")
 		***REMOVED***
 
 		// Print the end-of-test summary.
@@ -458,7 +459,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if conf.Linger.Bool ***REMOVED***
-			log.Info("Linger set; waiting for Ctrl+C...")
+			logrus.Info("Linger set; waiting for Ctrl+C...")
 			<-sigC
 		***REMOVED***
 

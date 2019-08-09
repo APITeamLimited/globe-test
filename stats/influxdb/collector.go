@@ -26,9 +26,10 @@ import (
 	"time"
 
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/sirupsen/logrus"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -65,14 +66,14 @@ func (c *Collector) Init() error ***REMOVED***
 	// usually means we're either a non-admin user to an existing DB or connecting over UDP.
 	_, err := c.Client.Query(client.NewQuery("CREATE DATABASE "+c.BatchConf.Database, "", ""))
 	if err != nil ***REMOVED***
-		log.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
+		logrus.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
 	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	log.Debug("InfluxDB: Running!")
+	logrus.Debug("InfluxDB: Running!")
 	ticker := time.NewTicker(pushInterval)
 	for ***REMOVED***
 		select ***REMOVED***
@@ -103,20 +104,20 @@ func (c *Collector) commit() ***REMOVED***
 	c.buffer = nil
 	c.bufferLock.Unlock()
 
-	log.Debug("InfluxDB: Committing...")
+	logrus.Debug("InfluxDB: Committing...")
 
 	batch, err := c.batchFromSamples(samples)
 	if err != nil ***REMOVED***
 		return
 	***REMOVED***
 
-	log.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
+	logrus.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
 	startTime := time.Now()
 	if err := c.Client.Write(batch); err != nil ***REMOVED***
-		log.WithError(err).Error("InfluxDB: Couldn't write stats")
+		logrus.WithError(err).Error("InfluxDB: Couldn't write stats")
 	***REMOVED***
 	t := time.Since(startTime)
-	log.WithField("t", t).Debug("InfluxDB: Batch written!")
+	logrus.WithField("t", t).Debug("InfluxDB: Batch written!")
 ***REMOVED***
 
 func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
@@ -132,7 +133,7 @@ func (c *Collector) extractTagsToValues(tags map[string]string, values map[strin
 func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints, error) ***REMOVED***
 	batch, err := client.NewBatchPoints(c.BatchConf)
 	if err != nil ***REMOVED***
-		log.WithError(err).Error("InfluxDB: Couldn't make a batch")
+		logrus.WithError(err).Error("InfluxDB: Couldn't make a batch")
 		return nil, err
 	***REMOVED***
 
@@ -162,7 +163,7 @@ func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints
 			sample.Time,
 		)
 		if err != nil ***REMOVED***
-			log.WithError(err).Error("InfluxDB: Couldn't make point from sample!")
+			logrus.WithError(err).Error("InfluxDB: Couldn't make point from sample!")
 			return nil, err
 		***REMOVED***
 		batch.AddPoint(p)

@@ -28,17 +28,17 @@ import (
 	"os"
 	"testing"
 
+	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
 	null "gopkg.in/guregu/null.v3"
 
-	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
-	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestConsoleContext(t *testing.T) ***REMOVED***
@@ -94,20 +94,20 @@ func getSimpleRunnerWithFileFs(path, data string, fileFs afero.Fs) (*Runner, err
 		lib.RuntimeOptions***REMOVED******REMOVED***)
 ***REMOVED***
 func TestConsole(t *testing.T) ***REMOVED***
-	levels := map[string]log.Level***REMOVED***
-		"log":   log.InfoLevel,
-		"debug": log.DebugLevel,
-		"info":  log.InfoLevel,
-		"warn":  log.WarnLevel,
-		"error": log.ErrorLevel,
+	levels := map[string]logrus.Level***REMOVED***
+		"log":   logrus.InfoLevel,
+		"debug": logrus.DebugLevel,
+		"info":  logrus.InfoLevel,
+		"warn":  logrus.WarnLevel,
+		"error": logrus.ErrorLevel,
 	***REMOVED***
 	argsets := map[string]struct ***REMOVED***
 		Message string
-		Data    log.Fields
+		Data    logrus.Fields
 	***REMOVED******REMOVED***
 		`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+		`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
+		`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
 		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
@@ -127,7 +127,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 					assert.NoError(t, err)
 
 					logger, hook := logtest.NewNullLogger()
-					logger.Level = log.DebugLevel
+					logger.Level = logrus.DebugLevel
 					vu.Console.Logger = logger
 
 					err = vu.RunOnce(context.Background())
@@ -140,7 +140,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 
 						data := result.Data
 						if data == nil ***REMOVED***
-							data = make(log.Fields)
+							data = make(logrus.Fields)
 						***REMOVED***
 						assert.Equal(t, data, entry.Data)
 					***REMOVED***
@@ -152,20 +152,20 @@ func TestConsole(t *testing.T) ***REMOVED***
 
 func TestFileConsole(t *testing.T) ***REMOVED***
 	var (
-		levels = map[string]log.Level***REMOVED***
-			"log":   log.InfoLevel,
-			"debug": log.DebugLevel,
-			"info":  log.InfoLevel,
-			"warn":  log.WarnLevel,
-			"error": log.ErrorLevel,
+		levels = map[string]logrus.Level***REMOVED***
+			"log":   logrus.InfoLevel,
+			"debug": logrus.DebugLevel,
+			"info":  logrus.InfoLevel,
+			"warn":  logrus.WarnLevel,
+			"error": logrus.ErrorLevel,
 		***REMOVED***
 		argsets = map[string]struct ***REMOVED***
 			Message string
-			Data    log.Fields
+			Data    logrus.Fields
 		***REMOVED******REMOVED***
 			`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-			`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-			`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+			`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
+			`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
 			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
 		***REMOVED***
 		preExisting = map[string]bool***REMOVED***
@@ -218,7 +218,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							vu, err := r.newVU(samples)
 							assert.NoError(t, err)
 
-							vu.Console.Logger.Level = log.DebugLevel
+							vu.Console.Logger.Level = logrus.DebugLevel
 							hook := logtest.NewLocal(vu.Console.Logger)
 
 							err = vu.RunOnce(context.Background())
@@ -235,7 +235,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 
 								data := result.Data
 								if data == nil ***REMOVED***
-									data = make(log.Fields)
+									data = make(logrus.Fields)
 								***REMOVED***
 								assert.Equal(t, data, entry.Data)
 

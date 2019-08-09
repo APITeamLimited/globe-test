@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
 
@@ -145,8 +145,8 @@ func Dir(old *url.URL) *url.URL ***REMOVED***
 func Load(
 	filesystems map[string]afero.Fs, moduleSpecifier *url.URL, originalModuleSpecifier string,
 ) (*SourceData, error) ***REMOVED***
-	log.WithFields(
-		log.Fields***REMOVED***
+	logrus.WithFields(
+		logrus.Fields***REMOVED***
 			"moduleSpecifier":          moduleSpecifier,
 			"original moduleSpecifier": originalModuleSpecifier,
 		***REMOVED***).Debug("Loading...")
@@ -184,7 +184,7 @@ func Load(
 						return nil, err
 					***REMOVED***
 				case moduleSpecifier.Scheme == "":
-					log.WithField("url", moduleSpecifier).Warning(
+					logrus.WithField("url", moduleSpecifier).Warning(
 						"A url was resolved but it didn't have scheme. " +
 							"This will be deprecated in the future and all remote modules will " +
 							"need to explicitly use `https` as scheme")
@@ -261,7 +261,7 @@ func pickLoader(path string) (string, loaderFunc, []string) ***REMOVED***
 ***REMOVED***
 
 func fetch(u string) ([]byte, error) ***REMOVED***
-	log.WithField("url", u).Debug("Fetching source...")
+	logrus.WithField("url", u).Debug("Fetching source...")
 	startTime := time.Now()
 	res, err := http.Get(u)
 	if err != nil ***REMOVED***
@@ -283,7 +283,7 @@ func fetch(u string) ([]byte, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	log.WithFields(log.Fields***REMOVED***
+	logrus.WithFields(logrus.Fields***REMOVED***
 		"url": u,
 		"t":   time.Since(startTime),
 		"len": len(data),

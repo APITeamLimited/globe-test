@@ -27,13 +27,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
 )
 
 // TODO: totally rewrite this!
@@ -51,7 +52,7 @@ type vuHandle struct ***REMOVED***
 	cancel context.CancelFunc
 ***REMOVED***
 
-func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, iterDone chan<- struct***REMOVED******REMOVED***) ***REMOVED***
+func (h *vuHandle) run(logger *logrus.Logger, flow <-chan int64, iterDone chan<- struct***REMOVED******REMOVED***) ***REMOVED***
 	h.RLock()
 	ctx := h.ctx
 	h.RUnlock()
@@ -89,7 +90,7 @@ func (h *vuHandle) run(logger *log.Logger, flow <-chan int64, iterDone chan<- st
 
 type Executor struct ***REMOVED***
 	Runner lib.Runner
-	Logger *log.Logger
+	Logger *logrus.Logger
 
 	runLock sync.Mutex
 	wg      sync.WaitGroup
@@ -139,7 +140,7 @@ func New(r lib.Runner) *Executor ***REMOVED***
 
 	return &Executor***REMOVED***
 		Runner:      r,
-		Logger:      log.StandardLogger(),
+		Logger:      logrus.StandardLogger(),
 		runSetup:    true,
 		runTeardown: true,
 		endIters:    -1,
@@ -273,7 +274,7 @@ func (e *Executor) Run(parent context.Context, engineOut chan<- stats.SampleCont
 			end := time.Duration(atomic.LoadInt64(&e.endTime))
 			at := time.Duration(atomic.AddInt64(&e.time, int64(d)))
 			if end >= 0 && at >= end ***REMOVED***
-				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit time limit")
+				e.Logger.WithFields(logrus.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit time limit")
 				cutoff = time.Now()
 				return nil
 			***REMOVED***
@@ -311,7 +312,7 @@ func (e *Executor) Run(parent context.Context, engineOut chan<- stats.SampleCont
 			end := atomic.LoadInt64(&e.endIters)
 			at := atomic.AddInt64(&e.iters, 1)
 			if end >= 0 && at >= end ***REMOVED***
-				e.Logger.WithFields(log.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit iteration limit")
+				e.Logger.WithFields(logrus.Fields***REMOVED***"at": at, "end": end***REMOVED***).Debug("Local: Hit iteration limit")
 				return nil
 			***REMOVED***
 		case <-ctx.Done():
@@ -383,11 +384,13 @@ func (e *Executor) GetRunner() lib.Runner ***REMOVED***
 	return e.Runner
 ***REMOVED***
 
-func (e *Executor) SetLogger(l *log.Logger) ***REMOVED***
+// SetLogger sets Executor's logger.
+func (e *Executor) SetLogger(l *logrus.Logger) ***REMOVED***
 	e.Logger = l
 ***REMOVED***
 
-func (e *Executor) GetLogger() *log.Logger ***REMOVED***
+// GetLogger returns current Executor's logger.
+func (e *Executor) GetLogger() *logrus.Logger ***REMOVED***
 	return e.Logger
 ***REMOVED***
 

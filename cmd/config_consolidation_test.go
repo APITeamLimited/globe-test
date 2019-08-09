@@ -28,16 +28,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/scheduler"
-	"github.com/loadimpact/k6/lib/testutils"
-	"github.com/loadimpact/k6/lib/types"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/scheduler"
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 // A helper funcion for setting arbitrary environment variables and
@@ -416,7 +417,7 @@ func runTestCase(
 	logHook *testutils.SimpleLogrusHook,
 ) ***REMOVED***
 	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
-	log.SetOutput(testOutput***REMOVED***t***REMOVED***)
+	logrus.SetOutput(testOutput***REMOVED***t***REMOVED***)
 	logHook.Drain()
 
 	restoreEnv := setEnv(t, testCase.options.env)
@@ -493,10 +494,10 @@ func runTestCase(
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
 	// to mess with shared global objects (env vars, variables, the log, ... santa?)
-	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []log.Level***REMOVED***log.WarnLevel***REMOVED******REMOVED***
-	log.AddHook(&logHook)
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stderr)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	logrus.AddHook(&logHook)
+	logrus.SetOutput(ioutil.Discard)
+	defer logrus.SetOutput(os.Stderr)
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		flagSetInits := testCase.options.cliFlagSetInits

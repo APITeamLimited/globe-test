@@ -26,10 +26,11 @@ import (
 	"io"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
 )
 
 type Collector struct ***REMOVED***
@@ -82,7 +83,7 @@ func (c *Collector) Init() error ***REMOVED***
 func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	log.WithField("filename", c.fname).Debug("JSON: Writing JSON metrics")
+	logrus.WithField("filename", c.fname).Debug("JSON: Writing JSON metrics")
 	<-ctx.Done()
 	_ = c.outfile.Close()
 ***REMOVED***
@@ -97,7 +98,7 @@ func (c *Collector) HandleMetric(m *stats.Metric) ***REMOVED***
 	row, err := json.Marshal(env)
 
 	if env == nil || err != nil ***REMOVED***
-		log.WithField("filename", c.fname).Warning(
+		logrus.WithField("filename", c.fname).Warning(
 			"JSON: Envelope is nil or Metric couldn't be marshalled to JSON")
 		return
 	***REMOVED***
@@ -105,7 +106,7 @@ func (c *Collector) HandleMetric(m *stats.Metric) ***REMOVED***
 	row = append(row, '\n')
 	_, err = c.outfile.Write(row)
 	if err != nil ***REMOVED***
-		log.WithField("filename", c.fname).Error("JSON: Error writing to file")
+		logrus.WithField("filename", c.fname).Error("JSON: Error writing to file")
 	***REMOVED***
 ***REMOVED***
 
@@ -119,14 +120,14 @@ func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 
 			if err != nil || env == nil ***REMOVED***
 				// Skip metric if it can't be made into JSON or envelope is null.
-				log.WithField("filename", c.fname).Warning(
+				logrus.WithField("filename", c.fname).Warning(
 					"JSON: Envelope is nil or Sample couldn't be marshalled to JSON")
 				continue
 			***REMOVED***
 			row = append(row, '\n')
 			_, err = c.outfile.Write(row)
 			if err != nil ***REMOVED***
-				log.WithField("filename", c.fname).Error("JSON: Error writing to file")
+				logrus.WithField("filename", c.fname).Error("JSON: Error writing to file")
 				continue
 			***REMOVED***
 		***REMOVED***

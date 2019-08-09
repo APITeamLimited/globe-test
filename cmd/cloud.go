@@ -40,7 +40,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -215,16 +215,16 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 					progress.Progress = testProgress.Progress
 					fprintf(stdout, "%s\x1b[0K\r", progress.String())
 				***REMOVED*** else ***REMOVED***
-					log.WithError(progressErr).Error("Test progress error")
+					logrus.WithError(progressErr).Error("Test progress error")
 				***REMOVED***
 				if shouldExitLoop ***REMOVED***
 					break runningLoop
 				***REMOVED***
 			case sig := <-sigC:
-				log.WithField("sig", sig).Print("Exiting in response to signal...")
+				logrus.WithField("sig", sig).Print("Exiting in response to signal...")
 				err := client.StopCloudTestRun(refID)
 				if err != nil ***REMOVED***
-					log.WithError(err).Error("Stop cloud test error")
+					logrus.WithError(err).Error("Stop cloud test error")
 				***REMOVED***
 				shouldExitLoop = true // Exit after the next GetTestProgress call
 			***REMOVED***
