@@ -61,6 +61,7 @@ func TestRun(t *testing.T) ***REMOVED***
 
 func TestFormatSamples(t *testing.T) ***REMOVED***
 	c := Collector***REMOVED******REMOVED***
+	c.Config.InfluxDBConfig.ConcurrentWrites = null.IntFrom(10)
 	metric := stats.New("my_metric", stats.Gauge)
 	samples := stats.Samples***REMOVED***
 		***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
