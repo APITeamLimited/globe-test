@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/loadimpact/k6/lib/fsext"
+	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -69,7 +70,7 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 	for filename, data := range testCases ***REMOVED***
 		filename, data := filename, data
 		t.Run(filename, func(t *testing.T) ***REMOVED***
-			metadata := `***REMOVED***"filename": "` + filename + `"***REMOVED***`
+			metadata := `***REMOVED***"filename": "` + filename + `", "options": ***REMOVED******REMOVED******REMOVED***`
 			fs := makeMemMapFs(t, map[string][]byte***REMOVED***
 				// files
 				"/files/github.com/loadimpact/k6/samples/example.js": []byte(`github file`),
@@ -187,7 +188,8 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 		metadata := `***REMOVED***
 		"filename": "` + test.Filename + `",
 		"pwd": "` + test.Pwd + `",
-		"k6version": "` + test.version + `"
+		"k6version": "` + test.version + `",
+		"options": ***REMOVED******REMOVED***
 	***REMOVED***`
 
 		buf, err := dumpMemMapFsToBuf(makeMemMapFs(t, map[string][]byte***REMOVED***
@@ -203,6 +205,84 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			require.Equal(t, test.expectedFilenameURL, arc.FilenameURL)
 			require.Equal(t, test.expectedPwdURL, arc.PwdURL)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
+	var emptyConfigMap scheduler.ConfigMap
+	var tests = []struct ***REMOVED***
+		metadata     string
+		expExecution interface***REMOVED******REMOVED***
+		expError     string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
+			***REMOVED***`,
+			expExecution: emptyConfigMap,
+		***REMOVED***,
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"k6version": "0.24.0",
+				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
+			***REMOVED***`,
+			expExecution: emptyConfigMap,
+		***REMOVED***,
+		***REMOVED***
+			metadata: `blah`,
+			expError: "invalid character",
+		***REMOVED***,
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"k6version": "0.24.0"
+			***REMOVED***`,
+			expError: "missing options key",
+		***REMOVED***,
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"k6version": "0.24.0",
+				"options": "something invalid"
+			***REMOVED***`,
+			expError: "wrong options type in metadata.json",
+		***REMOVED***,
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"k6version": "0.25.0",
+				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
+			***REMOVED***`,
+			expError: "cannot unmarshal string",
+		***REMOVED***,
+		***REMOVED***
+			metadata: `***REMOVED***
+				"filename": "/test.js", "pwd": "/",
+				"k6version": "0.25.0",
+				"options": ***REMOVED*** "execution": ***REMOVED*** "default": ***REMOVED*** "type": "per-vu-iterations" ***REMOVED*** ***REMOVED*** ***REMOVED***
+			***REMOVED***`,
+			expExecution: scheduler.ConfigMap***REMOVED***
+				DefaultSchedulerName: scheduler.NewPerVUIterationsConfig(DefaultSchedulerName),
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, test := range tests ***REMOVED***
+		buf, err := dumpMemMapFsToBuf(makeMemMapFs(t, map[string][]byte***REMOVED***
+			"/metadata.json": []byte(test.metadata),
+		***REMOVED***))
+		require.NoError(t, err)
+
+		arc, err := ReadArchive(buf)
+		if test.expError != "" ***REMOVED***
+			require.Error(t, err)
+			require.Contains(t, err.Error(), test.expError)
+		***REMOVED*** else ***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, test.expExecution, arc.Options.Execution)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
