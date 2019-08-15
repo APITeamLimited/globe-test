@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Generate elements_gen.go. There are two sections of code which need to be generated. The selToElement function and the attribute accessor methods.
@@ -293,7 +293,7 @@ func main() ***REMOVED***
 	fs := token.NewFileSet()
 	parsedFile, parseErr := parser.ParseFile(fs, "elements.go", nil, 0)
 	if parseErr != nil ***REMOVED***
-		log.WithError(parseErr).Fatal("Could not parse elements.go")
+		logrus.WithError(parseErr).Fatal("Could not parse elements.go")
 	***REMOVED***
 
 	// Initialise the AstInspectState
@@ -326,26 +326,26 @@ func main() ***REMOVED***
 		struct***REMOVED*** String, Url, Enum, Bool, GojaEnum, Int, Const TemplateType ***REMOVED******REMOVED***stringTemplate, urlTemplate, enumTemplate, boolTemplate, nullableEnumTemplate, intTemplate, constTemplate***REMOVED***,
 	***REMOVED***)
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Unable to execute template")
+		logrus.WithError(err).Fatal("Unable to execute template")
 	***REMOVED***
 
 	src, err := format.Source(buf.Bytes())
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("format.Source on generated code failed")
+		logrus.WithError(err).Fatal("format.Source on generated code failed")
 	***REMOVED***
 
 	f, err := os.Create("elements_gen.go")
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Unable to create the file 'elements_gen.go'")
+		logrus.WithError(err).Fatal("Unable to create the file 'elements_gen.go'")
 	***REMOVED***
 
 	if _, err = f.Write(src); err != nil ***REMOVED***
-		log.WithError(err).Fatal("Unable to write to 'elements_gen.go'")
+		logrus.WithError(err).Fatal("Unable to write to 'elements_gen.go'")
 	***REMOVED***
 
 	err = f.Close()
 	if err != nil ***REMOVED***
-		log.WithError(err).Fatal("Unable to close 'elements_gen.go'")
+		logrus.WithError(err).Fatal("Unable to close 'elements_gen.go'")
 	***REMOVED***
 ***REMOVED***
 

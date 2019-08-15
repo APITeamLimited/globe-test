@@ -27,7 +27,7 @@ import (
 
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
-	"github.com/spf13/afero"
+	"github.com/loadimpact/k6/loader"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -56,10 +56,10 @@ func TestBuildK6RequestObject(t *testing.T) ***REMOVED***
 	***REMOVED***
 	v, err := buildK6RequestObject(req)
 	assert.NoError(t, err)
-	_, err = js.New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data:     []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	_, err = js.New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+		Data: []byte(fmt.Sprintf("export default function() ***REMOVED*** res = http.batch([%v]); ***REMOVED***", v)),
+	***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	assert.NoError(t, err)
 ***REMOVED***
 

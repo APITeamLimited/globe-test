@@ -31,23 +31,20 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
-	"net/http/httputil"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	ntlmssp "github.com/Azure/go-ntlmssp"
-	digest "github.com/Soontao/goHttpDigestClient"
+	"github.com/andybalholm/brotli"
+	"github.com/klauspost/compress/zstd"
+	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
 )
-
-const compressionHeaderOverwriteMessage = "Both compression and the `%s` header were specified " +
-	"in the %s request for '%s', the custom header has precedence and won't be overwritten. " +
-	"This will likely result in invalid data being sent to the server."
 
 // HTTPRequestCookie is a representation of a cookie used for request objects
 type HTTPRequestCookie struct ***REMOVED***
@@ -86,7 +83,11 @@ const (
 	CompressionTypeGzip CompressionType = iota
 	// CompressionTypeDeflate compresses through flate
 	CompressionTypeDeflate
-	// TODO: add compress(lzw), brotli maybe bzip2 and others listed at
+	// CompressionTypeZstd compresses through zstd
+	CompressionTypeZstd
+	// CompressionTypeBr compresses through brotli
+	CompressionTypeBr
+	// TODO: add compress(lzw), maybe bzip2 and others listed at
 	// https://en.wikipedia.org/wiki/HTTP_compression#Content-Encoding_tokens
 )
 
@@ -115,6 +116,27 @@ type ParsedHTTPRequest struct ***REMOVED***
 	Tags         map[string]string
 ***REMOVED***
 
+// Matches non-compliant io.Closer implementations (e.g. zstd.Decoder)
+type ncloser interface ***REMOVED***
+	Close()
+***REMOVED***
+
+type readCloser struct ***REMOVED***
+	io.Reader
+***REMOVED***
+
+// Close readers with differing Close() implementations
+func (r readCloser) Close() error ***REMOVED***
+	var err error
+	switch v := r.Reader.(type) ***REMOVED***
+	case io.Closer:
+		err = v.Close()
+	case ncloser:
+		v.Close()
+	***REMOVED***
+	return err
+***REMOVED***
+
 func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRequestCookie ***REMOVED***
 	var result = make(map[string][]*HTTPRequestCookie, len(cookies))
 	for _, cookie := range cookies ***REMOVED***
@@ -124,7 +146,7 @@ func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRe
 	return result
 ***REMOVED***
 
-func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64, string, error) ***REMOVED***
+func compressBody(algos []CompressionType, body io.ReadCloser) (*bytes.Buffer, string, error) ***REMOVED***
 	var contentEncoding string
 	var prevBuf io.Reader = body
 	var buf *bytes.Buffer
@@ -144,27 +166,173 @@ func compressBody(algos []CompressionType, body io.ReadCloser) (io.Reader, int64
 			w = gzip.NewWriter(buf)
 		case CompressionTypeDeflate:
 			w = zlib.NewWriter(buf)
+		case CompressionTypeZstd:
+			w, _ = zstd.NewWriter(buf)
+		case CompressionTypeBr:
+			w = brotli.NewWriter(buf)
 		default:
-			return nil, 0, "", fmt.Errorf("unknown compressionType %s", compressionType)
+			return nil, "", fmt.Errorf("unknown compressionType %s", compressionType)
 		***REMOVED***
 		// we don't close in defer because zlib will write it's checksum again if it closes twice :(
 		var _, err = io.Copy(w, prevBuf)
 		if err != nil ***REMOVED***
 			_ = w.Close()
-			return nil, 0, "", err
+			return nil, "", err
 		***REMOVED***
 
 		if err = w.Close(); err != nil ***REMOVED***
-			return nil, 0, "", err
+			return nil, "", err
 		***REMOVED***
 	***REMOVED***
 
-	return buf, int64(buf.Len()), contentEncoding, body.Close()
+	return buf, contentEncoding, body.Close()
+***REMOVED***
+
+//nolint:gochecknoglobals
+var decompressionErrors = [...]error***REMOVED***
+	zlib.ErrChecksum, zlib.ErrDictionary, zlib.ErrHeader,
+	gzip.ErrChecksum, gzip.ErrHeader,
+	//TODO: handle brotli errors - currently unexported
+	zstd.ErrReservedBlockType, zstd.ErrCompressedSizeTooBig, zstd.ErrBlockTooSmall, zstd.ErrMagicMismatch,
+	zstd.ErrWindowSizeExceeded, zstd.ErrWindowSizeTooSmall, zstd.ErrDecoderSizeExceeded, zstd.ErrUnknownDictionary,
+	zstd.ErrFrameSizeExceeded, zstd.ErrCRCMismatch, zstd.ErrDecoderClosed,
+***REMOVED***
+
+func newDecompressionError(originalErr error) K6Error ***REMOVED***
+	return NewK6Error(
+		responseDecompressionErrorCode,
+		fmt.Sprintf("error decompressing response body (%s)", originalErr.Error()),
+		originalErr,
+	)
+***REMOVED***
+
+func wrapDecompressionError(err error) error ***REMOVED***
+	if err == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	// TODO: something more optimized? for example, we won't get zstd errors if
+	// we don't use it... maybe the code that builds the decompression readers
+	// could also add an appropriate error-wrapper layer?
+	for _, decErr := range decompressionErrors ***REMOVED***
+		if err == decErr ***REMOVED***
+			return newDecompressionError(err)
+		***REMOVED***
+	***REMOVED***
+	if strings.HasPrefix(err.Error(), "brotli: ") ***REMOVED*** //TODO: submit an upstream patch and fix...
+		return newDecompressionError(err)
+	***REMOVED***
+	return err
+***REMOVED***
+
+func readResponseBody(
+	state *lib.State, respType ResponseType, resp *http.Response, respErr error,
+) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+
+	if resp == nil || respErr != nil ***REMOVED***
+		return nil, respErr
+	***REMOVED***
+
+	if respType == ResponseTypeNone ***REMOVED***
+		_, err := io.Copy(ioutil.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if err != nil ***REMOVED***
+			respErr = err
+		***REMOVED***
+		return nil, respErr
+	***REMOVED***
+
+	rc := &readCloser***REMOVED***resp.Body***REMOVED***
+	// Ensure that the entire response body is read and closed, e.g. in case of decoding errors
+	defer func(respBody io.ReadCloser) ***REMOVED***
+		_, _ = io.Copy(ioutil.Discard, respBody)
+		_ = respBody.Close()
+	***REMOVED***(resp.Body)
+
+	// Transparently decompress the body if it's has a content-encoding we
+	// support. If not, simply return it as it is.
+	contentEncoding := strings.TrimSpace(resp.Header.Get("Content-Encoding"))
+	//TODO: support stacked compressions, e.g. `deflate, gzip`
+	if compression, err := CompressionTypeString(contentEncoding); err == nil ***REMOVED***
+		var decoder io.Reader
+		var err error
+		switch compression ***REMOVED***
+		case CompressionTypeDeflate:
+			decoder, err = zlib.NewReader(resp.Body)
+		case CompressionTypeGzip:
+			decoder, err = gzip.NewReader(resp.Body)
+		case CompressionTypeZstd:
+			decoder, err = zstd.NewReader(resp.Body)
+		case CompressionTypeBr:
+			decoder = brotli.NewReader(resp.Body)
+		default:
+			// We have not implemented a compression ... :(
+			err = fmt.Errorf(
+				"unsupported compression type %s - this is a bug in k6, please report it",
+				compression,
+			)
+		***REMOVED***
+		if err != nil ***REMOVED***
+			return nil, newDecompressionError(err)
+		***REMOVED***
+		rc = &readCloser***REMOVED***decoder***REMOVED***
+	***REMOVED***
+
+	buf := state.BPool.Get()
+	defer state.BPool.Put(buf)
+	buf.Reset()
+	_, err := io.Copy(buf, rc.Reader)
+	if err != nil ***REMOVED***
+		respErr = wrapDecompressionError(err)
+	***REMOVED***
+
+	err = rc.Close()
+	if err != nil && respErr == nil ***REMOVED*** // Don't overwrite previous errors
+		respErr = wrapDecompressionError(err)
+	***REMOVED***
+
+	var result interface***REMOVED******REMOVED***
+	// Binary or string
+	switch respType ***REMOVED***
+	case ResponseTypeText:
+		result = buf.String()
+	case ResponseTypeBinary:
+		// Copy the data to a new slice before we return the buffer to the pool,
+		// because buf.Bytes() points to the underlying buffer byte slice.
+		binData := make([]byte, buf.Len())
+		copy(binData, buf.Bytes())
+		result = binData
+	default:
+		respErr = fmt.Errorf("unknown responseType %s", respType)
+	***REMOVED***
+
+	return result, respErr
+***REMOVED***
+
+//TODO: move as a response method? or constructor?
+func updateK6Response(k6Response *Response, finishedReq *finishedRequest) ***REMOVED***
+	k6Response.ErrorCode = int(finishedReq.errorCode)
+	k6Response.Error = finishedReq.errorMsg
+	trail := finishedReq.trail
+
+	if trail.ConnRemoteAddr != nil ***REMOVED***
+		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
+		remotePort, _ := strconv.Atoi(remotePortStr)
+		k6Response.RemoteIP = remoteHost
+		k6Response.RemotePort = remotePort
+	***REMOVED***
+	k6Response.Timings = ResponseTimings***REMOVED***
+		Duration:       stats.D(trail.Duration),
+		Blocked:        stats.D(trail.Blocked),
+		Connecting:     stats.D(trail.Connecting),
+		TLSHandshaking: stats.D(trail.TLSHandshaking),
+		Sending:        stats.D(trail.Sending),
+		Waiting:        stats.D(trail.Waiting),
+		Receiving:      stats.D(trail.Receiving),
+	***REMOVED***
 ***REMOVED***
 
 // MakeRequest makes http request for tor the provided ParsedHTTPRequest
-//TODO break this function up
-//nolint: gocyclo
 func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error) ***REMOVED***
 	state := lib.GetState(ctx)
 
@@ -175,44 +343,52 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		Headers: preq.Req.Header,
 	***REMOVED***
 
-	if contentLength := preq.Req.Header.Get("Content-Length"); contentLength != "" ***REMOVED***
-		length, err := strconv.Atoi(contentLength)
-		if err == nil ***REMOVED***
-			preq.Req.ContentLength = int64(length)
-		***REMOVED***
-		// TODO: maybe do something in the other case ... but no error
-	***REMOVED***
-
 	if preq.Body != nil ***REMOVED***
-		preq.Req.Body = ioutil.NopCloser(preq.Body)
-
 		// TODO: maybe hide this behind of flag in order for this to not happen for big post/puts?
 		// should we set this after the compression? what will be the point ?
 		respReq.Body = preq.Body.String()
 
-		switch ***REMOVED***
-		case len(preq.Compressions) > 0:
-			compressedBody, length, contentEncoding, err := compressBody(preq.Compressions, preq.Req.Body)
+		if len(preq.Compressions) > 0 ***REMOVED***
+			compressedBody, contentEncoding, err := compressBody(preq.Compressions, ioutil.NopCloser(preq.Body))
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+			preq.Body = compressedBody
 
-			preq.Req.Body = ioutil.NopCloser(compressedBody)
-			if preq.Req.Header.Get("Content-Length") == "" ***REMOVED***
-				preq.Req.ContentLength = length
-			***REMOVED*** else ***REMOVED***
-				state.Logger.Warningf(compressionHeaderOverwriteMessage, "Content-Length", preq.Req.Method, preq.Req.URL)
-			***REMOVED***
-			if preq.Req.Header.Get("Content-Encoding") == "" ***REMOVED***
+			currentContentEncoding := preq.Req.Header.Get("Content-Encoding")
+			if currentContentEncoding == "" ***REMOVED***
 				preq.Req.Header.Set("Content-Encoding", contentEncoding)
-			***REMOVED*** else ***REMOVED***
-				state.Logger.Warningf(compressionHeaderOverwriteMessage, "Content-Encoding", preq.Req.Method, preq.Req.URL)
+			***REMOVED*** else if currentContentEncoding != contentEncoding ***REMOVED***
+				state.Logger.Warningf(
+					"There's a mismatch between the desired `compression` the manually set `Content-Encoding` header "+
+						"in the %s request for '%s', the custom header has precedence and won't be overwritten. "+
+						"This may result in invalid data being sent to the server.", preq.Req.Method, preq.Req.URL,
+				)
 			***REMOVED***
-		case preq.Req.Header.Get("Content-Length") == "":
-			preq.Req.ContentLength = int64(preq.Body.Len())
 		***REMOVED***
-		// TODO: print some message in case we have Content-Length set so that we can warn users
-		// that setting it manually can lead to bad requests
+
+		preq.Req.ContentLength = int64(preq.Body.Len()) // This will make Go set the content-length header
+		preq.Req.GetBody = func() (io.ReadCloser, error) ***REMOVED***
+			//  using `Bytes()` should reuse the same buffer and as such help with the memory usage. We
+			//  should not be writing to it any way so there shouldn't be way to corrupt it (?)
+			return ioutil.NopCloser(bytes.NewBuffer(preq.Body.Bytes())), nil
+		***REMOVED***
+		// as per the documentation using GetBody still requires setting the Body.
+		preq.Req.Body, _ = preq.Req.GetBody()
+	***REMOVED***
+
+	if contentLengthHeader := preq.Req.Header.Get("Content-Length"); contentLengthHeader != "" ***REMOVED***
+		// The content-length header was set by the user, delete it (since Go
+		// will set it automatically) and warn if there were differences
+		preq.Req.Header.Del("Content-Length")
+		length, err := strconv.Atoi(contentLengthHeader)
+		if err != nil || preq.Req.ContentLength != int64(length) ***REMOVED***
+			state.Logger.Warnf(
+				"The specified Content-Length header %q in the %s request for %s "+
+					"doesn't match the actual request body length of %d, so it will be ignored!",
+				contentLengthHeader, preq.Req.Method, preq.Req.URL, preq.Req.ContentLength,
+			)
+		***REMOVED***
 	***REMOVED***
 
 	tags := state.Options.RunTags.CloneTags()
@@ -248,12 +424,20 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 	***REMOVED***
 
-	tracerTransport := newTransport(state.Transport, state.Samples, &state.Options, tags)
+	tracerTransport := newTransport(state, tags)
 	var transport http.RoundTripper = tracerTransport
-	if preq.Auth == "ntlm" ***REMOVED***
-		transport = ntlmssp.Negotiator***REMOVED***
-			RoundTripper: tracerTransport,
+
+	if state.Options.HttpDebug.String != "" ***REMOVED***
+		transport = httpDebugTransport***REMOVED***
+			originalTransport: transport,
+			httpDebugOption:   state.Options.HttpDebug.String,
 		***REMOVED***
+	***REMOVED***
+
+	if preq.Auth == "digest" ***REMOVED***
+		transport = digestTransport***REMOVED***originalTransport: transport***REMOVED***
+	***REMOVED*** else if preq.Auth == "ntlm" ***REMOVED***
+		transport = ntlmssp.Negotiator***REMOVED***RoundTripper: transport***REMOVED***
 	***REMOVED***
 
 	resp := &Response***REMOVED***ctx: ctx, URL: preq.URL.URL, Request: *respReq***REMOVED***
@@ -262,7 +446,6 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		Timeout:   preq.Timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			resp.URL = req.URL.String()
-			debugResponse(state, req.Response, "RedirectResponse")
 
 			// Update active jar with cookies found in "Set-Cookie" header(s) of redirect response
 			if preq.ActiveJar != nil ***REMOVED***
@@ -279,127 +462,23 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 					if l > 0 ***REMOVED***
 						url = via[0].URL
 					***REMOVED***
-					state.Logger.WithFields(log.Fields***REMOVED***"url": url.String()***REMOVED***).Warnf(
+					state.Logger.WithFields(logrus.Fields***REMOVED***"url": url.String()***REMOVED***).Warnf(
 						"Stopped after %d redirects and returned the redirection; pass ***REMOVED*** redirects: n ***REMOVED***"+
 							" in request params or set global maxRedirects to silence this", l)
 				***REMOVED***
 				return http.ErrUseLastResponse
 			***REMOVED***
-			debugRequest(state, req, "RedirectRequest")
 			return nil
 		***REMOVED***,
 	***REMOVED***
 
-	// if digest authentication option is passed, make an initial request
-	// to get the authentication params to compute the authorization header
-	if preq.Auth == "digest" ***REMOVED***
-		username := preq.URL.u.User.Username()
-		password, _ := preq.URL.u.User.Password()
+	mreq := preq.Req.WithContext(ctx)
+	res, resErr := client.Do(mreq)
 
-		// removing user from URL to avoid sending the authorization header fo basic auth
-		preq.Req.URL.User = nil
-
-		debugRequest(state, preq.Req, "DigestRequest")
-		res, err := client.Do(preq.Req.WithContext(ctx))
-		debugRequest(state, preq.Req, "DigestResponse")
-		resp.Error = tracerTransport.errorMsg
-		resp.ErrorCode = int(tracerTransport.errorCode)
-		if err != nil ***REMOVED***
-			// Do *not* log errors about the contex being cancelled.
-			select ***REMOVED***
-			case <-ctx.Done():
-			default:
-				state.Logger.WithField("error", res).Warn("Digest request failed")
-			***REMOVED***
-
-			// In case we have an error but resp.Error is not set it means the error is not from
-			// the transport. For all such errors currently we just return them as if throw is true
-			if preq.Throw || resp.Error == "" ***REMOVED***
-				return nil, err
-			***REMOVED***
-
-			return resp, nil
-		***REMOVED***
-
-		if res.StatusCode == http.StatusUnauthorized ***REMOVED***
-			body := ""
-			if b, err := ioutil.ReadAll(res.Body); err == nil ***REMOVED***
-				body = string(b)
-			***REMOVED***
-
-			challenge := digest.GetChallengeFromHeader(&res.Header)
-			challenge.ComputeResponse(preq.Req.Method, preq.Req.URL.RequestURI(), body, username, password)
-			authorization := challenge.ToAuthorizationStr()
-			preq.Req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
-		***REMOVED***
-	***REMOVED***
-
-	debugRequest(state, preq.Req, "Request")
-	res, resErr := client.Do(preq.Req.WithContext(ctx))
-	debugResponse(state, res, "Response")
-	resp.Error = tracerTransport.errorMsg
-	resp.ErrorCode = int(tracerTransport.errorCode)
-	if resErr == nil && res != nil ***REMOVED***
-		compression, err := CompressionTypeString(strings.TrimSpace(res.Header.Get("Content-Encoding")))
-		if err == nil ***REMOVED*** // in case of error we just won't uncompress
-			switch compression ***REMOVED***
-			case CompressionTypeDeflate:
-				res.Body, resErr = zlib.NewReader(res.Body)
-			case CompressionTypeGzip:
-				res.Body, resErr = gzip.NewReader(res.Body)
-			default:
-				// We have not implemented a compression ... :(
-				resErr = fmt.Errorf(
-					"unsupported compressionType %s for uncompression. This is a bug in k6 please report it",
-					compression)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	if resErr == nil && res != nil ***REMOVED***
-		if preq.ResponseType == ResponseTypeNone ***REMOVED***
-			_, err := io.Copy(ioutil.Discard, res.Body)
-			if err != nil && err != io.EOF ***REMOVED***
-				resErr = err
-			***REMOVED***
-			resp.Body = nil
-		***REMOVED*** else ***REMOVED***
-			// Binary or string
-			buf := state.BPool.Get()
-			buf.Reset()
-			defer state.BPool.Put(buf)
-			_, err := io.Copy(buf, res.Body)
-			if err != nil && err != io.EOF ***REMOVED***
-				resErr = err
-			***REMOVED***
-
-			switch preq.ResponseType ***REMOVED***
-			case ResponseTypeText:
-				resp.Body = buf.String()
-			case ResponseTypeBinary:
-				resp.Body = buf.Bytes()
-			default:
-				resErr = fmt.Errorf("unknown responseType %s", preq.ResponseType)
-			***REMOVED***
-		***REMOVED***
-		_ = res.Body.Close()
-	***REMOVED***
-
-	trail := tracerTransport.GetTrail()
-
-	if trail.ConnRemoteAddr != nil ***REMOVED***
-		remoteHost, remotePortStr, _ := net.SplitHostPort(trail.ConnRemoteAddr.String())
-		remotePort, _ := strconv.Atoi(remotePortStr)
-		resp.RemoteIP = remoteHost
-		resp.RemotePort = remotePort
-	***REMOVED***
-	resp.Timings = ResponseTimings***REMOVED***
-		Duration:       stats.D(trail.Duration),
-		Blocked:        stats.D(trail.Blocked),
-		Connecting:     stats.D(trail.Connecting),
-		TLSHandshaking: stats.D(trail.TLSHandshaking),
-		Sending:        stats.D(trail.Sending),
-		Waiting:        stats.D(trail.Waiting),
-		Receiving:      stats.D(trail.Receiving),
+	resp.Body, resErr = readResponseBody(state, preq.ResponseType, res, resErr)
+	finishedReq := tracerTransport.processLastSavedRequest(wrapDecompressionError(resErr))
+	if finishedReq != nil ***REMOVED***
+		updateK6Response(resp, finishedReq)
 	***REMOVED***
 
 	if resErr == nil ***REMOVED***
@@ -446,9 +525,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
 		***REMOVED***
 
-		// In case we have an error but resp.Error is not set it means the error is not from
-		// the transport. For all such errors currently we just return them as if throw is true
-		if preq.Throw || resp.Error == "" ***REMOVED***
+		if preq.Throw ***REMOVED***
 			return nil, resErr
 		***REMOVED***
 	***REMOVED***
@@ -471,17 +548,4 @@ func SetRequestCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[str
 			req.AddCookie(&http.Cookie***REMOVED***Name: c.Name, Value: c.Value***REMOVED***)
 		***REMOVED***
 	***REMOVED***
-***REMOVED***
-
-func debugRequest(state *lib.State, req *http.Request, description string) ***REMOVED***
-	if state.Options.HttpDebug.String != "" ***REMOVED***
-		dump, err := httputil.DumpRequestOut(req, state.Options.HttpDebug.String == "full")
-		if err != nil ***REMOVED***
-			log.Fatal(err)
-		***REMOVED***
-		logDump(description, dump)
-	***REMOVED***
-***REMOVED***
-func logDump(description string, dump []byte) ***REMOVED***
-	fmt.Printf("%s:\n%s\n", description, dump)
 ***REMOVED***

@@ -32,7 +32,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -62,13 +61,10 @@ import (
 
 func TestRunnerNew(t *testing.T) ***REMOVED***
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
-		r, err := New(&lib.SourceData***REMOVED***
-			Filename: "/script.js",
-			Data: []byte(`
+		r, err := getSimpleRunner("/script.js", `
 			let counter = 0;
 			export default function() ***REMOVED*** counter++; ***REMOVED***
-		`),
-		***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`)
 		assert.NoError(t, err)
 
 		t.Run("NewVU", func(t *testing.T) ***REMOVED***
@@ -87,19 +83,13 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := New(&lib.SourceData***REMOVED***
-			Filename: "/script.js",
-			Data:     []byte(`blarg`),
-		***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-		assert.EqualError(t, err, "ReferenceError: blarg is not defined at /script.js:1:1(0)")
+		_, err := getSimpleRunner("/script.js", `blarg`)
+		assert.EqualError(t, err, "ReferenceError: blarg is not defined at file:///script.js:1:1(0)")
 	***REMOVED***)
 ***REMOVED***
 
 func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r1, err := getSimpleRunner("/script.js", `export default function() ***REMOVED******REMOVED***;`)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
 	***REMOVED***
@@ -111,10 +101,7 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerOptions(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data:     []byte(`export default function() ***REMOVED******REMOVED***;`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r1, err := getSimpleRunner("/script.js", `export default function() ***REMOVED******REMOVED***;`)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -154,9 +141,7 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 		variant := variant
 		t.Run(fmt.Sprintf("Variant#%d", i), func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			src := &lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data: []byte(variant + `
+			data := variant + `
 					export default function() ***REMOVED***
 						if (!options) ***REMOVED***
 							throw new Error("Expected options to be defined!");
@@ -164,10 +149,9 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 						if (options.teardownTimeout != __ENV.expectedTeardownTimeout) ***REMOVED***
 							throw new Error("expected teardownTimeout to be " + __ENV.expectedTeardownTimeout + " but it was " + options.teardownTimeout);
 						***REMOVED***
-					***REMOVED***;
-				`),
-			***REMOVED***
-			r, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
+					***REMOVED***;`
+			r, err := getSimpleRunnerWithOptions("/script.js", data,
+				lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
 			newOptions := lib.Options***REMOVED***TeardownTimeout: types.NullDurationFrom(4 * time.Second)***REMOVED***
@@ -186,9 +170,7 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 
 func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	t.Parallel()
-	src := &lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	data := `
 			export let options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
 			export default function() ***REMOVED***
 				if (options.external) ***REMOVED***
@@ -200,12 +182,11 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 				if (options.setupTimeout != __ENV.expectedSetupTimeout) ***REMOVED***
 					throw new Error("expected setupTimeout to be " + __ENV.expectedSetupTimeout + " but it was " + options.setupTimeout);
 				***REMOVED***
-			***REMOVED***;
-		`),
-	***REMOVED***
+			***REMOVED***;`
 
 	expScriptOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
-	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
+	r1, err := getSimpleRunnerWithOptions("/script.js", data,
+		lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
@@ -236,7 +217,7 @@ func TestMetricName(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	script := []byte(tb.Replacer.Replace(`
+	script := tb.Replacer.Replace(`
 		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
 
 		let myCounter = new Counter("not ok name @");
@@ -244,13 +225,9 @@ func TestMetricName(t *testing.T) ***REMOVED***
 		export default function(data) ***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
-	`))
+	`)
 
-	_, err := New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
+	_, err := getSimpleRunner("/script.js", script)
 	require.Error(t, err)
 ***REMOVED***
 
@@ -258,7 +235,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	script := []byte(tb.Replacer.Replace(`
+	script := tb.Replacer.Replace(`
 		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
 
 		export let options = ***REMOVED***
@@ -292,13 +269,9 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 			***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
-	`))
+	`)
 
-	runner, err := New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
+	runner, err := getSimpleRunner("/script.js", script)
 	require.NoError(t, err)
 
 	options := runner.GetOptions()
@@ -336,13 +309,13 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	require.Equal(t, 501, count, "mycounter should be the number of iterations + 1 for the teardown")
 ***REMOVED***
 
-func testSetupDataHelper(t *testing.T, src *lib.SourceData) ***REMOVED***
+func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 	t.Helper()
 	expScriptOptions := lib.Options***REMOVED***
 		SetupTimeout:    types.NullDurationFrom(1 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***
-	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r1, err := getSimpleRunner("/script.js", data) // TODO fix this
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
@@ -363,71 +336,56 @@ func testSetupDataHelper(t *testing.T, src *lib.SourceData) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
-	src := &lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-			export function setup() ***REMOVED***
-				return 42;
-			***REMOVED***
-			export default function(data) ***REMOVED***
-				if (data != 42) ***REMOVED***
-					throw new Error("default: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
-
-			export function teardown(data) ***REMOVED***
-				if (data != 42) ***REMOVED***
-					throw new Error("teardown: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
-		`),
+	testSetupDataHelper(t, `
+	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	export function setup() ***REMOVED***
+		return 42;
 	***REMOVED***
-	testSetupDataHelper(t, src)
+	export default function(data) ***REMOVED***
+		if (data != 42) ***REMOVED***
+			throw new Error("default: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;
+
+	export function teardown(data) ***REMOVED***
+		if (data != 42) ***REMOVED***
+			throw new Error("teardown: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;`)
 ***REMOVED***
 
 func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
-	src := &lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-			export default function(data) ***REMOVED***
-				if (data !== undefined) ***REMOVED***
-					throw new Error("default: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
+	testSetupDataHelper(t, `
+	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	export default function(data) ***REMOVED***
+		if (data !== undefined) ***REMOVED***
+			throw new Error("default: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;
 
-			export function teardown(data) ***REMOVED***
-				if (data !== undefined) ***REMOVED***
-					console.log(data);
-					throw new Error("teardown: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
-		`),
-	***REMOVED***
-	testSetupDataHelper(t, src)
+	export function teardown(data) ***REMOVED***
+		if (data !== undefined) ***REMOVED***
+			console.log(data);
+			throw new Error("teardown: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;`)
 ***REMOVED***
 
 func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
-	src := &lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
-			export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-			export function setup() ***REMOVED*** ***REMOVED***
-			export default function(data) ***REMOVED***
-				if (data !== undefined) ***REMOVED***
-					throw new Error("default: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
+	testSetupDataHelper(t, `
+	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	export function setup() ***REMOVED*** ***REMOVED***
+	export default function(data) ***REMOVED***
+		if (data !== undefined) ***REMOVED***
+			throw new Error("default: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;
 
-			export function teardown(data) ***REMOVED***
-				if (data !== undefined) ***REMOVED***
-					throw new Error("teardown: wrong data: " + JSON.stringify(data))
-				***REMOVED***
-			***REMOVED***;
-		`),
-	***REMOVED***
-	testSetupDataHelper(t, src)
+	export function teardown(data) ***REMOVED***
+		if (data !== undefined) ***REMOVED***
+			throw new Error("teardown: wrong data: " + JSON.stringify(data))
+		***REMOVED***
+	***REMOVED***;`)
 ***REMOVED***
 func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 	t.Run("Modules", func(t *testing.T) ***REMOVED***
@@ -438,12 +396,10 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			"k6/html",
 		***REMOVED***
 		for _, mod := range modules ***REMOVED***
+			mod := mod
 			t.Run(mod, func(t *testing.T) ***REMOVED***
 				t.Run("Source", func(t *testing.T) ***REMOVED***
-					_, err := New(&lib.SourceData***REMOVED***
-						Filename: "/script.js",
-						Data:     []byte(fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod)),
-					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					_, err := getSimpleRunner("/script.js", fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod))
 					assert.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***)
@@ -452,8 +408,8 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 
 	t.Run("Files", func(t *testing.T) ***REMOVED***
 		fs := afero.NewMemMapFs()
-		assert.NoError(t, fs.MkdirAll("/path/to", 0755))
-		assert.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`export default "hi!";`), 0644))
+		require.NoError(t, fs.MkdirAll("/path/to", 0755))
+		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`export default "hi!";`), 0644))
 
 		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
 			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/lib.js"***REMOVED***,
@@ -463,33 +419,26 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			"STDIN-Relative": ***REMOVED***"-", "./path/to/lib.js"***REMOVED***,
 		***REMOVED***
 		for name, data := range testdata ***REMOVED***
+			name, data := name, data
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				r1, err := New(&lib.SourceData***REMOVED***
-					Filename: data.filename,
-					Data: []byte(fmt.Sprintf(`
+				r1, err := getSimpleRunnerWithFileFs(data.filename, fmt.Sprintf(`
 					import hi from "%s";
 					export default function() ***REMOVED***
 						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
-					***REMOVED***`, data.path)),
-				***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
+					***REMOVED***`, data.path), fs)
+				require.NoError(t, err)
 
 				r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
+				require.NoError(t, err)
 
 				testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 				for name, r := range testdata ***REMOVED***
+					r := r
 					t.Run(name, func(t *testing.T) ***REMOVED***
 						vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
-						if !assert.NoError(t, err) ***REMOVED***
-							return
-						***REMOVED***
+						require.NoError(t, err)
 						err = vu.RunOnce(context.Background())
-						assert.NoError(t, err)
+						require.NoError(t, err)
 					***REMOVED***)
 				***REMOVED***
 			***REMOVED***)
@@ -498,16 +447,11 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 		export let options = ***REMOVED*** vus: 10 ***REMOVED***;
 		export default function() ***REMOVED*** fn(); ***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+		`)
+	require.NoError(t, err)
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
@@ -547,16 +491,13 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	//TODO: figure out why interrupt sometimes fails... data race in goja?
-	if runtime.GOOS == "windows" ***REMOVED***
+	if isWindows ***REMOVED***
 		t.Skip()
 	***REMOVED***
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`)
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
@@ -586,9 +527,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 		import ***REMOVED*** group ***REMOVED*** from "k6";
 		export default function() ***REMOVED***
 			fnOuter();
@@ -599,16 +538,11 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***);
 		***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+		`)
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -649,23 +583,16 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 		import ***REMOVED*** group ***REMOVED*** from "k6";
 		import ***REMOVED*** Trend ***REMOVED*** from "k6/metrics";
 		let myMetric = new Trend("my_metric");
 		export default function() ***REMOVED*** myMetric.add(5); ***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+		`)
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -723,23 +650,15 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			r1, err := New(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data: []byte(`
+			r1, err := getSimpleRunner("/script.js", `
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
-				`),
-			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+				`)
+			require.NoError(t, err)
 			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
 
 			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-
+			require.NoError(t, err)
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
 				t.Run(name, func(t *testing.T) ***REMOVED***
@@ -761,25 +680,21 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner("/script.js", `
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
-				`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+				`)
+	require.NoError(t, err)
 
-	_, cidr, err := net.ParseCIDR("10.0.0.0/8")
+	cidr, err := lib.ParseCIDR("10.0.0.0/8")
+
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
-		BlacklistIPs: []*net.IPNet***REMOVED***cidr***REMOVED***,
+		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
@@ -800,13 +715,47 @@ func TestVUIntegrationBlacklist(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner("/script.js", `
+					import http from "k6/http";
+
+					export let options = ***REMOVED***
+						throw: true,
+						blacklistIPs: ["10.0.0.0/8"],
+					***REMOVED***;
+
+					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+				`)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			err = vu.RunOnce(context.Background())
+			assert.EqualError(t, err, "GoError: Get http://10.1.2.3/: IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r1, err := getSimpleRunner("/script.js",
+		tb.Replacer.Replace(`
 					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
 					import http from "k6/http";
 					export default function() ***REMOVED***
@@ -815,8 +764,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 							"is correct IP": (r) => r.remote_ip === "127.0.0.1"
 						***REMOVED***) || fail("failed to override dns");
 					***REMOVED***
-				`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+				`))
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -888,13 +836,10 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			r1, err := New(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data: []byte(`
+			r1, err := getSimpleRunner("/script.js", `
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
-				`),
-			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+				`)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -927,17 +872,14 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 			import http from "k6/http";
 			export default function() ***REMOVED***
 				let res = http.request("GET", "https://http2.akamai.com/demo");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 				if (res.proto != "HTTP/2.0") ***REMOVED*** throw new Error("wrong proto: " + res.proto) ***REMOVED***
 			***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -977,12 +919,9 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
-	r, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r, err := getSimpleRunner("/script.js", `
 			export default function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
-		`),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`)
 	assert.NoError(t, err)
 
 	vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
@@ -996,9 +935,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 			import http from "k6/http";
 			export default function() ***REMOVED***
 				let url = "HTTPBIN_URL";
@@ -1014,8 +951,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 					throw new Error("wrong cookies: " + res.body);
 				***REMOVED***
 			***REMOVED***
-		`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`))
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1049,9 +985,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 			import http from "k6/http";
 			export default function() ***REMOVED***
 				let url = "HTTPBIN_URL";
@@ -1071,8 +1005,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-		`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`))
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1106,14 +1039,11 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunner("/script.js", `
 			export default function() ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
-		),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1202,13 +1132,10 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***
 	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(fmt.Sprintf(`
+	r1, err := getSimpleRunner("/script.js", fmt.Sprintf(`
 			import http from "k6/http";
 			export default function() ***REMOVED*** http.get("https://%s")***REMOVED***
-		`, listener.Addr().String())),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`, listener.Addr().String()))
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1285,17 +1212,14 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	_, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
 					import http from "k6/http";
 					let res = http.get("HTTPBIN_URL/");
 					export default function() ***REMOVED***
 						console.log(test);
 					***REMOVED***
-				`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+				`))
 	if assert.Error(t, err) ***REMOVED***
 		assert.Equal(
 			t,
@@ -1368,11 +1292,9 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	for _, test := range table ***REMOVED***
+		test := test
 		t.Run(test[0], func(t *testing.T) ***REMOVED***
-			_, err := New(&lib.SourceData***REMOVED***
-				Filename: "/script.js",
-				Data:     []byte(tb.Replacer.Replace(test[1])),
-			***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(test[1]))
 			if assert.Error(t, err) ***REMOVED***
 				assert.Equal(
 					t,
@@ -1388,10 +1310,7 @@ func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	fs := afero.NewMemMapFs()
-	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	data := tb.Replacer.Replace(`
 			let fput = open("/home/somebody/test.json");
 			export let options = ***REMOVED*** setupTimeout: "10s", teardownTimeout: "10s" ***REMOVED***;
 			export function setup() ***REMOVED***
@@ -1402,8 +1321,10 @@ func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
 					throw new Error("incorrect answer " + data);
 				***REMOVED***
 			***REMOVED***
-		`)),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`)
+	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
+	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), os.ModePerm))
+	r1, err := getSimpleRunnerWithFileFs("/script.js", data, fs)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)
@@ -1434,42 +1355,27 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r1, err := getSimpleRunnerWithFileFs("/script.js", tb.Replacer.Replace(`
 			let fput = open("/non/existent");
 			export default function(data) ***REMOVED***
 			***REMOVED***
-		`)),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`), fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
+	arc.Filesystems = map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs()***REMOVED***
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
-	require.NoError(t, err)
-
-	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
-	for name, r := range runners ***REMOVED***
-		t.Run(name, func(t *testing.T) ***REMOVED***
-			ch := make(chan stats.SampleContainer, 100)
-			_, err := r.NewVU(ch)
-			if name == "Source" ***REMOVED***
-				require.NoError(t, err)
-			***REMOVED*** else ***REMOVED***
-				require.Error(t, err)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
+	// we do want this to error here as this is where we find out that a given file is not in the
+	// archive
+	require.Error(t, err)
+	require.Nil(t, r2)
 ***REMOVED***
 
 func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 			import http from "k6/http";
 			import ws from "k6/ws";
 			import ***REMOVED*** group ***REMOVED*** from "k6";
@@ -1507,8 +1413,7 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 					***REMOVED***
 				***REMOVED***);
 			***REMOVED***
-		`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`))
 	require.NoError(t, err)
 
 	ch := make(chan stats.SampleContainer, 1000)

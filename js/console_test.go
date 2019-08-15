@@ -24,19 +24,21 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"testing"
 
-	null "gopkg.in/guregu/null.v3"
-
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	null "gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
+	"github.com/loadimpact/k6/stats"
 )
 
 func TestConsoleContext(t *testing.T) ***REMOVED***
@@ -68,35 +70,56 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 		assert.Equal(t, "b", entry.Message)
 	***REMOVED***
 ***REMOVED***
+func getSimpleRunner(path, data string) (*Runner, error) ***REMOVED***
+	return getSimpleRunnerWithFileFs(path, data, afero.NewMemMapFs())
+***REMOVED***
 
+func getSimpleRunnerWithOptions(path, data string, options lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	return New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
+		Data: []byte(data),
+	***REMOVED***, map[string]afero.Fs***REMOVED***
+		"file":  afero.NewMemMapFs(),
+		"https": afero.NewMemMapFs()***REMOVED***,
+		options)
+***REMOVED***
+
+func getSimpleRunnerWithFileFs(path, data string, fileFs afero.Fs) (*Runner, error) ***REMOVED***
+	return New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
+		Data: []byte(data),
+	***REMOVED***, map[string]afero.Fs***REMOVED***
+		"file":  fileFs,
+		"https": afero.NewMemMapFs()***REMOVED***,
+		lib.RuntimeOptions***REMOVED******REMOVED***)
+***REMOVED***
 func TestConsole(t *testing.T) ***REMOVED***
-	levels := map[string]log.Level***REMOVED***
-		"log":   log.InfoLevel,
-		"debug": log.DebugLevel,
-		"info":  log.InfoLevel,
-		"warn":  log.WarnLevel,
-		"error": log.ErrorLevel,
+	levels := map[string]logrus.Level***REMOVED***
+		"log":   logrus.InfoLevel,
+		"debug": logrus.DebugLevel,
+		"info":  logrus.InfoLevel,
+		"warn":  logrus.WarnLevel,
+		"error": logrus.ErrorLevel,
 	***REMOVED***
 	argsets := map[string]struct ***REMOVED***
 		Message string
-		Data    log.Fields
+		Data    logrus.Fields
 	***REMOVED******REMOVED***
 		`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+		`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
+		`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
 		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
+		name, level := name, level
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for args, result := range argsets ***REMOVED***
+				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
-					r, err := New(&lib.SourceData***REMOVED***
-						Filename: "/script",
-						Data: []byte(fmt.Sprintf(
-							`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
-							name, args,
-						)),
-					***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					r, err := getSimpleRunner("/script.js", fmt.Sprintf(
+						`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+						name, args,
+					))
 					assert.NoError(t, err)
 
 					samples := make(chan stats.SampleContainer, 100)
@@ -104,7 +127,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 					assert.NoError(t, err)
 
 					logger, hook := logtest.NewNullLogger()
-					logger.Level = log.DebugLevel
+					logger.Level = logrus.DebugLevel
 					vu.Console.Logger = logger
 
 					err = vu.RunOnce(context.Background())
@@ -117,7 +140,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 
 						data := result.Data
 						if data == nil ***REMOVED***
-							data = make(log.Fields)
+							data = make(logrus.Fields)
 						***REMOVED***
 						assert.Equal(t, data, entry.Data)
 					***REMOVED***
@@ -129,20 +152,20 @@ func TestConsole(t *testing.T) ***REMOVED***
 
 func TestFileConsole(t *testing.T) ***REMOVED***
 	var (
-		levels = map[string]log.Level***REMOVED***
-			"log":   log.InfoLevel,
-			"debug": log.DebugLevel,
-			"info":  log.InfoLevel,
-			"warn":  log.WarnLevel,
-			"error": log.ErrorLevel,
+		levels = map[string]logrus.Level***REMOVED***
+			"log":   logrus.InfoLevel,
+			"debug": logrus.DebugLevel,
+			"info":  logrus.InfoLevel,
+			"warn":  logrus.WarnLevel,
+			"error": logrus.ErrorLevel,
 		***REMOVED***
 		argsets = map[string]struct ***REMOVED***
 			Message string
-			Data    log.Fields
+			Data    logrus.Fields
 		***REMOVED******REMOVED***
 			`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-			`"string","a","b"`: ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-			`"string",1,2`:     ***REMOVED***Message: "string", Data: log.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+			`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
+			`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
 			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
 		***REMOVED***
 		preExisting = map[string]bool***REMOVED***
@@ -179,13 +202,11 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								***REMOVED***
 
 							***REMOVED***
-							r, err := New(&lib.SourceData***REMOVED***
-								Filename: "/script",
-								Data: []byte(fmt.Sprintf(
+							r, err := getSimpleRunner("/script",
+								fmt.Sprintf(
 									`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,
-								)),
-							***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+								))
 							assert.NoError(t, err)
 
 							err = r.SetOptions(lib.Options***REMOVED***
@@ -197,7 +218,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							vu, err := r.newVU(samples)
 							assert.NoError(t, err)
 
-							vu.Console.Logger.Level = log.DebugLevel
+							vu.Console.Logger.Level = logrus.DebugLevel
 							hook := logtest.NewLocal(vu.Console.Logger)
 
 							err = vu.RunOnce(context.Background())
@@ -214,7 +235,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 
 								data := result.Data
 								if data == nil ***REMOVED***
-									data = make(log.Fields)
+									data = make(logrus.Fields)
 								***REMOVED***
 								assert.Equal(t, data, entry.Data)
 

@@ -27,16 +27,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/netext"
-	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/pkg/errors"
-
+	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
-	log "github.com/sirupsen/logrus"
 )
 
 // TestName is the default Load Impact Cloud test name
@@ -99,7 +99,7 @@ func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error 
 
 // New creates a new cloud collector
 func New(
-	conf Config, src *lib.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
+	conf Config, src *loader.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
 ) (*Collector, error) ***REMOVED***
 	if err := MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
 		return nil, err
@@ -110,7 +110,7 @@ func New(
 	***REMOVED***
 
 	if !conf.Name.Valid || conf.Name.String == "" ***REMOVED***
-		conf.Name = null.StringFrom(filepath.Base(src.Filename))
+		conf.Name = null.StringFrom(filepath.Base(src.URL.Path))
 	***REMOVED***
 	if conf.Name.String == "-" ***REMOVED***
 		conf.Name = null.StringFrom(TestName)
@@ -127,7 +127,7 @@ func New(
 	***REMOVED***
 
 	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
-		log.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
+		logrus.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
 		conf.Token = conf.DeprecatedToken
 	***REMOVED***
 
@@ -170,13 +170,13 @@ func (c *Collector) Init() error ***REMOVED***
 	c.referenceID = response.ReferenceID
 
 	if response.ConfigOverride != nil ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
+		logrus.WithFields(logrus.Fields***REMOVED***
 			"override": response.ConfigOverride,
 		***REMOVED***).Debug("Cloud: overriding config options")
 		c.config = c.config.Apply(*response.ConfigOverride)
 	***REMOVED***
 
-	log.WithFields(log.Fields***REMOVED***
+	logrus.WithFields(logrus.Fields***REMOVED***
 		"name":        c.config.Name,
 		"projectId":   c.config.ProjectID,
 		"duration":    c.duration,
@@ -399,7 +399,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 			aggrData.CalcAverages()
 
 			if aggrData.Count > 0 ***REMOVED***
-				log.WithFields(log.Fields***REMOVED***
+				logrus.WithFields(logrus.Fields***REMOVED***
 					"http_samples": aggrData.Count,
 				***REMOVED***).Debug("Aggregated HTTP metrics")
 				newSamples = append(newSamples, &Sample***REMOVED***
@@ -449,7 +449,7 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	c.bufferSamples = nil
 	c.bufferMutex.Unlock()
 
-	log.WithFields(log.Fields***REMOVED***
+	logrus.WithFields(logrus.Fields***REMOVED***
 		"samples": len(buffer),
 	***REMOVED***).Debug("Pushing metrics to cloud")
 
@@ -460,7 +460,7 @@ func (c *Collector) pushMetrics() ***REMOVED***
 		***REMOVED***
 		err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer[:size])
 		if err != nil ***REMOVED***
-			log.WithFields(log.Fields***REMOVED***
+			logrus.WithFields(logrus.Fields***REMOVED***
 				"error": err,
 			***REMOVED***).Warn("Failed to send metrics to cloud")
 		***REMOVED***
@@ -485,7 +485,7 @@ func (c *Collector) testFinished() ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	log.WithFields(log.Fields***REMOVED***
+	logrus.WithFields(logrus.Fields***REMOVED***
 		"ref":     c.referenceID,
 		"tainted": testTainted,
 	***REMOVED***).Debug("Sending test finished")
@@ -497,7 +497,7 @@ func (c *Collector) testFinished() ***REMOVED***
 
 	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted, runStatus)
 	if err != nil ***REMOVED***
-		log.WithFields(log.Fields***REMOVED***
+		logrus.WithFields(logrus.Fields***REMOVED***
 			"error": err,
 		***REMOVED***).Warn("Failed to send test finished to cloud")
 	***REMOVED***

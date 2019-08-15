@@ -21,6 +21,7 @@
 package js
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"testing"
@@ -42,32 +43,50 @@ func newDevNullSampleChannel() chan stats.SampleContainer ***REMOVED***
 ***REMOVED***
 
 func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
-	fs := afero.NewMemMapFs()
-	require.NoError(t, afero.WriteFile(fs, "/C.js", []byte(`
-		var globalVar;
-		if (!globalVar) ***REMOVED***
-			globalVar = Math.random();
-		***REMOVED***
-		export function C() ***REMOVED***
-			return globalVar;
-		***REMOVED***
-	`), os.ModePerm))
+	var testCases = map[string]string***REMOVED***
+		"module.exports": `
+			var globalVar;
+			if (!globalVar) ***REMOVED***
+				globalVar = Math.random();
+			***REMOVED***
+			function C() ***REMOVED***
+				return globalVar;
+			***REMOVED***
+			module.exports = ***REMOVED***
+				C: C,
+			***REMOVED***
+		`,
+		"direct export": `
 
-	require.NoError(t, afero.WriteFile(fs, "/A.js", []byte(`
+			var globalVar;
+			if (!globalVar) ***REMOVED***
+				globalVar = Math.random();
+			***REMOVED***
+			export function C() ***REMOVED***
+				return globalVar;
+			***REMOVED***
+		`,
+	***REMOVED***
+	for name, data := range testCases ***REMOVED***
+		cData := data
+		t.Run(name, func(t *testing.T) ***REMOVED***
+
+			fs := afero.NewMemMapFs()
+			require.NoError(t, afero.WriteFile(fs, "/C.js", []byte(cData), os.ModePerm))
+
+			require.NoError(t, afero.WriteFile(fs, "/A.js", []byte(`
 		import ***REMOVED*** C ***REMOVED*** from "./C.js";
 		export function A() ***REMOVED***
 			return C();
 		***REMOVED***
 	`), os.ModePerm))
-	require.NoError(t, afero.WriteFile(fs, "/B.js", []byte(`
-		import ***REMOVED*** C ***REMOVED*** from "./C.js";
+			require.NoError(t, afero.WriteFile(fs, "/B.js", []byte(`
+		var  c = require("./C.js");
 		export function B() ***REMOVED***
-			return C();
+			return c.C();
 		***REMOVED***
 	`), os.ModePerm))
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+			r1, err := getSimpleRunnerWithFileFs("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 			import ***REMOVED*** B ***REMOVED*** from "./B.js";
 
@@ -79,12 +98,55 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 					throw new Error("A() != B()    (" + A() + ") != (" + B() + ")");
 				***REMOVED***
 			***REMOVED***
-		`),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`, fs)
+			require.NoError(t, err)
+
+			arc := r1.MakeArchive()
+			r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+			require.NoError(t, err)
+
+			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+			for name, r := range runners ***REMOVED***
+				r := r
+				t.Run(name, func(t *testing.T) ***REMOVED***
+					ch := newDevNullSampleChannel()
+					defer close(ch)
+					vu, err := r.NewVU(ch)
+					require.NoError(t, err)
+					err = vu.RunOnce(context.Background())
+					require.NoError(t, err)
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/A.js", []byte(`
+		export function A() ***REMOVED***
+			return "A";
+		***REMOVED***
+		export function B() ***REMOVED***
+			return exports.A() + "B";
+		***REMOVED***
+	`), os.ModePerm))
+	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+			import ***REMOVED*** A, B ***REMOVED*** from "./A.js";
+
+			export default function(data) ***REMOVED***
+				if (A() != "A") ***REMOVED***
+					throw new Error("wrong value of A() " + A());
+				***REMOVED***
+
+				if (B() != "AB") ***REMOVED***
+					throw new Error("wrong value of B() " + B());
+				***REMOVED***
+			***REMOVED***
+		`, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
@@ -115,9 +177,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 			return http.get("HTTPBIN_URL/get");
 		***REMOVED***
 	`)), os.ModePerm))
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunnerWithFileFs("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 
 			export default function(data) ***REMOVED***
@@ -126,13 +186,11 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 					throw new Error("wrong status "+ resp.status);
 				***REMOVED***
 			***REMOVED***
-		`),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`, fs)
 	require.NoError(t, err)
 
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Hosts: tb.Dialer.Hosts***REMOVED***))
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
@@ -159,9 +217,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 			return globalVar;
 		***REMOVED***
 	`), os.ModePerm))
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(`
+	r1, err := getSimpleRunnerWithFileFs("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 
 			export default function(data) ***REMOVED***
@@ -172,12 +228,10 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 					throw new Error("wrong value of a " + a);
 				***REMOVED***
 			***REMOVED***
-		`),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
@@ -231,14 +285,10 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 	`), os.ModePerm))
 	data, err := afero.ReadFile(fs, "/main.js")
 	require.NoError(t, err)
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/main.js",
-		Data:     data,
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r1, err := getSimpleRunnerWithFileFs("/main.js", string(data), fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
@@ -281,9 +331,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 			***REMOVED***
 	`), os.ModePerm))
 
-	r1, err := New(&lib.SourceData***REMOVED***
-		Filename: "/main.js",
-		Data: []byte(`
+	r1, err := getSimpleRunnerWithFileFs("/main.js", `
 			import ***REMOVED***foo***REMOVED*** from './a.js';
 			import ***REMOVED***bar***REMOVED*** from './b.js';
 			export default function() ***REMOVED***
@@ -296,12 +344,109 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 					throw new Error("Wrong value of bar() "+ barMessage);
 				***REMOVED***
 			***REMOVED***
-		`),
-	***REMOVED***, fs, lib.RuntimeOptions***REMOVED******REMOVED***)
+		`, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	arc.Files = make(map[string][]byte)
+	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ch := newDevNullSampleChannel()
+			defer close(ch)
+			vu, err := r.NewVU(ch)
+			require.NoError(t, err)
+			err = vu.RunOnce(context.Background())
+			require.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestBrowserified(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	//nolint: lll
+	require.NoError(t, afero.WriteFile(fs, "/browserified.js", []byte(`
+		(function(f)***REMOVED***if(typeof exports==="object"&&typeof module!=="undefined")***REMOVED***module.exports=f()***REMOVED***else if(typeof define==="function"&&define.amd)***REMOVED***define([],f)***REMOVED***else***REMOVED***var g;if(typeof window!=="undefined")***REMOVED***g=window***REMOVED***else if(typeof global!=="undefined")***REMOVED***g=global***REMOVED***else if(typeof self!=="undefined")***REMOVED***g=self***REMOVED***else***REMOVED***g=this***REMOVED***g.npmlibs = f()***REMOVED******REMOVED***)(function()***REMOVED***var define,module,exports;return (function()***REMOVED***function r(e,n,t)***REMOVED***function o(i,f)***REMOVED***if(!n[i])***REMOVED***if(!e[i])***REMOVED***var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a***REMOVED***var p=n[i]=***REMOVED***exports:***REMOVED******REMOVED******REMOVED***;e[i][0].call(p.exports,function(r)***REMOVED***var n=e[i][1][r];return o(n||r)***REMOVED***,p,p.exports,r,e,n,t)***REMOVED***return n[i].exports***REMOVED***for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o***REMOVED***return r***REMOVED***)()(***REMOVED***1:[function(require,module,exports)***REMOVED***
+		module.exports.A = function () ***REMOVED***
+			return "a";
+		***REMOVED***
+
+		***REMOVED***,***REMOVED******REMOVED***],2:[function(require,module,exports)***REMOVED***
+		exports.B = function() ***REMOVED***
+		return "b";
+		***REMOVED***
+
+		***REMOVED***,***REMOVED******REMOVED***],3:[function(require,module,exports)***REMOVED***
+		exports.alpha = require('./a.js');
+		exports.bravo = require('./b.js');
+
+		***REMOVED***,***REMOVED***"./a.js":1,"./b.js":2***REMOVED***]***REMOVED***,***REMOVED******REMOVED***,[3])(3)
+		***REMOVED***);
+	`), os.ModePerm))
+
+	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+			import ***REMOVED***alpha, bravo ***REMOVED*** from "./browserified.js";
+
+			export default function(data) ***REMOVED***
+				if (alpha.A === undefined) ***REMOVED***
+					throw new Error("alpha.A is undefined");
+				***REMOVED***
+				if (alpha.A() != "a") ***REMOVED***
+					throw new Error("alpha.A() != 'a'    (" + alpha.A() + ") != 'a'");
+				***REMOVED***
+
+				if (bravo.B === undefined) ***REMOVED***
+					throw new Error("bravo.B is undefined");
+				***REMOVED***
+				if (bravo.B() != "b") ***REMOVED***
+					throw new Error("bravo.B() != 'b'    (" + bravo.B() + ") != 'b'");
+				***REMOVED***
+			***REMOVED***
+		`, fs)
+	require.NoError(t, err)
+
+	arc := r1.MakeArchive()
+	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ch := make(chan stats.SampleContainer, 100)
+			defer close(ch)
+			vu, err := r.NewVU(ch)
+			require.NoError(t, err)
+			err = vu.RunOnce(context.Background())
+			require.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	data := `var b;
+			try ***REMOVED***
+				b = eval("require('buffer')");
+			***REMOVED*** catch (err) ***REMOVED***
+				b = "correct";
+			***REMOVED***
+			export default function() ***REMOVED***
+				if (b != "correct") ***REMOVED***
+					throw new Error("wrong b "+ JSON.stringify(b));
+				***REMOVED***
+			***REMOVED***`
+	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), 0644))
+	r1, err := getSimpleRunnerWithFileFs("/script.js", data, fs)
+	require.NoError(t, err)
+
+	arc := r1.MakeArchive()
+	var buf = &bytes.Buffer***REMOVED******REMOVED***
+	require.NoError(t, arc.Write(buf))
+	arc, err = lib.ReadArchive(buf)
+	require.NoError(t, err)
 	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 

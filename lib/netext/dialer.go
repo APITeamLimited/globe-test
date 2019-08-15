@@ -28,6 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 
@@ -40,7 +41,7 @@ type Dialer struct ***REMOVED***
 	net.Dialer
 
 	Resolver  *dnscache.Resolver
-	Blacklist []*net.IPNet
+	Blacklist []*lib.IPNet
 	Hosts     map[string]net.IP
 
 	BytesRead    int64
@@ -58,7 +59,7 @@ func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
 // BlackListedIPError is an error that is returned when a given IP is blacklisted
 type BlackListedIPError struct ***REMOVED***
 	ip  net.IP
-	net *net.IPNet
+	net *lib.IPNet
 ***REMOVED***
 
 func (b BlackListedIPError) Error() string ***REMOVED***
@@ -80,9 +81,9 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 		***REMOVED***
 	***REMOVED***
 
-	for _, net := range d.Blacklist ***REMOVED***
-		if net.Contains(ip) ***REMOVED***
-			return nil, BlackListedIPError***REMOVED***ip: ip, net: net***REMOVED***
+	for _, ipnet := range d.Blacklist ***REMOVED***
+		if (*net.IPNet)(ipnet).Contains(ip) ***REMOVED***
+			return nil, BlackListedIPError***REMOVED***ip: ip, net: ipnet***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	ipStr := ip.String()

@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/url"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -36,10 +37,10 @@ import (
 	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
@@ -52,7 +53,7 @@ func newTestExecutor(
 		runner = &lib.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := scheduler.BuildExecutionConfig(lib.Options***REMOVED***
+	newOpts, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()).Apply(opts))
 	require.NoError(t, err)
@@ -323,7 +324,7 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
-	options, err := scheduler.BuildExecutionConfig(lib.Options***REMOVED***
+	options, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
 	***REMOVED***)
@@ -536,14 +537,10 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		counter.add(6, ***REMOVED*** place: "defaultAfterSleep" ***REMOVED***);
 	***REMOVED***`)
 
-	runner, err := js.New(
-		&lib.SourceData***REMOVED***Filename: "/script.js", Data: script***REMOVED***,
-		afero.NewMemMapFs(),
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
+	runner, err := js.New(&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
-	options, err := scheduler.BuildExecutionConfig(lib.Options***REMOVED***
+	options, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
 		SystemTags:      lib.GetTagSet(lib.DefaultSystemTagList...),

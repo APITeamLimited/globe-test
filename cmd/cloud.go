@@ -32,6 +32,8 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
+	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
 	"github.com/loadimpact/k6/ui/pb"
@@ -40,7 +42,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -58,7 +60,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 	Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 		//TODO: disable in quiet mode?
-		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", Banner)
+		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner)
 
 		progressBar := pb.New(pb.WithConstLeft(" Init"))
 		printBar(progressBar, "Parsing script")
@@ -70,8 +72,8 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		filename := args[0]
-		fs := afero.NewOsFs()
-		src, err := readSource(filename, pwd, fs, os.Stdin)
+		filesystems := loader.CreateFilesystems()
+		src, err := loader.ReadSource(filename, pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -82,7 +84,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		printBar(progressBar, "Getting script options")
-		r, err := newRunner(src, runType, fs, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -92,12 +94,13 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		conf, err := getConsolidatedConfig(fs, Config***REMOVED***Options: cliOpts***REMOVED***, r)
+		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
-		if cerr := validateConfig(conf); cerr != nil ***REMOVED***
+		derivedConf, cerr := deriveAndValidateConfig(conf)
+		if cerr != nil ***REMOVED***
 			return ExitCode***REMOVED***cerr, invalidConfigErrorCode***REMOVED***
 		***REMOVED***
 
@@ -112,7 +115,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		// Cloud config
-		cloudConfig := cloud.NewConfig().Apply(conf.Collectors.Cloud)
+		cloudConfig := cloud.NewConfig().Apply(derivedConf.Collectors.Cloud)
 		if err := envconfig.Process("k6", &cloudConfig); err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -170,7 +173,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 
 		// Start cloud test run
 		printBar(progressBar, "Validating script options")
-		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, Version)
+		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, consts.Version)
 		if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -228,16 +231,16 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 					***REMOVED***
 					printBar(progressBar, "")
 				***REMOVED*** else ***REMOVED***
-					log.WithError(progressErr).Error("Test progress error")
+					logrus.WithError(progressErr).Error("Test progress error")
 				***REMOVED***
 				if shouldExitLoop ***REMOVED***
 					break runningLoop
 				***REMOVED***
 			case sig := <-sigC:
-				log.WithField("sig", sig).Print("Exiting in response to signal...")
+				logrus.WithField("sig", sig).Print("Exiting in response to signal...")
 				err := client.StopCloudTestRun(refID)
 				if err != nil ***REMOVED***
-					log.WithError(err).Error("Stop cloud test error")
+					logrus.WithError(err).Error("Stop cloud test error")
 				***REMOVED***
 				shouldExitLoop = true // Exit after the next GetTestProgress call
 			***REMOVED***

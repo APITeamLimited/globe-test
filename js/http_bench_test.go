@@ -7,7 +7,6 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 )
@@ -17,17 +16,14 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(b)
 	defer tb.Cleanup()
 
-	r, err := New(&lib.SourceData***REMOVED***
-		Filename: "/script.js",
-		Data: []byte(tb.Replacer.Replace(`
+	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 			import http from "k6/http";
 			export default function() ***REMOVED***
 				let url = "HTTPBIN_URL";
 				let res = http.get(url + "/cookies/set?k2=v2&k1=v1");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 			***REMOVED***
-		`)),
-	***REMOVED***, afero.NewMemMapFs(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		`))
 	if !assert.NoError(b, err) ***REMOVED***
 		return
 	***REMOVED***

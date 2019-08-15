@@ -23,12 +23,14 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -178,6 +180,14 @@ var envVarTestCases = []EnvVarTest***REMOVED***
 		false,
 		map[string]string***REMOVED***"test1": "value 1", "test2": "value 2"***REMOVED***,
 	***REMOVED***,
+	***REMOVED***
+		"valid env vars with special chars",
+		true,
+		map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
+		[]string***REMOVED***"--env", "test2=value,2", "-e", `test3= ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+		false,
+		map[string]string***REMOVED***"test1": "value 1", "test2": "value,2", "test3": ` ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+	***REMOVED***,
 ***REMOVED***
 
 func TestEnvVars(t *testing.T) ***REMOVED***
@@ -204,7 +214,7 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 			jsCode := "export default function() ***REMOVED***\n"
 			for key, val := range tc.expEnv ***REMOVED***
 				jsCode += fmt.Sprintf(
-					"if (__ENV.%s !== '%s') ***REMOVED*** throw new Error('Invalid %s: ' + __ENV.%s); ***REMOVED***\n",
+					"if (__ENV.%s !== `%s`) ***REMOVED*** throw new Error('Invalid %s: ' + __ENV.%s); ***REMOVED***\n",
 					key, val, key, key,
 				)
 			***REMOVED***
@@ -218,13 +228,15 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 
+			fs := afero.NewMemMapFs()
+			require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(jsCode), 0644))
 			runner, err := newRunner(
-				&lib.SourceData***REMOVED***
-					Data:     []byte(jsCode),
-					Filename: "/script.js",
+				&loader.SourceData***REMOVED***
+					Data: []byte(jsCode),
+					URL:  &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED***,
 				***REMOVED***,
 				typeJS,
-				afero.NewOsFs(),
+				map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
 				rtOpts,
 			)
 			require.NoError(t, err)
@@ -234,16 +246,15 @@ func TestEnvVars(t *testing.T) ***REMOVED***
 			assert.NoError(t, archive.Write(archiveBuf))
 
 			getRunnerErr := func(rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
-				r, err := newRunner(
-					&lib.SourceData***REMOVED***
-						Data:     []byte(archiveBuf.Bytes()),
-						Filename: "/script.tar",
+				return newRunner(
+					&loader.SourceData***REMOVED***
+						Data: archiveBuf.Bytes(),
+						URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 					***REMOVED***,
 					typeArchive,
-					afero.NewOsFs(),
+					nil,
 					rtOpts,
 				)
-				return r, err
 			***REMOVED***
 
 			_, err = getRunnerErr(lib.RuntimeOptions***REMOVED******REMOVED***)

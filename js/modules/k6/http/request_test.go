@@ -37,12 +37,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/dop251/goja"
+	"github.com/klauspost/compress/zstd"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
+	"github.com/mccutchen/go-httpbin/httpbin"
 	"github.com/oxtoacart/bpool"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -101,7 +104,7 @@ func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 ***REMOVED***
 
 func newRuntime(
-	t *testing.T,
+	t testing.TB,
 ) (*testutils.HTTPMultiBin, *lib.State, chan stats.SampleContainer, *goja.Runtime, *context.Context) ***REMOVED***
 	tb := testutils.NewHTTPMultiBin(t)
 
@@ -134,8 +137,7 @@ func newRuntime(
 	***REMOVED***
 
 	ctx := new(context.Context)
-	*ctx = context.Background()
-	*ctx = lib.WithState(*ctx, state)
+	*ctx = lib.WithState(tb.Context, state)
 	*ctx = common.WithRuntime(*ctx, rt)
 	rt.Set("http", common.Bind(rt, New(), ctx))
 
@@ -243,6 +245,24 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			assert.NoError(t, err)
 		***REMOVED***)
+
+		t.Run("post body", func(t *testing.T) ***REMOVED***
+
+			tb.Mux.HandleFunc("/post-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+				require.Equal(t, r.Method, "POST")
+				_, _ = io.Copy(ioutil.Discard, r.Body)
+				http.Redirect(w, r, sr("HTTPBIN_URL/post"), http.StatusPermanentRedirect)
+			***REMOVED***))
+			_, err := common.RunString(rt, sr(`
+			let res = http.post("HTTPBIN_URL/post-redirect", "pesho", ***REMOVED***redirects: 1***REMOVED***);
+
+			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
+			if (res.url != "HTTPBIN_URL/post") ***REMOVED*** throw new Error("incorrect URL: " + res.url) ***REMOVED***
+			if (res.json().data != "pesho") ***REMOVED*** throw new Error("incorrect data : " + res.json().data) ***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+
 	***REMOVED***)
 	t.Run("Timeout", func(t *testing.T) ***REMOVED***
 		t.Run("10s", func(t *testing.T) ***REMOVED***
@@ -265,7 +285,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			endTime := time.Now()
 			assert.EqualError(t, err, sr("GoError: Get HTTPBIN_URL/delay/10: net/http: request canceled (Client.Timeout exceeded while awaiting headers)"))
-			assert.WithinDuration(t, startTime.Add(1*time.Second), endTime, 1*time.Second)
+			assert.WithinDuration(t, startTime.Add(1*time.Second), endTime, 2*time.Second)
 
 			logEntry := hook.LastEntry()
 			if assert.NotNil(t, logEntry) ***REMOVED***
@@ -311,6 +331,24 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				let res = http.get("HTTPBIN_URL/deflate");
 				if (res.json()['deflated'] != true) ***REMOVED***
 					throw new Error("unexpected body data: " + res.json()['deflated'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("zstd", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPSBIN_IP_URL/zstd");
+				if (res.json()['compression'] != 'zstd') ***REMOVED***
+					throw new Error("unexpected body data: " + res.json()['compression'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("brotli", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPSBIN_IP_URL/brotli");
+				if (res.json()['compression'] != 'br') ***REMOVED***
+					throw new Error("unexpected body data: " + res.json()['compression'])
 				***REMOVED***
 			`))
 			assert.NoError(t, err)
@@ -1172,7 +1210,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		***REMOVED***"group", httpGet, ""***REMOVED***,
 		***REMOVED***"vu", httpGet, "0"***REMOVED***,
 		***REMOVED***"iter", httpGet, "0"***REMOVED***,
-		***REMOVED***"tls_version", httpsGet, "tls1.2"***REMOVED***,
+		***REMOVED***"tls_version", httpsGet, expectedTLSVersion***REMOVED***,
 		***REMOVED***"ocsp_status", httpsGet, "unknown"***REMOVED***,
 		***REMOVED***
 			"error",
@@ -1187,6 +1225,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	state.Options.Throw = null.BoolFrom(false)
+	state.Options.Apply(lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Max: lib.TLSVersion13***REMOVED******REMOVED***)
 
 	for num, tc := range testedSystemTags ***REMOVED***
 		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
@@ -1216,6 +1255,9 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 	tb, state, _, rt, _ := newRuntime(t)
 	defer tb.Cleanup()
 
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	state.Logger.AddHook(&logHook)
+
 	// We don't expect any failed requests
 	state.Options.Throw = null.BoolFrom(true)
 
@@ -1227,6 +1269,9 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 	var decompress = func(algo string, input io.Reader) io.Reader ***REMOVED***
 		switch algo ***REMOVED***
+		case "br":
+			w := brotli.NewReader(input)
+			return w
 		case "gzip":
 			w, err := gzip.NewReader(input)
 			if err != nil ***REMOVED***
@@ -1235,6 +1280,12 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 			return w
 		case "deflate":
 			w, err := zlib.NewReader(input)
+			if err != nil ***REMOVED***
+				t.Fatal(err)
+			***REMOVED***
+			return w
+		case "zstd":
+			w, err := zstd.NewReader(input)
 			if err != nil ***REMOVED***
 				t.Fatal(err)
 			***REMOVED***
@@ -1288,6 +1339,10 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***compression: "deflate"***REMOVED***,
 		***REMOVED***compression: "deflate, gzip"***REMOVED***,
 		***REMOVED***compression: "gzip,deflate, gzip"***REMOVED***,
+		***REMOVED***compression: "zstd"***REMOVED***,
+		***REMOVED***compression: "zstd, gzip, deflate"***REMOVED***,
+		***REMOVED***compression: "br"***REMOVED***,
+		***REMOVED***compression: "br, gzip, deflate"***REMOVED***,
 		***REMOVED***
 			compression:   "George",
 			expectedError: `unknown compression algorithm George`,
@@ -1322,6 +1377,8 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 	t.Run("custom set header", func(t *testing.T) ***REMOVED***
 		expectedEncoding = "not, valid"
 		actualEncoding = "gzip, deflate"
+
+		logHook.Drain()
 		t.Run("encoding", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, tb.Replacer.Replace(`
 				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
@@ -1331,7 +1388,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 				);
 			`))
 			require.NoError(t, err)
-
+			require.NotEmpty(t, logHook.Drain())
 		***REMOVED***)
 
 		t.Run("encoding and length", func(t *testing.T) ***REMOVED***
@@ -1343,9 +1400,41 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 					***REMOVED***
 				);
 			`))
-			require.Error(t, err)
-			// TODO: This probably shouldn't be like this
-			require.Contains(t, err.Error(), "http: ContentLength=12 with Body length 211")
+			require.NoError(t, err)
+			require.NotEmpty(t, logHook.Drain())
+		***REMOVED***)
+
+		expectedEncoding = actualEncoding
+		t.Run("correct encoding", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
+					***REMOVED***"compression": "`+actualEncoding+`",
+					 "headers": ***REMOVED***"Content-Encoding": "`+actualEncoding+`"***REMOVED***
+					***REMOVED***
+				);
+			`))
+			require.NoError(t, err)
+			require.Empty(t, logHook.Drain())
+		***REMOVED***)
+
+		//TODO: move to some other test?
+		t.Run("correct length", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, tb.Replacer.Replace(
+				`http.post("HTTPBIN_URL/post", "0123456789", ***REMOVED*** "headers": ***REMOVED***"Content-Length": "10"***REMOVED******REMOVED***);`,
+			))
+			require.NoError(t, err)
+			require.Empty(t, logHook.Drain())
+		***REMOVED***)
+
+		t.Run("content-length is set", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, tb.Replacer.Replace(`
+				let resp = http.post("HTTPBIN_URL/post", "0123456789");
+				if (resp.json().headers["Content-Length"][0] != "10") ***REMOVED***
+					throw new Error("content-length not set: " + JSON.stringify(resp.json().headers));
+				***REMOVED***
+			`))
+			require.NoError(t, err)
+			require.Empty(t, logHook.Drain())
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
@@ -1541,20 +1630,16 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			script:            `let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=http://dafsgdhfjg/");`,
 		***REMOVED***,
 		***REMOVED***
-			name:                "Non location redirect",
-			expectedErrorCode:   0,
-			expectedErrorMsg:    "",
-			script:              `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
-			expectedScriptError: sr(`GoError: Get HTTPBIN_URL/no-location-redirect: 302 response missing Location header`),
+			name:              "Non location redirect",
+			expectedErrorCode: 1000,
+			expectedErrorMsg:  "302 response missing Location header",
+			script:            `let res = http.request("GET", "HTTPBIN_URL/no-location-redirect");`,
 		***REMOVED***,
 		***REMOVED***
 			name:              "Bad location redirect",
-			expectedErrorCode: 0,
-			expectedErrorMsg:  "",
+			expectedErrorCode: 1000,
+			expectedErrorMsg:  "failed to parse Location header \"h\\t:/\": parse h\t:/: net/url: invalid control character in URL", //nolint: lll
 			script:            `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
-			expectedScriptError: sr(
-				"GoError: Get HTTPBIN_URL/bad-location-redirect: failed to parse Location header" +
-					" \"h\\t:/\": parse h\t:/: net/url: invalid control character in URL"),
 		***REMOVED***,
 		***REMOVED***
 			name:              "Missing protocol",
@@ -1590,7 +1675,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt,
 				sr(testCase.script+"\n"+fmt.Sprintf(`
 			if (res.status != %d) ***REMOVED*** throw new Error("wrong status: "+ res.status);***REMOVED***
-			if (res.error != '%s') ***REMOVED*** throw new Error("wrong error: "+ res.error);***REMOVED***
+			if (res.error != %q) ***REMOVED*** throw new Error("wrong error: '" + res.error + "'");***REMOVED***
 			if (res.error_code != %d) ***REMOVED*** throw new Error("wrong error_code: "+ res.error_code);***REMOVED***
 			`, testCase.status, testCase.expectedErrorMsg, testCase.expectedErrorCode)))
 			if testCase.expectedScriptError == "" ***REMOVED***
@@ -1609,4 +1694,227 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestResponseWaitingAndReceivingTimings(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	// We don't expect any failed requests
+	state.Options.Throw = null.BoolFrom(true)
+
+	tb.Mux.HandleFunc("/slow-response", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		flusher, ok := w.(http.Flusher)
+		require.True(t, ok)
+
+		time.Sleep(1200 * time.Millisecond)
+		n, err := w.Write([]byte("1st bytes!"))
+		assert.NoError(t, err)
+		assert.Equal(t, 10, n)
+
+		flusher.Flush()
+		time.Sleep(1200 * time.Millisecond)
+
+		n, err = w.Write([]byte("2nd bytes!"))
+		assert.NoError(t, err)
+		assert.Equal(t, 10, n)
+	***REMOVED***))
+
+	_, err := common.RunString(rt, tb.Replacer.Replace(`
+		let resp = http.get("HTTPBIN_URL/slow-response");
+
+		if (resp.timings.waiting < 1000) ***REMOVED***
+			throw new Error("expected waiting time to be over 1000ms but was " + resp.timings.waiting);
+		***REMOVED***
+
+		if (resp.timings.receiving < 1000) ***REMOVED***
+			throw new Error("expected receiving time to be over 1000ms but was " + resp.timings.receiving);
+		***REMOVED***
+
+		if (resp.body !== "1st bytes!2nd bytes!") ***REMOVED***
+			throw new Error("wrong response body: " + resp.body);
+		***REMOVED***
+	`))
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestResponseTimingsWhenTimeout(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	// We expect a failed request
+	state.Options.Throw = null.BoolFrom(false)
+
+	_, err := common.RunString(rt, tb.Replacer.Replace(`
+		let resp = http.get("http://httpbin.org/delay/10", ***REMOVED*** timeout: 2500 ***REMOVED***);
+
+		if (resp.timings.waiting < 2000) ***REMOVED***
+			throw new Error("expected waiting time to be over 2000ms but was " + resp.timings.waiting);
+		***REMOVED***
+
+		if (resp.timings.duration < 2000) ***REMOVED***
+			throw new Error("expected duration time to be over 2000ms but was " + resp.timings.duration);
+		***REMOVED***
+	`))
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestNoResponseBodyMangling(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	// We don't expect any failed requests
+	state.Options.Throw = null.BoolFrom(true)
+
+	_, err := common.RunString(rt, tb.Replacer.Replace(`
+	    const batchSize = 100;
+
+		let requests = [];
+
+		for (let i = 0; i < batchSize; i++) ***REMOVED***
+			requests.push(["GET", "HTTPBIN_URL/get?req=" + i, null, ***REMOVED*** responseType: (i % 2 ? "binary" : "text") ***REMOVED***]);
+		***REMOVED***
+
+		let responses = http.batch(requests);
+
+		for (let i = 0; i < batchSize; i++) ***REMOVED***
+			let reqNumber = parseInt(responses[i].json().args.req[0], 10);
+			if (i !== reqNumber) ***REMOVED***
+				throw new Error("Response " + i + " has " + reqNumber + ", expected " + i)
+			***REMOVED***
+		***REMOVED***
+	`))
+	assert.NoError(t, err)
+***REMOVED***
+
+func BenchmarkHandlingOfResponseBodies(b *testing.B) ***REMOVED***
+	tb, state, samples, rt, _ := newRuntime(b)
+	defer tb.Cleanup()
+
+	state.BPool = bpool.NewBufferPool(100)
+
+	go func() ***REMOVED***
+		ctxDone := tb.Context.Done()
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-samples:
+			case <-ctxDone:
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+
+	mbData := bytes.Repeat([]byte("0123456789"), 100000)
+	tb.Mux.HandleFunc("/1mbdata", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
+		_, err := resp.Write(mbData)
+		if err != nil ***REMOVED***
+			b.Error(err)
+		***REMOVED***
+	***REMOVED***))
+
+	testCodeTemplate := tb.Replacer.Replace(`
+		http.get("HTTPBIN_URL/", ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***);
+		http.post("HTTPBIN_URL/post", ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***);
+		http.batch([
+			["GET", "HTTPBIN_URL/gzip", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/gzip", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/deflate", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/deflate", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/redirect/5", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***], // 6 requests
+			["GET", "HTTPBIN_URL/get", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/html", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/bytes/100000", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/image/png", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/image/jpeg", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/image/jpeg", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/image/webp", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/image/svg", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/forms/post", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/bytes/100000", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+			["GET", "HTTPBIN_URL/stream-bytes/100000", null, ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***],
+		]);
+		http.get("HTTPBIN_URL/get", ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***);
+		http.get("HTTPBIN_URL/get", ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***);
+		http.get("HTTPBIN_URL/1mbdata", ***REMOVED*** responseType: "TEST_RESPONSE_TYPE" ***REMOVED***);
+	`)
+
+	testResponseType := func(responseType string) func(b *testing.B) ***REMOVED***
+		testCode := strings.Replace(testCodeTemplate, "TEST_RESPONSE_TYPE", responseType, -1)
+		return func(b *testing.B) ***REMOVED***
+			for i := 0; i < b.N; i++ ***REMOVED***
+				_, err := common.RunString(rt, testCode)
+				if err != nil ***REMOVED***
+					b.Error(err)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	b.ResetTimer()
+	b.Run("text", testResponseType("text"))
+	b.Run("binary", testResponseType("binary"))
+	b.Run("none", testResponseType("none"))
+***REMOVED***
+
+func TestErrorsWithDecompression(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, _, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	state.Options.Throw = null.BoolFrom(false)
+
+	tb.Mux.HandleFunc("/broken-archive", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		enc := r.URL.Query()["encoding"][0]
+		w.Header().Set("Content-Encoding", enc)
+		_, _ = fmt.Fprintf(w, "Definitely not %s, but it's all cool...", enc)
+	***REMOVED***))
+
+	_, err := common.RunString(rt, tb.Replacer.Replace(`
+		function handleResponseEncodingError (encoding) ***REMOVED***
+			let resp = http.get("HTTPBIN_URL/broken-archive?encoding=" + encoding);
+			if (resp.error_code != 1701) ***REMOVED***
+				throw new Error("Expected error_code 1701 for '" + encoding +"', but got " + resp.error_code);
+			***REMOVED***
+		***REMOVED***
+
+		["gzip", "deflate", "br", "zstd"].forEach(handleResponseEncodingError);
+	`))
+	assert.NoError(t, err)
+***REMOVED***
+
+func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb, state, samples, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	state.Options.Throw = null.BoolFrom(true)
+	state.Options.HttpDebug = null.StringFrom("full")
+
+	tb.Mux.HandleFunc("/digest-auth-with-post/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		require.Equal(t, "POST", r.Method)
+		body, err := ioutil.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Equal(t, "super secret body", string(body))
+		httpbin.New().DigestAuth(w, r) // this doesn't read the body
+	***REMOVED***))
+
+	// TODO: fix, the metric tags shouldn't have credentials (https://github.com/loadimpact/k6/issues/1103)
+	urlWithCreds := tb.Replacer.Replace(
+		"http://testuser:testpwd@HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd",
+	)
+
+	_, err := common.RunString(rt, fmt.Sprintf(`
+		let res = http.post(%q, "super secret body", ***REMOVED*** auth: "digest" ***REMOVED***);
+		if (res.status !== 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+		if (res.error_code !== 0) ***REMOVED*** throw new Error("wrong error code: " + res.error_code); ***REMOVED***
+	`, urlWithCreds))
+	require.NoError(t, err)
+
+	expectedURL := tb.Replacer.Replace("HTTPBIN_IP_URL/digest-auth-with-post/auth/testuser/testpwd")
+	sampleContainers := stats.GetBufferedSamples(samples)
+	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, urlWithCreds, 401, "")
+	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, urlWithCreds, 200, "")
 ***REMOVED***

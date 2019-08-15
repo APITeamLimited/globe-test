@@ -27,16 +27,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/scheduler"
-	"github.com/loadimpact/k6/lib/testutils"
-	"github.com/loadimpact/k6/lib/types"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/scheduler"
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 // A helper funcion for setting arbitrary environment variables and
@@ -212,6 +213,7 @@ type exp struct ***REMOVED***
 	cliParseError      bool
 	cliReadError       bool
 	consolidationError bool
+	derivationError    bool
 	validationErrors   bool
 	logWarning         bool
 ***REMOVED***
@@ -250,21 +252,27 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
 			verifyVarLoopingVUs(null.NewInt(10, true), buildStages(66, 5)),
 		***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			verifySharedIters(I(1), I(6))(t, c)
+			sharedIterConfig := c.Execution[lib.DefaultSchedulerName].(scheduler.SharedIteationsConfig)
+			assert.Equal(t, time.Duration(sharedIterConfig.MaxDuration.Duration), 10*time.Second)
+		***REMOVED******REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(I(10), I(6))***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-s", "10s:5", "-s", "10s:"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s"***REMOVED***], "vus": 10***REMOVED***`)***REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		// These should emit a consolidation error
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***runner: &lib.Options***REMOVED***
-				VUs:        null.IntFrom(5),
-				Duration:   types.NullDurationFrom(44 * time.Second),
-				Iterations: null.IntFrom(10),
-			***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil,
+				VUs:      null.IntFrom(5),
+				Duration: types.NullDurationFrom(44 * time.Second),
+				Stages: []lib.Stage***REMOVED***
+					***REMOVED***Duration: types.NullDurationFrom(3 * time.Second), Target: I(20)***REMOVED***,
+				***REMOVED***,
+			***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil,
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"execution": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 		// Test if environment variable shortcuts are working as expected
@@ -303,9 +311,9 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***
 			opts***REMOVED***
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5), Duration: types.NullDurationFrom(50 * time.Second)***REMOVED***,
-				cli:    []string***REMOVED***"--iterations", "5"***REMOVED***,
+				cli:    []string***REMOVED***"--stage", "5s:5"***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(5)),
+			exp***REMOVED******REMOVED***, verifyVarLoopingVUs(I(5), buildStages(5, 5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -354,6 +362,21 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyOneIterPerOneVU***REMOVED***,
+
+		// Test system tags
+		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.GetTagSet(lib.DefaultSystemTagList...), c.Options.SystemTags)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--system-tags", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.GetTagSet(), c.Options.SystemTags)
+		***REMOVED******REMOVED***,
+		***REMOVED***
+			opts***REMOVED***runner: &lib.Options***REMOVED***SystemTags: lib.GetTagSet([]string***REMOVED***"proto", "url"***REMOVED***...)***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, lib.GetTagSet("proto", "url"), c.Options.SystemTags)
+			***REMOVED***,
+		***REMOVED***,
 		//TODO: test for differences between flagsets
 		//TODO: more tests in general, especially ones not related to execution parameters...
 	***REMOVED***
@@ -367,7 +390,7 @@ func runTestCase(
 ) ***REMOVED***
 	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
 	output := testutils.NewTestOutput(t)
-	log.SetOutput(output)
+	logrus.SetOutput(output)
 	logHook.Drain()
 
 	restoreEnv := setEnv(t, testCase.options.env)
@@ -408,8 +431,16 @@ func runTestCase(
 		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
 	***REMOVED***
 
-	result, err := getConsolidatedConfig(testCase.options.fs, cliConf, runner)
+	consolidatedConfig, err := getConsolidatedConfig(testCase.options.fs, cliConf, runner)
 	if testCase.expected.consolidationError ***REMOVED***
+		require.Error(t, err)
+		return
+	***REMOVED***
+	require.NoError(t, err)
+
+	derivedConfig := consolidatedConfig
+	derivedConfig.Options, err = scheduler.DeriveExecutionFromShortcuts(consolidatedConfig.Options)
+	if testCase.expected.derivationError ***REMOVED***
 		require.Error(t, err)
 		return
 	***REMOVED***
@@ -422,7 +453,7 @@ func runTestCase(
 		assert.Empty(t, warnings)
 	***REMOVED***
 
-	validationErrors := result.Validate()
+	validationErrors := derivedConfig.Validate()
 	if testCase.expected.validationErrors ***REMOVED***
 		assert.NotEmpty(t, validationErrors)
 	***REMOVED*** else ***REMOVED***
@@ -430,17 +461,17 @@ func runTestCase(
 	***REMOVED***
 
 	if testCase.customValidator != nil ***REMOVED***
-		testCase.customValidator(t, result)
+		testCase.customValidator(t, derivedConfig)
 	***REMOVED***
 ***REMOVED***
 
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
 	// to mess with shared global objects (env vars, variables, the log, ... santa?)
-	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []log.Level***REMOVED***log.WarnLevel***REMOVED******REMOVED***
-	log.AddHook(&logHook)
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stderr)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+	logrus.AddHook(&logHook)
+	logrus.SetOutput(ioutil.Discard)
+	defer logrus.SetOutput(os.Stderr)
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		flagSetInits := testCase.options.cliFlagSetInits

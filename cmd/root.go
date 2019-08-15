@@ -23,35 +23,22 @@ package cmd
 import (
 	"fmt"
 	"io"
-	golog "log"
+	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/fatih/color"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"github.com/shibukawa/configdir"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/loadimpact/k6/lib/consts"
 )
 
-// Version contains the current semantic version of k6.
-//nolint:gochecknoglobals
-var Version = "0.24.0"
-
-// Banner contains the ASCII-art banner with the k6 logo and stylized website URL
-//TODO: make these into methods, only the version needs to be a variable
-//nolint:gochecknoglobals
-var Banner = strings.Join([]string***REMOVED***
-	`          /\      |‾‾|  /‾‾/  /‾/   `,
-	`     /\  /  \     |  |_/  /  / /    `,
-	`    /  \/    \    |      |  /  ‾‾\  `,
-	`   /          \   |  |‾\  \ | (_) | `,
-	`  / __________ \  |__|  \__\ \___/ .io`,
-***REMOVED***, "\n")
 var BannerColor = color.New(color.FgCyan)
 
 //TODO: remove these global variables
@@ -85,7 +72,7 @@ var (
 var RootCmd = &cobra.Command***REMOVED***
 	Use:           "k6",
 	Short:         "a next-generation load generator",
-	Long:          BannerColor.Sprintf("\n%s", Banner),
+	Long:          BannerColor.Sprintf("\n%s", consts.Banner),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
@@ -106,7 +93,7 @@ var RootCmd = &cobra.Command***REMOVED***
 			stdout.Writer = colorable.NewNonColorable(os.Stdout)
 			stderr.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
-		golog.SetOutput(log.StandardLogger().Writer())
+		log.SetOutput(logrus.StandardLogger().Writer())
 	***REMOVED***,
 ***REMOVED***
 
@@ -114,7 +101,7 @@ var RootCmd = &cobra.Command***REMOVED***
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED***
 	if err := RootCmd.Execute(); err != nil ***REMOVED***
-		log.Error(err.Error())
+		logrus.Error(err.Error())
 		if e, ok := err.(ExitCode); ok ***REMOVED***
 			os.Exit(e.Code)
 		***REMOVED***
@@ -165,26 +152,26 @@ func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED**
 type RawFormater struct***REMOVED******REMOVED***
 
 // Format renders a single log entry
-func (f RawFormater) Format(entry *log.Entry) ([]byte, error) ***REMOVED***
+func (f RawFormater) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
 	return append([]byte(entry.Message), '\n'), nil
 ***REMOVED***
 
 func setupLoggers(logFmt string) ***REMOVED***
 	if verbose ***REMOVED***
-		log.SetLevel(log.DebugLevel)
+		logrus.SetLevel(logrus.DebugLevel)
 	***REMOVED***
-	log.SetOutput(stderr)
+	logrus.SetOutput(stderr)
 
 	switch logFmt ***REMOVED***
 	case "raw":
-		log.SetFormatter(&RawFormater***REMOVED******REMOVED***)
-		log.Debug("Logger format: RAW")
+		logrus.SetFormatter(&RawFormater***REMOVED******REMOVED***)
+		logrus.Debug("Logger format: RAW")
 	case "json":
-		log.SetFormatter(&log.JSONFormatter***REMOVED******REMOVED***)
-		log.Debug("Logger format: JSON")
+		logrus.SetFormatter(&logrus.JSONFormatter***REMOVED******REMOVED***)
+		logrus.Debug("Logger format: JSON")
 	default:
-		log.SetFormatter(&log.TextFormatter***REMOVED***ForceColors: stderrTTY, DisableColors: noColor***REMOVED***)
-		log.Debug("Logger format: TEXT")
+		logrus.SetFormatter(&logrus.TextFormatter***REMOVED***ForceColors: stderrTTY, DisableColors: noColor***REMOVED***)
+		logrus.Debug("Logger format: TEXT")
 	***REMOVED***
 
 ***REMOVED***

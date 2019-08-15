@@ -50,13 +50,13 @@ func badCloseBody() io.ReadCloser ***REMOVED***
 func TestCompressionBodyError(t *testing.T) ***REMOVED***
 	var algos = []CompressionType***REMOVED***CompressionTypeGzip***REMOVED***
 	t.Run("bad read body", func(t *testing.T) ***REMOVED***
-		_, _, _, err := compressBody(algos, ioutil.NopCloser(badReadBody()))
+		_, _, err := compressBody(algos, ioutil.NopCloser(badReadBody()))
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badReadMsg)
 	***REMOVED***)
 
 	t.Run("bad close body", func(t *testing.T) ***REMOVED***
-		_, _, _, err := compressBody(algos, badCloseBody())
+		_, _, err := compressBody(algos, badCloseBody())
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badCloseMsg)
 	***REMOVED***)

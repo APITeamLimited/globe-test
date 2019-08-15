@@ -22,11 +22,13 @@ package scheduler
 
 import (
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
 )
 
 // ExecutionConflictError is a custom error type used for all of the errors in
-// the BuildExecutionConfig() function.
+// the DeriveExecutionFromShortcuts() function.
 type ExecutionConflictError string
 
 func (e ExecutionConflictError) Error() string ***REMOVED***
@@ -35,78 +37,80 @@ func (e ExecutionConflictError) Error() string ***REMOVED***
 
 var _ error = ExecutionConflictError("")
 
-// BuildExecutionConfig checks for conflicting options and turns any shortcut
-// options (i.e. duration, iterations, stages) into the proper long-form
-// scheduler configuration in the execution property.
-func BuildExecutionConfig(opts lib.Options) (lib.Options, error) ***REMOVED***
+func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) lib.SchedulerConfigMap ***REMOVED***
+	ds := NewConstantLoopingVUsConfig(lib.DefaultSchedulerName)
+	ds.VUs = vus
+	ds.Duration = duration
+	return lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.SchedulerConfigMap ***REMOVED***
+	ds := NewVariableLoopingVUsConfig(lib.DefaultSchedulerName)
+	ds.StartVUs = startVUs
+	for _, s := range stages ***REMOVED***
+		if s.Duration.Valid ***REMOVED***
+			ds.Stages = append(ds.Stages, Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+	return lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.SchedulerConfigMap ***REMOVED***
+	ds := NewSharedIterationsConfig(lib.DefaultSchedulerName)
+	ds.VUs = vus
+	ds.Iterations = iters
+	if duration.Valid ***REMOVED***
+		ds.MaxDuration = duration
+	***REMOVED***
+	return lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+***REMOVED***
+
+// DeriveExecutionFromShortcuts checks for conflicting options and turns any
+// shortcut options (i.e. duration, iterations, stages) into the proper
+// long-form scheduler configuration in the execution property.
+func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) ***REMOVED***
 	result := opts
 
 	switch ***REMOVED***
-	case opts.Duration.Valid:
-		if opts.Iterations.Valid ***REMOVED***
+	case opts.Iterations.Valid:
+		if len(opts.Stages) > 0 ***REMOVED*** // stages isn't nil (not set) and isn't explicitly set to empty
 			return result, ExecutionConflictError(
-				"using multiple execution config shortcuts (`duration` and `iterations`) simultaneously is not allowed",
+				"using multiple execution config shortcuts (`iterations` and `stages`) simultaneously is not allowed",
 			)
 		***REMOVED***
+		if opts.Execution != nil ***REMOVED***
+			return opts, ExecutionConflictError(
+				"using an execution configuration shortcut (`iterations`) and `execution` simultaneously is not allowed",
+			)
+		***REMOVED***
+		result.Execution = getSharedIterationsExecution(opts.Iterations, opts.Duration, opts.VUs)
 
+	case opts.Duration.Valid:
 		if len(opts.Stages) > 0 ***REMOVED*** // stages isn't nil (not set) and isn't explicitly set to empty
 			return result, ExecutionConflictError(
 				"using multiple execution config shortcuts (`duration` and `stages`) simultaneously is not allowed",
 			)
 		***REMOVED***
-
 		if opts.Execution != nil ***REMOVED***
 			return result, ExecutionConflictError(
 				"using an execution configuration shortcut (`duration`) and `execution` simultaneously is not allowed",
 			)
 		***REMOVED***
-
 		if opts.Duration.Duration <= 0 ***REMOVED***
 			//TODO: move this validation to Validate()?
 			return result, ExecutionConflictError(
 				"`duration` should be more than 0, for infinite duration use the manual-execution scheduler",
 			)
 		***REMOVED***
-
-		ds := NewConstantLoopingVUsConfig(lib.DefaultSchedulerName)
-		ds.VUs = opts.VUs
-		ds.Duration = opts.Duration
-		result.Execution = lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+		result.Execution = getConstantLoopingVUsExecution(opts.Duration, opts.VUs)
 
 	case len(opts.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
-		if opts.Iterations.Valid ***REMOVED***
-			return result, ExecutionConflictError(
-				"using multiple execution config shortcuts (`stages` and `iterations`) simultaneously is not allowed",
-			)
-		***REMOVED***
-
 		if opts.Execution != nil ***REMOVED***
 			return opts, ExecutionConflictError(
 				"using an execution configuration shortcut (`stages`) and `execution` simultaneously is not allowed",
 			)
 		***REMOVED***
-
-		ds := NewVariableLoopingVUsConfig(lib.DefaultSchedulerName)
-		ds.StartVUs = opts.VUs
-		for _, s := range opts.Stages ***REMOVED***
-			if s.Duration.Valid ***REMOVED***
-				ds.Stages = append(ds.Stages, Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
-			***REMOVED***
-		***REMOVED***
-		result.Execution = lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
-
-	case opts.Iterations.Valid:
-		if opts.Execution != nil ***REMOVED***
-			return opts, ExecutionConflictError(
-				"using an execution configuration shortcut (`iterations`) and `execution` simultaneously is not allowed",
-			)
-		***REMOVED***
-		// TODO: maybe add a new flag that will be used as a shortcut to per-VU iterations?
-
-		ds := NewSharedIterationsConfig(lib.DefaultSchedulerName)
-		ds.VUs = opts.VUs
-		ds.Iterations = opts.Iterations
-		result.Execution = lib.SchedulerConfigMap***REMOVED***lib.DefaultSchedulerName: ds***REMOVED***
+		result.Execution = getVariableLoopingVUsExecution(opts.Stages, opts.VUs)
 
 	case len(opts.Execution) > 0:
 		// Do nothing, execution was explicitly specified
