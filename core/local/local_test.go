@@ -32,9 +32,9 @@ import (
 
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/executor"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
-	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
@@ -53,7 +53,7 @@ func newTestExecutionScheduler(
 		runner = &lib.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	newOpts, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()).Apply(opts))
 	require.NoError(t, err)
@@ -289,10 +289,10 @@ func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	scheduler := scheduler.NewConstantLoopingVUsConfig("we_need_hard_stop")
-	scheduler.VUs = null.IntFrom(10)
-	scheduler.Duration = types.NullDurationFrom(1 * time.Second)
-	scheduler.GracefulStop = types.NullDurationFrom(0 * time.Second)
+	exec := executor.NewConstantLoopingVUsConfig("we_need_hard_stop")
+	exec.VUs = null.IntFrom(10)
+	exec.Duration = types.NullDurationFrom(1 * time.Second)
+	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
 	runner := &lib.MiniRunner***REMOVED***
 		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -300,7 +300,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 			return errors.New("hi")
 		***REMOVED***,
 		Options: lib.Options***REMOVED***
-			Execution: lib.ExecutorConfigMap***REMOVED***scheduler.GetName(): scheduler***REMOVED***,
+			Execution: lib.ExecutorConfigMap***REMOVED***exec.GetName(): exec***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
@@ -324,7 +324,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
-	options, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	options, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
 	***REMOVED***)
@@ -540,7 +540,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	runner, err := js.New(&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
-	options, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	options, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
 		SystemTags:      lib.GetTagSet(lib.DefaultSystemTagList...),

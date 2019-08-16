@@ -237,10 +237,10 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 	***REMOVED***)
 
 	logger.Debugf("Finished initializing needed VUs, start initializing executors...")
-	for _, executor := range e.executors ***REMOVED***
-		executorConfig := executor.GetConfig()
+	for _, exec := range e.executors ***REMOVED***
+		executorConfig := exec.GetConfig()
 
-		if err := executor.Init(ctx); err != nil ***REMOVED***
+		if err := exec.Init(ctx); err != nil ***REMOVED***
 			return fmt.Errorf("error while initializing executor %s: %s", executorConfig.GetName(), err)
 		***REMOVED***
 		logger.Debugf("Initialized executor %s", executorConfig.GetName())
@@ -332,8 +332,8 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
-	for _, executor := range e.executors ***REMOVED***
-		go runExecutor(executor)
+	for _, exec := range e.executors ***REMOVED***
+		go runExecutor(exec)
 	***REMOVED***
 
 	// Wait for all executors to finish
@@ -370,12 +370,12 @@ func (e *ExecutionScheduler) SetPaused(pause bool) error ***REMOVED***
 		return e.state.Resume()
 	***REMOVED***
 
-	for _, executor := range e.executors ***REMOVED***
-		pausableExecutor, ok := executor.(lib.PausableExecutor)
+	for _, exec := range e.executors ***REMOVED***
+		pausableExecutor, ok := exec.(lib.PausableExecutor)
 		if !ok ***REMOVED***
 			return fmt.Errorf(
 				"%s executor '%s' doesn't support pause and resume operations after its start",
-				executor.GetConfig().GetType(), executor.GetConfig().GetName(),
+				exec.GetConfig().GetType(), exec.GetConfig().GetName(),
 			)
 		***REMOVED***
 		if err := pausableExecutor.SetPaused(pause); err != nil ***REMOVED***

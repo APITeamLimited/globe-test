@@ -33,8 +33,8 @@ import (
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/executor"
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
@@ -58,7 +58,7 @@ func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts li
 		ctx = context.Background()
 	***REMOVED***
 
-	newOpts, err := scheduler.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	newOpts, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()).Apply(opts))
 	require.NoError(t, err)
