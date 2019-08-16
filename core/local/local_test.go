@@ -46,9 +46,9 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
-func newTestExecutor(
+func newTestExecutionScheduler(
 	t *testing.T, runner lib.Runner, logger *logrus.Logger, opts lib.Options, //nolint: golint
-) (ctx context.Context, cancel func(), executor *Executor, samples chan stats.SampleContainer) ***REMOVED***
+) (ctx context.Context, cancel func(), execScheduler *ExecutionScheduler, samples chan stats.SampleContainer) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &lib.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
@@ -66,7 +66,7 @@ func newTestExecutor(
 		logger.SetOutput(testutils.NewTestOutput(t))
 	***REMOVED***
 
-	executor, err = New(runner, logger)
+	execScheduler, err = NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
 	samples = make(chan stats.SampleContainer, newOpts.MetricSamplesBufferSize.Int64)
@@ -80,22 +80,22 @@ func newTestExecutor(
 		***REMOVED***
 	***REMOVED***()
 
-	require.NoError(t, executor.Init(ctx, samples))
+	require.NoError(t, execScheduler.Init(ctx, samples))
 
-	return ctx, cancel, executor, samples
+	return ctx, cancel, execScheduler, samples
 ***REMOVED***
 
-func TestExecutorRun(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRun(t *testing.T) ***REMOVED***
 	t.Parallel()
-	ctx, cancel, executor, samples := newTestExecutor(t, nil, nil, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, nil, nil, lib.Options***REMOVED******REMOVED***)
 	defer cancel()
 
 	err := make(chan error, 1)
-	go func() ***REMOVED*** err <- executor.Run(ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** err <- execScheduler.Run(ctx, samples) ***REMOVED***()
 	assert.NoError(t, <-err)
 ***REMOVED***
 
-func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	t.Run("Normal", func(t *testing.T) ***REMOVED***
 		setupC := make(chan struct***REMOVED******REMOVED***)
@@ -110,10 +110,10 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 				return nil
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
 
 		err := make(chan error, 1)
-		go func() ***REMOVED*** err <- executor.Run(ctx, samples) ***REMOVED***()
+		go func() ***REMOVED*** err <- execScheduler.Run(ctx, samples) ***REMOVED***()
 		defer cancel()
 		<-setupC
 		<-teardownC
@@ -125,9 +125,9 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 				return nil, errors.New("setup error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
 		defer cancel()
-		assert.EqualError(t, executor.Run(ctx, samples), "setup error")
+		assert.EqualError(t, execScheduler.Run(ctx, samples), "setup error")
 	***REMOVED***)
 	t.Run("Don't Run Setup", func(t *testing.T) ***REMOVED***
 		runner := &lib.MiniRunner***REMOVED***
@@ -138,13 +138,13 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
 			NoSetup:    null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.EqualError(t, executor.Run(ctx, samples), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, samples), "teardown error")
 	***REMOVED***)
 
 	t.Run("Teardown Error", func(t *testing.T) ***REMOVED***
@@ -156,13 +156,13 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
 
-		assert.EqualError(t, executor.Run(ctx, samples), "teardown error")
+		assert.EqualError(t, execScheduler.Run(ctx, samples), "teardown error")
 	***REMOVED***)
 	t.Run("Don't Run Teardown", func(t *testing.T) ***REMOVED***
 		runner := &lib.MiniRunner***REMOVED***
@@ -173,17 +173,17 @@ func TestExecutorSetupTeardownRun(t *testing.T) ***REMOVED***
 				return errors.New("teardown error")
 			***REMOVED***,
 		***REMOVED***
-		ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED***
+		ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
 			NoTeardown: null.BoolFrom(true),
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
 		defer cancel()
-		assert.NoError(t, executor.Run(ctx, samples))
+		assert.NoError(t, execScheduler.Run(ctx, samples))
 	***REMOVED***)
 ***REMOVED***
 
-func TestExecutorStages(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
 		Duration time.Duration
@@ -218,18 +218,18 @@ func TestExecutorStages(t *testing.T) ***REMOVED***
 					return nil
 				***REMOVED***,
 			***REMOVED***
-			ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED***
+			ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
 				VUs:    null.IntFrom(1),
 				Stages: data.Stages,
 			***REMOVED***)
 			defer cancel()
-			assert.NoError(t, executor.Run(ctx, samples))
-			assert.True(t, executor.GetState().GetCurrentTestRunDuration() >= data.Duration)
+			assert.NoError(t, execScheduler.Run(ctx, samples))
+			assert.True(t, execScheduler.GetState().GetCurrentTestRunDuration() >= data.Duration)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
-func TestExecutorEndTime(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &lib.MiniRunner***REMOVED***
 		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -237,24 +237,24 @@ func TestExecutorEndTime(t *testing.T) ***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***
-	ctx, cancel, executor, samples := newTestExecutor(t, runner, nil, lib.Options***REMOVED***
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(10),
 		Duration: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(executor.GetExecutionPlan())
+	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 31*time.Second, endTime) // because of the default 30s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, executor.Run(ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
 ***REMOVED***
 
-func TestExecutorRuntimeErrors(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &lib.MiniRunner***REMOVED***
 		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -267,15 +267,15 @@ func TestExecutorRuntimeErrors(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, executor, samples := newTestExecutor(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(executor.GetExecutionPlan())
+	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 31*time.Second, endTime) // because of the default 30s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, executor.Run(ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -286,7 +286,7 @@ func TestExecutorRuntimeErrors(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestExecutorEndErrors(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	scheduler := scheduler.NewConstantLoopingVUsConfig("we_need_hard_stop")
@@ -300,19 +300,19 @@ func TestExecutorEndErrors(t *testing.T) ***REMOVED***
 			return errors.New("hi")
 		***REMOVED***,
 		Options: lib.Options***REMOVED***
-			Execution: lib.SchedulerConfigMap***REMOVED***scheduler.GetName(): scheduler***REMOVED***,
+			Execution: lib.ExecutorConfigMap***REMOVED***scheduler.GetName(): scheduler***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
-	ctx, cancel, executor, samples := newTestExecutor(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
 	defer cancel()
 
-	endTime, isFinal := lib.GetEndOffset(executor.GetExecutionPlan())
+	endTime, isFinal := lib.GetEndOffset(execScheduler.GetExecutionPlan())
 	assert.Equal(t, 1*time.Second, endTime) // because of the 0s gracefulStop
 	assert.True(t, isFinal)
 
 	startTime := time.Now()
-	assert.NoError(t, executor.Run(ctx, samples))
+	assert.NoError(t, execScheduler.Run(ctx, samples))
 	runTime := time.Since(startTime)
 	assert.True(t, runTime > 1*time.Second, "test did not take 1s")
 	assert.True(t, runTime < 10*time.Second, "took more than 10 seconds")
@@ -320,7 +320,7 @@ func TestExecutorEndErrors(t *testing.T) ***REMOVED***
 	assert.Empty(t, hook.Entries)
 ***REMOVED***
 
-func TestExecutorEndIterations(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
@@ -351,15 +351,15 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 
-	executor, err := New(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
 	samples := make(chan stats.SampleContainer, 300)
-	require.NoError(t, executor.Init(ctx, samples))
-	require.NoError(t, executor.Run(ctx, samples))
+	require.NoError(t, execScheduler.Init(ctx, samples))
+	require.NoError(t, execScheduler.Run(ctx, samples))
 
-	assert.Equal(t, uint64(100), executor.GetState().GetFullIterationCount())
-	assert.Equal(t, uint64(0), executor.GetState().GetPartialIterationCount())
+	assert.Equal(t, uint64(100), execScheduler.GetState().GetFullIterationCount())
+	assert.Equal(t, uint64(0), execScheduler.GetState().GetPartialIterationCount())
 	assert.Equal(t, int64(100), i)
 	require.Equal(t, 200, len(samples))
 	for i := 0; i < 100; i++ ***REMOVED***
@@ -375,7 +375,7 @@ func TestExecutorEndIterations(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestExecutorIsRunning(t *testing.T) ***REMOVED***
+func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &lib.MiniRunner***REMOVED***
 		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -383,11 +383,11 @@ func TestExecutorIsRunning(t *testing.T) ***REMOVED***
 			return nil
 		***REMOVED***,
 	***REMOVED***
-	ctx, cancel, executor, _ := newTestExecutor(t, runner, nil, lib.Options***REMOVED******REMOVED***)
-	state := executor.GetState()
+	ctx, cancel, execScheduler, _ := newTestExecutionScheduler(t, runner, nil, lib.Options***REMOVED******REMOVED***)
+	state := execScheduler.GetState()
 
 	err := make(chan error)
-	go func() ***REMOVED*** err <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** err <- execScheduler.Run(ctx, nil) ***REMOVED***()
 	for !state.HasStarted() ***REMOVED***
 		time.Sleep(10 * time.Microsecond)
 	***REMOVED***
@@ -399,8 +399,8 @@ func TestExecutorIsRunning(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 /*
-//TODO: convert for the manual-execution scheduler
-func TestExecutorSetVUs(t *testing.T) ***REMOVED***
+//TODO: convert for the externally-controlled scheduler
+func TestExecutionSchedulerSetVUs(t *testing.T) ***REMOVED***
 	t.Run("Negative", func(t *testing.T) ***REMOVED***
 		assert.EqualError(t, New(nil).SetVUs(-1), "vu count can't be negative")
 	***REMOVED***)
@@ -553,7 +553,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 
-	executor, err := New(runner, logger)
+	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -562,8 +562,8 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	done := make(chan struct***REMOVED******REMOVED***)
 	sampleContainers := make(chan stats.SampleContainer)
 	go func() ***REMOVED***
-		require.NoError(t, executor.Init(ctx, sampleContainers))
-		assert.NoError(t, executor.Run(ctx, sampleContainers))
+		require.NoError(t, execScheduler.Init(ctx, sampleContainers))
+		assert.NoError(t, execScheduler.Run(ctx, sampleContainers))
 		close(done)
 	***REMOVED***()
 
@@ -622,7 +622,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		return netext.NewDialer(net.Dialer***REMOVED******REMOVED***).GetTrail(time.Now(), time.Now(), true, getTags("group", group))
 	***REMOVED***
 
-	// Initially give a long time (5s) for the executor to start
+	// Initially give a long time (5s) for the execScheduler to start
 	expectIn(0, 5000, getSample(1, testCounter, "group", "::setup", "place", "setupBeforeSleep"))
 	expectIn(900, 1100, getSample(2, testCounter, "group", "::setup", "place", "setupAfterSleep"))
 	expectIn(0, 100, getDummyTrail("::setup"))
@@ -646,7 +646,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		case s := <-sampleContainers:
 			t.Fatalf("Did not expect anything in the sample channel bug got %#v", s)
 		case <-time.After(3 * time.Second):
-			t.Fatalf("Local executor took way to long to finish")
+			t.Fatalf("Local execScheduler took way to long to finish")
 		case <-done:
 			return // Exit normally
 		***REMOVED***

@@ -38,30 +38,30 @@ import (
 //TODO: remove globals and use some type of explicit dependency injection?
 //nolint:gochecknoglobals
 var (
-	schedulerConfigTypesMutex   sync.RWMutex
-	schedulerConfigConstructors = make(map[string]SchedulerConfigConstructor)
+	executorConfigTypesMutex   sync.RWMutex
+	executorConfigConstructors = make(map[string]ExecutorConfigConstructor)
 )
 
-// ExecutionStep is used by different schedulers to specify the planned number
+// ExecutionStep is used by different executors to specify the planned number
 // of VUs they will need at a particular time. The times are relative to their
 // StartTime, i.e. they don't take into account the specific starting time of
-// the scheduler, as that will be considered by the external executor
+// the executor, as that will be considered by the external execution executor
 // separately.
 //
 // A slice [***REMOVED***t1, v1***REMOVED***, ***REMOVED***t2, v2***REMOVED***, ***REMOVED***t3, v3***REMOVED***, ..., ***REMOVED***tn, vn***REMOVED***] of execution steps
-// means that a scheduler will need 0 VUs until t1, it will need v1 number of
+// means that a executor will need 0 VUs until t1, it will need v1 number of
 // VUs from time t1 until t2, need v2 number of VUs from time t2 to t3, and so
 // on. t1 is usually 0, tn is usually the same as GetMaxDuration() and vn is
 // usually 0.
 //
 // Keep in mind that t(i) may be exactly equal to t(i+i), when there's an abrupt
-// transition in the number of VUs required by a scheduler. For example, the
-// variable-looping-vus scheduler may have 0-duration stages, or it may scale up
+// transition in the number of VUs required by a executor. For example, the
+// variable-looping-vus executor may have 0-duration stages, or it may scale up
 // VUs in its last stage right until the end. These
 //
-// []ExecutionStep is also used by the SchedulerConfigMap, to represent the
-// amount of needed VUs among all schedulers, during the whole execution of a
-// test script. In that context, each scheduler's StartTime is accounted for and
+// []ExecutionStep is also used by the ExecutorConfigMap, to represent the
+// amount of needed VUs among all executors, during the whole execution of a
+// test script. In that context, each executor's StartTime is accounted for and
 // included in the offsets.
 type ExecutionStep struct ***REMOVED***
 	TimeOffset      time.Duration
@@ -69,10 +69,10 @@ type ExecutionStep struct ***REMOVED***
 	MaxUnplannedVUs uint64
 ***REMOVED***
 
-//TODO: make []ExecutionStep or []SchedulerConfig their own type?
+//TODO: make []ExecutionStep or []ExecutorConfig their own type?
 
-// SchedulerConfig is an interface that should be implemented by all scheduler config types
-type SchedulerConfig interface ***REMOVED***
+// ExecutorConfig is an interface that should be implemented by all executor config types
+type ExecutorConfig interface ***REMOVED***
 	Validate() []error
 
 	GetName() string
@@ -82,30 +82,30 @@ type SchedulerConfig interface ***REMOVED***
 
 	// This is used to validate whether a particular script can run in the cloud
 	// or, in the future, in the native k6 distributed execution. Currently only
-	// the manual-execution scheduler should return false.
+	// the externally-controlled executor should return false.
 	IsDistributable() bool
 
 	GetEnv() map[string]string
 	GetExec() null.String //TODO: use interface***REMOVED******REMOVED*** so plain http requests can be specified?
 
-	// Calculates the VU requirements in different stages of the scheduler's
+	// Calculates the VU requirements in different stages of the executor's
 	// execution, including any extensions caused by waiting for iterations to
 	// finish with graceful stops or ramp-downs.
 	GetExecutionRequirements(*ExecutionSegment) []ExecutionStep
 
-	// Return a human-readable description of the scheduler
+	// Return a human-readable description of the executor
 	GetDescription(es *ExecutionSegment) string
 
-	NewScheduler(*ExecutorState, *logrus.Entry) (Scheduler, error)
+	NewExecutor(*ExecutionState, *logrus.Entry) (Executor, error)
 ***REMOVED***
 
 // InitVUFunc is just a shorthand so we don't have to type the function
 // signature every time.
 type InitVUFunc func(context.Context, *logrus.Entry) (VU, error)
 
-// Scheduler is the interface all schedulers should implement
-type Scheduler interface ***REMOVED***
-	GetConfig() SchedulerConfig
+// Executor is the interface all executors should implement
+type Executor interface ***REMOVED***
+	GetConfig() ExecutorConfig
 	GetProgress() *pb.ProgressBar
 	GetLogger() *logrus.Entry
 
@@ -113,48 +113,48 @@ type Scheduler interface ***REMOVED***
 	Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error
 ***REMOVED***
 
-// PausableScheduler should be implemented by the schedulers that can be paused
-// and resumend in the middle of the test execution. Currently, only the manual
-// execution scheduler implements it.
-type PausableScheduler interface ***REMOVED***
+// PausableExecutor should be implemented by the executors that can be paused
+// and resumend in the middle of the test execution. Currently, only the
+// externally controlled executor implements it.
+type PausableExecutor interface ***REMOVED***
 	SetPaused(bool) error
 ***REMOVED***
 
-// LiveUpdatableScheduler should be implemented for the schedulers whoose
+// LiveUpdatableExecutor should be implemented for the executors whoose
 // configuration can be modified in the middle of the test execution. Currently,
-// only the manual execution scheduler implements it.
-type LiveUpdatableScheduler interface ***REMOVED***
+// only the manual execution executor implements it.
+type LiveUpdatableExecutor interface ***REMOVED***
 	UpdateConfig(ctx context.Context, newConfig interface***REMOVED******REMOVED***) error
 ***REMOVED***
 
-// SchedulerConfigConstructor is a simple function that returns a concrete
+// ExecutorConfigConstructor is a simple function that returns a concrete
 // Config instance with the specified name and all default values correctly
 // initialized
-type SchedulerConfigConstructor func(name string, rawJSON []byte) (SchedulerConfig, error)
+type ExecutorConfigConstructor func(name string, rawJSON []byte) (ExecutorConfig, error)
 
-// RegisterSchedulerConfigType adds the supplied SchedulerConfigConstructor as
+// RegisterExecutorConfigType adds the supplied ExecutorConfigConstructor as
 // the constructor for its type in the configConstructors map, in a thread-safe
 // manner
-func RegisterSchedulerConfigType(configType string, constructor SchedulerConfigConstructor) ***REMOVED***
-	schedulerConfigTypesMutex.Lock()
-	defer schedulerConfigTypesMutex.Unlock()
+func RegisterExecutorConfigType(configType string, constructor ExecutorConfigConstructor) ***REMOVED***
+	executorConfigTypesMutex.Lock()
+	defer executorConfigTypesMutex.Unlock()
 
 	if constructor == nil ***REMOVED***
-		panic("scheduler configs: constructor is nil")
+		panic("executor configs: constructor is nil")
 	***REMOVED***
-	if _, configTypeExists := schedulerConfigConstructors[configType]; configTypeExists ***REMOVED***
-		panic("scheduler configs: lib.RegisterSchedulerConfigType called twice for  " + configType)
+	if _, configTypeExists := executorConfigConstructors[configType]; configTypeExists ***REMOVED***
+		panic("executor configs: lib.RegisterExecutorConfigType called twice for  " + configType)
 	***REMOVED***
 
-	schedulerConfigConstructors[configType] = constructor
+	executorConfigConstructors[configType] = constructor
 ***REMOVED***
 
-// SchedulerConfigMap can contain mixed scheduler config types
-type SchedulerConfigMap map[string]SchedulerConfig
+// ExecutorConfigMap can contain mixed executor config types
+type ExecutorConfigMap map[string]ExecutorConfig
 
 // UnmarshalJSON implements the json.Unmarshaler interface in a two-step manner,
 // creating the correct type of configs based on the `type` property.
-func (scs *SchedulerConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
+func (scs *ExecutorConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 	if len(data) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -165,17 +165,17 @@ func (scs *SchedulerConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 
 	//TODO: use a more sophisticated combination of dec.Token() and dec.More(),
 	// which would allow us to support both arrays and maps for this config?
-	var protoConfigs map[string]protoSchedulerConfig
+	var protoConfigs map[string]protoExecutorConfig
 	if err := StrictJSONUnmarshal(data, &protoConfigs); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
-	result := make(SchedulerConfigMap, len(protoConfigs))
+	result := make(ExecutorConfigMap, len(protoConfigs))
 	for k, v := range protoConfigs ***REMOVED***
 		if v.configType == "" ***REMOVED***
 			return fmt.Errorf("execution config '%s' doesn't have a type value", k)
 		***REMOVED***
-		config, err := GetParsedSchedulerConfig(k, v.configType, v.rawJSON)
+		config, err := GetParsedExecutorConfig(k, v.configType, v.rawJSON)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -187,18 +187,18 @@ func (scs *SchedulerConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// Validate checks if all of the specified scheduler options make sense
-func (scs SchedulerConfigMap) Validate() (errors []error) ***REMOVED***
-	for name, scheduler := range scs ***REMOVED***
-		if schedErr := scheduler.Validate(); len(schedErr) != 0 ***REMOVED***
+// Validate checks if all of the specified executor options make sense
+func (scs ExecutorConfigMap) Validate() (errors []error) ***REMOVED***
+	for name, executor := range scs ***REMOVED***
+		if schedErr := executor.Validate(); len(schedErr) != 0 ***REMOVED***
 			errors = append(errors,
-				fmt.Errorf("scheduler %s has errors: %s", name, ConcatErrors(schedErr, ", ")))
+				fmt.Errorf("executor %s has errors: %s", name, ConcatErrors(schedErr, ", ")))
 		***REMOVED***
 	***REMOVED***
 	return errors
 ***REMOVED***
 
-// GetSortedSchedulerConfigs returns a slice with the scheduler configurations,
+// GetSortedConfigs returns a slice with the executor configurations,
 // sorted in a consistent and predictable manner. It is useful when we want or
 // have to avoid using maps with string keys (and tons of string lookups in
 // them) and avoid the unpredictable iterations over Go maps. Slices allow us
@@ -207,10 +207,10 @@ func (scs SchedulerConfigMap) Validate() (errors []error) ***REMOVED***
 // The configs in the returned slice will be sorted by their start times in an
 // ascending order, and alphabetically by their names (which are unique) if
 // there are ties.
-func (scs SchedulerConfigMap) GetSortedSchedulerConfigs() []SchedulerConfig ***REMOVED***
-	configs := make([]SchedulerConfig, len(scs))
+func (scs ExecutorConfigMap) GetSortedConfigs() []ExecutorConfig ***REMOVED***
+	configs := make([]ExecutorConfig, len(scs))
 
-	// Populate the configs slice with sorted scheduler configs
+	// Populate the configs slice with sorted executor configs
 	i := 0
 	for _, config := range scs ***REMOVED***
 		configs[i] = config // populate the slice in an unordered manner
@@ -231,14 +231,14 @@ func (scs SchedulerConfigMap) GetSortedSchedulerConfigs() []SchedulerConfig ***R
 ***REMOVED***
 
 // GetFullExecutionRequirements combines the execution requirements from all of
-// the configured schedulers. It takes into account their start times and their
+// the configured executors. It takes into account their start times and their
 // individual VU requirements and calculates the total VU requirements for each
 // moment in the test execution.
-func (scs SchedulerConfigMap) GetFullExecutionRequirements(executionSegment *ExecutionSegment) []ExecutionStep ***REMOVED***
-	sortedConfigs := scs.GetSortedSchedulerConfigs()
+func (scs ExecutorConfigMap) GetFullExecutionRequirements(executionSegment *ExecutionSegment) []ExecutionStep ***REMOVED***
+	sortedConfigs := scs.GetSortedConfigs()
 
-	// Combine the steps and requirements from all different schedulers, and
-	// sort them by their time offset, counting the schedulers' startTimes as
+	// Combine the steps and requirements from all different executors, and
+	// sort them by their time offset, counting the executors' startTimes as
 	// well.
 	type trackedStep struct ***REMOVED***
 		ExecutionStep
@@ -249,13 +249,13 @@ func (scs SchedulerConfigMap) GetFullExecutionRequirements(executionSegment *Exe
 		configStartTime := config.GetStartTime()
 		configSteps := config.GetExecutionRequirements(executionSegment)
 		for _, cs := range configSteps ***REMOVED***
-			cs.TimeOffset += configStartTime // add the scheduler start time to the step time offset
+			cs.TimeOffset += configStartTime // add the executor start time to the step time offset
 			trackedSteps = append(trackedSteps, trackedStep***REMOVED***cs, configID***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 	// Sort by (time offset, config id). It's important that we use stable
 	// sorting algorithm, since there are could be steps with the same time from
-	// the same scheduler and their order is important.
+	// the same executor and their order is important.
 	sort.SliceStable(trackedSteps, func(a, b int) bool ***REMOVED***
 		switch ***REMOVED***
 		case trackedSteps[a].TimeOffset < trackedSteps[b].TimeOffset:
@@ -267,9 +267,9 @@ func (scs SchedulerConfigMap) GetFullExecutionRequirements(executionSegment *Exe
 		***REMOVED***
 	***REMOVED***)
 
-	// Go through all of the sorted steps from all of the schedulers, and
+	// Go through all of the sorted steps from all of the executors, and
 	// build a new list of execution steps that consolidates all of their
-	// requirements. If multiple schedulers have an execution step at exactly
+	// requirements. If multiple executors have an execution step at exactly
 	// the same time offset, they will be combined into a single new execution
 	// step with the sum of the values from the previous ones.
 	currentTimeOffset := time.Duration(0)
@@ -310,32 +310,32 @@ func (scs SchedulerConfigMap) GetFullExecutionRequirements(executionSegment *Exe
 	return consolidatedSteps
 ***REMOVED***
 
-// GetParsedSchedulerConfig returns a struct instance corresponding to the supplied
+// GetParsedExecutorConfig returns a struct instance corresponding to the supplied
 // config type. It will be fully initialized - with both the default values of
 // the type, as well as with whatever the user had specified in the JSON
-func GetParsedSchedulerConfig(name, configType string, rawJSON []byte) (result SchedulerConfig, err error) ***REMOVED***
-	schedulerConfigTypesMutex.Lock()
-	defer schedulerConfigTypesMutex.Unlock()
+func GetParsedExecutorConfig(name, configType string, rawJSON []byte) (result ExecutorConfig, err error) ***REMOVED***
+	executorConfigTypesMutex.Lock()
+	defer executorConfigTypesMutex.Unlock()
 
-	constructor, exists := schedulerConfigConstructors[configType]
+	constructor, exists := executorConfigConstructors[configType]
 	if !exists ***REMOVED***
-		return nil, fmt.Errorf("unknown execution scheduler type '%s'", configType)
+		return nil, fmt.Errorf("unknown executor type '%s'", configType)
 	***REMOVED***
 	return constructor(name, rawJSON)
 ***REMOVED***
 
-type protoSchedulerConfig struct ***REMOVED***
+type protoExecutorConfig struct ***REMOVED***
 	configType string
 	rawJSON    json.RawMessage
 ***REMOVED***
 
 // UnmarshalJSON just reads unmarshals the base config (to get the type), but it also
 // stores the unprocessed JSON so we can parse the full config in the next step
-func (pc *protoSchedulerConfig) UnmarshalJSON(b []byte) error ***REMOVED***
+func (pc *protoExecutorConfig) UnmarshalJSON(b []byte) error ***REMOVED***
 	var tmp struct ***REMOVED***
 		ConfigType string `json:"type"`
 	***REMOVED***
 	err := json.Unmarshal(b, &tmp)
-	*pc = protoSchedulerConfig***REMOVED***tmp.ConfigType, b***REMOVED***
+	*pc = protoExecutorConfig***REMOVED***tmp.ConfigType, b***REMOVED***
 	return err
 ***REMOVED***

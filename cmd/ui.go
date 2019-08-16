@@ -98,13 +98,13 @@ func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string ***REM
 //TODO: show other information here?
 //TODO: add a no-progress option that will disable these
 //TODO: don't use global variables...
-func showProgress(ctx context.Context, conf Config, executor *local.Executor) ***REMOVED***
+func showProgress(ctx context.Context, conf Config, execScheduler *local.ExecutionScheduler) ***REMOVED***
 	if quiet || conf.HttpDebug.Valid && conf.HttpDebug.String != "" ***REMOVED***
 		return
 	***REMOVED***
 
-	pbs := []*pb.ProgressBar***REMOVED***executor.GetInitProgressBar()***REMOVED***
-	for _, s := range executor.GetSchedulers() ***REMOVED***
+	pbs := []*pb.ProgressBar***REMOVED***execScheduler.GetInitProgressBar()***REMOVED***
+	for _, s := range execScheduler.GetExecutors() ***REMOVED***
 		pbs = append(pbs, s.GetProgress())
 	***REMOVED***
 

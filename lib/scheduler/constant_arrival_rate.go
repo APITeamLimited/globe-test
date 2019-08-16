@@ -38,9 +38,9 @@ import (
 const constantArrivalRateType = "constant-arrival-rate"
 
 func init() ***REMOVED***
-	lib.RegisterSchedulerConfigType(
+	lib.RegisterExecutorConfigType(
 		constantArrivalRateType,
-		func(name string, rawJSON []byte) (lib.SchedulerConfig, error) ***REMOVED***
+		func(name string, rawJSON []byte) (lib.ExecutorConfig, error) ***REMOVED***
 			config := NewConstantArrivalRateConfig(name)
 			err := lib.StrictJSONUnmarshal(rawJSON, &config)
 			return config, err
@@ -48,7 +48,7 @@ func init() ***REMOVED***
 	)
 ***REMOVED***
 
-// ConstantArrivalRateConfig stores config for the constant arrival-rate scheduler
+// ConstantArrivalRateConfig stores config for the constant arrival-rate executor
 type ConstantArrivalRateConfig struct ***REMOVED***
 	BaseConfig
 	Rate     null.Int           `json:"rate"`
@@ -57,7 +57,7 @@ type ConstantArrivalRateConfig struct ***REMOVED***
 
 	// Initialize `PreAllocatedVUs` number of VUs, and if more than that are needed,
 	// they will be dynamically allocated, until `MaxVUs` is reached, which is an
-	// absolutely hard limit on the number of VUs the scheduler will use
+	// absolutely hard limit on the number of VUs the executor will use
 	PreAllocatedVUs null.Int `json:"preAllocatedVUs"`
 	MaxVUs          null.Int `json:"maxVUs"`
 ***REMOVED***
@@ -70,8 +70,8 @@ func NewConstantArrivalRateConfig(name string) ConstantArrivalRateConfig ***REMO
 	***REMOVED***
 ***REMOVED***
 
-// Make sure we implement the lib.SchedulerConfig interface
-var _ lib.SchedulerConfig = &ConstantArrivalRateConfig***REMOVED******REMOVED***
+// Make sure we implement the lib.ExecutorConfig interface
+var _ lib.ExecutorConfig = &ConstantArrivalRateConfig***REMOVED******REMOVED***
 
 // GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
 func (carc ConstantArrivalRateConfig) GetPreAllocatedVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
@@ -83,7 +83,7 @@ func (carc ConstantArrivalRateConfig) GetMaxVUs(es *lib.ExecutionSegment) int64 
 	return es.Scale(carc.MaxVUs.Int64)
 ***REMOVED***
 
-// GetDescription returns a human-readable description of the scheduler options
+// GetDescription returns a human-readable description of the executor options
 func (carc ConstantArrivalRateConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
 	preAllocatedVUs, maxVUs := carc.GetPreAllocatedVUs(es), carc.GetMaxVUs(es)
 	maxVUsRange := fmt.Sprintf("maxVUs: %d", preAllocatedVUs)
@@ -136,7 +136,7 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 ***REMOVED***
 
 // GetExecutionRequirements just reserves the number of specified VUs for the
-// whole duration of the scheduler, including the maximum waiting time for
+// whole duration of the executor, including the maximum waiting time for
 // iterations to gracefully stop.
 func (carc ConstantArrivalRateConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
@@ -152,31 +152,31 @@ func (carc ConstantArrivalRateConfig) GetExecutionRequirements(es *lib.Execution
 	***REMOVED***
 ***REMOVED***
 
-// NewScheduler creates a new ConstantArrivalRate scheduler
-func (carc ConstantArrivalRateConfig) NewScheduler(
-	es *lib.ExecutorState, logger *logrus.Entry) (lib.Scheduler, error) ***REMOVED***
+// NewExecutor creates a new ConstantArrivalRate executor
+func (carc ConstantArrivalRateConfig) NewExecutor(
+	es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
 
 	return ConstantArrivalRate***REMOVED***
-		BaseScheduler: NewBaseScheduler(carc, es, logger),
-		config:        carc,
+		BaseExecutor: NewBaseExecutor(carc, es, logger),
+		config:       carc,
 	***REMOVED***, nil
 ***REMOVED***
 
 // ConstantArrivalRate tries to execute a specific number of iterations for a
 // specific period.
 type ConstantArrivalRate struct ***REMOVED***
-	*BaseScheduler
+	*BaseExecutor
 	config ConstantArrivalRateConfig
 ***REMOVED***
 
-// Make sure we implement the lib.Scheduler interface.
-var _ lib.Scheduler = &ConstantArrivalRate***REMOVED******REMOVED***
+// Make sure we implement the lib.Executor interface.
+var _ lib.Executor = &ConstantArrivalRate***REMOVED******REMOVED***
 
 // Run executes a constant number of iterations per second.
 //
 // TODO: Reuse the variable arrival rate method?
 func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
-	segment := car.executorState.Options.ExecutionSegment
+	segment := car.executionState.Options.ExecutionSegment
 	gracefulStop := car.config.GetGracefulStop()
 	duration := time.Duration(car.config.Duration.Duration)
 	preAllocatedVUs := car.config.GetPreAllocatedVUs(segment)
@@ -194,7 +194,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	car.logger.WithFields(logrus.Fields***REMOVED***
 		"maxVUs": maxVUs, "preAllocatedVUs": preAllocatedVUs, "duration": duration,
 		"tickerPeriod": tickerPeriod, "type": car.config.GetType(),
-	***REMOVED***).Debug("Starting scheduler run...")
+	***REMOVED***).Debug("Starting executor run...")
 
 	// Pre-allocate the VUs local shared buffer
 	vus := make(chan lib.VU, maxVUs)
@@ -205,13 +205,13 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	defer func() ***REMOVED***
 		// no need for atomics, since initialisedVUs is mutated only in the select***REMOVED******REMOVED***
 		for i := uint64(0); i < initialisedVUs; i++ ***REMOVED***
-			car.executorState.ReturnVU(<-vus, true)
+			car.executionState.ReturnVU(<-vus, true)
 		***REMOVED***
 	***REMOVED***()
 
 	// Get the pre-allocated VUs in the local buffer
 	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
-		vu, err := car.executorState.GetPlannedVU(car.logger, true)
+		vu, err := car.executionState.GetPlannedVU(car.logger, true)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -235,7 +235,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, car, progresFn)
 
 	regDurationDone := regDurationCtx.Done()
-	runIterationBasic := getIterationRunner(car.executorState, car.logger, out)
+	runIterationBasic := getIterationRunner(car.executionState, car.logger, out)
 	runIteration := func(vu lib.VU) ***REMOVED***
 		runIterationBasic(maxDurationCtx, vu)
 		vus <- vu
@@ -255,7 +255,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 					car.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot allocate more", maxVUs)
 					break
 				***REMOVED***
-				vu, err := car.executorState.GetUnplannedVU(maxDurationCtx, car.logger)
+				vu, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***

@@ -43,9 +43,9 @@ const variableArrivalRateType = "variable-arrival-rate"
 const minIntervalBetweenRateAdjustments = 250 * time.Millisecond
 
 func init() ***REMOVED***
-	lib.RegisterSchedulerConfigType(
+	lib.RegisterExecutorConfigType(
 		variableArrivalRateType,
-		func(name string, rawJSON []byte) (lib.SchedulerConfig, error) ***REMOVED***
+		func(name string, rawJSON []byte) (lib.ExecutorConfig, error) ***REMOVED***
 			config := NewVariableArrivalRateConfig(name)
 			err := lib.StrictJSONUnmarshal(rawJSON, &config)
 			return config, err
@@ -53,7 +53,7 @@ func init() ***REMOVED***
 	)
 ***REMOVED***
 
-// VariableArrivalRateConfig stores config for the variable arrival-rate scheduler
+// VariableArrivalRateConfig stores config for the variable arrival-rate executor
 type VariableArrivalRateConfig struct ***REMOVED***
 	BaseConfig
 	StartRate null.Int           `json:"startRate"`
@@ -62,7 +62,7 @@ type VariableArrivalRateConfig struct ***REMOVED***
 
 	// Initialize `PreAllocatedVUs` number of VUs, and if more than that are needed,
 	// they will be dynamically allocated, until `MaxVUs` is reached, which is an
-	// absolutely hard limit on the number of VUs the scheduler will use
+	// absolutely hard limit on the number of VUs the executor will use
 	PreAllocatedVUs null.Int `json:"preAllocatedVUs"`
 	MaxVUs          null.Int `json:"maxVUs"`
 ***REMOVED***
@@ -75,8 +75,8 @@ func NewVariableArrivalRateConfig(name string) VariableArrivalRateConfig ***REMO
 	***REMOVED***
 ***REMOVED***
 
-// Make sure we implement the lib.SchedulerConfig interface
-var _ lib.SchedulerConfig = &VariableArrivalRateConfig***REMOVED******REMOVED***
+// Make sure we implement the lib.ExecutorConfig interface
+var _ lib.ExecutorConfig = &VariableArrivalRateConfig***REMOVED******REMOVED***
 
 // GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
 func (varc VariableArrivalRateConfig) GetPreAllocatedVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
@@ -88,7 +88,7 @@ func (varc VariableArrivalRateConfig) GetMaxVUs(es *lib.ExecutionSegment) int64 
 	return es.Scale(varc.MaxVUs.Int64)
 ***REMOVED***
 
-// GetDescription returns a human-readable description of the scheduler options
+// GetDescription returns a human-readable description of the executor options
 func (varc VariableArrivalRateConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
 	//TODO: something better? always show iterations per second?
 	maxVUsRange := fmt.Sprintf("maxVUs: %d", es.Scale(varc.PreAllocatedVUs.Int64))
@@ -135,7 +135,7 @@ func (varc VariableArrivalRateConfig) Validate() []error ***REMOVED***
 ***REMOVED***
 
 // GetExecutionRequirements just reserves the number of specified VUs for the
-// whole duration of the scheduler, including the maximum waiting time for
+// whole duration of the executor, including the maximum waiting time for
 // iterations to gracefully stop.
 func (varc VariableArrivalRateConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
@@ -236,12 +236,12 @@ func (varc VariableArrivalRateConfig) getPlannedRateChanges(segment *lib.Executi
 	return rateChanges
 ***REMOVED***
 
-// NewScheduler creates a new VariableArrivalRate scheduler
-func (varc VariableArrivalRateConfig) NewScheduler(
-	es *lib.ExecutorState, logger *logrus.Entry) (lib.Scheduler, error) ***REMOVED***
+// NewExecutor creates a new VariableArrivalRate executor
+func (varc VariableArrivalRateConfig) NewExecutor(
+	es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
 
 	return VariableArrivalRate***REMOVED***
-		BaseScheduler:      NewBaseScheduler(varc, es, logger),
+		BaseExecutor:       NewBaseExecutor(varc, es, logger),
 		config:             varc,
 		plannedRateChanges: varc.getPlannedRateChanges(es.Options.ExecutionSegment),
 	***REMOVED***, nil
@@ -251,13 +251,13 @@ func (varc VariableArrivalRateConfig) NewScheduler(
 // specific period.
 //TODO: combine with the ConstantArrivalRate?
 type VariableArrivalRate struct ***REMOVED***
-	*BaseScheduler
+	*BaseExecutor
 	config             VariableArrivalRateConfig
 	plannedRateChanges []rateChange
 ***REMOVED***
 
-// Make sure we implement the lib.Scheduler interface.
-var _ lib.Scheduler = &VariableArrivalRate***REMOVED******REMOVED***
+// Make sure we implement the lib.Executor interface.
+var _ lib.Executor = &VariableArrivalRate***REMOVED******REMOVED***
 
 // streamRateChanges is a helper method that emits rate change events at their
 // proper time.
@@ -286,7 +286,7 @@ func (varr VariableArrivalRate) streamRateChanges(ctx context.Context, startTime
 
 // Run executes a variable number of iterations per second.
 func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
-	segment := varr.executorState.Options.ExecutionSegment
+	segment := varr.executionState.Options.ExecutionSegment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
 	preAllocatedVUs := varr.config.GetPreAllocatedVUs(segment)
@@ -310,7 +310,7 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 	varr.logger.WithFields(logrus.Fields***REMOVED***
 		"maxVUs": maxVUs, "preAllocatedVUs": preAllocatedVUs, "duration": duration, "numStages": len(varr.config.Stages),
 		"startTickerPeriod": startTickerPeriod.Duration, "type": varr.config.GetType(),
-	***REMOVED***).Debug("Starting scheduler run...")
+	***REMOVED***).Debug("Starting executor run...")
 
 	// Pre-allocate the VUs local shared buffer
 	vus := make(chan lib.VU, maxVUs)
@@ -321,13 +321,13 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 	defer func() ***REMOVED***
 		// no need for atomics, since initialisedVUs is mutated only in the select***REMOVED******REMOVED***
 		for i := uint64(0); i < initialisedVUs; i++ ***REMOVED***
-			varr.executorState.ReturnVU(<-vus, true)
+			varr.executionState.ReturnVU(<-vus, true)
 		***REMOVED***
 	***REMOVED***()
 
 	// Get the pre-allocated VUs in the local buffer
 	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
-		vu, err := varr.executorState.GetPlannedVU(varr.logger, true)
+		vu, err := varr.executionState.GetPlannedVU(varr.logger, true)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -357,7 +357,7 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, varr, progresFn)
 
 	regDurationDone := regDurationCtx.Done()
-	runIterationBasic := getIterationRunner(varr.executorState, varr.logger, out)
+	runIterationBasic := getIterationRunner(varr.executionState, varr.logger, out)
 	runIteration := func(vu lib.VU) ***REMOVED***
 		runIterationBasic(maxDurationCtx, vu)
 		vus <- vu
@@ -386,7 +386,7 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 					varr.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot allocate more", maxVUs)
 					break
 				***REMOVED***
-				vu, err := varr.executorState.GetUnplannedVU(maxDurationCtx, varr.logger)
+				vu, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***

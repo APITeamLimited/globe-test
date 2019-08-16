@@ -36,12 +36,12 @@ type Status struct ***REMOVED***
 ***REMOVED***
 
 func NewStatus(engine *core.Engine) Status ***REMOVED***
-	executorState := engine.Executor.GetState()
+	executionState := engine.ExecutionScheduler.GetState()
 	return Status***REMOVED***
-		Running: executorState.HasStarted(),
-		Paused:  null.BoolFrom(executorState.IsPaused()),
-		VUs:     null.IntFrom(executorState.GetCurrentlyActiveVUsCount()),
-		VUsMax:  null.IntFrom(executorState.GetInitializedVUsCount()),
+		Running: executionState.HasStarted(),
+		Paused:  null.BoolFrom(executionState.IsPaused()),
+		VUs:     null.IntFrom(executionState.GetCurrentlyActiveVUsCount()),
+		VUsMax:  null.IntFrom(executionState.GetInitializedVUsCount()),
 		Tainted: engine.IsTainted(),
 	***REMOVED***
 ***REMOVED***

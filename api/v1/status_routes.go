@@ -44,14 +44,17 @@ func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 	_, _ = rw.Write(data)
 ***REMOVED***
 
-func getFirstManualExecutionScheduler(executor lib.Executor) (*scheduler.ManualExecution, error) ***REMOVED***
-	schedulers := executor.GetSchedulers()
-	for _, s := range schedulers ***REMOVED***
-		if mex, ok := s.(*scheduler.ManualExecution); ok ***REMOVED***
+func getFirstExternallyControlledExecutor(
+	execScheduler lib.ExecutionScheduler,
+) (*scheduler.ExternallyControlled, error) ***REMOVED***
+
+	executors := execScheduler.GetExecutors()
+	for _, s := range executors ***REMOVED***
+		if mex, ok := s.(*scheduler.ExternallyControlled); ok ***REMOVED***
 			return mex, nil
 		***REMOVED***
 	***REMOVED***
-	return nil, fmt.Errorf("a manual-execution scheduler needs to be configured for live configuration updates")
+	return nil, fmt.Errorf("a externally-controlled executor needs to be configured for live configuration updates")
 ***REMOVED***
 
 func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
@@ -70,29 +73,29 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 	***REMOVED***
 
 	if status.Paused.Valid ***REMOVED***
-		if err = engine.Executor.SetPaused(status.Paused.Bool); err != nil ***REMOVED***
+		if err = engine.ExecutionScheduler.SetPaused(status.Paused.Bool); err != nil ***REMOVED***
 			apiError(rw, "Pause error", err.Error(), http.StatusInternalServerError)
 			return
 		***REMOVED***
 	***REMOVED***
 
 	if status.VUsMax.Valid || status.VUs.Valid ***REMOVED***
-		//TODO: add ability to specify the actual scheduler id? though thus should
+		//TODO: add ability to specify the actual executor id? though thus should
 		//likely be in the v2 REST API, where we could implement it in a way that
-		//may allow us to eventually support other scheduler types
-		scheduler, uptateErr := getFirstManualExecutionScheduler(engine.Executor)
+		//may allow us to eventually support other executor types
+		executor, uptateErr := getFirstExternallyControlledExecutor(engine.ExecutionScheduler)
 		if uptateErr != nil ***REMOVED***
 			apiError(rw, "Execution config error", uptateErr.Error(), http.StatusInternalServerError)
 			return
 		***REMOVED***
-		newConfig := scheduler.GetCurrentConfig().ManualExecutionControlConfig
+		newConfig := executor.GetCurrentConfig().ExternallyControlledConfigParams
 		if status.VUsMax.Valid ***REMOVED***
 			newConfig.MaxVUs = status.VUsMax
 		***REMOVED***
 		if status.VUs.Valid ***REMOVED***
 			newConfig.VUs = status.VUs
 		***REMOVED***
-		if uptateErr := scheduler.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
+		if uptateErr := executor.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
 			apiError(rw, "Config update error", uptateErr.Error(), http.StatusInternalServerError)
 			return
 		***REMOVED***

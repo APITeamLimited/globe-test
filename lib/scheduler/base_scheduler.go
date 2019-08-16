@@ -28,46 +28,46 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// BaseScheduler is a helper struct that contains common properties and methods
-// between most schedulers. It is intended to be used as an anonymous struct
-// inside of most of the schedulers, for the purpose of reducing boilerplate
+// BaseExecutor is a helper struct that contains common properties and methods
+// between most executors. It is intended to be used as an anonymous struct
+// inside of most of the executors, for the purpose of reducing boilerplate
 // code.
-type BaseScheduler struct ***REMOVED***
-	config        lib.SchedulerConfig
-	executorState *lib.ExecutorState
-	logger        *logrus.Entry
-	progress      *pb.ProgressBar
+type BaseExecutor struct ***REMOVED***
+	config         lib.ExecutorConfig
+	executionState *lib.ExecutionState
+	logger         *logrus.Entry
+	progress       *pb.ProgressBar
 ***REMOVED***
 
-// NewBaseScheduler just returns an initialized BaseScheduler
-func NewBaseScheduler(config lib.SchedulerConfig, es *lib.ExecutorState, logger *logrus.Entry) *BaseScheduler ***REMOVED***
-	return &BaseScheduler***REMOVED***
-		config:        config,
-		executorState: es,
-		logger:        logger,
+// NewBaseExecutor just returns an initialized BaseExecutor
+func NewBaseExecutor(config lib.ExecutorConfig, es *lib.ExecutionState, logger *logrus.Entry) *BaseExecutor ***REMOVED***
+	return &BaseExecutor***REMOVED***
+		config:         config,
+		executionState: es,
+		logger:         logger,
 		progress: pb.New(
 			pb.WithLeft(config.GetName),
 		),
 	***REMOVED***
 ***REMOVED***
 
-// Init doesn't do anything for most schedulers, since initialization of all
+// Init doesn't do anything for most executors, since initialization of all
 // planned VUs is handled by the executor.
-func (bs *BaseScheduler) Init(_ context.Context) error ***REMOVED***
+func (bs *BaseExecutor) Init(_ context.Context) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// GetConfig returns the configuration with which this scheduler was launched.
-func (bs BaseScheduler) GetConfig() lib.SchedulerConfig ***REMOVED***
+// GetConfig returns the configuration with which this executor was launched.
+func (bs BaseExecutor) GetConfig() lib.ExecutorConfig ***REMOVED***
 	return bs.config
 ***REMOVED***
 
-// GetLogger returns the scheduler logger entry.
-func (bs BaseScheduler) GetLogger() *logrus.Entry ***REMOVED***
+// GetLogger returns the executor logger entry.
+func (bs BaseExecutor) GetLogger() *logrus.Entry ***REMOVED***
 	return bs.logger
 ***REMOVED***
 
 // GetProgress just returns the progressbar pointer.
-func (bs BaseScheduler) GetProgress() *pb.ProgressBar ***REMOVED***
+func (bs BaseExecutor) GetProgress() *pb.ProgressBar ***REMOVED***
 	return bs.progress
 ***REMOVED***

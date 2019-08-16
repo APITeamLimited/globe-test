@@ -34,105 +34,105 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Executor is the local implementation of lib.Executor
-type Executor struct ***REMOVED***
+// ExecutionScheduler is the local implementation of lib.ExecutionScheduler
+type ExecutionScheduler struct ***REMOVED***
 	runner  lib.Runner
 	options lib.Options
 	logger  *logrus.Logger
 
 	initProgress   *pb.ProgressBar
-	schedulers     []lib.Scheduler // sorted by (startTime, ID)
+	executors      []lib.Executor // sorted by (startTime, ID)
 	executionPlan  []lib.ExecutionStep
 	maxDuration    time.Duration // cached value derived from the execution plan
 	maxPossibleVUs uint64        // cached value derived from the execution plan
-	state          *lib.ExecutorState
+	state          *lib.ExecutionState
 ***REMOVED***
 
-// Check to see if we implement the lib.Executor interface
-var _ lib.Executor = &Executor***REMOVED******REMOVED***
+// Check to see if we implement the lib.ExecutionScheduler interface
+var _ lib.ExecutionScheduler = &ExecutionScheduler***REMOVED******REMOVED***
 
-// New creates and returns a new local lib.Executor instance, without
-// initializing it beyond the bare minimum. Specifically, it creates the needed
-// schedulers instances and a lot of state placeholders, but it doesn't
-// initialize the schedulers and it doesn't initialize or run any VUs.
-func New(runner lib.Runner, logger *logrus.Logger) (*Executor, error) ***REMOVED***
+// NewExecutionScheduler creates and returns a new local lib.ExecutionScheduler
+// instance, without initializing it beyond the bare minimum. Specifically, it
+// creates the needed executor instances and a lot of state placeholders, but it
+// doesn't initialize the executors and it doesn't initialize or run VUs.
+func NewExecutionScheduler(runner lib.Runner, logger *logrus.Logger) (*ExecutionScheduler, error) ***REMOVED***
 	options := runner.GetOptions()
 
 	executionPlan := options.Execution.GetFullExecutionRequirements(options.ExecutionSegment)
 	maxPlannedVUs := lib.GetMaxPlannedVUs(executionPlan)
 	maxPossibleVUs := lib.GetMaxPossibleVUs(executionPlan)
 
-	executorState := lib.NewExecutorState(options, maxPlannedVUs, maxPossibleVUs)
+	executionState := lib.NewExecutionState(options, maxPlannedVUs, maxPossibleVUs)
 	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
-	schedulerConfigs := options.Execution.GetSortedSchedulerConfigs()
-	schedulers := make([]lib.Scheduler, len(schedulerConfigs))
-	for i, sc := range schedulerConfigs ***REMOVED***
-		s, err := sc.NewScheduler(executorState, logger.WithField("scheduler", sc.GetName()))
+	executorConfigs := options.Execution.GetSortedConfigs()
+	executors := make([]lib.Executor, len(executorConfigs))
+	for i, sc := range executorConfigs ***REMOVED***
+		s, err := sc.NewExecutor(executionState, logger.WithField("executor", sc.GetName()))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		schedulers[i] = s
+		executors[i] = s
 	***REMOVED***
 
 	if options.Paused.Bool ***REMOVED***
-		if err := executorState.Pause(); err != nil ***REMOVED***
+		if err := executionState.Pause(); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
 
-	return &Executor***REMOVED***
+	return &ExecutionScheduler***REMOVED***
 		runner:  runner,
 		logger:  logger,
 		options: options,
 
 		initProgress:   pb.New(pb.WithConstLeft("Init")),
-		schedulers:     schedulers,
+		executors:      executors,
 		executionPlan:  executionPlan,
 		maxDuration:    maxDuration,
 		maxPossibleVUs: maxPossibleVUs,
-		state:          executorState,
+		state:          executionState,
 	***REMOVED***, nil
 ***REMOVED***
 
 // GetRunner returns the wrapped lib.Runner instance.
-func (e *Executor) GetRunner() lib.Runner ***REMOVED***
+func (e *ExecutionScheduler) GetRunner() lib.Runner ***REMOVED***
 	return e.runner
 ***REMOVED***
 
-// GetState returns a pointer to the executor state struct for the local
-// executor. It's guaranteed to be initialized and present, though see
-// the documentation in lib/executor.go for caveats about its usage.
-// The most important one is that none of the methods beyond the pause-related
-// ones should be used for synchronization.
-func (e *Executor) GetState() *lib.ExecutorState ***REMOVED***
+// GetState returns a pointer to the execution state struct for the local
+// execution scheduler. It's guaranteed to be initialized and present, though
+// see the documentation in lib/execution.go for caveats about its usage. The
+// most important one is that none of the methods beyond the pause-related ones
+// should be used for synchronization.
+func (e *ExecutionScheduler) GetState() *lib.ExecutionState ***REMOVED***
 	return e.state
 ***REMOVED***
 
-// GetSchedulers returns the slice of configured scheduler instances, sorted by
+// GetExecutors returns the slice of configured executor instances, sorted by
 // their (startTime, name) in an ascending order.
-func (e *Executor) GetSchedulers() []lib.Scheduler ***REMOVED***
-	return e.schedulers
+func (e *ExecutionScheduler) GetExecutors() []lib.Executor ***REMOVED***
+	return e.executors
 ***REMOVED***
 
 // GetInitProgressBar returns a the progress bar assotiated with the Init
 // function. After the Init is done, it is "hijacked" to display real-time
 // execution statistics as a text bar.
-func (e *Executor) GetInitProgressBar() *pb.ProgressBar ***REMOVED***
+func (e *ExecutionScheduler) GetInitProgressBar() *pb.ProgressBar ***REMOVED***
 	return e.initProgress
 ***REMOVED***
 
-// GetExecutionPlan is a helper method so users of the local executor don't have
-// to calculate the execution plan again.
-func (e *Executor) GetExecutionPlan() []lib.ExecutionStep ***REMOVED***
+// GetExecutionPlan is a helper method so users of the local execution scheduler
+// don't have to calculate the execution plan again.
+func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep ***REMOVED***
 	return e.executionPlan
 ***REMOVED***
 
 // initVU is just a helper method that's used to both initialize the planned VUs
-// in the Init() method, and also passed to schedulers so they can initialize
+// in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
 //TODO: actually use the context...
-func (e *Executor) initVU(
+func (e *ExecutionScheduler) initVU(
 	_ context.Context, logger *logrus.Entry, engineOut chan<- stats.SampleContainer,
 ) (lib.VU, error) ***REMOVED***
 
@@ -152,9 +152,9 @@ func (e *Executor) initVU(
 	return vu, nil
 ***REMOVED***
 
-// getRunStats is a helper function that can be used as the executor's
-// progressbar substitute (i.e. hijack).
-func (e *Executor) getRunStats() string ***REMOVED***
+// getRunStats is a helper function that can be used as the execution
+// scheduler's progressbar substitute (i.e. hijack).
+func (e *ExecutionScheduler) getRunStats() string ***REMOVED***
 	status := "running"
 	if e.state.IsPaused() ***REMOVED***
 		status = "paused"
@@ -166,21 +166,21 @@ func (e *Executor) getRunStats() string ***REMOVED***
 
 	vusFmt := pb.GetFixedLengthIntFormat(int64(e.maxPossibleVUs))
 	return fmt.Sprintf(
-		"%s, "+vusFmt+"/"+vusFmt+" VUs, %d complete and %d incomplete iterations",
+		"%s, "+vusFmt+"/"+vusFmt+" VUs, %d complete and %d interrupted iterations",
 		status, e.state.GetCurrentlyActiveVUsCount(), e.state.GetInitializedVUsCount(),
 		e.state.GetFullIterationCount(), e.state.GetPartialIterationCount(),
 	)
 ***REMOVED***
 
 // Init concurrently initializes all of the planned VUs and then sequentially
-// initializes all of the configured schedulers.
-func (e *Executor) Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
-	logger := e.logger.WithField("phase", "local-executor-init")
+// initializes all of the configured executors.
+func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
+	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
 
 	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
 	logger.WithFields(logrus.Fields***REMOVED***
-		"neededVUs":       vusToInitialize,
-		"schedulersCount": len(e.schedulers),
+		"neededVUs":      vusToInitialize,
+		"executorsCount": len(e.executors),
 	***REMOVED***).Debugf("Start of initialization")
 
 	doneInits := make(chan error, vusToInitialize) // poor man's early-return waitgroup
@@ -236,25 +236,25 @@ func (e *Executor) Init(ctx context.Context, engineOut chan<- stats.SampleContai
 		return e.initVU(ctx, logger, engineOut)
 	***REMOVED***)
 
-	logger.Debugf("Finished initializing needed VUs, start initializing schedulers...")
-	for _, sched := range e.schedulers ***REMOVED***
-		schedConfig := sched.GetConfig()
+	logger.Debugf("Finished initializing needed VUs, start initializing executors...")
+	for _, executor := range e.executors ***REMOVED***
+		executorConfig := executor.GetConfig()
 
-		if err := sched.Init(ctx); err != nil ***REMOVED***
-			return fmt.Errorf("error while initializing scheduler %s: %s", schedConfig.GetName(), err)
+		if err := executor.Init(ctx); err != nil ***REMOVED***
+			return fmt.Errorf("error while initializing executor %s: %s", executorConfig.GetName(), err)
 		***REMOVED***
-		logger.Debugf("Initialized scheduler %s", schedConfig.GetName())
+		logger.Debugf("Initialized executor %s", executorConfig.GetName())
 	***REMOVED***
 
 	logger.Debugf("Initization completed")
 	return nil
 ***REMOVED***
 
-// Run the Executor, funneling all generated metric samples through the supplied
+// Run the ExecutionScheduler, funneling all generated metric samples through the supplied
 // out channel.
-func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
-	schedulersCount := len(e.schedulers)
-	logger := e.logger.WithField("phase", "local-executor-run")
+func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
+	executorsCount := len(e.executors)
+	logger := e.logger.WithField("phase", "local-execution-scheduler-run")
 	e.initProgress.Modify(pb.WithConstLeft("Run"))
 
 	if e.state.IsPaused() ***REMOVED***
@@ -272,14 +272,14 @@ func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContain
 	defer e.state.MarkEnded()
 	e.initProgress.Modify(pb.WithConstProgress(1, "running"))
 
-	logger.WithFields(logrus.Fields***REMOVED***"schedulersCount": schedulersCount***REMOVED***).Debugf("Start of test run")
+	logger.WithFields(logrus.Fields***REMOVED***"executorsCount": executorsCount***REMOVED***).Debugf("Start of test run")
 
-	runResults := make(chan error, schedulersCount) // nil values are successful runs
+	runResults := make(chan error, executorsCount) // nil values are successful runs
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel() // just in case, and to shut up go vet...
 
-	// Run setup() before any schedulers, if it's not disabled
+	// Run setup() before any executors, if it's not disabled
 	if !e.options.NoSetup.Bool ***REMOVED***
 		logger.Debug("Running setup()")
 		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
@@ -291,54 +291,54 @@ func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContain
 	e.initProgress.Modify(pb.WithHijack(e.getRunStats))
 
 	runCtxDone := runCtx.Done()
-	runScheduler := func(sched lib.Scheduler) ***REMOVED***
-		schedConfig := sched.GetConfig()
-		schedStartTime := schedConfig.GetStartTime()
-		schedLogger := logger.WithFields(logrus.Fields***REMOVED***
-			"scheduler": schedConfig.GetName(),
-			"type":      schedConfig.GetType(),
-			"startTime": schedStartTime,
+	runExecutor := func(executor lib.Executor) ***REMOVED***
+		executorConfig := executor.GetConfig()
+		executorStartTime := executorConfig.GetStartTime()
+		executorLogger := logger.WithFields(logrus.Fields***REMOVED***
+			"executor":  executorConfig.GetName(),
+			"type":      executorConfig.GetType(),
+			"startTime": executorStartTime,
 		***REMOVED***)
-		schedProgress := sched.GetProgress()
+		executorProgress := executor.GetProgress()
 
-		// Check if we have to wait before starting the actual scheduler execution
-		if schedStartTime > 0 ***REMOVED***
+		// Check if we have to wait before starting the actual executor execution
+		if executorStartTime > 0 ***REMOVED***
 			startTime := time.Now()
-			schedProgress.Modify(pb.WithProgress(func() (float64, string) ***REMOVED***
-				remWait := (schedStartTime - time.Since(startTime))
-				return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, schedStartTime))
+			executorProgress.Modify(pb.WithProgress(func() (float64, string) ***REMOVED***
+				remWait := (executorStartTime - time.Since(startTime))
+				return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, executorStartTime))
 			***REMOVED***))
 
-			schedLogger.Debugf("Waiting for scheduler start time...")
+			executorLogger.Debugf("Waiting for executor start time...")
 			select ***REMOVED***
 			case <-runCtxDone:
-				runResults <- nil // no error since scheduler hasn't started yet
+				runResults <- nil // no error since executor hasn't started yet
 				return
-			case <-time.After(schedStartTime):
+			case <-time.After(executorStartTime):
 				// continue
 			***REMOVED***
 		***REMOVED***
 
-		schedProgress.Modify(pb.WithConstProgress(0, "started"))
-		schedLogger.Debugf("Starting scheduler")
-		err := sched.Run(runCtx, engineOut) // scheduler should handle context cancel itself
+		executorProgress.Modify(pb.WithConstProgress(0, "started"))
+		executorLogger.Debugf("Starting executor")
+		err := executor.Run(runCtx, engineOut) // executor should handle context cancel itself
 		if err == nil ***REMOVED***
-			schedLogger.Debugf("Scheduler finished successfully")
+			executorLogger.Debugf("Executor finished successfully")
 		***REMOVED*** else ***REMOVED***
-			schedLogger.WithField("error", err).Errorf("Scheduler error")
+			executorLogger.WithField("error", err).Errorf("Executor error")
 		***REMOVED***
 		runResults <- err
 	***REMOVED***
 
-	// Start all schedulers at their particular startTime in a separate goroutine...
-	logger.Debug("Start all schedulers...")
-	for _, sched := range e.schedulers ***REMOVED***
-		go runScheduler(sched)
+	// Start all executors at their particular startTime in a separate goroutine...
+	logger.Debug("Start all executors...")
+	for _, executor := range e.executors ***REMOVED***
+		go runExecutor(executor)
 	***REMOVED***
 
-	// Wait for all schedulers to finish
+	// Wait for all executors to finish
 	var firstErr error
-	for range e.schedulers ***REMOVED***
+	for range e.executors ***REMOVED***
 		err := <-runResults
 		if err != nil && firstErr == nil ***REMOVED***
 			firstErr = err
@@ -346,7 +346,7 @@ func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContain
 		***REMOVED***
 	***REMOVED***
 
-	// Run teardown() after all schedulers are done, if it's not disabled
+	// Run teardown() after all executors are done, if it's not disabled
 	if !e.options.NoTeardown.Bool ***REMOVED***
 		logger.Debug("Running teardown()")
 		if err := e.runner.Teardown(ctx, engineOut); err != nil ***REMOVED***
@@ -358,10 +358,10 @@ func (e *Executor) Run(ctx context.Context, engineOut chan<- stats.SampleContain
 	return firstErr
 ***REMOVED***
 
-// SetPaused pauses a test, if called with true. And if called with
-// false, tries to start/resume it. See the lib.Executor interface documentation
-// of the methods for the various caveats about its usage.
-func (e *Executor) SetPaused(pause bool) error ***REMOVED***
+// SetPaused pauses a test, if called with true. And if called with false, tries
+// to start/resume it. See the lib.ExecutionScheduler interface documentation of
+// the methods for the various caveats about its usage.
+func (e *ExecutionScheduler) SetPaused(pause bool) error ***REMOVED***
 	if !e.state.HasStarted() && e.state.IsPaused() ***REMOVED***
 		if pause ***REMOVED***
 			return fmt.Errorf("execution is already paused")
@@ -370,15 +370,15 @@ func (e *Executor) SetPaused(pause bool) error ***REMOVED***
 		return e.state.Resume()
 	***REMOVED***
 
-	for _, sched := range e.schedulers ***REMOVED***
-		pausableSched, ok := sched.(lib.PausableScheduler)
+	for _, executor := range e.executors ***REMOVED***
+		pausableExecutor, ok := executor.(lib.PausableExecutor)
 		if !ok ***REMOVED***
 			return fmt.Errorf(
-				"%s scheduler '%s' doesn't support pause and resume operations after its start",
-				sched.GetConfig().GetType(), sched.GetConfig().GetName(),
+				"%s executor '%s' doesn't support pause and resume operations after its start",
+				executor.GetConfig().GetType(), executor.GetConfig().GetName(),
 			)
 		***REMOVED***
-		if err := pausableSched.SetPaused(pause); err != nil ***REMOVED***
+		if err := pausableExecutor.SetPaused(pause); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
