@@ -65,34 +65,33 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 
-		// t.Run("groups", func(t *testing.T) ***REMOVED***
-		// 	var groups []Group
-		// 	assert.NoError(t, jsonapi.Unmarshal(body, &groups))
-		// 	if assert.Len(t, groups, 3) ***REMOVED***
-		// 		for _, g := range groups ***REMOVED***
-		// 			switch g.ID ***REMOVED***
-		// 			case g0.ID:
-		// 				assert.Equal(t, "", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, "", g.ParentID)
-		// 				assert.Len(t, g.GroupIDs, 1)
-		// 				assert.EqualValues(t, []string***REMOVED***g1.ID***REMOVED***, g.GroupIDs)
-		// 			case g1.ID:
-		// 				assert.Equal(t, "group 1", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, g0.ID, g.ParentID)
-		// 				assert.EqualValues(t, []string***REMOVED***g2.ID***REMOVED***, g.GroupIDs)
-		// 			case g2.ID:
-		// 				assert.Equal(t, "group 2", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, g1.ID, g.ParentID)
-		// 				assert.EqualValues(t, []string***REMOVED******REMOVED***, g.GroupIDs)
-		// 			default:
-		// 				assert.Fail(t, "Unknown ID: "+g.ID)
-		// 			***REMOVED***
-		// 		***REMOVED***
-		// 	***REMOVED***
-		// ***REMOVED***)
+		t.Run("groups", func(t *testing.T) ***REMOVED***
+			var groups []Group
+			require.NoError(t, jsonapi.Unmarshal(body, &groups))
+			require.Len(t, groups, 3)
+			for _, g := range groups ***REMOVED***
+				switch g.ID ***REMOVED***
+				case g0.ID:
+					assert.Equal(t, "", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, "", g.ParentID)
+					assert.Len(t, g.GroupIDs, 1)
+					assert.EqualValues(t, []string***REMOVED***g1.ID***REMOVED***, g.GroupIDs)
+				case g1.ID:
+					assert.Equal(t, "group 1", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, g0.ID, g.ParentID)
+					assert.EqualValues(t, []string***REMOVED***g2.ID***REMOVED***, g.GroupIDs)
+				case g2.ID:
+					assert.Equal(t, "group 2", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, g1.ID, g.ParentID)
+					assert.EqualValues(t, []string***REMOVED******REMOVED***, g.GroupIDs)
+				default:
+					assert.Fail(t, "Unknown ID: "+g.ID)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 	for _, gp := range []*lib.Group***REMOVED***g0, g1, g2***REMOVED*** ***REMOVED***
 		t.Run(gp.Name, func(t *testing.T) ***REMOVED***
