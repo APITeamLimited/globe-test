@@ -354,6 +354,35 @@ func TestErrors(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), 101, "")
 	***REMOVED***)
+
+	t.Run("error on close", func(t *testing.T) ***REMOVED***
+		_, err := common.RunString(rt, sr(`
+		var closed = false;
+		let res = ws.connect("WSBIN_URL/ws-close", function(socket)***REMOVED***
+			socket.on('open', function open() ***REMOVED***
+				socket.setInterval(function timeout() ***REMOVED***
+				  socket.ping();
+				***REMOVED***, 1000);
+			***REMOVED***);
+
+			socket.on("ping", function() ***REMOVED***
+				socket.close();
+			***REMOVED***);
+
+			socket.on("error", function(errorEvent) ***REMOVED***
+				if (errorEvent == null) ***REMOVED***
+					throw new Error(JSON.stringify(errorEvent));
+				***REMOVED***
+				if (!closed) ***REMOVED***
+					closed = true;
+				    socket.close();
+				***REMOVED***
+			***REMOVED***);
+		***REMOVED***);
+		`))
+		assert.NoError(t, err)
+		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-close"), 101, "")
+	***REMOVED***)
 ***REMOVED***
 
 func TestSystemTags(t *testing.T) ***REMOVED***
