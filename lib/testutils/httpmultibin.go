@@ -164,6 +164,27 @@ func getEncodedHandler(t testing.TB, compressionType httpext.CompressionType) ht
 	***REMOVED***)
 ***REMOVED***
 
+func getZstdBrHandler(t testing.TB) http.Handler ***REMOVED***
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) ***REMOVED***
+		encoding := "zstd, br"
+		rw.Header().Set("Content-Type", "application/json")
+		rw.Header().Add("Content-Encoding", encoding)
+		data := jsonBody***REMOVED***
+			Header:      req.Header,
+			Compression: encoding,
+		***REMOVED***
+
+		bw := brotli.NewWriter(rw)
+		zw, _ := zstd.NewWriter(bw)
+		defer func() ***REMOVED***
+			_ = zw.Close()
+			_ = bw.Close()
+		***REMOVED***()
+
+		require.NoError(t, writeJSON(zw, data))
+	***REMOVED***)
+***REMOVED***
+
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
 func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
@@ -172,6 +193,7 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	mux.Handle("/ws-echo", getWebsocketEchoHandler(t))
 	mux.Handle("/ws-close", getWebsocketCloserHandler(t))
 	mux.Handle("/zstd", getEncodedHandler(t, httpext.CompressionTypeZstd))
+	mux.Handle("/zstd-br", getZstdBrHandler(t))
 	mux.Handle("/", httpbin.New().Handler())
 
 	// Initialize the HTTP server and get its details

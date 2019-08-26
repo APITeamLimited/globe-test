@@ -153,7 +153,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
-	// Handple paths with custom logic
+	// Handle paths with custom logic
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
 	***REMOVED***))
@@ -349,6 +349,15 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				let res = http.get("HTTPSBIN_IP_URL/brotli");
 				if (res.json()['compression'] != 'br') ***REMOVED***
 					throw new Error("unexpected body data: " + res.json()['compression'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("zstd-br", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPSBIN_IP_URL/zstd-br");
+				if (res.json()['compression'] != 'zstd, br') ***REMOVED***
+					throw new Error("unexpected compression: " + res.json()['compression'])
 				***REMOVED***
 			`))
 			assert.NoError(t, err)
