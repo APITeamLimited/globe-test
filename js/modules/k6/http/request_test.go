@@ -751,17 +751,19 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		t.Run("auth", func(t *testing.T) ***REMOVED***
 			t.Run("basic", func(t *testing.T) ***REMOVED***
 				url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/basic-auth/bob/pass")
+				urlExpected := sr("http://HTTPBIN_IP:HTTPBIN_PORT/basic-auth/bob/pass")
 
 				_, err := common.RunString(rt, fmt.Sprintf(`
 				let res = http.request("GET", "%s", null, ***REMOVED******REMOVED***);
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				`, url))
 				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", url, "", 200, "")
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", urlExpected, "", 200, "")
 			***REMOVED***)
 			t.Run("digest", func(t *testing.T) ***REMOVED***
 				t.Run("success", func(t *testing.T) ***REMOVED***
 					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
+					urlExpected := sr("http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
 
 					_, err := common.RunString(rt, fmt.Sprintf(`
 					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest" ***REMOVED***);
@@ -771,8 +773,10 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					assert.NoError(t, err)
 
 					sampleContainers := stats.GetBufferedSamples(samples)
-					assertRequestMetricsEmitted(t, sampleContainers[0:1], "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 401, "")
-					assertRequestMetricsEmitted(t, sampleContainers[1:2], "GET", sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), url, 200, "")
+					assertRequestMetricsEmitted(t, sampleContainers[0:1], "GET",
+						sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), urlExpected, 401, "")
+					assertRequestMetricsEmitted(t, sampleContainers[1:2], "GET",
+						sr("HTTPBIN_IP_URL/digest-auth/auth/bob/pass"), urlExpected, 200, "")
 				***REMOVED***)
 				t.Run("failure", func(t *testing.T) ***REMOVED***
 					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/failure")
@@ -1911,7 +1915,6 @@ func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
 		httpbin.New().DigestAuth(w, r) // this doesn't read the body
 	***REMOVED***))
 
-	// TODO: fix, the metric tags shouldn't have credentials (https://github.com/loadimpact/k6/issues/1103)
 	urlWithCreds := tb.Replacer.Replace(
 		"http://testuser:testpwd@HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd",
 	)
@@ -1923,8 +1926,8 @@ func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
 	`, urlWithCreds))
 	require.NoError(t, err)
 
-	expectedURL := tb.Replacer.Replace("HTTPBIN_IP_URL/digest-auth-with-post/auth/testuser/testpwd")
+	expectedURL := tb.Replacer.Replace("http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd")
 	sampleContainers := stats.GetBufferedSamples(samples)
-	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, urlWithCreds, 401, "")
-	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, urlWithCreds, 200, "")
+	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, expectedURL, 401, "")
+	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, expectedURL, 200, "")
 ***REMOVED***

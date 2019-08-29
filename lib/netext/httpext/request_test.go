@@ -82,3 +82,26 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 		require.Equal(t, err.Error(), "unknown compressionType CompressionType(13)")
 	***REMOVED***)
 ***REMOVED***
+
+func TestCleanURL(t *testing.T) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		url      string
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***"https://example.com/", "https://example.com/"***REMOVED***,
+		***REMOVED***"https://example.com/$***REMOVED******REMOVED***", "https://example.com/$***REMOVED******REMOVED***"***REMOVED***,
+		***REMOVED***"https://user:pass@example.com/", "https://example.com/"***REMOVED***,
+		***REMOVED***"https://user:pass@example.com/path?a=1&b=2", "https://example.com/path?a=1&b=2"***REMOVED***,
+		***REMOVED***"https://user:pass@example.com/$***REMOVED******REMOVED***", "https://example.com/$***REMOVED******REMOVED***"***REMOVED***,
+		***REMOVED***"@malformed/url", "@malformed/url"***REMOVED***,
+		***REMOVED***"not a url", "not a url"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.url, func(t *testing.T) ***REMOVED***
+			res := cleanURL(tc.url)
+			require.Equal(t, tc.expected, res)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
