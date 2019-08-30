@@ -355,3 +355,174 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	wg.Wait()
 	require.True(t, gotTheLimit)
 ***REMOVED***
+
+func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		_, err := fmt.Fprint(w, `***REMOVED***
+			"reference_id": "12",
+			"config": ***REMOVED***
+				"metricPushInterval": "200ms",
+				"aggregationPeriod": "100ms",
+				"maxMetricSamplesPerPackage": 20,
+				"aggregationCalcInterval": "100ms",
+				"aggregationWaitPeriod": "100ms"
+			***REMOVED***
+		***REMOVED***`)
+		require.NoError(t, err)
+	***REMOVED***))
+	defer tb.Cleanup()
+
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+	***REMOVED***
+
+	options := lib.Options***REMOVED***
+		Duration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+
+	config := NewConfig().Apply(Config***REMOVED***
+		Host:       null.StringFrom(tb.ServerHTTP.URL),
+		NoCompress: null.BoolFrom(true),
+	***REMOVED***)
+	collector, err := New(config, script, options, "1.0")
+	require.NoError(t, err)
+	now := time.Now()
+	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
+
+	count := 1
+	max := 5
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
+		func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			count++
+			if count == max ***REMOVED***
+				type payload struct ***REMOVED***
+					Error ErrorResponse `json:"error"`
+				***REMOVED***
+				res := &payload***REMOVED******REMOVED***
+				res.Error = ErrorResponse***REMOVED***Code: 4***REMOVED***
+				w.Header().Set("Content-Type", "application/json")
+				data, err := json.Marshal(res)
+				if err != nil ***REMOVED***
+					t.Fatal(err)
+				***REMOVED***
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write(data)
+				return
+			***REMOVED***
+			body, err := ioutil.ReadAll(r.Body)
+			assert.NoError(t, err)
+			receivedSamples := []Sample***REMOVED******REMOVED***
+			assert.NoError(t, json.Unmarshal(body, &receivedSamples))
+		***REMOVED***)
+
+	require.NoError(t, collector.Init())
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup***REMOVED******REMOVED***
+	wg.Add(1)
+	go func() ***REMOVED***
+		collector.Run(ctx)
+		wg.Done()
+	***REMOVED***()
+
+	collector.Collect([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+		Time:   now,
+		Metric: metrics.VUs,
+		Tags:   stats.NewSampleTags(tags.CloneTags()),
+		Value:  1.0,
+	***REMOVED******REMOVED***)
+	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
+		var container = make([]stats.SampleContainer, 0, 500)
+		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
+			container = append(container, &httpext.Trail***REMOVED***
+				Blocked:        i % 200 * 100 * time.Millisecond,
+				Connecting:     i % 200 * 200 * time.Millisecond,
+				TLSHandshaking: i % 200 * 300 * time.Millisecond,
+				Sending:        i * i * 400 * time.Millisecond,
+				Waiting:        500 * time.Millisecond,
+				Receiving:      600 * time.Millisecond,
+
+				EndTime:      now.Add(i * 100),
+				ConnDuration: 500 * time.Millisecond,
+				Duration:     j * i * 1500 * time.Millisecond,
+				Tags:         stats.NewSampleTags(tags.CloneTags()),
+			***REMOVED***)
+		***REMOVED***
+		collector.Collect(container)
+	***REMOVED***
+
+	cancel()
+	wg.Wait()
+	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
+	_, ok := <-collector.stopSendingMetricsCh
+	require.False(t, ok)
+	require.Equal(t, max, count)
+***REMOVED***
+
+func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		_, err := fmt.Fprintf(w, `***REMOVED***
+			"reference_id": "123",
+			"config": ***REMOVED***
+				"metricPushInterval": "10ms",
+				"aggregationPeriod": "0ms",
+				"aggregationCalcInterval": "40ms",
+				"aggregationWaitPeriod": "5ms"
+			***REMOVED***
+		***REMOVED***`)
+		require.NoError(t, err)
+	***REMOVED***))
+	defer tb.Cleanup()
+
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+	***REMOVED***
+
+	options := lib.Options***REMOVED***
+		Duration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+
+	config := NewConfig().Apply(Config***REMOVED***
+		Host:       null.StringFrom(tb.ServerHTTP.URL),
+		NoCompress: null.BoolFrom(true),
+	***REMOVED***)
+	collector, err := New(config, script, options, "1.0")
+	require.NoError(t, err)
+
+	assert.True(t, collector.config.Host.Valid)
+	assert.Equal(t, tb.ServerHTTP.URL, collector.config.Host.String)
+	assert.True(t, collector.config.NoCompress.Valid)
+	assert.True(t, collector.config.NoCompress.Bool)
+	assert.False(t, collector.config.MetricPushInterval.Valid)
+	assert.False(t, collector.config.AggregationPeriod.Valid)
+	assert.False(t, collector.config.AggregationWaitPeriod.Valid)
+
+	require.NoError(t, collector.Init())
+	assert.Equal(t, "123", collector.referenceID)
+	assert.True(t, collector.config.MetricPushInterval.Valid)
+	assert.Equal(t, types.Duration(10*time.Millisecond), collector.config.MetricPushInterval.Duration)
+	assert.True(t, collector.config.AggregationPeriod.Valid)
+	assert.Equal(t, types.Duration(0), collector.config.AggregationPeriod.Duration)
+	assert.True(t, collector.config.AggregationWaitPeriod.Valid)
+	assert.Equal(t, types.Duration(5*time.Millisecond), collector.config.AggregationWaitPeriod.Duration)
+
+	expSamples := make(chan []Sample)
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup***REMOVED******REMOVED***
+	wg.Add(1)
+	go func() ***REMOVED***
+		collector.Run(ctx)
+		wg.Done()
+	***REMOVED***()
+
+	cancel()
+	wg.Wait()
+	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
+***REMOVED***
