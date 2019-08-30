@@ -751,7 +751,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		t.Run("auth", func(t *testing.T) ***REMOVED***
 			t.Run("basic", func(t *testing.T) ***REMOVED***
 				url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/basic-auth/bob/pass")
-				urlExpected := sr("http://HTTPBIN_IP:HTTPBIN_PORT/basic-auth/bob/pass")
+				urlExpected := sr("http://****:****@HTTPBIN_IP:HTTPBIN_PORT/basic-auth/bob/pass")
 
 				_, err := common.RunString(rt, fmt.Sprintf(`
 				let res = http.request("GET", "%s", null, ***REMOVED******REMOVED***);
@@ -763,7 +763,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			t.Run("digest", func(t *testing.T) ***REMOVED***
 				t.Run("success", func(t *testing.T) ***REMOVED***
 					url := sr("http://bob:pass@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
-					urlExpected := sr("http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
+					urlExpected := sr("http://****:****@HTTPBIN_IP:HTTPBIN_PORT/digest-auth/auth/bob/pass")
 
 					_, err := common.RunString(rt, fmt.Sprintf(`
 					let res = http.request("GET", "%s", null, ***REMOVED*** auth: "digest" ***REMOVED***);
@@ -1926,8 +1926,12 @@ func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
 	`, urlWithCreds))
 	require.NoError(t, err)
 
-	expectedURL := tb.Replacer.Replace("http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd")
+	expectedURL := tb.Replacer.Replace(
+		"http://HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd")
+	expectedName := tb.Replacer.Replace(
+		"http://****:****@HTTPBIN_IP:HTTPBIN_PORT/digest-auth-with-post/auth/testuser/testpwd")
+
 	sampleContainers := stats.GetBufferedSamples(samples)
-	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, expectedURL, 401, "")
-	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, expectedURL, 200, "")
+	assertRequestMetricsEmitted(t, sampleContainers[0:1], "POST", expectedURL, expectedName, 401, "")
+	assertRequestMetricsEmitted(t, sampleContainers[1:2], "POST", expectedURL, expectedName, 200, "")
 ***REMOVED***

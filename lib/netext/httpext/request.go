@@ -50,34 +50,49 @@ type HTTPRequestCookie struct ***REMOVED***
 
 // A URL wraps net.URL, and preserves the template (if any) the URL was constructed from.
 type URL struct ***REMOVED***
-	u    *url.URL
-	Name string // http://example.com/thing/$***REMOVED******REMOVED***/
-	URL  string // http://example.com/thing/1234/
+	u        *url.URL
+	Name     string // http://example.com/thing/$***REMOVED******REMOVED***/
+	URL      string // http://example.com/thing/1234/
+	CleanURL string // URL with masked user credentials, used for output
 ***REMOVED***
 
 // NewURL returns a new URL for the provided url and name. The error is returned if the url provided
 // can't be parsed
 func NewURL(urlString, name string) (URL, error) ***REMOVED***
 	u, err := url.Parse(urlString)
-	return URL***REMOVED***u: u, Name: name, URL: urlString***REMOVED***, err
+	newURL := URL***REMOVED***u: u, Name: name, URL: urlString***REMOVED***
+	newURL.CleanURL = newURL.Clean()
+	if urlString == name ***REMOVED***
+		newURL.Name = newURL.CleanURL
+	***REMOVED***
+	return newURL, err
+***REMOVED***
+
+// Clean returns an output-safe representation of URL
+func (u URL) Clean() string ***REMOVED***
+	if u.CleanURL != "" ***REMOVED***
+		return u.CleanURL
+	***REMOVED***
+
+	out := u.URL
+
+	if u.u != nil && u.u.User != nil ***REMOVED***
+		// mask user credentials
+		creds := fmt.Sprintf("%s@", u.u.User.String())
+		mask := "****@"
+		_, passSet := u.u.User.Password()
+		if passSet ***REMOVED***
+			mask = fmt.Sprintf("****:%s", mask)
+		***REMOVED***
+		return strings.Replace(out, creds, mask, 1)
+	***REMOVED***
+
+	return out
 ***REMOVED***
 
 // GetURL returns the internal url.URL
 func (u URL) GetURL() *url.URL ***REMOVED***
 	return u.u
-***REMOVED***
-
-// Return a sanitized URL, clean of e.g. user credentials
-func cleanURL(urlString string) string ***REMOVED***
-	idxEnd := strings.Index(urlString, "@")
-	if idxEnd == -1 ***REMOVED***
-		return urlString
-	***REMOVED***
-	idxStart := strings.Index(urlString[:idxEnd], "/")
-	if idxStart != -1 ***REMOVED***
-		return fmt.Sprintf("%s%s", urlString[0:idxStart+2], urlString[idxEnd+1:])
-	***REMOVED***
-	return urlString
 ***REMOVED***
 
 // Request represent an http request
@@ -226,12 +241,12 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		tags["method"] = preq.Req.Method
 	***REMOVED***
 	if state.Options.SystemTags["url"] ***REMOVED***
-		tags["url"] = cleanURL(preq.URL.URL)
+		tags["url"] = preq.URL.Clean()
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
 	if _, ok := tags["name"]; !ok && state.Options.SystemTags["name"] ***REMOVED***
-		tags["name"] = cleanURL(preq.URL.Name)
+		tags["name"] = preq.URL.Name
 	***REMOVED***
 	if state.Options.SystemTags["group"] ***REMOVED***
 		tags["group"] = state.Group.Path
