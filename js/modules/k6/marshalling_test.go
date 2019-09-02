@@ -54,7 +54,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 		export function setup() ***REMOVED***
 			let res = http.get("HTTPBIN_URL/html");
 			let html_selection = html.parseHTML(res.body);
-			let ws_res = ws.connect("ws://HTTPBIN_DOMAIN:HTTPBIN_PORT/ws-echo", function(socket)***REMOVED***
+			let ws_res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test")
 				***REMOVED***)
