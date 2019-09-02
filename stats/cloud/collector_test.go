@@ -41,7 +41,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext/httpext"
-	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
@@ -121,7 +121,7 @@ func skewTrail(t httpext.Trail, minCoef, maxCoef float64) httpext.Trail ***REMOV
 
 func TestCloudCollector(t *testing.T) ***REMOVED***
 	t.Parallel()
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprintf(w, `***REMOVED***
 			"reference_id": "123",
@@ -265,7 +265,7 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 
 func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	t.Parallel()
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	var maxMetricSamplesPerPackage = 20
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprintf(w, `***REMOVED***
