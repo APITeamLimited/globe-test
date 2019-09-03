@@ -412,6 +412,20 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				)
 			***REMOVED***,
 		***REMOVED***,
+		// Test summary trend stats
+		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.DefaultSummaryTrendStats, c.Options.SummaryTrendStats)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--summary-trend-stats", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, lib.DefaultSummaryTrendStats, c.Options.SummaryTrendStats)
+		***REMOVED******REMOVED***,
+		***REMOVED***
+			opts***REMOVED***runner: &lib.Options***REMOVED***SummaryTrendStats: []string***REMOVED***"avg", "p(90)", "count"***REMOVED******REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, []string***REMOVED***"avg", "p(90)", "count"***REMOVED***, c.Options.SummaryTrendStats)
+			***REMOVED***,
+		***REMOVED***,
 		//TODO: test for differences between flagsets
 		//TODO: more tests in general, especially ones not related to execution parameters...
 	***REMOVED***
