@@ -109,11 +109,21 @@ func getWebsocketEchoHandler(t testing.TB) http.Handler ***REMOVED***
 
 		for ***REMOVED***
 			mt, message, err := conn.ReadMessage()
+			select ***REMOVED***
+			case <-req.Context().Done():
+				return
+			default:
+			***REMOVED***
 			t.Logf("[%p %s] Read message '%s' of type %d (error '%v')", req, req.URL, message, mt, err)
 			if err != nil ***REMOVED***
 				break
 			***REMOVED***
 			err = conn.WriteMessage(mt, message)
+			select ***REMOVED***
+			case <-req.Context().Done():
+				return
+			default:
+			***REMOVED***
 
 			t.Logf("[%p %s] Wrote back message '%s' of type %d and closed the connection", req, req.URL, message, mt)
 
