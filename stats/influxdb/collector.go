@@ -22,18 +22,14 @@ package influxdb
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
-	"github.com/influxdata/influxdb/client/v2"
-	"github.com/sirupsen/logrus"
-
+	client "github.com/influxdata/influxdb1-client/v2"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-)
-
-const (
-	pushInterval = 1 * time.Second
+	"github.com/sirupsen/logrus"
 )
 
 // Verify that Collector implements lib.Collector
@@ -44,8 +40,10 @@ type Collector struct ***REMOVED***
 	Config    Config
 	BatchConf client.BatchPointsConfig
 
-	buffer     []stats.Sample
-	bufferLock sync.Mutex
+	buffer      []stats.Sample
+	bufferLock  sync.Mutex
+	wg          sync.WaitGroup
+	semaphoreCh chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 func New(conf Config) (*Collector, error) ***REMOVED***
@@ -54,10 +52,14 @@ func New(conf Config) (*Collector, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 	batchConf := MakeBatchConfig(conf)
+	if conf.ConcurrentWrites.Int64 <= 0 ***REMOVED***
+		return nil, errors.New("influxdb's ConcurrentWrites must be a positive number")
+	***REMOVED***
 	return &Collector***REMOVED***
-		Client:    cl,
-		Config:    conf,
-		BatchConf: batchConf,
+		Client:      cl,
+		Config:      conf,
+		BatchConf:   batchConf,
+		semaphoreCh: make(chan struct***REMOVED******REMOVED***, conf.ConcurrentWrites.Int64),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -74,13 +76,16 @@ func (c *Collector) Init() error ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	logrus.Debug("InfluxDB: Running!")
-	ticker := time.NewTicker(pushInterval)
+	ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			c.commit()
+			c.wg.Add(1)
+			go c.commit()
 		case <-ctx.Done():
-			c.commit()
+			c.wg.Add(1)
+			go c.commit()
+			c.wg.Wait()
 			return
 		***REMOVED***
 	***REMOVED***
@@ -99,12 +104,18 @@ func (c *Collector) Link() string ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) commit() ***REMOVED***
+	defer c.wg.Done()
 	c.bufferLock.Lock()
 	samples := c.buffer
 	c.buffer = nil
 	c.bufferLock.Unlock()
-
+	// let first get the data and then wait our turn
+	c.semaphoreCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	defer func() ***REMOVED***
+		<-c.semaphoreCh
+	***REMOVED***()
 	logrus.Debug("InfluxDB: Committing...")
+	logrus.WithField("samples", len(samples)).Debug("InfluxDB: Writing...")
 
 	batch, err := c.batchFromSamples(samples)
 	if err != nil ***REMOVED***
