@@ -48,7 +48,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	_ "github.com/loadimpact/k6/lib/executor" //TODO: figure out something better
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
@@ -214,7 +214,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestMetricName(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	script := tb.Replacer.Replace(`
@@ -232,7 +232,7 @@ func TestMetricName(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataIsolation(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	script := tb.Replacer.Replace(`
@@ -369,6 +369,28 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
 		***REMOVED***
 	***REMOVED***;`)
+***REMOVED***
+
+func TestConsoleInInitContext(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner("/script.js", `
+			console.log("1");
+			export default function(data) ***REMOVED***
+			***REMOVED***;
+		`)
+	require.NoError(t, err)
+
+	testdata := map[string]*Runner***REMOVED***"Source": r1***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			samples := make(chan stats.SampleContainer, 100)
+			vu, err := r.NewVU(samples)
+			if assert.NoError(t, err) ***REMOVED***
+				err := vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
@@ -751,7 +773,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner("/script.js",
@@ -932,7 +954,7 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
@@ -982,7 +1004,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
@@ -1157,7 +1179,8 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
 				if assert.NoError(t, err) ***REMOVED***
 					err := vu.RunOnce(context.Background())
-					assert.EqualError(t, err, fmt.Sprintf("GoError: Get https://%s: remote error: tls: bad certificate", listener.Addr().String()))
+					require.NotNil(t, err)
+					assert.Contains(t, err.Error(), "remote error: tls: bad certificate")
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***
@@ -1209,7 +1232,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
@@ -1288,7 +1311,7 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 			k6metrics.ErrMetricsAddInInitContext.Error(),
 		***REMOVED***,
 	***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	for _, test := range table ***REMOVED***
@@ -1306,7 +1329,7 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	fs := afero.NewMemMapFs()
@@ -1350,7 +1373,7 @@ func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	fs := afero.NewMemMapFs()
@@ -1372,7 +1395,7 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestStuffNotPanicking(t *testing.T) ***REMOVED***
-	tb := testutils.NewHTTPMultiBin(t)
+	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
 	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
@@ -1394,7 +1417,7 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 					() => doc.find('p').each("wat"),
 					() => doc.find('p').map(),
 					() => doc.find('p').map("wat"),
-					() => ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo"),
+					() => ws.connect("WSBIN_URL/ws-echo"),
 				];
 
 				testCases.forEach(function(fn, idx) ***REMOVED***

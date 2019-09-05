@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kubernetes/helm/pkg/strvals"
 	"github.com/loadimpact/k6/lib/types"
@@ -34,11 +35,13 @@ import (
 
 type Config struct ***REMOVED***
 	// Connection.
-	Addr        null.String `json:"addr" envconfig:"INFLUXDB_ADDR"`
-	Username    null.String `json:"username,omitempty" envconfig:"INFLUXDB_USERNAME"`
-	Password    null.String `json:"password,omitempty" envconfig:"INFLUXDB_PASSWORD"`
-	Insecure    null.Bool   `json:"insecure,omitempty" envconfig:"INFLUXDB_INSECURE"`
-	PayloadSize null.Int    `json:"payloadSize,omitempty" envconfig:"INFLUXDB_PAYLOAD_SIZE"`
+	Addr             null.String        `json:"addr" envconfig:"INFLUXDB_ADDR"`
+	Username         null.String        `json:"username,omitempty" envconfig:"INFLUXDB_USERNAME"`
+	Password         null.String        `json:"password,omitempty" envconfig:"INFLUXDB_PASSWORD"`
+	Insecure         null.Bool          `json:"insecure,omitempty" envconfig:"INFLUXDB_INSECURE"`
+	PayloadSize      null.Int           `json:"payloadSize,omitempty" envconfig:"INFLUXDB_PAYLOAD_SIZE"`
+	PushInterval     types.NullDuration `json:"pushInterval,omitempty" envconfig:"INFLUXDB_PUSH_INTERVAL"`
+	ConcurrentWrites null.Int           `json:"concurrentWrites,omitempty" envconfig:"INFLUXDB_CONCURRENT_WRITES"`
 
 	// Samples.
 	DB           null.String `json:"db" envconfig:"INFLUXDB_DB"`
@@ -50,9 +53,11 @@ type Config struct ***REMOVED***
 
 func NewConfig() *Config ***REMOVED***
 	c := &Config***REMOVED***
-		Addr:         null.NewString("http://localhost:8086", false),
-		DB:           null.NewString("k6", false),
-		TagsAsFields: []string***REMOVED***"vu", "iter", "url"***REMOVED***,
+		Addr:             null.NewString("http://localhost:8086", false),
+		DB:               null.NewString("k6", false),
+		TagsAsFields:     []string***REMOVED***"vu", "iter", "url"***REMOVED***,
+		ConcurrentWrites: null.NewInt(10, false),
+		PushInterval:     types.NewNullDuration(time.Second, false),
 	***REMOVED***
 	return c
 ***REMOVED***
@@ -87,6 +92,13 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	***REMOVED***
 	if len(cfg.TagsAsFields) > 0 ***REMOVED***
 		c.TagsAsFields = cfg.TagsAsFields
+	***REMOVED***
+	if cfg.PushInterval.Valid ***REMOVED***
+		c.PushInterval = cfg.PushInterval
+	***REMOVED***
+
+	if cfg.ConcurrentWrites.Valid ***REMOVED***
+		c.ConcurrentWrites = cfg.ConcurrentWrites
 	***REMOVED***
 	return c
 ***REMOVED***
@@ -154,6 +166,9 @@ func ParseURL(text string) (Config, error) ***REMOVED***
 		case "payload_size":
 			var size int
 			size, err = strconv.Atoi(vs[0])
+			if err != nil ***REMOVED***
+				return c, err
+			***REMOVED***
 			c.PayloadSize = null.IntFrom(int64(size))
 		case "precision":
 			c.Precision = null.StringFrom(vs[0])
@@ -161,6 +176,19 @@ func ParseURL(text string) (Config, error) ***REMOVED***
 			c.Retention = null.StringFrom(vs[0])
 		case "consistency":
 			c.Consistency = null.StringFrom(vs[0])
+
+		case "pushInterval":
+			err = c.PushInterval.UnmarshalText([]byte(vs[0]))
+			if err != nil ***REMOVED***
+				return c, err
+			***REMOVED***
+		case "concurrentWrites":
+			var writes int
+			writes, err = strconv.Atoi(vs[0])
+			if err != nil ***REMOVED***
+				return c, err
+			***REMOVED***
+			c.ConcurrentWrites = null.IntFrom(int64(writes))
 		case "tagsAsFields":
 			c.TagsAsFields = vs
 		default:

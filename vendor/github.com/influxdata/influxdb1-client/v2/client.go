@@ -1,5 +1,5 @@
 // Package client (v2) is the current official Go client for InfluxDB.
-package client // import "github.com/influxdata/influxdb/client/v2"
+package client // import "github.com/influxdata/influxdb1-client/v2"
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/influxdata/influxdb/models"
+	"github.com/influxdata/influxdb1-client/models"
 )
 
 // HTTPConfig is the config data needed to create an HTTP Client.
@@ -45,6 +45,9 @@ type HTTPConfig struct ***REMOVED***
 	// TLSConfig allows the user to set their own TLS config for the HTTP
 	// Client. If set, this option overrides InsecureSkipVerify.
 	TLSConfig *tls.Config
+
+	// Proxy configures the Proxy function on the HTTP client.
+	Proxy func(req *http.Request) (*url.URL, error)
 ***REMOVED***
 
 // BatchPointsConfig is the config data needed to create an instance of the BatchPoints struct.
@@ -75,6 +78,10 @@ type Client interface ***REMOVED***
 	// the UDP client.
 	Query(q Query) (*Response, error)
 
+	// QueryAsChunk makes an InfluxDB Query on the database. This will fail if using
+	// the UDP client.
+	QueryAsChunk(q Query) (*ChunkedResponse, error)
+
 	// Close releases any resources a Client may be using.
 	Close() error
 ***REMOVED***
@@ -99,6 +106,7 @@ func NewHTTPClient(conf HTTPConfig) (Client, error) ***REMOVED***
 		TLSClientConfig: &tls.Config***REMOVED***
 			InsecureSkipVerify: conf.InsecureSkipVerify,
 		***REMOVED***,
+		Proxy: conf.Proxy,
 	***REMOVED***
 	if conf.TLSConfig != nil ***REMOVED***
 		tr.TLSClientConfig = conf.TLSConfig
@@ -153,7 +161,7 @@ func (c *client) Ping(timeout time.Duration) (time.Duration, string, error) ***R
 	***REMOVED***
 
 	if resp.StatusCode != http.StatusNoContent ***REMOVED***
-		var err = fmt.Errorf(string(body))
+		var err = errors.New(string(body))
 		return 0, "", err
 	***REMOVED***
 
@@ -359,6 +367,9 @@ func (c *client) Write(bp BatchPoints) error ***REMOVED***
 	var b bytes.Buffer
 
 	for _, p := range bp.Points() ***REMOVED***
+		if p == nil ***REMOVED***
+			continue
+		***REMOVED***
 		if _, err := b.WriteString(p.pt.PrecisionString(bp.Precision())); err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -400,7 +411,7 @@ func (c *client) Write(bp BatchPoints) error ***REMOVED***
 	***REMOVED***
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK ***REMOVED***
-		var err = fmt.Errorf(string(body))
+		var err = errors.New(string(body))
 		return err
 	***REMOVED***
 
@@ -409,12 +420,13 @@ func (c *client) Write(bp BatchPoints) error ***REMOVED***
 
 // Query defines a query to send to the server.
 type Query struct ***REMOVED***
-	Command    string
-	Database   string
-	Precision  string
-	Chunked    bool
-	ChunkSize  int
-	Parameters map[string]interface***REMOVED******REMOVED***
+	Command         string
+	Database        string
+	RetentionPolicy string
+	Precision       string
+	Chunked         bool
+	ChunkSize       int
+	Parameters      map[string]interface***REMOVED******REMOVED***
 ***REMOVED***
 
 // NewQuery returns a query object.
@@ -425,6 +437,19 @@ func NewQuery(command, database, precision string) Query ***REMOVED***
 		Database:   database,
 		Precision:  precision,
 		Parameters: make(map[string]interface***REMOVED******REMOVED***),
+	***REMOVED***
+***REMOVED***
+
+// NewQueryWithRP returns a query object.
+// The database, retention policy, and precision arguments can be empty strings if they are not needed
+// for the query. Setting the retention policy only works on InfluxDB versions 1.6 or greater.
+func NewQueryWithRP(command, database, retentionPolicy, precision string) Query ***REMOVED***
+	return Query***REMOVED***
+		Command:         command,
+		Database:        database,
+		RetentionPolicy: retentionPolicy,
+		Precision:       precision,
+		Parameters:      make(map[string]interface***REMOVED******REMOVED***),
 	***REMOVED***
 ***REMOVED***
 
@@ -450,11 +475,11 @@ type Response struct ***REMOVED***
 // It returns nil if no errors occurred on any statements.
 func (r *Response) Error() error ***REMOVED***
 	if r.Err != "" ***REMOVED***
-		return fmt.Errorf(r.Err)
+		return errors.New(r.Err)
 	***REMOVED***
 	for _, result := range r.Results ***REMOVED***
 		if result.Err != "" ***REMOVED***
-			return fmt.Errorf(result.Err)
+			return errors.New(result.Err)
 		***REMOVED***
 	***REMOVED***
 	return nil
@@ -475,72 +500,26 @@ type Result struct ***REMOVED***
 
 // Query sends a command to the server and returns the Response.
 func (c *client) Query(q Query) (*Response, error) ***REMOVED***
-	u := c.url
-	u.Path = path.Join(u.Path, "query")
-
-	jsonParameters, err := json.Marshal(q.Parameters)
-
+	req, err := c.createDefaultRequest(q)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	req.Header.Set("Content-Type", "")
-	req.Header.Set("User-Agent", c.useragent)
-
-	if c.username != "" ***REMOVED***
-		req.SetBasicAuth(c.username, c.password)
-	***REMOVED***
-
 	params := req.URL.Query()
-	params.Set("q", q.Command)
-	params.Set("db", q.Database)
-	params.Set("params", string(jsonParameters))
 	if q.Chunked ***REMOVED***
 		params.Set("chunked", "true")
 		if q.ChunkSize > 0 ***REMOVED***
 			params.Set("chunk_size", strconv.Itoa(q.ChunkSize))
 		***REMOVED***
+		req.URL.RawQuery = params.Encode()
 	***REMOVED***
-
-	if q.Precision != "" ***REMOVED***
-		params.Set("epoch", q.Precision)
-	***REMOVED***
-	req.URL.RawQuery = params.Encode()
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer resp.Body.Close()
 
-	// If we lack a X-Influxdb-Version header, then we didn't get a response from influxdb
-	// but instead some other service. If the error code is also a 500+ code, then some
-	// downstream loadbalancer/proxy/etc had an issue and we should report that.
-	if resp.Header.Get("X-Influxdb-Version") == "" && resp.StatusCode >= http.StatusInternalServerError ***REMOVED***
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil || len(body) == 0 ***REMOVED***
-			return nil, fmt.Errorf("received status code %d from downstream server", resp.StatusCode)
-		***REMOVED***
-
-		return nil, fmt.Errorf("received status code %d from downstream server, with response body: %q", resp.StatusCode, body)
-	***REMOVED***
-
-	// If we get an unexpected content type, then it is also not from influx direct and therefore
-	// we want to know what we received and what status code was returned for debugging purposes.
-	if cType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); cType != "application/json" ***REMOVED***
-		// Read up to 1kb of the body to help identify downstream errors and limit the impact of things
-		// like downstream serving a large file
-		body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1024))
-		if err != nil || len(body) == 0 ***REMOVED***
-			return nil, fmt.Errorf("expected json response, got empty body, with status: %v", resp.StatusCode)
-		***REMOVED***
-
-		return nil, fmt.Errorf("expected json response, got %q, with status: %v and response body: %q", cType, resp.StatusCode, body)
+	if err := checkResponse(resp); err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
 	var response Response
@@ -549,6 +528,9 @@ func (c *client) Query(q Query) (*Response, error) ***REMOVED***
 		for ***REMOVED***
 			r, err := cr.NextResponse()
 			if err != nil ***REMOVED***
+				if err == io.EOF ***REMOVED***
+					break
+				***REMOVED***
 				// If we got an error while decoding the response, send that back.
 				return nil, err
 			***REMOVED***
@@ -586,10 +568,99 @@ func (c *client) Query(q Query) (*Response, error) ***REMOVED***
 	return &response, nil
 ***REMOVED***
 
+// QueryAsChunk sends a command to the server and returns the Response.
+func (c *client) QueryAsChunk(q Query) (*ChunkedResponse, error) ***REMOVED***
+	req, err := c.createDefaultRequest(q)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	params := req.URL.Query()
+	params.Set("chunked", "true")
+	if q.ChunkSize > 0 ***REMOVED***
+		params.Set("chunk_size", strconv.Itoa(q.ChunkSize))
+	***REMOVED***
+	req.URL.RawQuery = params.Encode()
+	resp, err := c.httpClient.Do(req)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if err := checkResponse(resp); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return NewChunkedResponse(resp.Body), nil
+***REMOVED***
+
+func checkResponse(resp *http.Response) error ***REMOVED***
+	// If we lack a X-Influxdb-Version header, then we didn't get a response from influxdb
+	// but instead some other service. If the error code is also a 500+ code, then some
+	// downstream loadbalancer/proxy/etc had an issue and we should report that.
+	if resp.Header.Get("X-Influxdb-Version") == "" && resp.StatusCode >= http.StatusInternalServerError ***REMOVED***
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil || len(body) == 0 ***REMOVED***
+			return fmt.Errorf("received status code %d from downstream server", resp.StatusCode)
+		***REMOVED***
+
+		return fmt.Errorf("received status code %d from downstream server, with response body: %q", resp.StatusCode, body)
+	***REMOVED***
+
+	// If we get an unexpected content type, then it is also not from influx direct and therefore
+	// we want to know what we received and what status code was returned for debugging purposes.
+	if cType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); cType != "application/json" ***REMOVED***
+		// Read up to 1kb of the body to help identify downstream errors and limit the impact of things
+		// like downstream serving a large file
+		body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1024))
+		if err != nil || len(body) == 0 ***REMOVED***
+			return fmt.Errorf("expected json response, got empty body, with status: %v", resp.StatusCode)
+		***REMOVED***
+
+		return fmt.Errorf("expected json response, got %q, with status: %v and response body: %q", cType, resp.StatusCode, body)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (c *client) createDefaultRequest(q Query) (*http.Request, error) ***REMOVED***
+	u := c.url
+	u.Path = path.Join(u.Path, "query")
+
+	jsonParameters, err := json.Marshal(q.Parameters)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	req.Header.Set("Content-Type", "")
+	req.Header.Set("User-Agent", c.useragent)
+
+	if c.username != "" ***REMOVED***
+		req.SetBasicAuth(c.username, c.password)
+	***REMOVED***
+
+	params := req.URL.Query()
+	params.Set("q", q.Command)
+	params.Set("db", q.Database)
+	if q.RetentionPolicy != "" ***REMOVED***
+		params.Set("rp", q.RetentionPolicy)
+	***REMOVED***
+	params.Set("params", string(jsonParameters))
+
+	if q.Precision != "" ***REMOVED***
+		params.Set("epoch", q.Precision)
+	***REMOVED***
+	req.URL.RawQuery = params.Encode()
+
+	return req, nil
+
+***REMOVED***
+
 // duplexReader reads responses and writes it to another writer while
 // satisfying the reader interface.
 type duplexReader struct ***REMOVED***
-	r io.Reader
+	r io.ReadCloser
 	w io.Writer
 ***REMOVED***
 
@@ -599,6 +670,11 @@ func (r *duplexReader) Read(p []byte) (n int, err error) ***REMOVED***
 		r.w.Write(p[:n])
 	***REMOVED***
 	return n, err
+***REMOVED***
+
+// Close closes the response.
+func (r *duplexReader) Close() error ***REMOVED***
+	return r.r.Close()
 ***REMOVED***
 
 // ChunkedResponse represents a response from the server that
@@ -611,8 +687,12 @@ type ChunkedResponse struct ***REMOVED***
 
 // NewChunkedResponse reads a stream and produces responses from the stream.
 func NewChunkedResponse(r io.Reader) *ChunkedResponse ***REMOVED***
+	rc, ok := r.(io.ReadCloser)
+	if !ok ***REMOVED***
+		rc = ioutil.NopCloser(r)
+	***REMOVED***
 	resp := &ChunkedResponse***REMOVED******REMOVED***
-	resp.duplex = &duplexReader***REMOVED***r: r, w: &resp.buf***REMOVED***
+	resp.duplex = &duplexReader***REMOVED***r: rc, w: &resp.buf***REMOVED***
 	resp.dec = json.NewDecoder(resp.duplex)
 	resp.dec.UseNumber()
 	return resp
@@ -621,10 +701,9 @@ func NewChunkedResponse(r io.Reader) *ChunkedResponse ***REMOVED***
 // NextResponse reads the next line of the stream and returns a response.
 func (r *ChunkedResponse) NextResponse() (*Response, error) ***REMOVED***
 	var response Response
-
 	if err := r.dec.Decode(&response); err != nil ***REMOVED***
 		if err == io.EOF ***REMOVED***
-			return nil, nil
+			return nil, err
 		***REMOVED***
 		// A decoding error happened. This probably means the server crashed
 		// and sent a last-ditch error message to us. Ensure we have read the
@@ -635,4 +714,9 @@ func (r *ChunkedResponse) NextResponse() (*Response, error) ***REMOVED***
 
 	r.buf.Reset()
 	return &response, nil
+***REMOVED***
+
+// Close closes the response.
+func (r *ChunkedResponse) Close() error ***REMOVED***
+	return r.duplex.Close()
 ***REMOVED***

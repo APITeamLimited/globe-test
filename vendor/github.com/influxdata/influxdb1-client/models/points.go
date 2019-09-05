@@ -1,5 +1,5 @@
 // Package models implements basic objects used throughout the TICK stack.
-package models // import "github.com/influxdata/influxdb/models"
+package models // import "github.com/influxdata/influxdb1-client/models"
 
 import (
 	"bytes"
@@ -12,20 +12,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
-	"github.com/influxdata/influxdb/pkg/escape"
+	"github.com/influxdata/influxdb1-client/pkg/escape"
 )
 
+type escapeSet struct ***REMOVED***
+	k   [1]byte
+	esc [2]byte
+***REMOVED***
+
 var (
-	measurementEscapeCodes = map[byte][]byte***REMOVED***
-		',': []byte(`\,`),
-		' ': []byte(`\ `),
+	measurementEscapeCodes = [...]escapeSet***REMOVED***
+		***REMOVED***k: [1]byte***REMOVED***','***REMOVED***, esc: [2]byte***REMOVED***'\\', ','***REMOVED******REMOVED***,
+		***REMOVED***k: [1]byte***REMOVED***' '***REMOVED***, esc: [2]byte***REMOVED***'\\', ' '***REMOVED******REMOVED***,
 	***REMOVED***
 
-	tagEscapeCodes = map[byte][]byte***REMOVED***
-		',': []byte(`\,`),
-		' ': []byte(`\ `),
-		'=': []byte(`\=`),
+	tagEscapeCodes = [...]escapeSet***REMOVED***
+		***REMOVED***k: [1]byte***REMOVED***','***REMOVED***, esc: [2]byte***REMOVED***'\\', ','***REMOVED******REMOVED***,
+		***REMOVED***k: [1]byte***REMOVED***' '***REMOVED***, esc: [2]byte***REMOVED***'\\', ' '***REMOVED******REMOVED***,
+		***REMOVED***k: [1]byte***REMOVED***'='***REMOVED***, esc: [2]byte***REMOVED***'\\', '='***REMOVED******REMOVED***,
 	***REMOVED***
 
 	// ErrPointMustHaveAField is returned when operating on a point that does not have any fields.
@@ -63,6 +70,9 @@ type Point interface ***REMOVED***
 
 	// Tags returns the tag set for the point.
 	Tags() Tags
+
+	// ForEachTag iterates over each tag invoking fn.  If fn return false, iteration stops.
+	ForEachTag(fn func(k, v []byte) bool)
 
 	// AddTag adds or replaces a tag value for a point.
 	AddTag(key, value string)
@@ -263,36 +273,46 @@ func ParsePointsString(buf string) ([]Point, error) ***REMOVED***
 // NOTE: to minimize heap allocations, the returned Tags will refer to subslices of buf.
 // This can have the unintended effect preventing buf from being garbage collected.
 func ParseKey(buf []byte) (string, Tags) ***REMOVED***
-	meas, tags := ParseKeyBytes(buf)
-	return string(meas), tags
+	name, tags := ParseKeyBytes(buf)
+	return string(name), tags
 ***REMOVED***
 
 func ParseKeyBytes(buf []byte) ([]byte, Tags) ***REMOVED***
+	return ParseKeyBytesWithTags(buf, nil)
+***REMOVED***
+
+func ParseKeyBytesWithTags(buf []byte, tags Tags) ([]byte, Tags) ***REMOVED***
 	// Ignore the error because scanMeasurement returns "missing fields" which we ignore
 	// when just parsing a key
 	state, i, _ := scanMeasurement(buf, 0)
 
-	var tags Tags
+	var name []byte
 	if state == tagKeyState ***REMOVED***
-		tags = parseTags(buf)
+		tags = parseTags(buf, tags)
 		// scanMeasurement returns the location of the comma if there are tags, strip that off
-		return buf[:i-1], tags
+		name = buf[:i-1]
+	***REMOVED*** else ***REMOVED***
+		name = buf[:i]
 	***REMOVED***
-	return buf[:i], tags
+	return unescapeMeasurement(name), tags
 ***REMOVED***
 
 func ParseTags(buf []byte) Tags ***REMOVED***
-	return parseTags(buf)
+	return parseTags(buf, nil)
 ***REMOVED***
 
-func ParseName(buf []byte) ([]byte, error) ***REMOVED***
+func ParseName(buf []byte) []byte ***REMOVED***
 	// Ignore the error because scanMeasurement returns "missing fields" which we ignore
 	// when just parsing a key
 	state, i, _ := scanMeasurement(buf, 0)
+	var name []byte
 	if state == tagKeyState ***REMOVED***
-		return buf[:i-1], nil
+		name = buf[:i-1]
+	***REMOVED*** else ***REMOVED***
+		name = buf[:i]
 	***REMOVED***
-	return buf[:i], nil
+
+	return unescapeMeasurement(name)
 ***REMOVED***
 
 // ParsePointsWithPrecision is similar to ParsePoints, but allows the
@@ -315,7 +335,6 @@ func ParsePointsWithPrecision(buf []byte, defaultTime time.Time, precision strin
 			continue
 		***REMOVED***
 
-		// lines which start with '#' are comments
 		start := skipWhitespace(block, 0)
 
 		// If line is all whitespace, just skip it
@@ -323,6 +342,7 @@ func ParsePointsWithPrecision(buf []byte, defaultTime time.Time, precision strin
 			continue
 		***REMOVED***
 
+		// lines which start with '#' are comments
 		if block[start] == '#' ***REMOVED***
 			continue
 		***REMOVED***
@@ -348,7 +368,7 @@ func ParsePointsWithPrecision(buf []byte, defaultTime time.Time, precision strin
 ***REMOVED***
 
 func parsePoint(buf []byte, defaultTime time.Time, precision string) (Point, error) ***REMOVED***
-	// scan the first block which is measurement[,tag1=value1,tag2=value=2...]
+	// scan the first block which is measurement[,tag1=value1,tag2=value2...]
 	pos, key, err := scanKey(buf, 0)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -375,13 +395,17 @@ func parsePoint(buf []byte, defaultTime time.Time, precision string) (Point, err
 	***REMOVED***
 
 	var maxKeyErr error
-	walkFields(fields, func(k, v []byte) bool ***REMOVED***
+	err = walkFields(fields, func(k, v []byte) bool ***REMOVED***
 		if sz := seriesKeySize(key, k); sz > MaxKeyLength ***REMOVED***
 			maxKeyErr = fmt.Errorf("max key length exceeded: %v > %v", sz, MaxKeyLength)
 			return false
 		***REMOVED***
 		return true
 	***REMOVED***)
+
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
 	if maxKeyErr != nil ***REMOVED***
 		return nil, maxKeyErr
@@ -1199,23 +1223,33 @@ func scanFieldValue(buf []byte, i int) (int, []byte) ***REMOVED***
 ***REMOVED***
 
 func EscapeMeasurement(in []byte) []byte ***REMOVED***
-	for b, esc := range measurementEscapeCodes ***REMOVED***
-		in = bytes.Replace(in, []byte***REMOVED***b***REMOVED***, esc, -1)
+	for _, c := range measurementEscapeCodes ***REMOVED***
+		if bytes.IndexByte(in, c.k[0]) != -1 ***REMOVED***
+			in = bytes.Replace(in, c.k[:], c.esc[:], -1)
+		***REMOVED***
 	***REMOVED***
 	return in
 ***REMOVED***
 
 func unescapeMeasurement(in []byte) []byte ***REMOVED***
-	for b, esc := range measurementEscapeCodes ***REMOVED***
-		in = bytes.Replace(in, esc, []byte***REMOVED***b***REMOVED***, -1)
+	if bytes.IndexByte(in, '\\') == -1 ***REMOVED***
+		return in
+	***REMOVED***
+
+	for i := range measurementEscapeCodes ***REMOVED***
+		c := &measurementEscapeCodes[i]
+		if bytes.IndexByte(in, c.k[0]) != -1 ***REMOVED***
+			in = bytes.Replace(in, c.esc[:], c.k[:], -1)
+		***REMOVED***
 	***REMOVED***
 	return in
 ***REMOVED***
 
 func escapeTag(in []byte) []byte ***REMOVED***
-	for b, esc := range tagEscapeCodes ***REMOVED***
-		if bytes.IndexByte(in, b) != -1 ***REMOVED***
-			in = bytes.Replace(in, []byte***REMOVED***b***REMOVED***, esc, -1)
+	for i := range tagEscapeCodes ***REMOVED***
+		c := &tagEscapeCodes[i]
+		if bytes.IndexByte(in, c.k[0]) != -1 ***REMOVED***
+			in = bytes.Replace(in, c.k[:], c.esc[:], -1)
 		***REMOVED***
 	***REMOVED***
 	return in
@@ -1226,9 +1260,10 @@ func unescapeTag(in []byte) []byte ***REMOVED***
 		return in
 	***REMOVED***
 
-	for b, esc := range tagEscapeCodes ***REMOVED***
-		if bytes.IndexByte(in, b) != -1 ***REMOVED***
-			in = bytes.Replace(in, esc, []byte***REMOVED***b***REMOVED***, -1)
+	for i := range tagEscapeCodes ***REMOVED***
+		c := &tagEscapeCodes[i]
+		if bytes.IndexByte(in, c.k[0]) != -1 ***REMOVED***
+			in = bytes.Replace(in, c.esc[:], c.k[:], -1)
 		***REMOVED***
 	***REMOVED***
 	return in
@@ -1280,7 +1315,8 @@ func unescapeStringField(in string) string ***REMOVED***
 ***REMOVED***
 
 // NewPoint returns a new point with the given measurement name, tags, fields and timestamp.  If
-// an unsupported field value (NaN) or out of range time is passed, this function returns an error.
+// an unsupported field value (NaN, or +/-Inf) or out of range time is passed, this function
+// returns an error.
 func NewPoint(name string, tags Tags, fields Fields, t time.Time) (Point, error) ***REMOVED***
 	key, err := pointKey(name, tags, fields, t)
 	if err != nil ***REMOVED***
@@ -1311,11 +1347,17 @@ func pointKey(measurement string, tags Tags, fields Fields, t time.Time) ([]byte
 		switch value := value.(type) ***REMOVED***
 		case float64:
 			// Ensure the caller validates and handles invalid field values
+			if math.IsInf(value, 0) ***REMOVED***
+				return nil, fmt.Errorf("+/-Inf is an unsupported value for field %s", key)
+			***REMOVED***
 			if math.IsNaN(value) ***REMOVED***
 				return nil, fmt.Errorf("NaN is an unsupported value for field %s", key)
 			***REMOVED***
 		case float32:
 			// Ensure the caller validates and handles invalid field values
+			if math.IsInf(float64(value), 0) ***REMOVED***
+				return nil, fmt.Errorf("+/-Inf is an unsupported value for field %s", key)
+			***REMOVED***
 			if math.IsNaN(float64(value)) ***REMOVED***
 				return nil, fmt.Errorf("NaN is an unsupported value for field %s", key)
 			***REMOVED***
@@ -1441,8 +1483,12 @@ func (p *point) Tags() Tags ***REMOVED***
 	if p.cachedTags != nil ***REMOVED***
 		return p.cachedTags
 	***REMOVED***
-	p.cachedTags = parseTags(p.key)
+	p.cachedTags = parseTags(p.key, nil)
 	return p.cachedTags
+***REMOVED***
+
+func (p *point) ForEachTag(fn func(k, v []byte) bool) ***REMOVED***
+	walkTags(p.key, fn)
 ***REMOVED***
 
 func (p *point) HasTag(tag []byte) bool ***REMOVED***
@@ -1504,11 +1550,14 @@ func walkTags(buf []byte, fn func(key, value []byte) bool) ***REMOVED***
 
 // walkFields walks each field key and value via fn.  If fn returns false, the iteration
 // is stopped.  The values are the raw byte slices and not the converted types.
-func walkFields(buf []byte, fn func(key, value []byte) bool) ***REMOVED***
+func walkFields(buf []byte, fn func(key, value []byte) bool) error ***REMOVED***
 	var i int
 	var key, val []byte
 	for len(buf) > 0 ***REMOVED***
 		i, key = scanTo(buf, 0, '=')
+		if i > len(buf)-2 ***REMOVED***
+			return fmt.Errorf("invalid value: field-key=%s", key)
+		***REMOVED***
 		buf = buf[i+1:]
 		i, val = scanFieldValue(buf, 0)
 		buf = buf[i:]
@@ -1521,29 +1570,52 @@ func walkFields(buf []byte, fn func(key, value []byte) bool) ***REMOVED***
 			buf = buf[1:]
 		***REMOVED***
 	***REMOVED***
+	return nil
 ***REMOVED***
 
-func parseTags(buf []byte) Tags ***REMOVED***
+// parseTags parses buf into the provided destination tags, returning destination
+// Tags, which may have a different length and capacity.
+func parseTags(buf []byte, dst Tags) Tags ***REMOVED***
 	if len(buf) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
 
-	tags := make(Tags, bytes.Count(buf, []byte(",")))
-	p := 0
+	n := bytes.Count(buf, []byte(","))
+	if cap(dst) < n ***REMOVED***
+		dst = make(Tags, n)
+	***REMOVED*** else ***REMOVED***
+		dst = dst[:n]
+	***REMOVED***
+
+	// Ensure existing behaviour when point has no tags and nil slice passed in.
+	if dst == nil ***REMOVED***
+		dst = Tags***REMOVED******REMOVED***
+	***REMOVED***
+
+	// Series keys can contain escaped commas, therefore the number of commas
+	// in a series key only gives an estimation of the upper bound on the number
+	// of tags.
+	var i int
 	walkTags(buf, func(key, value []byte) bool ***REMOVED***
-		tags[p].Key = key
-		tags[p].Value = value
-		p++
+		dst[i].Key, dst[i].Value = key, value
+		i++
 		return true
 	***REMOVED***)
-	return tags
+	return dst[:i]
 ***REMOVED***
 
 // MakeKey creates a key for a set of tags.
 func MakeKey(name []byte, tags Tags) []byte ***REMOVED***
+	return AppendMakeKey(nil, name, tags)
+***REMOVED***
+
+// AppendMakeKey appends the key derived from name and tags to dst and returns the extended buffer.
+func AppendMakeKey(dst []byte, name []byte, tags Tags) []byte ***REMOVED***
 	// unescape the name and then re-escape it to avoid double escaping.
 	// The key should always be stored in escaped form.
-	return append(EscapeMeasurement(unescapeMeasurement(name)), tags.HashKey()...)
+	dst = append(dst, EscapeMeasurement(unescapeMeasurement(name))...)
+	dst = tags.AppendHashKey(dst)
+	return dst
 ***REMOVED***
 
 // SetTags replaces the tags for the point.
@@ -1868,28 +1940,80 @@ func NewTags(m map[string]string) Tags ***REMOVED***
 	return a
 ***REMOVED***
 
-// Keys returns the list of keys for a tag set.
-func (a Tags) Keys() []string ***REMOVED***
-	if len(a) == 0 ***REMOVED***
-		return nil
-	***REMOVED***
-	keys := make([]string, len(a))
-	for i, tag := range a ***REMOVED***
-		keys[i] = string(tag.Key)
-	***REMOVED***
-	return keys
+// HashKey hashes all of a tag's keys.
+func (a Tags) HashKey() []byte ***REMOVED***
+	return a.AppendHashKey(nil)
 ***REMOVED***
 
-// Values returns the list of values for a tag set.
-func (a Tags) Values() []string ***REMOVED***
+func (a Tags) needsEscape() bool ***REMOVED***
+	for i := range a ***REMOVED***
+		t := &a[i]
+		for j := range tagEscapeCodes ***REMOVED***
+			c := &tagEscapeCodes[j]
+			if bytes.IndexByte(t.Key, c.k[0]) != -1 || bytes.IndexByte(t.Value, c.k[0]) != -1 ***REMOVED***
+				return true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return false
+***REMOVED***
+
+// AppendHashKey appends the result of hashing all of a tag's keys and values to dst and returns the extended buffer.
+func (a Tags) AppendHashKey(dst []byte) []byte ***REMOVED***
+	// Empty maps marshal to empty bytes.
 	if len(a) == 0 ***REMOVED***
-		return nil
+		return dst
 	***REMOVED***
-	values := make([]string, len(a))
-	for i, tag := range a ***REMOVED***
-		values[i] = string(tag.Value)
+
+	// Type invariant: Tags are sorted
+
+	sz := 0
+	var escaped Tags
+	if a.needsEscape() ***REMOVED***
+		var tmp [20]Tag
+		if len(a) < len(tmp) ***REMOVED***
+			escaped = tmp[:len(a)]
+		***REMOVED*** else ***REMOVED***
+			escaped = make(Tags, len(a))
+		***REMOVED***
+
+		for i := range a ***REMOVED***
+			t := &a[i]
+			nt := &escaped[i]
+			nt.Key = escapeTag(t.Key)
+			nt.Value = escapeTag(t.Value)
+			sz += len(nt.Key) + len(nt.Value)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		sz = a.Size()
+		escaped = a
 	***REMOVED***
-	return values
+
+	sz += len(escaped) + (len(escaped) * 2) // separators
+
+	// Generate marshaled bytes.
+	if cap(dst)-len(dst) < sz ***REMOVED***
+		nd := make([]byte, len(dst), len(dst)+sz)
+		copy(nd, dst)
+		dst = nd
+	***REMOVED***
+	buf := dst[len(dst) : len(dst)+sz]
+	idx := 0
+	for i := range escaped ***REMOVED***
+		k := &escaped[i]
+		if len(k.Value) == 0 ***REMOVED***
+			continue
+		***REMOVED***
+		buf[idx] = ','
+		idx++
+		copy(buf[idx:], k.Key)
+		idx += len(k.Key)
+		buf[idx] = '='
+		idx++
+		copy(buf[idx:], k.Value)
+		idx += len(k.Value)
+	***REMOVED***
+	return dst[:len(dst)+idx]
 ***REMOVED***
 
 // String returns the string representation of the tags.
@@ -1911,8 +2035,8 @@ func (a Tags) String() string ***REMOVED***
 // for data structures or delimiters for example.
 func (a Tags) Size() int ***REMOVED***
 	var total int
-	for _, t := range a ***REMOVED***
-		total += t.Size()
+	for i := range a ***REMOVED***
+		total += a[i].Size()
 	***REMOVED***
 	return total
 ***REMOVED***
@@ -2008,18 +2132,6 @@ func (a *Tags) SetString(key, value string) ***REMOVED***
 	a.Set([]byte(key), []byte(value))
 ***REMOVED***
 
-// Delete removes a tag by key.
-func (a *Tags) Delete(key []byte) ***REMOVED***
-	for i, t := range *a ***REMOVED***
-		if bytes.Equal(t.Key, key) ***REMOVED***
-			copy((*a)[i:], (*a)[i+1:])
-			(*a)[len(*a)-1] = Tag***REMOVED******REMOVED***
-			*a = (*a)[:len(*a)-1]
-			return
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
 // Map returns a map representation of the tags.
 func (a Tags) Map() map[string]string ***REMOVED***
 	m := make(map[string]string, len(a))
@@ -2027,60 +2139,6 @@ func (a Tags) Map() map[string]string ***REMOVED***
 		m[string(t.Key)] = string(t.Value)
 	***REMOVED***
 	return m
-***REMOVED***
-
-// Merge merges the tags combining the two. If both define a tag with the
-// same key, the merged value overwrites the old value.
-// A new map is returned.
-func (a Tags) Merge(other map[string]string) Tags ***REMOVED***
-	merged := make(map[string]string, len(a)+len(other))
-	for _, t := range a ***REMOVED***
-		merged[string(t.Key)] = string(t.Value)
-	***REMOVED***
-	for k, v := range other ***REMOVED***
-		merged[k] = v
-	***REMOVED***
-	return NewTags(merged)
-***REMOVED***
-
-// HashKey hashes all of a tag's keys.
-func (a Tags) HashKey() []byte ***REMOVED***
-	// Empty maps marshal to empty bytes.
-	if len(a) == 0 ***REMOVED***
-		return nil
-	***REMOVED***
-
-	// Type invariant: Tags are sorted
-
-	escaped := make(Tags, 0, len(a))
-	sz := 0
-	for _, t := range a ***REMOVED***
-		ek := escapeTag(t.Key)
-		ev := escapeTag(t.Value)
-
-		if len(ev) > 0 ***REMOVED***
-			escaped = append(escaped, Tag***REMOVED***Key: ek, Value: ev***REMOVED***)
-			sz += len(ek) + len(ev)
-		***REMOVED***
-	***REMOVED***
-
-	sz += len(escaped) + (len(escaped) * 2) // separators
-
-	// Generate marshaled bytes.
-	b := make([]byte, sz)
-	buf := b
-	idx := 0
-	for _, k := range escaped ***REMOVED***
-		buf[idx] = ','
-		idx++
-		copy(buf[idx:idx+len(k.Key)], k.Key)
-		idx += len(k.Key)
-		buf[idx] = '='
-		idx++
-		copy(buf[idx:idx+len(k.Value)], k.Value)
-		idx += len(k.Value)
-	***REMOVED***
-	return b[:idx]
 ***REMOVED***
 
 // CopyTags returns a shallow copy of tags.
@@ -2325,4 +2383,31 @@ func appendField(b []byte, k string, v interface***REMOVED******REMOVED***) []by
 	***REMOVED***
 
 	return b
+***REMOVED***
+
+// ValidKeyToken returns true if the token used for measurement, tag key, or tag
+// value is a valid unicode string and only contains printable, non-replacement characters.
+func ValidKeyToken(s string) bool ***REMOVED***
+	if !utf8.ValidString(s) ***REMOVED***
+		return false
+	***REMOVED***
+	for _, r := range s ***REMOVED***
+		if !unicode.IsPrint(r) || r == unicode.ReplacementChar ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+	return true
+***REMOVED***
+
+// ValidKeyTokens returns true if the measurement name and all tags are valid.
+func ValidKeyTokens(name string, tags Tags) bool ***REMOVED***
+	if !ValidKeyToken(name) ***REMOVED***
+		return false
+	***REMOVED***
+	for _, tag := range tags ***REMOVED***
+		if !ValidKeyToken(string(tag.Key)) || !ValidKeyToken(string(tag.Value)) ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+	return true
 ***REMOVED***

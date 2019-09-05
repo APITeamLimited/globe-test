@@ -192,16 +192,17 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		***REMOVED***
 	***REMOVED***
 
-	// Run the user-provided set up function
-	if _, err := setupFn(goja.Undefined(), rt.ToValue(&socket)); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
 	if connErr != nil ***REMOVED***
 		// Pass the error to the user script before exiting immediately
 		socket.handleEvent("error", rt.ToValue(connErr))
 
 		return nil, connErr
+	***REMOVED***
+
+	// Run the user-provided set up function
+	if _, err := setupFn(goja.Undefined(), rt.ToValue(&socket)); err != nil ***REMOVED***
+		_ = socket.closeConnection(websocket.CloseGoingAway)
+		return nil, err
 	***REMOVED***
 
 	wsResponse, wsRespErr := wrapHTTPResponse(httpResponse)
@@ -431,14 +432,13 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 	s.shutdownOnce.Do(func() ***REMOVED***
 		rt := common.GetRuntime(s.ctx)
 
-		writeErr := s.conn.WriteControl(websocket.CloseMessage,
+		err = s.conn.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(code, ""),
 			time.Now().Add(writeWait),
 		)
-		if writeErr != nil ***REMOVED***
+		if err != nil ***REMOVED***
 			// Just call the handler, we'll try to close the connection anyway
 			s.handleEvent("error", rt.ToValue(err))
-			err = writeErr
 		***REMOVED***
 
 		// trigger `close` event when the client closes the connection
