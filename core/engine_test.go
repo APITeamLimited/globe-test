@@ -540,7 +540,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***tr(`import ws from "k6/ws";
 			let data = "0123456789".repeat(100);
 			export default function() ***REMOVED***
-				ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo", null, function (socket) ***REMOVED***
+				ws.connect("WSBIN_URL/ws-echo", null, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
 						socket.send(data);
 					***REMOVED***);
@@ -667,7 +667,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			group("websockets", function() ***REMOVED***
-				var response = ws.connect("wss://HTTPSBIN_IP:HTTPSBIN_PORT/ws-echo", params, function (socket) ***REMOVED***
+				var response = ws.connect("WSBIN_URL/ws-echo", params, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
 						console.log('ws open and say hello');
 						socket.send("hello");
