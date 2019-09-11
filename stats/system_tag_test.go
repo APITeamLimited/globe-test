@@ -1,4 +1,4 @@
-package tagset
+package stats
 
 import (
 	"encoding/json"
@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
+func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
 	var tests = []struct ***REMOVED***
-		tagset   TagSet
+		tagset   SystemTagSet
 		expected string
 	***REMOVED******REMOVED***
 		***REMOVED***IP, `["ip"]`***REMOVED***,
@@ -26,17 +26,17 @@ func TestTagSetMarshalJSON(t *testing.T) ***REMOVED***
 
 ***REMOVED***
 
-func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
+func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 	var tests = []struct ***REMOVED***
 		tags []byte
-		sets []TagSet
+		sets []SystemTagSet
 	***REMOVED******REMOVED***
-		***REMOVED***[]byte(`[]`), []TagSet***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip", "proto"]`), []TagSet***REMOVED***IP, Proto***REMOVED******REMOVED***,
+		***REMOVED***[]byte(`[]`), []SystemTagSet***REMOVED******REMOVED******REMOVED***,
+		***REMOVED***[]byte(`["ip", "proto"]`), []SystemTagSet***REMOVED***IP, Proto***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
-		ts := new(TagSet)
+		ts := new(SystemTagSet)
 		require.Nil(t, json.Unmarshal(tc.tags, ts))
 		for _, tag := range tc.sets ***REMOVED***
 			assert.True(t, ts.Has(tag))
@@ -45,8 +45,8 @@ func TestTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 
 ***REMOVED***
 
-func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
-	var testMatrix = map[string]TagSet***REMOVED***
+func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
+	var testMatrix = map[string]SystemTagSet***REMOVED***
 		"":                      0,
 		"ip":                    IP,
 		"ip,proto":              IP | Proto,
@@ -56,7 +56,7 @@ func TestTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for input, expected := range testMatrix ***REMOVED***
-		var set = new(TagSet)
+		var set = new(SystemTagSet)
 		err := set.UnmarshalText([]byte(input))
 		require.NoError(t, err)
 		require.Equal(t, expected, *set)
