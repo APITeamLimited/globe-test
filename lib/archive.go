@@ -105,7 +105,7 @@ func (arc *Archive) getFs(name string) afero.Fs ***REMOVED***
 	return fs
 ***REMOVED***
 
-// cleanUpWrongMetadataJSON fixes issues with the metadata.json contents before
+// CleanUpWrongMetadataJSON fixes issues with the metadata.json contents before
 // they are unmarshalled in the Archive struct.
 //
 // Currently, the only fix this function performs is the discarding of the
@@ -114,7 +114,7 @@ func (arc *Archive) getFs(name string) afero.Fs ***REMOVED***
 // 83193f8a96e06a190325b838b2cc451119d6b836. This basically means k6 v0.24.0 and
 // surrounding master commits. We filter these out by the value of the k6version
 // property, saved in the metadata.json since the previous to the above commit.
-func cleanUpWrongMetadataJSON(data []byte) ([]byte, error) ***REMOVED***
+func CleanUpWrongMetadataJSON(data []byte) ([]byte, error) ***REMOVED***
 	var tmpArc map[string]interface***REMOVED******REMOVED***
 	if err := json.Unmarshal(data, &tmpArc); err != nil ***REMOVED***
 		return nil, err
@@ -150,7 +150,7 @@ func cleanUpWrongMetadataJSON(data []byte) ([]byte, error) ***REMOVED***
 ***REMOVED***
 
 func (arc *Archive) loadMetadataJSON(data []byte) error ***REMOVED***
-	data, err := cleanUpWrongMetadataJSON(data)
+	data, err := CleanUpWrongMetadataJSON(data)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
