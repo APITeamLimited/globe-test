@@ -6,10 +6,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,6 +85,29 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 		_, err = MakeRequest(ctx, preq)
 		require.Error(t, err)
 		require.Equal(t, err.Error(), "unknown compressionType CompressionType(13)")
+	***REMOVED***)
+
+	t.Run("invalid upgrade response", func(t *testing.T) ***REMOVED***
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			w.Header().Add("Connection", "Upgrade")
+			w.Header().Add("Upgrade", "h2c")
+			w.WriteHeader(http.StatusSwitchingProtocols)
+		***REMOVED***))
+		defer srv.Close()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		state := &lib.State***REMOVED***
+			Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
+			Transport: srv.Client().Transport,
+		***REMOVED***
+		ctx = lib.WithState(ctx, state)
+		req, _ := http.NewRequest("GET", srv.URL, nil)
+		var preq = &ParsedHTTPRequest***REMOVED***Req: req, URL: &URL***REMOVED***u: req.URL***REMOVED***, Body: new(bytes.Buffer)***REMOVED***
+
+		res, err := MakeRequest(ctx, preq)
+
+		assert.Nil(t, res)
+		assert.EqualError(t, err, "unsupported response status: 101 Switching Protocols")
 	***REMOVED***)
 ***REMOVED***
 
