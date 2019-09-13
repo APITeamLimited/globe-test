@@ -30,6 +30,8 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
+// NullDecoder converts data with expected type f to a guregu/null value
+// of equivalent type t. It returns an error if a type mismatch occurs.
 func NullDecoder(f reflect.Type, t reflect.Type, data interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	typeFrom := f.String()
 	typeTo := t.String()
@@ -88,6 +90,7 @@ func (d Duration) String() string ***REMOVED***
 	return time.Duration(d).String()
 ***REMOVED***
 
+// UnmarshalText converts text data to Duration
 func (d *Duration) UnmarshalText(data []byte) error ***REMOVED***
 	v, err := time.ParseDuration(string(data))
 	if err != nil ***REMOVED***
@@ -97,6 +100,7 @@ func (d *Duration) UnmarshalText(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// UnmarshalJSON converts JSON data to Duration
 func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
 	if len(data) > 0 && data[0] == '"' ***REMOVED***
 		var str string
@@ -121,6 +125,7 @@ func (d *Duration) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// MarshalJSON returns the JSON representation of d
 func (d Duration) MarshalJSON() ([]byte, error) ***REMOVED***
 	return json.Marshal(d.String())
 ***REMOVED***
@@ -137,11 +142,12 @@ func NewNullDuration(d time.Duration, valid bool) NullDuration ***REMOVED***
 	return NullDuration***REMOVED***Duration(d), valid***REMOVED***
 ***REMOVED***
 
-// Creates a valid NullDuration from a time.Duration.
+// NullDurationFrom returns a new valid NullDuration from a time.Duration.
 func NullDurationFrom(d time.Duration) NullDuration ***REMOVED***
 	return NullDuration***REMOVED***Duration(d), true***REMOVED***
 ***REMOVED***
 
+// UnmarshalText converts text data to a valid NullDuration
 func (d *NullDuration) UnmarshalText(data []byte) error ***REMOVED***
 	if len(data) == 0 ***REMOVED***
 		*d = NullDuration***REMOVED******REMOVED***
@@ -154,6 +160,7 @@ func (d *NullDuration) UnmarshalText(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// UnmarshalJSON converts JSON data to a valid NullDuration
 func (d *NullDuration) UnmarshalJSON(data []byte) error ***REMOVED***
 	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
 		d.Valid = false
@@ -166,6 +173,7 @@ func (d *NullDuration) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// MarshalJSON returns the JSON representation of d
 func (d NullDuration) MarshalJSON() ([]byte, error) ***REMOVED***
 	if !d.Valid ***REMOVED***
 		return []byte(`null`), nil
