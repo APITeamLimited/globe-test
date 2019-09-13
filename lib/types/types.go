@@ -180,3 +180,13 @@ func (d NullDuration) MarshalJSON() ([]byte, error) ***REMOVED***
 	***REMOVED***
 	return d.Duration.MarshalJSON()
 ***REMOVED***
+
+// ValueOrZero returns the underlying Duration value of d if valid or
+// its zero equivalent otherwise. It matches the existing guregu/null API.
+func (d NullDuration) ValueOrZero() Duration ***REMOVED***
+	if !d.Valid ***REMOVED***
+		return Duration(0)
+	***REMOVED***
+
+	return d.Duration
+***REMOVED***
