@@ -140,6 +140,15 @@ func (es *ExecutionSegment) String() string ***REMOVED***
 	return es.from.RatString() + ":" + es.to.RatString()
 ***REMOVED***
 
+// MarshalText implements the encoding.TextMarshaler interface, so is used for
+// text and JSON encoding of the execution segment.
+func (es *ExecutionSegment) MarshalText() ([]byte, error) ***REMOVED***
+	if es == nil ***REMOVED***
+		return nil, nil
+	***REMOVED***
+	return []byte(es.String()), nil
+***REMOVED***
+
 // FloatLength is a helper method for getting some more human-readable
 // information about the execution segment.
 func (es *ExecutionSegment) FloatLength() float64 ***REMOVED***
