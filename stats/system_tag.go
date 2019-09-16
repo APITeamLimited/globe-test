@@ -11,6 +11,10 @@ import (
 //go:generate enumer -type=SystemTagSet -transform=snake -trimprefix=Tag -output system_tag_set_gen.go
 type SystemTagSet uint32
 
+// SystemTagMap is a string to bool map (for lookup efficiency) that is used to keep track
+// which system tags should be included with with metrics.
+type SystemTagMap map[string]bool
+
 // DefaultSystemTagList includes all of the system tags emitted with metrics by default.
 // Other tags that are not enabled by default include: iter, vu, ocsp_status, ip
 var DefaultSystemTagList = []string***REMOVED***
@@ -52,12 +56,29 @@ const (
 
 // Add adds a tag to tag set.
 func (ts *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
+	if ts == nil ***REMOVED***
+		ts = new(SystemTagSet)
+	***REMOVED***
 	*ts |= tag
 ***REMOVED***
 
 // Has checks a tag included in tag set.
 func (ts *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
+	if ts == nil ***REMOVED***
+		return false
+	***REMOVED***
 	return *ts&tag != 0
+***REMOVED***
+
+// Map returns the SystemTagMap with current value from SystemTagSet
+func (ts *SystemTagSet) Map() SystemTagMap ***REMOVED***
+	m := SystemTagMap***REMOVED******REMOVED***
+	for _, tag := range SystemTagSetValues() ***REMOVED***
+		if ts.Has(tag) ***REMOVED***
+			m[tag.String()] = true
+		***REMOVED***
+	***REMOVED***
+	return m
 ***REMOVED***
 
 // ToSystemTagSet converts list of tags to SystemTagSet
