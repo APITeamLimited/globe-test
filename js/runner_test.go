@@ -893,7 +893,7 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:      null.BoolFrom(true),
-		SystemTags: lib.GetTagSet("proto"),
+		SystemTags: stats.ToSystemTagSet([]string***REMOVED***stats.TagProto.String()***REMOVED***),
 	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)

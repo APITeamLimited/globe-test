@@ -97,7 +97,12 @@ func TestSession(t *testing.T) ***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto"),
+			SystemTags: stats.ToSystemTagSet([]string***REMOVED***
+				stats.TagURL.String(),
+				stats.TagProto.String(),
+				stats.TagStatus.String(),
+				stats.TagSubProto.String(),
+			***REMOVED***),
 		***REMOVED***,
 		Samples:   samples,
 		TLSConfig: tb.TLSClientConfig,
@@ -293,7 +298,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...),
+			SystemTags: stats.ToSystemTagSet(stats.DefaultSystemTagList),
 		***REMOVED***,
 		Samples: samples,
 	***REMOVED***
@@ -405,7 +410,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	state := &lib.State***REMOVED***
 		Group:     root,
 		Dialer:    tb.Dialer,
-		Options:   lib.Options***REMOVED***SystemTags: lib.GetTagSet(testedSystemTags...)***REMOVED***,
+		Options:   lib.Options***REMOVED***SystemTags: stats.ToSystemTagSet(testedSystemTags)***REMOVED***,
 		Samples:   samples,
 		TLSConfig: tb.TLSClientConfig,
 	***REMOVED***
@@ -417,10 +422,9 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
 	for _, expectedTag := range testedSystemTags ***REMOVED***
+		expectedTag := expectedTag
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
-			state.Options.SystemTags = map[string]bool***REMOVED***
-				expectedTag: true,
-			***REMOVED***
+			state.Options.SystemTags = stats.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
 			_, err := common.RunString(rt, sr(`
 			let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
@@ -463,7 +467,13 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		Group:  root,
 		Dialer: tb.Dialer,
 		Options: lib.Options***REMOVED***
-			SystemTags: lib.GetTagSet("url", "proto", "status", "subproto", "ip"),
+			SystemTags: stats.ToSystemTagSet([]string***REMOVED***
+				stats.TagURL.String(),
+				stats.TagProto.String(),
+				stats.TagStatus.String(),
+				stats.TagSubProto.String(),
+				stats.TagIP.String(),
+			***REMOVED***),
 		***REMOVED***,
 		Samples: samples,
 	***REMOVED***

@@ -105,7 +105,7 @@ func New(conf Config, src *loader.SourceData, opts lib.Options, version string) 
 		return nil, err
 	***REMOVED***
 
-	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags["vu"] || opts.SystemTags["iter"]) ***REMOVED***
+	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags.Has(stats.TagVU) || opts.SystemTags.Has(stats.TagIter)) ***REMOVED***
 		return nil, errors.New("Aggregation cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
 	***REMOVED***
 
@@ -552,8 +552,8 @@ func sumStages(stages []lib.Stage) int64 ***REMOVED***
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
-func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
-	return lib.GetTagSet("name", "method", "status", "error", "check", "group")
+func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
+	return stats.TagName | stats.TagMethod | stats.TagStatus | stats.TagError | stats.TagCheck | stats.TagGroup
 ***REMOVED***
 
 // SetRunStatus Set run status

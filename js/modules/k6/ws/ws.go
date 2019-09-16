@@ -146,10 +146,10 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 	***REMOVED***
 
-	if state.Options.SystemTags["url"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
 		tags["url"] = url
 	***REMOVED***
-	if state.Options.SystemTags["group"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		tags["group"] = state.Group.Path
 	***REMOVED***
 
@@ -186,7 +186,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		done:               make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***
 
-	if state.Options.SystemTags["ip"] && conn.RemoteAddr() != nil ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagIP) && conn.RemoteAddr() != nil ***REMOVED***
 		if ip, _, err := net.SplitHostPort(conn.RemoteAddr().String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***
@@ -213,10 +213,10 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 	defer func() ***REMOVED*** _ = conn.Close() ***REMOVED***()
 
-	if state.Options.SystemTags["status"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagStatus) ***REMOVED***
 		tags["status"] = strconv.Itoa(httpResponse.StatusCode)
 	***REMOVED***
-	if state.Options.SystemTags["subproto"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagSubProto) ***REMOVED***
 		tags["subproto"] = httpResponse.Header.Get("Sec-WebSocket-Protocol")
 	***REMOVED***
 

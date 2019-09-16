@@ -39,6 +39,7 @@ import (
 	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 // A helper funcion for setting arbitrary environment variables and
@@ -393,16 +394,22 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 
 		// Test system tags
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.GetTagSet(lib.DefaultSystemTagList...), c.Options.SystemTags)
+			assert.Equal(t, stats.ToSystemTagSet(stats.DefaultSystemTagList), c.Options.SystemTags)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--system-tags", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.GetTagSet(), c.Options.SystemTags)
+			assert.Equal(t, stats.SystemTagSet(0), *c.Options.SystemTags)
 		***REMOVED******REMOVED***,
 		***REMOVED***
-			opts***REMOVED***runner: &lib.Options***REMOVED***SystemTags: lib.GetTagSet([]string***REMOVED***"proto", "url"***REMOVED***...)***REMOVED******REMOVED***,
+			opts***REMOVED***runner: &lib.Options***REMOVED***
+				SystemTags: stats.ToSystemTagSet([]string***REMOVED***stats.TagSubProto.String(), stats.TagURL.String()***REMOVED***)***REMOVED***,
+			***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
-				assert.Equal(t, lib.GetTagSet("proto", "url"), c.Options.SystemTags)
+				assert.Equal(
+					t,
+					*stats.ToSystemTagSet([]string***REMOVED***stats.TagSubProto.String(), stats.TagURL.String()***REMOVED***),
+					*c.Options.SystemTags,
+				)
 			***REMOVED***,
 		***REMOVED***,
 		//TODO: test for differences between flagsets

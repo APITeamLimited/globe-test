@@ -21,18 +21,19 @@
 package datadog
 
 import (
-	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/statsd/common"
 )
 
-type tagHandler lib.TagSet
+type tagHandler stats.SystemTagSet
 
 func (t tagHandler) processTags(tags map[string]string) []string ***REMOVED***
 	var res []string
-
 	for key, value := range tags ***REMOVED***
-		if value != "" && !t[key] ***REMOVED***
-			res = append(res, key+":"+value)
+		if v, err := stats.SystemTagSetString(key); err == nil ***REMOVED***
+			if value != "" && t&tagHandler(v) != 0 ***REMOVED***
+				res = append(res, key+":"+value)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return res
@@ -42,7 +43,7 @@ func (t tagHandler) processTags(tags map[string]string) []string ***REMOVED***
 type Config struct ***REMOVED***
 	common.Config
 
-	TagBlacklist lib.TagSet `json:"tagBlacklist,omitempty" envconfig:"TAG_BLACKLIST"`
+	TagBlacklist *stats.SystemTagSet `json:"tagBlacklist,omitempty" envconfig:"TAG_BLACKLIST"`
 ***REMOVED***
 
 // Apply saves config non-zero config values from the passed config in the receiver.
@@ -60,7 +61,7 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 func NewConfig() Config ***REMOVED***
 	return Config***REMOVED***
 		Config:       common.NewConfig(),
-		TagBlacklist: lib.GetTagSet(),
+		TagBlacklist: stats.ToSystemTagSet([]string***REMOVED******REMOVED***),
 	***REMOVED***
 ***REMOVED***
 
@@ -69,6 +70,6 @@ func New(conf Config) (*common.Collector, error) ***REMOVED***
 	return &common.Collector***REMOVED***
 		Config:      conf.Config,
 		Type:        "datadog",
-		ProcessTags: tagHandler(conf.TagBlacklist).processTags,
+		ProcessTags: tagHandler(*conf.TagBlacklist).processTags,
 	***REMOVED***, nil
 ***REMOVED***

@@ -30,6 +30,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
+	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/csv"
 	"github.com/loadimpact/k6/stats/datadog"
@@ -124,9 +125,11 @@ func getCollector(collectorName, arg string, src *loader.SourceData, conf Config
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+
 			config = config.Apply(cmdConfig)
 		***REMOVED***
-		return csv.New(afero.NewOsFs(), conf.SystemTags, config)
+		return csv.New(afero.NewOsFs(), conf.SystemTags.Map(), config)
+
 	default:
 		return nil, errors.Errorf("unknown output type: %s", collectorName)
 	***REMOVED***
@@ -140,9 +143,10 @@ func newCollector(collectorName, arg string, src *loader.SourceData, conf Config
 
 	// Check if all required tags are present
 	missingRequiredTags := []string***REMOVED******REMOVED***
-	for reqTag := range collector.GetRequiredSystemTags() ***REMOVED***
-		if !conf.SystemTags[reqTag] ***REMOVED***
-			missingRequiredTags = append(missingRequiredTags, reqTag)
+	requiredTags := collector.GetRequiredSystemTags()
+	for _, tag := range stats.SystemTagSetValues() ***REMOVED***
+		if requiredTags.Has(tag) && !conf.SystemTags.Has(tag) ***REMOVED***
+			missingRequiredTags = append(missingRequiredTags, tag.String())
 		***REMOVED***
 	***REMOVED***
 	if len(missingRequiredTags) > 0 ***REMOVED***

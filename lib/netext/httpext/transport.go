@@ -100,47 +100,47 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	enabledTags := t.state.Options.SystemTags
 	if unfReq.err != nil ***REMOVED***
 		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
-		if enabledTags["error"] ***REMOVED***
+		if enabledTags.Has(stats.TagError) ***REMOVED***
 			tags["error"] = result.errorMsg
 		***REMOVED***
 
-		if enabledTags["error_code"] ***REMOVED***
+		if enabledTags.Has(stats.TagErrorCode) ***REMOVED***
 			tags["error_code"] = strconv.Itoa(int(result.errorCode))
 		***REMOVED***
 
-		if enabledTags["status"] ***REMOVED***
+		if enabledTags.Has(stats.TagStatus) ***REMOVED***
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if enabledTags["url"] ***REMOVED***
+		if enabledTags.Has(stats.TagURL) ***REMOVED***
 			u := URL***REMOVED***u: unfReq.request.URL, URL: unfReq.request.URL.String()***REMOVED***
 			tags["url"] = u.Clean()
 		***REMOVED***
-		if enabledTags["status"] ***REMOVED***
+		if enabledTags.Has(stats.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		***REMOVED***
 		if unfReq.response.StatusCode >= 400 ***REMOVED***
-			if enabledTags["error_code"] ***REMOVED***
+			if enabledTags.Has(stats.TagErrorCode) ***REMOVED***
 				result.errorCode = errCode(1000 + unfReq.response.StatusCode)
 				tags["error_code"] = strconv.Itoa(int(result.errorCode))
 			***REMOVED***
 		***REMOVED***
-		if enabledTags["proto"] ***REMOVED***
+		if enabledTags.Has(stats.TagProto) ***REMOVED***
 			tags["proto"] = unfReq.response.Proto
 		***REMOVED***
 
 		if unfReq.response.TLS != nil ***REMOVED***
 			tlsInfo, oscp := netext.ParseTLSConnState(unfReq.response.TLS)
-			if enabledTags["tls_version"] ***REMOVED***
+			if enabledTags.Has(stats.TagTLSVersion) ***REMOVED***
 				tags["tls_version"] = tlsInfo.Version
 			***REMOVED***
-			if enabledTags["ocsp_status"] ***REMOVED***
+			if enabledTags.Has(stats.TagOCSPStatus) ***REMOVED***
 				tags["ocsp_status"] = oscp.Status
 			***REMOVED***
 			result.tlsInfo = tlsInfo
 		***REMOVED***
 	***REMOVED***
-	if enabledTags["ip"] && trail.ConnRemoteAddr != nil ***REMOVED***
+	if enabledTags.Has(stats.TagIP) && trail.ConnRemoteAddr != nil ***REMOVED***
 		if ip, _, err := net.SplitHostPort(trail.ConnRemoteAddr.String()); err == nil ***REMOVED***
 			tags["ip"] = ip
 		***REMOVED***

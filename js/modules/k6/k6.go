@@ -91,13 +91,13 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	t := time.Now()
 
 	tags := state.Options.RunTags.CloneTags()
-	if state.Options.SystemTags["group"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		tags["group"] = g.Path
 	***REMOVED***
-	if state.Options.SystemTags["vu"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
 		tags["vu"] = strconv.FormatInt(state.Vu, 10)
 	***REMOVED***
-	if state.Options.SystemTags["iter"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
 		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
@@ -121,7 +121,7 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 
 	// Prepare tags, make sure the `group` tag can't be overwritten.
 	commonTags := state.Options.RunTags.CloneTags()
-	if state.Options.SystemTags["group"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		commonTags["group"] = state.Group.Path
 	***REMOVED***
 	if len(extras) > 0 ***REMOVED***
@@ -130,10 +130,10 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 			commonTags[k] = obj.Get(k).String()
 		***REMOVED***
 	***REMOVED***
-	if state.Options.SystemTags["vu"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
 		commonTags["vu"] = strconv.FormatInt(state.Vu, 10)
 	***REMOVED***
-	if state.Options.SystemTags["iter"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
 		commonTags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
@@ -153,7 +153,7 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 		if err != nil ***REMOVED***
 			return false, err
 		***REMOVED***
-		if state.Options.SystemTags["check"] ***REMOVED***
+		if state.Options.SystemTags.Has(stats.TagCheck) ***REMOVED***
 			tags["check"] = check.Name
 		***REMOVED***
 

@@ -236,24 +236,24 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		tags[k] = v
 	***REMOVED***
 
-	if state.Options.SystemTags["method"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagMethod) ***REMOVED***
 		tags["method"] = preq.Req.Method
 	***REMOVED***
-	if state.Options.SystemTags["url"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
 		tags["url"] = preq.URL.Clean()
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags["name"] ***REMOVED***
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(stats.TagName) ***REMOVED***
 		tags["name"] = preq.URL.Name
 	***REMOVED***
-	if state.Options.SystemTags["group"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		tags["group"] = state.Group.Path
 	***REMOVED***
-	if state.Options.SystemTags["vu"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
 		tags["vu"] = strconv.FormatInt(state.Vu, 10)
 	***REMOVED***
-	if state.Options.SystemTags["iter"] ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
 		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
