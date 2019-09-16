@@ -13,7 +13,7 @@ func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
 		tagset   SystemTagSet
 		expected string
 	***REMOVED******REMOVED***
-		***REMOVED***IP, `["ip"]`***REMOVED***,
+		***REMOVED***TagIP, `["ip"]`***REMOVED***,
 		***REMOVED***0, `null`***REMOVED***,
 	***REMOVED***
 
@@ -32,7 +32,7 @@ func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 		sets []SystemTagSet
 	***REMOVED******REMOVED***
 		***REMOVED***[]byte(`[]`), []SystemTagSet***REMOVED******REMOVED******REMOVED***,
-		***REMOVED***[]byte(`["ip", "proto"]`), []SystemTagSet***REMOVED***IP, Proto***REMOVED******REMOVED***,
+		***REMOVED***[]byte(`["ip", "proto"]`), []SystemTagSet***REMOVED***TagIP, TagProto***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
@@ -48,11 +48,11 @@ func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
 	var testMatrix = map[string]SystemTagSet***REMOVED***
 		"":                      0,
-		"ip":                    IP,
-		"ip,proto":              IP | Proto,
-		"   ip  ,  proto  ":     IP | Proto,
-		"   ip  ,   ,  proto  ": IP | Proto,
-		"   ip  ,,  proto  ,,":  IP | Proto,
+		"ip":                    TagIP,
+		"ip,proto":              TagIP | TagProto,
+		"   ip  ,  proto  ":     TagIP | TagProto,
+		"   ip  ,   ,  proto  ": TagIP | TagProto,
+		"   ip  ,,  proto  ,,":  TagIP | TagProto,
 	***REMOVED***
 
 	for input, expected := range testMatrix ***REMOVED***
