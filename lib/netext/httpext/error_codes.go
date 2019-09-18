@@ -133,11 +133,13 @@ func errorCodeForError(err error) (errCode, string) ***REMOVED***
 			return defaultNetNonTCPErrorCode, err.Error()
 		***REMOVED***
 		if e.Op == "write" ***REMOVED***
-			switch e.Err.Error() ***REMOVED***
-			case syscall.ECONNRESET.Error():
-				return tcpResetByPeerErrorCode, tcpResetByPeerErrorCodeMsg
-			case syscall.EPIPE.Error():
-				return tcpBrokenPipeErrorCode, tcpBrokenPipeErrorCodeMsg
+			if sErr, ok := e.Err.(*os.SyscallError); ok ***REMOVED***
+				switch sErr.Err ***REMOVED***
+				case syscall.ECONNRESET:
+					return tcpResetByPeerErrorCode, tcpResetByPeerErrorCodeMsg
+				case syscall.EPIPE:
+					return tcpBrokenPipeErrorCode, tcpBrokenPipeErrorCodeMsg
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		if e.Op == "dial" ***REMOVED***
