@@ -406,12 +406,12 @@ a commandline interface for interacting with it.`,
 
 				switch e := errors.Cause(err).(type) ***REMOVED***
 				case lib.TimeoutError:
-					switch string(e) ***REMOVED***
+					switch e.Place() ***REMOVED***
 					case "setup":
-						logrus.WithError(err).Error("Setup timeout")
+						logrus.WithField("hint", e.Hint()).Error(err)
 						return ExitCode***REMOVED***errors.New("Setup timeout"), setupTimeoutErrorCode***REMOVED***
 					case "teardown":
-						logrus.WithError(err).Error("Teardown timeout")
+						logrus.WithField("hint", e.Hint()).Error(err)
 						return ExitCode***REMOVED***errors.New("Teardown timeout"), teardownTimeoutErrorCode***REMOVED***
 					default:
 						logrus.WithError(err).Error("Engine timeout")
