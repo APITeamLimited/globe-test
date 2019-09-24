@@ -1,9 +1,28 @@
 package lib
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestTimeoutError(t *testing.T) ***REMOVED***
+	tests := []struct ***REMOVED***
+		stage, expectedStrContain string
+		d                         time.Duration
+	***REMOVED******REMOVED***
+		***REMOVED***"setup", "1 seconds", time.Second***REMOVED***,
+		***REMOVED***"teardown", "2 seconds", time.Second * 2***REMOVED***,
+		***REMOVED***"", "0 seconds", time.Duration(0)***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range tests ***REMOVED***
+		te := NewTimeoutError(tc.stage, tc.d)
+		if !strings.Contains(te.String(), tc.expectedStrContain) ***REMOVED***
+			t.Errorf("Expected error contains %s, but got: %s", tc.expectedStrContain, te.String())
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
 
 func TestTimeoutErrorHint(t *testing.T) ***REMOVED***
 	tests := []struct ***REMOVED***
