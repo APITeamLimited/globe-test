@@ -23,7 +23,6 @@ package httpext
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -77,14 +76,13 @@ func (u URL) Clean() string ***REMOVED***
 	out := u.URL
 
 	if u.u != nil && u.u.User != nil ***REMOVED***
-		// mask user credentials
-		creds := fmt.Sprintf("%s@", u.u.User.String())
-		mask := "****@"
-		_, passSet := u.u.User.Password()
-		if passSet ***REMOVED***
-			mask = fmt.Sprintf("****:%s", mask)
+		schemeIndex := strings.Index(out, "://")
+		atIndex := strings.Index(out, "@")
+		if _, passwordOk := u.u.User.Password(); passwordOk ***REMOVED***
+			out = out[:schemeIndex+3] + "****:****" + out[atIndex:]
+		***REMOVED*** else ***REMOVED***
+			out = out[:schemeIndex+3] + "****" + out[atIndex:]
 		***REMOVED***
-		return strings.Replace(out, creds, mask, 1)
 	***REMOVED***
 
 	return out
