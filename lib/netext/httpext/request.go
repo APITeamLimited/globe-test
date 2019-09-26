@@ -49,16 +49,43 @@ type HTTPRequestCookie struct ***REMOVED***
 
 // A URL wraps net.URL, and preserves the template (if any) the URL was constructed from.
 type URL struct ***REMOVED***
-	u    *url.URL
-	Name string // http://example.com/thing/$***REMOVED******REMOVED***/
-	URL  string // http://example.com/thing/1234/
+	u        *url.URL
+	Name     string // http://example.com/thing/$***REMOVED******REMOVED***/
+	URL      string // http://example.com/thing/1234/
+	CleanURL string // URL with masked user credentials, used for output
 ***REMOVED***
 
 // NewURL returns a new URL for the provided url and name. The error is returned if the url provided
 // can't be parsed
 func NewURL(urlString, name string) (URL, error) ***REMOVED***
 	u, err := url.Parse(urlString)
-	return URL***REMOVED***u: u, Name: name, URL: urlString***REMOVED***, err
+	newURL := URL***REMOVED***u: u, Name: name, URL: urlString***REMOVED***
+	newURL.CleanURL = newURL.Clean()
+	if urlString == name ***REMOVED***
+		newURL.Name = newURL.CleanURL
+	***REMOVED***
+	return newURL, err
+***REMOVED***
+
+// Clean returns an output-safe representation of URL
+func (u URL) Clean() string ***REMOVED***
+	if u.CleanURL != "" ***REMOVED***
+		return u.CleanURL
+	***REMOVED***
+
+	out := u.URL
+
+	if u.u != nil && u.u.User != nil ***REMOVED***
+		schemeIndex := strings.Index(out, "://")
+		atIndex := strings.Index(out, "@")
+		if _, passwordOk := u.u.User.Password(); passwordOk ***REMOVED***
+			out = out[:schemeIndex+3] + "****:****" + out[atIndex:]
+		***REMOVED*** else ***REMOVED***
+			out = out[:schemeIndex+3] + "****" + out[atIndex:]
+		***REMOVED***
+	***REMOVED***
+
+	return out
 ***REMOVED***
 
 // GetURL returns the internal url.URL
@@ -212,7 +239,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		tags["method"] = preq.Req.Method
 	***REMOVED***
 	if state.Options.SystemTags["url"] ***REMOVED***
-		tags["url"] = preq.URL.URL
+		tags["url"] = preq.URL.Clean()
 	***REMOVED***
 
 	// Only set the name system tag if the user didn't explicitly set it beforehand

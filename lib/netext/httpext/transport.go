@@ -113,7 +113,8 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		if enabledTags["url"] ***REMOVED***
-			tags["url"] = unfReq.request.URL.String()
+			u := URL***REMOVED***u: unfReq.request.URL, URL: unfReq.request.URL.String()***REMOVED***
+			tags["url"] = u.Clean()
 		***REMOVED***
 		if enabledTags["status"] ***REMOVED***
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
