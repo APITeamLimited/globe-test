@@ -394,7 +394,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 
 		// Test system tags
 		***REMOVED***opts***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, stats.ToSystemTagSet(stats.DefaultSystemTagList), c.Options.SystemTags)
+			assert.Equal(t, &stats.DefaultSystemTagSet, c.Options.SystemTags)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--system-tags", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			assert.Equal(t, stats.SystemTagSet(0), *c.Options.SystemTags)

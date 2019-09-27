@@ -706,7 +706,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		VUsMax:                null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
 		RunTags:               runTags,
-		SystemTags:            stats.ToSystemTagSet(stats.DefaultSystemTagList),
+		SystemTags:            &stats.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***
 
@@ -800,7 +800,7 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 	runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
-		SystemTags:      stats.ToSystemTagSet(stats.DefaultSystemTagList),
+		SystemTags:      &stats.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),

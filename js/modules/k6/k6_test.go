@@ -152,7 +152,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		return &lib.State***REMOVED***
 			Group: root,
 			Options: lib.Options***REMOVED***
-				SystemTags: stats.ToSystemTagSet(stats.DefaultSystemTagList),
+				SystemTags: &stats.DefaultSystemTagSet,
 			***REMOVED***,
 			Samples: samples,
 		***REMOVED***, samples
