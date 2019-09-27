@@ -588,6 +588,10 @@ func TestOpen(t *testing.T) ***REMOVED***
 
 func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	b, err := getSimpleBundle("/script.js", `
+		export let options = ***REMOVED***
+			vus: 5,
+			teardownTimeout: '1s',
+		***REMOVED***;
 		let val = true;
 		export default function() ***REMOVED*** return val; ***REMOVED***
 	`)
@@ -613,6 +617,25 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
+	***REMOVED***)
+
+	t.Run("Options", func(t *testing.T) ***REMOVED***
+		// Ensure `options` properties are correctly marshalled
+		jsOptions := bi.Runtime.Get("options").ToObject(bi.Runtime)
+		vus := jsOptions.Get("vus").Export()
+		assert.Equal(t, int64(5), vus)
+		tdt := jsOptions.Get("teardownTimeout").Export()
+		assert.Equal(t, "1s", tdt)
+
+		// Ensure options propagate correctly from outside to the script
+		optOrig := b.Options.VUs
+		b.Options.VUs = null.IntFrom(10)
+		bi2, err := b.Instantiate()
+		assert.NoError(t, err)
+		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
+		vus = jsOptions.Get("vus").Export()
+		assert.Equal(t, int64(10), vus)
+		b.Options.VUs = optOrig
 	***REMOVED***)
 ***REMOVED***
 
