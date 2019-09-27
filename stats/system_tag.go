@@ -15,24 +15,6 @@ type SystemTagSet uint32
 // which system tags should be included with with metrics.
 type SystemTagMap map[string]bool
 
-// DefaultSystemTagList includes all of the system tags emitted with metrics by default.
-// Other tags that are not enabled by default include: iter, vu, ocsp_status, ip
-//nolint:gochecknoglobals
-var DefaultSystemTagList = []string***REMOVED***
-	TagProto.String(),
-	TagSubProto.String(),
-	TagStatus.String(),
-	TagMethod.String(),
-	TagURL.String(),
-	TagName.String(),
-	TagGroup.String(),
-	TagCheck.String(),
-	TagCheck.String(),
-	TagError.String(),
-	TagErrorCode.String(),
-	TagTLSVersion.String(),
-***REMOVED***
-
 //nolint: golint
 const (
 	// Default system tags includes all of the system tags emitted with metrics by default.
@@ -55,27 +37,45 @@ const (
 	TagIP
 )
 
+// DefaultSystemTagList includes all of the system tags emitted with metrics by default.
+// Other tags that are not enabled by default include: iter, vu, ocsp_status, ip
+//nolint:gochecknoglobals
+var DefaultSystemTagList = []string***REMOVED***
+	TagProto.String(),
+	TagSubProto.String(),
+	TagStatus.String(),
+	TagMethod.String(),
+	TagURL.String(),
+	TagName.String(),
+	TagGroup.String(),
+	TagCheck.String(),
+	TagCheck.String(),
+	TagError.String(),
+	TagErrorCode.String(),
+	TagTLSVersion.String(),
+***REMOVED***
+
 // Add adds a tag to tag set.
-func (ts *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
-	if ts == nil ***REMOVED***
-		ts = new(SystemTagSet)
+func (i *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
+	if i == nil ***REMOVED***
+		i = new(SystemTagSet)
 	***REMOVED***
-	*ts |= tag
+	*i |= tag
 ***REMOVED***
 
 // Has checks a tag included in tag set.
-func (ts *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
-	if ts == nil ***REMOVED***
+func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
+	if i == nil ***REMOVED***
 		return false
 	***REMOVED***
-	return *ts&tag != 0
+	return *i&tag != 0
 ***REMOVED***
 
 // Map returns the SystemTagMap with current value from SystemTagSet
-func (ts *SystemTagSet) Map() SystemTagMap ***REMOVED***
+func (i *SystemTagSet) Map() SystemTagMap ***REMOVED***
 	m := SystemTagMap***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if ts.Has(tag) ***REMOVED***
+		if i.Has(tag) ***REMOVED***
 			m[tag.String()] = true
 		***REMOVED***
 	***REMOVED***
@@ -94,10 +94,10 @@ func ToSystemTagSet(tags []string) *SystemTagSet ***REMOVED***
 ***REMOVED***
 
 // MarshalJSON converts the SystemTagSet to a list (JS array).
-func (ts *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 	var tags []string
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if ts.Has(tag) ***REMOVED***
+		if i.Has(tag) ***REMOVED***
 			tags = append(tags, tag.String())
 		***REMOVED***
 	***REMOVED***
@@ -105,20 +105,20 @@ func (ts *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 ***REMOVED***
 
 // UnmarshalJSON converts the tag list back to expected tag set.
-func (ts *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
 	var tags []string
 	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	if len(tags) != 0 ***REMOVED***
-		*ts = *ToSystemTagSet(tags)
+		*i = *ToSystemTagSet(tags)
 	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 // UnmarshalText converts the tag list to SystemTagSet.
-func (ts *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 	var list = bytes.Split(data, []byte(","))
 
 	for _, key := range list ***REMOVED***
@@ -127,7 +127,7 @@ func (ts *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 			continue
 		***REMOVED***
 		if v, err := SystemTagSetString(key); err == nil ***REMOVED***
-			ts.Add(v)
+			i.Add(v)
 		***REMOVED***
 	***REMOVED***
 	return nil

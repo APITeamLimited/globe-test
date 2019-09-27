@@ -23,7 +23,6 @@ func TestSystemTagSetMarshalJSON(t *testing.T) ***REMOVED***
 		require.Nil(t, err)
 		require.Equal(t, tc.expected, string(got))
 	***REMOVED***
-
 ***REMOVED***
 
 func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
@@ -42,7 +41,6 @@ func TestSystemTagSet_UnmarshalJSON(t *testing.T) ***REMOVED***
 			assert.True(t, ts.Has(tag))
 		***REMOVED***
 	***REMOVED***
-
 ***REMOVED***
 
 func TestSystemTagSetTextUnmarshal(t *testing.T) ***REMOVED***
