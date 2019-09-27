@@ -44,11 +44,6 @@ import (
 	"github.com/loadimpact/k6/stats/dummy"
 )
 
-type testErrorWithString string
-
-func (e testErrorWithString) Error() string  ***REMOVED*** return string(e) ***REMOVED***
-func (e testErrorWithString) String() string ***REMOVED*** return string(e) ***REMOVED***
-
 // Apply a null logger to the engine and return the hook.
 func applyNullLogger(e *Engine) *logtest.Hook ***REMOVED***
 	logger, hook := logtest.NewNullLogger()
