@@ -8,7 +8,6 @@ import (
 
 // SystemTagSet is a bitmask that is used to keep track
 // which system tags should be included with which metrics.
-//go:generate enumer -type=SystemTagSet -transform=snake -trimprefix=Tag -output system_tag_set_gen.go
 type SystemTagSet uint32
 
 // SystemTagMap is a string to bool map (for lookup efficiency) that is used to keep track
@@ -56,26 +55,26 @@ var DefaultSystemTagList = []string***REMOVED***
 ***REMOVED***
 
 // Add adds a tag to tag set.
-func (i *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
-	if i == nil ***REMOVED***
-		i = new(SystemTagSet)
+func (ts *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
+	if ts == nil ***REMOVED***
+		ts = new(SystemTagSet)
 	***REMOVED***
-	*i |= tag
+	*ts |= tag
 ***REMOVED***
 
 // Has checks a tag included in tag set.
-func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
-	if i == nil ***REMOVED***
+func (ts *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
+	if ts == nil ***REMOVED***
 		return false
 	***REMOVED***
-	return *i&tag != 0
+	return *ts&tag != 0
 ***REMOVED***
 
 // Map returns the SystemTagMap with current value from SystemTagSet
-func (i *SystemTagSet) Map() SystemTagMap ***REMOVED***
+func (ts *SystemTagSet) Map() SystemTagMap ***REMOVED***
 	m := SystemTagMap***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if i.Has(tag) ***REMOVED***
+		if ts.Has(tag) ***REMOVED***
 			m[tag.String()] = true
 		***REMOVED***
 	***REMOVED***
@@ -94,10 +93,10 @@ func ToSystemTagSet(tags []string) *SystemTagSet ***REMOVED***
 ***REMOVED***
 
 // MarshalJSON converts the SystemTagSet to a list (JS array).
-func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+func (ts *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 	var tags []string
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if i.Has(tag) ***REMOVED***
+		if ts.Has(tag) ***REMOVED***
 			tags = append(tags, tag.String())
 		***REMOVED***
 	***REMOVED***
@@ -105,20 +104,20 @@ func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 ***REMOVED***
 
 // UnmarshalJSON converts the tag list back to expected tag set.
-func (i *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+func (ts *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
 	var tags []string
 	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	if len(tags) != 0 ***REMOVED***
-		*i = *ToSystemTagSet(tags)
+		*ts = *ToSystemTagSet(tags)
 	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 // UnmarshalText converts the tag list to SystemTagSet.
-func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
+func (ts *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 	var list = bytes.Split(data, []byte(","))
 
 	for _, key := range list ***REMOVED***
@@ -127,7 +126,7 @@ func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 			continue
 		***REMOVED***
 		if v, err := SystemTagSetString(key); err == nil ***REMOVED***
-			i.Add(v)
+			ts.Add(v)
 		***REMOVED***
 	***REMOVED***
 	return nil
