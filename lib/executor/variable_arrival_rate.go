@@ -196,10 +196,15 @@ func (varc VariableArrivalRateConfig) getPlannedRateChanges(segment *lib.Executi
 
 		// Handle 0-duration stages, i.e. instant rate jumps
 		if stageDuration == 0 ***REMOVED***
-			rateChanges = append(rateChanges, rateChange***REMOVED***
-				timeOffset:   timeFromStart,
-				tickerPeriod: getTickerPeriod(stageTargetRate),
-			***REMOVED***)
+			// check if the last set change is for the same time and overwrite it
+			if len(rateChanges) > 0 && rateChanges[len(rateChanges)-1].timeOffset == timeFromStart ***REMOVED***
+				rateChanges[len(rateChanges)-1].tickerPeriod = getTickerPeriod(stageTargetRate)
+			***REMOVED*** else ***REMOVED***
+				rateChanges = append(rateChanges, rateChange***REMOVED***
+					timeOffset:   timeFromStart,
+					tickerPeriod: getTickerPeriod(stageTargetRate),
+				***REMOVED***)
+			***REMOVED***
 			currentRate = stageTargetRate
 			continue
 		***REMOVED***
