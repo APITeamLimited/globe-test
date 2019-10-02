@@ -114,13 +114,13 @@ type Executor interface ***REMOVED***
 ***REMOVED***
 
 // PausableExecutor should be implemented by the executors that can be paused
-// and resumend in the middle of the test execution. Currently, only the
+// and resumed in the middle of the test execution. Currently, only the
 // externally controlled executor implements it.
 type PausableExecutor interface ***REMOVED***
 	SetPaused(bool) error
 ***REMOVED***
 
-// LiveUpdatableExecutor should be implemented for the executors whoose
+// LiveUpdatableExecutor should be implemented for the executors whose
 // configuration can be modified in the middle of the test execution. Currently,
 // only the manual execution executor implements it.
 type LiveUpdatableExecutor interface ***REMOVED***
@@ -254,7 +254,7 @@ func (scs ExecutorConfigMap) GetFullExecutionRequirements(executionSegment *Exec
 		***REMOVED***
 	***REMOVED***
 	// Sort by (time offset, config id). It's important that we use stable
-	// sorting algorithm, since there are could be steps with the same time from
+	// sorting algorithm, since there could be steps with the same time from
 	// the same executor and their order is important.
 	sort.SliceStable(trackedSteps, func(a, b int) bool ***REMOVED***
 		switch ***REMOVED***
@@ -329,7 +329,7 @@ type protoExecutorConfig struct ***REMOVED***
 	rawJSON    json.RawMessage
 ***REMOVED***
 
-// UnmarshalJSON just reads unmarshals the base config (to get the type), but it also
+// UnmarshalJSON unmarshals the base config (to get the type), but it also
 // stores the unprocessed JSON so we can parse the full config in the next step
 func (pc *protoExecutorConfig) UnmarshalJSON(b []byte) error ***REMOVED***
 	var tmp struct ***REMOVED***
