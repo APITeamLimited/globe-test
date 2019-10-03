@@ -103,7 +103,7 @@ func NewEngine(ex lib.ExecutionScheduler, o lib.Options, logger *logrus.Logger) 
 	return e, nil
 ***REMOVED***
 
-// Init is used to initialize the execuction scheduler. That's a costly operation, since it
+// Init is used to initialize the execution scheduler. That's a costly operation, since it
 // initializes all of the planned VUs and could potentially take a long time.
 func (e *Engine) Init(ctx context.Context) error ***REMOVED***
 	return e.ExecutionScheduler.Init(ctx, e.Samples)
