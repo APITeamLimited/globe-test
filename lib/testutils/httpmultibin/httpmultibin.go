@@ -100,32 +100,42 @@ type jsonBody struct ***REMOVED***
 	Compression string      `json:"compression"`
 ***REMOVED***
 
-func websocketEchoHandler(w http.ResponseWriter, req *http.Request) ***REMOVED***
-	conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-
-	mt, message, err := conn.ReadMessage()
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-	err = conn.WriteMessage(mt, message)
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-	err = conn.Close()
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-***REMOVED***
-
-func websocketCloserHandler(w http.ResponseWriter, req *http.Request) ***REMOVED***
-	conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
-	if err != nil ***REMOVED***
-		return
-	***REMOVED***
-	_ = conn.Close()
+func getWebsocketHandler(echo bool, closePrematurely bool) http.Handler ***REMOVED***
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, w.Header())
+		if err != nil ***REMOVED***
+			return
+		***REMOVED***
+		if echo ***REMOVED***
+			messageType, r, e := conn.NextReader()
+			if e != nil ***REMOVED***
+				return
+			***REMOVED***
+			var wc io.WriteCloser
+			wc, err = conn.NextWriter(messageType)
+			if err != nil ***REMOVED***
+				return
+			***REMOVED***
+			if _, err = io.Copy(wc, r); err != nil ***REMOVED***
+				return
+			***REMOVED***
+			if err = wc.Close(); err != nil ***REMOVED***
+				return
+			***REMOVED***
+		***REMOVED***
+		// closePrematurely=true mimics an invalid WS server that doesn't
+		// send a close control frame before closing the connection.
+		if !closePrematurely ***REMOVED***
+			closeMsg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+			_ = conn.WriteControl(websocket.CloseMessage, closeMsg, time.Now().Add(time.Second))
+			// Wait for response control frame
+			<-time.After(time.Second)
+		***REMOVED***
+		err = conn.Close()
+		if err != nil ***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 func writeJSON(w io.Writer, v interface***REMOVED******REMOVED***) error ***REMOVED***
@@ -193,8 +203,10 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
 	mux := http.NewServeMux()
 	mux.Handle("/brotli", getEncodedHandler(t, httpext.CompressionTypeBr))
-	mux.HandleFunc("/ws-echo", websocketEchoHandler)
-	mux.HandleFunc("/ws-close", websocketCloserHandler)
+	mux.Handle("/ws-echo", getWebsocketHandler(true, false))
+	mux.Handle("/ws-echo-invalid", getWebsocketHandler(true, true))
+	mux.Handle("/ws-close", getWebsocketHandler(false, false))
+	mux.Handle("/ws-close-invalid", getWebsocketHandler(false, true))
 	mux.Handle("/zstd", getEncodedHandler(t, httpext.CompressionTypeZstd))
 	mux.Handle("/zstd-br", getZstdBrHandler(t))
 	mux.Handle("/", httpbin.New().Handler())
