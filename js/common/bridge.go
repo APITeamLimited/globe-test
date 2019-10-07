@@ -107,7 +107,9 @@ type FieldNameMapper struct***REMOVED******REMOVED***
 
 // FieldName is part of the goja.FieldNameMapper interface
 // https://godoc.org/github.com/dop251/goja#FieldNameMapper
-func (FieldNameMapper) FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED*** return FieldName(t, f) ***REMOVED***
+func (FieldNameMapper) FieldName(t reflect.Type, f reflect.StructField) string ***REMOVED***
+	return FieldName(t, f)
+***REMOVED***
 
 // MethodName is part of the goja.FieldNameMapper interface
 // https://godoc.org/github.com/dop251/goja#FieldNameMapper
