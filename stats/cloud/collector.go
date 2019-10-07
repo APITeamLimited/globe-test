@@ -253,6 +253,12 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 // Collect receives a set of samples. This method is never called concurrently, and only while
 // the context for Run() is valid, but should defer as much work as possible to Run().
 func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
+	select ***REMOVED***
+	case <-c.stopSendingMetricsCh:
+		return
+	default:
+	***REMOVED***
+
 	if c.referenceID == "" ***REMOVED***
 		return
 	***REMOVED***

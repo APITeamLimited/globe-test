@@ -237,17 +237,16 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 			out := "-"
 			link := ""
-			if engine.Collectors != nil ***REMOVED***
-				for idx, collector := range engine.Collectors ***REMOVED***
-					if out != "-" ***REMOVED***
-						out = out + "; " + conf.Out[idx]
-					***REMOVED*** else ***REMOVED***
-						out = conf.Out[idx]
-					***REMOVED***
 
-					if l := collector.Link(); l != "" ***REMOVED***
-						link = link + " (" + l + ")"
-					***REMOVED***
+			for idx, collector := range engine.Collectors ***REMOVED***
+				if out != "-" ***REMOVED***
+					out = out + "; " + conf.Out[idx]
+				***REMOVED*** else ***REMOVED***
+					out = conf.Out[idx]
+				***REMOVED***
+
+				if l := collector.Link(); l != "" ***REMOVED***
+					link = link + " (" + l + ")"
 				***REMOVED***
 			***REMOVED***
 

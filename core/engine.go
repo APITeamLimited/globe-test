@@ -110,10 +110,6 @@ func NewEngine(ex lib.Executor, o lib.Options) (*Engine, error) ***REMOVED***
 ***REMOVED***
 
 func (e *Engine) setRunStatus(status lib.RunStatus) ***REMOVED***
-	if len(e.Collectors) == 0 ***REMOVED***
-		return
-	***REMOVED***
-
 	for _, c := range e.Collectors ***REMOVED***
 		c.SetRunStatus(status)
 	***REMOVED***
@@ -146,14 +142,13 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 
 	collectorwg := sync.WaitGroup***REMOVED******REMOVED***
 	collectorctx, collectorcancel := context.WithCancel(context.Background())
-	if len(e.Collectors) > 0 ***REMOVED***
-		for _, collector := range e.Collectors ***REMOVED***
-			collectorwg.Add(1)
-			go func(collector lib.Collector) ***REMOVED***
-				collector.Run(collectorctx)
-				collectorwg.Done()
-			***REMOVED***(collector)
-		***REMOVED***
+
+	for _, collector := range e.Collectors ***REMOVED***
+		collectorwg.Add(1)
+		go func(collector lib.Collector) ***REMOVED***
+			collector.Run(collectorctx)
+			collectorwg.Done()
+		***REMOVED***(collector)
 	***REMOVED***
 
 	subctx, subcancel := context.WithCancel(context.Background())
@@ -205,9 +200,8 @@ func (e *Engine) Run(ctx context.Context) error ***REMOVED***
 		for sc := range e.Samples ***REMOVED***
 			sampleContainers = append(sampleContainers, sc)
 		***REMOVED***
-		if len(sampleContainers) > 0 ***REMOVED***
-			e.processSamples(sampleContainers)
-		***REMOVED***
+
+		e.processSamples(sampleContainers)
 
 		// Emit final metrics.
 		e.emitMetrics()
@@ -382,8 +376,8 @@ func (e *Engine) processSamplesForMetrics(sampleCointainers []stats.SampleContai
 	***REMOVED***
 ***REMOVED***
 
-func (e *Engine) processSamples(sampleCointainers []stats.SampleContainer) ***REMOVED***
-	if len(sampleCointainers) == 0 ***REMOVED***
+func (e *Engine) processSamples(sampleContainers []stats.SampleContainer) ***REMOVED***
+	if len(sampleContainers) == 0 ***REMOVED***
 		return
 	***REMOVED***
 
@@ -393,12 +387,10 @@ func (e *Engine) processSamples(sampleCointainers []stats.SampleContainer) ***RE
 
 	// TODO: run this and the below code in goroutines?
 	if !(e.NoSummary && e.NoThresholds) ***REMOVED***
-		e.processSamplesForMetrics(sampleCointainers)
+		e.processSamplesForMetrics(sampleContainers)
 	***REMOVED***
 
-	if len(e.Collectors) > 0 ***REMOVED***
-		for _, collector := range e.Collectors ***REMOVED***
-			collector.Collect(sampleCointainers)
-		***REMOVED***
+	for _, collector := range e.Collectors ***REMOVED***
+		collector.Collect(sampleContainers)
 	***REMOVED***
 ***REMOVED***
