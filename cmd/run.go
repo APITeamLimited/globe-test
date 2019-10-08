@@ -56,12 +56,12 @@ const (
 	typeJS      = "js"
 	typeArchive = "archive"
 
-	thresholdHaveFailedErroCode = 99
-	setupTimeoutErrorCode       = 100
-	teardownTimeoutErrorCode    = 101
-	genericTimeoutErrorCode     = 102
-	genericEngineErrorCode      = 103
-	invalidConfigErrorCode      = 104
+	thresholdHaveFailedErrorCode = 99
+	setupTimeoutErrorCode        = 100
+	teardownTimeoutErrorCode     = 101
+	genericTimeoutErrorCode      = 102
+	genericEngineErrorCode       = 103
+	invalidConfigErrorCode       = 104
 )
 
 var (
@@ -173,7 +173,7 @@ a commandline interface for interacting with it.`,
 
 		conf, cerr := deriveAndValidateConfig(conf)
 		if cerr != nil ***REMOVED***
-			return ExitCode***REMOVED***cerr, invalidConfigErrorCode***REMOVED***
+			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
 		***REMOVED***
 
 		// Write options back to the runner too.
@@ -402,18 +402,15 @@ a commandline interface for interacting with it.`,
 				case lib.TimeoutError:
 					switch e.Place() ***REMOVED***
 					case "setup":
-						logrus.WithField("hint", e.Hint()).Error(err)
-						return ExitCode***REMOVED***errors.New("Setup timeout"), setupTimeoutErrorCode***REMOVED***
+						return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
 					case "teardown":
-						logrus.WithField("hint", e.Hint()).Error(err)
-						return ExitCode***REMOVED***errors.New("Teardown timeout"), teardownTimeoutErrorCode***REMOVED***
+						return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
 					default:
-						logrus.WithError(err).Error("Engine timeout")
-						return ExitCode***REMOVED***errors.New("Engine timeout"), genericTimeoutErrorCode***REMOVED***
+						return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
 					***REMOVED***
 				default:
-					logrus.WithError(err).Error("Engine error")
-					return ExitCode***REMOVED***errors.New("Engine Error"), genericEngineErrorCode***REMOVED***
+					//nolint:golint
+					return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
 				***REMOVED***
 			case sig := <-sigC:
 				logrus.WithField("sig", sig).Debug("Exiting in response to signal")
@@ -461,7 +458,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if engine.IsTainted() ***REMOVED***
-			return ExitCode***REMOVED***errors.New("some thresholds have failed"), thresholdHaveFailedErroCode***REMOVED***
+			return ExitCode***REMOVED***error: errors.New("some thresholds have failed"), Code: thresholdHaveFailedErrorCode***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
