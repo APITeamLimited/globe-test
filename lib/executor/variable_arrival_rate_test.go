@@ -168,6 +168,37 @@ func TestGetPlannedRateChanges(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func BenchmarkGetPlannedRateChanges(b *testing.B) ***REMOVED***
+	var config = VariableArrivalRateConfig***REMOVED***
+		TimeUnit:  types.NullDurationFrom(time.Second),
+		StartRate: null.IntFrom(0),
+		Stages: []Stage***REMOVED***
+			***REMOVED***
+				Duration: types.NullDurationFrom(5 * time.Minute),
+				Target:   null.IntFrom(5000),
+			***REMOVED***,
+			***REMOVED***
+				Duration: types.NullDurationFrom(50 * time.Minute),
+				Target:   null.IntFrom(5000),
+			***REMOVED***,
+			***REMOVED***
+				Duration: types.NullDurationFrom(5 * time.Minute),
+				Target:   null.IntFrom(0),
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	var es *lib.ExecutionSegment
+	b.RunParallel(func(pb *testing.PB) ***REMOVED***
+		for pb.Next() ***REMOVED***
+			changes := config.getPlannedRateChanges(es)
+
+			require.Equal(b, time.Duration(0),
+				changes[0].timeOffset%minIntervalBetweenRateAdjustments, "%+v", changes[0])
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
+
 func initializeVUs(
 	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *lib.ExecutionState, number int,
 ) ***REMOVED***
