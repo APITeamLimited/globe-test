@@ -373,28 +373,21 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Map implements ES5 Array.prototype.map
 func (s Selection) Map(v goja.Value) []string ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
 		common.Throw(s.rt, errors.New("Argument to map() must be a function"))
 	***REMOVED***
 
-	fn := func(idx int, sel *Selection) string ***REMOVED***
-		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(sel)); fnErr == nil ***REMOVED***
+	fn := func(idx int, sel *goquery.Selection) string ***REMOVED***
+		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(&Selection***REMOVED***sel: sel, URL: s.URL, rt: s.rt***REMOVED***)); fnErr == nil ***REMOVED***
 			return fnRes.String()
 		***REMOVED***
 		return ""
 	***REMOVED***
 
-	// Mimics goquery.Selector.Map function.
-	// We can not use s.sel.Map directly, otherwise, goja will see the function body elements as type
-	// *gohtml.Selection instead of our *Selection wrapper, so goja runtime will call wrong methods.
-	// See issue #1195
-	result := make([]string, len(s.sel.Nodes))
-	for i, n := range s.sel.Nodes ***REMOVED***
-		result[i] = fn(i, &Selection***REMOVED***rt: s.rt, sel: &goquery.Selection***REMOVED***Nodes: []*gohtml.Node***REMOVED***n***REMOVED******REMOVED******REMOVED***)
-	***REMOVED***
-	return result
+	return s.sel.Map(fn)
 ***REMOVED***
 
 func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***
