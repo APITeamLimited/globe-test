@@ -45,11 +45,6 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
-type testErrorWithString string
-
-func (e testErrorWithString) Error() string  ***REMOVED*** return string(e) ***REMOVED***
-func (e testErrorWithString) String() string ***REMOVED*** return string(e) ***REMOVED***
-
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts lib.Options) *Engine ***REMOVED*** //nolint: golint
 	if runner == nil ***REMOVED***
@@ -387,7 +382,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		***REMOVED***tr(`import ws from "k6/ws";
 			let data = "0123456789".repeat(100);
 			export default function() ***REMOVED***
-				ws.connect("ws://HTTPBIN_IP:HTTPBIN_PORT/ws-echo", null, function (socket) ***REMOVED***
+				ws.connect("WSBIN_URL/ws-echo", null, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
 						socket.send(data);
 					***REMOVED***);
@@ -460,10 +455,10 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 			reuseSent, reuseReceived := runTest(t, ts, tc, false)
 
 			if noReuseSent < reuseSent ***REMOVED***
-				t.Errorf("noReuseSent=%f is greater than reuseSent=%f", noReuseSent, reuseSent)
+				t.Errorf("reuseSent=%f is greater than noReuseSent=%f", reuseSent, noReuseSent)
 			***REMOVED***
 			if noReuseReceived < reuseReceived ***REMOVED***
-				t.Errorf("noReuseReceived=%f is greater than reuseReceived=%f", noReuseReceived, reuseReceived)
+				t.Errorf("reuseReceived=%f is greater than noReuseReceived=%f", reuseReceived, noReuseReceived)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -509,7 +504,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			group("websockets", function() ***REMOVED***
-				var response = ws.connect("wss://HTTPSBIN_IP:HTTPSBIN_PORT/ws-echo", params, function (socket) ***REMOVED***
+				var response = ws.connect("WSBIN_URL/ws-echo", params, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
 						console.log('ws open and say hello');
 						socket.send("hello");

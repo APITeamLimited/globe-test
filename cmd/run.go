@@ -211,17 +211,16 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 			out := "-"
 			link := ""
-			if engine.Collectors != nil ***REMOVED***
-				for idx, collector := range engine.Collectors ***REMOVED***
-					if out != "-" ***REMOVED***
-						out = out + "; " + conf.Out[idx]
-					***REMOVED*** else ***REMOVED***
-						out = conf.Out[idx]
-					***REMOVED***
 
-					if l := collector.Link(); l != "" ***REMOVED***
-						link = link + " (" + l + ")"
-					***REMOVED***
+			for idx, collector := range engine.Collectors ***REMOVED***
+				if out != "-" ***REMOVED***
+					out = out + "; " + conf.Out[idx]
+				***REMOVED*** else ***REMOVED***
+					out = conf.Out[idx]
+				***REMOVED***
+
+				if l := collector.Link(); l != "" ***REMOVED***
+					link = link + " (" + l + ")"
 				***REMOVED***
 			***REMOVED***
 
@@ -333,12 +332,12 @@ a commandline interface for interacting with it.`,
 
 				switch e := errors.Cause(err).(type) ***REMOVED***
 				case lib.TimeoutError:
-					switch string(e) ***REMOVED***
+					switch e.Place() ***REMOVED***
 					case "setup":
-						logger.WithError(err).Error("Setup timeout")
+						logger.WithField("hint", e.Hint()).Error(err)
 						return ExitCode***REMOVED***errors.New("Setup timeout"), setupTimeoutErrorCode***REMOVED***
 					case "teardown":
-						logger.WithError(err).Error("Teardown timeout")
+						logger.WithField("hint", e.Hint()).Error(err)
 						return ExitCode***REMOVED***errors.New("Teardown timeout"), teardownTimeoutErrorCode***REMOVED***
 					default:
 						logger.WithError(err).Error("Engine timeout")

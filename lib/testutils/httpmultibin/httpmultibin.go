@@ -106,15 +106,17 @@ func websocketEchoHandler(w http.ResponseWriter, req *http.Request) ***REMOVED**
 		return
 	***REMOVED***
 
-	for ***REMOVED***
-		mt, message, err := conn.ReadMessage()
-		if err != nil ***REMOVED***
-			break
-		***REMOVED***
-		err = conn.WriteMessage(mt, message)
-		if err != nil ***REMOVED***
-			break
-		***REMOVED***
+	mt, message, err := conn.ReadMessage()
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+	err = conn.WriteMessage(mt, message)
+	if err != nil ***REMOVED***
+		return
+	***REMOVED***
+	err = conn.Close()
+	if err != nil ***REMOVED***
+		return
 	***REMOVED***
 ***REMOVED***
 

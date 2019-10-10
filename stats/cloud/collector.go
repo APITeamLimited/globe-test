@@ -23,6 +23,7 @@ package cloud
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"path/filepath"
 	"sync"
 	"time"
@@ -70,6 +71,8 @@ type Collector struct ***REMOVED***
 	// checks basically O(1). And even if for some reason there are occasional metrics with past times that
 	// don't fit in the chosen ring buffer size, we could just send them along to the buffer unaggregated
 	aggrBuckets map[int64]aggregationBucket
+
+	stopSendingMetricsCh chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 // Verify that Collector implements lib.Collector
@@ -140,6 +143,7 @@ func New(
 		duration:      int64(duration / time.Second),
 		opts:          opts,
 		aggrBuckets:   map[int64]aggregationBucket***REMOVED******REMOVED***,
+		stopSendingMetricsCh: make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -194,22 +198,28 @@ func (c *Collector) Link() string ***REMOVED***
 // at regular intervals and when the context is terminated.
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
-
+	quit := ctx.Done()
+	aggregationPeriod := time.Duration(c.config.AggregationPeriod.Duration)
 	// If enabled, start periodically aggregating the collected HTTP trails
-	if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
+	if aggregationPeriod > 0 ***REMOVED***
 		wg.Add(1)
-		aggregationTicker := time.NewTicker(time.Duration(c.config.AggregationCalcInterval.Duration))
+		aggregationTicker := time.NewTicker(aggregationPeriod)
+		aggregationWaitPeriod := time.Duration(c.config.AggregationWaitPeriod.Duration)
+		signalQuit := make(chan struct***REMOVED******REMOVED***)
+		quit = signalQuit
 
 		go func() ***REMOVED***
+			defer wg.Done()
 			for ***REMOVED***
 				select ***REMOVED***
+				case <-c.stopSendingMetricsCh:
+					return
 				case <-aggregationTicker.C:
-					c.aggregateHTTPTrails(time.Duration(c.config.AggregationWaitPeriod.Duration))
+					c.aggregateHTTPTrails(aggregationWaitPeriod)
 				case <-ctx.Done():
 					c.aggregateHTTPTrails(0)
 					c.flushHTTPTrails()
-					c.pushMetrics()
-					wg.Done()
+					close(signalQuit)
 					return
 				***REMOVED***
 			***REMOVED***
@@ -224,11 +234,16 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	pushTicker := time.NewTicker(time.Duration(c.config.MetricPushInterval.Duration))
 	for ***REMOVED***
 		select ***REMOVED***
-		case <-pushTicker.C:
-			c.pushMetrics()
-		case <-ctx.Done():
+		case <-c.stopSendingMetricsCh:
+			return
+		default:
+		***REMOVED***
+		select ***REMOVED***
+		case <-quit:
 			c.pushMetrics()
 			return
+		case <-pushTicker.C:
+			c.pushMetrics()
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -236,6 +251,12 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 // Collect receives a set of samples. This method is never called concurrently, and only while
 // the context for Run() is valid, but should defer as much work as possible to Run().
 func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
+	select ***REMOVED***
+	case <-c.stopSendingMetricsCh:
+		return
+	default:
+	***REMOVED***
+
 	if c.referenceID == "" ***REMOVED***
 		return
 	***REMOVED***
@@ -439,6 +460,19 @@ func (c *Collector) flushHTTPTrails() ***REMOVED***
 	c.aggrBuckets = map[int64]aggregationBucket***REMOVED******REMOVED***
 	c.bufferSamples = append(c.bufferSamples, newSamples...)
 ***REMOVED***
+
+func (c *Collector) shouldStopSendingMetrics(err error) bool ***REMOVED***
+	if err == nil ***REMOVED***
+		return false
+	***REMOVED***
+
+	if errResp, ok := err.(ErrorResponse); ok && errResp.Response != nil ***REMOVED***
+		return errResp.Response.StatusCode == http.StatusForbidden && errResp.Code == 4
+	***REMOVED***
+
+	return false
+***REMOVED***
+
 func (c *Collector) pushMetrics() ***REMOVED***
 	c.bufferMutex.Lock()
 	if len(c.bufferSamples) == 0 ***REMOVED***
@@ -460,9 +494,12 @@ func (c *Collector) pushMetrics() ***REMOVED***
 		***REMOVED***
 		err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer[:size])
 		if err != nil ***REMOVED***
-			logrus.WithFields(logrus.Fields***REMOVED***
-				"error": err,
-			***REMOVED***).Warn("Failed to send metrics to cloud")
+			if c.shouldStopSendingMetrics(err) ***REMOVED***
+				logrus.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
+				close(c.stopSendingMetricsCh)
+				break
+			***REMOVED***
+			logrus.WithError(err).Warn("Failed to send metrics to cloud")
 		***REMOVED***
 		buffer = buffer[size:]
 	***REMOVED***
@@ -491,7 +528,7 @@ func (c *Collector) testFinished() ***REMOVED***
 	***REMOVED***).Debug("Sending test finished")
 
 	runStatus := lib.RunStatusFinished
-	if c.runStatus != 0 ***REMOVED***
+	if c.runStatus != lib.RunStatusQueued ***REMOVED***
 		runStatus = c.runStatus
 	***REMOVED***
 
