@@ -381,7 +381,8 @@ func (s Selection) Map(v goja.Value) []string ***REMOVED***
 	***REMOVED***
 
 	fn := func(idx int, sel *goquery.Selection) string ***REMOVED***
-		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(&Selection***REMOVED***sel: sel, URL: s.URL, rt: s.rt***REMOVED***)); fnErr == nil ***REMOVED***
+		selection := &Selection***REMOVED***sel: sel, URL: s.URL, rt: s.rt***REMOVED***
+		if fnRes, fnErr := gojaFn(v, s.rt.ToValue(idx), s.rt.ToValue(selection)); fnErr == nil ***REMOVED***
 			return fnRes.String()
 		***REMOVED***
 		return ""
