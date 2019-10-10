@@ -183,10 +183,17 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 
 	attemptedIters := new(uint64)
 	handleVU := func(vu lib.VU) ***REMOVED***
-		defer si.executionState.ReturnVU(vu, true)
 		defer activeVUs.Done()
+		defer si.executionState.ReturnVU(vu, true)
 
 		for ***REMOVED***
+			select ***REMOVED***
+			case <-regDurationDone:
+				return // don't make more iterations
+			default:
+				// continue looping
+			***REMOVED***
+
 			attemptedIterNumber := atomic.AddUint64(attemptedIters, 1)
 			if attemptedIterNumber > totalIters ***REMOVED***
 				return
@@ -194,12 +201,6 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 
 			runIteration(maxDurationCtx, vu)
 			atomic.AddUint64(doneIters, 1)
-			select ***REMOVED***
-			case <-regDurationDone:
-				return // don't make more iterations
-			default:
-				// continue looping
-			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
