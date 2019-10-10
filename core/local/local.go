@@ -249,6 +249,51 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 	return nil
 ***REMOVED***
 
+// runExecutor gets called by the public Run() method once per configured
+// executor, each time in a new goroutine. It is responsible for waiting out the
+// configured startTime for the specific executor and then running its Run()
+// method.
+func (e *ExecutionScheduler) runExecutor(
+	runCtx context.Context, runResults chan<- error, engineOut chan<- stats.SampleContainer, executor lib.Executor,
+) ***REMOVED***
+	executorConfig := executor.GetConfig()
+	executorStartTime := executorConfig.GetStartTime()
+	executorLogger := e.logger.WithFields(logrus.Fields***REMOVED***
+		"executor":  executorConfig.GetName(),
+		"type":      executorConfig.GetType(),
+		"startTime": executorStartTime,
+	***REMOVED***)
+	executorProgress := executor.GetProgress()
+
+	// Check if we have to wait before starting the actual executor execution
+	if executorStartTime > 0 ***REMOVED***
+		startTime := time.Now()
+		executorProgress.Modify(pb.WithProgress(func() (float64, string) ***REMOVED***
+			remWait := (executorStartTime - time.Since(startTime))
+			return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, executorStartTime))
+		***REMOVED***))
+
+		executorLogger.Debugf("Waiting for executor start time...")
+		select ***REMOVED***
+		case <-runCtx.Done():
+			runResults <- nil // no error since executor hasn't started yet
+			return
+		case <-time.After(executorStartTime):
+			// continue
+		***REMOVED***
+	***REMOVED***
+
+	executorProgress.Modify(pb.WithConstProgress(0, "started"))
+	executorLogger.Debugf("Starting executor")
+	err := executor.Run(runCtx, engineOut) // executor should handle context cancel itself
+	if err == nil ***REMOVED***
+		executorLogger.Debugf("Executor finished successfully")
+	***REMOVED*** else ***REMOVED***
+		executorLogger.WithField("error", err).Errorf("Executor error")
+	***REMOVED***
+	runResults <- err
+***REMOVED***
+
 // Run the ExecutionScheduler, funneling all generated metric samples through the supplied
 // out channel.
 func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
@@ -289,50 +334,10 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 	***REMOVED***
 	e.initProgress.Modify(pb.WithHijack(e.getRunStats))
 
-	runCtxDone := runCtx.Done()
-	runExecutor := func(executor lib.Executor) ***REMOVED***
-		executorConfig := executor.GetConfig()
-		executorStartTime := executorConfig.GetStartTime()
-		executorLogger := logger.WithFields(logrus.Fields***REMOVED***
-			"executor":  executorConfig.GetName(),
-			"type":      executorConfig.GetType(),
-			"startTime": executorStartTime,
-		***REMOVED***)
-		executorProgress := executor.GetProgress()
-
-		// Check if we have to wait before starting the actual executor execution
-		if executorStartTime > 0 ***REMOVED***
-			startTime := time.Now()
-			executorProgress.Modify(pb.WithProgress(func() (float64, string) ***REMOVED***
-				remWait := (executorStartTime - time.Since(startTime))
-				return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, executorStartTime))
-			***REMOVED***))
-
-			executorLogger.Debugf("Waiting for executor start time...")
-			select ***REMOVED***
-			case <-runCtxDone:
-				runResults <- nil // no error since executor hasn't started yet
-				return
-			case <-time.After(executorStartTime):
-				// continue
-			***REMOVED***
-		***REMOVED***
-
-		executorProgress.Modify(pb.WithConstProgress(0, "started"))
-		executorLogger.Debugf("Starting executor")
-		err := executor.Run(runCtx, engineOut) // executor should handle context cancel itself
-		if err == nil ***REMOVED***
-			executorLogger.Debugf("Executor finished successfully")
-		***REMOVED*** else ***REMOVED***
-			executorLogger.WithField("error", err).Errorf("Executor error")
-		***REMOVED***
-		runResults <- err
-	***REMOVED***
-
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
 	for _, exec := range e.executors ***REMOVED***
-		go runExecutor(exec)
+		go e.runExecutor(runCtx, runResults, engineOut, exec)
 	***REMOVED***
 
 	// Wait for all executors to finish
@@ -340,6 +345,7 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 	for range e.executors ***REMOVED***
 		err := <-runResults
 		if err != nil && firstErr == nil ***REMOVED***
+			logger.WithError(err).Debug("Executor returned with an error, cancelling test run...")
 			firstErr = err
 			cancel()
 		***REMOVED***
