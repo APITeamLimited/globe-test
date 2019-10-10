@@ -328,6 +328,14 @@ func TestParseHTML(t *testing.T) ***REMOVED***
 				assert.Contains(t, err.Error(), "must be a function")
 			***REMOVED***
 		***REMOVED***)
+		t.Run("Map with attr must return string", func(t *testing.T) ***REMOVED***
+			v, err := common.RunString(rt, `doc.find("#select_multi").map(function(idx, val) ***REMOVED*** return val.attr("name") ***REMOVED***)`)
+			if assert.NoError(t, err) ***REMOVED***
+				mapped := v.Export().([]string)
+				assert.Equal(t, 1, len(mapped))
+				assert.Equal(t, []string***REMOVED***"select_multi"***REMOVED***, mapped)
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("Next", func(t *testing.T) ***REMOVED***
 		t.Run("No arg", func(t *testing.T) ***REMOVED***
