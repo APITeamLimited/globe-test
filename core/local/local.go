@@ -145,7 +145,6 @@ func (e *ExecutionScheduler) initVU(
 	vuID := e.state.GetUniqueVUIdentifier()
 	if err := vu.Reconfigure(int64(vuID)); err != nil ***REMOVED***
 		return nil, fmt.Errorf("error while reconfiguring VU #%d: '%s'", vuID, err)
-
 	***REMOVED***
 	logger.Debugf("Initialized VU #%d", vuID)
 	return vu, nil
@@ -182,27 +181,31 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 		"executorsCount": len(e.executors),
 	***REMOVED***).Debugf("Start of initialization")
 
+	// Initialize VUs concurrently
 	doneInits := make(chan error, vusToInitialize) // poor man's early-return waitgroup
 	//TODO: make this an option?
 	initConcurrency := runtime.NumCPU()
-	limiter := make(chan struct***REMOVED******REMOVED***, initConcurrency)
+	limiter := make(chan struct***REMOVED******REMOVED***)
 	subctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	initPlannedVU := func() ***REMOVED***
-		newVU, err := e.initVU(ctx, logger, engineOut)
-		if err == nil ***REMOVED***
-			e.state.AddInitializedVU(newVU)
-			<-limiter
-		***REMOVED***
-		doneInits <- err
+	for i := 0; i < initConcurrency; i++ ***REMOVED***
+		go func() ***REMOVED***
+			for range limiter ***REMOVED***
+				newVU, err := e.initVU(ctx, logger, engineOut)
+				if err == nil ***REMOVED***
+					e.state.AddInitializedVU(newVU)
+				***REMOVED***
+				doneInits <- err
+			***REMOVED***
+		***REMOVED***()
 	***REMOVED***
 
 	go func() ***REMOVED***
+		defer close(limiter)
 		for vuNum := uint64(0); vuNum < vusToInitialize; vuNum++ ***REMOVED***
 			select ***REMOVED***
 			case limiter <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
-				go initPlannedVU()
 			case <-subctx.Done():
 				return
 			***REMOVED***
