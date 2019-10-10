@@ -423,6 +423,11 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 	***REMOVED***).Debug("Updating execution configuration...")
 
 	for i := oldMaxVUs; i < newMaxVUs; i++ ***REMOVED***
+		select ***REMOVED*** // check if the user didn't try to abort k6 while we're scaling up the VUs
+		case <-rs.ctx.Done():
+			return rs.ctx.Err()
+		default: // do nothing
+		***REMOVED***
 		vu, vuInitErr := executionState.InitializeNewVU(rs.ctx, rs.executor.logger)
 		if vuInitErr != nil ***REMOVED***
 			return vuInitErr
@@ -530,6 +535,9 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 			err := runState.handleConfigChange(currentControlConfig, updateConfigEvent.newConfig)
 			if err != nil ***REMOVED***
 				updateConfigEvent.err <- err
+				if ctx.Err() == err ***REMOVED***
+					return nil // we've already returned an error to the API client, but k6 should stop normally
+				***REMOVED***
 				return err
 			***REMOVED***
 			currentControlConfig = updateConfigEvent.newConfig
