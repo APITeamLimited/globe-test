@@ -76,8 +76,8 @@ func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	// No config anywhere should result in a 1 VU with a 1 iteration config
 	exec := c.Execution[lib.DefaultExecutorName]
 	require.NotEmpty(t, exec)
-	require.IsType(t, executor.PerVUIteationsConfig***REMOVED******REMOVED***, exec)
-	perVuIters, ok := exec.(executor.PerVUIteationsConfig)
+	require.IsType(t, executor.PerVUIterationsConfig***REMOVED******REMOVED***, exec)
+	perVuIters, ok := exec.(executor.PerVUIterationsConfig)
 	require.True(t, ok)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.Iterations)
 	assert.Equal(t, null.NewInt(1, false), perVuIters.VUs)
@@ -87,8 +87,8 @@ func verifySharedIters(vus, iters null.Int) func(t *testing.T, c Config) ***REMO
 	return func(t *testing.T, c Config) ***REMOVED***
 		exec := c.Execution[lib.DefaultExecutorName]
 		require.NotEmpty(t, exec)
-		require.IsType(t, executor.SharedIteationsConfig***REMOVED******REMOVED***, exec)
-		sharedIterConfig, ok := exec.(executor.SharedIteationsConfig)
+		require.IsType(t, executor.SharedIterationsConfig***REMOVED******REMOVED***, exec)
+		sharedIterConfig, ok := exec.(executor.SharedIterationsConfig)
 		require.True(t, ok)
 		assert.Equal(t, vus, sharedIterConfig.VUs)
 		assert.Equal(t, iters, sharedIterConfig.Iterations)
@@ -254,7 +254,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			verifySharedIters(I(1), I(6))(t, c)
-			sharedIterConfig := c.Execution[lib.DefaultExecutorName].(executor.SharedIteationsConfig)
+			sharedIterConfig := c.Execution[lib.DefaultExecutorName].(executor.SharedIterationsConfig)
 			assert.Equal(t, time.Duration(sharedIterConfig.MaxDuration.Duration), 10*time.Second)
 		***REMOVED******REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations

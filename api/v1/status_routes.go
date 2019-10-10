@@ -47,7 +47,6 @@ func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 func getFirstExternallyControlledExecutor(
 	execScheduler lib.ExecutionScheduler,
 ) (*executor.ExternallyControlled, error) ***REMOVED***
-
 	executors := execScheduler.GetExecutors()
 	for _, s := range executors ***REMOVED***
 		if mex, ok := s.(*executor.ExternallyControlled); ok ***REMOVED***

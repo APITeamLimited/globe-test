@@ -78,9 +78,9 @@ func validateStages(stages []Stage) []error ***REMOVED***
 // getIterationRunner is a helper function that returns an iteration executor
 // closure. It takes care of updating metrics, execution state statistics, and
 // warning messages.
-func getIterationRunner(executionState *lib.ExecutionState, logger *logrus.Entry, out chan<- stats.SampleContainer,
+func getIterationRunner(
+	executionState *lib.ExecutionState, logger *logrus.Entry, out chan<- stats.SampleContainer,
 ) func(context.Context, lib.VU) ***REMOVED***
-
 	return func(ctx context.Context, vu lib.VU) ***REMOVED***
 		err := vu.RunOnce(ctx)
 

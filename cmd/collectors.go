@@ -67,7 +67,6 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 func newCollector(
 	collectorName, arg string, src *loader.SourceData, conf Config, executionPlan []lib.ExecutionStep,
 ) (lib.Collector, error) ***REMOVED***
-
 	getCollector := func() (lib.Collector, error) ***REMOVED***
 		switch collectorName ***REMOVED***
 		case collectorJSON:

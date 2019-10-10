@@ -337,7 +337,6 @@ type manualVUHandle struct ***REMOVED***
 func newManualVUHandle(
 	parentCtx context.Context, state *lib.ExecutionState, localActiveVUsCount *int64, vu lib.VU, logger *logrus.Entry,
 ) *manualVUHandle ***REMOVED***
-
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 	getVU := func() (lib.VU, error) ***REMOVED***
 		wg.Add(1)
@@ -364,6 +363,7 @@ func newManualVUHandle(
 // until the test is manually stopped.
 //
 //TODO: split this up? somehow... :/
+//nolint:funlen
 func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	mex.configLock.RLock()
 	// Safely get the current config - it's important that the close of the
@@ -456,7 +456,6 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 
 		if oldActiveVUs < newActiveVUs ***REMOVED***
 			for i := oldActiveVUs; i < newActiveVUs; i++ ***REMOVED***
-
 				if !currentlyPaused ***REMOVED***
 					vuHandles[i].start()
 				***REMOVED***

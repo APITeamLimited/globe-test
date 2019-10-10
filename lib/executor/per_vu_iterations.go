@@ -45,17 +45,17 @@ func init() ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-// PerVUIteationsConfig stores the number of VUs iterations, as well as maxDuration settings
-type PerVUIteationsConfig struct ***REMOVED***
+// PerVUIterationsConfig stores the number of VUs iterations, as well as maxDuration settings
+type PerVUIterationsConfig struct ***REMOVED***
 	BaseConfig
 	VUs         null.Int           `json:"vus"`
 	Iterations  null.Int           `json:"iterations"`
 	MaxDuration types.NullDuration `json:"maxDuration"`
 ***REMOVED***
 
-// NewPerVUIterationsConfig returns a PerVUIteationsConfig with default values
-func NewPerVUIterationsConfig(name string) PerVUIteationsConfig ***REMOVED***
-	return PerVUIteationsConfig***REMOVED***
+// NewPerVUIterationsConfig returns a PerVUIterationsConfig with default values
+func NewPerVUIterationsConfig(name string) PerVUIterationsConfig ***REMOVED***
+	return PerVUIterationsConfig***REMOVED***
 		BaseConfig:  NewBaseConfig(name, perVUIterationsType),
 		VUs:         null.NewInt(1, false),
 		Iterations:  null.NewInt(1, false),
@@ -64,10 +64,10 @@ func NewPerVUIterationsConfig(name string) PerVUIteationsConfig ***REMOVED***
 ***REMOVED***
 
 // Make sure we implement the lib.ExecutorConfig interface
-var _ lib.ExecutorConfig = &PerVUIteationsConfig***REMOVED******REMOVED***
+var _ lib.ExecutorConfig = &PerVUIterationsConfig***REMOVED******REMOVED***
 
 // GetVUs returns the scaled VUs for the executor.
-func (pvic PerVUIteationsConfig) GetVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
+func (pvic PerVUIterationsConfig) GetVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
 	return es.Scale(pvic.VUs.Int64)
 ***REMOVED***
 
@@ -75,19 +75,19 @@ func (pvic PerVUIteationsConfig) GetVUs(es *lib.ExecutionSegment) int64 ***REMOV
 // important to note that scaling per-VU iteration executor affects only the
 // number of VUs. If we also scaled the iterations, scaling would have quadratic
 // effects instead of just linear.
-func (pvic PerVUIteationsConfig) GetIterations() int64 ***REMOVED***
+func (pvic PerVUIterationsConfig) GetIterations() int64 ***REMOVED***
 	return pvic.Iterations.Int64
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (pvic PerVUIteationsConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
+func (pvic PerVUIterationsConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
 	return fmt.Sprintf("%d iterations for each of %d VUs%s",
 		pvic.GetIterations(), pvic.GetVUs(es),
 		pvic.getBaseInfo(fmt.Sprintf("maxDuration: %s", pvic.MaxDuration.Duration)))
 ***REMOVED***
 
 // Validate makes sure all options are configured and valid
-func (pvic PerVUIteationsConfig) Validate() []error ***REMOVED***
+func (pvic PerVUIterationsConfig) Validate() []error ***REMOVED***
 	errors := pvic.BaseConfig.Validate()
 	if pvic.VUs.Int64 <= 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of VUs should be more than 0"))
@@ -109,7 +109,7 @@ func (pvic PerVUIteationsConfig) Validate() []error ***REMOVED***
 // GetExecutionRequirements just reserves the number of specified VUs for the
 // whole duration of the executor, including the maximum waiting time for
 // iterations to gracefully stop.
-func (pvic PerVUIteationsConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+func (pvic PerVUIterationsConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
 		***REMOVED***
 			TimeOffset: 0,
@@ -122,27 +122,27 @@ func (pvic PerVUIteationsConfig) GetExecutionRequirements(es *lib.ExecutionSegme
 	***REMOVED***
 ***REMOVED***
 
-// NewExecutor creates a new PerVUIteations executor
-func (pvic PerVUIteationsConfig) NewExecutor(
-	es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
-
-	return PerVUIteations***REMOVED***
+// NewExecutor creates a new PerVUIterations executor
+func (pvic PerVUIterationsConfig) NewExecutor(
+	es *lib.ExecutionState, logger *logrus.Entry,
+) (lib.Executor, error) ***REMOVED***
+	return PerVUIterations***REMOVED***
 		BaseExecutor: NewBaseExecutor(pvic, es, logger),
 		config:       pvic,
 	***REMOVED***, nil
 ***REMOVED***
 
-// PerVUIteations executes a specific number of iterations with each VU.
-type PerVUIteations struct ***REMOVED***
+// PerVUIterations executes a specific number of iterations with each VU.
+type PerVUIterations struct ***REMOVED***
 	*BaseExecutor
-	config PerVUIteationsConfig
+	config PerVUIterationsConfig
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
-var _ lib.Executor = &PerVUIteations***REMOVED******REMOVED***
+var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 
 // Run executes a specific number of iterations with each confugured VU.
-func (pvi PerVUIteations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	segment := pvi.executionState.Options.ExecutionSegment
 	numVUs := pvi.config.GetVUs(segment)
 	iterations := pvi.config.GetIterations()

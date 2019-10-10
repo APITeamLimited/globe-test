@@ -135,7 +135,6 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep ***REMOVED**
 func (e *ExecutionScheduler) initVU(
 	_ context.Context, logger *logrus.Entry, engineOut chan<- stats.SampleContainer,
 ) (lib.VU, error) ***REMOVED***
-
 	vu, err := e.runner.NewVU(engineOut)
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("error while initializing a VU: '%s'", err)
