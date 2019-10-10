@@ -135,14 +135,14 @@ func New(
 	***REMOVED***
 
 	return &Collector***REMOVED***
-		config:        conf,
-		thresholds:    thresholds,
-		client:        NewClient(conf.Token.String, conf.Host.String, version),
-		anonymous:     !conf.Token.Valid,
-		executionPlan: executionPlan,
-		duration:      int64(duration / time.Second),
-		opts:          opts,
-		aggrBuckets:   map[int64]aggregationBucket***REMOVED******REMOVED***,
+		config:               conf,
+		thresholds:           thresholds,
+		client:               NewClient(conf.Token.String, conf.Host.String, version),
+		anonymous:            !conf.Token.Valid,
+		executionPlan:        executionPlan,
+		duration:             int64(duration / time.Second),
+		opts:                 opts,
+		aggrBuckets:          map[int64]aggregationBucket***REMOVED******REMOVED***,
 		stopSendingMetricsCh: make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***, nil
 ***REMOVED***
