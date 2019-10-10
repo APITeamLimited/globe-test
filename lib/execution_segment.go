@@ -112,6 +112,9 @@ func stringToRat(s string) (*big.Rat, error) ***REMOVED***
 func (es *ExecutionSegment) UnmarshalText(text []byte) (err error) ***REMOVED***
 	from := zeroRat
 	toStr := string(text)
+	if toStr == "" ***REMOVED***
+		toStr = "1" // an empty string means a full 0:1 execution segment
+	***REMOVED***
 	if strings.ContainsRune(toStr, ':') ***REMOVED***
 		fromToStr := strings.SplitN(toStr, ":", 2)
 		toStr = fromToStr[1]
