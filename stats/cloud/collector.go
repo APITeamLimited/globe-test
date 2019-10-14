@@ -303,6 +303,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 
 			if sc.FullIteration ***REMOVED***
 				values[metrics.IterationDuration.Name] = stats.D(sc.EndTime.Sub(sc.StartTime))
+				values[metrics.Iterations.Name] = 1
 			***REMOVED***
 
 			newSamples = append(newSamples, &Sample***REMOVED***
