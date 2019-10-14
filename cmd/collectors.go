@@ -64,75 +64,76 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func newCollector(collectorName, arg string, src *loader.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
-	getCollector := func() (lib.Collector, error) ***REMOVED***
-		switch collectorName ***REMOVED***
-		case collectorJSON:
-			return jsonc.New(afero.NewOsFs(), arg)
-		case collectorInfluxDB:
-			config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			urlConfig, err := influxdb.ParseURL(arg)
+//TODO: totally refactor this...
+func getCollector(collectorName, arg string, src *loader.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
+	switch collectorName ***REMOVED***
+	case collectorJSON:
+		return jsonc.New(afero.NewOsFs(), arg)
+	case collectorInfluxDB:
+		config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
+		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		urlConfig, err := influxdb.ParseURL(arg)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		config = config.Apply(urlConfig)
+		return influxdb.New(config)
+	case collectorCloud:
+		config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
+		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			config.Name = null.StringFrom(arg)
+		***REMOVED***
+		return cloud.New(config, src, conf.Options, consts.Version)
+	case collectorKafka:
+		config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
+		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			cmdConfig, err := kafka.ParseArg(arg)
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			config = config.Apply(urlConfig)
-			return influxdb.New(config)
-		case collectorCloud:
-			config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				config.Name = null.StringFrom(arg)
-			***REMOVED***
-			return cloud.New(config, src, conf.Options, consts.Version)
-		case collectorKafka:
-			config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				cmdConfig, err := kafka.ParseArg(arg)
-				if err != nil ***REMOVED***
-					return nil, err
-				***REMOVED***
-				config = config.Apply(cmdConfig)
-			***REMOVED***
-			return kafka.New(config)
-		case collectorStatsD:
-			config := common.NewConfig().Apply(conf.Collectors.StatsD)
-			if err := envconfig.Process("k6_statsd", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return statsd.New(config)
-		case collectorDatadog:
-			config := datadog.NewConfig().Apply(conf.Collectors.Datadog)
-			if err := envconfig.Process("k6_datadog", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return datadog.New(config)
-		case collectorCSV:
-			config := csv.NewConfig().Apply(conf.Collectors.CSV)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				cmdConfig, err := csv.ParseArg(arg)
-				if err != nil ***REMOVED***
-					return nil, err
-				***REMOVED***
-				config = config.Apply(cmdConfig)
-			***REMOVED***
-			return csv.New(afero.NewOsFs(), conf.SystemTags, config)
-		default:
-			return nil, errors.Errorf("unknown output type: %s", collectorName)
+			config = config.Apply(cmdConfig)
 		***REMOVED***
+		return kafka.New(config)
+	case collectorStatsD:
+		config := common.NewConfig().Apply(conf.Collectors.StatsD)
+		if err := envconfig.Process("k6_statsd", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return statsd.New(config)
+	case collectorDatadog:
+		config := datadog.NewConfig().Apply(conf.Collectors.Datadog)
+		if err := envconfig.Process("k6_datadog", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return datadog.New(config)
+	case collectorCSV:
+		config := csv.NewConfig().Apply(conf.Collectors.CSV)
+		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			cmdConfig, err := csv.ParseArg(arg)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			config = config.Apply(cmdConfig)
+		***REMOVED***
+		return csv.New(afero.NewOsFs(), conf.SystemTags, config)
+	default:
+		return nil, errors.Errorf("unknown output type: %s", collectorName)
 	***REMOVED***
+***REMOVED***
 
-	collector, err := getCollector()
+func newCollector(collectorName, arg string, src *loader.SourceData, conf Config) (lib.Collector, error) ***REMOVED***
+	collector, err := getCollector(collectorName, arg, src, conf)
 	if err != nil ***REMOVED***
 		return collector, err
 	***REMOVED***
