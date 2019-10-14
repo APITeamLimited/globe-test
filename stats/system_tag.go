@@ -10,9 +10,9 @@ import (
 // which system tags should be included with which metrics.
 type SystemTagSet uint32
 
-// SystemTagMap is a string to bool map (for lookup efficiency) that is used to keep track
-// which system tags should be included with with metrics.
-type SystemTagMap map[string]bool
+// TagSet is a string to bool map (for lookup efficiency) that is used to keep track
+// which system tags and non-system tags should be included with with metrics.
+type TagSet map[string]bool
 
 //nolint: golint
 const (
@@ -42,15 +42,16 @@ const (
 var DefaultSystemTagSet = TagProto | TagSubProto | TagStatus | TagMethod | TagURL | TagName | TagGroup |
 	TagCheck | TagCheck | TagError | TagErrorCode | TagTLSVersion
 
-// ToTagSet converts a system tag map to tag set
-func (tm SystemTagMap) ToTagSet() SystemTagSet ***REMOVED***
-	ts := SystemTagSet(0)
-	for tag, ok := range tm ***REMOVED***
+// ToSystemTagSet converts a tag set to tag set
+// Non-system tag will be ignored.
+func (ts TagSet) ToSystemTagSet() SystemTagSet ***REMOVED***
+	sts := SystemTagSet(0)
+	for tag, ok := range ts ***REMOVED***
 		if v, err := SystemTagSetString(tag); err == nil && ok ***REMOVED***
-			ts.Add(v)
+			sts.Add(v)
 		***REMOVED***
 	***REMOVED***
-	return ts
+	return sts
 ***REMOVED***
 
 // Add adds a tag to tag set.
@@ -69,9 +70,9 @@ func (ts *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
 	return *ts&tag != 0
 ***REMOVED***
 
-// Map returns the SystemTagMap with current value from SystemTagSet
-func (ts *SystemTagSet) Map() SystemTagMap ***REMOVED***
-	m := SystemTagMap***REMOVED******REMOVED***
+// Map returns the TagSet with current value from SystemTagSet
+func (ts *SystemTagSet) Map() TagSet ***REMOVED***
+	m := TagSet***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
 		if ts.Has(tag) ***REMOVED***
 			m[tag.String()] = true

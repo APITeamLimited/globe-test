@@ -207,7 +207,7 @@ func TestCollect(t *testing.T) ***REMOVED***
 	mem := afero.NewMemMapFs()
 	collector, err := New(
 		mem,
-		stats.SystemTagMap***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
 		Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 	)
 	assert.NoError(t, err)
@@ -221,7 +221,7 @@ func TestCollect(t *testing.T) ***REMOVED***
 func TestRun(t *testing.T) ***REMOVED***
 	collector, err := New(
 		afero.NewMemMapFs(),
-		stats.SystemTagMap***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
 		Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 	)
 	assert.NoError(t, err)
@@ -268,7 +268,7 @@ func TestRunCollect(t *testing.T) ***REMOVED***
 	mem := afero.NewMemMapFs()
 	collector, err := New(
 		mem,
-		stats.SystemTagMap***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
 		Config***REMOVED***FileName: null.StringFrom("path"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 	)
 	assert.NoError(t, err)
@@ -299,11 +299,11 @@ func TestRunCollect(t *testing.T) ***REMOVED***
 func TestNew(t *testing.T) ***REMOVED***
 	configs := []struct ***REMOVED***
 		cfg  Config
-		tags stats.SystemTagMap
+		tags stats.TagSet
 	***REMOVED******REMOVED***
 		***REMOVED***
 			cfg: Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
-			tags: stats.SystemTagMap***REMOVED***
+			tags: stats.TagSet***REMOVED***
 				"tag1": true,
 				"tag2": false,
 				"tag3": true,
@@ -311,13 +311,13 @@ func TestNew(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***
 			cfg: Config***REMOVED***FileName: null.StringFrom("-"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
-			tags: stats.SystemTagMap***REMOVED***
+			tags: stats.TagSet***REMOVED***
 				"tag1": true,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			cfg: Config***REMOVED***FileName: null.StringFrom(""), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
-			tags: stats.SystemTagMap***REMOVED***
+			tags: stats.TagSet***REMOVED***
 				"tag1": false,
 				"tag2": false,
 			***REMOVED***,
@@ -373,7 +373,7 @@ func TestNew(t *testing.T) ***REMOVED***
 func TestGetRequiredSystemTags(t *testing.T) ***REMOVED***
 	collector, err := New(
 		afero.NewMemMapFs(),
-		stats.SystemTagMap***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
 		Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 	)
 	assert.NoError(t, err)
@@ -384,7 +384,7 @@ func TestGetRequiredSystemTags(t *testing.T) ***REMOVED***
 func TestLink(t *testing.T) ***REMOVED***
 	collector, err := New(
 		afero.NewMemMapFs(),
-		stats.SystemTagMap***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
 		Config***REMOVED***FileName: null.StringFrom("path"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 	)
 	assert.NoError(t, err)

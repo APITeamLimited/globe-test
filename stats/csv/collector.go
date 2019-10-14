@@ -62,7 +62,7 @@ type nopCloser struct ***REMOVED***
 func (nopCloser) Close() error ***REMOVED*** return nil ***REMOVED***
 
 // New Creates new instance of CSV collector
-func New(fs afero.Fs, tags stats.SystemTagMap, config Config) (*Collector, error) ***REMOVED***
+func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***REMOVED***
 	resTags := []string***REMOVED******REMOVED***
 	ignoredTags := []string***REMOVED******REMOVED***
 	for tag, flag := range tags ***REMOVED***
