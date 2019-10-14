@@ -60,7 +60,7 @@ func init() ***REMOVED***
 // determine the scheduling of VUs in the externally controlled executor.
 type ExternallyControlledConfigParams struct ***REMOVED***
 	VUs      null.Int           `json:"vus"`
-	Duration types.NullDuration `json:"duration"`
+	Duration types.NullDuration `json:"duration"` // 0 is a valid value, meaning infinite duration
 	MaxVUs   null.Int           `json:"maxVUs"`
 ***REMOVED***
 
@@ -142,7 +142,7 @@ func (mec ExternallyControlledConfig) Validate() []error ***REMOVED***
 func (mec ExternallyControlledConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
 	startVUs := lib.ExecutionStep***REMOVED***
 		TimeOffset:      0,
-		PlannedVUs:      uint64(es.Scale(mec.MaxVUs.Int64)), // use
+		PlannedVUs:      uint64(es.Scale(mec.MaxVUs.Int64)), // user-configured, VUs to be pre-initialized
 		MaxUnplannedVUs: 0,                                  // intentional, see function comment
 	***REMOVED***
 
