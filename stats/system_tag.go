@@ -8,6 +8,7 @@ import (
 
 // SystemTagSet is a bitmask that is used to keep track
 // which system tags should be included with which metrics.
+//go:generate enumer -type=SystemTagSet -transform=snake -trimprefix=Tag -output system_tag_set_gen.go
 type SystemTagSet uint32
 
 // TagSet is a string to bool map (for lookup efficiency) that is used to keep track
@@ -18,7 +19,7 @@ type TagSet map[string]bool
 const (
 	// Default system tags includes all of the system tags emitted with metrics by default.
 	TagProto SystemTagSet = 1 << iota
-	TagSubProto
+	TagSubproto
 	TagStatus
 	TagMethod
 	TagURL
@@ -39,30 +40,30 @@ const (
 // DefaultSystemTagSet includes all of the system tags emitted with metrics by default.
 // Other tags that are not enabled by default include: iter, vu, ocsp_status, ip
 //nolint:gochecknoglobals
-var DefaultSystemTagSet = TagProto | TagSubProto | TagStatus | TagMethod | TagURL | TagName | TagGroup |
+var DefaultSystemTagSet = TagProto | TagSubproto | TagStatus | TagMethod | TagURL | TagName | TagGroup |
 	TagCheck | TagCheck | TagError | TagErrorCode | TagTLSVersion
 
 // Add adds a tag to tag set.
-func (ts *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
-	if ts == nil ***REMOVED***
-		ts = new(SystemTagSet)
+func (i *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
+	if i == nil ***REMOVED***
+		i = new(SystemTagSet)
 	***REMOVED***
-	*ts |= tag
+	*i |= tag
 ***REMOVED***
 
 // Has checks a tag included in tag set.
-func (ts *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
-	if ts == nil ***REMOVED***
+func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
+	if i == nil ***REMOVED***
 		return false
 	***REMOVED***
-	return *ts&tag != 0
+	return *i&tag != 0
 ***REMOVED***
 
 // Map returns the TagSet with current value from SystemTagSet
-func (ts *SystemTagSet) Map() TagSet ***REMOVED***
+func (i *SystemTagSet) Map() TagSet ***REMOVED***
 	m := TagSet***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if ts.Has(tag) ***REMOVED***
+		if i.Has(tag) ***REMOVED***
 			m[tag.String()] = true
 		***REMOVED***
 	***REMOVED***
@@ -70,6 +71,7 @@ func (ts *SystemTagSet) Map() TagSet ***REMOVED***
 ***REMOVED***
 
 // ToSystemTagSet converts list of tags to SystemTagSet
+// TODO: emit error instead of discarding invalid values.
 func ToSystemTagSet(tags []string) *SystemTagSet ***REMOVED***
 	ts := new(SystemTagSet)
 	for _, tag := range tags ***REMOVED***
@@ -90,10 +92,10 @@ func NewSystemTagSet(tags ...SystemTagSet) *SystemTagSet ***REMOVED***
 ***REMOVED***
 
 // MarshalJSON converts the SystemTagSet to a list (JS array).
-func (ts *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 	var tags []string
 	for _, tag := range SystemTagSetValues() ***REMOVED***
-		if ts.Has(tag) ***REMOVED***
+		if i.Has(tag) ***REMOVED***
 			tags = append(tags, tag.String())
 		***REMOVED***
 	***REMOVED***
@@ -101,20 +103,20 @@ func (ts *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 ***REMOVED***
 
 // UnmarshalJSON converts the tag list back to expected tag set.
-func (ts *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
 	var tags []string
 	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	if len(tags) != 0 ***REMOVED***
-		*ts = *ToSystemTagSet(tags)
+		*i = *ToSystemTagSet(tags)
 	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 // UnmarshalText converts the tag list to SystemTagSet.
-func (ts *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
+func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 	var list = bytes.Split(data, []byte(","))
 
 	for _, key := range list ***REMOVED***
@@ -123,7 +125,7 @@ func (ts *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
 			continue
 		***REMOVED***
 		if v, err := SystemTagSetString(key); err == nil ***REMOVED***
-			ts.Add(v)
+			i.Add(v)
 		***REMOVED***
 	***REMOVED***
 	return nil

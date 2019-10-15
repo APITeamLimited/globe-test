@@ -216,7 +216,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	if state.Options.SystemTags.Has(stats.TagStatus) ***REMOVED***
 		tags["status"] = strconv.Itoa(httpResponse.StatusCode)
 	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagSubProto) ***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagSubproto) ***REMOVED***
 		tags["subproto"] = httpResponse.Header.Get("Sec-WebSocket-Protocol")
 	***REMOVED***
 
