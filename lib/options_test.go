@@ -357,7 +357,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, Options***REMOVED******REMOVED***, opts)
 	***REMOVED***)
 	t.Run("SystemTags", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SystemTags: stats.ToSystemTagSet([]string***REMOVED***stats.TagProto.String()***REMOVED***)***REMOVED***)
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***SystemTags: stats.NewSystemTagSet(stats.TagProto)***REMOVED***)
 		assert.NotNil(t, opts.SystemTags)
 		assert.NotEmpty(t, opts.SystemTags)
 		assert.True(t, opts.SystemTags.Has(stats.TagProto))
@@ -367,7 +367,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"systemTags":["url"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
-				assert.Equal(t, *stats.ToSystemTagSet([]string***REMOVED***stats.TagURL.String()***REMOVED***), *opts.SystemTags)
+				assert.Equal(t, *stats.NewSystemTagSet(stats.TagURL), *opts.SystemTags)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
 					data, err := json.Marshal(opts.SystemTags)

@@ -71,13 +71,22 @@ func (ts *SystemTagSet) Map() TagSet ***REMOVED***
 
 // ToSystemTagSet converts list of tags to SystemTagSet
 func ToSystemTagSet(tags []string) *SystemTagSet ***REMOVED***
-	ts := SystemTagSet(0)
+	ts := new(SystemTagSet)
 	for _, tag := range tags ***REMOVED***
 		if v, err := SystemTagSetString(tag); err == nil ***REMOVED***
 			ts.Add(v)
 		***REMOVED***
 	***REMOVED***
-	return &ts
+	return ts
+***REMOVED***
+
+// NewSystemTagSet returns a SystemTagSet from input.
+func NewSystemTagSet(tags ...SystemTagSet) *SystemTagSet ***REMOVED***
+	ts := new(SystemTagSet)
+	for _, tag := range tags ***REMOVED***
+		ts.Add(tag)
+	***REMOVED***
+	return ts
 ***REMOVED***
 
 // MarshalJSON converts the SystemTagSet to a list (JS array).
