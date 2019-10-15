@@ -11,8 +11,8 @@ import (
 )
 
 func TestCollector(t *testing.T) ***REMOVED***
-	var tagMap = stats.TagSet***REMOVED***stats.TagProto.String(): true, stats.TagGroup.String(): true***REMOVED***
-	var handler = tagHandler(tagMap.ToSystemTagSet())
+	var tagMap = stats.TagSet***REMOVED***"tag1": true, "tag2": true***REMOVED***
+	var handler = tagHandler(tagMap)
 	testutil.BaseTest(t, func(config common.Config) (*common.Collector, error) ***REMOVED***
 		return New(NewConfig().Apply(Config***REMOVED***
 			TagBlacklist: tagMap,

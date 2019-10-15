@@ -25,15 +25,13 @@ import (
 	"github.com/loadimpact/k6/stats/statsd/common"
 )
 
-type tagHandler stats.SystemTagSet
+type tagHandler stats.TagSet
 
 func (t tagHandler) processTags(tags map[string]string) []string ***REMOVED***
 	var res []string
 	for key, value := range tags ***REMOVED***
-		if v, err := stats.SystemTagSetString(key); err == nil ***REMOVED***
-			if value != "" && t&tagHandler(v) != 0 ***REMOVED***
-				res = append(res, key+":"+value)
-			***REMOVED***
+		if value != "" && !t[key] ***REMOVED***
+			res = append(res, key+":"+value)
 		***REMOVED***
 	***REMOVED***
 	return res
@@ -70,6 +68,6 @@ func New(conf Config) (*common.Collector, error) ***REMOVED***
 	return &common.Collector***REMOVED***
 		Config:      conf.Config,
 		Type:        "datadog",
-		ProcessTags: tagHandler(conf.TagBlacklist.ToSystemTagSet()).processTags,
+		ProcessTags: tagHandler(conf.TagBlacklist).processTags,
 	***REMOVED***, nil
 ***REMOVED***

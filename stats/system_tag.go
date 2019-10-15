@@ -42,18 +42,6 @@ const (
 var DefaultSystemTagSet = TagProto | TagSubProto | TagStatus | TagMethod | TagURL | TagName | TagGroup |
 	TagCheck | TagCheck | TagError | TagErrorCode | TagTLSVersion
 
-// ToSystemTagSet converts a tag set to tag set
-// Non-system tag will be ignored.
-func (ts TagSet) ToSystemTagSet() SystemTagSet ***REMOVED***
-	sts := SystemTagSet(0)
-	for tag, ok := range ts ***REMOVED***
-		if v, err := SystemTagSetString(tag); err == nil && ok ***REMOVED***
-			sts.Add(v)
-		***REMOVED***
-	***REMOVED***
-	return sts
-***REMOVED***
-
 // Add adds a tag to tag set.
 func (ts *SystemTagSet) Add(tag SystemTagSet) ***REMOVED***
 	if ts == nil ***REMOVED***
