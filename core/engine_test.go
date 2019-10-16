@@ -924,10 +924,10 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 		let testCounter = new Counter("testcounter");
 
 		export let options = ***REMOVED***
-			minIterationDuration: "1s",
-			vus: 2,
-			vusMax: 2,
-			duration: "1.9s",
+			minIterationDuration: "150ms",
+			vus: 4,
+			vusMax: 4,
+			duration: "500ms",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
@@ -957,11 +957,11 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 		require.False(t, engine.IsTainted())
 	***REMOVED***
 
-	// 4 full iterations are expected to be completed
-	assert.Equal(t, 4.0, getMetricSum(collector, metrics.Iterations.Name))
+	// 16 full iterations are expected to be completed
+	assert.Equal(t, 16.0, getMetricSum(collector, metrics.Iterations.Name))
 
-	// The custom counter should be added to 4 times
-	assert.Equal(t, 4.0, getMetricSum(collector, "testcounter"))
+	// The custom counter should be added to 16 times
+	assert.Equal(t, 16.0, getMetricSum(collector, "testcounter"))
 ***REMOVED***
 
 //nolint: funlen
