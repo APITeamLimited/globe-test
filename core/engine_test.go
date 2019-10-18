@@ -576,15 +576,14 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		errC := make(chan error)
 		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 		select ***REMOVED***
 		case <-time.After(10 * time.Second):
-			cancel()
 			t.Fatal("Test timed out")
 		case err := <-errC:
-			cancel()
 			require.NoError(t, err)
 		***REMOVED***
 
@@ -718,15 +717,14 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 	***REMOVED***
 
@@ -811,15 +809,14 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
 	***REMOVED***
@@ -870,15 +867,14 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
 	***REMOVED***
@@ -944,15 +940,14 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
 	***REMOVED***
@@ -962,4 +957,71 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 
 	// But we expect the custom counter to be added to 4 times
 	assert.Equal(t, 4.0, getMetricSum(collector, "testcounter"))
+***REMOVED***
+
+//nolint: funlen
+func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
+	t.Parallel()
+	setupScript := `
+		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+
+		export function setup() ***REMOVED***
+			sleep(1);
+		***REMOVED***
+
+		export let options = ***REMOVED***
+			minIterationDuration: "2s",
+			duration: "2s",
+			setupTimeout: "2s",
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+		***REMOVED***;`
+	teardownScript := `
+		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+
+		export let options = ***REMOVED***
+			minIterationDuration: "2s",
+			duration: "2s",
+			teardownTimeout: "2s",
+		***REMOVED***;
+
+		export default function () ***REMOVED***
+		***REMOVED***;
+
+		export function teardown() ***REMOVED***
+			sleep(1);
+		***REMOVED***
+`
+	tests := []struct ***REMOVED***
+		name, script string
+	***REMOVED******REMOVED***
+		***REMOVED***"Test setup", setupScript***REMOVED***,
+		***REMOVED***"Test teardown", teardownScript***REMOVED***,
+	***REMOVED***
+	for _, tc := range tests ***REMOVED***
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			runner, err := js.New(
+				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
+				nil,
+				lib.RuntimeOptions***REMOVED******REMOVED***,
+			)
+			require.NoError(t, err)
+			engine, err := NewEngine(local.New(runner), runner.GetOptions())
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			select ***REMOVED***
+			case <-time.After(10 * time.Second):
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				require.NoError(t, err)
+				require.False(t, engine.IsTainted())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

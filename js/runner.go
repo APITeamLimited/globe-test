@@ -319,7 +319,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 		return goja.Undefined(), err
 	***REMOVED***
 
-	v, _, err := vu.runFn(ctx, group, fn, vu.Runtime.ToValue(arg))
+	v, _, _, err := vu.runFn(ctx, group, fn, vu.Runtime.ToValue(arg))
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
@@ -418,16 +418,26 @@ func (u *VU) RunOnce(ctx context.Context) error ***REMOVED***
 	***REMOVED***
 
 	// Call the default function.
-	_, _, err := u.runFn(ctx, u.Runner.defaultGroup, u.Default, u.setupData)
+	_, isFullIteration, totalTime, err := u.runFn(ctx, u.Runner.defaultGroup, u.Default, u.setupData)
+
+	// If MinIterationDuration is specified and the iteration wasn't cancelled
+	// and was less than it, sleep for the remainder
+	if isFullIteration && u.Runner.Bundle.Options.MinIterationDuration.Valid ***REMOVED***
+		durationDiff := time.Duration(u.Runner.Bundle.Options.MinIterationDuration.Duration) - totalTime
+		if durationDiff > 0 ***REMOVED***
+			time.Sleep(durationDiff)
+		***REMOVED***
+	***REMOVED***
+
 	return err
 ***REMOVED***
 
 func (u *VU) runFn(
 	ctx context.Context, group *lib.Group, fn goja.Callable, args ...goja.Value,
-) (goja.Value, *lib.State, error) ***REMOVED***
+) (goja.Value, bool, time.Duration, error) ***REMOVED***
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil ***REMOVED***
-		return goja.Undefined(), nil, err
+		return goja.Undefined(), false, time.Duration(0), err
 	***REMOVED***
 
 	if u.Runner.Bundle.Options.NoCookiesReset.Valid && u.Runner.Bundle.Options.NoCookiesReset.Bool ***REMOVED***
@@ -486,14 +496,5 @@ func (u *VU) runFn(
 
 	state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, stats.IntoSampleTags(&tags))
 
-	// If MinIterationDuration is specified and the iteration wasn't cancelled
-	// and was less than it, sleep for the remainder
-	if isFullIteration && state.Options.MinIterationDuration.Valid ***REMOVED***
-		durationDiff := time.Duration(state.Options.MinIterationDuration.Duration) - endTime.Sub(startTime)
-		if durationDiff > 0 ***REMOVED***
-			time.Sleep(durationDiff)
-		***REMOVED***
-	***REMOVED***
-
-	return v, state, err
+	return v, isFullIteration, endTime.Sub(startTime), err
 ***REMOVED***
