@@ -113,6 +113,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
 			path := filepath.FromSlash("/nonexistent.js")
 			_, err := getSimpleBundle("/script.js", `import "/nonexistent.js"; export default function() ***REMOVED******REMOVED***`)
+			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), fmt.Sprintf(`"file://%s" couldn't be found on local disk`, filepath.ToSlash(path)))
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***

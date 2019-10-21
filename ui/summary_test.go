@@ -123,7 +123,7 @@ func TestGeneratePercentileTrendColumn(t *testing.T) ***REMOVED***
 
 	t.Run("Happy path", func(t *testing.T) ***REMOVED***
 		colFunc, err := generatePercentileTrendColumn("p(99)")
-
+		assert.Nil(t, err)
 		assert.NotNil(t, colFunc)
 		assert.Exactly(t, sink.P(0.99), colFunc(sink))
 		assert.NotEqual(t, sink.P(0.98), colFunc(sink))

@@ -89,7 +89,7 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 			return err
 		***REMOVED***
 
-		if cerr := req.Body.Close(); cerr != nil && err == nil ***REMOVED***
+		if cerr := req.Body.Close(); cerr != nil ***REMOVED***
 			err = cerr
 		***REMOVED***
 	***REMOVED***

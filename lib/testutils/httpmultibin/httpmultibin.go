@@ -158,7 +158,9 @@ func getEncodedHandler(t testing.TB, compressionType httpext.CompressionType) ht
 			Compression: encoding,
 		***REMOVED***
 		err = writeJSON(encw, data)
-		_ = encw.Close()
+		if encw != nil ***REMOVED***
+			_ = encw.Close()
+		***REMOVED***
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
