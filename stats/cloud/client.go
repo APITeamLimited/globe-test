@@ -22,10 +22,12 @@ package cloud
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -39,6 +41,8 @@ const (
 	RetryInterval = 500 * time.Millisecond
 	// MaxRetries specifies max retry attempts
 	MaxRetries = 3
+
+	k6IdempotencyKeyHeader = "k6-Idempotency-Key"
 )
 
 // Client handles communication with Load Impact cloud API.
@@ -76,7 +80,16 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 		buf = bytes.NewBuffer(b)
 	***REMOVED***
 
-	return http.NewRequest(method, url, buf)
+	req, err := http.NewRequest(method, url, buf)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if shouldAddIdempotencyKey(req) ***REMOVED***
+		req.Header.Set(k6IdempotencyKeyHeader, randomStrHex())
+	***REMOVED***
+
+	return req, nil
 ***REMOVED***
 
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
@@ -200,4 +213,27 @@ func shouldRetry(resp *http.Response, err error, attempt, maxAttempts int) bool 
 	***REMOVED***
 
 	return false
+***REMOVED***
+
+func shouldAddIdempotencyKey(req *http.Request) bool ***REMOVED***
+	switch req.Method ***REMOVED***
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return false
+	default:
+		return req.Header.Get(k6IdempotencyKeyHeader) == ""
+	***REMOVED***
+***REMOVED***
+
+// randomStrHex returns a hex string which can be used
+// for session token id or idempotency key.
+//nolint:gosec
+func randomStrHex() string ***REMOVED***
+	// 16 hex characters
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+***REMOVED***
+
+func init() ***REMOVED***
+	rand.Seed(time.Now().UTC().UnixNano())
 ***REMOVED***
