@@ -158,18 +158,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		time.Sleep(2 * time.Second)
 	***REMOVED***))
-	tb.Mux.HandleFunc("/set-cookie-before-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		cookie := http.Cookie***REMOVED***
-			Name:   "key-foo",
-			Value:  "value-bar",
-			Path:   "/",
-			Domain: sr("HTTPBIN_DOMAIN"),
-		***REMOVED***
-
-		http.SetCookie(w, &cookie)
-
-		http.Redirect(w, r, sr("HTTPBIN_URL/get"), http.StatusMovedPermanently)
-	***REMOVED***))
 
 	t.Run("Redirects", func(t *testing.T) ***REMOVED***
 		t.Run("tracing", func(t *testing.T) ***REMOVED***
@@ -588,55 +576,67 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			t.Run("redirect", func(t *testing.T) ***REMOVED***
-				t.Run("set cookie before redirect", func(t *testing.T) ***REMOVED***
+				t.Run("set cookie after redirect", func(t *testing.T) ***REMOVED***
+					// TODO figure out a way to remove this ?
+					tb.Mux.HandleFunc("/set-cookie-without-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+						cookie := http.Cookie***REMOVED***
+							Name:   "key-foo",
+							Value:  "value-bar",
+							Path:   "/",
+							Domain: sr("HTTPSBIN_DOMAIN"),
+						***REMOVED***
+
+						http.SetCookie(w, &cookie)
+						w.WriteHeader(200)
+					***REMOVED***))
 					cookieJar, err := cookiejar.New(nil)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					state.CookieJar = cookieJar
 					_, err = common.RunString(rt, sr(`
-						let res = http.request("GET", "HTTPBIN_URL/set-cookie-before-redirect");
+						let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/set-cookie-without-redirect");
 						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`))
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
-					redirectURL, err := url.Parse(sr("HTTPBIN_URL"))
-					assert.NoError(t, err)
+					redirectURL, err := url.Parse(sr("HTTPSBIN_URL"))
+					require.NoError(t, err)
 					require.Len(t, cookieJar.Cookies(redirectURL), 1)
-					assert.Equal(t, "key-foo", cookieJar.Cookies(redirectURL)[0].Name)
-					assert.Equal(t, "value-bar", cookieJar.Cookies(redirectURL)[0].Value)
+					require.Equal(t, "key-foo", cookieJar.Cookies(redirectURL)[0].Name)
+					require.Equal(t, "value-bar", cookieJar.Cookies(redirectURL)[0].Value)
 
 					assertRequestMetricsEmitted(
 						t,
 						stats.GetBufferedSamples(samples),
 						"GET",
-						sr("HTTPBIN_URL/get"),
-						sr("HTTPBIN_URL/set-cookie-before-redirect"),
+						sr("HTTPSBIN_URL/set-cookie-without-redirect"),
+						sr("HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/set-cookie-without-redirect"),
 						200,
 						"",
 					)
 				***REMOVED***)
-				t.Run("set cookie after redirect", func(t *testing.T) ***REMOVED***
+				t.Run("set cookie before redirect", func(t *testing.T) ***REMOVED***
 					cookieJar, err := cookiejar.New(nil)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					state.CookieJar = cookieJar
 					_, err = common.RunString(rt, sr(`
-						let res = http.request("GET", "HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/cookies/set?key=value");
+						let res = http.request("GET", "HTTPSBIN_URL/cookies/set?key=value");
 						if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 					`))
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					redirectURL, err := url.Parse(sr("HTTPSBIN_URL/cookies"))
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
 					require.Len(t, cookieJar.Cookies(redirectURL), 1)
-					assert.Equal(t, "key", cookieJar.Cookies(redirectURL)[0].Name)
-					assert.Equal(t, "value", cookieJar.Cookies(redirectURL)[0].Value)
+					require.Equal(t, "key", cookieJar.Cookies(redirectURL)[0].Name)
+					require.Equal(t, "value", cookieJar.Cookies(redirectURL)[0].Value)
 
 					assertRequestMetricsEmitted(
 						t,
 						stats.GetBufferedSamples(samples),
 						"GET",
 						sr("HTTPSBIN_URL/cookies"),
-						sr("HTTPBIN_URL/redirect-to?url=HTTPSBIN_URL/cookies/set?key=value"),
+						sr("HTTPSBIN_URL/cookies/set?key=value"),
 						200,
 						"",
 					)
@@ -1591,22 +1591,6 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 	sr := tb.Replacer.Replace
 
 	// Handple paths with custom logic
-	tb.Mux.HandleFunc("/digest-auth/failure", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		time.Sleep(2 * time.Second)
-	***REMOVED***))
-	tb.Mux.HandleFunc("/set-cookie-before-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		cookie := http.Cookie***REMOVED***
-			Name:   "key-foo",
-			Value:  "value-bar",
-			Path:   "/",
-			Domain: sr("HTTPBIN_DOMAIN"),
-		***REMOVED***
-
-		http.SetCookie(w, &cookie)
-
-		http.Redirect(w, r, sr("HTTPBIN_URL/get"), http.StatusMovedPermanently)
-	***REMOVED***))
-
 	tb.Mux.HandleFunc("/no-location-redirect", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) ***REMOVED***
 		w.WriteHeader(302)
 	***REMOVED***))
