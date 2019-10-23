@@ -417,7 +417,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			assert.Equal(t, lib.DefaultSummaryTrendStats, c.Options.SummaryTrendStats)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--summary-trend-stats", `""`***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DefaultSummaryTrendStats, c.Options.SummaryTrendStats)
+			assert.Equal(t, []string***REMOVED******REMOVED***, c.Options.SummaryTrendStats)
 		***REMOVED******REMOVED***,
 		***REMOVED***
 			opts***REMOVED***runner: &lib.Options***REMOVED***SummaryTrendStats: []string***REMOVED***"avg", "p(90)", "count"***REMOVED******REMOVED******REMOVED***,
