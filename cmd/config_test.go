@@ -96,7 +96,7 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 			"false": func(c Config) ***REMOVED*** assert.Equal(t, null.BoolFrom(false), c.NoUsageReport) ***REMOVED***,
 		***REMOVED***,
 		***REMOVED***"Out", "K6_OUT"***REMOVED***: ***REMOVED***
-			"":         func(c Config) ***REMOVED*** assert.Equal(t, []string***REMOVED***""***REMOVED***, c.Out) ***REMOVED***,
+			"":         func(c Config) ***REMOVED*** assert.Equal(t, []string***REMOVED******REMOVED***, c.Out) ***REMOVED***,
 			"influxdb": func(c Config) ***REMOVED*** assert.Equal(t, []string***REMOVED***"influxdb"***REMOVED***, c.Out) ***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
