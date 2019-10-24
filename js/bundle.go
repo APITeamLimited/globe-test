@@ -48,7 +48,8 @@ type Bundle struct ***REMOVED***
 
 	BaseInitContext *InitContext
 
-	Env map[string]string
+	Env               map[string]string
+	CompatibilityMode compiler.CompatibilityMode
 ***REMOVED***
 
 // A BundleInstance is a self-contained instance of a Bundle.
@@ -80,7 +81,8 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 		Program:  pgm,
 		BaseInitContext: NewInitContext(rt, c, compatMode, new(context.Context),
 			filesystems, loader.Dir(src.URL)),
-		Env: rtOpts.Env,
+		Env:               rtOpts.Env,
+		CompatibilityMode: compatMode,
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
@@ -158,13 +160,19 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		env[k] = v
 	***REMOVED***
 
+	cm, err := compiler.CompatibilityModeString(arc.CompatibilityMode)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	bundle := &Bundle***REMOVED***
-		Filename:        arc.FilenameURL,
-		Source:          string(arc.Data),
-		Program:         pgm,
-		Options:         arc.Options,
-		BaseInitContext: initctx,
-		Env:             env,
+		Filename:          arc.FilenameURL,
+		Source:            string(arc.Data),
+		Program:           pgm,
+		Options:           arc.Options,
+		BaseInitContext:   initctx,
+		Env:               env,
+		CompatibilityMode: cm,
 	***REMOVED***
 	if err := bundle.instantiate(bundle.BaseInitContext.runtime, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
@@ -174,15 +182,16 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 
 func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 	arc := &lib.Archive***REMOVED***
-		Type:        "js",
-		Filesystems: b.BaseInitContext.filesystems,
-		Options:     b.Options,
-		FilenameURL: b.Filename,
-		Data:        []byte(b.Source),
-		PwdURL:      b.BaseInitContext.pwd,
-		Env:         make(map[string]string, len(b.Env)),
-		K6Version:   consts.Version,
-		Goos:        runtime.GOOS,
+		Type:              "js",
+		Filesystems:       b.BaseInitContext.filesystems,
+		Options:           b.Options,
+		FilenameURL:       b.Filename,
+		Data:              []byte(b.Source),
+		PwdURL:            b.BaseInitContext.pwd,
+		Env:               make(map[string]string, len(b.Env)),
+		CompatibilityMode: b.CompatibilityMode.String(),
+		K6Version:         consts.Version,
+		Goos:              runtime.GOOS,
 	***REMOVED***
 	// Copy env so changes in the archive are not reflected in the source Bundle
 	for k, v := range b.Env ***REMOVED***

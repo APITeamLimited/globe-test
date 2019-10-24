@@ -42,34 +42,31 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
+	null "gopkg.in/guregu/null.v3"
 )
 
 const isWindows = runtime.GOOS == "windows"
 
-func getSimpleBundle(filename, data string) (*Bundle, error) ***REMOVED***
-	return getSimpleBundleWithFs(filename, data, afero.NewMemMapFs())
-***REMOVED***
-
-func getSimpleBundleWithOptions(filename, data string, options lib.RuntimeOptions) (*Bundle, error) ***REMOVED***
-	return NewBundle(
-		&loader.SourceData***REMOVED***
-			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
-			Data: []byte(data),
-		***REMOVED***,
-		map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs(), "https": afero.NewMemMapFs()***REMOVED***,
-		options,
+func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
+	var (
+		fs     = afero.NewMemMapFs()
+		rtOpts = lib.RuntimeOptions***REMOVED******REMOVED***
 	)
-***REMOVED***
-
-func getSimpleBundleWithFs(filename, data string, fs afero.Fs) (*Bundle, error) ***REMOVED***
+	for _, o := range opts ***REMOVED***
+		switch opt := o.(type) ***REMOVED***
+		case afero.Fs:
+			fs = opt
+		case lib.RuntimeOptions:
+			rtOpts = opt
+		***REMOVED***
+	***REMOVED***
 	return NewBundle(
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
 		***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
+		rtOpts,
 	)
 ***REMOVED***
 
@@ -117,7 +114,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("CompatibilityModeBase", func(t *testing.T) ***REMOVED***
 		t.Run("ok/Minimal", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
-			_, err := getSimpleBundleWithOptions("/script.js", `module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
+			_, err := getSimpleBundle("/script.js", `module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("err", func(t *testing.T) ***REMOVED***
@@ -142,7 +139,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) ***REMOVED***
 					rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-					_, err := getSimpleBundleWithOptions("/script.js", tc.code, rtOpts)
+					_, err := getSimpleBundle("/script.js", tc.code, rtOpts)
 					assert.EqualError(t, err, tc.expErr)
 				***REMOVED***)
 			***REMOVED***
@@ -409,7 +406,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func getArchive(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
-	b, err := getSimpleBundleWithOptions("script.js", data, rtOpts)
+	b, err := getSimpleBundle("script.js", data, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -419,28 +416,29 @@ func getArchive(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) **
 func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	t.Run("ok", func(t *testing.T) ***REMOVED***
 		testCases := []struct ***REMOVED***
-			name   string
-			code   string
-			rtOpts lib.RuntimeOptions
+			cm   compiler.CompatibilityMode
+			code string
 		***REMOVED******REMOVED***
-			***REMOVED***"MinimalExtended", `export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-							export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				lib.RuntimeOptions***REMOVED******REMOVED******REMOVED***,
-			***REMOVED***"MinimalBase", `module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
-							module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`,
-				lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED******REMOVED***,
+			***REMOVED***compiler.CompatibilityModeExtended, `
+				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
+			***REMOVED***compiler.CompatibilityModeBase, `
+				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
 		***REMOVED***
 
 		for _, tc := range testCases ***REMOVED***
 			tc := tc
-			t.Run(tc.name, func(t *testing.T) ***REMOVED***
-				arc, err := getArchive(tc.code, tc.rtOpts)
+			t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
+				arc, err := getArchive(tc.code, rtOpts)
 				assert.NoError(t, err)
-				b, err := NewBundleFromArchive(arc, tc.rtOpts)
+				b, err := NewBundleFromArchive(arc, rtOpts)
 				if !assert.NoError(t, err) ***REMOVED***
 					return
 				***REMOVED***
 				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+				assert.Equal(t, tc.cm, b.CompatibilityMode)
 
 				bi, err := b.Instantiate()
 				if !assert.NoError(t, err) ***REMOVED***
@@ -575,7 +573,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 						export let file = open("` + openPath + `");
 						export default function() ***REMOVED*** return file ***REMOVED***;`
 
-					sourceBundle, err := getSimpleBundleWithFs(filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
+					sourceBundle, err := getSimpleBundle(filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
 					if tCase.isError ***REMOVED***
 						assert.Error(t, err)
 						return
@@ -674,7 +672,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
 		***REMOVED***
 	`
-	b1, err := getSimpleBundleWithOptions("/script.js", data, rtOpts)
+	b1, err := getSimpleBundle("/script.js", data, rtOpts)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -701,35 +699,56 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	t.Run("ok", func(t *testing.T) ***REMOVED***
-		fs := afero.NewMemMapFs()
-		_ = fs.MkdirAll("/path/to", 0755)
-		_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644)
-		_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`), 0644)
-		data := `
-			import exclaim from "./exclaim.js";
-			export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-			export let file = open("./file.txt");
-			export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;
-		`
-		b, err := getSimpleBundleWithFs("/path/to/script.js", data, fs)
-		assert.NoError(t, err)
+		testCases := []struct ***REMOVED***
+			cm      compiler.CompatibilityMode
+			script  string
+			exclaim string
+		***REMOVED******REMOVED***
+			***REMOVED***compiler.CompatibilityModeExtended, `
+				import exclaim from "./exclaim.js";
+				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export let file = open("./file.txt");
+				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
+				`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+			***REMOVED***compiler.CompatibilityModeBase, `
+				var exclaim = require("./exclaim.js");
+				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				module.exports.file = open("./file.txt");
+				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
+				`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+		***REMOVED***
 
-		arc := b.makeArchive()
+		for _, tc := range testCases ***REMOVED***
+			tc := tc
+			t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+				fs := afero.NewMemMapFs()
+				_ = fs.MkdirAll("/path/to", 0755)
+				_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644)
+				_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0644)
 
-		assert.Equal(t, "js", arc.Type)
-		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
-		assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
-		assert.Equal(t, data, string(arc.Data))
-		assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
+				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
+				b, err := getSimpleBundle("/path/to/script.js", tc.script, fs, rtOpts)
+				assert.NoError(t, err)
 
-		exclaimData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/exclaim.js")
-		assert.NoError(t, err)
-		assert.Equal(t, `export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`, string(exclaimData))
+				arc := b.makeArchive()
 
-		fileData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/file.txt")
-		assert.NoError(t, err)
-		assert.Equal(t, `hi`, string(fileData))
-		assert.Equal(t, consts.Version, arc.K6Version)
+				assert.Equal(t, "js", arc.Type)
+				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
+				assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
+				assert.Equal(t, tc.script, string(arc.Data))
+				assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
+
+				exclaimData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/exclaim.js")
+				assert.NoError(t, err)
+				assert.Equal(t, tc.exclaim, string(exclaimData))
+
+				fileData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/file.txt")
+				assert.NoError(t, err)
+				assert.Equal(t, `hi`, string(fileData))
+				assert.Equal(t, consts.Version, arc.K6Version)
+				assert.Equal(t, tc.cm.String(), arc.CompatibilityMode)
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***)
 	t.Run("err", func(t *testing.T) ***REMOVED***
 		testCases := []struct ***REMOVED***
