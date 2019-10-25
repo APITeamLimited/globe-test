@@ -357,7 +357,7 @@ a commandline interface for interacting with it.`,
 			updateFreq = 1 * time.Second
 		***REMOVED***
 		ticker := time.NewTicker(updateFreq)
-		if quiet || conf.HttpDebug.Valid && conf.HttpDebug.String != "" ***REMOVED***
+		if quiet || conf.HTTPDebug.Valid && conf.HTTPDebug.String != "" ***REMOVED***
 			ticker.Stop()
 		***REMOVED***
 	mainLoop:

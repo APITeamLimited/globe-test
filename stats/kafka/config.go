@@ -33,12 +33,12 @@ import (
 // Config is the config for the kafka collector
 type Config struct ***REMOVED***
 	// Connection.
-	Brokers []string `json:"brokers" envconfig:"KAFKA_BROKERS"`
+	Brokers []string `json:"brokers" envconfig:"K6_KAFKA_BROKERS"`
 
 	// Samples.
-	Topic        null.String        `json:"topic" envconfig:"KAFKA_TOPIC"`
-	Format       null.String        `json:"format" envconfig:"KAFKA_FORMAT"`
-	PushInterval types.NullDuration `json:"push_interval" envconfig:"KAFKA_PUSH_INTERVAL"`
+	Topic        null.String        `json:"topic" envconfig:"K6_KAFKA_TOPIC"`
+	Format       null.String        `json:"format" envconfig:"K6_KAFKA_FORMAT"`
+	PushInterval types.NullDuration `json:"push_interval" envconfig:"K6_KAFKA_PUSH_INTERVAL"`
 
 	InfluxDBConfig influxdb.Config `json:"influxdb"`
 ***REMOVED***
@@ -46,10 +46,10 @@ type Config struct ***REMOVED***
 // config is a duplicate of ConfigFields as we can not mapstructure.Decode into
 // null types so we duplicate the struct with primitive types to Decode into
 type config struct ***REMOVED***
-	Brokers      []string `json:"brokers" mapstructure:"brokers" envconfig:"KAFKA_BROKERS"`
-	Topic        string   `json:"topic" mapstructure:"topic" envconfig:"KAFKA_TOPIC"`
-	Format       string   `json:"format" mapstructure:"format" envconfig:"KAFKA_FORMAT"`
-	PushInterval string   `json:"push_interval" mapstructure:"push_interval" envconfig:"KAFKA_PUSH_INTERVAL"`
+	Brokers      []string `json:"brokers" mapstructure:"brokers" envconfig:"K6_KAFKA_BROKERS"`
+	Topic        string   `json:"topic" mapstructure:"topic" envconfig:"K6_KAFKA_TOPIC"`
+	Format       string   `json:"format" mapstructure:"format" envconfig:"K6_KAFKA_FORMAT"`
+	PushInterval string   `json:"push_interval" mapstructure:"push_interval" envconfig:"K6_KAFKA_PUSH_INTERVAL"`
 
 	InfluxDBConfig influxdb.Config `json:"influxdb" mapstructure:"influxdb"`
 ***REMOVED***

@@ -109,7 +109,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 
 		// Cloud config
 		cloudConfig := cloud.NewConfig().Apply(derivedConf.Collectors.Cloud)
-		if err := envconfig.Process("k6", &cloudConfig); err != nil ***REMOVED***
+		if err = envconfig.Process("", &cloudConfig); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		if !cloudConfig.Token.Valid ***REMOVED***

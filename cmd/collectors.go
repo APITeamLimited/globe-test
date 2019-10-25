@@ -72,7 +72,7 @@ func getCollector(collectorName, arg string, src *loader.SourceData, conf Config
 		return jsonc.New(afero.NewOsFs(), arg)
 	case collectorInfluxDB:
 		config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
-		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		urlConfig, err := influxdb.ParseURL(arg)
@@ -83,7 +83,7 @@ func getCollector(collectorName, arg string, src *loader.SourceData, conf Config
 		return influxdb.New(config)
 	case collectorCloud:
 		config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
-		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		if arg != "" ***REMOVED***
@@ -92,7 +92,7 @@ func getCollector(collectorName, arg string, src *loader.SourceData, conf Config
 		return cloud.New(config, src, conf.Options, consts.Version)
 	case collectorKafka:
 		config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
-		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		if arg != "" ***REMOVED***
@@ -117,7 +117,7 @@ func getCollector(collectorName, arg string, src *loader.SourceData, conf Config
 		return datadog.New(config)
 	case collectorCSV:
 		config := csv.NewConfig().Apply(conf.Collectors.CSV)
-		if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		if arg != "" ***REMOVED***
