@@ -107,7 +107,7 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 		***REMOVED***
 	***REMOVED***
 
-	c.prepareHeader(req)
+	c.prepareHeaders(req)
 
 	for i := 1; i <= c.retries; i++ ***REMOVED***
 		if len(originalBody) > 0 ***REMOVED***
@@ -127,7 +127,7 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 	return err
 ***REMOVED***
 
-func (c *Client) prepareHeader(req *http.Request) ***REMOVED***
+func (c *Client) prepareHeaders(req *http.Request) ***REMOVED***
 	if req.Header.Get("Content-Type") == "" ***REMOVED***
 		req.Header.Set("Content-Type", "application/json")
 	***REMOVED***
