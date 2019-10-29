@@ -60,7 +60,7 @@ func (i *SystemTagSet) Has(tag SystemTagSet) bool ***REMOVED***
 ***REMOVED***
 
 // Map returns the TagSet with current value from SystemTagSet
-func (i *SystemTagSet) Map() TagSet ***REMOVED***
+func (i SystemTagSet) Map() TagSet ***REMOVED***
 	m := TagSet***REMOVED******REMOVED***
 	for _, tag := range SystemTagSetValues() ***REMOVED***
 		if i.Has(tag) ***REMOVED***
@@ -68,6 +68,17 @@ func (i *SystemTagSet) Map() TagSet ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return m
+***REMOVED***
+
+// SetString returns comma separated list of the string representation of all values in the set
+func (i SystemTagSet) SetString() string ***REMOVED***
+	var keys []string
+	for _, tag := range SystemTagSetValues() ***REMOVED***
+		if i.Has(tag) ***REMOVED***
+			keys = append(keys, tag.String())
+		***REMOVED***
+	***REMOVED***
+	return strings.Join(keys, ",")
 ***REMOVED***
 
 // ToSystemTagSet converts list of tags to SystemTagSet
