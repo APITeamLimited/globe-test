@@ -405,54 +405,50 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func getArchive(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
-	b, err := getSimpleBundle("script.js", data, rtOpts)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	return b.makeArchive(), nil
-***REMOVED***
-
 func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
-	t.Run("ok", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			cm   compiler.CompatibilityMode
-			code string
-		***REMOVED******REMOVED***
-			***REMOVED***compiler.CompatibilityModeExtended, `
+	getArchive := func(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
+		b, err := getSimpleBundle("script.js", data, rtOpts)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return b.makeArchive(), nil
+	***REMOVED***
+	testCases := []struct ***REMOVED***
+		cm   compiler.CompatibilityMode
+		code string
+	***REMOVED******REMOVED***
+		***REMOVED***compiler.CompatibilityModeExtended, `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeBase, `
+		***REMOVED***compiler.CompatibilityModeBase, `
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
-		***REMOVED***
+	***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
-				arc, err := getArchive(tc.code, rtOpts)
-				assert.NoError(t, err)
-				b, err := NewBundleFromArchive(arc, rtOpts)
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-				assert.Equal(t, tc.cm, b.CompatibilityMode)
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
+			arc, err := getArchive(tc.code, rtOpts)
+			assert.NoError(t, err)
+			b, err := NewBundleFromArchive(arc, rtOpts)
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+			assert.Equal(t, tc.cm, b.CompatibilityMode)
 
-				bi, err := b.Instantiate()
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				val, err := bi.Default(goja.Undefined())
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, "hi!", val.Export())
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-
+			bi, err := b.Instantiate()
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			val, err := bi.Default(goja.Undefined())
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			assert.Equal(t, "hi!", val.Export())
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestOpen(t *testing.T) ***REMOVED***
@@ -698,83 +694,54 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
-	t.Run("ok", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			cm      compiler.CompatibilityMode
-			script  string
-			exclaim string
-		***REMOVED******REMOVED***
-			***REMOVED***compiler.CompatibilityModeExtended, `
+	testCases := []struct ***REMOVED***
+		cm      compiler.CompatibilityMode
+		script  string
+		exclaim string
+	***REMOVED******REMOVED***
+		***REMOVED***compiler.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export let file = open("./file.txt");
 				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
-				`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeBase, `
+			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+		***REMOVED***compiler.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.file = open("./file.txt");
 				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
-				`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
-		***REMOVED***
+			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+	***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
-				fs := afero.NewMemMapFs()
-				_ = fs.MkdirAll("/path/to", 0755)
-				_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644)
-				_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0644)
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+			fs := afero.NewMemMapFs()
+			_ = fs.MkdirAll("/path/to", 0755)
+			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644)
+			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0644)
 
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
-				b, err := getSimpleBundle("/path/to/script.js", tc.script, fs, rtOpts)
-				assert.NoError(t, err)
+			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
+			b, err := getSimpleBundle("/path/to/script.js", tc.script, fs, rtOpts)
+			assert.NoError(t, err)
 
-				arc := b.makeArchive()
+			arc := b.makeArchive()
 
-				assert.Equal(t, "js", arc.Type)
-				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
-				assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
-				assert.Equal(t, tc.script, string(arc.Data))
-				assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
+			assert.Equal(t, "js", arc.Type)
+			assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, arc.Options)
+			assert.Equal(t, "file:///path/to/script.js", arc.FilenameURL.String())
+			assert.Equal(t, tc.script, string(arc.Data))
+			assert.Equal(t, "file:///path/to/", arc.PwdURL.String())
 
-				exclaimData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/exclaim.js")
-				assert.NoError(t, err)
-				assert.Equal(t, tc.exclaim, string(exclaimData))
+			exclaimData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/exclaim.js")
+			assert.NoError(t, err)
+			assert.Equal(t, tc.exclaim, string(exclaimData))
 
-				fileData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/file.txt")
-				assert.NoError(t, err)
-				assert.Equal(t, `hi`, string(fileData))
-				assert.Equal(t, consts.Version, arc.K6Version)
-				assert.Equal(t, tc.cm.String(), arc.CompatibilityMode)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
-	t.Run("err", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			name       string
-			compatMode string
-			code       string
-			expErr     string
-		***REMOVED******REMOVED***
-			***REMOVED***"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
-				`invalid compatibility mode "es1". Use: "extended", "base"`***REMOVED***,
-			// ES6 modules are not supported
-			***REMOVED***"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
-				"file://script.js: Line 1:1 Unexpected reserved word"***REMOVED***,
-			// Arrow functions are not supported
-			***REMOVED***"ArrowFuncs", "base",
-				`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
-				"file://script.js: Line 1:42 Unexpected token ) (and 1 more errors)"***REMOVED***,
-		***REMOVED***
-
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.name, func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-				_, err := getArchive(tc.code, rtOpts)
-				assert.EqualError(t, err, tc.expErr)
-			***REMOVED***)
-		***REMOVED***
-	***REMOVED***)
+			fileData, err := afero.ReadFile(arc.Filesystems["file"], "/path/to/file.txt")
+			assert.NoError(t, err)
+			assert.Equal(t, `hi`, string(fileData))
+			assert.Equal(t, consts.Version, arc.K6Version)
+			assert.Equal(t, tc.cm.String(), arc.CompatibilityMode)
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
