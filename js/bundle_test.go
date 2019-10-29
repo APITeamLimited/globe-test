@@ -111,13 +111,22 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
 		***REMOVED***
 	***REMOVED***)
-	t.Run("CompatibilityModeBase", func(t *testing.T) ***REMOVED***
-		t.Run("ok/Minimal", func(t *testing.T) ***REMOVED***
-			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
-			_, err := getSimpleBundle("/script.js", `module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
+	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
+		t.Run("Extended/ok/CoreJS", func(t *testing.T) ***REMOVED***
+			rtOpts := lib.RuntimeOptions***REMOVED***
+				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeExtended.String())***REMOVED***
+			_, err := getSimpleBundle("/script.js",
+				`export default function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`, rtOpts)
 			assert.NoError(t, err)
 		***REMOVED***)
-		t.Run("err", func(t *testing.T) ***REMOVED***
+		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
+			rtOpts := lib.RuntimeOptions***REMOVED***
+				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
+			_, err := getSimpleBundle("/script.js",
+				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("Base/err", func(t *testing.T) ***REMOVED***
 			testCases := []struct ***REMOVED***
 				name       string
 				compatMode string
@@ -126,13 +135,17 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED******REMOVED***
 				***REMOVED***"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
 					`invalid compatibility mode "es1". Use: "extended", "base"`***REMOVED***,
-				// ES6 modules are not supported
+				// ES2015 modules are not supported
 				***REMOVED***"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
 					"file:///script.js: Line 1:1 Unexpected reserved word"***REMOVED***,
 				// Arrow functions are not supported
 				***REMOVED***"ArrowFuncs", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
 					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)"***REMOVED***,
+				// ES2015 objects polyfilled by core.js are not supported
+				***REMOVED***"CoreJS", "base",
+					`module.exports.default = function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`,
+					"ReferenceError: Set is not defined at file:///script.js:1:45(5)"***REMOVED***,
 			***REMOVED***
 
 			for _, tc := range testCases ***REMOVED***
