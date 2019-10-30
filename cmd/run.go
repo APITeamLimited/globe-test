@@ -205,6 +205,9 @@ a commandline interface for interacting with it.`,
 		if conf.NoSummary.Valid ***REMOVED***
 			engine.NoSummary = conf.NoSummary.Bool
 		***REMOVED***
+		if conf.SummaryExport.Valid ***REMOVED***
+			engine.SummaryExport = conf.SummaryExport.String != ""
+		***REMOVED***
 
 		// Create a collector and assign it to the engine if requested.
 		fprintf(stdout, "%s   collector\r", initBar.String())
@@ -437,19 +440,37 @@ a commandline interface for interacting with it.`,
 			logrus.Warn("No data generated, because no script iterations finished, consider making the test duration longer")
 		***REMOVED***
 
+		data := ui.SummaryData***REMOVED***
+			Metrics:   engine.Metrics,
+			RootGroup: engine.Executor.GetRunner().GetDefaultGroup(),
+			Time:      engine.Executor.GetTime(),
+			TimeUnit:  conf.Options.SummaryTimeUnit.String,
+		***REMOVED***
 		// Print the end-of-test summary.
 		if !conf.NoSummary.Bool ***REMOVED***
 			fprintf(stdout, "\n")
 
 			s := ui.NewSummary(conf.SummaryTrendStats)
-			s.SummarizeMetrics(stdout, "", ui.SummaryData***REMOVED***
-				Metrics:   engine.Metrics,
-				RootGroup: engine.Executor.GetRunner().GetDefaultGroup(),
-				Time:      engine.Executor.GetTime(),
-				TimeUnit:  conf.Options.SummaryTimeUnit.String,
-			***REMOVED***)
+			s.SummarizeMetrics(stdout, "", data)
 
 			fprintf(stdout, "\n")
+		***REMOVED***
+
+		if conf.SummaryExport.Valid && conf.SummaryExport.String != "" ***REMOVED***
+			f, err := os.Create(conf.SummaryExport.String)
+			if err != nil ***REMOVED***
+				logrus.Error("failed to create summary export file")
+			***REMOVED*** else ***REMOVED***
+				defer func() ***REMOVED***
+					if err := f.Close(); err != nil ***REMOVED***
+						logrus.WithError(err).Fatal("failed to close summary output file")
+					***REMOVED***
+				***REMOVED***()
+				s := ui.NewSummary(conf.SummaryTrendStats)
+				if err := s.SummarizeMetricsJSON(f, data); err != nil ***REMOVED***
+					logrus.WithError(err).Fatal("failed to make summary export")
+				***REMOVED***
+			***REMOVED***
 		***REMOVED***
 
 		if conf.Linger.Bool ***REMOVED***
