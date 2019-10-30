@@ -328,10 +328,10 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 // Note that if you add option default value here, also add it in command line argument help text.
 func applyDefault(conf Config) Config ***REMOVED***
 	if conf.Options.SystemTags == nil ***REMOVED***
-		conf = conf.Apply(Config***REMOVED***Options: lib.Options***REMOVED***SystemTags: &stats.DefaultSystemTagSet***REMOVED******REMOVED***)
+		conf.Options.SystemTags = &stats.DefaultSystemTagSet
 	***REMOVED***
 	if conf.Options.SummaryTrendStats == nil ***REMOVED***
-		conf = conf.Apply(Config***REMOVED***Options: lib.Options***REMOVED***SummaryTrendStats: lib.DefaultSummaryTrendStats***REMOVED******REMOVED***)
+		conf.Options.SummaryTrendStats = lib.DefaultSummaryTrendStats
 	***REMOVED***
 	return conf
 ***REMOVED***
