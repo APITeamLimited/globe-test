@@ -250,6 +250,24 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func useCloudTags(source *httpext.Trail) *httpext.Trail ***REMOVED***
+	name, nameExist := source.Tags.Get("name")
+	url, urlExist := source.Tags.Get("url")
+	if !nameExist || !urlExist || name == url ***REMOVED***
+		return source
+	***REMOVED***
+
+	newTags := source.Tags.CloneTags()
+	newTags["url"] = name
+
+	dest := new(httpext.Trail)
+	*dest = *source
+	dest.Tags = stats.IntoSampleTags(&newTags)
+	dest.Samples = nil
+
+	return dest
+***REMOVED***
+
 // Collect receives a set of samples. This method is never called concurrently, and only while
 // the context for Run() is valid, but should defer as much work as possible to Run().
 func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
@@ -269,6 +287,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 	for _, sampleContainer := range sampleContainers ***REMOVED***
 		switch sc := sampleContainer.(type) ***REMOVED***
 		case *httpext.Trail:
+			sc = useCloudTags(sc)
 			// Check if aggregation is enabled,
 			if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
 				newHTTPTrails = append(newHTTPTrails, sc)
