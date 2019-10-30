@@ -21,6 +21,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -383,4 +384,45 @@ func (s *Summary) SummarizeMetrics(w io.Writer, indent string, data SummaryData)
 	***REMOVED***
 
 	s.summarizeMetrics(w, indent+"  ", data.Time, data.TimeUnit, data.Metrics)
+***REMOVED***
+
+func newJSONEncoder(w io.Writer) *json.Encoder ***REMOVED***
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "    ")
+	return encoder
+***REMOVED***
+
+func summarizeGroupJSON(w io.Writer, group *lib.Group) error ***REMOVED***
+	return newJSONEncoder(w).Encode(group)
+***REMOVED***
+
+func summarizeMetricsJSON(w io.Writer, t time.Duration, timeUnit string, metrics map[string]*stats.Metric) error ***REMOVED***
+	data := make(map[string]interface***REMOVED******REMOVED***)
+	for name, m := range metrics ***REMOVED***
+		m.Sink.Calc()
+		if sink, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
+			data[name] = sink.Format(t)
+			continue
+		***REMOVED***
+		data[name] = m.Sink.Format(t)
+		_, extra := nonTrendMetricValueForSum(t, timeUnit, m)
+		if len(extra) > 1 ***REMOVED***
+			extraData := make(map[string]interface***REMOVED******REMOVED***)
+			extraData["value"] = m.Sink.Format(t)["value"]
+			extraData["extra"] = extra
+			data[name] = extraData
+		***REMOVED***
+	***REMOVED***
+
+	return newJSONEncoder(w).Encode(data)
+***REMOVED***
+
+// SummarizeMetricsJSON summarizes a dataset in JSON format.
+func (s *Summary) SummarizeMetricsJSON(w io.Writer, data SummaryData) error ***REMOVED***
+	if data.RootGroup != nil ***REMOVED***
+		if err := summarizeGroupJSON(w, data.RootGroup); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return summarizeMetricsJSON(w, data.Time, data.TimeUnit, data.Metrics)
 ***REMOVED***
