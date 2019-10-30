@@ -21,7 +21,6 @@
 package ui
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -31,99 +30,112 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+	"github.com/pkg/errors"
 	"golang.org/x/text/unicode/norm"
 )
 
 const (
-	GroupPrefix   = "█"
-	DetailsPrefix = "↳"
+	groupPrefix   = "█"
+	detailsPrefix = "↳"
 
-	SuccMark = "✓"
-	FailMark = "✗"
+	succMark = "✓"
+	failMark = "✗"
 )
 
+//nolint: gochecknoglobals
 var (
-	ErrStatEmptyString            = errors.New("invalid stat, empty string")
-	ErrStatUnknownFormat          = errors.New("invalid stat, unknown format")
-	ErrPercentileStatInvalidValue = errors.New("invalid percentile stat value, accepts a number")
+	errStatEmptyString            = errors.New("invalid stat, empty string")
+	errStatUnknownFormat          = errors.New("invalid stat, unknown format")
+	errPercentileStatInvalidValue = errors.New(
+		"invalid percentile stat value, accepts a number between 0 and 100")
+	staticResolvers = map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED******REMOVED***
+		"avg":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Avg ***REMOVED***,
+		"min":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Min ***REMOVED***,
+		"med":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Med ***REMOVED***,
+		"max":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Max ***REMOVED***,
+		"count": func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Count ***REMOVED***,
+	***REMOVED***
 )
 
-var TrendColumns = []TrendColumn***REMOVED***
-	***REMOVED***"avg", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Avg ***REMOVED******REMOVED***,
-	***REMOVED***"min", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Min ***REMOVED******REMOVED***,
-	***REMOVED***"med", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Med ***REMOVED******REMOVED***,
-	***REMOVED***"max", func(s *stats.TrendSink) float64 ***REMOVED*** return s.Max ***REMOVED******REMOVED***,
-	***REMOVED***"p(90)", func(s *stats.TrendSink) float64 ***REMOVED*** return s.P(0.90) ***REMOVED******REMOVED***,
-	***REMOVED***"p(95)", func(s *stats.TrendSink) float64 ***REMOVED*** return s.P(0.95) ***REMOVED******REMOVED***,
+// ErrInvalidStat represents an invalid trend column stat
+type ErrInvalidStat struct ***REMOVED***
+	name string
+	err  error
 ***REMOVED***
 
-type TrendColumn struct ***REMOVED***
-	Key string
-	Get func(s *stats.TrendSink) float64
+func (e ErrInvalidStat) Error() string ***REMOVED***
+	return errors.Wrapf(e.err, "'%s'", e.name).Error()
 ***REMOVED***
 
-// VerifyTrendColumnStat checks if stat is a valid trend column
-func VerifyTrendColumnStat(stat string) error ***REMOVED***
-	if stat == "" ***REMOVED***
-		return ErrStatEmptyString
+// Summary handles test summary output
+type Summary struct ***REMOVED***
+	trendColumns        []string
+	trendValueResolvers map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED***
+***REMOVED***
+
+// NewSummary returns a new Summary instance, used for writing a
+// summary/report of the test metrics data.
+func NewSummary(cols []string) *Summary ***REMOVED***
+	s := Summary***REMOVED***trendColumns: cols, trendValueResolvers: staticResolvers***REMOVED***
+
+	customResolvers := s.generateCustomTrendValueResolvers(cols)
+	for name, res := range customResolvers ***REMOVED***
+		s.trendValueResolvers[name] = res
 	***REMOVED***
 
-	for _, col := range TrendColumns ***REMOVED***
-		if col.Key == stat ***REMOVED***
-			return nil
-		***REMOVED***
-	***REMOVED***
-
-	_, err := generatePercentileTrendColumn(stat)
-	return err
+	return &s
 ***REMOVED***
 
-// UpdateTrendColumns updates the default trend columns with user defined ones
-func UpdateTrendColumns(stats []string) ***REMOVED***
-	newTrendColumns := make([]TrendColumn, 0, len(stats))
+func (s *Summary) generateCustomTrendValueResolvers(cols []string) map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED***
+	resolvers := make(map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED***)
 
-	for _, stat := range stats ***REMOVED***
-		percentileTrendColumn, err := generatePercentileTrendColumn(stat)
-
-		if err == nil ***REMOVED***
-			newTrendColumns = append(newTrendColumns, TrendColumn***REMOVED***stat, percentileTrendColumn***REMOVED***)
-			continue
-		***REMOVED***
-
-		for _, col := range TrendColumns ***REMOVED***
-			if col.Key == stat ***REMOVED***
-				newTrendColumns = append(newTrendColumns, col)
-				break
+	for _, stat := range cols ***REMOVED***
+		if _, exists := s.trendValueResolvers[stat]; !exists ***REMOVED***
+			percentile, err := validatePercentile(stat)
+			if err == nil ***REMOVED***
+				resolvers[stat] = func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.P(percentile / 100) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if len(newTrendColumns) > 0 ***REMOVED***
-		TrendColumns = newTrendColumns
-	***REMOVED***
+	return resolvers
 ***REMOVED***
 
-func generatePercentileTrendColumn(stat string) (func(s *stats.TrendSink) float64, error) ***REMOVED***
-	if stat == "" ***REMOVED***
-		return nil, ErrStatEmptyString
+// ValidateSummary checks if passed trend columns are valid for use in
+// the summary output.
+func ValidateSummary(trendColumns []string) error ***REMOVED***
+	for _, stat := range trendColumns ***REMOVED***
+		if stat == "" ***REMOVED***
+			return ErrInvalidStat***REMOVED***stat, errStatEmptyString***REMOVED***
+		***REMOVED***
+
+		if _, exists := staticResolvers[stat]; exists ***REMOVED***
+			continue
+		***REMOVED***
+
+		if _, err := validatePercentile(stat); err != nil ***REMOVED***
+			return ErrInvalidStat***REMOVED***stat, err***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
+	return nil
+***REMOVED***
+
+func validatePercentile(stat string) (float64, error) ***REMOVED***
 	if !strings.HasPrefix(stat, "p(") || !strings.HasSuffix(stat, ")") ***REMOVED***
-		return nil, ErrStatUnknownFormat
+		return 0, errStatUnknownFormat
 	***REMOVED***
 
 	percentile, err := strconv.ParseFloat(stat[2:len(stat)-1], 64)
 
-	if err != nil ***REMOVED***
-		return nil, ErrPercentileStatInvalidValue
+	if err != nil || ((0 > percentile) || (percentile > 100)) ***REMOVED***
+		return 0, errPercentileStatInvalidValue
 	***REMOVED***
 
-	percentile = percentile / 100
-
-	return func(s *stats.TrendSink) float64 ***REMOVED*** return s.P(percentile) ***REMOVED***, nil
+	return percentile, nil
 ***REMOVED***
 
-// Returns the actual width of the string.
+// StrWidth returns the actual width of the string.
 func StrWidth(s string) (n int) ***REMOVED***
 	var it norm.Iter
 	it.InitString(norm.NFKD, s)
@@ -157,34 +169,26 @@ func StrWidth(s string) (n int) ***REMOVED***
 	return
 ***REMOVED***
 
-// SummaryData represents data passed to Summarize.
-type SummaryData struct ***REMOVED***
-	Opts    lib.Options
-	Root    *lib.Group
-	Metrics map[string]*stats.Metric
-	Time    time.Duration
-***REMOVED***
-
-func SummarizeCheck(w io.Writer, indent string, check *lib.Check) ***REMOVED***
-	mark := SuccMark
+func summarizeCheck(w io.Writer, indent string, check *lib.Check) ***REMOVED***
+	mark := succMark
 	color := SuccColor
 	if check.Fails > 0 ***REMOVED***
-		mark = FailMark
+		mark = failMark
 		color = FailColor
 	***REMOVED***
 	_, _ = color.Fprintf(w, "%s%s %s\n", indent, mark, check.Name)
 	if check.Fails > 0 ***REMOVED***
 		_, _ = color.Fprintf(w, "%s %s  %d%% — %s %d / %s %d\n",
-			indent, DetailsPrefix,
+			indent, detailsPrefix,
 			int(100*(float64(check.Passes)/float64(check.Fails+check.Passes))),
-			SuccMark, check.Passes, FailMark, check.Fails,
+			succMark, check.Passes, failMark, check.Fails,
 		)
 	***REMOVED***
 ***REMOVED***
 
-func SummarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
+func summarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 	if group.Name != "" ***REMOVED***
-		_, _ = fmt.Fprintf(w, "%s%s %s\n\n", indent, GroupPrefix, group.Name)
+		_, _ = fmt.Fprintf(w, "%s%s %s\n\n", indent, groupPrefix, group.Name)
 		indent = indent + "  "
 	***REMOVED***
 
@@ -193,7 +197,7 @@ func SummarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 		checkNames = append(checkNames, check.Name)
 	***REMOVED***
 	for _, name := range checkNames ***REMOVED***
-		SummarizeCheck(w, indent, group.Checks[name])
+		summarizeCheck(w, indent, group.Checks[name])
 	***REMOVED***
 	if len(checkNames) > 0 ***REMOVED***
 		_, _ = fmt.Fprintf(w, "\n")
@@ -204,11 +208,11 @@ func SummarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 		groupNames = append(groupNames, grp.Name)
 	***REMOVED***
 	for _, name := range groupNames ***REMOVED***
-		SummarizeGroup(w, indent, group.Groups[name])
+		summarizeGroup(w, indent, group.Groups[name])
 	***REMOVED***
 ***REMOVED***
 
-func NonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric) (data string, extra []string) ***REMOVED***
+func nonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric) (data string, extra []string) ***REMOVED***
 	switch sink := m.Sink.(type) ***REMOVED***
 	case *stats.CounterSink:
 		value := sink.Value
@@ -238,21 +242,23 @@ func NonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric
 	***REMOVED***
 ***REMOVED***
 
-func DisplayNameForMetric(m *stats.Metric) string ***REMOVED***
+func displayNameForMetric(m *stats.Metric) string ***REMOVED***
 	if m.Sub.Parent != "" ***REMOVED***
 		return "***REMOVED*** " + m.Sub.Suffix + " ***REMOVED***"
 	***REMOVED***
 	return m.Name
 ***REMOVED***
 
-func IndentForMetric(m *stats.Metric) string ***REMOVED***
+func indentForMetric(m *stats.Metric) string ***REMOVED***
 	if m.Sub.Parent != "" ***REMOVED***
 		return "  "
 	***REMOVED***
 	return ""
 ***REMOVED***
 
-func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit string, metrics map[string]*stats.Metric) ***REMOVED***
+// nolint:funlen
+func (s *Summary) summarizeMetrics(w io.Writer, indent string, t time.Duration,
+	timeUnit string, metrics map[string]*stats.Metric) ***REMOVED***
 	names := []string***REMOVED******REMOVED***
 	nameLenMax := 0
 
@@ -262,22 +268,32 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit stri
 	extraMaxLens := make([]int, 2)
 
 	trendCols := make(map[string][]string)
-	trendColMaxLens := make([]int, len(TrendColumns))
+	trendColMaxLens := make([]int, len(s.trendColumns))
 
 	for name, m := range metrics ***REMOVED***
 		names = append(names, name)
 
 		// When calculating widths for metrics, account for the indentation on submetrics.
-		displayName := DisplayNameForMetric(m) + IndentForMetric(m)
+		displayName := displayNameForMetric(m) + indentForMetric(m)
 		if l := StrWidth(displayName); l > nameLenMax ***REMOVED***
 			nameLenMax = l
 		***REMOVED***
 
 		m.Sink.Calc()
 		if sink, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
-			cols := make([]string, len(TrendColumns))
-			for i, col := range TrendColumns ***REMOVED***
-				value := m.HumanizeValue(col.Get(sink), timeUnit)
+			cols := make([]string, len(s.trendColumns))
+
+			for i, tc := range s.trendColumns ***REMOVED***
+				var value string
+
+				resolver := s.trendValueResolvers[tc]
+
+				switch v := resolver(sink).(type) ***REMOVED***
+				case float64:
+					value = m.HumanizeValue(v, timeUnit)
+				case uint64:
+					value = strconv.FormatUint(v, 10)
+				***REMOVED***
 				if l := StrWidth(value); l > trendColMaxLens[i] ***REMOVED***
 					trendColMaxLens[i] = l
 				***REMOVED***
@@ -287,7 +303,7 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit stri
 			continue
 		***REMOVED***
 
-		value, extra := NonTrendMetricValueForSum(t, timeUnit, m)
+		value, extra := nonTrendMetricValueForSum(t, timeUnit, m)
 		values[name] = value
 		if l := StrWidth(value); l > valueMaxLen ***REMOVED***
 			valueMaxLen = l
@@ -303,7 +319,8 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit stri
 	***REMOVED***
 
 	sort.Strings(names)
-	tmpCols := make([]string, len(TrendColumns))
+
+	tmpCols := make([]string, len(s.trendColumns))
 	for _, name := range names ***REMOVED***
 		m := metrics[name]
 
@@ -311,22 +328,23 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit stri
 		markColor := StdColor
 		if m.Tainted.Valid ***REMOVED***
 			if m.Tainted.Bool ***REMOVED***
-				mark = FailMark
+				mark = failMark
 				markColor = FailColor
 			***REMOVED*** else ***REMOVED***
-				mark = SuccMark
+				mark = succMark
 				markColor = SuccColor
 			***REMOVED***
 		***REMOVED***
 
-		fmtName := DisplayNameForMetric(m)
-		fmtIndent := IndentForMetric(m)
+		fmtName := displayNameForMetric(m)
+		fmtIndent := indentForMetric(m)
 		fmtName += GrayColor.Sprint(strings.Repeat(".", nameLenMax-StrWidth(fmtName)-StrWidth(fmtIndent)+3) + ":")
 
 		var fmtData string
 		if cols := trendCols[name]; cols != nil ***REMOVED***
 			for i, val := range cols ***REMOVED***
-				tmpCols[i] = TrendColumns[i].Key + "=" + ValueColor.Sprint(val) + strings.Repeat(" ", trendColMaxLens[i]-StrWidth(val))
+				tmpCols[i] = s.trendColumns[i] + "=" + ValueColor.Sprint(val) +
+					strings.Repeat(" ", trendColMaxLens[i]-StrWidth(val))
 			***REMOVED***
 			fmtData = strings.Join(tmpCols, " ")
 		***REMOVED*** else ***REMOVED***
@@ -350,10 +368,19 @@ func SummarizeMetrics(w io.Writer, indent string, t time.Duration, timeUnit stri
 	***REMOVED***
 ***REMOVED***
 
-// Summarizes a dataset and returns whether the test run was considered a success.
-func Summarize(w io.Writer, indent string, data SummaryData) ***REMOVED***
-	if data.Root != nil ***REMOVED***
-		SummarizeGroup(w, indent+"    ", data.Root)
+// SummaryData represents data passed to Summary.SummarizeMetrics
+type SummaryData struct ***REMOVED***
+	Metrics   map[string]*stats.Metric
+	RootGroup *lib.Group
+	Time      time.Duration
+	TimeUnit  string
+***REMOVED***
+
+// SummarizeMetrics creates a summary of provided metrics and writes it to w.
+func (s *Summary) SummarizeMetrics(w io.Writer, indent string, data SummaryData) ***REMOVED***
+	if data.RootGroup != nil ***REMOVED***
+		summarizeGroup(w, indent+"    ", data.RootGroup)
 	***REMOVED***
-	SummarizeMetrics(w, indent+"  ", data.Time, data.Opts.SummaryTimeUnit.String, data.Metrics)
+
+	s.summarizeMetrics(w, indent+"  ", data.Time, data.TimeUnit, data.Metrics)
 ***REMOVED***
