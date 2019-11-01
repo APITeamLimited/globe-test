@@ -28,6 +28,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -141,6 +142,20 @@ func skewTrail(t httpext.Trail, minCoef, maxCoef float64) httpext.Trail ***REMOV
 
 func TestCloudCollector(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	getTestRunner := func(minSamples int) func(t *testing.T) ***REMOVED***
+		return func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			runCloudCollectorTestCase(t, minSamples)
+		***REMOVED***
+	***REMOVED***
+
+	for tcNum, minSamples := range []int***REMOVED***60, 75, 100***REMOVED*** ***REMOVED***
+		t.Run(fmt.Sprintf("tc%d_minSamples%d", tcNum, minSamples), getTestRunner(minSamples))
+	***REMOVED***
+***REMOVED***
+
+func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprintf(w, `***REMOVED***
@@ -149,9 +164,10 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 				"metricPushInterval": "10ms",
 				"aggregationPeriod": "30ms",
 				"aggregationCalcInterval": "40ms",
-				"aggregationWaitPeriod": "5ms"
+				"aggregationWaitPeriod": "5ms",
+				"aggregationMinSamples": %d
 			***REMOVED***
-		***REMOVED***`)
+		***REMOVED***`, minSamples)
 		require.NoError(t, err)
 	***REMOVED***))
 	defer tb.Cleanup()
@@ -198,6 +214,9 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 
 	expSamples := make(chan []Sample)
 	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/tests/%s", collector.referenceID), func(rw http.ResponseWriter, _ *http.Request) ***REMOVED***
+		rw.WriteHeader(http.StatusOK) // silence a test warning
+	***REMOVED***)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup***REMOVED******REMOVED***
@@ -240,13 +259,17 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 	collector.Collect([]stats.SampleContainer***REMOVED***&simpleTrail***REMOVED***)
 	expSamples <- []Sample***REMOVED****NewSampleFromTrail(&simpleTrail)***REMOVED***
 
-	smallSkew := 0.05
+	smallSkew := 0.02
 
 	trails := []stats.SampleContainer***REMOVED******REMOVED***
+	durations := make([]time.Duration, len(trails))
 	for i := int64(0); i < collector.config.AggregationMinSamples.Int64; i++ ***REMOVED***
 		similarTrail := skewTrail(simpleTrail, 1.0, 1.0+smallSkew)
 		trails = append(trails, &similarTrail)
+		durations = append(durations, similarTrail.Duration)
 	***REMOVED***
+	sort.Slice(durations, func(i, j int) bool ***REMOVED*** return durations[i] < durations[j] ***REMOVED***)
+	t.Logf("Sorted durations: %#v", durations) // Useful to debug any failures, doesn't get in the way otherwise
 
 	checkAggrMetric := func(normal time.Duration, aggr AggregatedMetric) ***REMOVED***
 		assert.True(t, aggr.Min <= aggr.Avg)
