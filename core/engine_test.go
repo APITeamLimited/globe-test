@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"runtime"
 	"testing"
 	"time"
 
@@ -43,6 +44,8 @@ import (
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
 )
+
+const isWindows = runtime.GOOS == "windows"
 
 // Apply a null logger to the engine and return the hook.
 func applyNullLogger(e *Engine) *logtest.Hook ***REMOVED***
@@ -915,7 +918,9 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestMetricsEmission(t *testing.T) ***REMOVED***
-	t.Parallel()
+	if !isWindows ***REMOVED***
+		t.Parallel()
+	***REMOVED***
 
 	testCases := []struct ***REMOVED***
 		method             string
@@ -938,7 +943,9 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.method, func(t *testing.T) ***REMOVED***
-			t.Parallel()
+			if !isWindows ***REMOVED***
+				t.Parallel()
+			***REMOVED***
 			runner, err := js.New(
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
 				import ***REMOVED*** sleep ***REMOVED*** from "k6";
