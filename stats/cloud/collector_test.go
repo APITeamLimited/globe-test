@@ -41,6 +41,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
@@ -584,4 +585,100 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	cancel()
 	wg.Wait()
 	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
+***REMOVED***
+
+func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		_, err := fmt.Fprintf(w, `***REMOVED***"reference_id": "123"***REMOVED***`)
+		require.NoError(t, err)
+	***REMOVED***))
+	defer tb.Cleanup()
+
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+	***REMOVED***
+
+	options := lib.Options***REMOVED***
+		Duration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+
+	config := NewConfig().Apply(Config***REMOVED***
+		Host:       null.StringFrom(tb.ServerHTTP.URL),
+		NoCompress: null.BoolFrom(true),
+	***REMOVED***)
+	collector, err := New(config, script, options, "1.0")
+	require.NoError(t, err)
+
+	var gotIterations = false
+	var m sync.Mutex
+	expValues := map[string]float64***REMOVED***
+		"data_received":      100,
+		"data_sent":          200,
+		"iteration_duration": 60000,
+		"iterations":         1,
+	***REMOVED***
+
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
+		func(_ http.ResponseWriter, r *http.Request) ***REMOVED***
+			body, err := ioutil.ReadAll(r.Body)
+			assert.NoError(t, err)
+
+			receivedSamples := []Sample***REMOVED******REMOVED***
+			assert.NoError(t, json.Unmarshal(body, &receivedSamples))
+
+			assert.Len(t, receivedSamples, 1)
+			assert.Equal(t, "iter_li_all", receivedSamples[0].Metric)
+			assert.Equal(t, DataTypeMap, receivedSamples[0].Type)
+			data, ok := receivedSamples[0].Data.(*SampleDataMap)
+			assert.True(t, ok)
+			assert.Equal(t, expValues, data.Values)
+
+			m.Lock()
+			gotIterations = true
+			m.Unlock()
+		***REMOVED***)
+
+	require.NoError(t, collector.Init())
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup***REMOVED******REMOVED***
+	wg.Add(1)
+	go func() ***REMOVED***
+		collector.Run(ctx)
+		wg.Done()
+	***REMOVED***()
+
+	now := time.Now()
+	simpleNetTrail := netext.NetTrail***REMOVED***
+		BytesRead:     100,
+		BytesWritten:  200,
+		FullIteration: true,
+		StartTime:     now.Add(-time.Minute),
+		EndTime:       now,
+		Samples: []stats.Sample***REMOVED***
+			***REMOVED***
+				Time:   now,
+				Metric: metrics.DataSent,
+				Value:  float64(200),
+			***REMOVED***,
+			***REMOVED***
+				Time:   now,
+				Metric: metrics.DataReceived,
+				Value:  float64(100),
+			***REMOVED***,
+			***REMOVED***
+				Time:   now,
+				Metric: metrics.Iterations,
+				Value:  1,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	collector.Collect([]stats.SampleContainer***REMOVED***&simpleNetTrail***REMOVED***)
+
+	cancel()
+	wg.Wait()
+	require.True(t, gotIterations)
 ***REMOVED***

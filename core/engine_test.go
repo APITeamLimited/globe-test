@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"runtime"
 	"testing"
 	"time"
 
@@ -43,6 +44,8 @@ import (
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/dummy"
 )
+
+const isWindows = runtime.GOOS == "windows"
 
 // Apply a null logger to the engine and return the hook.
 func applyNullLogger(e *Engine) *logtest.Hook ***REMOVED***
@@ -914,54 +917,81 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	assert.InDelta(t, 3.35, durationSum/(1000*durationCount), 0.25)
 ***REMOVED***
 
-func TestMinIterationDuration(t *testing.T) ***REMOVED***
-	t.Parallel()
-
-	runner, err := js.New(
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(`
-		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
-
-		let testCounter = new Counter("testcounter");
-
-		export let options = ***REMOVED***
-			minIterationDuration: "1s",
-			vus: 2,
-			vusMax: 2,
-			duration: "1.9s",
-		***REMOVED***;
-
-		export default function () ***REMOVED***
-			testCounter.add(1);
-		***REMOVED***;`)***REMOVED***,
-		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
-	require.NoError(t, err)
-
-	engine, err := NewEngine(local.New(runner), runner.GetOptions())
-	require.NoError(t, err)
-
-	collector := &dummy.Collector***REMOVED******REMOVED***
-	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
-
-	select ***REMOVED***
-	case <-time.After(10 * time.Second):
-		t.Fatal("Test timed out")
-	case err := <-errC:
-		require.NoError(t, err)
-		require.False(t, engine.IsTainted())
+func TestMetricsEmission(t *testing.T) ***REMOVED***
+	if !isWindows ***REMOVED***
+		t.Parallel()
 	***REMOVED***
 
-	// Only 2 full iterations are expected to be completed due to the 1 second minIterationDuration
-	assert.Equal(t, 2.0, getMetricSum(collector, metrics.Iterations.Name))
+	testCases := []struct ***REMOVED***
+		method             string
+		minIterDuration    string
+		defaultBody        string
+		expCount, expIters float64
+	***REMOVED******REMOVED***
+		// Since emission of Iterations happens before the minIterationDuration
+		// sleep is done, we expect to receive metrics for all executions of
+		// the `default` function, despite of the lower overall duration setting.
+		***REMOVED***"minIterationDuration", `"150ms"`, "testCounter.add(1);", 16.0, 16.0***REMOVED***,
+		// With the manual sleep method and no minIterationDuration, the last
+		// `default` execution will be cutoff by the duration setting, so only
+		// 3 sets of metrics are expected.
+		***REMOVED***"sleepBeforeCounterAdd", "null", "sleep(0.15); testCounter.add(1); ", 12.0, 12.0***REMOVED***,
+		// The counter should be sent, but the last iteration will be incomplete
+		***REMOVED***"sleepAfterCounterAdd", "null", "testCounter.add(1); sleep(0.15); ", 16.0, 12.0***REMOVED***,
+	***REMOVED***
 
-	// But we expect the custom counter to be added to 4 times
-	assert.Equal(t, 4.0, getMetricSum(collector, "testcounter"))
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.method, func(t *testing.T) ***REMOVED***
+			if !isWindows ***REMOVED***
+				t.Parallel()
+			***REMOVED***
+			runner, err := js.New(
+				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
+				import ***REMOVED*** sleep ***REMOVED*** from "k6";
+				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+				let testCounter = new Counter("testcounter");
+
+				export let options = ***REMOVED***
+					vus: 4,
+					vusMax: 4,
+					duration: "500ms",
+					minIterationDuration: %s,
+				***REMOVED***;
+
+				export default function() ***REMOVED***
+					%s
+				***REMOVED***
+				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
+				nil,
+				lib.RuntimeOptions***REMOVED******REMOVED***,
+			)
+			require.NoError(t, err)
+
+			engine, err := NewEngine(local.New(runner), runner.GetOptions())
+			require.NoError(t, err)
+
+			collector := &dummy.Collector***REMOVED******REMOVED***
+			engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+			select ***REMOVED***
+			case <-time.After(10 * time.Second):
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				require.NoError(t, err)
+				require.False(t, engine.IsTainted())
+			***REMOVED***
+
+			assert.Equal(t, tc.expIters, getMetricSum(collector, metrics.Iterations.Name))
+			assert.Equal(t, tc.expCount, getMetricSum(collector, "testcounter"))
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 //nolint: funlen
