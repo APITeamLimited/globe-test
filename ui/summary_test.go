@@ -26,10 +26,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/guregu/null.v3"
 )
 
 func TestSummary(t *testing.T) ***REMOVED***
@@ -163,4 +165,81 @@ func createTestMetrics() map[string]*stats.Metric ***REMOVED***
 	metrics["my_trend"] = &stats.Metric***REMOVED***Name: "my_trend", Type: stats.Trend, Contains: stats.Time, Sink: sink***REMOVED***
 
 	return metrics
+***REMOVED***
+
+func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
+	metrics := createTestMetrics()
+	expected := `***REMOVED***
+    "root_group": ***REMOVED***
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": ***REMOVED***
+            "child": ***REMOVED***
+            "name": "child",
+            "path": "::child",
+            "id": "f41cbb53a398ec1c9fb3d33e20c9b040",
+            "groups": ***REMOVED******REMOVED***,
+            "checks": ***REMOVED***
+                "check1": ***REMOVED***
+                    "name": "check1",
+                    "path": "::child::check1",
+                    "id": "6289a7a06253a1c3f6137dfb25695563",
+                    "passes": 5,
+                    "fails": 10
+                    ***REMOVED***
+                ***REMOVED***
+            ***REMOVED***
+        ***REMOVED***,
+        "checks": ***REMOVED******REMOVED***
+    ***REMOVED***,
+    "metrics": ***REMOVED***
+        "checks": ***REMOVED***
+            "extra": [
+                "✓ 3",
+                "✗ 0"
+            ],
+            "value": 0
+        ***REMOVED***,
+        "http_reqs": ***REMOVED***
+            "count": 3,
+            "rate": 3
+        ***REMOVED***,
+        "my_trend": ***REMOVED***
+            "avg": 15,
+            "max": 20,
+            "med": 15,
+            "min": 10,
+            "p(90)": 19,
+            "p(95)": 19.5
+        ***REMOVED***,
+        "vus": ***REMOVED***
+            "extra": [
+                "min=1",
+                "max=1"
+            ],
+            "value": 1
+        ***REMOVED***
+    ***REMOVED***
+***REMOVED***
+`
+	rootG, _ := lib.NewGroup("", nil)
+	childG, _ := rootG.Group("child")
+	check, _ := lib.NewCheck("check1", childG)
+	check.Passes = 5
+	check.Fails = 10
+	childG.Checks["check1"] = check
+
+	s := NewSummary([]string***REMOVED***"avg", "min", "med", "max", "p(90)", "p(95)", "p(99.9)"***REMOVED***)
+	data := SummaryData***REMOVED***
+		Metrics:   metrics,
+		RootGroup: rootG,
+		Time:      time.Second,
+		TimeUnit:  "",
+	***REMOVED***
+
+	var w bytes.Buffer
+	err := s.SummarizeMetricsJSON(&w, data)
+	require.Nil(t, err)
+	require.JSONEq(t, expected, w.String())
 ***REMOVED***
