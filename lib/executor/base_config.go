@@ -123,7 +123,7 @@ func (bc BaseConfig) IsDistributable() bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// getBaseInfo is a helper method for the the "parent" String methods.
+// getBaseInfo is a helper method for the "parent" String methods.
 func (bc BaseConfig) getBaseInfo(facts ...string) string ***REMOVED***
 	if bc.Exec.Valid ***REMOVED***
 		facts = append(facts, fmt.Sprintf("exec: %s", bc.Exec.String))
