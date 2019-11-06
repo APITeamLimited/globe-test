@@ -143,7 +143,7 @@ type PerVUIterations struct ***REMOVED***
 // Make sure we implement the lib.Executor interface.
 var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 
-// Run executes a specific number of iterations with each confugured VU.
+// Run executes a specific number of iterations with each configured VU.
 func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	segment := pvi.executionState.Options.ExecutionSegment
 	numVUs := pvi.config.GetVUs(segment)
