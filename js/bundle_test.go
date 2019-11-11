@@ -426,42 +426,76 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		***REMOVED***
 		return b.makeArchive(), nil
 	***REMOVED***
-	testCases := []struct ***REMOVED***
-		cm   compiler.CompatibilityMode
-		code string
-	***REMOVED******REMOVED***
-		***REMOVED***compiler.CompatibilityModeExtended, `
+
+	t.Run("ok", func(t *testing.T) ***REMOVED***
+		testCases := []struct ***REMOVED***
+			compatMode, code string
+		***REMOVED******REMOVED***
+			// An empty value will assume "extended"
+			***REMOVED***"", `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-		***REMOVED***compiler.CompatibilityModeBase, `
+			***REMOVED***compiler.CompatibilityModeExtended.String(), `
+				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
+			***REMOVED***compiler.CompatibilityModeBase.String(), `
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
-	***REMOVED***
+		***REMOVED***
 
-	for _, tc := range testCases ***REMOVED***
-		tc := tc
-		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
-			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
-			arc, err := getArchive(tc.code, rtOpts)
-			assert.NoError(t, err)
-			b, err := NewBundleFromArchive(arc, rtOpts)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-			assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-			assert.Equal(t, tc.cm, b.CompatibilityMode)
+		for _, tc := range testCases ***REMOVED***
+			tc := tc
+			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
+				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
+				arc, err := getArchive(tc.code, rtOpts)
+				assert.NoError(t, err)
+				b, err := NewBundleFromArchive(arc, rtOpts)
+				if !assert.NoError(t, err) ***REMOVED***
+					return
+				***REMOVED***
+				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+				expCM := tc.compatMode
+				if expCM == "" ***REMOVED***
+					expCM = compiler.CompatibilityModeExtended.String()
+				***REMOVED***
+				assert.Equal(t, expCM, b.CompatibilityMode.String())
 
-			bi, err := b.Instantiate()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-			val, err := bi.Default(goja.Undefined())
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
-			assert.Equal(t, "hi!", val.Export())
-		***REMOVED***)
-	***REMOVED***
+				bi, err := b.Instantiate()
+				if !assert.NoError(t, err) ***REMOVED***
+					return
+				***REMOVED***
+				val, err := bi.Default(goja.Undefined())
+				if !assert.NoError(t, err) ***REMOVED***
+					return
+				***REMOVED***
+				assert.Equal(t, "hi!", val.Export())
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+	t.Run("err", func(t *testing.T) ***REMOVED***
+		testCases := []struct ***REMOVED***
+			compatMode, code, expErr string
+		***REMOVED******REMOVED***
+			// Incompatible mode
+			***REMOVED***compiler.CompatibilityModeBase.String(), `
+				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
+				"file://script.js: Line 2:5 Unexpected reserved word (and 2 more errors)"***REMOVED***,
+			***REMOVED***"wrongcompat", `
+				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
+				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
+				`invalid compatibility mode "wrongcompat". Use: "extended", "base"`***REMOVED***,
+		***REMOVED***
+
+		for _, tc := range testCases ***REMOVED***
+			tc := tc
+			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
+				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
+				_, err := getArchive(tc.code, rtOpts)
+				assert.EqualError(t, err, tc.expErr)
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
 
 func TestOpen(t *testing.T) ***REMOVED***
