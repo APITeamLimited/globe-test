@@ -148,6 +148,8 @@ func createTestMetrics() map[string]*stats.Metric ***REMOVED***
 
 	countMetric := stats.New("http_reqs", stats.Counter)
 	countMetric.Tainted = null.BoolFrom(true)
+	countMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate<100"***REMOVED******REMOVED******REMOVED***
+
 	checksMetric := stats.New("checks", stats.Rate)
 	checksMetric.Tainted = null.BoolFrom(false)
 	sink := &stats.TrendSink***REMOVED******REMOVED***
@@ -162,7 +164,21 @@ func createTestMetrics() map[string]*stats.Metric ***REMOVED***
 	metrics["vus"] = gaugeMetric
 	metrics["http_reqs"] = countMetric
 	metrics["checks"] = checksMetric
-	metrics["my_trend"] = &stats.Metric***REMOVED***Name: "my_trend", Type: stats.Trend, Contains: stats.Time, Sink: sink***REMOVED***
+	metrics["my_trend"] = &stats.Metric***REMOVED***
+		Name:     "my_trend",
+		Type:     stats.Trend,
+		Contains: stats.Time,
+		Sink:     sink,
+		Tainted:  null.BoolFrom(true),
+		Thresholds: stats.Thresholds***REMOVED***
+			Thresholds: []*stats.Threshold***REMOVED***
+				***REMOVED***
+					Source:     "my_trend<1000",
+					LastFailed: true,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
 
 	return metrics
 ***REMOVED***
@@ -176,17 +192,17 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
         "id": "d41d8cd98f00b204e9800998ecf8427e",
         "groups": ***REMOVED***
             "child": ***REMOVED***
-            "name": "child",
-            "path": "::child",
-            "id": "f41cbb53a398ec1c9fb3d33e20c9b040",
-            "groups": ***REMOVED******REMOVED***,
-            "checks": ***REMOVED***
-                "check1": ***REMOVED***
-                    "name": "check1",
-                    "path": "::child::check1",
-                    "id": "6289a7a06253a1c3f6137dfb25695563",
-                    "passes": 5,
-                    "fails": 10
+                "name": "child",
+                "path": "::child",
+                "id": "f41cbb53a398ec1c9fb3d33e20c9b040",
+                "groups": ***REMOVED******REMOVED***,
+                "checks": ***REMOVED***
+                    "check1": ***REMOVED***
+                        "name": "check1",
+                        "path": "::child::check1",
+                        "id": "6289a7a06253a1c3f6137dfb25695563",
+                        "passes": 5,
+                        "fails": 10
                     ***REMOVED***
                 ***REMOVED***
             ***REMOVED***
@@ -195,15 +211,16 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
     ***REMOVED***,
     "metrics": ***REMOVED***
         "checks": ***REMOVED***
-            "extra": [
-                "✓ 3",
-                "✗ 0"
-            ],
-            "value": 0
+            "value": 0,
+            "passes": 3,
+            "fails": 0
         ***REMOVED***,
         "http_reqs": ***REMOVED***
             "count": 3,
-            "rate": 3
+            "rate": 3,
+            "thresholds": ***REMOVED***
+                "rate<100": false
+            ***REMOVED***
         ***REMOVED***,
         "my_trend": ***REMOVED***
             "avg": 15,
@@ -211,14 +228,15 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
             "med": 15,
             "min": 10,
             "p(90)": 19,
-            "p(95)": 19.5
+            "p(95)": 19.5,
+            "thresholds": ***REMOVED***
+                "my_trend<1000": true
+            ***REMOVED***
         ***REMOVED***,
         "vus": ***REMOVED***
-            "extra": [
-                "min=1",
-                "max=1"
-            ],
-            "value": 1
+            "value": 1,
+            "min": 1,
+            "max": 1
         ***REMOVED***
     ***REMOVED***
 ***REMOVED***

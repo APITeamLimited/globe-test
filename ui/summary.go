@@ -243,6 +243,25 @@ func nonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric
 	***REMOVED***
 ***REMOVED***
 
+func nonTrendMetricValueForSumJSON(t time.Duration, m *stats.Metric) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+	data := make(map[string]interface***REMOVED******REMOVED***)
+	switch sink := m.Sink.(type) ***REMOVED***
+	case *stats.CounterSink:
+		rate := 0.0
+		if t > 0 ***REMOVED***
+			rate = sink.Value / (float64(t) / float64(time.Second))
+		***REMOVED***
+		data["rate"] = rate
+	case *stats.GaugeSink:
+		data["min"] = sink.Min
+		data["max"] = sink.Max
+	case *stats.RateSink:
+		data["passes"] = sink.Trues
+		data["fails"] = sink.Total - sink.Trues
+	***REMOVED***
+	return data
+***REMOVED***
+
 func displayNameForMetric(m *stats.Metric) string ***REMOVED***
 	if m.Sub.Parent != "" ***REMOVED***
 		return "***REMOVED*** " + m.Sub.Suffix + " ***REMOVED***"
@@ -397,15 +416,35 @@ func (s *Summary) SummarizeMetricsJSON(w io.Writer, data SummaryData) error ***R
 
 		sinkData := m.Sink.Format(data.Time)
 		metricsData[name] = sinkData
+
+		var thresholds map[string]interface***REMOVED******REMOVED***
+		if len(m.Thresholds.Thresholds) > 0 ***REMOVED***
+			sinkDataWithThreshold := make(map[string]interface***REMOVED******REMOVED***)
+			for k, v := range sinkData ***REMOVED***
+				sinkDataWithThreshold[k] = v
+			***REMOVED***
+			thresholds = make(map[string]interface***REMOVED******REMOVED***)
+			for _, threshold := range m.Thresholds.Thresholds ***REMOVED***
+				thresholds[threshold.Source] = threshold.LastFailed
+			***REMOVED***
+			sinkDataWithThreshold["thresholds"] = thresholds
+			metricsData[name] = sinkDataWithThreshold
+		***REMOVED***
+
 		if _, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
 			continue
 		***REMOVED***
 
-		_, extra := nonTrendMetricValueForSum(data.Time, data.TimeUnit, m)
+		extra := nonTrendMetricValueForSumJSON(data.Time, m)
 		if len(extra) > 1 ***REMOVED***
 			extraData := make(map[string]interface***REMOVED******REMOVED***)
 			extraData["value"] = sinkData["value"]
-			extraData["extra"] = extra
+			if thresholds != nil ***REMOVED***
+				extraData["thresholds"] = thresholds
+			***REMOVED***
+			for k, v := range extra ***REMOVED***
+				extraData[k] = v
+			***REMOVED***
 			metricsData[name] = extraData
 		***REMOVED***
 	***REMOVED***

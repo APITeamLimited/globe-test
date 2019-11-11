@@ -463,12 +463,12 @@ a commandline interface for interacting with it.`,
 			***REMOVED*** else ***REMOVED***
 				defer func() ***REMOVED***
 					if err := f.Close(); err != nil ***REMOVED***
-						logrus.WithError(err).Fatal("failed to close summary export file")
+						logrus.WithError(err).Error("failed to close summary export file")
 					***REMOVED***
 				***REMOVED***()
 				s := ui.NewSummary(conf.SummaryTrendStats)
 				if err := s.SummarizeMetricsJSON(f, data); err != nil ***REMOVED***
-					logrus.WithError(err).Fatal("failed to make json summary export file")
+					logrus.WithError(err).Error("failed to make summary export file")
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
