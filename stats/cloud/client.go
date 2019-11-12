@@ -85,8 +85,6 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 		return nil, err
 	***REMOVED***
 
-	c.prepareHeaders(req)
-
 	return req, nil
 ***REMOVED***
 
@@ -104,6 +102,9 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 			err = cerr
 		***REMOVED***
 	***REMOVED***
+
+	// TODO(cuonglm): finding away to move this back to NewRequest
+	c.prepareHeaders(req)
 
 	for i := 1; i <= c.retries; i++ ***REMOVED***
 		if len(originalBody) > 0 ***REMOVED***
