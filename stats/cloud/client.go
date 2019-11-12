@@ -68,6 +68,10 @@ func NewClient(token, host, version string) *Client ***REMOVED***
 	return c
 ***REMOVED***
 
+// NewRequest creates new HTTP request.
+//
+// This is the same as http.NewRequest, except that data if not nil
+// will be serialized in json format.
 func (c *Client) NewRequest(method, url string, data interface***REMOVED******REMOVED***) (*http.Request, error) ***REMOVED***
 	var buf io.Reader
 
