@@ -682,3 +682,51 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 	wg.Wait()
 	require.True(t, gotIterations)
 ***REMOVED***
+
+func TestNewName(t *testing.T) ***REMOVED***
+	t.Parallel()
+	mustParse := func(u string) *url.URL ***REMOVED***
+		result, err := url.Parse(u)
+		require.NoError(t, err)
+		return result
+	***REMOVED***
+
+	cases := []struct ***REMOVED***
+		url      *url.URL
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			url: &url.URL***REMOVED***
+				Opaque: "github.com/loadimpact/k6/samples/http_get.js",
+			***REMOVED***,
+			expected: "http_get.js",
+		***REMOVED***,
+		***REMOVED***
+			url:      mustParse("http://github.com/loadimpact/k6/samples/http_get.js"),
+			expected: "http_get.js",
+		***REMOVED***,
+		***REMOVED***
+			url:      mustParse("file://home/user/k6/samples/http_get.js"),
+			expected: "http_get.js",
+		***REMOVED***,
+		***REMOVED***
+			url:      mustParse("file://C:/home/user/k6/samples/http_get.js"),
+			expected: "http_get.js",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, testCase := range cases ***REMOVED***
+		testCase := testCase
+
+		t.Run(testCase.url.String(), func(t *testing.T) ***REMOVED***
+			script := &loader.SourceData***REMOVED***
+				URL: testCase.url,
+			***REMOVED***
+			collector, err := New(NewConfig(), script, lib.Options***REMOVED***
+				Duration: types.NullDurationFrom(1 * time.Second),
+			***REMOVED***, "1.0")
+			require.NoError(t, err)
+			require.Equal(t, collector.config.Name.String, testCase.expected)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
