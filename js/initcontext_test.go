@@ -317,6 +317,13 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		assert.EqualError(t, err, fmt.Sprintf("GoError: open %s: file does not exist", path))
 	***REMOVED***)
 
+	t.Run("Directory", func(t *testing.T) ***REMOVED***
+		path := filepath.FromSlash("/some/dir")
+		fs := afero.NewMemMapFs()
+		assert.NoError(t, fs.MkdirAll(path, 0755))
+		_, err := getSimpleBundle("/script.js", `open("/some/dir"); export default function() ***REMOVED******REMOVED***`, fs)
+		assert.EqualError(t, err, fmt.Sprintf("GoError: open() can't be used with directories, path: %q", path))
+	***REMOVED***)
 ***REMOVED***
 
 func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
