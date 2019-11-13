@@ -1,52 +1,47 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
-eval $(go env)
+set -eEuo pipefail
+
+eval "$(go env)"
 
 # To override the latest git tag as the version, pass something else as the first arg.
 VERSION=$***REMOVED***1:-$(git describe --tags --abbrev=0)***REMOVED***
 
 make_archive() ***REMOVED***
-	FMT=$1
-	DIR=$2
+	local FMT="$1" DIR="$2"
 
 	case $FMT in
 	zip)
-		zip -rq9 $DIR.zip $DIR
+		zip -rq9 "$DIR.zip" "$DIR"
 		;;
 	tgz)
-		tar -zcf $DIR.tar.gz $DIR
+		tar -zcf "$DIR.tar.gz" "$DIR"
 		;;
 	esac
 ***REMOVED***
 
 build_dist() ***REMOVED***
-	ALIAS=$1
-	GOOS=$2
-	GOARCH=$3
-	FMT=$4
-	SUFFIX=$5
+	local ALIAS="$1" GOOS="$2" GOARCH="$3" FMT="$***REMOVED***4***REMOVED***" SUFFIX="$***REMOVED***5:-***REMOVED***"
 
 	echo "- Building platform: $***REMOVED***ALIAS***REMOVED*** ($***REMOVED***GOOS***REMOVED*** $***REMOVED***GOARCH***REMOVED***)"
-	DIR=k6-$***REMOVED***VERSION***REMOVED***-$***REMOVED***ALIAS***REMOVED***
-	BIN=k6$***REMOVED***SUFFIX***REMOVED***
+	local DIR="k6-$***REMOVED***VERSION***REMOVED***-$***REMOVED***ALIAS***REMOVED***"
 
 	# Clean out any old remnants of failed builds.
-	rm -rf dist/$DIR
-	mkdir -p dist/$DIR
+	rm -rf "dist/$DIR"
+	mkdir -p "dist/$DIR"
 
 	# Build a binary, embed what we can by means of static assets inside it.
-	GOARCH=$GOARCH GOOS=$GOOS go build -o dist/$DIR/$BIN
+	GOARCH="$GOARCH" GOOS="$GOOS" go build -o "dist/$DIR/k6$***REMOVED***SUFFIX***REMOVED***"
 
 	# Archive it all, native format depends on the platform. Subshell to not mess with $PWD.
-	( cd dist && make_archive $FMT $DIR )
+	( cd dist && make_archive "$FMT" "$DIR" )
 
 	# Delete the source files.
-	rm -rf dist/$DIR
+	rm -rf "dist/$DIR"
 ***REMOVED***
 
 checksum() ***REMOVED***
-	CHECKSUM_FILE=k6-$***REMOVED***VERSION***REMOVED***-checksums.txt
+	local CHECKSUM_FILE="k6-$***REMOVED***VERSION***REMOVED***-checksums.txt"
 
 	if command -v sha256sum > /dev/null; then
 		CHECKSUM_CMD="sha256sum"
@@ -57,8 +52,8 @@ checksum() ***REMOVED***
 		return 1
 	fi
 
-	rm -f dist/$CHECKSUM_FILE
-	( cd dist && for x in $(ls -1); do $CHECKSUM_CMD $x >> $CHECKSUM_FILE; done )
+	rm -f "dist/$CHECKSUM_FILE"
+	( cd dist && for x in *; do "$CHECKSUM_CMD" "$x" >> "$CHECKSUM_FILE"; done )
 ***REMOVED***
 
 echo "--- Building Release: $***REMOVED***VERSION***REMOVED***"
