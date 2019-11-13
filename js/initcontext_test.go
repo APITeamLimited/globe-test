@@ -119,14 +119,14 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/file.js", []byte***REMOVED***0x00***REMOVED***, 0755))
-			_, err := getSimpleBundleWithFs("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
+			_, err := getSimpleBundle("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "SyntaxError: file:///file.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 		***REMOVED***)
 		t.Run("Error", func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0755))
-			_, err := getSimpleBundleWithFs("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
+			_, err := getSimpleBundle("/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
 			assert.EqualError(t, err, "Error: aaaa at file:///file.js:2:7(4)")
 		***REMOVED***)
 
@@ -191,7 +191,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 								let v = fn();
 								export default function() ***REMOVED******REMOVED***;`,
 							libName)
-						b, err := getSimpleBundleWithFs("/path/to/script.js", data, fs)
+						b, err := getSimpleBundle("/path/to/script.js", data, fs)
 						if !assert.NoError(t, err) ***REMOVED***
 							return
 						***REMOVED***
@@ -220,7 +220,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 						throw new Error("myvar is set in global scope");
 					***REMOVED***
 				***REMOVED***;`
-			b, err := getSimpleBundleWithFs("/script.js", data, fs)
+			b, err := getSimpleBundle("/script.js", data, fs)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -253,7 +253,7 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		***REMOVED***
 		export default function() ***REMOVED******REMOVED***
 	`, file, binaryArg, expectedLength)
-	b, err := getSimpleBundleWithFs("/path/to/script.js", data, fs)
+	b, err := getSimpleBundle("/path/to/script.js", data, fs)
 
 	if !assert.NoError(t, err) ***REMOVED***
 		return nil, err
@@ -349,7 +349,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	assert.NoError(t, fs.MkdirAll("/path/to", 0755))
 	assert.NoError(t, afero.WriteFile(fs, "/path/to/file.bin", []byte("hi!"), 0644))
 
-	b, err := getSimpleBundleWithFs("/path/to/script.js",
+	b, err := getSimpleBundle("/path/to/script.js",
 		fmt.Sprintf(`
 			import http from "k6/http";
 			let binFile = open("/path/to/file.bin", "b");

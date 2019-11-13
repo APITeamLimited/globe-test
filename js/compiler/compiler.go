@@ -44,103 +44,120 @@ var (
 		"highlightCode": false,
 	***REMOVED***
 
-	compilerInstance *Compiler
-	once             sync.Once
+	once        sync.Once // nolint:gochecknoglobals
+	globalBabel *babel    // nolint:gochecknoglobals
 )
 
-// A Compiler uses Babel to compile ES6 code into something ES5-compatible.
-type Compiler struct ***REMOVED***
-	vm *goja.Runtime
+// CompatibilityMode specifies the JS compatibility mode
+// nolint:lll
+//go:generate enumer -type=CompatibilityMode -transform=snake -trimprefix CompatibilityMode -output compatibility_mode_gen.go
+type CompatibilityMode uint8
 
-	// JS pointers.
+const (
+	// CompatibilityModeExtended achieves ES6+ compatibility with Babel and core.js
+	CompatibilityModeExtended CompatibilityMode = iota + 1
+	// CompatibilityModeBase is standard goja ES5.1+
+	CompatibilityModeBase
+)
+
+// A Compiler compiles JavaScript source code (ES5.1 or ES6) into a goja.Program
+type Compiler struct***REMOVED******REMOVED***
+
+// New returns a new Compiler
+func New() *Compiler ***REMOVED***
+	return &Compiler***REMOVED******REMOVED***
+***REMOVED***
+
+// Transform the given code into ES5
+func (c *Compiler) Transform(src, filename string) (code string, srcmap *SourceMap, err error) ***REMOVED***
+	var b *babel
+	if b, err = newBabel(); err != nil ***REMOVED***
+		return
+	***REMOVED***
+
+	return b.Transform(src, filename)
+***REMOVED***
+
+// Compile the program in the given CompatibilityMode, optionally running pre and post code.
+func (c *Compiler) Compile(src, filename, pre, post string,
+	strict bool, compatMode CompatibilityMode) (*goja.Program, string, error) ***REMOVED***
+	code := pre + src + post
+	ast, err := parser.ParseFile(nil, filename, code, 0)
+	if err != nil ***REMOVED***
+		if compatMode == CompatibilityModeExtended ***REMOVED***
+			code, _, err = c.Transform(src, filename)
+			if err != nil ***REMOVED***
+				return nil, code, err
+			***REMOVED***
+			return c.Compile(code, filename, pre, post, strict, compatMode)
+		***REMOVED***
+		return nil, code, err
+	***REMOVED***
+	pgm, err := goja.CompileAST(ast, strict)
+	return pgm, code, err
+***REMOVED***
+
+type babel struct ***REMOVED***
+	vm        *goja.Runtime
 	this      goja.Value
 	transform goja.Callable
 	mutex     sync.Mutex //TODO: cache goja.CompileAST() in an init() function?
 ***REMOVED***
 
-// Constructs a new compiler.
-func New() (*Compiler, error) ***REMOVED***
+func newBabel() (*babel, error) ***REMOVED***
 	var err error
+
 	once.Do(func() ***REMOVED***
-		compilerInstance, err = new()
+		conf := rice.Config***REMOVED***
+			LocateOrder: []rice.LocateMethod***REMOVED***rice.LocateEmbedded***REMOVED***,
+		***REMOVED***
+		babelSrc := conf.MustFindBox("lib").MustString("babel.min.js")
+		vm := goja.New()
+		if _, err = vm.RunString(babelSrc); err != nil ***REMOVED***
+			return
+		***REMOVED***
+
+		this := vm.Get("Babel")
+		bObj := this.ToObject(vm)
+		globalBabel = &babel***REMOVED***vm: vm, this: this***REMOVED***
+		if err = vm.ExportTo(bObj.Get("transform"), &globalBabel.transform); err != nil ***REMOVED***
+			return
+		***REMOVED***
 	***REMOVED***)
 
-	return compilerInstance, err
+	return globalBabel, err
 ***REMOVED***
 
-func new() (*Compiler, error) ***REMOVED***
-	conf := rice.Config***REMOVED***
-		LocateOrder: []rice.LocateMethod***REMOVED***rice.LocateEmbedded***REMOVED***,
-	***REMOVED***
-
-	babelSrc := conf.MustFindBox("lib").MustString("babel.min.js")
-
-	c := &Compiler***REMOVED***vm: goja.New()***REMOVED***
-	if _, err := c.vm.RunString(babelSrc); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	c.this = c.vm.Get("Babel")
-	thisObj := c.this.ToObject(c.vm)
-	if err := c.vm.ExportTo(thisObj.Get("transform"), &c.transform); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	return c, nil
-***REMOVED***
-
-// Transform the given code into ES5.
-func (c *Compiler) Transform(src, filename string) (code string, srcmap SourceMap, err error) ***REMOVED***
+// Transform the given code into ES5, while synchronizing to ensure only a single
+// bundle instance / Goja VM is in use at a time.
+func (b *babel) Transform(src, filename string) (string, *SourceMap, error) ***REMOVED***
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
 	opts := make(map[string]interface***REMOVED******REMOVED***)
 	for k, v := range DefaultOpts ***REMOVED***
 		opts[k] = v
 	***REMOVED***
 	opts["filename"] = filename
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
 	startTime := time.Now()
-	v, err := c.transform(c.this, c.vm.ToValue(src), c.vm.ToValue(opts))
+	v, err := b.transform(b.this, b.vm.ToValue(src), b.vm.ToValue(opts))
 	if err != nil ***REMOVED***
-		return code, srcmap, err
+		return "", nil, err
 	***REMOVED***
 	logrus.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
-	vO := v.ToObject(c.vm)
 
-	if err := c.vm.ExportTo(vO.Get("code"), &code); err != nil ***REMOVED***
-		return code, srcmap, err
+	vO := v.ToObject(b.vm)
+	var code string
+	if err = b.vm.ExportTo(vO.Get("code"), &code); err != nil ***REMOVED***
+		return code, nil, err
 	***REMOVED***
-
-	var rawmap map[string]interface***REMOVED******REMOVED***
-	if err := c.vm.ExportTo(vO.Get("map"), &rawmap); err != nil ***REMOVED***
-		return code, srcmap, err
+	var rawMap map[string]interface***REMOVED******REMOVED***
+	if err = b.vm.ExportTo(vO.Get("map"), &rawMap); err != nil ***REMOVED***
+		return code, nil, err
 	***REMOVED***
-	if err := mapstructure.Decode(rawmap, &srcmap); err != nil ***REMOVED***
-		return code, srcmap, err
+	var srcMap SourceMap
+	if err = mapstructure.Decode(rawMap, &srcMap); err != nil ***REMOVED***
+		return code, &srcMap, err
 	***REMOVED***
-
-	return code, srcmap, nil
-***REMOVED***
-
-// Compiles the program, first trying ES5, then ES6.
-func (c *Compiler) Compile(src, filename string, pre, post string, strict bool) (*goja.Program, string, error) ***REMOVED***
-	return c.compile(src, filename, pre, post, strict, true)
-***REMOVED***
-
-func (c *Compiler) compile(src, filename string, pre, post string, strict, tryBabel bool) (*goja.Program, string, error) ***REMOVED***
-	code := pre + src + post
-	ast, err := parser.ParseFile(nil, filename, code, 0)
-	if err != nil ***REMOVED***
-		if tryBabel ***REMOVED***
-			code, _, err := c.Transform(src, filename)
-			if err != nil ***REMOVED***
-				return nil, code, err
-			***REMOVED***
-			return c.compile(code, filename, pre, post, strict, false)
-		***REMOVED***
-		return nil, src, err
-	***REMOVED***
-	pgm, err := goja.CompileAST(ast, strict)
-	return pgm, code, err
+	return code, &srcMap, err
 ***REMOVED***
