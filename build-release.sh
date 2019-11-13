@@ -5,7 +5,10 @@ set -eEuo pipefail
 eval "$(go env)"
 
 # To override the latest git tag as the version, pass something else as the first arg.
-VERSION=$***REMOVED***1:-$(git describe --tags --abbrev=0)***REMOVED***
+VERSION=$***REMOVED***1:-$(git describe --tags --always --dirty)***REMOVED***
+
+# To overwrite the version details, pass something as the second arg. Empty string disables it.
+VERSION_DETAILS=$***REMOVED***2-"$(date --utc --iso-8601=s)/$(git describe --always --long --dirty)"***REMOVED***
 
 make_archive() ***REMOVED***
 	local FMT="$1" DIR="$2"
@@ -21,20 +24,33 @@ make_archive() ***REMOVED***
 ***REMOVED***
 
 build_dist() ***REMOVED***
-	local ALIAS="$1" GOOS="$2" GOARCH="$3" FMT="$***REMOVED***4***REMOVED***" SUFFIX="$***REMOVED***5:-***REMOVED***"
-
-	echo "- Building platform: $***REMOVED***ALIAS***REMOVED*** ($***REMOVED***GOOS***REMOVED*** $***REMOVED***GOARCH***REMOVED***)"
+	local ALIAS="$1" FMT="$***REMOVED***2***REMOVED***" SUFFIX="$***REMOVED***3***REMOVED***"  # Any other arguments are passed to the go build command as env vars
 	local DIR="k6-$***REMOVED***VERSION***REMOVED***-$***REMOVED***ALIAS***REMOVED***"
+
+	local BUILD_ENV=("$***REMOVED***@:4***REMOVED***")
+	local BUILD_ARGS=(-o "dist/$DIR/k6$***REMOVED***SUFFIX***REMOVED***")
+
+	if [ -n "$VERSION_DETAILS" ]; then
+		BUILD_ARGS+=(-ldflags "-X github.com/loadimpact/k6/lib/consts.VersionDetails=$VERSION_DETAILS")
+	fi
+
+	echo "- Building platform: $***REMOVED***ALIAS***REMOVED*** (" "$***REMOVED***BUILD_ENV[@]***REMOVED***" "go build" "$***REMOVED***BUILD_ARGS[@]***REMOVED***" ")"
 
 	# Clean out any old remnants of failed builds.
 	rm -rf "dist/$DIR"
 	mkdir -p "dist/$DIR"
 
-	# Build a binary, embed what we can by means of static assets inside it.
-	GOARCH="$GOARCH" GOOS="$GOOS" go build -o "dist/$DIR/k6$***REMOVED***SUFFIX***REMOVED***"
+	# Subshell to not mess with the current env vars or CWD
+	(
+		export "$***REMOVED***BUILD_ENV[@]***REMOVED***"
 
-	# Archive it all, native format depends on the platform. Subshell to not mess with $PWD.
-	( cd dist && make_archive "$FMT" "$DIR" )
+		# Build a binary
+	 	go build "$***REMOVED***BUILD_ARGS[@]***REMOVED***"
+
+		# Archive it all, native format depends on the platform.
+		cd dist
+		make_archive "$FMT" "$DIR"
+	)
 
 	# Delete the source files.
 	rm -rf "dist/$DIR"
@@ -61,11 +77,11 @@ echo "--- Building Release: $***REMOVED***VERSION***REMOVED***"
 echo "-> Building platform packages..."
 mkdir -p dist
 
-build_dist mac darwin amd64 zip
-build_dist win32 windows 386 zip .exe
-build_dist win64 windows amd64 zip .exe
-build_dist linux32 linux 386 tgz
-build_dist linux64 linux amd64 tgz
+build_dist mac     zip ""   GOOS=darwin  GOARCH=amd64
+build_dist win32   zip .exe GOOS=windows GOARCH=386
+build_dist win64   zip .exe GOOS=windows GOARCH=amd64
+build_dist linux32 tgz ""   GOOS=linux   GOARCH=386    CGO_ENABLED=0
+build_dist linux64 tgz ""   GOOS=linux   GOARCH=amd64  CGO_ENABLED=0
 
 echo "-> Generating checksum file..."
 checksum
