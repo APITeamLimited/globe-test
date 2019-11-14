@@ -39,7 +39,6 @@ build_dist() ***REMOVED***
 	# Clean out any old remnants of failed builds.
 	rm -rf "dist/$DIR"
 	mkdir -p "dist/$DIR"
-	trap "rm -rf \"dist/$DIR\"" INT TERM
 
 	# Subshell to not mess with the current env vars or CWD
 	(
@@ -70,7 +69,7 @@ checksum() ***REMOVED***
 	fi
 
 	rm -f "dist/$CHECKSUM_FILE"
-	( cd dist && for x in *; do "$***REMOVED***CHECKSUM_CMD[@]***REMOVED***" -- "$x" >> "$CHECKSUM_FILE"; done )
+	( cd dist && for x in *; do [ -f "$x" ] && "$***REMOVED***CHECKSUM_CMD[@]***REMOVED***" -- "$x" >> "$CHECKSUM_FILE"; done )
 ***REMOVED***
 
 echo "--- Building Release: $***REMOVED***VERSION***REMOVED***"
