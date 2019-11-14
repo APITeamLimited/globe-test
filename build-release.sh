@@ -8,7 +8,7 @@ eval "$(go env)"
 VERSION=$***REMOVED***1:-$(git describe --tags --always --dirty)***REMOVED***
 
 # To overwrite the version details, pass something as the second arg. Empty string disables it.
-VERSION_DETAILS=$***REMOVED***2-"$(date --utc --iso-8601=s)/$(git describe --always --long --dirty)"***REMOVED***
+VERSION_DETAILS=$***REMOVED***2-"$(date -u +"%FT%T%z")/$(git describe --always --long --dirty)"***REMOVED***
 
 make_archive() ***REMOVED***
 	local FMT="$1" DIR="$2"
@@ -39,6 +39,7 @@ build_dist() ***REMOVED***
 	# Clean out any old remnants of failed builds.
 	rm -rf "dist/$DIR"
 	mkdir -p "dist/$DIR"
+	trap "rm -rf \"dist/$DIR\"" INT TERM
 
 	# Subshell to not mess with the current env vars or CWD
 	(
@@ -60,16 +61,16 @@ checksum() ***REMOVED***
 	local CHECKSUM_FILE="k6-$***REMOVED***VERSION***REMOVED***-checksums.txt"
 
 	if command -v sha256sum > /dev/null; then
-		CHECKSUM_CMD="sha256sum"
+		CHECKSUM_CMD=("sha256sum")
 	elif command -v shasum > /dev/null; then
-		CHECKSUM_CMD="shasum -a 256"
+		CHECKSUM_CMD=("shasum" "-a" "256")
 	else
 		echo "ERROR: unable to find a command to compute sha-256 hash"
 		return 1
 	fi
 
 	rm -f "dist/$CHECKSUM_FILE"
-	( cd dist && for x in *; do "$CHECKSUM_CMD" "$x" >> "$CHECKSUM_FILE"; done )
+	( cd dist && for x in *; do "$***REMOVED***CHECKSUM_CMD[@]***REMOVED***" -- "$x" >> "$CHECKSUM_FILE"; done )
 ***REMOVED***
 
 echo "--- Building Release: $***REMOVED***VERSION***REMOVED***"
