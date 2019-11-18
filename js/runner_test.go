@@ -682,7 +682,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					***REMOVED***
 					err = vu.RunOnce(context.Background())
 					if data.errMsg != "" ***REMOVED***
-						require.NotNil(t, err)
+						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
 						assert.NoError(t, err)
@@ -723,7 +723,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 			err = vu.RunOnce(context.Background())
-			require.NotNil(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
 		***REMOVED***)
 	***REMOVED***
@@ -759,7 +759,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 			err = vu.RunOnce(context.Background())
-			require.NotNil(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
 		***REMOVED***)
 	***REMOVED***
@@ -877,7 +877,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					***REMOVED***
 					err = vu.RunOnce(context.Background())
 					if data.errMsg != "" ***REMOVED***
-						require.NotNil(t, err)
+						require.Error(t, err)
 						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
 						assert.NoError(t, err)
@@ -1174,7 +1174,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
 				if assert.NoError(t, err) ***REMOVED***
 					err := vu.RunOnce(context.Background())
-					require.NotNil(t, err)
+					require.Error(t, err)
 					assert.Contains(t, err.Error(), "remote error: tls: bad certificate")
 				***REMOVED***
 			***REMOVED***)
