@@ -3,7 +3,8 @@ package common
 import (
 	"testing"
 
-	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
+
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
 )
@@ -40,5 +41,5 @@ func TestLinkReturnAddress(t *testing.T) ***REMOVED***
 
 func TestGetRequiredSystemTags(t *testing.T) ***REMOVED***
 	var c = &Collector***REMOVED******REMOVED***
-	require.Equal(t, lib.TagSet***REMOVED******REMOVED***, c.GetRequiredSystemTags())
+	require.Equal(t, stats.SystemTagSet(0), c.GetRequiredSystemTags())
 ***REMOVED***

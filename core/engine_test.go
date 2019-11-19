@@ -24,6 +24,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"runtime"
 	"testing"
 	"time"
 
@@ -44,6 +45,8 @@ import (
 	"github.com/sirupsen/logrus"
 	null "gopkg.in/guregu/null.v3"
 )
+
+const isWindows = runtime.GOOS == "windows"
 
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts lib.Options) *Engine ***REMOVED*** //nolint: golint
@@ -349,6 +352,7 @@ func getMetricCount(collector *dummy.Collector, name string) (result uint) ***RE
 
 const expectedHeaderMaxLength = 500
 
+// FIXME: This test is too brittle, consider simplifying.
 func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -379,10 +383,14 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 					file: http.file(data, "test.txt")
 				***REMOVED***);
 			***REMOVED***`), 1, 1000, 100***REMOVED***,
+		// NOTE(imiric): This needs to keep testing against /ws-echo-invalid because
+		// this test is highly sensitive to metric data, and slightly differing
+		// WS server implementations might introduce flakiness.
+		// See https://github.com/loadimpact/k6/pull/1149
 		***REMOVED***tr(`import ws from "k6/ws";
 			let data = "0123456789".repeat(100);
 			export default function() ***REMOVED***
-				ws.connect("WSBIN_URL/ws-echo", null, function (socket) ***REMOVED***
+				ws.connect("WSBIN_URL/ws-echo-invalid", null, function (socket) ***REMOVED***
 					socket.on('open', function open() ***REMOVED***
 						socket.send(data);
 					***REMOVED***);
@@ -407,6 +415,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		engine := newTestEngine(t, ctx, r, lib.Options***REMOVED***
 			Iterations:            null.IntFrom(tc.Iterations),
 			VUs:                   null.IntFrom(tc.VUs),
@@ -423,10 +432,8 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 
 		select ***REMOVED***
 		case <-time.After(10 * time.Second):
-			cancel()
 			t.Fatal("Test timed out")
 		case err := <-errC:
-			cancel()
 			require.NoError(t, err)
 		***REMOVED***
 
@@ -543,12 +550,14 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	engine := newTestEngine(t, ctx, r, lib.Options***REMOVED***
 		Iterations:            null.IntFrom(3),
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
 		RunTags:               runTags,
-		SystemTags:            lib.GetTagSet(lib.DefaultSystemTagList...),
+		SystemTags:            &stats.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***)
 
@@ -560,10 +569,8 @@ func TestRunTags(t *testing.T) ***REMOVED***
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 	***REMOVED***
 
@@ -638,8 +645,9 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	engine := newTestEngine(t, ctx, runner, lib.Options***REMOVED***
-		SystemTags:      lib.GetTagSet(lib.DefaultSystemTagList...),
+		SystemTags:      &stats.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
@@ -650,10 +658,8 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
 	***REMOVED***
@@ -703,6 +709,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	engine := newTestEngine(t, ctx, runner, lib.Options***REMOVED******REMOVED***)
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
@@ -713,10 +720,8 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
-		cancel()
 		t.Fatal("Test timed out")
 	case err := <-errC:
-		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
 	***REMOVED***
@@ -753,16 +758,100 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	assert.InDelta(t, 3.35, durationSum/(1000*durationCount), 0.25)
 ***REMOVED***
 
-func TestMinIterationDuration(t *testing.T) ***REMOVED***
+func TestMetricsEmission(t *testing.T) ***REMOVED***
+	if !isWindows ***REMOVED***
+		t.Parallel()
+	***REMOVED***
+
+	testCases := []struct ***REMOVED***
+		method             string
+		minIterDuration    string
+		defaultBody        string
+		expCount, expIters float64
+	***REMOVED******REMOVED***
+		// Since emission of Iterations happens before the minIterationDuration
+		// sleep is done, we expect to receive metrics for all executions of
+		// the `default` function, despite of the lower overall duration setting.
+		***REMOVED***"minIterationDuration", `"300ms"`, "testCounter.add(1);", 16.0, 16.0***REMOVED***,
+		// With the manual sleep method and no minIterationDuration, the last
+		// `default` execution will be cutoff by the duration setting, so only
+		// 3 sets of metrics are expected.
+		***REMOVED***"sleepBeforeCounterAdd", "null", "sleep(0.3); testCounter.add(1); ", 12.0, 12.0***REMOVED***,
+		// The counter should be sent, but the last iteration will be incomplete
+		***REMOVED***"sleepAfterCounterAdd", "null", "testCounter.add(1); sleep(0.3); ", 16.0, 12.0***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.method, func(t *testing.T) ***REMOVED***
+			if !isWindows ***REMOVED***
+				t.Parallel()
+			***REMOVED***
+			runner, err := js.New(
+				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
+				import ***REMOVED*** sleep ***REMOVED*** from "k6";
+				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+
+				let testCounter = new Counter("testcounter");
+
+				export let options = ***REMOVED***
+					execution: ***REMOVED***
+						we_need_hard_stop: ***REMOVED***
+							type: "constant-looping-vus",
+							vus: 4,
+							duration: "1s",
+							gracefulStop: "0s",
+						***REMOVED***,
+					***REMOVED***,
+					minIterationDuration: %s,
+				***REMOVED***;
+
+				export default function() ***REMOVED***
+					%s
+				***REMOVED***
+				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
+				nil,
+				lib.RuntimeOptions***REMOVED******REMOVED***,
+			)
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			engine := newTestEngine(t, ctx, runner, runner.GetOptions())
+
+			collector := &dummy.Collector***REMOVED******REMOVED***
+			engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+
+			select ***REMOVED***
+			case <-time.After(10 * time.Second):
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				require.NoError(t, err)
+				require.False(t, engine.IsTainted())
+			***REMOVED***
+
+			assert.Equal(t, tc.expIters, getMetricSum(collector, metrics.Iterations.Name))
+			assert.Equal(t, tc.expCount, getMetricSum(collector, "testcounter"))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+//nolint: funlen
+func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 	t.Parallel()
+	setupScript := `
+		import ***REMOVED*** sleep ***REMOVED*** from "k6";
 
-	runner, err := js.New(
-		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(`
-		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
-
-		let testCounter = new Counter("testcounter");
+		export function setup() ***REMOVED***
+			sleep(1);
+		***REMOVED***
 
 		export let options = ***REMOVED***
+			minIterationDuration: "2s",
 			execution: ***REMOVED***
 				we_need_hard_stop: ***REMOVED***
 					type: "constant-looping-vus",
@@ -771,39 +860,64 @@ func TestMinIterationDuration(t *testing.T) ***REMOVED***
 					gracefulStop: "0s",
 				***REMOVED***,
 			***REMOVED***,
-			minIterationDuration: "1s",
+			setupTimeout: "2s",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
-			testCounter.add(1);
-		***REMOVED***;`)***REMOVED***,
-		nil,
-		lib.RuntimeOptions***REMOVED******REMOVED***,
-	)
-	require.NoError(t, err)
+		***REMOVED***;`
+	teardownScript := `
+		import ***REMOVED*** sleep ***REMOVED*** from "k6";
 
-	ctx, cancel := context.WithCancel(context.Background())
-	engine := newTestEngine(t, ctx, runner, lib.Options***REMOVED******REMOVED***)
+		export let options = ***REMOVED***
+			minIterationDuration: "2s",
+			execution: ***REMOVED***
+				we_need_hard_stop: ***REMOVED***
+					type: "constant-looping-vus",
+					vus: 2,
+					duration: "1.9s",
+					gracefulStop: "0s",
+				***REMOVED***,
+			***REMOVED***,
+			teardownTimeout: "2s",
+		***REMOVED***;
 
-	collector := &dummy.Collector***REMOVED******REMOVED***
-	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+		export default function () ***REMOVED***
+		***REMOVED***;
 
-	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
-
-	select ***REMOVED***
-	case <-time.After(10 * time.Second):
-		cancel()
-		t.Fatal("Test timed out")
-	case err := <-errC:
-		cancel()
-		require.NoError(t, err)
-		require.False(t, engine.IsTainted())
+		export function teardown() ***REMOVED***
+			sleep(1);
+		***REMOVED***
+`
+	tests := []struct ***REMOVED***
+		name, script string
+	***REMOVED******REMOVED***
+		***REMOVED***"Test setup", setupScript***REMOVED***,
+		***REMOVED***"Test teardown", teardownScript***REMOVED***,
 	***REMOVED***
+	for _, tc := range tests ***REMOVED***
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			runner, err := js.New(
+				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
+				nil,
+				lib.RuntimeOptions***REMOVED******REMOVED***,
+			)
+			require.NoError(t, err)
 
-	// Only 2 full iterations are expected to be completed due to the 1 second minIterationDuration
-	assert.Equal(t, 2.0, getMetricSum(collector, metrics.Iterations.Name))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-	// But we expect the custom counter to be added to 4 times
-	assert.Equal(t, 4.0, getMetricSum(collector, "testcounter"))
+			engine := newTestEngine(t, ctx, runner, runner.GetOptions())
+
+			errC := make(chan error)
+			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			select ***REMOVED***
+			case <-time.After(10 * time.Second):
+				t.Fatal("Test timed out")
+			case err := <-errC:
+				require.NoError(t, err)
+				require.False(t, engine.IsTainted())
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

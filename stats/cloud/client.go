@@ -22,10 +22,12 @@ package cloud
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -33,12 +35,14 @@ import (
 )
 
 const (
-	// Default request timeout
-	RequestTimeout = 10 * time.Second
-	// Retry interval
+	// RequestTimeout is the default cloud request timeout
+	RequestTimeout = 20 * time.Second
+	// RetryInterval is the default cloud request retry interval
 	RetryInterval = 500 * time.Millisecond
-	// Retry attempts
+	// MaxRetries specifies max retry attempts
 	MaxRetries = 3
+
+	k6IdempotencyKeyHeader = "k6-Idempotency-Key"
 )
 
 // Client handles communication with Load Impact cloud API.
@@ -64,6 +68,10 @@ func NewClient(token, host, version string) *Client ***REMOVED***
 	return c
 ***REMOVED***
 
+// NewRequest creates new HTTP request.
+//
+// This is the same as http.NewRequest, except that data if not nil
+// will be serialized in json format.
 func (c *Client) NewRequest(method, url string, data interface***REMOVED******REMOVED***) (*http.Request, error) ***REMOVED***
 	var buf io.Reader
 
@@ -76,7 +84,12 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 		buf = bytes.NewBuffer(b)
 	***REMOVED***
 
-	return http.NewRequest(method, url, buf)
+	req, err := http.NewRequest(method, url, buf)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return req, nil
 ***REMOVED***
 
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
@@ -89,10 +102,13 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 			return err
 		***REMOVED***
 
-		if cerr := req.Body.Close(); cerr != nil && err == nil ***REMOVED***
+		if cerr := req.Body.Close(); cerr != nil ***REMOVED***
 			err = cerr
 		***REMOVED***
 	***REMOVED***
+
+	// TODO(cuonglm): finding away to move this back to NewRequest
+	c.prepareHeaders(req)
 
 	for i := 1; i <= c.retries; i++ ***REMOVED***
 		if len(originalBody) > 0 ***REMOVED***
@@ -112,14 +128,23 @@ func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) er
 	return err
 ***REMOVED***
 
-func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, attempt int) (retry bool, err error) ***REMOVED***
+func (c *Client) prepareHeaders(req *http.Request) ***REMOVED***
 	if req.Header.Get("Content-Type") == "" ***REMOVED***
 		req.Header.Set("Content-Type", "application/json")
 	***REMOVED***
+
 	if c.token != "" ***REMOVED***
 		req.Header.Set("Authorization", fmt.Sprintf("Token %s", c.token))
 	***REMOVED***
+
+	if shouldAddIdempotencyKey(req) ***REMOVED***
+		req.Header.Set(k6IdempotencyKeyHeader, randomStrHex())
+	***REMOVED***
+
 	req.Header.Set("User-Agent", "k6cloud/"+c.version)
+***REMOVED***
+
+func (c *Client) do(req *http.Request, v interface***REMOVED******REMOVED***, attempt int) (retry bool, err error) ***REMOVED***
 	resp, err := c.client.Do(req)
 
 	defer func() ***REMOVED***
@@ -200,4 +225,27 @@ func shouldRetry(resp *http.Response, err error, attempt, maxAttempts int) bool 
 	***REMOVED***
 
 	return false
+***REMOVED***
+
+func shouldAddIdempotencyKey(req *http.Request) bool ***REMOVED***
+	switch req.Method ***REMOVED***
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return false
+	default:
+		return req.Header.Get(k6IdempotencyKeyHeader) == ""
+	***REMOVED***
+***REMOVED***
+
+// randomStrHex returns a hex string which can be used
+// for session token id or idempotency key.
+//nolint:gosec
+func randomStrHex() string ***REMOVED***
+	// 16 hex characters
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+***REMOVED***
+
+func init() ***REMOVED***
+	rand.Seed(time.Now().UTC().UnixNano())
 ***REMOVED***

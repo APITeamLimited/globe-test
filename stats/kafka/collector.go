@@ -100,8 +100,8 @@ func (c *Collector) Link() string ***REMOVED***
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector
-func (c *Collector) GetRequiredSystemTags() lib.TagSet ***REMOVED***
-	return lib.TagSet***REMOVED******REMOVED*** // There are no required tags for this collector
+func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
+	return stats.SystemTagSet(0) // There are no required tags for this collector
 ***REMOVED***
 
 // SetRunStatus does nothing in the Kafka collector

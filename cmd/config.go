@@ -35,12 +35,14 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/executor"
+	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/csv"
 	"github.com/loadimpact/k6/stats/datadog"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/kafka"
 	"github.com/loadimpact/k6/stats/statsd/common"
+	"github.com/loadimpact/k6/ui"
 )
 
 // configFlagSet returns a FlagSet with the default run configuration flags.
@@ -52,17 +54,23 @@ func configFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Bool("no-usage-report", false, "don't send anonymous stats to the developers")
 	flags.Bool("no-thresholds", false, "don't run thresholds")
 	flags.Bool("no-summary", false, "don't show the summary at the end of the test")
+	flags.String(
+		"summary-export",
+		"",
+		"output the end-of-test summary report to JSON file",
+	)
 	return flags
 ***REMOVED***
 
 type Config struct ***REMOVED***
 	lib.Options
 
-	Out           []string  `json:"out" envconfig:"out"`
-	Linger        null.Bool `json:"linger" envconfig:"linger"`
-	NoUsageReport null.Bool `json:"noUsageReport" envconfig:"no_usage_report"`
-	NoThresholds  null.Bool `json:"noThresholds" envconfig:"no_thresholds"`
-	NoSummary     null.Bool `json:"noSummary" envconfig:"no_summary"`
+	Out           []string    `json:"out" envconfig:"K6_OUT"`
+	Linger        null.Bool   `json:"linger" envconfig:"K6_LINGER"`
+	NoUsageReport null.Bool   `json:"noUsageReport" envconfig:"K6_NO_USAGE_REPORT"`
+	NoThresholds  null.Bool   `json:"noThresholds" envconfig:"K6_NO_THRESHOLDS"`
+	NoSummary     null.Bool   `json:"noSummary" envconfig:"K6_NO_SUMMARY"`
+	SummaryExport null.String `json:"summaryExport" envconfig:"K6_SUMMARY_EXPORT"`
 
 	Collectors struct ***REMOVED***
 		InfluxDB influxdb.Config `json:"influxdb"`
@@ -99,6 +107,9 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.NoSummary.Valid ***REMOVED***
 		c.NoSummary = cfg.NoSummary
 	***REMOVED***
+	if cfg.SummaryExport.Valid ***REMOVED***
+		c.SummaryExport = cfg.SummaryExport
+	***REMOVED***
 	c.Collectors.InfluxDB = c.Collectors.InfluxDB.Apply(cfg.Collectors.InfluxDB)
 	c.Collectors.Cloud = c.Collectors.Cloud.Apply(cfg.Collectors.Cloud)
 	c.Collectors.Kafka = c.Collectors.Kafka.Apply(cfg.Collectors.Kafka)
@@ -125,6 +136,7 @@ func getConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 		NoUsageReport: getNullBool(flags, "no-usage-report"),
 		NoThresholds:  getNullBool(flags, "no-thresholds"),
 		NoSummary:     getNullBool(flags, "no-summary"),
+		SummaryExport: getNullString(flags, "summary-export"),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -179,10 +191,12 @@ func writeDiskConfig(fs afero.Fs, configPath string, conf Config) error ***REMOV
 func readEnvConfig() (conf Config, err error) ***REMOVED***
 	// TODO: replace envconfig and refactor the whole configuration from the groun up :/
 	for _, err := range []error***REMOVED***
-		envconfig.Process("k6", &conf),
-		envconfig.Process("k6", &conf.Collectors.Cloud),
-		envconfig.Process("k6", &conf.Collectors.InfluxDB),
-		envconfig.Process("k6", &conf.Collectors.Kafka),
+		envconfig.Process("", &conf),
+		envconfig.Process("", &conf.Collectors.Cloud),
+		envconfig.Process("", &conf.Collectors.InfluxDB),
+		envconfig.Process("", &conf.Collectors.Kafka),
+		envconfig.Process("k6_statsd", &conf.Collectors.StatsD),
+		envconfig.Process("k6_datadog", &conf.Collectors.Datadog),
 	***REMOVED*** ***REMOVED***
 		return conf, err
 	***REMOVED***
@@ -202,6 +216,8 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	cliConf.Collectors.InfluxDB = influxdb.NewConfig().Apply(cliConf.Collectors.InfluxDB)
 	cliConf.Collectors.Cloud = cloud.NewConfig().Apply(cliConf.Collectors.Cloud)
 	cliConf.Collectors.Kafka = kafka.NewConfig().Apply(cliConf.Collectors.Kafka)
+	cliConf.Collectors.StatsD = common.NewConfig().Apply(cliConf.Collectors.StatsD)
+	cliConf.Collectors.Datadog = datadog.NewConfig().Apply(cliConf.Collectors.Datadog)
 
 	fileConf, _, err := readDiskConfig(fs)
 	if err != nil ***REMOVED***
@@ -219,16 +235,28 @@ func getConsolidatedConfig(fs afero.Fs, cliConf Config, runner lib.Runner) (conf
 	conf = conf.Apply(envConf).Apply(cliConf)
 	conf = applyDefault(conf)
 
+	// TODO(imiric): Move this validation where it makes sense in the configuration
+	// refactor of #883. This repeats the trend stats validation already done
+	// for CLI flags in cmd.getOptions, in case other configuration sources
+	// (e.g. env vars) overrode our default value. This is not done in
+	// lib.Options.Validate to avoid circular imports.
+	if err = ui.ValidateSummary(conf.SummaryTrendStats); err != nil ***REMOVED***
+		return conf, err
+	***REMOVED***
+
 	return conf, nil
 ***REMOVED***
 
-// applyDefault applys default options value if it is not specified by any mechenisms. This happens with types
-// which does not support by "gopkg.in/guregu/null.v3".
+// applyDefault applies the default options value if it is not specified.
+// This happens with types which are not supported by "gopkg.in/guregu/null.v3".
 //
 // Note that if you add option default value here, also add it in command line argument help text.
 func applyDefault(conf Config) Config ***REMOVED***
 	if conf.Options.SystemTags == nil ***REMOVED***
-		conf = conf.Apply(Config***REMOVED***Options: lib.Options***REMOVED***SystemTags: lib.GetTagSet(lib.DefaultSystemTagList...)***REMOVED******REMOVED***)
+		conf.Options.SystemTags = &stats.DefaultSystemTagSet
+	***REMOVED***
+	if conf.Options.SummaryTrendStats == nil ***REMOVED***
+		conf.Options.SummaryTrendStats = lib.DefaultSummaryTrendStats
 	***REMOVED***
 	return conf
 ***REMOVED***

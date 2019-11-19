@@ -30,6 +30,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
+	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/csv"
 	"github.com/loadimpact/k6/stats/datadog"
@@ -65,87 +66,91 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 ***REMOVED***
 
 //TODO: totally refactor this...
-//nolint:funlen
-func newCollector(
+func getCollector(
 	collectorName, arg string, src *loader.SourceData, conf Config, executionPlan []lib.ExecutionStep,
 ) (lib.Collector, error) ***REMOVED***
-	getCollector := func() (lib.Collector, error) ***REMOVED***
-		switch collectorName ***REMOVED***
-		case collectorJSON:
-			return jsonc.New(afero.NewOsFs(), arg)
-		case collectorInfluxDB:
-			config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			urlConfig, err := influxdb.ParseURL(arg)
+	switch collectorName ***REMOVED***
+	case collectorJSON:
+		return jsonc.New(afero.NewOsFs(), arg)
+	case collectorInfluxDB:
+		config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		urlConfig, err := influxdb.ParseURL(arg)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		config = config.Apply(urlConfig)
+		return influxdb.New(config)
+	case collectorCloud:
+		config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			config.Name = null.StringFrom(arg)
+		***REMOVED***
+		return cloud.New(config, src, conf.Options, executionPlan, consts.Version)
+	case collectorKafka:
+		config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			cmdConfig, err := kafka.ParseArg(arg)
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			config = config.Apply(urlConfig)
-			return influxdb.New(config)
-		case collectorCloud:
-			config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				config.Name = null.StringFrom(arg)
-			***REMOVED***
-			return cloud.New(config, src, conf.Options, executionPlan, consts.Version)
-		case collectorKafka:
-			config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				cmdConfig, err := kafka.ParseArg(arg)
-				if err != nil ***REMOVED***
-					return nil, err
-				***REMOVED***
-				config = config.Apply(cmdConfig)
-			***REMOVED***
-			return kafka.New(config)
-		case collectorStatsD:
-			config := common.NewConfig().Apply(conf.Collectors.StatsD)
-			if err := envconfig.Process("k6_statsd", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return statsd.New(config)
-		case collectorDatadog:
-			config := datadog.NewConfig().Apply(conf.Collectors.Datadog)
-			if err := envconfig.Process("k6_datadog", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return datadog.New(config)
-		case collectorCSV:
-			config := csv.NewConfig().Apply(conf.Collectors.CSV)
-			if err := envconfig.Process("k6", &config); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if arg != "" ***REMOVED***
-				cmdConfig, err := csv.ParseArg(arg)
-				if err != nil ***REMOVED***
-					return nil, err
-				***REMOVED***
-				config = config.Apply(cmdConfig)
-			***REMOVED***
-			return csv.New(afero.NewOsFs(), conf.SystemTags, config)
-		default:
-			return nil, errors.Errorf("unknown output type: %s", collectorName)
+			config = config.Apply(cmdConfig)
 		***REMOVED***
-	***REMOVED***
+		return kafka.New(config)
+	case collectorStatsD:
+		config := common.NewConfig().Apply(conf.Collectors.StatsD)
+		if err := envconfig.Process("k6_statsd", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return statsd.New(config)
+	case collectorDatadog:
+		config := datadog.NewConfig().Apply(conf.Collectors.Datadog)
+		if err := envconfig.Process("k6_datadog", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return datadog.New(config)
+	case collectorCSV:
+		config := csv.NewConfig().Apply(conf.Collectors.CSV)
+		if err := envconfig.Process("", &config); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if arg != "" ***REMOVED***
+			cmdConfig, err := csv.ParseArg(arg)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
 
-	collector, err := getCollector()
+			config = config.Apply(cmdConfig)
+		***REMOVED***
+		return csv.New(afero.NewOsFs(), conf.SystemTags.Map(), config)
+
+	default:
+		return nil, errors.Errorf("unknown output type: %s", collectorName)
+	***REMOVED***
+***REMOVED***
+
+func newCollector(
+	collectorName, arg string, src *loader.SourceData, conf Config, executionPlan []lib.ExecutionStep,
+) (lib.Collector, error) ***REMOVED***
+	collector, err := getCollector(collectorName, arg, src, conf, executionPlan)
 	if err != nil ***REMOVED***
 		return collector, err
 	***REMOVED***
 
 	// Check if all required tags are present
 	missingRequiredTags := []string***REMOVED******REMOVED***
-	for reqTag := range collector.GetRequiredSystemTags() ***REMOVED***
-		if !conf.SystemTags[reqTag] ***REMOVED***
-			missingRequiredTags = append(missingRequiredTags, reqTag)
+	requiredTags := collector.GetRequiredSystemTags()
+	for _, tag := range stats.SystemTagSetValues() ***REMOVED***
+		if requiredTags.Has(tag) && !conf.SystemTags.Has(tag) ***REMOVED***
+			missingRequiredTags = append(missingRequiredTags, tag.String())
 		***REMOVED***
 	***REMOVED***
 	if len(missingRequiredTags) > 0 ***REMOVED***

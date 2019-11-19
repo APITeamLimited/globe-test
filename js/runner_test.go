@@ -644,10 +644,13 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 						assert.Equal(t, metrics.DataReceived, s.Metric, "`data_received` sample is after `data_received`")
 					case 3:
 						assert.Equal(t, metrics.IterationDuration, s.Metric, "`iteration-duration` sample is after `data_received`")
+					case 4:
+						assert.Equal(t, metrics.Iterations, s.Metric, "`iterations` sample is after `iteration_duration`")
+						assert.Equal(t, float64(1), s.Value)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			assert.Equal(t, sampleCount, 4)
+			assert.Equal(t, sampleCount, 5)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -907,7 +910,7 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:      null.BoolFrom(true),
-		SystemTags: lib.GetTagSet("proto"),
+		SystemTags: stats.NewSystemTagSet(stats.TagProto),
 	***REMOVED***)
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)

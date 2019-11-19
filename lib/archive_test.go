@@ -32,6 +32,8 @@ import (
 
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/fsext"
+	"github.com/loadimpact/k6/stats"
+
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -140,7 +142,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 			K6Version: consts.Version,
 			Options: Options***REMOVED***
 				VUs:        null.IntFrom(12345),
-				SystemTags: GetTagSet(DefaultSystemTagList...),
+				SystemTags: &stats.DefaultSystemTagSet,
 			***REMOVED***,
 			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: "/path/to/a.js"***REMOVED***,
 			Data:        []byte(`// a contents`),
@@ -190,7 +192,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 				Type: "js",
 				Options: Options***REMOVED***
 					VUs:        null.IntFrom(12345),
-					SystemTags: GetTagSet(DefaultSystemTagList...),
+					SystemTags: &stats.DefaultSystemTagSet,
 				***REMOVED***,
 				FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: fmt.Sprintf("%s/a.js", entry.Pwd)***REMOVED***,
 				K6Version:   consts.Version,
@@ -213,7 +215,7 @@ func TestArchiveReadWrite(t *testing.T) ***REMOVED***
 				Type: "js",
 				Options: Options***REMOVED***
 					VUs:        null.IntFrom(12345),
-					SystemTags: GetTagSet(DefaultSystemTagList...),
+					SystemTags: &stats.DefaultSystemTagSet,
 				***REMOVED***,
 				FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: fmt.Sprintf("%s/a.js", entry.PwdNormAnon)***REMOVED***,
 				K6Version:   consts.Version,
@@ -342,7 +344,7 @@ func TestStrangePaths(t *testing.T) ***REMOVED***
 			K6Version: consts.Version,
 			Options: Options***REMOVED***
 				VUs:        null.IntFrom(12345),
-				SystemTags: GetTagSet(DefaultSystemTagList...),
+				SystemTags: &stats.DefaultSystemTagSet,
 			***REMOVED***,
 			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: pathToChange***REMOVED***,
 			Data:        []byte(`// ` + pathToChange + ` contents`),

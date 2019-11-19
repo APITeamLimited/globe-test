@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -17,6 +18,9 @@ import (
 
 // ErrInvalidSpecification indicates that a specification is of the wrong type.
 var ErrInvalidSpecification = errors.New("specification must be a struct pointer")
+
+var gatherRegexp = regexp.MustCompile("([^A-Z]+|[A-Z]+[^A-Z]+|[A-Z]+)")
+var acronymRegexp = regexp.MustCompile("([A-Z]+)([A-Z][^A-Z]+)")
 
 // A ParseError occurs when an environment variable cannot be converted to
 // the type required by a struct field during assignment.
@@ -55,7 +59,6 @@ type varInfo struct ***REMOVED***
 
 // GatherInfo gathers information about the specified struct
 func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varInfo, error) ***REMOVED***
-	expr := regexp.MustCompile("([^A-Z]+|[A-Z][^A-Z]+|[A-Z]+)")
 	s := reflect.ValueOf(spec)
 
 	if s.Kind() != reflect.Ptr ***REMOVED***
@@ -72,7 +75,7 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 	for i := 0; i < s.NumField(); i++ ***REMOVED***
 		f := s.Field(i)
 		ftype := typeOfSpec.Field(i)
-		if !f.CanSet() || ftype.Tag.Get("ignored") == "true" ***REMOVED***
+		if !f.CanSet() || isTrue(ftype.Tag.Get("ignored")) ***REMOVED***
 			continue
 		***REMOVED***
 
@@ -100,12 +103,16 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 		info.Key = info.Name
 
 		// Best effort to un-pick camel casing as separate words
-		if ftype.Tag.Get("split_words") == "true" ***REMOVED***
-			words := expr.FindAllStringSubmatch(ftype.Name, -1)
+		if isTrue(ftype.Tag.Get("split_words")) ***REMOVED***
+			words := gatherRegexp.FindAllStringSubmatch(ftype.Name, -1)
 			if len(words) > 0 ***REMOVED***
 				var name []string
 				for _, words := range words ***REMOVED***
-					name = append(name, words[0])
+					if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 ***REMOVED***
+						name = append(name, m[1], m[2])
+					***REMOVED*** else ***REMOVED***
+						name = append(name, words[0])
+					***REMOVED***
 				***REMOVED***
 
 				info.Key = strings.Join(name, "_")
@@ -122,7 +129,7 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 
 		if f.Kind() == reflect.Struct ***REMOVED***
 			// honor Decode if present
-			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil ***REMOVED***
+			if decoderFrom(f) == nil && setterFrom(f) == nil && textUnmarshaler(f) == nil && binaryUnmarshaler(f) == nil ***REMOVED***
 				innerPrefix := prefix
 				if !ftype.Anonymous ***REMOVED***
 					innerPrefix = info.Key
@@ -140,6 +147,37 @@ func gatherInfo(prefix string, spec interface***REMOVED******REMOVED***) ([]varI
 		***REMOVED***
 	***REMOVED***
 	return infos, nil
+***REMOVED***
+
+// CheckDisallowed checks that no environment variables with the prefix are set
+// that we don't know how or want to parse. This is likely only meaningful with
+// a non-empty prefix.
+func CheckDisallowed(prefix string, spec interface***REMOVED******REMOVED***) error ***REMOVED***
+	infos, err := gatherInfo(prefix, spec)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	vars := make(map[string]struct***REMOVED******REMOVED***)
+	for _, info := range infos ***REMOVED***
+		vars[info.Key] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	***REMOVED***
+
+	if prefix != "" ***REMOVED***
+		prefix = strings.ToUpper(prefix) + "_"
+	***REMOVED***
+
+	for _, env := range os.Environ() ***REMOVED***
+		if !strings.HasPrefix(env, prefix) ***REMOVED***
+			continue
+		***REMOVED***
+		v := strings.SplitN(env, "=", 2)[0]
+		if _, found := vars[v]; !found ***REMOVED***
+			return fmt.Errorf("unknown environment variable %s", v)
+		***REMOVED***
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 // Process populates the specified struct based on environment variables
@@ -164,13 +202,17 @@ func Process(prefix string, spec interface***REMOVED******REMOVED***) error ***R
 
 		req := info.Tags.Get("required")
 		if !ok && def == "" ***REMOVED***
-			if req == "true" ***REMOVED***
-				return fmt.Errorf("required key %s missing value", info.Key)
+			if isTrue(req) ***REMOVED***
+				key := info.Key
+				if info.Alt != "" ***REMOVED***
+					key = info.Alt
+				***REMOVED***
+				return fmt.Errorf("required key %s missing value", key)
 			***REMOVED***
 			continue
 		***REMOVED***
 
-		err := processField(value, info.Field)
+		err = processField(value, info.Field)
 		if err != nil ***REMOVED***
 			return &ParseError***REMOVED***
 				KeyName:   info.Key,
@@ -207,6 +249,10 @@ func processField(value string, field reflect.Value) error ***REMOVED***
 
 	if t := textUnmarshaler(field); t != nil ***REMOVED***
 		return t.UnmarshalText([]byte(value))
+	***REMOVED***
+
+	if b := binaryUnmarshaler(field); b != nil ***REMOVED***
+		return b.UnmarshalBinary([]byte(value))
 	***REMOVED***
 
 	if typ.Kind() == reflect.Ptr ***REMOVED***
@@ -256,34 +302,41 @@ func processField(value string, field reflect.Value) error ***REMOVED***
 		***REMOVED***
 		field.SetFloat(val)
 	case reflect.Slice:
-		vals := strings.Split(value, ",")
-		sl := reflect.MakeSlice(typ, len(vals), len(vals))
-		for i, val := range vals ***REMOVED***
-			err := processField(val, sl.Index(i))
-			if err != nil ***REMOVED***
-				return err
+		sl := reflect.MakeSlice(typ, 0, 0)
+		if typ.Elem().Kind() == reflect.Uint8 ***REMOVED***
+			sl = reflect.ValueOf([]byte(value))
+		***REMOVED*** else if len(strings.TrimSpace(value)) != 0 ***REMOVED***
+			vals := strings.Split(value, ",")
+			sl = reflect.MakeSlice(typ, len(vals), len(vals))
+			for i, val := range vals ***REMOVED***
+				err := processField(val, sl.Index(i))
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		field.Set(sl)
 	case reflect.Map:
-		pairs := strings.Split(value, ",")
 		mp := reflect.MakeMap(typ)
-		for _, pair := range pairs ***REMOVED***
-			kvpair := strings.Split(pair, ":")
-			if len(kvpair) != 2 ***REMOVED***
-				return fmt.Errorf("invalid map item: %q", pair)
+		if len(strings.TrimSpace(value)) != 0 ***REMOVED***
+			pairs := strings.Split(value, ",")
+			for _, pair := range pairs ***REMOVED***
+				kvpair := strings.Split(pair, ":")
+				if len(kvpair) != 2 ***REMOVED***
+					return fmt.Errorf("invalid map item: %q", pair)
+				***REMOVED***
+				k := reflect.New(typ.Key()).Elem()
+				err := processField(kvpair[0], k)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				v := reflect.New(typ.Elem()).Elem()
+				err = processField(kvpair[1], v)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				mp.SetMapIndex(k, v)
 			***REMOVED***
-			k := reflect.New(typ.Key()).Elem()
-			err := processField(kvpair[0], k)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			v := reflect.New(typ.Elem()).Elem()
-			err = processField(kvpair[1], v)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			mp.SetMapIndex(k, v)
 		***REMOVED***
 		field.Set(mp)
 	***REMOVED***
@@ -316,4 +369,14 @@ func setterFrom(field reflect.Value) (s Setter) ***REMOVED***
 func textUnmarshaler(field reflect.Value) (t encoding.TextUnmarshaler) ***REMOVED***
 	interfaceFrom(field, func(v interface***REMOVED******REMOVED***, ok *bool) ***REMOVED*** t, *ok = v.(encoding.TextUnmarshaler) ***REMOVED***)
 	return t
+***REMOVED***
+
+func binaryUnmarshaler(field reflect.Value) (b encoding.BinaryUnmarshaler) ***REMOVED***
+	interfaceFrom(field, func(v interface***REMOVED******REMOVED***, ok *bool) ***REMOVED*** b, *ok = v.(encoding.BinaryUnmarshaler) ***REMOVED***)
+	return b
+***REMOVED***
+
+func isTrue(s string) bool ***REMOVED***
+	b, _ := strconv.ParseBool(s)
+	return b
 ***REMOVED***

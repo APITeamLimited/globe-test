@@ -75,32 +75,46 @@ func TestApply(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestParseArg(t *testing.T) ***REMOVED***
-	args := []string***REMOVED***
-		"test_file.csv",
-		"file_name=test.csv,save_interval=5s",
+	cases := map[string]struct ***REMOVED***
+		config      Config
+		expectedErr bool
+	***REMOVED******REMOVED***
+		"test_file.csv": ***REMOVED***
+			config: Config***REMOVED***
+				FileName:     null.StringFrom("test_file.csv"),
+				SaveInterval: types.NullDurationFrom(1 * time.Second),
+			***REMOVED***,
+		***REMOVED***,
+		"save_interval=5s": ***REMOVED***
+			config: Config***REMOVED***
+				SaveInterval: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
+		***REMOVED***,
+		"file_name=test.csv,save_interval=5s": ***REMOVED***
+			config: Config***REMOVED***
+				FileName:     null.StringFrom("test.csv"),
+				SaveInterval: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
+		***REMOVED***,
+		"filename=test.csv,save_interval=5s": ***REMOVED***
+			expectedErr: true,
+		***REMOVED***,
 	***REMOVED***
 
-	expected := []Config***REMOVED***
-		***REMOVED***
-			FileName:     null.StringFrom("test_file.csv"),
-			SaveInterval: types.NullDurationFrom(1 * time.Second),
-		***REMOVED***,
-		***REMOVED***
-			FileName:     null.StringFrom("test.csv"),
-			SaveInterval: types.NullDurationFrom(5 * time.Second),
-		***REMOVED***,
-	***REMOVED***
+	for arg, testCase := range cases ***REMOVED***
+		arg := arg
+		testCase := testCase
 
-	for i := range args ***REMOVED***
-		arg := args[i]
-		expected := expected[i]
-
-		t.Run(expected.FileName.String+"_"+expected.SaveInterval.String(), func(t *testing.T) ***REMOVED***
+		t.Run(arg, func(t *testing.T) ***REMOVED***
 			config, err := ParseArg(arg)
 
-			assert.Nil(t, err)
-			assert.Equal(t, expected.FileName.String, config.FileName.String)
-			assert.Equal(t, expected.SaveInterval.String(), config.SaveInterval.String())
+			if testCase.expectedErr ***REMOVED***
+				assert.Error(t, err)
+			***REMOVED*** else ***REMOVED***
+				assert.NoError(t, err)
+			***REMOVED***
+			assert.Equal(t, testCase.config.FileName.String, config.FileName.String)
+			assert.Equal(t, testCase.config.SaveInterval.String(), config.SaveInterval.String())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

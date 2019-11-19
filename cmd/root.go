@@ -93,6 +93,7 @@ var RootCmd = &cobra.Command***REMOVED***
 			stderr.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
 		log.SetOutput(logrus.StandardLogger().Writer())
+		logrus.Debugf("k6 version: v%s", consts.FullVersion())
 	***REMOVED***,
 ***REMOVED***
 
@@ -100,11 +101,16 @@ var RootCmd = &cobra.Command***REMOVED***
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED***
 	if err := RootCmd.Execute(); err != nil ***REMOVED***
-		logrus.Error(err.Error())
+		code := -1
+		var logger logrus.FieldLogger = logrus.StandardLogger()
 		if e, ok := err.(ExitCode); ok ***REMOVED***
-			os.Exit(e.Code)
+			code = e.Code
+			if e.Hint != "" ***REMOVED***
+				logger = logger.WithField("hint", e.Hint)
+			***REMOVED***
 		***REMOVED***
-		os.Exit(-1)
+		logger.Error(err)
+		os.Exit(code)
 	***REMOVED***
 ***REMOVED***
 

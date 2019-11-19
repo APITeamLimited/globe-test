@@ -104,7 +104,7 @@ func wrapDecompressionError(err error) error ***REMOVED***
 	// TODO: something more optimized? for example, we won't get zstd errors if
 	// we don't use it... maybe the code that builds the decompression readers
 	// could also add an appropriate error-wrapper layer?
-	for _, decErr := range decompressionErrors ***REMOVED***
+	for _, decErr := range &decompressionErrors ***REMOVED***
 		if err == decErr ***REMOVED***
 			return newDecompressionError(err)
 		***REMOVED***

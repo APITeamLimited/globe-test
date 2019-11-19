@@ -167,7 +167,14 @@ func TestDetailsError(t *testing.T) ***REMOVED***
 
 func TestRetry(t *testing.T) ***REMOVED***
 	called := 0
+	idempotencyKey := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		gotK6IdempotencyKey := r.Header.Get(k6IdempotencyKeyHeader)
+		if idempotencyKey == "" ***REMOVED***
+			idempotencyKey = gotK6IdempotencyKey
+		***REMOVED***
+		assert.NotEmpty(t, gotK6IdempotencyKey)
+		assert.Equal(t, idempotencyKey, gotK6IdempotencyKey)
 		called++
 		w.WriteHeader(500)
 	***REMOVED***))
@@ -184,7 +191,14 @@ func TestRetry(t *testing.T) ***REMOVED***
 
 func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	called := 1
+	idempotencyKey := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		gotK6IdempotencyKey := r.Header.Get(k6IdempotencyKeyHeader)
+		if idempotencyKey == "" ***REMOVED***
+			idempotencyKey = gotK6IdempotencyKey
+		***REMOVED***
+		assert.NotEmpty(t, gotK6IdempotencyKey)
+		assert.Equal(t, idempotencyKey, gotK6IdempotencyKey)
 		called++
 		if called == 2 ***REMOVED***
 			fprintf(t, w, `***REMOVED***"reference_id": "1"***REMOVED***`)
@@ -201,4 +215,31 @@ func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	assert.Equal(t, 2, called)
 	assert.NotNil(t, resp)
 	assert.Nil(t, err)
+***REMOVED***
+
+func TestIdempotencyKey(t *testing.T) ***REMOVED***
+	const idempotencyKey = "xxx"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		gotK6IdempotencyKey := r.Header.Get(k6IdempotencyKeyHeader)
+		switch r.Method ***REMOVED***
+		case http.MethodPost:
+			assert.NotEmpty(t, gotK6IdempotencyKey)
+			assert.Equal(t, idempotencyKey, gotK6IdempotencyKey)
+		default:
+			assert.Empty(t, gotK6IdempotencyKey)
+		***REMOVED***
+		w.WriteHeader(http.StatusOK)
+	***REMOVED***))
+	defer server.Close()
+
+	client := NewClient("token", server.URL, "1.0")
+	client.retryInterval = 1 * time.Millisecond
+	req, err := client.NewRequest(http.MethodPost, server.URL, nil)
+	assert.NoError(t, err)
+	req.Header.Set(k6IdempotencyKeyHeader, idempotencyKey)
+	assert.NoError(t, client.Do(req, nil))
+
+	req, err = client.NewRequest(http.MethodGet, server.URL, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, client.Do(req, nil))
 ***REMOVED***

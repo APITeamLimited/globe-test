@@ -43,10 +43,12 @@ func must(err error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Silently set an exit code.
+// ExitCode wraps the error with an exit code.
+// Hint is used to show details information about underlying error.
 type ExitCode struct ***REMOVED***
 	error
 	Code int
+	Hint string
 ***REMOVED***
 
 //TODO: refactor the CLI config so these functions aren't needed - they
