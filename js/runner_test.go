@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -530,6 +531,56 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 			err = vu.RunOnce(ctx)
 			assert.Error(t, err)
 			assert.True(t, strings.HasPrefix(err.Error(), "context cancelled at "))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
+	//TODO: figure out why interrupt sometimes fails... data race in goja?
+	if isWindows ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r1, err := getSimpleRunner("/script.js", `
+		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		`)
+	require.NoError(t, err)
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		name, r := name, r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Minute)
+			defer cancel()
+			samples := make(chan stats.SampleContainer, 100)
+			defer close(samples)
+			go func() ***REMOVED***
+				for range samples ***REMOVED***
+				***REMOVED***
+			***REMOVED***()
+			var wg sync.WaitGroup
+
+			vu, err := r.newVU(samples)
+			require.NoError(t, err)
+			for i := 0; i < 1000; i++ ***REMOVED***
+				wg.Add(1)
+				newCtx, newCancel := context.WithCancel(ctx)
+				var ch = make(chan struct***REMOVED******REMOVED***)
+				go func() ***REMOVED***
+					defer wg.Done()
+					close(ch)
+					vuErr := vu.RunOnce(newCtx)
+					assert.Error(t, vuErr)
+					assert.Contains(t, vuErr.Error(), "context cancelled")
+				***REMOVED***()
+				<-ch
+				time.Sleep(time.Millisecond * 1) // NOTE: increase this in case of problems ;)
+				newCancel()
+			***REMOVED***
+			wg.Wait()
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
