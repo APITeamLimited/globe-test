@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"io/ioutil"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/sirupsen/logrus"
@@ -199,24 +197,8 @@ func BenchmarkGetPlannedRateChanges(b *testing.B) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func initializeVUs(
-	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *lib.ExecutionState, number int,
-) ***REMOVED***
-	for i := 0; i < number; i++ ***REMOVED***
-		require.EqualValues(t, i, es.GetInitializedVUsCount())
-		vu, err := es.InitializeNewVU(ctx, logEntry)
-		require.NoError(t, err)
-		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
-		es.ReturnVU(vu, false)
-		require.EqualValues(t, 0, es.GetCurrentlyActiveVUsCount())
-		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
-	***REMOVED***
-***REMOVED***
-
-func testVariableArrivalRateSetup(t *testing.T, vuFn func(context.Context, chan<- stats.SampleContainer) error) (
-	context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
-	ctx, cancel := context.WithCancel(context.Background())
-	var config = VariableArrivalRateConfig***REMOVED***
+func getTestVariableArrivalRateConfig() VariableArrivalRateConfig ***REMOVED***
+	return VariableArrivalRateConfig***REMOVED***
 		TimeUnit:  types.NullDurationFrom(time.Second),
 		StartRate: null.IntFrom(10),
 		Stages: []Stage***REMOVED***
@@ -236,33 +218,13 @@ func testVariableArrivalRateSetup(t *testing.T, vuFn func(context.Context, chan<
 		PreAllocatedVUs: null.IntFrom(10),
 		MaxVUs:          null.IntFrom(20),
 	***REMOVED***
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
-	testLog := logrus.New()
-	testLog.AddHook(logHook)
-	testLog.SetOutput(ioutil.Discard)
-	logEntry := logrus.NewEntry(testLog)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
-	runner := lib.MiniRunner***REMOVED***
-		Fn: vuFn,
-	***REMOVED***
-
-	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry) (lib.VU, error) ***REMOVED***
-		return &lib.MiniRunnerVU***REMOVED***R: runner***REMOVED***, nil
-	***REMOVED***)
-
-	initializeVUs(ctx, t, logEntry, es, 10)
-
-	executor, err := config.NewExecutor(es, logEntry)
-	require.NoError(t, err)
-	err = executor.Init(ctx)
-	require.NoError(t, err)
-	return ctx, cancel, executor, logHook
 ***REMOVED***
 
 func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var ctx, cancel, executor, logHook = testVariableArrivalRateSetup(
-		t, func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	var ctx, cancel, executor, logHook = setupExecutor(
+		t, getTestVariableArrivalRateConfig(),
+		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
 		***REMOVED***)
@@ -283,8 +245,9 @@ func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 func TestVariableArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var count int64
-	var ctx, cancel, executor, logHook = testVariableArrivalRateSetup(
-		t, func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	var ctx, cancel, executor, logHook = setupExecutor(
+		t, getTestVariableArrivalRateConfig(),
+		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
 		***REMOVED***)

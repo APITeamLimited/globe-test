@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"io/ioutil"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,43 +16,21 @@ import (
 	null "gopkg.in/guregu/null.v3"
 )
 
-func testConstantArrivalRateSetup(t *testing.T, vuFn func(context.Context, chan<- stats.SampleContainer) error) (
-	context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
-	ctx, cancel := context.WithCancel(context.Background())
-	var config = ConstantArrivalRateConfig***REMOVED***
+func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig ***REMOVED***
+	return ConstantArrivalRateConfig***REMOVED***
 		TimeUnit:        types.NullDurationFrom(time.Second),
 		Rate:            null.IntFrom(50),
 		Duration:        types.NullDurationFrom(5 * time.Second),
 		PreAllocatedVUs: null.IntFrom(10),
 		MaxVUs:          null.IntFrom(20),
 	***REMOVED***
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
-	testLog := logrus.New()
-	testLog.AddHook(logHook)
-	testLog.SetOutput(ioutil.Discard)
-	logEntry := logrus.NewEntry(testLog)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
-	runner := lib.MiniRunner***REMOVED***
-		Fn: vuFn,
-	***REMOVED***
-
-	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry) (lib.VU, error) ***REMOVED***
-		return &lib.MiniRunnerVU***REMOVED***R: runner***REMOVED***, nil
-	***REMOVED***)
-
-	initializeVUs(ctx, t, logEntry, es, 10)
-
-	executor, err := config.NewExecutor(es, logEntry)
-	require.NoError(t, err)
-	err = executor.Init(ctx)
-	require.NoError(t, err)
-	return ctx, cancel, executor, logHook
 ***REMOVED***
 
 func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var ctx, cancel, executor, logHook = testConstantArrivalRateSetup(
-		t, func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	var ctx, cancel, executor, logHook = setupExecutor(
+		t, getTestConstantArrivalRateConfig(),
+		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
 		***REMOVED***)
@@ -74,8 +51,9 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var count int64
-	var ctx, cancel, executor, logHook = testConstantArrivalRateSetup(
-		t, func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	var ctx, cancel, executor, logHook = setupExecutor(
+		t, getTestConstantArrivalRateConfig(),
+		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
 		***REMOVED***)
@@ -103,11 +81,17 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var mat = map[string]func(
-		t *testing.T,
-		vuFn func(context.Context, chan<- stats.SampleContainer) error,
+		*testing.T,
+		func(context.Context, chan<- stats.SampleContainer) error,
 	) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook)***REMOVED***
-		"constant": testConstantArrivalRateSetup,
-		"variable": testVariableArrivalRateSetup,
+		"constant": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
+			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
+			return setupExecutor(t, getTestConstantArrivalRateConfig(), vuFn)
+		***REMOVED***,
+		"variable": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
+			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
+			return setupExecutor(t, getTestVariableArrivalRateConfig(), vuFn)
+		***REMOVED***,
 	***REMOVED***
 	for name, fn := range mat ***REMOVED***
 		fn := fn
