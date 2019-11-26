@@ -22,8 +22,10 @@ package lib
 
 import (
 	"context"
+	"math/rand"
 
 	"github.com/loadimpact/k6/stats"
+	"github.com/sirupsen/logrus"
 )
 
 // Ensure mock implementations conform to the interfaces.
@@ -97,7 +99,7 @@ type MiniRunner struct ***REMOVED***
 ***REMOVED***
 
 func (r MiniRunner) VU(out chan<- stats.SampleContainer) *MiniRunnerVU ***REMOVED***
-	return &MiniRunnerVU***REMOVED***R: r, Out: out***REMOVED***
+	return &MiniRunnerVU***REMOVED***R: r, Out: out, ID: rand.Int63()***REMOVED***
 ***REMOVED***
 
 func (r MiniRunner) MakeArchive() *Archive ***REMOVED***
@@ -105,6 +107,9 @@ func (r MiniRunner) MakeArchive() *Archive ***REMOVED***
 ***REMOVED***
 
 func (r MiniRunner) NewVU(out chan<- stats.SampleContainer) (VU, error) ***REMOVED***
+	// XXX: This method isn't called by the new executors.
+	// Confirm whether this was intentional and if other methods of
+	// the Runner interface are unused.
 	return r.VU(out), nil
 ***REMOVED***
 
@@ -150,14 +155,21 @@ func (r *MiniRunner) SetOptions(opts Options) error ***REMOVED***
 
 // A VU spawned by a MiniRunner.
 type MiniRunnerVU struct ***REMOVED***
-	R   MiniRunner
-	Out chan<- stats.SampleContainer
-	ID  int64
+	R      MiniRunner
+	Out    chan<- stats.SampleContainer
+	ID     int64
+	Logger *logrus.Entry
 ***REMOVED***
 
 func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
+	***REMOVED***
+	// HACK: fixme, we shouldn't rely on logging for testing
+	if vu.Logger != nil ***REMOVED***
+		vu.Logger.WithFields(
+			logrus.Fields***REMOVED***"vu_id": vu.ID***REMOVED***,
+		).Info("running function")
 	***REMOVED***
 	return vu.R.Fn(ctx, vu.Out)
 ***REMOVED***

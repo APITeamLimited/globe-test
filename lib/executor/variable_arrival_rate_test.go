@@ -227,7 +227,9 @@ func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
-		***REMOVED***)
+		***REMOVED***,
+		[]logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
+	)
 	defer cancel()
 	var engineOut = make(chan stats.SampleContainer, 1000)
 	err := executor.Run(ctx, engineOut)
@@ -250,7 +252,9 @@ func TestVariableArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 		func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
-		***REMOVED***)
+		***REMOVED***,
+		[]logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
+	)
 	defer cancel()
 	var wg sync.WaitGroup
 	wg.Add(1)
