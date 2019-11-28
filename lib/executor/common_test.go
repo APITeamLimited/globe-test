@@ -16,10 +16,9 @@ import (
 func setupExecutor(
 	t *testing.T, config lib.ExecutorConfig,
 	vuFn func(context.Context, chan<- stats.SampleContainer) error,
-	logLevels []logrus.Level,
 ) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
-	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: logLevels***REMOVED***
+	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
 	testLog.SetOutput(ioutil.Discard)
@@ -30,7 +29,7 @@ func setupExecutor(
 	***REMOVED***
 
 	es.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.VU, error) ***REMOVED***
-		return &lib.MiniRunnerVU***REMOVED***R: runner, ID: rand.Int63(), Logger: logger***REMOVED***, nil
+		return &lib.MiniRunnerVU***REMOVED***R: runner, ID: rand.Int63()***REMOVED***, nil
 	***REMOVED***)
 
 	initializeVUs(ctx, t, logEntry, es, 10)

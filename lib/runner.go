@@ -25,7 +25,6 @@ import (
 	"math/rand"
 
 	"github.com/loadimpact/k6/stats"
-	"github.com/sirupsen/logrus"
 )
 
 // Ensure mock implementations conform to the interfaces.
@@ -155,23 +154,26 @@ func (r *MiniRunner) SetOptions(opts Options) error ***REMOVED***
 
 // A VU spawned by a MiniRunner.
 type MiniRunnerVU struct ***REMOVED***
-	R      MiniRunner
-	Out    chan<- stats.SampleContainer
-	ID     int64
-	Logger *logrus.Entry
+	R         MiniRunner
+	Out       chan<- stats.SampleContainer
+	ID        int64
+	Iteration int64
 ***REMOVED***
 
 func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
-	// HACK: fixme, we shouldn't rely on logging for testing
-	if vu.Logger != nil ***REMOVED***
-		vu.Logger.WithFields(
-			logrus.Fields***REMOVED***"vu_id": vu.ID***REMOVED***,
-		).Info("running function")
+
+	state := &State***REMOVED***
+		Vu:        vu.ID,
+		Iteration: vu.Iteration,
 	***REMOVED***
-	return vu.R.Fn(ctx, vu.Out)
+	newctx := WithState(ctx, state)
+
+	vu.Iteration++
+
+	return vu.R.Fn(newctx, vu.Out)
 ***REMOVED***
 
 func (vu *MiniRunnerVU) Reconfigure(id int64) error ***REMOVED***

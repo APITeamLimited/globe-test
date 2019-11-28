@@ -34,7 +34,6 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 			time.Sleep(time.Second)
 			return nil
 		***REMOVED***,
-		[]logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
 	)
 	defer cancel()
 	var engineOut = make(chan stats.SampleContainer, 1000)
@@ -59,7 +58,6 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
 		***REMOVED***,
-		[]logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
 	)
 	defer cancel()
 	var wg sync.WaitGroup
@@ -90,11 +88,11 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 	) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook)***REMOVED***
 		"constant": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
 			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
-			return setupExecutor(t, getTestConstantArrivalRateConfig(), vuFn, []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***)
+			return setupExecutor(t, getTestConstantArrivalRateConfig(), vuFn)
 		***REMOVED***,
 		"variable": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
 			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
-			return setupExecutor(t, getTestVariableArrivalRateConfig(), vuFn, []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***)
+			return setupExecutor(t, getTestVariableArrivalRateConfig(), vuFn)
 		***REMOVED***,
 	***REMOVED***
 	for name, fn := range mat ***REMOVED***
