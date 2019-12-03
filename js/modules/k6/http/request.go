@@ -30,7 +30,6 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -357,6 +356,54 @@ func (h *HTTP) parseRequest(
 	return result, nil
 ***REMOVED***
 
+func (h *HTTP) prepareBatchArray(
+	ctx context.Context, requests []interface***REMOVED******REMOVED***,
+) ([]httpext.BatchParsedHTTPRequest, []*Response, error) ***REMOVED***
+	reqCount := len(requests)
+	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
+	results := make([]*Response, reqCount)
+
+	for i, req := range requests ***REMOVED***
+		parsedReq, err := h.parseBatchRequest(ctx, i, req)
+		if err != nil ***REMOVED***
+			return nil, nil, err
+		***REMOVED***
+		response := new(httpext.Response)
+		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
+			ParsedHTTPRequest: parsedReq,
+			Response:          response,
+		***REMOVED***
+		results[i] = &Response***REMOVED***response***REMOVED***
+	***REMOVED***
+
+	return batchReqs, results, nil
+***REMOVED***
+
+func (h *HTTP) prepareBatchObject(
+	ctx context.Context, requests map[string]interface***REMOVED******REMOVED***,
+) ([]httpext.BatchParsedHTTPRequest, map[string]*Response, error) ***REMOVED***
+	reqCount := len(requests)
+	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
+	results := make(map[string]*Response, reqCount)
+
+	i := 0
+	for key, req := range requests ***REMOVED***
+		parsedReq, err := h.parseBatchRequest(ctx, key, req)
+		if err != nil ***REMOVED***
+			return nil, nil, err
+		***REMOVED***
+		response := new(httpext.Response)
+		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
+			ParsedHTTPRequest: parsedReq,
+			Response:          response,
+		***REMOVED***
+		results[key] = &Response***REMOVED***response***REMOVED***
+		i++
+	***REMOVED***
+
+	return batchReqs, results, nil
+***REMOVED***
+
 // Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
 // objects. Batch returns an array of responses and/or error
 func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
@@ -364,63 +411,43 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 	if state == nil ***REMOVED***
 		return nil, ErrBatchForbiddenInInitContext
 	***REMOVED***
-	rt := common.GetRuntime(ctx)
-
-	reqs := reqsV.ToObject(rt)
-	keys := reqs.Keys()
-	parsedReqs := map[string]*httpext.ParsedHTTPRequest***REMOVED******REMOVED***
-	for _, key := range keys ***REMOVED***
-		parsedReq, err := h.parseBatchRequest(ctx, key, reqs.Get(key))
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		parsedReqs[key] = parsedReq
-	***REMOVED***
 
 	var (
-		// Return values; retval must be guarded by the mutex.
-		mutex  sync.Mutex
-		retval = rt.NewObject()
-		errs   = make(chan error)
-
-		// Concurrency limits.
-		globalLimiter  = NewSlotLimiter(int(state.Options.Batch.Int64))
-		perHostLimiter = NewMultiSlotLimiter(int(state.Options.BatchPerHost.Int64))
+		err       error
+		batchReqs []httpext.BatchParsedHTTPRequest
+		results   interface***REMOVED******REMOVED*** // either []*Response or map[string]*Response
 	)
-	for k, pr := range parsedReqs ***REMOVED***
-		go func(key string, parsedReq *httpext.ParsedHTTPRequest) ***REMOVED***
-			globalLimiter.Begin()
-			defer globalLimiter.End()
 
-			if hl := perHostLimiter.Slot(parsedReq.URL.GetURL().Host); hl != nil ***REMOVED***
-				hl.Begin()
-				defer hl.End()
-			***REMOVED***
-
-			res, err := httpext.MakeRequest(ctx, parsedReq)
-			if err != nil ***REMOVED***
-				errs <- err
-				return
-			***REMOVED***
-
-			mutex.Lock()
-			_ = retval.Set(key, responseFromHttpext(res))
-			mutex.Unlock()
-
-			errs <- nil
-		***REMOVED***(k, pr)
+	switch v := reqsV.Export().(type) ***REMOVED***
+	case []interface***REMOVED******REMOVED***:
+		batchReqs, results, err = h.prepareBatchArray(ctx, v)
+	case map[string]interface***REMOVED******REMOVED***:
+		batchReqs, results, err = h.prepareBatchObject(ctx, v)
+	default:
+		return nil, fmt.Errorf("invalid http.batch() argument type %T", v)
 	***REMOVED***
 
-	var err error
-	for range keys ***REMOVED***
-		if e := <-errs; e != nil ***REMOVED***
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	reqCount := len(batchReqs)
+	errs := httpext.MakeBatchRequests(
+		ctx, batchReqs, reqCount,
+		int(state.Options.Batch.Int64), int(state.Options.BatchPerHost.Int64),
+	)
+
+	for i := 0; i < reqCount; i++ ***REMOVED***
+		if e := <-errs; e != nil && err == nil ***REMOVED*** // Save only the first error
 			err = e
 		***REMOVED***
 	***REMOVED***
-	return retval, err
+	return common.GetRuntime(ctx).ToValue(results), err
 ***REMOVED***
 
-func (h *HTTP) parseBatchRequest(ctx context.Context, key string, val goja.Value) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
+func (h *HTTP) parseBatchRequest(
+	ctx context.Context, key interface***REMOVED******REMOVED***, val interface***REMOVED******REMOVED***,
+) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
 	var (
 		method = HTTP_METHOD_GET
 		ok     bool
@@ -431,7 +458,7 @@ func (h *HTTP) parseBatchRequest(ctx context.Context, key string, val goja.Value
 		rt     = common.GetRuntime(ctx)
 	)
 
-	switch data := val.Export().(type) ***REMOVED***
+	switch data := val.(type) ***REMOVED***
 	case []interface***REMOVED******REMOVED***:
 		// Handling of ["GET", "http://example.com/"]
 		dataLen := len(data)
@@ -456,7 +483,7 @@ func (h *HTTP) parseBatchRequest(ctx context.Context, key string, val goja.Value
 	case map[string]interface***REMOVED******REMOVED***:
 		// Handling of ***REMOVED***method: "GET", url: "http://test.loadimpact.com"***REMOVED***
 		if murl, ok := data["url"]; !ok ***REMOVED***
-			return nil, fmt.Errorf("batch request %s doesn't have an url key", key)
+			return nil, fmt.Errorf("batch request %q doesn't have an url key", key)
 		***REMOVED*** else if reqURL, err = ToURL(murl); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***

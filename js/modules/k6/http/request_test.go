@@ -123,6 +123,8 @@ func newRuntime(
 		UserAgent:    null.StringFrom("TestUserAgent"),
 		Throw:        null.BoolFrom(true),
 		SystemTags:   &stats.DefaultSystemTagSet,
+		Batch:        null.IntFrom(20),
+		BatchPerHost: null.IntFrom(20),
 		//HTTPDebug:    null.StringFrom("full"),
 	***REMOVED***
 	samples := make(chan stats.SampleContainer, 1000)
@@ -1037,6 +1039,10 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Batch", func(t *testing.T) ***REMOVED***
+		t.Run("error", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `let res = http.batch("https://somevalidurl.com");`)
+			require.Error(t, err)
+		***REMOVED***)
 		t.Run("GET", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
 			let reqs = [
@@ -1048,7 +1054,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
 				if (res[key].url != reqs[key][1]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
 			***REMOVED***`))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			bufSamples := stats.GetBufferedSamples(samples)
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
