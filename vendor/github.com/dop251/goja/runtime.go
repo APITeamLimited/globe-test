@@ -9,6 +9,9 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"time"
+
+	"golang.org/x/text/collate"
 
 	js_ast "github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
@@ -21,6 +24,7 @@ const (
 var (
 	typeCallable = reflect.TypeOf(Callable(nil))
 	typeValue    = reflect.TypeOf((*Value)(nil)).Elem()
+	typeTime     = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
 )
 
 type global struct ***REMOVED***
@@ -93,11 +97,15 @@ func ToFlag(b bool) Flag ***REMOVED***
 
 type RandSource func() float64
 
+type Now func() time.Time
+
 type Runtime struct ***REMOVED***
 	global          global
 	globalObject    *Object
 	stringSingleton *stringObject
 	rand            RandSource
+	now             Now
+	_collator       *collate.Collator
 
 	typeInfoCache   map[reflect.Type]*reflectTypeInfo
 	fieldNameMapper FieldNameMapper
@@ -231,6 +239,7 @@ func (r *Runtime) addToGlobal(name string, value Value) ***REMOVED***
 
 func (r *Runtime) init() ***REMOVED***
 	r.rand = rand.Float64
+	r.now = time.Now
 	r.global.ObjectPrototype = r.newBaseObject(nil, classObject).val
 	r.globalObject = r.NewObject()
 
@@ -965,7 +974,7 @@ func (r *Runtime) ToValue(i interface***REMOVED******REMOVED***) Value ***REMOVE
 	case int64:
 		return intToValue(i)
 	case uint:
-		if int64(i) <= math.MaxInt64 ***REMOVED***
+		if uint64(i) <= math.MaxInt64 ***REMOVED***
 			return intToValue(int64(i))
 		***REMOVED*** else ***REMOVED***
 			return floatToValue(float64(i))
@@ -986,6 +995,9 @@ func (r *Runtime) ToValue(i interface***REMOVED******REMOVED***) Value ***REMOVE
 	case float64:
 		return floatToValue(i)
 	case map[string]interface***REMOVED******REMOVED***:
+		if i == nil ***REMOVED***
+			return _null
+		***REMOVED***
 		obj := &Object***REMOVED***runtime: r***REMOVED***
 		m := &objectGoMapSimple***REMOVED***
 			baseObject: baseObject***REMOVED***
@@ -998,6 +1010,9 @@ func (r *Runtime) ToValue(i interface***REMOVED******REMOVED***) Value ***REMOVE
 		m.init()
 		return obj
 	case []interface***REMOVED******REMOVED***:
+		if i == nil ***REMOVED***
+			return _null
+		***REMOVED***
 		obj := &Object***REMOVED***runtime: r***REMOVED***
 		a := &objectGoSlice***REMOVED***
 			baseObject: baseObject***REMOVED***
@@ -1009,6 +1024,9 @@ func (r *Runtime) ToValue(i interface***REMOVED******REMOVED***) Value ***REMOVE
 		a.init()
 		return obj
 	case *[]interface***REMOVED******REMOVED***:
+		if i == nil ***REMOVED***
+			return _null
+		***REMOVED***
 		obj := &Object***REMOVED***runtime: r***REMOVED***
 		a := &objectGoSlice***REMOVED***
 			baseObject: baseObject***REMOVED***
@@ -1242,6 +1260,14 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 		return reflect.ValueOf(v.Export()).Convert(typ), nil
 	***REMOVED***
 
+	if typ == typeTime && et.Kind() == reflect.String ***REMOVED***
+		time, ok := dateParse(v.String())
+		if !ok ***REMOVED***
+			return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert string %v to %v", v, typ)
+		***REMOVED***
+		return reflect.ValueOf(time), nil
+	***REMOVED***
+
 	switch typ.Kind() ***REMOVED***
 	case reflect.Slice:
 		if o, ok := v.(*Object); ok ***REMOVED***
@@ -1253,7 +1279,7 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 					item := o.self.get(intToValue(int64(i)))
 					itemval, err := r.toReflectValue(item, elemTyp)
 					if err != nil ***REMOVED***
-						return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert array element %v to %v at %d", v, typ, i)
+						return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert array element %v to %v at %d: %s", v, typ, i, err)
 					***REMOVED***
 					s.Index(i).Set(itemval)
 				***REMOVED***
@@ -1300,11 +1326,17 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 			for i := 0; i < typ.NumField(); i++ ***REMOVED***
 				field := typ.Field(i)
 				if ast.IsExported(field.Name) ***REMOVED***
-					v := o.self.getStr(field.Name)
+					var v Value
+					if field.Anonymous ***REMOVED***
+						v = o
+					***REMOVED*** else ***REMOVED***
+						v = o.self.getStr(field.Name)
+					***REMOVED***
+
 					if v != nil ***REMOVED***
 						vv, err := r.toReflectValue(v, field.Type)
 						if err != nil ***REMOVED***
-							return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert struct value %v to %v for field %s", v, field.Type, field.Name)
+							return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert struct value %v to %v for field %s: %s", v, field.Type, field.Name, err)
 
 						***REMOVED***
 						s.Field(i).Set(vv)
@@ -1317,6 +1349,17 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 		if fn, ok := AssertFunction(v); ok ***REMOVED***
 			return reflect.MakeFunc(typ, r.wrapJSFunc(fn, typ)), nil
 		***REMOVED***
+	case reflect.Ptr:
+		elemTyp := typ.Elem()
+		v, err := r.toReflectValue(v, elemTyp)
+		if err != nil ***REMOVED***
+			return reflect.Value***REMOVED******REMOVED***, err
+		***REMOVED***
+
+		ptrVal := reflect.New(v.Type())
+		ptrVal.Elem().Set(v)
+
+		return ptrVal, nil
 	***REMOVED***
 
 	return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert %v to %v", v, typ)
@@ -1391,6 +1434,12 @@ func (r *Runtime) SetRandSource(source RandSource) ***REMOVED***
 	r.rand = source
 ***REMOVED***
 
+// SetTimeSource sets the current time source for this Runtime.
+// If not called, the default time.Now() is used.
+func (r *Runtime) SetTimeSource(now Now) ***REMOVED***
+	r.now = now
+***REMOVED***
+
 // Callable represents a JavaScript function that can be called from Go.
 type Callable func(this Value, args ...Value) (Value, error)
 
@@ -1436,6 +1485,17 @@ func IsNull(v Value) bool ***REMOVED***
 	return v == _null
 ***REMOVED***
 
+// IsNaN returns true if the supplied value is NaN.
+func IsNaN(v Value) bool ***REMOVED***
+	f, ok := v.assertFloat()
+	return ok && math.IsNaN(f)
+***REMOVED***
+
+// IsInfinity returns true if the supplied is (+/-)Infinity
+func IsInfinity(v Value) bool ***REMOVED***
+	return v == _positiveInf || v == _negativeInf
+***REMOVED***
+
 // Undefined returns JS undefined value. Note if global 'undefined' property is changed this still returns the original value.
 func Undefined() Value ***REMOVED***
 	return _undefined
@@ -1444,6 +1504,21 @@ func Undefined() Value ***REMOVED***
 // Null returns JS null value.
 func Null() Value ***REMOVED***
 	return _null
+***REMOVED***
+
+// NaN returns a JS NaN value.
+func NaN() Value ***REMOVED***
+	return _NaN
+***REMOVED***
+
+// PositiveInf returns a JS +Inf value.
+func PositiveInf() Value ***REMOVED***
+	return _positiveInf
+***REMOVED***
+
+// NegativeInf returns a JS -Inf value.
+func NegativeInf() Value ***REMOVED***
+	return _negativeInf
 ***REMOVED***
 
 func tryFunc(f func()) (err error) ***REMOVED***

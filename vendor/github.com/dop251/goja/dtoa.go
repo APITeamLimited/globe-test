@@ -219,7 +219,7 @@ func dtobasestr(num float64, radix int) string ***REMOVED***
 		***REMOVED***
 		mlo := big.NewInt(1)
 		mhi := mlo
-		if (word1 == 0) && ((word0 & bndry_mask) == 0) && ((word0 & (exp_mask & exp_mask << 1)) != 0) ***REMOVED***
+		if (word1 == 0) && ((word0 & bndry_mask) == 0) && ((word0 & (exp_mask & (exp_mask << 1))) != 0) ***REMOVED***
 			/* The special case.  Here we want to be within a quarter of the last input
 			   significant digit instead of one half of it when the output string's value is less than d.  */
 			s2 += log2P

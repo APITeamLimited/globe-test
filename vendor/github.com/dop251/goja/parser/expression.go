@@ -1,7 +1,6 @@
 package parser
 
 import (
-
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
@@ -273,9 +272,10 @@ func (self *_parser) parseObjectLiteral() ast.Expression ***REMOVED***
 	for self.token != token.RIGHT_BRACE && self.token != token.EOF ***REMOVED***
 		property := self.parseObjectProperty()
 		value = append(value, property)
-		if self.token == token.COMMA ***REMOVED***
-			self.next()
-			continue
+		if self.token != token.RIGHT_BRACE ***REMOVED***
+			self.expect(token.COMMA)
+		***REMOVED*** else ***REMOVED***
+			break
 		***REMOVED***
 	***REMOVED***
 	idx1 := self.expect(token.RIGHT_BRACE)
@@ -399,7 +399,7 @@ func (self *_parser) parseLeftHandSideExpression() ast.Expression ***REMOVED***
 	for ***REMOVED***
 		if self.token == token.PERIOD ***REMOVED***
 			left = self.parseDotMember(left)
-		***REMOVED*** else if self.token == token.LEFT_BRACE ***REMOVED***
+		***REMOVED*** else if self.token == token.LEFT_BRACKET ***REMOVED***
 			left = self.parseBracketMember(left)
 		***REMOVED*** else ***REMOVED***
 			break

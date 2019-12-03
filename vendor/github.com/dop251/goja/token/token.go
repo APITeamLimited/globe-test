@@ -15,7 +15,7 @@ type Token int
 // name (e.g. for the token IDENTIFIER, the string is "IDENTIFIER").
 //
 func (tkn Token) String() string ***REMOVED***
-	if 0 == tkn ***REMOVED***
+	if tkn == 0 ***REMOVED***
 		return "UNKNOWN"
 	***REMOVED***
 	if tkn < Token(len(token2string)) ***REMOVED***

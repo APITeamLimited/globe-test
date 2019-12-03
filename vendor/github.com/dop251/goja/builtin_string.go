@@ -11,9 +11,14 @@ import (
 	"unicode/utf8"
 )
 
-var (
-	collator = collate.New(language.Und)
-)
+func (r *Runtime) collator() *collate.Collator ***REMOVED***
+	collator := r._collator
+	if collator == nil ***REMOVED***
+		collator = collate.New(language.Und)
+		r._collator = collator
+	***REMOVED***
+	return collator
+***REMOVED***
 
 func (r *Runtime) builtin_String(call FunctionCall) Value ***REMOVED***
 	if len(call.Arguments) > 0 ***REMOVED***
@@ -94,7 +99,7 @@ func (r *Runtime) string_fromcharcode(call FunctionCall) Value ***REMOVED***
 		chr := toUInt16(arg)
 		if chr >= utf8.RuneSelf ***REMOVED***
 			bb := make([]uint16, len(call.Arguments))
-			for j := 0; i < i; j++ ***REMOVED***
+			for j := 0; j < i; j++ ***REMOVED***
 				bb[j] = uint16(b[j])
 			***REMOVED***
 			bb[i] = chr
@@ -216,7 +221,7 @@ func (r *Runtime) stringproto_localeCompare(call FunctionCall) Value ***REMOVED*
 	r.checkObjectCoercible(call.This)
 	this := norm.NFD.String(call.This.String())
 	that := norm.NFD.String(call.Argument(0).String())
-	return intToValue(int64(collator.CompareString(this, that)))
+	return intToValue(int64(r.collator().CompareString(this, that)))
 ***REMOVED***
 
 func (r *Runtime) stringproto_match(call FunctionCall) Value ***REMOVED***
