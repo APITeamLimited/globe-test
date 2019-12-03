@@ -98,13 +98,21 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 		defer srv.Close()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		logger := logrus.New()
+		logger.Level = logrus.DebugLevel
 		state := &lib.State***REMOVED***
 			Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
 			Transport: srv.Client().Transport,
+			Logger:    logger,
 		***REMOVED***
 		ctx = lib.WithState(ctx, state)
 		req, _ := http.NewRequest("GET", srv.URL, nil)
-		var preq = &ParsedHTTPRequest***REMOVED***Req: req, URL: &URL***REMOVED***u: req.URL***REMOVED***, Body: new(bytes.Buffer)***REMOVED***
+		var preq = &ParsedHTTPRequest***REMOVED***
+			Req:     req,
+			URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+			Body:    new(bytes.Buffer),
+			Timeout: 10 * time.Second,
+		***REMOVED***
 
 		res, err := MakeRequest(ctx, preq)
 

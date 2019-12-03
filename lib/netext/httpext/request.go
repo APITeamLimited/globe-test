@@ -283,7 +283,6 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	resp := &Response***REMOVED***ctx: ctx, URL: preq.URL.URL, Request: *respReq***REMOVED***
 	client := http.Client***REMOVED***
 		Transport: transport,
-		Timeout:   preq.Timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error ***REMOVED***
 			resp.URL = req.URL.String()
 
@@ -312,7 +311,9 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***,
 	***REMOVED***
 
-	mreq := preq.Req.WithContext(ctx)
+	reqCtx, cancelFunc := context.WithTimeout(ctx, preq.Timeout)
+	defer cancelFunc()
+	mreq := preq.Req.WithContext(reqCtx)
 	res, resErr := client.Do(mreq)
 
 	// TODO(imiric): It would be safer to check for a writeable
@@ -367,7 +368,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	if resErr != nil ***REMOVED***
-		// Do *not* log errors about the contex being cancelled.
+		// Do *not* log errors about the context being cancelled.
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
