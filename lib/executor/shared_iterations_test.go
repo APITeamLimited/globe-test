@@ -22,6 +22,7 @@ package executor
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ func getTestSharedIterationsConfig() SharedIterationsConfig ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Baseline test
 func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var doneIters uint64
@@ -57,4 +59,49 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	err := executor.Run(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(100), doneIters)
+***REMOVED***
+
+// Test that when one VU "slows down", others will pick up the workload.
+// This is the reverse behavior of the PerVUIterations executor.
+func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
+	t.Parallel()
+	var (
+		result   sync.Map
+		slowVUID int64
+	)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+	var ctx, cancel, executor, _ = setupExecutor(
+		t, getTestSharedIterationsConfig(), es,
+		simpleRunner(func(ctx context.Context) error ***REMOVED***
+			time.Sleep(10 * time.Millisecond) // small wait to stabilize the test
+			state := lib.GetState(ctx)
+			// Pick one VU randomly and always slow it down.
+			sid := atomic.LoadInt64(&slowVUID)
+			if sid == int64(0) ***REMOVED***
+				atomic.StoreInt64(&slowVUID, state.Vu)
+			***REMOVED***
+			if sid == state.Vu ***REMOVED***
+				time.Sleep(200 * time.Millisecond)
+			***REMOVED***
+			currIter, _ := result.LoadOrStore(state.Vu, uint64(0))
+			result.Store(state.Vu, currIter.(uint64)+1)
+			return nil
+		***REMOVED***),
+	)
+	defer cancel()
+	err := executor.Run(ctx, nil)
+	require.NoError(t, err)
+
+	var totalIters uint64
+	result.Range(func(key, value interface***REMOVED******REMOVED***) bool ***REMOVED***
+		totalIters += value.(uint64)
+		return true
+	***REMOVED***)
+
+	// The slow VU should complete 2 iterations given these timings,
+	// while the rest should randomly complete the other 98 iterations.
+	val, ok := result.Load(slowVUID)
+	assert.True(t, ok)
+	assert.Equal(t, uint64(2), val)
+	assert.Equal(t, uint64(100), totalIters)
 ***REMOVED***
