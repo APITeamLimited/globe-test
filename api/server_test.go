@@ -36,6 +36,7 @@ import (
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 )
 
 func testHTTPHandler(rw http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -76,7 +77,7 @@ func TestLogger(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestWithEngine(t *testing.T) ***REMOVED***
-	execScheduler, err := local.NewExecutionScheduler(&lib.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
+	execScheduler, err := local.NewExecutionScheduler(&testutils.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)
 	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)

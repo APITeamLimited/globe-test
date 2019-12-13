@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"io/ioutil"
-	"math/rand"
 	"testing"
 
 	"github.com/loadimpact/k6/lib"
@@ -13,23 +12,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupExecutor(
-	t *testing.T, config lib.ExecutorConfig,
-	vuFn func(context.Context, chan<- stats.SampleContainer) error,
-) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) ***REMOVED***
+func simpleRunner(vuFn func(context.Context) error) lib.Runner ***REMOVED***
+	return &testutils.MiniRunner***REMOVED***
+		Fn: func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
+			return vuFn(ctx)
+		***REMOVED***,
+	***REMOVED***
+***REMOVED***
+
+func setupExecutor(t *testing.T, config lib.ExecutorConfig, runner lib.Runner) (
+	context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook,
+) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
+	engineOut := make(chan stats.SampleContainer, 100) //TODO: return this for more complicated tests?
+
 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
 	testLog.SetOutput(ioutil.Discard)
 	logEntry := logrus.NewEntry(testLog)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
-	runner := lib.MiniRunner***REMOVED***
-		Fn: vuFn,
-	***REMOVED***
 
 	es.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.VU, error) ***REMOVED***
-		return &lib.MiniRunnerVU***REMOVED***R: runner, ID: rand.Int63()***REMOVED***, nil
+		return runner.NewVU(engineOut)
 	***REMOVED***)
 
 	initializeVUs(ctx, t, logEntry, es, 10)
@@ -44,6 +49,7 @@ func setupExecutor(
 func initializeVUs(
 	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *lib.ExecutionState, number int,
 ) ***REMOVED***
+	// This is not how the local ExecutionScheduler initializes VUs, but should do the same job
 	for i := 0; i < number; i++ ***REMOVED***
 		require.EqualValues(t, i, es.GetInitializedVUsCount())
 		vu, err := es.InitializeNewVU(ctx, logEntry)

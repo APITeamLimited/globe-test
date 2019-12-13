@@ -452,7 +452,7 @@ func runTestCase(
 
 	var runner lib.Runner
 	if testCase.options.runner != nil ***REMOVED***
-		runner = &lib.MiniRunner***REMOVED***Options: *testCase.options.runner***REMOVED***
+		runner = &testutils.MiniRunner***REMOVED***Options: *testCase.options.runner***REMOVED***
 	***REMOVED***
 	if testCase.options.fs == nil ***REMOVED***
 		t.Logf("Creating an empty FS for this test")

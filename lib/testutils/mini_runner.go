@@ -1,0 +1,137 @@
+/*
+ *
+ * k6 - a next-generation load testing tool
+ * Copyright (C) 2019 Load Impact
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+package testutils
+
+import (
+	"context"
+	"sync/atomic"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
+)
+
+// Ensure mock implementations conform to the interfaces.
+var _ lib.Runner = &MiniRunner***REMOVED******REMOVED***
+var _ lib.VU = &MiniRunnerVU***REMOVED******REMOVED***
+
+// MiniRunner partially implements the lib.Runner interface, but instead of
+// using a real JS runtime, it allows us to directly specify the options and
+// functions with Go code.
+type MiniRunner struct ***REMOVED***
+	Fn         func(ctx context.Context, out chan<- stats.SampleContainer) error
+	SetupFn    func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error)
+	TeardownFn func(ctx context.Context, out chan<- stats.SampleContainer) error
+
+	SetupData []byte
+
+	NextVUID int64
+	Group    *lib.Group
+	Options  lib.Options
+***REMOVED***
+
+// MakeArchive isn't implemented, it always returns nil and is just here to
+// satisfy the lib.Runner interface.
+func (r MiniRunner) MakeArchive() *lib.Archive ***REMOVED***
+	return nil
+***REMOVED***
+
+// NewVU returns a new MiniRunnerVU with an incremental ID.
+func (r *MiniRunner) NewVU(out chan<- stats.SampleContainer) (lib.VU, error) ***REMOVED***
+	nextVUNum := atomic.AddInt64(&r.NextVUID, 1)
+	return &MiniRunnerVU***REMOVED***R: r, Out: out, ID: nextVUNum - 1***REMOVED***, nil
+***REMOVED***
+
+// Setup calls the supplied mock setup() function, if present.
+func (r *MiniRunner) Setup(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+	if fn := r.SetupFn; fn != nil ***REMOVED***
+		r.SetupData, err = fn(ctx, out)
+	***REMOVED***
+	return
+***REMOVED***
+
+// GetSetupData returns json representation of the setup data if setup() is
+// specified and was ran, nil otherwise.
+func (r MiniRunner) GetSetupData() []byte ***REMOVED***
+	return r.SetupData
+***REMOVED***
+
+// SetSetupData saves the externally supplied setup data as JSON in the runner.
+func (r *MiniRunner) SetSetupData(data []byte) ***REMOVED***
+	r.SetupData = data
+***REMOVED***
+
+// Teardown calls the supplied mock teardown() function, if present.
+func (r MiniRunner) Teardown(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	if fn := r.TeardownFn; fn != nil ***REMOVED***
+		return fn(ctx, out)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// GetDefaultGroup returns the default group.
+func (r MiniRunner) GetDefaultGroup() *lib.Group ***REMOVED***
+	if r.Group == nil ***REMOVED***
+		r.Group = &lib.Group***REMOVED******REMOVED***
+	***REMOVED***
+	return r.Group
+***REMOVED***
+
+// GetOptions returns the supplied options struct.
+func (r MiniRunner) GetOptions() lib.Options ***REMOVED***
+	return r.Options
+***REMOVED***
+
+// SetOptions allows you to override the runner options.
+func (r *MiniRunner) SetOptions(opts lib.Options) error ***REMOVED***
+	r.Options = opts
+	return nil
+***REMOVED***
+
+// MiniRunnerVU is a mock VU, spawned by a MiniRunner.
+type MiniRunnerVU struct ***REMOVED***
+	R         *MiniRunner
+	Out       chan<- stats.SampleContainer
+	ID        int64
+	Iteration int64
+***REMOVED***
+
+// RunOnce runs the mock default function once, incrementing its iteration.
+func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
+	if vu.R.Fn == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	state := &lib.State***REMOVED***
+		Vu:        vu.ID,
+		Iteration: vu.Iteration,
+	***REMOVED***
+	newctx := lib.WithState(ctx, state)
+
+	vu.Iteration++
+
+	return vu.R.Fn(newctx, vu.Out)
+***REMOVED***
+
+// Reconfigure changes the VU ID.
+func (vu *MiniRunnerVU) Reconfigure(id int64) error ***REMOVED***
+	vu.ID = id
+	return nil
+***REMOVED***
