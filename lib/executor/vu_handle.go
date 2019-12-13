@@ -91,7 +91,7 @@ func (vh *vuHandle) hardStop() ***REMOVED***
 	vh.logger.Debugf("Hard stop")
 	vh.cancel()                                          // cancel the previous context
 	vh.ctx, vh.cancel = context.WithCancel(vh.parentCtx) // create a new context
-	select ***REMOVED***                                             // if needed,
+	select ***REMOVED***
 	case <-vh.canStartIter:
 		vh.canStartIter = make(chan struct***REMOVED******REMOVED***)
 	default:
