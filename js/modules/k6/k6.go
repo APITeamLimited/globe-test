@@ -101,7 +101,7 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
-	stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***
+	stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 		Time:   t,
 		Metric: metrics.GroupDuration,
 		Tags:   stats.IntoSampleTags(&tags),
@@ -176,10 +176,10 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 		default:
 			if val.ToBoolean() ***REMOVED***
 				atomic.AddInt64(&check.Passes, 1)
-				stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 1***REMOVED***)
+				stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 1***REMOVED***)
 			***REMOVED*** else ***REMOVED***
 				atomic.AddInt64(&check.Fails, 1)
-				stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 0***REMOVED***)
+				stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***Time: t, Metric: metrics.Checks, Tags: sampleTags, Value: 0***REMOVED***)
 				// A single failure makes the return value false.
 				succ = false
 			***REMOVED***

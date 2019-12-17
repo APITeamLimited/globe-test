@@ -770,11 +770,6 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			needCallee = true
 		***REMOVED***
 	***REMOVED***
-	lenBefore := len(e.c.scope.names)
-	namesBefore := make([]string, 0, lenBefore)
-	for key, _ := range e.c.scope.names ***REMOVED***
-		namesBefore = append(namesBefore, key)
-	***REMOVED***
 	maxPreambleLen := 2
 	e.c.p.code = make([]instruction, maxPreambleLen)
 	if needCallee ***REMOVED***
@@ -801,7 +796,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			e.c.p.code = e.c.p.code[maxPreambleLen-1:]
 		***REMOVED***
 		e.c.convertFunctionToStashless(e.c.p.code, paramsCount)
-		for i, _ := range e.c.p.srcMap ***REMOVED***
+		for i := range e.c.p.srcMap ***REMOVED***
 			e.c.p.srcMap[i].pc -= maxPreambleLen - l
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -842,7 +837,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 
 		copy(code[l:], e.c.p.code[maxPreambleLen:])
 		e.c.p.code = code
-		for i, _ := range e.c.p.srcMap ***REMOVED***
+		for i := range e.c.p.srcMap ***REMOVED***
 			e.c.p.srcMap[i].pc += l - maxPreambleLen
 		***REMOVED***
 	***REMOVED***

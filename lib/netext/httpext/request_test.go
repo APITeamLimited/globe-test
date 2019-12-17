@@ -9,10 +9,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,13 +98,21 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 		defer srv.Close()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		logger := logrus.New()
+		logger.Level = logrus.DebugLevel
 		state := &lib.State***REMOVED***
 			Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
 			Transport: srv.Client().Transport,
+			Logger:    logger,
 		***REMOVED***
 		ctx = lib.WithState(ctx, state)
 		req, _ := http.NewRequest("GET", srv.URL, nil)
-		var preq = &ParsedHTTPRequest***REMOVED***Req: req, URL: &URL***REMOVED***u: req.URL***REMOVED***, Body: new(bytes.Buffer)***REMOVED***
+		var preq = &ParsedHTTPRequest***REMOVED***
+			Req:     req,
+			URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+			Body:    new(bytes.Buffer),
+			Timeout: 10 * time.Second,
+		***REMOVED***
 
 		res, err := MakeRequest(ctx, preq)
 
@@ -137,6 +147,37 @@ func TestURL(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		time.Sleep(100 * time.Millisecond)
+	***REMOVED***))
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	samples := make(chan stats.SampleContainer, 10)
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	state := &lib.State***REMOVED***
+		Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
+		Transport: srv.Client().Transport,
+		Samples:   samples,
+		Logger:    logger,
+	***REMOVED***
+	ctx = lib.WithState(ctx, state)
+	req, _ := http.NewRequest("GET", srv.URL, nil)
+	var preq = &ParsedHTTPRequest***REMOVED***
+		Req:     req,
+		URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+		Body:    new(bytes.Buffer),
+		Timeout: 10 * time.Millisecond,
+	***REMOVED***
+
+	res, err := MakeRequest(ctx, preq)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Len(t, samples, 1)
 ***REMOVED***
 
 func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***

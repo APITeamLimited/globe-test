@@ -27,10 +27,6 @@ func (a *sparseArrayObject) init() ***REMOVED***
 	a._put("length", &a.lengthProp)
 ***REMOVED***
 
-func (a *sparseArrayObject) getLength() Value ***REMOVED***
-	return intToValue(a.length)
-***REMOVED***
-
 func (a *sparseArrayObject) findIdx(idx int64) int ***REMOVED***
 	return sort.Search(len(a.items), func(i int) bool ***REMOVED***
 		return a.items[i].idx >= idx
@@ -64,7 +60,7 @@ func (a *sparseArrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED**
 		idx := a.findIdx(l)
 
 		aa := a.items[idx:]
-		for i, _ := range aa ***REMOVED***
+		for i := range aa ***REMOVED***
 			aa[i].value = nil
 		***REMOVED***
 		a.items = a.items[:idx]

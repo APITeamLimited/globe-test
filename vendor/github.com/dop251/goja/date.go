@@ -1,7 +1,6 @@
 package goja
 
 import (
-	"regexp"
 	"time"
 )
 
@@ -23,9 +22,21 @@ type dateObject struct ***REMOVED***
 
 var (
 	dateLayoutList = []string***REMOVED***
+		"2006-01-02T15:04:05Z0700",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+		time.RFC1123,
+		time.RFC1123Z,
+		dateTimeLayout,
+		time.UnixDate,
+		time.ANSIC,
+		time.RubyDate,
+		"Mon, 02 Jan 2006 15:04:05 GMT-0700 (MST)",
+		"Mon, 02 Jan 2006 15:04:05 -0700 (MST)",
+
 		"2006",
 		"2006-01",
-		"2006-01-02",
 
 		"2006T15:04",
 		"2006-01T15:04",
@@ -33,51 +44,27 @@ var (
 
 		"2006T15:04:05",
 		"2006-01T15:04:05",
-		"2006-01-02T15:04:05",
 
-		"2006T15:04:05.000",
-		"2006-01T15:04:05.000",
-		"2006-01-02T15:04:05.000",
+		"2006T15:04Z0700",
+		"2006-01T15:04Z0700",
+		"2006-01-02T15:04Z0700",
 
-		"2006T15:04-0700",
-		"2006-01T15:04-0700",
-		"2006-01-02T15:04-0700",
-
-		"2006T15:04:05-0700",
-		"2006-01T15:04:05-0700",
-		"2006-01-02T15:04:05-0700",
-
-		"2006T15:04:05.000-0700",
-		"2006-01T15:04:05.000-0700",
-		"2006-01-02T15:04:05.000-0700",
-
-		time.RFC1123,
-		dateTimeLayout,
+		"2006T15:04:05Z0700",
+		"2006-01T15:04:05Z0700",
 	***REMOVED***
-	matchDateTimeZone = regexp.MustCompile(`^(.*)(?:(Z)|([\+\-]\d***REMOVED***2***REMOVED***):(\d***REMOVED***2***REMOVED***))$`)
 )
 
 func dateParse(date string) (time.Time, bool) ***REMOVED***
-	// YYYY-MM-DDTHH:mm:ss.sssZ
 	var t time.Time
 	var err error
-	***REMOVED***
-		date := date
-		if match := matchDateTimeZone.FindStringSubmatch(date); match != nil ***REMOVED***
-			if match[2] == "Z" ***REMOVED***
-				date = match[1] + "+0000"
-			***REMOVED*** else ***REMOVED***
-				date = match[1] + match[3] + match[4]
-			***REMOVED***
-		***REMOVED***
-		for _, layout := range dateLayoutList ***REMOVED***
-			t, err = time.Parse(layout, date)
-			if err == nil ***REMOVED***
-				break
-			***REMOVED***
+	for _, layout := range dateLayoutList ***REMOVED***
+		t, err = parseDate(layout, date, time.UTC)
+		if err == nil ***REMOVED***
+			break
 		***REMOVED***
 	***REMOVED***
-	return t, err == nil
+	unix := timeToMsec(t)
+	return t, err == nil && unix >= -8640000000000000 && unix <= 8640000000000000
 ***REMOVED***
 
 func (r *Runtime) newDateObject(t time.Time, isSet bool) *Object ***REMOVED***

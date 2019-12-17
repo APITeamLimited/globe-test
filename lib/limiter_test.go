@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package http
+package lib
 
 import (
 	"fmt"
@@ -69,11 +69,12 @@ func TestSlotLimiters(t *testing.T) ***REMOVED***
 			l := NewSlotLimiter(tc.limit)
 			wg := sync.WaitGroup***REMOVED******REMOVED***
 
-			if tc.limit == 0 ***REMOVED***
+			switch ***REMOVED***
+			case tc.limit == 0:
 				wg.Add(tc.launches)
-			***REMOVED*** else if tc.launches < tc.limit ***REMOVED***
+			case tc.launches < tc.limit:
 				wg.Add(tc.launches)
-			***REMOVED*** else ***REMOVED***
+			default:
 				wg.Add(tc.limit)
 			***REMOVED***
 

@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -548,6 +549,56 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
+	//TODO: figure out why interrupt sometimes fails... data race in goja?
+	if isWindows ***REMOVED***
+		t.Skip()
+	***REMOVED***
+
+	r1, err := getSimpleRunner("/script.js", `
+		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		`)
+	require.NoError(t, err)
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range testdata ***REMOVED***
+		name, r := name, r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Minute)
+			defer cancel()
+			samples := make(chan stats.SampleContainer, 100)
+			defer close(samples)
+			go func() ***REMOVED***
+				for range samples ***REMOVED***
+				***REMOVED***
+			***REMOVED***()
+			var wg sync.WaitGroup
+
+			vu, err := r.newVU(samples)
+			require.NoError(t, err)
+			for i := 0; i < 1000; i++ ***REMOVED***
+				wg.Add(1)
+				newCtx, newCancel := context.WithCancel(ctx)
+				var ch = make(chan struct***REMOVED******REMOVED***)
+				go func() ***REMOVED***
+					defer wg.Done()
+					close(ch)
+					vuErr := vu.RunOnce(newCtx)
+					assert.Error(t, vuErr)
+					assert.Contains(t, vuErr.Error(), "context cancelled")
+				***REMOVED***()
+				<-ch
+				time.Sleep(time.Millisecond * 1) // NOTE: increase this in case of problems ;)
+				newCancel()
+			***REMOVED***
+			wg.Wait()
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
 		import ***REMOVED*** group ***REMOVED*** from "k6";
@@ -662,11 +713,11 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		"Null": ***REMOVED***
 			lib.Options***REMOVED******REMOVED***,
-			"GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid",
+			"x509: certificate has expired or is not yet valid",
 		***REMOVED***,
 		"False": ***REMOVED***
 			lib.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(false)***REMOVED***,
-			"GoError: Get https://expired.badssl.com/: x509: certificate has expired or is not yet valid",
+			"x509: certificate has expired or is not yet valid",
 		***REMOVED***,
 		"True": ***REMOVED***
 			lib.Options***REMOVED***InsecureSkipTLSVerify: null.BoolFrom(true)***REMOVED***,
@@ -674,13 +725,14 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
+		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			r1, err := getSimpleRunner("/script.js", `
 					import http from "k6/http";
 					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
 				`)
 			require.NoError(t, err)
-			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
+			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
 			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
@@ -695,7 +747,8 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					***REMOVED***
 					err = vu.RunOnce(context.Background())
 					if data.errMsg != "" ***REMOVED***
-						assert.EqualError(t, err, data.errMsg)
+						require.Error(t, err)
+						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
 						assert.NoError(t, err)
 					***REMOVED***
@@ -717,10 +770,10 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.SetOptions(lib.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
-	***REMOVED***)
+	***REMOVED***))
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
@@ -735,7 +788,8 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 			err = vu.RunOnce(context.Background())
-			assert.EqualError(t, err, "GoError: Get http://10.1.2.3/: IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -770,7 +824,8 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 			err = vu.RunOnce(context.Background())
-			assert.EqualError(t, err, "GoError: Get http://10.1.2.3/: IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "IP (10.1.2.3) is in a blacklisted range (10.0.0.0/8)")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -844,7 +899,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"UnsupportedCipherSuite": ***REMOVED***
 			lib.Options***REMOVED***TLSCipherSuites: &lib.TLSCipherSuites***REMOVED***tls.TLS_RSA_WITH_RC4_128_SHA***REMOVED******REMOVED***,
-			"GoError: Get https://sha256.badssl.com/: remote error: tls: handshake failure",
+			"remote error: tls: handshake failure",
 		***REMOVED***,
 		"NullVersion": ***REMOVED***
 			lib.Options***REMOVED******REMOVED***,
@@ -856,10 +911,11 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		"UnsupportedVersion": ***REMOVED***
 			lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Min: tls.VersionSSL30, Max: tls.VersionSSL30***REMOVED******REMOVED***,
-			"GoError: Get https://sha256.badssl.com/: " + unsupportedVersionErrorMsg,
+			unsupportedVersionErrorMsg,
 		***REMOVED***,
 	***REMOVED***
 	for name, data := range testdata ***REMOVED***
+		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			r1, err := getSimpleRunner("/script.js", `
 					import http from "k6/http";
@@ -868,7 +924,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
-			r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts))
+			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
 			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
@@ -886,7 +942,8 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					***REMOVED***
 					err = vu.RunOnce(context.Background())
 					if data.errMsg != "" ***REMOVED***
-						assert.EqualError(t, err, data.errMsg)
+						require.Error(t, err)
+						assert.Contains(t, err.Error(), data.errMsg)
 					***REMOVED*** else ***REMOVED***
 						assert.NoError(t, err)
 					***REMOVED***
@@ -908,10 +965,10 @@ func TestVUIntegrationHTTP2(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.SetOptions(lib.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:      null.BoolFrom(true),
 		SystemTags: stats.NewSystemTagSet(stats.TagProto),
-	***REMOVED***)
+	***REMOVED***))
 
 	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
@@ -1164,10 +1221,10 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
-	r1.SetOptions(lib.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:                 null.BoolFrom(true),
 		InsecureSkipTLSVerify: null.BoolFrom(true),
-	***REMOVED***)
+	***REMOVED***))
 
 	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
 		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
@@ -1182,14 +1239,14 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
 				if assert.NoError(t, err) ***REMOVED***
 					err := vu.RunOnce(context.Background())
-					require.NotNil(t, err)
+					require.Error(t, err)
 					assert.Contains(t, err.Error(), "remote error: tls: bad certificate")
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***)
 
-	r1.SetOptions(lib.Options***REMOVED***
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		TLSAuth: []*lib.TLSAuth***REMOVED***
 			***REMOVED***
 				TLSAuthFields: lib.TLSAuthFields***REMOVED***
@@ -1213,7 +1270,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 				***REMOVED***,
 			***REMOVED***,
 		***REMOVED***,
-	***REMOVED***)
+	***REMOVED***))
 
 	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
 		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)

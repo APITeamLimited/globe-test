@@ -631,7 +631,7 @@ func parseStringLiteral(literal string) (string, error) ***REMOVED***
 	str := literal
 	buffer := bytes.NewBuffer(make([]byte, 0, 3*len(literal)/2))
 	var surrogate rune
-	S:
+S:
 	for len(str) > 0 ***REMOVED***
 		switch chr := str[0]; ***REMOVED***
 		// We do not explicitly handle the case of the quote

@@ -52,9 +52,9 @@ const (
 )
 
 type _parser struct ***REMOVED***
-	str      string
-	length   int
-	base     int
+	str    string
+	length int
+	base   int
 
 	chr       rune // The current character
 	chrOffset int  // The offset of current character

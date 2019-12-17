@@ -2,8 +2,8 @@ package goja
 
 import (
 	"fmt"
-	"log"
 	"math"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -281,11 +281,17 @@ func (vm *vm) init() ***REMOVED***
 func (vm *vm) run() ***REMOVED***
 	vm.halt = false
 	interrupted := false
+	ticks := 0
 	for !vm.halt ***REMOVED***
 		if interrupted = atomic.LoadUint32(&vm.interrupted) != 0; interrupted ***REMOVED***
 			break
 		***REMOVED***
 		vm.prg.code[vm.pc].exec(vm)
+		ticks++
+		if ticks > 10000 ***REMOVED***
+			runtime.Gosched()
+			ticks = 0
+		***REMOVED***
 	***REMOVED***
 
 	if interrupted ***REMOVED***
@@ -357,11 +363,14 @@ func (vm *vm) try(f func()) (ex *Exception) ***REMOVED***
 			case *Exception:
 				ex = x1
 			default:
-				if vm.prg != nil ***REMOVED***
-					vm.prg.dumpCode(log.Printf)
-				***REMOVED***
-				//log.Print("Stack: ", string(debug.Stack()))
-				panic(fmt.Errorf("Panic at %d: %v", vm.pc, x))
+				/*
+					if vm.prg != nil ***REMOVED***
+						vm.prg.dumpCode(log.Printf)
+					***REMOVED***
+					log.Print("Stack: ", string(debug.Stack()))
+					panic(fmt.Errorf("Panic at %d: %v", vm.pc, x))
+				*/
+				panic(x)
 			***REMOVED***
 			ex.stack = vm.captureStack(ex.stack, ctxOffset)
 		***REMOVED***
