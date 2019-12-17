@@ -18,7 +18,7 @@ type FieldNameMapper interface ***REMOVED***
 	// If this method returns "" the field becomes hidden.
 	FieldName(t reflect.Type, f reflect.StructField) string
 
-	// FieldName returns a JavaScript name for the given method in the given type.
+	// MethodName returns a JavaScript name for the given method in the given type.
 	// If this method returns "" the method becomes hidden.
 	MethodName(t reflect.Type, m reflect.Method) string
 ***REMOVED***
@@ -147,7 +147,7 @@ func (o *objectGoReflect) getOwnProp(name string) Value ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
 			return &valueProperty***REMOVED***
 				value:      o.val.runtime.ToValue(v.Interface()),
-				writable:   true,
+				writable:   v.CanSet(),
 				enumerable: true,
 			***REMOVED***
 		***REMOVED***
@@ -176,6 +176,10 @@ func (o *objectGoReflect) putStr(name string, val Value, throw bool) ***REMOVED*
 func (o *objectGoReflect) _put(name string, val Value, throw bool) bool ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
+			if !v.CanSet() ***REMOVED***
+				o.val.runtime.typeErrorResult(throw, "Cannot assign to a non-addressable or read-only property %s of a host object", name)
+				return false
+			***REMOVED***
 			vv, err := o.val.runtime.toReflectValue(val, v.Type())
 			if err != nil ***REMOVED***
 				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
@@ -212,25 +216,23 @@ func (r *Runtime) checkHostObjectPropertyDescr(name string, descr propertyDescr,
 ***REMOVED***
 
 func (o *objectGoReflect) defineOwnProperty(n Value, descr propertyDescr, throw bool) bool ***REMOVED***
-	name := n.String()
-	if ast.IsExported(name) ***REMOVED***
-		if o.value.Kind() == reflect.Struct ***REMOVED***
-			if v := o._getField(name); v.IsValid() ***REMOVED***
-				if !o.val.runtime.checkHostObjectPropertyDescr(name, descr, throw) ***REMOVED***
-					return false
-				***REMOVED***
-				val := descr.Value
-				if val == nil ***REMOVED***
-					val = _undefined
-				***REMOVED***
-				vv, err := o.val.runtime.toReflectValue(val, v.Type())
-				if err != nil ***REMOVED***
-					o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
-					return false
-				***REMOVED***
-				v.Set(vv)
-				return true
+	if o.value.Kind() == reflect.Struct ***REMOVED***
+		name := n.String()
+		if v := o._getField(name); v.IsValid() ***REMOVED***
+			if !o.val.runtime.checkHostObjectPropertyDescr(name, descr, throw) ***REMOVED***
+				return false
 			***REMOVED***
+			val := descr.Value
+			if val == nil ***REMOVED***
+				val = _undefined
+			***REMOVED***
+			vv, err := o.val.runtime.toReflectValue(val, v.Type())
+			if err != nil ***REMOVED***
+				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
+				return false
+			***REMOVED***
+			v.Set(vv)
+			return true
 		***REMOVED***
 	***REMOVED***
 
@@ -238,9 +240,6 @@ func (o *objectGoReflect) defineOwnProperty(n Value, descr propertyDescr, throw 
 ***REMOVED***
 
 func (o *objectGoReflect) _has(name string) bool ***REMOVED***
-	if !ast.IsExported(name) ***REMOVED***
-		return false
-	***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
 			return true
@@ -421,34 +420,37 @@ func (r *Runtime) buildFieldInfo(t reflect.Type, index []int, info *reflectTypeI
 		***REMOVED***
 		if r.fieldNameMapper != nil ***REMOVED***
 			name = r.fieldNameMapper.FieldName(t, field)
-			if name == "" ***REMOVED***
-				continue
+		***REMOVED***
+
+		if name != "" ***REMOVED***
+			if inf, exists := info.Fields[name]; !exists ***REMOVED***
+				info.FieldNames = append(info.FieldNames, name)
+			***REMOVED*** else ***REMOVED***
+				if len(inf.Index) <= len(index) ***REMOVED***
+					continue
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 
-		if inf, exists := info.Fields[name]; !exists ***REMOVED***
-			info.FieldNames = append(info.FieldNames, name)
-		***REMOVED*** else ***REMOVED***
-			if len(inf.Index) <= len(index) ***REMOVED***
-				continue
-			***REMOVED***
-		***REMOVED***
+		if name != "" || field.Anonymous ***REMOVED***
+			idx := make([]int, len(index)+1)
+			copy(idx, index)
+			idx[len(idx)-1] = i
 
-		idx := make([]int, len(index)+1)
-		copy(idx, index)
-		idx[len(idx)-1] = i
-
-		info.Fields[name] = reflectFieldInfo***REMOVED***
-			Index:     idx,
-			Anonymous: field.Anonymous,
-		***REMOVED***
-		if field.Anonymous ***REMOVED***
-			typ := field.Type
-			for typ.Kind() == reflect.Ptr ***REMOVED***
-				typ = typ.Elem()
+			if name != "" ***REMOVED***
+				info.Fields[name] = reflectFieldInfo***REMOVED***
+					Index:     idx,
+					Anonymous: field.Anonymous,
+				***REMOVED***
 			***REMOVED***
-			if typ.Kind() == reflect.Struct ***REMOVED***
-				r.buildFieldInfo(typ, idx, info)
+			if field.Anonymous ***REMOVED***
+				typ := field.Type
+				for typ.Kind() == reflect.Ptr ***REMOVED***
+					typ = typ.Elem()
+				***REMOVED***
+				if typ.Kind() == reflect.Struct ***REMOVED***
+					r.buildFieldInfo(typ, idx, info)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -501,7 +503,7 @@ func (r *Runtime) typeInfo(t reflect.Type) (info *reflectTypeInfo) ***REMOVED***
 	return
 ***REMOVED***
 
-// Sets a custom field name mapper for Go types. It can be called at any time, however
+// SetFieldNameMapper sets a custom field name mapper for Go types. It can be called at any time, however
 // the mapping for any given value is fixed at the point of creation.
 // Setting this to nil restores the default behaviour which is all exported fields and methods are mapped to their
 // original unchanged names.

@@ -22,10 +22,6 @@ func (a *arrayObject) init() ***REMOVED***
 	a._put("length", &a.lengthProp)
 ***REMOVED***
 
-func (a *arrayObject) getLength() Value ***REMOVED***
-	return intToValue(a.length)
-***REMOVED***
-
 func (a *arrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED***
 	if l >= 0 && l <= math.MaxUint32 ***REMOVED***
 		ret := true
@@ -57,7 +53,7 @@ func (a *arrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED***
 				a.values = ar
 			***REMOVED*** else ***REMOVED***
 				ar := a.values[l:len(a.values)]
-				for i, _ := range ar ***REMOVED***
+				for i := range ar ***REMOVED***
 					ar[i] = nil
 				***REMOVED***
 				a.values = a.values[:l]

@@ -289,7 +289,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 			sampleTags := stats.IntoSampleTags(&tags)
 
-			stats.PushIfNotCancelled(ctx, state.Samples, stats.ConnectedSamples***REMOVED***
+			stats.PushIfNotDone(ctx, state.Samples, stats.ConnectedSamples***REMOVED***
 				Samples: []stats.Sample***REMOVED***
 					***REMOVED***Metric: metrics.WSSessions, Time: start, Tags: sampleTags, Value: 1***REMOVED***,
 					***REMOVED***Metric: metrics.WSConnecting, Time: start, Tags: sampleTags, Value: connectionDuration***REMOVED***,
@@ -300,7 +300,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 			***REMOVED***)
 
 			for _, msgSentTimestamp := range socket.msgSentTimestamps ***REMOVED***
-				stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***
+				stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 					Metric: metrics.WSMessagesSent,
 					Time:   msgSentTimestamp,
 					Tags:   sampleTags,
@@ -309,7 +309,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 			***REMOVED***
 
 			for _, msgReceivedTimestamp := range socket.msgReceivedTimestamps ***REMOVED***
-				stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***
+				stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 					Metric: metrics.WSMessagesReceived,
 					Time:   msgReceivedTimestamp,
 					Tags:   sampleTags,
@@ -318,7 +318,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 			***REMOVED***
 
 			for _, pingDelta := range socket.pingTimestamps ***REMOVED***
-				stats.PushIfNotCancelled(ctx, state.Samples, stats.Sample***REMOVED***
+				stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 					Metric: metrics.WSPing,
 					Time:   pingDelta.pong,
 					Tags:   sampleTags,

@@ -33,9 +33,10 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-// transport is an implemenation of http.RoundTripper that will measure and emit
+// transport is an implementation of http.RoundTripper that will measure and emit
 // different metrics for each roundtrip
 type transport struct ***REMOVED***
+	ctx   context.Context
 	state *lib.State
 	tags  map[string]string
 
@@ -72,10 +73,12 @@ var _ http.RoundTripper = &transport***REMOVED******REMOVED***
 // requests made through it and annotates and emits the recorded metric samples
 // through the state.Samples channel.
 func newTransport(
+	ctx context.Context,
 	state *lib.State,
 	tags map[string]string,
 ) *transport ***REMOVED***
 	return &transport***REMOVED***
+		ctx:             ctx,
 		state:           state,
 		tags:            tags,
 		lastRequestLock: new(sync.Mutex),
@@ -147,7 +150,7 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	***REMOVED***
 
 	trail.SaveSamples(stats.IntoSampleTags(&tags))
-	stats.PushIfNotCancelled(unfReq.ctx, t.state.Samples, trail)
+	stats.PushIfNotDone(t.ctx, t.state.Samples, trail)
 
 	return result
 ***REMOVED***

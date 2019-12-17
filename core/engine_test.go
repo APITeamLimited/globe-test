@@ -110,10 +110,10 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 
 		runner := &lib.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-			stats.PushIfNotCancelled(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 			close(signalChan)
 			<-ctx.Done()
-			stats.PushIfNotCancelled(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 			return nil
 		***REMOVED******REMOVED***
 
@@ -422,6 +422,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 			Hosts:                 tb.Dialer.Hosts,
 			InsecureSkipTLSVerify: null.BoolFrom(true),
 			NoVUConnectionReuse:   null.BoolFrom(noConnReuse),
+			Batch:                 null.IntFrom(20),
 		***REMOVED***)
 
 		collector := &dummy.Collector***REMOVED******REMOVED***

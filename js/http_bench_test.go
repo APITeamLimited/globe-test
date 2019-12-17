@@ -28,9 +28,10 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 		return
 	***REMOVED***
 	r.SetOptions(lib.Options***REMOVED***
-		Throw:        null.BoolFrom(true),
-		MaxRedirects: null.IntFrom(10),
-		Hosts:        tb.Dialer.Hosts,
+		Throw:          null.BoolFrom(true),
+		MaxRedirects:   null.IntFrom(10),
+		Hosts:          tb.Dialer.Hosts,
+		NoCookiesReset: null.BoolFrom(true),
 	***REMOVED***)
 
 	var ch = make(chan stats.SampleContainer, 100)
