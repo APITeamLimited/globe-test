@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	null "gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig ***REMOVED***
@@ -27,8 +28,9 @@ func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig ***REMOVED***
 
 func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
 	t.Parallel()
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
 	var ctx, cancel, executor, logHook = setupExecutor(
-		t, getTestConstantArrivalRateConfig(),
+		t, getTestConstantArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
@@ -51,8 +53,9 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var count int64
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
 	var ctx, cancel, executor, logHook = setupExecutor(
-		t, getTestConstantArrivalRateConfig(),
+		t, getTestConstantArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
@@ -93,14 +96,16 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 			var ch = make(chan struct***REMOVED******REMOVED***)
 			var errCh = make(chan error, 1)
 			var weAreDoneCh = make(chan struct***REMOVED******REMOVED***)
-			var ctx, cancel, executor, logHook = setupExecutor(t, config, simpleRunner(func(ctx context.Context) error ***REMOVED***
-				select ***REMOVED***
-				case <-ch:
-					<-ch
-				default:
-				***REMOVED***
-				return nil
-			***REMOVED***))
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+			var ctx, cancel, executor, logHook = setupExecutor(
+				t, config, es, simpleRunner(func(ctx context.Context) error ***REMOVED***
+					select ***REMOVED***
+					case <-ch:
+						<-ch
+					default:
+					***REMOVED***
+					return nil
+				***REMOVED***))
 			defer cancel()
 			var wg sync.WaitGroup
 			wg.Add(1)
