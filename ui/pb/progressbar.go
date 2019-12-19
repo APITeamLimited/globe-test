@@ -88,6 +88,23 @@ func New(options ...ProgressBarOption) *ProgressBar ***REMOVED***
 	return pb
 ***REMOVED***
 
+// Left returns the left part of the progressbar in a thread-safe way.
+func (pb *ProgressBar) Left() string ***REMOVED***
+	pb.mutex.RLock()
+	defer pb.mutex.RUnlock()
+
+	return pb.renderLeft(0)
+***REMOVED***
+
+func (pb *ProgressBar) renderLeft(pad int) string ***REMOVED***
+	var left string
+	if pb.left != nil ***REMOVED***
+		padFmt := fmt.Sprintf("%%-%ds", pad)
+		left = fmt.Sprintf(padFmt, pb.left())
+	***REMOVED***
+	return left
+***REMOVED***
+
 // Modify changes the progressbar options in a thread-safe way.
 func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 	pb.mutex.Lock()
@@ -100,7 +117,7 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 // String locks the progressbar struct for reading and calls all of its methods
 // to assemble the progress bar and return it as a string.
 //TODO: something prettier? paddings, right-alignment of the left column, line trimming by terminal size
-func (pb *ProgressBar) String() string ***REMOVED***
+func (pb *ProgressBar) String(leftPad int) string ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
@@ -108,12 +125,10 @@ func (pb *ProgressBar) String() string ***REMOVED***
 		return pb.hijack()
 	***REMOVED***
 
-	var left, right string
-	if pb.left != nil ***REMOVED***
-		left = pb.left() + " "
-	***REMOVED***
-
-	var progress float64
+	var (
+		progress float64
+		right    string
+	)
 	if pb.progress != nil ***REMOVED***
 		progress, right = pb.progress()
 		right = " " + right
@@ -138,5 +153,5 @@ func (pb *ProgressBar) String() string ***REMOVED***
 		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
 	***REMOVED***
 
-	return fmt.Sprintf("%s[%s%s%s]%s", left, filling, caret, padding, right)
+	return fmt.Sprintf("%s [%s%s%s]%s", pb.renderLeft(leftPad), filling, caret, padding, right)
 ***REMOVED***

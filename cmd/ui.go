@@ -74,7 +74,7 @@ func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
 		// TODO: check for cross platform support
 		end = "\x1b[0K\r"
 	***REMOVED***
-	fprintf(stdout, "%s %s%s", bar.String(), rightText, end)
+	fprintf(stdout, "%s %s%s", bar.String(0), rightText, end)
 ***REMOVED***
 
 func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string ***REMOVED***
@@ -84,11 +84,19 @@ func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string ***REM
 		lineEnd = "\x1b[K\n" // erase till end of line
 	***REMOVED***
 
+	var leftPad int
+	for _, pb := range pbs ***REMOVED***
+		l := pb.Left()
+		if len(l) > leftPad ***REMOVED***
+			leftPad = len(l)
+		***REMOVED***
+	***REMOVED***
+
 	pbsCount := len(pbs)
 	result := make([]string, pbsCount+2)
 	result[0] = lineEnd // start with an empty line
 	for i, pb := range pbs ***REMOVED***
-		result[i+1] = pb.String() + lineEnd
+		result[i+1] = pb.String(leftPad) + lineEnd
 	***REMOVED***
 	if isTTY && goBack ***REMOVED***
 		// Go back to the beginning
