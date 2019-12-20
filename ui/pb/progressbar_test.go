@@ -79,29 +79,34 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
 			pbar := New(tc.options...)
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(0))
+			assert.Equal(t, tc.expected, pbar.Render(0, 0))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
-func TestProgressBarRenderPaddingLeft(t *testing.T) ***REMOVED***
+func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 	t.Parallel()
-
 	testCases := []struct ***REMOVED***
 		padding  int
+		maxLen   int
+		left     string
 		expected string
 	***REMOVED******REMOVED***
-		***REMOVED***-1, "left [--------------------------------------]"***REMOVED***,
-		***REMOVED***0, "left [--------------------------------------]"***REMOVED***,
-		***REMOVED***10, "left       [--------------------------------------]"***REMOVED***,
+		***REMOVED***-1, 0, "left", "left [--------------------------------------]"***REMOVED***,
+		***REMOVED***0, 0, "left", "left [--------------------------------------]"***REMOVED***,
+		***REMOVED***10, 0, "left", "left       [--------------------------------------]"***REMOVED***,
+		***REMOVED***0, 10, "left_truncated",
+			"left_tr... [--------------------------------------]"***REMOVED***,
+		***REMOVED***20, 10, "left_truncated_padding",
+			"left_tr...           [--------------------------------------]"***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
-		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
-			pbar := New(WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***))
+		t.Run(tc.left, func(t *testing.T) ***REMOVED***
+			pbar := New(WithLeft(func() string ***REMOVED*** return tc.left ***REMOVED***))
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(tc.padding))
+			assert.Equal(t, tc.expected, pbar.Render(tc.padding, tc.maxLen))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
