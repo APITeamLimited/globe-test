@@ -29,6 +29,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/ui/pb"
@@ -68,7 +70,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	return origLen, err
 ***REMOVED***
 
-func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
+func printBar(bar *pb.ProgressBar, rightText string, logger *logrus.Logger) ***REMOVED***
 	end := "\n"
 	if stdout.IsTTY ***REMOVED***
 		// If we're in a TTY, instead of printing the bar and going to the next
@@ -78,10 +80,11 @@ func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
 		// TODO: check for cross platform support
 		end = "\x1b[0K\r"
 	***REMOVED***
-	fprintf(stdout, "%s %s%s", bar.Render(0), rightText, end)
+	fprintf(stdout, "%s %s%s", bar.Render(0, logger), rightText, end)
 ***REMOVED***
 
-func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) string ***REMOVED***
+func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar,
+	logger *logrus.Logger) string ***REMOVED***
 	lineEnd := "\n"
 	if isTTY ***REMOVED***
 		//TODO: check for cross platform support
@@ -92,7 +95,7 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 	result := make([]string, pbsCount+2)
 	result[0] = lineEnd // start with an empty line
 	for i, pb := range pbs ***REMOVED***
-		result[i+1] = pb.Render(leftMax) + lineEnd
+		result[i+1] = pb.Render(leftMax, logger) + lineEnd
 	***REMOVED***
 	if isTTY && goBack ***REMOVED***
 		// Go back to the beginning
@@ -107,7 +110,10 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 //TODO: show other information here?
 //TODO: add a no-progress option that will disable these
 //TODO: don't use global variables...
-func showProgress(ctx context.Context, conf Config, execScheduler *local.ExecutionScheduler) ***REMOVED***
+func showProgress(
+	ctx context.Context, conf Config, execScheduler *local.ExecutionScheduler,
+	logger *logrus.Logger,
+) ***REMOVED***
 	if quiet || conf.HTTPDebug.Valid && conf.HTTPDebug.String != "" ***REMOVED***
 		return
 	***REMOVED***
@@ -131,7 +137,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	leftLen = int(lib.Min(int64(leftLen), maxLeftLength))
 
 	// For flicker-free progressbars!
-	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, leftLen, pbs))
+	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, leftLen, pbs, logger))
 	progressBarsPrint := func() ***REMOVED***
 		_, _ = stdout.Writer.Write(progressBarsLastRender)
 	***REMOVED***
@@ -152,7 +158,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 			stderr.PersistentText = nil
 			if ctx.Err() != nil ***REMOVED***
 				// Render a last plain-text progressbar in an error
-				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, leftLen, pbs))
+				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, leftLen, pbs, logger))
 				progressBarsPrint()
 			***REMOVED***
 			outMutex.Unlock()
@@ -164,7 +170,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			barText := renderMultipleBars(stdoutTTY, true, leftLen, pbs)
+			barText := renderMultipleBars(stdoutTTY, true, leftLen, pbs, logger)
 			outMutex.Lock()
 			progressBarsLastRender = []byte(barText)
 			progressBarsPrint()

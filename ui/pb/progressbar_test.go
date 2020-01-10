@@ -21,11 +21,19 @@
 package pb
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// XXX: This introduces an import cycle: pb -> lib -> pb
+// func getTestLogger() *logger.Entry ***REMOVED***
+// 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+// 	testLog := logrus.New()
+// 	testLog.AddHook(logHook)
+// 	testLog.SetOutput(ioutil.Discard)
+// 	return logrus.NewEntry(testLog)
+// ***REMOVED***
 
 func TestProgressBarRender(t *testing.T) ***REMOVED***
 	t.Parallel()
@@ -57,12 +65,12 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
 			WithProgress(func() (float64, string) ***REMOVED*** return -1, "right" ***REMOVED***),
 		***REMOVED***,
-			"left [" + strings.Repeat("-", 76) + "] right"***REMOVED***,
+			"left [--------------------------------------] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
 			WithProgress(func() (float64, string) ***REMOVED*** return 2, "right" ***REMOVED***),
 		***REMOVED***,
-			"left [" + strings.Repeat("=", 76) + "] right"***REMOVED***,
+			"left [======================================] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
 			WithConstProgress(0.2, "constProgress"),
@@ -79,13 +87,14 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
 			pbar := New(tc.options...)
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(0))
+			assert.Equal(t, tc.expected, pbar.Render(0, nil))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
 func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 	t.Parallel()
+
 	testCases := []struct ***REMOVED***
 		maxLen   int
 		left     string
@@ -93,7 +102,8 @@ func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		***REMOVED***-1, "left", "left [--------------------------------------]"***REMOVED***,
 		***REMOVED***0, "left", "left [--------------------------------------]"***REMOVED***,
-		***REMOVED***10, "left", "left       [--------------------------------------]"***REMOVED***,
+		***REMOVED***15, "left_pad",
+			"left_pad        [--------------------------------------]"***REMOVED***,
 		***REMOVED***10, "left_truncated",
 			"left_tr... [--------------------------------------]"***REMOVED***,
 	***REMOVED***
@@ -103,7 +113,7 @@ func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 		t.Run(tc.left, func(t *testing.T) ***REMOVED***
 			pbar := New(WithLeft(func() string ***REMOVED*** return tc.left ***REMOVED***))
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen))
+			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen, nil))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

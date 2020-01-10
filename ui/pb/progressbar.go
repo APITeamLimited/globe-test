@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
 )
 
 const defaultWidth = 40
@@ -127,7 +128,7 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 //   text, as well as the padding between the text and the opening
 //   square bracket. Characters exceeding this length will be replaced
 //   with a single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
+func (pb *ProgressBar) Render(leftMax int, logger *logrus.Logger) string ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
@@ -142,6 +143,13 @@ func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
 	if pb.progress != nil ***REMOVED***
 		progress, right = pb.progress()
 		right = " " + right
+		progressClamped := Clampf(progress, 0, 1)
+		if progress != progressClamped ***REMOVED***
+			if logger != nil ***REMOVED***
+				logger.Warnf("progress value %.2f exceeds valid range, clamped between 0 and 1", progress)
+			***REMOVED***
+			progress = progressClamped
+		***REMOVED***
 	***REMOVED***
 
 	space := pb.width - 2
