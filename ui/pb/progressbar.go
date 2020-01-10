@@ -93,20 +93,20 @@ func (pb *ProgressBar) Left() string ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
-	return pb.renderLeft(0, 0)
+	return pb.renderLeft(0)
 ***REMOVED***
 
 // renderLeft renders the left part of the progressbar, applying the
 // given padding and trimming text exceeding maxLen length,
 // replacing it with an ellipsis.
-func (pb *ProgressBar) renderLeft(pad, maxLen int) string ***REMOVED***
+func (pb *ProgressBar) renderLeft(maxLen int) string ***REMOVED***
 	var left string
 	if pb.left != nil ***REMOVED***
 		l := pb.left()
 		if maxLen > 0 && len(l) > maxLen ***REMOVED***
 			l = l[:maxLen-3] + "..."
 		***REMOVED***
-		padFmt := fmt.Sprintf("%%-%ds", pad)
+		padFmt := fmt.Sprintf("%%-%ds", maxLen)
 		left = fmt.Sprintf(padFmt, l)
 	***REMOVED***
 	return left
@@ -123,12 +123,11 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 
 // Render locks the progressbar struct for reading and calls all of its methods
 // to assemble the progress bar and return it as a string.
-// - leftPad sets the padding between the left text and the opening
-//   square bracket.
-// - leftMax sets the maximum character length of the left text.
-//   Characters exceeding this length will be replaced with a single ellipsis.
-//   Passing <=0 disables trimming.
-func (pb *ProgressBar) Render(leftPad, leftMax int) string ***REMOVED***
+// - leftMax defines the maximum character length of the left-side
+//   text, as well as the padding between the text and the opening
+//   square bracket. Characters exceeding this length will be replaced
+//   with a single ellipsis. Passing <=0 disables this.
+func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
@@ -165,5 +164,5 @@ func (pb *ProgressBar) Render(leftPad, leftMax int) string ***REMOVED***
 	***REMOVED***
 
 	return fmt.Sprintf("%s [%s%s%s]%s",
-		pb.renderLeft(leftPad, leftMax), filling, caret, padding, right)
+		pb.renderLeft(leftMax), filling, caret, padding, right)
 ***REMOVED***
