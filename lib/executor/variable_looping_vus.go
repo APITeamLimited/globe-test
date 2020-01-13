@@ -512,12 +512,12 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 	vusFmt := pb.GetFixedLengthIntFormat(int64(maxVUs))
 	progresFn := func() (float64, string) ***REMOVED***
 		spent := time.Since(startTime)
-		if spent > regularDuration ***REMOVED***
-			return 1, fmt.Sprintf("variable looping VUs for %s", regularDuration)
-		***REMOVED***
 		currentlyActiveVUs := atomic.LoadInt64(activeVUsCount)
+		if spent > regularDuration ***REMOVED***
+			return 1, fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs\t%s", currentlyActiveVUs, maxVUs, regularDuration)
+		***REMOVED***
 		return float64(spent) / float64(regularDuration), fmt.Sprintf(
-			"currently "+vusFmt+" active looping VUs, %s/%s", currentlyActiveVUs,
+			vusFmt+"/"+vusFmt+" VUs\t%s/%s", currentlyActiveVUs, maxVUs,
 			pb.GetFixedLengthDuration(spent, regularDuration), regularDuration,
 		)
 	***REMOVED***
