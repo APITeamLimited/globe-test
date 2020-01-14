@@ -103,6 +103,9 @@ type ExecutorConfig interface ***REMOVED***
 	GetDescription(es *ExecutionSegment) string
 
 	NewExecutor(*ExecutionState, *logrus.Entry) (Executor, error)
+
+	// HasWork reports whether there is any work for the executor to do with a given segment.
+	HasWork(*ExecutionSegment) bool
 ***REMOVED***
 
 // InitVUFunc is just a shorthand so we don't have to type the function

@@ -260,6 +260,11 @@ func (varc VariableArrivalRateConfig) NewExecutor(
 	***REMOVED***, nil
 ***REMOVED***
 
+// HasWork reports whether there is any work to be done for the given execution segment.
+func (varc VariableArrivalRateConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
+	return varc.GetMaxVUs(es) > 0
+***REMOVED***
+
 // VariableArrivalRate tries to execute a specific number of iterations for a
 // specific period.
 //TODO: combine with the ConstantArrivalRate?

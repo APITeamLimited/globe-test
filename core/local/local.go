@@ -40,12 +40,13 @@ type ExecutionScheduler struct ***REMOVED***
 	options lib.Options
 	logger  *logrus.Logger
 
-	initProgress   *pb.ProgressBar
-	executors      []lib.Executor // sorted by (startTime, ID)
-	executionPlan  []lib.ExecutionStep
-	maxDuration    time.Duration // cached value derived from the execution plan
-	maxPossibleVUs uint64        // cached value derived from the execution plan
-	state          *lib.ExecutionState
+	initProgress    *pb.ProgressBar
+	executorConfigs []lib.ExecutorConfig // sorted by (startTime, ID)
+	executors       []lib.Executor       // sorted by (startTime, ID), excludes executors with no work
+	executionPlan   []lib.ExecutionStep
+	maxDuration     time.Duration // cached value derived from the execution plan
+	maxPossibleVUs  uint64        // cached value derived from the execution plan
+	state           *lib.ExecutionState
 ***REMOVED***
 
 // Check to see if we implement the lib.ExecutionScheduler interface
@@ -66,13 +67,21 @@ func NewExecutionScheduler(runner lib.Runner, logger *logrus.Logger) (*Execution
 	maxDuration, _ := lib.GetEndOffset(executionPlan) // we don't care if the end offset is final
 
 	executorConfigs := options.Execution.GetSortedConfigs()
-	executors := make([]lib.Executor, len(executorConfigs))
-	for i, sc := range executorConfigs ***REMOVED***
+	executors := make([]lib.Executor, 0, len(executorConfigs))
+	// Only take executors which have work.
+	for _, sc := range executorConfigs ***REMOVED***
+		if !sc.HasWork(options.ExecutionSegment) ***REMOVED***
+			logger.Warnf(
+				"Executor '%s' is disabled for segment %s due to lack of work!",
+				sc.GetName(), options.ExecutionSegment,
+			)
+			continue
+		***REMOVED***
 		s, err := sc.NewExecutor(executionState, logger.WithField("executor", sc.GetName()))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		executors[i] = s
+		executors = append(executors, s)
 	***REMOVED***
 
 	if options.Paused.Bool ***REMOVED***
@@ -86,12 +95,13 @@ func NewExecutionScheduler(runner lib.Runner, logger *logrus.Logger) (*Execution
 		logger:  logger,
 		options: options,
 
-		initProgress:   pb.New(pb.WithConstLeft("Init")),
-		executors:      executors,
-		executionPlan:  executionPlan,
-		maxDuration:    maxDuration,
-		maxPossibleVUs: maxPossibleVUs,
-		state:          executionState,
+		initProgress:    pb.New(pb.WithConstLeft("Init")),
+		executors:       executors,
+		executorConfigs: executorConfigs,
+		executionPlan:   executionPlan,
+		maxDuration:     maxDuration,
+		maxPossibleVUs:  maxPossibleVUs,
+		state:           executionState,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -109,10 +119,16 @@ func (e *ExecutionScheduler) GetState() *lib.ExecutionState ***REMOVED***
 	return e.state
 ***REMOVED***
 
-// GetExecutors returns the slice of configured executor instances, sorted by
-// their (startTime, name) in an ascending order.
+// GetExecutors returns the slice of configured executor instances which
+// have work, sorted by their (startTime, name) in an ascending order.
 func (e *ExecutionScheduler) GetExecutors() []lib.Executor ***REMOVED***
 	return e.executors
+***REMOVED***
+
+// GetExecutorConfigs returns the slice of all executor configs, sorted by
+// their (startTime, name) in an ascending order.
+func (e *ExecutionScheduler) GetExecutorConfigs() []lib.ExecutorConfig ***REMOVED***
+	return e.executorConfigs
 ***REMOVED***
 
 // GetInitProgressBar returns the progress bar associated with the Init

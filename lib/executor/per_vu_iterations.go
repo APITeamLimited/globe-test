@@ -134,6 +134,11 @@ func (pvic PerVUIterationsConfig) NewExecutor(
 	***REMOVED***, nil
 ***REMOVED***
 
+// HasWork reports whether there is any work to be done for the given execution segment.
+func (pvic PerVUIterationsConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
+	return pvic.GetVUs(es) > 0 && pvic.GetIterations() > 0
+***REMOVED***
+
 // PerVUIterations executes a specific number of iterations with each VU.
 type PerVUIterations struct ***REMOVED***
 	*BaseExecutor

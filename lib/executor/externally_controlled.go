@@ -180,6 +180,12 @@ func (mec ExternallyControlledConfig) NewExecutor(es *lib.ExecutionState, logger
 	***REMOVED***, nil
 ***REMOVED***
 
+// HasWork reports whether there is any work to be done for the given execution segment.
+func (mec ExternallyControlledConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
+	// We can always initialize new VUs via the REST API, so return true.
+	return true
+***REMOVED***
+
 type pauseEvent struct ***REMOVED***
 	isPaused bool
 	err      chan error

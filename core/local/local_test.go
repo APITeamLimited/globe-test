@@ -728,3 +728,57 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		require.Contains(t, err.Error(), "doesn't support pause and resume operations after its start")
 	***REMOVED***)
 ***REMOVED***
+
+func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := []byte(`
+		import http from 'k6/http';
+
+		export let options = ***REMOVED***
+			executionSegment: "2/4:3/4",
+			execution: ***REMOVED***
+				shared_iters1: ***REMOVED***
+					type: "shared-iterations",
+					vus: 3,
+					iterations: 3,
+				***REMOVED***,
+				shared_iters2: ***REMOVED***
+					type: "shared-iterations",
+					vus: 4,
+					iterations: 4,
+				***REMOVED***,
+				constant_arr_rate: ***REMOVED***
+					type: "constant-arrival-rate",
+					rate: 3,
+					timeUnit: "1s",
+					duration: "20s",
+					preAllocatedVUs: 4,
+					maxVUs: 4,
+				***REMOVED***,
+		    ***REMOVED***,
+		***REMOVED***;
+
+		export default function() ***REMOVED***
+			const response = http.get("http://test.loadimpact.com");
+		***REMOVED***;
+`)
+
+	runner, err := js.New(
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+			Data: script,
+		***REMOVED***,
+		nil,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+
+	execScheduler, err := NewExecutionScheduler(runner, logger)
+	require.NoError(t, err)
+
+	assert.Len(t, execScheduler.executors, 2)
+	assert.Len(t, execScheduler.executorConfigs, 3)
+***REMOVED***
