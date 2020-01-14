@@ -26,7 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// XXX: This introduces an import cycle: pb -> lib -> pb
+// TODO(imiric): Consider adding logging tests for 100% pb coverage.
+// Unfortunately the following introduces an import cycle: pb -> lib -> pb
 // func getTestLogger() *logger.Entry ***REMOVED***
 // 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
 // 	testLog := logrus.New()
@@ -87,7 +88,7 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
 			pbar := New(tc.options...)
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(0, nil))
+			assert.Equal(t, tc.expected, pbar.Render(0))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -113,7 +114,7 @@ func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 		t.Run(tc.left, func(t *testing.T) ***REMOVED***
 			pbar := New(WithLeft(func() string ***REMOVED*** return tc.left ***REMOVED***))
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen, nil))
+			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

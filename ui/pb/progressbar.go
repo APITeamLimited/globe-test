@@ -35,9 +35,10 @@ const defaultBarColor = color.Faint
 // ProgressBar is just a simple thread-safe progressbar implementation with
 // callbacks.
 type ProgressBar struct ***REMOVED***
-	mutex sync.RWMutex
-	width int
-	color *color.Color
+	mutex  sync.RWMutex
+	width  int
+	color  *color.Color
+	logger *logrus.Entry
 
 	left     func() string
 	progress func() (progress float64, right string)
@@ -58,6 +59,11 @@ func WithConstLeft(left string) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED***
 		pb.left = func() string ***REMOVED*** return left ***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+// WithLogger modifies the logger instance
+func WithLogger(logger *logrus.Entry) ProgressBarOption ***REMOVED***
+	return func(pb *ProgressBar) ***REMOVED*** pb.logger = logger ***REMOVED***
 ***REMOVED***
 
 // WithProgress modifies the progress calculation function.
@@ -128,7 +134,7 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 //   text, as well as the padding between the text and the opening
 //   square bracket. Characters exceeding this length will be replaced
 //   with a single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(leftMax int, logger *logrus.Logger) string ***REMOVED***
+func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
@@ -145,10 +151,10 @@ func (pb *ProgressBar) Render(leftMax int, logger *logrus.Logger) string ***REMO
 		right = " " + right
 		progressClamped := Clampf(progress, 0, 1)
 		if progress != progressClamped ***REMOVED***
-			if logger != nil ***REMOVED***
-				logger.Warnf("progress value %.2f exceeds valid range, clamped between 0 and 1", progress)
-			***REMOVED***
 			progress = progressClamped
+			if pb.logger != nil ***REMOVED***
+				pb.logger.Warnf("progress value %.2f exceeds valid range, clamped between 0 and 1", progress)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
