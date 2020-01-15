@@ -20,4 +20,122 @@
 
 package pb
 
-//TODO
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// TODO(imiric): Consider adding logging tests for 100% pb coverage.
+// Unfortunately the following introduces an import cycle: pb -> lib -> pb
+// func getTestLogger() *logger.Entry ***REMOVED***
+// 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+// 	testLog := logrus.New()
+// 	testLog.AddHook(logHook)
+// 	testLog.SetOutput(ioutil.Discard)
+// 	return logrus.NewEntry(testLog)
+// ***REMOVED***
+
+func TestProgressBarRender(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		options  []ProgressBarOption
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***[]ProgressBarOption***REMOVED***WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***)***REMOVED***,
+			"left [--------------------------------------]"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***WithConstLeft("constLeft")***REMOVED***,
+			"constLeft [--------------------------------------]"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, string) ***REMOVED*** return 0, "right" ***REMOVED***),
+		***REMOVED***,
+			"left [--------------------------------------] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, string) ***REMOVED*** return 0.5, "right" ***REMOVED***),
+		***REMOVED***,
+			"left [==================>-------------------] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, string) ***REMOVED*** return 1.0, "right" ***REMOVED***),
+		***REMOVED***,
+			"left [======================================] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, string) ***REMOVED*** return -1, "right" ***REMOVED***),
+		***REMOVED***,
+			"left [--------------------------------------] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, string) ***REMOVED*** return 2, "right" ***REMOVED***),
+		***REMOVED***,
+			"left [======================================] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithConstProgress(0.2, "constProgress"),
+		***REMOVED***,
+			"left [======>-------------------------------] constProgress"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithHijack(func() string ***REMOVED*** return "progressbar hijack!" ***REMOVED***),
+		***REMOVED***,
+			"progressbar hijack!"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
+			pbar := New(tc.options...)
+			assert.NotNil(t, pbar)
+			assert.Equal(t, tc.expected, pbar.Render(0))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		maxLen   int
+		left     string
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***-1, "left", "left [--------------------------------------]"***REMOVED***,
+		***REMOVED***0, "left", "left [--------------------------------------]"***REMOVED***,
+		***REMOVED***15, "left_pad",
+			"left_pad        [--------------------------------------]"***REMOVED***,
+		***REMOVED***10, "left_truncated",
+			"left_tr... [--------------------------------------]"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.left, func(t *testing.T) ***REMOVED***
+			pbar := New(WithLeft(func() string ***REMOVED*** return tc.left ***REMOVED***))
+			assert.NotNil(t, pbar)
+			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen))
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestProgressBarLeft(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		left     func() string
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***nil, ""***REMOVED***,
+		***REMOVED***func() string ***REMOVED*** return " left " ***REMOVED***, " left "***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
+			pbar := New(WithLeft(tc.left))
+			assert.NotNil(t, pbar)
+			assert.Equal(t, tc.expected, pbar.Left())
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***

@@ -23,9 +23,10 @@ package executor
 import (
 	"context"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/ui/pb"
-	"github.com/sirupsen/logrus"
 )
 
 // BaseExecutor is a helper struct that contains common properties and methods
@@ -39,7 +40,7 @@ type BaseExecutor struct ***REMOVED***
 	progress       *pb.ProgressBar
 ***REMOVED***
 
-// NewBaseExecutor just returns an initialized BaseExecutor
+// NewBaseExecutor returns an initialized BaseExecutor
 func NewBaseExecutor(config lib.ExecutorConfig, es *lib.ExecutionState, logger *logrus.Entry) *BaseExecutor ***REMOVED***
 	return &BaseExecutor***REMOVED***
 		config:         config,
@@ -47,6 +48,7 @@ func NewBaseExecutor(config lib.ExecutorConfig, es *lib.ExecutionState, logger *
 		logger:         logger,
 		progress: pb.New(
 			pb.WithLeft(config.GetName),
+			pb.WithLogger(logger),
 		),
 	***REMOVED***
 ***REMOVED***

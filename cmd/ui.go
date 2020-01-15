@@ -30,8 +30,12 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/core/local"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/ui/pb"
 )
+
+// TODO: Make configurable
+const maxLeftLength = 30
 
 // A writer that syncs writes with a mutex and, if the output is a TTY, clears before newlines.
 type consoleWriter struct ***REMOVED***
@@ -74,10 +78,10 @@ func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
 		// TODO: check for cross platform support
 		end = "\x1b[0K\r"
 	***REMOVED***
-	fprintf(stdout, "%s %s%s", bar.String(), rightText, end)
+	fprintf(stdout, "%s %s%s", bar.Render(0), rightText, end)
 ***REMOVED***
 
-func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string ***REMOVED***
+func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) string ***REMOVED***
 	lineEnd := "\n"
 	if isTTY ***REMOVED***
 		//TODO: check for cross platform support
@@ -88,7 +92,7 @@ func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string ***REM
 	result := make([]string, pbsCount+2)
 	result[0] = lineEnd // start with an empty line
 	for i, pb := range pbs ***REMOVED***
-		result[i+1] = pb.String() + lineEnd
+		result[i+1] = pb.Render(leftMax) + lineEnd
 	***REMOVED***
 	if isTTY && goBack ***REMOVED***
 		// Go back to the beginning
@@ -113,8 +117,21 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 		pbs = append(pbs, s.GetProgress())
 	***REMOVED***
 
+	// Get the longest left side string length, to align progress bars
+	// horizontally and trim excess text.
+	var leftLen int
+	for _, pb := range pbs ***REMOVED***
+		l := pb.Left()
+		if len(l) > leftLen ***REMOVED***
+			leftLen = len(l)
+		***REMOVED***
+	***REMOVED***
+
+	// Limit to maximum left text length
+	leftLen = int(lib.Min(int64(leftLen), maxLeftLength))
+
 	// For flicker-free progressbars!
-	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, pbs))
+	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, leftLen, pbs))
 	progressBarsPrint := func() ***REMOVED***
 		_, _ = stdout.Writer.Write(progressBarsLastRender)
 	***REMOVED***
@@ -135,7 +152,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 			stderr.PersistentText = nil
 			if ctx.Err() != nil ***REMOVED***
 				// Render a last plain-text progressbar in an error
-				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, pbs))
+				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, leftLen, pbs))
 				progressBarsPrint()
 			***REMOVED***
 			outMutex.Unlock()
@@ -147,7 +164,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			barText := renderMultipleBars(stdoutTTY, true, pbs)
+			barText := renderMultipleBars(stdoutTTY, true, leftLen, pbs)
 			outMutex.Lock()
 			progressBarsLastRender = []byte(barText)
 			progressBarsPrint()
