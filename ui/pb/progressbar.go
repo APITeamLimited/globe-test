@@ -60,7 +60,7 @@ type ProgressBar struct ***REMOVED***
 	status Status
 
 	left     func() string
-	progress func() (progress float64, right string)
+	progress func() (progress float64, right []string)
 	hijack   func() string
 ***REMOVED***
 
@@ -68,12 +68,12 @@ type ProgressBar struct ***REMOVED***
 // parameters, either in the constructor or via the Modify() method.
 type ProgressBarOption func(*ProgressBar)
 
-// WithLeft modifies the function that returns the left progressbar padding.
+// WithLeft modifies the function that returns the left progressbar value.
 func WithLeft(left func() string) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED*** pb.left = left ***REMOVED***
 ***REMOVED***
 
-// WithConstLeft sets the left progressbar padding to the supplied const.
+// WithConstLeft sets the left progressbar value to the supplied const.
 func WithConstLeft(left string) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED***
 		pb.left = func() string ***REMOVED*** return left ***REMOVED***
@@ -86,7 +86,7 @@ func WithLogger(logger *logrus.Entry) ProgressBarOption ***REMOVED***
 ***REMOVED***
 
 // WithProgress modifies the progress calculation function.
-func WithProgress(progress func() (float64, string)) ProgressBarOption ***REMOVED***
+func WithProgress(progress func() (float64, []string)) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED*** pb.progress = progress ***REMOVED***
 ***REMOVED***
 
@@ -95,14 +95,14 @@ func WithStatus(status Status) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED*** pb.status = status ***REMOVED***
 ***REMOVED***
 
-// WithConstProgress sets the progress and right padding to the supplied consts.
-func WithConstProgress(progress float64, right string) ProgressBarOption ***REMOVED***
+// WithConstProgress sets the progress and right values to the supplied consts.
+func WithConstProgress(progress float64, right ...string) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED***
-		pb.progress = func() (float64, string) ***REMOVED*** return progress, right ***REMOVED***
+		pb.progress = func() (float64, []string) ***REMOVED*** return progress, right ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// WithHijack replaces the progressbar String function with the argument.
+// WithHijack replaces the progressbar Render function with the argument.
 func WithHijack(hijack func() string) ProgressBarOption ***REMOVED***
 	return func(pb *ProgressBar) ***REMOVED*** pb.hijack = hijack ***REMOVED***
 ***REMOVED***
@@ -127,9 +127,8 @@ func (pb *ProgressBar) Left() string ***REMOVED***
 	return pb.renderLeft(0)
 ***REMOVED***
 
-// renderLeft renders the left part of the progressbar, applying the
-// given padding and trimming text exceeding maxLen length,
-// replacing it with an ellipsis.
+// renderLeft renders the left part of the progressbar, replacing text
+// exceeding maxLen with an ellipsis.
 func (pb *ProgressBar) renderLeft(maxLen int) string ***REMOVED***
 	var left string
 	if pb.left != nil ***REMOVED***
@@ -137,8 +136,7 @@ func (pb *ProgressBar) renderLeft(maxLen int) string ***REMOVED***
 		if maxLen > 0 && len(l) > maxLen ***REMOVED***
 			l = l[:maxLen-3] + "..."
 		***REMOVED***
-		padFmt := fmt.Sprintf("%%-%ds", maxLen)
-		left = fmt.Sprintf(padFmt, l)
+		left = l
 	***REMOVED***
 	return left
 ***REMOVED***
@@ -152,27 +150,45 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Render locks the progressbar struct for reading and calls all of its methods
-// to assemble the progress bar and return it as a string.
+// ProgressBarRender stores the different rendered parts of the
+// progress bar UI.
+type ProgressBarRender struct ***REMOVED***
+	Left, Status, Progress, Hijack string
+	Right                          []string
+***REMOVED***
+
+func (pbr ProgressBarRender) String() string ***REMOVED***
+	if pbr.Hijack != "" ***REMOVED***
+		return pbr.Hijack
+	***REMOVED***
+	var right string
+	if len(pbr.Right) > 0 ***REMOVED***
+		right = " " + strings.Join(pbr.Right, "  ")
+	***REMOVED***
+	return fmt.Sprintf("%s %-1s %s%s",
+		pbr.Left, pbr.Status, pbr.Progress, right)
+***REMOVED***
+
+// Render locks the progressbar struct for reading and calls all of
+// its methods to return the final output. A struct is returned over a
+// plain string to allow dynamic padding and positioning of elements
+// depending on other elements on the screen.
 // - leftMax defines the maximum character length of the left-side
-//   text, as well as the padding between the text and the opening
-//   square bracket. Characters exceeding this length will be replaced
-//   with a single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
+//   text. Characters exceeding this length will be replaced with a
+//   single ellipsis. Passing <=0 disables this.
+func (pb *ProgressBar) Render(leftMax int) ProgressBarRender ***REMOVED***
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
+	var out ProgressBarRender
 	if pb.hijack != nil ***REMOVED***
-		return pb.hijack()
+		out.Hijack = pb.hijack()
+		return out
 	***REMOVED***
 
-	var (
-		progress float64
-		right    string
-	)
+	var progress float64
 	if pb.progress != nil ***REMOVED***
-		progress, right = pb.progress()
-		right = " " + right
+		progress, out.Right = pb.progress()
 		progressClamped := Clampf(progress, 0, 1)
 		if progress != progressClamped ***REMOVED***
 			progress = progressClamped
@@ -201,6 +217,13 @@ func (pb *ProgressBar) Render(leftMax int) string ***REMOVED***
 		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
 	***REMOVED***
 
-	return fmt.Sprintf("%s%2s [%s%s%s]%s",
-		pb.renderLeft(leftMax), pb.status, filling, caret, padding, right)
+	out.Left = pb.renderLeft(leftMax)
+	status := string(pb.status)
+	if c, ok := statusColors[pb.status]; ok ***REMOVED***
+		status = c.Sprint(pb.status)
+	***REMOVED***
+	out.Status = fmt.Sprintf("%-1s", status)
+	out.Progress = fmt.Sprintf("[%s%s%s]", filling, caret, padding)
+
+	return out
 ***REMOVED***
