@@ -161,7 +161,7 @@ a commandline interface for interacting with it.`,
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
 		go func() ***REMOVED***
-			showProgress(ctx, conf, execScheduler)
+			showProgress(ctx, conf, execScheduler, logger)
 			progressBarWG.Done()
 		***REMOVED***()
 
