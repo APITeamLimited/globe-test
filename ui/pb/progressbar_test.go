@@ -80,7 +80,7 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 			WithHijack(func() string ***REMOVED*** return "progressbar hijack!" ***REMOVED***),
 		***REMOVED***, 0, "progressbar hijack!"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***WithConstProgress(0.25, "")***REMOVED***,
-			-defaultWidth, "   [  25% ] "***REMOVED***,
+			-DefaultWidth, "   [  25% ] "***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***

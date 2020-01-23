@@ -40,7 +40,8 @@ var (
 )
 
 const (
-	defaultWidth = 40
+	// DefaultWidth of the progress bar
+	DefaultWidth = 40
 	// threshold below which progress should be rendered as
 	// percentages instead of filling bars
 	minWidth = 8
@@ -119,7 +120,7 @@ func WithHijack(hijack func() string) ProgressBarOption ***REMOVED***
 func New(options ...ProgressBarOption) *ProgressBar ***REMOVED***
 	pb := &ProgressBar***REMOVED***
 		mutex: sync.RWMutex***REMOVED******REMOVED***,
-		width: defaultWidth,
+		width: DefaultWidth,
 	***REMOVED***
 	pb.Modify(options...)
 	return pb
@@ -241,7 +242,7 @@ func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender ***REMO
 		***REMOVED***
 	***REMOVED***
 
-	width := Clampf(float64(pb.width+widthDelta), minWidth, defaultWidth)
+	width := Clampf(float64(pb.width+widthDelta), minWidth, DefaultWidth)
 	pb.width = int(width)
 
 	if pb.width > minWidth ***REMOVED***

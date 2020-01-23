@@ -27,10 +27,11 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 // DefaultExecutorName is used as the default key/ID of the executor config entries
@@ -192,7 +193,7 @@ type Options struct ***REMOVED***
 
 	// Initial values for VUs, max VUs, duration cap, iteration cap, and stages.
 	// See the Runner or Executor interfaces for more information.
-	VUs null.Int `json:"vus" envconfig:"K6_VUS"`
+	VUs        null.Int           `json:"vus" envconfig:"K6_VUS"`
 	Duration   types.NullDuration `json:"duration" envconfig:"K6_DURATION"`
 	Iterations null.Int           `json:"iterations" envconfig:"K6_ITERATIONS"`
 	Stages     []Stage            `json:"stages" envconfig:"K6_STAGES"`
@@ -290,6 +291,9 @@ type Options struct ***REMOVED***
 
 	// Redirect console logging to a file
 	ConsoleOutput null.String `json:"-" envconfig:"K6_CONSOLE_OUTPUT"`
+
+	// UI render mode: "compact", "full" or "responsive"
+	UIMode null.String `json:"uiMode" envconfig:"K6_UI_MODE"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -436,6 +440,9 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.ConsoleOutput.Valid ***REMOVED***
 		o.ConsoleOutput = opts.ConsoleOutput
+	***REMOVED***
+	if opts.UIMode.Valid ***REMOVED***
+		o.UIMode = opts.UIMode
 	***REMOVED***
 
 	return o
