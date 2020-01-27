@@ -29,10 +29,11 @@ import (
 )
 
 func stringToES(t *testing.T, str string) *ExecutionSegment ***REMOVED***
-	var es = new(ExecutionSegment)
+	es := new(ExecutionSegment)
 	require.NoError(t, es.UnmarshalText([]byte(str)))
 	return es
 ***REMOVED***
+
 func TestExecutionSegmentEquals(t *testing.T) ***REMOVED***
 	t.Parallel()
 
@@ -44,7 +45,7 @@ func TestExecutionSegmentEquals(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("To it's self", func(t *testing.T) ***REMOVED***
-		var es = stringToES(t, "1/2:2/3")
+		es := stringToES(t, "1/2:2/3")
 		require.True(t, es.Equal(es))
 	***REMOVED***)
 ***REMOVED***
@@ -76,7 +77,7 @@ func TestExecutionSegmentNew(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentUnmarshalText(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		input  string
 		output *ExecutionSegment
 		isErr  bool
@@ -98,7 +99,7 @@ func TestExecutionSegmentUnmarshalText(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.input, func(t *testing.T) ***REMOVED***
-			var es = new(ExecutionSegment)
+			es := new(ExecutionSegment)
 			err := es.UnmarshalText([]byte(testCase.input))
 			if testCase.isErr ***REMOVED***
 				require.Error(t, err)
@@ -116,10 +117,10 @@ func TestExecutionSegmentUnmarshalText(t *testing.T) ***REMOVED***
 
 	t.Run("Unmarshal nilSegment.String", func(t *testing.T) ***REMOVED***
 		var nilEs *ExecutionSegment
-		var nilEsStr = nilEs.String()
+		nilEsStr := nilEs.String()
 		require.Equal(t, "0:1", nilEsStr)
 
-		var es = new(ExecutionSegment)
+		es := new(ExecutionSegment)
 		err := es.UnmarshalText([]byte(nilEsStr))
 		require.NoError(t, err)
 		require.True(t, es.Equal(nilEs))
@@ -186,7 +187,7 @@ func TestExecutionSegmentSplit(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentScale(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var es = new(ExecutionSegment)
+	es := new(ExecutionSegment)
 	require.NoError(t, es.UnmarshalText([]byte("0.5")))
 	require.Equal(t, int64(1), es.Scale(2))
 	require.Equal(t, int64(2), es.Scale(3))
@@ -198,9 +199,9 @@ func TestExecutionSegmentScale(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentCopyScaleRat(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var es = new(ExecutionSegment)
-	var twoRat = big.NewRat(2, 1)
-	var threeRat = big.NewRat(3, 1)
+	es := new(ExecutionSegment)
+	twoRat := big.NewRat(2, 1)
+	threeRat := big.NewRat(3, 1)
 	require.NoError(t, es.UnmarshalText([]byte("0.5")))
 	require.Equal(t, oneRat, es.CopyScaleRat(twoRat))
 	require.Equal(t, big.NewRat(3, 2), es.CopyScaleRat(threeRat))
@@ -216,10 +217,10 @@ func TestExecutionSegmentCopyScaleRat(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentInPlaceScaleRat(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var es = new(ExecutionSegment)
-	var twoRat = big.NewRat(2, 1)
-	var threeRat = big.NewRat(3, 1)
-	var threeSecondsRat = big.NewRat(3, 2)
+	es := new(ExecutionSegment)
+	twoRat := big.NewRat(2, 1)
+	threeRat := big.NewRat(3, 1)
+	threeSecondsRat := big.NewRat(3, 2)
 	require.NoError(t, es.UnmarshalText([]byte("0.5")))
 	require.Equal(t, oneRat, es.InPlaceScaleRat(twoRat))
 	require.Equal(t, oneRat, twoRat)
@@ -245,7 +246,7 @@ func TestExecutionSegmentInPlaceScaleRat(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentSubSegment(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		name              string
 		base, sub, result *ExecutionSegment
 	***REMOVED******REMOVED***
@@ -281,7 +282,7 @@ func TestExecutionSegmentSubSegment(t *testing.T) ***REMOVED***
 
 func TestSplitBadSegment(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var es = &ExecutionSegment***REMOVED***from: oneRat, to: zeroRat***REMOVED***
+	es := &ExecutionSegment***REMOVED***from: oneRat, to: zeroRat***REMOVED***
 	_, err := es.Split(5)
 	require.Error(t, err)
 ***REMOVED***
@@ -293,7 +294,7 @@ func TestSegmentExecutionFloatLength(t *testing.T) ***REMOVED***
 		require.Equal(t, 1.0, nilEs.FloatLength())
 	***REMOVED***)
 
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		es       *ExecutionSegment
 		expected float64
 	***REMOVED******REMOVED***
@@ -320,3 +321,51 @@ func TestSegmentExecutionFloatLength(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestExecutionSegmentSequences(t *testing.T) ***REMOVED***
+	t.Parallel()
+	testCases := []struct ***REMOVED***
+		seq         string
+		expSegments []string
+		expError    bool
+		canReverse  bool
+		// TODO: checks for least common denominator and maybe striped partitioning
+	***REMOVED******REMOVED***
+		***REMOVED***seq: "", expSegments: nil***REMOVED***,
+		***REMOVED***seq: "0.5", expError: true***REMOVED***,
+		***REMOVED***seq: "1,1", expError: true***REMOVED***,
+		***REMOVED***seq: "-0.5,1", expError: true***REMOVED***,
+		***REMOVED***seq: "1/2,1/2", expError: true***REMOVED***,
+		***REMOVED***seq: "1/2,1/3", expError: true***REMOVED***,
+		***REMOVED***seq: "0.5,1", expSegments: []string***REMOVED***"1/2:1"***REMOVED******REMOVED***,
+		***REMOVED***seq: "1/2,1", expSegments: []string***REMOVED***"1/2:1"***REMOVED***, canReverse: true***REMOVED***,
+		***REMOVED***seq: "1/3,2/3", expSegments: []string***REMOVED***"1/3:2/3"***REMOVED***, canReverse: true***REMOVED***,
+		***REMOVED***seq: "0,1/3,2/3", expSegments: []string***REMOVED***"0:1/3", "1/3:2/3"***REMOVED***, canReverse: true***REMOVED***,
+		***REMOVED***seq: "0,1/3,2/3,1", expSegments: []string***REMOVED***"0:1/3", "1/3:2/3", "2/3:1"***REMOVED***, canReverse: true***REMOVED***,
+		***REMOVED***seq: "0.5,0.7", expSegments: []string***REMOVED***"1/2:7/10"***REMOVED******REMOVED***,
+		***REMOVED***seq: "0.5,0.7,1", expSegments: []string***REMOVED***"1/2:7/10", "7/10:1"***REMOVED******REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.seq, func(t *testing.T) ***REMOVED***
+			result, err := NewExecutionSegmentSequenceFromString(tc.seq)
+			if tc.expError ***REMOVED***
+				require.Error(t, err)
+				return
+			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, len(tc.expSegments), len(result))
+			for i, expStrSeg := range tc.expSegments ***REMOVED***
+				expSeg, errl := NewExecutionSegmentFromString(expStrSeg)
+				require.NoError(t, errl)
+				assert.Truef(t, expSeg.Equal(result[i]), "Segment %d (%s) should be equal to %s", i, result[i], expSeg)
+			***REMOVED***
+			if tc.canReverse ***REMOVED***
+				assert.Equal(t, result.String(), tc.seq)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+// TODO: test with randomized things
