@@ -450,6 +450,8 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3***REMOVED***,
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.8:0.9", start: 8***REMOVED***,
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***5***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
