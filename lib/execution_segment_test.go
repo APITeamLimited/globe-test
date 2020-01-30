@@ -433,3 +433,44 @@ func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestGetStripedOffsets(t *testing.T) ***REMOVED***
+	t.Parallel()
+	testCases := []struct ***REMOVED***
+		seq      string
+		seg      string
+		start    int64
+		offsets  []int64
+		expError string
+	***REMOVED******REMOVED***
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", expError: "missing segment"***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3", start: 0, offsets: []int64***REMOVED***4, 7***REMOVED******REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.3:0.5", start: 1, offsets: []int64***REMOVED***5***REMOVED******REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6", start: 2***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.8:0.9", start: 8***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			result, err := NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(t, err)
+			segment, err := NewExecutionSegmentFromString(tc.seg)
+			require.NoError(t, err)
+			start, offsets, err := result.GetStripedOffsets(segment)
+			if len(tc.expError) != 0 ***REMOVED***
+				require.Error(t, err, tc.expError)
+				require.Contains(t, err.Error(), tc.expError)
+				return
+			***REMOVED***
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.start, start)
+			assert.Equal(t, tc.offsets, offsets)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+// TODO: test with randomized things
