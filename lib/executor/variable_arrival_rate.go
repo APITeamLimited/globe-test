@@ -364,16 +364,27 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 		currentInitialisedVUs := atomic.LoadUint64(&initialisedVUs)
 		currentTickerPeriod := atomic.LoadInt64(tickerPeriod)
 		vusInBuffer := uint64(len(vus))
+		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
+			currentInitialisedVUs-vusInBuffer, currentInitialisedVUs)
 
 		itersPerSec := 0.0
 		if currentTickerPeriod > 0 ***REMOVED***
 			itersPerSec = float64(time.Second) / float64(currentTickerPeriod)
 		***REMOVED***
-		return math.Min(1, float64(time.Since(startTime))/float64(duration)), []string***REMOVED***
-			fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-				currentInitialisedVUs-vusInBuffer, currentInitialisedVUs),
-			fmt.Sprintf(itersFmt, itersPerSec),
+		progIters := fmt.Sprintf(itersFmt, itersPerSec)
+
+		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
+
+		spent := time.Since(startTime)
+		if spent > duration ***REMOVED***
+			return 1, right
 		***REMOVED***
+
+		spentDuration := pb.GetFixedLengthDuration(spent, duration)
+		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
+		right[1] = progDur
+
+		return math.Min(1, float64(spent)/float64(duration)), right
 	***REMOVED***
 	varr.progress.Modify(pb.WithProgress(progresFn))
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, varr, progresFn)
