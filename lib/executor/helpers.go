@@ -178,7 +178,11 @@ func trackProgress(
 	case <-parentCtx.Done():
 		progressBar.Modify(pb.WithStatus(pb.Interrupted), constProg)
 	default:
-		progressBar.Modify(pb.WithStatus(pb.Done), constProg)
+		status := pb.WithStatus(pb.Done)
+		if p < 1 ***REMOVED***
+			status = pb.WithStatus(pb.Interrupted)
+		***REMOVED***
+		progressBar.Modify(status, constProg)
 	***REMOVED***
 ***REMOVED***
 
