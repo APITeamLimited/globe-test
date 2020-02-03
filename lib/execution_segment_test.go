@@ -479,4 +479,57 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func BenchmarkGetStripedOffsets(b *testing.B) ***REMOVED***
+	var lengths = [...]int64***REMOVED***10, 100***REMOVED***
+	const seed = 777
+	r := rand.New(rand.NewSource(seed))
+
+	for _, length := range lengths ***REMOVED***
+		length := length
+		b.Run(fmt.Sprintf("length%d,seed%d", length, seed), func(b *testing.B) ***REMOVED***
+			sequence := generateRandomSequence(length, r)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ ***REMOVED***
+				_, _, err := sequence.GetStripedOffsets(sequence[int(r.Int63())%len(sequence)])
+				require.NoError(b, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkGetStripedOffsetsEven(b *testing.B) ***REMOVED***
+	var lengths = [...]int64***REMOVED***10, 100, 1000***REMOVED***
+	generateSequence := func(n int64) ExecutionSegmentSequence ***REMOVED***
+		// try to randomly generate an executionsegmentsequence
+		var err error
+		var ess = ExecutionSegmentSequence(make([]*ExecutionSegment, n))
+		var numerators = make([]int64, n)
+		var denominator int64
+		for i := int64(0); i < n; i++ ***REMOVED***
+			numerators[i] = 1 // nice and simple :)
+			denominator += numerators[i]
+		***REMOVED***
+		ess[0], err = NewExecutionSegment(big.NewRat(0, 1), big.NewRat(numerators[0], denominator))
+		require.NoError(b, err)
+		for i := int64(1); i < n; i++ ***REMOVED***
+			ess[i], err = NewExecutionSegment(ess[i-1].to, new(big.Rat).Add(big.NewRat(numerators[i], denominator), ess[i-1].to))
+			require.NoError(b, err, "%d", i)
+		***REMOVED***
+
+		return ess
+	***REMOVED***
+
+	for _, length := range lengths ***REMOVED***
+		length := length
+		b.Run(fmt.Sprintf("length%d", length), func(b *testing.B) ***REMOVED***
+			sequence := generateSequence(length)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ ***REMOVED***
+				_, _, err := sequence.GetStripedOffsets(sequence[111233%len(sequence)])
+				require.NoError(b, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 // TODO: test with randomized things
