@@ -418,35 +418,34 @@ func (ess ExecutionSegmentSequence) lcd() int64 ***REMOVED***
 // TODO: basically https://docs.google.com/spreadsheets/d/1V_ivN2xuaMJIgOf1HkpOw1ex8QOhxp960itGGiRrNzo/edit
 func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment) (int64, []int64, int64, error) ***REMOVED***
 	// TODO check if ExecutionSegmentSequence actually starts from 0 and goes to 1 ?
-	var matchingSegment *ExecutionSegment
-	for _, seg := range ess ***REMOVED***
-		if seg.Equal(segment) ***REMOVED***
-			matchingSegment = seg
-			break
-		***REMOVED***
-	***REMOVED***
-	if matchingSegment == nil ***REMOVED***
-		return -1, nil, -1, fmt.Errorf("missing segment %s inside segment sequence %s", segment, ess)
-	***REMOVED***
-
-	ess = append([]*ExecutionSegment***REMOVED******REMOVED***, ess...)
-	sort.SliceStable(ess,
-		func(i, j int) bool ***REMOVED***
-			// Yes this Less is actually More, but we want it sorted in descending order and the alternative is to reverse it after sort
-			return ess[i].length.Cmp(ess[j].length) > 0
-		***REMOVED***)
+	ess = append([]*ExecutionSegment***REMOVED******REMOVED***, ess...) // copy the original sequence
 
 	var numerators = make([]int64, len(ess))
-	var numeratorChanges = make([]*big.Rat, len(ess))
+	var steps = make([]*big.Rat, len(ess))
 	var soonest = make([]*big.Rat, len(ess))
 	var lcd = ess.lcd()
 
 	for i := range ess ***REMOVED***
 		numerators[i] = ess[i].length.Num().Int64() * (lcd / ess[i].length.Denom().Int64())
 		soonest[i] = big.NewRat(0, 1)
-		numeratorChanges[i] = big.NewRat(lcd, numerators[i])
+		steps[i] = big.NewRat(lcd, numerators[i])
 	***REMOVED***
 
+	sort.Stable(sortInterfaceWrapper***REMOVED***
+		numerators: numerators,
+		steps:      steps,
+		ess:        ess,
+	***REMOVED***)
+	var segmentIndex = -1
+	for i, seg := range ess ***REMOVED***
+		if seg.Equal(segment) ***REMOVED***
+			segmentIndex = i
+			break
+		***REMOVED***
+	***REMOVED***
+	if segmentIndex == -1 ***REMOVED***
+		return -1, nil, -1, fmt.Errorf("missing segment %s inside segment sequence %s", segment, ess)
+	***REMOVED***
 	start := int64(-1)
 	var offsets []int64 // TODO we can preallocate this
 
@@ -455,8 +454,8 @@ OUTER:
 		for index, value := range soonest ***REMOVED***
 			num, denom := value.Num().Int64(), value.Denom().Int64()
 			if i > num/denom || (i == num/denom && num%denom == 0) ***REMOVED***
-				value.Add(value, numeratorChanges[index])
-				if ess[index] == matchingSegment ***REMOVED***
+				value.Add(value, steps[index])
+				if index == segmentIndex ***REMOVED***
 					// TODO: this can be done for all segments and then we only get what we care about
 					if start < 0 ***REMOVED***
 						start = i
@@ -477,4 +476,30 @@ OUTER:
 	***REMOVED***
 
 	return start, offsets, lcd, nil
+***REMOVED***
+
+// This is only needed in order to sort all three at the same time
+type sortInterfaceWrapper struct ***REMOVED*** // TODO: rename ?
+	numerators []int64
+	steps      []*big.Rat
+	ess        ExecutionSegmentSequence
+***REMOVED***
+
+// Len is the number of elements in the collection.
+func (e sortInterfaceWrapper) Len() int ***REMOVED***
+	return len(e.numerators)
+***REMOVED***
+
+// Less reports whether the element with
+// index i should sort before the element with index j.
+func (e sortInterfaceWrapper) Less(i, j int) bool ***REMOVED***
+	// Yes this Less is actually More, but we want it sorted in descending order
+	return e.numerators[i] > e.numerators[j]
+***REMOVED***
+
+// Swap swaps the elements with indexes i and j.
+func (e sortInterfaceWrapper) Swap(i, j int) ***REMOVED***
+	e.numerators[i], e.numerators[j] = e.numerators[j], e.numerators[i]
+	e.steps[i], e.steps[j] = e.steps[j], e.steps[i]
+	e.ess[i], e.ess[j] = e.ess[j], e.ess[i]
 ***REMOVED***
