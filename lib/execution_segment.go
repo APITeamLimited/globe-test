@@ -402,6 +402,9 @@ func (ess ExecutionSegmentSequence) lcd() int64 ***REMOVED***
 	for _, seg := range ess[1:] ***REMOVED***
 		m = z
 		n = *seg.length.Denom()
+		if m.Cmp(&n) == 0 ***REMOVED***
+			continue
+		***REMOVED***
 		z.Mul(z.Div(&m, z.GCD(nil, nil, &m, &n)), &n)
 	***REMOVED***
 
