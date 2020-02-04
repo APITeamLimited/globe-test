@@ -413,7 +413,7 @@ func (ess ExecutionSegmentSequence) lcd() int64 ***REMOVED***
 //
 // TODO: add a more detailed algorithm description
 // TODO: basically https://docs.google.com/spreadsheets/d/1V_ivN2xuaMJIgOf1HkpOw1ex8QOhxp960itGGiRrNzo/edit
-func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment) (int64, []int64, error) ***REMOVED***
+func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment) (int64, []int64, int64, error) ***REMOVED***
 	// TODO check if ExecutionSegmentSequence actually starts from 0 and goes to 1 ?
 	var matchingSegment *ExecutionSegment
 	for _, seg := range ess ***REMOVED***
@@ -423,7 +423,7 @@ func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment)
 		***REMOVED***
 	***REMOVED***
 	if matchingSegment == nil ***REMOVED***
-		return -1, nil, fmt.Errorf("missing segment %s inside segment sequence %s", segment, ess) // TODO: make a seperate error ?
+		return -1, nil, -1, fmt.Errorf("missing segment %s inside segment sequence %s", segment, ess)
 	***REMOVED***
 
 	ess = append([]*ExecutionSegment***REMOVED******REMOVED***, ess...)
@@ -457,7 +457,11 @@ func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment)
 					if start < 0 ***REMOVED***
 						start = i
 					***REMOVED*** else ***REMOVED***
-						offsets = append(offsets, i)
+						prev := start
+						if len(offsets) > 0 ***REMOVED***
+							prev = offsets[len(offsets)-1]
+						***REMOVED***
+						offsets = append(offsets, i-prev)
 					***REMOVED***
 					// we can stop iterating the moment len(offsets) + 1 = numerator and we have set start ...
 				***REMOVED***
@@ -466,5 +470,5 @@ func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment)
 		***REMOVED***
 	***REMOVED***
 
-	return start, offsets, nil
+	return start, offsets, lcd, nil
 ***REMOVED***
