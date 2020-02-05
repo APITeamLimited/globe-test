@@ -312,7 +312,7 @@ type ExecutionSegmentSequence []*ExecutionSegment
 // segments are non-overlapping and without gaps. It will return a new execution
 // segment sequence if that is true, and an error if it's not.
 func NewExecutionSegmentSequence(segments ...*ExecutionSegment) (ExecutionSegmentSequence, error) ***REMOVED***
-	if len(segments) > 2 ***REMOVED***
+	if len(segments) > 1 ***REMOVED***
 		to := segments[0].to
 		for i, segment := range segments[1:] ***REMOVED***
 			if segment.from.Cmp(to) != 0 ***REMOVED***
@@ -331,23 +331,33 @@ func NewExecutionSegmentSequence(segments ...*ExecutionSegment) (ExecutionSegmen
 // "r1,r2,r3,...,rn", which represents the sequences like (r1, r2], (r2, r3],
 // (r3, r4], ..., (r***REMOVED***n-1***REMOVED***, rn].
 func NewExecutionSegmentSequenceFromString(strSeq string) (ExecutionSegmentSequence, error) ***REMOVED***
-	var segments []*ExecutionSegment
-	if len(strSeq) != 0 ***REMOVED***
-		points := strings.Split(strSeq, ",")
-		if len(points) < 2 ***REMOVED***
-			return nil, fmt.Errorf("at least 2 points are needed for an execution segment sequence, %d given", len(points))
-		***REMOVED***
-		start := points[0]
+	if len(strSeq) == 0 ***REMOVED***
+		return nil, nil
+	***REMOVED***
 
-		segments = make([]*ExecutionSegment, 0, len(points)-1)
-		for _, point := range points[1:] ***REMOVED***
-			segment, errl := NewExecutionSegmentFromString(start + ":" + point)
-			if errl != nil ***REMOVED***
-				return nil, errl
-			***REMOVED***
-			segments = append(segments, segment)
-			start = point
+	points := strings.Split(strSeq, ",")
+	if len(points) < 2 ***REMOVED***
+		return nil, fmt.Errorf("at least 2 points are needed for an execution segment sequence, %d given", len(points))
+	***REMOVED***
+	var start *big.Rat
+
+	segments := make([]*ExecutionSegment, 0, len(points)-1)
+	for i, point := range points ***REMOVED***
+		rat, err := stringToRat(point)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
+		if i == 0 ***REMOVED***
+			start = rat
+			continue
+		***REMOVED***
+
+		segment, err := NewExecutionSegment(start, rat)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		segments = append(segments, segment)
+		start = rat
 	***REMOVED***
 
 	return NewExecutionSegmentSequence(segments...)

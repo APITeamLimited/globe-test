@@ -324,6 +324,13 @@ func TestSegmentExecutionFloatLength(t *testing.T) ***REMOVED***
 
 func TestExecutionSegmentSequences(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	_, err := NewExecutionSegmentSequence(stringToES(t, "0:1/3"), stringToES(t, "1/2:1"))
+	assert.Error(t, err)
+***REMOVED***
+
+func TestExecutionSegmentStringSequences(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		seq         string
 		expSegments []string
@@ -337,6 +344,7 @@ func TestExecutionSegmentSequences(t *testing.T) ***REMOVED***
 		***REMOVED***seq: "-0.5,1", expError: true***REMOVED***,
 		***REMOVED***seq: "1/2,1/2", expError: true***REMOVED***,
 		***REMOVED***seq: "1/2,1/3", expError: true***REMOVED***,
+		***REMOVED***seq: "0,1,1/2", expError: true***REMOVED***,
 		***REMOVED***seq: "0.5,1", expSegments: []string***REMOVED***"1/2:1"***REMOVED******REMOVED***,
 		***REMOVED***seq: "1/2,1", expSegments: []string***REMOVED***"1/2:1"***REMOVED***, canReverse: true***REMOVED***,
 		***REMOVED***seq: "1/3,2/3", expSegments: []string***REMOVED***"1/3:2/3"***REMOVED***, canReverse: true***REMOVED***,
@@ -344,6 +352,9 @@ func TestExecutionSegmentSequences(t *testing.T) ***REMOVED***
 		***REMOVED***seq: "0,1/3,2/3,1", expSegments: []string***REMOVED***"0:1/3", "1/3:2/3", "2/3:1"***REMOVED***, canReverse: true***REMOVED***,
 		***REMOVED***seq: "0.5,0.7", expSegments: []string***REMOVED***"1/2:7/10"***REMOVED******REMOVED***,
 		***REMOVED***seq: "0.5,0.7,1", expSegments: []string***REMOVED***"1/2:7/10", "7/10:1"***REMOVED******REMOVED***,
+		***REMOVED***seq: "0,1/13,2/13,1/3,1/2,3/4,1", expSegments: []string***REMOVED***
+			"0:1/13", "1/13:2/13", "2/13:1/3", "1/3:1/2", "1/2:3/4", "3/4:1",
+		***REMOVED***, canReverse: true***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
