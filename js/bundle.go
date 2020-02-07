@@ -49,7 +49,7 @@ type Bundle struct ***REMOVED***
 	BaseInitContext *InitContext
 
 	Env               map[string]string
-	CompatibilityMode compiler.CompatibilityMode
+	CompatibilityMode lib.CompatibilityMode
 ***REMOVED***
 
 // A BundleInstance is a self-contained instance of a Bundle.
@@ -198,7 +198,7 @@ func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 
 // Instantiate creates a new runtime from this bundle.
 func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
-	//TODO: actually use a real context here, so that the instantiation can be killed
+	// TODO: actually use a real context here, so that the instantiation can be killed
 	// Placeholder for a real context.
 	ctxPtr := new(context.Context)
 
@@ -244,7 +244,7 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
-	if init.compatibilityMode == compiler.CompatibilityModeExtended ***REMOVED***
+	if init.compatibilityMode == lib.CompatibilityModeExtended ***REMOVED***
 		if _, err := rt.RunProgram(jslib.GetCoreJS()); err != nil ***REMOVED***
 			return err
 		***REMOVED***

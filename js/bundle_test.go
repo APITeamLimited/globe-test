@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/fsext"
@@ -114,14 +113,16 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
 		t.Run("Extended/ok/CoreJS", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeExtended.String())***REMOVED***
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
+			***REMOVED***
 			_, err := getSimpleBundle("/script.js",
 				`export default function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`, rtOpts)
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
+			***REMOVED***
 			_, err := getSimpleBundle("/script.js",
 				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
 			assert.NoError(t, err)
@@ -133,19 +134,27 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				code       string
 				expErr     string
 			***REMOVED******REMOVED***
-				***REMOVED***"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
-					`invalid compatibility mode "es1". Use: "extended", "base"`***REMOVED***,
+				***REMOVED***
+					"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
+					`invalid compatibility mode "es1". Use: "extended", "base"`,
+				***REMOVED***,
 				// ES2015 modules are not supported
-				***REMOVED***"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:1 Unexpected reserved word"***REMOVED***,
+				***REMOVED***
+					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
+					"file:///script.js: Line 1:1 Unexpected reserved word",
+				***REMOVED***,
 				// Arrow functions are not supported
-				***REMOVED***"ArrowFuncs", "base",
+				***REMOVED***
+					"ArrowFuncs", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)"***REMOVED***,
+					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)",
+				***REMOVED***,
 				// ES2015 objects polyfilled by core.js are not supported
-				***REMOVED***"CoreJS", "base",
+				***REMOVED***
+					"CoreJS", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`,
-					"ReferenceError: Set is not defined at file:///script.js:1:45(5)"***REMOVED***,
+					"ReferenceError: Set is not defined at file:///script.js:1:45(5)",
+				***REMOVED***,
 			***REMOVED***
 
 			for _, tc := range testCases ***REMOVED***
@@ -386,7 +395,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
 					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionSSL30))
 				***REMOVED***
-
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
@@ -424,10 +432,10 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			***REMOVED***"", `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeExtended.String(), `
+			***REMOVED***lib.CompatibilityModeExtended.String(), `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
+			***REMOVED***lib.CompatibilityModeBase.String(), `
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
 		***REMOVED***
@@ -445,7 +453,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
 				expCM := tc.compatMode
 				if expCM == "" ***REMOVED***
-					expCM = compiler.CompatibilityModeExtended.String()
+					expCM = lib.CompatibilityModeExtended.String()
 				***REMOVED***
 				assert.Equal(t, expCM, b.CompatibilityMode.String())
 
@@ -466,14 +474,18 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			compatMode, code, expErr string
 		***REMOVED******REMOVED***
 			// Incompatible mode
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
+			***REMOVED***
+				lib.CompatibilityModeBase.String(), `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				"file://script.js: Line 2:5 Unexpected reserved word (and 2 more errors)"***REMOVED***,
-			***REMOVED***"wrongcompat", `
+				"file://script.js: Line 2:5 Unexpected reserved word (and 2 more errors)",
+			***REMOVED***,
+			***REMOVED***
+				"wrongcompat", `
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				`invalid compatibility mode "wrongcompat". Use: "extended", "base"`***REMOVED***,
+				`invalid compatibility mode "wrongcompat". Use: "extended", "base"`,
+			***REMOVED***,
 		***REMOVED***
 
 		for _, tc := range testCases ***REMOVED***
@@ -488,7 +500,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestOpen(t *testing.T) ***REMOVED***
-	var testCases = [...]struct ***REMOVED***
+	testCases := [...]struct ***REMOVED***
 		name           string
 		openPath       string
 		pwd            string
@@ -588,8 +600,8 @@ func TestOpen(t *testing.T) ***REMOVED***
 			for _, tCase := range testCases ***REMOVED***
 				tCase := tCase
 
-				var testFunc = func(t *testing.T) ***REMOVED***
-					var openPath = tCase.openPath
+				testFunc := func(t *testing.T) ***REMOVED***
+					openPath := tCase.openPath
 					// if fullpath prepend prefix
 					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
 						openPath = filepath.Join(prefix, openPath)
@@ -597,7 +609,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					if isWindows ***REMOVED***
 						openPath = strings.Replace(openPath, `\`, `\\`, -1)
 					***REMOVED***
-					var pwd = tCase.pwd
+					pwd := tCase.pwd
 					if pwd == "" ***REMOVED***
 						pwd = "/path/to/"
 					***REMOVED***
@@ -731,22 +743,26 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***
-		cm      compiler.CompatibilityMode
+		cm      lib.CompatibilityMode
 		script  string
 		exclaim string
 	***REMOVED******REMOVED***
-		***REMOVED***compiler.CompatibilityModeExtended, `
+		***REMOVED***
+			lib.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export let file = open("./file.txt");
 				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
-			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
-		***REMOVED***compiler.CompatibilityModeBase, `
+			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
+		***REMOVED***
+			lib.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.file = open("./file.txt");
 				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
-			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
