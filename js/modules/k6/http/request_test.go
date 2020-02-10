@@ -1627,7 +1627,7 @@ func checkErrorCode(t testing.TB, tags *stats.SampleTags, code int, msg string) 
 	if msg == "" ***REMOVED***
 		assert.False(t, ok)
 	***REMOVED*** else ***REMOVED***
-		assert.Equal(t, msg, errorMsg)
+		assert.Contains(t, errorMsg, msg)
 	***REMOVED***
 	errorCodeStr, ok := tags.Get("error_code")
 	if code == 0 ***REMOVED***
@@ -1693,7 +1693,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 		***REMOVED***
 			name:              "Bad location redirect",
 			expectedErrorCode: 1000,
-			expectedErrorMsg:  "failed to parse Location header \"h\\t:/\": parse h\t:/: net/url: invalid control character in URL", //nolint: lll
+			expectedErrorMsg:  "failed to parse Location header \"h\\t:/\": ",
 			script:            `let res = http.request("GET", "HTTPBIN_URL/bad-location-redirect");`,
 		***REMOVED***,
 		***REMOVED***
@@ -1730,7 +1730,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt,
 				sr(testCase.script+"\n"+fmt.Sprintf(`
 			if (res.status != %d) ***REMOVED*** throw new Error("wrong status: "+ res.status);***REMOVED***
-			if (res.error != %q) ***REMOVED*** throw new Error("wrong error: '" + res.error + "'");***REMOVED***
+			if (res.error.indexOf(%q, 0) === -1) ***REMOVED*** throw new Error("wrong error: '" + res.error + "'");***REMOVED***
 			if (res.error_code != %d) ***REMOVED*** throw new Error("wrong error_code: "+ res.error_code);***REMOVED***
 			`, testCase.status, testCase.expectedErrorMsg, testCase.expectedErrorCode)))
 			if testCase.expectedScriptError == "" ***REMOVED***
