@@ -590,7 +590,7 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 				***REMOVED***
 				handleNewScheduledVUs(step.PlannedVUs)
 			case step := <-gracefulLimitEvents:
-				if step.PlannedVUs > currentScheduledVUs ***REMOVED***
+				if step.PlannedVUs > currentMaxAllowedVUs ***REMOVED***
 					// Handle the case where a value is read from the
 					// gracefulLimitEvents channel before rawStepEvents
 					handleNewScheduledVUs(step.PlannedVUs)
