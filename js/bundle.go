@@ -137,7 +137,13 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
 
-	compatMode, err := lib.ValidateCompatibilityMode(arc.CompatibilityMode)
+	compatModeStr := arc.CompatibilityMode
+	if rtOpts.CompatibilityMode.Valid ***REMOVED***
+		// `k6 run --compatibility-mode=whatever archive.tar` should  override
+		// whatever value is in the archive
+		compatModeStr = rtOpts.CompatibilityMode.String
+	***REMOVED***
+	compatMode, err := lib.ValidateCompatibilityMode(compatModeStr)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

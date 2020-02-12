@@ -42,29 +42,18 @@ const (
 // RuntimeOptions are settings passed onto the goja JS runtime
 type RuntimeOptions struct ***REMOVED***
 	// Whether to pass the actual system environment variables to the JS runtime
-	IncludeSystemEnvVars null.Bool `json:"includeSystemEnvVars" envconfig:"K6_INCLUDE_SYSTEM_ENV_VARS"`
+	IncludeSystemEnvVars null.Bool `json:"includeSystemEnvVars"`
 
 	// JS compatibility mode: "extended" (Goja+Babel+core.js) or "base" (plain Goja)
-	// TODO: maybe use CompatibilityMode directly? this seems strange...
+	//
+	// TODO: when we resolve https://github.com/loadimpact/k6/issues/883, we probably
+	// should use the CompatibilityMode type directly... but by then, we'd need to have
+	// some way of knowing if the value has been set by the user or if we're using the
+	// default one, so we can handle `k6 run --compatibility-mode=base es6_extended_archive.tar`
 	CompatibilityMode null.String `json:"compatibilityMode"`
 
 	// Environment variables passed onto the runner
-	Env map[string]string `json:"env" envconfig:"K6_ENV"`
-***REMOVED***
-
-// Apply overwrites the receiver RuntimeOptions' fields with any that are set
-// on the argument struct and returns the receiver
-func (o RuntimeOptions) Apply(opts RuntimeOptions) RuntimeOptions ***REMOVED***
-	if opts.IncludeSystemEnvVars.Valid ***REMOVED***
-		o.IncludeSystemEnvVars = opts.IncludeSystemEnvVars
-	***REMOVED***
-	if opts.CompatibilityMode.Valid ***REMOVED***
-		o.CompatibilityMode = opts.CompatibilityMode
-	***REMOVED***
-	if opts.Env != nil ***REMOVED***
-		o.Env = opts.Env
-	***REMOVED***
-	return o
+	Env map[string]string `json:"env"`
 ***REMOVED***
 
 // ValidateCompatibilityMode checks if the provided val is a valid compatibility mode
