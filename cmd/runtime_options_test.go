@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"strings"
 	"testing"
 
 	"gopkg.in/guregu/null.v3"
@@ -216,26 +215,25 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 	compatMode, err := lib.ValidateCompatibilityMode(rtOpts.CompatibilityMode.String)
 	require.NoError(t, err)
 
-	jsCodeLines := make([]string, 0, len(tc.expEnv)+2)
+	jsCode := new(bytes.Buffer)
 	if compatMode == lib.CompatibilityModeExtended ***REMOVED***
-		jsCodeLines = append(jsCodeLines, "export default function() ***REMOVED***")
+		fmt.Fprint(jsCode, "export default function() ***REMOVED***")
 	***REMOVED*** else ***REMOVED***
-		jsCodeLines = append(jsCodeLines, "module.exports.default = function() ***REMOVED***")
+		fmt.Fprint(jsCode, "module.exports.default = function() ***REMOVED***")
 	***REMOVED***
 
 	for key, val := range tc.expEnv ***REMOVED***
-		jsCodeLines = append(jsCodeLines, fmt.Sprintf(
+		fmt.Fprintf(jsCode,
 			"if (__ENV.%s !== `%s`) ***REMOVED*** throw new Error('Invalid %s: ' + __ENV.%s); ***REMOVED***",
 			key, val, key, key,
-		))
+		)
 	***REMOVED***
-	jsCodeLines = append(jsCodeLines, "***REMOVED***")
-	jsCode := []byte(strings.Join(jsCodeLines, "\n"))
+	fmt.Fprint(jsCode, "***REMOVED***")
 
 	fs := afero.NewMemMapFs()
-	require.NoError(t, afero.WriteFile(fs, "/script.js", jsCode, 0644))
+	require.NoError(t, afero.WriteFile(fs, "/script.js", jsCode.Bytes(), 0644))
 	runner, err := newRunner(
-		&loader.SourceData***REMOVED***Data: jsCode, URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
+		&loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
 		typeJS,
 		map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
 		rtOpts,
@@ -244,7 +242,7 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 
 	archive := runner.MakeArchive()
 	archiveBuf := &bytes.Buffer***REMOVED******REMOVED***
-	assert.NoError(t, archive.Write(archiveBuf))
+	require.NoError(t, archive.Write(archiveBuf))
 
 	getRunnerErr := func(rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
 		return newRunner(
