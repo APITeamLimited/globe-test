@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -41,38 +40,6 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 )
-
-// A helper funcion for setting arbitrary environment variables and
-// restoring the old ones at the end, usually by deferring the returned callback
-// TODO: remove these hacks when we improve the configuration... we shouldn't
-// have to mess with the global environment at all...
-func setEnv(t *testing.T, newEnv []string) (restoreEnv func()) ***REMOVED***
-	actuallSetEnv := func(env []string, abortOnSetErr bool) ***REMOVED***
-		os.Clearenv()
-		for _, e := range env ***REMOVED***
-			val := ""
-			pair := strings.SplitN(e, "=", 2)
-			if len(pair) > 1 ***REMOVED***
-				val = pair[1]
-			***REMOVED***
-			err := os.Setenv(pair[0], val)
-			if abortOnSetErr ***REMOVED***
-				require.NoError(t, err)
-			***REMOVED*** else if err != nil ***REMOVED***
-				t.Logf(
-					"Received a non-aborting but unexpected error '%s' when setting env.var '%s' to '%s'",
-					err, pair[0], val,
-				)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	oldEnv := os.Environ()
-	actuallSetEnv(newEnv, true)
-
-	return func() ***REMOVED***
-		actuallSetEnv(oldEnv, false)
-	***REMOVED***
-***REMOVED***
 
 func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	// No config anywhere should result in a 1 VU with a 1 iteration config
@@ -424,7 +391,7 @@ func runTestCase(
 	logrus.SetOutput(output)
 	logHook.Drain()
 
-	restoreEnv := setEnv(t, testCase.options.env)
+	restoreEnv := testutils.SetEnv(t, testCase.options.env)
 	defer restoreEnv()
 
 	flagSet := newFlagSet()
