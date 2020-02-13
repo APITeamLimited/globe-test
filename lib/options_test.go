@@ -23,13 +23,14 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
@@ -130,7 +131,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
-
 			t.Run("String", func(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]***REMOVED***`
@@ -385,7 +385,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.DiscardResponseBodies.Valid)
 		assert.True(t, opts.DiscardResponseBodies.Bool)
 	***REMOVED***)
-
 ***REMOVED***
 
 func TestOptionsEnv(t *testing.T) ***REMOVED***
@@ -409,8 +408,10 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***"Stages", "K6_STAGES"***REMOVED***: ***REMOVED***
 			// "": []Stage***REMOVED******REMOVED***,
-			"1s": []Stage***REMOVED******REMOVED***
-				Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+			"1s": []Stage***REMOVED***
+				***REMOVED***
+					Duration: types.NullDurationFrom(1 * time.Second),
+				***REMOVED***,
 			***REMOVED***,
 			"1s:100": []Stage***REMOVED***
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
@@ -460,11 +461,13 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		// External
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
-		os.Clearenv()
+		field, data := field, data
 		t.Run(field.Name, func(t *testing.T) ***REMOVED***
 			for str, val := range data ***REMOVED***
+				str, val := str, val
 				t.Run(`"`+str+`"`, func(t *testing.T) ***REMOVED***
-					assert.NoError(t, os.Setenv(field.Key, str))
+					restore := testutils.SetEnv(t, []string***REMOVED***fmt.Sprintf("%s=%s", field.Key, str)***REMOVED***)
+					defer restore()
 					var opts Options
 					assert.NoError(t, envconfig.Process("k6", &opts))
 					assert.Equal(t, val, reflect.ValueOf(opts).FieldByName(field.Name).Interface())
@@ -475,8 +478,7 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
-
-	var testData = []struct ***REMOVED***
+	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *IPNet
 		expactFailure  bool

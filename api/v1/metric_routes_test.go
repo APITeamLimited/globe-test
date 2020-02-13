@@ -33,7 +33,7 @@ import (
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/testutils/minirunner"
 	"github.com/loadimpact/k6/stats"
 	"github.com/manyminds/api2go/jsonapi"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ import (
 )
 
 func TestGetMetrics(t *testing.T) ***REMOVED***
-	execScheduler, err := local.NewExecutionScheduler(&testutils.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)
 	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestGetMetrics(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestGetMetric(t *testing.T) ***REMOVED***
-	execScheduler, err := local.NewExecutionScheduler(&testutils.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)
 	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
 	require.NoError(t, err)

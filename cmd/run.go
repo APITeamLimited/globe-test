@@ -109,7 +109,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
