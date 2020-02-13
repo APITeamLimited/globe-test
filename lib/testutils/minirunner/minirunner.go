@@ -18,7 +18,7 @@
  *
  */
 
-package testutils
+package minirunner
 
 import (
 	"context"
@@ -29,8 +29,10 @@ import (
 )
 
 // Ensure mock implementations conform to the interfaces.
-var _ lib.Runner = &MiniRunner***REMOVED******REMOVED***
-var _ lib.VU = &MiniRunnerVU***REMOVED******REMOVED***
+var (
+	_ lib.Runner = &MiniRunner***REMOVED******REMOVED***
+	_ lib.VU     = &VU***REMOVED******REMOVED***
+)
 
 // MiniRunner partially implements the lib.Runner interface, but instead of
 // using a real JS runtime, it allows us to directly specify the options and
@@ -53,10 +55,10 @@ func (r MiniRunner) MakeArchive() *lib.Archive ***REMOVED***
 	return nil
 ***REMOVED***
 
-// NewVU returns a new MiniRunnerVU with an incremental ID.
+// NewVU returns a new VU with an incremental ID.
 func (r *MiniRunner) NewVU(out chan<- stats.SampleContainer) (lib.VU, error) ***REMOVED***
 	nextVUNum := atomic.AddInt64(&r.NextVUID, 1)
-	return &MiniRunnerVU***REMOVED***R: r, Out: out, ID: nextVUNum - 1***REMOVED***, nil
+	return &VU***REMOVED***R: r, Out: out, ID: nextVUNum - 1***REMOVED***, nil
 ***REMOVED***
 
 // Setup calls the supplied mock setup() function, if present.
@@ -105,8 +107,8 @@ func (r *MiniRunner) SetOptions(opts lib.Options) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// MiniRunnerVU is a mock VU, spawned by a MiniRunner.
-type MiniRunnerVU struct ***REMOVED***
+// VU is a mock VU, spawned by a MiniRunner.
+type VU struct ***REMOVED***
 	R         *MiniRunner
 	Out       chan<- stats.SampleContainer
 	ID        int64
@@ -114,7 +116,7 @@ type MiniRunnerVU struct ***REMOVED***
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.
-func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
+func (vu VU) RunOnce(ctx context.Context) error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -131,7 +133,7 @@ func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
 ***REMOVED***
 
 // Reconfigure changes the VU ID.
-func (vu *MiniRunnerVU) Reconfigure(id int64) error ***REMOVED***
+func (vu *VU) Reconfigure(id int64) error ***REMOVED***
 	vu.ID = id
 	return nil
 ***REMOVED***

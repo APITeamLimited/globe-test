@@ -38,6 +38,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
+	"github.com/loadimpact/k6/lib/testutils/minirunner"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
@@ -51,7 +52,7 @@ const isWindows = runtime.GOOS == "windows"
 // Wrapper around NewEngine that applies a logger and manages the options.
 func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts lib.Options) *Engine ***REMOVED*** //nolint: golint
 	if runner == nil ***REMOVED***
-		runner = &testutils.MiniRunner***REMOVED******REMOVED***
+		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 	if ctx == nil ***REMOVED***
 		ctx = context.Background()
@@ -109,7 +110,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 
-		runner := &testutils.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
 			close(signalChan)
 			<-ctx.Done()
@@ -158,7 +159,7 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 func TestEngineCollector(t *testing.T) ***REMOVED***
 	testMetric := stats.New("test_metric", stats.Trend)
 
-	runner := &testutils.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+	runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 		out <- stats.Sample***REMOVED***Metric: testMetric***REMOVED***
 		return nil
 	***REMOVED******REMOVED***
@@ -339,6 +340,7 @@ func getMetricSum(collector *dummy.Collector, name string) (result float64) ***R
 	***REMOVED***
 	return
 ***REMOVED***
+
 func getMetricCount(collector *dummy.Collector, name string) (result uint) ***REMOVED***
 	for _, sc := range collector.SampleContainers ***REMOVED***
 		for _, s := range sc.GetSamples() ***REMOVED***
