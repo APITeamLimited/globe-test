@@ -44,39 +44,44 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 		expected string
 	***REMOVED******REMOVED***
 		***REMOVED***[]ProgressBarOption***REMOVED***WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***)***REMOVED***,
-			"left [--------------------------------------]"***REMOVED***,
+			"left   [--------------------------------------]"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***WithConstLeft("constLeft")***REMOVED***,
-			"constLeft [--------------------------------------]"***REMOVED***,
+			"constLeft   [--------------------------------------]"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
-			WithProgress(func() (float64, string) ***REMOVED*** return 0, "right" ***REMOVED***),
+			WithStatus(Done),
 		***REMOVED***,
-			"left [--------------------------------------] right"***REMOVED***,
+			"left ✓ [--------------------------------------]"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
-			WithProgress(func() (float64, string) ***REMOVED*** return 0.5, "right" ***REMOVED***),
+			WithProgress(func() (float64, []string) ***REMOVED*** return 0, []string***REMOVED***"right"***REMOVED*** ***REMOVED***),
 		***REMOVED***,
-			"left [==================>-------------------] right"***REMOVED***,
+			"left   [--------------------------------------] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
-			WithProgress(func() (float64, string) ***REMOVED*** return 1.0, "right" ***REMOVED***),
+			WithProgress(func() (float64, []string) ***REMOVED*** return 0.5, []string***REMOVED***"right"***REMOVED*** ***REMOVED***),
 		***REMOVED***,
-			"left [======================================] right"***REMOVED***,
+			"left   [==================>-------------------] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
-			WithProgress(func() (float64, string) ***REMOVED*** return -1, "right" ***REMOVED***),
+			WithProgress(func() (float64, []string) ***REMOVED*** return 1.0, []string***REMOVED***"right"***REMOVED*** ***REMOVED***),
 		***REMOVED***,
-			"left [--------------------------------------] right"***REMOVED***,
+			"left   [======================================] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
-			WithProgress(func() (float64, string) ***REMOVED*** return 2, "right" ***REMOVED***),
+			WithProgress(func() (float64, []string) ***REMOVED*** return -1, []string***REMOVED***"right"***REMOVED*** ***REMOVED***),
 		***REMOVED***,
-			"left [======================================] right"***REMOVED***,
+			"left   [--------------------------------------] right"***REMOVED***,
+		***REMOVED***[]ProgressBarOption***REMOVED***
+			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
+			WithProgress(func() (float64, []string) ***REMOVED*** return 2, []string***REMOVED***"right"***REMOVED*** ***REMOVED***),
+		***REMOVED***,
+			"left   [======================================] right"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithLeft(func() string ***REMOVED*** return "left" ***REMOVED***),
 			WithConstProgress(0.2, "constProgress"),
 		***REMOVED***,
-			"left [======>-------------------------------] constProgress"***REMOVED***,
+			"left   [======>-------------------------------] constProgress"***REMOVED***,
 		***REMOVED***[]ProgressBarOption***REMOVED***
 			WithHijack(func() string ***REMOVED*** return "progressbar hijack!" ***REMOVED***),
 		***REMOVED***,
@@ -88,7 +93,7 @@ func TestProgressBarRender(t *testing.T) ***REMOVED***
 		t.Run(tc.expected, func(t *testing.T) ***REMOVED***
 			pbar := New(tc.options...)
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(0))
+			assert.Equal(t, tc.expected, pbar.Render(0).String())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -101,12 +106,10 @@ func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 		left     string
 		expected string
 	***REMOVED******REMOVED***
-		***REMOVED***-1, "left", "left [--------------------------------------]"***REMOVED***,
-		***REMOVED***0, "left", "left [--------------------------------------]"***REMOVED***,
-		***REMOVED***15, "left_pad",
-			"left_pad        [--------------------------------------]"***REMOVED***,
+		***REMOVED***-1, "left", "left   [--------------------------------------]"***REMOVED***,
+		***REMOVED***0, "left", "left   [--------------------------------------]"***REMOVED***,
 		***REMOVED***10, "left_truncated",
-			"left_tr... [--------------------------------------]"***REMOVED***,
+			"left_tr...   [--------------------------------------]"***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
@@ -114,7 +117,7 @@ func TestProgressBarRenderPaddingMaxLeft(t *testing.T) ***REMOVED***
 		t.Run(tc.left, func(t *testing.T) ***REMOVED***
 			pbar := New(WithLeft(func() string ***REMOVED*** return tc.left ***REMOVED***))
 			assert.NotNil(t, pbar)
-			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen))
+			assert.Equal(t, tc.expected, pbar.Render(tc.maxLen).String())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

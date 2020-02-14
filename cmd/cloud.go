@@ -214,11 +214,12 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		testProgress := &cloud.TestProgressResponse***REMOVED******REMOVED***
 		percentageFmt := "[" + pb.GetFixedLengthFloatFormat(100, 2) + "%%] %s"
 		progressBar.Modify(
-			pb.WithProgress(func() (float64, string) ***REMOVED***
+			pb.WithProgress(func() (float64, []string) ***REMOVED***
 				if testProgress.RunStatus < lib.RunStatusRunning ***REMOVED***
-					return 0, testProgress.RunStatusText
+					return 0, []string***REMOVED***testProgress.RunStatusText***REMOVED***
 				***REMOVED***
-				return testProgress.Progress, fmt.Sprintf(percentageFmt, testProgress.Progress*100, testProgress.RunStatusText)
+				return testProgress.Progress, []string***REMOVED***
+					fmt.Sprintf(percentageFmt, testProgress.Progress*100, testProgress.RunStatusText)***REMOVED***
 			***REMOVED***),
 		)
 
