@@ -54,6 +54,7 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Int64P("iterations", "i", 0, "script total iteration limit (among all VUs)")
 	flags.StringSliceP("stage", "s", nil, "add a `stage`, as `[duration]:[target]`")
 	flags.String("execution-segment", "", "limit execution to the specified segment, e.g. 10%, 1/3, 0.2:2/3")
+	flags.String("execution-segment-sequence", "", "the execution segment sequence") // TODO better description
 	flags.BoolP("paused", "p", false, "start the test in a paused state")
 	flags.Bool("no-setup", false, "don't run setup()")
 	flags.Bool("no-teardown", false, "don't run teardown()")
@@ -150,6 +151,19 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			return opts, err
 		***REMOVED***
 		opts.ExecutionSegment = segment
+	***REMOVED***
+
+	if flags.Changed("execution-segment-sequence") ***REMOVED***
+		executionSegmentSequenceStr, err := flags.GetString("execution-segment-sequence")
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		segmentSequence := new(lib.ExecutionSegmentSequence)
+		err = segmentSequence.UnmarshalText([]byte(executionSegmentSequenceStr))
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
+		opts.ESS = segmentSequence
 	***REMOVED***
 	if flags.Changed("system-tags") ***REMOVED***
 		systemTagList, err := flags.GetStringSlice("system-tags")
