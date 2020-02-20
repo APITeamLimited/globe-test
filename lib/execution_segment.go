@@ -416,66 +416,33 @@ func (ess ExecutionSegmentSequence) lcd() int64 ***REMOVED***
 //
 // TODO: add a more detailed algorithm description
 // TODO: basically https://docs.google.com/spreadsheets/d/1V_ivN2xuaMJIgOf1HkpOw1ex8QOhxp960itGGiRrNzo/edit
-func (ess ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment) (int64, []int64, int64, error) ***REMOVED***
-	// TODO check if ExecutionSegmentSequence actually starts from 0 and goes to 1 ?
-	ess = append([]*ExecutionSegment***REMOVED******REMOVED***, ess...) // copy the original sequence
-
-	var numerators = make([]int64, len(ess))
-	var steps = make([]*big.Rat, len(ess))
-	var soonest = make([]*big.Rat, len(ess))
-	var lcd = ess.lcd()
-
-	for i := range ess ***REMOVED***
-		numerators[i] = ess[i].length.Num().Int64() * (lcd / ess[i].length.Denom().Int64())
-		soonest[i] = big.NewRat(0, 1)
-		steps[i] = big.NewRat(lcd, numerators[i])
+func (ess *ExecutionSegmentSequence) GetStripedOffsets(segment *ExecutionSegment) (int64, []int64, int64, error) ***REMOVED***
+	if segment == nil || segment.length.Cmp(oneRat) == 0 ***REMOVED***
+		return 0, []int64***REMOVED***1***REMOVED***, 1, nil
 	***REMOVED***
 
-	sort.Stable(sortInterfaceWrapper***REMOVED***
-		numerators: numerators,
-		steps:      steps,
-		ess:        ess,
-	***REMOVED***)
-	var segmentIndex = -1
-	for i, seg := range ess ***REMOVED***
-		if seg.Equal(segment) ***REMOVED***
-			segmentIndex = i
-			break
-		***REMOVED***
+	// we will copy the sequnce to this in order to sort it :)
+	var copyESS ExecutionSegmentSequence
+	// Here we fix the problem with having no sequence
+	// No filling up is required as the algorithm will accommodate for it
+	// through just going through the iterations that need to be in the values will fill up
+	// this has the consequence that if this is ran without sequence,
+	// but with segments: 0:1/3 and 1/3:2/3 it will get the same results instead
+	// of 1/3:2/3 to get start=1 and offset=***REMOVED***3***REMOVED*** it will get as 0:1/3 will start=0 and offsets=***REMOVED***3***REMOVED***
+	// if the above behaviour is desired this will definitely need to be outside of this function.
+	if ess == nil || len(*ess) == 0 ***REMOVED***
+		copyESS = []*ExecutionSegment***REMOVED***segment***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		copyESS = append([]*ExecutionSegment***REMOVED******REMOVED***, *ess...) // copy the original sequence
 	***REMOVED***
+	var wrapper = newWrapper(copyESS)
+
+	var segmentIndex = wrapper.indexOf(segment)
 	if segmentIndex == -1 ***REMOVED***
 		return -1, nil, -1, fmt.Errorf("missing segment %s inside segment sequence %s", segment, ess)
 	***REMOVED***
-	start := int64(-1)
-	var offsets []int64 // TODO we can preallocate this
-
-OUTER:
-	for i := int64(0); i < lcd; i++ ***REMOVED***
-		for index, value := range soonest ***REMOVED***
-			num, denom := value.Num().Int64(), value.Denom().Int64()
-			if i > num/denom || (i == num/denom && num%denom == 0) ***REMOVED***
-				value.Add(value, steps[index])
-				if index == segmentIndex ***REMOVED***
-					// TODO: this can be done for all segments and then we only get what we care about
-					if start < 0 ***REMOVED***
-						start = i
-					***REMOVED*** else ***REMOVED***
-						prev := start
-						if len(offsets) > 0 ***REMOVED***
-							prev = offsets[len(offsets)-1]
-						***REMOVED***
-						offsets = append(offsets, i-prev)
-					***REMOVED***
-					if int64(len(offsets)) == numerators[index]-1 ***REMOVED***
-						break OUTER
-					***REMOVED***
-				***REMOVED***
-				break
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	return start, offsets, lcd, nil
+	start, offsets := wrapper.strippedOffsetsFor(segmentIndex)
+	return start, offsets, wrapper.lcd, nil
 ***REMOVED***
 
 // This is only needed in order to sort all three at the same time
@@ -483,6 +450,66 @@ type sortInterfaceWrapper struct ***REMOVED*** // TODO: rename ?
 	numerators []int64
 	steps      []*big.Rat
 	ess        ExecutionSegmentSequence
+	lcd        int64
+***REMOVED***
+
+func newWrapper(ess ExecutionSegmentSequence) sortInterfaceWrapper ***REMOVED***
+	var result = sortInterfaceWrapper***REMOVED***
+		numerators: make([]int64, len(ess)),
+		steps:      make([]*big.Rat, len(ess)),
+		lcd:        ess.lcd(),
+		ess:        ess,
+	***REMOVED***
+
+	for i := range ess ***REMOVED***
+		result.numerators[i] = ess[i].length.Num().Int64() * (result.lcd / ess[i].length.Denom().Int64())
+		result.steps[i] = big.NewRat(result.lcd, result.numerators[i])
+	***REMOVED***
+
+	sort.Stable(result)
+	return result
+***REMOVED***
+
+func (e sortInterfaceWrapper) indexOf(segment *ExecutionSegment) int ***REMOVED***
+	for i, seg := range e.ess ***REMOVED***
+		if seg.Equal(segment) ***REMOVED***
+			return i
+		***REMOVED***
+	***REMOVED***
+
+	return -1
+***REMOVED***
+
+func (e sortInterfaceWrapper) strippedOffsetsFor(segmentIndex int) (int64, []int64) ***REMOVED***
+	var offsets = make([]int64, 0, e.numerators[segmentIndex]+1)
+	var soonest = make([]*big.Rat, len(e.ess))
+	for i := range e.ess ***REMOVED***
+		soonest[i] = big.NewRat(0, 1)
+	***REMOVED***
+
+	for i := int64(0); i < e.lcd; i++ ***REMOVED***
+		for index, value := range soonest ***REMOVED***
+			num, denom := value.Num().Int64(), value.Denom().Int64()
+			if i > num/denom || (i == num/denom && num%denom == 0) ***REMOVED***
+				value.Add(value, e.steps[index])
+				if index == segmentIndex ***REMOVED***
+					prev := int64(0)
+					if len(offsets) > 0 ***REMOVED***
+						prev = offsets[len(offsets)-1]
+					***REMOVED***
+					offsets = append(offsets, i-prev)
+					if int64(len(offsets)) == e.numerators[index] ***REMOVED***
+						offsets = append(offsets, offsets[0]+e.lcd-i)
+						return offsets[0], offsets[1:]
+					***REMOVED***
+				***REMOVED***
+				break
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	// TODO return some error if we get to here
+	return offsets[0], offsets[1:]
 ***REMOVED***
 
 // Len is the number of elements in the collection.

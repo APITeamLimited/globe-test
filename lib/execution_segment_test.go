@@ -444,15 +444,31 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 		lcd      int64
 		expError string
 	***REMOVED******REMOVED***
+		// full sequences
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", expError: "missing segment"***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3", start: 0, offsets: []int64***REMOVED***4, 3***REMOVED***, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.3:0.5", start: 1, offsets: []int64***REMOVED***4***REMOVED***, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6", start: 2, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.8:0.9", start: 8, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***4***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3", start: 0, offsets: []int64***REMOVED***4, 3, 3***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.3:0.5", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6", start: 2, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.8:0.9", start: 8, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0.9:1", start: 9, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
+		// not full sequences
+		***REMOVED***seq: "0,0.2,0.5", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5", seg: "0.2:0.5", start: 0, offsets: []int64***REMOVED***4, 3, 3***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,2/5,4/5", seg: "0:2/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seq: "0,2/5,4/5", seg: "2/5:4/5", start: 1, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		// no sequence
+		***REMOVED***seg: "0:0.2", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:1/5", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:2/10", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:0.4", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:2/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "2/5:4/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***, // this is the same as the previous one as there is no sequence
+		***REMOVED***seg: "0:4/10", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "1/10:5/10", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
