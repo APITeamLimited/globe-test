@@ -497,6 +497,28 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestSequenceLCD(t *testing.T) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		seq string
+		lcd int64
+	***REMOVED******REMOVED***
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.1,0.5,0.6,0.7,0.8,0.9,1", lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,1/3,5/6", lcd: 6***REMOVED***,
+		***REMOVED***seq: "0,1/3,4/7", lcd: 21***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("seq:%s", tc.seq), func(t *testing.T) ***REMOVED***
+			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(t, err)
+			require.Equal(t, tc.lcd, ess.lcd())
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func BenchmarkGetStripedOffsets(b *testing.B) ***REMOVED***
 	var lengths = [...]int64***REMOVED***10, 100***REMOVED***
 	const seed = 777
