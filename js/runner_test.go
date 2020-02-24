@@ -322,6 +322,7 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
 func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 	testSetupDataHelper(t, `
 	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
@@ -396,6 +397,7 @@ func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***;`)
 ***REMOVED***
+
 func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 	t.Run("Modules", func(t *testing.T) ***REMOVED***
 		modules := []string***REMOVED***
@@ -499,7 +501,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
-	//TODO: figure out why interrupt sometimes fails... data race in goja?
+	// TODO: figure out why interrupt sometimes fails... data race in goja?
 	if isWindows ***REMOVED***
 		t.Skip()
 	***REMOVED***
@@ -536,7 +538,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
-	//TODO: figure out why interrupt sometimes fails... data race in goja?
+	// TODO: figure out why interrupt sometimes fails... data race in goja?
 	if isWindows ***REMOVED***
 		t.Skip()
 	***REMOVED***
@@ -568,7 +570,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 			for i := 0; i < 1000; i++ ***REMOVED***
 				wg.Add(1)
 				newCtx, newCancel := context.WithCancel(ctx)
-				var ch = make(chan struct***REMOVED******REMOVED***)
+				ch := make(chan struct***REMOVED******REMOVED***)
 				go func() ***REMOVED***
 					defer wg.Done()
 					close(ch)
@@ -864,7 +866,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
-	var unsupportedVersionErrorMsg = "remote error: tls: handshake failure"
+	unsupportedVersionErrorMsg := "remote error: tls: handshake failure"
 	for _, tag := range build.Default.ReleaseTags ***REMOVED***
 		if tag == "go1.12" ***REMOVED***
 			unsupportedVersionErrorMsg = "tls: no supported versions satisfy MinVersion and MaxVersion"
@@ -995,11 +997,11 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
 	assert.NoError(t, err)
 	err = vu.RunOnce(context.Background())
-	assert.EqualError(t, err, "GoError: \"open\" function is only available to the init code (aka global scope), see https://docs.k6.io/docs/test-life-cycle for more information")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "only available to init code")
 ***REMOVED***
 
 func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
-
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
@@ -1298,7 +1300,7 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestInitContextForbidden(t *testing.T) ***REMOVED***
-	var table = [...][3]string***REMOVED***
+	table := [...][3]string***REMOVED***
 		***REMOVED***
 			"http.request",
 			`import http from "k6/http";
