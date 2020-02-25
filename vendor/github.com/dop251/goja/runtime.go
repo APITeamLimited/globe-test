@@ -915,8 +915,20 @@ func (r *Runtime) RunProgram(p *Program) (result Value, err error) ***REMOVED***
 
 // Interrupt a running JavaScript. The corresponding Go call will return an *InterruptedError containing v.
 // Note, it only works while in JavaScript code, it does not interrupt native Go functions (which includes all built-ins).
+// If the runtime is currently not running, it will be immediately interrupted on the next Run*() call.
+// To avoid that use ClearInterrupt()
 func (r *Runtime) Interrupt(v interface***REMOVED******REMOVED***) ***REMOVED***
 	r.vm.Interrupt(v)
+***REMOVED***
+
+// ClearInterrupt resets the interrupt flag. Typically this needs to be called before the runtime
+// is made available for re-use if there is a chance it could have been interrupted with Interrupt().
+// Otherwise if Interrupt() was called when runtime was not running (e.g. if it had already finished)
+// so that Interrupt() didn't actually trigger, an attempt to use the runtime will immediately cause
+// an interruption. It is up to the user to ensure proper synchronisation so that ClearInterrupt() is
+// only called when the runtime has finished and there is no chance of a concurrent Interrupt() call.
+func (r *Runtime) ClearInterrupt() ***REMOVED***
+	r.vm.ClearInterrupt()
 ***REMOVED***
 
 /*
@@ -1438,6 +1450,23 @@ func (r *Runtime) SetRandSource(source RandSource) ***REMOVED***
 // If not called, the default time.Now() is used.
 func (r *Runtime) SetTimeSource(now Now) ***REMOVED***
 	r.now = now
+***REMOVED***
+
+// New is an equivalent of the 'new' operator allowing to call it directly from Go.
+func (r *Runtime) New(construct Value, args ...Value) (o *Object, err error) ***REMOVED***
+	defer func() ***REMOVED***
+		if x := recover(); x != nil ***REMOVED***
+			switch x := x.(type) ***REMOVED***
+			case *Exception:
+				err = x
+			case *InterruptedError:
+				err = x
+			default:
+				panic(x)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+	return r.builtin_new(r.toObject(construct), args), nil
 ***REMOVED***
 
 // Callable represents a JavaScript function that can be called from Go.
