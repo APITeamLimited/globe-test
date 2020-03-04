@@ -150,6 +150,8 @@ type ExecutionState struct ***REMOVED***
 	// via the Go type system...
 	Options Options
 
+	ExecutionTuple *ExecutionTuple // TODO Rename, possibly move
+
 	// vus is the shared channel buffer that contains all of the VUs that have
 	// been initialized and aren't currently being used by a executor.
 	//
@@ -293,6 +295,10 @@ func NewExecutionState(options Options, maxPlannedVUs, maxPossibleVUs uint64) *E
 		pauseStateLock:             sync.RWMutex***REMOVED******REMOVED***,
 		totalPausedDuration:        0, // Accessed only behind the pauseStateLock
 		resumeNotify:               resumeNotify,
+		ExecutionTuple: NewExecutionTuple(
+			options.ExecutionSegment,
+			options.ExecutionSegmentSequence,
+		),
 	***REMOVED***
 ***REMOVED***
 

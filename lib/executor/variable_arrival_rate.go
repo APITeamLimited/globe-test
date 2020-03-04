@@ -80,25 +80,25 @@ func NewVariableArrivalRateConfig(name string) VariableArrivalRateConfig ***REMO
 var _ lib.ExecutorConfig = &VariableArrivalRateConfig***REMOVED******REMOVED***
 
 // GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
-func (varc VariableArrivalRateConfig) GetPreAllocatedVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(varc.PreAllocatedVUs.Int64)
+func (varc VariableArrivalRateConfig) GetPreAllocatedVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ES.Scale(varc.PreAllocatedVUs.Int64)
 ***REMOVED***
 
 // GetMaxVUs is just a helper method that returns the scaled max VUs.
-func (varc VariableArrivalRateConfig) GetMaxVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(varc.MaxVUs.Int64)
+func (varc VariableArrivalRateConfig) GetMaxVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ES.Scale(varc.MaxVUs.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (varc VariableArrivalRateConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
+func (varc VariableArrivalRateConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
 	//TODO: something better? always show iterations per second?
-	maxVUsRange := fmt.Sprintf("maxVUs: %d", es.Scale(varc.PreAllocatedVUs.Int64))
+	maxVUsRange := fmt.Sprintf("maxVUs: %d", et.ES.Scale(varc.PreAllocatedVUs.Int64))
 	if varc.MaxVUs.Int64 > varc.PreAllocatedVUs.Int64 ***REMOVED***
-		maxVUsRange += fmt.Sprintf("-%d", es.Scale(varc.MaxVUs.Int64))
+		maxVUsRange += fmt.Sprintf("-%d", et.ES.Scale(varc.MaxVUs.Int64))
 	***REMOVED***
 	maxUnscaledRate := getStagesUnscaledMaxTarget(varc.StartRate.Int64, varc.Stages)
 	maxArrRatePerSec, _ := getArrivalRatePerSec(
-		getScaledArrivalRate(es, maxUnscaledRate, time.Duration(varc.TimeUnit.Duration)),
+		getScaledArrivalRate(et.ES, maxUnscaledRate, time.Duration(varc.TimeUnit.Duration)),
 	).Float64()
 
 	return fmt.Sprintf("Up to %.2f iterations/s for %s over %d stages%s",
@@ -140,12 +140,12 @@ func (varc VariableArrivalRateConfig) Validate() []error ***REMOVED***
 // maximum waiting time for any iterations to gracefully stop. This is used by
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
-func (varc VariableArrivalRateConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+func (varc VariableArrivalRateConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
 		***REMOVED***
 			TimeOffset:      0,
-			PlannedVUs:      uint64(es.Scale(varc.PreAllocatedVUs.Int64)),
-			MaxUnplannedVUs: uint64(es.Scale(varc.MaxVUs.Int64 - varc.PreAllocatedVUs.Int64)),
+			PlannedVUs:      uint64(et.ES.Scale(varc.PreAllocatedVUs.Int64)),
+			MaxUnplannedVUs: uint64(et.ES.Scale(varc.MaxVUs.Int64 - varc.PreAllocatedVUs.Int64)),
 		***REMOVED***,
 		***REMOVED***
 			TimeOffset:      sumStagesDuration(varc.Stages) + time.Duration(varc.GracefulStop.Duration),
@@ -167,7 +167,7 @@ type rateChange struct ***REMOVED***
 ***REMOVED***
 
 // A helper method to generate the plan how the rate changes would happen.
-func (varc VariableArrivalRateConfig) getPlannedRateChanges(segment *lib.ExecutionSegment) []rateChange ***REMOVED***
+func (varc VariableArrivalRateConfig) getPlannedRateChanges(et *lib.ExecutionTuple) []rateChange ***REMOVED***
 	timeUnit := time.Duration(varc.TimeUnit.Duration)
 	// Important note for accuracy: we must work with and scale only the
 	// rational numbers, never the raw target values directly. It matters most
@@ -179,7 +179,7 @@ func (varc VariableArrivalRateConfig) getPlannedRateChanges(segment *lib.Executi
 	// numbers for scaling, then the instance executing the first segment won't
 	// ever do even a single request, since scale(20%, 1) would be 0, whereas
 	// the rational value for scale(20%, 1/sec) is 0.2/sec, or rather 1/5sec...
-	currentRate := getScaledArrivalRate(segment, varc.StartRate.Int64, timeUnit)
+	currentRate := getScaledArrivalRate(et.ES, varc.StartRate.Int64, timeUnit)
 
 	rateChanges := []rateChange***REMOVED******REMOVED***
 	timeFromStart := time.Duration(0)
@@ -188,7 +188,7 @@ func (varc VariableArrivalRateConfig) getPlannedRateChanges(segment *lib.Executi
 	var tArrivalRateStep = new(big.Rat)
 	var stepCoef = new(big.Rat)
 	for _, stage := range varc.Stages ***REMOVED***
-		stageTargetRate := getScaledArrivalRate(segment, stage.Target.Int64, timeUnit)
+		stageTargetRate := getScaledArrivalRate(et.ES, stage.Target.Int64, timeUnit)
 		stageDuration := time.Duration(stage.Duration.Duration)
 
 		if currentRate.Cmp(stageTargetRate) == 0 ***REMOVED***
@@ -257,13 +257,13 @@ func (varc VariableArrivalRateConfig) NewExecutor(
 	return VariableArrivalRate***REMOVED***
 		BaseExecutor:       NewBaseExecutor(varc, es, logger),
 		config:             varc,
-		plannedRateChanges: varc.getPlannedRateChanges(es.Options.ExecutionSegment),
+		plannedRateChanges: varc.getPlannedRateChanges(es.ExecutionTuple),
 	***REMOVED***, nil
 ***REMOVED***
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (varc VariableArrivalRateConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
-	return varc.GetMaxVUs(es) > 0
+func (varc VariableArrivalRateConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
+	return varc.GetMaxVUs(et) > 0
 ***REMOVED***
 
 // VariableArrivalRate tries to execute a specific number of iterations for a
@@ -308,8 +308,8 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 	segment := varr.executionState.Options.ExecutionSegment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
-	preAllocatedVUs := varr.config.GetPreAllocatedVUs(segment)
-	maxVUs := varr.config.GetMaxVUs(segment)
+	preAllocatedVUs := varr.config.GetPreAllocatedVUs(varr.executionState.ExecutionTuple)
+	maxVUs := varr.config.GetMaxVUs(varr.executionState.ExecutionTuple)
 
 	timeUnit := time.Duration(varr.config.TimeUnit.Duration)
 	startArrivalRate := getScaledArrivalRate(segment, varr.config.StartRate.Int64, timeUnit)

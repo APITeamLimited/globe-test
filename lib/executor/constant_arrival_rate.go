@@ -76,26 +76,31 @@ func NewConstantArrivalRateConfig(name string) ConstantArrivalRateConfig ***REMO
 var _ lib.ExecutorConfig = &ConstantArrivalRateConfig***REMOVED******REMOVED***
 
 // GetPreAllocatedVUs is just a helper method that returns the scaled pre-allocated VUs.
-func (carc ConstantArrivalRateConfig) GetPreAllocatedVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(carc.PreAllocatedVUs.Int64)
+func (carc ConstantArrivalRateConfig) GetPreAllocatedVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ScaleInt64(carc.PreAllocatedVUs.Int64)
 ***REMOVED***
 
 // GetMaxVUs is just a helper method that returns the scaled max VUs.
-func (carc ConstantArrivalRateConfig) GetMaxVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(carc.MaxVUs.Int64)
+func (carc ConstantArrivalRateConfig) GetMaxVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ScaleInt64(carc.MaxVUs.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (carc ConstantArrivalRateConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
-	preAllocatedVUs, maxVUs := carc.GetPreAllocatedVUs(es), carc.GetMaxVUs(es)
+func (carc ConstantArrivalRateConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
+	preAllocatedVUs, maxVUs := carc.GetPreAllocatedVUs(et), carc.GetMaxVUs(et)
 	maxVUsRange := fmt.Sprintf("maxVUs: %d", preAllocatedVUs)
 	if maxVUs > preAllocatedVUs ***REMOVED***
 		maxVUsRange += fmt.Sprintf("-%d", maxVUs)
 	***REMOVED***
 
 	timeUnit := time.Duration(carc.TimeUnit.Duration)
-	arrRate := getScaledArrivalRate(es, carc.Rate.Int64, timeUnit)
-	arrRatePerSec, _ := getArrivalRatePerSec(arrRate).Float64()
+	var arrRatePerSec float64
+	if maxVUs != 0 ***REMOVED*** // TODO: do something better?
+		ratio := big.NewRat(maxVUs, carc.MaxVUs.Int64)
+		arrRate := big.NewRat(carc.Rate.Int64, int64(timeUnit))
+		arrRate.Mul(arrRate, ratio)
+		arrRatePerSec, _ = getArrivalRatePerSec(arrRate).Float64()
+	***REMOVED***
 
 	return fmt.Sprintf("%.2f iterations/s for %s%s", arrRatePerSec, carc.Duration.Duration,
 		carc.getBaseInfo(maxVUsRange))
@@ -142,12 +147,12 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 // maximum waiting time for any iterations to gracefully stop. This is used by
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
-func (carc ConstantArrivalRateConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+func (carc ConstantArrivalRateConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
 		***REMOVED***
 			TimeOffset:      0,
-			PlannedVUs:      uint64(es.Scale(carc.PreAllocatedVUs.Int64)),
-			MaxUnplannedVUs: uint64(es.Scale(carc.MaxVUs.Int64 - carc.PreAllocatedVUs.Int64)),
+			PlannedVUs:      uint64(et.ScaleInt64(carc.PreAllocatedVUs.Int64)),
+			MaxUnplannedVUs: uint64(et.ScaleInt64(carc.MaxVUs.Int64 - carc.PreAllocatedVUs.Int64)),
 		***REMOVED***, ***REMOVED***
 			TimeOffset:      time.Duration(carc.Duration.Duration + carc.GracefulStop.Duration),
 			PlannedVUs:      0,
@@ -167,8 +172,8 @@ func (carc ConstantArrivalRateConfig) NewExecutor(
 ***REMOVED***
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (carc ConstantArrivalRateConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
-	return carc.GetMaxVUs(es) > 0
+func (carc ConstantArrivalRateConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
+	return carc.GetMaxVUs(et) > 0
 ***REMOVED***
 
 // ConstantArrivalRate tries to execute a specific number of iterations for a
@@ -185,13 +190,12 @@ var _ lib.Executor = &ConstantArrivalRate***REMOVED******REMOVED***
 //
 // TODO: Reuse the variable arrival rate method?
 func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED*** //nolint:funlen
-	segment := car.executionState.Options.ExecutionSegment
+	newET := car.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleBasedOnValue(car.config.MaxVUs.Int64)
 	gracefulStop := car.config.GetGracefulStop()
 	duration := time.Duration(car.config.Duration.Duration)
-	preAllocatedVUs := car.config.GetPreAllocatedVUs(segment)
-	maxVUs := car.config.GetMaxVUs(segment)
-
-	arrivalRate := getScaledArrivalRate(segment, car.config.Rate.Int64, time.Duration(car.config.TimeUnit.Duration))
+	preAllocatedVUs := car.config.GetPreAllocatedVUs(car.executionState.ExecutionTuple)
+	maxVUs := car.config.GetMaxVUs(car.executionState.ExecutionTuple)
+	arrivalRate := getScaledArrivalRate(newET.ES, car.config.Rate.Int64, time.Duration(car.config.TimeUnit.Duration))
 	tickerPeriod := time.Duration(getTickerPeriod(arrivalRate).Duration)
 	arrivalRatePerSec, _ := getArrivalRatePerSec(arrivalRate).Float64()
 
@@ -260,10 +264,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	***REMOVED***
 
 	remainingUnplannedVUs := maxVUs - preAllocatedVUs
-	start, offsets, _, err := car.executionState.Options.ESS.GetStripedOffsets(segment)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
+	start, offsets, _ := newET.GetStripedOffsets(newET.ES)
 	startTime = time.Now()
 	timer := time.NewTimer(time.Hour * 24)
 	// here the we need the not scaled one

@@ -163,8 +163,9 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		if err != nil ***REMOVED***
 			return opts, err
 		***REMOVED***
-		opts.ESS = segmentSequence
+		opts.ExecutionSegmentSequence = segmentSequence
 	***REMOVED***
+
 	if flags.Changed("system-tags") ***REMOVED***
 		systemTagList, err := flags.GetStringSlice("system-tags")
 		if err != nil ***REMOVED***

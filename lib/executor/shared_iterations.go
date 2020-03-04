@@ -71,19 +71,19 @@ func NewSharedIterationsConfig(name string) SharedIterationsConfig ***REMOVED***
 var _ lib.ExecutorConfig = &SharedIterationsConfig***REMOVED******REMOVED***
 
 // GetVUs returns the scaled VUs for the executor.
-func (sic SharedIterationsConfig) GetVUs(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(sic.VUs.Int64)
+func (sic SharedIterationsConfig) GetVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ES.Scale(sic.VUs.Int64)
 ***REMOVED***
 
 // GetIterations returns the scaled iteration count for the executor.
-func (sic SharedIterationsConfig) GetIterations(es *lib.ExecutionSegment) int64 ***REMOVED***
-	return es.Scale(sic.Iterations.Int64)
+func (sic SharedIterationsConfig) GetIterations(et *lib.ExecutionTuple) int64 ***REMOVED***
+	return et.ES.Scale(sic.Iterations.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (sic SharedIterationsConfig) GetDescription(es *lib.ExecutionSegment) string ***REMOVED***
+func (sic SharedIterationsConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
 	return fmt.Sprintf("%d iterations shared among %d VUs%s",
-		sic.GetIterations(es), sic.GetVUs(es),
+		sic.GetIterations(et), sic.GetVUs(et),
 		sic.getBaseInfo(fmt.Sprintf("maxDuration: %s", sic.MaxDuration.Duration)))
 ***REMOVED***
 
@@ -115,11 +115,11 @@ func (sic SharedIterationsConfig) Validate() []error ***REMOVED***
 // maximum waiting time for any iterations to gracefully stop. This is used by
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
-func (sic SharedIterationsConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+func (sic SharedIterationsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	return []lib.ExecutionStep***REMOVED***
 		***REMOVED***
 			TimeOffset: 0,
-			PlannedVUs: uint64(sic.GetVUs(es)),
+			PlannedVUs: uint64(sic.GetVUs(et)),
 		***REMOVED***,
 		***REMOVED***
 			TimeOffset: time.Duration(sic.MaxDuration.Duration + sic.GracefulStop.Duration),
@@ -149,16 +149,15 @@ type SharedIterations struct ***REMOVED***
 var _ lib.Executor = &SharedIterations***REMOVED******REMOVED***
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (sic SharedIterationsConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
-	return sic.GetVUs(es) > 0 && sic.GetIterations(es) > 0
+func (sic SharedIterationsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
+	return sic.GetVUs(et) > 0 && sic.GetIterations(et) > 0
 ***REMOVED***
 
 // Run executes a specific total number of iterations, which are all shared by
 // the configured VUs.
 func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
-	segment := si.executionState.Options.ExecutionSegment
-	numVUs := si.config.GetVUs(segment)
-	iterations := si.config.GetIterations(segment)
+	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
+	iterations := si.config.GetIterations(si.executionState.ExecutionTuple)
 	duration := time.Duration(si.config.MaxDuration.Duration)
 	gracefulStop := si.config.GetGracefulStop()
 

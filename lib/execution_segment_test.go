@@ -188,16 +188,58 @@ func TestExecutionSegmentSplit(t *testing.T) ***REMOVED***
 	assert.Equal(t, "7/16:1/2", segments[3].String())
 ***REMOVED***
 
-func TestExecutionSegmentScale(t *testing.T) ***REMOVED***
+func TestExecutionSegmentFailures(t *testing.T) ***REMOVED***
+	t.Parallel()
+	es := new(ExecutionSegment)
+	require.NoError(t, es.UnmarshalText([]byte("0:0.25")))
+	require.Equal(t, int64(1), es.Scale(2))
+	require.Equal(t, int64(1), es.Scale(3))
+
+	require.NoError(t, es.UnmarshalText([]byte("0.25:0.5")))
+	require.Equal(t, int64(0), es.Scale(2))
+	require.Equal(t, int64(1), es.Scale(3))
+
+	require.NoError(t, es.UnmarshalText([]byte("0.5:0.75")))
+	require.Equal(t, int64(1), es.Scale(2))
+	require.Equal(t, int64(0), es.Scale(3))
+
+	require.NoError(t, es.UnmarshalText([]byte("0.75:1")))
+	require.Equal(t, int64(0), es.Scale(2))
+	require.Equal(t, int64(1), es.Scale(3))
+***REMOVED***
+
+func TestExecutionTupleScale(t *testing.T) ***REMOVED***
 	t.Parallel()
 	es := new(ExecutionSegment)
 	require.NoError(t, es.UnmarshalText([]byte("0.5")))
-	require.Equal(t, int64(1), es.Scale(2))
-	require.Equal(t, int64(2), es.Scale(3))
+	et := NewExecutionTuple(es, nil)
+	require.Equal(t, int64(1), et.ScaleInt64(2))
+	require.Equal(t, int64(2), et.ScaleInt64(3))
 
 	require.NoError(t, es.UnmarshalText([]byte("0.5:1.0")))
-	require.Equal(t, int64(1), es.Scale(2))
-	require.Equal(t, int64(1), es.Scale(3))
+	et = NewExecutionTuple(es, nil)
+	require.Equal(t, int64(1), et.ScaleInt64(2))
+	require.Equal(t, int64(1), et.ScaleInt64(3))
+
+	ess, err := NewExecutionSegmentSequenceFromString("0,0.5,1")
+	require.NoError(t, err)
+	require.NoError(t, es.UnmarshalText([]byte("0.5")))
+	et = NewExecutionTuple(es, &ess)
+	require.Equal(t, int64(1), et.ScaleInt64(2))
+	require.Equal(t, int64(2), et.ScaleInt64(3))
+
+	require.NoError(t, es.UnmarshalText([]byte("0.5:1.0")))
+	et = NewExecutionTuple(es, &ess)
+	require.Equal(t, int64(1), et.ScaleInt64(2))
+	require.Equal(t, int64(1), et.ScaleInt64(3))
+***REMOVED***
+func TestBigScale(t *testing.T) ***REMOVED***
+	es := new(ExecutionSegment)
+	ess, err := NewExecutionSegmentSequenceFromString("0,7/20,7/10,1")
+	require.NoError(t, err)
+	require.NoError(t, es.UnmarshalText([]byte("0:7/20")))
+	et := NewExecutionTuple(es, &ess)
+	require.Equal(t, int64(18), et.ScaleInt64(50))
 ***REMOVED***
 
 func TestExecutionSegmentCopyScaleRat(t *testing.T) ***REMOVED***
@@ -437,15 +479,13 @@ func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testCases := []struct ***REMOVED***
-		seq      string
-		seg      string
-		start    int64
-		offsets  []int64
-		lcd      int64
-		expError string
+		seq     string
+		seg     string
+		start   int64
+		offsets []int64
+		lcd     int64
 	***REMOVED******REMOVED***
 		// full sequences
-		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", expError: "missing segment"***REMOVED***,
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3", start: 0, offsets: []int64***REMOVED***4, 3, 3***REMOVED***, lcd: 10***REMOVED***,
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.3:0.5", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
 		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0.5:0.6", start: 2, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
@@ -456,19 +496,19 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
 		***REMOVED***seq: "0,0.2,0.5,0.6,0.7,0.8,0.9,1", seg: "0.6:0.7", start: 3, offsets: []int64***REMOVED***10***REMOVED***, lcd: 10***REMOVED***,
 		// not full sequences
-		***REMOVED***seq: "0,0.2,0.5", seg: "0:0.2", start: 1, offsets: []int64***REMOVED***4, 6***REMOVED***, lcd: 10***REMOVED***,
-		***REMOVED***seq: "0,0.2,0.5", seg: "0.2:0.5", start: 0, offsets: []int64***REMOVED***4, 3, 3***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5", seg: "0:0.2", start: 3, offsets: []int64***REMOVED***6, 4***REMOVED***, lcd: 10***REMOVED***,
+		***REMOVED***seq: "0,0.2,0.5", seg: "0.2:0.5", start: 1, offsets: []int64***REMOVED***4, 2, 4***REMOVED***, lcd: 10***REMOVED***,
 		***REMOVED***seq: "0,2/5,4/5", seg: "0:2/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
 		***REMOVED***seq: "0,2/5,4/5", seg: "2/5:4/5", start: 1, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
 		// no sequence
-		***REMOVED***seg: "0:0.2", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "0:1/5", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "0:2/10", start: 0, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "0:0.4", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "0:2/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "2/5:4/5", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***, // this is the same as the previous one as there is no sequence
-		***REMOVED***seg: "0:4/10", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
-		***REMOVED***seg: "1/10:5/10", start: 0, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:0.2", start: 1, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:1/5", start: 1, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:2/10", start: 1, offsets: []int64***REMOVED***5***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:0.4", start: 1, offsets: []int64***REMOVED***2, 3***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:2/5", start: 1, offsets: []int64***REMOVED***2, 3***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "2/5:4/5", start: 1, offsets: []int64***REMOVED***3, 2***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "0:4/10", start: 1, offsets: []int64***REMOVED***2, 3***REMOVED***, lcd: 5***REMOVED***,
+		***REMOVED***seg: "1/10:5/10", start: 1, offsets: []int64***REMOVED***2, 2, 4, 2***REMOVED***, lcd: 10***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
@@ -478,13 +518,8 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			segment, err := NewExecutionSegmentFromString(tc.seg)
 			require.NoError(t, err)
-			start, offsets, lcd, err := ess.GetStripedOffsets(segment)
-			if len(tc.expError) != 0 ***REMOVED***
-				require.Error(t, err, tc.expError)
-				require.Contains(t, err.Error(), tc.expError)
-				return
-			***REMOVED***
-			require.NoError(t, err)
+			et := NewExecutionTuple(segment, &ess)
+			start, offsets, lcd := et.GetStripedOffsets(segment)
 
 			assert.Equal(t, tc.start, start)
 			assert.Equal(t, tc.offsets, offsets)
@@ -492,7 +527,7 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 
 			ess2, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
-			assert.Equal(t, ess, ess2)
+			assert.Equal(t, ess.String(), ess2.String())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -527,11 +562,13 @@ func BenchmarkGetStripedOffsets(b *testing.B) ***REMOVED***
 	for _, length := range lengths ***REMOVED***
 		length := length
 		b.Run(fmt.Sprintf("length%d,seed%d", length, seed), func(b *testing.B) ***REMOVED***
-			sequence := generateRandomSequence(length, r)
+			sequence, err := generateRandomSequence(length, r)
+			require.NoError(b, err)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
-				_, _, _, err := sequence.GetStripedOffsets(sequence[int(r.Int63())%len(sequence)])
-				require.NoError(b, err)
+				segment := sequence[int(r.Int63())%len(sequence)]
+				et := NewExecutionTuple(segment, &sequence)
+				_, _, _ = et.GetStripedOffsets(segment)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -564,8 +601,194 @@ func BenchmarkGetStripedOffsetsEven(b *testing.B) ***REMOVED***
 			sequence := generateSequence(length)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
-				_, _, _, err := sequence.GetStripedOffsets(sequence[111233%len(sequence)])
-				require.NoError(b, err)
+				segment := sequence[111233%len(sequence)]
+				et := NewExecutionTuple(segment, &sequence)
+				_, _, _ = et.GetStripedOffsets(segment)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestGetNewExecutionTupleBesedOnValue(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		seq      string
+		seg      string
+		value    int64
+		expected string
+	***REMOVED******REMOVED***
+		// full sequences
+		***REMOVED***seq: "0,1/3,2/3,1", seg: "0:1/3", value: 20, expected: "0,7/20,7/10,1"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(t, err)
+
+			segment, err := NewExecutionSegmentFromString(tc.seg)
+			require.NoError(t, err)
+
+			et := NewExecutionTuple(segment, &ess)
+			newET := et.GetNewExecutionTupleBasedOnValue(tc.value)
+			require.Equal(t, tc.expected, newET.sequence.String())
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func mustNewExecutionSegment(str string) *ExecutionSegment ***REMOVED***
+	res, err := NewExecutionSegmentFromString(str)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	return res
+***REMOVED***
+
+func mustNewExecutionSegmentSequence(str string) *ExecutionSegmentSequence ***REMOVED***
+	res, err := NewExecutionSegmentSequenceFromString(str)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	return &res
+***REMOVED***
+
+func TestNewExecutionTuple(t *testing.T) ***REMOVED***
+	var testCases = []struct ***REMOVED***
+		seg           *ExecutionSegment
+		seq           *ExecutionSegmentSequence
+		scaleTests    map[int64]int64
+		newScaleTests map[int64]map[int64]int64 // this is for after calling GetNewExecutionTupleBasedOnValue
+	***REMOVED******REMOVED***
+		***REMOVED***
+			// both segment and sequence are nil
+			scaleTests: map[int64]int64***REMOVED***
+				50: 50,
+				1:  1,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("0:1"),
+			// nil sequence
+			scaleTests: map[int64]int64***REMOVED***
+				50: 50,
+				1:  1,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("0:1"),
+			seq: mustNewExecutionSegmentSequence("0,1"),
+			scaleTests: map[int64]int64***REMOVED***
+				50: 50,
+				1:  1,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("0:1"),
+			seq: mustNewExecutionSegmentSequence(""),
+			scaleTests: map[int64]int64***REMOVED***
+				50: 50,
+				1:  1,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("0:1/3"),
+			seq: mustNewExecutionSegmentSequence("0,1/3,2/3,1"),
+			scaleTests: map[int64]int64***REMOVED***
+				50: 17,
+				3:  1,
+				2:  1,
+				1:  1,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 17, 1: 1, 0: 0***REMOVED***,
+				20: ***REMOVED***50: 18, 1: 1, 0: 0***REMOVED***,
+				3:  ***REMOVED***50: 17, 1: 1, 0: 0***REMOVED***,
+				2:  ***REMOVED***50: 25, 1: 1, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("1/3:2/3"),
+			seq: mustNewExecutionSegmentSequence("0,1/3,2/3,1"),
+			scaleTests: map[int64]int64***REMOVED***
+				50: 17,
+				3:  1,
+				2:  1,
+				1:  0,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 17, 1: 0, 0: 0***REMOVED***,
+				20: ***REMOVED***50: 17, 1: 0, 0: 0***REMOVED***,
+				3:  ***REMOVED***50: 17, 1: 0, 0: 0***REMOVED***,
+				2:  ***REMOVED***50: 25, 1: 0, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			seg: mustNewExecutionSegment("2/3:1"),
+			seq: mustNewExecutionSegmentSequence("0,1/3,2/3,1"),
+			scaleTests: map[int64]int64***REMOVED***
+				50: 16,
+				3:  1,
+				2:  0,
+				1:  0,
+				0:  0,
+			***REMOVED***,
+			newScaleTests: map[int64]map[int64]int64***REMOVED***
+				50: ***REMOVED***50: 16, 1: 0, 0: 0***REMOVED***,
+				20: ***REMOVED***50: 15, 1: 0, 0: 0***REMOVED***,
+				3:  ***REMOVED***50: 16, 1: 0, 0: 0***REMOVED***,
+				2:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				1:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, testCase := range testCases ***REMOVED***
+		testCase := testCase
+		t.Run(fmt.Sprintf("seg:'%s',seq:'%s'", testCase.seg, testCase.seq), func(t *testing.T) ***REMOVED***
+			et := NewExecutionTuple(testCase.seg, testCase.seq)
+			for scaleValue, result := range testCase.scaleTests ***REMOVED***
+				require.Equal(t, result, et.ScaleInt64(scaleValue), "%d->%d", scaleValue, result)
+			***REMOVED***
+
+			for value, newResult := range testCase.newScaleTests ***REMOVED***
+				newET := et.GetNewExecutionTupleBasedOnValue(value)
+				for scaleValue, result := range newResult ***REMOVED***
+					require.Equal(t, result, newET.ScaleInt64(scaleValue),
+						"getNewExecutionTupleBasedOnValue(%d)%d->%d", value, scaleValue, result)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

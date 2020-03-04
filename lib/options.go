@@ -203,9 +203,9 @@ type Options struct ***REMOVED***
 	// We should support specifying execution segments via environment
 	// variables, but we currently can't, because envconfig has this nasty bug
 	// (among others): https://github.com/kelseyhightower/envconfig/issues/113
-	Execution        ExecutorConfigMap         `json:"execution,omitempty" ignored:"true"`
-	ExecutionSegment *ExecutionSegment         `json:"executionSegment" ignored:"true"`
-	ESS              *ExecutionSegmentSequence `json:"executionSegmentSequence" ignored:"true"`
+	Execution                ExecutorConfigMap         `json:"execution,omitempty" ignored:"true"`
+	ExecutionSegment         *ExecutionSegment         `json:"executionSegment" ignored:"true"`
+	ExecutionSegmentSequence *ExecutionSegmentSequence `json:"executionSegmentSequence" ignored:"true"`
 
 	// Timeouts for the setup() and teardown() functions
 	NoSetup         null.Bool          `json:"noSetup" envconfig:"NO_SETUP"`
@@ -345,6 +345,10 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.ExecutionSegment != nil ***REMOVED***
 		o.ExecutionSegment = opts.ExecutionSegment
 	***REMOVED***
+
+	if opts.ExecutionSegmentSequence != nil ***REMOVED***
+		o.ExecutionSegmentSequence = opts.ExecutionSegmentSequence
+	***REMOVED***
 	if opts.NoSetup.Valid ***REMOVED***
 		o.NoSetup = opts.NoSetup
 	***REMOVED***
@@ -446,7 +450,22 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 func (o Options) Validate() []error ***REMOVED***
 	//TODO: validate all of the other options... that we should have already been validating...
 	//TODO: maybe integrate an external validation lib: https://github.com/avelino/awesome-go#validation
-	return o.Execution.Validate()
+	var errors []error
+	if o.ExecutionSegmentSequence != nil ***REMOVED***
+		var segmentFound bool
+		for _, segment := range *o.ExecutionSegmentSequence ***REMOVED***
+			if o.ExecutionSegment.Equal(segment) ***REMOVED***
+				segmentFound = true
+				break
+			***REMOVED***
+		***REMOVED***
+		if !segmentFound ***REMOVED***
+			errors = append(errors,
+				fmt.Errorf("provided segment %s can't be found in sequence %s",
+					o.ExecutionSegment, o.ExecutionSegmentSequence))
+		***REMOVED***
+	***REMOVED***
+	return append(errors, o.Execution.Validate()...)
 ***REMOVED***
 
 // ForEachSpecified enumerates all struct fields and calls the supplied function with each

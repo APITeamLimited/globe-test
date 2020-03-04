@@ -101,7 +101,7 @@ type ExternallyControlledConfig struct ***REMOVED***
 var _ lib.ExecutorConfig = &ExternallyControlledConfig***REMOVED******REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (mec ExternallyControlledConfig) GetDescription(_ *lib.ExecutionSegment) string ***REMOVED***
+func (mec ExternallyControlledConfig) GetDescription(_ *lib.ExecutionTuple) string ***REMOVED***
 	duration := "infinite"
 	if mec.Duration.Duration != 0 ***REMOVED***
 		duration = mec.Duration.String()
@@ -140,11 +140,11 @@ func (mec ExternallyControlledConfig) Validate() []error ***REMOVED***
 // point during a test run. That's used for sizing purposes and for user qouta
 // checking in the cloud execution, where the externally controlled executor
 // isn't supported.
-func (mec ExternallyControlledConfig) GetExecutionRequirements(es *lib.ExecutionSegment) []lib.ExecutionStep ***REMOVED***
+func (mec ExternallyControlledConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	startVUs := lib.ExecutionStep***REMOVED***
 		TimeOffset:      0,
-		PlannedVUs:      uint64(es.Scale(mec.MaxVUs.Int64)), // user-configured, VUs to be pre-initialized
-		MaxUnplannedVUs: 0,                                  // intentional, see function comment
+		PlannedVUs:      uint64(et.ES.Scale(mec.MaxVUs.Int64)), // user-configured, VUs to be pre-initialized
+		MaxUnplannedVUs: 0,                                     // intentional, see function comment
 	***REMOVED***
 
 	maxDuration := time.Duration(mec.Duration.Duration)
@@ -179,7 +179,7 @@ func (mec ExternallyControlledConfig) NewExecutor(es *lib.ExecutionState, logger
 ***REMOVED***
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (mec ExternallyControlledConfig) HasWork(es *lib.ExecutionSegment) bool ***REMOVED***
+func (mec ExternallyControlledConfig) HasWork(_ *lib.ExecutionTuple) bool ***REMOVED***
 	// We can always initialize new VUs via the REST API, so return true.
 	return true
 ***REMOVED***

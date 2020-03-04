@@ -121,52 +121,52 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 		segment  *lib.ExecutionSegment
 		sequence *lib.ExecutionSegmentSequence
 		start    time.Duration
-		step     time.Duration
+		steps    []int64
 	***REMOVED******REMOVED***
 		***REMOVED***
 			segment: newExecutionSegmentFromString("0:1/3"),
-			start:   time.Millisecond * 00,
-			step:    time.Millisecond * 60,
+			start:   time.Millisecond * 20,
+			steps:   []int64***REMOVED***40, 60, 60, 60, 60, 60, 60***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment: newExecutionSegmentFromString("1/3:2/3"),
-			start:   time.Millisecond * 00,
-			step:    time.Millisecond * 60,
+			start:   time.Millisecond * 20,
+			steps:   []int64***REMOVED***60, 60, 60, 60, 60, 60, 40***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment: newExecutionSegmentFromString("2/3:1"),
-			start:   time.Millisecond * 00,
-			step:    time.Millisecond * 60,
+			start:   time.Millisecond * 20,
+			steps:   []int64***REMOVED***40, 60, 60, 60, 60, 60, 60***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment: newExecutionSegmentFromString("1/6:3/6"),
-			start:   time.Millisecond * 00,
-			step:    time.Millisecond * 60,
+			start:   time.Millisecond * 20,
+			steps:   []int64***REMOVED***40, 80, 40, 80, 40, 80, 40***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment:  newExecutionSegmentFromString("1/6:3/6"),
-			sequence: &lib.ExecutionSegmentSequence***REMOVED******REMOVED***,
-			start:    time.Millisecond * 00,
-			step:     time.Millisecond * 60,
+			sequence: newExecutionSegmentSequenceFromString("1/6,3/6"),
+			start:    time.Millisecond * 20,
+			steps:    []int64***REMOVED***40, 80, 40, 80, 40, 80, 40***REMOVED***,
 		***REMOVED***,
 		// sequences
 		***REMOVED***
 			segment:  newExecutionSegmentFromString("0:1/3"),
 			sequence: newExecutionSegmentSequenceFromString("0,1/3,2/3,1"),
 			start:    time.Millisecond * 00,
-			step:     time.Millisecond * 60,
+			steps:    []int64***REMOVED***60, 60, 60, 60, 60, 60, 40***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment:  newExecutionSegmentFromString("1/3:2/3"),
 			sequence: newExecutionSegmentSequenceFromString("0,1/3,2/3,1"),
 			start:    time.Millisecond * 20,
-			step:     time.Millisecond * 60,
+			steps:    []int64***REMOVED***60, 60, 60, 60, 60, 60, 40***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			segment:  newExecutionSegmentFromString("2/3:1"),
 			sequence: newExecutionSegmentSequenceFromString("0,1/3,2/3,1"),
 			start:    time.Millisecond * 40,
-			step:     time.Millisecond * 60,
+			steps:    []int64***REMOVED***60, 60, 60, 60, 60, 100***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	for _, test := range tests ***REMOVED***
@@ -175,16 +175,25 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 		t.Run(fmt.Sprintf("segment %s sequence %s", test.segment, test.sequence), func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			es := lib.NewExecutionState(lib.Options***REMOVED***
-				ExecutionSegment: test.segment,
-				ESS:              test.sequence,
+				ExecutionSegment:         test.segment,
+				ExecutionSegmentSequence: test.sequence,
 			***REMOVED***, 10, 50)
 			var count int64
+			var config = getTestConstantArrivalRateConfig()
+			newET := es.ExecutionTuple.GetNewExecutionTupleBasedOnValue(config.MaxVUs.Int64)
+			rateScaled := newET.ScaleInt64(config.Rate.Int64)
 			var startTime = time.Now()
+			var expectedTimeInt64 = int64(test.start)
 			var ctx, cancel, executor, logHook = setupExecutor(
-				t, getTestConstantArrivalRateConfig(), es,
+				t, config, es,
 				simpleRunner(func(ctx context.Context) error ***REMOVED***
 					current := atomic.AddInt64(&count, 1)
-					expectedTime := test.start + time.Duration(current-1)*test.step
+
+					var expectedTime = test.start
+					if current != 1 ***REMOVED***
+						expectedTime = time.Duration(atomic.AddInt64(&expectedTimeInt64,
+							int64(time.Millisecond)*test.steps[(current-2)%int64(len(test.steps))]))
+					***REMOVED***
 					assert.WithinDuration(t,
 						startTime.Add(expectedTime),
 						time.Now(),
@@ -195,6 +204,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 					return nil
 				***REMOVED***),
 			)
+
 			defer cancel()
 			var wg sync.WaitGroup
 			wg.Add(1)
@@ -206,7 +216,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 				for i := 0; i < 5; i++ ***REMOVED***
 					time.Sleep(time.Second)
 					currentCount = atomic.LoadInt64(&count)
-					assert.InDelta(t, (i+1)*17, currentCount, 2)
+					assert.InDelta(t, int64(i+1)*rateScaled, currentCount, 3)
 				***REMOVED***
 			***REMOVED***()
 			startTime = time.Now()

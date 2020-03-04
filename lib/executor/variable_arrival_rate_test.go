@@ -61,8 +61,7 @@ func TestGetPlannedRateChanges0DurationStage(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
-	var es *lib.ExecutionSegment
-	changes := config.getPlannedRateChanges(es)
+	changes := config.getPlannedRateChanges(lib.NewExecutionTuple(nil, nil))
 	require.Equal(t, 2, len(changes))
 	require.Equal(t, time.Duration(0), changes[0].timeOffset)
 	require.Equal(t, types.NullDurationFrom(time.Millisecond*20), changes[0].tickerPeriod)
@@ -114,8 +113,7 @@ func TestGetPlannedRateChangesZeroDurationStart(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	var es *lib.ExecutionSegment
-	changes := config.getPlannedRateChanges(es)
+	changes := config.getPlannedRateChanges(lib.NewExecutionTuple(nil, nil))
 	var expectedTickerPeriod types.Duration
 	for i, change := range changes ***REMOVED***
 		switch ***REMOVED***
@@ -167,8 +165,7 @@ func TestGetPlannedRateChanges(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	var es *lib.ExecutionSegment
-	changes := config.getPlannedRateChanges(es)
+	changes := config.getPlannedRateChanges(lib.NewExecutionTuple(nil, nil))
 	var expectedTickerPeriod types.Duration
 	for i, change := range changes ***REMOVED***
 		switch ***REMOVED***
@@ -207,10 +204,9 @@ func BenchmarkGetPlannedRateChanges(b *testing.B) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	var es *lib.ExecutionSegment
 	b.RunParallel(func(pb *testing.PB) ***REMOVED***
 		for pb.Next() ***REMOVED***
-			changes := config.getPlannedRateChanges(es)
+			changes := config.getPlannedRateChanges(lib.NewExecutionTuple(nil, nil))
 
 			require.Equal(b, time.Duration(0),
 				changes[0].timeOffset%minIntervalBetweenRateAdjustments, "%+v", changes[0])
