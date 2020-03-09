@@ -755,6 +755,48 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestBundleNotSharable(t *testing.T) ***REMOVED***
+	data := `
+		export default function() ***REMOVED***
+			if (__ITER == 0) ***REMOVED***
+				if (typeof __ENV.something !== "undefined") ***REMOVED***
+					throw new Error("invalid something: " + __ENV.something + " should be undefined");
+				***REMOVED***
+				__ENV.something = __VU;
+			***REMOVED*** else if (__ENV.something != __VU) ***REMOVED***
+				throw new Error("invalid something: " + __ENV.something+ " should be "+ __VU);
+			***REMOVED***
+		***REMOVED***
+	`
+	b1, err := getSimpleBundle("/script.js", data)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	b2, err := NewBundleFromArchive(b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
+	vus, iters := 10, 1000
+	for name, b := range bundles ***REMOVED***
+		b := b
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			for i := 0; i < vus; i++ ***REMOVED***
+				bi, err := b.Instantiate()
+				bi.Runtime.Set("__VU", i)
+				require.NoError(t, err)
+				for j := 0; j < iters; j++ ***REMOVED***
+					bi.Runtime.Set("__ITER", j)
+					_, err := bi.Default(goja.Undefined())
+					assert.NoError(t, err)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***
 		cm      lib.CompatibilityMode

@@ -262,7 +262,11 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 	_ = module.Set("exports", exports)
 	rt.Set("module", module)
 
-	rt.Set("__ENV", b.Env)
+	env := make(map[string]string, len(b.Env))
+	for key, value := range b.Env ***REMOVED***
+		env[key] = value
+	***REMOVED***
+	rt.Set("__ENV", env)
 	rt.Set("console", common.Bind(rt, newConsole(), init.ctxPtr))
 
 	*init.ctxPtr = common.WithRuntime(context.Background(), rt)
