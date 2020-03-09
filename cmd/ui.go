@@ -263,6 +263,16 @@ func showProgress(
 	//description in the TODO message in cmd/root.go)
 	if stdoutTTY && !noColor ***REMOVED***
 		updateFreq = 100 * time.Millisecond
+		outMutex.Lock()
+		stdout.PersistentText = printProgressBars
+		stderr.PersistentText = printProgressBars
+		outMutex.Unlock()
+		defer func() ***REMOVED***
+			outMutex.Lock()
+			stdout.PersistentText = nil
+			stderr.PersistentText = nil
+			outMutex.Unlock()
+		***REMOVED***()
 	***REMOVED***
 
 	var (
