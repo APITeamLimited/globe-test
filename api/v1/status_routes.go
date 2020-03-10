@@ -71,34 +71,39 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 		return
 	***REMOVED***
 
-	if status.Paused.Valid ***REMOVED***
-		if err = engine.ExecutionScheduler.SetPaused(status.Paused.Bool); err != nil ***REMOVED***
-			apiError(rw, "Pause error", err.Error(), http.StatusInternalServerError)
-			return
+	if status.Stopped ***REMOVED***
+		engine.Stop()
+	***REMOVED*** else ***REMOVED***
+		if status.Paused.Valid ***REMOVED***
+			if err = engine.ExecutionScheduler.SetPaused(status.Paused.Bool); err != nil ***REMOVED***
+				apiError(rw, "Pause error", err.Error(), http.StatusInternalServerError)
+				return
+			***REMOVED***
+		***REMOVED***
+
+		if status.VUsMax.Valid || status.VUs.Valid ***REMOVED***
+			//TODO: add ability to specify the actual executor id? Though this should
+			//likely be in the v2 REST API, where we could implement it in a way that
+			//may allow us to eventually support other executor types.
+			executor, updateErr := getFirstExternallyControlledExecutor(engine.ExecutionScheduler)
+			if updateErr != nil ***REMOVED***
+				apiError(rw, "Execution config error", updateErr.Error(), http.StatusInternalServerError)
+				return
+			***REMOVED***
+			newConfig := executor.GetCurrentConfig().ExternallyControlledConfigParams
+			if status.VUsMax.Valid ***REMOVED***
+				newConfig.MaxVUs = status.VUsMax
+			***REMOVED***
+			if status.VUs.Valid ***REMOVED***
+				newConfig.VUs = status.VUs
+			***REMOVED***
+			if updateErr := executor.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
+				apiError(rw, "Config update error", updateErr.Error(), http.StatusInternalServerError)
+				return
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if status.VUsMax.Valid || status.VUs.Valid ***REMOVED***
-		//TODO: add ability to specify the actual executor id? Though this should
-		//likely be in the v2 REST API, where we could implement it in a way that
-		//may allow us to eventually support other executor types.
-		executor, updateErr := getFirstExternallyControlledExecutor(engine.ExecutionScheduler)
-		if updateErr != nil ***REMOVED***
-			apiError(rw, "Execution config error", updateErr.Error(), http.StatusInternalServerError)
-			return
-		***REMOVED***
-		newConfig := executor.GetCurrentConfig().ExternallyControlledConfigParams
-		if status.VUsMax.Valid ***REMOVED***
-			newConfig.MaxVUs = status.VUsMax
-		***REMOVED***
-		if status.VUs.Valid ***REMOVED***
-			newConfig.VUs = status.VUs
-		***REMOVED***
-		if updateErr := executor.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
-			apiError(rw, "Config update error", updateErr.Error(), http.StatusInternalServerError)
-			return
-		***REMOVED***
-	***REMOVED***
 	data, err := jsonapi.Marshal(NewStatus(engine))
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
