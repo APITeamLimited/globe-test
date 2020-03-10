@@ -38,7 +38,7 @@ type Status struct ***REMOVED***
 func NewStatus(engine *core.Engine) Status ***REMOVED***
 	executionState := engine.ExecutionScheduler.GetState()
 	return Status***REMOVED***
-		Running: executionState.HasStarted(),
+		Running: executionState.HasStarted() && !executionState.HasEnded(),
 		Paused:  null.BoolFrom(executionState.IsPaused()),
 		VUs:     null.IntFrom(executionState.GetCurrentlyActiveVUsCount()),
 		VUsMax:  null.IntFrom(executionState.GetInitializedVUsCount()),
