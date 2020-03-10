@@ -148,7 +148,7 @@ func (e *ExecutionScheduler) GetExecutionPlan() []lib.ExecutionStep ***REMOVED**
 // initVU is just a helper method that's used to both initialize the planned VUs
 // in the Init() method, and also passed to executors so they can initialize
 // any unplanned VUs themselves.
-//TODO: actually use the context...
+// TODO: actually use the context...
 func (e *ExecutionScheduler) initVU(
 	_ context.Context, logger *logrus.Entry, engineOut chan<- stats.SampleContainer,
 ) (lib.VU, error) ***REMOVED***
@@ -200,12 +200,13 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 
 	// Initialize VUs concurrently
 	doneInits := make(chan error, vusToInitialize) // poor man's early-return waitgroup
-	//TODO: make this an option?
+	// TODO: make this an option?
 	initConcurrency := runtime.NumCPU()
 	limiter := make(chan struct***REMOVED******REMOVED***)
 	subctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	e.state.SetExecutionStatus(lib.ExecutionStatusInitVUs)
 	for i := 0; i < initConcurrency; i++ ***REMOVED***
 		go func() ***REMOVED***
 			for range limiter ***REMOVED***
@@ -258,6 +259,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 		return e.initVU(ctx, logger, engineOut)
 	***REMOVED***)
 
+	e.state.SetExecutionStatus(lib.ExecutionStatusInitExecutors)
 	logger.Debugf("Finished initializing needed VUs, start initializing executors...")
 	for _, exec := range e.executors ***REMOVED***
 		executorConfig := exec.GetConfig()
@@ -268,6 +270,7 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 		logger.Debugf("Initialized executor %s", executorConfig.GetName())
 	***REMOVED***
 
+	e.state.SetExecutionStatus(lib.ExecutionStatusInitDone)
 	logger.Debugf("Initialization completed")
 	return nil
 ***REMOVED***
@@ -332,6 +335,7 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 
 	if e.state.IsPaused() ***REMOVED***
 		logger.Debug("Execution is paused, waiting for resume or interrupt...")
+		e.state.SetExecutionStatus(lib.ExecutionStatusPausedBeforeRun)
 		e.initProgress.Modify(pb.WithConstProgress(1, "paused"))
 		select ***REMOVED***
 		case <-e.state.ResumeNotify():
@@ -355,6 +359,7 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 	// Run setup() before any executors, if it's not disabled
 	if !e.options.NoSetup.Bool ***REMOVED***
 		logger.Debug("Running setup()")
+		e.state.SetExecutionStatus(lib.ExecutionStatusSetup)
 		e.initProgress.Modify(pb.WithConstProgress(1, "setup()"))
 		if err := e.runner.Setup(runCtx, engineOut); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("setup() aborted by error")
@@ -365,6 +370,7 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
+	e.state.SetExecutionStatus(lib.ExecutionStatusRunning)
 	for _, exec := range e.executors ***REMOVED***
 		go e.runExecutor(runCtx, runResults, engineOut, exec)
 	***REMOVED***
@@ -383,6 +389,7 @@ func (e *ExecutionScheduler) Run(ctx context.Context, engineOut chan<- stats.Sam
 	// Run teardown() after all executors are done, if it's not disabled
 	if !e.options.NoTeardown.Bool ***REMOVED***
 		logger.Debug("Running teardown()")
+		e.state.SetExecutionStatus(lib.ExecutionStatusTeardown)
 		if err := e.runner.Teardown(ctx, engineOut); err != nil ***REMOVED***
 			logger.WithField("error", err).Debug("teardown() aborted by error")
 			return err
