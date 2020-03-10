@@ -187,27 +187,13 @@ func (e *ExecutionScheduler) getRunStats() string ***REMOVED***
 	)
 ***REMOVED***
 
-// Init concurrently initializes all of the planned VUs and then sequentially
-// initializes all of the configured executors.
-func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
-	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
-
-	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
-	logger.WithFields(logrus.Fields***REMOVED***
-		"neededVUs":      vusToInitialize,
-		"executorsCount": len(e.executors),
-	***REMOVED***).Debugf("Start of initialization")
-
-	// Initialize VUs concurrently
-	doneInits := make(chan error, vusToInitialize) // poor man's early-return waitgroup
-	// TODO: make this an option?
-	initConcurrency := runtime.NumCPU()
+func (e *ExecutionScheduler) initVUsConcurrently(
+	ctx context.Context, engineOut chan<- stats.SampleContainer, count uint64, concurrency int, logger *logrus.Entry,
+) chan error ***REMOVED***
+	doneInits := make(chan error, count) // poor man's early-return waitgroup
 	limiter := make(chan struct***REMOVED******REMOVED***)
-	subctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
-	e.state.SetExecutionStatus(lib.ExecutionStatusInitVUs)
-	for i := 0; i < initConcurrency; i++ ***REMOVED***
+	for i := 0; i < concurrency; i++ ***REMOVED***
 		go func() ***REMOVED***
 			for range limiter ***REMOVED***
 				newVU, err := e.initVU(ctx, logger, engineOut)
@@ -221,14 +207,35 @@ func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.Sa
 
 	go func() ***REMOVED***
 		defer close(limiter)
-		for vuNum := uint64(0); vuNum < vusToInitialize; vuNum++ ***REMOVED***
+		for vuNum := uint64(0); vuNum < count; vuNum++ ***REMOVED***
 			select ***REMOVED***
 			case limiter <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
-			case <-subctx.Done():
+			case <-ctx.Done():
 				return
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
+
+	return doneInits
+***REMOVED***
+
+// Init concurrently initializes all of the planned VUs and then sequentially
+// initializes all of the configured executors.
+func (e *ExecutionScheduler) Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error ***REMOVED***
+	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
+
+	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
+	logger.WithFields(logrus.Fields***REMOVED***
+		"neededVUs":      vusToInitialize,
+		"executorsCount": len(e.executors),
+	***REMOVED***).Debugf("Start of initialization")
+
+	subctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Initialize VUs concurrently
+	e.state.SetExecutionStatus(lib.ExecutionStatusInitVUs)
+	doneInits := e.initVUsConcurrently(subctx, engineOut, vusToInitialize, runtime.NumCPU(), logger)
 
 	initializedVUs := new(uint64)
 	vusFmt := pb.GetFixedLengthIntFormat(int64(vusToInitialize))
