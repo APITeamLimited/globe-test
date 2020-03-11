@@ -24,8 +24,11 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
+	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -260,39 +263,6 @@ a commandline interface for interacting with it.`,
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
 
-		// If the user hasn't opted out: report usage.
-		//TODO: fix
-		//TODO: move to a separate function
-		/*
-			if !conf.NoUsageReport.Bool ***REMOVED***
-				go func() ***REMOVED***
-					u := "http://k6reports.loadimpact.com/"
-					mime := "application/json"
-					var endTSeconds float64
-					if endT := engine.Executor.GetEndTime(); endT.Valid ***REMOVED***
-						endTSeconds = time.Duration(endT.Duration).Seconds()
-					***REMOVED***
-					var stagesEndTSeconds float64
-					if stagesEndT := lib.SumStages(engine.Executor.GetStages()); stagesEndT.Valid ***REMOVED***
-						stagesEndTSeconds = time.Duration(stagesEndT.Duration).Seconds()
-					***REMOVED***
-					body, err := json.Marshal(map[string]interface***REMOVED******REMOVED******REMOVED***
-						"k6_version":  Version,
-						"vus_max":     engine.Executor.GetVUsMax(),
-						"iterations":  engine.Executor.GetEndIterations(),
-						"duration":    endTSeconds,
-						"st_duration": stagesEndTSeconds,
-						"goos":        runtime.GOOS,
-						"goarch":      runtime.GOARCH,
-					***REMOVED***)
-					if err != nil ***REMOVED***
-						panic(err) // This should never happen!!
-					***REMOVED***
-					_, _ = http.Post(u, mime, bytes.NewBuffer(body))
-				***REMOVED***()
-			***REMOVED***
-		*/
-
 		// Ticker for progress bar updates. Less frequent updates for non-TTYs, none if quiet.
 		updateFreq := 50 * time.Millisecond
 		if !stdoutTTY ***REMOVED***
@@ -350,6 +320,16 @@ a commandline interface for interacting with it.`,
 				// but with uninterruptible iterations it will be even more problematic.
 			***REMOVED***
 		***REMOVED***
+
+		var reportCh chan struct***REMOVED******REMOVED***
+		if !conf.NoUsageReport.Bool ***REMOVED***
+			reportCh = make(chan struct***REMOVED******REMOVED***)
+			go func() ***REMOVED***
+				_ = reportUsage(execScheduler)
+				close(reportCh)
+			***REMOVED***()
+		***REMOVED***
+
 		if quiet || !stdoutTTY ***REMOVED***
 			e := logger.WithFields(logrus.Fields***REMOVED***
 				"t": executionState.GetCurrentTestRunDuration(),
@@ -407,11 +387,49 @@ a commandline interface for interacting with it.`,
 			<-sigC
 		***REMOVED***
 
+		if reportCh != nil ***REMOVED***
+			select ***REMOVED***
+			case <-reportCh:
+			case <-time.After(3 * time.Second):
+			***REMOVED***
+		***REMOVED***
+
 		if engine.IsTainted() ***REMOVED***
 			return ExitCode***REMOVED***error: errors.New("some thresholds have failed"), Code: thresholdHaveFailedErrorCode***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
+***REMOVED***
+
+func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
+	execState := execScheduler.GetState()
+	executorConfigs := execScheduler.GetExecutorConfigs()
+
+	executors := make(map[string]int)
+	for _, ec := range executorConfigs ***REMOVED***
+		executors[ec.GetType()]++
+	***REMOVED***
+
+	body, err := json.Marshal(map[string]interface***REMOVED******REMOVED******REMOVED***
+		"k6_version": consts.Version,
+		"executors":  executors,
+		"vus_max":    execState.GetInitializedVUsCount(),
+		"iterations": execState.GetFullIterationCount(),
+		"duration":   execState.GetCurrentTestRunDuration().String(),
+		"goos":       runtime.GOOS,
+		"goarch":     runtime.GOARCH,
+	***REMOVED***)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	res, err := http.Post("https://reports.k6.io/", "application/json", bytes.NewBuffer(body))
+	defer func() ***REMOVED***
+		if err == nil ***REMOVED***
+			_ = res.Body.Close()
+		***REMOVED***
+	***REMOVED***()
+
+	return err
 ***REMOVED***
 
 func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
