@@ -1392,7 +1392,7 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestArchiveRunningIntegraty(t *testing.T) ***REMOVED***
+func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 

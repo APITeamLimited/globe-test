@@ -368,9 +368,9 @@ func (e *Engine) processThresholds() (shouldAbort bool) ***REMOVED***
 	return shouldAbort
 ***REMOVED***
 
-func (e *Engine) processSamplesForMetrics(sampleCointainers []stats.SampleContainer) ***REMOVED***
-	for _, sampleCointainer := range sampleCointainers ***REMOVED***
-		samples := sampleCointainer.GetSamples()
+func (e *Engine) processSamplesForMetrics(sampleContainers []stats.SampleContainer) ***REMOVED***
+	for _, sampleContainer := range sampleContainers ***REMOVED***
+		samples := sampleContainer.GetSamples()
 
 		if len(samples) == 0 ***REMOVED***
 			continue
