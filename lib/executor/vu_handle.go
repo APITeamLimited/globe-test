@@ -37,8 +37,8 @@ import (
 type vuHandle struct ***REMOVED***
 	mutex     *sync.RWMutex
 	parentCtx context.Context
-	getVU     func() (lib.VU, error)
-	returnVU  func(lib.VU)
+	getVU     func() (lib.InitializedVU, error)
+	returnVU  func(lib.InitializedVU)
 
 	canStartIter chan struct***REMOVED******REMOVED***
 
@@ -48,7 +48,7 @@ type vuHandle struct ***REMOVED***
 ***REMOVED***
 
 func newStoppedVUHandle(
-	parentCtx context.Context, getVU func() (lib.VU, error), returnVU func(lib.VU), logger *logrus.Entry,
+	parentCtx context.Context, getVU func() (lib.InitializedVU, error), returnVU func(lib.InitializedVU), logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
 	lock := &sync.RWMutex***REMOVED******REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -101,15 +101,11 @@ func (vh *vuHandle) hardStop() ***REMOVED***
 
 //TODO: simplify this somehow - I feel like there should be a better way to
 //implement this logic... maybe with sync.Cond?
-func (vh *vuHandle) runLoopsIfPossible(runIter func(context.Context, lib.VU)) ***REMOVED***
+func (vh *vuHandle) runLoopsIfPossible(runIter func(context.Context, lib.ActiveVU)) ***REMOVED***
 	executorDone := vh.parentCtx.Done()
 
-	var vu lib.VU
-	defer func() ***REMOVED***
-		if vu != nil ***REMOVED***
-			vh.returnVU(vu)
-		***REMOVED***
-	***REMOVED***()
+	var vu lib.ActiveVU
+	var deactivateVU func()
 
 mainLoop:
 	for ***REMOVED***
@@ -127,12 +123,9 @@ mainLoop:
 			return
 		default:
 			// We're not running, but the executor isn't done yet, so we wait
-			// for either one of those conditions. But before that, we'll return
-			// our VU to the pool, if we have it.
-			if vu != nil ***REMOVED***
-				vh.returnVU(vu)
-				vu = nil
-			***REMOVED***
+			// for either one of those conditions. But before that, clear
+			// the VU reference to ensure we get a fresh one below.
+			vu = nil
 			select ***REMOVED***
 			case <-canStartIter:
 				// continue on, we were unblocked...
@@ -154,13 +147,19 @@ mainLoop:
 		default:
 		***REMOVED***
 
-		// Ensure we have a VU
+		// Ensure we have an active VU
 		if vu == nil ***REMOVED***
-			freshVU, err := vh.getVU()
+			initVU, err := vh.getVU()
 			if err != nil ***REMOVED***
 				return
 			***REMOVED***
-			vu = freshVU
+			deactivateVU = func() ***REMOVED***
+				vh.returnVU(initVU)
+			***REMOVED***
+			vu = initVU.Activate(&lib.VUActivationParams***REMOVED***
+				RunContext:         ctx,
+				DeactivateCallback: deactivateVU,
+			***REMOVED***)
 		***REMOVED***
 
 		runIter(ctx, vu)

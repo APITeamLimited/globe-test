@@ -32,7 +32,6 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 )
 
 func sumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***
@@ -81,10 +80,10 @@ func validateStages(stages []Stage) []error ***REMOVED***
 //
 // TODO: emit the end-of-test iteration metrics here (https://github.com/loadimpact/k6/issues/1250)
 func getIterationRunner(
-	executionState *lib.ExecutionState, logger *logrus.Entry, _ chan<- stats.SampleContainer,
-) func(context.Context, lib.VU) ***REMOVED***
-	return func(ctx context.Context, vu lib.VU) ***REMOVED***
-		err := vu.RunOnce(ctx)
+	executionState *lib.ExecutionState, logger *logrus.Entry,
+) func(context.Context, lib.ActiveVU) ***REMOVED***
+	return func(ctx context.Context, vu lib.ActiveVU) ***REMOVED***
+		err := vu.RunOnce()
 
 		//TODO: track (non-ramp-down) errors from script iterations as a metric,
 		// and have a default threshold that will abort the script when the error
@@ -101,7 +100,6 @@ func getIterationRunner(
 				***REMOVED*** else ***REMOVED***
 					logger.Error(err.Error())
 				***REMOVED***
-				//TODO: investigate context cancelled errors
 			***REMOVED***
 
 			//TODO: move emission of end-of-iteration metrics here?
