@@ -194,11 +194,20 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	defer activeVUs.Wait()
 
 	regDurationDone := regDurationCtx.Done()
-	runIteration := getIterationRunner(pvi.executionState, pvi.logger, out)
+	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
 
-	handleVU := func(vu lib.VU) ***REMOVED***
+	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		defer activeVUs.Done()
-		defer pvi.executionState.ReturnVU(vu, true)
+
+		ctx, cancel := context.WithCancel(maxDurationCtx)
+		defer cancel()
+
+		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
+			RunContext: ctx,
+			DeactivateCallback: func() ***REMOVED***
+				pvi.executionState.ReturnVU(initVU, true)
+			***REMOVED***,
+		***REMOVED***)
 
 		for i := int64(0); i < iterations; i++ ***REMOVED***
 			select ***REMOVED***
@@ -213,13 +222,13 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	***REMOVED***
 
 	for i := int64(0); i < numVUs; i++ ***REMOVED***
-		vu, err := pvi.executionState.GetPlannedVU(pvi.logger, true)
+		initializedVU, err := pvi.executionState.GetPlannedVU(pvi.logger, true)
 		if err != nil ***REMOVED***
 			cancel()
 			return err
 		***REMOVED***
 		activeVUs.Add(1)
-		go handleVU(vu)
+		go handleVU(initializedVU)
 	***REMOVED***
 
 	return nil
