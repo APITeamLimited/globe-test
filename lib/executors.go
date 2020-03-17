@@ -270,6 +270,9 @@ func (scs ExecutorConfigMap) GetFullExecutionRequirements(executionSegment *Exec
 		case trackedSteps[a].TimeOffset < trackedSteps[b].TimeOffset:
 			return true
 		case trackedSteps[a].TimeOffset == trackedSteps[b].TimeOffset:
+			if trackedSteps[a].configID == trackedSteps[b].configID ***REMOVED***
+				return trackedSteps[a].PlannedVUs < trackedSteps[b].PlannedVUs
+			***REMOVED***
 			return trackedSteps[a].configID < trackedSteps[b].configID
 		default:
 			return false

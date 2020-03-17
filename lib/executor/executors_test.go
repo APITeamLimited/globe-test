@@ -151,6 +151,45 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, uint64(30), lib.GetMaxPossibleVUs(schedReqs))
 		***REMOVED******REMOVED***,
 	***REMOVED***,
+	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "10s",
+			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
+		exp***REMOVED***custom: func(t *testing.T, cm lib.ExecutorConfigMap) ***REMOVED***
+			assert.Empty(t, cm["varloops"].Validate())
+			assert.Empty(t, cm.Validate())
+
+			assert.Equal(t, "Up to 10 looping VUs for 10s over 1 stages (gracefulRampDown: 10s)", cm["varloops"].GetDescription(nil))
+
+			schedReqs := cm["varloops"].GetExecutionRequirements(nil)
+			assert.Equal(t, uint64(10), lib.GetMaxPlannedVUs(schedReqs))
+			assert.Equal(t, uint64(10), lib.GetMaxPossibleVUs(schedReqs))
+		***REMOVED******REMOVED***,
+	***REMOVED***,
+	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
+			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***, ***REMOVED***"duration": "0s", "target": 1***REMOVED***, ***REMOVED***"duration": "10s", "target": 5***REMOVED***]***REMOVED******REMOVED***`,
+		exp***REMOVED***custom: func(t *testing.T, cm lib.ExecutorConfigMap) ***REMOVED***
+			assert.Empty(t, cm["varloops"].Validate())
+			assert.Empty(t, cm.Validate())
+
+			assert.Equal(t, "Up to 10 looping VUs for 20s over 3 stages (gracefulRampDown: 0s)", cm["varloops"].GetDescription(nil))
+
+			schedReqs := cm.GetFullExecutionRequirements(nil)
+			assert.Equal(t, uint64(10), lib.GetMaxPlannedVUs(schedReqs))
+			assert.Equal(t, uint64(10), lib.GetMaxPossibleVUs(schedReqs))
+		***REMOVED******REMOVED***,
+	***REMOVED***,
+	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": 1, "gracefulStop": "0s", "gracefulRampDown": "0s",
+			"stages": [***REMOVED***"duration": "10s", "target": 10***REMOVED***, ***REMOVED***"duration": "0s", "target": 11***REMOVED***,***REMOVED***"duration": "0s", "target": 1***REMOVED***, ***REMOVED***"duration": "10s", "target": 5***REMOVED***]***REMOVED******REMOVED***`,
+		exp***REMOVED***custom: func(t *testing.T, cm lib.ExecutorConfigMap) ***REMOVED***
+			assert.Empty(t, cm["varloops"].Validate())
+			assert.Empty(t, cm.Validate())
+
+			assert.Equal(t, "Up to 11 looping VUs for 20s over 4 stages (gracefulRampDown: 0s)", cm["varloops"].GetDescription(nil))
+
+			schedReqs := cm.GetFullExecutionRequirements(nil)
+			assert.Equal(t, uint64(11), lib.GetMaxPlannedVUs(schedReqs))
+			assert.Equal(t, uint64(11), lib.GetMaxPossibleVUs(schedReqs))
+		***REMOVED******REMOVED***,
+	***REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": 0, "stages": [***REMOVED***"duration": "60s", "target": 0***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": -1, "stages": [***REMOVED***"duration": "60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"type": "variable-looping-vus", "startVUs": 2, "stages": [***REMOVED***"duration": "-60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
