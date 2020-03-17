@@ -30,8 +30,9 @@ import (
 
 // Ensure mock implementations conform to the interfaces.
 var (
-	_ lib.Runner = &MiniRunner***REMOVED******REMOVED***
-	_ lib.VU     = &VU***REMOVED******REMOVED***
+	_ lib.Runner        = &MiniRunner***REMOVED******REMOVED***
+	_ lib.InitializedVU = &VU***REMOVED******REMOVED***
+	_ lib.ActiveVU      = &VU***REMOVED******REMOVED***
 )
 
 // MiniRunner partially implements the lib.Runner interface, but instead of
@@ -56,7 +57,7 @@ func (r MiniRunner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new VU with an incremental ID.
-func (r *MiniRunner) NewVU(out chan<- stats.SampleContainer) (lib.VU, error) ***REMOVED***
+func (r *MiniRunner) NewVU(_ int64, out chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
 	nextVUNum := atomic.AddInt64(&r.NextVUID, 1)
 	return &VU***REMOVED***R: r, Out: out, ID: nextVUNum - 1***REMOVED***, nil
 ***REMOVED***
@@ -109,14 +110,21 @@ func (r *MiniRunner) SetOptions(opts lib.Options) error ***REMOVED***
 
 // VU is a mock VU, spawned by a MiniRunner.
 type VU struct ***REMOVED***
-	R         *MiniRunner
-	Out       chan<- stats.SampleContainer
-	ID        int64
-	Iteration int64
+	R          *MiniRunner
+	RunContext *context.Context
+	Out        chan<- stats.SampleContainer
+	ID         int64
+	Iteration  int64
+***REMOVED***
+
+// Activate the VU so it will be able to run code
+func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
+	vu.RunContext = &params.RunContext
+	return lib.ActiveVU(vu)
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.
-func (vu VU) RunOnce(ctx context.Context) error ***REMOVED***
+func (vu *VU) RunOnce() error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -125,15 +133,9 @@ func (vu VU) RunOnce(ctx context.Context) error ***REMOVED***
 		Vu:        vu.ID,
 		Iteration: vu.Iteration,
 	***REMOVED***
-	newctx := lib.WithState(ctx, state)
+	newctx := lib.WithState(*vu.RunContext, state)
 
 	vu.Iteration++
 
 	return vu.R.Fn(newctx, vu.Out)
-***REMOVED***
-
-// Reconfigure changes the VU ID.
-func (vu *VU) Reconfigure(id int64) error ***REMOVED***
-	vu.ID = id
-	return nil
 ***REMOVED***

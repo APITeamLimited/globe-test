@@ -26,14 +26,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
@@ -129,14 +130,15 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 
 	require.NoError(t, err)
 
-	samples := make(chan stats.SampleContainer, 100)
+	samples := make(chan<- stats.SampleContainer, 100)
 
 	if !assert.NoError(t, runner.Setup(context.Background(), samples)) ***REMOVED***
 		return
 	***REMOVED***
-	vu, err := runner.NewVU(samples)
+	initVU, err := runner.NewVU(1, samples)
 	if assert.NoError(t, err) ***REMOVED***
-		err := vu.RunOnce(context.Background())
+		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+		err := vu.RunOnce()
 		assert.NoError(t, err)
 	***REMOVED***
 ***REMOVED***
