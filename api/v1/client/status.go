@@ -24,15 +24,16 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/loadimpact/k6/api/v1"
+	v1 "github.com/loadimpact/k6/api/v1"
 )
 
-var StatusURL = &url.URL***REMOVED***Path: "/v1/status"***REMOVED***
-
+// Status returns the current k6 status.
 func (c *Client) Status(ctx context.Context) (ret v1.Status, err error) ***REMOVED***
-	return ret, c.call(ctx, "GET", StatusURL, nil, &ret)
+	return ret, c.Call(ctx, "GET", &url.URL***REMOVED***Path: "/v1/status"***REMOVED***, nil, &ret)
 ***REMOVED***
 
+// SetStatus tries to change the current status and returns the new one if it
+// was successful.
 func (c *Client) SetStatus(ctx context.Context, patch v1.Status) (ret v1.Status, err error) ***REMOVED***
-	return ret, c.call(ctx, "PATCH", StatusURL, patch, &ret)
+	return ret, c.Call(ctx, "PATCH", &url.URL***REMOVED***Path: "/v1/status"***REMOVED***, patch, &ret)
 ***REMOVED***

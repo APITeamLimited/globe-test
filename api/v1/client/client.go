@@ -29,29 +29,73 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/manyminds/api2go/jsonapi"
 
-	"github.com/loadimpact/k6/api/v1"
+	v1 "github.com/loadimpact/k6/api/v1"
 )
 
+// Client is a simple HTTP client for the REST API.
 type Client struct ***REMOVED***
-	BaseURL *url.URL
+	BaseURL    *url.URL
+	httpClient *http.Client
+	logger     *logrus.Entry
 ***REMOVED***
 
-func New(base string) (*Client, error) ***REMOVED***
+// Option function are helpers that enable the flexible configuration of the
+// REST API client.
+type Option func(*Client)
+
+// New returns a newly configured REST API Client.
+func New(base string, options ...Option) (*Client, error) ***REMOVED***
 	baseURL, err := url.Parse("http://" + base)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return &Client***REMOVED***BaseURL: baseURL***REMOVED***, nil
+	c := &Client***REMOVED***
+		BaseURL:    baseURL,
+		httpClient: http.DefaultClient,
+	***REMOVED***
+
+	for _, option := range options ***REMOVED***
+		option(c)
+	***REMOVED***
+
+	return c, nil
 ***REMOVED***
 
-func (c *Client) call(ctx context.Context, method string, rel *url.URL, body, out interface***REMOVED******REMOVED***) error ***REMOVED***
+// WithHTTPClient configures the supplied HTTP client to be used when making
+// REST API requests.
+func WithHTTPClient(httpClient *http.Client) Option ***REMOVED***
+	return Option(func(c *Client) ***REMOVED***
+		c.httpClient = httpClient
+	***REMOVED***)
+***REMOVED***
+
+// WithLogger sets the specifield logger to the client.
+func WithLogger(logger *logrus.Entry) Option ***REMOVED***
+	return Option(func(c *Client) ***REMOVED***
+		c.logger = logger
+	***REMOVED***)
+***REMOVED***
+
+// Call executes the desired REST API request.
+func (c *Client) Call(ctx context.Context, method string, rel *url.URL, body, out interface***REMOVED******REMOVED***) (err error) ***REMOVED***
+	if c.logger != nil ***REMOVED***
+		c.logger.Debugf("[REST API] Making a %s request to '%s'", method, rel.String())
+		defer func() ***REMOVED***
+			if err != nil ***REMOVED***
+				c.logger.WithError(err).Error("[REST API] Error")
+			***REMOVED***
+		***REMOVED***()
+	***REMOVED***
+
 	var bodyReader io.ReadCloser
 	if body != nil ***REMOVED***
-		bodyData, err := jsonapi.Marshal(body)
-		if err != nil ***REMOVED***
-			return err
+		bodyData, errm := jsonapi.Marshal(body)
+		if errm != nil ***REMOVED***
+			return errm
 		***REMOVED***
 		bodyReader = ioutil.NopCloser(bytes.NewBuffer(bodyData))
 	***REMOVED***
@@ -63,7 +107,7 @@ func (c *Client) call(ctx context.Context, method string, rel *url.URL, body, ou
 	***REMOVED***
 	req = req.WithContext(ctx)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -82,5 +126,8 @@ func (c *Client) call(ctx context.Context, method string, rel *url.URL, body, ou
 		return errs.Errors[0]
 	***REMOVED***
 
-	return jsonapi.Unmarshal(data, out)
+	if out != nil ***REMOVED***
+		return jsonapi.Unmarshal(data, out)
+	***REMOVED***
+	return nil
 ***REMOVED***
