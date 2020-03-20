@@ -93,9 +93,17 @@ func (c *Client) Call(ctx context.Context, method string, rel *url.URL, body, ou
 
 	var bodyReader io.ReadCloser
 	if body != nil ***REMOVED***
-		bodyData, errm := jsonapi.Marshal(body)
-		if errm != nil ***REMOVED***
-			return errm
+		var bodyData []byte
+		switch val := body.(type) ***REMOVED***
+		case []byte:
+			bodyData = val
+		case string:
+			bodyData = []byte(val)
+		default:
+			bodyData, err = jsonapi.Marshal(body)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 		bodyReader = ioutil.NopCloser(bytes.NewBuffer(bodyData))
 	***REMOVED***
