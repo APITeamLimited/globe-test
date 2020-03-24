@@ -125,48 +125,40 @@ func TestVariableLoopingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 
-	var (
-		wg     sync.WaitGroup
-		result []int64
-		m      sync.Mutex
-	)
+	sampleTimes := []time.Duration***REMOVED***
+		100 * time.Millisecond,
+		3400 * time.Millisecond,
+	***REMOVED***
+	const rampDownSamples = 50
 
-	sampleActiveVUs := func(delay time.Duration) ***REMOVED***
-		time.Sleep(delay)
-		m.Lock()
-		result = append(result, es.GetCurrentlyActiveVUsCount())
-		m.Unlock()
+	errCh := make(chan error)
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+
+	var result = make([]int64, len(sampleTimes)+rampDownSamples)
+	for i, d := range sampleTimes ***REMOVED***
+		time.Sleep(d)
+		result[i] = es.GetCurrentlyActiveVUsCount()
 	***REMOVED***
 
-	wg.Add(1)
-	go func() ***REMOVED***
-		defer wg.Done()
-		sampleActiveVUs(100 * time.Millisecond)
-		sampleActiveVUs(3 * time.Second)
-		time.AfterFunc(2*time.Second, func() ***REMOVED***
-			sampleActiveVUs(0)
-		***REMOVED***)
-		time.Sleep(1 * time.Second)
-		// Sample ramp-down at a higher frequency
-		for i := 0; i < 15; i++ ***REMOVED***
-			sampleActiveVUs(100 * time.Millisecond)
-		***REMOVED***
-	***REMOVED***()
+	// Sample ramp-down at a higher rate
+	for i := len(sampleTimes); i < rampDownSamples; i++ ***REMOVED***
+		time.Sleep(50 * time.Millisecond)
+		result[i] = es.GetCurrentlyActiveVUsCount()
+	***REMOVED***
 
-	err := executor.Run(ctx, nil)
+	require.NoError(t, <-errCh)
 
-	wg.Wait()
-	require.NoError(t, err)
+	// Some baseline checks
 	assert.Equal(t, int64(0), result[0])
 	assert.Equal(t, int64(10), result[1])
 	assert.Equal(t, int64(0), result[len(result)-1])
 
 	var curr int64
 	last := result[2]
-	// Check all ramp-down samples
+	// Check all ramp-down samples for wobble
 	for i := 3; i < len(result[2:]); i++ ***REMOVED***
 		curr = result[i]
-		// Detect ramp-ups, missteps (e.g. 7 -> 4), but ignore pauses
+		// Detect ramp-ups, missteps (e.g. 7 -> 4), but ignore pauses (repeats)
 		if curr > last || (curr != last && curr != last-1) ***REMOVED***
 			assert.FailNow(t,
 				fmt.Sprintf("ramping down wobble bug - "+
