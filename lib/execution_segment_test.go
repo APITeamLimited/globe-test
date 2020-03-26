@@ -21,8 +21,13 @@
 package lib
 
 import (
+	"fmt"
 	"math/big"
+	"math/rand"
+	"os"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -379,4 +384,66 @@ func TestExecutionSegmentStringSequences(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// TODO: test with randomized things
+// Return a randomly distributed sequence of numSegments amount of
+// execution segments whose length totals 1.
+func genRandomExecutionSegmentSequence(numSegments int) (ExecutionSegmentSequence, error) ***REMOVED***
+	const denom int = 1000
+
+	bounds := make(map[int]struct***REMOVED******REMOVED***, numSegments-1)
+	for i := 0; i < numSegments-1; i++ ***REMOVED***
+		b := rand.Intn(denom-1) + 1
+		// Avoid duplicates
+		if _, ok := bounds[b]; ok ***REMOVED***
+			numSegments++
+			continue
+		***REMOVED***
+		bounds[b] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	***REMOVED***
+
+	nums := make([]int, 0, len(bounds)+2)
+	for k := range bounds ***REMOVED***
+		nums = append(nums, k)
+	***REMOVED***
+	nums = append(nums, []int***REMOVED***0, denom***REMOVED***...)
+
+	sort.Ints(nums)
+
+	segments := make([]*ExecutionSegment, 0, len(bounds)+1)
+	denom64 := int64(denom)
+	for i := 0; i < len(nums)-1; i++ ***REMOVED***
+		from, to := big.NewRat(int64(nums[i]), denom64), big.NewRat(int64(nums[i+1]), denom64)
+		segment, err := NewExecutionSegment(from, to)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		segments = append(segments, segment)
+	***REMOVED***
+
+	return NewExecutionSegmentSequence(segments...)
+***REMOVED***
+
+// Ensure that the sum of scaling all execution segments in
+// the same sequence with scaling factor M results in M itself.
+func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	const numTests = 10
+	for i := 0; i < numTests; i++ ***REMOVED***
+		scale := rand.Int31n(99) + 2
+		seq, err := genRandomExecutionSegmentSequence(rand.Intn(9) + 2)
+		require.NoError(t, err)
+
+		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
+			var total int64
+			for _, segment := range seq ***REMOVED***
+				total += segment.Scale(int64(scale))
+			***REMOVED***
+			assert.Equal(t, int64(scale), total)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestMain(m *testing.M) ***REMOVED***
+	rand.Seed(time.Now().UnixNano())
+	os.Exit(m.Run())
+***REMOVED***
