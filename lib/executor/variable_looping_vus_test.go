@@ -22,8 +22,6 @@ package executor
 
 import (
 	"context"
-	"fmt"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -64,35 +62,35 @@ func TestVariableLoopingVUsRun(t *testing.T) ***REMOVED***
 	var ctx, cancel, executor, _ = setupExecutor(
 		t, config, es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
-			time.Sleep(200 * time.Millisecond)
+			// Sleeping for a weird duration somewhat offset from the
+			// executor ticks to hopefully keep race conditions out of
+			// our control from failing the test.
+			time.Sleep(300 * time.Millisecond)
 			atomic.AddInt64(&iterCount, 1)
 			return nil
 		***REMOVED***),
 	)
 	defer cancel()
 
-	var (
-		wg     sync.WaitGroup
-		result []int64
-	)
+	sampleTimes := []time.Duration***REMOVED***
+		500 * time.Millisecond,
+		1000 * time.Millisecond,
+		700 * time.Millisecond,
+	***REMOVED***
 
-	wg.Add(1)
-	go func() ***REMOVED***
-		defer wg.Done()
-		time.Sleep(100 * time.Millisecond)
-		result = append(result, es.GetCurrentlyActiveVUsCount())
-		time.Sleep(1 * time.Second)
-		result = append(result, es.GetCurrentlyActiveVUsCount())
-		time.Sleep(1 * time.Second)
-		result = append(result, es.GetCurrentlyActiveVUsCount())
-	***REMOVED***()
+	errCh := make(chan error)
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
 
-	err := executor.Run(ctx, nil)
+	var result = make([]int64, len(sampleTimes))
+	for i, d := range sampleTimes ***REMOVED***
+		time.Sleep(d)
+		result[i] = es.GetCurrentlyActiveVUsCount()
+	***REMOVED***
 
-	wg.Wait()
-	require.NoError(t, err)
+	require.NoError(t, <-errCh)
+
 	assert.Equal(t, []int64***REMOVED***5, 3, 0***REMOVED***, result)
-	assert.Equal(t, int64(40), iterCount)
+	assert.Equal(t, int64(29), iterCount)
 ***REMOVED***
 
 // Ensure there's no wobble of VUs during graceful ramp-down, without segments.
@@ -126,53 +124,40 @@ func TestVariableLoopingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 
-	var (
-		wg     sync.WaitGroup
-		result []int64
-		m      sync.Mutex
-	)
+	sampleTimes := []time.Duration***REMOVED***
+		100 * time.Millisecond,
+		3400 * time.Millisecond,
+	***REMOVED***
+	const rampDownSamples = 50
 
-	sampleActiveVUs := func(delay time.Duration) ***REMOVED***
-		time.Sleep(delay)
-		m.Lock()
-		result = append(result, es.GetCurrentlyActiveVUsCount())
-		m.Unlock()
+	errCh := make(chan error)
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+
+	var result = make([]int64, len(sampleTimes)+rampDownSamples)
+	for i, d := range sampleTimes ***REMOVED***
+		time.Sleep(d)
+		result[i] = es.GetCurrentlyActiveVUsCount()
 	***REMOVED***
 
-	wg.Add(1)
-	go func() ***REMOVED***
-		defer wg.Done()
-		sampleActiveVUs(100 * time.Millisecond)
-		sampleActiveVUs(3 * time.Second)
-		time.AfterFunc(2*time.Second, func() ***REMOVED***
-			sampleActiveVUs(0)
-		***REMOVED***)
-		time.Sleep(1 * time.Second)
-		// Sample ramp-down at a higher frequency
-		for i := 0; i < 15; i++ ***REMOVED***
-			sampleActiveVUs(100 * time.Millisecond)
-		***REMOVED***
-	***REMOVED***()
+	// Sample ramp-down at a higher rate
+	for i := len(sampleTimes); i < rampDownSamples; i++ ***REMOVED***
+		time.Sleep(50 * time.Millisecond)
+		result[i] = es.GetCurrentlyActiveVUsCount()
+	***REMOVED***
 
-	err := executor.Run(ctx, nil)
+	require.NoError(t, <-errCh)
 
-	wg.Wait()
-	require.NoError(t, err)
+	// Some baseline checks
 	assert.Equal(t, int64(0), result[0])
 	assert.Equal(t, int64(10), result[1])
 	assert.Equal(t, int64(0), result[len(result)-1])
 
-	var curr int64
-	last := result[2]
-	// Check all ramp-down samples
+	vuChanges := []int64***REMOVED***result[2]***REMOVED***
+	// Check ramp-down consistency
 	for i := 3; i < len(result[2:]); i++ ***REMOVED***
-		curr = result[i]
-		// Detect ramp-ups, missteps (e.g. 7 -> 4), but ignore pauses
-		if curr > last || (curr != last && curr != last-1) ***REMOVED***
-			assert.FailNow(t,
-				fmt.Sprintf("ramping down wobble bug - "+
-					"current: %d, previous: %d\nVU samples: %v", curr, last, result))
+		if result[i] != result[i-1] ***REMOVED***
+			vuChanges = append(vuChanges, result[i])
 		***REMOVED***
-		last = curr
 	***REMOVED***
+	assert.Equal(t, []int64***REMOVED***10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0***REMOVED***, vuChanges)
 ***REMOVED***
