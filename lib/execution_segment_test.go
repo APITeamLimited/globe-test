@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
-	"os"
-	"sort"
 	"testing"
 	"time"
 
@@ -384,42 +382,31 @@ func TestExecutionSegmentStringSequences(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Return a randomly distributed sequence of numSegments amount of
+// Return a randomly distributed sequence of n amount of
 // execution segments whose length totals 1.
-func genRandomExecutionSegmentSequence(numSegments int) (ExecutionSegmentSequence, error) ***REMOVED***
-	const denom int = 1000
-
-	bounds := make(map[int]struct***REMOVED******REMOVED***, numSegments-1)
-	for i := 0; i < numSegments-1; i++ ***REMOVED***
-		b := rand.Intn(denom-1) + 1
-		// Avoid duplicates
-		if _, ok := bounds[b]; ok ***REMOVED***
-			numSegments++
-			continue
+func generateRandomSequence(n int64, r *rand.Rand) (ExecutionSegmentSequence, error) ***REMOVED***
+	var err error
+	var ess = ExecutionSegmentSequence(make([]*ExecutionSegment, n))
+	var numerators = make([]int64, n)
+	var denominator int64
+	for i := int64(0); i < n; i++ ***REMOVED***
+		for numerators[i] == 0 ***REMOVED***
+			numerators[i] = r.Int63n(n)
+			denominator += numerators[i]
 		***REMOVED***
-		bounds[b] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	***REMOVED***
-
-	nums := make([]int, 0, len(bounds)+2)
-	for k := range bounds ***REMOVED***
-		nums = append(nums, k)
+	ess[0], err = NewExecutionSegment(big.NewRat(0, 1), big.NewRat(numerators[0], denominator))
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-	nums = append(nums, []int***REMOVED***0, denom***REMOVED***...)
-
-	sort.Ints(nums)
-
-	segments := make([]*ExecutionSegment, 0, len(bounds)+1)
-	denom64 := int64(denom)
-	for i := 0; i < len(nums)-1; i++ ***REMOVED***
-		from, to := big.NewRat(int64(nums[i]), denom64), big.NewRat(int64(nums[i+1]), denom64)
-		segment, err := NewExecutionSegment(from, to)
+	for i := int64(1); i < n; i++ ***REMOVED***
+		ess[i], err = NewExecutionSegment(ess[i-1].to, new(big.Rat).Add(big.NewRat(numerators[i], denominator), ess[i-1].to))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		segments = append(segments, segment)
 	***REMOVED***
 
-	return NewExecutionSegmentSequence(segments...)
+	return ess, nil
 ***REMOVED***
 
 // Ensure that the sum of scaling all execution segments in
@@ -427,10 +414,14 @@ func genRandomExecutionSegmentSequence(numSegments int) (ExecutionSegmentSequenc
 func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 	t.Parallel()
 
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed))
+	t.Logf("Random source seeded with %d\n", seed)
+
 	const numTests = 10
 	for i := 0; i < numTests; i++ ***REMOVED***
 		scale := rand.Int31n(99) + 2
-		seq, err := genRandomExecutionSegmentSequence(rand.Intn(9) + 2)
+		seq, err := generateRandomSequence(r.Int63n(9)+2, r)
 		require.NoError(t, err)
 
 		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
@@ -441,9 +432,4 @@ func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 			assert.Equal(t, int64(scale), total)
 		***REMOVED***)
 	***REMOVED***
-***REMOVED***
-
-func TestMain(m *testing.M) ***REMOVED***
-	rand.Seed(time.Now().UnixNano())
-	os.Exit(m.Run())
 ***REMOVED***
