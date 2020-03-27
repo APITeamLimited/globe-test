@@ -18,8 +18,6 @@
  *
  */
 
-// go:generate enumer -type=UIMode -transform=snake -trimprefix=UIMode -output ui_mode_gen.go
-
 package cmd
 
 import (
@@ -43,26 +41,13 @@ import (
 	"github.com/loadimpact/k6/ui/pb"
 )
 
-// UIMode defines various rendering methods
-type UIMode uint8
-
-//nolint: golint
 const (
 	// Max length of left-side progress bar text before trimming is forced
-	maxLeftLength           = 30
-	UIModeResponsive UIMode = iota + 1
-	UIModeCompact
-	UIModeFull
+	maxLeftLength = 30
 	// Amount of padding in chars between rendered progress
 	// bar text and right-side terminal window edge.
 	termPadding = 1
 )
-
-// Decode implements envconfig.Decoder
-func (i *UIMode) Decode(value string) (err error) ***REMOVED***
-	*i, err = UIModeString(value)
-	return
-***REMOVED***
 
 // A writer that syncs writes with a mutex and, if the output is a TTY, clears before newlines.
 type consoleWriter struct ***REMOVED***
@@ -233,28 +218,27 @@ func showProgress(
 	// Limit to maximum left text length
 	maxLeft := int(lib.Min(leftLen, maxLeftLength))
 
-	var widthDelta int
 	var progressBarsLastRender []byte
-	// default responsive render
+
+	printProgressBars := func() ***REMOVED***
+		_, _ = stdout.Writer.Write(progressBarsLastRender)
+	***REMOVED***
+
+	var widthDelta int
+	// Default to responsive progress bars when in an interactive terminal
 	renderProgressBars := func(goBack bool) ***REMOVED***
 		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
 		widthDelta = termWidth - longestLine - termPadding
 		progressBarsLastRender = []byte(barText)
 	***REMOVED***
 
-	if conf.UIMode.String == UIModeCompact.String() ***REMOVED***
+	// Otherwise fallback to fixed compact progress bars
+	if !stdoutTTY ***REMOVED***
 		widthDelta = -pb.DefaultWidth
-	***REMOVED***
-
-	if conf.UIMode.String != UIModeResponsive.String() ***REMOVED***
 		renderProgressBars = func(goBack bool) ***REMOVED***
 			barText, _ := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
 			progressBarsLastRender = []byte(barText)
 		***REMOVED***
-	***REMOVED***
-
-	printProgressBars := func() ***REMOVED***
-		_, _ = stdout.Writer.Write(progressBarsLastRender)
 	***REMOVED***
 
 	//TODO: make configurable?

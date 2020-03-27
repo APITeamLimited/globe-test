@@ -377,10 +377,6 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		// TODO: test for differences between flagsets
 		// TODO: more tests in general, especially ones not related to execution parameters...
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--ui-mode", "compact"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, UIModeCompact.String(), c.UIMode.String)
-		***REMOVED******REMOVED***,
-		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--ui-mode", "blah"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 

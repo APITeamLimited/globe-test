@@ -291,9 +291,6 @@ type Options struct ***REMOVED***
 
 	// Redirect console logging to a file
 	ConsoleOutput null.String `json:"-" envconfig:"K6_CONSOLE_OUTPUT"`
-
-	// UI render mode: "compact", "full" or "responsive"
-	UIMode null.String `json:"uiMode" envconfig:"K6_UI_MODE"`
 ***REMOVED***
 
 // Returns the result of overwriting any fields with any that are set on the argument.
@@ -440,9 +437,6 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.ConsoleOutput.Valid ***REMOVED***
 		o.ConsoleOutput = opts.ConsoleOutput
-	***REMOVED***
-	if opts.UIMode.Valid ***REMOVED***
-		o.UIMode = opts.UIMode
 	***REMOVED***
 
 	return o
