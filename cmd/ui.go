@@ -260,27 +260,14 @@ func showProgress(
 	***REMOVED***
 
 	var (
-		fd          = int(os.Stdout.Fd())
-		ticker      = time.NewTicker(updateFreq)
-		winchSignal = getWinchSignal()
+		fd     = int(os.Stdout.Fd())
+		ticker = time.NewTicker(updateFreq)
 	)
 
-	// Default ticker-based progress bar resizing
-	updateTermWidth := func() ***REMOVED***
-		<-ticker.C
-		termWidth, _, _ = terminal.GetSize(fd)
-	***REMOVED***
-	// More responsive progress bar resizing on platforms with SIGWINCH (*nix)
-	if winchSignal != nil ***REMOVED***
-		winch := make(chan os.Signal, 1)
-		signal.Notify(winch, winchSignal)
-		updateTermWidth = func() ***REMOVED***
-			select ***REMOVED***
-			case <-ticker.C:
-			case <-winch:
-				termWidth, _, _ = terminal.GetSize(fd)
-			***REMOVED***
-		***REMOVED***
+	var winch chan os.Signal
+	if sig := getWinchSignal(); sig != nil ***REMOVED***
+		winch = make(chan os.Signal, 1)
+		signal.Notify(winch, sig)
 	***REMOVED***
 
 	ctxDone := ctx.Done()
@@ -288,11 +275,19 @@ func showProgress(
 		select ***REMOVED***
 		case <-ctxDone:
 			renderProgressBars(false)
+			outMutex.Lock()
 			printProgressBars()
+			outMutex.Unlock()
 			return
-		default:
+		case <-winch:
+			// More responsive progress bar resizing on platforms with SIGWINCH (*nix)
+			termWidth, _, _ = terminal.GetSize(fd)
+		case <-ticker.C:
+			// Default ticker-based progress bar resizing
+			if winch == nil ***REMOVED***
+				termWidth, _, _ = terminal.GetSize(fd)
+			***REMOVED***
 		***REMOVED***
-		updateTermWidth()
 		renderProgressBars(true)
 		outMutex.Lock()
 		printProgressBars()
