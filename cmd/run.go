@@ -262,35 +262,9 @@ a commandline interface for interacting with it.`,
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
-
-		// Ticker for progress bar updates. Less frequent updates for non-TTYs, none if quiet.
-		updateFreq := 50 * time.Millisecond
-		if !stdoutTTY ***REMOVED***
-			updateFreq = 1 * time.Second
-		***REMOVED***
-		ticker := time.NewTicker(updateFreq)
-		if quiet || conf.HTTPDebug.Valid && conf.HTTPDebug.String != "" ***REMOVED***
-			ticker.Stop()
-		***REMOVED***
 	mainLoop:
 		for ***REMOVED***
 			select ***REMOVED***
-			case <-ticker.C:
-				if quiet || !stdoutTTY ***REMOVED***
-					l := logrus.WithFields(logrus.Fields***REMOVED***
-						"t": executionState.GetCurrentTestRunDuration(),
-						"i": executionState.GetFullIterationCount(),
-					***REMOVED***)
-					fn := l.Info
-					if quiet ***REMOVED***
-						fn = l.Debug
-					***REMOVED***
-					if executionState.IsPaused() ***REMOVED***
-						fn("Paused")
-					***REMOVED*** else ***REMOVED***
-						fn("Running")
-					***REMOVED***
-				***REMOVED***
 			case err := <-errC:
 				cancel()
 				if err == nil ***REMOVED***
