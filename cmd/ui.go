@@ -203,7 +203,7 @@ func showProgress(
 	***REMOVED***
 
 	termWidth, _, err := terminal.GetSize(int(os.Stdout.Fd()))
-	if err != nil ***REMOVED***
+	if err != nil && stdoutTTY ***REMOVED***
 		logger.WithError(err).Warn("error getting terminal size")
 		termWidth = 80 // TODO: something safer, return error?
 	***REMOVED***
