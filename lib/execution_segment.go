@@ -77,11 +77,16 @@ func NewExecutionSegment(from, to *big.Rat) (*ExecutionSegment, error) ***REMOVE
 	if to.Cmp(oneRat) > 0 ***REMOVED***
 		return nil, fmt.Errorf("segment end value shouldn't be more than 1 but was %s", to.FloatString(2))
 	***REMOVED***
+	return newExecutionSegment(from, to), nil
+***REMOVED***
+
+// newExecutionSegment just creates an ExecutionSegment without validating the arguments
+func newExecutionSegment(from, to *big.Rat) *ExecutionSegment ***REMOVED***
 	return &ExecutionSegment***REMOVED***
 		from:   from,
 		to:     to,
 		length: new(big.Rat).Sub(to, from),
-	***REMOVED***, nil
+	***REMOVED***
 ***REMOVED***
 
 // stringToRat is a helper function that tries to convert a string to a rational
@@ -513,22 +518,13 @@ type ExecutionTuple struct ***REMOVED*** // TODO rename
 ***REMOVED***
 
 func fillSequence(sequence ExecutionSegmentSequence) ExecutionSegmentSequence ***REMOVED***
-	// TODO: discuss if we want to get the lcd of the sequence and fill with it elements of length 1/lcd ?
 	if sequence[0].from.Cmp(zeroRat) != 0 ***REMOVED***
-		es, err := NewExecutionSegment(zeroRat, sequence[0].from)
-		if err != nil ***REMOVED***
-			panic(err) // this really can't happen
-		***REMOVED***
-
+		es := newExecutionSegment(zeroRat, sequence[0].from)
 		sequence = append(ExecutionSegmentSequence***REMOVED***es***REMOVED***, sequence...)
 	***REMOVED***
 
 	if sequence[len(sequence)-1].to.Cmp(oneRat) != 0 ***REMOVED***
-		es, err := NewExecutionSegment(sequence[len(sequence)-1].to, oneRat)
-		if err != nil ***REMOVED***
-			panic(err) // this really can't happen
-		***REMOVED***
-
+		es := newExecutionSegment(sequence[len(sequence)-1].to, oneRat)
 		sequence = append(sequence, es)
 	***REMOVED***
 	return sequence
@@ -540,7 +536,7 @@ func NewExecutionTuple(segment *ExecutionSegment, sequence *ExecutionSegmentSequ
 		// this is needed in order to know that a segment == nil means that after
 		// GetNewExecutionTupleBasedOnValues the original segment scaled to 0 length one and as such
 		// should it be used it should always get 0 as values
-		segment, _ = NewExecutionSegmentFromString("0:1")
+		segment = newExecutionSegment(zeroRat, oneRat)
 	***REMOVED***
 	et := ExecutionTuple***REMOVED***
 		once: new(sync.Once),
@@ -652,10 +648,7 @@ func (et *ExecutionTuple) GetNewExecutionTupleBasedOnValue(value int64) *Executi
 		if newValue == 0 ***REMOVED***
 			continue
 		***REMOVED***
-		var currentES, err = NewExecutionSegmentFromString(fmt.Sprintf("%d/%d:%d/%d", prev, value, prev+newValue, value))
-		if err != nil ***REMOVED***
-			panic(err) // TODO this really can't happen but during the optimization it will probably disappear
-		***REMOVED***
+		var currentES = newExecutionSegment(big.NewRat(prev, value), big.NewRat(prev+newValue, value))
 		prev += newValue
 		if es.Equal(et.ES) ***REMOVED***
 			newES = currentES
