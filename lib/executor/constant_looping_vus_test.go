@@ -44,7 +44,9 @@ func getTestConstantLoopingVUsConfig() ConstantLoopingVUsConfig ***REMOVED***
 func TestConstantLoopingVUsRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var result sync.Map
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	var ctx, cancel, executor, _ = setupExecutor(
 		t, getTestConstantLoopingVUsConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
@@ -56,7 +58,7 @@ func TestConstantLoopingVUsRun(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	err := executor.Run(ctx, nil)
+	err = executor.Run(ctx, nil)
 	require.NoError(t, err)
 
 	var totalIters uint64

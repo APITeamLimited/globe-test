@@ -272,7 +272,7 @@ type ExecutionState struct ***REMOVED***
 // NewExecutionState initializes all of the pointers in the ExecutionState
 // with zeros. It also makes sure that the initial state is unpaused, by
 // setting resumeNotify to an already closed channel.
-func NewExecutionState(options Options, maxPlannedVUs, maxPossibleVUs uint64) *ExecutionState ***REMOVED***
+func NewExecutionState(options Options, et *ExecutionTuple, maxPlannedVUs, maxPossibleVUs uint64) *ExecutionState ***REMOVED***
 	resumeNotify := make(chan struct***REMOVED******REMOVED***)
 	close(resumeNotify) // By default the ExecutionState starts unpaused
 
@@ -295,10 +295,7 @@ func NewExecutionState(options Options, maxPlannedVUs, maxPossibleVUs uint64) *E
 		pauseStateLock:             sync.RWMutex***REMOVED******REMOVED***,
 		totalPausedDuration:        0, // Accessed only behind the pauseStateLock
 		resumeNotify:               resumeNotify,
-		ExecutionTuple: NewExecutionTuple(
-			options.ExecutionSegment,
-			options.ExecutionSegmentSequence,
-		),
+		ExecutionTuple:             et,
 	***REMOVED***
 ***REMOVED***
 

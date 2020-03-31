@@ -49,7 +49,9 @@ func getTestExternallyControlledConfig() ExternallyControlledConfig ***REMOVED**
 func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var doneIters uint64
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	var ctx, cancel, executor, _ = setupExecutor(
 		t, getTestExternallyControlledConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
