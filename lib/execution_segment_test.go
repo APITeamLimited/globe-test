@@ -481,6 +481,72 @@ func TestExecutionSegmentScaleConsistency(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Ensure that the sum of scaling all execution segments in
+// the same sequence with scaling factor M results in M itself.
+func TestExecutionTupleScaleConsistency(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed))
+	t.Logf("Random source seeded with %d\n", seed)
+
+	const numTests = 10
+	for i := 0; i < numTests; i++ ***REMOVED***
+		scale := rand.Int31n(99) + 2
+		seq, err := generateRandomSequence(r.Int63n(9)+2, r)
+		require.NoError(t, err)
+
+		et, err := NewExecutionTuple(seq[0], &seq)
+		require.NoError(t, err)
+		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
+			var total int64
+			for _, segment := range seq ***REMOVED***
+				total += et.scaleInt64With(int64(scale), segment)
+			***REMOVED***
+			assert.Equal(t, int64(scale), total)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestExecutionSegmentScaleNoWobble(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	requireSegmentScaleGreater := func(t *testing.T, et *ExecutionTuple) ***REMOVED***
+		var i, lastResult int64
+		for i = 1; i < 1000; i++ ***REMOVED***
+			result := et.ScaleInt64(i)
+			require.True(t, result >= lastResult, "%d<%d", result, lastResult)
+			lastResult = result
+		***REMOVED***
+	***REMOVED***
+
+	// Baseline full segment test
+	t.Run("0:1", func(t *testing.T) ***REMOVED***
+		et, err := NewExecutionTuple(nil, nil)
+		require.NoError(t, err)
+		requireSegmentScaleGreater(t, et)
+	***REMOVED***)
+
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed))
+	t.Logf("Random source seeded with %d\n", seed)
+
+	// Random segments
+	const numTests = 10
+	for i := 0; i < numTests; i++ ***REMOVED***
+		seq, err := generateRandomSequence(r.Int63n(9)+2, r)
+		require.NoError(t, err)
+
+		es := seq[rand.Intn(len(seq))]
+
+		et, err := NewExecutionTuple(seq[0], &seq)
+		require.NoError(t, err)
+		t.Run(es.String(), func(t *testing.T) ***REMOVED***
+			requireSegmentScaleGreater(t, et)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testCases := []struct ***REMOVED***
@@ -800,6 +866,58 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 					require.Equal(t, result, newET.ScaleInt64(scaleValue),
 						"getNewExecutionTupleBasedOnValue(%d)%d->%d", value, scaleValue, result)
 				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkExecutionSegmentScale(b *testing.B) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		seq string
+		seg string
+	***REMOVED******REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***seg: "0:1"***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3"***REMOVED***,
+		***REMOVED***seq: "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.1"***REMOVED***,
+		***REMOVED***seg: "2/5:4/5"***REMOVED***,
+		***REMOVED***seg: "2235/5213:4/5"***REMOVED***, // just wanted it to be ugly ;D
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		b.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(b *testing.B) ***REMOVED***
+			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(b, err)
+			segment, err := NewExecutionSegmentFromString(tc.seg)
+			require.NoError(b, err)
+			if tc.seg == "" ***REMOVED***
+				segment = nil // specifically for the optimization
+			***REMOVED***
+			et, err := NewExecutionTuple(segment, &ess)
+			require.NoError(b, err)
+			for _, value := range []int64***REMOVED***5, 5523, 5000000, 67280421310721***REMOVED*** ***REMOVED***
+				value := value
+				b.Run(fmt.Sprintf("segment.Scale(%d)", value), func(b *testing.B) ***REMOVED***
+					for i := 0; i < b.N; i++ ***REMOVED***
+						segment.Scale(value)
+					***REMOVED***
+				***REMOVED***)
+
+				b.Run(fmt.Sprintf("et.Scale(%d)", value), func(b *testing.B) ***REMOVED***
+					for i := 0; i < b.N; i++ ***REMOVED***
+						et2, err := NewExecutionTuple(segment, &ess)
+						require.NoError(b, err)
+						et2.ScaleInt64(value)
+					***REMOVED***
+				***REMOVED***)
+
+				et.ScaleInt64(1) // precache
+				b.Run(fmt.Sprintf("et.Scale(%d) prefilled", value), func(b *testing.B) ***REMOVED***
+					for i := 0; i < b.N; i++ ***REMOVED***
+						et.ScaleInt64(value)
+					***REMOVED***
+				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
