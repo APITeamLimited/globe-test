@@ -38,7 +38,9 @@ import (
 
 func TestExecutionStateVUIDs(t *testing.T) ***REMOVED***
 	t.Parallel()
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 0, 0)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 0, 0)
 	assert.Equal(t, uint64(1), es.GetUniqueVUIdentifier())
 	assert.Equal(t, uint64(2), es.GetUniqueVUIdentifier())
 	assert.Equal(t, uint64(3), es.GetUniqueVUIdentifier())
@@ -58,7 +60,9 @@ func TestExecutionStateVUIDs(t *testing.T) ***REMOVED***
 
 func TestExecutionStateGettingVUsWhenNonAreAvailable(t *testing.T) ***REMOVED***
 	t.Parallel()
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 0, 0)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 0, 0)
 	logHook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
 	testLog := logrus.New()
 	testLog.AddHook(logHook)
@@ -82,7 +86,9 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 	testLog.SetOutput(ioutil.Discard)
 	logEntry := logrus.NewEntry(testLog)
 
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 20)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 20)
 	es.SetInitVUFunc(func(_ context.Context, _ *logrus.Entry) (lib.VU, error) ***REMOVED***
 		return &minirunner.VU***REMOVED******REMOVED***, nil
 	***REMOVED***)
@@ -144,7 +150,9 @@ func TestExecutionStateGettingVUs(t *testing.T) ***REMOVED***
 
 func TestMarkStartedPanicsOnSecondRun(t *testing.T) ***REMOVED***
 	t.Parallel()
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 0, 0)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 0, 0)
 	require.False(t, es.HasStarted())
 	es.MarkStarted()
 	require.True(t, es.HasStarted())
@@ -153,7 +161,9 @@ func TestMarkStartedPanicsOnSecondRun(t *testing.T) ***REMOVED***
 
 func TestMarkEnded(t *testing.T) ***REMOVED***
 	t.Parallel()
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 0, 0)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 0, 0)
 	require.False(t, es.HasEnded())
 	es.MarkEnded()
 	require.True(t, es.HasEnded())

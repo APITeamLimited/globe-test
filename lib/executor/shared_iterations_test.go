@@ -47,7 +47,9 @@ func getTestSharedIterationsConfig() SharedIterationsConfig ***REMOVED***
 func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var doneIters uint64
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	var ctx, cancel, executor, _ = setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
@@ -56,7 +58,7 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	err := executor.Run(ctx, nil)
+	err = executor.Run(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(100), doneIters)
 ***REMOVED***
@@ -69,7 +71,9 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 		result   sync.Map
 		slowVUID int64
 	)
-	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, 10, 50)
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	var ctx, cancel, executor, _ = setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
@@ -89,7 +93,7 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 		***REMOVED***),
 	)
 	defer cancel()
-	err := executor.Run(ctx, nil)
+	err = executor.Run(ctx, nil)
 	require.NoError(t, err)
 
 	var totalIters uint64
