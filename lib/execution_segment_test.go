@@ -906,9 +906,9 @@ func BenchmarkExecutionSegmentScale(b *testing.B) ***REMOVED***
 
 				b.Run(fmt.Sprintf("et.Scale(%d)", value), func(b *testing.B) ***REMOVED***
 					for i := 0; i < b.N; i++ ***REMOVED***
-						et2, err := NewExecutionTuple(segment, &ess)
+						et, err = NewExecutionTuple(segment, &ess)
 						require.NoError(b, err)
-						et2.ScaleInt64(value)
+						et.ScaleInt64(value)
 					***REMOVED***
 				***REMOVED***)
 
