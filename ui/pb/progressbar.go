@@ -162,11 +162,11 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) ***REMOVED***
 // elements in the terminal output (e.g. for responsive progress
 // bars).
 type ProgressBarRender struct ***REMOVED***
-	Color                                   bool
+	Right                                   []string
 	progress, progressFill, progressPadding string
 	Left, Hijack                            string
 	status                                  Status
-	Right                                   []string
+	Color                                   bool
 ***REMOVED***
 
 // Status returns an optionally colorized status string
