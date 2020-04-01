@@ -597,10 +597,9 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		name, r := name, r
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Minute)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			samples := make(chan stats.SampleContainer, 100)
-			defer close(samples)
 			go func() ***REMOVED***
 				for range samples ***REMOVED***
 				***REMOVED***
@@ -612,10 +611,12 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 			for i := 0; i < 1000; i++ ***REMOVED***
 				wg.Add(1)
 				newCtx, newCancel := context.WithCancel(ctx)
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: newCtx***REMOVED***)
+				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
+					RunContext:         newCtx,
+					DeactivateCallback: func() ***REMOVED*** wg.Done() ***REMOVED***,
+				***REMOVED***)
 				ch := make(chan struct***REMOVED******REMOVED***)
 				go func() ***REMOVED***
-					defer wg.Done()
 					close(ch)
 					vuErr := vu.RunOnce()
 					assert.Error(t, vuErr)
