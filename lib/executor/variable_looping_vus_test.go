@@ -92,7 +92,7 @@ func TestVariableLoopingVUsRun(t *testing.T) ***REMOVED***
 	require.NoError(t, <-errCh)
 
 	assert.Equal(t, []int64***REMOVED***5, 3, 0***REMOVED***, result)
-	assert.Equal(t, int64(29), iterCount)
+	assert.Equal(t, int64(29), atomic.LoadInt64(&iterCount))
 ***REMOVED***
 
 // Ensure there's no wobble of VUs during graceful ramp-down, without segments.
