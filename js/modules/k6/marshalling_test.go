@@ -137,7 +137,9 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	***REMOVED***
 	initVU, err := runner.NewVU(1, samples)
 	if assert.NoError(t, err) ***REMOVED***
-		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 		err := vu.RunOnce()
 		assert.NoError(t, err)
 	***REMOVED***

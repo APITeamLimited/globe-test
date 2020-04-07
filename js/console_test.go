@@ -126,7 +126,9 @@ func TestConsole(t *testing.T) ***REMOVED***
 					initVU, err := r.newVU(1, samples)
 					assert.NoError(t, err)
 
-					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 
 					logger, hook := logtest.NewNullLogger()
 					logger.Level = logrus.DebugLevel
@@ -221,7 +223,9 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							initVU, err := r.newVU(1, samples)
 							assert.NoError(t, err)
 
-							vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+							ctx, cancel := context.WithCancel(context.Background())
+							defer cancel()
+							vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 							jsVU := vu.(*VU)
 							jsVU.Console.Logger.Level = logrus.DebugLevel
 							hook := logtest.NewLocal(jsVU.Console.Logger)
