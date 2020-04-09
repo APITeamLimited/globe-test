@@ -85,7 +85,7 @@ func (r *Runtime) builtinJSON_decodeObject(d *json.Decoder) (*Object, error) ***
 			return nil, err
 		***REMOVED***
 
-		if key == "__proto__" ***REMOVED***
+		if key == __proto__ ***REMOVED***
 			descr := propertyDescr***REMOVED***
 				Value:        value,
 				Writable:     FLAG_TRUE,

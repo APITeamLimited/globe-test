@@ -213,7 +213,7 @@ func (o *baseObject) put(n Value, val Value, throw bool) ***REMOVED***
 
 func (o *baseObject) getOwnProp(name string) Value ***REMOVED***
 	v := o.values[name]
-	if v == nil && name == "__proto" ***REMOVED***
+	if v == nil && name == __proto__ ***REMOVED***
 		return o.prototype
 	***REMOVED***
 	return v
@@ -233,7 +233,7 @@ func (o *baseObject) putStr(name string, val Value, throw bool) ***REMOVED***
 		return
 	***REMOVED***
 
-	if name == "__proto__" ***REMOVED***
+	if name == __proto__ ***REMOVED***
 		if !o.extensible ***REMOVED***
 			o.val.runtime.typeErrorResult(throw, "%s is not extensible", o.val)
 			return

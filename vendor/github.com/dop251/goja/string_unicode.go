@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-	"regexp"
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -28,10 +27,6 @@ type runeReaderReplace struct ***REMOVED***
 
 var (
 	InvalidRuneError = errors.New("Invalid rune")
-)
-
-var (
-	unicodeTrimRegexp = regexp.MustCompile("^[" + parser.WhitespaceChars + "]*(.*?)[" + parser.WhitespaceChars + "]*$")
 )
 
 func (rr runeReaderReplace) ReadRune() (r rune, size int, err error) ***REMOVED***
@@ -96,7 +91,7 @@ func (s unicodeString) toTrimmedUTF8() string ***REMOVED***
 	if len(s) == 0 ***REMOVED***
 		return ""
 	***REMOVED***
-	return unicodeTrimRegexp.FindStringSubmatch(s.String())[1]
+	return strings.Trim(s.String(), parser.WhitespaceChars)
 ***REMOVED***
 
 func (s unicodeString) ToNumber() Value ***REMOVED***
