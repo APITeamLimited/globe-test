@@ -47,7 +47,7 @@ import (
 	k6metrics "github.com/loadimpact/k6/js/modules/k6/metrics"
 	"github.com/loadimpact/k6/js/modules/k6/ws"
 	"github.com/loadimpact/k6/lib"
-	_ "github.com/loadimpact/k6/lib/executor" //TODO: figure out something better
+	_ "github.com/loadimpact/k6/lib/executor" // TODO: figure out something better
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
@@ -284,13 +284,14 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	require.NoError(t, engine.Init(ctx))
+	run, wait, err := engine.Init(ctx, ctx)
+	require.NoError(t, err)
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -300,6 +301,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 		cancel()
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
+		wait()
 	***REMOVED***
 	var count int
 	for _, s := range collector.Samples ***REMOVED***

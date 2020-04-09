@@ -60,9 +60,10 @@ const (
 	genericTimeoutErrorCode      = 102
 	genericEngineErrorCode       = 103
 	invalidConfigErrorCode       = 104
+	externalAbortErrorCode       = 105
 )
 
-//TODO: fix this, global variables are not very testable...
+// TODO: fix this, global variables are not very testable...
 //nolint:gochecknoglobals
 var runType = os.Getenv("K6_TYPE")
 
@@ -94,7 +95,7 @@ a commandline interface for interacting with it.`,
   k6 run -o influxdb=http://1.2.3.4:8086/k6`[1:],
 	Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		//TODO: disable in quiet mode?
+		// TODO: disable in quiet mode?
 		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner)
 
 		initBar := pb.New(pb.WithConstLeft("   init"))
@@ -143,11 +144,25 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		//TODO: don't use a global... or maybe change the logger?
+		// TODO: don't use a global... or maybe change the logger?
 		logger := logrus.StandardLogger()
 
-		ctx, cancel := context.WithCancel(context.Background()) //TODO: move even earlier?
-		defer cancel()
+		// We prepare a bunch of contexts:
+		//  - The runCtx is cancelled as soon as the Engine.Run() method finishes,
+		//    and can trigger things like the usage report and end of test summary.
+		//    Crucially, metrics processing by the Engine will still work after this
+		//    context is cancelled!
+		//  - The lingerCtx is cancelled by Ctrl+C, and is used to wait for that
+		//    event when k6 was ran with the --linger option.
+		//  - The globalCtx is cancelled only after we're completely done with the
+		//    test execution and any --linger has been cleared, so that the Engine
+		//    can start winding down its metrics processing.
+		globalCtx, globalCancel := context.WithCancel(context.Background())
+		defer globalCancel()
+		lingerCtx, lingerCancel := context.WithCancel(globalCtx)
+		defer lingerCancel()
+		runCtx, runCancel := context.WithCancel(lingerCtx)
+		defer runCancel()
 
 		// Create a local execution scheduler wrapping the runner.
 		printBar(initBar, "execution scheduler")
@@ -157,11 +172,18 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		executionState := execScheduler.GetState()
+
+		// This is manually triggered after the Engine's Run() has completed,
+		// and things like a single Ctrl+C don't affect it. We use it to make
+		// sure that the progressbars finish updating with the latest execution
+		// state one last ime, after the test run has finished.
+		progressCtx, progressCancel := context.WithCancel(globalCtx)
+		defer progressCancel()
 		initBar = execScheduler.GetInitProgressBar()
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
 		go func() ***REMOVED***
-			showProgress(ctx, conf, execScheduler, logger)
+			showProgress(progressCtx, conf, execScheduler, logger)
 			progressBarWG.Done()
 		***REMOVED***()
 
@@ -172,7 +194,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		//TODO: the engine should just probably have a copy of the config...
+		// TODO: refactor, the engine should have a copy of the config...
 		// Configure the engine.
 		if conf.NoThresholds.Valid ***REMOVED***
 			engine.NoThresholds = conf.NoThresholds.Bool
@@ -188,12 +210,12 @@ a commandline interface for interacting with it.`,
 		initBar.Modify(pb.WithConstProgress(0, "Init metric outputs"))
 		for _, out := range conf.Out ***REMOVED***
 			t, arg := parseCollector(out)
-			collector, err := newCollector(t, arg, src, conf, execScheduler.GetExecutionPlan())
-			if err != nil ***REMOVED***
-				return err
+			collector, cerr := newCollector(t, arg, src, conf, execScheduler.GetExecutionPlan())
+			if cerr != nil ***REMOVED***
+				return cerr
 			***REMOVED***
-			if err := collector.Init(); err != nil ***REMOVED***
-				return err
+			if cerr = collector.Init(); err != nil ***REMOVED***
+				return cerr
 			***REMOVED***
 			engine.Collectors = append(engine.Collectors, collector)
 		***REMOVED***
@@ -202,14 +224,14 @@ a commandline interface for interacting with it.`,
 		if address != "" ***REMOVED***
 			initBar.Modify(pb.WithConstProgress(0, "Init API server"))
 			go func() ***REMOVED***
-				if err := api.ListenAndServe(address, engine); err != nil ***REMOVED***
-					logger.WithError(err).Warn("Error from API server")
+				if aerr := api.ListenAndServe(address, engine); err != nil ***REMOVED***
+					logger.WithError(aerr).Warn("Error from API server")
 				***REMOVED***
 			***REMOVED***()
 		***REMOVED***
 
 		// Write the big banner.
-		***REMOVED***
+		***REMOVED*** // TODO: rewrite as Engine.GetTestRunDescription() and move out of here
 			out := "-"
 			link := ""
 
@@ -246,81 +268,61 @@ a commandline interface for interacting with it.`,
 			fprintf(stdout, "\n")
 		***REMOVED***
 
-		// Run the engine with a cancellable context.
-		errC := make(chan error)
-		go func() ***REMOVED***
-			initBar.Modify(pb.WithConstProgress(0, "Init VUs"))
-			if err := engine.Init(ctx); err != nil ***REMOVED***
-				errC <- err
-			***REMOVED*** else ***REMOVED***
-				initBar.Modify(pb.WithConstProgress(0, "Start test"))
-				errC <- engine.Run(ctx)
-			***REMOVED***
-		***REMOVED***()
-
 		// Trap Interrupts, SIGINTs and SIGTERMs.
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
-	mainLoop:
-		for ***REMOVED***
-			select ***REMOVED***
-			case err := <-errC:
-				cancel()
-				if err == nil ***REMOVED***
-					logger.Debug("Engine terminated cleanly")
-					break mainLoop
-				***REMOVED***
+		go func() ***REMOVED***
+			sig := <-sigC
+			logger.WithField("sig", sig).Debug("Stopping k6 in response to signal...")
+			lingerCancel() // stop the test run, metric processing is cancelled below
 
-				switch e := errors.Cause(err).(type) ***REMOVED***
-				case lib.TimeoutError:
-					switch e.Place() ***REMOVED***
-					case "setup":
-						return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
-					case "teardown":
-						return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
-					default:
-						return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
-					***REMOVED***
-				default:
-					//nolint:golint
-					return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
-				***REMOVED***
-			case sig := <-sigC:
-				logger.WithField("sig", sig).Debug("Exiting in response to signal")
-				cancel()
-				//TODO: Actually exit on a second Ctrl+C, even if some of the iterations are stuck.
-				// This is currently problematic because of https://github.com/loadimpact/k6/issues/971,
-				// but with uninterruptible iterations it will be even more problematic.
-			***REMOVED***
+			// If we get a second signal, we immediately exit, so something like
+			// https://github.com/loadimpact/k6/issues/971 never happens again
+			sig = <-sigC
+			logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
+			globalCancel() // not that it matters, given the following command...
+			os.Exit(externalAbortErrorCode)
+		***REMOVED***()
+
+		// Initialize the engine
+		initBar.Modify(pb.WithConstProgress(0, "Init VUs"))
+		engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
+		if err != nil ***REMOVED***
+			return getExitCodeFromEngine(err)
 		***REMOVED***
 
-		var reportCh chan struct***REMOVED******REMOVED***
+		// Init has passed successfully, so unless disabled, make sure we send a
+		// usage report after the context is done.
 		if !conf.NoUsageReport.Bool ***REMOVED***
-			reportCh = make(chan struct***REMOVED******REMOVED***)
+			reportDone := make(chan struct***REMOVED******REMOVED***)
 			go func() ***REMOVED***
+				<-runCtx.Done()
 				_ = reportUsage(execScheduler)
-				close(reportCh)
+				close(reportDone)
+			***REMOVED***()
+			defer func() ***REMOVED***
+				select ***REMOVED***
+				case <-reportDone:
+				case <-time.After(3 * time.Second):
+				***REMOVED***
 			***REMOVED***()
 		***REMOVED***
 
-		if quiet || !stdoutTTY ***REMOVED***
-			e := logger.WithFields(logrus.Fields***REMOVED***
-				"t": executionState.GetCurrentTestRunDuration(),
-				"i": executionState.GetFullIterationCount(),
-			***REMOVED***)
-			fn := e.Info
-			if quiet ***REMOVED***
-				fn = e.Debug
-			***REMOVED***
-			fn("Test finished")
+		// Initialize the engine
+		initBar.Modify(pb.WithConstProgress(0, "Start test"))
+		if err := engineRun(); err != nil ***REMOVED***
+			return getExitCodeFromEngine(err)
 		***REMOVED***
+		runCancel()
+		logger.Debug("Engine terminated cleanly")
 
+		progressCancel()
 		progressBarWG.Wait()
 
 		// Warn if no iterations could be completed.
 		if executionState.GetFullIterationCount() == 0 ***REMOVED***
-			logger.Warn("No data generated, because no script iterations finished, consider making the test duration longer")
+			logger.Warn("No script iterations finished, consider making the test duration longer")
 		***REMOVED***
 
 		data := ui.SummaryData***REMOVED***
@@ -357,22 +359,40 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if conf.Linger.Bool ***REMOVED***
-			logger.Info("Linger set; waiting for Ctrl+C...")
-			<-sigC
-		***REMOVED***
-
-		if reportCh != nil ***REMOVED***
 			select ***REMOVED***
-			case <-reportCh:
-			case <-time.After(3 * time.Second):
+			case <-lingerCtx.Done():
+				// do nothing, we were interrupted by Ctrl+C already
+			default:
+				logger.Info("Linger set; waiting for Ctrl+C...")
+				<-lingerCtx.Done()
 			***REMOVED***
 		***REMOVED***
+		globalCancel() // signal the Engine that it should wind down
+		logger.Debug("Waiting for engine processes to finish...")
+		engineWait()
 
 		if engine.IsTainted() ***REMOVED***
 			return ExitCode***REMOVED***error: errors.New("some thresholds have failed"), Code: thresholdHaveFailedErrorCode***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
+***REMOVED***
+
+func getExitCodeFromEngine(err error) ExitCode ***REMOVED***
+	switch e := errors.Cause(err).(type) ***REMOVED***
+	case lib.TimeoutError:
+		switch e.Place() ***REMOVED***
+		case "setup":
+			return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+		case "teardown":
+			return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+		default:
+			return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
+		***REMOVED***
+	default:
+		//nolint:golint
+		return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
@@ -413,7 +433,7 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.AddFlagSet(runtimeOptionFlagSet(true))
 	flags.AddFlagSet(configFlagSet())
 
-	//TODO: Figure out a better way to handle the CLI flags:
+	// TODO: Figure out a better way to handle the CLI flags:
 	// - the default values are specified in this way so we don't overwrire whatever
 	//   was specified via the environment variables
 	// - but we need to manually specify the DefValue, since that's the default value

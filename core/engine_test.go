@@ -50,12 +50,16 @@ import (
 const isWindows = runtime.GOOS == "windows"
 
 // Wrapper around NewEngine that applies a logger and manages the options.
-func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts lib.Options) *Engine ***REMOVED*** //nolint: golint
+func newTestEngine( //nolint:golint
+	t *testing.T, runCtx context.Context, runner lib.Runner, opts lib.Options,
+) (engine *Engine, run func() error, wait func()) ***REMOVED***
 	if runner == nil ***REMOVED***
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
-	if ctx == nil ***REMOVED***
-		ctx = context.Background()
+	globalCtx, globalCancel := context.WithCancel(context.Background())
+	var runCancel func()
+	if runCtx == nil ***REMOVED***
+		runCtx, runCancel = context.WithCancel(globalCtx)
 	***REMOVED***
 
 	newOpts, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
@@ -72,12 +76,19 @@ func newTestEngine(t *testing.T, ctx context.Context, runner lib.Runner, opts li
 	execScheduler, err := local.NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
-	engine, err := NewEngine(execScheduler, opts, logger)
+	engine, err = NewEngine(execScheduler, opts, logger)
 	require.NoError(t, err)
 
-	require.NoError(t, engine.Init(ctx))
+	run, waitFn, err := engine.Init(globalCtx, runCtx)
+	require.NoError(t, err)
 
-	return engine
+	return engine, run, func() ***REMOVED***
+		if runCancel != nil ***REMOVED***
+			runCancel()
+		***REMOVED***
+		globalCancel()
+		waitFn()
+	***REMOVED***
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
@@ -87,21 +98,32 @@ func TestNewEngine(t *testing.T) ***REMOVED***
 func TestEngineRun(t *testing.T) ***REMOVED***
 	logrus.SetLevel(logrus.DebugLevel)
 	t.Run("exits with context", func(t *testing.T) ***REMOVED***
-		duration := 100 * time.Millisecond
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED******REMOVED***)
+		done := make(chan struct***REMOVED******REMOVED***)
+		runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+			<-ctx.Done()
+			close(done)
+			return nil
+		***REMOVED******REMOVED***
 
+		duration := 100 * time.Millisecond
 		ctx, cancel := context.WithTimeout(context.Background(), duration)
 		defer cancel()
+
+		_, run, wait := newTestEngine(t, ctx, runner, lib.Options***REMOVED******REMOVED***)
+		defer wait()
+
 		startTime := time.Now()
-		assert.NoError(t, e.Run(ctx))
+		assert.NoError(t, run())
 		assert.WithinDuration(t, startTime.Add(duration), time.Now(), 100*time.Millisecond)
+		<-done
 	***REMOVED***)
 	t.Run("exits with executor", func(t *testing.T) ***REMOVED***
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED***
+		e, run, wait := newTestEngine(t, nil, nil, lib.Options***REMOVED***
 			VUs:        null.IntFrom(10),
 			Iterations: null.IntFrom(100),
 		***REMOVED***)
-		assert.NoError(t, e.Run(context.Background()))
+		defer wait()
+		assert.NoError(t, run())
 		assert.Equal(t, uint64(100), e.ExecutionScheduler.GetState().GetFullIterationCount())
 	***REMOVED***)
 	// Make sure samples are discarded after context close (using "cutoff" timestamp in local.go)
@@ -119,7 +141,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***
 
 		ctx, cancel := context.WithCancel(context.Background())
-		e := newTestEngine(t, ctx, runner, lib.Options***REMOVED***
+		e, run, wait := newTestEngine(t, ctx, runner, lib.Options***REMOVED***
 			VUs:        null.IntFrom(1),
 			Iterations: null.IntFrom(1),
 		***REMOVED***)
@@ -128,10 +150,11 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- e.Run(ctx) ***REMOVED***()
+		go func() ***REMOVED*** errC <- run() ***REMOVED***()
 		<-signalChan
 		cancel()
 		assert.NoError(t, <-errC)
+		wait()
 
 		found := 0
 		for _, s := range c.Samples ***REMOVED***
@@ -146,25 +169,27 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineAtTime(t *testing.T) ***REMOVED***
-	e := newTestEngine(t, nil, nil, lib.Options***REMOVED***
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, run, wait := newTestEngine(t, ctx, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(2),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
+	defer wait()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	assert.NoError(t, e.Run(ctx))
+	assert.NoError(t, run())
 ***REMOVED***
 
 func TestEngineStopped(t *testing.T) ***REMOVED***
-	e := newTestEngine(t, nil, nil, lib.Options***REMOVED***
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	e, run, wait := newTestEngine(t, ctx, nil, lib.Options***REMOVED***
 		VUs:      null.IntFrom(1),
 		Duration: types.NullDurationFrom(20 * time.Second),
 	***REMOVED***)
+	defer wait()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	assert.NoError(t, e.Run(ctx))
+	assert.NoError(t, run())
 	assert.Equal(t, false, e.IsStopped(), "engine should be running")
 	e.Stop()
 	assert.Equal(t, true, e.IsStopped(), "engine should be stopped")
@@ -178,12 +203,13 @@ func TestEngineCollector(t *testing.T) ***REMOVED***
 		return nil
 	***REMOVED******REMOVED***
 
-	e := newTestEngine(t, nil, runner, lib.Options***REMOVED***VUs: null.IntFrom(1), Iterations: null.IntFrom(1)***REMOVED***)
+	e, run, wait := newTestEngine(t, nil, runner, lib.Options***REMOVED***VUs: null.IntFrom(1), Iterations: null.IntFrom(1)***REMOVED***)
 
 	c := &dummy.Collector***REMOVED******REMOVED***
 	e.Collectors = []lib.Collector***REMOVED***c***REMOVED***
 
-	assert.NoError(t, e.Run(context.Background()))
+	assert.NoError(t, run())
+	wait()
 
 	cSamples := []stats.Sample***REMOVED******REMOVED***
 	for _, sample := range c.Samples ***REMOVED***
@@ -206,7 +232,8 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	metric := stats.New("my_metric", stats.Gauge)
 
 	t.Run("metric", func(t *testing.T) ***REMOVED***
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED******REMOVED***)
+		e, _, wait := newTestEngine(t, nil, nil, lib.Options***REMOVED******REMOVED***)
+		defer wait()
 
 		e.processSamples(
 			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
@@ -218,11 +245,12 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		ths, err := stats.NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
 		assert.NoError(t, err)
 
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED***
+		e, _, wait := newTestEngine(t, nil, nil, lib.Options***REMOVED***
 			Thresholds: map[string]stats.Thresholds***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***)
+		defer wait()
 
 		sms := e.submetrics["my_metric"]
 		assert.Len(t, sms, 1)
@@ -238,60 +266,54 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func TestEngine_runThresholds(t *testing.T) ***REMOVED***
+func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	metric := stats.New("my_metric", stats.Gauge)
-	thresholds := make(map[string]stats.Thresholds, 1)
 
 	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
 	assert.NoError(t, err)
+	ths.Thresholds[0].AbortOnFail = true
 
-	t.Run("aborted", func(t *testing.T) ***REMOVED***
-		ths.Thresholds[0].AbortOnFail = true
-		thresholds[metric.Name] = ths
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
-		e.processSamples(
-			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
-		)
+	e, _, wait := newTestEngine(t, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+	defer wait()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		aborted := false
+	e.processSamples(
+		[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
+	)
+	assert.True(t, e.processThresholds())
+***REMOVED***
 
-		cancelFunc := func() ***REMOVED***
-			cancel()
-			aborted = true
-		***REMOVED***
+func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
+	metric := stats.New("my_metric", stats.Gauge)
 
-		e.runThresholds(ctx, cancelFunc)
+	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
+	assert.NoError(t, err)
+	ths.Thresholds[0].AbortOnFail = true
 
-		assert.True(t, aborted)
-	***REMOVED***)
+	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
-	t.Run("canceled", func(t *testing.T) ***REMOVED***
-		ths.Abort = false
-		thresholds[metric.Name] = ths
-		e := newTestEngine(t, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+	done := make(chan struct***REMOVED******REMOVED***)
+	runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		out <- stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+		<-ctx.Done()
+		close(done)
+		return nil
+	***REMOVED******REMOVED***
 
-		e.processSamples(
-			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
-		)
+	_, run, wait := newTestEngine(t, nil, runner, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+	defer wait()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+	go func() ***REMOVED***
+		assert.NoError(t, run())
+	***REMOVED***()
 
-		done := make(chan struct***REMOVED******REMOVED***)
-		go func() ***REMOVED***
-			defer close(done)
-			e.runThresholds(ctx, cancel)
-		***REMOVED***()
-
-		select ***REMOVED***
-		case <-done:
-			return
-		case <-time.After(1 * time.Second):
-			assert.Fail(t, "Test should have completed within a second")
-		***REMOVED***
-	***REMOVED***)
+	select ***REMOVED***
+	case <-done:
+		return
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Test should have completed within 10 seconds")
+	***REMOVED***
 ***REMOVED***
 
 func TestEngine_processThresholds(t *testing.T) ***REMOVED***
@@ -313,6 +335,7 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
+		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			thresholds := make(map[string]stats.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
@@ -322,24 +345,15 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 				thresholds[m] = ths
 			***REMOVED***
 
-			e := newTestEngine(t, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+			e, _, wait := newTestEngine(t, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
+			defer wait()
 
 			e.processSamples(
 				[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 			)
 
-			abortCalled := false
-
-			abortFunc := func() ***REMOVED***
-				abortCalled = true
-			***REMOVED***
-
-			e.processThresholds(abortFunc)
-
+			assert.Equal(t, data.abort, e.processThresholds())
 			assert.Equal(t, data.pass, !e.IsTainted())
-			if data.abort ***REMOVED***
-				assert.True(t, abortCalled)
-			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -430,9 +444,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		)
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		engine := newTestEngine(t, ctx, r, lib.Options***REMOVED***
+		engine, run, wait := newTestEngine(t, nil, r, lib.Options***REMOVED***
 			Iterations:            null.IntFrom(tc.Iterations),
 			VUs:                   null.IntFrom(tc.VUs),
 			Hosts:                 tb.Dialer.Hosts,
@@ -445,7 +457,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 		errC := make(chan error)
-		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+		go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 		select ***REMOVED***
 		case <-time.After(10 * time.Second):
@@ -453,6 +465,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 		case err := <-errC:
 			require.NoError(t, err)
 		***REMOVED***
+		wait()
 
 		checkData := func(name string, expected int64) float64 ***REMOVED***
 			data := getMetricSum(collector, name)
@@ -566,10 +579,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	engine := newTestEngine(t, ctx, r, lib.Options***REMOVED***
+	engine, run, wait := newTestEngine(t, nil, r, lib.Options***REMOVED***
 		Iterations:            null.IntFrom(3),
 		VUs:                   null.IntFrom(2),
 		Hosts:                 tb.Dialer.Hosts,
@@ -577,12 +587,13 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		SystemTags:            &stats.DefaultSystemTagSet,
 		InsecureSkipTLSVerify: null.BoolFrom(true),
 	***REMOVED***)
+	defer wait()
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -661,17 +672,16 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	engine := newTestEngine(t, ctx, runner, lib.Options***REMOVED***
+	engine, run, wait := newTestEngine(t, nil, runner, lib.Options***REMOVED***
 		SystemTags:      &stats.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
 		VUs:             null.IntFrom(3),
 	***REMOVED***)
+	defer wait()
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -725,15 +735,14 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	engine := newTestEngine(t, ctx, runner, lib.Options***REMOVED******REMOVED***)
+	engine, run, wait := newTestEngine(t, nil, runner, lib.Options***REMOVED******REMOVED***)
+	defer wait()
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 	errC := make(chan error)
-	go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 	select ***REMOVED***
 	case <-time.After(10 * time.Second):
@@ -832,16 +841,14 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 			)
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			engine := newTestEngine(t, ctx, runner, runner.GetOptions())
+			engine, run, wait := newTestEngine(t, nil, runner, runner.GetOptions())
+			defer wait()
 
 			collector := &dummy.Collector***REMOVED******REMOVED***
 			engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 			select ***REMOVED***
 			case <-time.After(10 * time.Second):
@@ -921,13 +928,11 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 			)
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			engine := newTestEngine(t, ctx, runner, runner.GetOptions())
+			engine, run, wait := newTestEngine(t, nil, runner, runner.GetOptions())
+			defer wait()
 
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			go func() ***REMOVED*** errC <- run() ***REMOVED***()
 			select ***REMOVED***
 			case <-time.After(10 * time.Second):
 				t.Fatal("Test timed out")
