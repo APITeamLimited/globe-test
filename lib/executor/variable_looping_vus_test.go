@@ -344,3 +344,176 @@ func TestVariableLoopingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***R
 	conf.GracefulRampDown = types.NullDurationFrom(0 * time.Second)
 	assert.Equal(t, rawStepsZeroEnd, conf.GetExecutionRequirements(et))
 ***REMOVED***
+
+func TestVariableLoopingVUsConfigExecutionPlanExecutionTupleTests(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	conf := NewVariableLoopingVUsConfig("test")
+	conf.StartVUs = null.IntFrom(4)
+	conf.Stages = []Stage***REMOVED***
+		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(4), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
+		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(3 * time.Second)***REMOVED***,
+	***REMOVED***
+	/*
+
+			Graph of the above:
+			^
+		8	|
+		7	|
+		6	| +
+		5	|/ \       +
+		4	+   \     / \     +-+
+		3	|    \   /   \   /  |
+		2	|     \ /     \ /   |
+		1	|      +       +    +--+
+		0	+------------------------------------------------------------->
+		    0123456789012345678901234567890
+
+	*/
+
+	testCases := []struct ***REMOVED***
+		expectedSteps []lib.ExecutionStep
+		et            *lib.ExecutionTuple
+	***REMOVED******REMOVED***
+		***REMOVED***
+			et: mustNewExecutionTuple(nil, nil),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 5***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 6***REMOVED***,
+				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 5***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 3***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 3***REMOVED***,
+				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 5***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 13 * time.Second, PlannedVUs: 3***REMOVED***,
+				***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 17 * time.Second, PlannedVUs: 3***REMOVED***,
+				***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), nil),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1")),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), nil),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), nil),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 13 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/3:2/3"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 11 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 14 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 17 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, testCase := range testCases ***REMOVED***
+		et := testCase.et
+		expectedSteps := testCase.expectedSteps
+
+		t.Run(et.String(), func(t *testing.T) ***REMOVED***
+			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
+			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
