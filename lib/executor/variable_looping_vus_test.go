@@ -286,7 +286,6 @@ func TestVariableLoopingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***R
 	expRawStepsNoZeroEnd := []lib.ExecutionStep***REMOVED***
 		***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 2***REMOVED***,
-		***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
 		***REMOVED***TimeOffset: 4 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
 		***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 1***REMOVED***,
@@ -294,7 +293,6 @@ func TestVariableLoopingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***R
 		***REMOVED***TimeOffset: 12 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 15 * time.Second, PlannedVUs: 0***REMOVED***,
 		***REMOVED***TimeOffset: 16 * time.Second, PlannedVUs: 1***REMOVED***,
-		***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 1***REMOVED***,
 		***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 0***REMOVED***,
 	***REMOVED***
 	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
