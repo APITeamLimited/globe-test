@@ -428,13 +428,13 @@ func TestVariableLoopingVUsConfigExecutionPlanExample(t *testing.T) ***REMOVED**
 		***REMOVED***TimeOffset: 18 * time.Second, PlannedVUs: 4***REMOVED***,
 		***REMOVED***TimeOffset: 20 * time.Second, PlannedVUs: 1***REMOVED***,
 	***REMOVED***
-	rawStepsNoZeroEnd := conf.getRawExecutionSteps(nil, false)
+	rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 	assert.Equal(t, expRawStepsNoZeroEnd, rawStepsNoZeroEnd)
 	endOffset, isFinal := lib.GetEndOffset(rawStepsNoZeroEnd)
 	assert.Equal(t, 20*time.Second, endOffset)
 	assert.Equal(t, false, isFinal)
 
-	rawStepsZeroEnd := conf.getRawExecutionSteps(nil, true)
+	rawStepsZeroEnd := conf.getRawExecutionSteps(et, true)
 	assert.Equal(t,
 		append(expRawStepsNoZeroEnd, lib.ExecutionStep***REMOVED***TimeOffset: 23 * time.Second, PlannedVUs: 0***REMOVED***),
 		rawStepsZeroEnd,
