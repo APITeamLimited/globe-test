@@ -46,7 +46,7 @@ import (
 
 func TestSetupData(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		name      string
 		script    []byte
 		setupRuns [][3]string
@@ -154,9 +154,16 @@ func TestSetupData(t *testing.T) ***REMOVED***
 			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), logrus.StandardLogger())
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(context.Background())
+			globalCtx, globalCancel := context.WithCancel(context.Background())
+			runCtx, runCancel := context.WithCancel(globalCtx)
+			run, wait, err := engine.Init(globalCtx, runCtx)
+			defer wait()
+			defer globalCancel()
+
+			require.NoError(t, err)
+
 			errC := make(chan error)
-			go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+			go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 			handler := NewHandler()
 
@@ -185,10 +192,10 @@ func TestSetupData(t *testing.T) ***REMOVED***
 
 			select ***REMOVED***
 			case <-time.After(10 * time.Second):
-				cancel()
+				runCancel()
 				t.Fatal("Test timed out")
 			case err := <-errC:
-				cancel()
+				runCancel()
 				require.NoError(t, err)
 			***REMOVED***
 		***REMOVED***)
