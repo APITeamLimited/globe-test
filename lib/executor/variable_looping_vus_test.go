@@ -22,6 +22,8 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -514,6 +516,69 @@ func TestVariableLoopingVUsConfigExecutionPlanExecutionTupleTests(t *testing.T) 
 		t.Run(et.String(), func(t *testing.T) ***REMOVED***
 			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkVarriableArrivalRateGetRawExecutionSteps(b *testing.B) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		seq string
+		seg string
+	***REMOVED******REMOVED***
+		***REMOVED******REMOVED***,
+		***REMOVED***seg: "0:1"***REMOVED***,
+		***REMOVED***seq: "0,0.3,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.3"***REMOVED***,
+		***REMOVED***seq: "0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1", seg: "0:0.1"***REMOVED***,
+		***REMOVED***seg: "2/5:4/5"***REMOVED***,
+		***REMOVED***seg: "2235/5213:4/5"***REMOVED***, // just wanted it to be ugly ;D
+	***REMOVED***
+
+	stageCases := []struct ***REMOVED***
+		name   string
+		stages string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:   "normal",
+			stages: `[***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":10000***REMOVED***,***REMOVED***"duration":"5m", "target":10000***REMOVED***]`,
+		***REMOVED***, ***REMOVED***
+			name: "rollercoaster",
+			stages: `[***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***,
+				***REMOVED***"duration":"5m", "target":5000***REMOVED***,***REMOVED***"duration":"5m", "target":0***REMOVED***]`,
+		***REMOVED***,
+	***REMOVED***
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		b.Run(fmt.Sprintf("seq:%s;segment:%s", tc.seq, tc.seg), func(b *testing.B) ***REMOVED***
+			ess, err := lib.NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(b, err)
+			segment, err := lib.NewExecutionSegmentFromString(tc.seg)
+			require.NoError(b, err)
+			if tc.seg == "" ***REMOVED***
+				segment = nil // specifically for the optimization
+			***REMOVED***
+			et, err := lib.NewExecutionTuple(segment, &ess)
+			require.NoError(b, err)
+			for _, stageCase := range stageCases ***REMOVED***
+				var st []Stage
+				require.NoError(b, json.Unmarshal([]byte(stageCase.stages), &st))
+				vlvc := VariableLoopingVUsConfig***REMOVED***
+					Stages: st,
+				***REMOVED***
+				b.Run(stageCase.name, func(b *testing.B) ***REMOVED***
+					for i := 0; i < b.N; i++ ***REMOVED***
+						_ = vlvc.getRawExecutionSteps(et, false)
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
