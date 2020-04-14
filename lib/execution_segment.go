@@ -517,6 +517,10 @@ type ExecutionTuple struct ***REMOVED*** // TODO rename
 	once *sync.Once
 ***REMOVED***
 
+func (et *ExecutionTuple) String() string ***REMOVED***
+	return fmt.Sprintf("%s in %s", et.ES, et.sequence)
+***REMOVED***
+
 func fillSequence(sequence ExecutionSegmentSequence) ExecutionSegmentSequence ***REMOVED***
 	if sequence[0].from.Cmp(zeroRat) != 0 ***REMOVED***
 		es := newExecutionSegment(zeroRat, sequence[0].from)

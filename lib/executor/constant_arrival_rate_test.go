@@ -38,6 +38,23 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
+func newExecutionSegmentFromString(str string) *lib.ExecutionSegment ***REMOVED***
+	r, err := lib.NewExecutionSegmentFromString(str)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	return r
+***REMOVED***
+
+func newExecutionSegmentSequenceFromString(str string) *lib.ExecutionSegmentSequence ***REMOVED***
+	r, err := lib.NewExecutionSegmentSequenceFromString(str)
+
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	return &r
+***REMOVED***
+
 func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig ***REMOVED***
 	return ConstantArrivalRateConfig***REMOVED***
 		TimeUnit:        types.NullDurationFrom(time.Second),
@@ -109,18 +126,6 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
-	newExecutionSegmentFromString := func(str string) *lib.ExecutionSegment ***REMOVED***
-		r, err := lib.NewExecutionSegmentFromString(str)
-		require.NoError(t, err)
-		return r
-	***REMOVED***
-
-	newExecutionSegmentSequenceFromString := func(str string) *lib.ExecutionSegmentSequence ***REMOVED***
-		r, err := lib.NewExecutionSegmentSequenceFromString(str)
-		require.NoError(t, err)
-		return &r
-	***REMOVED***
-
 	var tests = []struct ***REMOVED***
 		segment  *lib.ExecutionSegment
 		sequence *lib.ExecutionSegmentSequence
