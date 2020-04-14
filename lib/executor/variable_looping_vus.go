@@ -189,7 +189,7 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 
 	// Reserve the scaled StartVUs at the beginning
 	steps := []lib.ExecutionStep***REMOVED******REMOVED***TimeOffset: 0, PlannedVUs: uint64(et.ScaleInt64(vlvc.StartVUs.Int64))***REMOVED******REMOVED***
-	timeFromStart := time.Duration(0)
+	var timeTillEnd time.Duration
 
 	addStep := func(step lib.ExecutionStep) ***REMOVED***
 		if steps[len(steps)-1].PlannedVUs != step.PlannedVUs ***REMOVED***
@@ -197,40 +197,72 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 		***REMOVED***
 	***REMOVED***
 
+	start, offsets, _ := et.GetStripedOffsets(et.ES)
+	var localIndex int64 // this is the index of the vu for this execution segment
+	next := func(sign int64) int64 ***REMOVED***
+		r := offsets[int(localIndex)%len(offsets)]
+		localIndex += sign
+		return r
+	***REMOVED***
+	i := start + 1 // this is the index for the full execution segment
 	for _, stage := range vlvc.Stages ***REMOVED***
 		stageEndVUs := stage.Target.Int64
 		stageDuration := time.Duration(stage.Duration.Duration)
+		timeTillEnd += stageDuration
 
 		stageVUDiff := stageEndVUs - fromVUs
-		if stageDuration != 0 && stageVUDiff != 0 ***REMOVED***
-			var sign int64 = 1
-			if stageVUDiff < 0 ***REMOVED***
-				sign = -1
+		switch ***REMOVED***
+		case stageDuration == 0:
+			addStep(lib.ExecutionStep***REMOVED***
+				TimeOffset: timeTillEnd,
+				PlannedVUs: uint64(et.ScaleInt64(stageEndVUs)),
+			***REMOVED***)
+		case stageVUDiff != 0:
+			// Get the index to the start if they are not there
+			if i > fromVUs ***REMOVED***
+				for ; i > fromVUs; i -= next(-1) ***REMOVED***
+					if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
+						break
+					***REMOVED***
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				for ; i < fromVUs; i += next(1) ***REMOVED*** // <= test
+				***REMOVED***
 			***REMOVED***
-			// Loop through the potential steps, adding an item to the
-			// result only when there's a change in the number of VUs.
-			for i := sign; i != stageVUDiff; i += sign ***REMOVED*** // Skip the first step, since we've already added that
-				// VU reservation for gracefully ramping down is handled as a
-				// separate method: reserveVUsForGracefulRampDowns()
-				addStep(lib.ExecutionStep***REMOVED***
-					TimeOffset: timeFromStart + (stageDuration*time.Duration(i))/time.Duration(stageVUDiff),
-					PlannedVUs: uint64(et.ScaleInt64(fromVUs + i)),
-				***REMOVED***)
+
+			if i > stageEndVUs ***REMOVED*** // ramp down
+				// here we don't want to emit for the equal to stageEndVUs as it doesn't go below it
+				// it will just go to it
+				for ; i > stageEndVUs; i -= next(-1) ***REMOVED***
+					// VU reservation for gracefully ramping down is handled as a
+					// separate method: reserveVUsForGracefulRampDowns()
+					addStep(lib.ExecutionStep***REMOVED***
+						TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
+						PlannedVUs: uint64(localIndex),
+					***REMOVED***)
+					if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
+						break
+					***REMOVED***
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				// here we want the emit for the last one as this case it actually should emit that
+				// we start it
+				for ; i <= stageEndVUs; i += next(1) ***REMOVED***
+					// VU reservation for gracefully ramping down is handled as a
+					// separate method: reserveVUsForGracefulRampDowns()
+					addStep(lib.ExecutionStep***REMOVED***
+						TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
+						PlannedVUs: uint64(localIndex + 1),
+					***REMOVED***)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
-
 		fromVUs = stageEndVUs
-		timeFromStart += stageDuration
-
-		addStep(lib.ExecutionStep***REMOVED***
-			TimeOffset: timeFromStart,
-			PlannedVUs: uint64(et.ScaleInt64(stageEndVUs)),
-		***REMOVED***)
 	***REMOVED***
 
 	if zeroEnd && steps[len(steps)-1].PlannedVUs != 0 ***REMOVED***
 		// If the last PlannedVUs value wasn't 0, add a last step with 0
-		steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: timeFromStart, PlannedVUs: 0***REMOVED***)
+		steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: timeTillEnd, PlannedVUs: 0***REMOVED***)
 	***REMOVED***
 	return steps
 ***REMOVED***
