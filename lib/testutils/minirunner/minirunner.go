@@ -31,7 +31,7 @@ import (
 var (
 	_ lib.Runner        = &MiniRunner***REMOVED******REMOVED***
 	_ lib.InitializedVU = &VU***REMOVED******REMOVED***
-	_ lib.ActiveVU      = &VU***REMOVED******REMOVED***
+	_ lib.ActiveVU      = &ActiveVU***REMOVED******REMOVED***
 )
 
 // MiniRunner partially implements the lib.Runner interface, but instead of
@@ -108,21 +108,32 @@ func (r *MiniRunner) SetOptions(opts lib.Options) error ***REMOVED***
 
 // VU is a mock VU, spawned by a MiniRunner.
 type VU struct ***REMOVED***
-	R          *MiniRunner
-	RunContext *context.Context
-	Out        chan<- stats.SampleContainer
-	ID         int64
-	Iteration  int64
+	R         *MiniRunner
+	Out       chan<- stats.SampleContainer
+	ID        int64
+	Iteration int64
+***REMOVED***
+
+// ActiveVU holds a VU and its activation parameters
+type ActiveVU struct ***REMOVED***
+	*VU
+	*lib.VUActivationParams
 ***REMOVED***
 
 // Activate the VU so it will be able to run code
 func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
-	vu.RunContext = &params.RunContext
-	return lib.ActiveVU(vu)
+	go func() ***REMOVED***
+		<-params.RunContext.Done()
+		if params.DeactivateCallback != nil ***REMOVED***
+			params.DeactivateCallback()
+		***REMOVED***
+	***REMOVED***()
+
+	return &ActiveVU***REMOVED***vu, params***REMOVED***
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.
-func (vu *VU) RunOnce() error ***REMOVED***
+func (vu *ActiveVU) RunOnce() error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -131,7 +142,7 @@ func (vu *VU) RunOnce() error ***REMOVED***
 		Vu:        vu.ID,
 		Iteration: vu.Iteration,
 	***REMOVED***
-	newctx := lib.WithState(*vu.RunContext, state)
+	newctx := lib.WithState(vu.RunContext, state)
 
 	vu.Iteration++
 
