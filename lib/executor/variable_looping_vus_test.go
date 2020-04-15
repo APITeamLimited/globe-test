@@ -570,7 +570,7 @@ func TestVariableLoopingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func BenchmarkVarriableArrivalRateGetRawExecutionSteps(b *testing.B) ***REMOVED***
+func BenchmarkVarriableLoopingVUsGetRawExecutionSteps(b *testing.B) ***REMOVED***
 	testCases := []struct ***REMOVED***
 		seq string
 		seg string
