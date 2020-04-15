@@ -570,6 +570,146 @@ func TestVariableLoopingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVarriableLoopingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		name          string
+		expectedSteps []lib.ExecutionStep
+		et            *lib.ExecutionTuple
+		stages        []Stage
+		start         int64
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name: "going up then down straight away",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 5***REMOVED***,
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 3***REMOVED***,
+			***REMOVED***,
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(3), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+			start: 2,
+		***REMOVED***,
+		***REMOVED***
+			name: "jump up then go up again",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 3***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 4***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 5***REMOVED***,
+			***REMOVED***,
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+			start: 3,
+		***REMOVED***,
+		***REMOVED***
+			name: "up down up down",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 2***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			name: "up down up down in half",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/2"), nil),
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			name: "up down up down in the other half",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 6 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/2:1"), nil),
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			name: "up down up down in with nothing",
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			name: "up down up down in with funky sequence", // panics if there are no localIndex == 0 guards
+			expectedSteps: []lib.ExecutionStep***REMOVED***
+				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 3 * time.Second, PlannedVUs: 0***REMOVED***,
+				***REMOVED***TimeOffset: 5 * time.Second, PlannedVUs: 1***REMOVED***,
+				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
+			***REMOVED***,
+			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1/2,2/3,1")),
+			stages: []Stage***REMOVED***
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, testCase := range testCases ***REMOVED***
+		conf := NewVariableLoopingVUsConfig("test")
+		conf.StartVUs = null.IntFrom(testCase.start)
+		conf.Stages = testCase.stages
+		et := testCase.et
+		if et == nil ***REMOVED***
+			et = mustNewExecutionTuple(nil, nil)
+		***REMOVED***
+		expectedSteps := testCase.expectedSteps
+
+		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
+			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
+		***REMOVED***)
+	***REMOVED***
+
+***REMOVED***
+
 func BenchmarkVarriableLoopingVUsGetRawExecutionSteps(b *testing.B) ***REMOVED***
 	testCases := []struct ***REMOVED***
 		seq string
