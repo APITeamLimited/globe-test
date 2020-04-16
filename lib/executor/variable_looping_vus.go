@@ -215,50 +215,53 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 		timeTillEnd += stageDuration
 
 		stageVUDiff := stageEndVUs - fromVUs
-		switch ***REMOVED***
-		case stageDuration == 0:
+		if stageVUDiff == 0 ***REMOVED***
+			continue
+		***REMOVED***
+		if stageDuration == 0 ***REMOVED***
 			addStep(lib.ExecutionStep***REMOVED***
 				TimeOffset: timeTillEnd,
 				PlannedVUs: uint64(et.ScaleInt64(stageEndVUs)),
 			***REMOVED***)
-		case stageVUDiff != 0:
-			// Get the index to the start if they are not there
-			if i > fromVUs ***REMOVED***
-				for ; i > fromVUs; i -= next(-1) ***REMOVED***
-					if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
-						break
-					***REMOVED***
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				for ; i < fromVUs; i += next(1) ***REMOVED*** // <= test
+			fromVUs = stageEndVUs
+			continue
+		***REMOVED***
+		// Get the index to the start if they are not there
+		if i > fromVUs ***REMOVED***
+			for ; i > fromVUs; i -= next(-1) ***REMOVED***
+				if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
+					break
 				***REMOVED***
 			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			for ; i < fromVUs; i += next(1) ***REMOVED*** // <= test
+			***REMOVED***
+		***REMOVED***
 
-			if i > stageEndVUs ***REMOVED*** // ramp down
-				// here we don't want to emit for the equal to stageEndVUs as it doesn't go below it
-				// it will just go to it
-				for ; i > stageEndVUs; i -= next(-1) ***REMOVED***
-					// VU reservation for gracefully ramping down is handled as a
-					// separate method: reserveVUsForGracefulRampDowns()
-					addStep(lib.ExecutionStep***REMOVED***
-						TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
-						PlannedVUs: uint64(localIndex),
-					***REMOVED***)
-					if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
-						break
-					***REMOVED***
+		if i > stageEndVUs ***REMOVED*** // ramp down
+			// here we don't want to emit for the equal to stageEndVUs as it doesn't go below it
+			// it will just go to it
+			for ; i > stageEndVUs; i -= next(-1) ***REMOVED***
+				// VU reservation for gracefully ramping down is handled as a
+				// separate method: reserveVUsForGracefulRampDowns()
+				addStep(lib.ExecutionStep***REMOVED***
+					TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
+					PlannedVUs: uint64(localIndex),
+				***REMOVED***)
+				if localIndex == 0 ***REMOVED*** // we want ot enter for this index but not actually go below 0
+					break
 				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				// here we want the emit for the last one as this case it actually should emit that
-				// we start it
-				for ; i <= stageEndVUs; i += next(1) ***REMOVED***
-					// VU reservation for gracefully ramping down is handled as a
-					// separate method: reserveVUsForGracefulRampDowns()
-					addStep(lib.ExecutionStep***REMOVED***
-						TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
-						PlannedVUs: uint64(localIndex + 1),
-					***REMOVED***)
-				***REMOVED***
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			// here we want the emit for the last one as this case it actually should emit that
+			// we start it
+			for ; i <= stageEndVUs; i += next(1) ***REMOVED***
+				// VU reservation for gracefully ramping down is handled as a
+				// separate method: reserveVUsForGracefulRampDowns()
+				addStep(lib.ExecutionStep***REMOVED***
+					TimeOffset: timeTillEnd - (stageDuration*time.Duration((stageEndVUs-i)))/time.Duration(stageVUDiff),
+					PlannedVUs: uint64(localIndex + 1),
+				***REMOVED***)
 			***REMOVED***
 		***REMOVED***
 		fromVUs = stageEndVUs
