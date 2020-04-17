@@ -40,6 +40,7 @@ type vuHandle struct ***REMOVED***
 	getVU     func() (lib.InitializedVU, error)
 	returnVU  func(lib.InitializedVU)
 	exec      string
+	env       map[string]string
 
 	canStartIter chan struct***REMOVED******REMOVED***
 
@@ -50,7 +51,8 @@ type vuHandle struct ***REMOVED***
 
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
-	returnVU func(lib.InitializedVU), exec string, logger *logrus.Entry,
+	returnVU func(lib.InitializedVU), exec string, env map[string]string,
+	logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
 	lock := &sync.RWMutex***REMOVED******REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -60,6 +62,7 @@ func newStoppedVUHandle(
 		getVU:     getVU,
 		returnVU:  returnVU,
 		exec:      exec,
+		env:       env,
 
 		canStartIter: make(chan struct***REMOVED******REMOVED***),
 
@@ -162,6 +165,7 @@ mainLoop:
 			vu = initVU.Activate(&lib.VUActivationParams***REMOVED***
 				Exec:               vh.exec,
 				RunContext:         ctx,
+				Env:                vh.env,
 				DeactivateCallback: deactivateVU,
 			***REMOVED***)
 		***REMOVED***
