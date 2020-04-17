@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -269,6 +270,12 @@ func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
 	return r.defaultGroup
 ***REMOVED***
 
+// GetExports returns the names of exported functions in the script
+// (excluding setup() and teardown()) that can be used for execution.
+func (r *Runner) GetExports() map[string]struct***REMOVED******REMOVED*** ***REMOVED***
+	return r.Bundle.Exports
+***REMOVED***
+
 func (r *Runner) GetOptions() lib.Options ***REMOVED***
 	return r.Bundle.Options
 ***REMOVED***
@@ -385,7 +392,10 @@ type ActiveVU struct ***REMOVED***
 // Activate the VU so it will be able to run code.
 func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	u.Runtime.ClearInterrupt()
-	// u.Env = params.Env
+
+	if params.Exec == "" ***REMOVED***
+		params.Exec = "default"
+	***REMOVED***
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
@@ -410,7 +420,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	return avu
 ***REMOVED***
 
-// RunOnce runs the default function once.
+// RunOnce runs the configured Exec function once.
 func (u *ActiveVU) RunOnce() error ***REMOVED***
 	select ***REMOVED***
 	case <-u.RunContext.Done():
@@ -436,8 +446,16 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	// Call the default function.
-	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, u.Runner.defaultGroup, true, u.Default, u.setupData)
+	fn, ok := u.Exports[u.Exec]
+	if !ok ***REMOVED***
+		// Shouldn't happen; this is validated in ExecutionScheduler.Init()
+		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
+	***REMOVED***
+
+	// Call the exported function.
+	_, isFullIteration, totalTime, err := u.runFn(
+		u.RunContext, u.Runner.defaultGroup, true, fn, u.setupData,
+	)
 
 	// If MinIterationDuration is specified and the iteration wasn't cancelled
 	// and was less than it, sleep for the remainder

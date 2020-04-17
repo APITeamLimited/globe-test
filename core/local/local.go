@@ -224,6 +224,30 @@ func (e *ExecutionScheduler) initVUsConcurrently(
 func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- stats.SampleContainer) error ***REMOVED***
 	logger := e.logger.WithField("phase", "local-execution-scheduler-init")
 
+	// Initialize each executor and do some basic validation.
+	e.state.SetExecutionStatus(lib.ExecutionStatusInitExecutors)
+	logger.Debugf("Start initializing executors...")
+	errMsg := "error while initializing executor %s: %s"
+	exports := e.runner.GetExports()
+	for _, exec := range e.executors ***REMOVED***
+		executorConfig := exec.GetConfig()
+		execFn := executorConfig.GetExec().ValueOrZero()
+		execName := executorConfig.GetName()
+
+		if execFn == "" ***REMOVED***
+			execFn = "default"
+		***REMOVED***
+		if _, ok := exports[execFn]; !ok ***REMOVED***
+			return fmt.Errorf(errMsg, execName,
+				fmt.Sprintf("function '%s' not found in exports", execFn))
+		***REMOVED***
+		if err := exec.Init(ctx); err != nil ***REMOVED***
+			return fmt.Errorf(errMsg, executorConfig.GetName(), err)
+		***REMOVED***
+		logger.Debugf("Initialized executor %s", executorConfig.GetName())
+	***REMOVED***
+
+	logger.Debugf("Finished initializing executors, start initializing VUs...")
 	vusToInitialize := lib.GetMaxPlannedVUs(e.executionPlan)
 	logger.WithFields(logrus.Fields***REMOVED***
 		"neededVUs":      vusToInitialize,
@@ -264,17 +288,6 @@ func (e *ExecutionScheduler) Init(ctx context.Context, samplesOut chan<- stats.S
 	e.state.SetInitVUFunc(func(ctx context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
 		return e.initVU(samplesOut, logger)
 	***REMOVED***)
-
-	e.state.SetExecutionStatus(lib.ExecutionStatusInitExecutors)
-	logger.Debugf("Finished initializing needed VUs, start initializing executors...")
-	for _, exec := range e.executors ***REMOVED***
-		executorConfig := exec.GetConfig()
-
-		if err := exec.Init(ctx); err != nil ***REMOVED***
-			return fmt.Errorf("error while initializing executor %s: %s", executorConfig.GetName(), err)
-		***REMOVED***
-		logger.Debugf("Initialized executor %s", executorConfig.GetName())
-	***REMOVED***
 
 	e.state.SetExecutionStatus(lib.ExecutionStatusInitDone)
 	logger.Debugf("Initialization completed")

@@ -341,7 +341,8 @@ type manualVUHandle struct ***REMOVED***
 
 func newManualVUHandle(
 	parentCtx context.Context, state *lib.ExecutionState,
-	localActiveVUsCount *int64, initVU lib.InitializedVU, logger *logrus.Entry,
+	localActiveVUsCount *int64, initVU lib.InitializedVU, exec string,
+	logger *logrus.Entry,
 ) *manualVUHandle ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
@@ -357,7 +358,7 @@ func newManualVUHandle(
 	***REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
 	return &manualVUHandle***REMOVED***
-		vuHandle: newStoppedVUHandle(ctx, getVU, returnVU, logger),
+		vuHandle: newStoppedVUHandle(ctx, getVU, returnVU, exec, logger),
 		initVU:   initVU,
 		wg:       &wg,
 		cancelVU: cancel,
@@ -376,6 +377,7 @@ type externallyControlledRunState struct ***REMOVED***
 	maxVUs          *int64            // the current number of initialized VUs
 	vuHandles       []*manualVUHandle // handles for manipulating and tracking all of the VUs
 	currentlyPaused bool              // whether the executor is currently paused
+	exec            string
 
 	runIteration func(context.Context, lib.ActiveVU) // a helper closure function that runs a single iteration
 ***REMOVED***
@@ -391,7 +393,8 @@ func (rs *externallyControlledRunState) retrieveStartMaxVUs() error ***REMOVED**
 			return vuGetErr
 		***REMOVED***
 		vuHandle := newManualVUHandle(
-			rs.ctx, rs.executor.executionState, rs.activeVUsCount, initVU, rs.executor.logger.WithField("vuNum", i),
+			rs.ctx, rs.executor.executionState, rs.activeVUsCount,
+			initVU, rs.exec, rs.executor.logger.WithField("vuNum", i),
 		)
 		go vuHandle.runLoopsIfPossible(rs.runIteration)
 		rs.vuHandles[i] = vuHandle
@@ -449,7 +452,8 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 			return vuInitErr
 		***REMOVED***
 		vuHandle := newManualVUHandle(
-			rs.ctx, executionState, rs.activeVUsCount, initVU, rs.executor.logger.WithField("vuNum", i),
+			rs.ctx, executionState, rs.activeVUsCount, initVU, rs.exec,
+			rs.executor.logger.WithField("vuNum", i),
 		)
 		go vuHandle.runLoopsIfPossible(rs.runIteration)
 		rs.vuHandles = append(rs.vuHandles, vuHandle)
@@ -511,10 +515,12 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 		logrus.Fields***REMOVED***"type": externallyControlledType, "duration": duration***REMOVED***,
 	).Debug("Starting executor run...")
 
+	execFn := mex.GetConfig().GetExec().ValueOrZero()
 	startMaxVUs := mex.executionState.Options.ExecutionSegment.Scale(mex.config.MaxVUs.Int64)
 	runState := &externallyControlledRunState***REMOVED***
 		ctx:             ctx,
 		executor:        mex,
+		exec:            execFn,
 		startMaxVUs:     startMaxVUs,
 		duration:        duration,
 		vuHandles:       make([]*manualVUHandle, startMaxVUs),

@@ -33,15 +33,16 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	null "gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/fsext"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -72,7 +73,7 @@ func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REM
 func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", "")
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", "\x00")
@@ -89,15 +90,15 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default undefined;`)
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default null;`)
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default 12345;`)
-		assert.EqualError(t, err, "default export must be a function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default function() ***REMOVED******REMOVED***;`)
@@ -435,7 +436,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
 		bi, err := b.Instantiate()
 		require.NoError(t, err)
-		val, err := bi.Default(goja.Undefined())
+		val, err := bi.Exports["default"](goja.Undefined())
 		require.NoError(t, err)
 		assert.Equal(t, "hi!", val.Export())
 	***REMOVED***
@@ -647,7 +648,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 						t.Run(source, func(t *testing.T) ***REMOVED***
 							bi, err := b.Instantiate()
 							require.NoError(t, err)
-							v, err := bi.Default(goja.Undefined())
+							v, err := bi.Exports["default"](goja.Undefined())
 							require.NoError(t, err)
 							assert.Equal(t, "hi", v.Export())
 						***REMOVED***)
@@ -685,7 +686,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Run", func(t *testing.T) ***REMOVED***
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.Exports["default"](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
@@ -693,7 +694,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
 		bi.Runtime.Set("val", false)
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.Exports["default"](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
@@ -748,7 +749,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 
 			bi, err := b.Instantiate()
 			if assert.NoError(t, err) ***REMOVED***
-				_, err := bi.Default(goja.Undefined())
+				_, err := bi.Exports["default"](goja.Undefined())
 				assert.NoError(t, err)
 			***REMOVED***
 		***REMOVED***)
@@ -789,7 +790,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
-					_, err := bi.Default(goja.Undefined())
+					_, err := bi.Exports["default"](goja.Undefined())
 					assert.NoError(t, err)
 				***REMOVED***
 			***REMOVED***
