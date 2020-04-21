@@ -48,8 +48,7 @@ type InitializedVU interface ***REMOVED***
 type VUActivationParams struct ***REMOVED***
 	RunContext         context.Context
 	DeactivateCallback func()
-	Env                map[string]string
-	Tags               map[string]string
+	Env, Tags          map[string]string
 	Exec               string
 ***REMOVED***
 

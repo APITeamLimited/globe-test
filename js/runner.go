@@ -406,6 +406,14 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		params.Exec = "default"
 	***REMOVED***
 
+	if len(params.Tags) > 0 ***REMOVED***
+		tags := u.Runner.Bundle.Options.RunTags.CloneTags()
+		for k, v := range params.Tags ***REMOVED***
+			tags[k] = v
+		***REMOVED***
+		u.Runner.Bundle.Options.RunTags = stats.IntoSampleTags(&tags)
+	***REMOVED***
+
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
 		VUActivationParams: params,

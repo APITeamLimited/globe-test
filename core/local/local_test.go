@@ -42,7 +42,9 @@ import (
 	"github.com/loadimpact/k6/lib/executor"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/testutils/minirunner"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
@@ -270,6 +272,113 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 						assert.FailNow(t, "received error sample from test")
 					***REMOVED***
 				case <-done:
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+
+	scriptTemplate := sr(`
+	import http from "k6/http";
+
+	export let options = ***REMOVED***
+		execution: ***REMOVED***
+			executor: ***REMOVED***
+				type: "%s",
+				gracefulStop: "0.5s",
+				%s
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	export default function () ***REMOVED***
+		http.get("HTTPBIN_IP_URL/");
+	***REMOVED***`)
+
+	executorConfigs := map[string]string***REMOVED***
+		"constant-arrival-rate": `
+			rate: 1,
+			timeUnit: "0.5s",
+			duration: "0.5s",
+			preAllocatedVUs: 1,
+			maxVUs: 2,`,
+		"constant-looping-vus": `
+			vus: 1,
+			duration: "0.5s",`,
+		"externally-controlled": `
+			vus: 1,
+			duration: "0.5s",`,
+		"per-vu-iterations": `
+			vus: 1,
+			iterations: 1,`,
+		"shared-iterations": `
+			vus: 1,
+			iterations: 1,`,
+		"variable-arrival-rate": `
+			startRate: 5,
+			timeUnit: "0.5s",
+			preAllocatedVUs: 1,
+			maxVUs: 2,
+			stages: [ ***REMOVED*** target: 10, duration: "1s" ***REMOVED*** ],`,
+		"variable-looping-vus": `
+			startVUs: 1,
+			stages: [ ***REMOVED*** target: 1, duration: "0.5s" ***REMOVED*** ],`,
+	***REMOVED***
+
+	testCases := []struct***REMOVED*** name, script string ***REMOVED******REMOVED******REMOVED***
+
+	// Generate tests using custom tags
+	for ename, econf := range executorConfigs ***REMOVED***
+		configWithCustomTag := econf + "tags: ***REMOVED*** customTag: 'value' ***REMOVED***"
+		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
+			ename, fmt.Sprintf(scriptTemplate, ename, configWithCustomTag)***REMOVED***)
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			runner, err := js.New(&loader.SourceData***REMOVED***
+				URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+				Data: []byte(tc.script)***REMOVED***,
+				nil, lib.RuntimeOptions***REMOVED******REMOVED***)
+			require.NoError(t, err)
+
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
+			execScheduler, err := NewExecutionScheduler(runner, logger)
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			done := make(chan struct***REMOVED******REMOVED***)
+			samples := make(chan stats.SampleContainer)
+			go func() ***REMOVED***
+				assert.NoError(t, execScheduler.Init(ctx, samples))
+				assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+				close(done)
+			***REMOVED***()
+			var gotTag bool
+			for ***REMOVED***
+				select ***REMOVED***
+				case sample := <-samples:
+					if trail, ok := sample.(*httpext.Trail); ok && !gotTag ***REMOVED***
+						tags := trail.Tags.CloneTags()
+						if v, ok := tags["customTag"]; ok && v == "value" ***REMOVED***
+							gotTag = true
+						***REMOVED***
+					***REMOVED***
+				case <-done:
+					if !gotTag ***REMOVED***
+						assert.FailNow(t, "sample with tag wasn't received")
+					***REMOVED***
 					return
 				***REMOVED***
 			***REMOVED***

@@ -595,13 +595,15 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 		activeVUs.Done()
 	***REMOVED***
 
-	execFn := vlv.GetConfig().GetExec().ValueOrZero()
-	env := vlv.GetConfig().GetEnv()
+	conf := vlv.GetConfig()
+	execFn := conf.GetExec().ValueOrZero()
+	env := conf.GetEnv()
+	tags := conf.GetTags()
 	vuHandles := make([]*vuHandle, maxVUs)
 	for i := uint64(0); i < maxVUs; i++ ***REMOVED***
 		vuHandle := newStoppedVUHandle(
 			maxDurationCtx, getVU, returnVU, execFn, env,
-			vlv.logger.WithField("vuNum", i))
+			tags, vlv.logger.WithField("vuNum", i))
 		go vuHandle.runLoopsIfPossible(runIteration)
 		vuHandles[i] = vuHandle
 	***REMOVED***
