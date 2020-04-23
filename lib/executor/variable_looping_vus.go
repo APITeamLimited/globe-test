@@ -183,18 +183,16 @@ func (vlvc VariableLoopingVUsConfig) Validate() []error ***REMOVED***
 // More information: https://github.com/loadimpact/k6/issues/997#issuecomment-484416866
 //nolint:funlen
 func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple, zeroEnd bool) []lib.ExecutionStep ***REMOVED***
-	// For accurate results, calculations are done with the unscaled values, and
-	// the values are scaled only before we add them to the steps result slice
-	fromVUs := vlvc.StartVUs.Int64
-
-	start, offsets, lcd := et.GetStripedOffsets(et.ES)
-	var index = segmentedIndex***REMOVED***start: start, lcd: lcd, offsets: offsets***REMOVED***
-	index.goTo(vlvc.StartVUs.Int64)
+	var (
+		timeTillEnd         time.Duration
+		fromVUs             = vlvc.StartVUs.Int64
+		start, offsets, lcd = et.GetStripedOffsets(et.ES)
+		index               = segmentedIndex***REMOVED***start: start, lcd: lcd, offsets: offsets***REMOVED***
+	)
+	index.goTo(fromVUs)
+	var steps = make([]lib.ExecutionStep, 0, vlvc.precalculateTheRequiredSteps(et, zeroEnd))
 	// Reserve the scaled StartVUs at the beginning
-	steps := []lib.ExecutionStep***REMOVED******REMOVED***TimeOffset: 0, PlannedVUs: uint64(index.local)***REMOVED******REMOVED***
-
-	var timeTillEnd time.Duration
-
+	steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: 0, PlannedVUs: uint64(index.local)***REMOVED***)
 	addStep := func(step lib.ExecutionStep) ***REMOVED***
 		if steps[len(steps)-1].PlannedVUs != step.PlannedVUs ***REMOVED***
 			steps = append(steps, step)
@@ -298,6 +296,33 @@ func (s *segmentedIndex) goTo(value int64) ***REMOVED*** // TODO optimize
 	if s.local > 0 ***REMOVED***
 		s.global++ // this is to fix the fact it starts from 0
 	***REMOVED***
+***REMOVED***
+
+func absInt64(a int64) int64 ***REMOVED***
+	if a < 0 ***REMOVED***
+		return -a
+	***REMOVED***
+	return a
+***REMOVED***
+
+func (vlvc VariableLoopingVUsConfig) precalculateTheRequiredSteps(et *lib.ExecutionTuple, zeroEnd bool) int ***REMOVED***
+	p := et.ScaleInt64(vlvc.StartVUs.Int64)
+	var result int64
+	result++ // for the first one
+
+	if zeroEnd ***REMOVED***
+		result++ // for the last one - this one can be more then needed
+	***REMOVED***
+	for _, stage := range vlvc.Stages ***REMOVED***
+		stageEndVUs := et.ScaleInt64(stage.Target.Int64)
+		if stage.Duration.Duration == 0 ***REMOVED***
+			result++
+		***REMOVED*** else ***REMOVED***
+			result += absInt64(p - stageEndVUs)
+		***REMOVED***
+		p = stageEndVUs
+	***REMOVED***
+	return int(result)
 ***REMOVED***
 
 // If the graceful ramp-downs are enabled, we need to reserve any VUs that may
