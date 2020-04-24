@@ -192,7 +192,7 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 	index.goTo(fromVUs)
 	var steps = make([]lib.ExecutionStep, 0, vlvc.precalculateTheRequiredSteps(et, zeroEnd))
 	// Reserve the scaled StartVUs at the beginning
-	steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: 0, PlannedVUs: uint64(index.local)***REMOVED***)
+	steps = append(steps, lib.ExecutionStep***REMOVED***TimeOffset: 0, PlannedVUs: uint64(index.scaled)***REMOVED***)
 	addStep := func(step lib.ExecutionStep) ***REMOVED***
 		if steps[len(steps)-1].PlannedVUs != step.PlannedVUs ***REMOVED***
 			steps = append(steps, step)
@@ -210,31 +210,29 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 		***REMOVED***
 		if stageDuration == 0 ***REMOVED***
 			index.goTo(stageEndVUs)
-			addStep(lib.ExecutionStep***REMOVED***TimeOffset: timeTillEnd, PlannedVUs: uint64(index.local)***REMOVED***)
+			addStep(lib.ExecutionStep***REMOVED***TimeOffset: timeTillEnd, PlannedVUs: uint64(index.scaled)***REMOVED***)
 			fromVUs = stageEndVUs
 			continue
 		***REMOVED***
 
-		if index.global > stageEndVUs ***REMOVED*** // ramp down
+		if index.unscaled > stageEndVUs ***REMOVED*** // ramp down
 			// here we don't want to emit for the equal to stageEndVUs as it doesn't go below it
 			// it will just go to it
-			for ; index.global > stageEndVUs; index.prev() ***REMOVED***
+			for ; index.unscaled > stageEndVUs; index.prev() ***REMOVED***
 				// VU reservation for gracefully ramping down is handled as a
 				// separate method: reserveVUsForGracefulRampDowns()
 				addStep(lib.ExecutionStep***REMOVED***
-					TimeOffset: timeTillEnd - time.Duration(int64(stageDuration)*(stageEndVUs-index.global+1)/stageVUDiff),
-					PlannedVUs: uint64(index.local - 1),
+					TimeOffset: timeTillEnd - time.Duration(int64(stageDuration)*(stageEndVUs-index.unscaled+1)/stageVUDiff),
+					PlannedVUs: uint64(index.scaled - 1),
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			// here we want the emit for the last one as this case it actually should emit that
-			// we start it
-			for ; index.global <= stageEndVUs; index.next() ***REMOVED***
+			for ; index.unscaled <= stageEndVUs; index.next() ***REMOVED***
 				// VU reservation for gracefully ramping down is handled as a
 				// separate method: reserveVUsForGracefulRampDowns()
 				addStep(lib.ExecutionStep***REMOVED***
-					TimeOffset: timeTillEnd - time.Duration(int64(stageDuration)*(stageEndVUs-index.global)/stageVUDiff),
-					PlannedVUs: uint64(index.local),
+					TimeOffset: timeTillEnd - time.Duration(int64(stageDuration)*(stageEndVUs-index.unscaled)/stageVUDiff),
+					PlannedVUs: uint64(index.scaled),
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***
@@ -249,46 +247,46 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 ***REMOVED***
 
 type segmentedIndex struct ***REMOVED*** // TODO: rename ... although this is probably the best name so far :D
-	start, lcd    int64
-	offsets       []int64
-	local, global int64
+	start, lcd       int64
+	offsets          []int64
+	scaled, unscaled int64
 ***REMOVED***
 
 func (s *segmentedIndex) next() ***REMOVED***
-	if s.local == 0 ***REMOVED***
-		s.global += s.start + 1
+	if s.scaled == 0 ***REMOVED***
+		s.unscaled += s.start + 1
 	***REMOVED*** else ***REMOVED***
-		s.global += s.offsets[int(s.local-1)%len(s.offsets)]
+		s.unscaled += s.offsets[int(s.scaled-1)%len(s.offsets)]
 	***REMOVED***
-	s.local++
+	s.scaled++
 ***REMOVED***
 
 func (s *segmentedIndex) prev() ***REMOVED***
-	if s.local == 1 ***REMOVED***
-		s.global -= s.start + 1
+	if s.scaled == 1 ***REMOVED***
+		s.unscaled -= s.start + 1
 	***REMOVED*** else ***REMOVED***
-		s.global -= s.offsets[int(s.local-2)%len(s.offsets)]
+		s.unscaled -= s.offsets[int(s.scaled-2)%len(s.offsets)]
 	***REMOVED***
-	s.local--
+	s.scaled--
 ***REMOVED***
 
 func (s *segmentedIndex) goTo(value int64) ***REMOVED*** // TODO optimize
 	var gi int64
-	s.local = (value / s.lcd) * int64(len(s.offsets))
-	s.global = s.local / int64(len(s.offsets)) * s.lcd // TODO optimize ?
+	s.scaled = (value / s.lcd) * int64(len(s.offsets))
+	s.unscaled = s.scaled / int64(len(s.offsets)) * s.lcd // TODO optimize ?
 	i := s.start
 	for ; i < value%s.lcd; gi, i = gi+1, i+s.offsets[gi] ***REMOVED***
-		s.local++
+		s.scaled++
 	***REMOVED***
 
 	if gi > 0 ***REMOVED***
-		s.global += i - s.offsets[gi-1]
-	***REMOVED*** else if s.local > 0 ***REMOVED***
-		s.global -= s.offsets[len(s.offsets)-1] - s.start
+		s.unscaled += i - s.offsets[gi-1]
+	***REMOVED*** else if s.scaled > 0 ***REMOVED***
+		s.unscaled -= s.offsets[len(s.offsets)-1] - s.start
 	***REMOVED***
 
-	if s.local > 0 ***REMOVED***
-		s.global++ // this is to fix the fact it starts from 0
+	if s.scaled > 0 ***REMOVED***
+		s.unscaled++ // this is to fix the fact it starts from 0
 	***REMOVED***
 ***REMOVED***
 
