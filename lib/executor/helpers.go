@@ -85,7 +85,7 @@ func getIterationRunner(
 	return func(ctx context.Context, vu lib.ActiveVU) ***REMOVED***
 		err := vu.RunOnce()
 
-		//TODO: track (non-ramp-down) errors from script iterations as a metric,
+		// TODO: track (non-ramp-down) errors from script iterations as a metric,
 		// and have a default threshold that will abort the script when the error
 		// rate exceeds a certain percentage
 
@@ -100,9 +100,10 @@ func getIterationRunner(
 				***REMOVED*** else ***REMOVED***
 					logger.Error(err.Error())
 				***REMOVED***
+				// TODO: investigate context cancelled errors
 			***REMOVED***
 
-			//TODO: move emission of end-of-iteration metrics here?
+			// TODO: move emission of end-of-iteration metrics here?
 			executionState.AddFullIterations(1)
 		***REMOVED***
 	***REMOVED***
