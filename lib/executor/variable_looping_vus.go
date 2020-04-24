@@ -219,9 +219,6 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 			// here we don't want to emit for the equal to stageEndVUs as it doesn't go below it
 			// it will just go to it
 			for ; index.global > stageEndVUs; index.prev() ***REMOVED***
-				if index.global > fromVUs ***REMOVED***
-					continue
-				***REMOVED***
 				// VU reservation for gracefully ramping down is handled as a
 				// separate method: reserveVUsForGracefulRampDowns()
 				addStep(lib.ExecutionStep***REMOVED***
@@ -233,9 +230,6 @@ func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple
 			// here we want the emit for the last one as this case it actually should emit that
 			// we start it
 			for ; index.global <= stageEndVUs; index.next() ***REMOVED***
-				if index.global < fromVUs ***REMOVED***
-					continue
-				***REMOVED***
 				// VU reservation for gracefully ramping down is handled as a
 				// separate method: reserveVUsForGracefulRampDowns()
 				addStep(lib.ExecutionStep***REMOVED***
