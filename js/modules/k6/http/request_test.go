@@ -354,6 +354,22 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			assert.NoError(t, err)
 		***REMOVED***)
+		t.Run("custom compression", func(t *testing.T) ***REMOVED***
+			// We should not try to decode it
+			tb.Mux.HandleFunc("/customcompression", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+				w.Header().Set("Content-Encoding", "custom")
+				_, err := w.Write([]byte(`***REMOVED***"custom": true***REMOVED***`))
+				assert.NoError(t, err)
+			***REMOVED***))
+
+			_, err := common.RunString(rt, sr(`
+				let res = http.get("HTTPBIN_URL/customcompression");
+				if (res.json()["custom"] != true) ***REMOVED***
+					throw new Error("unexpected body data: " + res.body)
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("CompressionWithAcceptEncodingHeader", func(t *testing.T) ***REMOVED***
 		t.Run("gzip", func(t *testing.T) ***REMOVED***
@@ -393,15 +409,15 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("HTTP/2", func(t *testing.T) ***REMOVED***
 		stats.GetBufferedSamples(samples) // Clean up buffered samples from previous tests
-		_, err := common.RunString(rt, `
-		let res = http.request("GET", "https://http2.akamai.com/demo");
+		_, err := common.RunString(rt, sr(`
+		let res = http.request("GET", "HTTP2BIN_URL/get");
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 		if (res.proto != "HTTP/2.0") ***REMOVED*** throw new Error("wrong proto: " + res.proto) ***REMOVED***
-		`)
+		`))
 		assert.NoError(t, err)
 
 		bufSamples := stats.GetBufferedSamples(samples)
-		assertRequestMetricsEmitted(t, bufSamples, "GET", "https://http2.akamai.com/demo", "", 200, "")
+		assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTP2BIN_URL/get"), "", 200, "")
 		for _, sampleC := range bufSamples ***REMOVED***
 			for _, sample := range sampleC.GetSamples() ***REMOVED***
 				proto, ok := sample.Tags.Get("proto")
