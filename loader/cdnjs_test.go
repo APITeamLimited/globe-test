@@ -30,6 +30,8 @@ import (
 )
 
 func TestCDNJS(t *testing.T) ***REMOVED***
+	t.Skip("skipped to avoid inconsistent API responses")
+
 	paths := map[string]struct ***REMOVED***
 		parts []string
 		src   string
