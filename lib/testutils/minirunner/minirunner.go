@@ -120,7 +120,7 @@ type ActiveVU struct ***REMOVED***
 	*lib.VUActivationParams
 ***REMOVED***
 
-// Activate the VU so it will be able to run code
+// Activate the VU so it will be able to run code.
 func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	go func() ***REMOVED***
 		<-params.RunContext.Done()

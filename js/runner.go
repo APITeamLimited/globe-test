@@ -381,7 +381,7 @@ type ActiveVU struct ***REMOVED***
 	*lib.VUActivationParams
 ***REMOVED***
 
-// Activate the VU so it will be able to run code
+// Activate the VU so it will be able to run code.
 func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	u.Runtime.ClearInterrupt()
 	// u.Env = params.Env
