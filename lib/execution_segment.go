@@ -608,7 +608,7 @@ func (et *ExecutionTuple) fillCache() ***REMOVED***
 
 	et.offsetsCache = make([][]int64, len(et.sequence))
 	for i := range et.offsetsCache ***REMOVED***
-		et.offsetsCache[i] = make([]int64, 0, wrapper.slice[i].numerator)
+		et.offsetsCache[i] = make([]int64, 0, wrapper.slice[i].numerator+1)
 	***REMOVED***
 
 	var prev = make([]int64, len(et.sequence))
