@@ -1338,11 +1338,15 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 			for i := 0; i < typ.NumField(); i++ ***REMOVED***
 				field := typ.Field(i)
 				if ast.IsExported(field.Name) ***REMOVED***
+					name := field.Name
+					if r.fieldNameMapper != nil ***REMOVED***
+						name = r.fieldNameMapper.FieldName(typ, field)
+					***REMOVED***
 					var v Value
 					if field.Anonymous ***REMOVED***
 						v = o
 					***REMOVED*** else ***REMOVED***
-						v = o.self.getStr(field.Name)
+						v = o.self.getStr(name)
 					***REMOVED***
 
 					if v != nil ***REMOVED***

@@ -317,7 +317,8 @@ func (e *Engine) emitMetrics() ***REMOVED***
 	t := time.Now()
 
 	executionState := e.ExecutionScheduler.GetState()
-	e.Samples <- stats.ConnectedSamples***REMOVED***
+	// TODO: optimize and move this, it shouldn't call processSamples() directly
+	e.processSamples([]stats.SampleContainer***REMOVED***stats.ConnectedSamples***REMOVED***
 		Samples: []stats.Sample***REMOVED***
 			***REMOVED***
 				Time:   t,
@@ -333,7 +334,7 @@ func (e *Engine) emitMetrics() ***REMOVED***
 		***REMOVED***,
 		Tags: e.Options.RunTags,
 		Time: t,
-	***REMOVED***
+	***REMOVED******REMOVED***)
 ***REMOVED***
 
 func (e *Engine) processThresholds() (shouldAbort bool) ***REMOVED***
