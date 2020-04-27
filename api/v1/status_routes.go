@@ -26,10 +26,11 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/manyminds/api2go/jsonapi"
+
 	"github.com/loadimpact/k6/api/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/executor"
-	"github.com/manyminds/api2go/jsonapi"
 )
 
 func HandleGetStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
@@ -71,7 +72,7 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 		return
 	***REMOVED***
 
-	if status.Stopped ***REMOVED***
+	if status.Stopped ***REMOVED*** //nolint:nestif
 		engine.Stop()
 	***REMOVED*** else ***REMOVED***
 		if status.Paused.Valid ***REMOVED***
