@@ -72,12 +72,13 @@ var _ lib.ExecutorConfig = &SharedIterationsConfig***REMOVED******REMOVED***
 
 // GetVUs returns the scaled VUs for the executor.
 func (sic SharedIterationsConfig) GetVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.ES.Scale(sic.VUs.Int64)
+	return et.ScaleInt64(sic.VUs.Int64)
 ***REMOVED***
 
 // GetIterations returns the scaled iteration count for the executor.
 func (sic SharedIterationsConfig) GetIterations(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.ES.Scale(sic.Iterations.Int64)
+	// Optimize this by probably changing the whole Config API
+	return et.GetNewExecutionTupleBasedOnValue(sic.VUs.Int64).ScaleInt64(sic.Iterations.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
@@ -116,10 +117,20 @@ func (sic SharedIterationsConfig) Validate() []error ***REMOVED***
 // the execution scheduler in its VU reservation calculations, so it knows how
 // many VUs to pre-initialize.
 func (sic SharedIterationsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
+	vus := sic.GetVUs(et)
+	if vus == 0 ***REMOVED***
+		return []lib.ExecutionStep***REMOVED***
+			***REMOVED***
+				TimeOffset: 0,
+				PlannedVUs: 0,
+			***REMOVED***,
+		***REMOVED***
+	***REMOVED***
+
 	return []lib.ExecutionStep***REMOVED***
 		***REMOVED***
 			TimeOffset: 0,
-			PlannedVUs: uint64(sic.GetVUs(et)),
+			PlannedVUs: uint64(vus),
 		***REMOVED***,
 		***REMOVED***
 			TimeOffset: time.Duration(sic.MaxDuration.Duration + sic.GracefulStop.Duration),
@@ -132,7 +143,7 @@ func (sic SharedIterationsConfig) GetExecutionRequirements(et *lib.ExecutionTupl
 func (sic SharedIterationsConfig) NewExecutor(
 	es *lib.ExecutionState, logger *logrus.Entry,
 ) (lib.Executor, error) ***REMOVED***
-	return SharedIterations***REMOVED***
+	return &SharedIterations***REMOVED***
 		BaseExecutor: NewBaseExecutor(sic, es, logger),
 		config:       sic,
 	***REMOVED***, nil
@@ -143,6 +154,7 @@ func (sic SharedIterationsConfig) NewExecutor(
 type SharedIterations struct ***REMOVED***
 	*BaseExecutor
 	config SharedIterationsConfig
+	et     *lib.ExecutionTuple
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
@@ -153,11 +165,17 @@ func (sic SharedIterationsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVE
 	return sic.GetVUs(et) > 0 && sic.GetIterations(et) > 0
 ***REMOVED***
 
+// Init values needed for the execution
+func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
+	si.et = si.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleBasedOnValue(si.config.VUs.Int64)
+	return nil
+***REMOVED***
+
 // Run executes a specific total number of iterations, which are all shared by
 // the configured VUs.
 func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
-	iterations := si.config.GetIterations(si.executionState.ExecutionTuple)
+	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
 	duration := time.Duration(si.config.MaxDuration.Duration)
 	gracefulStop := si.config.GetGracefulStop()
 
@@ -186,7 +204,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 		return float64(currentDoneIters) / float64(totalIters), right
 	***REMOVED***
 	si.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, si, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, &si, progresFn)
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
