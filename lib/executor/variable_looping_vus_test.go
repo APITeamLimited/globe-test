@@ -134,7 +134,7 @@ func TestVariableLoopingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 
 	sampleTimes := []time.Duration***REMOVED***
 		100 * time.Millisecond,
-		3200 * time.Millisecond,
+		3000 * time.Millisecond,
 	***REMOVED***
 	const rampDownSamples = 50
 
