@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -197,7 +196,6 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 		Console:        r.console,
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
-		runMutex:       sync.Mutex***REMOVED******REMOVED***,
 	***REMOVED***
 	vu.Runtime.Set("__VU", vu.ID)
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
@@ -368,18 +366,20 @@ type VU struct ***REMOVED***
 
 	Samples chan<- stats.SampleContainer
 
-	runMutex  sync.Mutex
 	setupData goja.Value
 ***REMOVED***
 
 // Verify that interfaces are implemented
-var _ lib.ActiveVU = &ActiveVU***REMOVED******REMOVED***
-var _ lib.InitializedVU = &VU***REMOVED******REMOVED***
+var (
+	_ lib.ActiveVU      = &ActiveVU***REMOVED******REMOVED***
+	_ lib.InitializedVU = &VU***REMOVED******REMOVED***
+)
 
 // ActiveVU holds a VU and its activation parameters
 type ActiveVU struct ***REMOVED***
 	*VU
 	*lib.VUActivationParams
+	busy chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 // Activate the VU so it will be able to run code.
@@ -387,21 +387,40 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	u.Runtime.ClearInterrupt()
 	// u.Env = params.Env
 
+	avu := &ActiveVU***REMOVED***
+		VU:                 u,
+		VUActivationParams: params,
+		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+	***REMOVED***
+
 	go func() ***REMOVED***
+		// Wait for the run context to be over
 		<-params.RunContext.Done()
+		// Interrupt the JS runtime
 		u.Runtime.Interrupt(errInterrupt)
+		// Wait for the VU to stop running, if it was, and prevent it from
+		// running again for this activation
+		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+
 		if params.DeactivateCallback != nil ***REMOVED***
 			params.DeactivateCallback()
 		***REMOVED***
 	***REMOVED***()
 
-	return &ActiveVU***REMOVED***u, params***REMOVED***
+	return avu
 ***REMOVED***
 
 // RunOnce runs the default function once.
 func (u *ActiveVU) RunOnce() error ***REMOVED***
-	u.runMutex.Lock()
-	defer u.runMutex.Unlock()
+	select ***REMOVED***
+	case <-u.RunContext.Done():
+		return u.RunContext.Err() // we are done, return
+	case u.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+		// nothing else can run now, and the VU cannot be deactivated
+	***REMOVED***
+	defer func() ***REMOVED***
+		<-u.busy // unlock deactivation again
+	***REMOVED***()
 
 	// Unmarshall the setupData only the first time for each VU so that VUs are isolated but we
 	// still don't use too much CPU in the middle test

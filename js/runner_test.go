@@ -32,7 +32,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -559,7 +558,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		name, r := name, r
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 			defer cancel()
 			samples := make(chan stats.SampleContainer, 100)
 			defer close(samples)
@@ -574,7 +573,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
 			assert.Error(t, err)
-			assert.True(t, strings.HasPrefix(err.Error(), "context cancelled at "))
+			assert.Contains(t, err.Error(), "context cancelled")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -625,8 +624,8 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 				<-ch
 				time.Sleep(time.Millisecond * 1) // NOTE: increase this in case of problems ;)
 				newCancel()
+				wg.Wait()
 			***REMOVED***
-			wg.Wait()
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
