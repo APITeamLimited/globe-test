@@ -64,8 +64,8 @@ import (
 func TestRunnerNew(t *testing.T) ***REMOVED***
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
 		r, err := getSimpleRunner("/script.js", `
-			let counter = 0;
-			export default function() ***REMOVED*** counter++; ***REMOVED***
+			var counter = 0;
+			exports.default = function() ***REMOVED*** counter++; ***REMOVED***
 		`)
 		assert.NoError(t, err)
 
@@ -94,7 +94,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `export default function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner("/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
 	***REMOVED***
@@ -106,7 +106,7 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerOptions(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `export default function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner("/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -136,10 +136,10 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 
 	optionVariants := []string***REMOVED***
 		"",
-		"let options = null;",
-		"let options = undefined;",
-		"let options = ***REMOVED******REMOVED***;",
-		"let options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
+		"var options = null;",
+		"var options = undefined;",
+		"var options = ***REMOVED******REMOVED***;",
+		"var options = ***REMOVED***teardownTimeout: '1s'***REMOVED***;",
 	***REMOVED***
 
 	for i, variant := range optionVariants ***REMOVED***
@@ -147,7 +147,7 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 		t.Run(fmt.Sprintf("Variant#%d", i), func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			data := variant + `
-					export default function() ***REMOVED***
+					exports.default = function() ***REMOVED***
 						if (!options) ***REMOVED***
 							throw new Error("Expected options to be defined!");
 						***REMOVED***
@@ -179,8 +179,9 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	t.Parallel()
 	data := `
-			export let options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
-			export default function() ***REMOVED***
+			var options = ***REMOVED*** setupTimeout: "1s", myOption: "test" ***REMOVED***;
+			exports.options = options;
+			exports.default = function() ***REMOVED***
 				if (options.external) ***REMOVED***
 					throw new Error("Unexpected property external!");
 				***REMOVED***
@@ -204,7 +205,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	require.Equal(t, expScriptOptions, r2.GetOptions())
 
 	newOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(3 * time.Second)***REMOVED***
-	r2.SetOptions(newOptions)
+	require.NoError(t, r2.SetOptions(newOptions))
 	require.Equal(t, newOptions, r2.GetOptions())
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -230,11 +231,11 @@ func TestMetricName(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	script := tb.Replacer.Replace(`
-		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+		var Counter = require("k6/metrics").Counter;
 
-		let myCounter = new Counter("not ok name @");
+		var myCounter = new Counter("not ok name @");
 
-		export default function(data) ***REMOVED***
+		exports.default = function(data) ***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
 	`)
@@ -248,9 +249,9 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	script := tb.Replacer.Replace(`
-		import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
+		var Counter = require("k6/metrics").Counter;
 
-		export let options = ***REMOVED***
+		exports.options = ***REMOVED***
 			execution: ***REMOVED***
 				shared_iters: ***REMOVED***
 					type: "shared-iterations",
@@ -261,13 +262,13 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 			teardownTimeout: "5s",
 			setupTimeout: "5s",
 		***REMOVED***;
-		let myCounter = new Counter("mycounter");
+		var myCounter = new Counter("mycounter");
 
-		export function setup() ***REMOVED***
+		exports.setup = function() ***REMOVED***
 			return ***REMOVED*** v: 0 ***REMOVED***;
 		***REMOVED***
 
-		export default function(data) ***REMOVED***
+		exports.default = function(data) ***REMOVED***
 			if (data.v !== __ITER) ***REMOVED***
 				throw new Error("default: wrong data for iter " + __ITER + ": " + JSON.stringify(data));
 			***REMOVED***
@@ -275,7 +276,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
 
-		export function teardown(data) ***REMOVED***
+		exports.teardown = function(data) ***REMOVED***
 			if (data.v !== 0) ***REMOVED***
 				throw new Error("teardown: wrong data: " + data.v);
 			***REMOVED***
@@ -356,17 +357,17 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 
 func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 	testSetupDataHelper(t, `
-	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	export function setup() ***REMOVED***
+	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	exports.setup = function() ***REMOVED***
 		return 42;
 	***REMOVED***
-	export default function(data) ***REMOVED***
+	exports.default = function(data) ***REMOVED***
 		if (data != 42) ***REMOVED***
 			throw new Error("default: wrong data: " + JSON.stringify(data))
 		***REMOVED***
 	***REMOVED***;
 
-	export function teardown(data) ***REMOVED***
+	exports.teardown = function(data) ***REMOVED***
 		if (data != 42) ***REMOVED***
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
 		***REMOVED***
@@ -375,14 +376,14 @@ func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 
 func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 	testSetupDataHelper(t, `
-	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	export default function(data) ***REMOVED***
+	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	exports.default = function(data) ***REMOVED***
 		if (data !== undefined) ***REMOVED***
 			throw new Error("default: wrong data: " + JSON.stringify(data))
 		***REMOVED***
 	***REMOVED***;
 
-	export function teardown(data) ***REMOVED***
+	exports.teardown = function(data) ***REMOVED***
 		if (data !== undefined) ***REMOVED***
 			console.log(data);
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
@@ -393,7 +394,7 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
 			console.log("1");
-			export default function(data) ***REMOVED***
+			exports.default = function(data) ***REMOVED***
 			***REMOVED***;
 		`)
 	require.NoError(t, err)
@@ -417,15 +418,15 @@ func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 
 func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
 	testSetupDataHelper(t, `
-	export let options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
-	export function setup() ***REMOVED*** ***REMOVED***
-	export default function(data) ***REMOVED***
+	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
+	exports.setup = function() ***REMOVED*** ***REMOVED***
+	exports.default = function(data) ***REMOVED***
 		if (data !== undefined) ***REMOVED***
 			throw new Error("default: wrong data: " + JSON.stringify(data))
 		***REMOVED***
 	***REMOVED***;
 
-	export function teardown(data) ***REMOVED***
+	exports.teardown = function(data) ***REMOVED***
 		if (data !== undefined) ***REMOVED***
 			throw new Error("teardown: wrong data: " + JSON.stringify(data))
 		***REMOVED***
@@ -440,11 +441,12 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			"k6/metrics",
 			"k6/html",
 		***REMOVED***
+		rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***
 		for _, mod := range modules ***REMOVED***
 			mod := mod
 			t.Run(mod, func(t *testing.T) ***REMOVED***
 				t.Run("Source", func(t *testing.T) ***REMOVED***
-					_, err := getSimpleRunner("/script.js", fmt.Sprintf(`import "%s"; export default function() ***REMOVED******REMOVED***`, mod))
+					_, err := getSimpleRunner("/script.js", fmt.Sprintf(`import "%s"; exports.default = function() ***REMOVED******REMOVED***`, mod), rtOpts)
 					assert.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***)
@@ -454,7 +456,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 	t.Run("Files", func(t *testing.T) ***REMOVED***
 		fs := afero.NewMemMapFs()
 		require.NoError(t, fs.MkdirAll("/path/to", 0755))
-		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`export default "hi!";`), 0644))
+		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`exports.default = "hi!";`), 0644))
 
 		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
 			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/lib.js"***REMOVED***,
@@ -467,8 +469,8 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			name, data := name, data
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				r1, err := getSimpleRunner(data.filename, fmt.Sprintf(`
-					import hi from "%s";
-					export default function() ***REMOVED***
+					var hi = require("%s").default;
+					exports.default = function() ***REMOVED***
 						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
 					***REMOVED***`, data.path), fs)
 				require.NoError(t, err)
@@ -496,8 +498,8 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-		export let options = ***REMOVED*** vus: 10 ***REMOVED***;
-		export default function() ***REMOVED*** fn(); ***REMOVED***
+		exports.options = ***REMOVED*** vus: 10 ***REMOVED***;
+		exports.default = function() ***REMOVED*** fn(); ***REMOVED***
 		`)
 	require.NoError(t, err)
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
@@ -548,7 +550,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	r1, err := getSimpleRunner("/script.js", `
-		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
@@ -586,7 +588,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	r1, err := getSimpleRunner("/script.js", `
-		export default function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
+		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
@@ -633,8 +635,8 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-		import ***REMOVED*** group ***REMOVED*** from "k6";
-		export default function() ***REMOVED***
+		var group = require("k6").group;
+		exports.default = function() ***REMOVED***
 			fnOuter();
 			group("my group", function() ***REMOVED***
 				fnInner();
@@ -692,10 +694,10 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-		import ***REMOVED*** group ***REMOVED*** from "k6";
-		import ***REMOVED*** Trend ***REMOVED*** from "k6/metrics";
-		let myMetric = new Trend("my_metric");
-		export default function() ***REMOVED*** myMetric.add(5); ***REMOVED***
+		var group = require("k6").group;
+		var Trend = require("k6/metrics").Trend;
+		var myMetric = new Trend("my_metric");
+		exports.default = function() ***REMOVED*** myMetric.add(5); ***REMOVED***
 		`)
 	require.NoError(t, err)
 
@@ -767,8 +769,8 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			r1, err := getSimpleRunner("/script.js", `
-					import http from "k6/http";
-					export default function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
+					var http = require("k6/http");;
+					exports.default = function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
 				`)
 			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
@@ -804,8 +806,8 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-					import http from "k6/http";
-					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+					var http = require("k6/http");;
+					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`)
 	require.NoError(t, err)
 
@@ -844,14 +846,14 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-					import http from "k6/http";
+					var http = require("k6/http");;
 
-					export let options = ***REMOVED***
+					exports.options = ***REMOVED***
 						throw: true,
 						blacklistIPs: ["10.0.0.0/8"],
 					***REMOVED***;
 
-					export default function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
+					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
@@ -887,12 +889,14 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 
 	r1, err := getSimpleRunner("/script.js",
 		tb.Replacer.Replace(`
-					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
-					import http from "k6/http";
-					export default function() ***REMOVED***
-						let res = http.get("http://test.loadimpact.com:HTTPBIN_PORT/");
+					var k6 = require("k6");
+					var check = k6.check;
+					var fail = k6.fail;
+					var http = require("k6/http");;
+					exports.default = function() ***REMOVED***
+						var res = http.get("http://test.loadimpact.com:HTTPBIN_PORT/");
 						check(res, ***REMOVED***
-							"is correct IP": (r) => r.remote_ip === "127.0.0.1"
+							"is correct IP": function(r) ***REMOVED*** return r.remote_ip === "127.0.0.1" ***REMOVED***
 						***REMOVED***) || fail("failed to override dns");
 					***REMOVED***
 				`))
@@ -973,8 +977,8 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			r1, err := getSimpleRunner("/script.js", `
-					import http from "k6/http";
-					export default function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
+					var http = require("k6/http");;
+					exports.default = function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
@@ -1014,7 +1018,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner("/script.js", `
-			export default function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
+			exports.default = function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
 		`)
 	assert.NoError(t, err)
 
@@ -1033,16 +1037,16 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-			import http from "k6/http";
-			export default function() ***REMOVED***
-				let url = "HTTPBIN_URL";
-				let preRes = http.get(url + "/cookies");
+			var http = require("k6/http");;
+			exports.default = function() ***REMOVED***
+				var url = "HTTPBIN_URL";
+				var preRes = http.get(url + "/cookies");
 				if (preRes.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + preRes.status); ***REMOVED***
 				if (preRes.json().k1 || preRes.json().k2) ***REMOVED***
 					throw new Error("cookies persisted: " + preRes.body);
 				***REMOVED***
 
-				let res = http.get(url + "/cookies/set?k2=v2&k1=v1");
+				var res = http.get(url + "/cookies/set?k2=v2&k1=v1");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 				if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
 					throw new Error("wrong cookies: " + res.body);
@@ -1087,11 +1091,11 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-			import http from "k6/http";
-			export default function() ***REMOVED***
-				let url = "HTTPBIN_URL";
+			var http = require("k6/http");;
+			exports.default = function() ***REMOVED***
+				var url = "HTTPBIN_URL";
 				if (__ITER == 0) ***REMOVED***
-					let res = http.get(url + "/cookies/set?k2=v2&k1=v1");
+					var res = http.get(url + "/cookies/set?k2=v2&k1=v1");
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
 					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
 						throw new Error("wrong cookies: " + res.body);
@@ -1099,7 +1103,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 				***REMOVED***
 
 				if (__ITER == 1) ***REMOVED***
-					let res = http.get(url + "/cookies");
+					var res = http.get(url + "/cookies");
 					if (res.status != 200) ***REMOVED*** throw new Error("wrong status (pre): " + res.status); ***REMOVED***
 					if (res.json().k1 != "v1" || res.json().k2 != "v2") ***REMOVED***
 						throw new Error("wrong cookies: " + res.body);
@@ -1145,7 +1149,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 
 func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 	r1, err := getSimpleRunner("/script.js", `
-			export default function() ***REMOVED***
+			exports.default = function() ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
 	)
@@ -1242,8 +1246,8 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
 
 	r1, err := getSimpleRunner("/script.js", fmt.Sprintf(`
-			import http from "k6/http";
-			export default function() ***REMOVED*** http.get("https://%s")***REMOVED***
+			var http = require("k6/http");;
+			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String()))
 	if !assert.NoError(t, err) ***REMOVED***
 		return
@@ -1331,10 +1335,12 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-					import ***REMOVED*** check, fail ***REMOVED*** from "k6";
-					import http from "k6/http";
-					let res = http.get("HTTPBIN_URL/");
-					export default function() ***REMOVED***
+					var k6 = require("k6");
+					var check = k6.check;
+					var fail = k6.fail;
+					var http = require("k6/http");;
+					var res = http.get("HTTPBIN_URL/");
+					exports.default = function() ***REMOVED***
 						console.log(test);
 					***REMOVED***
 				`))
@@ -1350,42 +1356,42 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 	table := [...][3]string***REMOVED***
 		***REMOVED***
 			"http.request",
-			`import http from "k6/http";
-			 let res = http.get("HTTPBIN_URL");
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			`var http = require("k6/http");;
+			 var res = http.get("HTTPBIN_URL");
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6http.ErrHTTPForbiddenInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"http.batch",
-			`import http from "k6/http";
-			 let res = http.batch("HTTPBIN_URL/something", "HTTPBIN_URL/else");
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			`var http = require("k6/http");;
+			 var res = http.batch("HTTPBIN_URL/something", "HTTPBIN_URL/else");
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6http.ErrBatchForbiddenInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"http.cookieJar",
-			`import http from "k6/http";
-			 let jar = http.cookieJar();
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			`var http = require("k6/http");;
+			 var jar = http.cookieJar();
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6http.ErrJarForbiddenInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"check",
-			`import ***REMOVED*** check ***REMOVED*** from "k6";
-			 check("test", ***REMOVED***'is test': (test) => test == "test"***REMOVED***)
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			`var check = require("k6").check;
+			 check("test", ***REMOVED***'is test': function(test) ***REMOVED*** return test == "test"***REMOVED******REMOVED***)
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6.ErrCheckInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"group",
-			`import ***REMOVED*** group ***REMOVED*** from "k6";
+			`var group = require("k6").group;
 			 group("group1", function () ***REMOVED*** console.log("group1");***REMOVED***)
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6.ErrGroupInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"ws",
-			`import ws from "k6/ws";
+			`var ws = require("k6/ws");
 			 var url = "ws://echo.websocket.org";
 			 var params = ***REMOVED*** "tags": ***REMOVED*** "my_tag": "hello" ***REMOVED*** ***REMOVED***;
 			 var response = ws.connect(url, params, function (socket) ***REMOVED***
@@ -1394,15 +1400,15 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 			   ***REMOVED***)
 		   ***REMOVED***);
 
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			ws.ErrWSInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
 			"metric",
-			`import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
-			 let counter = Counter("myCounter");
+			`var Counter = require("k6/metrics").Counter;
+			 var counter = Counter("myCounter");
 			 counter.add(1);
-			 export default function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			k6metrics.ErrMetricsAddInInitContext.Error(),
 		***REMOVED***,
 	***REMOVED***
@@ -1429,12 +1435,12 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 
 	fs := afero.NewMemMapFs()
 	data := tb.Replacer.Replace(`
-			let fput = open("/home/somebody/test.json");
-			export let options = ***REMOVED*** setupTimeout: "10s", teardownTimeout: "10s" ***REMOVED***;
-			export function setup() ***REMOVED***
+			var fput = open("/home/somebody/test.json");
+			exports.options = ***REMOVED*** setupTimeout: "10s", teardownTimeout: "10s" ***REMOVED***;
+			exports.setup = function () ***REMOVED***
 				return JSON.parse(fput);
 			***REMOVED***
-			export default function(data) ***REMOVED***
+			exports.default = function(data) ***REMOVED***
 				if (data != 42) ***REMOVED***
 					throw new Error("incorrect answer " + data);
 				***REMOVED***
@@ -1478,9 +1484,8 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
 	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-			let fput = open("/non/existent");
-			export default function(data) ***REMOVED***
-			***REMOVED***
+			var fput = open("/non/existent");
+			exports.default = function(data) ***REMOVED******REMOVED***
 		`), fs)
 	require.NoError(t, err)
 
@@ -1498,25 +1503,25 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	defer tb.Cleanup()
 
 	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-			import http from "k6/http";
-			import ws from "k6/ws";
-			import ***REMOVED*** group ***REMOVED*** from "k6";
-			import ***REMOVED*** parseHTML ***REMOVED*** from "k6/html";
+			var http = require("k6/http");
+			var ws = require("k6/ws");
+			var group = require("k6").group;
+			var parseHTML = require("k6/html").parseHTML;
 
-			export let options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
+			exports.options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
 
-			export default function() ***REMOVED***
-				const doc = parseHTML(http.get("HTTPBIN_URL/html").body);
+			exports.default = function() ***REMOVED***
+				var doc = parseHTML(http.get("HTTPBIN_URL/html").body);
 
-				let testCases = [
-					() => group(),
-					() => group("test"),
-					() => group("test", "wat"),
-					() => doc.find('p').each(),
-					() => doc.find('p').each("wat"),
-					() => doc.find('p').map(),
-					() => doc.find('p').map("wat"),
-					() => ws.connect("WSBIN_URL/ws-echo"),
+				var testCases = [
+					function() ***REMOVED*** return group()***REMOVED***,
+					function() ***REMOVED*** return group("test")***REMOVED***,
+					function() ***REMOVED*** return group("test", "wat")***REMOVED***,
+					function() ***REMOVED*** return doc.find('p').each()***REMOVED***,
+					function() ***REMOVED*** return doc.find('p').each("wat")***REMOVED***,
+					function() ***REMOVED*** return doc.find('p').map()***REMOVED***,
+					function() ***REMOVED*** return doc.find('p').map("wat")***REMOVED***,
+					function() ***REMOVED*** return ws.connect("WSBIN_URL/ws-echo")***REMOVED***,
 				];
 
 				testCases.forEach(function(fn, idx) ***REMOVED***

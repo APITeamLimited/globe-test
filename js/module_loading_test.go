@@ -28,6 +28,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
+	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
@@ -99,7 +100,7 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 					throw new Error("A() != B()    (" + A() + ") != (" + B() + ")");
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 			require.NoError(t, err)
 
 			arc := r1.MakeArchive()
@@ -148,7 +149,7 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 					throw new Error("wrong value of B() " + B());
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -194,7 +195,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 					throw new Error("wrong status "+ resp.status);
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Hosts: tb.Dialer.Hosts***REMOVED***))
@@ -239,7 +240,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 					throw new Error("wrong value of a " + a);
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -302,7 +303,7 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 	`), os.ModePerm))
 	data, err := afero.ReadFile(fs, "/main.js")
 	require.NoError(t, err)
-	r1, err := getSimpleRunner("/main.js", string(data), fs)
+	r1, err := getSimpleRunner("/main.js", string(data), fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -364,7 +365,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 					throw new Error("Wrong value of bar() "+ barMessage);
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -428,7 +429,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 					throw new Error("bravo.B() != 'b'    (" + bravo.B() + ") != 'b'");
 				***REMOVED***
 			***REMOVED***
-		`, fs)
+		`, fs, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("extended")***REMOVED***)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -459,7 +460,7 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 			***REMOVED*** catch (err) ***REMOVED***
 				b = "correct";
 			***REMOVED***
-			export default function() ***REMOVED***
+			exports.default = function() ***REMOVED***
 				if (b != "correct") ***REMOVED***
 					throw new Error("wrong b "+ JSON.stringify(b));
 				***REMOVED***

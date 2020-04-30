@@ -73,7 +73,7 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
 	var (
 		fs     = afero.NewMemMapFs()
-		rtOpts = lib.RuntimeOptions***REMOVED******REMOVED***
+		rtOpts = lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
 	)
 	for _, o := range opts ***REMOVED***
 		switch opt := o.(type) ***REMOVED***
@@ -117,7 +117,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
 					r, err := getSimpleRunner("/script.js", fmt.Sprintf(
-						`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+						`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 						name, args,
 					))
 					assert.NoError(t, err)
@@ -209,7 +209,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							***REMOVED***
 							r, err := getSimpleRunner("/script",
 								fmt.Sprintf(
-									`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+									`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,
 								))
 							assert.NoError(t, err)
