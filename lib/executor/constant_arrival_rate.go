@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -206,9 +207,6 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	tickerPeriod := time.Duration(getTickerPeriod(arrivalRate).Duration)
 	arrivalRatePerSec, _ := getArrivalRatePerSec(arrivalRate).Float64()
 
-	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
-	defer cancel()
-
 	// Make sure the log and the progress bar have accurate information
 	car.logger.WithFields(logrus.Fields***REMOVED***
 		"maxVUs": maxVUs, "preAllocatedVUs": preAllocatedVUs, "duration": duration,
@@ -216,26 +214,45 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	***REMOVED***).Debug("Starting executor run...")
 
 	// Pre-allocate the VUs local shared buffer
-	vus := make(chan lib.VU, maxVUs)
+	activeVUs := make(chan lib.ActiveVU, maxVUs)
+	activeVUsCount := uint64(0)
 
-	initialisedVUs := uint64(0)
-	// Make sure we put planned and unplanned VUs back in the global
-	// buffer, and as an extra incentive, this replaces a waitgroup.
+	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
+	defer activeVUsWg.Wait()
+
+	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
+	defer cancel()
+
+	// Make sure all VUs aren't executing iterations anymore, for the cancel()
+	// above to deactivate them.
 	defer func() ***REMOVED***
-		// no need for atomics, since initialisedVUs is mutated only in the select***REMOVED******REMOVED***
-		for i := uint64(0); i < initialisedVUs; i++ ***REMOVED***
-			car.executionState.ReturnVU(<-vus, true)
+		// activeVUsCount is modified only in the loop below, which is done here
+		for i := uint64(0); i < activeVUsCount; i++ ***REMOVED***
+			<-activeVUs
 		***REMOVED***
 	***REMOVED***()
 
+	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
+		activeVUsWg.Add(1)
+		activeVU := initVU.Activate(&lib.VUActivationParams***REMOVED***
+			RunContext: maxDurationCtx,
+			DeactivateCallback: func() ***REMOVED***
+				car.executionState.ReturnVU(initVU, true)
+				activeVUsWg.Done()
+			***REMOVED***,
+		***REMOVED***)
+		car.executionState.ModCurrentlyActiveVUsCount(+1)
+		atomic.AddUint64(&activeVUsCount, 1)
+		return activeVU
+	***REMOVED***
+
 	// Get the pre-allocated VUs in the local buffer
 	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
-		vu, err := car.executionState.GetPlannedVU(car.logger, true)
+		initVU, err := car.executionState.GetPlannedVU(car.logger, false)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		initialisedVUs++
-		vus <- vu
+		activeVUs <- activateVU(initVU)
 	***REMOVED***
 
 	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
@@ -243,10 +260,10 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		pb.GetFixedLengthFloatFormat(arrivalRatePerSec, 0)+" iters/s", arrivalRatePerSec)
 	progresFn := func() (float64, []string) ***REMOVED***
 		spent := time.Since(startTime)
-		currentInitialisedVUs := atomic.LoadUint64(&initialisedVUs)
-		vusInBuffer := uint64(len(vus))
+		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
+		vusInBuffer := uint64(len(activeVUs))
 		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			currentInitialisedVUs-vusInBuffer, currentInitialisedVUs)
+			currActiveVUs-vusInBuffer, currActiveVUs)
 
 		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
 
@@ -263,11 +280,10 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	car.progress.Modify(pb.WithProgress(progresFn))
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, &car, progresFn)
 
-	regDurationDone := regDurationCtx.Done()
-	runIterationBasic := getIterationRunner(car.executionState, car.logger, out)
-	runIteration := func(vu lib.VU) ***REMOVED***
+	runIterationBasic := getIterationRunner(car.executionState, car.logger)
+	runIteration := func(vu lib.ActiveVU) ***REMOVED***
 		runIterationBasic(maxDurationCtx, vu)
-		vus <- vu
+		activeVUs <- vu
 	***REMOVED***
 
 	remainingUnplannedVUs := maxVUs - preAllocatedVUs
@@ -283,29 +299,28 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 			)).Duration)
 
 	for li, gi := 0, start; ; li, gi = li+1, gi+offsets[li%len(offsets)] ***REMOVED***
-		var t = notScaledTickerPeriod*time.Duration(gi) - time.Since(startTime)
+		t := notScaledTickerPeriod*time.Duration(gi) - time.Since(startTime)
 		timer.Reset(t)
 		select ***REMOVED***
 		case <-timer.C:
 			select ***REMOVED***
-			case vu := <-vus:
+			case vu := <-activeVUs:
 				// ideally, we get the VU from the buffer without any issues
 				go runIteration(vu)
 			default:
 				if remainingUnplannedVUs == 0 ***REMOVED***
-					//TODO: emit an error metric?
+					// TODO: emit an error metric?
 					car.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot allocate more", maxVUs)
 					break
 				***REMOVED***
-				vu, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger)
+				initVU, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***
 				remainingUnplannedVUs--
-				atomic.AddUint64(&initialisedVUs, 1)
-				go runIteration(vu)
+				go runIteration(activateVU(initVU))
 			***REMOVED***
-		case <-regDurationDone:
+		case <-regDurationCtx.Done():
 			return nil
 		***REMOVED***
 	***REMOVED***

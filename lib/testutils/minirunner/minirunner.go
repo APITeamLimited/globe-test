@@ -22,7 +22,6 @@ package minirunner
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
@@ -30,8 +29,9 @@ import (
 
 // Ensure mock implementations conform to the interfaces.
 var (
-	_ lib.Runner = &MiniRunner***REMOVED******REMOVED***
-	_ lib.VU     = &VU***REMOVED******REMOVED***
+	_ lib.Runner        = &MiniRunner***REMOVED******REMOVED***
+	_ lib.InitializedVU = &VU***REMOVED******REMOVED***
+	_ lib.ActiveVU      = &ActiveVU***REMOVED******REMOVED***
 )
 
 // MiniRunner partially implements the lib.Runner interface, but instead of
@@ -56,9 +56,8 @@ func (r MiniRunner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new VU with an incremental ID.
-func (r *MiniRunner) NewVU(out chan<- stats.SampleContainer) (lib.VU, error) ***REMOVED***
-	nextVUNum := atomic.AddInt64(&r.NextVUID, 1)
-	return &VU***REMOVED***R: r, Out: out, ID: nextVUNum - 1***REMOVED***, nil
+func (r *MiniRunner) NewVU(id int64, out chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
+	return &VU***REMOVED***R: r, Out: out, ID: id***REMOVED***, nil
 ***REMOVED***
 
 // Setup calls the supplied mock setup() function, if present.
@@ -115,25 +114,59 @@ type VU struct ***REMOVED***
 	Iteration int64
 ***REMOVED***
 
+// ActiveVU holds a VU and its activation parameters
+type ActiveVU struct ***REMOVED***
+	*VU
+	*lib.VUActivationParams
+	busy chan struct***REMOVED******REMOVED***
+***REMOVED***
+
+// Activate the VU so it will be able to run code.
+func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
+	avu := &ActiveVU***REMOVED***
+		VU:                 vu,
+		VUActivationParams: params,
+		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+	***REMOVED***
+
+	go func() ***REMOVED***
+		<-params.RunContext.Done()
+
+		// Wait for the VU to stop running, if it was, and prevent it from
+		// running again for this activation
+		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+
+		if params.DeactivateCallback != nil ***REMOVED***
+			params.DeactivateCallback()
+		***REMOVED***
+	***REMOVED***()
+
+	return avu
+***REMOVED***
+
 // RunOnce runs the mock default function once, incrementing its iteration.
-func (vu VU) RunOnce(ctx context.Context) error ***REMOVED***
+func (vu *ActiveVU) RunOnce() error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
+
+	select ***REMOVED***
+	case <-vu.RunContext.Done():
+		return vu.RunContext.Err() // we are done, return
+	case vu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+		// nothing else can run now, and the VU cannot be deactivated
+	***REMOVED***
+	defer func() ***REMOVED***
+		<-vu.busy // unlock deactivation again
+	***REMOVED***()
 
 	state := &lib.State***REMOVED***
 		Vu:        vu.ID,
 		Iteration: vu.Iteration,
 	***REMOVED***
-	newctx := lib.WithState(ctx, state)
+	newctx := lib.WithState(vu.RunContext, state)
 
 	vu.Iteration++
 
 	return vu.R.Fn(newctx, vu.Out)
-***REMOVED***
-
-// Reconfigure changes the VU ID.
-func (vu *VU) Reconfigure(id int64) error ***REMOVED***
-	vu.ID = id
-	return nil
 ***REMOVED***

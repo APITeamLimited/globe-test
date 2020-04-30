@@ -96,7 +96,7 @@ func TestVariableLoopingVUsRun(t *testing.T) ***REMOVED***
 	require.NoError(t, <-errCh)
 
 	assert.Equal(t, []int64***REMOVED***5, 3, 0***REMOVED***, result)
-	assert.Equal(t, int64(29), iterCount)
+	assert.Equal(t, int64(29), atomic.LoadInt64(&iterCount))
 ***REMOVED***
 
 // Ensure there's no wobble of VUs during graceful ramp-down, without segments.
@@ -134,7 +134,7 @@ func TestVariableLoopingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 
 	sampleTimes := []time.Duration***REMOVED***
 		100 * time.Millisecond,
-		3200 * time.Millisecond,
+		3000 * time.Millisecond,
 	***REMOVED***
 	const rampDownSamples = 50
 

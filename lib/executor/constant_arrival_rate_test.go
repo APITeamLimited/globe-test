@@ -57,6 +57,7 @@ func newExecutionSegmentSequenceFromString(str string) *lib.ExecutionSegmentSequ
 
 func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig ***REMOVED***
 	return ConstantArrivalRateConfig***REMOVED***
+		BaseConfig:      BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(1 * time.Second)***REMOVED***,
 		TimeUnit:        types.NullDurationFrom(time.Second),
 		Rate:            null.IntFrom(50),
 		Duration:        types.NullDurationFrom(5 * time.Second),

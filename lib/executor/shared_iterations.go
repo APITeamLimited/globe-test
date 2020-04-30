@@ -173,6 +173,7 @@ func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 
 // Run executes a specific total number of iterations, which are all shared by
 // the configured VUs.
+// nolint:funlen
 func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
 	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
@@ -211,12 +212,20 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	defer activeVUs.Wait()
 
 	regDurationDone := regDurationCtx.Done()
-	runIteration := getIterationRunner(si.executionState, si.logger, out)
+	runIteration := getIterationRunner(si.executionState, si.logger)
 
 	attemptedIters := new(uint64)
-	handleVU := func(vu lib.VU) ***REMOVED***
-		defer activeVUs.Done()
-		defer si.executionState.ReturnVU(vu, true)
+	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
+		ctx, cancel := context.WithCancel(maxDurationCtx)
+		defer cancel()
+
+		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
+			RunContext: ctx,
+			DeactivateCallback: func() ***REMOVED***
+				si.executionState.ReturnVU(initVU, true)
+				activeVUs.Done()
+			***REMOVED***,
+		***REMOVED***)
 
 		for ***REMOVED***
 			select ***REMOVED***
@@ -237,13 +246,13 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	***REMOVED***
 
 	for i := int64(0); i < numVUs; i++ ***REMOVED***
-		vu, err := si.executionState.GetPlannedVU(si.logger, true)
+		initVU, err := si.executionState.GetPlannedVU(si.logger, true)
 		if err != nil ***REMOVED***
 			cancel()
 			return err
 		***REMOVED***
 		activeVUs.Add(1)
-		go handleVU(vu)
+		go handleVU(initVU)
 	***REMOVED***
 
 	return nil

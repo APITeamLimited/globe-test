@@ -26,11 +26,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/stats"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/require"
 )
 
 func newDevNullSampleChannel() chan stats.SampleContainer ***REMOVED***
@@ -111,9 +112,13 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 				t.Run(name, func(t *testing.T) ***REMOVED***
 					ch := newDevNullSampleChannel()
 					defer close(ch)
-					vu, err := r.NewVU(ch)
+					initVU, err := r.NewVU(1, ch)
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 					require.NoError(t, err)
-					err = vu.RunOnce(context.Background())
+					err = vu.RunOnce()
 					require.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***
@@ -156,9 +161,12 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -200,9 +208,12 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -241,15 +252,21 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 
 			// run a second VU
-			vu, err = r.NewVU(ch)
+			initVU, err = r.NewVU(2, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel = context.WithCancel(context.Background())
+			defer cancel()
+			vu = initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -298,9 +315,12 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -357,9 +377,12 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -418,9 +441,12 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := make(chan stats.SampleContainer, 100)
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
@@ -456,9 +482,12 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			ch := newDevNullSampleChannel()
 			defer close(ch)
-			vu, err := r.NewVU(ch)
+			initVU, err := r.NewVU(1, ch)
 			require.NoError(t, err)
-			err = vu.RunOnce(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***

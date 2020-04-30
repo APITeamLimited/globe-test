@@ -58,11 +58,11 @@ type ExecutionScheduler interface ***REMOVED***
 	GetExecutors() []Executor
 
 	// Init initializes all executors, including all of their needed VUs.
-	Init(ctx context.Context, engineOut chan<- stats.SampleContainer) error
+	Init(ctx context.Context, samplesOut chan<- stats.SampleContainer) error
 
 	// Run the ExecutionScheduler, funneling the generated metric samples
 	// through the supplied out channel.
-	Run(globalCtx, runCtx context.Context, engineOut chan<- stats.SampleContainer) error
+	Run(globalCtx, runCtx context.Context, samplesOut chan<- stats.SampleContainer) error
 
 	// Pause a test, or start/resume it. To check if a test is paused, use
 	// GetState().IsPaused().
@@ -175,7 +175,7 @@ type ExecutionState struct ***REMOVED***
 	// directly with the channel. These methods will emit a warning or can even
 	// return an error if retrieving a VU takes more than
 	// MaxTimeToWaitForPlannedVU.
-	vus chan VU
+	vus chan InitializedVU
 
 	// The current VU ID, used for the __VU execution context variable. Use the
 	// GetUniqueVUIdentifier() to get unique values for each VU, starting from 1
@@ -280,7 +280,7 @@ func NewExecutionState(options Options, et *ExecutionTuple, maxPlannedVUs, maxPo
 
 	return &ExecutionState***REMOVED***
 		Options: options,
-		vus:     make(chan VU, maxPossibleVUs),
+		vus:     make(chan InitializedVU, maxPossibleVUs),
 
 		executionStatus:            new(uint32),
 		currentVUIdentifier:        new(uint64),
@@ -527,9 +527,9 @@ func (es *ExecutionState) ResumeNotify() <-chan struct***REMOVED******REMOVED***
 // If modifyActiveVUCount is true, the method would also increment the counter
 // for active VUs. In most cases, that's the desired behavior, but some
 // executors might have to retrieve their reserved VUs without using them
-// immediately - for example, the the externally-controlled executor when the
+// immediately - for example, the externally-controlled executor when the
 // configured maxVUs number is greater than the configured starting VUs.
-func (es *ExecutionState) GetPlannedVU(logger *logrus.Entry, modifyActiveVUCount bool) (VU, error) ***REMOVED***
+func (es *ExecutionState) GetPlannedVU(logger *logrus.Entry, modifyActiveVUCount bool) (InitializedVU, error) ***REMOVED***
 	for i := 1; i <= MaxRetriesGetPlannedVU; i++ ***REMOVED***
 		select ***REMOVED***
 		case vu := <-es.vus:
@@ -566,7 +566,7 @@ func (es *ExecutionState) SetInitVUFunc(initVUFunc InitVUFunc) ***REMOVED***
 // Executors are trusted to correctly declare their needs (via their
 // GetExecutionRequirements() methods) and then to never ask for more VUs than
 // they have specified in those requirements.
-func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry) (VU, error) ***REMOVED***
+func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Entry) (InitializedVU, error) ***REMOVED***
 	remVUs := atomic.AddInt64(es.uninitializedUnplannedVUs, -1)
 	if remVUs < 0 ***REMOVED***
 		logger.Debug("Reusing a previously initialized unplanned VU")
@@ -575,16 +575,12 @@ func (es *ExecutionState) GetUnplannedVU(ctx context.Context, logger *logrus.Ent
 	***REMOVED***
 
 	logger.Debug("Initializing an unplanned VU, this may affect test results")
-	vu, err := es.InitializeNewVU(ctx, logger)
-	if err == nil ***REMOVED***
-		es.ModCurrentlyActiveVUsCount(+1)
-	***REMOVED***
-	return vu, err
+	return es.InitializeNewVU(ctx, logger)
 ***REMOVED***
 
 // InitializeNewVU creates and returns a brand new VU, updating the relevant
 // tracking counters.
-func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry) (VU, error) ***REMOVED***
+func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.Entry) (InitializedVU, error) ***REMOVED***
 	if es.initVUFunc == nil ***REMOVED***
 		return nil, fmt.Errorf("initVUFunc wasn't set in the execution state")
 	***REMOVED***
@@ -598,14 +594,14 @@ func (es *ExecutionState) InitializeNewVU(ctx context.Context, logger *logrus.En
 
 // AddInitializedVU is a helper function that adds VUs into the buffer and
 // increases the initialized VUs counter.
-func (es *ExecutionState) AddInitializedVU(vu VU) ***REMOVED***
+func (es *ExecutionState) AddInitializedVU(vu InitializedVU) ***REMOVED***
 	es.vus <- vu
 	es.ModInitializedVUsCount(+1)
 ***REMOVED***
 
 // ReturnVU is a helper function that puts VUs back into the buffer and
 // decreases the active VUs counter.
-func (es *ExecutionState) ReturnVU(vu VU, wasActive bool) ***REMOVED***
+func (es *ExecutionState) ReturnVU(vu InitializedVU, wasActive bool) ***REMOVED***
 	es.vus <- vu
 	if wasActive ***REMOVED***
 		es.ModCurrentlyActiveVUsCount(-1)

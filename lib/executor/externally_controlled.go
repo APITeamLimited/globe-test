@@ -331,8 +331,8 @@ func (mex *ExternallyControlled) stopWhenDurationIsReached(ctx context.Context, 
 // executing their current iterations before returning.
 type manualVUHandle struct ***REMOVED***
 	*vuHandle
-	vu lib.VU
-	wg *sync.WaitGroup
+	initVU lib.InitializedVU
+	wg     *sync.WaitGroup
 
 	// This is the cancel of the local context, used to kill its goroutine when
 	// we reduce the number of MaxVUs, so that the Go GC can clean up the VU.
@@ -340,16 +340,17 @@ type manualVUHandle struct ***REMOVED***
 ***REMOVED***
 
 func newManualVUHandle(
-	parentCtx context.Context, state *lib.ExecutionState, localActiveVUsCount *int64, vu lib.VU, logger *logrus.Entry,
+	parentCtx context.Context, state *lib.ExecutionState,
+	localActiveVUsCount *int64, initVU lib.InitializedVU, logger *logrus.Entry,
 ) *manualVUHandle ***REMOVED***
 	wg := sync.WaitGroup***REMOVED******REMOVED***
-	getVU := func() (lib.VU, error) ***REMOVED***
+	getVU := func() (lib.InitializedVU, error) ***REMOVED***
 		wg.Add(1)
 		state.ModCurrentlyActiveVUsCount(+1)
 		atomic.AddInt64(localActiveVUsCount, +1)
-		return vu, nil
+		return initVU, nil
 	***REMOVED***
-	returnVU := func(_ lib.VU) ***REMOVED***
+	returnVU := func(_ lib.InitializedVU) ***REMOVED***
 		state.ModCurrentlyActiveVUsCount(-1)
 		atomic.AddInt64(localActiveVUsCount, -1)
 		wg.Done()
@@ -357,7 +358,7 @@ func newManualVUHandle(
 	ctx, cancel := context.WithCancel(parentCtx)
 	return &manualVUHandle***REMOVED***
 		vuHandle: newStoppedVUHandle(ctx, getVU, returnVU, logger),
-		vu:       vu,
+		initVU:   initVU,
 		wg:       &wg,
 		cancelVU: cancel,
 	***REMOVED***
@@ -376,7 +377,7 @@ type externallyControlledRunState struct ***REMOVED***
 	vuHandles       []*manualVUHandle // handles for manipulating and tracking all of the VUs
 	currentlyPaused bool              // whether the executor is currently paused
 
-	runIteration func(context.Context, lib.VU) // a helper closure function that runs a single iteration
+	runIteration func(context.Context, lib.ActiveVU) // a helper closure function that runs a single iteration
 ***REMOVED***
 
 // retrieveStartMaxVUs gets and initializes the (scaled) number of MaxVUs
@@ -385,12 +386,12 @@ type externallyControlledRunState struct ***REMOVED***
 // for us.
 func (rs *externallyControlledRunState) retrieveStartMaxVUs() error ***REMOVED***
 	for i := int64(0); i < rs.startMaxVUs; i++ ***REMOVED*** // get the initial planned VUs from the common buffer
-		vu, vuGetErr := rs.executor.executionState.GetPlannedVU(rs.executor.logger, false)
+		initVU, vuGetErr := rs.executor.executionState.GetPlannedVU(rs.executor.logger, false)
 		if vuGetErr != nil ***REMOVED***
 			return vuGetErr
 		***REMOVED***
 		vuHandle := newManualVUHandle(
-			rs.ctx, rs.executor.executionState, rs.activeVUsCount, vu, rs.executor.logger.WithField("vuNum", i),
+			rs.ctx, rs.executor.executionState, rs.activeVUsCount, initVU, rs.executor.logger.WithField("vuNum", i),
 		)
 		go vuHandle.runLoopsIfPossible(rs.runIteration)
 		rs.vuHandles[i] = vuHandle
@@ -443,12 +444,12 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 			return rs.ctx.Err()
 		default: // do nothing
 		***REMOVED***
-		vu, vuInitErr := executionState.InitializeNewVU(rs.ctx, rs.executor.logger)
+		initVU, vuInitErr := executionState.InitializeNewVU(rs.ctx, rs.executor.logger)
 		if vuInitErr != nil ***REMOVED***
 			return vuInitErr
 		***REMOVED***
 		vuHandle := newManualVUHandle(
-			rs.ctx, executionState, rs.activeVUsCount, vu, rs.executor.logger.WithField("vuNum", i),
+			rs.ctx, executionState, rs.activeVUsCount, initVU, rs.executor.logger.WithField("vuNum", i),
 		)
 		go vuHandle.runLoopsIfPossible(rs.runIteration)
 		rs.vuHandles = append(rs.vuHandles, vuHandle)
@@ -474,9 +475,7 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 			rs.vuHandles[i].cancelVU()
 			if i < rs.startMaxVUs ***REMOVED***
 				// return the initial planned VUs to the common buffer
-				executionState.ReturnVU(rs.vuHandles[i].vu, false)
-			***REMOVED*** else ***REMOVED***
-				executionState.ModInitializedVUsCount(-1)
+				executionState.ReturnVU(rs.vuHandles[i].initVU, false)
 			***REMOVED***
 			rs.vuHandles[i] = nil
 		***REMOVED***
@@ -522,7 +521,7 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 		currentlyPaused: false,
 		activeVUsCount:  new(int64),
 		maxVUs:          new(int64),
-		runIteration:    getIterationRunner(mex.executionState, mex.logger, out),
+		runIteration:    getIterationRunner(mex.executionState, mex.logger),
 	***REMOVED***
 	*runState.maxVUs = startMaxVUs
 	if err = runState.retrieveStartMaxVUs(); err != nil ***REMOVED***
