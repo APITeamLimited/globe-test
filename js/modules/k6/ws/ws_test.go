@@ -121,7 +121,7 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("connect_ws", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
 		if (res.status != 101) ***REMOVED*** throw new Error("connection failed with status: " + res.status); ***REMOVED***
@@ -132,7 +132,7 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("connect_wss", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let res = ws.connect("WSSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var res = ws.connect("WSSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
 		if (res.status != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
@@ -143,8 +143,8 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("open", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let opened = false;
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var opened = false;
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				opened = true;
 				socket.close()
@@ -158,7 +158,7 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("send_receive", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.send("test")
 			***REMOVED***)
@@ -180,8 +180,8 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("interval", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let counter = 0;
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var counter = 0;
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.setInterval(function () ***REMOVED***
 				counter += 1;
 				if (counter > 2) ***REMOVED*** socket.close(); ***REMOVED***
@@ -195,9 +195,9 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("timeout", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let start = new Date().getTime();
-		let ellapsed = new Date().getTime() - start;
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var start = new Date().getTime();
+		var ellapsed = new Date().getTime() - start;
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.setTimeout(function () ***REMOVED***
 				ellapsed = new Date().getTime() - start;
 				socket.close();
@@ -213,8 +213,8 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("ping", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let pongReceived = false;
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var pongReceived = false;
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function(data) ***REMOVED***
 				socket.ping();
 			***REMOVED***);
@@ -237,10 +237,10 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("multiple_handlers", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let pongReceived = false;
-		let otherPongReceived = false;
+		var pongReceived = false;
+		var otherPongReceived = false;
 
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function(data) ***REMOVED***
 				socket.ping();
 			***REMOVED***);
@@ -271,8 +271,8 @@ func TestSession(t *testing.T) ***REMOVED***
 
 	t.Run("client_close", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let closed = false;
-		let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+		var closed = false;
+		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 							socket.close()
 			***REMOVED***)
@@ -301,8 +301,8 @@ func TestSession(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(fmt.Sprintf(`
-			let closed = false;
-			let res = ws.connect("WSBIN_URL%s", function(socket)***REMOVED***
+			var closed = false;
+			var res = ws.connect("WSBIN_URL%s", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test");
 				***REMOVED***)
@@ -346,7 +346,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 	t.Run("invalid_url", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, `
-		let res = ws.connect("INVALID", function(socket)***REMOVED***
+		var res = ws.connect("INVALID", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.close();
 			***REMOVED***);
@@ -358,7 +358,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	t.Run("invalid_url_message_panic", func(t *testing.T) ***REMOVED***
 		// Attempting to send a message to a non-existent socket shouldn't panic
 		_, err := common.RunString(rt, `
-		let res = ws.connect("INVALID", function(socket)***REMOVED***
+		var res = ws.connect("INVALID", function(socket)***REMOVED***
 			socket.send("new message");
 		***REMOVED***);
 		`)
@@ -367,7 +367,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 	t.Run("error_in_setup", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
 			throw new Error("error in setup");
 		***REMOVED***);
 		`))
@@ -376,8 +376,8 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 	t.Run("send_after_close", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-		let hasError = false;
-		let res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
+		var hasError = false;
+		var res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.close();
 				socket.send("test");
@@ -398,7 +398,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	t.Run("error on close", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
 		var closed = false;
-		let res = ws.connect("WSBIN_URL/ws-close", function(socket)***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-close", function(socket)***REMOVED***
 			socket.on('open', function open() ***REMOVED***
 				socket.setInterval(function timeout() ***REMOVED***
 				  socket.ping();
@@ -461,7 +461,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
 			state.Options.SystemTags = stats.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
 			_, err := common.RunString(rt, sr(`
-			let res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
+			var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test")
 				***REMOVED***)
@@ -525,7 +525,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		_, err := common.RunString(rt, sr(`
-		let res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
+		var res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
 		if (res.status != 101) ***REMOVED*** throw new Error("TLS connection failed with status: " + res.status); ***REMOVED***
@@ -538,7 +538,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		state.TLSConfig = tb.TLSClientConfig
 
 		_, err := common.RunString(rt, sr(`
-			let res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
+			var res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
 				socket.close()
 			***REMOVED***);
 			if (res.status != 101) ***REMOVED***

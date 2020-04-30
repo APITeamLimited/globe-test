@@ -62,7 +62,7 @@ func TestElement(t *testing.T) ***REMOVED***
 	rt.Set("html", common.Bind(rt, &HTML***REMOVED******REMOVED***, &ctx))
 	// compileProtoElem()
 
-	_, err := common.RunString(rt, `let doc = html.parseHTML(src)`)
+	_, err := common.RunString(rt, `var doc = html.parseHTML(src)`)
 
 	assert.NoError(t, err)
 	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())

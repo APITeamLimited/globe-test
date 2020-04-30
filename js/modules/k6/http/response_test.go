@@ -135,7 +135,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 	t.Run("Html", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-			let res = http.request("GET", "HTTPBIN_URL/html");
+			var res = http.request("GET", "HTTPBIN_URL/html");
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 		`))
@@ -176,7 +176,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			_, err = common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/html");
+				var res = http.request("GET", "HTTPBIN_URL/html");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				if (res.body.indexOf("Herman Melville - Moby-Dick") == -1) ***REMOVED*** throw new Error("wrong body: " + res.body); ***REMOVED***
 			`))
@@ -186,7 +186,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Json", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-			let res = http.request("GET", "HTTPBIN_URL/get?a=1&b=2");
+			var res = http.request("GET", "HTTPBIN_URL/get?a=1&b=2");
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			if (res.json().args.a != "1") ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
 			if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
@@ -208,7 +208,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("JsonSelector", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-			let res = http.request("GET", "HTTPBIN_URL/json");
+			var res = http.request("GET", "HTTPBIN_URL/json");
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 
 			var value = res.json("glossary.friends.1")
@@ -252,11 +252,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 	t.Run("SubmitForm", func(t *testing.T) ***REMOVED***
 		t.Run("withoutArgs", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/forms/post");
+				var res = http.request("GET", "HTTPBIN_URL/forms/post");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.submitForm()
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let data = res.json().form
+				var data = res.json().form
 				if (data.custname[0] !== "" ||
 					data.extradata !== undefined ||
 					data.comments[0] !== "" ||
@@ -271,11 +271,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withFields", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/forms/post");
+				var res = http.request("GET", "HTTPBIN_URL/forms/post");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.submitForm(***REMOVED*** fields: ***REMOVED*** custname: "test", extradata: "test2" ***REMOVED*** ***REMOVED***)
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let data = res.json().form
+				var data = res.json().form
 				if (data.custname[0] !== "test" ||
 					data.extradata[0] !== "test2" ||
 					data.comments[0] !== "" ||
@@ -290,11 +290,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withRequestParams", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/forms/post");
+				var res = http.request("GET", "HTTPBIN_URL/forms/post");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.submitForm(***REMOVED*** params: ***REMOVED*** headers: ***REMOVED*** "My-Fancy-Header": "SomeValue" ***REMOVED*** ***REMOVED******REMOVED***)
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let headers = res.json().headers
+				var headers = res.json().headers
 				if (headers["My-Fancy-Header"][0] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect headers: " + JSON.stringify(headers)); ***REMOVED***
 			`))
 			assert.NoError(t, err)
@@ -303,11 +303,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withFormSelector", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/forms/post");
+				var res = http.request("GET", "HTTPBIN_URL/forms/post");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.submitForm(***REMOVED*** formSelector: 'form[method="post"]' ***REMOVED***)
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let data = res.json().form
+				var data = res.json().form
 				if (data.custname[0] !== "" ||
 					data.extradata !== undefined ||
 					data.comments[0] !== "" ||
@@ -322,7 +322,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withNonExistentForm", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/forms/post");
+				var res = http.request("GET", "HTTPBIN_URL/forms/post");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res.submitForm(***REMOVED*** formSelector: "#doesNotExist" ***REMOVED***)
 			`))
@@ -331,11 +331,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withGetMethod", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/myforms/get");
+				var res = http.request("GET", "HTTPBIN_URL/myforms/get");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.submitForm()
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let data = res.json().query
+				var data = res.json().query
 				if (data.input_with_value[0] !== "value" ||
 					data.input_without_value[0] !== "" ||
 					data.select_one[0] !== "yes this option" ||
@@ -351,7 +351,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 	t.Run("ClickLink", func(t *testing.T) ***REMOVED***
 		t.Run("withoutArgs", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/links/10/0");
+				var res = http.request("GET", "HTTPBIN_URL/links/10/0");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink()
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
@@ -362,7 +362,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withSelector", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/links/10/0");
+				var res = http.request("GET", "HTTPBIN_URL/links/10/0");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink(***REMOVED*** selector: 'a:nth-child(4)' ***REMOVED***)
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
@@ -373,7 +373,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withNonExistentLink", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL/links/10/0");
+				var res = http.request("GET", "HTTPBIN_URL/links/10/0");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink(***REMOVED*** selector: 'a#doesNotExist' ***REMOVED***)
 			`))
@@ -382,11 +382,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("withRequestParams", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				let res = http.request("GET", "HTTPBIN_URL");
+				var res = http.request("GET", "HTTPBIN_URL");
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink(***REMOVED*** selector: 'a[href="/get"]', params: ***REMOVED*** headers: ***REMOVED*** "My-Fancy-Header": "SomeValue" ***REMOVED*** ***REMOVED*** ***REMOVED***)
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
-				let headers = res.json().headers
+				var headers = res.json().headers
 				if (headers["My-Fancy-Header"][0] !== "SomeValue" ) ***REMOVED*** throw new Error("incorrect headers: " + JSON.stringify(headers)); ***REMOVED***
 			`))
 			assert.NoError(t, err)

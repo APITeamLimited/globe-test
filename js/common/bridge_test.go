@@ -324,7 +324,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED***"Methods", bridgeTestMethodsType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			t.Run("unexportedFn", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.unexportedFn()`)
-				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedFn' at <eval>:1:30(3)")
+				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedFn' at <eval>:1:17(3)")
 			***REMOVED***)
 			t.Run("ExportedFn", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.exportedFn()`)
@@ -332,7 +332,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***)
 			t.Run("unexportedPtrFn", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.unexportedPtrFn()`)
-				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedPtrFn' at <eval>:1:33(3)")
+				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedPtrFn' at <eval>:1:20(3)")
 			***REMOVED***)
 			t.Run("ExportedPtrFn", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.exportedPtrFn()`)
@@ -340,7 +340,7 @@ func TestBind(t *testing.T) ***REMOVED***
 				case *bridgeTestMethodsType:
 					assert.NoError(t, err)
 				case bridgeTestMethodsType:
-					assert.EqualError(t, err, "TypeError: Object has no member 'exportedPtrFn' at <eval>:1:31(3)")
+					assert.EqualError(t, err, "TypeError: Object has no member 'exportedPtrFn' at <eval>:1:18(3)")
 				default:
 					assert.Fail(t, "INVALID TYPE")
 				***REMOVED***
@@ -527,7 +527,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			_, err := RunString(rt, `obj.contextInject()`)
 			switch impl := obj.(type) ***REMOVED***
 			case bridgeTestContextInjectType:
-				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject' at <eval>:1:31(3)")
+				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject' at <eval>:1:18(3)")
 			case *bridgeTestContextInjectType:
 				assert.EqualError(t, err, "GoError: contextInject() can only be called from within default()")
 				assert.Equal(t, nil, impl.ctx)
@@ -546,7 +546,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			_, err := RunString(rt, `obj.contextInjectPtr()`)
 			switch impl := obj.(type) ***REMOVED***
 			case bridgeTestContextInjectPtrType:
-				assert.EqualError(t, err, "TypeError: Object has no member 'contextInjectPtr' at <eval>:1:34(3)")
+				assert.EqualError(t, err, "TypeError: Object has no member 'contextInjectPtr' at <eval>:1:21(3)")
 			case *bridgeTestContextInjectPtrType:
 				assert.NoError(t, err)
 				assert.Equal(t, ctxPtr, impl.ctxPtr)
@@ -566,7 +566,7 @@ func TestBind(t *testing.T) ***REMOVED***
 				***REMOVED***
 			case bridgeTestCounterType:
 				_, err := RunString(rt, `obj.count()`)
-				assert.EqualError(t, err, "TypeError: Object has no member 'count' at <eval>:1:23(3)")
+				assert.EqualError(t, err, "TypeError: Object has no member 'count' at <eval>:1:10(3)")
 			default:
 				assert.Fail(t, "UNKNOWN TYPE")
 			***REMOVED***
