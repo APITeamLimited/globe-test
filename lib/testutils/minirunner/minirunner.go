@@ -118,18 +118,30 @@ type VU struct ***REMOVED***
 type ActiveVU struct ***REMOVED***
 	*VU
 	*lib.VUActivationParams
+	busy chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 // Activate the VU so it will be able to run code.
 func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
+	avu := &ActiveVU***REMOVED***
+		VU:                 vu,
+		VUActivationParams: params,
+		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+	***REMOVED***
+
 	go func() ***REMOVED***
 		<-params.RunContext.Done()
+
+		// Wait for the VU to stop running, if it was, and prevent it from
+		// running again for this activation
+		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+
 		if params.DeactivateCallback != nil ***REMOVED***
 			params.DeactivateCallback()
 		***REMOVED***
 	***REMOVED***()
 
-	return &ActiveVU***REMOVED***vu, params***REMOVED***
+	return avu
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.
@@ -137,6 +149,16 @@ func (vu *ActiveVU) RunOnce() error ***REMOVED***
 	if vu.R.Fn == nil ***REMOVED***
 		return nil
 	***REMOVED***
+
+	select ***REMOVED***
+	case <-vu.RunContext.Done():
+		return vu.RunContext.Err() // we are done, return
+	case vu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+		// nothing else can run now, and the VU cannot be deactivated
+	***REMOVED***
+	defer func() ***REMOVED***
+		<-vu.busy // unlock deactivation again
+	***REMOVED***()
 
 	state := &lib.State***REMOVED***
 		Vu:        vu.ID,
