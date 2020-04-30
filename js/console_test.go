@@ -70,29 +70,29 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 		assert.Equal(t, "b", entry.Message)
 	***REMOVED***
 ***REMOVED***
-func getSimpleRunner(path, data string) (*Runner, error) ***REMOVED***
-	return getSimpleRunnerWithFileFs(path, data, afero.NewMemMapFs())
+func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
+	var (
+		fs     = afero.NewMemMapFs()
+		rtOpts = lib.RuntimeOptions***REMOVED******REMOVED***
+	)
+	for _, o := range opts ***REMOVED***
+		switch opt := o.(type) ***REMOVED***
+		case afero.Fs:
+			fs = opt
+		case lib.RuntimeOptions:
+			rtOpts = opt
+		***REMOVED***
+	***REMOVED***
+	return New(
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
+			Data: []byte(data),
+		***REMOVED***,
+		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
+		rtOpts,
+	)
 ***REMOVED***
 
-func getSimpleRunnerWithOptions(path, data string, options lib.RuntimeOptions) (*Runner, error) ***REMOVED***
-	return New(&loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
-		Data: []byte(data),
-	***REMOVED***, map[string]afero.Fs***REMOVED***
-		"file":  afero.NewMemMapFs(),
-		"https": afero.NewMemMapFs()***REMOVED***,
-		options)
-***REMOVED***
-
-func getSimpleRunnerWithFileFs(path, data string, fileFs afero.Fs) (*Runner, error) ***REMOVED***
-	return New(&loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
-		Data: []byte(data),
-	***REMOVED***, map[string]afero.Fs***REMOVED***
-		"file":  fileFs,
-		"https": afero.NewMemMapFs()***REMOVED***,
-		lib.RuntimeOptions***REMOVED******REMOVED***)
-***REMOVED***
 func TestConsole(t *testing.T) ***REMOVED***
 	levels := map[string]logrus.Level***REMOVED***
 		"log":   logrus.InfoLevel,

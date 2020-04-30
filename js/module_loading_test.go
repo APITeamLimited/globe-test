@@ -87,7 +87,7 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 			return c.C();
 		***REMOVED***
 	`), os.ModePerm))
-			r1, err := getSimpleRunnerWithFileFs("/script.js", `
+			r1, err := getSimpleRunner("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 			import ***REMOVED*** B ***REMOVED*** from "./B.js";
 
@@ -136,7 +136,7 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 			return exports.A() + "B";
 		***REMOVED***
 	`), os.ModePerm))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+	r1, err := getSimpleRunner("/script.js", `
 			import ***REMOVED*** A, B ***REMOVED*** from "./A.js";
 
 			export default function(data) ***REMOVED***
@@ -185,7 +185,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 			return http.get("HTTPBIN_URL/get");
 		***REMOVED***
 	`)), os.ModePerm))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+	r1, err := getSimpleRunner("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 
 			export default function(data) ***REMOVED***
@@ -228,7 +228,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 			return globalVar;
 		***REMOVED***
 	`), os.ModePerm))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+	r1, err := getSimpleRunner("/script.js", `
 			import ***REMOVED*** A ***REMOVED*** from "./A.js";
 
 			export default function(data) ***REMOVED***
@@ -302,7 +302,7 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 	`), os.ModePerm))
 	data, err := afero.ReadFile(fs, "/main.js")
 	require.NoError(t, err)
-	r1, err := getSimpleRunnerWithFileFs("/main.js", string(data), fs)
+	r1, err := getSimpleRunner("/main.js", string(data), fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -351,7 +351,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 			***REMOVED***
 	`), os.ModePerm))
 
-	r1, err := getSimpleRunnerWithFileFs("/main.js", `
+	r1, err := getSimpleRunner("/main.js", `
 			import ***REMOVED***foo***REMOVED*** from './a.js';
 			import ***REMOVED***bar***REMOVED*** from './b.js';
 			export default function() ***REMOVED***
@@ -410,7 +410,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 		***REMOVED***);
 	`), os.ModePerm))
 
-	r1, err := getSimpleRunnerWithFileFs("/script.js", `
+	r1, err := getSimpleRunner("/script.js", `
 			import ***REMOVED***alpha, bravo ***REMOVED*** from "./browserified.js";
 
 			export default function(data) ***REMOVED***
@@ -465,7 +465,7 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***`
 	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), 0644))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", data, fs)
+	r1, err := getSimpleRunner("/script.js", data, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()

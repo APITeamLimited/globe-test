@@ -155,7 +155,7 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 							throw new Error("expected teardownTimeout to be " + __ENV.expectedTeardownTimeout + " but it was " + options.teardownTimeout);
 						***REMOVED***
 					***REMOVED***;`
-			r, err := getSimpleRunnerWithOptions("/script.js", data,
+			r, err := getSimpleRunner("/script.js", data,
 				lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
@@ -193,7 +193,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			***REMOVED***;`
 
 	expScriptOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
-	r1, err := getSimpleRunnerWithOptions("/script.js", data,
+	r1, err := getSimpleRunner("/script.js", data,
 		lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
@@ -466,7 +466,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			name, data := name, data
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				r1, err := getSimpleRunnerWithFileFs(data.filename, fmt.Sprintf(`
+				r1, err := getSimpleRunner(data.filename, fmt.Sprintf(`
 					import hi from "%s";
 					export default function() ***REMOVED***
 						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
@@ -1442,7 +1442,7 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), os.ModePerm))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", data, fs)
+	r1, err := getSimpleRunner("/script.js", data, fs)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)
@@ -1477,7 +1477,7 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
-	r1, err := getSimpleRunnerWithFileFs("/script.js", tb.Replacer.Replace(`
+	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
 			let fput = open("/non/existent");
 			export default function(data) ***REMOVED***
 			***REMOVED***
