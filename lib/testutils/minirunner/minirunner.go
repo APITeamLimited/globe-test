@@ -143,7 +143,7 @@ func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED**
 		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 
 		if params.DeactivateCallback != nil ***REMOVED***
-			params.DeactivateCallback()
+			params.DeactivateCallback(vu)
 		***REMOVED***
 	***REMOVED***()
 

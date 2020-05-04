@@ -216,24 +216,19 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 
 	attemptedIters := new(uint64)
 
-	conf := si.GetConfig()
-	execFn := conf.GetExec().ValueOrZero()
-	env := conf.GetEnv()
-	tags := conf.GetTags()
+	activationParams := getVUActivationParams(maxDurationCtx, si.config.BaseConfig,
+		func(u lib.InitializedVU) ***REMOVED***
+			si.executionState.ReturnVU(u, true)
+			activeVUs.Done()
+		***REMOVED***)
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
 
-		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
-			RunContext: ctx,
-			Exec:       execFn,
-			Env:        env,
-			Tags:       tags,
-			DeactivateCallback: func() ***REMOVED***
-				si.executionState.ReturnVU(initVU, true)
-				activeVUs.Done()
-			***REMOVED***,
-		***REMOVED***)
+		newParams := *activationParams
+		newParams.RunContext = ctx
+
+		activeVU := initVU.Activate(&newParams)
 
 		for ***REMOVED***
 			select ***REMOVED***
@@ -248,7 +243,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 				return
 			***REMOVED***
 
-			runIteration(maxDurationCtx, vu)
+			runIteration(maxDurationCtx, activeVU)
 			atomic.AddUint64(doneIters, 1)
 		***REMOVED***
 	***REMOVED***

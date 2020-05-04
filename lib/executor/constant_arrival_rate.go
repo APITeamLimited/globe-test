@@ -232,22 +232,14 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		***REMOVED***
 	***REMOVED***()
 
-	conf := car.GetConfig()
-	execFn := conf.GetExec().ValueOrZero()
-	env := conf.GetEnv()
-	tags := conf.GetTags()
+	activationParams := getVUActivationParams(maxDurationCtx, car.config.BaseConfig,
+		func(u lib.InitializedVU) ***REMOVED***
+			car.executionState.ReturnVU(u, true)
+			activeVUsWg.Done()
+		***REMOVED***)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
-		activeVU := initVU.Activate(&lib.VUActivationParams***REMOVED***
-			RunContext: maxDurationCtx,
-			Exec:       execFn,
-			Env:        env,
-			Tags:       tags,
-			DeactivateCallback: func() ***REMOVED***
-				car.executionState.ReturnVU(initVU, true)
-				activeVUsWg.Done()
-			***REMOVED***,
-		***REMOVED***)
+		activeVU := initVU.Activate(activationParams)
 		car.executionState.ModCurrentlyActiveVUsCount(+1)
 		atomic.AddUint64(&activeVUsCount, 1)
 		return activeVU

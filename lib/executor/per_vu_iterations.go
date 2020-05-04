@@ -197,24 +197,19 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
 
-	conf := pvi.GetConfig()
-	execFn := conf.GetExec().ValueOrZero()
-	env := conf.GetEnv()
-	tags := conf.GetTags()
+	activationParams := getVUActivationParams(maxDurationCtx, pvi.config.BaseConfig,
+		func(u lib.InitializedVU) ***REMOVED***
+			pvi.executionState.ReturnVU(u, true)
+			activeVUs.Done()
+		***REMOVED***)
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
 
-		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
-			RunContext: ctx,
-			Exec:       execFn,
-			Env:        env,
-			Tags:       tags,
-			DeactivateCallback: func() ***REMOVED***
-				pvi.executionState.ReturnVU(initVU, true)
-				activeVUs.Done()
-			***REMOVED***,
-		***REMOVED***)
+		newParams := *activationParams
+		newParams.RunContext = ctx
+
+		activeVU := initVU.Activate(&newParams)
 
 		for i := int64(0); i < iterations; i++ ***REMOVED***
 			select ***REMOVED***
@@ -223,7 +218,7 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 			default:
 				// continue looping
 			***REMOVED***
-			runIteration(maxDurationCtx, vu)
+			runIteration(maxDurationCtx, activeVU)
 			atomic.AddUint64(doneIters, 1)
 		***REMOVED***
 	***REMOVED***
