@@ -134,7 +134,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		conf, cerr := deriveAndValidateConfig(conf)
+		conf, cerr := deriveAndValidateConfig(conf, r.GetExports())
 		if cerr != nil ***REMOVED***
 			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
 		***REMOVED***

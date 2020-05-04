@@ -34,6 +34,7 @@ import (
 	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/executor"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/cloud"
@@ -262,17 +263,24 @@ func applyDefault(conf Config) Config ***REMOVED***
 	return conf
 ***REMOVED***
 
-func deriveAndValidateConfig(conf Config) (result Config, err error) ***REMOVED***
+func deriveAndValidateConfig(conf Config, exports map[string]struct***REMOVED******REMOVED***) (result Config, err error) ***REMOVED***
 	result = conf
 	result.Options, err = executor.DeriveExecutionFromShortcuts(conf.Options)
 	if err != nil ***REMOVED***
 		return result, err
 	***REMOVED***
-	return result, validateConfig(result)
+	return result, validateConfig(result, exports)
 ***REMOVED***
 
-func validateConfig(conf Config) error ***REMOVED***
+func validateConfig(conf Config, exports map[string]struct***REMOVED******REMOVED***) error ***REMOVED***
 	errList := conf.Validate()
+
+	for _, ec := range conf.Execution ***REMOVED***
+		if err := validateExecutorConfig(ec, exports); err != nil ***REMOVED***
+			errList = append(errList, err)
+		***REMOVED***
+	***REMOVED***
+
 	if len(errList) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -283,4 +291,16 @@ func validateConfig(conf Config) error ***REMOVED***
 	***REMOVED***
 
 	return errors.New(strings.Join(errMsgParts, "\n"))
+***REMOVED***
+
+func validateExecutorConfig(conf lib.ExecutorConfig, exports map[string]struct***REMOVED******REMOVED***) error ***REMOVED***
+	execFn := conf.GetExec().ValueOrZero()
+	if execFn == "" ***REMOVED***
+		execFn = consts.DefaultFn
+	***REMOVED***
+	if _, ok := exports[execFn]; !ok ***REMOVED***
+		return fmt.Errorf("executor %s: %s", conf.GetName(),
+			fmt.Sprintf("function '%s' not found in exports", execFn))
+	***REMOVED***
+	return nil
 ***REMOVED***

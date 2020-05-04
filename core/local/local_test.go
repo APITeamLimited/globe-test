@@ -119,19 +119,6 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	export function nonDefault() ***REMOVED******REMOVED***`, ""***REMOVED***,
-		***REMOVED***"nonDefaultErr", `
-	export let options = ***REMOVED***
-		execution: ***REMOVED***
-			per_vu_iters: ***REMOVED***
-				type: "per-vu-iterations",
-				vus: 1,
-				iterations: 1,
-				exec: "nonDefaultErr",
-			***REMOVED***,
-		***REMOVED***
-	***REMOVED***
-	export function nonDefault() ***REMOVED******REMOVED***`,
-			"error while initializing executor per_vu_iters: function 'nonDefaultErr' not found in exports"***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
