@@ -382,6 +382,19 @@ func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	***REMOVED***
 
 	remainingUnplannedVUs := maxVUs - preAllocatedVUs
+	makeUnplannedVUCh := make(chan struct***REMOVED******REMOVED***)
+	defer close(makeUnplannedVUCh)
+
+	go func() ***REMOVED***
+		for range makeUnplannedVUCh ***REMOVED***
+			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger)
+			if err != nil ***REMOVED***
+				// TODO figure out how to return it to the Run goroutine
+				varr.logger.WithError(err).Error("Error while allocating unplanned VU")
+			***REMOVED***
+			activeVUs <- activateVU(initVU)
+		***REMOVED***
+	***REMOVED***()
 
 	timer := time.NewTimer(time.Hour)
 	start := time.Now()
@@ -416,12 +429,15 @@ func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 				varr.logger.Warningf("Insufficient VUs, reached %d active VUs and cannot allocate more", maxVUs)
 				continue
 			***REMOVED***
-			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger)
-			if err != nil ***REMOVED***
-				return err
+
+			select ***REMOVED***
+			case makeUnplannedVUCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+				// this is the only goroutine that touches remainingUnplannedVUs and if we didn't
+				// send on the channel no new unplannedVU will be stared so no need to decrease it
+				remainingUnplannedVUs--
+				vu = <-activeVUs // just get any VU that gets activated, whether it is the unplanned or not doesn't matter
+			case vu = <-activeVUs: // a VU got freed while were waiting to start a new unplanned one
 			***REMOVED***
-			vu = activateVU(initVU)
-			remainingUnplannedVUs--
 		***REMOVED***
 		go runIteration(vu)
 	***REMOVED***
