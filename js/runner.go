@@ -390,6 +390,10 @@ type ActiveVU struct ***REMOVED***
 func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	u.Runtime.ClearInterrupt()
 
+	if params.Exec == "" ***REMOVED***
+		params.Exec = consts.DefaultFn
+	***REMOVED***
+
 	// Override the preset global env with any custom env vars
 	if len(params.Env) > 0 ***REMOVED***
 		env := u.Runtime.Get("__ENV").Export().(map[string]string)
@@ -397,10 +401,6 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 			env[key] = value
 		***REMOVED***
 		u.Runtime.Set("__ENV", env)
-	***REMOVED***
-
-	if params.Exec == "" ***REMOVED***
-		params.Exec = "default"
 	***REMOVED***
 
 	if len(params.Tags) > 0 ***REMOVED***
