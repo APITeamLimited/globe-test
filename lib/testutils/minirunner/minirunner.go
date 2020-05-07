@@ -95,10 +95,10 @@ func (r MiniRunner) GetDefaultGroup() *lib.Group ***REMOVED***
 	return r.Group
 ***REMOVED***
 
-// GetExports satisfies lib.Runner, but is mocked for MiniRunner since
+// IsExecutable satisfies lib.Runner, but is mocked for MiniRunner since
 // it doesn't deal with JS.
-func (r MiniRunner) GetExports() map[string]struct***REMOVED******REMOVED*** ***REMOVED***
-	return map[string]struct***REMOVED******REMOVED******REMOVED***"default": ***REMOVED******REMOVED******REMOVED***
+func (r MiniRunner) IsExecutable(name string) bool ***REMOVED***
+	return true
 ***REMOVED***
 
 // GetOptions returns the supplied options struct.

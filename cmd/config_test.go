@@ -144,13 +144,13 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	testCases := []struct ***REMOVED***
-		name    string
-		conf    Config
-		exports map[string]struct***REMOVED******REMOVED***
-		err     string
+		name   string
+		conf   Config
+		isExec bool
+		err    string
 	***REMOVED******REMOVED***
-		***REMOVED***"defaultOK", Config***REMOVED******REMOVED***, map[string]struct***REMOVED******REMOVED******REMOVED***"default": ***REMOVED******REMOVED******REMOVED***, ""***REMOVED***,
-		***REMOVED***"defaultErr", Config***REMOVED******REMOVED***, map[string]struct***REMOVED******REMOVED******REMOVED******REMOVED***,
+		***REMOVED***"defaultOK", Config***REMOVED******REMOVED***, true, ""***REMOVED***,
+		***REMOVED***"defaultErr", Config***REMOVED******REMOVED***, false,
 			"executor default: function 'default' not found in exports"***REMOVED***,
 		***REMOVED***"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
 			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
@@ -158,8 +158,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 				VUs:         null.IntFrom(1),
 				Iterations:  null.IntFrom(1),
 				MaxDuration: types.NullDurationFrom(time.Second),
-			***REMOVED******REMOVED******REMOVED******REMOVED***,
-			map[string]struct***REMOVED******REMOVED******REMOVED***"nonDefault": ***REMOVED******REMOVED******REMOVED***, "",
+			***REMOVED******REMOVED******REMOVED******REMOVED***, true, "",
 		***REMOVED***,
 		***REMOVED***"nonDefaultErr", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
 			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
@@ -167,8 +166,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 				VUs:         null.IntFrom(1),
 				Iterations:  null.IntFrom(1),
 				MaxDuration: types.NullDurationFrom(time.Second),
-			***REMOVED******REMOVED******REMOVED******REMOVED***,
-			map[string]struct***REMOVED******REMOVED******REMOVED***"nonDefault": ***REMOVED******REMOVED******REMOVED***,
+			***REMOVED******REMOVED******REMOVED******REMOVED***, false,
 			"executor per_vu_iters: function 'nonDefaultErr' not found in exports",
 		***REMOVED***,
 	***REMOVED***
@@ -176,7 +174,8 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
-			_, err := deriveAndValidateConfig(tc.conf, tc.exports)
+			_, err := deriveAndValidateConfig(tc.conf,
+				func(_ string) bool ***REMOVED*** return tc.isExec ***REMOVED***)
 			if tc.err != "" ***REMOVED***
 				assert.Contains(t, err.Error(), tc.err)
 			***REMOVED*** else ***REMOVED***

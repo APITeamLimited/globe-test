@@ -262,20 +262,20 @@ func applyDefault(conf Config) Config ***REMOVED***
 	return conf
 ***REMOVED***
 
-func deriveAndValidateConfig(conf Config, exports map[string]struct***REMOVED******REMOVED***) (result Config, err error) ***REMOVED***
+func deriveAndValidateConfig(conf Config, isExecutable func(string) bool) (result Config, err error) ***REMOVED***
 	result = conf
 	result.Options, err = executor.DeriveExecutionFromShortcuts(conf.Options)
 	if err != nil ***REMOVED***
 		return result, err
 	***REMOVED***
-	return result, validateConfig(result, exports)
+	return result, validateConfig(result, isExecutable)
 ***REMOVED***
 
-func validateConfig(conf Config, exports map[string]struct***REMOVED******REMOVED***) error ***REMOVED***
+func validateConfig(conf Config, isExecutable func(string) bool) error ***REMOVED***
 	errList := conf.Validate()
 
 	for _, ec := range conf.Execution ***REMOVED***
-		if err := validateExecutorConfig(ec, exports); err != nil ***REMOVED***
+		if err := validateExecutorConfig(ec, isExecutable); err != nil ***REMOVED***
 			errList = append(errList, err)
 		***REMOVED***
 	***REMOVED***
@@ -292,9 +292,9 @@ func validateConfig(conf Config, exports map[string]struct***REMOVED******REMOVE
 	return errors.New(strings.Join(errMsgParts, "\n"))
 ***REMOVED***
 
-func validateExecutorConfig(conf lib.ExecutorConfig, exports map[string]struct***REMOVED******REMOVED***) error ***REMOVED***
+func validateExecutorConfig(conf lib.ExecutorConfig, isExecutable func(string) bool) error ***REMOVED***
 	execFn := conf.GetExec()
-	if _, ok := exports[execFn]; !ok ***REMOVED***
+	if !isExecutable(execFn) ***REMOVED***
 		return fmt.Errorf("executor %s: %s", conf.GetName(),
 			fmt.Sprintf("function '%s' not found in exports", execFn))
 	***REMOVED***

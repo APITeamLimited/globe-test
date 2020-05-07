@@ -45,22 +45,22 @@ type Bundle struct ***REMOVED***
 	Filename *url.URL
 	Source   string
 	Program  *goja.Program
-	// exported functions, for validation only
-	Exports map[string]struct***REMOVED******REMOVED***
-	Options lib.Options
+	Options  lib.Options
 
 	BaseInitContext *InitContext
 
 	Env               map[string]string
 	CompatibilityMode lib.CompatibilityMode
+
+	exports map[string]goja.Callable
 ***REMOVED***
 
 // A BundleInstance is a self-contained instance of a Bundle.
 type BundleInstance struct ***REMOVED***
 	Runtime *goja.Runtime
 	Context *context.Context
-	// exported functions, ready for execution
-	Exports map[string]goja.Callable
+
+	exports map[string]goja.Callable
 ***REMOVED***
 
 // NewBundle creates a new bundle from a source file and a filesystem.
@@ -83,11 +83,11 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 		Filename: src.URL,
 		Source:   code,
 		Program:  pgm,
-		Exports:  make(map[string]struct***REMOVED******REMOVED***),
 		BaseInitContext: NewInitContext(rt, c, compatMode, new(context.Context),
 			filesystems, loader.Dir(src.URL)),
 		Env:               rtOpts.Env,
 		CompatibilityMode: compatMode,
+		exports:           make(map[string]goja.Callable),
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
@@ -140,11 +140,11 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		Filename:          arc.FilenameURL,
 		Source:            string(arc.Data),
 		Program:           pgm,
-		Exports:           make(map[string]struct***REMOVED******REMOVED***),
 		Options:           arc.Options,
 		BaseInitContext:   initctx,
 		Env:               env,
 		CompatibilityMode: compatMode,
+		exports:           make(map[string]goja.Callable),
 	***REMOVED***
 
 	if err = bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
@@ -190,6 +190,10 @@ func (b *Bundle) getExports(rt *goja.Runtime) error ***REMOVED***
 
 	for _, k := range exports.Keys() ***REMOVED***
 		v := exports.Get(k)
+		if fn, ok := goja.AssertFunction(v); ok && k != consts.Options ***REMOVED***
+			b.exports[k] = fn
+			continue
+		***REMOVED***
 		switch k ***REMOVED***
 		case consts.Options:
 			data, err := json.Marshal(v.Export())
@@ -200,21 +204,13 @@ func (b *Bundle) getExports(rt *goja.Runtime) error ***REMOVED***
 				return err
 			***REMOVED***
 		case consts.SetupFn:
-			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
-				return errors.New("exported 'setup' must be a function")
-			***REMOVED***
+			return errors.New("exported 'setup' must be a function")
 		case consts.TeardownFn:
-			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
-				return errors.New("exported 'teardown' must be a function")
-			***REMOVED***
-		default:
-			if _, ok := goja.AssertFunction(v); ok ***REMOVED***
-				b.Exports[k] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-			***REMOVED***
+			return errors.New("exported 'teardown' must be a function")
 		***REMOVED***
 	***REMOVED***
 
-	if len(b.Exports) == 0 ***REMOVED***
+	if len(b.exports) == 0 ***REMOVED***
 		return errors.New("no exported functions in script")
 	***REMOVED***
 
@@ -238,15 +234,15 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 	bi = &BundleInstance***REMOVED***
 		Runtime: rt,
 		Context: ctxPtr,
-		Exports: make(map[string]goja.Callable),
+		exports: make(map[string]goja.Callable),
 	***REMOVED***
 
 	// Grab any exported functions that could be executed. These were
 	// already pre-validated in NewBundle(), just get them here.
 	exports := rt.Get("exports").ToObject(rt)
-	for k := range b.Exports ***REMOVED***
+	for k := range b.exports ***REMOVED***
 		fn, _ := goja.AssertFunction(exports.Get(k))
-		bi.Exports[k] = fn
+		bi.exports[k] = fn
 	***REMOVED***
 
 	jsOptions := rt.Get("options")
