@@ -280,7 +280,8 @@ func (varc RampingArrivalRateConfig) cal(et *lib.ExecutionTuple, ch chan<- time.
 ***REMOVED***
 
 // Run executes a variable number of iterations per second.
-func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED*** //nolint:funlen
+//nolint:funlen,gocognit
+func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	segment := varr.executionState.ExecutionTuple.Segment
 	gracefulStop := varr.config.GetGracefulStop()
 	duration := sumStagesDuration(varr.config.Stages)
@@ -301,21 +302,20 @@ func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	***REMOVED***).Debug("Starting executor run...")
 
 	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
-	defer activeVUsWg.Wait()
 
+	returnedVUs := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
-	defer cancel()
-
 	// Pre-allocate the VUs local shared buffer
+
+	defer func() ***REMOVED***
+		// Make sure all VUs aren't executing iterations anymore, for the cancel()
+		// above to deactivate them.
+		<-returnedVUs
+		cancel()
+		activeVUsWg.Wait()
+	***REMOVED***()
 	activeVUs := make(chan lib.ActiveVU, maxVUs)
 	activeVUsCount := uint64(0)
-	// Make sure all VUs aren't executing iterations anymore, for the cancel()
-	// above to deactivate them.
-	defer func() ***REMOVED***
-		for i := uint64(0); i < activeVUsCount; i++ ***REMOVED***
-			<-activeVUs
-		***REMOVED***
-	***REMOVED***()
 
 	activationParams := getVUActivationParams(maxDurationCtx, varr.config.BaseConfig,
 		func(u lib.InitializedVU) ***REMOVED***
@@ -329,6 +329,28 @@ func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		atomic.AddUint64(&activeVUsCount, 1)
 		return activeVU
 	***REMOVED***
+
+	remainingUnplannedVUs := maxVUs - preAllocatedVUs
+	makeUnplannedVUCh := make(chan struct***REMOVED******REMOVED***)
+	defer close(makeUnplannedVUCh)
+	go func() ***REMOVED***
+		defer close(returnedVUs)
+		defer func() ***REMOVED***
+			// this is done here as to not have an unplannedVU in the middle of initialization when
+			// starting to return activeVUs
+			for i := uint64(0); i < atomic.LoadUint64(&activeVUsCount); i++ ***REMOVED***
+				<-activeVUs
+			***REMOVED***
+		***REMOVED***()
+		for range makeUnplannedVUCh ***REMOVED***
+			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger)
+			if err != nil ***REMOVED***
+				// TODO figure out how to return it to the Run goroutine
+				varr.logger.WithError(err).Error("Error while allocating unplanned VU")
+			***REMOVED***
+			activeVUs <- activateVU(initVU)
+		***REMOVED***
+	***REMOVED***()
 
 	// Get the pre-allocated VUs in the local buffer
 	for i := int64(0); i < preAllocatedVUs; i++ ***REMOVED***
@@ -380,21 +402,6 @@ func (varr RampingArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		runIterationBasic(maxDurationCtx, vu)
 		activeVUs <- vu
 	***REMOVED***
-
-	remainingUnplannedVUs := maxVUs - preAllocatedVUs
-	makeUnplannedVUCh := make(chan struct***REMOVED******REMOVED***)
-	defer close(makeUnplannedVUCh)
-
-	go func() ***REMOVED***
-		for range makeUnplannedVUCh ***REMOVED***
-			initVU, err := varr.executionState.GetUnplannedVU(maxDurationCtx, varr.logger)
-			if err != nil ***REMOVED***
-				// TODO figure out how to return it to the Run goroutine
-				varr.logger.WithError(err).Error("Error while allocating unplanned VU")
-			***REMOVED***
-			activeVUs <- activateVU(initVU)
-		***REMOVED***
-	***REMOVED***()
 
 	timer := time.NewTimer(time.Hour)
 	start := time.Now()
