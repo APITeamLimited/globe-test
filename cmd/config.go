@@ -295,8 +295,7 @@ func validateConfig(conf Config, isExecutable func(string) bool) error ***REMOVE
 func validateExecutorConfig(conf lib.ExecutorConfig, isExecutable func(string) bool) error ***REMOVED***
 	execFn := conf.GetExec()
 	if !isExecutable(execFn) ***REMOVED***
-		return fmt.Errorf("executor %s: %s", conf.GetName(),
-			fmt.Sprintf("function '%s' not found in exports", execFn))
+		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
 	***REMOVED***
 	return nil
 ***REMOVED***
