@@ -388,6 +388,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 
 	script := sr(`
 	import http from "k6/http";
+	import ws from 'k6/ws';
 	import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
 
 	let errors = new Counter('errors');
@@ -412,6 +413,15 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				env: ***REMOVED*** TESTVAR2: 'scenario2' ***REMOVED***,
 				tags: ***REMOVED*** testtag2: 'scenario2' ***REMOVED***,
 			***REMOVED***,
+			scenario3: ***REMOVED***
+				type: 'per-vu-iterations',
+				vus: 1,
+				iterations: 1,
+				gracefulStop: '0.5s',
+				exec: 's3funcWS',
+				env: ***REMOVED*** TESTVAR3: 'scenario3' ***REMOVED***,
+				tags: ***REMOVED*** testtag3: 'scenario3' ***REMOVED***,
+			***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 
@@ -426,6 +436,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	export function s1func() ***REMOVED***
 		checkVar('TESTVAR1', 'scenario1');
 		checkVar('TESTVAR2', undefined);
+		checkVar('TESTVAR3', undefined);
 		checkVar('TESTGLOBALVAR', 'global');
 
 		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario1' ***REMOVED******REMOVED***);
@@ -434,10 +445,39 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	export function s2func() ***REMOVED***
 		checkVar('TESTVAR1', undefined);
 		checkVar('TESTVAR2', 'scenario2');
+		checkVar('TESTVAR3', undefined);
 		checkVar('TESTGLOBALVAR', 'global');
 
 		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario2' ***REMOVED******REMOVED***);
-	***REMOVED***`)
+	***REMOVED***
+
+	export function s3funcWS() ***REMOVED***
+		checkVar('TESTVAR1', undefined);
+		checkVar('TESTVAR2', undefined);
+		checkVar('TESTVAR3', 'scenario3');
+		checkVar('TESTGLOBALVAR', 'global');
+
+		const customTags = ***REMOVED*** wstag: 'scenario3' ***REMOVED***;
+		const response = ws.connect('WSBIN_URL/ws-echo', ***REMOVED*** tags: customTags ***REMOVED***,
+			function (socket) ***REMOVED***
+				socket.on('open', function() ***REMOVED***
+					socket.send('hello');
+				***REMOVED***);
+				socket.on('message', function(msg) ***REMOVED***
+					if (msg != 'hello') ***REMOVED***
+					    console.error("Expected to receive 'hello' but got '" + msg + "' instead!");
+						errors.add(1);
+					***REMOVED***
+					socket.close()
+				***REMOVED***);
+				socket.on('error', function (e) ***REMOVED***
+					console.log('ws error: ' + e.error());
+					errors.add(1);
+				***REMOVED***);
+			***REMOVED***
+		);
+	***REMOVED***
+`)
 
 	runner, err := js.New(&loader.SourceData***REMOVED***
 		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
@@ -469,6 +509,9 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		***REMOVED***"testtag1": "scenario1"***REMOVED***,
 		***REMOVED***"testtag2": "scenario2"***REMOVED***,
 	***REMOVED***
+	expectedConnSampleTags := map[string]string***REMOVED***
+		"testtag3": "scenario3", "wstag": "scenario3",
+	***REMOVED***
 	var gotSampleTags int
 	for ***REMOVED***
 		select ***REMOVED***
@@ -492,8 +535,16 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
+			if cs, ok := sample.(stats.ConnectedSamples); ok ***REMOVED***
+				for _, s := range cs.Samples ***REMOVED***
+					tags := s.Tags.CloneTags()
+					if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
+						gotSampleTags++
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
 		case <-done:
-			require.Equal(t, 4, gotSampleTags, "received wrong amount of samples with expected tags")
+			require.Equal(t, 6, gotSampleTags, "received wrong amount of samples with expected tags")
 			return
 		***REMOVED***
 	***REMOVED***
