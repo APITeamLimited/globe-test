@@ -232,6 +232,9 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	tags := state.Options.RunTags.CloneTags()
+	for k, v := range state.Tags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
 	for k, v := range preq.Tags ***REMOVED***
 		tags[k] = v
 	***REMOVED***

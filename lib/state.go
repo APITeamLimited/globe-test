@@ -67,4 +67,5 @@ type State struct ***REMOVED***
 	BPool *bpool.BufferPool
 
 	Vu, Iteration int64
+	Tags          map[string]string
 ***REMOVED***

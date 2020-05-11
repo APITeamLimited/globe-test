@@ -328,7 +328,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 		return goja.Undefined(), err
 	***REMOVED***
 
-	v, _, _, err := vu.runFn(ctx, group, false, fn, vu.Runtime.ToValue(arg))
+	v, _, _, err := vu.runFn(ctx, group, false, nil, fn, vu.Runtime.ToValue(arg))
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
@@ -404,14 +404,6 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.Runtime.Set("__ENV", env)
 	***REMOVED***
 
-	if len(params.Tags) > 0 ***REMOVED***
-		tags := u.Runner.Bundle.Options.RunTags.CloneTags()
-		for k, v := range params.Tags ***REMOVED***
-			tags[k] = v
-		***REMOVED***
-		u.Runner.Bundle.Options.RunTags = stats.IntoSampleTags(&tags)
-	***REMOVED***
-
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
 		VUActivationParams: params,
@@ -469,7 +461,7 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 
 	// Call the exported function.
 	_, isFullIteration, totalTime, err := u.runFn(
-		u.RunContext, u.Runner.defaultGroup, true, fn, u.setupData,
+		u.RunContext, u.Runner.defaultGroup, true, u.Tags, fn, u.setupData,
 	)
 
 	// If MinIterationDuration is specified and the iteration wasn't cancelled
@@ -485,7 +477,8 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) runFn(
-	ctx context.Context, group *lib.Group, isDefault bool, fn goja.Callable, args ...goja.Value,
+	ctx context.Context, group *lib.Group, isDefault bool, customTags map[string]string,
+	fn goja.Callable, args ...goja.Value,
 ) (goja.Value, bool, time.Duration, error) ***REMOVED***
 	cookieJar := u.CookieJar
 	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() ***REMOVED***
@@ -509,6 +502,7 @@ func (u *VU) runFn(
 		Vu:        u.ID,
 		Samples:   u.Samples,
 		Iteration: u.Iteration,
+		Tags:      customTags,
 	***REMOVED***
 
 	newctx := common.WithRuntime(ctx, u.Runtime)
@@ -540,6 +534,9 @@ func (u *VU) runFn(
 	***REMOVED***
 	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		tags["group"] = group.Path
+	***REMOVED***
+	for k, v := range customTags ***REMOVED***
+		tags[k] = v
 	***REMOVED***
 
 	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***

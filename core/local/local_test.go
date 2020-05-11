@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"reflect"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -253,9 +254,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			for ***REMOVED***
 				select ***REMOVED***
 				case sample := <-samples:
-					// TODO: Implement a more robust way of reporting
-					// errors in these high-level functional tests.
-					if _, ok := sample.(stats.Sample); ok ***REMOVED***
+					if s, ok := sample.(stats.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
 						assert.FailNow(t, "received error sample from test")
 					***REMOVED***
 				case <-done:
@@ -342,7 +341,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			execScheduler, err := NewExecutionScheduler(runner, logger)
 			require.NoError(t, err)
 
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			defer cancel()
 
 			done := make(chan struct***REMOVED******REMOVED***)
@@ -352,24 +351,151 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 				assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
 				close(done)
 			***REMOVED***()
-			var gotTag bool
+			var gotTrailTag, gotNetTrailTag bool
 			for ***REMOVED***
 				select ***REMOVED***
 				case sample := <-samples:
-					if trail, ok := sample.(*httpext.Trail); ok && !gotTag ***REMOVED***
+					if trail, ok := sample.(*httpext.Trail); ok && !gotTrailTag ***REMOVED***
 						tags := trail.Tags.CloneTags()
 						if v, ok := tags["customTag"]; ok && v == "value" ***REMOVED***
-							gotTag = true
+							gotTrailTag = true
+						***REMOVED***
+					***REMOVED***
+					if netTrail, ok := sample.(*netext.NetTrail); ok && !gotNetTrailTag ***REMOVED***
+						tags := netTrail.Tags.CloneTags()
+						if v, ok := tags["customTag"]; ok && v == "value" ***REMOVED***
+							gotNetTrailTag = true
 						***REMOVED***
 					***REMOVED***
 				case <-done:
-					if !gotTag ***REMOVED***
-						assert.FailNow(t, "sample with tag wasn't received")
+					if !gotTrailTag || !gotNetTrailTag ***REMOVED***
+						assert.FailNow(t, "a sample with expected tag wasn't received")
 					***REMOVED***
 					return
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+// Ensure that custom executor settings are unique per executor and
+// that there's no "crossover"/"pollution" between executors.
+func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+
+	script := sr(`
+	import http from "k6/http";
+	import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
+
+	let errors = new Counter('errors');
+
+	export let options = ***REMOVED***
+		execution: ***REMOVED***
+			scenario1: ***REMOVED***
+				type: 'per-vu-iterations',
+				vus: 1,
+				iterations: 1,
+				gracefulStop: '0.5s',
+				exec: 's1func',
+				env: ***REMOVED*** TESTVAR1: 'scenario1' ***REMOVED***,
+				tags: ***REMOVED*** testtag1: 'scenario1' ***REMOVED***,
+			***REMOVED***,
+			scenario2: ***REMOVED***
+				type: 'shared-iterations',
+				vus: 1,
+				iterations: 1,
+				gracefulStop: '0.5s',
+				exec: 's2func',
+				env: ***REMOVED*** TESTVAR2: 'scenario2' ***REMOVED***,
+				tags: ***REMOVED*** testtag2: 'scenario2' ***REMOVED***,
+			***REMOVED***,
+		***REMOVED***
+	***REMOVED***
+
+	function checkVar(name, expected) ***REMOVED***
+		if (__ENV[name] !== expected) ***REMOVED***
+		    console.error('Wrong ' + name + " env var value. Expected: '"
+						+ expected + "', actual: '" + __ENV[name] + "'");
+			errors.add(1);
+		***REMOVED***
+	***REMOVED***
+
+	export function s1func() ***REMOVED***
+		checkVar('TESTVAR1', 'scenario1');
+		checkVar('TESTVAR2', undefined);
+		checkVar('TESTGLOBALVAR', 'global');
+
+		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario1' ***REMOVED******REMOVED***);
+	***REMOVED***
+
+	export function s2func() ***REMOVED***
+		checkVar('TESTVAR1', undefined);
+		checkVar('TESTVAR2', 'scenario2');
+		checkVar('TESTGLOBALVAR', 'global');
+
+		http.get('HTTPBIN_IP_URL/', ***REMOVED*** tags: ***REMOVED*** reqtag: 'scenario2' ***REMOVED******REMOVED***);
+	***REMOVED***`)
+
+	runner, err := js.New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+		Data: []byte(script)***REMOVED***,
+		nil, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+	execScheduler, err := NewExecutionScheduler(runner, logger)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	done := make(chan struct***REMOVED******REMOVED***)
+	samples := make(chan stats.SampleContainer)
+	go func() ***REMOVED***
+		assert.NoError(t, execScheduler.Init(ctx, samples))
+		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
+		close(done)
+	***REMOVED***()
+
+	expectedTrailTags := []map[string]string***REMOVED***
+		***REMOVED***"testtag1": "scenario1", "reqtag": "scenario1"***REMOVED***,
+		***REMOVED***"testtag2": "scenario2", "reqtag": "scenario2"***REMOVED***,
+	***REMOVED***
+	expectedNetTrailTags := []map[string]string***REMOVED***
+		***REMOVED***"testtag1": "scenario1"***REMOVED***,
+		***REMOVED***"testtag2": "scenario2"***REMOVED***,
+	***REMOVED***
+	var gotSampleTags int
+	for ***REMOVED***
+		select ***REMOVED***
+		case sample := <-samples:
+			if s, ok := sample.(stats.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
+				assert.FailNow(t, "received error sample from test")
+			***REMOVED***
+			if trail, ok := sample.(*httpext.Trail); ok ***REMOVED***
+				tags := trail.Tags.CloneTags()
+				for _, expTags := range expectedTrailTags ***REMOVED***
+					if reflect.DeepEqual(expTags, tags) ***REMOVED***
+						gotSampleTags++
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+			if netTrail, ok := sample.(*netext.NetTrail); ok ***REMOVED***
+				tags := netTrail.Tags.CloneTags()
+				for _, expTags := range expectedNetTrailTags ***REMOVED***
+					if reflect.DeepEqual(expTags, tags) ***REMOVED***
+						gotSampleTags++
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		case <-done:
+			require.Equal(t, 4, gotSampleTags, "received wrong amount of samples with expected tags")
+			return
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
