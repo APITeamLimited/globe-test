@@ -28,11 +28,12 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/pkg/errors"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
-	"github.com/pkg/errors"
 )
 
 type K6 struct***REMOVED******REMOVED***
@@ -91,6 +92,9 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	t := time.Now()
 
 	tags := state.Options.RunTags.CloneTags()
+	for k, v := range state.Tags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
 	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		tags["group"] = g.Path
 	***REMOVED***
@@ -121,6 +125,9 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 
 	// Prepare tags, make sure the `group` tag can't be overwritten.
 	commonTags := state.Options.RunTags.CloneTags()
+	for k, v := range state.Tags ***REMOVED***
+		commonTags[k] = v
+	***REMOVED***
 	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		commonTags["group"] = state.Group.Path
 	***REMOVED***

@@ -380,6 +380,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 
 // Ensure that custom executor settings are unique per executor and
 // that there's no "crossover"/"pollution" between executors.
+// Also test that custom tags are properly set on checks and groups metrics.
 func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -390,6 +391,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	import http from "k6/http";
 	import ws from 'k6/ws';
 	import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
+	import ***REMOVED*** check, group ***REMOVED*** from 'k6';
 
 	let errors = new Counter('errors');
 
@@ -458,24 +460,27 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		checkVar('TESTGLOBALVAR', 'global');
 
 		const customTags = ***REMOVED*** wstag: 'scenario3' ***REMOVED***;
-		const response = ws.connect('WSBIN_URL/ws-echo', ***REMOVED*** tags: customTags ***REMOVED***,
-			function (socket) ***REMOVED***
-				socket.on('open', function() ***REMOVED***
-					socket.send('hello');
-				***REMOVED***);
-				socket.on('message', function(msg) ***REMOVED***
-					if (msg != 'hello') ***REMOVED***
-					    console.error("Expected to receive 'hello' but got '" + msg + "' instead!");
+		group('wsgroup', function() ***REMOVED***
+			const response = ws.connect('WSBIN_URL/ws-echo', ***REMOVED*** tags: customTags ***REMOVED***,
+				function (socket) ***REMOVED***
+					socket.on('open', function() ***REMOVED***
+						socket.send('hello');
+					***REMOVED***);
+					socket.on('message', function(msg) ***REMOVED***
+						if (msg != 'hello') ***REMOVED***
+						    console.error("Expected to receive 'hello' but got '" + msg + "' instead!");
+							errors.add(1);
+						***REMOVED***
+						socket.close()
+					***REMOVED***);
+					socket.on('error', function (e) ***REMOVED***
+						console.log('ws error: ' + e.error());
 						errors.add(1);
-					***REMOVED***
-					socket.close()
-				***REMOVED***);
-				socket.on('error', function (e) ***REMOVED***
-					console.log('ws error: ' + e.error());
-					errors.add(1);
-				***REMOVED***);
-			***REMOVED***
-		);
+					***REMOVED***);
+				***REMOVED***
+			);
+			check(response, ***REMOVED*** 'status is 101': (r) => r && r.status === 101 ***REMOVED***, customTags);
+		***REMOVED***);
 	***REMOVED***
 `)
 
@@ -512,6 +517,10 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	expectedConnSampleTags := map[string]string***REMOVED***
 		"testtag3": "scenario3", "wstag": "scenario3",
 	***REMOVED***
+	expectedPlainSampleTags := []map[string]string***REMOVED***
+		***REMOVED***"testtag3": "scenario3"***REMOVED***,
+		***REMOVED***"testtag3": "scenario3", "wstag": "scenario3"***REMOVED***,
+	***REMOVED***
 	var gotSampleTags int
 	for ***REMOVED***
 		select ***REMOVED***
@@ -543,8 +552,17 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
+			if s, ok := sample.(stats.Sample); ok &&
+				(s.Metric.Name == "checks" || s.Metric.Name == "group_duration") ***REMOVED***
+				tags := s.Tags.CloneTags()
+				for _, expTags := range expectedPlainSampleTags ***REMOVED***
+					if reflect.DeepEqual(expTags, tags) ***REMOVED***
+						gotSampleTags++
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
 		case <-done:
-			require.Equal(t, 6, gotSampleTags, "received wrong amount of samples with expected tags")
+			require.Equal(t, 8, gotSampleTags, "received wrong amount of samples with expected tags")
 			return
 		***REMOVED***
 	***REMOVED***
