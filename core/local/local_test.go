@@ -527,38 +527,37 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	for ***REMOVED***
 		select ***REMOVED***
 		case sample := <-samples:
-			if s, ok := sample.(stats.Sample); ok && s.Metric.Name == "errors" ***REMOVED***
-				assert.FailNow(t, "received error sample from test")
-			***REMOVED***
-			if trail, ok := sample.(*httpext.Trail); ok ***REMOVED***
-				tags := trail.Tags.CloneTags()
+			switch s := sample.(type) ***REMOVED***
+			case stats.Sample:
+				if s.Metric.Name == "errors" ***REMOVED***
+					assert.FailNow(t, "received error sample from test")
+				***REMOVED***
+				if s.Metric.Name == "checks" || s.Metric.Name == "group_duration" ***REMOVED***
+					tags := s.Tags.CloneTags()
+					for _, expTags := range expectedPlainSampleTags ***REMOVED***
+						if reflect.DeepEqual(expTags, tags) ***REMOVED***
+							gotSampleTags++
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			case *httpext.Trail:
+				tags := s.Tags.CloneTags()
 				for _, expTags := range expectedTrailTags ***REMOVED***
 					if reflect.DeepEqual(expTags, tags) ***REMOVED***
 						gotSampleTags++
 					***REMOVED***
 				***REMOVED***
-			***REMOVED***
-			if netTrail, ok := sample.(*netext.NetTrail); ok ***REMOVED***
-				tags := netTrail.Tags.CloneTags()
+			case *netext.NetTrail:
+				tags := s.Tags.CloneTags()
 				for _, expTags := range expectedNetTrailTags ***REMOVED***
 					if reflect.DeepEqual(expTags, tags) ***REMOVED***
 						gotSampleTags++
 					***REMOVED***
 				***REMOVED***
-			***REMOVED***
-			if cs, ok := sample.(stats.ConnectedSamples); ok ***REMOVED***
-				for _, s := range cs.Samples ***REMOVED***
-					tags := s.Tags.CloneTags()
+			case stats.ConnectedSamples:
+				for _, sm := range s.Samples ***REMOVED***
+					tags := sm.Tags.CloneTags()
 					if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
-						gotSampleTags++
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
-			if s, ok := sample.(stats.Sample); ok &&
-				(s.Metric.Name == "checks" || s.Metric.Name == "group_duration") ***REMOVED***
-				tags := s.Tags.CloneTags()
-				for _, expTags := range expectedPlainSampleTags ***REMOVED***
-					if reflect.DeepEqual(expTags, tags) ***REMOVED***
 						gotSampleTags++
 					***REMOVED***
 				***REMOVED***
