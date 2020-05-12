@@ -489,6 +489,21 @@ func (u *VU) runFn(
 		***REMOVED***
 	***REMOVED***
 
+	opts := &u.Runner.Bundle.Options
+	tags := opts.RunTags.CloneTags()
+	for k, v := range customTags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
+		tags["vu"] = strconv.FormatInt(u.ID, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
+		tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
+		tags["group"] = group.Path
+	***REMOVED***
+
 	state := &lib.State***REMOVED***
 		Logger:    u.Runner.Logger,
 		Options:   u.Runner.Bundle.Options,
@@ -502,7 +517,7 @@ func (u *VU) runFn(
 		Vu:        u.ID,
 		Samples:   u.Samples,
 		Iteration: u.Iteration,
-		Tags:      customTags,
+		Tags:      tags,
 	***REMOVED***
 
 	newctx := common.WithRuntime(ctx, u.Runtime)
@@ -510,7 +525,6 @@ func (u *VU) runFn(
 	*u.Context = newctx
 
 	u.Runtime.Set("__ITER", u.Iteration)
-	iter := u.Iteration
 	u.Iteration++
 
 	startTime := time.Now()
@@ -523,20 +537,6 @@ func (u *VU) runFn(
 		isFullIteration = false
 	default:
 		isFullIteration = true
-	***REMOVED***
-
-	tags := state.Options.RunTags.CloneTags()
-	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(u.ID, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(iter, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = group.Path
-	***REMOVED***
-	for k, v := range customTags ***REMOVED***
-		tags[k] = v
 	***REMOVED***
 
 	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***

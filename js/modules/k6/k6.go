@@ -23,7 +23,6 @@ package k6
 import (
 	"context"
 	"math/rand"
-	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -91,18 +90,9 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	ret, err := fn(goja.Undefined())
 	t := time.Now()
 
-	tags := state.Options.RunTags.CloneTags()
+	tags := map[string]string***REMOVED******REMOVED***
 	for k, v := range state.Tags ***REMOVED***
 		tags[k] = v
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = g.Path
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(state.Vu, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
 	stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
@@ -124,7 +114,7 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 	t := time.Now()
 
 	// Prepare tags, make sure the `group` tag can't be overwritten.
-	commonTags := state.Options.RunTags.CloneTags()
+	commonTags := map[string]string***REMOVED******REMOVED***
 	for k, v := range state.Tags ***REMOVED***
 		commonTags[k] = v
 	***REMOVED***
@@ -136,12 +126,6 @@ func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Va
 		for _, k := range obj.Keys() ***REMOVED***
 			commonTags[k] = obj.Get(k).String()
 		***REMOVED***
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
-		commonTags["vu"] = strconv.FormatInt(state.Vu, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
-		commonTags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
 	succ := true
