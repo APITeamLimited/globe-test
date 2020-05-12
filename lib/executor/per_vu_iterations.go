@@ -197,16 +197,19 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
 
+	activationParams := getVUActivationParams(maxDurationCtx, pvi.config.BaseConfig,
+		func(u lib.InitializedVU) ***REMOVED***
+			pvi.executionState.ReturnVU(u, true)
+			activeVUs.Done()
+		***REMOVED***)
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
 
-		activationParams := getVUActivationParams(ctx, pvi.config.BaseConfig,
-			func(u lib.InitializedVU) ***REMOVED***
-				pvi.executionState.ReturnVU(u, true)
-				activeVUs.Done()
-			***REMOVED***)
-		activeVU := initVU.Activate(activationParams)
+		newParams := *activationParams
+		newParams.RunContext = ctx
+
+		activeVU := initVU.Activate(&newParams)
 
 		for i := int64(0); i < iterations; i++ ***REMOVED***
 			select ***REMOVED***
