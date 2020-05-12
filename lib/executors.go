@@ -36,7 +36,7 @@ import (
 	"github.com/loadimpact/k6/ui/pb"
 )
 
-//TODO: remove globals and use some type of explicit dependency injection?
+// TODO: remove globals and use some type of explicit dependency injection?
 //nolint:gochecknoglobals
 var (
 	executorConfigTypesMutex   sync.RWMutex
@@ -72,7 +72,7 @@ type ExecutionStep struct ***REMOVED***
 	MaxUnplannedVUs uint64
 ***REMOVED***
 
-//TODO: make []ExecutionStep or []ExecutorConfig their own type?
+// TODO: make []ExecutionStep or []ExecutorConfig their own type?
 
 // ExecutorConfig is an interface that should be implemented by all executor config types
 type ExecutorConfig interface ***REMOVED***
@@ -119,7 +119,7 @@ type Executor interface ***REMOVED***
 	GetProgress() *pb.ProgressBar
 	GetLogger() *logrus.Entry
 
-	Init(ctx context.Context) error //TODO: remove, since it's currently unused?
+	Init(ctx context.Context) error
 	Run(ctx context.Context, engineOut chan<- stats.SampleContainer) error
 ***REMOVED***
 
@@ -173,7 +173,7 @@ func (scs *ExecutorConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 		return nil
 	***REMOVED***
 
-	//TODO: use a more sophisticated combination of dec.Token() and dec.More(),
+	// TODO: use a more sophisticated combination of dec.Token() and dec.More(),
 	// which would allow us to support both arrays and maps for this config?
 	var protoConfigs map[string]protoExecutorConfig
 	if err := StrictJSONUnmarshal(data, &protoConfigs); err != nil ***REMOVED***

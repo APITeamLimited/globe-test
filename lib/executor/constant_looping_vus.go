@@ -72,7 +72,7 @@ var _ lib.ExecutorConfig = &ConstantLoopingVUsConfig***REMOVED******REMOVED***
 
 // GetVUs returns the scaled VUs for the executor.
 func (clvc ConstantLoopingVUsConfig) GetVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.ES.Scale(clvc.VUs.Int64)
+	return et.Segment.Scale(clvc.VUs.Int64)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options

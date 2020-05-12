@@ -494,8 +494,9 @@ func TestExecutionTupleScaleConsistency(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		t.Run(fmt.Sprintf("%d_%s", scale, seq), func(t *testing.T) ***REMOVED***
 			var total int64
-			for _, segment := range seq ***REMOVED***
-				total += et.scaleInt64With(int64(scale), segment)
+			for i, segment := range seq ***REMOVED***
+				assert.True(t, segment.Equal(et.Sequence.ExecutionSegmentSequence[i]))
+				total += et.Sequence.ScaleInt64(i, int64(scale))
 			***REMOVED***
 			assert.Equal(t, int64(scale), total)
 		***REMOVED***)
@@ -585,7 +586,7 @@ func TestGetStripedOffsets(t *testing.T) ***REMOVED***
 			et, err := NewExecutionTuple(segment, &ess)
 			require.NoError(t, err)
 
-			start, offsets, lcd := et.GetStripedOffsets(segment)
+			start, offsets, lcd := et.GetStripedOffsets()
 
 			assert.Equal(t, tc.start, start)
 			assert.Equal(t, tc.offsets, offsets)
@@ -615,7 +616,7 @@ func TestSequenceLCD(t *testing.T) ***REMOVED***
 		t.Run(fmt.Sprintf("seq:%s", tc.seq), func(t *testing.T) ***REMOVED***
 			ess, err := NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
-			require.Equal(t, tc.lcd, ess.lcd())
+			require.Equal(t, tc.lcd, ess.LCD())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -634,7 +635,7 @@ func BenchmarkGetStripedOffsets(b *testing.B) ***REMOVED***
 				segment := sequence[int(r.Int63())%len(sequence)]
 				et, err := NewExecutionTuple(segment, &sequence)
 				require.NoError(b, err)
-				_, _, _ = et.GetStripedOffsets(segment)
+				_, _, _ = et.GetStripedOffsets()
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -670,7 +671,7 @@ func BenchmarkGetStripedOffsetsEven(b *testing.B) ***REMOVED***
 				segment := sequence[111233%len(sequence)]
 				et, err := NewExecutionTuple(segment, &sequence)
 				require.NoError(b, err)
-				_, _, _ = et.GetStripedOffsets(segment)
+				_, _, _ = et.GetStripedOffsets()
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -700,8 +701,9 @@ func TestGetNewExecutionTupleBesedOnValue(t *testing.T) ***REMOVED***
 
 			et, err := NewExecutionTuple(segment, &ess)
 			require.NoError(t, err)
-			newET := et.GetNewExecutionTupleBasedOnValue(tc.value)
-			require.Equal(t, tc.expected, newET.sequence.String())
+			newET, err := et.GetNewExecutionTupleFromValue(tc.value)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, newET.Sequence.String())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -727,7 +729,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 		seg           *ExecutionSegment
 		seq           *ExecutionSegmentSequence
 		scaleTests    map[int64]int64
-		newScaleTests map[int64]map[int64]int64 // this is for after calling GetNewExecutionTupleBasedOnValue
+		newScaleTests map[int64]map[int64]int64 // this is for after calling GetNewExecutionSegmentSequenceFromValue
 	***REMOVED******REMOVED***
 		***REMOVED***
 			// both segment and sequence are nil
@@ -739,7 +741,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 			newScaleTests: map[int64]map[int64]int64***REMOVED***
 				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
 				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -753,7 +755,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 			newScaleTests: map[int64]map[int64]int64***REMOVED***
 				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
 				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -767,7 +769,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 			newScaleTests: map[int64]map[int64]int64***REMOVED***
 				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
 				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -781,7 +783,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 			newScaleTests: map[int64]map[int64]int64***REMOVED***
 				50: ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
 				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -800,7 +802,7 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 				3:  ***REMOVED***50: 17, 1: 1, 0: 0***REMOVED***,
 				2:  ***REMOVED***50: 25, 1: 1, 0: 0***REMOVED***,
 				1:  ***REMOVED***50: 50, 1: 1, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -818,8 +820,8 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 				20: ***REMOVED***50: 17, 1: 0, 0: 0***REMOVED***,
 				3:  ***REMOVED***50: 17, 1: 0, 0: 0***REMOVED***,
 				2:  ***REMOVED***50: 25, 1: 0, 0: 0***REMOVED***,
-				1:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				1:  nil,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
@@ -836,9 +838,9 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 				50: ***REMOVED***50: 16, 1: 0, 0: 0***REMOVED***,
 				20: ***REMOVED***50: 15, 1: 0, 0: 0***REMOVED***,
 				3:  ***REMOVED***50: 16, 1: 0, 0: 0***REMOVED***,
-				2:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
-				1:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
-				0:  ***REMOVED***50: 0, 1: 0, 0: 0***REMOVED***,
+				2:  nil,
+				1:  nil,
+				0:  nil,
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
@@ -848,15 +850,21 @@ func TestNewExecutionTuple(t *testing.T) ***REMOVED***
 		t.Run(fmt.Sprintf("seg:'%s',seq:'%s'", testCase.seg, testCase.seq), func(t *testing.T) ***REMOVED***
 			et, err := NewExecutionTuple(testCase.seg, testCase.seq)
 			require.NoError(t, err)
+
 			for scaleValue, result := range testCase.scaleTests ***REMOVED***
 				require.Equal(t, result, et.ScaleInt64(scaleValue), "%d->%d", scaleValue, result)
 			***REMOVED***
 
 			for value, newResult := range testCase.newScaleTests ***REMOVED***
-				newET := et.GetNewExecutionTupleBasedOnValue(value)
+				newET, err := et.GetNewExecutionTupleFromValue(value)
+				if newResult == nil ***REMOVED***
+					require.Error(t, err)
+					continue
+				***REMOVED***
+				require.NoError(t, err)
 				for scaleValue, result := range newResult ***REMOVED***
 					require.Equal(t, result, newET.ScaleInt64(scaleValue),
-						"getNewExecutionTupleBasedOnValue(%d)%d->%d", value, scaleValue, result)
+						"GetNewExecutionTupleFromValue(%d)%d->%d", value, scaleValue, result)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)

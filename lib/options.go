@@ -315,7 +315,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	// config tier, they will be preserved, so the validation after we've consolidated
 	// all of the options can return an error.
 	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || opts.Execution != nil ***REMOVED***
-		//TODO: emit a warning or a notice log message if overwrite lower tier config options?
+		// TODO: emit a warning or a notice log message if overwrite lower tier config options?
 		o.Duration = types.NewNullDuration(0, false)
 		o.Iterations = null.NewInt(0, false)
 		o.Stages = nil
@@ -449,8 +449,8 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 
 // Validate checks if all of the specified options make sense
 func (o Options) Validate() []error ***REMOVED***
-	//TODO: validate all of the other options... that we should have already been validating...
-	//TODO: maybe integrate an external validation lib: https://github.com/avelino/awesome-go#validation
+	// TODO: validate all of the other options... that we should have already been validating...
+	// TODO: maybe integrate an external validation lib: https://github.com/avelino/awesome-go#validation
 	var errors []error
 	if o.ExecutionSegmentSequence != nil ***REMOVED***
 		var segmentFound bool
