@@ -704,6 +704,9 @@ func NewExecutionTuple(segment *ExecutionSegment, sequence *ExecutionSegmentSequ
 
 // ScaleInt64 scales the provided value for our execution segment.
 func (et *ExecutionTuple) ScaleInt64(value int64) int64 ***REMOVED***
+	if len(et.Sequence.ExecutionSegmentSequence) == 1 ***REMOVED***
+		return value // if we don't have any segmentation, just return the original value
+	***REMOVED***
 	return et.Sequence.ScaleInt64(et.SegmentIndex, value)
 ***REMOVED***
 

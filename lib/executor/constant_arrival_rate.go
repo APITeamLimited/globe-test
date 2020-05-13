@@ -189,11 +189,12 @@ type ConstantArrivalRate struct ***REMOVED***
 var _ lib.Executor = &ConstantArrivalRate***REMOVED******REMOVED***
 
 // Init values needed for the execution
-func (car *ConstantArrivalRate) Init(ctx context.Context) (err error) ***REMOVED***
+func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 	// err should always be nil, because Init() won't be called for executors
 	// with no work, as determined by their config's HasWork() method.
-	car.et, err = car.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(car.config.MaxVUs.Int64)
-	return
+	et, err := car.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(car.config.MaxVUs.Int64)
+	car.et = et
+	return err
 ***REMOVED***
 
 // Run executes a constant number of iterations per second.

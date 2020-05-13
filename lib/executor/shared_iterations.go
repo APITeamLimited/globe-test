@@ -170,11 +170,12 @@ func (sic SharedIterationsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVE
 ***REMOVED***
 
 // Init values needed for the execution
-func (si *SharedIterations) Init(ctx context.Context) (err error) ***REMOVED***
+func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 	// err should always be nil, because Init() won't be called for executors
 	// with no work, as determined by their config's HasWork() method.
-	si.et, err = si.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(si.config.VUs.Int64)
-	return
+	et, err := si.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(si.config.VUs.Int64)
+	si.et = et
+	return err
 ***REMOVED***
 
 // Run executes a specific total number of iterations, which are all shared by
