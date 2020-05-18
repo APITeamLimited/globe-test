@@ -80,7 +80,7 @@ const jsonData = `***REMOVED***"glossary": ***REMOVED***
 	  "GlossSeeAlso": ["GML","XML"]***REMOVED***,
 	"GlossSee": "markup"***REMOVED******REMOVED******REMOVED******REMOVED******REMOVED***`
 
-const invalidJSONData = `***REMOVED***			
+const invalidJSONData = `***REMOVED***
 	"a":"apple",
 	"t":testing"
 ***REMOVED***`
@@ -168,7 +168,11 @@ func TestResponse(t *testing.T) ***REMOVED***
 			if assert.NoError(t, err) ***REMOVED***
 				old := state.Group
 				state.Group = g
-				defer func() ***REMOVED*** state.Group = old ***REMOVED***()
+				state.Tags["group"] = g.Path
+				defer func() ***REMOVED***
+					state.Group = old
+					state.Tags["group"] = old.Path
+				***REMOVED***()
 			***REMOVED***
 
 			_, err = common.RunString(rt, sr(`
@@ -217,7 +221,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 	        if (value != undefined)
 				***REMOVED*** throw new Error("Expected undefined, but got: " + value); ***REMOVED***
 
-			value = res.json("glossary.null") 
+			value = res.json("glossary.null")
 	        if (value != null)
 				***REMOVED*** throw new Error("Expected null, but got: " + value); ***REMOVED***
 
@@ -233,8 +237,8 @@ func TestResponse(t *testing.T) ***REMOVED***
 	        if (value != true)
 				***REMOVED*** throw new Error("Expected boolean true, but got: " + value); ***REMOVED***
 
-			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.title") 
-	        if (value != "example glossary") 
+			value = res.json("glossary.GlossDiv.GlossList.GlossEntry.GlossDef.title")
+	        if (value != "example glossary")
 				***REMOVED*** throw new Error("Expected 'example glossary'', but got: " + value); ***REMOVED***
 
 			value =	res.json("glossary.friends.#.first")[0]

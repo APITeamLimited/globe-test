@@ -69,3 +69,12 @@ type State struct ***REMOVED***
 	Vu, Iteration int64
 	Tags          map[string]string
 ***REMOVED***
+
+// CloneTags makes a copy of the tags map and returns it.
+func (s *State) CloneTags() map[string]string ***REMOVED***
+	tags := make(map[string]string, len(s.Tags))
+	for k, v := range s.Tags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+	return tags
+***REMOVED***

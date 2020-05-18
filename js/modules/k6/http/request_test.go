@@ -137,6 +137,7 @@ func newRuntime(
 		Transport: tb.HTTPTransport,
 		BPool:     bpool.NewBufferPool(1),
 		Samples:   samples,
+		Tags:      map[string]string***REMOVED***"group": root.Path***REMOVED***,
 	***REMOVED***
 
 	ctx := new(context.Context)
@@ -924,9 +925,9 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			t.Run("tags-precedence", func(t *testing.T) ***REMOVED***
-				oldOpts := state.Options
-				defer func() ***REMOVED*** state.Options = oldOpts ***REMOVED***()
-				state.Options.RunTags = stats.IntoSampleTags(&map[string]string***REMOVED***"runtag1": "val1", "runtag2": "val2"***REMOVED***)
+				oldTags := state.Tags
+				defer func() ***REMOVED*** state.Tags = oldTags ***REMOVED***()
+				state.Tags = map[string]string***REMOVED***"runtag1": "val1", "runtag2": "val2"***REMOVED***
 
 				_, err := common.RunString(rt, sr(`
 				let res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED*** tags: ***REMOVED*** method: "test", name: "myName", runtag1: "fromreq" ***REMOVED*** ***REMOVED***);
@@ -1267,74 +1268,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***)
-***REMOVED***
-func TestSystemTags(t *testing.T) ***REMOVED***
-	t.Parallel()
-	tb, state, samples, rt, _ := newRuntime(t)
-	defer tb.Cleanup()
-
-	// Handple paths with custom logic
-	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		w.Header().Add("Location", "%")
-		w.WriteHeader(http.StatusTemporaryRedirect)
-	***REMOVED***)
-
-	httpGet := fmt.Sprintf(`http.get("%s");`, tb.ServerHTTP.URL)
-	httpsGet := fmt.Sprintf(`http.get("%s");`, tb.ServerHTTPS.URL)
-
-	httpURL, err := url.Parse(tb.ServerHTTP.URL)
-	require.NoError(t, err)
-
-	testedSystemTags := []struct***REMOVED*** tag, code, expVal string ***REMOVED******REMOVED***
-		***REMOVED***"proto", httpGet, "HTTP/1.1"***REMOVED***,
-		***REMOVED***"status", httpGet, "200"***REMOVED***,
-		***REMOVED***"method", httpGet, "GET"***REMOVED***,
-		***REMOVED***"url", httpGet, tb.ServerHTTP.URL***REMOVED***,
-		***REMOVED***"url", httpsGet, tb.ServerHTTPS.URL***REMOVED***,
-		***REMOVED***"ip", httpGet, httpURL.Hostname()***REMOVED***,
-		***REMOVED***"name", httpGet, tb.ServerHTTP.URL***REMOVED***,
-		***REMOVED***"group", httpGet, ""***REMOVED***,
-		***REMOVED***"vu", httpGet, "0"***REMOVED***,
-		***REMOVED***"iter", httpGet, "0"***REMOVED***,
-		***REMOVED***"tls_version", httpsGet, expectedTLSVersion***REMOVED***,
-		***REMOVED***"ocsp_status", httpsGet, "unknown"***REMOVED***,
-		***REMOVED***
-			"error",
-			tb.Replacer.Replace(`http.get("http://127.0.0.1:1");`),
-			`dial: connection refused`,
-		***REMOVED***,
-		***REMOVED***
-			"error_code",
-			tb.Replacer.Replace(`http.get("http://127.0.0.1:1");`),
-			"1212",
-		***REMOVED***,
-	***REMOVED***
-
-	state.Options.Throw = null.BoolFrom(false)
-	state.Options.Apply(lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Max: lib.TLSVersion13***REMOVED******REMOVED***)
-
-	for num, tc := range testedSystemTags ***REMOVED***
-		tc := tc
-		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
-			state.Options.SystemTags = stats.ToSystemTagSet([]string***REMOVED***tc.tag***REMOVED***)
-
-			_, err := common.RunString(rt, tc.code)
-			assert.NoError(t, err)
-
-			bufSamples := stats.GetBufferedSamples(samples)
-			assert.NotEmpty(t, bufSamples)
-			for _, sampleC := range bufSamples ***REMOVED***
-
-				for _, sample := range sampleC.GetSamples() ***REMOVED***
-					assert.NotEmpty(t, sample.Tags)
-					for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
-						assert.Equal(t, tc.tag, emittedTag)
-						assert.Equal(t, tc.expVal, emittedVal)
-					***REMOVED***
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
 ***REMOVED***
 
 func TestRequestCompression(t *testing.T) ***REMOVED***

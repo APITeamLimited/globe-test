@@ -74,14 +74,7 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***
 
-	tags := map[string]string***REMOVED******REMOVED***
-	for k, v := range state.Tags ***REMOVED***
-		tags[k] = v
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = state.Group.Path
-	***REMOVED***
-
+	tags := state.CloneTags()
 	for _, ts := range addTags ***REMOVED***
 		for k, v := range ts ***REMOVED***
 			tags[k] = v

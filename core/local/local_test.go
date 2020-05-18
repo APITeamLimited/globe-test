@@ -385,9 +385,8 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
-	sr := tb.Replacer.Replace
 
-	script := sr(`
+	script := tb.Replacer.Replace(`
 	import http from "k6/http";
 	import ws from 'k6/ws';
 	import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
