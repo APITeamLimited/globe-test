@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -41,17 +42,14 @@ import (
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 )
 
 //nolint:gochecknoglobals
-var (
-	errInterrupt  = errors.New("context cancelled")
-	stageSetup    = "setup"
-	stageTeardown = "teardown"
-)
+var errInterrupt = errors.New("context cancelled")
 
 // Ensure Runner implements the lib.Runner interface
 var _ lib.Runner = &Runner***REMOVED******REMOVED***
@@ -218,7 +216,7 @@ func (r *Runner) Setup(ctx context.Context, out chan<- stats.SampleContainer) er
 	)
 	defer setupCancel()
 
-	v, err := r.runPart(setupCtx, out, stageSetup, nil)
+	v, err := r.runPart(setupCtx, out, consts.SetupFn, nil)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
@@ -230,7 +228,7 @@ func (r *Runner) Setup(ctx context.Context, out chan<- stats.SampleContainer) er
 
 	r.setupData, err = json.Marshal(v.Export())
 	if err != nil ***REMOVED***
-		return errors.Wrap(err, stageSetup)
+		return errors.Wrap(err, consts.SetupFn)
 	***REMOVED***
 	var tmp interface***REMOVED******REMOVED***
 	return json.Unmarshal(r.setupData, &tmp)
@@ -256,12 +254,12 @@ func (r *Runner) Teardown(ctx context.Context, out chan<- stats.SampleContainer)
 	var data interface***REMOVED******REMOVED***
 	if r.setupData != nil ***REMOVED***
 		if err := json.Unmarshal(r.setupData, &data); err != nil ***REMOVED***
-			return errors.Wrap(err, stageTeardown)
+			return errors.Wrap(err, consts.TeardownFn)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		data = goja.Undefined()
 	***REMOVED***
-	_, err := r.runPart(teardownCtx, out, stageTeardown, data)
+	_, err := r.runPart(teardownCtx, out, consts.TeardownFn, data)
 	return err
 ***REMOVED***
 
@@ -271,6 +269,13 @@ func (r *Runner) GetDefaultGroup() *lib.Group ***REMOVED***
 
 func (r *Runner) GetOptions() lib.Options ***REMOVED***
 	return r.Bundle.Options
+***REMOVED***
+
+// IsExecutable returns whether the given name is an exported and
+// executable function in the script.
+func (r *Runner) IsExecutable(name string) bool ***REMOVED***
+	_, exists := r.Bundle.exports[name]
+	return exists
 ***REMOVED***
 
 func (r *Runner) SetOptions(opts lib.Options) error ***REMOVED***
@@ -323,7 +328,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 		return goja.Undefined(), err
 	***REMOVED***
 
-	v, _, _, err := vu.runFn(ctx, group, false, fn, vu.Runtime.ToValue(arg))
+	v, _, _, err := vu.runFn(ctx, group, false, nil, fn, vu.Runtime.ToValue(arg))
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
@@ -342,9 +347,9 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 func (r *Runner) timeoutErrorDuration(stage string) time.Duration ***REMOVED***
 	d := time.Duration(0)
 	switch stage ***REMOVED***
-	case stageSetup:
+	case consts.SetupFn:
 		return time.Duration(r.Bundle.Options.SetupTimeout.Duration)
-	case stageTeardown:
+	case consts.TeardownFn:
 		return time.Duration(r.Bundle.Options.TeardownTimeout.Duration)
 	***REMOVED***
 	return d
@@ -385,7 +390,20 @@ type ActiveVU struct ***REMOVED***
 // Activate the VU so it will be able to run code.
 func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	u.Runtime.ClearInterrupt()
-	// u.Env = params.Env
+
+	if params.Exec == "" ***REMOVED***
+		params.Exec = consts.DefaultFn
+	***REMOVED***
+
+	// Override the preset global env with any custom env vars
+	env := make(map[string]string, len(u.env)+len(params.Env))
+	for key, value := range u.env ***REMOVED***
+		env[key] = value
+	***REMOVED***
+	for key, value := range params.Env ***REMOVED***
+		env[key] = value
+	***REMOVED***
+	u.Runtime.Set("__ENV", env)
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
@@ -403,14 +421,14 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 
 		if params.DeactivateCallback != nil ***REMOVED***
-			params.DeactivateCallback()
+			params.DeactivateCallback(u)
 		***REMOVED***
 	***REMOVED***()
 
 	return avu
 ***REMOVED***
 
-// RunOnce runs the default function once.
+// RunOnce runs the configured Exec function once.
 func (u *ActiveVU) RunOnce() error ***REMOVED***
 	select ***REMOVED***
 	case <-u.RunContext.Done():
@@ -436,8 +454,16 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	// Call the default function.
-	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, u.Runner.defaultGroup, true, u.Default, u.setupData)
+	fn, ok := u.exports[u.Exec]
+	if !ok ***REMOVED***
+		// Shouldn't happen; this is validated in ExecutionScheduler.Init()
+		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
+	***REMOVED***
+
+	// Call the exported function.
+	_, isFullIteration, totalTime, err := u.runFn(
+		u.RunContext, u.Runner.defaultGroup, true, u.Tags, fn, u.setupData,
+	)
 
 	// If MinIterationDuration is specified and the iteration wasn't cancelled
 	// and was less than it, sleep for the remainder
@@ -452,7 +478,8 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) runFn(
-	ctx context.Context, group *lib.Group, isDefault bool, fn goja.Callable, args ...goja.Value,
+	ctx context.Context, group *lib.Group, isDefault bool, customTags map[string]string,
+	fn goja.Callable, args ...goja.Value,
 ) (goja.Value, bool, time.Duration, error) ***REMOVED***
 	cookieJar := u.CookieJar
 	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() ***REMOVED***
@@ -461,6 +488,21 @@ func (u *VU) runFn(
 		if err != nil ***REMOVED***
 			return goja.Undefined(), false, time.Duration(0), err
 		***REMOVED***
+	***REMOVED***
+
+	opts := &u.Runner.Bundle.Options
+	tags := opts.RunTags.CloneTags()
+	for k, v := range customTags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
+		tags["vu"] = strconv.FormatInt(u.ID, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
+		tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
+		tags["group"] = group.Path
 	***REMOVED***
 
 	state := &lib.State***REMOVED***
@@ -476,6 +518,7 @@ func (u *VU) runFn(
 		Vu:        u.ID,
 		Samples:   u.Samples,
 		Iteration: u.Iteration,
+		Tags:      tags,
 	***REMOVED***
 
 	newctx := common.WithRuntime(ctx, u.Runtime)
@@ -483,7 +526,6 @@ func (u *VU) runFn(
 	*u.Context = newctx
 
 	u.Runtime.Set("__ITER", u.Iteration)
-	iter := u.Iteration
 	u.Iteration++
 
 	startTime := time.Now()
@@ -496,17 +538,6 @@ func (u *VU) runFn(
 		isFullIteration = false
 	default:
 		isFullIteration = true
-	***REMOVED***
-
-	tags := state.Options.RunTags.CloneTags()
-	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(u.ID, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(iter, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = group.Path
 	***REMOVED***
 
 	if u.Runner.Bundle.Options.NoVUConnectionReuse.Bool ***REMOVED***

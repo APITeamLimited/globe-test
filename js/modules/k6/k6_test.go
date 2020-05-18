@@ -155,6 +155,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 				SystemTags: &stats.DefaultSystemTagSet,
 			***REMOVED***,
 			Samples: samples,
+			Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
 		***REMOVED***, samples
 	***REMOVED***
 	t.Run("Object", func(t *testing.T) ***REMOVED***

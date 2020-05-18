@@ -72,6 +72,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 						Options: lib.Options***REMOVED***SystemTags: stats.NewSystemTagSet(stats.TagGroup)***REMOVED***,
 						Group:   root,
 						Samples: samples,
+						Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
 					***REMOVED***
 
 					isTimeString := ""
@@ -96,8 +97,10 @@ func TestMetrics(t *testing.T) ***REMOVED***
 						"Child": child,
 					***REMOVED***
 					for name, g := range groups ***REMOVED***
+						name, g := name, g
 						t.Run(name, func(t *testing.T) ***REMOVED***
 							state.Group = g
+							state.Tags["group"] = g.Path
 							for name, val := range values ***REMOVED***
 								t.Run(name, func(t *testing.T) ***REMOVED***
 									t.Run("Simple", func(t *testing.T) ***REMOVED***

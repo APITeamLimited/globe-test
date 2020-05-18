@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/loadimpact/k6/lib/consts"
 )
 
 func TestTimeoutError(t *testing.T) ***REMOVED***
@@ -11,8 +13,8 @@ func TestTimeoutError(t *testing.T) ***REMOVED***
 		stage, expectedStrContain string
 		d                         time.Duration
 	***REMOVED******REMOVED***
-		***REMOVED***"setup", "1 seconds", time.Second***REMOVED***,
-		***REMOVED***"teardown", "2 seconds", time.Second * 2***REMOVED***,
+		***REMOVED***consts.SetupFn, "1 seconds", time.Second***REMOVED***,
+		***REMOVED***consts.TeardownFn, "2 seconds", time.Second * 2***REMOVED***,
 		***REMOVED***"", "0 seconds", time.Duration(0)***REMOVED***,
 	***REMOVED***
 
@@ -29,8 +31,8 @@ func TestTimeoutErrorHint(t *testing.T) ***REMOVED***
 		stage string
 		empty bool
 	***REMOVED******REMOVED***
-		***REMOVED***"setup", false***REMOVED***,
-		***REMOVED***"teardown", false***REMOVED***,
+		***REMOVED***consts.SetupFn, false***REMOVED***,
+		***REMOVED***consts.TeardownFn, false***REMOVED***,
 		***REMOVED***"not handle", true***REMOVED***,
 	***REMOVED***
 

@@ -150,6 +150,7 @@ type PerVUIterations struct ***REMOVED***
 var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 
 // Run executes a specific number of iterations with each configured VU.
+// nolint:funlen
 func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	numVUs := pvi.config.GetVUs(pvi.executionState.ExecutionTuple)
 	iterations := pvi.config.GetIterations()
@@ -196,17 +197,19 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
 
+	activationParams := getVUActivationParams(maxDurationCtx, pvi.config.BaseConfig,
+		func(u lib.InitializedVU) ***REMOVED***
+			pvi.executionState.ReturnVU(u, true)
+			activeVUs.Done()
+		***REMOVED***)
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
 
-		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
-			RunContext: ctx,
-			DeactivateCallback: func() ***REMOVED***
-				pvi.executionState.ReturnVU(initVU, true)
-				activeVUs.Done()
-			***REMOVED***,
-		***REMOVED***)
+		newParams := *activationParams
+		newParams.RunContext = ctx
+
+		activeVU := initVU.Activate(&newParams)
 
 		for i := int64(0); i < iterations; i++ ***REMOVED***
 			select ***REMOVED***
@@ -215,7 +218,7 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 			default:
 				// continue looping
 			***REMOVED***
-			runIteration(maxDurationCtx, vu)
+			runIteration(maxDurationCtx, activeVU)
 			atomic.AddUint64(doneIters, 1)
 		***REMOVED***
 	***REMOVED***

@@ -23,10 +23,11 @@ package cmd
 import (
 	"os"
 
-	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/loadimpact/k6/loader"
 )
 
 var archiveOut = "archive.tar"
@@ -77,7 +78,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 
-		if _, cerr := deriveAndValidateConfig(conf); cerr != nil ***REMOVED***
+		if _, cerr := deriveAndValidateConfig(conf, r.IsExecutable); cerr != nil ***REMOVED***
 			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
 		***REMOVED***
 

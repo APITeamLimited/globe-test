@@ -31,6 +31,7 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
@@ -612,7 +613,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 				newCtx, newCancel := context.WithCancel(ctx)
 				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***
 					RunContext:         newCtx,
-					DeactivateCallback: func() ***REMOVED*** wg.Done() ***REMOVED***,
+					DeactivateCallback: func(_ lib.InitializedVU) ***REMOVED*** wg.Done() ***REMOVED***,
 				***REMOVED***)
 				ch := make(chan struct***REMOVED******REMOVED***)
 				go func() ***REMOVED***
@@ -1553,5 +1554,87 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	case err := <-errC:
 		cancel()
 		require.NoError(t, err)
+	***REMOVED***
+***REMOVED***
+
+func TestSystemTags(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	// Handle paths with custom logic
+	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		w.Header().Add("Location", "%")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	***REMOVED***)
+
+	r, err := getSimpleRunnerWithOptions("/script.js", tb.Replacer.Replace(`
+		var http = require("k6/http");
+
+		exports.http_get = function() ***REMOVED***
+			http.get("HTTPBIN_IP_URL");
+		***REMOVED***;
+		exports.https_get = function() ***REMOVED***
+			http.get("HTTPSBIN_IP_URL");
+		***REMOVED***;
+		exports.bad_url_get = function() ***REMOVED***
+			http.get("http://127.0.0.1:1");
+		***REMOVED***;
+		exports.noop = function() ***REMOVED******REMOVED***;
+	`), lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***)
+	require.NoError(t, err)
+
+	httpURL, err := url.Parse(tb.ServerHTTP.URL)
+	require.NoError(t, err)
+
+	testedSystemTags := []struct***REMOVED*** tag, exec, expVal string ***REMOVED******REMOVED***
+		***REMOVED***"proto", "http_get", "HTTP/1.1"***REMOVED***,
+		***REMOVED***"status", "http_get", "200"***REMOVED***,
+		***REMOVED***"method", "http_get", "GET"***REMOVED***,
+		***REMOVED***"url", "http_get", tb.ServerHTTP.URL***REMOVED***,
+		***REMOVED***"url", "https_get", tb.ServerHTTPS.URL***REMOVED***,
+		***REMOVED***"ip", "http_get", httpURL.Hostname()***REMOVED***,
+		***REMOVED***"name", "http_get", tb.ServerHTTP.URL***REMOVED***,
+		***REMOVED***"group", "http_get", ""***REMOVED***,
+		***REMOVED***"vu", "http_get", "8"***REMOVED***,
+		***REMOVED***"vu", "noop", "9"***REMOVED***,
+		***REMOVED***"iter", "http_get", "0"***REMOVED***,
+		***REMOVED***"iter", "noop", "0"***REMOVED***,
+		***REMOVED***"tls_version", "https_get", "tls1.3"***REMOVED***,
+		***REMOVED***"ocsp_status", "https_get", "unknown"***REMOVED***,
+		***REMOVED***"error", "bad_url_get", `dial: connection refused`***REMOVED***,
+		***REMOVED***"error_code", "bad_url_get", "1212"***REMOVED***,
+		//TODO: add more tests
+	***REMOVED***
+
+	samples := make(chan stats.SampleContainer, 100)
+	for num, tc := range testedSystemTags ***REMOVED***
+		num, tc := num, tc
+		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
+			require.NoError(t, r.SetOptions(r.GetOptions().Apply(lib.Options***REMOVED***
+				Throw:                 null.BoolFrom(false),
+				TLSVersion:            &lib.TLSVersions***REMOVED***Max: lib.TLSVersion13***REMOVED***,
+				SystemTags:            stats.ToSystemTagSet([]string***REMOVED***tc.tag***REMOVED***),
+				InsecureSkipTLSVerify: null.BoolFrom(true),
+			***REMOVED***)))
+
+			vu, err := r.NewVU(int64(num), samples)
+			require.NoError(t, err)
+			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***
+				RunContext: context.Background(),
+				Exec:       tc.exec,
+			***REMOVED***)
+			require.NoError(t, activeVU.RunOnce())
+
+			bufSamples := stats.GetBufferedSamples(samples)
+			assert.NotEmpty(t, bufSamples)
+			for _, sample := range bufSamples[0].GetSamples() ***REMOVED***
+				assert.NotEmpty(t, sample.Tags)
+				for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
+					assert.Equal(t, tc.tag, emittedTag)
+					assert.Equal(t, tc.expVal, emittedVal)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

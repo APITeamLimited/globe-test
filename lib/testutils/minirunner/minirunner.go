@@ -95,6 +95,12 @@ func (r MiniRunner) GetDefaultGroup() *lib.Group ***REMOVED***
 	return r.Group
 ***REMOVED***
 
+// IsExecutable satisfies lib.Runner, but is mocked for MiniRunner since
+// it doesn't deal with JS.
+func (r MiniRunner) IsExecutable(name string) bool ***REMOVED***
+	return true
+***REMOVED***
+
 // GetOptions returns the supplied options struct.
 func (r MiniRunner) GetOptions() lib.Options ***REMOVED***
 	return r.Options
@@ -137,7 +143,7 @@ func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED**
 		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 
 		if params.DeactivateCallback != nil ***REMOVED***
-			params.DeactivateCallback()
+			params.DeactivateCallback(vu)
 		***REMOVED***
 	***REMOVED***()
 

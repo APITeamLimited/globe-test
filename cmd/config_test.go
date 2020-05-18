@@ -23,11 +23,16 @@ package cmd
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/executor"
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 type testCmdData struct ***REMOVED***
@@ -133,4 +138,49 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 		conf = Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []string***REMOVED***"influxdb", "json"***REMOVED******REMOVED***)
 		assert.Equal(t, []string***REMOVED***"influxdb", "json"***REMOVED***, conf.Out)
 	***REMOVED***)
+***REMOVED***
+
+func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		name   string
+		conf   Config
+		isExec bool
+		err    string
+	***REMOVED******REMOVED***
+		***REMOVED***"defaultOK", Config***REMOVED******REMOVED***, true, ""***REMOVED***,
+		***REMOVED***"defaultErr", Config***REMOVED******REMOVED***, false,
+			"executor default: function 'default' not found in exports"***REMOVED***,
+		***REMOVED***"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
+			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
+				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefault")***REMOVED***,
+				VUs:         null.IntFrom(1),
+				Iterations:  null.IntFrom(1),
+				MaxDuration: types.NullDurationFrom(time.Second),
+			***REMOVED******REMOVED******REMOVED******REMOVED***, true, "",
+		***REMOVED***,
+		***REMOVED***"nonDefaultErr", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
+			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
+				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefaultErr")***REMOVED***,
+				VUs:         null.IntFrom(1),
+				Iterations:  null.IntFrom(1),
+				MaxDuration: types.NullDurationFrom(time.Second),
+			***REMOVED******REMOVED******REMOVED******REMOVED***, false,
+			"executor per_vu_iters: function 'nonDefaultErr' not found in exports",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			_, err := deriveAndValidateConfig(tc.conf,
+				func(_ string) bool ***REMOVED*** return tc.isExec ***REMOVED***)
+			if tc.err != "" ***REMOVED***
+				assert.Contains(t, err.Error(), tc.err)
+			***REMOVED*** else ***REMOVED***
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

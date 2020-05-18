@@ -262,17 +262,24 @@ func applyDefault(conf Config) Config ***REMOVED***
 	return conf
 ***REMOVED***
 
-func deriveAndValidateConfig(conf Config) (result Config, err error) ***REMOVED***
+func deriveAndValidateConfig(conf Config, isExecutable func(string) bool) (result Config, err error) ***REMOVED***
 	result = conf
 	result.Options, err = executor.DeriveExecutionFromShortcuts(conf.Options)
 	if err != nil ***REMOVED***
 		return result, err
 	***REMOVED***
-	return result, validateConfig(result)
+	return result, validateConfig(result, isExecutable)
 ***REMOVED***
 
-func validateConfig(conf Config) error ***REMOVED***
+func validateConfig(conf Config, isExecutable func(string) bool) error ***REMOVED***
 	errList := conf.Validate()
+
+	for _, ec := range conf.Execution ***REMOVED***
+		if err := validateExecutorConfig(ec, isExecutable); err != nil ***REMOVED***
+			errList = append(errList, err)
+		***REMOVED***
+	***REMOVED***
+
 	if len(errList) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -283,4 +290,12 @@ func validateConfig(conf Config) error ***REMOVED***
 	***REMOVED***
 
 	return errors.New(strings.Join(errMsgParts, "\n"))
+***REMOVED***
+
+func validateExecutorConfig(conf lib.ExecutorConfig, isExecutable func(string) bool) error ***REMOVED***
+	execFn := conf.GetExec()
+	if !isExecutable(execFn) ***REMOVED***
+		return fmt.Errorf("executor %s: function '%s' not found in exports", conf.GetName(), execFn)
+	***REMOVED***
+	return nil
 ***REMOVED***
