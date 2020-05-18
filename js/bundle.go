@@ -60,6 +60,9 @@ type BundleInstance struct ***REMOVED***
 	Runtime *goja.Runtime
 	Context *context.Context
 
+	//TODO: maybe just have a reference to the Bundle? or save and pass rtOpts?
+	env map[string]string
+
 	exports map[string]goja.Callable
 ***REMOVED***
 
@@ -235,6 +238,7 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 		Runtime: rt,
 		Context: ctxPtr,
 		exports: make(map[string]goja.Callable),
+		env:     b.Env,
 	***REMOVED***
 
 	// Grab any exported functions that could be executed. These were

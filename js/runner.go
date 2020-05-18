@@ -396,13 +396,14 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	***REMOVED***
 
 	// Override the preset global env with any custom env vars
-	if len(params.Env) > 0 ***REMOVED***
-		env := u.Runtime.Get("__ENV").Export().(map[string]string)
-		for key, value := range params.Env ***REMOVED***
-			env[key] = value
-		***REMOVED***
-		u.Runtime.Set("__ENV", env)
+	env := make(map[string]string, len(u.env)+len(params.Env))
+	for key, value := range u.env ***REMOVED***
+		env[key] = value
 	***REMOVED***
+	for key, value := range params.Env ***REMOVED***
+		env[key] = value
+	***REMOVED***
+	u.Runtime.Set("__ENV", env)
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
