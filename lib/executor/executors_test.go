@@ -44,7 +44,7 @@ type configMapTestCase struct ***REMOVED***
 	expected exp
 ***REMOVED***
 
-//nolint:lll,gochecknoglobals
+//nolint:gochecknoglobals
 var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***"", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
 	***REMOVED***"1234", exp***REMOVED***parseError: true***REMOVED******REMOVED***,
