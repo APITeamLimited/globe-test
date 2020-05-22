@@ -132,6 +132,7 @@ func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait
 	runSubCtx, runSubCancel := context.WithCancel(runCtx)
 
 	resultCh := make(chan error)
+	processMetricsAfterRun := make(chan struct***REMOVED******REMOVED***)
 	runFn := func() error ***REMOVED***
 		e.logger.Debug("Execution scheduler starting...")
 		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples)
@@ -144,9 +145,14 @@ func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait
 			resultCh <- err // we finished normally, so send the result
 		***REMOVED***
 
+		// Make the background jobs process the currently buffered metrics and
+		// run the thresholds, then wait for that to be done.
+		processMetricsAfterRun <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		<-processMetricsAfterRun
+
 		return err
 	***REMOVED***
-	waitFn := e.startBackgroundProcesses(globalCtx, runCtx, resultCh, runSubCancel)
+	waitFn := e.startBackgroundProcesses(globalCtx, runCtx, resultCh, runSubCancel, processMetricsAfterRun)
 	return runFn, waitFn, nil
 ***REMOVED***
 
@@ -155,7 +161,7 @@ func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait
 // the provided context is called, to wait for the complete winding down of all
 // started goroutines.
 func (e *Engine) startBackgroundProcesses( //nolint:funlen
-	globalCtx, runCtx context.Context, runResult <-chan error, runSubCancel func(),
+	globalCtx, runCtx context.Context, runResult <-chan error, runSubCancel func(), processMetricsAfterRun chan struct***REMOVED******REMOVED***,
 ) (wait func()) ***REMOVED***
 	processes := new(sync.WaitGroup)
 
@@ -172,7 +178,7 @@ func (e *Engine) startBackgroundProcesses( //nolint:funlen
 	processes.Add(1)
 	go func() ***REMOVED***
 		defer processes.Done()
-		e.processMetrics(globalCtx)
+		e.processMetrics(globalCtx, processMetricsAfterRun)
 	***REMOVED***()
 
 	// Run VU metrics emission, only while the test is running.
@@ -239,7 +245,7 @@ func (e *Engine) startBackgroundProcesses( //nolint:funlen
 	return processes.Wait
 ***REMOVED***
 
-func (e *Engine) processMetrics(globalCtx context.Context) ***REMOVED***
+func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRun chan struct***REMOVED******REMOVED***) ***REMOVED***
 	sampleContainers := []stats.SampleContainer***REMOVED******REMOVED***
 
 	defer func() ***REMOVED***
@@ -262,13 +268,25 @@ func (e *Engine) processMetrics(globalCtx context.Context) ***REMOVED***
 	defer ticker.Stop()
 
 	e.logger.Debug("Metrics processing started...")
+	processSamples := func() ***REMOVED***
+		if len(sampleContainers) > 0 ***REMOVED***
+			e.processSamples(sampleContainers)
+			// Make the new container with the same size as the previous
+			// one, assuming that we produce roughly the same amount of
+			// metrics data between ticks...
+			sampleContainers = make([]stats.SampleContainer, 0, cap(sampleContainers))
+		***REMOVED***
+	***REMOVED***
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			if len(sampleContainers) > 0 ***REMOVED***
-				e.processSamples(sampleContainers)
-				sampleContainers = []stats.SampleContainer***REMOVED******REMOVED*** // TODO: optimize?
-			***REMOVED***
+			processSamples()
+		case <-processMetricsAfterRun:
+			e.logger.Debug("Processing metrics and thresholds after the test run has ended...")
+			processSamples()
+			e.processThresholds()
+			processMetricsAfterRun <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+
 		case sc := <-e.Samples:
 			sampleContainers = append(sampleContainers, sc)
 		case <-globalCtx.Done():
