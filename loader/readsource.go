@@ -1,13 +1,14 @@
 package loader
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
 
 	"github.com/loadimpact/k6/lib/fsext"
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 )
 
@@ -21,7 +22,7 @@ func ReadSource(src, pwd string, filesystems map[string]afero.Fs, stdin io.Reade
 		// TODO: don't do it in this way ...
 		err = afero.WriteFile(filesystems["file"].(fsext.CacheOnReadFs).GetCachingFs(), "/-", data, 0644)
 		if err != nil ***REMOVED***
-			return nil, errors.Wrap(err, "caching data read from -")
+			return nil, fmt.Errorf("caching data read from -: %w", err)
 		***REMOVED***
 		return &SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/-", Scheme: "file"***REMOVED***, Data: data***REMOVED***, err
 	***REMOVED***
@@ -44,5 +45,12 @@ func ReadSource(src, pwd string, filesystems map[string]afero.Fs, stdin io.Reade
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return Load(filesystems, srcURL, src)
+	result, err := Load(filesystems, srcURL, src)
+	var noSchemeError noSchemeRemoteModuleResolutionError
+	if errors.As(err, &noSchemeError) ***REMOVED***
+		// TODO maybe try to wrap the original error here as well, without butchering the message
+		return nil, fmt.Errorf(nothingWorkedLoadedMsg, noSchemeError.moduleSpecifier, noSchemeError.err)
+	***REMOVED***
+
+	return result, err
 ***REMOVED***
