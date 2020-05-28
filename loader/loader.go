@@ -21,6 +21,7 @@
 package loader
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -62,9 +63,32 @@ var (
 		`local directory (-v /local/path/:/inside/docker/path) containing ` +
 		`your script and modules so that they're accessible by k6 from ` +
 		`inside of the container, see ` +
-		`https://k6.io/docs/using-k6/modules#using-local-modules-with-docker`
+		`https://k6.io/docs/using-k6/modules#using-local-modules-with-docker.`
+	nothingWorkedLoadedMsg = fileSchemeCouldntBeLoadedMsg +
+		` Additionally it was tried to be loaded as remote module by prepending "https://" to it, ` +
+		`which also didn't work. Remote resolution error: "%s"`
 	errNoLoaderMatched = errors.New("no loader matched")
 )
+
+// noSchemeRemoteModuleResolutionError is returned when a url with no scheme was tried to be
+// resolved and errored out
+type noSchemeRemoteModuleResolutionError struct ***REMOVED***
+	err             error // original error
+	moduleSpecifier string
+***REMOVED***
+
+func (n noSchemeRemoteModuleResolutionError) Error() string ***REMOVED***
+	return fmt.Sprintf(
+		`Module specifier "%s" was tried to be loaded as remote module by prepending "https://" to it, `+
+			`which didn't work. If you are trying to import a nodejs module, this is not supported `+
+			`as k6 is _not_ nodejs based. Please read https://k6.io/docs/using-k6/modules for more information. `+
+			`Remote resolution error: "%s"`, n.moduleSpecifier, n.err)
+***REMOVED***
+
+// Unwrap returns the wrapped error.
+func (n noSchemeRemoteModuleResolutionError) Unwrap() error ***REMOVED***
+	return n.err
+***REMOVED***
 
 // Resolve a relative path to an absolute one.
 func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED***
@@ -172,44 +196,49 @@ func Load(
 
 	data, err := afero.ReadFile(filesystems[scheme], pathOnFs)
 
-	if err != nil ***REMOVED***
-		if os.IsNotExist(err) ***REMOVED***
-			if scheme == "https" ***REMOVED***
-				var finalModuleSpecifierURL = &url.URL***REMOVED******REMOVED***
-
-				switch ***REMOVED***
-				case moduleSpecifier.Opaque != "": // This is loader
-					finalModuleSpecifierURL, err = resolveUsingLoaders(moduleSpecifier.Opaque)
-					if err != nil ***REMOVED***
-						return nil, err
-					***REMOVED***
-				case moduleSpecifier.Scheme == "":
-					logrus.WithField("url", moduleSpecifier).Warning(
-						"A url was resolved but it didn't have scheme. " +
-							"This will be deprecated in the future and all remote modules will " +
-							"need to explicitly use `https` as scheme")
-					*finalModuleSpecifierURL = *moduleSpecifier
-					finalModuleSpecifierURL.Scheme = scheme
-				default:
-					finalModuleSpecifierURL = moduleSpecifier
-				***REMOVED***
-				var result *SourceData
-				result, err = loadRemoteURL(finalModuleSpecifierURL)
-				if err != nil ***REMOVED***
-					return nil, errors.Errorf(httpsSchemeCouldntBeLoadedMsg, originalModuleSpecifier, finalModuleSpecifierURL, err)
-				***REMOVED***
-				result.URL = moduleSpecifier
-				// TODO maybe make an afero.Fs which makes request directly and than use CacheOnReadFs
-				// on top of as with the `file` scheme fs
-				_ = afero.WriteFile(filesystems[scheme], pathOnFs, result.Data, 0644)
-				return result, nil
-			***REMOVED***
-			return nil, errors.Errorf(fileSchemeCouldntBeLoadedMsg, moduleSpecifier)
-		***REMOVED***
+	if err == nil ***REMOVED***
+		return &SourceData***REMOVED***URL: moduleSpecifier, Data: data***REMOVED***, nil
+	***REMOVED***
+	if !os.IsNotExist(err) ***REMOVED***
 		return nil, err
 	***REMOVED***
+	if scheme == "https" ***REMOVED***
+		var finalModuleSpecifierURL = &url.URL***REMOVED******REMOVED***
 
-	return &SourceData***REMOVED***URL: moduleSpecifier, Data: data***REMOVED***, nil
+		switch ***REMOVED***
+		case moduleSpecifier.Opaque != "": // This is loader
+			finalModuleSpecifierURL, err = resolveUsingLoaders(moduleSpecifier.Opaque)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+		case moduleSpecifier.Scheme == "":
+			logrus.Warningf(`The moduleSpecifier "%s" has no scheme but we will try to resolve it as remote module. `+
+				`This will be deprecated in the future and all remote modules will `+
+				`need to explicitly use "https" as scheme.`, originalModuleSpecifier)
+			*finalModuleSpecifierURL = *moduleSpecifier
+			finalModuleSpecifierURL.Scheme = scheme
+		default:
+			finalModuleSpecifierURL = moduleSpecifier
+		***REMOVED***
+		var result *SourceData
+		result, err = loadRemoteURL(finalModuleSpecifierURL)
+		if err == nil ***REMOVED***
+			result.URL = moduleSpecifier
+			// TODO maybe make an afero.Fs which makes request directly and than use CacheOnReadFs
+			// on top of as with the `file` scheme fs
+			_ = afero.WriteFile(filesystems[scheme], pathOnFs, result.Data, 0644)
+			return result, nil
+		***REMOVED***
+
+		if moduleSpecifier.Scheme == "" || moduleSpecifier.Opaque == "" ***REMOVED***
+			// we have an error and we did remote module resolution without a scheme
+			// let's write the coolest error message to try to help the lost soul who got to here
+			return nil, noSchemeRemoteModuleResolutionError***REMOVED***err: err, moduleSpecifier: originalModuleSpecifier***REMOVED***
+		***REMOVED***
+		return nil, errors.Errorf(httpsSchemeCouldntBeLoadedMsg, originalModuleSpecifier, finalModuleSpecifierURL, err)
+	***REMOVED***
+
+	return nil, errors.Errorf(fileSchemeCouldntBeLoadedMsg, originalModuleSpecifier)
 ***REMOVED***
 
 func resolveUsingLoaders(name string) (*url.URL, error) ***REMOVED***
