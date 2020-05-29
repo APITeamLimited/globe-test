@@ -1029,7 +1029,24 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 	err = vu.RunOnce()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "only available to init code")
+	assert.Contains(t, err.Error(), "only available in the init stage")
+***REMOVED***
+
+func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
+	r, err := getSimpleRunner("/script.js", `
+			var sneaky = open;
+			exports.default = function() ***REMOVED*** sneaky("/tmp/foo") ***REMOVED***
+		`)
+	assert.NoError(t, err)
+
+	initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	err = vu.RunOnce()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "only available in the init stage")
 ***REMOVED***
 
 func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***

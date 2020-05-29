@@ -44,6 +44,9 @@ type programWithSource struct ***REMOVED***
 	module *goja.Object
 ***REMOVED***
 
+const openCantBeUsedOutsideInitContextMsg = `The "open()" function is only available in the init stage ` +
+	`(i.e. the global scope), see https://k6.io/docs/using-k6/test-life-cycle for more information`
+
 // InitContext provides APIs for use in the init context.
 type InitContext struct ***REMOVED***
 	// Bound runtime; used to instantiate objects.
@@ -190,7 +193,11 @@ func (i *InitContext) compileImport(src, filename string) (*goja.Program, error)
 ***REMOVED***
 
 // Open implements open() in the init context and will read and return the contents of a file
-func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) ***REMOVED***
+func (i *InitContext) Open(ctx context.Context, filename string, args ...string) (goja.Value, error) ***REMOVED***
+	if lib.GetState(ctx) != nil ***REMOVED***
+		return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
+	***REMOVED***
+
 	if filename == "" ***REMOVED***
 		return nil, errors.New("open() can't be used with an empty filename")
 	***REMOVED***

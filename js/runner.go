@@ -197,12 +197,12 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 	***REMOVED***
 	vu.Runtime.Set("__VU", vu.ID)
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
+
+	// This is here mostly so if someone tries they get a nice message
+	// instead of "Value is not an object: undefined  ..."
 	common.BindToGlobal(vu.Runtime, map[string]interface***REMOVED******REMOVED******REMOVED***
 		"open": func() ***REMOVED***
-			common.Throw(vu.Runtime, errors.New(
-				`The "open()" function is only available to init code (aka the global scope), see `+
-					` https://k6.io/docs/using-k6/test-life-cycle for more information`,
-			))
+			common.Throw(vu.Runtime, errors.New(openCantBeUsedOutsideInitContextMsg))
 		***REMOVED***,
 	***REMOVED***)
 
