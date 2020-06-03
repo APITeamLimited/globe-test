@@ -879,7 +879,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 					gracefulStop: "0s",
 				***REMOVED***,
 			***REMOVED***,
-			setupTimeout: "2s",
+			setupTimeout: "3s",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
@@ -897,7 +897,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 					gracefulStop: "0s",
 				***REMOVED***,
 			***REMOVED***,
-			teardownTimeout: "2s",
+			teardownTimeout: "3s",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
