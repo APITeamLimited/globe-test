@@ -741,7 +741,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	go func() ***REMOVED*** errC <- run() ***REMOVED***()
 
 	select ***REMOVED***
-	case <-time.After(10 * time.Second):
+	case <-time.After(12 * time.Second):
 		t.Fatal("Test timed out")
 	case err := <-errC:
 		require.NoError(t, err)
@@ -879,7 +879,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 					gracefulStop: "0s",
 				***REMOVED***,
 			***REMOVED***,
-			setupTimeout: "2s",
+			setupTimeout: "3s",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
@@ -897,7 +897,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 					gracefulStop: "0s",
 				***REMOVED***,
 			***REMOVED***,
-			teardownTimeout: "2s",
+			teardownTimeout: "3s",
 		***REMOVED***;
 
 		export default function () ***REMOVED***
