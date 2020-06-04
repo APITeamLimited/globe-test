@@ -23,13 +23,14 @@ package cmd
 import (
 	"bytes"
 	"io/ioutil"
-	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testHAR = `
@@ -121,24 +122,19 @@ export default function() ***REMOVED***
 `
 
 func TestIntegrationConvertCmd(t *testing.T) ***REMOVED***
-	var tmpFile, err = ioutil.TempFile("", "")
-	if err != nil ***REMOVED***
-		t.Fatalf("Couldn't create temporary file: %s", err)
-	***REMOVED***
-	harFile := tmpFile.Name()
-	defer os.Remove(harFile)
-	tmpFile.Close()
 	t.Run("Correlate", func(t *testing.T) ***REMOVED***
+		harFile, err := filepath.Abs("correlate.har")
+		require.NoError(t, err)
 		har, err := ioutil.ReadFile("testdata/example.har")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		expectedTestPlan, err := ioutil.ReadFile("testdata/example.js")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		defaultFs = afero.NewMemMapFs()
 
 		err = afero.WriteFile(defaultFs, harFile, har, 0644)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		buf := &bytes.Buffer***REMOVED******REMOVED***
 		defaultWriter = buf
@@ -177,8 +173,10 @@ func TestIntegrationConvertCmd(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Stdout", func(t *testing.T) ***REMOVED***
+		harFile, err := filepath.Abs("stdout.har")
+		require.NoError(t, err)
 		defaultFs = afero.NewMemMapFs()
-		err := afero.WriteFile(defaultFs, harFile, []byte(testHAR), 0644)
+		err = afero.WriteFile(defaultFs, harFile, []byte(testHAR), 0644)
 		assert.NoError(t, err)
 
 		buf := &bytes.Buffer***REMOVED******REMOVED***
@@ -189,11 +187,16 @@ func TestIntegrationConvertCmd(t *testing.T) ***REMOVED***
 		assert.Equal(t, testHARConvertResult, buf.String())
 	***REMOVED***)
 	t.Run("Output file", func(t *testing.T) ***REMOVED***
+		harFile, err := filepath.Abs("output.har")
+		require.NoError(t, err)
 		defaultFs = afero.NewMemMapFs()
-		err := afero.WriteFile(defaultFs, harFile, []byte(testHAR), 0644)
+		err = afero.WriteFile(defaultFs, harFile, []byte(testHAR), 0644)
 		assert.NoError(t, err)
 
 		err = convertCmd.Flags().Set("output", "/output.js")
+		defer func() ***REMOVED***
+			err = convertCmd.Flags().Set("output", "")
+		***REMOVED***()
 		assert.NoError(t, err)
 		err = convertCmd.RunE(convertCmd, []string***REMOVED***harFile***REMOVED***)
 		assert.NoError(t, err)
