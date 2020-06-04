@@ -430,8 +430,9 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	config := NewConfig().Apply(Config***REMOVED***
-		Host:       null.StringFrom(tb.ServerHTTP.URL),
-		NoCompress: null.BoolFrom(true),
+		Host:                       null.StringFrom(tb.ServerHTTP.URL),
+		NoCompress:                 null.BoolFrom(true),
+		MaxMetricSamplesPerPackage: null.IntFrom(50),
 	***REMOVED***)
 	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
@@ -502,8 +503,12 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	cancel()
 	wg.Wait()
 	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
-	_, ok := <-collector.stopSendingMetricsCh
-	require.False(t, ok)
+	select ***REMOVED***
+	case <-collector.stopSendingMetricsCh:
+		// all is fine
+	default:
+		t.Fatal("sending metrics wasn't stopped")
+	***REMOVED***
 	require.Equal(t, max, count)
 
 	nBufferSamples := len(collector.bufferSamples)
