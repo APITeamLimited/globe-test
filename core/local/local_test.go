@@ -403,7 +403,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '0s',
-				maxDuration: '0.5s',
+				maxDuration: '1s',
 				exec: 's1func',
 				env: ***REMOVED*** TESTVAR1: 'scenario1' ***REMOVED***,
 				tags: ***REMOVED*** testtag1: 'scenario1' ***REMOVED***,
@@ -412,7 +412,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				type: 'shared-iterations',
 				vus: 1,
 				iterations: 1,
-				gracefulStop: '0.5s',
+				gracefulStop: '1s',
 				startTime: '0.5s',
 				maxDuration: '2s',
 				exec: 's2func',
@@ -423,7 +423,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				type: 'per-vu-iterations',
 				vus: 1,
 				iterations: 1,
-				gracefulStop: '0.5s',
+				gracefulStop: '1s',
 				exec: 's3funcWS',
 				env: ***REMOVED*** TESTVAR3: 'scenario3' ***REMOVED***,
 				tags: ***REMOVED*** testtag3: 'scenario3' ***REMOVED***,
@@ -505,12 +505,11 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	done := make(chan struct***REMOVED******REMOVED***)
 	samples := make(chan stats.SampleContainer)
 	go func() ***REMOVED***
 		assert.NoError(t, execScheduler.Init(ctx, samples))
 		assert.NoError(t, execScheduler.Run(ctx, ctx, samples))
-		close(done)
+		close(samples)
 	***REMOVED***()
 
 	expectedTrailTags := []map[string]string***REMOVED***
@@ -529,49 +528,44 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		***REMOVED***"testtag3": "scenario3", "wstag": "scenario3"***REMOVED***,
 	***REMOVED***
 	var gotSampleTags int
-	for ***REMOVED***
-		select ***REMOVED***
-		case sample := <-samples:
-			switch s := sample.(type) ***REMOVED***
-			case stats.Sample:
-				if s.Metric.Name == "errors" ***REMOVED***
-					assert.FailNow(t, "received error sample from test")
-				***REMOVED***
-				if s.Metric.Name == "checks" || s.Metric.Name == "group_duration" ***REMOVED***
-					tags := s.Tags.CloneTags()
-					for _, expTags := range expectedPlainSampleTags ***REMOVED***
-						if reflect.DeepEqual(expTags, tags) ***REMOVED***
-							gotSampleTags++
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-			case *httpext.Trail:
+	for sample := range samples ***REMOVED***
+		switch s := sample.(type) ***REMOVED***
+		case stats.Sample:
+			if s.Metric.Name == "errors" ***REMOVED***
+				assert.FailNow(t, "received error sample from test")
+			***REMOVED***
+			if s.Metric.Name == "checks" || s.Metric.Name == "group_duration" ***REMOVED***
 				tags := s.Tags.CloneTags()
-				for _, expTags := range expectedTrailTags ***REMOVED***
+				for _, expTags := range expectedPlainSampleTags ***REMOVED***
 					if reflect.DeepEqual(expTags, tags) ***REMOVED***
-						gotSampleTags++
-					***REMOVED***
-				***REMOVED***
-			case *netext.NetTrail:
-				tags := s.Tags.CloneTags()
-				for _, expTags := range expectedNetTrailTags ***REMOVED***
-					if reflect.DeepEqual(expTags, tags) ***REMOVED***
-						gotSampleTags++
-					***REMOVED***
-				***REMOVED***
-			case stats.ConnectedSamples:
-				for _, sm := range s.Samples ***REMOVED***
-					tags := sm.Tags.CloneTags()
-					if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
 						gotSampleTags++
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-		case <-done:
-			require.Equal(t, 8, gotSampleTags, "received wrong amount of samples with expected tags")
-			return
+		case *httpext.Trail:
+			tags := s.Tags.CloneTags()
+			for _, expTags := range expectedTrailTags ***REMOVED***
+				if reflect.DeepEqual(expTags, tags) ***REMOVED***
+					gotSampleTags++
+				***REMOVED***
+			***REMOVED***
+		case *netext.NetTrail:
+			tags := s.Tags.CloneTags()
+			for _, expTags := range expectedNetTrailTags ***REMOVED***
+				if reflect.DeepEqual(expTags, tags) ***REMOVED***
+					gotSampleTags++
+				***REMOVED***
+			***REMOVED***
+		case stats.ConnectedSamples:
+			for _, sm := range s.Samples ***REMOVED***
+				tags := sm.Tags.CloneTags()
+				if reflect.DeepEqual(expectedConnSampleTags, tags) ***REMOVED***
+					gotSampleTags++
+				***REMOVED***
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
+	require.Equal(t, 8, gotSampleTags, "received wrong amount of samples with expected tags")
 ***REMOVED***
 
 func TestExecutionSchedulerSetupTeardownRun(t *testing.T) ***REMOVED***
