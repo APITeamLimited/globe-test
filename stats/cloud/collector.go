@@ -126,7 +126,7 @@ func New(
 
 	duration, testEnds := lib.GetEndOffset(executionPlan)
 	if !testEnds ***REMOVED***
-		return nil, errors.New("Tests with unspecified duration are not allowed when using Load Impact Insights")
+		return nil, errors.New("tests with unspecified duration are not allowed when outputting data to k6 cloud")
 	***REMOVED***
 
 	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
