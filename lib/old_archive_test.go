@@ -289,7 +289,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 			require.Contains(t, err.Error(), test.expError)
 		***REMOVED*** else ***REMOVED***
 			require.NoError(t, err)
-			require.Equal(t, test.expScenarios, arc.Options.Execution)
+			require.Equal(t, test.expScenarios, arc.Options.Scenarios)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

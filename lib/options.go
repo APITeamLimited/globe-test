@@ -204,7 +204,7 @@ type Options struct ***REMOVED***
 	// We should support specifying execution segments via environment
 	// variables, but we currently can't, because envconfig has this nasty bug
 	// (among others): https://github.com/kelseyhightower/envconfig/issues/113
-	Execution                ExecutorConfigMap         `json:"scenarios,omitempty" ignored:"true"`
+	Scenarios                ExecutorConfigMap         `json:"scenarios,omitempty" ignored:"true"`
 	ExecutionSegment         *ExecutionSegment         `json:"executionSegment" ignored:"true"`
 	ExecutionSegmentSequence *ExecutionSegmentSequence `json:"executionSegmentSequence" ignored:"true"`
 
@@ -314,12 +314,12 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	// Still, if more than one of those options is simultaneously specified in the same
 	// config tier, they will be preserved, so the validation after we've consolidated
 	// all of the options can return an error.
-	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || opts.Execution != nil ***REMOVED***
+	if opts.Duration.Valid || opts.Iterations.Valid || opts.Stages != nil || opts.Scenarios != nil ***REMOVED***
 		// TODO: emit a warning or a notice log message if overwrite lower tier config options?
 		o.Duration = types.NewNullDuration(0, false)
 		o.Iterations = null.NewInt(0, false)
 		o.Stages = nil
-		o.Execution = nil
+		o.Scenarios = nil
 	***REMOVED***
 
 	if opts.Duration.Valid ***REMOVED***
@@ -340,8 +340,8 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	// that happens after the configuration from the different sources is consolidated. It can't
 	// happen here, because something like `K6_ITERATIONS=10 k6 run --vus 5 script.js` wont't
 	// work correctly at this level.
-	if opts.Execution != nil ***REMOVED***
-		o.Execution = opts.Execution
+	if opts.Scenarios != nil ***REMOVED***
+		o.Scenarios = opts.Scenarios
 	***REMOVED***
 	if opts.ExecutionSegment != nil ***REMOVED***
 		o.ExecutionSegment = opts.ExecutionSegment
@@ -466,7 +466,7 @@ func (o Options) Validate() []error ***REMOVED***
 					o.ExecutionSegment, o.ExecutionSegmentSequence))
 		***REMOVED***
 	***REMOVED***
-	return append(errors, o.Execution.Validate()...)
+	return append(errors, o.Scenarios.Validate()...)
 ***REMOVED***
 
 // ForEachSpecified enumerates all struct fields and calls the supplied function with each

@@ -152,7 +152,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 		***REMOVED***"defaultOK", Config***REMOVED******REMOVED***, true, ""***REMOVED***,
 		***REMOVED***"defaultErr", Config***REMOVED******REMOVED***, false,
 			"executor default: function 'default' not found in exports"***REMOVED***,
-		***REMOVED***"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
+		***REMOVED***"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ExecutorConfigMap***REMOVED***
 			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
 				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefault")***REMOVED***,
 				VUs:         null.IntFrom(1),
@@ -160,7 +160,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 				MaxDuration: types.NullDurationFrom(time.Second),
 			***REMOVED******REMOVED******REMOVED******REMOVED***, true, "",
 		***REMOVED***,
-		***REMOVED***"nonDefaultErr", Config***REMOVED***Options: lib.Options***REMOVED***Execution: lib.ExecutorConfigMap***REMOVED***
+		***REMOVED***"nonDefaultErr", Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ExecutorConfigMap***REMOVED***
 			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
 				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefaultErr")***REMOVED***,
 				VUs:         null.IntFrom(1),

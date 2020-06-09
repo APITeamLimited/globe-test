@@ -43,7 +43,7 @@ import (
 
 func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 	// No config anywhere should result in a 1 VU with a 1 iteration config
-	exec := c.Execution[lib.DefaultExecutorName]
+	exec := c.Scenarios[lib.DefaultExecutorName]
 	require.NotEmpty(t, exec)
 	require.IsType(t, executor.PerVUIterationsConfig***REMOVED******REMOVED***, exec)
 	perVuIters, ok := exec.(executor.PerVUIterationsConfig)
@@ -54,7 +54,7 @@ func verifyOneIterPerOneVU(t *testing.T, c Config) ***REMOVED***
 
 func verifySharedIters(vus, iters null.Int) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
-		exec := c.Execution[lib.DefaultExecutorName]
+		exec := c.Scenarios[lib.DefaultExecutorName]
 		require.NotEmpty(t, exec)
 		require.IsType(t, executor.SharedIterationsConfig***REMOVED******REMOVED***, exec)
 		sharedIterConfig, ok := exec.(executor.SharedIterationsConfig)
@@ -68,7 +68,7 @@ func verifySharedIters(vus, iters null.Int) func(t *testing.T, c Config) ***REMO
 
 func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
-		exec := c.Execution[lib.DefaultExecutorName]
+		exec := c.Scenarios[lib.DefaultExecutorName]
 		require.NotEmpty(t, exec)
 		require.IsType(t, executor.ConstantLoopingVUsConfig***REMOVED******REMOVED***, exec)
 		clvc, ok := exec.(executor.ConstantLoopingVUsConfig)
@@ -82,7 +82,7 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 
 func verifyVarLoopingVUs(startVus null.Int, stages []executor.Stage) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
-		exec := c.Execution[lib.DefaultExecutorName]
+		exec := c.Scenarios[lib.DefaultExecutorName]
 		require.NotEmpty(t, exec)
 		require.IsType(t, executor.VariableLoopingVUsConfig***REMOVED******REMOVED***, exec)
 		clvc, ok := exec.(executor.VariableLoopingVUsConfig)
@@ -223,7 +223,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			verifySharedIters(I(1), I(6))(t, c)
-			sharedIterConfig := c.Execution[lib.DefaultExecutorName].(executor.SharedIterationsConfig)
+			sharedIterConfig := c.Scenarios[lib.DefaultExecutorName].(executor.SharedIterationsConfig)
 			assert.Equal(t, time.Duration(sharedIterConfig.MaxDuration.Duration), 10*time.Second)
 		***REMOVED******REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations
@@ -437,7 +437,7 @@ func runTestCase(
 	require.NoError(t, err)
 
 	derivedConfig := consolidatedConfig
-	derivedConfig.Options, err = executor.DeriveExecutionFromShortcuts(consolidatedConfig.Options)
+	derivedConfig.Options, err = executor.DeriveScenariosFromShortcuts(consolidatedConfig.Options)
 	if testCase.expected.derivationError ***REMOVED***
 		require.Error(t, err)
 		return

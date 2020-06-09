@@ -59,7 +59,7 @@ func newTestExecutionScheduler(
 		runner = &minirunner.MiniRunner***REMOVED******REMOVED***
 	***REMOVED***
 	ctx, cancel = context.WithCancel(context.Background())
-	newOpts, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
 	***REMOVED***.Apply(runner.GetOptions()).Apply(opts))
 	require.NoError(t, err)
@@ -773,7 +773,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 			return errors.New("hi")
 		***REMOVED***,
 		Options: lib.Options***REMOVED***
-			Execution: lib.ExecutorConfigMap***REMOVED***exec.GetName(): exec***REMOVED***,
+			Scenarios: lib.ExecutorConfigMap***REMOVED***exec.GetName(): exec***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
@@ -797,7 +797,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := &stats.Metric***REMOVED***Name: "test_metric"***REMOVED***
 
-	options, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
 	***REMOVED***)
@@ -1007,7 +1007,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	runner, err := js.New(&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
-	options, err := executor.DeriveExecutionFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
+	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
 		Iterations:      null.IntFrom(2),
 		VUs:             null.IntFrom(1),
 		SystemTags:      &stats.DefaultSystemTagSet,
@@ -1185,7 +1185,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 
 	t.Run("can't pause unpausable executor", func(t *testing.T) ***REMOVED***
 		runner := &minirunner.MiniRunner***REMOVED******REMOVED***
-		options, err := executor.DeriveExecutionFromShortcuts(lib.Options***REMOVED***
+		options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 			Iterations: null.IntFrom(2),
 			VUs:        null.IntFrom(1),
 		***REMOVED***.Apply(runner.GetOptions()))
