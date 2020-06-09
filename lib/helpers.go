@@ -112,3 +112,11 @@ func ConcatErrors(errors []error, separator string) string ***REMOVED***
 	***REMOVED***
 	return strings.Join(errStrings, separator)
 ***REMOVED***
+
+// SumStagesDuration returns the total duration across all stages.
+func SumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***
+	for _, s := range stages ***REMOVED***
+		result += time.Duration(s.Duration.Duration)
+	***REMOVED***
+	return
+***REMOVED***

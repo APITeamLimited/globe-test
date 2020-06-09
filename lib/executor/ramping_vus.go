@@ -49,18 +49,11 @@ func init() ***REMOVED***
 	)
 ***REMOVED***
 
-// Stage contains
-type Stage struct ***REMOVED***
-	Duration types.NullDuration `json:"duration"`
-	Target   null.Int           `json:"target"` // TODO: maybe rename this to endVUs? something else?
-	// TODO: add a progression function?
-***REMOVED***
-
 // RampingVUsConfig stores the configuration for the stages executor
 type RampingVUsConfig struct ***REMOVED***
 	BaseConfig
 	StartVUs         null.Int           `json:"startVUs"`
-	Stages           []Stage            `json:"stages"`
+	Stages           []lib.Stage        `json:"stages"`
 	GracefulRampDown types.NullDuration `json:"gracefulRampDown"`
 ***REMOVED***
 
@@ -91,7 +84,7 @@ func (vlvc RampingVUsConfig) GetGracefulRampDown() time.Duration ***REMOVED***
 func (vlvc RampingVUsConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
 	maxVUs := et.Segment.Scale(getStagesUnscaledMaxTarget(vlvc.StartVUs.Int64, vlvc.Stages))
 	return fmt.Sprintf("Up to %d looping VUs for %s over %d stages%s",
-		maxVUs, sumStagesDuration(vlvc.Stages), len(vlvc.Stages),
+		maxVUs, lib.SumStagesDuration(vlvc.Stages), len(vlvc.Stages),
 		vlvc.getBaseInfo(fmt.Sprintf("gracefulRampDown: %s", vlvc.GetGracefulRampDown())))
 ***REMOVED***
 
@@ -488,7 +481,7 @@ func (vlvc RampingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:funlen
 func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	steps := vlvc.getRawExecutionSteps(et, false)
 
-	executorEndOffset := sumStagesDuration(vlvc.Stages) + time.Duration(vlvc.GracefulStop.Duration)
+	executorEndOffset := lib.SumStagesDuration(vlvc.Stages) + time.Duration(vlvc.GracefulStop.Duration)
 	// Handle graceful ramp-downs, if we have them
 	if vlvc.GracefulRampDown.Duration > 0 ***REMOVED***
 		steps = vlvc.reserveVUsForGracefulRampDowns(steps, executorEndOffset)
