@@ -36,13 +36,13 @@ import (
 	"github.com/loadimpact/k6/ui/pb"
 )
 
-const variableLoopingVUsType = "ramping-vus"
+const rampingVUsType = "ramping-vus"
 
 func init() ***REMOVED***
 	lib.RegisterExecutorConfigType(
-		variableLoopingVUsType,
+		rampingVUsType,
 		func(name string, rawJSON []byte) (lib.ExecutorConfig, error) ***REMOVED***
-			config := NewVariableLoopingVUsConfig(name)
+			config := NewRampingVUsConfig(name)
 			err := lib.StrictJSONUnmarshal(rawJSON, &config)
 			return config, err
 		***REMOVED***,
@@ -56,39 +56,39 @@ type Stage struct ***REMOVED***
 	// TODO: add a progression function?
 ***REMOVED***
 
-// VariableLoopingVUsConfig stores the configuration for the stages executor
-type VariableLoopingVUsConfig struct ***REMOVED***
+// RampingVUsConfig stores the configuration for the stages executor
+type RampingVUsConfig struct ***REMOVED***
 	BaseConfig
 	StartVUs         null.Int           `json:"startVUs"`
 	Stages           []Stage            `json:"stages"`
 	GracefulRampDown types.NullDuration `json:"gracefulRampDown"`
 ***REMOVED***
 
-// NewVariableLoopingVUsConfig returns a VariableLoopingVUsConfig with its default values
-func NewVariableLoopingVUsConfig(name string) VariableLoopingVUsConfig ***REMOVED***
-	return VariableLoopingVUsConfig***REMOVED***
-		BaseConfig:       NewBaseConfig(name, variableLoopingVUsType),
+// NewRampingVUsConfig returns a RampingVUsConfig with its default values
+func NewRampingVUsConfig(name string) RampingVUsConfig ***REMOVED***
+	return RampingVUsConfig***REMOVED***
+		BaseConfig:       NewBaseConfig(name, rampingVUsType),
 		StartVUs:         null.NewInt(1, false),
 		GracefulRampDown: types.NewNullDuration(30*time.Second, false),
 	***REMOVED***
 ***REMOVED***
 
 // Make sure we implement the lib.ExecutorConfig interface
-var _ lib.ExecutorConfig = &VariableLoopingVUsConfig***REMOVED******REMOVED***
+var _ lib.ExecutorConfig = &RampingVUsConfig***REMOVED******REMOVED***
 
 // GetStartVUs is just a helper method that returns the scaled starting VUs.
-func (vlvc VariableLoopingVUsConfig) GetStartVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
+func (vlvc RampingVUsConfig) GetStartVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
 	return et.Segment.Scale(vlvc.StartVUs.Int64)
 ***REMOVED***
 
 // GetGracefulRampDown is just a helper method that returns the graceful
 // ramp-down period as a standard Go time.Duration value...
-func (vlvc VariableLoopingVUsConfig) GetGracefulRampDown() time.Duration ***REMOVED***
+func (vlvc RampingVUsConfig) GetGracefulRampDown() time.Duration ***REMOVED***
 	return time.Duration(vlvc.GracefulRampDown.Duration)
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
-func (vlvc VariableLoopingVUsConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
+func (vlvc RampingVUsConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
 	maxVUs := et.Segment.Scale(getStagesUnscaledMaxTarget(vlvc.StartVUs.Int64, vlvc.Stages))
 	return fmt.Sprintf("Up to %d looping VUs for %s over %d stages%s",
 		maxVUs, sumStagesDuration(vlvc.Stages), len(vlvc.Stages),
@@ -96,7 +96,7 @@ func (vlvc VariableLoopingVUsConfig) GetDescription(et *lib.ExecutionTuple) stri
 ***REMOVED***
 
 // Validate makes sure all options are configured and valid
-func (vlvc VariableLoopingVUsConfig) Validate() []error ***REMOVED***
+func (vlvc RampingVUsConfig) Validate() []error ***REMOVED***
 	errors := vlvc.BaseConfig.Validate()
 	if vlvc.StartVUs.Int64 < 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the number of start VUs shouldn't be negative"))
@@ -181,7 +181,7 @@ func (vlvc VariableLoopingVUsConfig) Validate() []error ***REMOVED***
 //       00000000001111111111222   (t/10)
 //
 // More information: https://github.com/loadimpact/k6/issues/997#issuecomment-484416866
-func (vlvc VariableLoopingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple, zeroEnd bool) []lib.ExecutionStep ***REMOVED***
+func (vlvc RampingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple, zeroEnd bool) []lib.ExecutionStep ***REMOVED***
 	var (
 		timeTillEnd         time.Duration
 		fromVUs             = vlvc.StartVUs.Int64
@@ -317,7 +317,7 @@ func absInt64(a int64) int64 ***REMOVED***
 	return a
 ***REMOVED***
 
-func (vlvc VariableLoopingVUsConfig) precalculateTheRequiredSteps(et *lib.ExecutionTuple, zeroEnd bool) int ***REMOVED***
+func (vlvc RampingVUsConfig) precalculateTheRequiredSteps(et *lib.ExecutionTuple, zeroEnd bool) int ***REMOVED***
 	p := et.ScaleInt64(vlvc.StartVUs.Int64)
 	var result int64
 	result++ // for the first one
@@ -370,7 +370,7 @@ func (vlvc VariableLoopingVUsConfig) precalculateTheRequiredSteps(et *lib.Execut
 // to 1 again, scale up to 4, back to 1, and finally back down to 0. If our
 // gracefulStop timeout was 30s (the default), then we'll stay with 6 PlannedVUs
 // until t=32 in the test above, and the actual executor could run until t=52.
-// See TestVariableLoopingVUsConfigExecutionPlanExample() for the above example
+// See TestRampingVUsConfigExecutionPlanExample() for the above example
 // as a unit test.
 //
 // The algorithm we use below to reserve VUs so that ramping-down VUs can finish
@@ -382,7 +382,7 @@ func (vlvc VariableLoopingVUsConfig) precalculateTheRequiredSteps(et *lib.Execut
 // executorEndOffset, is not handled here. Instead GetExecutionRequirements()
 // takes care of that. But to make its job easier, this method won't add any
 // steps with an offset that's greater or equal to executorEndOffset.
-func (vlvc VariableLoopingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:funlen
+func (vlvc RampingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:funlen
 	rawSteps []lib.ExecutionStep, executorEndOffset time.Duration,
 ) []lib.ExecutionStep ***REMOVED***
 	rawStepsLen := len(rawSteps)
@@ -485,7 +485,7 @@ func (vlvc VariableLoopingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:fu
 //       last stage's target is 0), then this will have no effect.
 //     - If the last stage's target is more than 0, the VUs at the end of the
 //       executor's life will have more time to finish their last iterations.
-func (vlvc VariableLoopingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
+func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	steps := vlvc.getRawExecutionSteps(et, false)
 
 	executorEndOffset := sumStagesDuration(vlvc.Stages) + time.Duration(vlvc.GracefulStop.Duration)
@@ -502,29 +502,29 @@ func (vlvc VariableLoopingVUsConfig) GetExecutionRequirements(et *lib.ExecutionT
 	return steps
 ***REMOVED***
 
-// NewExecutor creates a new VariableLoopingVUs executor
-func (vlvc VariableLoopingVUsConfig) NewExecutor(es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
-	return VariableLoopingVUs***REMOVED***
+// NewExecutor creates a new RampingVUs executor
+func (vlvc RampingVUsConfig) NewExecutor(es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
+	return RampingVUs***REMOVED***
 		BaseExecutor: NewBaseExecutor(vlvc, es, logger),
 		config:       vlvc,
 	***REMOVED***, nil
 ***REMOVED***
 
 // HasWork reports whether there is any work to be done for the given execution segment.
-func (vlvc VariableLoopingVUsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
+func (vlvc RampingVUsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
 	return lib.GetMaxPlannedVUs(vlvc.GetExecutionRequirements(et)) > 0
 ***REMOVED***
 
-// VariableLoopingVUs handles the old "stages" execution configuration - it
-// loops iterations with a variable number of VUs for the sum of all of the
-// specified stages' duration.
-type VariableLoopingVUs struct ***REMOVED***
+// RampingVUs handles the old "stages" execution configuration - it loops
+// iterations with a variable number of VUs for the sum of all of the specified
+// stages' duration.
+type RampingVUs struct ***REMOVED***
 	*BaseExecutor
-	config VariableLoopingVUsConfig
+	config RampingVUsConfig
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
-var _ lib.Executor = &VariableLoopingVUs***REMOVED******REMOVED***
+var _ lib.Executor = &RampingVUs***REMOVED******REMOVED***
 
 // Run constantly loops through as many iterations as possible on a variable
 // number of VUs for the specified stages.
@@ -533,7 +533,7 @@ var _ lib.Executor = &VariableLoopingVUs***REMOVED******REMOVED***
 // of a less complex way to implement it (besides the old "increment by 100ms
 // and see what happens)... :/ so maybe see how it can be split?
 // nolint:funlen,gocognit
-func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	rawExecutionSteps := vlv.config.getRawExecutionSteps(vlv.executionState.ExecutionTuple, true)
 	regularDuration, isFinal := lib.GetEndOffset(rawExecutionSteps)
 	if !isFinal ***REMOVED***

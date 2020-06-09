@@ -80,12 +80,12 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 	***REMOVED***
 ***REMOVED***
 
-func verifyVarLoopingVUs(startVus null.Int, stages []executor.Stage) func(t *testing.T, c Config) ***REMOVED***
+func verifyRampingVUs(startVus null.Int, stages []executor.Stage) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		exec := c.Scenarios[lib.DefaultScenarioName]
 		require.NotEmpty(t, exec)
-		require.IsType(t, executor.VariableLoopingVUsConfig***REMOVED******REMOVED***, exec)
-		clvc, ok := exec.(executor.VariableLoopingVUsConfig)
+		require.IsType(t, executor.RampingVUsConfig***REMOVED******REMOVED***, exec)
+		clvc, ok := exec.(executor.RampingVUsConfig)
 		require.True(t, ok)
 		assert.Equal(t, startVus, clvc.StartVUs)
 		assert.Equal(t, startVus, c.VUs)
@@ -215,11 +215,11 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(4), 1*time.Minute)***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***cli: []string***REMOVED***"--stage", "20s:10", "-s", "3m:5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(1, false), buildStages(20, 10, 180, 5)),
+			verifyRampingVUs(null.NewInt(1, false), buildStages(20, 10, 180, 5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(10, true), buildStages(66, 5)),
+			verifyRampingVUs(null.NewInt(10, true), buildStages(66, 5)),
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			verifySharedIters(I(1), I(6))(t, c)
@@ -249,11 +249,11 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 20*time.Second)***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=2m30s:11,1h1m:100"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(1, false), buildStages(150, 11, 3660, 100)),
+			verifyRampingVUs(null.NewInt(1, false), buildStages(150, 11, 3660, 100)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=100s:100,0m30s:0", "K6_VUS=0"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(0, true), buildStages(100, 100, 30, 0)),
+			verifyRampingVUs(null.NewInt(0, true), buildStages(100, 100, 30, 0)),
 		***REMOVED***,
 		// Test if JSON configs work as expected
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"iterations": 77, "vus": 7***REMOVED***`)***REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(7), I(77))***REMOVED***,
@@ -282,7 +282,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5), Duration: types.NullDurationFrom(50 * time.Second)***REMOVED***,
 				cli:    []string***REMOVED***"--stage", "5s:5"***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED******REMOVED***, verifyVarLoopingVUs(I(5), buildStages(5, 5)),
+			exp***REMOVED******REMOVED***, verifyRampingVUs(I(5), buildStages(5, 5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -290,7 +290,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(I(5), buildStages(20, 10)),
+			verifyRampingVUs(I(5), buildStages(20, 10)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -309,7 +309,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				cli:    []string***REMOVED***"--stage", "44s:44", "-s", "55s:55"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
-			verifyVarLoopingVUs(null.NewInt(33, true), buildStages(44, 44, 55, 55)),
+			verifyRampingVUs(null.NewInt(33, true), buildStages(44, 44, 55, 55)),
 		***REMOVED***,
 
 		// TODO: test the future full overwriting of the duration/iterations/stages/execution options
