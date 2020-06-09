@@ -70,8 +70,8 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 	return func(t *testing.T, c Config) ***REMOVED***
 		exec := c.Scenarios[lib.DefaultScenarioName]
 		require.NotEmpty(t, exec)
-		require.IsType(t, executor.ConstantLoopingVUsConfig***REMOVED******REMOVED***, exec)
-		clvc, ok := exec.(executor.ConstantLoopingVUsConfig)
+		require.IsType(t, executor.ConstantVUsConfig***REMOVED******REMOVED***, exec)
+		clvc, ok := exec.(executor.ConstantVUsConfig)
 		require.True(t, ok)
 		assert.Equal(t, vus, clvc.VUs)
 		assert.Equal(t, types.NullDurationFrom(duration), clvc.Duration)

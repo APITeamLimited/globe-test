@@ -68,7 +68,7 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***`***REMOVED***"someKey": ***REMOVED***"executor": "constant-vus", "vus": 10, "duration": "60s",
 		"gracefulStop": "10s", "startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"***REMOVED******REMOVED***`,
 		exp***REMOVED***custom: func(t *testing.T, cm lib.ScenarioConfigs) ***REMOVED***
-			sched := NewConstantLoopingVUsConfig("someKey")
+			sched := NewConstantVUsConfig("someKey")
 			sched.VUs = null.IntFrom(10)
 			sched.Duration = types.NullDurationFrom(1 * time.Minute)
 			sched.GracefulStop = types.NullDurationFrom(10 * time.Second)
