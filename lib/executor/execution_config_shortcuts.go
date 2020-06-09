@@ -38,32 +38,32 @@ func (e ExecutionConflictError) Error() string ***REMOVED***
 
 var _ error = ExecutionConflictError("")
 
-func getConstantLoopingVUsScenario(duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap ***REMOVED***
-	ds := NewConstantLoopingVUsConfig(lib.DefaultExecutorName)
+func getConstantLoopingVUsScenario(duration types.NullDuration, vus null.Int) lib.ScenarioConfigs ***REMOVED***
+	ds := NewConstantLoopingVUsConfig(lib.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Duration = duration
-	return lib.ExecutorConfigMap***REMOVED***lib.DefaultExecutorName: ds***REMOVED***
+	return lib.ScenarioConfigs***REMOVED***lib.DefaultScenarioName: ds***REMOVED***
 ***REMOVED***
 
-func getVariableLoopingVUsScenario(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap ***REMOVED***
-	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
+func getVariableLoopingVUsScenario(stages []lib.Stage, startVUs null.Int) lib.ScenarioConfigs ***REMOVED***
+	ds := NewVariableLoopingVUsConfig(lib.DefaultScenarioName)
 	ds.StartVUs = startVUs
 	for _, s := range stages ***REMOVED***
 		if s.Duration.Valid ***REMOVED***
 			ds.Stages = append(ds.Stages, Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
 		***REMOVED***
 	***REMOVED***
-	return lib.ExecutorConfigMap***REMOVED***lib.DefaultExecutorName: ds***REMOVED***
+	return lib.ScenarioConfigs***REMOVED***lib.DefaultScenarioName: ds***REMOVED***
 ***REMOVED***
 
-func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap ***REMOVED***
-	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
+func getSharedIterationsScenario(iters null.Int, duration types.NullDuration, vus null.Int) lib.ScenarioConfigs ***REMOVED***
+	ds := NewSharedIterationsConfig(lib.DefaultScenarioName)
 	ds.VUs = vus
 	ds.Iterations = iters
 	if duration.Valid ***REMOVED***
 		ds.MaxDuration = duration
 	***REMOVED***
-	return lib.ExecutorConfigMap***REMOVED***lib.DefaultExecutorName: ds***REMOVED***
+	return lib.ScenarioConfigs***REMOVED***lib.DefaultScenarioName: ds***REMOVED***
 ***REMOVED***
 
 // DeriveScenariosFromShortcuts checks for conflicting options and turns any
@@ -134,8 +134,8 @@ func DeriveScenariosFromShortcuts(opts lib.Options) (lib.Options, error) ***REMO
 		***REMOVED***
 		// No execution parameters whatsoever were specified, so we'll create a per-VU iterations config
 		// with 1 VU and 1 iteration.
-		result.Scenarios = lib.ExecutorConfigMap***REMOVED***
-			lib.DefaultExecutorName: NewPerVUIterationsConfig(lib.DefaultExecutorName),
+		result.Scenarios = lib.ScenarioConfigs***REMOVED***
+			lib.DefaultScenarioName: NewPerVUIterationsConfig(lib.DefaultScenarioName),
 		***REMOVED***
 	***REMOVED***
 

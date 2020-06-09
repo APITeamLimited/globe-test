@@ -61,7 +61,7 @@ var (
 // be ignored, since the gracefulStop/gracefulRampDown options potentially allow
 // any started iterations to finish.
 //
-// []ExecutionStep is also used by the ExecutorConfigMap, to represent the
+// []ExecutionStep is also used by the ScenarioConfigs, to represent the
 // amount of needed VUs among all executors, during the whole execution of a
 // test script. In that context, each executor's StartTime is accounted for and
 // included in the offsets.
@@ -159,12 +159,12 @@ func RegisterExecutorConfigType(configType string, constructor ExecutorConfigCon
 	executorConfigConstructors[configType] = constructor
 ***REMOVED***
 
-// ExecutorConfigMap can contain mixed executor config types
-type ExecutorConfigMap map[string]ExecutorConfig
+// ScenarioConfigs can contain mixed executor config types
+type ScenarioConfigs map[string]ExecutorConfig
 
 // UnmarshalJSON implements the json.Unmarshaler interface in a two-step manner,
 // creating the correct type of configs based on the `type` property.
-func (scs *ExecutorConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
+func (scs *ScenarioConfigs) UnmarshalJSON(data []byte) error ***REMOVED***
 	if len(data) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -180,7 +180,7 @@ func (scs *ExecutorConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	result := make(ExecutorConfigMap, len(protoConfigs))
+	result := make(ScenarioConfigs, len(protoConfigs))
 	for k, v := range protoConfigs ***REMOVED***
 		if v.configType == "" ***REMOVED***
 			return fmt.Errorf("execution config '%s' doesn't have a type value", k)
@@ -198,7 +198,7 @@ func (scs *ExecutorConfigMap) UnmarshalJSON(data []byte) error ***REMOVED***
 ***REMOVED***
 
 // Validate checks if all of the specified executor options make sense
-func (scs ExecutorConfigMap) Validate() (errors []error) ***REMOVED***
+func (scs ScenarioConfigs) Validate() (errors []error) ***REMOVED***
 	for name, exec := range scs ***REMOVED***
 		if execErr := exec.Validate(); len(execErr) != 0 ***REMOVED***
 			errors = append(errors,
@@ -217,7 +217,7 @@ func (scs ExecutorConfigMap) Validate() (errors []error) ***REMOVED***
 // The configs in the returned slice will be sorted by their start times in an
 // ascending order, and alphabetically by their names (which are unique) if
 // there are ties.
-func (scs ExecutorConfigMap) GetSortedConfigs() []ExecutorConfig ***REMOVED***
+func (scs ScenarioConfigs) GetSortedConfigs() []ExecutorConfig ***REMOVED***
 	configs := make([]ExecutorConfig, len(scs))
 
 	// Populate the configs slice with sorted executor configs
@@ -244,7 +244,7 @@ func (scs ExecutorConfigMap) GetSortedConfigs() []ExecutorConfig ***REMOVED***
 // the configured executors. It takes into account their start times and their
 // individual VU requirements and calculates the total VU requirements for each
 // moment in the test execution.
-func (scs ExecutorConfigMap) GetFullExecutionRequirements(et *ExecutionTuple) []ExecutionStep ***REMOVED***
+func (scs ScenarioConfigs) GetFullExecutionRequirements(et *ExecutionTuple) []ExecutionStep ***REMOVED***
 	sortedConfigs := scs.GetSortedConfigs()
 
 	// Combine the steps and requirements from all different executors, and

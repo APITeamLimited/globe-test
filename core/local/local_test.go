@@ -773,7 +773,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 			return errors.New("hi")
 		***REMOVED***,
 		Options: lib.Options***REMOVED***
-			Scenarios: lib.ExecutorConfigMap***REMOVED***exec.GetName(): exec***REMOVED***,
+			Scenarios: lib.ScenarioConfigs***REMOVED***exec.GetName(): exec***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
 	logger, hook := logtest.NewNullLogger()
