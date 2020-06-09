@@ -702,9 +702,9 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 
 		export let options = ***REMOVED***
 			systemTags: ["iter", "vu", "url"],
-			execution: ***REMOVED***
+			scenarios: ***REMOVED***
 				we_need_hard_stop_and_ramp_down: ***REMOVED***
-					type: "variable-looping-vus",
+					executor: "ramping-vus",
 					// Start with 2 VUs for 4 seconds and then quickly scale down to 1 for the next 4s and then quit
 					startVUs: 2,
 					stages: [
@@ -818,9 +818,9 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 				let testCounter = new Counter("testcounter");
 
 				export let options = ***REMOVED***
-					execution: ***REMOVED***
+					scenarios: ***REMOVED***
 						we_need_hard_stop: ***REMOVED***
-							type: "constant-looping-vus",
+							executor: "constant-vus",
 							vus: 4,
 							duration: "1s",
 							gracefulStop: "0s",
@@ -871,9 +871,9 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 
 		export let options = ***REMOVED***
 			minIterationDuration: "2s",
-			execution: ***REMOVED***
+			scenarios: ***REMOVED***
 				we_need_hard_stop: ***REMOVED***
-					type: "constant-looping-vus",
+					executor: "constant-vus",
 					vus: 2,
 					duration: "1.9s",
 					gracefulStop: "0s",
@@ -889,9 +889,9 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 
 		export let options = ***REMOVED***
 			minIterationDuration: "2s",
-			execution: ***REMOVED***
+			scenarios: ***REMOVED***
 				we_need_hard_stop: ***REMOVED***
-					type: "constant-looping-vus",
+					executor: "constant-vus",
 					vus: 2,
 					duration: "1.9s",
 					gracefulStop: "0s",

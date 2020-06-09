@@ -243,7 +243,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				***REMOVED***,
 			***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil,
 		***REMOVED***,
-		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"execution": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
+		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"scenarios": ***REMOVED******REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU***REMOVED***,
 		// Test if environment variable shortcuts are working as expected
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(15))***REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 20*time.Second)***REMOVED***,
@@ -316,8 +316,8 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***
 			opts***REMOVED***
 				fs: defaultConfig(`***REMOVED***
-					"execution": ***REMOVED*** "someKey": ***REMOVED***
-						"type": "constant-looping-vus", "vus": 10, "duration": "60s", "gracefulStop": "10s",
+					"scenarios": ***REMOVED*** "someKey": ***REMOVED***
+						"executor": "constant-vus", "vus": 10, "duration": "60s", "gracefulStop": "10s",
 						"startTime": "70s", "env": ***REMOVED***"test": "mest"***REMOVED***, "exec": "someFunc"
 					***REMOVED******REMOVED******REMOVED***`),
 				env: []string***REMOVED***"K6_ITERATIONS=25"***REMOVED***,

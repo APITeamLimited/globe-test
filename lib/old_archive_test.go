@@ -233,7 +233,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 	var emptyConfigMap ExecutorConfigMap
 	var tests = []struct ***REMOVED***
 		metadata     string
-		expExecution interface***REMOVED******REMOVED***
+		expScenarios interface***REMOVED******REMOVED***
 		expError     string
 	***REMOVED******REMOVED***
 		***REMOVED***
@@ -241,7 +241,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 				"filename": "/test.js", "pwd": "/",
 				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
-			expExecution: emptyConfigMap,
+			expScenarios: emptyConfigMap,
 		***REMOVED***,
 		***REMOVED***
 			metadata: `***REMOVED***
@@ -249,7 +249,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 				"k6version": "0.24.0",
 				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
-			expExecution: emptyConfigMap,
+			expScenarios: emptyConfigMap,
 		***REMOVED***,
 		***REMOVED***
 			metadata: `blah`,
@@ -274,7 +274,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 			metadata: `***REMOVED***
 				"filename": "/test.js", "pwd": "/",
 				"k6version": "0.25.0",
-				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
+				"options": ***REMOVED*** "scenarios": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
 			expError: "cannot unmarshal string",
 		***REMOVED***,
@@ -294,7 +294,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 			require.Contains(t, err.Error(), test.expError)
 		***REMOVED*** else ***REMOVED***
 			require.NoError(t, err)
-			require.Equal(t, test.expExecution, arc.Options.Execution)
+			require.Equal(t, test.expScenarios, arc.Options.Execution)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

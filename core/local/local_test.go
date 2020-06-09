@@ -110,9 +110,9 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 		***REMOVED***"defaultOK", `export default function () ***REMOVED******REMOVED***`, ""***REMOVED***,
 		***REMOVED***"nonDefaultOK", `
 	export let options = ***REMOVED***
-		execution: ***REMOVED***
+		scenarios: ***REMOVED***
 			per_vu_iters: ***REMOVED***
-				type: "per-vu-iterations",
+				executor: "per-vu-iterations",
 				vus: 1,
 				iterations: 1,
 				exec: "nonDefault",
@@ -170,9 +170,9 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 	let errors = new Counter("errors");
 
 	export let options = ***REMOVED***
-		execution: ***REMOVED***
+		scenarios: ***REMOVED***
 			executor: ***REMOVED***
-				type: "%[1]s",
+				executor: "%[1]s",
 				gracefulStop: "0.5s",
 				%[2]s
 			***REMOVED***
@@ -193,7 +193,7 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 			duration: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,`,
-		"constant-looping-vus": `
+		"constant-vus": `
 			vus: 1,
 			duration: "0.5s",`,
 		"externally-controlled": `
@@ -205,13 +205,13 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 		"shared-iterations": `
 			vus: 1,
 			iterations: 1,`,
-		"variable-arrival-rate": `
+		"ramping-arrival-rate": `
 			startRate: 1,
 			timeUnit: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,
 			stages: [ ***REMOVED*** target: 1, duration: "0.5s" ***REMOVED*** ],`,
-		"variable-looping-vus": `
+		"ramping-vus": `
 			startVUs: 1,
 			stages: [ ***REMOVED*** target: 1, duration: "0.5s" ***REMOVED*** ],`,
 	***REMOVED***
@@ -275,9 +275,9 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 	import http from "k6/http";
 
 	export let options = ***REMOVED***
-		execution: ***REMOVED***
+		scenarios: ***REMOVED***
 			executor: ***REMOVED***
-				type: "%s",
+				executor: "%s",
 				gracefulStop: "0.5s",
 				%s
 			***REMOVED***
@@ -295,7 +295,7 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 			duration: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,`,
-		"constant-looping-vus": `
+		"constant-vus": `
 			vus: 1,
 			duration: "0.5s",`,
 		"externally-controlled": `
@@ -307,13 +307,13 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 		"shared-iterations": `
 			vus: 1,
 			iterations: 1,`,
-		"variable-arrival-rate": `
+		"ramping-arrival-rate": `
 			startRate: 5,
 			timeUnit: "0.5s",
 			preAllocatedVUs: 1,
 			maxVUs: 2,
 			stages: [ ***REMOVED*** target: 10, duration: "1s" ***REMOVED*** ],`,
-		"variable-looping-vus": `
+		"ramping-vus": `
 			startVUs: 1,
 			stages: [ ***REMOVED*** target: 1, duration: "0.5s" ***REMOVED*** ],`,
 	***REMOVED***
@@ -397,9 +397,9 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 	export let options = ***REMOVED***
 		// Required for WS tests
 		hosts: ***REMOVED*** 'httpbin.local': '127.0.0.1' ***REMOVED***,
-		execution: ***REMOVED***
+		scenarios: ***REMOVED***
 			scenario1: ***REMOVED***
-				type: 'per-vu-iterations',
+				executor: 'per-vu-iterations',
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '0s',
@@ -409,7 +409,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				tags: ***REMOVED*** testtag1: 'scenario1' ***REMOVED***,
 			***REMOVED***,
 			scenario2: ***REMOVED***
-				type: 'shared-iterations',
+				executor: 'shared-iterations',
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '1s',
@@ -420,7 +420,7 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 				tags: ***REMOVED*** testtag2: 'scenario2' ***REMOVED***,
 			***REMOVED***,
 			scenario3: ***REMOVED***
-				type: 'per-vu-iterations',
+				executor: 'per-vu-iterations',
 				vus: 1,
 				iterations: 1,
 				gracefulStop: '1s',
@@ -1210,19 +1210,19 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 		export let options = ***REMOVED***
 			executionSegment: "3/4:1",
 			executionSegmentSequence: "0,1/4,2/4,3/4,1",
-			execution: ***REMOVED***
+			scenarios: ***REMOVED***
 				shared_iters1: ***REMOVED***
-					type: "shared-iterations",
+					executor: "shared-iterations",
 					vus: 3,
 					iterations: 3,
 				***REMOVED***,
 				shared_iters2: ***REMOVED***
-					type: "shared-iterations",
+					executor: "shared-iterations",
 					vus: 4,
 					iterations: 4,
 				***REMOVED***,
 				constant_arr_rate: ***REMOVED***
-					type: "constant-arrival-rate",
+					executor: "constant-arrival-rate",
 					rate: 3,
 					timeUnit: "1s",
 					duration: "20s",
