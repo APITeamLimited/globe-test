@@ -583,6 +583,7 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
 		initVU, err := vlv.executionState.GetPlannedVU(vlv.logger, false)
 		if err != nil ***REMOVED***
+			vlv.logger.WithError(err).Error("Cannot get a VU from the buffer")
 			cancel()
 		***REMOVED*** else ***REMOVED***
 			activeVUs.Add(1)
@@ -614,7 +615,7 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 	handleNewScheduledVUs := func(newScheduledVUs uint64) ***REMOVED***
 		if newScheduledVUs > currentScheduledVUs ***REMOVED***
 			for vuNum := currentScheduledVUs; vuNum < newScheduledVUs; vuNum++ ***REMOVED***
-				vuHandles[vuNum].start()
+				_ = vuHandles[vuNum].start() // TODO handle error
 				vlv.executionState.ModCurrentlyActiveVUsCount(+1)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***

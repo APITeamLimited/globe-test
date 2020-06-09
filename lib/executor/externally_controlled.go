@@ -379,7 +379,7 @@ type externallyControlledRunState struct ***REMOVED***
 	vuHandles       []*manualVUHandle // handles for manipulating and tracking all of the VUs
 	currentlyPaused bool              // whether the executor is currently paused
 
-	runIteration func(context.Context, lib.ActiveVU) // a helper closure function that runs a single iteration
+	runIteration func(context.Context, lib.ActiveVU) bool // a helper closure function that runs a single iteration
 ***REMOVED***
 
 // retrieveStartMaxVUs gets and initializes the (scaled) number of MaxVUs
@@ -456,7 +456,10 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 	if oldActiveVUs < newActiveVUs ***REMOVED***
 		for i := oldActiveVUs; i < newActiveVUs; i++ ***REMOVED***
 			if !rs.currentlyPaused ***REMOVED***
-				rs.vuHandles[i].start()
+				if err := rs.vuHandles[i].start(); err != nil ***REMOVED***
+					// TODO: maybe just log it ?
+					return err
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -573,7 +576,11 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				for i := int64(0); i < activeVUs; i++ ***REMOVED***
-					runState.vuHandles[i].start()
+					if err := runState.vuHandles[i].start(); err != nil ***REMOVED***
+						// TODO again ... just log it?
+						pauseEvent.err <- err
+						return err
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 			runState.currentlyPaused = pauseEvent.isPaused

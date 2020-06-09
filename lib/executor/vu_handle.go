@@ -23,6 +23,7 @@ package executor
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 
@@ -35,51 +36,109 @@ import (
 //
 // TODO: something simpler?
 type vuHandle struct ***REMOVED***
-	mutex     *sync.RWMutex
+	mutex     *sync.Mutex
 	parentCtx context.Context
 	getVU     func() (lib.InitializedVU, error)
 	returnVU  func(lib.InitializedVU)
 	config    *BaseConfig
 
+	initVU       lib.InitializedVU
+	activeVU     lib.ActiveVU
 	canStartIter chan struct***REMOVED******REMOVED***
+	// If change is not 0, it signals that the VU needs to be reinitialized. It must be added to and
+	// read with atomics and helps to skip checking all the contexts and channels all the time.
+	change int32
 
-	ctx    context.Context
-	cancel func()
-	logger *logrus.Entry
+	ctx, vuCtx       context.Context
+	cancel, vuCancel func()
+	logger           *logrus.Entry
 ***REMOVED***
 
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
 	returnVU func(lib.InitializedVU), config *BaseConfig, logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
-	lock := &sync.RWMutex***REMOVED******REMOVED***
+	lock := &sync.Mutex***REMOVED******REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
-	return &vuHandle***REMOVED***
+
+	vh := &vuHandle***REMOVED***
 		mutex:     lock,
 		parentCtx: parentCtx,
 		getVU:     getVU,
-		returnVU:  returnVU,
 		config:    config,
 
 		canStartIter: make(chan struct***REMOVED******REMOVED***),
+		change:       1,
 
 		ctx:    ctx,
 		cancel: cancel,
 		logger: logger,
 	***REMOVED***
+
+	// TODO maybe move the repeating parts in a function?
+	vh.returnVU = func(v lib.InitializedVU) ***REMOVED***
+		// Don't return the initialized VU back
+		vh.mutex.Lock()
+		select ***REMOVED***
+		case <-vh.parentCtx.Done():
+			// we are done just ruturn the VU
+			vh.initVU = nil
+			vh.activeVU = nil
+			atomic.StoreInt32(&vh.change, 1)
+			vh.mutex.Unlock()
+			returnVU(v)
+		default:
+			select ***REMOVED***
+			case <-vh.canStartIter:
+				// we can continue with itearting - lets not return the vu
+				vh.activateVU() // we still need to reactivate it to get the new context and cancel
+				atomic.StoreInt32(&vh.change, 1)
+				vh.mutex.Unlock()
+			default: // we actually have to return the vu
+				vh.initVU = nil
+				vh.activeVU = nil
+				atomic.StoreInt32(&vh.change, 1)
+				vh.mutex.Unlock()
+				returnVU(v)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return vh
 ***REMOVED***
 
-func (vh *vuHandle) start() ***REMOVED***
+func (vh *vuHandle) start() (err error) ***REMOVED***
 	vh.mutex.Lock()
 	vh.logger.Debug("Start")
-	close(vh.canStartIter)
+	if vh.initVU == nil ***REMOVED***
+		vh.initVU, err = vh.getVU()
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		vh.activateVU()
+		atomic.AddInt32(&vh.change, 1)
+	***REMOVED***
+	select ***REMOVED***
+	case <-vh.canStartIter: // we are alrady started do nothing
+	default:
+		close(vh.canStartIter)
+	***REMOVED***
 	vh.mutex.Unlock()
+	return nil
+***REMOVED***
+
+// this must be called with the mutex locked
+func (vh *vuHandle) activateVU() ***REMOVED***
+	vh.vuCtx, vh.vuCancel = context.WithCancel(vh.ctx)
+	vh.activeVU = vh.initVU.Activate(getVUActivationParams(vh.vuCtx, *vh.config, vh.returnVU))
 ***REMOVED***
 
 func (vh *vuHandle) gracefulStop() ***REMOVED***
 	vh.mutex.Lock()
 	select ***REMOVED***
 	case <-vh.canStartIter:
+		atomic.AddInt32(&vh.change, 1)
+		vh.activeVU = nil
 		vh.canStartIter = make(chan struct***REMOVED******REMOVED***)
 		vh.logger.Debug("Graceful stop")
 	default:
@@ -91,7 +150,10 @@ func (vh *vuHandle) gracefulStop() ***REMOVED***
 func (vh *vuHandle) hardStop() ***REMOVED***
 	vh.mutex.Lock()
 	vh.logger.Debug("Hard stop")
-	vh.cancel()                                          // cancel the previous context
+	vh.cancel() // cancel the previous context
+	atomic.AddInt32(&vh.change, 1)
+	vh.initVU = nil
+	vh.activeVU = nil
 	vh.ctx, vh.cancel = context.WithCancel(vh.parentCtx) // create a new context
 	select ***REMOVED***
 	case <-vh.canStartIter:
@@ -102,63 +164,68 @@ func (vh *vuHandle) hardStop() ***REMOVED***
 	vh.mutex.Unlock()
 ***REMOVED***
 
-//TODO: simplify this somehow - I feel like there should be a better way to
-//implement this logic... maybe with sync.Cond?
-func (vh *vuHandle) runLoopsIfPossible(runIter func(context.Context, lib.ActiveVU)) ***REMOVED***
-	executorDone := vh.parentCtx.Done()
+func (vh *vuHandle) runLoopsIfPossible(runIter func(context.Context, lib.ActiveVU) bool) ***REMOVED***
+	// We can probably initialize here, but it's also easier to just use the slow path in the second
+	// part of the for loop
+	var (
+		executorDone = vh.parentCtx.Done()
+		vuCtx        context.Context
+		cancel       func()
+		vu           lib.ActiveVU
+	)
 
-	var vu lib.ActiveVU
-
-mainLoop:
 	for ***REMOVED***
-		vh.mutex.RLock()
-		canStartIter, ctx := vh.canStartIter, vh.ctx
-		vh.mutex.RUnlock()
+		ch := atomic.LoadInt32(&vh.change)
+		if ch == 0 && runIter(vuCtx, vu) ***REMOVED*** // fast path
+			continue
+		***REMOVED***
 
-		// Wait for either the executor to be done, or for us to be un-paused
+		// slow path - something has changed - get what and wait until we can do more iterations
+		// TODO: I think we can skip cancelling in some cases but I doubt it will do much good in most
+		if cancel != nil ***REMOVED***
+			cancel() // signal to return the vu before we continue
+		***REMOVED***
+		vh.mutex.Lock()
+		canStartIter, ctx := vh.canStartIter, vh.ctx
+		cancel = vh.vuCancel
+		vh.mutex.Unlock()
+
 		select ***REMOVED***
-		case <-canStartIter:
-			// Best case, we're currently running, so we do nothing here, we
-			// just continue straight ahead.
 		case <-executorDone:
 			// The whole executor is done, nothing more to do.
 			return
 		default:
-			// We're not running, but the executor isn't done yet, so we wait
-			// for either one of those conditions. But before that, clear
-			// the VU reference to ensure we get a fresh one below.
-			vu = nil
-			select ***REMOVED***
-			case <-canStartIter:
-				// continue on, we were unblocked...
-			case <-ctx.Done():
-				// hardStop was called, start a fresh iteration to get the new
-				// context and signal channel
-				continue mainLoop
-			case <-executorDone:
-				// The whole executor is done, nothing more to do.
-				return
-			***REMOVED***
 		***REMOVED***
-
-		// Probably not needed, but just in case - if both running and
-		// executorDone were active, check that the executor isn't done.
+		// We're not running, but the executor isn't done yet, so we wait
+		// for either one of those conditions.
 		select ***REMOVED***
-		case <-executorDone:
-			return
-		default:
-		***REMOVED***
+		case <-canStartIter:
+			vh.mutex.Lock()
+			select ***REMOVED***
+			case <-vh.canStartIter: // we check again in case of race
+				// reinitialize
+				if vh.activeVU == nil ***REMOVED***
+					// we've raced with the ReturnVU: we can continue doing iterations but
+					// a stop has happened and returnVU hasn't managed to run yet ... so we loop
+					// TODO call runtime.GoSched() in the else to give priority to possibly the returnVU goroutine
+					vh.mutex.Unlock()
+					continue
+				***REMOVED***
 
-		// Ensure we have an active VU
-		if vu == nil ***REMOVED***
-			initVU, err := vh.getVU()
-			if err != nil ***REMOVED***
-				return
+				vu = vh.activeVU
+				vuCtx = vh.vuCtx
+				cancel = vh.vuCancel
+				atomic.StoreInt32(&vh.change, 0) // clear changes here
+			default:
+				// well we got raced to here by something ... loop again ...
 			***REMOVED***
-			activationParams := getVUActivationParams(ctx, *vh.config, vh.returnVU)
-			vu = initVU.Activate(activationParams)
+			vh.mutex.Unlock()
+		case <-ctx.Done():
+			// hardStop was called, start a fresh iteration to get the new
+			// context and signal channel
+		case <-executorDone:
+			// The whole executor is done, nothing more to do.
+			return
 		***REMOVED***
-
-		runIter(ctx, vu)
 	***REMOVED***
 ***REMOVED***

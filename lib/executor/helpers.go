@@ -76,13 +76,13 @@ func validateStages(stages []Stage) []error ***REMOVED***
 
 // getIterationRunner is a helper function that returns an iteration executor
 // closure. It takes care of updating the execution state statistics and
-// warning messages.
+// warning messages. And returns whether a full iteration was finished or not
 //
 // TODO: emit the end-of-test iteration metrics here (https://github.com/loadimpact/k6/issues/1250)
 func getIterationRunner(
 	executionState *lib.ExecutionState, logger *logrus.Entry,
-) func(context.Context, lib.ActiveVU) ***REMOVED***
-	return func(ctx context.Context, vu lib.ActiveVU) ***REMOVED***
+) func(context.Context, lib.ActiveVU) bool ***REMOVED***
+	return func(ctx context.Context, vu lib.ActiveVU) bool ***REMOVED***
 		err := vu.RunOnce()
 
 		// TODO: track (non-ramp-down) errors from script iterations as a metric,
@@ -93,6 +93,7 @@ func getIterationRunner(
 		case <-ctx.Done():
 			// Don't log errors or emit iterations metrics from cancelled iterations
 			executionState.AddInterruptedIterations(1)
+			return false
 		default:
 			if err != nil ***REMOVED***
 				if s, ok := err.(fmt.Stringer); ok ***REMOVED***
@@ -105,6 +106,7 @@ func getIterationRunner(
 
 			// TODO: move emission of end-of-iteration metrics here?
 			executionState.AddFullIterations(1)
+			return true
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
