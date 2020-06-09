@@ -247,7 +247,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 
 	testCases := map[string]lib.ExecutorConfig***REMOVED***
 		"constant": getTestConstantArrivalRateConfig(),
-		"variable": getTestVariableArrivalRateConfig(),
+		"ramping":  getTestRampingArrivalRateConfig(),
 	***REMOVED***
 	for name, config := range testCases ***REMOVED***
 		config := config

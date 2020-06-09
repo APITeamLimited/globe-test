@@ -39,8 +39,8 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-func getTestVariableArrivalRateConfig() VariableArrivalRateConfig ***REMOVED***
-	return VariableArrivalRateConfig***REMOVED***
+func getTestRampingArrivalRateConfig() RampingArrivalRateConfig ***REMOVED***
+	return RampingArrivalRateConfig***REMOVED***
 		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(1 * time.Second)***REMOVED***,
 		TimeUnit:   types.NullDurationFrom(time.Second),
 		StartRate:  null.IntFrom(10),
@@ -63,13 +63,13 @@ func getTestVariableArrivalRateConfig() VariableArrivalRateConfig ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED***
 	t.Parallel()
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
-		t, getTestVariableArrivalRateConfig(), es,
+		t, getTestRampingArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
@@ -89,14 +89,14 @@ func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	***REMOVED***
 ***REMOVED***
 
-func TestVariableArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var count int64
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
-		t, getTestVariableArrivalRateConfig(), es,
+		t, getTestRampingArrivalRateConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
@@ -129,7 +129,7 @@ func TestVariableArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	require.Empty(t, logHook.Drain())
 ***REMOVED***
 
-func TestVariableArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var count int64
 	now := time.Now()
@@ -140,7 +140,7 @@ func TestVariableArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED*
 		time.Millisecond * 3464, time.Millisecond * 4898, time.Second * 6,
 	***REMOVED***
 	ctx, cancel, executor, logHook := setupExecutor(
-		t, VariableArrivalRateConfig***REMOVED***
+		t, RampingArrivalRateConfig***REMOVED***
 			TimeUnit: types.NullDurationFrom(time.Second),
 			Stages: []Stage***REMOVED***
 				***REMOVED***
@@ -191,12 +191,12 @@ func mustNewExecutionTuple(seg *lib.ExecutionSegment, seq *lib.ExecutionSegmentS
 	return et
 ***REMOVED***
 
-func TestVariableArrivalRateCal(t *testing.T) ***REMOVED***
+func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	var (
 		defaultTimeUnit = time.Second
-		config          = VariableArrivalRateConfig***REMOVED***
+		config          = RampingArrivalRateConfig***REMOVED***
 			StartRate: null.IntFrom(0),
 			Stages: []Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
 				***REMOVED***
@@ -295,7 +295,7 @@ func BenchmarkCal(b *testing.B) ***REMOVED***
 	***REMOVED*** ***REMOVED***
 		t := t
 		b.Run(t.String(), func(b *testing.B) ***REMOVED***
-			config := VariableArrivalRateConfig***REMOVED***
+			config := RampingArrivalRateConfig***REMOVED***
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
 				Stages: []Stage***REMOVED***
@@ -331,7 +331,7 @@ func BenchmarkCalRat(b *testing.B) ***REMOVED***
 	***REMOVED*** ***REMOVED***
 		t := t
 		b.Run(t.String(), func(b *testing.B) ***REMOVED***
-			config := VariableArrivalRateConfig***REMOVED***
+			config := RampingArrivalRateConfig***REMOVED***
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
 				Stages: []Stage***REMOVED***
@@ -367,7 +367,7 @@ func TestCompareCalImplementation(t *testing.T) ***REMOVED***
 	// in my experiment the difference is 1(nanosecond) in 7 case for the whole test
 	// the duration is 1 second for each stage as calRat takes way longer - a longer better test can
 	// be done when/if it's performance is improved
-	config := VariableArrivalRateConfig***REMOVED***
+	config := RampingArrivalRateConfig***REMOVED***
 		TimeUnit:  types.NullDurationFrom(time.Second),
 		StartRate: null.IntFrom(0),
 		Stages: []Stage***REMOVED***
@@ -452,7 +452,7 @@ func sqrtRat(x *big.Rat) *big.Rat ***REMOVED***
 ***REMOVED***
 
 // This implementation is just for reference and accuracy testing
-func (varc VariableArrivalRateConfig) calRat(et *lib.ExecutionTuple, ch chan<- time.Duration) ***REMOVED***
+func (varc RampingArrivalRateConfig) calRat(et *lib.ExecutionTuple, ch chan<- time.Duration) ***REMOVED***
 	defer close(ch)
 
 	start, offsets, _ := et.GetStripedOffsets()
