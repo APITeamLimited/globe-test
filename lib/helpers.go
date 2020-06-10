@@ -22,7 +22,6 @@ package lib
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -112,48 +111,4 @@ func ConcatErrors(errors []error, separator string) string ***REMOVED***
 		errStrings[i] = e.Error()
 	***REMOVED***
 	return strings.Join(errStrings, separator)
-***REMOVED***
-
-// StreamExecutionSteps launches a new goroutine and emits all execution steps
-// at their appropriate time offsets over the returned unbuffered channel. If
-// closeChanWhenDone is specified, it will close the channel after it sends the
-// last step. If it isn't, or if the context is cancelled, the internal
-// goroutine will be stopped, *but the channel will remain open*!
-//
-// As usual, steps in the supplied slice have to be sorted by their TimeOffset
-// values in an ascending order. Of course, multiple events can have the same
-// time offset (incl. 0).
-func StreamExecutionSteps(
-	ctx context.Context, startTime time.Time, steps []ExecutionStep, closeChanWhenDone bool,
-) <-chan ExecutionStep ***REMOVED***
-	ch := make(chan ExecutionStep)
-	go func() ***REMOVED***
-		for _, step := range steps ***REMOVED***
-			offsetDiff := step.TimeOffset - time.Since(startTime)
-			if offsetDiff > 0 ***REMOVED*** // wait until time of event arrives
-				select ***REMOVED***
-				case <-ctx.Done():
-					return // exit if context is cancelled
-				case <-time.After(offsetDiff): //TODO: reuse a timer?
-					// do nothing
-				***REMOVED***
-			***REMOVED***
-			select ***REMOVED***
-			case <-ctx.Done():
-				// exit if context is cancelled
-				return
-			case ch <- step:
-				// ... otherwise, just send the step - the out channel is
-				// unbuffered, so we don't need to worry whether the other side
-				// will keep reading after the context is done.
-			***REMOVED***
-		***REMOVED***
-
-		// Close the channel only if all steps were sent successfully (i.e. the
-		// parent context didn't die) and we were instructed to do so.
-		if closeChanWhenDone ***REMOVED***
-			close(ch)
-		***REMOVED***
-	***REMOVED***()
-	return ch
 ***REMOVED***

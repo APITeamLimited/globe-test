@@ -548,11 +548,11 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 	maxVUs := lib.GetMaxPlannedVUs(gracefulExecutionSteps)
 	gracefulStop := maxDuration - regularDuration
 
-	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
-	defer activeVUs.Wait()
-
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, regularDuration, gracefulStop)
 	defer cancel()
+
+	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
+	defer activeVUs.Wait()
 
 	// Make sure the log and the progress bar have accurate information
 	vlv.logger.WithFields(logrus.Fields***REMOVED***
@@ -588,6 +588,7 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 		***REMOVED*** else ***REMOVED***
 			activeVUs.Add(1)
 			atomic.AddInt64(activeVUsCount, 1)
+			vlv.executionState.ModCurrentlyActiveVUsCount(+1)
 		***REMOVED***
 		return initVU, err
 	***REMOVED***
@@ -595,6 +596,7 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 		vlv.executionState.ReturnVU(initVU, false)
 		atomic.AddInt64(activeVUsCount, -1)
 		activeVUs.Done()
+		vlv.executionState.ModCurrentlyActiveVUsCount(-1)
 	***REMOVED***
 
 	vuHandles := make([]*vuHandle, maxVUs)
@@ -606,9 +608,6 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 		vuHandles[i] = vuHandle
 	***REMOVED***
 
-	rawStepEvents := lib.StreamExecutionSteps(ctx, startTime, rawExecutionSteps, true)
-	gracefulLimitEvents := lib.StreamExecutionSteps(ctx, startTime, gracefulExecutionSteps, false)
-
 	// 0 <= currentScheduledVUs <= currentMaxAllowedVUs <= maxVUs
 	var currentScheduledVUs, currentMaxAllowedVUs uint64
 
@@ -616,12 +615,10 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 		if newScheduledVUs > currentScheduledVUs ***REMOVED***
 			for vuNum := currentScheduledVUs; vuNum < newScheduledVUs; vuNum++ ***REMOVED***
 				_ = vuHandles[vuNum].start() // TODO handle error
-				vlv.executionState.ModCurrentlyActiveVUsCount(+1)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			for vuNum := newScheduledVUs; vuNum < currentScheduledVUs; vuNum++ ***REMOVED***
 				vuHandles[vuNum].gracefulStop()
-				vlv.executionState.ModCurrentlyActiveVUsCount(-1)
 			***REMOVED***
 		***REMOVED***
 		currentScheduledVUs = newScheduledVUs
@@ -636,40 +633,59 @@ func (vlv RampingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer)
 		currentMaxAllowedVUs = newMaxAllowedVUs
 	***REMOVED***
 
-	handleAllRawSteps := func() bool ***REMOVED***
-		for ***REMOVED***
-			select ***REMOVED***
-			case step, ok := <-rawStepEvents:
-				if !ok ***REMOVED***
-					return true
-				***REMOVED***
-				handleNewScheduledVUs(step.PlannedVUs)
-			case step := <-gracefulLimitEvents:
-				if step.PlannedVUs > currentMaxAllowedVUs ***REMOVED***
-					// Handle the case where a value is read from the
-					// gracefulLimitEvents channel before rawStepEvents
-					handleNewScheduledVUs(step.PlannedVUs)
-				***REMOVED***
-				handleNewMaxAllowedVUs(step.PlannedVUs)
-			case <-ctx.Done():
-				return false
+	wait := waiter(ctx, startTime)
+	// iterate over rawExecutionSteps and gracefulExecutionSteps in order by TimeOffset
+	// giving rawExecutionSteps precedence.
+	// we stop iterating once rawExecutionSteps are over as we need to run the remaining
+	// gracefulExecutionSteps concurrently while waiting for VUs to stop in order to not wait until
+	// the end of gracefulStop timeouts
+	i, j := 0, 0
+	for i != len(rawExecutionSteps) ***REMOVED***
+		if rawExecutionSteps[i].TimeOffset > gracefulExecutionSteps[j].TimeOffset ***REMOVED***
+			if wait(gracefulExecutionSteps[j].TimeOffset) ***REMOVED***
+				return
 			***REMOVED***
+			handleNewMaxAllowedVUs(gracefulExecutionSteps[j].PlannedVUs)
+			j++
+		***REMOVED*** else ***REMOVED***
+			if wait(rawExecutionSteps[i].TimeOffset) ***REMOVED***
+				return
+			***REMOVED***
+			handleNewScheduledVUs(rawExecutionSteps[i].PlannedVUs)
+			i++
 		***REMOVED***
 	***REMOVED***
 
-	if handleAllRawSteps() ***REMOVED***
-		// Handle any remaining graceful stops
-		go func() ***REMOVED***
-			for ***REMOVED***
-				select ***REMOVED***
-				case step := <-gracefulLimitEvents:
-					handleNewMaxAllowedVUs(step.PlannedVUs)
-				case <-maxDurationCtx.Done():
-					return
-				***REMOVED***
+	go func() ***REMOVED*** // iterate over the remaining gracefulExecutionSteps
+		for _, step := range gracefulExecutionSteps[j:] ***REMOVED***
+			if wait(step.TimeOffset) ***REMOVED***
+				return
 			***REMOVED***
-		***REMOVED***()
-	***REMOVED***
+			handleNewMaxAllowedVUs(step.PlannedVUs)
+		***REMOVED***
+	***REMOVED***()
 
 	return nil
+***REMOVED***
+
+// waiter returns a function that will sleep/wait for the required time since the startTime and then
+// return. If the context was done before that it will return true otherwise it will return false
+// TODO use elsewhere
+// TODO set startTime here?
+// TODO move it to a struct type or something and benchmark if that makes a difference
+func waiter(ctx context.Context, startTime time.Time) func(offset time.Duration) bool ***REMOVED***
+	timer := time.NewTimer(time.Hour * 24)
+	return func(offset time.Duration) bool ***REMOVED***
+		offsetDiff := offset - time.Since(startTime)
+		if offsetDiff > 0 ***REMOVED*** // wait until time of event arrives // TODO have a mininum
+			timer.Reset(offsetDiff)
+			select ***REMOVED***
+			case <-ctx.Done():
+				return true // exit if context is cancelled
+			case <-timer.C:
+				// now we do a step
+			***REMOVED***
+		***REMOVED***
+		return false
+	***REMOVED***
 ***REMOVED***
