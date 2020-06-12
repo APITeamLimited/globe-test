@@ -702,6 +702,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"AddError", "addWithError", bridgeTestAddWithErrorType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(int, int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -709,6 +710,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"Context", "context", bridgeTestContextType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func())
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -716,6 +718,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAdd", "contextAdd", bridgeTestContextAddType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(int, int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -723,6 +726,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAddError", "contextAddWithError", bridgeTestContextAddWithErrorType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(int, int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -737,6 +741,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumContext", "sumWithContext", bridgeTestSumWithContextType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(...int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -744,6 +749,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumError", "sumWithError", bridgeTestSumWithErrorType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(...int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
@@ -751,6 +757,7 @@ func BenchmarkProxy(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumContextError", "sumWithContextAndError", bridgeTestSumWithContextAndErrorType***REMOVED******REMOVED***, func(b *testing.B, fn interface***REMOVED******REMOVED***) ***REMOVED***
+			b.Skip()
 			f := fn.(func(...int) int)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ ***REMOVED***
