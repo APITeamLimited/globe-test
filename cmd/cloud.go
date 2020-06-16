@@ -67,8 +67,10 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		//TODO: disable in quiet mode?
 		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner)
 
-		progressBar := pb.New(pb.WithConstLeft(" Init"))
-		printBar(progressBar, "Parsing script")
+		progressBar := pb.New(
+			pb.WithConstLeft(" Init"),
+			pb.WithConstProgress(0, "Parsing script"),
+		)
 
 		// Runner
 		pwd, err := os.Getwd()
@@ -88,13 +90,15 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return err
 		***REMOVED***
 
-		printBar(progressBar, "Getting script options")
+		progressBar.Modify(pb.WithConstProgress(0, "Getting script options"))
+		printBar(progressBar)
 		r, err := newRunner(src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
-		printBar(progressBar, "Consolidating options")
+		progressBar.Modify(pb.WithConstProgress(0, "Consolidating options"))
+		printBar(progressBar)
 		cliOpts, err := getOptions(cmd.Flags())
 		if err != nil ***REMOVED***
 			return err
@@ -127,7 +131,8 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return errors.New("Not logged in, please use `k6 login cloud`.")
 		***REMOVED***
 
-		printBar(progressBar, "Building the archive")
+		progressBar.Modify(pb.WithConstProgress(0, "Building the archive"))
+		printBar(progressBar)
 		arc := r.MakeArchive()
 		// TODO: Fix this
 		// We reuse cloud.Config for parsing options.ext.loadimpact, but this probably shouldn't be
@@ -176,19 +181,19 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		***REMOVED***
 
 		// Start cloud test run
-		printBar(progressBar, "Validating script options")
+		progressBar.Modify(pb.WithConstProgress(0, "Validating script options"))
+		printBar(progressBar)
 		client := cloud.NewClient(cloudConfig.Token.String, cloudConfig.Host.String, consts.Version)
 		if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
-		printBar(progressBar, "Uploading archive")
+		progressBar.Modify(pb.WithConstProgress(0, "Uploading archive"))
+		printBar(progressBar)
 		refID, err := client.StartCloudTestRun(name, cloudConfig.ProjectID.Int64, arc)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		progressBar.Modify(pb.WithConstLeft("   Run"))
-		printBar(progressBar, "Initializing the cloud test")
 
 		testURL := cloud.URLForResults(refID, cloudConfig)
 		fprintf(stdout, "\n\n")
@@ -197,7 +202,12 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		fprintf(stdout, "     output: %s\n", ui.ValueColor.Sprint(testURL))
 		//TODO: print executors information
 		fprintf(stdout, "\n")
-		printBar(progressBar, "Initializing the cloud test")
+
+		progressBar.Modify(
+			pb.WithConstLeft(" Run "),
+			pb.WithConstProgress(0, "Initializing the cloud test"),
+		)
+		printBar(progressBar)
 
 		// The quiet option hides the progress bar and disallow aborting the test
 		if quiet ***REMOVED***
@@ -208,19 +218,6 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
-
-		var progressErr error
-		testProgress := &cloud.TestProgressResponse***REMOVED******REMOVED***
-		percentageFmt := "[" + pb.GetFixedLengthFloatFormat(100, 2) + "%%]"
-		progressBar.Modify(
-			pb.WithProgress(func() (float64, []string) ***REMOVED***
-				if testProgress.RunStatus < lib.RunStatusRunning ***REMOVED***
-					return 0, []string***REMOVED***testProgress.RunStatusText***REMOVED***
-				***REMOVED***
-				return testProgress.Progress, []string***REMOVED***
-					fmt.Sprintf(percentageFmt, testProgress.Progress*100)***REMOVED***
-			***REMOVED***),
-		)
 
 		ticker := time.NewTicker(time.Millisecond * 2000)
 		shouldExitLoop := false
@@ -239,6 +236,28 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			maxDuration, _ = lib.GetEndOffset(execReqs)
 		***REMOVED***
 
+		var progressErr error
+		testProgress := &cloud.TestProgressResponse***REMOVED******REMOVED***
+		progressBar.Modify(
+			pb.WithProgress(func() (float64, []string) ***REMOVED***
+				statusText := testProgress.RunStatusText
+
+				if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
+					if startTime.IsZero() ***REMOVED***
+						startTime = time.Now()
+					***REMOVED***
+					spent := time.Since(startTime)
+					if spent > maxDuration ***REMOVED***
+						statusText = maxDuration.String()
+					***REMOVED*** else ***REMOVED***
+						statusText = fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, maxDuration), maxDuration)
+					***REMOVED***
+				***REMOVED***
+
+				return testProgress.Progress, []string***REMOVED***statusText***REMOVED***
+			***REMOVED***),
+		)
+
 	runningLoop:
 		for ***REMOVED***
 			select ***REMOVED***
@@ -248,19 +267,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 					if (testProgress.RunStatus > lib.RunStatusRunning) || (exitOnRunning && testProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
 						shouldExitLoop = true
 					***REMOVED***
-					statusText := testProgress.RunStatusText
-					if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
-						if startTime.IsZero() ***REMOVED***
-							startTime = time.Now()
-						***REMOVED***
-						spent := time.Since(startTime)
-						if spent > maxDuration ***REMOVED***
-							statusText = maxDuration.String()
-						***REMOVED*** else ***REMOVED***
-							statusText = fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, maxDuration), maxDuration)
-						***REMOVED***
-					***REMOVED***
-					printBar(progressBar, statusText)
+					printBar(progressBar)
 				***REMOVED*** else ***REMOVED***
 					logrus.WithError(progressErr).Error("Test progress error")
 				***REMOVED***

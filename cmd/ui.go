@@ -79,7 +79,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	return origLen, err
 ***REMOVED***
 
-func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
+func printBar(bar *pb.ProgressBar) ***REMOVED***
 	end := "\n"
 	if stdout.IsTTY ***REMOVED***
 		// If we're in a TTY, instead of printing the bar and going to the next
@@ -91,7 +91,7 @@ func printBar(bar *pb.ProgressBar, rightText string) ***REMOVED***
 	***REMOVED***
 	rendered := bar.Render(0, 0)
 	// Only output the left and middle part of the progress bar
-	fprintf(stdout, "%s %s %s%s", rendered.Left, rendered.Progress(), rightText, end)
+	fprintf(stdout, "%s%s", rendered.String(), end)
 ***REMOVED***
 
 //nolint: funlen
