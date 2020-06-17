@@ -397,6 +397,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func BenchmarkResponseJson(b *testing.B) ***REMOVED***
+	b.Skipf("We need to have context in the response")
 	testCases := []struct ***REMOVED***
 		selector string
 	***REMOVED******REMOVED***
@@ -410,6 +411,7 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 		***REMOVED***"glossary"***REMOVED***,
 	***REMOVED***
 	for _, tc := range testCases ***REMOVED***
+		tc := tc
 		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
 			for n := 0; n < b.N; n++ ***REMOVED***
 				resp := responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
