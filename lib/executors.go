@@ -182,10 +182,10 @@ func (scs *ScenarioConfigs) UnmarshalJSON(data []byte) error ***REMOVED***
 
 	result := make(ScenarioConfigs, len(protoConfigs))
 	for k, v := range protoConfigs ***REMOVED***
-		if v.configType == "" ***REMOVED***
+		if v.executorType == "" ***REMOVED***
 			return fmt.Errorf("scenario '%s' doesn't have a specified executor type", k)
 		***REMOVED***
-		config, err := GetParsedExecutorConfig(k, v.configType, v.rawJSON)
+		config, err := GetParsedExecutorConfig(k, v.executorType, v.rawJSON)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -330,17 +330,17 @@ func GetParsedExecutorConfig(name, configType string, rawJSON []byte) (result Ex
 ***REMOVED***
 
 type protoExecutorConfig struct ***REMOVED***
-	configType string
-	rawJSON    json.RawMessage
+	executorType string
+	rawJSON      json.RawMessage
 ***REMOVED***
 
 // UnmarshalJSON unmarshals the base config (to get the type), but it also
 // stores the unprocessed JSON so we can parse the full config in the next step
 func (pc *protoExecutorConfig) UnmarshalJSON(b []byte) error ***REMOVED***
 	var tmp struct ***REMOVED***
-		ConfigType string `json:"executor"`
+		ExecutorType string `json:"executor"`
 	***REMOVED***
 	err := json.Unmarshal(b, &tmp)
-	*pc = protoExecutorConfig***REMOVED***tmp.ConfigType, b***REMOVED***
+	*pc = protoExecutorConfig***REMOVED***tmp.ExecutorType, b***REMOVED***
 	return err
 ***REMOVED***
