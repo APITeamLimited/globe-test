@@ -171,8 +171,8 @@ func Load(
 ) (*SourceData, error) ***REMOVED***
 	logrus.WithFields(
 		logrus.Fields***REMOVED***
-			"moduleSpecifier":          moduleSpecifier,
-			"original moduleSpecifier": originalModuleSpecifier,
+			"moduleSpecifier":         moduleSpecifier,
+			"originalModuleSpecifier": originalModuleSpecifier,
 		***REMOVED***).Debug("Loading...")
 
 	var pathOnFs string
