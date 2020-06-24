@@ -19,7 +19,6 @@ import (
 type PreparedMessage struct ***REMOVED***
 	messageType int
 	data        []byte
-	err         error
 	mu          sync.Mutex
 	frames      map[prepareKey]*preparedFrame
 ***REMOVED***
@@ -74,8 +73,8 @@ func (pm *PreparedMessage) frame(key prepareKey) (int, []byte, error) ***REMOVED
 		// Prepare a frame using a 'fake' connection.
 		// TODO: Refactor code in conn.go to allow more direct construction of
 		// the frame.
-		mu := make(chan bool, 1)
-		mu <- true
+		mu := make(chan struct***REMOVED******REMOVED***, 1)
+		mu <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 		var nc prepareConn
 		c := &Conn***REMOVED***
 			conn:                   &nc,
