@@ -247,7 +247,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	readErrChan := make(chan error)
 
 	// Wraps a couple of channels around conn.ReadMessage
-	go readPump(conn, readDataChan, readErrChan, readCloseChan)
+	go socket.readPump(readDataChan, readErrChan, readCloseChan)
 
 	// This is the main control loop. All JS code (including error handlers)
 	// should only be executed by this thread to avoid race conditions
@@ -384,7 +384,11 @@ func (s *Socket) SetTimeout(fn goja.Callable, timeoutMs int) ***REMOVED***
 	go func() ***REMOVED***
 		select ***REMOVED***
 		case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
-			s.scheduled <- fn
+			select ***REMOVED***
+			case s.scheduled <- fn:
+			case <-s.done:
+				return
+			***REMOVED***
 
 		case <-s.done:
 			return
@@ -402,7 +406,11 @@ func (s *Socket) SetInterval(fn goja.Callable, intervalMs int) ***REMOVED***
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
-				s.scheduled <- fn
+				select ***REMOVED***
+				case s.scheduled <- fn:
+				case <-s.done:
+					return
+				***REMOVED***
 
 			case <-s.done:
 				return
@@ -450,24 +458,35 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 ***REMOVED***
 
 // Wraps conn.ReadMessage in a channel
-func readPump(conn *websocket.Conn, readChan chan []byte, errorChan chan error, closeChan chan int) ***REMOVED***
+func (s *Socket) readPump(readChan chan []byte, errorChan chan error, closeChan chan int) ***REMOVED***
 	for ***REMOVED***
-		_, message, err := conn.ReadMessage()
+		_, message, err := s.conn.ReadMessage()
 		if err != nil ***REMOVED***
 			if websocket.IsUnexpectedCloseError(
 				err, websocket.CloseNormalClosure, websocket.CloseGoingAway) ***REMOVED***
 				// Report an unexpected closure
-				errorChan <- err
+				select ***REMOVED***
+				case errorChan <- err:
+				case <-s.done:
+					return
+				***REMOVED***
 			***REMOVED***
 			code := websocket.CloseGoingAway
 			if e, ok := err.(*websocket.CloseError); ok ***REMOVED***
 				code = e.Code
 			***REMOVED***
-			closeChan <- code
+			select ***REMOVED***
+			case closeChan <- code:
+			case <-s.done:
+			***REMOVED***
 			return
 		***REMOVED***
 
-		readChan <- message
+		select ***REMOVED***
+		case readChan <- message:
+		case <-s.done:
+			return
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
