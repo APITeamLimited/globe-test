@@ -54,7 +54,7 @@ func getFirstExternallyControlledExecutor(
 			return mex, nil
 		***REMOVED***
 	***REMOVED***
-	return nil, errors.New("a externally-controlled executor needs to be configured for live configuration updates")
+	return nil, errors.New("an externally-controlled executor needs to be configured for live configuration updates")
 ***REMOVED***
 
 func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
@@ -98,8 +98,8 @@ func HandlePatchStatus(rw http.ResponseWriter, r *http.Request, p httprouter.Par
 			if status.VUs.Valid ***REMOVED***
 				newConfig.VUs = status.VUs
 			***REMOVED***
-			if updateErr := executor.UpdateConfig(r.Context(), newConfig); err != nil ***REMOVED***
-				apiError(rw, "Config update error", updateErr.Error(), http.StatusInternalServerError)
+			if updateErr := executor.UpdateConfig(r.Context(), newConfig); updateErr != nil ***REMOVED***
+				apiError(rw, "Config update error", updateErr.Error(), http.StatusBadRequest)
 				return
 			***REMOVED***
 		***REMOVED***
