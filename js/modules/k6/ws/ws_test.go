@@ -581,7 +581,8 @@ func TestReadPump(t *testing.T) ***REMOVED***
 			msgChan := make(chan []byte)
 			errChan := make(chan error)
 			closeChan := make(chan int)
-			go readPump(conn, msgChan, errChan, closeChan)
+			s := &Socket***REMOVED***conn: conn***REMOVED***
+			go s.readPump(msgChan, errChan, closeChan)
 
 		readChans:
 			for ***REMOVED***
