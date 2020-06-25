@@ -40,7 +40,7 @@ func getTestExternallyControlledConfig() ExternallyControlledConfig ***REMOVED**
 		ExternallyControlledConfigParams: ExternallyControlledConfigParams***REMOVED***
 			VUs:      null.IntFrom(2),
 			MaxVUs:   null.IntFrom(10),
-			Duration: types.NullDurationFrom(2 * time.Second),
+			Duration: types.NullDurationFrom(3 * time.Second),
 		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
@@ -65,7 +65,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 		wg            sync.WaitGroup
 		errCh         = make(chan error, 1)
 		doneCh        = make(chan struct***REMOVED******REMOVED***)
-		resultVUCount []int64
+		resultVUCount [][]int64
 	)
 	wg.Add(1)
 	go func() ***REMOVED***
@@ -74,14 +74,19 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 		close(doneCh)
 	***REMOVED***()
 
-	updateConfig := func(vus int) ***REMOVED***
+	updateConfig := func(vus, maxVUs int) ***REMOVED***
 		newConfig := ExternallyControlledConfigParams***REMOVED***
 			VUs:      null.IntFrom(int64(vus)),
-			MaxVUs:   null.IntFrom(10),
-			Duration: types.NullDurationFrom(2 * time.Second),
+			MaxVUs:   null.IntFrom(int64(maxVUs)),
+			Duration: types.NullDurationFrom(3 * time.Second),
 		***REMOVED***
 		err := executor.(*ExternallyControlled).UpdateConfig(ctx, newConfig)
 		assert.NoError(t, err)
+	***REMOVED***
+
+	snapshot := func() ***REMOVED***
+		resultVUCount = append(resultVUCount,
+			[]int64***REMOVED***es.GetCurrentlyActiveVUsCount(), es.GetInitializedVUsCount()***REMOVED***)
 	***REMOVED***
 
 	wg.Add(1)
@@ -89,23 +94,27 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 		defer wg.Done()
 		es.MarkStarted()
 		time.Sleep(150 * time.Millisecond) // wait for startup
-		resultVUCount = append(resultVUCount, es.GetCurrentlyActiveVUsCount())
+		snapshot()
 		time.Sleep(500 * time.Millisecond)
-		updateConfig(4)
+		updateConfig(4, 10)
 		time.Sleep(100 * time.Millisecond)
-		resultVUCount = append(resultVUCount, es.GetCurrentlyActiveVUsCount())
+		snapshot()
 		time.Sleep(500 * time.Millisecond)
-		updateConfig(8)
-		time.Sleep(100 * time.Millisecond)
-		resultVUCount = append(resultVUCount, es.GetCurrentlyActiveVUsCount())
+		updateConfig(8, 20)
+		time.Sleep(500 * time.Millisecond)
+		snapshot()
+		time.Sleep(500 * time.Millisecond)
+		updateConfig(4, 10)
+		time.Sleep(500 * time.Millisecond)
+		snapshot()
 		time.Sleep(1 * time.Second)
-		resultVUCount = append(resultVUCount, es.GetCurrentlyActiveVUsCount())
+		snapshot()
 		es.MarkEnded()
 	***REMOVED***()
 
 	<-doneCh
 	wg.Wait()
 	require.NoError(t, <-errCh)
-	assert.Equal(t, uint64(50), atomic.LoadUint64(doneIters))
-	assert.Equal(t, []int64***REMOVED***2, 4, 8, 0***REMOVED***, resultVUCount)
+	assert.InDelta(t, uint64(75), atomic.LoadUint64(doneIters), 1)
+	assert.Equal(t, [][]int64***REMOVED******REMOVED***2, 10***REMOVED***, ***REMOVED***4, 10***REMOVED***, ***REMOVED***8, 20***REMOVED***, ***REMOVED***4, 10***REMOVED***, ***REMOVED***0, 0***REMOVED******REMOVED***, resultVUCount)
 ***REMOVED***
