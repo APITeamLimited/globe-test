@@ -265,6 +265,106 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+
+	script := sr(`
+	import http from "k6/http";
+
+	export let options = ***REMOVED***
+		scenarios: ***REMOVED***
+			per_vu_test: ***REMOVED***
+				executor: "per-vu-iterations",
+				gracefulStop: "0s",
+				vus: 1,
+				iterations: 1,
+			***REMOVED***,
+			shared_test: ***REMOVED***
+				executor: "shared-iterations",
+				gracefulStop: "0s",
+				vus: 1,
+				iterations: 1,
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	export default function () ***REMOVED***
+		http.get("HTTPBIN_IP_URL/");
+	***REMOVED***`)
+
+	runner, err := js.New(&loader.SourceData***REMOVED***
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+		Data: []byte(script)***REMOVED***,
+		nil, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	require.NoError(t, runner.SetOptions(runner.GetOptions().Apply(lib.Options***REMOVED***
+		SystemTags: &stats.DefaultSystemTagSet,
+	***REMOVED***)))
+
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+	execScheduler, err := NewExecutionScheduler(runner, logger)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	samples := make(chan stats.SampleContainer)
+	done := make(chan struct***REMOVED******REMOVED***)
+	go func() ***REMOVED***
+		defer close(done)
+		require.NoError(t, execScheduler.Init(ctx, samples))
+		require.NoError(t, execScheduler.Run(ctx, ctx, samples))
+	***REMOVED***()
+
+	expCommonTrailTags := stats.IntoSampleTags(&map[string]string***REMOVED***
+		"group":  "",
+		"method": "GET",
+		"name":   sr("HTTPBIN_IP_URL/"),
+		"url":    sr("HTTPBIN_IP_URL/"),
+		"proto":  "HTTP/1.1",
+		"status": "200",
+	***REMOVED***)
+	expTrailPVUTagsRaw := expCommonTrailTags.CloneTags()
+	expTrailPVUTagsRaw["scenario"] = "per_vu_test"
+	expTrailPVUTags := stats.IntoSampleTags(&expTrailPVUTagsRaw)
+	expTrailSITagsRaw := expCommonTrailTags.CloneTags()
+	expTrailSITagsRaw["scenario"] = "shared_test"
+	expTrailSITags := stats.IntoSampleTags(&expTrailSITagsRaw)
+	expNetTrailPVUTags := stats.IntoSampleTags(&map[string]string***REMOVED***
+		"group":    "",
+		"scenario": "per_vu_test",
+	***REMOVED***)
+	expNetTrailSITags := stats.IntoSampleTags(&map[string]string***REMOVED***
+		"group":    "",
+		"scenario": "shared_test",
+	***REMOVED***)
+
+	var gotCorrectTags int
+	for ***REMOVED***
+		select ***REMOVED***
+		case sample := <-samples:
+			switch s := sample.(type) ***REMOVED***
+			case *httpext.Trail:
+				if s.Tags.IsEqual(expTrailPVUTags) || s.Tags.IsEqual(expTrailSITags) ***REMOVED***
+					gotCorrectTags++
+				***REMOVED***
+			case *netext.NetTrail:
+				if s.Tags.IsEqual(expNetTrailPVUTags) || s.Tags.IsEqual(expNetTrailSITags) ***REMOVED***
+					gotCorrectTags++
+				***REMOVED***
+			***REMOVED***
+		case <-done:
+			require.Equal(t, 4, gotCorrectTags, "received wrong amount of samples with expected tags")
+			return
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -1085,9 +1185,11 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 			Value:  expValue,
 		***REMOVED***
 	***REMOVED***
-	getDummyTrail := func(group string, emitIterations bool) stats.SampleContainer ***REMOVED***
+	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) stats.SampleContainer ***REMOVED***
+		expTags := []string***REMOVED***"group", group***REMOVED***
+		expTags = append(expTags, addExpTags...)
 		return netext.NewDialer(net.Dialer***REMOVED******REMOVED***).GetTrail(time.Now(), time.Now(),
-			true, emitIterations, getTags("group", group))
+			true, emitIterations, getTags(expTags...))
 	***REMOVED***
 
 	// Initially give a long time (5s) for the execScheduler to start
@@ -1095,13 +1197,13 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	expectIn(900, 1100, getSample(2, testCounter, "group", "::setup", "place", "setupAfterSleep"))
 	expectIn(0, 100, getDummyTrail("::setup", false))
 
-	expectIn(0, 100, getSample(5, testCounter, "group", "", "place", "defaultBeforeSleep"))
-	expectIn(900, 1100, getSample(6, testCounter, "group", "", "place", "defaultAfterSleep"))
-	expectIn(0, 100, getDummyTrail("", true))
+	expectIn(0, 100, getSample(5, testCounter, "group", "", "place", "defaultBeforeSleep", "scenario", "default"))
+	expectIn(900, 1100, getSample(6, testCounter, "group", "", "place", "defaultAfterSleep", "scenario", "default"))
+	expectIn(0, 100, getDummyTrail("", true, "scenario", "default"))
 
-	expectIn(0, 100, getSample(5, testCounter, "group", "", "place", "defaultBeforeSleep"))
-	expectIn(900, 1100, getSample(6, testCounter, "group", "", "place", "defaultAfterSleep"))
-	expectIn(0, 100, getDummyTrail("", true))
+	expectIn(0, 100, getSample(5, testCounter, "group", "", "place", "defaultBeforeSleep", "scenario", "default"))
+	expectIn(900, 1100, getSample(6, testCounter, "group", "", "place", "defaultAfterSleep", "scenario", "default"))
+	expectIn(0, 100, getDummyTrail("", true, "scenario", "default"))
 
 	expectIn(0, 1000, getSample(3, testCounter, "group", "::teardown", "place", "teardownBeforeSleep"))
 	expectIn(900, 1100, getSample(4, testCounter, "group", "::teardown", "place", "teardownAfterSleep"))

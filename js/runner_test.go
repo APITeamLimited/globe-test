@@ -1626,6 +1626,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		***REMOVED***"ocsp_status", "https_get", "unknown"***REMOVED***,
 		***REMOVED***"error", "bad_url_get", `dial: connection refused`***REMOVED***,
 		***REMOVED***"error_code", "bad_url_get", "1212"***REMOVED***,
+		***REMOVED***"scenario", "http_get", "default"***REMOVED***,
 		//TODO: add more tests
 	***REMOVED***
 
@@ -1645,6 +1646,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***
 				RunContext: context.Background(),
 				Exec:       tc.exec,
+				Scenario:   "default",
 			***REMOVED***)
 			require.NoError(t, activeVU.RunOnce())
 
