@@ -195,6 +195,22 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
 	***REMOVED***
+
+	vu.state = &lib.State***REMOVED***
+		Logger:    vu.Runner.Logger,
+		Options:   vu.Runner.Bundle.Options,
+		Transport: vu.Transport,
+		Dialer:    vu.Dialer,
+		TLSConfig: vu.TLSConfig,
+		CookieJar: cookieJar,
+		RPSLimit:  vu.Runner.RPSLimit,
+		BPool:     vu.BPool,
+		Vu:        vu.ID,
+		Samples:   vu.Samples,
+		Iteration: vu.Iteration,
+		Tags:      vu.Runner.Bundle.Options.RunTags.CloneTags(),
+		Group:     r.defaultGroup,
+	***REMOVED***
 	vu.Runtime.Set("__VU", vu.ID)
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
@@ -316,19 +332,27 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 		return goja.Undefined(), nil
 	***REMOVED***
 
+	ctx = common.WithRuntime(ctx, vu.Runtime)
+	ctx = lib.WithState(ctx, vu.state)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() ***REMOVED***
 		<-ctx.Done()
 		vu.Runtime.Interrupt(errInterrupt)
 	***REMOVED***()
+	*vu.Context = ctx
 
 	group, err := lib.NewGroup(name, r.GetDefaultGroup())
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
 
-	v, _, _, err := vu.runFn(ctx, "", group, false, nil, fn, vu.Runtime.ToValue(arg))
+	if r.Bundle.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
+		vu.state.Tags["group"] = group.Path
+	***REMOVED***
+	vu.state.Group = group
+
+	v, _, _, err := vu.runFn(ctx, false, fn, vu.Runtime.ToValue(arg))
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
@@ -372,6 +396,8 @@ type VU struct ***REMOVED***
 	Samples chan<- stats.SampleContainer
 
 	setupData goja.Value
+
+	state *lib.State
 ***REMOVED***
 
 // Verify that interfaces are implemented
@@ -404,6 +430,29 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		env[key] = value
 	***REMOVED***
 	u.Runtime.Set("__ENV", env)
+
+	opts := u.Runner.Bundle.Options
+	// TODO: maybe we can cache the original tags only clone them and add (if any) new tags on top ?
+	u.state.Tags = opts.RunTags.CloneTags()
+	for k, v := range params.Tags ***REMOVED***
+		u.state.Tags[k] = v
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
+		u.state.Tags["vu"] = strconv.FormatInt(u.ID, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
+		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
+		u.state.Tags["group"] = u.state.Group.Path
+	***REMOVED***
+	if opts.SystemTags.Has(stats.TagScenario) ***REMOVED***
+		u.state.Tags["scenario"] = params.Scenario
+	***REMOVED***
+
+	params.RunContext = common.WithRuntime(params.RunContext, u.Runtime)
+	params.RunContext = lib.WithState(params.RunContext, u.state)
+	*u.Context = params.RunContext
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
@@ -461,9 +510,7 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 	***REMOVED***
 
 	// Call the exported function.
-	_, isFullIteration, totalTime, err := u.runFn(
-		u.RunContext, u.Scenario, u.Runner.defaultGroup, true, u.Tags, fn, u.setupData,
-	)
+	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, true, fn, u.setupData)
 
 	// If MinIterationDuration is specified and the iteration wasn't cancelled
 	// and was less than it, sleep for the remainder
@@ -478,56 +525,24 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 ***REMOVED***
 
 func (u *VU) runFn(
-	ctx context.Context, scenario string, group *lib.Group, isDefault bool,
-	customTags map[string]string, fn goja.Callable, args ...goja.Value,
+	ctx context.Context, isDefault bool, fn goja.Callable, args ...goja.Value,
 ) (goja.Value, bool, time.Duration, error) ***REMOVED***
-	cookieJar := u.CookieJar
 	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() ***REMOVED***
 		var err error
-		cookieJar, err = cookiejar.New(nil)
+		u.state.CookieJar, err = cookiejar.New(nil)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), false, time.Duration(0), err
 		***REMOVED***
 	***REMOVED***
 
 	opts := &u.Runner.Bundle.Options
-	tags := opts.RunTags.CloneTags()
-	for k, v := range customTags ***REMOVED***
-		tags[k] = v
-	***REMOVED***
-	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(u.ID, 10)
-	***REMOVED***
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(u.Iteration, 10)
-	***REMOVED***
-	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = group.Path
-	***REMOVED***
-	if scenario != "" && opts.SystemTags.Has(stats.TagScenario) ***REMOVED***
-		tags["scenario"] = scenario
+		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
 	***REMOVED***
 
-	state := &lib.State***REMOVED***
-		Logger:    u.Runner.Logger,
-		Options:   u.Runner.Bundle.Options,
-		Group:     group,
-		Transport: u.Transport,
-		Dialer:    u.Dialer,
-		TLSConfig: u.TLSConfig,
-		CookieJar: cookieJar,
-		RPSLimit:  u.Runner.RPSLimit,
-		BPool:     u.BPool,
-		Vu:        u.ID,
-		Samples:   u.Samples,
-		Iteration: u.Iteration,
-		Tags:      tags,
-	***REMOVED***
-
-	newctx := common.WithRuntime(ctx, u.Runtime)
-	newctx = lib.WithState(newctx, state)
-	*u.Context = newctx
-
+	// TODO: this seems like the wrong place for the iteration incrementation
+	// also this means that teardown and setup have __ITER defined
+	// maybe move it to RunOnce ?
 	u.Runtime.Set("__ITER", u.Iteration)
 	u.Iteration++
 
@@ -547,7 +562,7 @@ func (u *VU) runFn(
 		u.Transport.CloseIdleConnections()
 	***REMOVED***
 
-	state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, isDefault, stats.IntoSampleTags(&tags))
+	u.state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, isDefault, stats.NewSampleTags(u.state.Tags))
 
 	return v, isFullIteration, endTime.Sub(startTime), err
 ***REMOVED***
