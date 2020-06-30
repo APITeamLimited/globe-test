@@ -133,7 +133,7 @@ func rootCmdPersistentFlagSet() *pflag.FlagSet ***REMOVED***
 ***REMOVED***
 
 func init() ***REMOVED***
-	confDir, err := configDir()
+	confDir, err := os.UserConfigDir()
 	if err != nil ***REMOVED***
 		logrus.WithError(err).Warn("could not get config directory")
 		confDir = ".config"
