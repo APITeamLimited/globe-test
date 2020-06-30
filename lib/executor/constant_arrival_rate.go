@@ -66,8 +66,8 @@ type ConstantArrivalRateConfig struct ***REMOVED***
 ***REMOVED***
 
 // NewConstantArrivalRateConfig returns a ConstantArrivalRateConfig with default values
-func NewConstantArrivalRateConfig(name string) ConstantArrivalRateConfig ***REMOVED***
-	return ConstantArrivalRateConfig***REMOVED***
+func NewConstantArrivalRateConfig(name string) *ConstantArrivalRateConfig ***REMOVED***
+	return &ConstantArrivalRateConfig***REMOVED***
 		BaseConfig: NewBaseConfig(name, constantArrivalRateType),
 		TimeUnit:   types.NewNullDuration(1*time.Second, false),
 	***REMOVED***
@@ -108,7 +108,7 @@ func (carc ConstantArrivalRateConfig) GetDescription(et *lib.ExecutionTuple) str
 ***REMOVED***
 
 // Validate makes sure all options are configured and valid
-func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
+func (carc *ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	errors := carc.BaseConfig.Validate()
 	if !carc.Rate.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the iteration rate isn't specified"))
@@ -135,7 +135,8 @@ func (carc ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 	***REMOVED***
 
 	if !carc.MaxVUs.Valid ***REMOVED***
-		errors = append(errors, fmt.Errorf("the number of maxVUs isn't specified"))
+		// TODO: don't change the config while validating
+		carc.MaxVUs.Int64 = carc.PreAllocatedVUs.Int64
 	***REMOVED*** else if carc.MaxVUs.Int64 < carc.PreAllocatedVUs.Int64 ***REMOVED***
 		errors = append(errors, fmt.Errorf("maxVUs shouldn't be less than preAllocatedVUs"))
 	***REMOVED***
@@ -167,7 +168,7 @@ func (carc ConstantArrivalRateConfig) NewExecutor(
 	es *lib.ExecutionState, logger *logrus.Entry,
 ) (lib.Executor, error) ***REMOVED***
 	return &ConstantArrivalRate***REMOVED***
-		BaseExecutor: NewBaseExecutor(carc, es, logger),
+		BaseExecutor: NewBaseExecutor(&carc, es, logger),
 		config:       carc,
 	***REMOVED***, nil
 ***REMOVED***

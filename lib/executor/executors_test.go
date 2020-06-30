@@ -349,7 +349,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***,
 	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30, "timeUnit": "-1s"***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "preAllocatedVUs": 20***REMOVED******REMOVED***`,
+		exp***REMOVED***custom: func(t *testing.T, cm lib.ScenarioConfigs) ***REMOVED***
+			assert.Empty(t, cm["carrival"].Validate())
+			require.EqualValues(t, 20, cm["carrival"].(*ConstantArrivalRateConfig).MaxVUs.Int64)
+		***REMOVED******REMOVED***,
+	***REMOVED***,
 	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "duration": "10m", "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "rate": 10, "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"carrival": ***REMOVED***"executor": "constant-arrival-rate", "duration": "10m", "preAllocatedVUs": 20, "maxVUs": 30***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
@@ -394,7 +399,12 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": -20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "startRate": -1, "preAllocatedVUs": 20, "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
-	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`,
+		exp***REMOVED***custom: func(t *testing.T, cm lib.ScenarioConfigs) ***REMOVED***
+			assert.Empty(t, cm["varrival"].Validate())
+			require.EqualValues(t, 20, cm["varrival"].(*RampingArrivalRateConfig).MaxVUs.Int64)
+		***REMOVED******REMOVED***,
+	***REMOVED***,
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "maxVUs": 50, "stages": [***REMOVED***"duration": "5m", "target": 10***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varrival": ***REMOVED***"executor": "ramping-arrival-rate", "preAllocatedVUs": 20, "maxVUs": 50, "stages": []***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
