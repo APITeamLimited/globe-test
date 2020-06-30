@@ -21,15 +21,19 @@
 package v1
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/manyminds/api2go/jsonapi"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
@@ -68,24 +72,40 @@ func TestGetStatus(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-// TODO: fix after the externally-controlled executor
-/*
 func TestPatchStatus(t *testing.T) ***REMOVED***
 	testdata := map[string]struct ***REMOVED***
 		StatusCode int
 		Status     Status
 	***REMOVED******REMOVED***
-		"nothing":      ***REMOVED***200, Status***REMOVED******REMOVED******REMOVED***,
-		"paused":       ***REMOVED***200, Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED******REMOVED***,
-		"max vus":      ***REMOVED***200, Status***REMOVED***VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
-		"too many vus": ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
-		"vus":          ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
+		"nothing":               ***REMOVED***200, Status***REMOVED******REMOVED******REMOVED***,
+		"paused":                ***REMOVED***200, Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED******REMOVED***,
+		"max vus":               ***REMOVED***200, Status***REMOVED***VUsMax: null.IntFrom(20)***REMOVED******REMOVED***,
+		"max vus below initial": ***REMOVED***400, Status***REMOVED***VUsMax: null.IntFrom(5)***REMOVED******REMOVED***,
+		"too many vus":          ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
+		"vus":                   ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 	***REMOVED***
+
+	scenarios := lib.ScenarioConfigs***REMOVED******REMOVED***
+	err := json.Unmarshal([]byte(`
+			***REMOVED***"external": ***REMOVED***"executor": "externally-controlled",
+			"vus": 0, "maxVUs": 10, "duration": "1s"***REMOVED******REMOVED***`), &scenarios)
+	require.NoError(t, err)
+	options := lib.Options***REMOVED***Scenarios: scenarios***REMOVED***
 
 	for name, indata := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			engine, err := core.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
-			assert.NoError(t, err)
+			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, logrus.StandardLogger())
+			require.NoError(t, err)
+			engine, err := core.NewEngine(execScheduler, options, logrus.StandardLogger())
+			require.NoError(t, err)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			run, _, err := engine.Init(ctx, ctx)
+			require.NoError(t, err)
+
+			go func() ***REMOVED*** _ = run() ***REMOVED***()
+			// wait for the executor to initialize to avoid a potential data race below
+			time.Sleep(100 * time.Millisecond)
 
 			body, err := jsonapi.Marshal(indata.Status)
 			if !assert.NoError(t, err) ***REMOVED***
@@ -116,4 +136,3 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
-*/

@@ -73,8 +73,8 @@ func (mecc ExternallyControlledConfigParams) Validate() (errors []error) ***REMO
 
 	if mecc.MaxVUs.Int64 < mecc.VUs.Int64 ***REMOVED***
 		errors = append(errors, fmt.Errorf(
-			"the specified maxVUs (%d) should be more than or equal to the the number of active VUs (%d)",
-			mecc.MaxVUs.Int64, mecc.VUs.Int64,
+			"the number of active VUs (%d) must be less than or equal to the number of maxVUs (%d)",
+			mecc.VUs.Int64, mecc.MaxVUs.Int64,
 		))
 	***REMOVED***
 
@@ -477,6 +477,8 @@ func (rs *externallyControlledRunState) handleConfigChange(oldCfg, newCfg Extern
 			if i < rs.startMaxVUs ***REMOVED***
 				// return the initial planned VUs to the common buffer
 				executionState.ReturnVU(rs.vuHandles[i].initVU, false)
+			***REMOVED*** else ***REMOVED***
+				executionState.ModInitializedVUsCount(-1)
 			***REMOVED***
 			rs.vuHandles[i] = nil
 		***REMOVED***
