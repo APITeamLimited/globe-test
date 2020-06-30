@@ -77,10 +77,10 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 		close(doneCh)
 	***REMOVED***()
 
-	updateConfig := func(vus, maxVUs int, errMsg string) ***REMOVED***
+	updateConfig := func(vus, maxVUs int64, errMsg string) ***REMOVED***
 		newConfig := ExternallyControlledConfigParams***REMOVED***
-			VUs:      null.IntFrom(int64(vus)),
-			MaxVUs:   null.IntFrom(int64(maxVUs)),
+			VUs:      null.IntFrom(vus),
+			MaxVUs:   null.IntFrom(maxVUs),
 			Duration: types.NullDurationFrom(2 * time.Second),
 		***REMOVED***
 		err := executor.(*ExternallyControlled).UpdateConfig(ctx, newConfig)
