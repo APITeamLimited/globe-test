@@ -140,13 +140,10 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement) ***REMOVED***
 					code[pc] = setLocalP(remap(uint32(instr)))
 				***REMOVED***
 			***REMOVED***
+			c.p.code[start+1] = pop
 			if catchVarIdx, exists := m[0]; exists ***REMOVED***
 				c.p.code[start] = setLocal(catchVarIdx)
-				c.p.code[start+1] = pop
 				catchOffset--
-			***REMOVED*** else ***REMOVED***
-				c.p.code[start+1] = nil
-				catchOffset++
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			c.scope.accessed = true
@@ -304,7 +301,7 @@ func (c *compiler) compileForInStatement(v *ast.ForInStatement, needResult bool)
 
 func (c *compiler) compileLabeledForInStatement(v *ast.ForInStatement, needResult bool, label string) ***REMOVED***
 	c.block = &block***REMOVED***
-		typ:        blockLoop,
+		typ:        blockLoopEnum,
 		outer:      c.block,
 		label:      label,
 		needResult: needResult,
@@ -421,7 +418,7 @@ func (c *compiler) findBranchBlock(st *ast.BranchStatement) *block ***REMOVED***
 func (c *compiler) findContinueBlock(label *ast.Identifier) (block *block) ***REMOVED***
 	if label != nil ***REMOVED***
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.typ == blockLoop && b.label == label.Name ***REMOVED***
+			if (b.typ == blockLoop || b.typ == blockLoopEnum) && b.label == label.Name ***REMOVED***
 				block = b
 				break
 			***REMOVED***
@@ -429,7 +426,7 @@ func (c *compiler) findContinueBlock(label *ast.Identifier) (block *block) ***RE
 	***REMOVED*** else ***REMOVED***
 		// find the nearest loop
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.typ == blockLoop ***REMOVED***
+			if b.typ == blockLoop || b.typ == blockLoopEnum ***REMOVED***
 				block = b
 				break
 			***REMOVED***
@@ -452,7 +449,7 @@ func (c *compiler) findBreakBlock(label *ast.Identifier) (block *block) ***REMOV
 	L:
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
 			switch b.typ ***REMOVED***
-			case blockLoop, blockSwitch:
+			case blockLoop, blockLoopEnum, blockSwitch:
 				block = b
 				break L
 			***REMOVED***
@@ -486,7 +483,7 @@ func (c *compiler) compileBreak(label *ast.Identifier, idx file.Idx) ***REMOVED*
 				c.emit(halt)
 			case blockWith:
 				c.emit(leaveWith)
-			case blockLoop, blockSwitch:
+			case blockLoop, blockLoopEnum, blockSwitch:
 				block = b
 				break L
 			***REMOVED***
@@ -510,7 +507,7 @@ func (c *compiler) compileContinue(label *ast.Identifier, idx file.Idx) ***REMOV
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
 			if b.typ == blockTry ***REMOVED***
 				c.emit(halt)
-			***REMOVED*** else if b.typ == blockLoop && b.label == label.Name ***REMOVED***
+			***REMOVED*** else if (b.typ == blockLoop || b.typ == blockLoopEnum) && b.label == label.Name ***REMOVED***
 				block = b
 				break
 			***REMOVED***
@@ -520,7 +517,7 @@ func (c *compiler) compileContinue(label *ast.Identifier, idx file.Idx) ***REMOV
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
 			if b.typ == blockTry ***REMOVED***
 				c.emit(halt)
-			***REMOVED*** else if b.typ == blockLoop ***REMOVED***
+			***REMOVED*** else if b.typ == blockLoop || b.typ == blockLoopEnum ***REMOVED***
 				block = b
 				break
 			***REMOVED***
@@ -587,10 +584,14 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 		c.p.code[jmp1] = jump(len(c.p.code) - jmp1)
 		c.markBlockStart()
 	***REMOVED*** else ***REMOVED***
-		c.p.code[jmp] = jne(len(c.p.code) - jmp)
-		c.markBlockStart()
 		if needResult ***REMOVED***
+			c.emit(jump(2))
+			c.p.code[jmp] = jne(len(c.p.code) - jmp)
 			c.emit(loadUndef)
+			c.markBlockStart()
+		***REMOVED*** else ***REMOVED***
+			c.p.code[jmp] = jne(len(c.p.code) - jmp)
+			c.markBlockStart()
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -603,8 +604,11 @@ func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 		c.emit(loadUndef)
 	***REMOVED***
 	for b := c.block; b != nil; b = b.outer ***REMOVED***
-		if b.typ == blockTry ***REMOVED***
+		switch b.typ ***REMOVED***
+		case blockTry:
 			c.emit(halt)
+		case blockLoopEnum:
+			c.emit(enumPop)
 		***REMOVED***
 	***REMOVED***
 	c.emit(ret)
