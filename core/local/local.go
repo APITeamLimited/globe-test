@@ -80,7 +80,10 @@ func NewExecutionScheduler(runner lib.Runner, logger *logrus.Logger) (*Execution
 			)
 			continue
 		***REMOVED***
-		s, err := sc.NewExecutor(executionState, logger.WithField("executor", sc.GetName()))
+		s, err := sc.NewExecutor(executionState, logger.WithFields(logrus.Fields***REMOVED***
+			"scenario": sc.GetName(),
+			"executor": sc.GetType(),
+		***REMOVED***))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
