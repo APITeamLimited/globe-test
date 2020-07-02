@@ -31,6 +31,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/ui/pb"
@@ -214,14 +215,22 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	si.progress.Modify(pb.WithProgress(progresFn))
 	go trackProgress(ctx, maxDurationCtx, regDurationCtx, &si, progresFn)
 
+	var attemptedIters uint64
+
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
-	defer activeVUs.Wait()
+	defer func() ***REMOVED***
+		activeVUs.Wait()
+		if attemptedIters < totalIters ***REMOVED***
+			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***
+				Value: float64(totalIters - attemptedIters), Metric: metrics.DroppedIterations,
+				Tags: si.getMetricTags(nil), Time: time.Now(),
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***()
 
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(si.executionState, si.logger)
-
-	attemptedIters := new(uint64)
 
 	activationParams := getVUActivationParams(maxDurationCtx, si.config.BaseConfig,
 		func(u lib.InitializedVU) ***REMOVED***
@@ -245,7 +254,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 				// continue looping
 			***REMOVED***
 
-			attemptedIterNumber := atomic.AddUint64(attemptedIters, 1)
+			attemptedIterNumber := atomic.AddUint64(&attemptedIters, 1)
 			if attemptedIterNumber > totalIters ***REMOVED***
 				return
 			***REMOVED***

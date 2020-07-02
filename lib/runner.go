@@ -41,6 +41,9 @@ type ActiveVU interface ***REMOVED***
 type InitializedVU interface ***REMOVED***
 	// Fully activate the VU so it will be able to run code
 	Activate(*VUActivationParams) ActiveVU
+
+	// GetID returns the unique VU ID
+	GetID() int64
 ***REMOVED***
 
 // VUActivationParams are supplied by each executor when it retrieves a VU from
