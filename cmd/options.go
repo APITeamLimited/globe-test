@@ -22,6 +22,7 @@ package cmd
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -63,6 +64,7 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Duration("min-iteration-duration", 0, "minimum amount of time k6 will take executing a single iteration")
 	flags.BoolP("throw", "w", false, "throw warnings (like failed http requests) as errors")
 	flags.StringSlice("blacklist-ip", nil, "blacklist an `ip range` from being called")
+	flags.StringSlice("block-hostname", nil, "block a `hostname`, with or without prepended wildcard, from being called")
 
 	// The comment about system-tags also applies for summary-trend-stats. The default values
 	// are set in applyDefault().
@@ -149,6 +151,23 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			return opts, errors.Wrap(parseErr, "blacklist-ip")
 		***REMOVED***
 		opts.BlacklistIPs = append(opts.BlacklistIPs, net)
+	***REMOVED***
+
+	blockedHostnameStrings, err := flags.GetStringSlice("block-hostname")
+	if err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	r, compErr := regexp.Compile("^\\*?(\\pL|[0-9\\.])*")
+	if compErr != nil ***REMOVED***
+		return opts, errors.Wrap(compErr, "block-hostname")
+	***REMOVED***
+	opts.BlockedHostnames = lib.NewHostnameTrie()
+	for _, s := range blockedHostnameStrings ***REMOVED***
+		if len(r.FindString(s)) != len(s) ***REMOVED***
+			return opts, errors.New("block-hostname: invalid hostname pattern %s", s)
+		***REMOVED***
+
+		opts.BlockedHostnames.Insert(s)
 	***REMOVED***
 
 	if flags.Changed("summary-trend-stats") ***REMOVED***

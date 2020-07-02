@@ -40,9 +40,10 @@ import (
 type Dialer struct ***REMOVED***
 	net.Dialer
 
-	Resolver  *dnscache.Resolver
-	Blacklist []*lib.IPNet
-	Hosts     map[string]net.IP
+	Resolver         *dnscache.Resolver
+	Blacklist        []*lib.IPNet
+	BlockedHostnames *lib.HostnameTrie
+	Hosts            map[string]net.IP
 
 	BytesRead    int64
 	BytesWritten int64
@@ -66,10 +67,25 @@ func (b BlackListedIPError) Error() string ***REMOVED***
 	return fmt.Sprintf("IP (%s) is in a blacklisted range (%s)", b.ip, b.net)
 ***REMOVED***
 
+// BlockedHostError is returned when a given hostname is blocked
+type BlockedHostError struct ***REMOVED***
+	hostname string
+	match    string
+***REMOVED***
+
+func (b BlockedHostError) Error() string ***REMOVED***
+	return fmt.Sprintf("hostname (%s) is in a blocked pattern (%s)", b.hostname, b.match)
+***REMOVED***
+
 // DialContext wraps the net.Dialer.DialContext and handles the k6 specifics
 func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
 	delimiter := strings.LastIndex(addr, ":")
 	host := addr[:delimiter]
+
+	// check if host is blocked.
+	if blocked, match := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
+		return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
+	***REMOVED***
 
 	// lookup for domain defined in Hosts option before trying to resolve DNS.
 	ip, ok := d.Hosts[host]
