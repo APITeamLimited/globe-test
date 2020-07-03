@@ -818,6 +818,81 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner("/script.js", `
+					import http from "k6/http";
+					export default function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
+				`)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	hostnames := lib.HostnameTrie***REMOVED******REMOVED***
+	if err := hostnames.Insert("*.io"); !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
+		Throw:            null.BoolFrom(true),
+		BlockedHostnames: &hostnames,
+	***REMOVED***))
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			err = vu.RunOnce(context.Background())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner("/script.js", `
+					import http from "k6/http";
+
+					export let options = ***REMOVED***
+						throw: true,
+						blockHostnames: ["*.io"],
+					***REMOVED***;
+
+					export default function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
+				`)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			vu, err := r.NewVU(make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+			err = vu.RunOnce(context.Background())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()

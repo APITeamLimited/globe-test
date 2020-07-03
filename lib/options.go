@@ -206,7 +206,7 @@ var validHostnamePattern *regexp.Regexp = regexp.MustCompile("^\\*?(\\pL|[0-9\\.
 // of letters, numbers, or '.'s.
 func ValidHostname(s string) error ***REMOVED***
 	if len(validHostnamePattern.FindString(s)) != len(s) ***REMOVED***
-		return fmt.Errorf("block-hostname: invalid hostname pattern %s", s)
+		return fmt.Errorf("invalid hostname pattern %s", s)
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -249,7 +249,7 @@ func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	n := &HostnameTrie***REMOVED***rStr[last], make([]*HostnameTrie, 0), len(rStr) == 1***REMOVED***
+	n := &HostnameTrie***REMOVED***rStr[last], nil, len(rStr) == 1***REMOVED***
 	t.children = append(t.children, n)
 	return n.Insert(string(rStr[:last]))
 ***REMOVED***
