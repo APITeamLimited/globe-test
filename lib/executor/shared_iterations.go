@@ -182,13 +182,13 @@ func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 // Run executes a specific total number of iterations, which are all shared by
 // the configured VUs.
 // nolint:funlen
-func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+func (si SharedIterations) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
 	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
 	duration := time.Duration(si.config.MaxDuration.Duration)
 	gracefulStop := si.config.GetGracefulStop()
 
-	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
+	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 	defer cancel()
 
 	// Make sure the log and the progress bar have accurate information
@@ -213,7 +213,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 		return float64(currentDoneIters) / float64(totalIters), right
 	***REMOVED***
 	si.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, &si, progresFn)
+	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &si, progresFn)
 
 	var attemptedIters uint64
 
@@ -222,7 +222,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 	defer func() ***REMOVED***
 		activeVUs.Wait()
 		if attemptedIters < totalIters ***REMOVED***
-			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***
+			stats.PushIfNotDone(parentCtx, out, stats.Sample***REMOVED***
 				Value: float64(totalIters - attemptedIters), Metric: metrics.DroppedIterations,
 				Tags: si.getMetricTags(nil), Time: time.Now(),
 			***REMOVED***)

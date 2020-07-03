@@ -32,7 +32,9 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 func getTestSharedIterationsConfig() SharedIterationsConfig ***REMOVED***
@@ -108,4 +110,34 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	assert.True(t, ok)
 	assert.Equal(t, uint64(2), val)
 	assert.Equal(t, uint64(100), totalIters)
+***REMOVED***
+
+func TestSharedIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
+	t.Parallel()
+	var count int64
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+
+	config := &SharedIterationsConfig***REMOVED***
+		VUs:         null.IntFrom(5),
+		Iterations:  null.IntFrom(100),
+		MaxDuration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
+	ctx, cancel, executor, logHook := setupExecutor(
+		t, config, es,
+		simpleRunner(func(ctx context.Context) error ***REMOVED***
+			atomic.AddInt64(&count, 1)
+			<-ctx.Done()
+			return nil
+		***REMOVED***),
+	)
+	defer cancel()
+	engineOut := make(chan stats.SampleContainer, 1000)
+	err = executor.Run(ctx, engineOut)
+	require.NoError(t, err)
+	assert.Empty(t, logHook.Drain())
+	assert.Equal(t, int64(5), count)
+	assert.Equal(t, float64(95), sumMetricValues(engineOut, metrics.DroppedIterations.Name))
 ***REMOVED***
