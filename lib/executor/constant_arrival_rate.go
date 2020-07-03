@@ -270,9 +270,10 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 			if err != nil ***REMOVED***
 				// TODO figure out how to return it to the Run goroutine
 				car.logger.WithError(err).Error("Error while allocating unplanned VU")
+			***REMOVED*** else ***REMOVED***
+				car.logger.Debug("The unplanned VU finished initializing successfully!")
+				activeVUs <- activateVU(initVU)
 			***REMOVED***
-			car.logger.Debug("The unplanned VU finished initializing successfully!")
-			activeVUs <- activateVU(initVU)
 		***REMOVED***
 	***REMOVED***()
 
