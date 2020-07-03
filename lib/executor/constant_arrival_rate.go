@@ -209,7 +209,8 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 // time should iteration X begin) different, but keep everything else the same.
 // This will allow us to implement https://github.com/loadimpact/k6/issues/1386
 // and things like all of the TODOs below in one place only.
-func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED*** //nolint:funlen
+//nolint:funlen
+func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
 	gracefulStop := car.config.GetGracefulStop()
 	duration := time.Duration(car.config.Duration.Duration)
 	preAllocatedVUs := car.config.GetPreAllocatedVUs(car.executionState.ExecutionTuple)
@@ -228,7 +229,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 	activeVUsWg := &sync.WaitGroup***REMOVED******REMOVED***
 
 	returnedVUs := make(chan struct***REMOVED******REMOVED***)
-	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(ctx, duration, gracefulStop)
+	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 
 	defer func() ***REMOVED***
 		// Make sure all VUs aren't executing iterations anymore, for the cancel()
@@ -310,7 +311,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		return math.Min(1, float64(spent)/float64(duration)), right
 	***REMOVED***
 	car.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, &car, progresFn)
+	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progresFn)
 
 	runIterationBasic := getIterationRunner(car.executionState, car.logger)
 	runIteration := func(vu lib.ActiveVU) ***REMOVED***
@@ -345,7 +346,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 			// Since there aren't any free VUs available, consider this iteration
 			// dropped - we aren't going to try to recover it, but
 
-			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***
+			stats.PushIfNotDone(parentCtx, out, stats.Sample***REMOVED***
 				Value: 1, Metric: metrics.DroppedIterations,
 				Tags: metricTags, Time: time.Now(),
 			***REMOVED***)
