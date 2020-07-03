@@ -193,21 +193,20 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 // for wildcards exclusively at the start of the pattern. Items may only
 // be inserted and searched. Internationalized hostnames are valid.
 type HostnameTrie struct ***REMOVED***
-	r        rune
 	children []*HostnameTrie
+	r        rune
 	terminal bool // end of a valid match
 ***REMOVED***
 
-// describes a valid hostname pattern to block by. Global var to avoid
-// compilation penalty each call to ValidHostname.
-var validHostnamePattern *regexp.Regexp = regexp.MustCompile("^\\*?(\\pL|[0-9\\.])*")
+// Regex description of hostname pattern to enforce blocks by. Global var
+// to avoid compilation penalty at runtime.
+// Matches against strings composed entirely of letters, numbers, or '.'s
+// with an optional wildcard at the start.
+var legalHostnamePattern *regexp.Regexp = regexp.MustCompile("^\\*?(\\pL|[0-9\\.])*")
 
-// ValidHostname returns whether the provided hostname pattern
-// has an optional wildcard at the start, and is composed entirely
-// of letters, numbers, or '.'s.
-func ValidHostname(s string) error ***REMOVED***
-	if len(validHostnamePattern.FindString(s)) != len(s) ***REMOVED***
-		return fmt.Errorf("invalid hostname pattern %s", s)
+func legalHostname(s string) error ***REMOVED***
+	if len(legalHostnamePattern.FindString(s)) != len(s) ***REMOVED***
+		return errors.Errorf("invalid hostname pattern %s", s)
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -238,13 +237,14 @@ func (t *HostnameTrie) UnmarshalText(b []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// Insert a string into the given HostnameTrie.
+// Insert a hostname pattern into the given HostnameTrie. Returns an error
+// if hostname pattern is illegal.
 func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 	if len(s) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
 
-	if err := ValidHostname(s); err != nil ***REMOVED***
+	if err := legalHostname(s); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -256,7 +256,7 @@ func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	n := &HostnameTrie***REMOVED***rStr[last], nil, len(rStr) == 1***REMOVED***
+	n := &HostnameTrie***REMOVED***nil, rStr[last], len(rStr) == 1***REMOVED***
 	t.children = append(t.children, n)
 	return n.Insert(string(rStr[:last]))
 ***REMOVED***
@@ -272,6 +272,7 @@ func (t *HostnameTrie) Contains(s string) (bool, string) ***REMOVED***
 	return false, ""
 ***REMOVED***
 
+// recursively traverse HostnameTrie children searching for a match.
 func (t *HostnameTrie) childContains(s string, match string) (bool, string) ***REMOVED***
 	if len(s) == 0 ***REMOVED***
 		return false, ""
@@ -353,7 +354,7 @@ type Options struct ***REMOVED***
 	// Blacklist IP ranges that tests may not contact. Mainly useful in hosted setups.
 	BlacklistIPs []*IPNet `json:"blacklistIPs" envconfig:"K6_BLACKLIST_IPS"`
 
-	// Block hostnames that tests may not contact.
+	// Block hostname patterns that tests may not contact.
 	BlockedHostnames *HostnameTrie `json:"blockHostnames" envconfig:"K6_BLOCK_HOSTNAMES"`
 
 	// Hosts overrides dns entries for given hosts

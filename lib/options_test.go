@@ -320,7 +320,8 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("BlockedHostnames", func(t *testing.T) ***REMOVED***
 		hostnames := HostnameTrie***REMOVED******REMOVED***
-		hostnames.Insert("*")
+		err := hostnames.Insert("*")
+		assert.Nil(t, err)
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlockedHostnames: &hostnames,
 		***REMOVED***)
