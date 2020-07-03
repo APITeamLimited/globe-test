@@ -22,7 +22,6 @@ package cmd
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -157,17 +156,11 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return opts, err
 	***REMOVED***
-	r, compErr := regexp.Compile("^\\*?(\\pL|[0-9\\.])*")
-	if compErr != nil ***REMOVED***
-		return opts, errors.Wrap(compErr, "block-hostname")
-	***REMOVED***
-	opts.BlockedHostnames = lib.NewHostnameTrie()
+	opts.BlockedHostnames = &lib.HostnameTrie***REMOVED******REMOVED***
 	for _, s := range blockedHostnameStrings ***REMOVED***
-		if len(r.FindString(s)) != len(s) ***REMOVED***
-			return opts, errors.New("block-hostname: invalid hostname pattern %s", s)
+		if insertErr := opts.BlockedHostnames.Insert(s); insertErr != nil ***REMOVED***
+			return opts, errors.Wrap(insertErr, "block-hostname")
 		***REMOVED***
-
-		opts.BlockedHostnames.Insert(s)
 	***REMOVED***
 
 	if flags.Changed("summary-trend-stats") ***REMOVED***

@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/types"
@@ -189,37 +191,70 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 
 // HostnameTrie is a tree-structured list of hostname matches with support
 // for wildcards exclusively at the start of the pattern. Items may only
-// be inserted and searched.
-// Internationalized hostnames are valid.
+// be inserted and searched. Internationalized hostnames are valid.
 type HostnameTrie struct ***REMOVED***
 	r        rune
 	children []*HostnameTrie
 	terminal bool // end of a valid match
 ***REMOVED***
 
-// NewHostnameTrie returns a valid head node for a HostnameTrie.
-func NewHostnameTrie() *HostnameTrie ***REMOVED***
-	return &HostnameTrie***REMOVED***-1, make([]*HostnameTrie, 0), false***REMOVED***
+// describes a valid hostname pattern to block by. Global var to avoid
+// compilation penalty each call to ValidHostname.
+var validHostnamePattern *regexp.Regexp = regexp.MustCompile("^\\*?(\\pL|[0-9\\.])*")
+
+// ValidHostname returns whether the provided hostname pattern
+// has an optional wildcard at the start, and is composed entirely
+// of letters, numbers, or '.'s.
+func ValidHostname(s string) error ***REMOVED***
+	if len(validHostnamePattern.FindString(s)) != len(s) ***REMOVED***
+		return fmt.Errorf("block-hostname: invalid hostname pattern %s", s)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// UnmarshalText forms a HostnameTrie from the given comma-delimited
+// hostname patterns list.
+func (t *HostnameTrie) UnmarshalText(b []byte) error ***REMOVED***
+	for _, s := range strings.Split(string(b), ",") ***REMOVED***
+		if err := t.Insert(s); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 // Insert a string into the given HostnameTrie.
-func (t *HostnameTrie) Insert(s string) ***REMOVED***
+func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 	if len(s) == 0 ***REMOVED***
-		return
+		return nil
+	***REMOVED***
+
+	if err := ValidHostname(s); err != nil ***REMOVED***
+		return err
 	***REMOVED***
 
 	rStr := []rune(s) // need to iterate by runes for intl' names
 	last := len(rStr) - 1
 	for _, c := range t.children ***REMOVED***
 		if c.r == rStr[last] ***REMOVED***
-			c.Insert(string(rStr[:last]))
-			return
+			return c.Insert(string(rStr[:last]))
 		***REMOVED***
 	***REMOVED***
 
 	n := &HostnameTrie***REMOVED***rStr[last], make([]*HostnameTrie, 0), len(rStr) == 1***REMOVED***
 	t.children = append(t.children, n)
-	n.Insert(string(rStr[:last]))
+	return n.Insert(string(rStr[:last]))
+***REMOVED***
+
+// Contains returns whether s matches a pattern in the HostnameTrie
+// along with the matching pattern, if one was found.
+func (t *HostnameTrie) Contains(s string) (bool, string) ***REMOVED***
+	for _, c := range t.children ***REMOVED***
+		if b, m := c.childContains(s, ""); b ***REMOVED***
+			return b, m
+		***REMOVED***
+	***REMOVED***
+	return false, ""
 ***REMOVED***
 
 func (t *HostnameTrie) childContains(s string, match string) (bool, string) ***REMOVED***
@@ -231,7 +266,7 @@ func (t *HostnameTrie) childContains(s string, match string) (bool, string) ***R
 	last := len(rStr) - 1
 
 	switch ***REMOVED***
-	case t.r == '*':
+	case t.r == '*': // wildcard encounters validate the string
 		return true, string(t.r) + match
 	case t.r != rStr[last]:
 		return false, ""
@@ -239,23 +274,12 @@ func (t *HostnameTrie) childContains(s string, match string) (bool, string) ***R
 		return t.terminal, string(t.r) + match
 	default:
 		for _, c := range t.children ***REMOVED***
-			if b, m := c.childContains(string(rStr[:last]), string(rStr[:last])+match); b ***REMOVED***
+			if b, m := c.childContains(string(rStr[:last]), string(t.r)+match); b ***REMOVED***
 				return b, m
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return false, ""
-***REMOVED***
-
-// Contains returns whether s matches a pattern in the HostnameTrie
-// along with the matching pattern, if one was found.
-func (t *HostnameTrie) Contains(s string) (bool, string) ***REMOVED***
-	for _, c := range t.children ***REMOVED***
-		if b, m := c.childContains(s, ""); b ***REMOVED***
-			return b, m
-		***REMOVED***
-	***REMOVED***
 	return false, ""
 ***REMOVED***
 
