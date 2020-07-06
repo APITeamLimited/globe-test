@@ -50,7 +50,7 @@ func getRampingVUsScenario(stages []lib.Stage, startVUs null.Int) lib.ScenarioCo
 	ds.StartVUs = startVUs
 	for _, s := range stages ***REMOVED***
 		if s.Duration.Valid ***REMOVED***
-			ds.Stages = append(ds.Stages, lib.Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
+			ds.Stages = append(ds.Stages, Stage***REMOVED***Duration: s.Duration, Target: s.Target***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 	return lib.ScenarioConfigs***REMOVED***lib.DefaultScenarioName: ds***REMOVED***

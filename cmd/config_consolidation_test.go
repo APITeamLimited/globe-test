@@ -80,7 +80,7 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 	***REMOVED***
 ***REMOVED***
 
-func verifyRampingVUs(startVus null.Int, stages []lib.Stage) func(t *testing.T, c Config) ***REMOVED***
+func verifyRampingVUs(startVus null.Int, stages []executor.Stage) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		exec := c.Scenarios[lib.DefaultScenarioName]
 		require.NotEmpty(t, exec)
@@ -100,14 +100,14 @@ func verifyRampingVUs(startVus null.Int, stages []lib.Stage) func(t *testing.T, 
 
 // A helper function that accepts (duration in second, VUs) pairs and returns
 // a valid slice of stage structs
-func buildStages(durationsAndVUs ...int64) []lib.Stage ***REMOVED***
+func buildStages(durationsAndVUs ...int64) []executor.Stage ***REMOVED***
 	l := len(durationsAndVUs)
 	if l%2 != 0 ***REMOVED***
 		panic("wrong len")
 	***REMOVED***
-	result := make([]lib.Stage, 0, l/2)
+	result := make([]executor.Stage, 0, l/2)
 	for i := 0; i < l; i += 2 ***REMOVED***
-		result = append(result, lib.Stage***REMOVED***
+		result = append(result, executor.Stage***REMOVED***
 			Duration: types.NullDurationFrom(time.Duration(durationsAndVUs[i]) * time.Second),
 			Target:   null.IntFrom(durationsAndVUs[i+1]),
 		***REMOVED***)

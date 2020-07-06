@@ -33,7 +33,14 @@ import (
 	"github.com/loadimpact/k6/ui/pb"
 )
 
-func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []lib.Stage) int64 ***REMOVED***
+func sumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***
+	for _, s := range stages ***REMOVED***
+		result += time.Duration(s.Duration.Duration)
+	***REMOVED***
+	return
+***REMOVED***
+
+func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []Stage) int64 ***REMOVED***
 	max := unscaledStartValue
 	for _, s := range stages ***REMOVED***
 		if s.Target.Int64 > max ***REMOVED***
@@ -44,7 +51,7 @@ func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []lib.Stage) in
 ***REMOVED***
 
 // A helper function to avoid code duplication
-func validateStages(stages []lib.Stage) []error ***REMOVED***
+func validateStages(stages []Stage) []error ***REMOVED***
 	var errors []error
 	if len(stages) == 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("at least one stage has to be specified"))

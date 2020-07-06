@@ -45,7 +45,7 @@ func getTestRampingArrivalRateConfig() *RampingArrivalRateConfig ***REMOVED***
 		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(1 * time.Second)***REMOVED***,
 		TimeUnit:   types.NullDurationFrom(time.Second),
 		StartRate:  null.IntFrom(10),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(time.Second * 1),
 				Target:   null.IntFrom(10),
@@ -151,7 +151,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 	var ctx, cancel, executor, logHook = setupExecutor(
 		t, &RampingArrivalRateConfig***REMOVED***
 			TimeUnit: types.NullDurationFrom(time.Second),
-			Stages: []lib.Stage***REMOVED***
+			Stages: []Stage***REMOVED***
 				***REMOVED***
 					// the minus one makes it so only 9 iterations will be started instead of 10
 					// as the 10th happens to be just at the end and sometimes doesn't get executed :(
@@ -258,7 +258,7 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 		defaultTimeUnit = time.Second
 		config          = RampingArrivalRateConfig***REMOVED***
 			StartRate: null.IntFrom(0),
-			Stages: []lib.Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
+			Stages: []Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
 				***REMOVED***
 					Duration: types.NullDurationFrom(time.Second * 5),
 					Target:   null.IntFrom(1),
@@ -358,7 +358,7 @@ func BenchmarkCal(b *testing.B) ***REMOVED***
 			config := RampingArrivalRateConfig***REMOVED***
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
-				Stages: []lib.Stage***REMOVED***
+				Stages: []Stage***REMOVED***
 					***REMOVED***
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(49),
@@ -394,7 +394,7 @@ func BenchmarkCalRat(b *testing.B) ***REMOVED***
 			config := RampingArrivalRateConfig***REMOVED***
 				TimeUnit:  types.NullDurationFrom(time.Second),
 				StartRate: null.IntFrom(50),
-				Stages: []lib.Stage***REMOVED***
+				Stages: []Stage***REMOVED***
 					***REMOVED***
 						Duration: types.NullDurationFrom(t),
 						Target:   null.IntFrom(49),
@@ -430,7 +430,7 @@ func TestCompareCalImplementation(t *testing.T) ***REMOVED***
 	config := RampingArrivalRateConfig***REMOVED***
 		TimeUnit:  types.NullDurationFrom(time.Second),
 		StartRate: null.IntFrom(0),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(200),

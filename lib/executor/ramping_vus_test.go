@@ -45,7 +45,7 @@ func TestRampingVUsRun(t *testing.T) ***REMOVED***
 		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(0)***REMOVED***,
 		GracefulRampDown: types.NullDurationFrom(0),
 		StartVUs:         null.IntFrom(5),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(5),
@@ -105,7 +105,7 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 	config := RampingVUsConfig***REMOVED***
 		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(time.Second)***REMOVED***,
 		StartVUs:   null.IntFrom(1),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1),
@@ -154,7 +154,7 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 	config := RampingVUsConfig***REMOVED***
 		BaseConfig: BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(time.Second)***REMOVED***,
 		StartVUs:   null.IntFrom(1),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(1),
@@ -204,7 +204,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 		StartVUs:         null.IntFrom(2),
 		GracefulRampDown: types.NullDurationFrom(5 * time.Second),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 				Target:   null.IntFrom(2),
@@ -269,7 +269,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 		BaseConfig:       BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(0)***REMOVED***,
 		GracefulRampDown: types.NullDurationFrom(1 * time.Second),
 		StartVUs:         null.IntFrom(0),
-		Stages: []lib.Stage***REMOVED***
+		Stages: []Stage***REMOVED***
 			***REMOVED***
 				Duration: types.NullDurationFrom(3 * time.Second),
 				Target:   null.IntFrom(10),
@@ -340,7 +340,7 @@ func TestRampingVUsConfigExecutionPlanExample(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []lib.Stage***REMOVED***
+	conf.Stages = []Stage***REMOVED***
 		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
@@ -440,7 +440,7 @@ func TestRampingVUsConfigExecutionPlanExampleOneThird(t *testing.T) ***REMOVED**
 	require.NoError(t, err)
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []lib.Stage***REMOVED***
+	conf.Stages = []Stage***REMOVED***
 		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
@@ -518,7 +518,7 @@ func TestRampingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
 
 	conf := NewRampingVUsConfig("test")
 	conf.StartVUs = null.IntFrom(4)
-	conf.Stages = []lib.Stage***REMOVED***
+	conf.Stages = []Stage***REMOVED***
 		***REMOVED***Target: null.IntFrom(6), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(1), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 		***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(4 * time.Second)***REMOVED***,
@@ -743,7 +743,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 		name          string
 		expectedSteps []lib.ExecutionStep
 		et            *lib.ExecutionTuple
-		stages        []lib.Stage
+		stages        []Stage
 		start         int64
 	***REMOVED******REMOVED***
 		***REMOVED***
@@ -754,7 +754,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 4***REMOVED***,
 				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 3***REMOVED***,
 			***REMOVED***,
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(0 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(3), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 			***REMOVED***,
@@ -767,7 +767,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 1 * time.Second, PlannedVUs: 4***REMOVED***,
 				***REMOVED***TimeOffset: 2 * time.Second, PlannedVUs: 5***REMOVED***,
 			***REMOVED***,
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 			***REMOVED***,
 			start: 3,
@@ -785,7 +785,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 1***REMOVED***,
 				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
@@ -802,7 +802,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/2"), nil),
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
@@ -819,7 +819,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 7 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("1/2:1"), nil),
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
@@ -832,7 +832,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 0 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("2/3:1"), newExecutionSegmentSequenceFromString("0,1/3,2/3,1")),
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
@@ -849,7 +849,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 8 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:1/3"), newExecutionSegmentSequenceFromString("0,1/3,1/2,2/3,1")),
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(2), Duration: types.NullDurationFrom(2 * time.Second)***REMOVED***,
@@ -871,7 +871,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 44 * time.Second, PlannedVUs: 9***REMOVED***,
 			***REMOVED***,
 			et: mustNewExecutionTuple(newExecutionSegmentFromString("0:0.3"), newExecutionSegmentSequenceFromString("0,0.3,0.6,0.9,1")),
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(20), Duration: types.NullDurationFrom(20 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(30 * time.Second)***REMOVED***,
 			***REMOVED***,
@@ -891,7 +891,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 				***REMOVED***TimeOffset: 9 * time.Second, PlannedVUs: 1***REMOVED***,
 				***REMOVED***TimeOffset: 10 * time.Second, PlannedVUs: 0***REMOVED***,
 			***REMOVED***,
-			stages: []lib.Stage***REMOVED***
+			stages: []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(5), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(5 * time.Second)***REMOVED***,
 			***REMOVED***,
@@ -963,7 +963,7 @@ func BenchmarkRampingVUsGetRawExecutionSteps(b *testing.B) ***REMOVED***
 			et, err := lib.NewExecutionTuple(segment, &ess)
 			require.NoError(b, err)
 			for _, stageCase := range stageCases ***REMOVED***
-				var st []lib.Stage
+				var st []Stage
 				require.NoError(b, json.Unmarshal([]byte(stageCase.stages), &st))
 				vlvc := RampingVUsConfig***REMOVED***
 					Stages: st,
@@ -1210,10 +1210,10 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 	)
 	getTestConfig := func(name string) RampingVUsConfig ***REMOVED***
 		stagesCount := 1 + r.Int31n(maxStages)
-		stages := make([]lib.Stage, stagesCount)
+		stages := make([]Stage, stagesCount)
 		for s := int32(0); s < stagesCount; s++ ***REMOVED***
 			dur := (minStageDuration + time.Duration(r.Int63n(int64(maxStageDuration-minStageDuration)))).Round(time.Second)
-			stages[s] = lib.Stage***REMOVED***Duration: types.NullDurationFrom(dur), Target: null.IntFrom(r.Int63n(maxVUs))***REMOVED***
+			stages[s] = Stage***REMOVED***Duration: types.NullDurationFrom(dur), Target: null.IntFrom(r.Int63n(maxVUs))***REMOVED***
 		***REMOVED***
 
 		c := NewRampingVUsConfig(name)

@@ -128,7 +128,7 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			sched.GracefulRampDown = types.NullDurationFrom(10 * time.Second)
 			sched.StartVUs = null.IntFrom(20)
 			sched.StartTime = types.NullDurationFrom(23 * time.Second)
-			sched.Stages = []lib.Stage***REMOVED***
+			sched.Stages = []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(60 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(130 * time.Second)***REMOVED***,
 			***REMOVED***
@@ -369,7 +369,7 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 		exp***REMOVED***custom: func(t *testing.T, cm lib.ScenarioConfigs) ***REMOVED***
 			sched := NewRampingArrivalRateConfig("varrival")
 			sched.StartRate = null.IntFrom(10)
-			sched.Stages = []lib.Stage***REMOVED***
+			sched.Stages = []Stage***REMOVED***
 				***REMOVED***Target: null.IntFrom(30), Duration: types.NullDurationFrom(180 * time.Second)***REMOVED***,
 				***REMOVED***Target: null.IntFrom(10), Duration: types.NullDurationFrom(300 * time.Second)***REMOVED***,
 			***REMOVED***
