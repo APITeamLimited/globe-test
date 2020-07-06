@@ -210,11 +210,12 @@ a commandline interface for interacting with it.`,
 			engine.SummaryExport = conf.SummaryExport.String != ""
 		***REMOVED***
 
+		executionPlan := execScheduler.GetExecutionPlan()
 		// Create a collector and assign it to the engine if requested.
 		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init metric outputs"))
 		for _, out := range conf.Out ***REMOVED***
 			t, arg := parseCollector(out)
-			collector, cerr := newCollector(t, arg, src, conf, execScheduler.GetExecutionPlan())
+			collector, cerr := newCollector(t, arg, src, conf, executionPlan)
 			if cerr != nil ***REMOVED***
 				return cerr
 			***REMOVED***
@@ -241,8 +242,9 @@ a commandline interface for interacting with it.`,
 			***REMOVED***()
 		***REMOVED***
 
-		printExecutionDescription("local", filename, "", conf,
-			execScheduler.GetState().ExecutionTuple, engine.Collectors)
+		printExecutionDescription(
+			"local", filename, "", conf, execScheduler.GetState().ExecutionTuple,
+			executionPlan, engine.Collectors)
 
 		// Trap Interrupts, SIGINTs and SIGTERMs.
 		sigC := make(chan os.Signal, 1)
