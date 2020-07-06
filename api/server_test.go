@@ -29,11 +29,14 @@ import (
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/negroni"
 
 	"github.com/loadimpact/k6/api/common"
 	"github.com/loadimpact/k6/core"
+	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils/minirunner"
 )
 
 func testHTTPHandler(rw http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -74,10 +77,10 @@ func TestLogger(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestWithEngine(t *testing.T) ***REMOVED***
-	engine, err := core.NewEngine(nil, lib.Options***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "http://example.com/", nil)

@@ -40,12 +40,14 @@ import (
 
 var BannerColor = color.New(color.FgCyan)
 
+//TODO: remove these global variables
+//nolint:gochecknoglobals
 var (
 	outMutex  = &sync.Mutex***REMOVED******REMOVED***
 	stdoutTTY = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 	stderrTTY = isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())
-	stdout    = consoleWriter***REMOVED***colorable.NewColorableStdout(), stdoutTTY, outMutex***REMOVED***
-	stderr    = consoleWriter***REMOVED***colorable.NewColorableStderr(), stderrTTY, outMutex***REMOVED***
+	stdout    = &consoleWriter***REMOVED***colorable.NewColorableStdout(), stdoutTTY, outMutex, nil***REMOVED***
+	stderr    = &consoleWriter***REMOVED***colorable.NewColorableStderr(), stderrTTY, outMutex, nil***REMOVED***
 )
 
 const defaultConfigFileName = "config.json"
@@ -75,6 +77,18 @@ var RootCmd = &cobra.Command***REMOVED***
 	PersistentPreRun: func(cmd *cobra.Command, args []string) ***REMOVED***
 		setupLoggers(logFmt)
 		if noColor ***REMOVED***
+			// TODO: figure out something else... currently, with the wrappers
+			// below, we're stripping any colors from the output after we've
+			// added them. The problem is that, besides being very inefficient,
+			// this actually also strips other special characters from the
+			// intended output, like the progressbar formatting ones, which
+			// would otherwise be fine (in a TTY).
+			//
+			// It would be much better if we avoid messing with the output and
+			// instead have a parametrized instance of the color library. It
+			// will return colored output if colors are enabled and simply
+			// return the passed input as-is (i.e. be a noop) if colors are
+			// disabled...
 			stdout.Writer = colorable.NewNonColorable(os.Stdout)
 			stderr.Writer = colorable.NewNonColorable(os.Stderr)
 		***REMOVED***
@@ -119,7 +133,7 @@ func rootCmdPersistentFlagSet() *pflag.FlagSet ***REMOVED***
 ***REMOVED***
 
 func init() ***REMOVED***
-	confDir, err := configDir()
+	confDir, err := os.UserConfigDir()
 	if err != nil ***REMOVED***
 		logrus.WithError(err).Warn("could not get config directory")
 		confDir = ".config"

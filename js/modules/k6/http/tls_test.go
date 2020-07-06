@@ -27,10 +27,11 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
-	"github.com/stretchr/testify/assert"
-	null "gopkg.in/guregu/null.v3"
 )
 
 func TestTLS13Support(t *testing.T) ***REMOVED***
@@ -47,7 +48,7 @@ func TestTLS13Support(t *testing.T) ***REMOVED***
 	state.Options.Apply(lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Max: lib.TLSVersion13***REMOVED******REMOVED***)
 
 	_, err := common.RunString(rt, tb.Replacer.Replace(`
-		let resp = http.get("HTTPSBIN_URL/tls-version");
+		var resp = http.get("HTTPSBIN_URL/tls-version");
 		if (resp.body != "tls1.3") ***REMOVED***
 			throw new Error("unexpected tls version: " + resp.body);
 		***REMOVED***

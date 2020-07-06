@@ -27,14 +27,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/stats"
-
 	"github.com/dop251/goja"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/loadimpact/k6/stats"
 )
 
 func TestFail(t *testing.T) ***REMOVED***
@@ -94,14 +94,14 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 
 	rand := 0.8487305991992138
 	_, err := common.RunString(rt, fmt.Sprintf(`
-		let rnd = Math.random();
+		var rnd = Math.random();
 		if (rnd == %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
 	`, rand))
 	assert.NoError(t, err)
 
 	_, err = common.RunString(rt, fmt.Sprintf(`
 		k6.randomSeed(12345)
-		let rnd = Math.random();
+		var rnd = Math.random();
 		if (rnd != %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
 	`, rand))
 	assert.NoError(t, err)
@@ -155,6 +155,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 				SystemTags: &stats.DefaultSystemTagSet,
 			***REMOVED***,
 			Samples: samples,
+			Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
 		***REMOVED***, samples
 	***REMOVED***
 	t.Run("Object", func(t *testing.T) ***REMOVED***
@@ -255,7 +256,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			"b": function() ***REMOVED*** throw new Error("error B") ***REMOVED***,
 		***REMOVED***)
 		`)
-		assert.EqualError(t, err, "Error: error A at a (<eval>:3:27(6))")
+		assert.EqualError(t, err, "Error: error A at <eval>:3:28(4)")
 
 		bufSamples := stats.GetBufferedSamples(samples)
 		if assert.Len(t, bufSamples, 1) ***REMOVED***
@@ -275,8 +276,8 @@ func TestCheck(t *testing.T) ***REMOVED***
 	t.Run("Types", func(t *testing.T) ***REMOVED***
 		templates := map[string]string***REMOVED***
 			"Literal":      `k6.check(null,***REMOVED***"check": %s***REMOVED***)`,
-			"Callable":     `k6.check(null,***REMOVED***"check": ()=>%s***REMOVED***)`,
-			"Callable/Arg": `k6.check(%s,***REMOVED***"check":(v)=>v***REMOVED***)`,
+			"Callable":     `k6.check(null,***REMOVED***"check": function() ***REMOVED*** return %s; ***REMOVED******REMOVED***)`,
+			"Callable/Arg": `k6.check(%s,***REMOVED***"check": function(v) ***REMOVED***return v; ***REMOVED******REMOVED***)`,
 		***REMOVED***
 		testdata := map[string]bool***REMOVED***
 			`0`:         false,

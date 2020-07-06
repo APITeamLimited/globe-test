@@ -1,3 +1,23 @@
+/*
+ *
+ * k6 - a next-generation load testing tool
+ * Copyright (C) 2019 Load Impact
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 package lib
 
 import (
@@ -9,10 +29,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/loadimpact/k6/lib/fsext"
-	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loadimpact/k6/lib/fsext"
 )
 
 func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
@@ -210,18 +230,20 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
-	var emptyConfigMap scheduler.ConfigMap
+	var emptyConfigMap ScenarioConfigs
 	var tests = []struct ***REMOVED***
 		metadata     string
-		expExecution interface***REMOVED******REMOVED***
+		expScenarios interface***REMOVED******REMOVED***
 		expError     string
 	***REMOVED******REMOVED***
+		// Tests to make sure that "execution" in the options, the old name for
+		// "scenarios" before #1007 was merged, doesn't mess up the options...
 		***REMOVED***
 			metadata: `***REMOVED***
 				"filename": "/test.js", "pwd": "/",
 				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
-			expExecution: emptyConfigMap,
+			expScenarios: emptyConfigMap,
 		***REMOVED***,
 		***REMOVED***
 			metadata: `***REMOVED***
@@ -229,7 +251,7 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 				"k6version": "0.24.0",
 				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
-			expExecution: emptyConfigMap,
+			expScenarios: emptyConfigMap,
 		***REMOVED***,
 		***REMOVED***
 			metadata: `blah`,
@@ -238,36 +260,21 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 		***REMOVED***
 			metadata: `***REMOVED***
 				"filename": "/test.js", "pwd": "/",
-				"k6version": "0.24.0"
-			***REMOVED***`,
-			expError: "missing options key",
-		***REMOVED***,
-		***REMOVED***
-			metadata: `***REMOVED***
-				"filename": "/test.js", "pwd": "/",
 				"k6version": "0.24.0",
 				"options": "something invalid"
 			***REMOVED***`,
-			expError: "wrong options type in metadata.json",
+			expError: "cannot unmarshal string into Go struct field",
 		***REMOVED***,
 		***REMOVED***
 			metadata: `***REMOVED***
 				"filename": "/test.js", "pwd": "/",
 				"k6version": "0.25.0",
-				"options": ***REMOVED*** "execution": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
+				"options": ***REMOVED*** "scenarios": ***REMOVED*** "something": "invalid" ***REMOVED*** ***REMOVED***
 			***REMOVED***`,
 			expError: "cannot unmarshal string",
 		***REMOVED***,
-		***REMOVED***
-			metadata: `***REMOVED***
-				"filename": "/test.js", "pwd": "/",
-				"k6version": "0.25.0",
-				"options": ***REMOVED*** "execution": ***REMOVED*** "default": ***REMOVED*** "type": "per-vu-iterations" ***REMOVED*** ***REMOVED*** ***REMOVED***
-			***REMOVED***`,
-			expExecution: scheduler.ConfigMap***REMOVED***
-				DefaultSchedulerName: scheduler.NewPerVUIterationsConfig(DefaultSchedulerName),
-			***REMOVED***,
-		***REMOVED***,
+		// TODO: test an actual scenarios unmarshalling, which is currently
+		// impossible due to import cycles...
 	***REMOVED***
 
 	for _, test := range tests ***REMOVED***
@@ -278,11 +285,11 @@ func TestDerivedExecutionDiscarding(t *testing.T) ***REMOVED***
 
 		arc, err := ReadArchive(buf)
 		if test.expError != "" ***REMOVED***
-			require.Error(t, err)
+			require.Errorf(t, err, "expected error '%s' but got nil", test.expError)
 			require.Contains(t, err.Error(), test.expError)
 		***REMOVED*** else ***REMOVED***
 			require.NoError(t, err)
-			require.Equal(t, test.expExecution, arc.Options.Execution)
+			require.Equal(t, test.expScenarios, arc.Options.Scenarios)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***

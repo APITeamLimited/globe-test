@@ -26,11 +26,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/manyminds/api2go/jsonapi"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
-	"github.com/manyminds/api2go/jsonapi"
-	"github.com/stretchr/testify/assert"
+	"github.com/loadimpact/k6/lib/testutils/minirunner"
 )
 
 func TestGetGroups(t *testing.T) ***REMOVED***
@@ -41,8 +45,10 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	g2, err := g1.Group("group 2")
 	assert.NoError(t, err)
 
-	engine, err := core.NewEngine(local.New(&lib.MiniRunner***REMOVED***Group: g0***REMOVED***), lib.Options***REMOVED******REMOVED***)
-	assert.NoError(t, err)
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
+	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***
 		rw := httptest.NewRecorder()
@@ -61,34 +67,33 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 
-		// t.Run("groups", func(t *testing.T) ***REMOVED***
-		// 	var groups []Group
-		// 	assert.NoError(t, jsonapi.Unmarshal(body, &groups))
-		// 	if assert.Len(t, groups, 3) ***REMOVED***
-		// 		for _, g := range groups ***REMOVED***
-		// 			switch g.ID ***REMOVED***
-		// 			case g0.ID:
-		// 				assert.Equal(t, "", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, "", g.ParentID)
-		// 				assert.Len(t, g.GroupIDs, 1)
-		// 				assert.EqualValues(t, []string***REMOVED***g1.ID***REMOVED***, g.GroupIDs)
-		// 			case g1.ID:
-		// 				assert.Equal(t, "group 1", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, g0.ID, g.ParentID)
-		// 				assert.EqualValues(t, []string***REMOVED***g2.ID***REMOVED***, g.GroupIDs)
-		// 			case g2.ID:
-		// 				assert.Equal(t, "group 2", g.Name)
-		// 				assert.Nil(t, g.Parent)
-		// 				assert.Equal(t, g1.ID, g.ParentID)
-		// 				assert.EqualValues(t, []string***REMOVED******REMOVED***, g.GroupIDs)
-		// 			default:
-		// 				assert.Fail(t, "Unknown ID: "+g.ID)
-		// 			***REMOVED***
-		// 		***REMOVED***
-		// 	***REMOVED***
-		// ***REMOVED***)
+		t.Run("groups", func(t *testing.T) ***REMOVED***
+			var groups []Group
+			require.NoError(t, jsonapi.Unmarshal(body, &groups))
+			require.Len(t, groups, 3)
+			for _, g := range groups ***REMOVED***
+				switch g.ID ***REMOVED***
+				case g0.ID:
+					assert.Equal(t, "", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, "", g.ParentID)
+					assert.Len(t, g.GroupIDs, 1)
+					assert.EqualValues(t, []string***REMOVED***g1.ID***REMOVED***, g.GroupIDs)
+				case g1.ID:
+					assert.Equal(t, "group 1", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, g0.ID, g.ParentID)
+					assert.EqualValues(t, []string***REMOVED***g2.ID***REMOVED***, g.GroupIDs)
+				case g2.ID:
+					assert.Equal(t, "group 2", g.Name)
+					assert.Nil(t, g.Parent)
+					assert.Equal(t, g1.ID, g.ParentID)
+					assert.EqualValues(t, []string***REMOVED******REMOVED***, g.GroupIDs)
+				default:
+					assert.Fail(t, "Unknown ID: "+g.ID)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***)
 	for _, gp := range []*lib.Group***REMOVED***g0, g1, g2***REMOVED*** ***REMOVED***
 		t.Run(gp.Name, func(t *testing.T) ***REMOVED***

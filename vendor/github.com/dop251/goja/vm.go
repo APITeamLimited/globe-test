@@ -19,7 +19,7 @@ type stash struct ***REMOVED***
 	values    valueStack
 	extraArgs valueStack
 	names     map[string]uint32
-	obj       objectImpl
+	obj       *Object
 
 	outer *stash
 ***REMOVED***
@@ -200,8 +200,8 @@ func (s *valueStack) expand(idx int) ***REMOVED***
 
 func (s *stash) put(name string, v Value) bool ***REMOVED***
 	if s.obj != nil ***REMOVED***
-		if found := s.obj.getStr(name); found != nil ***REMOVED***
-			s.obj.putStr(name, v, false)
+		if found := s.obj.self.getStr(name); found != nil ***REMOVED***
+			s.obj.self.putStr(name, v, false)
 			return true
 		***REMOVED***
 		return false
@@ -232,7 +232,7 @@ func (s *stash) getByIdx(idx uint32) Value ***REMOVED***
 
 func (s *stash) getByName(name string, _ *vm) (v Value, exists bool) ***REMOVED***
 	if s.obj != nil ***REMOVED***
-		v = s.obj.getStr(name)
+		v = s.obj.self.getStr(name)
 		if v == nil ***REMOVED***
 			return nil, false
 			//return valueUnresolved***REMOVED***r: vm.r, ref: name***REMOVED***, false
@@ -258,7 +258,7 @@ func (s *stash) createBinding(name string) ***REMOVED***
 
 func (s *stash) deleteBinding(name string) bool ***REMOVED***
 	if s.obj != nil ***REMOVED***
-		return s.obj.deleteStr(name, false)
+		return s.obj.self.deleteStr(name, false)
 	***REMOVED***
 	if idx, found := s.names[name]; found ***REMOVED***
 		s.values[idx] = nil
@@ -1332,9 +1332,9 @@ func (s resolveVar1) exec(vm *vm) ***REMOVED***
 	var ref ref
 	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
 		if stash.obj != nil ***REMOVED***
-			if stash.obj.hasPropertyStr(name) ***REMOVED***
+			if stash.obj.self.hasPropertyStr(name) ***REMOVED***
 				ref = &objRef***REMOVED***
-					base: stash.obj,
+					base: stash.obj.self,
 					name: name,
 				***REMOVED***
 				goto end
@@ -1366,8 +1366,8 @@ func (d deleteVar) exec(vm *vm) ***REMOVED***
 	ret := true
 	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
 		if stash.obj != nil ***REMOVED***
-			if stash.obj.hasPropertyStr(name) ***REMOVED***
-				ret = stash.obj.deleteStr(name, false)
+			if stash.obj.self.hasPropertyStr(name) ***REMOVED***
+				ret = stash.obj.self.deleteStr(name, false)
 				goto end
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
@@ -1416,9 +1416,9 @@ func (s resolveVar1Strict) exec(vm *vm) ***REMOVED***
 	var ref ref
 	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
 		if stash.obj != nil ***REMOVED***
-			if stash.obj.hasPropertyStr(name) ***REMOVED***
+			if stash.obj.self.hasPropertyStr(name) ***REMOVED***
 				ref = &objRef***REMOVED***
-					base:   stash.obj,
+					base:   stash.obj.self,
 					name:   name,
 					strict: true,
 				***REMOVED***
@@ -1492,22 +1492,32 @@ func (g getLocal) exec(vm *vm) ***REMOVED***
 ***REMOVED***
 
 type getVar struct ***REMOVED***
-	name string
-	idx  uint32
-	ref  bool
+	name        string
+	idx         uint32
+	ref, callee bool
 ***REMOVED***
 
 func (g getVar) exec(vm *vm) ***REMOVED***
 	level := int(g.idx >> 24)
-	idx := uint32(g.idx & 0x00FFFFFF)
+	idx := g.idx & 0x00FFFFFF
 	stash := vm.stash
 	name := g.name
 	for i := 0; i < level; i++ ***REMOVED***
 		if v, found := stash.getByName(name, vm); found ***REMOVED***
+			if g.callee ***REMOVED***
+				if stash.obj != nil ***REMOVED***
+					vm.push(stash.obj)
+				***REMOVED*** else ***REMOVED***
+					vm.push(_undefined)
+				***REMOVED***
+			***REMOVED***
 			vm.push(v)
 			goto end
 		***REMOVED***
 		stash = stash.outer
+	***REMOVED***
+	if g.callee ***REMOVED***
+		vm.push(_undefined)
 	***REMOVED***
 	if stash != nil ***REMOVED***
 		vm.push(stash.getByIdx(idx))
@@ -1539,9 +1549,9 @@ func (r resolveVar) exec(vm *vm) ***REMOVED***
 	var ref ref
 	for i := 0; i < level; i++ ***REMOVED***
 		if stash.obj != nil ***REMOVED***
-			if stash.obj.hasPropertyStr(r.name) ***REMOVED***
+			if stash.obj.self.hasPropertyStr(r.name) ***REMOVED***
 				ref = &objRef***REMOVED***
-					base:   stash.obj,
+					base:   stash.obj.self,
 					name:   r.name,
 					strict: r.strict,
 				***REMOVED***
@@ -1632,9 +1642,9 @@ func (n getVar1) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
-type getVar1Callee string
+type getVar1Ref string
 
-func (n getVar1Callee) exec(vm *vm) ***REMOVED***
+func (n getVar1Ref) exec(vm *vm) ***REMOVED***
 	name := string(n)
 	var val Value
 	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
@@ -1648,6 +1658,34 @@ func (n getVar1Callee) exec(vm *vm) ***REMOVED***
 		if val == nil ***REMOVED***
 			val = valueUnresolved***REMOVED***r: vm.r, ref: name***REMOVED***
 		***REMOVED***
+	***REMOVED***
+	vm.push(val)
+	vm.pc++
+***REMOVED***
+
+type getVar1Callee string
+
+func (n getVar1Callee) exec(vm *vm) ***REMOVED***
+	name := string(n)
+	var val Value
+	var callee *Object
+	for stash := vm.stash; stash != nil; stash = stash.outer ***REMOVED***
+		if v, exists := stash.getByName(name, vm); exists ***REMOVED***
+			callee = stash.obj
+			val = v
+			break
+		***REMOVED***
+	***REMOVED***
+	if val == nil ***REMOVED***
+		val = vm.r.globalObject.self.getStr(name)
+		if val == nil ***REMOVED***
+			val = valueUnresolved***REMOVED***r: vm.r, ref: name***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	if callee != nil ***REMOVED***
+		vm.push(callee)
+	***REMOVED*** else ***REMOVED***
+		vm.push(_undefined)
 	***REMOVED***
 	vm.push(val)
 	vm.pc++
@@ -2376,7 +2414,7 @@ var enterWith _enterWith
 
 func (_enterWith) exec(vm *vm) ***REMOVED***
 	vm.newStash()
-	vm.stash.obj = vm.stack[vm.sp-1].ToObject(vm.r).self
+	vm.stash.obj = vm.stack[vm.sp-1].ToObject(vm.r)
 	vm.sp--
 	vm.pc++
 ***REMOVED***

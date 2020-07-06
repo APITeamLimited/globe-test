@@ -26,16 +26,16 @@ import (
 	"net/url"
 	"runtime"
 
-	"github.com/loadimpact/k6/lib/consts"
-
 	"github.com/dop251/goja"
+	"github.com/pkg/errors"
+	"github.com/spf13/afero"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/compiler"
 	jslib "github.com/loadimpact/k6/js/lib"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
-	"github.com/pkg/errors"
-	"github.com/spf13/afero"
 )
 
 // A Bundle is a self-contained bundle of scripts and resources.
@@ -49,14 +49,20 @@ type Bundle struct ***REMOVED***
 	BaseInitContext *InitContext
 
 	Env               map[string]string
-	CompatibilityMode compiler.CompatibilityMode
+	CompatibilityMode lib.CompatibilityMode
+
+	exports map[string]goja.Callable
 ***REMOVED***
 
 // A BundleInstance is a self-contained instance of a Bundle.
 type BundleInstance struct ***REMOVED***
 	Runtime *goja.Runtime
 	Context *context.Context
-	Default goja.Callable
+
+	//TODO: maybe just have a reference to the Bundle? or save and pass rtOpts?
+	env map[string]string
+
+	exports map[string]goja.Callable
 ***REMOVED***
 
 // NewBundle creates a new bundle from a source file and a filesystem.
@@ -83,49 +89,15 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 			filesystems, loader.Dir(src.URL)),
 		Env:               rtOpts.Env,
 		CompatibilityMode: compatMode,
+		exports:           make(map[string]goja.Callable),
 	***REMOVED***
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	// Grab exports.
-	exportsV := rt.Get("exports")
-	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) ***REMOVED***
-		return nil, errors.New("exports must be an object")
-	***REMOVED***
-	exports := exportsV.ToObject(rt)
-
-	// Validate the default function.
-	def := exports.Get("default")
-	if def == nil || goja.IsNull(def) || goja.IsUndefined(def) ***REMOVED***
-		return nil, errors.New("script must export a default function")
-	***REMOVED***
-	if _, ok := goja.AssertFunction(def); !ok ***REMOVED***
-		return nil, errors.New("default export must be a function")
-	***REMOVED***
-
-	// Extract/validate other exports.
-	for _, k := range exports.Keys() ***REMOVED***
-		v := exports.Get(k)
-		switch k ***REMOVED***
-		case "default": // Already checked above.
-		case "options":
-			data, err := json.Marshal(v.Export())
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			if err := json.Unmarshal(data, &bundle.Options); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-		case "setup":
-			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
-				return nil, errors.New("exported 'setup' must be a function")
-			***REMOVED***
-		case "teardown":
-			if _, ok := goja.AssertFunction(v); !ok ***REMOVED***
-				return nil, errors.New("exported 'teardown' must be a function")
-			***REMOVED***
-		***REMOVED***
+	err = bundle.getExports(rt, true)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
 
 	return &bundle, nil
@@ -137,7 +109,13 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
 
-	compatMode, err := lib.ValidateCompatibilityMode(arc.CompatibilityMode)
+	compatModeStr := arc.CompatibilityMode
+	if rtOpts.CompatibilityMode.Valid ***REMOVED***
+		// `k6 run --compatibility-mode=whatever archive.tar` should  override
+		// whatever value is in the archive
+		compatModeStr = rtOpts.CompatibilityMode.String
+	***REMOVED***
+	compatMode, err := lib.ValidateCompatibilityMode(compatModeStr)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -147,8 +125,8 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-
-	initctx := NewInitContext(goja.New(), c, compatMode,
+	rt := goja.New()
+	initctx := NewInitContext(rt, c, compatMode,
 		new(context.Context), arc.Filesystems, arc.PwdURL)
 
 	env := arc.Env
@@ -168,10 +146,20 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		BaseInitContext:   initctx,
 		Env:               env,
 		CompatibilityMode: compatMode,
+		exports:           make(map[string]goja.Callable),
 	***REMOVED***
-	if err := bundle.instantiate(bundle.BaseInitContext.runtime, bundle.BaseInitContext); err != nil ***REMOVED***
+
+	if err = bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+
+	// Grab exported objects, but avoid overwriting options, which would
+	// be initialized from the metadata.json at this point.
+	err = bundle.getExports(rt, false)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
 	return bundle, nil
 ***REMOVED***
 
@@ -196,8 +184,49 @@ func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 	return arc
 ***REMOVED***
 
+// getExports validates and extracts exported objects
+func (b *Bundle) getExports(rt *goja.Runtime, options bool) error ***REMOVED***
+	exportsV := rt.Get("exports")
+	if goja.IsNull(exportsV) || goja.IsUndefined(exportsV) ***REMOVED***
+		return errors.New("exports must be an object")
+	***REMOVED***
+	exports := exportsV.ToObject(rt)
+
+	for _, k := range exports.Keys() ***REMOVED***
+		v := exports.Get(k)
+		if fn, ok := goja.AssertFunction(v); ok && k != consts.Options ***REMOVED***
+			b.exports[k] = fn
+			continue
+		***REMOVED***
+		switch k ***REMOVED***
+		case consts.Options:
+			if !options ***REMOVED***
+				continue
+			***REMOVED***
+			data, err := json.Marshal(v.Export())
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if err := json.Unmarshal(data, &b.Options); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		case consts.SetupFn:
+			return errors.New("exported 'setup' must be a function")
+		case consts.TeardownFn:
+			return errors.New("exported 'teardown' must be a function")
+		***REMOVED***
+	***REMOVED***
+
+	if len(b.exports) == 0 ***REMOVED***
+		return errors.New("no exported functions in script")
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
 // Instantiate creates a new runtime from this bundle.
 func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
+	// TODO: actually use a real context here, so that the instantiation can be killed
 	// Placeholder for a real context.
 	ctxPtr := new(context.Context)
 
@@ -209,11 +238,19 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	// Grab the default function; type is already checked in NewBundle().
+	bi = &BundleInstance***REMOVED***
+		Runtime: rt,
+		Context: ctxPtr,
+		exports: make(map[string]goja.Callable),
+		env:     b.Env,
+	***REMOVED***
+
+	// Grab any exported functions that could be executed. These were
+	// already pre-validated in NewBundle(), just get them here.
 	exports := rt.Get("exports").ToObject(rt)
-	def, ok := goja.AssertFunction(exports.Get("default"))
-	if !ok || def == nil ***REMOVED***
-		panic("exported default is not a function")
+	for k := range b.exports ***REMOVED***
+		fn, _ := goja.AssertFunction(exports.Get(k))
+		bi.exports[k] = fn
 	***REMOVED***
 
 	jsOptions := rt.Get("options")
@@ -230,11 +267,7 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 
-	return &BundleInstance***REMOVED***
-		Runtime: rt,
-		Context: ctxPtr,
-		Default: def,
-	***REMOVED***, instErr
+	return bi, instErr
 ***REMOVED***
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
@@ -243,7 +276,7 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
-	if init.compatibilityMode == compiler.CompatibilityModeExtended ***REMOVED***
+	if init.compatibilityMode == lib.CompatibilityModeExtended ***REMOVED***
 		if _, err := rt.RunProgram(jslib.GetCoreJS()); err != nil ***REMOVED***
 			return err
 		***REMOVED***

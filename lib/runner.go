@@ -26,16 +26,43 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-// Ensure mock implementations conform to the interfaces.
-var _ Runner = &MiniRunner***REMOVED******REMOVED***
-var _ VU = &MiniRunnerVU***REMOVED******REMOVED***
+// ActiveVU represents an actively running virtual user.
+type ActiveVU interface ***REMOVED***
+	// Run the configured exported function in the VU once. The only
+	// way to interrupt the execution is to cancel the context given
+	// to InitializedVU.Activate()
+	RunOnce() error
+***REMOVED***
 
-// A Runner is a factory for VUs. It should precompute as much as possible upon creation (parse
-// ASTs, load files into memory, etc.), so that spawning VUs becomes as fast as possible.
-// The Runner doesn't actually *do* anything in itself, the Executor is responsible for wrapping
-// and scheduling these VUs for execution.
+// InitializedVU represents a virtual user ready for work. It needs to be
+// activated (i.e. given a context) before it can actually be used. Activation
+// also requires a callback function, which will be called when the supplied
+// context is done. That way, VUs can be returned to a pool and reused.
+type InitializedVU interface ***REMOVED***
+	// Fully activate the VU so it will be able to run code
+	Activate(*VUActivationParams) ActiveVU
+
+	// GetID returns the unique VU ID
+	GetID() int64
+***REMOVED***
+
+// VUActivationParams are supplied by each executor when it retrieves a VU from
+// the buffer pool and activates it for use.
+type VUActivationParams struct ***REMOVED***
+	RunContext         context.Context
+	DeactivateCallback func(InitializedVU)
+	Env, Tags          map[string]string
+	Exec, Scenario     string
+***REMOVED***
+
+// A Runner is a factory for VUs. It should precompute as much as possible upon
+// creation (parse ASTs, load files into memory, etc.), so that spawning VUs
+// becomes as fast as possible. The Runner doesn't actually *do* anything in
+// itself, the ExecutionScheduler is responsible for wrapping and scheduling
+// these VUs for execution.
 //
-// TODO: Rename this to something more obvious? This name made sense a very long time ago.
+// TODO: Rename this to something more obvious? This name made sense a very long
+// time ago.
 type Runner interface ***REMOVED***
 	// Creates an Archive of the runner. There should be a corresponding NewFromArchive() function
 	// that will restore the runner from the archive.
@@ -44,7 +71,7 @@ type Runner interface ***REMOVED***
 	// Spawns a new VU. It's fine to make this function rather heavy, if it means a performance
 	// improvement at runtime. Remember, this is called once per VU and normally only at the start
 	// of a test - RunOnce() may be called hundreds of thousands of times, and must be fast.
-	NewVU(out chan<- stats.SampleContainer) (VU, error)
+	NewVU(id int64, out chan<- stats.SampleContainer) (InitializedVU, error)
 
 	// Runs pre-test setup, if applicable.
 	Setup(ctx context.Context, out chan<- stats.SampleContainer) error
@@ -66,98 +93,8 @@ type Runner interface ***REMOVED***
 	// values and write it back to the runner.
 	GetOptions() Options
 	SetOptions(opts Options) error
-***REMOVED***
 
-// A VU is a Virtual User, that can be scheduled by an Executor.
-type VU interface ***REMOVED***
-	// Runs the VU once. The VU is responsible for handling the Halting Problem, eg. making sure
-	// that execution actually stops when the context is cancelled.
-	RunOnce(ctx context.Context) error
-
-	// Assign the VU a new ID. Called by the Executor upon creation, but may be called multiple
-	// times if the VU is recycled because the test was scaled down and then back up.
-	Reconfigure(id int64) error
-***REMOVED***
-
-// MiniRunner wraps a function in a runner whose VUs will simply call that function.
-type MiniRunner struct ***REMOVED***
-	Fn         func(ctx context.Context, out chan<- stats.SampleContainer) error
-	SetupFn    func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error)
-	TeardownFn func(ctx context.Context, out chan<- stats.SampleContainer) error
-
-	setupData []byte
-
-	Group   *Group
-	Options Options
-***REMOVED***
-
-func (r MiniRunner) VU(out chan<- stats.SampleContainer) *MiniRunnerVU ***REMOVED***
-	return &MiniRunnerVU***REMOVED***R: r, Out: out***REMOVED***
-***REMOVED***
-
-func (r MiniRunner) MakeArchive() *Archive ***REMOVED***
-	return nil
-***REMOVED***
-
-func (r MiniRunner) NewVU(out chan<- stats.SampleContainer) (VU, error) ***REMOVED***
-	return r.VU(out), nil
-***REMOVED***
-
-func (r *MiniRunner) Setup(ctx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
-	if fn := r.SetupFn; fn != nil ***REMOVED***
-		r.setupData, err = fn(ctx, out)
-	***REMOVED***
-	return
-***REMOVED***
-
-// GetSetupData returns json representation of the setup data if setup() is specified and run, nil otherwise
-func (r MiniRunner) GetSetupData() []byte ***REMOVED***
-	return r.setupData
-***REMOVED***
-
-// SetSetupData saves the externally supplied setup data as json in the runner
-func (r *MiniRunner) SetSetupData(data []byte) ***REMOVED***
-	r.setupData = data
-***REMOVED***
-
-func (r MiniRunner) Teardown(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-	if fn := r.TeardownFn; fn != nil ***REMOVED***
-		return fn(ctx, out)
-	***REMOVED***
-	return nil
-***REMOVED***
-
-func (r MiniRunner) GetDefaultGroup() *Group ***REMOVED***
-	if r.Group == nil ***REMOVED***
-		r.Group = &Group***REMOVED******REMOVED***
-	***REMOVED***
-	return r.Group
-***REMOVED***
-
-func (r MiniRunner) GetOptions() Options ***REMOVED***
-	return r.Options
-***REMOVED***
-
-func (r *MiniRunner) SetOptions(opts Options) error ***REMOVED***
-	r.Options = opts
-	return nil
-***REMOVED***
-
-// A VU spawned by a MiniRunner.
-type MiniRunnerVU struct ***REMOVED***
-	R   MiniRunner
-	Out chan<- stats.SampleContainer
-	ID  int64
-***REMOVED***
-
-func (vu MiniRunnerVU) RunOnce(ctx context.Context) error ***REMOVED***
-	if vu.R.Fn == nil ***REMOVED***
-		return nil
-	***REMOVED***
-	return vu.R.Fn(ctx, vu.Out)
-***REMOVED***
-
-func (vu *MiniRunnerVU) Reconfigure(id int64) error ***REMOVED***
-	vu.ID = id
-	return nil
+	// Returns whether the given name is an exported and executable
+	// function in the script.
+	IsExecutable(string) bool
 ***REMOVED***

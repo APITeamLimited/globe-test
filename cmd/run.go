@@ -25,12 +25,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,7 +38,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/api"
 	"github.com/loadimpact/k6/core"
@@ -47,9 +45,9 @@ import (
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/ui"
+	"github.com/loadimpact/k6/ui/pb"
 )
 
 const (
@@ -62,14 +60,13 @@ const (
 	genericTimeoutErrorCode      = 102
 	genericEngineErrorCode       = 103
 	invalidConfigErrorCode       = 104
+	externalAbortErrorCode       = 105
+	cannotStartRESTAPIErrorCode  = 106
 )
 
-var (
-	//TODO: fix this, global variables are not very testable...
-	runType       = os.Getenv("K6_TYPE")
-	runNoSetup    = os.Getenv("K6_NO_SETUP") != ""
-	runNoTeardown = os.Getenv("K6_NO_TEARDOWN") != ""
-)
+// TODO: fix this, global variables are not very testable...
+//nolint:gochecknoglobals
+var runType = os.Getenv("K6_TYPE")
 
 // runCmd represents the run command.
 var runCmd = &cobra.Command***REMOVED***
@@ -99,16 +96,16 @@ a commandline interface for interacting with it.`,
   k6 run -o influxdb=http://1.2.3.4:8086/k6`[1:],
 	Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		//TODO: disable in quiet mode?
+		// TODO: disable in quiet mode?
 		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner)
 
-		initBar := ui.ProgressBar***REMOVED***
-			Width: 60,
-			Left:  func() string ***REMOVED*** return "    init" ***REMOVED***,
-		***REMOVED***
+		initBar := pb.New(
+			pb.WithConstLeft(" Init"),
+			pb.WithConstProgress(0, "runner"),
+		)
+		printBar(initBar)
 
 		// Create the Runner.
-		fprintf(stdout, "%s runner\r", initBar.String())
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
 			return err
@@ -120,7 +117,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -130,7 +127,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		fprintf(stdout, "%s options\r", initBar.String())
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "options"))
 
 		cliConf, err := getConfig(cmd.Flags())
 		if err != nil ***REMOVED***
@@ -141,37 +138,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		// If -m/--max isn't specified, figure out the max that should be needed.
-		if !conf.VUsMax.Valid ***REMOVED***
-			conf.VUsMax = null.NewInt(conf.VUs.Int64, conf.VUs.Valid)
-			for _, stage := range conf.Stages ***REMOVED***
-				if stage.Target.Valid && stage.Target.Int64 > conf.VUsMax.Int64 ***REMOVED***
-					conf.VUsMax = stage.Target
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		// If -d/--duration, -i/--iterations and -s/--stage are all unset, run to one iteration.
-		if !conf.Duration.Valid && !conf.Iterations.Valid && len(conf.Stages) == 0 ***REMOVED***
-			conf.Iterations = null.IntFrom(1)
-		***REMOVED***
-
-		if conf.Iterations.Valid && conf.Iterations.Int64 < conf.VUsMax.Int64 ***REMOVED***
-			logrus.Warnf(
-				"All iterations (%d in this test run) are shared between all VUs, so some of the %d VUs will not execute even a single iteration!",
-				conf.Iterations.Int64, conf.VUsMax.Int64,
-			)
-		***REMOVED***
-
-		//TODO: move a bunch of the logic above to a config "constructor" and to the Validate() method
-
-		// If duration is explicitly set to 0, it means run forever.
-		//TODO: just... handle this differently, e.g. as a part of the manual executor
-		if conf.Duration.Valid && conf.Duration.Duration == 0 ***REMOVED***
-			conf.Duration = types.NullDuration***REMOVED******REMOVED***
-		***REMOVED***
-
-		conf, cerr := deriveAndValidateConfig(conf)
+		conf, cerr := deriveAndValidateConfig(conf, r.IsExecutable)
 		if cerr != nil ***REMOVED***
 			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
 		***REMOVED***
@@ -181,23 +148,57 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		// Create a local executor wrapping the runner.
-		fprintf(stdout, "%s executor\r", initBar.String())
-		ex := local.New(r)
-		if runNoSetup ***REMOVED***
-			ex.SetRunSetup(false)
-		***REMOVED***
-		if runNoTeardown ***REMOVED***
-			ex.SetRunTeardown(false)
-		***REMOVED***
+		// TODO: don't use a global... or maybe change the logger?
+		logger := logrus.StandardLogger()
 
-		// Create an engine.
-		fprintf(stdout, "%s   engine\r", initBar.String())
-		engine, err := core.NewEngine(ex, conf.Options)
+		// We prepare a bunch of contexts:
+		//  - The runCtx is cancelled as soon as the Engine's run() lambda finishes,
+		//    and can trigger things like the usage report and end of test summary.
+		//    Crucially, metrics processing by the Engine will still work after this
+		//    context is cancelled!
+		//  - The lingerCtx is cancelled by Ctrl+C, and is used to wait for that
+		//    event when k6 was ran with the --linger option.
+		//  - The globalCtx is cancelled only after we're completely done with the
+		//    test execution and any --linger has been cleared, so that the Engine
+		//    can start winding down its metrics processing.
+		globalCtx, globalCancel := context.WithCancel(context.Background())
+		defer globalCancel()
+		lingerCtx, lingerCancel := context.WithCancel(globalCtx)
+		defer lingerCancel()
+		runCtx, runCancel := context.WithCancel(lingerCtx)
+		defer runCancel()
+
+		// Create a local execution scheduler wrapping the runner.
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "execution scheduler"))
+		execScheduler, err := local.NewExecutionScheduler(r, logger)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
+		executionState := execScheduler.GetState()
+
+		// This is manually triggered after the Engine's Run() has completed,
+		// and things like a single Ctrl+C don't affect it. We use it to make
+		// sure that the progressbars finish updating with the latest execution
+		// state one last time, after the test run has finished.
+		progressCtx, progressCancel := context.WithCancel(globalCtx)
+		defer progressCancel()
+		initBar = execScheduler.GetInitProgressBar()
+		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
+		progressBarWG.Add(1)
+		go func() ***REMOVED***
+			showProgress(progressCtx, conf, execScheduler, logger)
+			progressBarWG.Done()
+		***REMOVED***()
+
+		// Create an engine.
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init engine"))
+		engine, err := core.NewEngine(execScheduler, conf.Options, logger)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		// TODO: refactor, the engine should have a copy of the config...
 		// Configure the engine.
 		if conf.NoThresholds.Valid ***REMOVED***
 			engine.NoThresholds = conf.NoThresholds.Bool
@@ -209,241 +210,103 @@ a commandline interface for interacting with it.`,
 			engine.SummaryExport = conf.SummaryExport.String != ""
 		***REMOVED***
 
+		executionPlan := execScheduler.GetExecutionPlan()
 		// Create a collector and assign it to the engine if requested.
-		fprintf(stdout, "%s   collector\r", initBar.String())
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init metric outputs"))
 		for _, out := range conf.Out ***REMOVED***
 			t, arg := parseCollector(out)
-			collector, err := newCollector(t, arg, src, conf)
-			if err != nil ***REMOVED***
-				return err
+			collector, cerr := newCollector(t, arg, src, conf, executionPlan)
+			if cerr != nil ***REMOVED***
+				return cerr
 			***REMOVED***
-			if err := collector.Init(); err != nil ***REMOVED***
-				return err
+			if cerr = collector.Init(); cerr != nil ***REMOVED***
+				return cerr
 			***REMOVED***
 			engine.Collectors = append(engine.Collectors, collector)
 		***REMOVED***
 
-		// Create an API server.
-		fprintf(stdout, "%s   server\r", initBar.String())
-		go func() ***REMOVED***
-			if err := api.ListenAndServe(address, engine); err != nil ***REMOVED***
-				logrus.WithError(err).Warn("Error from API server")
-			***REMOVED***
-		***REMOVED***()
-
-		// Write the big banner.
-		***REMOVED***
-			out := "-"
-			link := ""
-
-			for idx, collector := range engine.Collectors ***REMOVED***
-				if out != "-" ***REMOVED***
-					out = out + "; " + conf.Out[idx]
-				***REMOVED*** else ***REMOVED***
-					out = conf.Out[idx]
+		// Spin up the REST API server, if not disabled.
+		if address != "" ***REMOVED***
+			modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init API server"))
+			go func() ***REMOVED***
+				logger.Debugf("Starting the REST API server on %s", address)
+				if aerr := api.ListenAndServe(address, engine); aerr != nil ***REMOVED***
+					// Only exit k6 if the user has explicitly set the REST API address
+					if cmd.Flags().Lookup("address").Changed ***REMOVED***
+						logger.WithError(aerr).Error("Error from API server")
+						os.Exit(cannotStartRESTAPIErrorCode)
+					***REMOVED*** else ***REMOVED***
+						logger.WithError(aerr).Warn("Error from API server")
+					***REMOVED***
 				***REMOVED***
-
-				if l := collector.Link(); l != "" ***REMOVED***
-					link = link + " (" + l + ")"
-				***REMOVED***
-			***REMOVED***
-
-			fprintf(stdout, "  execution: %s\n", ui.ValueColor.Sprint("local"))
-			fprintf(stdout, "     output: %s%s\n", ui.ValueColor.Sprint(out), ui.ExtraColor.Sprint(link))
-			fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
-			fprintf(stdout, "\n")
-
-			duration := ui.GrayColor.Sprint("-")
-			iterations := ui.GrayColor.Sprint("-")
-			if conf.Duration.Valid ***REMOVED***
-				duration = ui.ValueColor.Sprint(conf.Duration.Duration)
-			***REMOVED***
-			if conf.Iterations.Valid ***REMOVED***
-				iterations = ui.ValueColor.Sprint(conf.Iterations.Int64)
-			***REMOVED***
-			vus := ui.ValueColor.Sprint(conf.VUs.Int64)
-			max := ui.ValueColor.Sprint(conf.VUsMax.Int64)
-
-			leftWidth := ui.StrWidth(duration)
-			if l := ui.StrWidth(vus); l > leftWidth ***REMOVED***
-				leftWidth = l
-			***REMOVED***
-			durationPad := strings.Repeat(" ", leftWidth-ui.StrWidth(duration))
-			vusPad := strings.Repeat(" ", leftWidth-ui.StrWidth(vus))
-
-			fprintf(stdout, "    duration: %s,%s iterations: %s\n", duration, durationPad, iterations)
-			fprintf(stdout, "         vus: %s,%s max: %s\n", vus, vusPad, max)
-			fprintf(stdout, "\n")
+			***REMOVED***()
 		***REMOVED***
 
-		// Run the engine with a cancellable context.
-		fprintf(stdout, "%s starting\r", initBar.String())
-		ctx, cancel := context.WithCancel(context.Background())
-		errC := make(chan error)
-		go func() ***REMOVED*** errC <- engine.Run(ctx) ***REMOVED***()
+		printExecutionDescription(
+			"local", filename, "", conf, execScheduler.GetState().ExecutionTuple,
+			executionPlan, engine.Collectors)
 
 		// Trap Interrupts, SIGINTs and SIGTERMs.
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
+		go func() ***REMOVED***
+			sig := <-sigC
+			logger.WithField("sig", sig).Debug("Stopping k6 in response to signal...")
+			lingerCancel() // stop the test run, metric processing is cancelled below
 
-		// If the user hasn't opted out: report usage.
+			// If we get a second signal, we immediately exit, so something like
+			// https://github.com/loadimpact/k6/issues/971 never happens again
+			sig = <-sigC
+			logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
+			globalCancel() // not that it matters, given the following command...
+			os.Exit(externalAbortErrorCode)
+		***REMOVED***()
+
+		// Initialize the engine
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init VUs"))
+		engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
+		if err != nil ***REMOVED***
+			return getExitCodeFromEngine(err)
+		***REMOVED***
+
+		// Init has passed successfully, so unless disabled, make sure we send a
+		// usage report after the context is done.
 		if !conf.NoUsageReport.Bool ***REMOVED***
+			reportDone := make(chan struct***REMOVED******REMOVED***)
 			go func() ***REMOVED***
-				u := "https://reports.k6.io/"
-				mime := "application/json"
-				var endTSeconds float64
-				if endT := engine.Executor.GetEndTime(); endT.Valid ***REMOVED***
-					endTSeconds = time.Duration(endT.Duration).Seconds()
+				<-runCtx.Done()
+				_ = reportUsage(execScheduler)
+				close(reportDone)
+			***REMOVED***()
+			defer func() ***REMOVED***
+				select ***REMOVED***
+				case <-reportDone:
+				case <-time.After(3 * time.Second):
 				***REMOVED***
-				var stagesEndTSeconds float64
-				if stagesEndT := lib.SumStages(engine.Executor.GetStages()); stagesEndT.Valid ***REMOVED***
-					stagesEndTSeconds = time.Duration(stagesEndT.Duration).Seconds()
-				***REMOVED***
-				body, err := json.Marshal(map[string]interface***REMOVED******REMOVED******REMOVED***
-					"k6_version":  consts.Version,
-					"vus_max":     engine.Executor.GetVUsMax(),
-					"iterations":  engine.Executor.GetEndIterations(),
-					"duration":    endTSeconds,
-					"st_duration": stagesEndTSeconds,
-					"goos":        runtime.GOOS,
-					"goarch":      runtime.GOARCH,
-				***REMOVED***)
-				if err != nil ***REMOVED***
-					panic(err) // This should never happen!!
-				***REMOVED***
-				_, _ = http.Post(u, mime, bytes.NewBuffer(body))
 			***REMOVED***()
 		***REMOVED***
 
-		// Prepare a progress bar.
-		progress := ui.ProgressBar***REMOVED***
-			Width: 60,
-			Left: func() string ***REMOVED***
-				if engine.Executor.IsPaused() ***REMOVED***
-					return "  paused"
-				***REMOVED*** else if engine.Executor.IsRunning() ***REMOVED***
-					return " running"
-				***REMOVED*** else ***REMOVED***
-					return "    done"
-				***REMOVED***
-			***REMOVED***,
-			Right: func() string ***REMOVED***
-				if endIt := engine.Executor.GetEndIterations(); endIt.Valid ***REMOVED***
-					return fmt.Sprintf("%d / %d", engine.Executor.GetIterations(), endIt.Int64)
-				***REMOVED***
-				precision := 100 * time.Millisecond
-				atT := engine.Executor.GetTime()
-				stagesEndT := lib.SumStages(engine.Executor.GetStages())
-				endT := engine.Executor.GetEndTime()
-				if !endT.Valid || (stagesEndT.Valid && endT.Duration > stagesEndT.Duration) ***REMOVED***
-					endT = stagesEndT
-				***REMOVED***
-				if endT.Valid ***REMOVED***
-					return fmt.Sprintf("%s / %s",
-						(atT/precision)*precision,
-						(time.Duration(endT.Duration)/precision)*precision,
-					)
-				***REMOVED***
-				return ((atT / precision) * precision).String()
-			***REMOVED***,
+		// Start the test run
+		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Start test"))
+		if err := engineRun(); err != nil ***REMOVED***
+			return getExitCodeFromEngine(err)
 		***REMOVED***
+		runCancel()
+		logger.Debug("Engine run terminated cleanly")
 
-		// Ticker for progress bar updates. Less frequent updates for non-TTYs, none if quiet.
-		updateFreq := 50 * time.Millisecond
-		if !stdoutTTY ***REMOVED***
-			updateFreq = 1 * time.Second
-		***REMOVED***
-		ticker := time.NewTicker(updateFreq)
-		if quiet || conf.HTTPDebug.Valid && conf.HTTPDebug.String != "" ***REMOVED***
-			ticker.Stop()
-		***REMOVED***
-	mainLoop:
-		for ***REMOVED***
-			select ***REMOVED***
-			case <-ticker.C:
-				if quiet || !stdoutTTY ***REMOVED***
-					l := logrus.WithFields(logrus.Fields***REMOVED***
-						"t": engine.Executor.GetTime(),
-						"i": engine.Executor.GetIterations(),
-					***REMOVED***)
-					fn := l.Info
-					if quiet ***REMOVED***
-						fn = l.Debug
-					***REMOVED***
-					if engine.Executor.IsPaused() ***REMOVED***
-						fn("Paused")
-					***REMOVED*** else ***REMOVED***
-						fn("Running")
-					***REMOVED***
-					break
-				***REMOVED***
-
-				var prog float64
-				if endIt := engine.Executor.GetEndIterations(); endIt.Valid ***REMOVED***
-					prog = float64(engine.Executor.GetIterations()) / float64(endIt.Int64)
-				***REMOVED*** else ***REMOVED***
-					stagesEndT := lib.SumStages(engine.Executor.GetStages())
-					endT := engine.Executor.GetEndTime()
-					if !endT.Valid || (stagesEndT.Valid && endT.Duration > stagesEndT.Duration) ***REMOVED***
-						endT = stagesEndT
-					***REMOVED***
-					if endT.Valid ***REMOVED***
-						prog = float64(engine.Executor.GetTime()) / float64(endT.Duration)
-					***REMOVED***
-				***REMOVED***
-				progress.Progress = prog
-				fprintf(stdout, "%s\x1b[0K\r", progress.String())
-			case err := <-errC:
-				cancel()
-				if err == nil ***REMOVED***
-					logrus.Debug("Engine terminated cleanly")
-					break mainLoop
-				***REMOVED***
-
-				switch e := errors.Cause(err).(type) ***REMOVED***
-				case lib.TimeoutError:
-					switch e.Place() ***REMOVED***
-					case "setup":
-						return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
-					case "teardown":
-						return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
-					default:
-						return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
-					***REMOVED***
-				default:
-					//nolint:golint
-					return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
-				***REMOVED***
-			case sig := <-sigC:
-				logrus.WithField("sig", sig).Debug("Exiting in response to signal")
-				cancel()
-			***REMOVED***
-		***REMOVED***
-		if quiet || !stdoutTTY ***REMOVED***
-			e := logrus.WithFields(logrus.Fields***REMOVED***
-				"t": engine.Executor.GetTime(),
-				"i": engine.Executor.GetIterations(),
-			***REMOVED***)
-			fn := e.Info
-			if quiet ***REMOVED***
-				fn = e.Debug
-			***REMOVED***
-			fn("Test finished")
-		***REMOVED*** else ***REMOVED***
-			progress.Progress = 1
-			fprintf(stdout, "%s\x1b[0K\n", progress.String())
-		***REMOVED***
+		progressCancel()
+		progressBarWG.Wait()
 
 		// Warn if no iterations could be completed.
-		if engine.Executor.GetIterations() == 0 ***REMOVED***
-			logrus.Warn("No data generated, because no script iterations finished, consider making the test duration longer")
+		if executionState.GetFullIterationCount() == 0 ***REMOVED***
+			logger.Warn("No script iterations finished, consider making the test duration longer")
 		***REMOVED***
 
 		data := ui.SummaryData***REMOVED***
 			Metrics:   engine.Metrics,
-			RootGroup: engine.Executor.GetRunner().GetDefaultGroup(),
-			Time:      engine.Executor.GetTime(),
+			RootGroup: engine.ExecutionScheduler.GetRunner().GetDefaultGroup(),
+			Time:      executionState.GetCurrentTestRunDuration(),
 			TimeUnit:  conf.Options.SummaryTimeUnit.String,
 		***REMOVED***
 		// Print the end-of-test summary.
@@ -474,15 +337,71 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		if conf.Linger.Bool ***REMOVED***
-			logrus.Info("Linger set; waiting for Ctrl+C...")
-			<-sigC
+			select ***REMOVED***
+			case <-lingerCtx.Done():
+				// do nothing, we were interrupted by Ctrl+C already
+			default:
+				logger.Info("Linger set; waiting for Ctrl+C...")
+				<-lingerCtx.Done()
+			***REMOVED***
 		***REMOVED***
+		globalCancel() // signal the Engine that it should wind down
+		logger.Debug("Waiting for engine processes to finish...")
+		engineWait()
 
 		if engine.IsTainted() ***REMOVED***
 			return ExitCode***REMOVED***error: errors.New("some thresholds have failed"), Code: thresholdHaveFailedErrorCode***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***,
+***REMOVED***
+
+func getExitCodeFromEngine(err error) ExitCode ***REMOVED***
+	switch e := errors.Cause(err).(type) ***REMOVED***
+	case lib.TimeoutError:
+		switch e.Place() ***REMOVED***
+		case consts.SetupFn:
+			return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+		case consts.TeardownFn:
+			return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+		default:
+			return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
+		***REMOVED***
+	default:
+		//nolint:golint
+		return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
+	execState := execScheduler.GetState()
+	executorConfigs := execScheduler.GetExecutorConfigs()
+
+	executors := make(map[string]int)
+	for _, ec := range executorConfigs ***REMOVED***
+		executors[ec.GetType()]++
+	***REMOVED***
+
+	body, err := json.Marshal(map[string]interface***REMOVED******REMOVED******REMOVED***
+		"k6_version": consts.Version,
+		"executors":  executors,
+		"vus_max":    execState.GetInitializedVUsCount(),
+		"iterations": execState.GetFullIterationCount(),
+		"duration":   execState.GetCurrentTestRunDuration().String(),
+		"goos":       runtime.GOOS,
+		"goarch":     runtime.GOARCH,
+	***REMOVED***)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	res, err := http.Post("https://reports.k6.io/", "application/json", bytes.NewBuffer(body))
+	defer func() ***REMOVED***
+		if err == nil ***REMOVED***
+			_ = res.Body.Close()
+		***REMOVED***
+	***REMOVED***()
+
+	return err
 ***REMOVED***
 
 func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
@@ -492,7 +411,7 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.AddFlagSet(runtimeOptionFlagSet(true))
 	flags.AddFlagSet(configFlagSet())
 
-	//TODO: Figure out a better way to handle the CLI flags:
+	// TODO: Figure out a better way to handle the CLI flags:
 	// - the default values are specified in this way so we don't overwrire whatever
 	//   was specified via the environment variables
 	// - but we need to manually specify the DefValue, since that's the default value
@@ -501,11 +420,6 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	// - and finally, global variables are not very testable... :/
 	flags.StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
 	flags.Lookup("type").DefValue = ""
-	flags.BoolVar(&runNoSetup, "no-setup", runNoSetup, "don't run setup()")
-	falseStr := "false" // avoiding goconst warnings...
-	flags.Lookup("no-setup").DefValue = falseStr
-	flags.BoolVar(&runNoTeardown, "no-teardown", runNoTeardown, "don't run teardown()")
-	flags.Lookup("no-teardown").DefValue = falseStr
 	return flags
 ***REMOVED***
 

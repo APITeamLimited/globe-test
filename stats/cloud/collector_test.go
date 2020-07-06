@@ -33,11 +33,9 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/stretchr/testify/assert"
-
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
@@ -186,7 +184,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, "1.0")
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, collector.config.Host.Valid)
@@ -214,6 +212,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 	expectedTags := stats.IntoSampleTags(&expectedTagMap)
 
 	expSamples := make(chan []Sample)
+	defer close(expSamples)
 	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
 	tb.Mux.HandleFunc(fmt.Sprintf("/v1/tests/%s", collector.referenceID), func(rw http.ResponseWriter, _ *http.Request) ***REMOVED***
 		rw.WriteHeader(http.StatusOK) // silence a test warning
@@ -343,7 +342,7 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, "1.0")
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 	now := time.Now()
 	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
@@ -432,10 +431,11 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	config := NewConfig().Apply(Config***REMOVED***
-		Host:       null.StringFrom(tb.ServerHTTP.URL),
-		NoCompress: null.BoolFrom(true),
+		Host:                       null.StringFrom(tb.ServerHTTP.URL),
+		NoCompress:                 null.BoolFrom(true),
+		MaxMetricSamplesPerPackage: null.IntFrom(50),
 	***REMOVED***)
-	collector, err := New(config, script, options, "1.0")
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 	now := time.Now()
 	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
@@ -504,8 +504,12 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	cancel()
 	wg.Wait()
 	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
-	_, ok := <-collector.stopSendingMetricsCh
-	require.False(t, ok)
+	select ***REMOVED***
+	case <-collector.stopSendingMetricsCh:
+		// all is fine
+	default:
+		t.Fatal("sending metrics wasn't stopped")
+	***REMOVED***
 	require.Equal(t, max, count)
 
 	nBufferSamples := len(collector.bufferSamples)
@@ -551,7 +555,7 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, "1.0")
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, collector.config.Host.Valid)
@@ -572,6 +576,7 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	assert.Equal(t, types.Duration(5*time.Millisecond), collector.config.AggregationWaitPeriod.Duration)
 
 	expSamples := make(chan []Sample)
+	defer close(expSamples)
 	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -609,7 +614,7 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, "1.0")
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
 	var gotIterations = false
@@ -724,7 +729,7 @@ func TestNewName(t *testing.T) ***REMOVED***
 			***REMOVED***
 			collector, err := New(NewConfig(), script, lib.Options***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
-			***REMOVED***, "1.0")
+			***REMOVED***, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 			require.NoError(t, err)
 			require.Equal(t, collector.config.Name.String, testCase.expected)
 		***REMOVED***)

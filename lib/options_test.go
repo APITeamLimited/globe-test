@@ -23,19 +23,20 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/loadimpact/k6/lib/scheduler"
-	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 func TestOptions(t *testing.T) ***REMOVED***
@@ -48,11 +49,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.VUs.Valid)
 		assert.Equal(t, int64(12345), opts.VUs.Int64)
-	***REMOVED***)
-	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUsMax: null.IntFrom(12345)***REMOVED***)
-		assert.True(t, opts.VUsMax.Valid)
-		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: types.NullDurationFrom(2 * time.Minute)***REMOVED***)
@@ -88,17 +84,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, oneStage, opts.Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 		assert.Equal(t, oneStage, Options***REMOVED******REMOVED***.Apply(opts).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 	***REMOVED***)
-	t.Run("Execution", func(t *testing.T) ***REMOVED***
-		sched := scheduler.NewConstantLoopingVUsConfig("test")
-		sched.VUs = null.IntFrom(123)
-		sched.Duration = types.NullDurationFrom(3 * time.Minute)
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Execution: scheduler.ConfigMap***REMOVED***"test": sched***REMOVED******REMOVED***)
-		cs, ok := opts.Execution["test"].(scheduler.ConstantLoopingVUsConfig)
-		assert.True(t, ok)
-		assert.Equal(t, int64(123), cs.VUs.Int64)
-		assert.Equal(t, "3m0s", cs.Duration.String())
-	***REMOVED***)
-	//TODO: test that any execution option overwrites any other lower-level options
+	// Execution overwriting is tested by the config consolidation test in cmd
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.RPS.Valid)
@@ -146,7 +132,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
-
 			t.Run("String", func(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]***REMOVED***`
@@ -401,7 +386,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.DiscardResponseBodies.Valid)
 		assert.True(t, opts.DiscardResponseBodies.Bool)
 	***REMOVED***)
-
 ***REMOVED***
 
 func TestOptionsEnv(t *testing.T) ***REMOVED***
@@ -415,10 +399,6 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"":    null.Int***REMOVED******REMOVED***,
 			"123": null.IntFrom(123),
 		***REMOVED***,
-		***REMOVED***"VUsMax", "K6_VUS_MAX"***REMOVED***: ***REMOVED***
-			"":    null.Int***REMOVED******REMOVED***,
-			"123": null.IntFrom(123),
-		***REMOVED***,
 		***REMOVED***"Duration", "K6_DURATION"***REMOVED***: ***REMOVED***
 			"":    types.NullDuration***REMOVED******REMOVED***,
 			"10s": types.NullDurationFrom(10 * time.Second),
@@ -429,8 +409,10 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***"Stages", "K6_STAGES"***REMOVED***: ***REMOVED***
 			// "": []Stage***REMOVED******REMOVED***,
-			"1s": []Stage***REMOVED******REMOVED***
-				Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+			"1s": []Stage***REMOVED***
+				***REMOVED***
+					Duration: types.NullDurationFrom(1 * time.Second),
+				***REMOVED***,
 			***REMOVED***,
 			"1s:100": []Stage***REMOVED***
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
@@ -480,11 +462,13 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		// External
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
-		os.Clearenv()
+		field, data := field, data
 		t.Run(field.Name, func(t *testing.T) ***REMOVED***
 			for str, val := range data ***REMOVED***
+				str, val := str, val
 				t.Run(`"`+str+`"`, func(t *testing.T) ***REMOVED***
-					assert.NoError(t, os.Setenv(field.Key, str))
+					restore := testutils.SetEnv(t, []string***REMOVED***fmt.Sprintf("%s=%s", field.Key, str)***REMOVED***)
+					defer restore()
 					var opts Options
 					assert.NoError(t, envconfig.Process("k6", &opts))
 					assert.Equal(t, val, reflect.ValueOf(opts).FieldByName(field.Name).Interface())
@@ -495,8 +479,7 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
-
-	var testData = []struct ***REMOVED***
+	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *IPNet
 		expactFailure  bool

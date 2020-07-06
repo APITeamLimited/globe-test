@@ -33,7 +33,7 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
@@ -70,29 +70,29 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 		assert.Equal(t, "b", entry.Message)
 	***REMOVED***
 ***REMOVED***
-func getSimpleRunner(path, data string) (*Runner, error) ***REMOVED***
-	return getSimpleRunnerWithFileFs(path, data, afero.NewMemMapFs())
+func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
+	var (
+		fs     = afero.NewMemMapFs()
+		rtOpts = lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
+	)
+	for _, o := range opts ***REMOVED***
+		switch opt := o.(type) ***REMOVED***
+		case afero.Fs:
+			fs = opt
+		case lib.RuntimeOptions:
+			rtOpts = opt
+		***REMOVED***
+	***REMOVED***
+	return New(
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
+			Data: []byte(data),
+		***REMOVED***,
+		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
+		rtOpts,
+	)
 ***REMOVED***
 
-func getSimpleRunnerWithOptions(path, data string, options lib.RuntimeOptions) (*Runner, error) ***REMOVED***
-	return New(&loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
-		Data: []byte(data),
-	***REMOVED***, map[string]afero.Fs***REMOVED***
-		"file":  afero.NewMemMapFs(),
-		"https": afero.NewMemMapFs()***REMOVED***,
-		options)
-***REMOVED***
-
-func getSimpleRunnerWithFileFs(path, data string, fileFs afero.Fs) (*Runner, error) ***REMOVED***
-	return New(&loader.SourceData***REMOVED***
-		URL:  &url.URL***REMOVED***Path: path, Scheme: "file"***REMOVED***,
-		Data: []byte(data),
-	***REMOVED***, map[string]afero.Fs***REMOVED***
-		"file":  fileFs,
-		"https": afero.NewMemMapFs()***REMOVED***,
-		lib.RuntimeOptions***REMOVED******REMOVED***)
-***REMOVED***
 func TestConsole(t *testing.T) ***REMOVED***
 	levels := map[string]logrus.Level***REMOVED***
 		"log":   logrus.InfoLevel,
@@ -117,20 +117,25 @@ func TestConsole(t *testing.T) ***REMOVED***
 				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
 					r, err := getSimpleRunner("/script.js", fmt.Sprintf(
-						`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+						`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 						name, args,
 					))
 					assert.NoError(t, err)
 
 					samples := make(chan stats.SampleContainer, 100)
-					vu, err := r.newVU(samples)
+					initVU, err := r.newVU(1, samples)
 					assert.NoError(t, err)
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 
 					logger, hook := logtest.NewNullLogger()
 					logger.Level = logrus.DebugLevel
-					vu.Console.Logger = logger
+					jsVU := vu.(*ActiveVU)
+					jsVU.Console.Logger = logger
 
-					err = vu.RunOnce(context.Background())
+					err = vu.RunOnce()
 					assert.NoError(t, err)
 
 					entry := hook.LastEntry()
@@ -204,7 +209,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							***REMOVED***
 							r, err := getSimpleRunner("/script",
 								fmt.Sprintf(
-									`export default function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
+									`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,
 								))
 							assert.NoError(t, err)
@@ -215,13 +220,17 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							assert.NoError(t, err)
 
 							samples := make(chan stats.SampleContainer, 100)
-							vu, err := r.newVU(samples)
+							initVU, err := r.newVU(1, samples)
 							assert.NoError(t, err)
 
-							vu.Console.Logger.Level = logrus.DebugLevel
-							hook := logtest.NewLocal(vu.Console.Logger)
+							ctx, cancel := context.WithCancel(context.Background())
+							defer cancel()
+							vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+							jsVU := vu.(*ActiveVU)
+							jsVU.Console.Logger.Level = logrus.DebugLevel
+							hook := logtest.NewLocal(jsVU.Console.Logger)
 
-							err = vu.RunOnce(context.Background())
+							err = vu.RunOnce()
 							assert.NoError(t, err)
 
 							// Test if the file was created.

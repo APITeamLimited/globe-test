@@ -25,16 +25,17 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/loadimpact/k6/api/common"
 	"github.com/manyminds/api2go/jsonapi"
+
+	"github.com/loadimpact/k6/api/common"
 )
 
 func HandleGetMetrics(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
 	engine := common.GetEngine(r.Context())
 
 	var t time.Duration
-	if engine.Executor != nil ***REMOVED***
-		t = engine.Executor.GetTime()
+	if engine.ExecutionScheduler != nil ***REMOVED***
+		t = engine.ExecutionScheduler.GetState().GetCurrentTestRunDuration()
 	***REMOVED***
 
 	metrics := make([]Metric, 0)
@@ -55,8 +56,8 @@ func HandleGetMetric(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 	engine := common.GetEngine(r.Context())
 
 	var t time.Duration
-	if engine.Executor != nil ***REMOVED***
-		t = engine.Executor.GetTime()
+	if engine.ExecutionScheduler != nil ***REMOVED***
+		t = engine.ExecutionScheduler.GetState().GetCurrentTestRunDuration()
 	***REMOVED***
 
 	var metric Metric

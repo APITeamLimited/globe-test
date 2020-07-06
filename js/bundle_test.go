@@ -33,16 +33,16 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/compiler"
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/fsext"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
 )
 
 const isWindows = runtime.GOOS == "windows"
@@ -73,7 +73,7 @@ func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REM
 func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", "")
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", "\x00")
@@ -90,15 +90,15 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default undefined;`)
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default null;`)
-		assert.EqualError(t, err, "script must export a default function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default 12345;`)
-		assert.EqualError(t, err, "default export must be a function")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle("/script.js", `export default function() ***REMOVED******REMOVED***;`)
@@ -114,14 +114,16 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
 		t.Run("Extended/ok/CoreJS", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeExtended.String())***REMOVED***
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
+			***REMOVED***
 			_, err := getSimpleBundle("/script.js",
 				`export default function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`, rtOpts)
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
+			***REMOVED***
 			_, err := getSimpleBundle("/script.js",
 				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
 			assert.NoError(t, err)
@@ -133,19 +135,27 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				code       string
 				expErr     string
 			***REMOVED******REMOVED***
-				***REMOVED***"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
-					`invalid compatibility mode "es1". Use: "extended", "base"`***REMOVED***,
+				***REMOVED***
+					"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
+					`invalid compatibility mode "es1". Use: "extended", "base"`,
+				***REMOVED***,
 				// ES2015 modules are not supported
-				***REMOVED***"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:1 Unexpected reserved word"***REMOVED***,
+				***REMOVED***
+					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
+					"file:///script.js: Line 1:1 Unexpected reserved word",
+				***REMOVED***,
 				// Arrow functions are not supported
-				***REMOVED***"ArrowFuncs", "base",
+				***REMOVED***
+					"ArrowFuncs", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)"***REMOVED***,
+					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)",
+				***REMOVED***,
 				// ES2015 objects polyfilled by core.js are not supported
-				***REMOVED***"CoreJS", "base",
+				***REMOVED***
+					"CoreJS", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`,
-					"ReferenceError: Set is not defined at file:///script.js:1:45(5)"***REMOVED***,
+					"ReferenceError: Set is not defined at file:///script.js:1:45(5)",
+				***REMOVED***,
 			***REMOVED***
 
 			for _, tc := range testCases ***REMOVED***
@@ -204,17 +214,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, null.IntFrom(100), b.Options.VUs)
-			***REMOVED***
-		***REMOVED***)
-		t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
-				export let options = ***REMOVED***
-					vusMax: 100,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
-			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(100), b.Options.VUsMax)
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Duration", func(t *testing.T) ***REMOVED***
@@ -397,7 +396,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
 					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionSSL30))
 				***REMOVED***
-
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
@@ -418,88 +416,127 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func getArchive(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
+	b, err := getSimpleBundle("script.js", data, rtOpts)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return b.makeArchive(), nil
+***REMOVED***
+
 func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
-	getArchive := func(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
-		b, err := getSimpleBundle("script.js", data, rtOpts)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		return b.makeArchive(), nil
+	t.Parallel()
+
+	es5Code := `module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***; module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`
+	es6Code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`
+	baseCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String())***REMOVED***
+	extCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String())***REMOVED***
+
+	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
+		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+		bi, err := b.Instantiate()
+		require.NoError(t, err)
+		val, err := bi.exports["default"](goja.Undefined())
+		require.NoError(t, err)
+		assert.Equal(t, "hi!", val.Export())
 	***REMOVED***
 
-	t.Run("ok", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			compatMode, code string
-		***REMOVED******REMOVED***
-			// An empty value will assume "extended"
-			***REMOVED***"", `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeExtended.String(), `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
-				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
+	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
+		b, err := NewBundleFromArchive(arc, rtOpts)
+		if expError != "" ***REMOVED***
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), expError)
+		***REMOVED*** else ***REMOVED***
+			require.NoError(t, err)
+			checkBundle(t, b)
 		***REMOVED***
+	***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-				arc, err := getArchive(tc.code, rtOpts)
-				assert.NoError(t, err)
-				b, err := NewBundleFromArchive(arc, rtOpts)
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-				expCM := tc.compatMode
-				if expCM == "" ***REMOVED***
-					expCM = compiler.CompatibilityModeExtended.String()
-				***REMOVED***
-				assert.Equal(t, expCM, b.CompatibilityMode.String())
+	t.Run("es6_script_default", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es6Code, lib.RuntimeOptions***REMOVED******REMOVED***) // default options
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-				bi, err := b.Instantiate()
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				val, err := bi.Default(goja.Undefined())
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, "hi!", val.Export())
-			***REMOVED***)
-		***REMOVED***
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "") // default options
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
 	***REMOVED***)
-	t.Run("err", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			compatMode, code, expErr string
-		***REMOVED******REMOVED***
-			// Incompatible mode
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				"file://script.js: Line 2:5 Unexpected reserved word (and 2 more errors)"***REMOVED***,
-			***REMOVED***"wrongcompat", `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				`invalid compatibility mode "wrongcompat". Use: "extended", "base"`***REMOVED***,
-		***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-				_, err := getArchive(tc.code, rtOpts)
-				assert.EqualError(t, err, tc.expErr)
-			***REMOVED***)
+	t.Run("es6_script_explicit", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es6Code, extCompatModeRtOpts)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
+	***REMOVED***)
+
+	t.Run("es5_script_with_extended", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es5Code, lib.RuntimeOptions***REMOVED******REMOVED***)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "")
+	***REMOVED***)
+
+	t.Run("es5_script", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es5Code, baseCompatModeRtOpts)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeBase.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "")
+	***REMOVED***)
+
+	t.Run("es6_archive_with_wrong_compat_mode", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es6Code, baseCompatModeRtOpts)
+		require.Error(t, err)
+		require.Nil(t, arc)
+	***REMOVED***)
+
+	t.Run("messed_up_archive", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(es6Code, extCompatModeRtOpts)
+		require.NoError(t, err)
+		arc.CompatibilityMode = "blah"                                           // intentionally break the archive
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "invalid compatibility mode") // fails when it uses the archive one
+		checkArchive(t, arc, extCompatModeRtOpts, "")                            // works when I force the compat mode
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")   // failes because of ES6
+	***REMOVED***)
+
+	t.Run("script_options_dont_overwrite_metadata", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return options.vus; ***REMOVED***;`
+		arc := &lib.Archive***REMOVED***
+			Type:        "js",
+			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: "/script"***REMOVED***,
+			K6Version:   consts.Version,
+			Data:        []byte(code),
+			Options:     lib.Options***REMOVED***VUs: null.IntFrom(999)***REMOVED***,
+			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
+			Filesystems: nil,
 		***REMOVED***
+		b, err := NewBundleFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+		require.NoError(t, err)
+		bi, err := b.Instantiate()
+		require.NoError(t, err)
+		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
+		require.NoError(t, err)
+		assert.Equal(t, int64(999), val.Export())
 	***REMOVED***)
 ***REMOVED***
 
 func TestOpen(t *testing.T) ***REMOVED***
-	var testCases = [...]struct ***REMOVED***
+	testCases := [...]struct ***REMOVED***
 		name           string
 		openPath       string
 		pwd            string
@@ -599,8 +636,8 @@ func TestOpen(t *testing.T) ***REMOVED***
 			for _, tCase := range testCases ***REMOVED***
 				tCase := tCase
 
-				var testFunc = func(t *testing.T) ***REMOVED***
-					var openPath = tCase.openPath
+				testFunc := func(t *testing.T) ***REMOVED***
+					openPath := tCase.openPath
 					// if fullpath prepend prefix
 					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
 						openPath = filepath.Join(prefix, openPath)
@@ -608,7 +645,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					if isWindows ***REMOVED***
 						openPath = strings.Replace(openPath, `\`, `\\`, -1)
 					***REMOVED***
-					var pwd = tCase.pwd
+					pwd := tCase.pwd
 					if pwd == "" ***REMOVED***
 						pwd = "/path/to/"
 					***REMOVED***
@@ -632,7 +669,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 						t.Run(source, func(t *testing.T) ***REMOVED***
 							bi, err := b.Instantiate()
 							require.NoError(t, err)
-							v, err := bi.Default(goja.Undefined())
+							v, err := bi.exports["default"](goja.Undefined())
 							require.NoError(t, err)
 							assert.Equal(t, "hi", v.Export())
 						***REMOVED***)
@@ -670,7 +707,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Run", func(t *testing.T) ***REMOVED***
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.exports["default"](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
@@ -678,7 +715,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
 		bi.Runtime.Set("val", false)
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.exports["default"](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
@@ -733,7 +770,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 
 			bi, err := b.Instantiate()
 			if assert.NoError(t, err) ***REMOVED***
-				_, err := bi.Default(goja.Undefined())
+				_, err := bi.exports["default"](goja.Undefined())
 				assert.NoError(t, err)
 			***REMOVED***
 		***REMOVED***)
@@ -774,7 +811,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
-					_, err := bi.Default(goja.Undefined())
+					_, err := bi.exports["default"](goja.Undefined())
 					assert.NoError(t, err)
 				***REMOVED***
 			***REMOVED***
@@ -784,22 +821,26 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***
-		cm      compiler.CompatibilityMode
+		cm      lib.CompatibilityMode
 		script  string
 		exclaim string
 	***REMOVED******REMOVED***
-		***REMOVED***compiler.CompatibilityModeExtended, `
+		***REMOVED***
+			lib.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export let file = open("./file.txt");
 				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
-			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
-		***REMOVED***compiler.CompatibilityModeBase, `
+			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
+		***REMOVED***
+			lib.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.file = open("./file.txt");
 				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
-			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
