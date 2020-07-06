@@ -401,7 +401,7 @@ func (rs *externallyControlledRunState) retrieveStartMaxVUs() error ***REMOVED**
 	return nil
 ***REMOVED***
 
-func (rs *externallyControlledRunState) progresFn() (float64, []string) ***REMOVED***
+func (rs *externallyControlledRunState) progressFn() (float64, []string) ***REMOVED***
 	// TODO: simulate spinner for the other case or cycle 0-100?
 	currentActiveVUs := atomic.LoadInt64(rs.activeVUsCount)
 	currentMaxVUs := atomic.LoadInt64(rs.maxVUs)
@@ -536,8 +536,8 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 		return err
 	***REMOVED***
 
-	mex.progress.Modify(pb.WithProgress(runState.progresFn)) // Keep track of the progress
-	go trackProgress(parentCtx, ctx, ctx, mex, runState.progresFn)
+	mex.progress.Modify(pb.WithProgress(runState.progressFn)) // Keep track of the progress
+	go trackProgress(parentCtx, ctx, ctx, mex, runState.progressFn)
 
 	err = runState.handleConfigChange( // Start by setting MaxVUs to the starting MaxVUs
 		ExternallyControlledConfigParams***REMOVED***MaxVUs: mex.config.MaxVUs***REMOVED***, currentControlConfig,
