@@ -220,11 +220,13 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 				return testProgress.Progress, []string***REMOVED***
 					fmt.Sprintf(percentageFmt, testProgress.Progress*100)***REMOVED***
 			***REMOVED***),
-			pb.WithLeft(func() string ***REMOVED*** return "   " + testProgress.RunStatusText ***REMOVED***),
 		)
 
 		ticker := time.NewTicker(time.Millisecond * 2000)
 		shouldExitLoop := false
+
+		var startTime time.Time
+		maxDuration := time.Duration(derivedConf.Duration.Duration)
 
 	runningLoop:
 		for ***REMOVED***
@@ -235,7 +237,19 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 					if (testProgress.RunStatus > lib.RunStatusRunning) || (exitOnRunning && testProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
 						shouldExitLoop = true
 					***REMOVED***
-					printBar(progressBar, "")
+					statusText := testProgress.RunStatusText
+					if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
+						if startTime.IsZero() ***REMOVED***
+							startTime = time.Now()
+						***REMOVED***
+						spent := time.Since(startTime)
+						if spent > maxDuration ***REMOVED***
+							statusText = maxDuration.String()
+						***REMOVED*** else ***REMOVED***
+							statusText = fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, maxDuration), maxDuration)
+						***REMOVED***
+					***REMOVED***
+					printBar(progressBar, statusText)
 				***REMOVED*** else ***REMOVED***
 					logrus.WithError(progressErr).Error("Test progress error")
 				***REMOVED***
