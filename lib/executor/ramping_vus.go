@@ -78,7 +78,7 @@ var _ lib.ExecutorConfig = &RampingVUsConfig***REMOVED******REMOVED***
 
 // GetStartVUs is just a helper method that returns the scaled starting VUs.
 func (vlvc RampingVUsConfig) GetStartVUs(et *lib.ExecutionTuple) int64 ***REMOVED***
-	return et.Segment.Scale(vlvc.StartVUs.Int64)
+	return et.ScaleInt64(vlvc.StartVUs.Int64)
 ***REMOVED***
 
 // GetGracefulRampDown is just a helper method that returns the graceful
@@ -89,7 +89,7 @@ func (vlvc RampingVUsConfig) GetGracefulRampDown() time.Duration ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
 func (vlvc RampingVUsConfig) GetDescription(et *lib.ExecutionTuple) string ***REMOVED***
-	maxVUs := et.Segment.Scale(getStagesUnscaledMaxTarget(vlvc.StartVUs.Int64, vlvc.Stages))
+	maxVUs := et.ScaleInt64(getStagesUnscaledMaxTarget(vlvc.StartVUs.Int64, vlvc.Stages))
 	return fmt.Sprintf("Up to %d looping VUs for %s over %d stages%s",
 		maxVUs, sumStagesDuration(vlvc.Stages), len(vlvc.Stages),
 		vlvc.getBaseInfo(fmt.Sprintf("gracefulRampDown: %s", vlvc.GetGracefulRampDown())))
@@ -563,6 +563,7 @@ func (vlv RampingVUs) Run(parentCtx context.Context, out chan<- stats.SampleCont
 
 	activeVUsCount := new(int64)
 	vusFmt := pb.GetFixedLengthIntFormat(int64(maxVUs))
+	regularDurationStr := pb.GetFixedLengthDuration(regularDuration, regularDuration)
 	progresFn := func() (float64, []string) ***REMOVED***
 		spent := time.Since(startTime)
 		currentlyActiveVUs := atomic.LoadInt64(activeVUsCount)
@@ -571,7 +572,7 @@ func (vlv RampingVUs) Run(parentCtx context.Context, out chan<- stats.SampleCont
 			return 1, []string***REMOVED***vus, regularDuration.String()***REMOVED***
 		***REMOVED***
 		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs", currentlyActiveVUs, maxVUs)
-		progDur := fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, regularDuration), regularDuration)
+		progDur := pb.GetFixedLengthDuration(spent, regularDuration) + "/" + regularDurationStr
 		return float64(spent) / float64(regularDuration), []string***REMOVED***progVUs, progDur***REMOVED***
 	***REMOVED***
 	vlv.progress.Modify(pb.WithProgress(progresFn))
