@@ -91,7 +91,7 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 		CompatibilityMode: compatMode,
 		exports:           make(map[string]goja.Callable),
 	***REMOVED***
-	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
+	if err = bundle.instantiate(rt, bundle.BaseInitContext, 0); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -149,7 +149,7 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		exports:           make(map[string]goja.Callable),
 	***REMOVED***
 
-	if err = bundle.instantiate(rt, bundle.BaseInitContext); err != nil ***REMOVED***
+	if err = bundle.instantiate(rt, bundle.BaseInitContext, 0); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -225,7 +225,7 @@ func (b *Bundle) getExports(rt *goja.Runtime, options bool) error ***REMOVED***
 ***REMOVED***
 
 // Instantiate creates a new runtime from this bundle.
-func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
+func (b *Bundle) Instantiate(vuID int64) (bi *BundleInstance, instErr error) ***REMOVED***
 	// TODO: actually use a real context here, so that the instantiation can be killed
 	// Placeholder for a real context.
 	ctxPtr := new(context.Context)
@@ -234,7 +234,7 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 	// runtime, but no state, to allow module-provided types to function within the init context.
 	rt := goja.New()
 	init := newBoundInitContext(b.BaseInitContext, ctxPtr, rt)
-	if err := b.instantiate(rt, init); err != nil ***REMOVED***
+	if err := b.instantiate(rt, init, vuID); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -272,7 +272,7 @@ func (b *Bundle) Instantiate() (bi *BundleInstance, instErr error) ***REMOVED***
 
 // Instantiates the bundle into an existing runtime. Not public because it also messes with a bunch
 // of other things, will potentially thrash data and makes a mess in it if the operation fails.
-func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOVED***
+func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext, vuID int64) error ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	rt.SetRandSource(common.NewRandSource())
 
@@ -293,6 +293,7 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error ***REMOV
 		env[key] = value
 	***REMOVED***
 	rt.Set("__ENV", env)
+	rt.Set("__VU", vuID)
 	rt.Set("console", common.Bind(rt, newConsole(), init.ctxPtr))
 
 	*init.ctxPtr = common.WithRuntime(context.Background(), rt)

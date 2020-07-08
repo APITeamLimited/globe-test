@@ -63,7 +63,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 
-			bi, err := b.Instantiate()
+			bi, err := b.Instantiate(0)
 			if !assert.NoError(t, err, "instance error") ***REMOVED***
 				return
 			***REMOVED***
@@ -92,7 +92,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 					return
 				***REMOVED***
 
-				bi, err := b.Instantiate()
+				bi, err := b.Instantiate(0)
 				if !assert.NoError(t, err) ***REMOVED***
 					return
 				***REMOVED***
@@ -200,7 +200,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
-						_, err = b.Instantiate()
+						_, err = b.Instantiate(0)
 						if !assert.NoError(t, err) ***REMOVED***
 							return
 						***REMOVED***
@@ -226,7 +226,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 
-			bi, err := b.Instantiate()
+			bi, err := b.Instantiate(0)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -260,7 +260,7 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		return nil, err
 	***REMOVED***
 
-	bi, err := b.Instantiate()
+	bi, err := b.Instantiate(0)
 	if !assert.NoError(t, err) ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -372,7 +372,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate()
+	bi, err := b.Instantiate(0)
 	assert.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -408,4 +408,17 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	assert.Equal(t, true, v.Export())
 
 	<-ch
+***REMOVED***
+
+func TestInitContextVU(t *testing.T) ***REMOVED***
+	b, err := getSimpleBundle("/script.js", `
+		let vu = __VU;
+		export default function() ***REMOVED*** return vu; ***REMOVED***
+	`)
+	require.NoError(t, err)
+	bi, err := b.Instantiate(5)
+	require.NoError(t, err)
+	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), v.Export())
 ***REMOVED***
