@@ -28,13 +28,16 @@ import (
 	"net/url"
 	"path/filepath"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"github.com/loadimpact/k6/lib/fsext"
 )
 
 // ReadSource Reads a source file from any supported destination.
-func ReadSource(src, pwd string, filesystems map[string]afero.Fs, stdin io.Reader) (*SourceData, error) ***REMOVED***
+func ReadSource(
+	logger logrus.FieldLogger, src, pwd string, filesystems map[string]afero.Fs, stdin io.Reader,
+) (*SourceData, error) ***REMOVED***
 	if src == "-" ***REMOVED***
 		data, err := ioutil.ReadAll(stdin)
 		if err != nil ***REMOVED***
@@ -58,7 +61,7 @@ func ReadSource(src, pwd string, filesystems map[string]afero.Fs, stdin io.Reade
 	srcLocalPath = filepath.Clean(afero.FilePathSeparator + srcLocalPath)
 	if ok, _ := afero.Exists(filesystems["file"], srcLocalPath); ok ***REMOVED***
 		// there is file on the local disk ... lets use it :)
-		return Load(filesystems, &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(srcLocalPath)***REMOVED***, src)
+		return Load(logger, filesystems, &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(srcLocalPath)***REMOVED***, src)
 	***REMOVED***
 
 	pwdURL := &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(filepath.Clean(pwd)) + "/"***REMOVED***
@@ -66,7 +69,7 @@ func ReadSource(src, pwd string, filesystems map[string]afero.Fs, stdin io.Reade
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	result, err := Load(filesystems, srcURL, src)
+	result, err := Load(logger, filesystems, srcURL, src)
 	var noSchemeError noSchemeRemoteModuleResolutionError
 	if errors.As(err, &noSchemeError) ***REMOVED***
 		// TODO maybe try to wrap the original error here as well, without butchering the message

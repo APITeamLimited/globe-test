@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type cdnjsEnvelope struct ***REMOVED***
@@ -36,12 +37,12 @@ type cdnjsEnvelope struct ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func cdnjs(path string, parts []string) (string, error) ***REMOVED***
+func cdnjs(logger logrus.FieldLogger, path string, parts []string) (string, error) ***REMOVED***
 	name := parts[0]
 	version := parts[1]
 	filename := parts[2]
 
-	data, err := fetch("https://api.cdnjs.com/libraries/" + name)
+	data, err := fetch(logger, "https://api.cdnjs.com/libraries/"+name)
 	if err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
