@@ -36,6 +36,7 @@ import (
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/minirunner"
 )
 
@@ -56,7 +57,7 @@ func TestLogger(t *testing.T) ***REMOVED***
 
 					l, hook := logtest.NewNullLogger()
 					l.Level = logrus.DebugLevel
-					NewLogger(l)(negroni.NewResponseWriter(rw), r, testHTTPHandler)
+					newLogger(l)(negroni.NewResponseWriter(rw), r, testHTTPHandler)
 
 					res := rw.Result()
 					assert.Equal(t, http.StatusOK, res.StatusCode)
@@ -84,13 +85,15 @@ func TestWithEngine(t *testing.T) ***REMOVED***
 
 	rw := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "http://example.com/", nil)
-	WithEngine(engine)(rw, r, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+	withEngine(engine)(rw, r, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		assert.Equal(t, engine, common.GetEngine(r.Context()))
 	***REMOVED***)
 ***REMOVED***
 
 func TestPing(t *testing.T) ***REMOVED***
-	mux := NewHandler()
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+	mux := newHandler(logger)
 
 	rw := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/ping", nil)

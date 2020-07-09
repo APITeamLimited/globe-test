@@ -32,28 +32,29 @@ import (
 	"github.com/loadimpact/k6/core"
 )
 
-func NewHandler() http.Handler ***REMOVED***
+func newHandler(logger logrus.FieldLogger) http.Handler ***REMOVED***
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", v1.NewHandler())
-	mux.Handle("/ping", HandlePing())
-	mux.Handle("/", HandlePing())
+	mux.Handle("/ping", handlePing(logger))
+	mux.Handle("/", handlePing(logger))
 	return mux
 ***REMOVED***
 
-func ListenAndServe(addr string, engine *core.Engine) error ***REMOVED***
-	mux := NewHandler()
+// ListenAndServe is analogous to the stdlib one but also takes a core.Engine and logrus.FieldLogger
+func ListenAndServe(addr string, engine *core.Engine, logger logrus.FieldLogger) error ***REMOVED***
+	mux := newHandler(logger)
 
 	n := negroni.New()
 	n.Use(negroni.NewRecovery())
-	n.UseFunc(WithEngine(engine))
-	n.UseFunc(NewLogger(logrus.StandardLogger()))
+	n.UseFunc(withEngine(engine))
+	n.UseFunc(newLogger(logger))
 	n.UseHandler(mux)
 
 	return http.ListenAndServe(addr, n)
 ***REMOVED***
 
-// NewLogger returns the middleware which logs response status for request.
-func NewLogger(l *logrus.Logger) negroni.HandlerFunc ***REMOVED***
+// newLogger returns the middleware which logs response status for request.
+func newLogger(l logrus.FieldLogger) negroni.HandlerFunc ***REMOVED***
 	return func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
 		next(rw, r)
 
@@ -62,18 +63,18 @@ func NewLogger(l *logrus.Logger) negroni.HandlerFunc ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func WithEngine(engine *core.Engine) negroni.HandlerFunc ***REMOVED***
+func withEngine(engine *core.Engine) negroni.HandlerFunc ***REMOVED***
 	return negroni.HandlerFunc(func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
 		r = r.WithContext(common.WithEngine(r.Context(), engine))
 		next(rw, r)
 	***REMOVED***)
 ***REMOVED***
 
-func HandlePing() http.Handler ***REMOVED***
+func handlePing(logger logrus.FieldLogger) http.Handler ***REMOVED***
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		if _, err := fmt.Fprint(rw, "ok"); err != nil ***REMOVED***
-			logrus.WithError(err).Error("Error while printing ok")
+			logger.WithError(err).Error("Error while printing ok")
 		***REMOVED***
 	***REMOVED***)
 ***REMOVED***
