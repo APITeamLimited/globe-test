@@ -38,13 +38,16 @@ import (
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/minirunner"
 )
 
 func TestGetStatus(t *testing.T) ***REMOVED***
-	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logrus.StandardLogger())
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logrus.StandardLogger())
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
 
 	rw := httptest.NewRecorder()
@@ -84,6 +87,8 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 		"too many vus":          ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
 		"vus":                   ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
 	***REMOVED***
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
 
 	scenarios := lib.ScenarioConfigs***REMOVED******REMOVED***
 	err := json.Unmarshal([]byte(`
@@ -94,9 +99,9 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 
 	for name, indata := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, logrus.StandardLogger())
+			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, logger)
 			require.NoError(t, err)
-			engine, err := core.NewEngine(execScheduler, options, logrus.StandardLogger())
+			engine, err := core.NewEngine(execScheduler, options, logger)
 			require.NoError(t, err)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
