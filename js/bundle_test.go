@@ -436,7 +436,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
 		bi, err := b.Instantiate()
 		require.NoError(t, err)
-		val, err := bi.exports["default"](goja.Undefined())
+		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
 		assert.Equal(t, "hi!", val.Export())
 	***REMOVED***
@@ -669,7 +669,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 						t.Run(source, func(t *testing.T) ***REMOVED***
 							bi, err := b.Instantiate()
 							require.NoError(t, err)
-							v, err := bi.exports["default"](goja.Undefined())
+							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
 							assert.Equal(t, "hi", v.Export())
 						***REMOVED***)
@@ -707,7 +707,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Run", func(t *testing.T) ***REMOVED***
-		v, err := bi.exports["default"](goja.Undefined())
+		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
@@ -715,7 +715,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
 		bi.Runtime.Set("val", false)
-		v, err := bi.exports["default"](goja.Undefined())
+		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
@@ -770,7 +770,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 
 			bi, err := b.Instantiate()
 			if assert.NoError(t, err) ***REMOVED***
-				_, err := bi.exports["default"](goja.Undefined())
+				_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 				assert.NoError(t, err)
 			***REMOVED***
 		***REMOVED***)
@@ -811,7 +811,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
-					_, err := bi.exports["default"](goja.Undefined())
+					_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 					assert.NoError(t, err)
 				***REMOVED***
 			***REMOVED***
