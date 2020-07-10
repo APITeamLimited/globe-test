@@ -436,6 +436,14 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 	var err error
 
 	s.shutdownOnce.Do(func() ***REMOVED***
+		// this is because handleEvent can panic ... on purpose so we just make sure we
+		// close the connection and the channel
+		defer func() ***REMOVED***
+			_ = s.conn.Close()
+
+			// Stop the main control loop
+			close(s.done)
+		***REMOVED***()
 		rt := common.GetRuntime(s.ctx)
 
 		err = s.conn.WriteControl(websocket.CloseMessage,
@@ -449,11 +457,6 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 
 		// Call the user-defined close handler
 		s.handleEvent("close", rt.ToValue(code))
-
-		_ = s.conn.Close()
-
-		// Stop the main control loop
-		close(s.done)
 	***REMOVED***)
 
 	return err
