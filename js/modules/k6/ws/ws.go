@@ -299,6 +299,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 		case scheduledFn := <-socket.scheduled:
 			if _, err := scheduledFn(goja.Undefined()); err != nil ***REMOVED***
+				_ = socket.closeConnection(websocket.CloseGoingAway)
 				return nil, err
 			***REMOVED***
 
