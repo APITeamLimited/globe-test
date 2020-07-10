@@ -285,7 +285,9 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 		case <-processMetricsAfterRun:
 			e.logger.Debug("Processing metrics and thresholds after the test run has ended...")
 			processSamples()
-			e.processThresholds()
+			if !e.NoThresholds ***REMOVED***
+				e.processThresholds()
+			***REMOVED***
 			processMetricsAfterRun <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
 
 		case sc := <-e.Samples:
