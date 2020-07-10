@@ -145,12 +145,6 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		tags["url"] = url
 	***REMOVED***
 
-	// Pass a custom net.Dial function to websocket.Dialer that will substitute
-	// the underlying net.Conn with our own tracked netext.Conn
-	netDial := func(network, address string) (net.Conn, error) ***REMOVED***
-		return state.Dialer.DialContext(ctx, network, address)
-	***REMOVED***
-
 	// Overriding the NextProtos to avoid talking http2
 	var tlsConfig *tls.Config
 	if state.TLSConfig != nil ***REMOVED***
@@ -159,13 +153,16 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	***REMOVED***
 
 	wsd := websocket.Dialer***REMOVED***
-		NetDial:         netDial,
+		HandshakeTimeout: time.Second * 60, // TODO configurable
+		// Pass a custom net.DialContext function to websocket.Dialer that will substitute
+		// the underlying net.Conn with our own tracked netext.Conn
+		NetDialContext:  state.Dialer.DialContext,
 		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: tlsConfig,
 	***REMOVED***
 
 	start := time.Now()
-	conn, httpResponse, connErr := wsd.Dial(url, header)
+	conn, httpResponse, connErr := wsd.DialContext(ctx, url, header)
 	connectionEnd := time.Now()
 	connectionDuration := stats.D(connectionEnd.Sub(start))
 
@@ -249,6 +246,20 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	// Wraps a couple of channels around conn.ReadMessage
 	go socket.readPump(readDataChan, readErrChan, readCloseChan)
 
+	// we do it here as below we can panic, which translates to an exception in js code
+	defer func() ***REMOVED***
+		socket.Close() // just in case
+		end := time.Now()
+		sessionDuration := stats.D(end.Sub(start))
+
+		stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
+			Metric: metrics.WSSessionDuration,
+			Tags:   socket.sampleTags,
+			Time:   start,
+			Value:  sessionDuration,
+		***REMOVED***)
+	***REMOVED***()
+
 	// This is the main control loop. All JS code (including error handlers)
 	// should only be executed by this thread to avoid race conditions
 	for ***REMOVED***
@@ -285,6 +296,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 		case scheduledFn := <-socket.scheduled:
 			if _, err := scheduledFn(goja.Undefined()); err != nil ***REMOVED***
+				_ = socket.closeConnection(websocket.CloseGoingAway)
 				return nil, err
 			***REMOVED***
 
@@ -295,16 +307,6 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 
 		case <-socket.done:
 			// This is the final exit point normally triggered by closeConnection
-			end := time.Now()
-			sessionDuration := stats.D(end.Sub(start))
-
-			stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
-				Metric: metrics.WSSessionDuration,
-				Tags:   socket.sampleTags,
-				Time:   start,
-				Value:  sessionDuration,
-			***REMOVED***)
-
 			return wsResponse, nil
 		***REMOVED***
 	***REMOVED***
@@ -434,6 +436,14 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 	var err error
 
 	s.shutdownOnce.Do(func() ***REMOVED***
+		// this is because handleEvent can panic ... on purpose so we just make sure we
+		// close the connection and the channel
+		defer func() ***REMOVED***
+			_ = s.conn.Close()
+
+			// Stop the main control loop
+			close(s.done)
+		***REMOVED***()
 		rt := common.GetRuntime(s.ctx)
 
 		err = s.conn.WriteControl(websocket.CloseMessage,
@@ -447,11 +457,6 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 
 		// Call the user-defined close handler
 		s.handleEvent("close", rt.ToValue(code))
-
-		_ = s.conn.Close()
-
-		// Stop the main control loop
-		close(s.done)
 	***REMOVED***)
 
 	return err
