@@ -153,7 +153,7 @@ func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holde
 		value = _undefined
 	***REMOVED***
 
-	if object := value.(*Object); object != nil ***REMOVED***
+	if object, ok := value.(*Object); ok ***REMOVED***
 		if isArray(object) ***REMOVED***
 			length := object.self.getStr("length").ToInteger()
 			for index := int64(0); index < length; index++ ***REMOVED***
@@ -167,7 +167,7 @@ func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holde
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			for item, f := object.self.enumerate(false, false)(); f != nil; item, f = f() ***REMOVED***
-				value := r.builtinJSON_reviveWalk(reviver, object, name)
+				value := r.builtinJSON_reviveWalk(reviver, object, newStringValue(item.name))
 				if value == _undefined ***REMOVED***
 					object.self.deleteStr(item.name, false)
 				***REMOVED*** else ***REMOVED***
