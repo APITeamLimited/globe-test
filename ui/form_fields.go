@@ -21,6 +21,7 @@
 package ui
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"strings"
@@ -122,6 +123,16 @@ func (f PasswordField) GetContents(r io.Reader) (string, error) ***REMOVED***
 		return "", errors.New("Cannot read password from the supplied terminal")
 	***REMOVED***
 	password, err := terminal.ReadPassword(int(stdin.Fd()))
+	if err != nil ***REMOVED***
+		// Possibly running on Cygwin/mintty which doesn't emulate
+		// pseudo terminals properly, so fallback to plain text input.
+		// Note that passwords will be echoed if this is the case.
+		// See https://github.com/mintty/mintty/issues/56
+		// A workaround is to use winpty or mintty compiled with
+		// Cygwin >=3.1.0 which supports the new ConPTY Windows API.
+		bufR := bufio.NewReader(r)
+		password, err = bufR.ReadBytes('\n')
+	***REMOVED***
 	return string(password), err
 ***REMOVED***
 

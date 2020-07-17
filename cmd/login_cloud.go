@@ -22,10 +22,13 @@ package cmd
 
 import (
 	"os"
+	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib/consts"
@@ -51,6 +54,8 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
   k6 login cloud`[1:],
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+		// TODO: don't use a global... or maybe change the logger?
+		logger := logrus.StandardLogger()
 		fs := afero.NewOsFs()
 
 		k6Conf, err := getConsolidatedConfig(fs, Config***REMOVED******REMOVED***, nil)
@@ -88,6 +93,9 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 						Label: "Password",
 					***REMOVED***,
 				***REMOVED***,
+			***REMOVED***
+			if !terminal.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
+				logger.Warn("Stdin is not a terminal, falling back to plain text input")
 			***REMOVED***
 			vals, err := form.Run(os.Stdin, stdout)
 			if err != nil ***REMOVED***
