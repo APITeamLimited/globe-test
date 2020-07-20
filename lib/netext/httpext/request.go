@@ -358,15 +358,15 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	if resErr != nil ***REMOVED***
+		if preq.Throw ***REMOVED*** // if we are going to throw, we shouldn't log it
+			return nil, resErr
+		***REMOVED***
+
 		// Do *not* log errors about the context being cancelled.
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
-		***REMOVED***
-
-		if preq.Throw ***REMOVED***
-			return nil, resErr
 		***REMOVED***
 	***REMOVED***
 
