@@ -21,8 +21,10 @@
 package csv
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"sort"
 	"sync"
 	"testing"
@@ -239,62 +241,128 @@ func TestRun(t *testing.T) ***REMOVED***
 	wg.Wait()
 ***REMOVED***
 
+func readUnCompressedFile(fileName string, fs afero.Fs) string ***REMOVED***
+	csvbytes, err := afero.ReadFile(fs, fileName)
+	if err != nil ***REMOVED***
+		return err.Error()
+	***REMOVED***
+
+	return fmt.Sprintf("%s", csvbytes)
+***REMOVED***
+
+func readCompressedFile(fileName string, fs afero.Fs) string ***REMOVED***
+	file, err := fs.Open(fileName)
+	if err != nil ***REMOVED***
+		return err.Error()
+	***REMOVED***
+
+	gzf, err := gzip.NewReader(file)
+	if err != nil ***REMOVED***
+		return err.Error()
+	***REMOVED***
+
+	csvbytes, err := ioutil.ReadAll(gzf)
+	if err != nil ***REMOVED***
+		return err.Error()
+	***REMOVED***
+
+	return fmt.Sprintf("%s", csvbytes)
+***REMOVED***
+
 func TestRunCollect(t *testing.T) ***REMOVED***
-	testSamples := []stats.SampleContainer***REMOVED***
-		stats.Sample***REMOVED***
-			Time:   time.Unix(1562324643, 0),
-			Metric: stats.New("my_metric", stats.Gauge),
-			Value:  1,
-			Tags: stats.NewSampleTags(map[string]string***REMOVED***
-				"tag1": "val1",
-				"tag2": "val2",
-				"tag3": "val3",
-			***REMOVED***),
+	testData := []struct ***REMOVED***
+		samples        []stats.SampleContainer
+		fileName       string
+		fileReaderFunc func(fileName string, fs afero.Fs) string
+		outputContent  string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			samples: []stats.SampleContainer***REMOVED***
+				stats.Sample***REMOVED***
+					Time:   time.Unix(1562324643, 0),
+					Metric: stats.New("my_metric", stats.Gauge),
+					Value:  1,
+					Tags: stats.NewSampleTags(map[string]string***REMOVED***
+						"tag1": "val1",
+						"tag2": "val2",
+						"tag3": "val3",
+					***REMOVED***),
+				***REMOVED***,
+				stats.Sample***REMOVED***
+					Time:   time.Unix(1562324644, 0),
+					Metric: stats.New("my_metric", stats.Gauge),
+					Value:  1,
+					Tags: stats.NewSampleTags(map[string]string***REMOVED***
+						"tag1": "val1",
+						"tag2": "val2",
+						"tag3": "val3",
+						"tag4": "val4",
+					***REMOVED***),
+				***REMOVED***,
+			***REMOVED***,
+			fileName:       "test",
+			fileReaderFunc: readUnCompressedFile,
+			outputContent:  "metric_name,timestamp,metric_value,tag1,tag3,extra_tags\n" + "my_metric,1562324643,1.000000,val1,val3,\n" + "my_metric,1562324644,1.000000,val1,val3,tag4=val4\n",
 		***REMOVED***,
-		stats.Sample***REMOVED***
-			Time:   time.Unix(1562324644, 0),
-			Metric: stats.New("my_metric", stats.Gauge),
-			Value:  1,
-			Tags: stats.NewSampleTags(map[string]string***REMOVED***
-				"tag1": "val1",
-				"tag2": "val2",
-				"tag3": "val3",
-				"tag4": "val4",
-			***REMOVED***),
+		***REMOVED***
+			samples: []stats.SampleContainer***REMOVED***
+				stats.Sample***REMOVED***
+					Time:   time.Unix(1562324643, 0),
+					Metric: stats.New("my_metric", stats.Gauge),
+					Value:  1,
+					Tags: stats.NewSampleTags(map[string]string***REMOVED***
+						"tag1": "val1",
+						"tag2": "val2",
+						"tag3": "val3",
+					***REMOVED***),
+				***REMOVED***,
+				stats.Sample***REMOVED***
+					Time:   time.Unix(1562324644, 0),
+					Metric: stats.New("my_metric", stats.Gauge),
+					Value:  1,
+					Tags: stats.NewSampleTags(map[string]string***REMOVED***
+						"tag1": "val1",
+						"tag2": "val2",
+						"tag3": "val3",
+						"tag4": "val4",
+					***REMOVED***),
+				***REMOVED***,
+			***REMOVED***,
+			fileName:       "test.gz",
+			fileReaderFunc: readCompressedFile,
+			outputContent:  "metric_name,timestamp,metric_value,tag1,tag3,extra_tags\n" + "my_metric,1562324643,1.000000,val1,val3,\n" + "my_metric,1562324644,1.000000,val1,val3,tag4=val4\n",
 		***REMOVED***,
 	***REMOVED***
 
-	mem := afero.NewMemMapFs()
-	collector, err := New(
-		mem,
-		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
-		Config***REMOVED***FileName: null.StringFrom("path"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
-	)
-	assert.NoError(t, err)
-	assert.NotNil(t, collector)
+	for _, data := range testData ***REMOVED***
+		mem := afero.NewMemMapFs()
+		collector, err := New(
+			mem,
+			stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
+			Config***REMOVED***FileName: null.StringFrom(data.fileName), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, collector)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() ***REMOVED***
-		collector.Run(ctx)
-		wg.Done()
-	***REMOVED***()
-	err = collector.Init()
-	assert.NoError(t, err)
-	collector.Collect(testSamples)
-	time.Sleep(1 * time.Second)
-	cancel()
-	wg.Wait()
-	csvbytes, _ := afero.ReadFile(mem, "path")
-	csvstr := fmt.Sprintf("%s", csvbytes)
-	assert.Equal(t,
-		"metric_name,timestamp,metric_value,tag1,tag3,extra_tags\n"+
-			"my_metric,1562324643,1.000000,val1,val3,\n"+
-			"my_metric,1562324644,1.000000,val1,val3,tag4=val4\n",
-		csvstr)
+		ctx, cancel := context.WithCancel(context.Background())
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() ***REMOVED***
+			collector.Run(ctx)
+			wg.Done()
+		***REMOVED***()
+		err = collector.Init()
+
+		assert.NoError(t, err)
+		collector.Collect(data.samples)
+		time.Sleep(1 * time.Second)
+		cancel()
+		wg.Wait()
+
+		assert.Equal(t, data.outputContent, data.fileReaderFunc(data.fileName, mem))
+	***REMOVED***
 ***REMOVED***
-
 func TestNew(t *testing.T) ***REMOVED***
 	configs := []struct ***REMOVED***
 		cfg  Config
@@ -302,6 +370,14 @@ func TestNew(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		***REMOVED***
 			cfg: Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
+			tags: stats.TagSet***REMOVED***
+				"tag1": true,
+				"tag2": false,
+				"tag3": true,
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			cfg: Config***REMOVED***FileName: null.StringFrom("name.csv.gz"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
 			tags: stats.TagSet***REMOVED***
 				"tag1": true,
 				"tag2": false,
@@ -326,9 +402,19 @@ func TestNew(t *testing.T) ***REMOVED***
 		fname       string
 		resTags     []string
 		ignoredTags []string
+		closeFn     func() error
 	***REMOVED******REMOVED***
 		***REMOVED***
 			fname: "name",
+			resTags: []string***REMOVED***
+				"tag1", "tag3",
+			***REMOVED***,
+			ignoredTags: []string***REMOVED***
+				"tag2",
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			fname: "name.csv.gz",
 			resTags: []string***REMOVED***
 				"tag1", "tag3",
 			***REMOVED***,
@@ -365,6 +451,7 @@ func TestNew(t *testing.T) ***REMOVED***
 			sort.Strings(expected.ignoredTags)
 			sort.Strings(collector.ignoredTags)
 			assert.Equal(t, expected.ignoredTags, collector.ignoredTags)
+			assert.NoError(t, collector.closeFn())
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
