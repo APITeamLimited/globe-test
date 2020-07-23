@@ -21,6 +21,7 @@
 package cloud
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -55,7 +56,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 	require.NoError(b, err)
 	now := time.Now()
 	collector.referenceID = "something"
-	var containersCount = time.Duration(500000)
+	containersCount := 500000
 
 	for _, tagCount := range []int***REMOVED***1, 5, 35, 315, 3645***REMOVED*** ***REMOVED***
 		tagCount := tagCount
@@ -63,34 +64,17 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 			b.ResetTimer()
 			for s := 0; s < b.N; s++ ***REMOVED***
 				b.StopTimer()
-				var container = make([]stats.SampleContainer, containersCount)
-				for i := time.Duration(1); i <= containersCount; i++ ***REMOVED***
-					var status = "200"
-					if int(i)%tagCount%7 == 6 ***REMOVED***
+				container := make([]stats.SampleContainer, containersCount)
+				for i := 1; i <= containersCount; i++ ***REMOVED***
+					status := "200"
+					if i%tagCount%7 == 6 ***REMOVED***
 						status = "404"
-					***REMOVED*** else if int(i)%tagCount%7 == 5 ***REMOVED***
+					***REMOVED*** else if i%tagCount%7 == 5 ***REMOVED***
 						status = "500"
 					***REMOVED***
 
-					container[i-1] = &httpext.Trail***REMOVED***
-						Blocked:        i % 200 * 100 * time.Millisecond,
-						Connecting:     i % 200 * 200 * time.Millisecond,
-						TLSHandshaking: i % 200 * 300 * time.Millisecond,
-						Sending:        i % 200 * 400 * time.Millisecond,
-						Waiting:        500 * time.Millisecond,
-						Receiving:      600 * time.Millisecond,
-						EndTime:        now.Add(i % 100 * 100),
-						ConnDuration:   500 * time.Millisecond,
-						Duration:       i % 150 * 1500 * time.Millisecond,
-						Tags: stats.IntoSampleTags(&map[string]string***REMOVED***
-							"test": "mest", "a": "b",
-							"custom": fmt.Sprintf("group%d", int(i)%tagCount%9),
-							"group":  fmt.Sprintf("group%d", int(i)%tagCount%5),
-							"status": status,
-							"url":    fmt.Sprintf("something%d", int(i)%tagCount%11),
-							"name":   fmt.Sprintf("else%d", int(i)%tagCount%11),
-						***REMOVED***),
-					***REMOVED***
+					tags := generateTags(i, tagCount, map[string]string***REMOVED***"status": status***REMOVED***)
+					container[i-1] = generateHTTPExtTrail(now, time.Duration(i), tags)
 				***REMOVED***
 				collector.Collect(container)
 				b.StartTimer()
@@ -98,5 +82,95 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 				collector.bufferSamples = nil
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func generateTags(i, tagCount int, additionals ...map[string]string) *stats.SampleTags ***REMOVED***
+	res := map[string]string***REMOVED***
+		"test": "mest", "a": "b",
+		"custom": fmt.Sprintf("group%d", i%tagCount%9),
+		"group":  fmt.Sprintf("group%d", i%tagCount%5),
+		"url":    fmt.Sprintf("something%d", i%tagCount%11),
+		"name":   fmt.Sprintf("else%d", i%tagCount%11),
+	***REMOVED***
+	for _, a := range additionals ***REMOVED***
+		for k, v := range a ***REMOVED***
+			res[k] = v
+		***REMOVED***
+	***REMOVED***
+	return stats.IntoSampleTags(&res)
+***REMOVED***
+
+func BenchmarkMetricMarshal(b *testing.B) ***REMOVED***
+	for _, count := range []int***REMOVED***10000, 100000, 500000***REMOVED*** ***REMOVED***
+		count := count
+		b.Run(fmt.Sprintf("%d", count), func(b *testing.B) ***REMOVED***
+			for i := 0; i < b.N; i++ ***REMOVED***
+				b.StopTimer()
+				samples := generateSamples(count)
+				b.StartTimer()
+				r, err := json.Marshal(samples)
+				require.NoError(b, err)
+				b.SetBytes(int64(len(r)))
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func generateSamples(count int) []*Sample ***REMOVED***
+	samples := make([]*Sample, count)
+	now := time.Now()
+	for i := range samples ***REMOVED***
+		tags := generateTags(i, 200)
+		switch i % 3 ***REMOVED***
+		case 0:
+			samples[i] = &Sample***REMOVED***
+				Type:   DataTypeSingle,
+				Metric: "something",
+				Data: &SampleDataSingle***REMOVED***
+					Time:  Timestamp(now),
+					Type:  stats.Counter,
+					Tags:  tags,
+					Value: float64(i),
+				***REMOVED***,
+			***REMOVED***
+		case 1:
+			aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
+				Time: Timestamp(now),
+				Type: "aggregated_trend",
+				Tags: tags,
+			***REMOVED***
+			trail := generateHTTPExtTrail(now, time.Duration(i), tags)
+			aggrData.Add(trail)
+			aggrData.Add(trail)
+			aggrData.Add(trail)
+			aggrData.Add(trail)
+			aggrData.Add(trail)
+			aggrData.CalcAverages()
+
+			samples[i] = &Sample***REMOVED***
+				Type:   DataTypeAggregatedHTTPReqs,
+				Metric: "something",
+				Data:   aggrData,
+			***REMOVED***
+		default:
+			samples[i] = NewSampleFromTrail(generateHTTPExtTrail(now, time.Duration(i), tags))
+		***REMOVED***
+	***REMOVED***
+	return samples
+***REMOVED***
+
+func generateHTTPExtTrail(now time.Time, i time.Duration, tags *stats.SampleTags) *httpext.Trail ***REMOVED***
+	return &httpext.Trail***REMOVED***
+		Blocked:        i % 200 * 100 * time.Millisecond,
+		Connecting:     i % 200 * 200 * time.Millisecond,
+		TLSHandshaking: i % 200 * 300 * time.Millisecond,
+		Sending:        i % 200 * 400 * time.Millisecond,
+		Waiting:        500 * time.Millisecond,
+		Receiving:      600 * time.Millisecond,
+		EndTime:        now.Add(i % 100 * 100),
+		ConnDuration:   500 * time.Millisecond,
+		Duration:       i % 150 * 1500 * time.Millisecond,
+		Tags:           tags,
 	***REMOVED***
 ***REMOVED***
