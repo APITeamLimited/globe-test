@@ -341,7 +341,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 	***REMOVED***()
 	*vu.Context = ctx
 
-	group, err := lib.NewGroup(name, r.GetDefaultGroup())
+	group, err := r.GetDefaultGroup().Group(name)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***

@@ -301,6 +301,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 
 	collector := &dummy.Collector***REMOVED******REMOVED***
 	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
+	require.Empty(t, runner.defaultGroup.Groups)
 
 	errC := make(chan error)
 	go func() ***REMOVED*** errC <- run() ***REMOVED***()
@@ -315,6 +316,8 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 		wait()
 		require.False(t, engine.IsTainted())
 	***REMOVED***
+	require.Contains(t, runner.defaultGroup.Groups, "setup")
+	require.Contains(t, runner.defaultGroup.Groups, "teardown")
 	var count int
 	for _, s := range collector.Samples ***REMOVED***
 		if s.Metric.Name == "mycounter" ***REMOVED***
