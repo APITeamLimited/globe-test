@@ -128,7 +128,7 @@ func generateSamples(count int) []*Sample ***REMOVED***
 				Type:   DataTypeSingle,
 				Metric: "something",
 				Data: &SampleDataSingle***REMOVED***
-					Time:  Timestamp(now),
+					Time:  toMicroSecond(now),
 					Type:  stats.Counter,
 					Tags:  tags,
 					Value: float64(i),
@@ -136,7 +136,7 @@ func generateSamples(count int) []*Sample ***REMOVED***
 			***REMOVED***
 		case 1:
 			aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
-				Time: Timestamp(now),
+				Time: toMicroSecond(now),
 				Type: "aggregated_trend",
 				Tags: tags,
 			***REMOVED***
