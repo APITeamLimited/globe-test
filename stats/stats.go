@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/mailru/easyjson/jwriter"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -168,6 +169,7 @@ func (t ValueType) String() string ***REMOVED***
 // copy-on-write semantics and uses pointers for faster comparison
 // between maps, since the same tag set is often used for multiple samples.
 // All methods should not panic, even if they are called on a nil pointer.
+//easyjson:skip
 type SampleTags struct ***REMOVED***
 	tags map[string]string
 	json []byte
@@ -239,6 +241,23 @@ func (st *SampleTags) MarshalJSON() ([]byte, error) ***REMOVED***
 	***REMOVED***
 	st.json = res
 	return res, nil
+***REMOVED***
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (st *SampleTags) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
+	w.RawByte('***REMOVED***')
+	first := true
+	for k, v := range st.tags ***REMOVED***
+		if first ***REMOVED***
+			first = false
+		***REMOVED*** else ***REMOVED***
+			w.RawByte(',')
+		***REMOVED***
+		w.String(k)
+		w.RawByte(':')
+		w.String(v)
+	***REMOVED***
+	w.RawByte('***REMOVED***')
 ***REMOVED***
 
 // UnmarshalJSON deserializes SampleTags from a JSON string.

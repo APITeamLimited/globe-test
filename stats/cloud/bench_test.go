@@ -21,12 +21,12 @@
 package cloud
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/mailru/easyjson"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
@@ -107,9 +107,9 @@ func BenchmarkMetricMarshal(b *testing.B) ***REMOVED***
 		b.Run(fmt.Sprintf("%d", count), func(b *testing.B) ***REMOVED***
 			for i := 0; i < b.N; i++ ***REMOVED***
 				b.StopTimer()
-				samples := generateSamples(count)
+				s := generateSamples(count)
 				b.StartTimer()
-				r, err := json.Marshal(samples)
+				r, err := easyjson.Marshal(samples(s))
 				require.NoError(b, err)
 				b.SetBytes(int64(len(r)))
 			***REMOVED***
