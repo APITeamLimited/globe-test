@@ -93,39 +93,39 @@ func (c *Client) NewRequest(method, url string, data interface***REMOVED******RE
 ***REMOVED***
 
 func (c *Client) Do(req *http.Request, v interface***REMOVED******REMOVED***) error ***REMOVED***
-	var originalBody []byte
-	var err error
-
-	if req.Body != nil ***REMOVED***
-		originalBody, err = ioutil.ReadAll(req.Body)
+	if req.Body != nil && req.GetBody == nil ***REMOVED***
+		originalBody, err := ioutil.ReadAll(req.Body)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-
-		if cerr := req.Body.Close(); cerr != nil ***REMOVED***
-			err = cerr
+		if err = req.Body.Close(); err != nil ***REMOVED***
+			return err
 		***REMOVED***
+
+		req.GetBody = func() (io.ReadCloser, error) ***REMOVED***
+			return ioutil.NopCloser(bytes.NewReader(originalBody)), nil
+		***REMOVED***
+		req.Body, _ = req.GetBody()
 	***REMOVED***
 
 	// TODO(cuonglm): finding away to move this back to NewRequest
 	c.prepareHeaders(req)
 
 	for i := 1; i <= c.retries; i++ ***REMOVED***
-		if len(originalBody) > 0 ***REMOVED***
-			req.Body = ioutil.NopCloser(bytes.NewBuffer(originalBody))
-		***REMOVED***
-
 		retry, err := c.do(req, v, i)
 
 		if retry ***REMOVED***
 			time.Sleep(c.retryInterval)
+			if req.GetBody != nil ***REMOVED***
+				req.Body, _ = req.GetBody()
+			***REMOVED***
 			continue
 		***REMOVED***
 
 		return err
 	***REMOVED***
 
-	return err
+	return nil
 ***REMOVED***
 
 func (c *Client) prepareHeaders(req *http.Request) ***REMOVED***
