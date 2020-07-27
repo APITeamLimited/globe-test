@@ -21,7 +21,10 @@
 package cloud
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"testing"
@@ -131,6 +134,37 @@ func BenchmarkMetricMarshalWriter(b *testing.B) ***REMOVED***
 				b.SetBytes(int64(n))
 			***REMOVED***
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkMetricMarshalGzip(b *testing.B) ***REMOVED***
+	for _, count := range []int***REMOVED***10000, 100000, 500000***REMOVED*** ***REMOVED***
+		for name, level := range map[string]int***REMOVED***
+			"bestcompression": gzip.BestCompression,
+			"default":         gzip.DefaultCompression,
+			"bestspeed":       gzip.BestSpeed,
+		***REMOVED*** ***REMOVED***
+			count := count
+			level := level
+			b.Run(fmt.Sprintf("%d_%s", count, name), func(b *testing.B) ***REMOVED***
+				s := generateSamples(count)
+				r, err := easyjson.Marshal(samples(s))
+				require.NoError(b, err)
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ ***REMOVED***
+					b.StopTimer()
+					var buf bytes.Buffer
+					buf.Grow(len(r) / 5)
+					g, err := gzip.NewWriterLevel(&buf, level)
+					require.NoError(b, err)
+					b.StartTimer()
+					n, err := g.Write(r)
+					require.NoError(b, err)
+					b.SetBytes(int64(n))
+					b.ReportMetric(float64(len(r))/float64(buf.Len()), "ratio")
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
