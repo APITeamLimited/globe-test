@@ -168,6 +168,67 @@ func BenchmarkMetricMarshalGzip(b *testing.B) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func BenchmarkMetricMarshalGzipAll(b *testing.B) ***REMOVED***
+	for _, count := range []int***REMOVED***10000, 100000, 500000***REMOVED*** ***REMOVED***
+		for name, level := range map[string]int***REMOVED***
+			"bestspeed": gzip.BestSpeed,
+		***REMOVED*** ***REMOVED***
+			count := count
+			level := level
+			b.Run(fmt.Sprintf("%d_%s", count, name), func(b *testing.B) ***REMOVED***
+				for i := 0; i < b.N; i++ ***REMOVED***
+					b.StopTimer()
+
+					s := generateSamples(count)
+					var buf bytes.Buffer
+					g, err := gzip.NewWriterLevel(&buf, level)
+					require.NoError(b, err)
+					b.StartTimer()
+
+					r, err := easyjson.Marshal(samples(s))
+					require.NoError(b, err)
+					buf.Grow(len(r) / 5)
+					n, err := g.Write(r)
+					require.NoError(b, err)
+					b.SetBytes(int64(n))
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkMetricMarshalGzipAllWriter(b *testing.B) ***REMOVED***
+	for _, count := range []int***REMOVED***10000, 100000, 500000***REMOVED*** ***REMOVED***
+		for name, level := range map[string]int***REMOVED***
+			"bestspeed": gzip.BestSpeed,
+		***REMOVED*** ***REMOVED***
+			count := count
+			level := level
+			b.Run(fmt.Sprintf("%d_%s", count, name), func(b *testing.B) ***REMOVED***
+				var buf bytes.Buffer
+				for i := 0; i < b.N; i++ ***REMOVED***
+					b.StopTimer()
+					buf.Reset()
+
+					s := generateSamples(count)
+					g, err := gzip.NewWriterLevel(&buf, level)
+					require.NoError(b, err)
+					pr, pw := io.Pipe()
+					b.StartTimer()
+
+					go func() ***REMOVED***
+						_, _ = easyjson.MarshalToWriter(samples(s), pw)
+						_ = pw.Close()
+					***REMOVED***()
+					n, err := io.Copy(g, pr)
+					require.NoError(b, err)
+					b.SetBytes(n)
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func generateSamples(count int) []*Sample ***REMOVED***
 	samples := make([]*Sample, count)
 	now := time.Now()
