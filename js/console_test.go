@@ -117,8 +117,8 @@ func TestConsole(t *testing.T) ***REMOVED***
 		Data    logrus.Fields
 	***REMOVED******REMOVED***
 		`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b", "source": "console"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2", "source": "console"***REMOVED******REMOVED***,
+		`"string","a","b"`: ***REMOVED***Message: "string a b", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
+		`"string",1,2`:     ***REMOVED***Message: "string 1 2", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
 		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
@@ -181,8 +181,8 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 			Data    logrus.Fields
 		***REMOVED******REMOVED***
 			`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
-			`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-			`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
+			`"string","a","b"`: ***REMOVED***Message: "string a b", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
+			`"string",1,2`:     ***REMOVED***Message: "string 1 2", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
 		preExisting = map[string]bool***REMOVED***

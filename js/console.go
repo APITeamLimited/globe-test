@@ -23,7 +23,7 @@ package js
 import (
 	"context"
 	"os"
-	"strconv"
+	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -64,24 +64,25 @@ func (c console) log(ctx *context.Context, level logrus.Level, msgobj goja.Value
 		***REMOVED***
 	***REMOVED***
 
-	// TODO this is not how it works anywhere else
-	// nodejs: https://nodejs.org/api/console.html#console_console_info_data_args
-	// mdn: https://developer.mozilla.org/en-US/docs/Web/API/Console/log
-	fields := make(logrus.Fields, len(args)+1)
-	for i, arg := range args ***REMOVED***
-		fields[strconv.Itoa(i)] = arg.String()
+	msg := msgobj.String()
+	if len(args) > 0 ***REMOVED***
+		strs := make([]string, 1+len(args))
+		strs[0] = msg
+		for i, v := range args ***REMOVED***
+			strs[i+1] = v.String()
+		***REMOVED***
+
+		msg = strings.Join(strs, " ")
 	***REMOVED***
-	msg := msgobj.ToString()
-	e := c.logger.WithFields(fields)
 	switch level ***REMOVED*** //nolint:exhaustive
 	case logrus.DebugLevel:
-		e.Debug(msg)
+		c.logger.Debug(msg)
 	case logrus.InfoLevel:
-		e.Info(msg)
+		c.logger.Info(msg)
 	case logrus.WarnLevel:
-		e.Warn(msg)
+		c.logger.Warn(msg)
 	case logrus.ErrorLevel:
-		e.Error(msg)
+		c.logger.Error(msg)
 	***REMOVED***
 ***REMOVED***
 
