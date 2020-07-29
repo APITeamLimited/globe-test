@@ -70,6 +70,7 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 		assert.Equal(t, "b", entry.Message)
 	***REMOVED***
 ***REMOVED***
+
 func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
 	var (
 		fs     = afero.NewMemMapFs()
@@ -93,6 +94,16 @@ func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REM
 	)
 ***REMOVED***
 
+func extractLogger(fl logrus.FieldLogger) *logrus.Logger ***REMOVED***
+	switch e := fl.(type) ***REMOVED***
+	case *logrus.Entry:
+		return e.Logger
+	case *logrus.Logger:
+		return e
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func TestConsole(t *testing.T) ***REMOVED***
 	levels := map[string]logrus.Level***REMOVED***
 		"log":   logrus.InfoLevel,
@@ -105,10 +116,10 @@ func TestConsole(t *testing.T) ***REMOVED***
 		Message string
 		Data    logrus.Fields
 	***REMOVED******REMOVED***
-		`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
-		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
+		`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
+		`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b", "source": "console"***REMOVED******REMOVED***,
+		`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2", "source": "console"***REMOVED******REMOVED***,
+		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
 		name, level := name, level
@@ -130,10 +141,11 @@ func TestConsole(t *testing.T) ***REMOVED***
 					defer cancel()
 					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 
-					logger, hook := logtest.NewNullLogger()
+					logger := extractLogger(vu.(*ActiveVU).Console.logger)
+
+					logger.Out = ioutil.Discard
 					logger.Level = logrus.DebugLevel
-					jsVU := vu.(*ActiveVU)
-					jsVU.Console.Logger = logger
+					hook := logtest.NewLocal(logger)
 
 					err = vu.RunOnce()
 					assert.NoError(t, err)
@@ -168,10 +180,10 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 			Message string
 			Data    logrus.Fields
 		***REMOVED******REMOVED***
-			`"string"`:         ***REMOVED***Message: "string"***REMOVED***,
+			`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 			`"string","a","b"`: ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "a", "1": "b"***REMOVED******REMOVED***,
 			`"string",1,2`:     ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"0": "1", "1": "2"***REMOVED******REMOVED***,
-			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]"***REMOVED***,
+			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
 		preExisting = map[string]bool***REMOVED***
 			"log exists":        false,
@@ -186,11 +198,11 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 					// whether the file is existed before logging
 					for msg, deleteFile := range preExisting ***REMOVED***
 						t.Run(msg, func(t *testing.T) ***REMOVED***
-							var f, err = ioutil.TempFile("", "")
+							f, err := ioutil.TempFile("", "")
 							if err != nil ***REMOVED***
 								t.Fatalf("Couldn't create temporary file for testing: %s", err)
 							***REMOVED***
-							var logFilename = f.Name()
+							logFilename := f.Name()
 							defer os.Remove(logFilename)
 							// close it as we will want to reopen it and maybe remove it
 							if deleteFile ***REMOVED***
@@ -200,8 +212,8 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								***REMOVED***
 							***REMOVED*** else ***REMOVED***
 								// TODO: handle case where the string was no written in full ?
-								_, err := f.WriteString(preExistingText)
-								f.Close()
+								_, err = f.WriteString(preExistingText)
+								_ = f.Close()
 								if err != nil ***REMOVED***
 									t.Fatalf("Error while writing text to preexisting logfile: %s", err)
 								***REMOVED***
@@ -226,9 +238,10 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 							ctx, cancel := context.WithCancel(context.Background())
 							defer cancel()
 							vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-							jsVU := vu.(*ActiveVU)
-							jsVU.Console.Logger.Level = logrus.DebugLevel
-							hook := logtest.NewLocal(jsVU.Console.Logger)
+							logger := extractLogger(vu.(*ActiveVU).Console.logger)
+
+							logger.Level = logrus.DebugLevel
+							hook := logtest.NewLocal(logger)
 
 							err = vu.RunOnce()
 							assert.NoError(t, err)
@@ -259,13 +272,12 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								fileContent, err := ioutil.ReadAll(f)
 								assert.NoError(t, err)
 
-								var expectedStr = entryStr
+								expectedStr := entryStr
 								if !deleteFile ***REMOVED***
 									expectedStr = preExistingText + expectedStr
 								***REMOVED***
 								assert.Equal(t, expectedStr, string(fileContent))
 							***REMOVED***
-
 						***REMOVED***)
 					***REMOVED***
 				***REMOVED***)
