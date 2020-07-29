@@ -21,7 +21,7 @@
 package httpext
 
 import (
-	"fmt"
+	"bytes"
 	"net/http"
 	"net/http/httputil"
 
@@ -29,9 +29,9 @@ import (
 )
 
 type httpDebugTransport struct ***REMOVED***
-	//TODO: get the state and log to its Logger
 	originalTransport http.RoundTripper
 	httpDebugOption   string
+	logger            logrus.FieldLogger
 ***REMOVED***
 
 // RoundTrip prints passing HTTP requests and received responses
@@ -50,17 +50,17 @@ func (t httpDebugTransport) RoundTrip(req *http.Request) (*http.Response, error)
 func (t httpDebugTransport) debugRequest(req *http.Request) ***REMOVED***
 	dump, err := httputil.DumpRequestOut(req, t.httpDebugOption == "full")
 	if err != nil ***REMOVED***
-		logrus.Error(err)
+		t.logger.Error(err)
 	***REMOVED***
-	fmt.Printf("Request:\n%s\n", dump) //TODO: fix...
+	t.logger.Infof("Request:\n%s\n", bytes.ReplaceAll(dump, []byte("\r\n"), []byte***REMOVED***'\n'***REMOVED***))
 ***REMOVED***
 
 func (t httpDebugTransport) debugResponse(res *http.Response) ***REMOVED***
 	if res != nil ***REMOVED***
 		dump, err := httputil.DumpResponse(res, t.httpDebugOption == "full")
 		if err != nil ***REMOVED***
-			logrus.Error(err)
+			t.logger.Error(err)
 		***REMOVED***
-		fmt.Printf("Response:\n%s\n", dump) //TODO: fix...
+		t.logger.Infof("Response:\n%s\n", bytes.ReplaceAll(dump, []byte("\r\n"), []byte***REMOVED***'\n'***REMOVED***))
 	***REMOVED***
 ***REMOVED***
