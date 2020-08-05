@@ -316,7 +316,7 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		hasher.update("hello world");
 		hasher.digest("someInvalidEncoding");
 		`)
-		assert.EqualError(t, err, "GoError: Invalid output encoding: someInvalidEncoding")
+		assert.Contains(t, err.Error(), "GoError: Invalid output encoding: someInvalidEncoding")
 	***REMOVED***)
 ***REMOVED***
 
@@ -382,6 +382,7 @@ func TestHMac(t *testing.T) ***REMOVED***
 		"sha348": "d331e169e2dcfc742e80a3bf4dcc76d0e6425ab3777a3ac217ac6b2552aad5529ed4d40135b06e53a495ac7425d1e462",
 	***REMOVED***
 	for algorithm, value := range invalidData ***REMOVED***
+		algorithm := algorithm
 		rt.Set("correctHex", rt.ToValue(value))
 		rt.Set("algorithm", rt.ToValue(algorithm))
 		t.Run(algorithm+" hasher: invalid", func(t *testing.T) ***REMOVED***
@@ -394,7 +395,7 @@ func TestHMac(t *testing.T) ***REMOVED***
 				throw new Error("Hex encoding mismatch: " + resultHex);
 			***REMOVED***`)
 
-			assert.EqualError(t, err, "GoError: Invalid algorithm: "+algorithm)
+			assert.Contains(t, err.Error(), "GoError: Invalid algorithm: "+algorithm)
 		***REMOVED***)
 
 		t.Run(algorithm+" wrapper: invalid", func(t *testing.T) ***REMOVED***
@@ -404,7 +405,7 @@ func TestHMac(t *testing.T) ***REMOVED***
 				throw new Error("Hex encoding mismatch: " + resultHex);
 			***REMOVED***`)
 
-			assert.EqualError(t, err, "GoError: Invalid algorithm: "+algorithm)
+			assert.Contains(t, err.Error(), "GoError: Invalid algorithm: "+algorithm)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

@@ -348,7 +348,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"Error", bridgeTestErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.error()`)
-			assert.EqualError(t, err, "GoError: error")
+			assert.Contains(t, err.Error(), "GoError: error")
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValue", bridgeTestJSValueType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			v, err := RunString(rt, `obj.func(1234)`)
@@ -358,7 +358,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueError", bridgeTestJSValueErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: missing argument")
+			assert.Contains(t, err.Error(), "GoError: missing argument")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				v, err := RunString(rt, `obj.func(1234)`)
@@ -369,7 +369,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueContext", bridgeTestJSValueContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -383,14 +383,14 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueContextError", bridgeTestJSValueContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
 				_, err := RunString(rt, `obj.func()`)
-				assert.EqualError(t, err, "GoError: missing argument")
+				assert.Contains(t, err.Error(), "GoError: missing argument")
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
 					v, err := RunString(rt, `obj.func(1234)`)
@@ -408,7 +408,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionError", bridgeTestNativeFunctionErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: missing argument")
+			assert.Contains(t, err.Error(), "GoError: missing argument")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				v, err := RunString(rt, `obj.func(1234)`)
@@ -419,7 +419,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionContext", bridgeTestNativeFunctionContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -433,14 +433,14 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionContextError", bridgeTestNativeFunctionContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.func()`)
-			assert.EqualError(t, err, "GoError: func() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
 				_, err := RunString(rt, `obj.func()`)
-				assert.EqualError(t, err, "GoError: missing argument")
+				assert.Contains(t, err.Error(), "GoError: missing argument")
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
 					v, err := RunString(rt, `obj.func(1234)`)
@@ -464,7 +464,7 @@ func TestBind(t *testing.T) ***REMOVED***
 
 			t.Run("Negative", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.addWithError(0, -1)`)
-				assert.EqualError(t, err, "GoError: answer is negative")
+				assert.Contains(t, err.Error(), "GoError: answer is negative")
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"AddWithError", bridgeTestAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
@@ -475,12 +475,12 @@ func TestBind(t *testing.T) ***REMOVED***
 
 			t.Run("Negative", func(t *testing.T) ***REMOVED***
 				_, err := RunString(rt, `obj.addWithError(0, -1)`)
-				assert.EqualError(t, err, "GoError: answer is negative")
+				assert.Contains(t, err.Error(), "GoError: answer is negative")
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Context", bridgeTestContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.context()`)
-			assert.EqualError(t, err, "GoError: context() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: context() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -492,7 +492,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAdd", bridgeTestContextAddType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.contextAdd(1, 2)`)
-			assert.EqualError(t, err, "GoError: contextAdd() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: contextAdd() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -506,7 +506,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAddWithError", bridgeTestContextAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.contextAddWithError(1, 2)`)
-			assert.EqualError(t, err, "GoError: contextAddWithError() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: contextAddWithError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -519,7 +519,7 @@ func TestBind(t *testing.T) ***REMOVED***
 
 				t.Run("Negative", func(t *testing.T) ***REMOVED***
 					_, err := RunString(rt, `obj.contextAddWithError(0, -1)`)
-					assert.EqualError(t, err, "GoError: answer is negative")
+					assert.Contains(t, err.Error(), "GoError: answer is negative")
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED******REMOVED***,
@@ -529,7 +529,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			case bridgeTestContextInjectType:
 				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject' at <eval>:1:18(3)")
 			case *bridgeTestContextInjectType:
-				assert.EqualError(t, err, "GoError: contextInject() can only be called from within default()")
+				assert.Contains(t, err.Error(), "GoError: contextInject() can only be called from within default()")
 				assert.Equal(t, nil, impl.ctx)
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
@@ -588,7 +588,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContext", bridgeTestSumWithContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.sumWithContext(1, 2)`)
-			assert.EqualError(t, err, "GoError: sumWithContext() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: sumWithContext() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
@@ -626,7 +626,7 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContextAndError", bridgeTestSumWithContextAndErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			_, err := RunString(rt, `obj.sumWithContextAndError(1, 2)`)
-			assert.EqualError(t, err, "GoError: sumWithContextAndError() can only be called from within default()")
+			assert.Contains(t, err.Error(), "GoError: sumWithContextAndError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
