@@ -4,10 +4,11 @@ import (
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
+	"github.com/dop251/goja/unistring"
 )
 
 func (self *_parser) parseIdentifier() *ast.Identifier ***REMOVED***
-	literal := self.literal
+	literal := self.parsedLiteral
 	idx := self.idx
 	self.next()
 	return &ast.Identifier***REMOVED***
@@ -17,7 +18,7 @@ func (self *_parser) parseIdentifier() *ast.Identifier ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
-	literal := self.literal
+	literal, parsedLiteral := self.literal, self.parsedLiteral
 	idx := self.idx
 	switch self.token ***REMOVED***
 	case token.IDENTIFIER:
@@ -31,7 +32,7 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		return &ast.Identifier***REMOVED***
-			Name: literal,
+			Name: parsedLiteral,
 			Idx:  idx,
 		***REMOVED***
 	case token.NULL:
@@ -43,7 +44,7 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 	case token.BOOLEAN:
 		self.next()
 		value := false
-		switch literal ***REMOVED***
+		switch parsedLiteral ***REMOVED***
 		case "true":
 			value = true
 		case "false":
@@ -58,14 +59,10 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 		***REMOVED***
 	case token.STRING:
 		self.next()
-		value, err := parseStringLiteral(literal[1 : len(literal)-1])
-		if err != nil ***REMOVED***
-			self.error(idx, err.Error())
-		***REMOVED***
 		return &ast.StringLiteral***REMOVED***
 			Idx:     idx,
 			Literal: literal,
-			Value:   value,
+			Value:   parsedLiteral,
 		***REMOVED***
 	case token.NUMBER:
 		self.next()
@@ -112,7 +109,7 @@ func (self *_parser) parseRegExpLiteral() *ast.RegExpLiteral ***REMOVED***
 	***REMOVED***
 	idx := self.idxOf(offset)
 
-	pattern, err := self.scanString(offset)
+	pattern, _, err := self.scanString(offset, false)
 	endOffset := self.chrOffset
 
 	if err == nil ***REMOVED***
@@ -151,11 +148,11 @@ func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.VariableEx
 		return &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
 	***REMOVED***
 
-	literal := self.literal
+	name := self.parsedLiteral
 	idx := self.idx
 	self.next()
 	node := &ast.VariableExpression***REMOVED***
-		Name: literal,
+		Name: name,
 		Idx:  idx,
 	***REMOVED***
 
@@ -192,31 +189,27 @@ func (self *_parser) parseVariableDeclarationList(var_ file.Idx) []ast.Expressio
 	return list
 ***REMOVED***
 
-func (self *_parser) parseObjectPropertyKey() (string, string) ***REMOVED***
-	idx, tkn, literal := self.idx, self.token, self.literal
-	value := ""
+func (self *_parser) parseObjectPropertyKey() (string, unistring.String) ***REMOVED***
+	idx, tkn, literal, parsedLiteral := self.idx, self.token, self.literal, self.parsedLiteral
+	var value unistring.String
 	self.next()
 	switch tkn ***REMOVED***
 	case token.IDENTIFIER:
-		value = literal
+		value = parsedLiteral
 	case token.NUMBER:
 		var err error
 		_, err = parseNumberLiteral(literal)
 		if err != nil ***REMOVED***
 			self.error(idx, err.Error())
 		***REMOVED*** else ***REMOVED***
-			value = literal
+			value = unistring.String(literal)
 		***REMOVED***
 	case token.STRING:
-		var err error
-		value, err = parseStringLiteral(literal[1 : len(literal)-1])
-		if err != nil ***REMOVED***
-			self.error(idx, err.Error())
-		***REMOVED***
+		value = parsedLiteral
 	default:
 		// null, false, class, etc.
-		if matchIdentifier.MatchString(literal) ***REMOVED***
-			value = literal
+		if isId(tkn) ***REMOVED***
+			value = unistring.String(literal)
 		***REMOVED***
 	***REMOVED***
 	return literal, value
@@ -339,10 +332,10 @@ func (self *_parser) parseCallExpression(left ast.Expression) ast.Expression ***
 func (self *_parser) parseDotMember(left ast.Expression) ast.Expression ***REMOVED***
 	period := self.expect(token.PERIOD)
 
-	literal := self.literal
+	literal := self.parsedLiteral
 	idx := self.idx
 
-	if !matchIdentifier.MatchString(literal) ***REMOVED***
+	if self.token != token.IDENTIFIER && !isId(self.token) ***REMOVED***
 		self.expect(token.IDENTIFIER)
 		self.nextStatement()
 		return &ast.BadExpression***REMOVED***From: period, To: self.idx***REMOVED***
@@ -373,6 +366,23 @@ func (self *_parser) parseBracketMember(left ast.Expression) ast.Expression ***R
 
 func (self *_parser) parseNewExpression() ast.Expression ***REMOVED***
 	idx := self.expect(token.NEW)
+	if self.token == token.PERIOD ***REMOVED***
+		self.next()
+		prop := self.parseIdentifier()
+		if prop.Name == "target" ***REMOVED***
+			if !self.scope.inFunction ***REMOVED***
+				self.error(idx, "new.target expression is not allowed here")
+			***REMOVED***
+			return &ast.MetaProperty***REMOVED***
+				Meta: &ast.Identifier***REMOVED***
+					Name: unistring.String(token.NEW.String()),
+					Idx:  idx,
+				***REMOVED***,
+				Property: prop,
+			***REMOVED***
+		***REMOVED***
+		self.errorUnexpectedToken(token.IDENTIFIER)
+	***REMOVED***
 	callee := self.parseLeftHandSideExpression()
 	node := &ast.NewExpression***REMOVED***
 		New:    idx,

@@ -7,12 +7,15 @@ import (
 	"io"
 	"math"
 	"strings"
+	"unicode/utf16"
+
+	"github.com/dop251/goja/unistring"
 )
 
-var hex = "0123456789abcdef"
+const hex = "0123456789abcdef"
 
 func (r *Runtime) builtinJSON_parse(call FunctionCall) Value ***REMOVED***
-	d := json.NewDecoder(bytes.NewBufferString(call.Argument(0).String()))
+	d := json.NewDecoder(bytes.NewBufferString(call.Argument(0).toString().String()))
 
 	value, err := r.builtinJSON_decodeValue(d)
 	if err != nil ***REMOVED***
@@ -31,7 +34,7 @@ func (r *Runtime) builtinJSON_parse(call FunctionCall) Value ***REMOVED***
 
 	if reviver != nil ***REMOVED***
 		root := r.NewObject()
-		root.self.putStr("", value, false)
+		root.self.setOwnStr("", value, false)
 		return r.builtinJSON_reviveWalk(reviver, root, stringEmpty)
 	***REMOVED***
 
@@ -85,17 +88,7 @@ func (r *Runtime) builtinJSON_decodeObject(d *json.Decoder) (*Object, error) ***
 			return nil, err
 		***REMOVED***
 
-		if key == __proto__ ***REMOVED***
-			descr := propertyDescr***REMOVED***
-				Value:        value,
-				Writable:     FLAG_TRUE,
-				Enumerable:   FLAG_TRUE,
-				Configurable: FLAG_TRUE,
-			***REMOVED***
-			object.self.defineOwnProperty(string__proto__, descr, false)
-		***REMOVED*** else ***REMOVED***
-			object.self.putStr(key, value, false)
-		***REMOVED***
+		object.self._putProp(unistring.NewFromString(key), value, true, true, true)
 	***REMOVED***
 	return object, nil
 ***REMOVED***
@@ -138,40 +131,31 @@ func (r *Runtime) builtinJSON_decodeArray(d *json.Decoder) (*Object, error) ***R
 	return r.newArrayValues(arrayValue), nil
 ***REMOVED***
 
-func isArray(object *Object) bool ***REMOVED***
-	switch object.self.className() ***REMOVED***
-	case classArray:
-		return true
-	default:
-		return false
-	***REMOVED***
-***REMOVED***
-
 func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holder *Object, name Value) Value ***REMOVED***
-	value := holder.self.get(name)
+	value := holder.get(name, nil)
 	if value == nil ***REMOVED***
 		value = _undefined
 	***REMOVED***
 
 	if object, ok := value.(*Object); ok ***REMOVED***
 		if isArray(object) ***REMOVED***
-			length := object.self.getStr("length").ToInteger()
+			length := object.self.getStr("length", nil).ToInteger()
 			for index := int64(0); index < length; index++ ***REMOVED***
 				name := intToValue(index)
 				value := r.builtinJSON_reviveWalk(reviver, object, name)
 				if value == _undefined ***REMOVED***
-					object.self.delete(name, false)
+					object.delete(name, false)
 				***REMOVED*** else ***REMOVED***
-					object.self.put(name, value, false)
+					object.setOwn(name, value, false)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			for item, f := object.self.enumerate(false, false)(); f != nil; item, f = f() ***REMOVED***
-				value := r.builtinJSON_reviveWalk(reviver, object, newStringValue(item.name))
+			for _, itemName := range object.self.ownKeys(false, nil) ***REMOVED***
+				value := r.builtinJSON_reviveWalk(reviver, object, itemName)
 				if value == _undefined ***REMOVED***
-					object.self.deleteStr(item.name, false)
+					object.self.deleteStr(itemName.string(), false)
 				***REMOVED*** else ***REMOVED***
-					object.self.putStr(item.name, value, false)
+					object.self.setOwnStr(itemName.string(), value, false)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -199,21 +183,18 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value ***REMOVED***
 	replacer, _ := call.Argument(1).(*Object)
 	if replacer != nil ***REMOVED***
 		if isArray(replacer) ***REMOVED***
-			length := replacer.self.getStr("length").ToInteger()
+			length := replacer.self.getStr("length", nil).ToInteger()
 			seen := map[string]bool***REMOVED******REMOVED***
 			propertyList := make([]Value, length)
 			length = 0
 			for index := range propertyList ***REMOVED***
 				var name string
-				value := replacer.self.get(intToValue(int64(index)))
-				if s, ok := value.assertString(); ok ***REMOVED***
-					name = s.String()
-				***REMOVED*** else if _, ok := value.assertInt(); ok ***REMOVED***
+				value := replacer.self.getIdx(valueInt(int64(index)), nil)
+				switch v := value.(type) ***REMOVED***
+				case valueFloat, valueInt, valueString:
 					name = value.String()
-				***REMOVED*** else if _, ok := value.assertFloat(); ok ***REMOVED***
-					name = value.String()
-				***REMOVED*** else if o, ok := value.(*Object); ok ***REMOVED***
-					switch o.self.className() ***REMOVED***
+				case *Object:
+					switch v.self.className() ***REMOVED***
 					case classNumber, classString:
 						name = value.String()
 					***REMOVED***
@@ -241,12 +222,12 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 		isNum := false
 		var num int64
-		num, isNum = spaceValue.assertInt()
-		if !isNum ***REMOVED***
-			if f, ok := spaceValue.assertFloat(); ok ***REMOVED***
-				num = int64(f)
-				isNum = true
-			***REMOVED***
+		if i, ok := spaceValue.(valueInt); ok ***REMOVED***
+			num = int64(i)
+			isNum = true
+		***REMOVED*** else if f, ok := spaceValue.(valueFloat); ok ***REMOVED***
+			num = int64(f)
+			isNum = true
 		***REMOVED***
 		if isNum ***REMOVED***
 			if num > 0 ***REMOVED***
@@ -256,7 +237,7 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value ***REMOVED***
 				ctx.gap = strings.Repeat(" ", int(num))
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			if s, ok := spaceValue.assertString(); ok ***REMOVED***
+			if s, ok := spaceValue.(valueString); ok ***REMOVED***
 				str := s.String()
 				if len(str) > 10 ***REMOVED***
 					ctx.gap = str[:10]
@@ -275,18 +256,18 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value ***REMOVED***
 
 func (ctx *_builtinJSON_stringifyContext) do(v Value) bool ***REMOVED***
 	holder := ctx.r.NewObject()
-	holder.self.putStr("", v, false)
+	holder.self.setOwnStr("", v, false)
 	return ctx.str(stringEmpty, holder)
 ***REMOVED***
 
 func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool ***REMOVED***
-	value := holder.self.get(key)
+	value := holder.get(key, nil)
 	if value == nil ***REMOVED***
 		value = _undefined
 	***REMOVED***
 
 	if object, ok := value.(*Object); ok ***REMOVED***
-		if toJSON, ok := object.self.getStr("toJSON").(*Object); ok ***REMOVED***
+		if toJSON, ok := object.self.getStr("toJSON", nil).(*Object); ok ***REMOVED***
 			if c, ok := toJSON.self.assertCallable(); ok ***REMOVED***
 				value = c(FunctionCall***REMOVED***
 					This:      value,
@@ -384,7 +365,7 @@ func (ctx *_builtinJSON_stringifyContext) ja(array *Object) ***REMOVED***
 		stepback = ctx.indent
 		ctx.indent += ctx.gap
 	***REMOVED***
-	length := array.self.getStr("length").ToInteger()
+	length := array.self.getStr("length", nil).ToInteger()
 	if length == 0 ***REMOVED***
 		ctx.buf.WriteString("[]")
 		return
@@ -436,9 +417,7 @@ func (ctx *_builtinJSON_stringifyContext) jo(object *Object) ***REMOVED***
 
 	var props []Value
 	if ctx.propertyList == nil ***REMOVED***
-		for item, f := object.self.enumerate(false, false)(); f != nil; item, f = f() ***REMOVED***
-			props = append(props, newStringValue(item.name))
-		***REMOVED***
+		props = append(props, object.self.ownKeys(false, nil)...)
 	***REMOVED*** else ***REMOVED***
 		props = ctx.propertyList
 	***REMOVED***
@@ -449,7 +428,7 @@ func (ctx *_builtinJSON_stringifyContext) jo(object *Object) ***REMOVED***
 		if !empty ***REMOVED***
 			ctx.buf.WriteString(separator)
 		***REMOVED***
-		ctx.quote(name.ToString())
+		ctx.quote(name.toString())
 		if ctx.gap != "" ***REMOVED***
 			ctx.buf.WriteString(": ")
 		***REMOVED*** else ***REMOVED***
@@ -478,7 +457,7 @@ func (ctx *_builtinJSON_stringifyContext) jo(object *Object) ***REMOVED***
 
 func (ctx *_builtinJSON_stringifyContext) quote(str valueString) ***REMOVED***
 	ctx.buf.WriteByte('"')
-	reader := str.reader(0)
+	reader := &lenientUtf16Decoder***REMOVED***utf16Reader: str.utf16Reader(0)***REMOVED***
 	for ***REMOVED***
 		r, _, err := reader.ReadRune()
 		if err != nil ***REMOVED***
@@ -504,7 +483,15 @@ func (ctx *_builtinJSON_stringifyContext) quote(str valueString) ***REMOVED***
 				ctx.buf.WriteByte(hex[r>>4])
 				ctx.buf.WriteByte(hex[r&0xF])
 			***REMOVED*** else ***REMOVED***
-				ctx.buf.WriteRune(r)
+				if utf16.IsSurrogate(r) ***REMOVED***
+					ctx.buf.WriteString(`\u`)
+					ctx.buf.WriteByte(hex[r>>12])
+					ctx.buf.WriteByte(hex[(r>>8)&0xF])
+					ctx.buf.WriteByte(hex[(r>>4)&0xF])
+					ctx.buf.WriteByte(hex[r&0xF])
+				***REMOVED*** else ***REMOVED***
+					ctx.buf.WriteRune(r)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -515,6 +502,7 @@ func (r *Runtime) initJSON() ***REMOVED***
 	JSON := r.newBaseObject(r.global.ObjectPrototype, "JSON")
 	JSON._putProp("parse", r.newNativeFunc(r.builtinJSON_parse, nil, "parse", nil, 2), true, false, true)
 	JSON._putProp("stringify", r.newNativeFunc(r.builtinJSON_stringify, nil, "stringify", nil, 3), true, false, true)
+	JSON._putSym(symToStringTag, valueProp(asciiString(classJSON), false, false, true))
 
 	r.addToGlobal("JSON", JSON.val)
 ***REMOVED***

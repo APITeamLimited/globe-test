@@ -1,6 +1,10 @@
 package goja
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/dop251/goja/unistring"
+)
 
 type lazyObject struct ***REMOVED***
 	val    *Object
@@ -13,82 +17,150 @@ func (o *lazyObject) className() string ***REMOVED***
 	return obj.className()
 ***REMOVED***
 
-func (o *lazyObject) get(n Value) Value ***REMOVED***
+func (o *lazyObject) getIdx(p valueInt, receiver Value) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.get(n)
+	return obj.getIdx(p, receiver)
 ***REMOVED***
 
-func (o *lazyObject) getProp(n Value) Value ***REMOVED***
+func (o *lazyObject) getSym(p *valueSymbol, receiver Value) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.getProp(n)
+	return obj.getSym(p, receiver)
 ***REMOVED***
 
-func (o *lazyObject) getPropStr(name string) Value ***REMOVED***
+func (o *lazyObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.getPropStr(name)
+	return obj.getOwnPropIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) getStr(name string) Value ***REMOVED***
+func (o *lazyObject) getOwnPropSym(s *valueSymbol) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.getStr(name)
+	return obj.getOwnPropSym(s)
 ***REMOVED***
 
-func (o *lazyObject) getOwnProp(name string) Value ***REMOVED***
+func (o *lazyObject) hasPropertyIdx(idx valueInt) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.getOwnProp(name)
+	return obj.hasPropertyIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) put(n Value, val Value, throw bool) ***REMOVED***
+func (o *lazyObject) hasPropertySym(s *valueSymbol) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	obj.put(n, val, throw)
+	return obj.hasPropertySym(s)
 ***REMOVED***
 
-func (o *lazyObject) putStr(name string, val Value, throw bool) ***REMOVED***
+func (o *lazyObject) hasOwnPropertyIdx(idx valueInt) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	obj.putStr(name, val, throw)
+	return obj.hasOwnPropertyIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) hasProperty(n Value) bool ***REMOVED***
+func (o *lazyObject) hasOwnPropertySym(s *valueSymbol) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.hasProperty(n)
+	return obj.hasOwnPropertySym(s)
 ***REMOVED***
 
-func (o *lazyObject) hasPropertyStr(name string) bool ***REMOVED***
+func (o *lazyObject) defineOwnPropertyStr(name unistring.String, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.defineOwnPropertyStr(name, desc, throw)
+***REMOVED***
+
+func (o *lazyObject) defineOwnPropertyIdx(name valueInt, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.defineOwnPropertyIdx(name, desc, throw)
+***REMOVED***
+
+func (o *lazyObject) defineOwnPropertySym(name *valueSymbol, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.defineOwnPropertySym(name, desc, throw)
+***REMOVED***
+
+func (o *lazyObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.deleteIdx(idx, throw)
+***REMOVED***
+
+func (o *lazyObject) deleteSym(s *valueSymbol, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.deleteSym(s, throw)
+***REMOVED***
+
+func (o *lazyObject) getStr(name unistring.String, receiver Value) Value ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.getStr(name, receiver)
+***REMOVED***
+
+func (o *lazyObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.getOwnPropStr(name)
+***REMOVED***
+
+func (o *lazyObject) setOwnStr(p unistring.String, v Value, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setOwnStr(p, v, throw)
+***REMOVED***
+
+func (o *lazyObject) setOwnIdx(p valueInt, v Value, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setOwnIdx(p, v, throw)
+***REMOVED***
+
+func (o *lazyObject) setOwnSym(p *valueSymbol, v Value, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setOwnSym(p, v, throw)
+***REMOVED***
+
+func (o *lazyObject) setForeignStr(p unistring.String, v, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setForeignStr(p, v, receiver, throw)
+***REMOVED***
+
+func (o *lazyObject) setForeignIdx(p valueInt, v, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setForeignIdx(p, v, receiver, throw)
+***REMOVED***
+
+func (o *lazyObject) setForeignSym(p *valueSymbol, v, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setForeignSym(p, v, receiver, throw)
+***REMOVED***
+
+func (o *lazyObject) hasPropertyStr(name unistring.String) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.hasPropertyStr(name)
 ***REMOVED***
 
-func (o *lazyObject) hasOwnProperty(n Value) bool ***REMOVED***
-	obj := o.create(o.val)
-	o.val.self = obj
-	return obj.hasOwnProperty(n)
-***REMOVED***
-
-func (o *lazyObject) hasOwnPropertyStr(name string) bool ***REMOVED***
+func (o *lazyObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.hasOwnPropertyStr(name)
 ***REMOVED***
 
-func (o *lazyObject) _putProp(name string, value Value, writable, enumerable, configurable bool) Value ***REMOVED***
-	obj := o.create(o.val)
-	o.val.self = obj
-	return obj._putProp(name, value, writable, enumerable, configurable)
+func (o *lazyObject) _putProp(unistring.String, Value, bool, bool, bool) Value ***REMOVED***
+	panic("cannot use _putProp() in lazy object")
 ***REMOVED***
 
-func (o *lazyObject) defineOwnProperty(name Value, descr propertyDescr, throw bool) bool ***REMOVED***
-	obj := o.create(o.val)
-	o.val.self = obj
-	return obj.defineOwnProperty(name, descr, throw)
+func (o *lazyObject) _putSym(*valueSymbol, Value) ***REMOVED***
+	panic("cannot use _putSym() in lazy object")
 ***REMOVED***
 
 func (o *lazyObject) toPrimitiveNumber() Value ***REMOVED***
@@ -115,16 +187,16 @@ func (o *lazyObject) assertCallable() (call func(FunctionCall) Value, ok bool) *
 	return obj.assertCallable()
 ***REMOVED***
 
-func (o *lazyObject) deleteStr(name string, throw bool) bool ***REMOVED***
+func (o *lazyObject) assertConstructor() func(args []Value, newTarget *Object) *Object ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.assertConstructor()
+***REMOVED***
+
+func (o *lazyObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.deleteStr(name, throw)
-***REMOVED***
-
-func (o *lazyObject) delete(name Value, throw bool) bool ***REMOVED***
-	obj := o.create(o.val)
-	o.val.self = obj
-	return obj.delete(name, throw)
 ***REMOVED***
 
 func (o *lazyObject) proto() *Object ***REMOVED***
@@ -145,22 +217,22 @@ func (o *lazyObject) isExtensible() bool ***REMOVED***
 	return obj.isExtensible()
 ***REMOVED***
 
-func (o *lazyObject) preventExtensions() ***REMOVED***
+func (o *lazyObject) preventExtensions(throw bool) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	obj.preventExtensions()
+	return obj.preventExtensions(throw)
 ***REMOVED***
 
-func (o *lazyObject) enumerate(all, recusrive bool) iterNextFunc ***REMOVED***
+func (o *lazyObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj.enumerate(all, recusrive)
+	return obj.enumerateUnfiltered()
 ***REMOVED***
 
-func (o *lazyObject) _enumerate(recursive bool) iterNextFunc ***REMOVED***
+func (o *lazyObject) enumerate() iterNextFunc ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
-	return obj._enumerate(recursive)
+	return obj.enumerate()
 ***REMOVED***
 
 func (o *lazyObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
@@ -179,6 +251,30 @@ func (o *lazyObject) equal(other objectImpl) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.equal(other)
+***REMOVED***
+
+func (o *lazyObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.ownKeys(all, accum)
+***REMOVED***
+
+func (o *lazyObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.ownSymbols(all, accum)
+***REMOVED***
+
+func (o *lazyObject) ownPropertyKeys(all bool, accum []Value) []Value ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.ownPropertyKeys(all, accum)
+***REMOVED***
+
+func (o *lazyObject) setProto(proto *Object, throw bool) bool ***REMOVED***
+	obj := o.create(o.val)
+	o.val.self = obj
+	return obj.setProto(proto, throw)
 ***REMOVED***
 
 func (o *lazyObject) sortLen() int64 ***REMOVED***

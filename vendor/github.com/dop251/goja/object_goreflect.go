@@ -2,10 +2,12 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dop251/goja/parser"
 	"go/ast"
 	"reflect"
 	"strings"
+
+	"github.com/dop251/goja/parser"
+	"github.com/dop251/goja/unistring"
 )
 
 // JsonEncodable allows custom JSON encoding by JSON.stringify()
@@ -102,6 +104,7 @@ func (o *objectGoReflect) init() ***REMOVED***
 		o.class = classObject
 		o.prototype = o.val.runtime.global.ObjectPrototype
 	***REMOVED***
+	o.extensible = true
 
 	o.baseObject._putProp("toString", o.val.runtime.newNativeFunc(o.toStringFunc, nil, "toString", nil, 0), true, false, true)
 	o.baseObject._putProp("valueOf", o.val.runtime.newNativeFunc(o.valueOfFunc, nil, "valueOf", nil, 0), true, false, true)
@@ -114,16 +117,19 @@ func (o *objectGoReflect) init() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (o *objectGoReflect) toStringFunc(call FunctionCall) Value ***REMOVED***
+func (o *objectGoReflect) toStringFunc(FunctionCall) Value ***REMOVED***
 	return o.toPrimitiveString()
 ***REMOVED***
 
-func (o *objectGoReflect) valueOfFunc(call FunctionCall) Value ***REMOVED***
+func (o *objectGoReflect) valueOfFunc(FunctionCall) Value ***REMOVED***
 	return o.toPrimitive()
 ***REMOVED***
 
-func (o *objectGoReflect) get(n Value) Value ***REMOVED***
-	return o.getStr(n.String())
+func (o *objectGoReflect) getStr(name unistring.String, receiver Value) Value ***REMOVED***
+	if v := o._get(name.String()); v != nil ***REMOVED***
+		return v
+	***REMOVED***
+	return o.baseObject.getStr(name, receiver)
 ***REMOVED***
 
 func (o *objectGoReflect) _getField(jsName string) reflect.Value ***REMOVED***
@@ -143,10 +149,17 @@ func (o *objectGoReflect) _getMethod(jsName string) reflect.Value ***REMOVED***
 	return reflect.Value***REMOVED******REMOVED***
 ***REMOVED***
 
+func (o *objectGoReflect) getAddr(v reflect.Value) reflect.Value ***REMOVED***
+	if (v.Kind() == reflect.Struct || v.Kind() == reflect.Slice) && v.CanAddr() ***REMOVED***
+		return v.Addr()
+	***REMOVED***
+	return v
+***REMOVED***
+
 func (o *objectGoReflect) _get(name string) Value ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
-			return o.val.runtime.ToValue(v.Interface())
+			return o.val.runtime.ToValue(o.getAddr(v).Interface())
 		***REMOVED***
 	***REMOVED***
 
@@ -157,44 +170,19 @@ func (o *objectGoReflect) _get(name string) Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (o *objectGoReflect) getStr(name string) Value ***REMOVED***
-	if v := o._get(name); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-	return o.baseObject._getStr(name)
-***REMOVED***
-
-func (o *objectGoReflect) getProp(n Value) Value ***REMOVED***
-	name := n.String()
-	if p := o.getOwnProp(name); p != nil ***REMOVED***
-		return p
-	***REMOVED***
-	return o.baseObject.getOwnProp(name)
-***REMOVED***
-
-func (o *objectGoReflect) getPropStr(name string) Value ***REMOVED***
-	if v := o.getOwnProp(name); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-	return o.baseObject.getPropStr(name)
-***REMOVED***
-
-func (o *objectGoReflect) getOwnProp(name string) Value ***REMOVED***
+func (o *objectGoReflect) getOwnPropStr(name unistring.String) Value ***REMOVED***
+	n := name.String()
 	if o.value.Kind() == reflect.Struct ***REMOVED***
-		if v := o._getField(name); v.IsValid() ***REMOVED***
-			canSet := v.CanSet()
-			if (v.Kind() == reflect.Struct || v.Kind() == reflect.Slice) && v.CanAddr() ***REMOVED***
-				v = v.Addr()
-			***REMOVED***
+		if v := o._getField(n); v.IsValid() ***REMOVED***
 			return &valueProperty***REMOVED***
-				value:      o.val.runtime.ToValue(v.Interface()),
-				writable:   canSet,
+				value:      o.val.runtime.ToValue(o.getAddr(v).Interface()),
+				writable:   v.CanSet(),
 				enumerable: true,
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if v := o._getMethod(name); v.IsValid() ***REMOVED***
+	if v := o._getMethod(n); v.IsValid() ***REMOVED***
 		return &valueProperty***REMOVED***
 			value:      o.val.runtime.ToValue(v.Interface()),
 			enumerable: true,
@@ -204,43 +192,50 @@ func (o *objectGoReflect) getOwnProp(name string) Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (o *objectGoReflect) put(n Value, val Value, throw bool) ***REMOVED***
-	o.putStr(n.String(), val, throw)
-***REMOVED***
-
-func (o *objectGoReflect) putStr(name string, val Value, throw bool) ***REMOVED***
-	if !o._put(name, val, throw) ***REMOVED***
-		o.val.runtime.typeErrorResult(throw, "Cannot assign to property %s of a host object", name)
+func (o *objectGoReflect) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
+	has, ok := o._put(name.String(), val, throw)
+	if !has ***REMOVED***
+		if res, ok := o._setForeignStr(name, nil, val, o.val, throw); !ok ***REMOVED***
+			o.val.runtime.typeErrorResult(throw, "Cannot assign to property %s of a host object", name)
+			return false
+		***REMOVED*** else ***REMOVED***
+			return res
+		***REMOVED***
 	***REMOVED***
+	return ok
 ***REMOVED***
 
-func (o *objectGoReflect) _put(name string, val Value, throw bool) bool ***REMOVED***
+func (o *objectGoReflect) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	return o._setForeignStr(name, trueValIfPresent(o._has(name.String())), val, receiver, throw)
+***REMOVED***
+
+func (o *objectGoReflect) _put(name string, val Value, throw bool) (has, ok bool) ***REMOVED***
 	if o.value.Kind() == reflect.Struct ***REMOVED***
 		if v := o._getField(name); v.IsValid() ***REMOVED***
 			if !v.CanSet() ***REMOVED***
 				o.val.runtime.typeErrorResult(throw, "Cannot assign to a non-addressable or read-only property %s of a host object", name)
-				return false
+				return true, false
 			***REMOVED***
 			vv, err := o.val.runtime.toReflectValue(val, v.Type())
 			if err != nil ***REMOVED***
 				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
-				return false
+				return true, false
 			***REMOVED***
 			v.Set(vv)
-			return true
+			return true, true
 		***REMOVED***
 	***REMOVED***
-	return false
+	return false, false
 ***REMOVED***
 
-func (o *objectGoReflect) _putProp(name string, value Value, writable, enumerable, configurable bool) Value ***REMOVED***
-	if o._put(name, value, false) ***REMOVED***
+func (o *objectGoReflect) _putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value ***REMOVED***
+	if _, ok := o._put(name.String(), value, false); ok ***REMOVED***
 		return value
 	***REMOVED***
 	return o.baseObject._putProp(name, value, writable, enumerable, configurable)
 ***REMOVED***
 
-func (r *Runtime) checkHostObjectPropertyDescr(name string, descr propertyDescr, throw bool) bool ***REMOVED***
+func (r *Runtime) checkHostObjectPropertyDescr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
 	if descr.Getter != nil || descr.Setter != nil ***REMOVED***
 		r.typeErrorResult(throw, "Host objects do not support accessor properties")
 		return false
@@ -256,28 +251,17 @@ func (r *Runtime) checkHostObjectPropertyDescr(name string, descr propertyDescr,
 	return true
 ***REMOVED***
 
-func (o *objectGoReflect) defineOwnProperty(n Value, descr propertyDescr, throw bool) bool ***REMOVED***
-	if o.value.Kind() == reflect.Struct ***REMOVED***
-		name := n.String()
-		if v := o._getField(name); v.IsValid() ***REMOVED***
-			if !o.val.runtime.checkHostObjectPropertyDescr(name, descr, throw) ***REMOVED***
-				return false
-			***REMOVED***
-			val := descr.Value
-			if val == nil ***REMOVED***
-				val = _undefined
-			***REMOVED***
-			vv, err := o.val.runtime.toReflectValue(val, v.Type())
-			if err != nil ***REMOVED***
-				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
-				return false
-			***REMOVED***
-			v.Set(vv)
-			return true
+func (o *objectGoReflect) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
+	if o.val.runtime.checkHostObjectPropertyDescr(name, descr, throw) ***REMOVED***
+		n := name.String()
+		if has, ok := o._put(n, descr.Value, throw); !has ***REMOVED***
+			o.val.runtime.typeErrorResult(throw, "Cannot define property '%s' on a host object", n)
+			return false
+		***REMOVED*** else ***REMOVED***
+			return ok
 		***REMOVED***
 	***REMOVED***
-
-	return o.baseObject.defineOwnProperty(n, descr, throw)
+	return false
 ***REMOVED***
 
 func (o *objectGoReflect) _has(name string) bool ***REMOVED***
@@ -292,27 +276,8 @@ func (o *objectGoReflect) _has(name string) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (o *objectGoReflect) hasProperty(n Value) bool ***REMOVED***
-	name := n.String()
-	if o._has(name) ***REMOVED***
-		return true
-	***REMOVED***
-	return o.baseObject.hasProperty(n)
-***REMOVED***
-
-func (o *objectGoReflect) hasPropertyStr(name string) bool ***REMOVED***
-	if o._has(name) ***REMOVED***
-		return true
-	***REMOVED***
-	return o.baseObject.hasPropertyStr(name)
-***REMOVED***
-
-func (o *objectGoReflect) hasOwnProperty(n Value) bool ***REMOVED***
-	return o._has(n.String())
-***REMOVED***
-
-func (o *objectGoReflect) hasOwnPropertyStr(name string) bool ***REMOVED***
-	return o._has(name)
+func (o *objectGoReflect) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
+	return o._has(name.String())
 ***REMOVED***
 
 func (o *objectGoReflect) _toNumber() Value ***REMOVED***
@@ -344,10 +309,13 @@ func (o *objectGoReflect) _toString() Value ***REMOVED***
 			return stringFalse
 		***REMOVED***
 	***REMOVED***
-	switch v := o.value.Interface().(type) ***REMOVED***
+	switch v := o.origValue.Interface().(type) ***REMOVED***
 	case fmt.Stringer:
 		return newStringValue(v.String())
+	case error:
+		return newStringValue(v.Error())
 	***REMOVED***
+
 	return stringObjectObject
 ***REMOVED***
 
@@ -360,7 +328,7 @@ func (o *objectGoReflect) toPrimitiveNumber() Value ***REMOVED***
 
 func (o *objectGoReflect) toPrimitiveString() Value ***REMOVED***
 	if v := o._toNumber(); v != nil ***REMOVED***
-		return v.ToString()
+		return v.toString()
 	***REMOVED***
 	return o._toString()
 ***REMOVED***
@@ -372,22 +340,18 @@ func (o *objectGoReflect) toPrimitive() Value ***REMOVED***
 	return o.toPrimitiveString()
 ***REMOVED***
 
-func (o *objectGoReflect) deleteStr(name string, throw bool) bool ***REMOVED***
-	if o._has(name) ***REMOVED***
-		o.val.runtime.typeErrorResult(throw, "Cannot delete property %s from a Go type")
+func (o *objectGoReflect) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
+	n := name.String()
+	if o._has(n) ***REMOVED***
+		o.val.runtime.typeErrorResult(throw, "Cannot delete property %s from a Go type", n)
 		return false
 	***REMOVED***
 	return o.baseObject.deleteStr(name, throw)
 ***REMOVED***
 
-func (o *objectGoReflect) delete(name Value, throw bool) bool ***REMOVED***
-	return o.deleteStr(name.String(), throw)
-***REMOVED***
-
 type goreflectPropIter struct ***REMOVED***
-	o         *objectGoReflect
-	idx       int
-	recursive bool
+	o   *objectGoReflect
+	idx int
 ***REMOVED***
 
 func (i *goreflectPropIter) nextField() (propIterItem, iterNextFunc) ***REMOVED***
@@ -395,7 +359,7 @@ func (i *goreflectPropIter) nextField() (propIterItem, iterNextFunc) ***REMOVED*
 	if i.idx < len(names) ***REMOVED***
 		name := names[i.idx]
 		i.idx++
-		return propIterItem***REMOVED***name: name, enumerable: _ENUM_TRUE***REMOVED***, i.nextField
+		return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextField
 	***REMOVED***
 
 	i.idx = 0
@@ -407,33 +371,37 @@ func (i *goreflectPropIter) nextMethod() (propIterItem, iterNextFunc) ***REMOVED
 	if i.idx < len(names) ***REMOVED***
 		name := names[i.idx]
 		i.idx++
-		return propIterItem***REMOVED***name: name, enumerable: _ENUM_TRUE***REMOVED***, i.nextMethod
-	***REMOVED***
-
-	if i.recursive ***REMOVED***
-		return i.o.baseObject._enumerate(true)()
+		return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextMethod
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoReflect) _enumerate(recursive bool) iterNextFunc ***REMOVED***
+func (o *objectGoReflect) enumerateUnfiltered() iterNextFunc ***REMOVED***
 	r := &goreflectPropIter***REMOVED***
-		o:         o,
-		recursive: recursive,
+		o: o,
 	***REMOVED***
+	var next iterNextFunc
 	if o.value.Kind() == reflect.Struct ***REMOVED***
-		return r.nextField
+		next = r.nextField
+	***REMOVED*** else ***REMOVED***
+		next = r.nextMethod
 	***REMOVED***
-	return r.nextMethod
+
+	return o.recursiveIter(next)
 ***REMOVED***
 
-func (o *objectGoReflect) enumerate(all, recursive bool) iterNextFunc ***REMOVED***
-	return (&propFilterIter***REMOVED***
-		wrapped: o._enumerate(recursive),
-		all:     all,
-		seen:    make(map[string]bool),
-	***REMOVED***).next
+func (o *objectGoReflect) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
+	// all own keys are enumerable
+	for _, name := range o.valueTypeInfo.FieldNames ***REMOVED***
+		accum = append(accum, newStringValue(name))
+	***REMOVED***
+
+	for _, name := range o.valueTypeInfo.MethodNames ***REMOVED***
+		accum = append(accum, newStringValue(name))
+	***REMOVED***
+
+	return accum
 ***REMOVED***
 
 func (o *objectGoReflect) export() interface***REMOVED******REMOVED*** ***REMOVED***
