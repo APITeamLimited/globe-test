@@ -23,6 +23,7 @@ package influxdb
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"time"
 
@@ -31,6 +32,18 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
+)
+
+// FieldKind defines Enum for tag-to-field type conversion
+type FieldKind int
+
+const (
+	// Int field (default)
+	Int FieldKind = iota
+	// Float field
+	Float
+	// Bool field
+	Bool
 )
 
 // Verify that Collector implements lib.Collector
@@ -45,6 +58,7 @@ type Collector struct ***REMOVED***
 	bufferLock  sync.Mutex
 	wg          sync.WaitGroup
 	semaphoreCh chan struct***REMOVED******REMOVED***
+	fieldKinds  map[string]FieldKind
 ***REMOVED***
 
 func New(conf Config) (*Collector, error) ***REMOVED***
@@ -56,12 +70,14 @@ func New(conf Config) (*Collector, error) ***REMOVED***
 	if conf.ConcurrentWrites.Int64 <= 0 ***REMOVED***
 		return nil, errors.New("influxdb's ConcurrentWrites must be a positive number")
 	***REMOVED***
+	fldKinds, err := MakeFieldKinds(conf)
 	return &Collector***REMOVED***
 		Client:      cl,
 		Config:      conf,
 		BatchConf:   batchConf,
 		semaphoreCh: make(chan struct***REMOVED******REMOVED***, conf.ConcurrentWrites.Int64),
-	***REMOVED***, nil
+		fieldKinds:  fldKinds,
+	***REMOVED***, err
 ***REMOVED***
 
 func (c *Collector) Init() error ***REMOVED***
@@ -133,8 +149,26 @@ func (c *Collector) commit() ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+tags:
 	for _, tag := range c.Config.TagsAsFields ***REMOVED***
 		if val, ok := tags[tag]; ok ***REMOVED***
+			if kind, convNeeded := c.fieldKinds[tag]; convNeeded ***REMOVED***
+				var v interface***REMOVED******REMOVED***
+				var err error
+				switch kind ***REMOVED***
+				case Bool:
+					v, err = strconv.ParseBool(val)
+				case Float:
+					v, err = strconv.ParseFloat(val, 64)
+				case Int:
+					v, err = strconv.ParseInt(val, 10, 64)
+				***REMOVED***
+				if err == nil ***REMOVED***
+					values[tag] = v
+					delete(tags, tag)
+					continue tags
+				***REMOVED***
+			***REMOVED***
 			values[tag] = val
 			delete(tags, tag)
 		***REMOVED***

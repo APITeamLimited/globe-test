@@ -35,6 +35,9 @@ func TestParseArg(t *testing.T) ***REMOVED***
 		"addr=http://localhost:8086,db=dbname": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname")***REMOVED***,
 		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,":                    ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69)***REMOVED***,
 		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,tagsAsFields=***REMOVED***fake***REMOVED***": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), TagsAsFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,boolFields=***REMOVED***fake***REMOVED***":   ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), BoolFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,floatFields=***REMOVED***fake***REMOVED***":  ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), FloatFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
+		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,intFields=***REMOVED***fake***REMOVED***":    ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), IntFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
 	***REMOVED***
 
 	for str, expConfig := range testdata ***REMOVED***
