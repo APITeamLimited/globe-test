@@ -38,8 +38,10 @@ import (
 type FieldKind int
 
 const (
-	// Int field (default)
-	Int FieldKind = iota
+	// String field (default)
+	String FieldKind = iota
+	// Int field
+	Int
 	// Float field
 	Float
 	// Bool field
@@ -150,24 +152,24 @@ func (c *Collector) commit() ***REMOVED***
 
 func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 tags:
-	for _, tag := range c.Config.TagsAsFields ***REMOVED***
+	for tag, kind := range c.fieldKinds ***REMOVED***
 		if val, ok := tags[tag]; ok ***REMOVED***
-			if kind, convNeeded := c.fieldKinds[tag]; convNeeded ***REMOVED***
-				var v interface***REMOVED******REMOVED***
-				var err error
-				switch kind ***REMOVED***
-				case Bool:
-					v, err = strconv.ParseBool(val)
-				case Float:
-					v, err = strconv.ParseFloat(val, 64)
-				case Int:
-					v, err = strconv.ParseInt(val, 10, 64)
-				***REMOVED***
-				if err == nil ***REMOVED***
-					values[tag] = v
-					delete(tags, tag)
-					continue tags
-				***REMOVED***
+			var v interface***REMOVED******REMOVED***
+			var err error
+			switch kind ***REMOVED***
+			case String:
+				v = val
+			case Bool:
+				v, err = strconv.ParseBool(val)
+			case Float:
+				v, err = strconv.ParseFloat(val, 64)
+			case Int:
+				v, err = strconv.ParseInt(val, 10, 64)
+			***REMOVED***
+			if err == nil ***REMOVED***
+				values[tag] = v
+				delete(tags, tag)
+				continue tags
 			***REMOVED***
 			values[tag] = val
 			delete(tags, tag)

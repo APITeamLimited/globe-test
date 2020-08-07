@@ -66,29 +66,44 @@ func checkDuplicatedTypeDefinitions(fieldKinds map[string]FieldKind, tag string)
 	return nil
 ***REMOVED***
 
-// MakeFieldKinds returns a map[string]fieldKind built from BoolFields, FloadFields and IntFields in a Config
+// MakeFieldKinds reads the Config and returns a lookup map of tag names to
+// the field type their values should be converted to.
 func MakeFieldKinds(conf Config) (map[string]FieldKind, error) ***REMOVED***
 	fieldKinds := make(map[string]FieldKind)
-	for _, tag := range conf.BoolFields ***REMOVED***
-		err := checkDuplicatedTypeDefinitions(fieldKinds, tag)
-		if err != nil ***REMOVED***
-			return nil, err
+	for _, tag := range conf.TagsAsFields ***REMOVED***
+		s := strings.Split(tag, ":")
+		switch len(s) ***REMOVED***
+		case 1:
+			err := checkDuplicatedTypeDefinitions(fieldKinds, tag)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+			fieldKinds[tag] = String
+		case 2:
+			fieldName, fieldType := s[0], s[1]
+
+			err := checkDuplicatedTypeDefinitions(fieldKinds, fieldName)
+			if err != nil ***REMOVED***
+				return nil, err
+			***REMOVED***
+
+			switch fieldType ***REMOVED***
+			case "string":
+				fieldKinds[fieldName] = String
+			case "bool":
+				fieldKinds[fieldName] = Bool
+			case "float":
+				fieldKinds[fieldName] = Float
+			case "int":
+				fieldKinds[fieldName] = Int
+			default:
+				return nil, errors.Errorf("An invalid type (%s) is specified for an InfluxDB field (%s).",
+					fieldType, fieldName)
+			***REMOVED***
+		default:
+			return nil, errors.Errorf("An InfluxDB field (%s) is in an invalid format.", tag)
 		***REMOVED***
-		fieldKinds[tag] = Bool
 	***REMOVED***
-	for _, tag := range conf.FloatFields ***REMOVED***
-		err := checkDuplicatedTypeDefinitions(fieldKinds, tag)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		fieldKinds[tag] = Float
-	***REMOVED***
-	for _, tag := range conf.IntFields ***REMOVED***
-		err := checkDuplicatedTypeDefinitions(fieldKinds, tag)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		fieldKinds[tag] = Int
-	***REMOVED***
+
 	return fieldKinds, nil
 ***REMOVED***

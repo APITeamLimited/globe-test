@@ -52,24 +52,22 @@ func TestFieldKinds(t *testing.T) ***REMOVED***
 	conf.TagsAsFields = []string***REMOVED***"vu", "iter", "url", "boolField", "floatField", "intField"***REMOVED***
 
 	// Error case 1 (duplicated bool fields)
-	conf.BoolFields = []string***REMOVED***"boolField", "boolField"***REMOVED***
+	conf.TagsAsFields = []string***REMOVED***"vu", "iter", "url", "boolField:bool", "boolField:bool"***REMOVED***
 	_, err = MakeFieldKinds(*conf)
 	require.Error(t, err)
 
-	// Error case 2 (duplicated fields in BoolFields and FloatFields)
-	conf.BoolFields = []string***REMOVED***"boolField"***REMOVED***
-	conf.FloatFields = []string***REMOVED***"boolField"***REMOVED***
+	// Error case 2 (duplicated fields in bool and float ields)
+	conf.TagsAsFields = []string***REMOVED***"vu", "iter", "url", "boolField:bool", "boolField:float"***REMOVED***
 	_, err = MakeFieldKinds(*conf)
 	require.Error(t, err)
 
 	// Error case 3 (duplicated fields in BoolFields and IntFields)
-	conf.FloatFields = []string***REMOVED***"floatField"***REMOVED***
-	conf.IntFields = []string***REMOVED***"boolField"***REMOVED***
+	conf.TagsAsFields = []string***REMOVED***"vu", "iter", "url", "boolField:bool", "floatField:float", "boolField:int"***REMOVED***
 	_, err = MakeFieldKinds(*conf)
 	require.Error(t, err)
 
 	// Normal case
-	conf.IntFields = []string***REMOVED***"intField"***REMOVED***
+	conf.TagsAsFields = []string***REMOVED***"vu", "iter", "url", "boolField:bool", "floatField:float", "intField:int"***REMOVED***
 	fieldKinds, err = MakeFieldKinds(*conf)
 	require.NoError(t, err)
 

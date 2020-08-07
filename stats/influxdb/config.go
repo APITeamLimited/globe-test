@@ -50,9 +50,6 @@ type Config struct ***REMOVED***
 	Retention    null.String `json:"retention,omitempty" envconfig:"K6_INFLUXDB_RETENTION"`
 	Consistency  null.String `json:"consistency,omitempty" envconfig:"K6_INFLUXDB_CONSISTENCY"`
 	TagsAsFields []string    `json:"tagsAsFields,omitempty" envconfig:"K6_INFLUXDB_TAGS_AS_FIELDS"`
-	BoolFields   []string    `json:"boolFields,omitempty" envconfig:"K6_INFLUXDB_BOOL_FIELDS"`
-	FloatFields  []string    `json:"floatFields,omitempty" envconfig:"K6_INFLUXDB_FLOAT_FIELDS"`
-	IntFields    []string    `json:"intFields,omitempty" envconfig:"K6_INFLUXDB_INT_FIELDS"`
 ***REMOVED***
 
 func NewConfig() *Config ***REMOVED***
@@ -60,9 +57,6 @@ func NewConfig() *Config ***REMOVED***
 		Addr:             null.NewString("http://localhost:8086", false),
 		DB:               null.NewString("k6", false),
 		TagsAsFields:     []string***REMOVED***"vu", "iter", "url"***REMOVED***,
-		BoolFields:       []string***REMOVED******REMOVED***,
-		FloatFields:      []string***REMOVED******REMOVED***,
-		IntFields:        []string***REMOVED******REMOVED***,
 		ConcurrentWrites: null.NewInt(10, false),
 		PushInterval:     types.NewNullDuration(time.Second, false),
 	***REMOVED***
@@ -100,15 +94,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if len(cfg.TagsAsFields) > 0 ***REMOVED***
 		c.TagsAsFields = cfg.TagsAsFields
 	***REMOVED***
-	if len(cfg.BoolFields) > 0 ***REMOVED***
-		c.BoolFields = cfg.BoolFields
-	***REMOVED***
-	if len(cfg.FloatFields) > 0 ***REMOVED***
-		c.FloatFields = cfg.FloatFields
-	***REMOVED***
-	if len(cfg.IntFields) > 0 ***REMOVED***
-		c.IntFields = cfg.IntFields
-	***REMOVED***
 	if cfg.PushInterval.Valid ***REMOVED***
 		c.PushInterval = cfg.PushInterval
 	***REMOVED***
@@ -137,15 +122,6 @@ func ParseMap(m map[string]interface***REMOVED******REMOVED***) (Config, error) 
 	c := Config***REMOVED******REMOVED***
 	if v, ok := m["tagsAsFields"].(string); ok ***REMOVED***
 		m["tagsAsFields"] = []string***REMOVED***v***REMOVED***
-	***REMOVED***
-	if v, ok := m["boolFields"].(string); ok ***REMOVED***
-		m["boolFields"] = []string***REMOVED***v***REMOVED***
-	***REMOVED***
-	if v, ok := m["floatFields"].(string); ok ***REMOVED***
-		m["floatFields"] = []string***REMOVED***v***REMOVED***
-	***REMOVED***
-	if v, ok := m["intFields"].(string); ok ***REMOVED***
-		m["intFields"] = []string***REMOVED***v***REMOVED***
 	***REMOVED***
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig***REMOVED***
 		DecodeHook: types.NullDecoder,
@@ -216,12 +192,6 @@ func ParseURL(text string) (Config, error) ***REMOVED***
 			c.ConcurrentWrites = null.IntFrom(int64(writes))
 		case "tagsAsFields":
 			c.TagsAsFields = vs
-		case "boolFields":
-			c.BoolFields = vs
-		case "floatFields":
-			c.FloatFields = vs
-		case "intFields":
-			c.IntFields = vs
 		default:
 			return c, errors.Errorf("unknown query parameter: %s", k)
 		***REMOVED***
