@@ -71,37 +71,31 @@ func checkDuplicatedTypeDefinitions(fieldKinds map[string]FieldKind, tag string)
 func MakeFieldKinds(conf Config) (map[string]FieldKind, error) ***REMOVED***
 	fieldKinds := make(map[string]FieldKind)
 	for _, tag := range conf.TagsAsFields ***REMOVED***
-		s := strings.Split(tag, ":")
-		switch len(s) ***REMOVED***
-		case 1:
-			err := checkDuplicatedTypeDefinitions(fieldKinds, tag)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			fieldKinds[tag] = String
-		case 2:
-			fieldName, fieldType := s[0], s[1]
+		var fieldName, fieldType string
+		s := strings.SplitN(tag, ":", 2)
+		if len(s) == 1 ***REMOVED***
+			fieldName, fieldType = s[0], "string"
+		***REMOVED*** else ***REMOVED***
+			fieldName, fieldType = s[0], s[1]
+		***REMOVED***
 
-			err := checkDuplicatedTypeDefinitions(fieldKinds, fieldName)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
+		err := checkDuplicatedTypeDefinitions(fieldKinds, fieldName)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 
-			switch fieldType ***REMOVED***
-			case "string":
-				fieldKinds[fieldName] = String
-			case "bool":
-				fieldKinds[fieldName] = Bool
-			case "float":
-				fieldKinds[fieldName] = Float
-			case "int":
-				fieldKinds[fieldName] = Int
-			default:
-				return nil, errors.Errorf("An invalid type (%s) is specified for an InfluxDB field (%s).",
-					fieldType, fieldName)
-			***REMOVED***
+		switch fieldType ***REMOVED***
+		case "string":
+			fieldKinds[fieldName] = String
+		case "bool":
+			fieldKinds[fieldName] = Bool
+		case "float":
+			fieldKinds[fieldName] = Float
+		case "int":
+			fieldKinds[fieldName] = Int
 		default:
-			return nil, errors.Errorf("An InfluxDB field (%s) is in an invalid format.", tag)
+			return nil, errors.Errorf("An invalid type (%s) is specified for an InfluxDB field (%s).",
+				fieldType, fieldName)
 		***REMOVED***
 	***REMOVED***
 

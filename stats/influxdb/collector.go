@@ -151,7 +151,6 @@ func (c *Collector) commit() ***REMOVED***
 ***REMOVED***
 
 func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
-tags:
 	for tag, kind := range c.fieldKinds ***REMOVED***
 		if val, ok := tags[tag]; ok ***REMOVED***
 			var v interface***REMOVED******REMOVED***
@@ -168,10 +167,9 @@ tags:
 			***REMOVED***
 			if err == nil ***REMOVED***
 				values[tag] = v
-				delete(tags, tag)
-				continue tags
+			***REMOVED*** else ***REMOVED***
+				values[tag] = val
 			***REMOVED***
-			values[tag] = val
 			delete(tags, tag)
 		***REMOVED***
 	***REMOVED***
