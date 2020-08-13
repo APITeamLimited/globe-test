@@ -137,3 +137,29 @@ func TestCollector(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 ***REMOVED***
+func TestExtractTagsToValues(t *testing.T) ***REMOVED***
+	c := NewConfig()
+	c.TagsAsFields = []string***REMOVED***
+		"stringField",
+		"stringField2:string",
+		"boolField:bool",
+		"floatField:float",
+		"intField:int",
+	***REMOVED***
+	collector, err := New(*c)
+	require.NoError(t, err)
+	tags := map[string]string***REMOVED***
+		"stringField":  "string",
+		"stringField2": "string2",
+		"boolField":    "true",
+		"floatField":   "3.14",
+		"intField":     "12345",
+	***REMOVED***
+	values := collector.extractTagsToValues(tags, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
+
+	require.Equal(t, "string", values["stringField"])
+	require.Equal(t, "string2", values["stringField2"])
+	require.Equal(t, true, values["boolField"])
+	require.Equal(t, 3.14, values["floatField"])
+	require.Equal(t, int64(12345), values["intField"])
+***REMOVED***
