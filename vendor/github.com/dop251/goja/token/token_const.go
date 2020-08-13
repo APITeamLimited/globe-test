@@ -77,6 +77,7 @@ const (
 	firstKeyword
 	IF
 	IN
+	OF
 	DO
 
 	VAR
@@ -173,6 +174,7 @@ var token2string = [...]string***REMOVED***
 	QUESTION_MARK:               "?",
 	IF:                          "if",
 	IN:                          "in",
+	OF:                          "of",
 	DO:                          "do",
 	VAR:                         "var",
 	FOR:                         "for",
@@ -200,148 +202,148 @@ var token2string = [...]string***REMOVED***
 ***REMOVED***
 
 var keywordTable = map[string]_keyword***REMOVED***
-	"if": _keyword***REMOVED***
+	"if": ***REMOVED***
 		token: IF,
 	***REMOVED***,
-	"in": _keyword***REMOVED***
+	"in": ***REMOVED***
 		token: IN,
 	***REMOVED***,
-	"do": _keyword***REMOVED***
+	"do": ***REMOVED***
 		token: DO,
 	***REMOVED***,
-	"var": _keyword***REMOVED***
+	"var": ***REMOVED***
 		token: VAR,
 	***REMOVED***,
-	"for": _keyword***REMOVED***
+	"for": ***REMOVED***
 		token: FOR,
 	***REMOVED***,
-	"new": _keyword***REMOVED***
+	"new": ***REMOVED***
 		token: NEW,
 	***REMOVED***,
-	"try": _keyword***REMOVED***
+	"try": ***REMOVED***
 		token: TRY,
 	***REMOVED***,
-	"this": _keyword***REMOVED***
+	"this": ***REMOVED***
 		token: THIS,
 	***REMOVED***,
-	"else": _keyword***REMOVED***
+	"else": ***REMOVED***
 		token: ELSE,
 	***REMOVED***,
-	"case": _keyword***REMOVED***
+	"case": ***REMOVED***
 		token: CASE,
 	***REMOVED***,
-	"void": _keyword***REMOVED***
+	"void": ***REMOVED***
 		token: VOID,
 	***REMOVED***,
-	"with": _keyword***REMOVED***
+	"with": ***REMOVED***
 		token: WITH,
 	***REMOVED***,
-	"while": _keyword***REMOVED***
+	"while": ***REMOVED***
 		token: WHILE,
 	***REMOVED***,
-	"break": _keyword***REMOVED***
+	"break": ***REMOVED***
 		token: BREAK,
 	***REMOVED***,
-	"catch": _keyword***REMOVED***
+	"catch": ***REMOVED***
 		token: CATCH,
 	***REMOVED***,
-	"throw": _keyword***REMOVED***
+	"throw": ***REMOVED***
 		token: THROW,
 	***REMOVED***,
-	"return": _keyword***REMOVED***
+	"return": ***REMOVED***
 		token: RETURN,
 	***REMOVED***,
-	"typeof": _keyword***REMOVED***
+	"typeof": ***REMOVED***
 		token: TYPEOF,
 	***REMOVED***,
-	"delete": _keyword***REMOVED***
+	"delete": ***REMOVED***
 		token: DELETE,
 	***REMOVED***,
-	"switch": _keyword***REMOVED***
+	"switch": ***REMOVED***
 		token: SWITCH,
 	***REMOVED***,
-	"default": _keyword***REMOVED***
+	"default": ***REMOVED***
 		token: DEFAULT,
 	***REMOVED***,
-	"finally": _keyword***REMOVED***
+	"finally": ***REMOVED***
 		token: FINALLY,
 	***REMOVED***,
-	"function": _keyword***REMOVED***
+	"function": ***REMOVED***
 		token: FUNCTION,
 	***REMOVED***,
-	"continue": _keyword***REMOVED***
+	"continue": ***REMOVED***
 		token: CONTINUE,
 	***REMOVED***,
-	"debugger": _keyword***REMOVED***
+	"debugger": ***REMOVED***
 		token: DEBUGGER,
 	***REMOVED***,
-	"instanceof": _keyword***REMOVED***
+	"instanceof": ***REMOVED***
 		token: INSTANCEOF,
 	***REMOVED***,
-	"const": _keyword***REMOVED***
+	"const": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"class": _keyword***REMOVED***
+	"class": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"enum": _keyword***REMOVED***
+	"enum": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"export": _keyword***REMOVED***
+	"export": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"extends": _keyword***REMOVED***
+	"extends": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"import": _keyword***REMOVED***
+	"import": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"super": _keyword***REMOVED***
+	"super": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 	***REMOVED***,
-	"implements": _keyword***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
-		strict:        true,
-	***REMOVED***,
-	"interface": _keyword***REMOVED***
+	"implements": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"let": _keyword***REMOVED***
+	"interface": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"package": _keyword***REMOVED***
+	"let": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"private": _keyword***REMOVED***
+	"package": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"protected": _keyword***REMOVED***
+	"private": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"public": _keyword***REMOVED***
+	"protected": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,
 	***REMOVED***,
-	"static": _keyword***REMOVED***
+	"public": ***REMOVED***
+		token:         KEYWORD,
+		futureKeyword: true,
+		strict:        true,
+	***REMOVED***,
+	"static": ***REMOVED***
 		token:         KEYWORD,
 		futureKeyword: true,
 		strict:        true,

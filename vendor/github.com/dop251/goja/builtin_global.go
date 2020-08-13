@@ -2,12 +2,12 @@ package goja
 
 import (
 	"errors"
+	"github.com/dop251/goja/unistring"
 	"io"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -26,14 +26,14 @@ func (r *Runtime) builtin_isNaN(call FunctionCall) Value ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) builtin_parseInt(call FunctionCall) Value ***REMOVED***
-	str := call.Argument(0).ToString().toTrimmedUTF8()
+	str := call.Argument(0).toString().toTrimmedUTF8()
 	radix := int(toInt32(call.Argument(1)))
 	v, _ := parseInt(str, radix)
 	return v
 ***REMOVED***
 
 func (r *Runtime) builtin_parseFloat(call FunctionCall) Value ***REMOVED***
-	m := parseFloatRegexp.FindStringSubmatch(call.Argument(0).ToString().toTrimmedUTF8())
+	m := parseFloatRegexp.FindStringSubmatch(call.Argument(0).toString().toTrimmedUTF8())
 	if len(m) == 2 ***REMOVED***
 		if s := m[1]; s != "" && s != "+" && s != "-" ***REMOVED***
 			switch s ***REMOVED***
@@ -95,7 +95,7 @@ func (r *Runtime) _encode(uriString valueString, unescaped *[256]bool) valueStri
 	reader = uriString.reader(0)
 	for ***REMOVED***
 		rn, _, err := reader.ReadRune()
-		if err != nil ***REMOVED***
+		if err == io.EOF ***REMOVED***
 			break
 		***REMOVED***
 
@@ -117,7 +117,7 @@ func (r *Runtime) _encode(uriString valueString, unescaped *[256]bool) valueStri
 			i++
 		***REMOVED***
 	***REMOVED***
-	return asciiString(string(buf))
+	return asciiString(buf)
 ***REMOVED***
 
 func (r *Runtime) _decode(sv valueString, reservedSet *[256]bool) valueString ***REMOVED***
@@ -189,7 +189,7 @@ func (r *Runtime) _decode(sv valueString, reservedSet *[256]bool) valueString **
 		us = append(us, rn)
 		t = t[size:]
 	***REMOVED***
-	return unicodeString(utf16.Encode(us))
+	return unicodeStringFromRunes(us)
 ***REMOVED***
 
 func ishex(c byte) bool ***REMOVED***
@@ -217,30 +217,30 @@ func unhex(c byte) byte ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) builtin_decodeURI(call FunctionCall) Value ***REMOVED***
-	uriString := call.Argument(0).ToString()
+	uriString := call.Argument(0).toString()
 	return r._decode(uriString, &uriReservedHash)
 ***REMOVED***
 
 func (r *Runtime) builtin_decodeURIComponent(call FunctionCall) Value ***REMOVED***
-	uriString := call.Argument(0).ToString()
+	uriString := call.Argument(0).toString()
 	return r._decode(uriString, &emptyEscapeSet)
 ***REMOVED***
 
 func (r *Runtime) builtin_encodeURI(call FunctionCall) Value ***REMOVED***
-	uriString := call.Argument(0).ToString()
+	uriString := call.Argument(0).toString()
 	return r._encode(uriString, &uriReservedUnescapedHash)
 ***REMOVED***
 
 func (r *Runtime) builtin_encodeURIComponent(call FunctionCall) Value ***REMOVED***
-	uriString := call.Argument(0).ToString()
+	uriString := call.Argument(0).toString()
 	return r._encode(uriString, &uriUnescaped)
 ***REMOVED***
 
 func (r *Runtime) builtin_escape(call FunctionCall) Value ***REMOVED***
-	s := call.Argument(0).ToString()
+	s := call.Argument(0).toString()
 	var sb strings.Builder
 	l := s.length()
-	for i := int64(0); i < l; i++ ***REMOVED***
+	for i := 0; i < l; i++ ***REMOVED***
 		r := uint16(s.charAt(i))
 		if r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' ||
 			r == '@' || r == '*' || r == '_' || r == '+' || r == '-' || r == '.' || r == '/' ***REMOVED***
@@ -261,17 +261,18 @@ func (r *Runtime) builtin_escape(call FunctionCall) Value ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) builtin_unescape(call FunctionCall) Value ***REMOVED***
-	s := call.Argument(0).ToString()
+	s := call.Argument(0).toString()
 	l := s.length()
 	_, unicode := s.(unicodeString)
 	var asciiBuf []byte
 	var unicodeBuf []uint16
 	if unicode ***REMOVED***
-		unicodeBuf = make([]uint16, 0, l)
+		unicodeBuf = make([]uint16, 1, l+1)
+		unicodeBuf[0] = unistring.BOM
 	***REMOVED*** else ***REMOVED***
 		asciiBuf = make([]byte, 0, l)
 	***REMOVED***
-	for i := int64(0); i < l; ***REMOVED***
+	for i := 0; i < l; ***REMOVED***
 		r := s.charAt(i)
 		if r == '%' ***REMOVED***
 			if i <= l-6 && s.charAt(i+1) == 'u' ***REMOVED***
@@ -303,7 +304,8 @@ func (r *Runtime) builtin_unescape(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	out:
 		if r >= utf8.RuneSelf && !unicode ***REMOVED***
-			unicodeBuf = make([]uint16, 0, l)
+			unicodeBuf = make([]uint16, 1, l+1)
+			unicodeBuf[0] = unistring.BOM
 			for _, b := range asciiBuf ***REMOVED***
 				unicodeBuf = append(unicodeBuf, uint16(b))
 			***REMOVED***
