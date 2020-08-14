@@ -85,6 +85,7 @@ func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REM
 		***REMOVED***
 	***REMOVED***
 	return New(
+		logrus.StandardLogger(),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),

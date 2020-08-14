@@ -68,23 +68,28 @@ type Runner struct ***REMOVED***
 ***REMOVED***
 
 // New returns a new Runner for the provide source
-func New(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundle(src, filesystems, rtOpts)
+func New(
+	logger *logrus.Logger, src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
+) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundle(logger, src, filesystems, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return NewFromBundle(bundle)
+
+	return newFromBundle(logger, bundle)
 ***REMOVED***
 
-func NewFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
-	bundle, err := NewBundleFromArchive(arc, rtOpts)
+// NewFromArchive returns a new Runner from the source in the provided archive
+func NewFromArchive(logger *logrus.Logger, arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Runner, error) ***REMOVED***
+	bundle, err := NewBundleFromArchive(logger, arc, rtOpts)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return NewFromBundle(bundle)
+
+	return newFromBundle(logger, bundle)
 ***REMOVED***
 
-func NewFromBundle(b *Bundle) (*Runner, error) ***REMOVED***
+func newFromBundle(logger *logrus.Logger, b *Bundle) (*Runner, error) ***REMOVED***
 	defaultGroup, err := lib.NewGroup("", nil)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -92,14 +97,14 @@ func NewFromBundle(b *Bundle) (*Runner, error) ***REMOVED***
 
 	r := &Runner***REMOVED***
 		Bundle:       b,
-		Logger:       logrus.StandardLogger(),
+		Logger:       logger,
 		defaultGroup: defaultGroup,
 		BaseDialer: net.Dialer***REMOVED***
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		***REMOVED***,
-		console:  newConsole(),
+		console:  newConsole(logger),
 		Resolver: dnscache.New(0),
 	***REMOVED***
 
@@ -123,7 +128,7 @@ func (r *Runner) NewVU(id int64, samplesOut chan<- stats.SampleContainer) (lib.I
 // nolint:funlen
 func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	bi, err := r.Bundle.Instantiate(id)
+	bi, err := r.Bundle.Instantiate(r.Logger, id)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

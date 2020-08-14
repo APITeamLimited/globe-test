@@ -41,13 +41,14 @@ var inspectCmd = &cobra.Command***REMOVED***
 	Long:  `Inspect a script or archive.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+		// TODO: don't use the Global logger
+		logger := logrus.StandardLogger()
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		filesystems := loader.CreateFilesystems()
-		// TODO: don't use the Global logger
-		src, err := loader.ReadSource(logrus.StandardLogger(), args[0], pwd, filesystems, os.Stdin)
+		src, err := loader.ReadSource(logger, args[0], pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -73,13 +74,13 @@ var inspectCmd = &cobra.Command***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			b, err = js.NewBundleFromArchive(arc, runtimeOptions)
+			b, err = js.NewBundleFromArchive(logger, arc, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 			opts = b.Options
 		case typeJS:
-			b, err = js.NewBundle(src, filesystems, runtimeOptions)
+			b, err = js.NewBundle(logger, src, filesystems, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

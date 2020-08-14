@@ -51,11 +51,13 @@ var (
 )
 
 // A Compiler compiles JavaScript source code (ES5.1 or ES6) into a goja.Program
-type Compiler struct***REMOVED******REMOVED***
+type Compiler struct ***REMOVED***
+	logger logrus.FieldLogger
+***REMOVED***
 
 // New returns a new Compiler
-func New() *Compiler ***REMOVED***
-	return &Compiler***REMOVED******REMOVED***
+func New(logger logrus.FieldLogger) *Compiler ***REMOVED***
+	return &Compiler***REMOVED***logger: logger***REMOVED***
 ***REMOVED***
 
 // Transform the given code into ES5
@@ -65,7 +67,7 @@ func (c *Compiler) Transform(src, filename string) (code string, srcmap *SourceM
 		return
 	***REMOVED***
 
-	return b.Transform(src, filename)
+	return b.Transform(c.logger, src, filename)
 ***REMOVED***
 
 // Compile the program in the given CompatibilityMode, optionally running pre and post code.
@@ -120,7 +122,7 @@ func newBabel() (*babel, error) ***REMOVED***
 
 // Transform the given code into ES5, while synchronizing to ensure only a single
 // bundle instance / Goja VM is in use at a time.
-func (b *babel) Transform(src, filename string) (string, *SourceMap, error) ***REMOVED***
+func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (string, *SourceMap, error) ***REMOVED***
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	opts := make(map[string]interface***REMOVED******REMOVED***)
@@ -134,7 +136,7 @@ func (b *babel) Transform(src, filename string) (string, *SourceMap, error) ***R
 	if err != nil ***REMOVED***
 		return "", nil, err
 	***REMOVED***
-	logrus.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
+	logger.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
 
 	vO := v.ToObject(b.vm)
 	var code string

@@ -126,7 +126,7 @@ func newRuntime(
 		SystemTags:   &stats.DefaultSystemTagSet,
 		Batch:        null.IntFrom(20),
 		BatchPerHost: null.IntFrom(20),
-		//HTTPDebug:    null.StringFrom("full"),
+		// HTTPDebug:    null.StringFrom("full"),
 	***REMOVED***
 	samples := make(chan stats.SampleContainer, 1000)
 
@@ -240,7 +240,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("post body", func(t *testing.T) ***REMOVED***
-
 			tb.Mux.HandleFunc("/post-redirect", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 				require.Equal(t, r.Method, "POST")
 				_, _ = io.Copy(ioutil.Discard, r.Body)
@@ -255,7 +254,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			assert.NoError(t, err)
 		***REMOVED***)
-
 	***REMOVED***)
 	t.Run("Timeout", func(t *testing.T) ***REMOVED***
 		t.Run("10s", func(t *testing.T) ***REMOVED***
@@ -1277,13 +1275,13 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 	// We don't expect any failed requests
 	state.Options.Throw = null.BoolFrom(true)
 
-	var text = `
+	text := `
 	Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 	Maecenas sed pharetra sapien. Nunc laoreet molestie ante ac gravida.
 	Etiam interdum dui viverra posuere egestas. Pellentesque at dolor tristique,
 	mattis turpis eget, commodo purus. Nunc orci aliquam.`
 
-	var decompress = func(algo string, input io.Reader) io.Reader ***REMOVED***
+	decompress := func(algo string, input io.Reader) io.Reader ***REMOVED***
 		switch algo ***REMOVED***
 		case "br":
 			w := brotli.NewReader(input)
@@ -1321,8 +1319,8 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 		expectedLength, err := strconv.Atoi(r.Header.Get("Content-Length"))
 		require.NoError(t, err)
-		var algos = strings.Split(actualEncoding, ", ")
-		var compressedBuf = new(bytes.Buffer)
+		algos := strings.Split(actualEncoding, ", ")
+		compressedBuf := new(bytes.Buffer)
 		n, err := io.Copy(compressedBuf, r.Body)
 		require.Equal(t, int(n), expectedLength)
 		require.NoError(t, err)
@@ -1340,7 +1338,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		require.Equal(t, text, buf.String())
 	***REMOVED***))
 
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		name          string
 		compression   string
 		expectedError string
@@ -1371,7 +1369,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.compression, func(t *testing.T) ***REMOVED***
-			var algos = strings.Split(testCase.compression, ",")
+			algos := strings.Split(testCase.compression, ",")
 			for i, algo := range algos ***REMOVED***
 				algos[i] = strings.TrimSpace(algo)
 			***REMOVED***
@@ -1386,7 +1384,6 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 				require.Error(t, err)
 				require.Contains(t, err.Error(), testCase.expectedError)
 			***REMOVED***
-
 		***REMOVED***)
 	***REMOVED***
 
@@ -1433,7 +1430,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 			require.Empty(t, logHook.Drain())
 		***REMOVED***)
 
-		//TODO: move to some other test?
+		// TODO: move to some other test?
 		t.Run("correct length", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, tb.Replacer.Replace(
 				`http.post("HTTPBIN_URL/post", "0123456789", ***REMOVED*** "headers": ***REMOVED***"Content-Length": "10"***REMOVED******REMOVED***);`,
@@ -1568,7 +1565,7 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func checkErrorCode(t testing.TB, tags *stats.SampleTags, code int, msg string) ***REMOVED***
-	var errorMsg, ok = tags.Get("error")
+	errorMsg, ok := tags.Get("error")
 	if msg == "" ***REMOVED***
 		assert.False(t, ok)
 	***REMOVED*** else ***REMOVED***
@@ -1578,7 +1575,7 @@ func checkErrorCode(t testing.TB, tags *stats.SampleTags, code int, msg string) 
 	if code == 0 ***REMOVED***
 		assert.False(t, ok)
 	***REMOVED*** else ***REMOVED***
-		var errorCode, err = strconv.Atoi(errorCodeStr)
+		errorCode, err := strconv.Atoi(errorCodeStr)
 		assert.NoError(t, err)
 		assert.Equal(t, code, errorCode)
 	***REMOVED***
@@ -1600,7 +1597,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 		w.WriteHeader(302)
 	***REMOVED***))
 
-	var testCases = []struct ***REMOVED***
+	testCases := []struct ***REMOVED***
 		name                string
 		status              int
 		moreSamples         int
@@ -1684,7 +1681,7 @@ func TestErrorCodes(t *testing.T) ***REMOVED***
 				require.Error(t, err)
 				require.Equal(t, err.Error(), testCase.expectedScriptError)
 			***REMOVED***
-			var cs = stats.GetBufferedSamples(samples)
+			cs := stats.GetBufferedSamples(samples)
 			assert.Len(t, cs, 1+testCase.moreSamples)
 			for _, c := range cs[len(cs)-1:] ***REMOVED***
 				assert.NotZero(t, len(c.GetSamples()))

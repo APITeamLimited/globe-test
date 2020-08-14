@@ -99,7 +99,7 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r2.GetDefaultGroup())
 	***REMOVED***
@@ -111,7 +111,7 @@ func TestRunnerOptions(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -199,7 +199,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***)
 
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r2.GetOptions())
@@ -478,7 +478,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 					***REMOVED***`, data.path), fs)
 				require.NoError(t, err)
 
-				r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+				r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 				require.NoError(t, err)
 
 				testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -507,7 +507,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -558,7 +558,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -596,7 +596,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -651,7 +651,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -704,7 +704,7 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -778,7 +778,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
-			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
@@ -824,7 +824,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***))
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -862,7 +862,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -914,7 +914,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -988,7 +988,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 			***REMOVED***
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
-			r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -1082,7 +1082,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1141,7 +1141,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 		NoCookiesReset: null.BoolFrom(true),
 	***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1178,7 +1178,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
-	r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1278,7 +1278,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -1328,7 +1328,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -1476,7 +1476,7 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 
 	arc, err := lib.ReadArchive(buf)
 	require.NoError(t, err)
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1511,7 +1511,7 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 
 	arc := r1.MakeArchive()
 	arc.Filesystems = map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs()***REMOVED***
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	// we do want this to error here as this is where we find out that a given file is not in the
 	// archive
 	require.Error(t, err)
@@ -1630,7 +1630,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		***REMOVED***"error", "bad_url_get", `dial: connection refused`***REMOVED***,
 		***REMOVED***"error_code", "bad_url_get", "1212"***REMOVED***,
 		***REMOVED***"scenario", "http_get", "default"***REMOVED***,
-		//TODO: add more tests
+		// TODO: add more tests
 	***REMOVED***
 
 	samples := make(chan stats.SampleContainer, 100)

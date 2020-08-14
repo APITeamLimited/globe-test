@@ -125,7 +125,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, filesystems, runtimeOptions)
+		r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -322,16 +322,16 @@ a commandline interface for interacting with it.`,
 		if conf.SummaryExport.ValueOrZero() != "" ***REMOVED***
 			f, err := os.Create(conf.SummaryExport.String)
 			if err != nil ***REMOVED***
-				logrus.WithError(err).Error("failed to create summary export file")
+				logger.WithError(err).Error("failed to create summary export file")
 			***REMOVED*** else ***REMOVED***
 				defer func() ***REMOVED***
 					if err := f.Close(); err != nil ***REMOVED***
-						logrus.WithError(err).Error("failed to close summary export file")
+						logger.WithError(err).Error("failed to close summary export file")
 					***REMOVED***
 				***REMOVED***()
 				s := ui.NewSummary(conf.SummaryTrendStats)
 				if err := s.SummarizeMetricsJSON(f, data); err != nil ***REMOVED***
-					logrus.WithError(err).Error("failed to make summary export file")
+					logger.WithError(err).Error("failed to make summary export file")
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -432,13 +432,13 @@ func init() ***REMOVED***
 
 // Creates a new runner.
 func newRunner(
-	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
+	logger *logrus.Logger, src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
 ) (lib.Runner, error) ***REMOVED***
 	switch typ ***REMOVED***
 	case "":
-		return newRunner(src, detectType(src.Data), filesystems, rtOpts)
+		return newRunner(logger, src, detectType(src.Data), filesystems, rtOpts)
 	case typeJS:
-		return js.New(src, filesystems, rtOpts)
+		return js.New(logger, src, filesystems, rtOpts)
 	case typeArchive:
 		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
 		if err != nil ***REMOVED***
@@ -446,7 +446,7 @@ func newRunner(
 		***REMOVED***
 		switch arc.Type ***REMOVED***
 		case typeJS:
-			return js.NewFromArchive(arc, rtOpts)
+			return js.NewFromArchive(logger, arc, rtOpts)
 		default:
 			return nil, errors.Errorf("archive requests unsupported runner: %s", arc.Type)
 		***REMOVED***

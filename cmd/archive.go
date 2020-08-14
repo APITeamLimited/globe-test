@@ -48,6 +48,8 @@ An archive is a fully self-contained test run, and can be executed identically e
   k6 run myarchive.tar`[1:],
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+		// TODO: don't use the Global logger
+		logger := logrus.StandardLogger()
 		// Runner.
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
@@ -55,8 +57,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 		***REMOVED***
 		filename := args[0]
 		filesystems := loader.CreateFilesystems()
-		// TODO: don't use the Global logger
-		src, err := loader.ReadSource(logrus.StandardLogger(), filename, pwd, filesystems, os.Stdin)
+		src, err := loader.ReadSource(logger, filename, pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -66,7 +67,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		***REMOVED***
 
-		r, err := newRunner(src, runType, filesystems, runtimeOptions)
+		r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -104,7 +105,7 @@ func archiveCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.SortFlags = false
 	flags.AddFlagSet(optionFlagSet())
 	flags.AddFlagSet(runtimeOptionFlagSet(false))
-	//TODO: figure out a better way to handle the CLI flags - global variables are not very testable... :/
+	// TODO: figure out a better way to handle the CLI flags - global variables are not very testable... :/
 	flags.StringVarP(&archiveOut, "archive-out", "O", archiveOut, "archive output filename")
 	return flags
 ***REMOVED***

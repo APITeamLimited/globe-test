@@ -35,8 +35,8 @@ type console struct ***REMOVED***
 ***REMOVED***
 
 // Creates a console with the standard logrus logger.
-func newConsole() *console ***REMOVED***
-	return &console***REMOVED***logrus.StandardLogger().WithField("source", "console")***REMOVED***
+func newConsole(logger logrus.FieldLogger) *console ***REMOVED***
+	return &console***REMOVED***logger.WithField("source", "console")***REMOVED***
 ***REMOVED***
 
 // Creates a console logger with its output set to the file at the provided `filepath`.

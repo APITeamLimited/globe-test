@@ -46,6 +46,7 @@ import (
 )
 
 func TestInitContextRequire(t *testing.T) ***REMOVED***
+	logger := logrus.StandardLogger()
 	t.Run("Modules", func(t *testing.T) ***REMOVED***
 		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
 			_, err := getSimpleBundle("/script.js", `import "k6/NONEXISTENT";`)
@@ -63,7 +64,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 
-			bi, err := b.Instantiate(0)
+			bi, err := b.Instantiate(logger, 0)
 			if !assert.NoError(t, err, "instance error") ***REMOVED***
 				return
 			***REMOVED***
@@ -92,7 +93,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 					return
 				***REMOVED***
 
-				bi, err := b.Instantiate(0)
+				bi, err := b.Instantiate(logger, 0)
 				if !assert.NoError(t, err) ***REMOVED***
 					return
 				***REMOVED***
@@ -200,7 +201,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
-						_, err = b.Instantiate(0)
+						_, err = b.Instantiate(logger, 0)
 						if !assert.NoError(t, err) ***REMOVED***
 							return
 						***REMOVED***
@@ -226,7 +227,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 
-			bi, err := b.Instantiate(0)
+			bi, err := b.Instantiate(logger, 0)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -260,7 +261,7 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		return nil, err
 	***REMOVED***
 
-	bi, err := b.Instantiate(0)
+	bi, err := b.Instantiate(logrus.StandardLogger(), 0)
 	if !assert.NoError(t, err) ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -268,7 +269,6 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 ***REMOVED***
 
 func TestInitContextOpen(t *testing.T) ***REMOVED***
-
 	testCases := []struct ***REMOVED***
 		content []byte
 		file    string
@@ -372,7 +372,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(0)
+	bi, err := b.Instantiate(logrus.StandardLogger(), 0)
 	assert.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -416,7 +416,7 @@ func TestInitContextVU(t *testing.T) ***REMOVED***
 		export default function() ***REMOVED*** return vu; ***REMOVED***
 	`)
 	require.NoError(t, err)
-	bi, err := b.Instantiate(5)
+	bi, err := b.Instantiate(logrus.StandardLogger(), 5)
 	require.NoError(t, err)
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)

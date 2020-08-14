@@ -441,6 +441,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 
 	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
 		r, err := js.New(
+			logrus.StandardLogger(),
 			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
 			nil,
 			lib.RuntimeOptions***REMOVED******REMOVED***,
@@ -574,6 +575,7 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	`))
 
 	r, err := js.New(
+		logrus.StandardLogger(),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
@@ -665,6 +667,7 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	`))
 
 	runner, err := js.New(
+		logrus.StandardLogger(),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
@@ -728,6 +731,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	`))
 
 	runner, err := js.New(
+		logrus.StandardLogger(),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
@@ -811,6 +815,7 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 				t.Parallel()
 			***REMOVED***
 			runner, err := js.New(
+				logrus.StandardLogger(),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
 				import ***REMOVED*** sleep ***REMOVED*** from "k6";
 				import ***REMOVED*** Counter ***REMOVED*** from "k6/metrics";
@@ -917,6 +922,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			runner, err := js.New(
+				logrus.StandardLogger(),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
 				nil,
 				lib.RuntimeOptions***REMOVED******REMOVED***,

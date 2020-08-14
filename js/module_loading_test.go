@@ -26,6 +26,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -36,7 +37,7 @@ import (
 )
 
 func newDevNullSampleChannel() chan stats.SampleContainer ***REMOVED***
-	var ch = make(chan stats.SampleContainer, 100)
+	ch := make(chan stats.SampleContainer, 100)
 	go func() ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
@@ -45,7 +46,7 @@ func newDevNullSampleChannel() chan stats.SampleContainer ***REMOVED***
 ***REMOVED***
 
 func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
-	var testCases = map[string]string***REMOVED***
+	testCases := map[string]string***REMOVED***
 		"module.exports": `
 			var globalVar;
 			if (!globalVar) ***REMOVED***
@@ -72,7 +73,6 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 	for name, data := range testCases ***REMOVED***
 		cData := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
-
 			fs := afero.NewMemMapFs()
 			require.NoError(t, afero.WriteFile(fs, "/C.js", []byte(cData), os.ModePerm))
 
@@ -104,7 +104,7 @@ func TestLoadOnceGlobalVars(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			arc := r1.MakeArchive()
-			r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+			r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -153,7 +153,7 @@ func TestLoadExportsIsUsableInModule(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -200,7 +200,7 @@ func TestLoadDoesntBreakHTTPGet(t *testing.T) ***REMOVED***
 
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Hosts: tb.Dialer.Hosts***REMOVED***))
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -244,7 +244,7 @@ func TestLoadGlobalVarsAreNotSharedBetweenVUs(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -307,7 +307,7 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -325,7 +325,6 @@ func TestLoadCycle(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
-
 ***REMOVED***
 
 func TestLoadCycleBinding(t *testing.T) ***REMOVED***
@@ -369,7 +368,7 @@ func TestLoadCycleBinding(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -433,7 +432,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -452,6 +451,7 @@ func TestBrowserified(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
 func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 	fs := afero.NewMemMapFs()
 	data := `var b;
@@ -470,11 +470,11 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
-	var buf = &bytes.Buffer***REMOVED******REMOVED***
+	buf := &bytes.Buffer***REMOVED******REMOVED***
 	require.NoError(t, arc.Write(buf))
 	arc, err = lib.ReadArchive(buf)
 	require.NoError(t, err)
-	r2, err := NewFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***

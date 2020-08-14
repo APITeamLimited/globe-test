@@ -139,6 +139,7 @@ func TestSetupData(t *testing.T) ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
 			runner, err := js.New(
+				logger,
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: testCase.script***REMOVED***,
 				nil,
 				lib.RuntimeOptions***REMOVED******REMOVED***,

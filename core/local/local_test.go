@@ -125,13 +125,14 @@ func TestExecutionSchedulerRunNonDefault(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
-			runner, err := js.New(&loader.SourceData***REMOVED***
-				URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
+			runner, err := js.New(logger, &loader.SourceData***REMOVED***
+				URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script),
+			***REMOVED***,
 				nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
-			logger := logrus.New()
-			logger.SetOutput(testutils.NewTestOutput(t))
 			execScheduler, err := NewExecutionScheduler(runner, logger)
 			require.NoError(t, err)
 
@@ -221,23 +222,26 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 	// Generate tests using global env and with env override
 	for ename, econf := range executorConfigs ***REMOVED***
 		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
-			"global/" + ename, fmt.Sprintf(scriptTemplate, ename, econf, "global")***REMOVED***)
+			"global/" + ename, fmt.Sprintf(scriptTemplate, ename, econf, "global"),
+		***REMOVED***)
 		configWithEnvOverride := econf + "env: ***REMOVED*** TESTVAR: 'overridden' ***REMOVED***"
 		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
-			"override/" + ename, fmt.Sprintf(scriptTemplate, ename, configWithEnvOverride, "overridden")***REMOVED***)
+			"override/" + ename, fmt.Sprintf(scriptTemplate, ename, configWithEnvOverride, "overridden"),
+		***REMOVED***)
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
-			runner, err := js.New(&loader.SourceData***REMOVED***
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
+			runner, err := js.New(logger, &loader.SourceData***REMOVED***
 				URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-				Data: []byte(tc.script)***REMOVED***,
+				Data: []byte(tc.script),
+			***REMOVED***,
 				nil, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTVAR": "global"***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
-			logger := logrus.New()
-			logger.SetOutput(testutils.NewTestOutput(t))
 			execScheduler, err := NewExecutionScheduler(runner, logger)
 			require.NoError(t, err)
 
@@ -295,9 +299,12 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		http.get("HTTPBIN_IP_URL/");
 	***REMOVED***`)
 
-	runner, err := js.New(&loader.SourceData***REMOVED***
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+	runner, err := js.New(logger, &loader.SourceData***REMOVED***
 		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-		Data: []byte(script)***REMOVED***,
+		Data: []byte(script),
+	***REMOVED***,
 		nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
@@ -305,8 +312,6 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 		SystemTags: &stats.DefaultSystemTagSet,
 	***REMOVED***)))
 
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
 	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
@@ -424,20 +429,23 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 	for ename, econf := range executorConfigs ***REMOVED***
 		configWithCustomTag := econf + "tags: ***REMOVED*** customTag: 'value' ***REMOVED***"
 		testCases = append(testCases, struct***REMOVED*** name, script string ***REMOVED******REMOVED***
-			ename, fmt.Sprintf(scriptTemplate, ename, configWithCustomTag)***REMOVED***)
+			ename, fmt.Sprintf(scriptTemplate, ename, configWithCustomTag),
+		***REMOVED***)
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
-			runner, err := js.New(&loader.SourceData***REMOVED***
+			logger := logrus.New()
+			logger.SetOutput(testutils.NewTestOutput(t))
+
+			runner, err := js.New(logger, &loader.SourceData***REMOVED***
 				URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-				Data: []byte(tc.script)***REMOVED***,
+				Data: []byte(tc.script),
+			***REMOVED***,
 				nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
-			logger := logrus.New()
-			logger.SetOutput(testutils.NewTestOutput(t))
 			execScheduler, err := NewExecutionScheduler(runner, logger)
 			require.NoError(t, err)
 
@@ -590,15 +598,16 @@ func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED**
 		***REMOVED***);
 	***REMOVED***
 `)
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
 
-	runner, err := js.New(&loader.SourceData***REMOVED***
+	runner, err := js.New(logger, &loader.SourceData***REMOVED***
 		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-		Data: []byte(script)***REMOVED***,
+		Data: []byte(script),
+	***REMOVED***,
 		nil, lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"TESTGLOBALVAR": "global"***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
 	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
@@ -1007,7 +1016,10 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		counter.add(6, ***REMOVED*** place: "defaultAfterSleep" ***REMOVED***);
 	***REMOVED***`)
 
-	runner, err := js.New(&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+
+	runner, err := js.New(logger, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	options, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions().Apply(lib.Options***REMOVED***
@@ -1019,9 +1031,6 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	require.NoError(t, err)
 	require.NoError(t, runner.SetOptions(options))
-
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
 
 	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
@@ -1242,7 +1251,11 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 		***REMOVED***;
 `)
 
+	logger := logrus.New()
+	logger.SetOutput(testutils.NewTestOutput(t))
+
 	runner, err := js.New(
+		logger,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 			Data: script,
@@ -1251,9 +1264,6 @@ func TestNewExecutionSchedulerHasWork(t *testing.T) ***REMOVED***
 		lib.RuntimeOptions***REMOVED******REMOVED***,
 	)
 	require.NoError(t, err)
-
-	logger := logrus.New()
-	logger.SetOutput(testutils.NewTestOutput(t))
 
 	execScheduler, err := NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)

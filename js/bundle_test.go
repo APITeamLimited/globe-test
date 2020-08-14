@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,6 +62,7 @@ func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REM
 		***REMOVED***
 	***REMOVED***
 	return NewBundle(
+		logrus.StandardLogger(),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
@@ -433,9 +435,10 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	baseCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String())***REMOVED***
 	extCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String())***REMOVED***
 
+	logger := logrus.StandardLogger()
 	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
 		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-		bi, err := b.Instantiate(0)
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -443,7 +446,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
-		b, err := NewBundleFromArchive(arc, rtOpts)
+		b, err := NewBundleFromArchive(logger, arc, rtOpts)
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), expError)
@@ -526,9 +529,9 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
 			Filesystems: nil,
 		***REMOVED***
-		b, err := NewBundleFromArchive(arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 		require.NoError(t, err)
-		bi, err := b.Instantiate(0)
+		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
 		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		require.NoError(t, err)
@@ -629,6 +632,8 @@ func TestOpen(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
+	logger := logrus.StandardLogger()
+
 	for name, fsInit := range fss ***REMOVED***
 		fs, prefix, cleanUp := fsInit()
 		defer cleanUp()
@@ -661,14 +666,14 @@ func TestOpen(t *testing.T) ***REMOVED***
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					arcBundle, err := NewBundleFromArchive(logger, sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 
 					require.NoError(t, err)
 
 					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
 						b := b
 						t.Run(source, func(t *testing.T) ***REMOVED***
-							bi, err := b.Instantiate(0)
+							bi, err := b.Instantiate(logger, 0)
 							require.NoError(t, err)
 							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
@@ -701,8 +706,9 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
+	logger := logrus.StandardLogger()
 
-	bi, err := b.Instantiate(0)
+	bi, err := b.Instantiate(logger, 0)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -733,7 +739,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
-		bi2, err := b.Instantiate(0)
+		bi2, err := b.Instantiate(logger, 0)
 		assert.NoError(t, err)
 		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
@@ -758,7 +764,8 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	b2, err := NewBundleFromArchive(b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	logger := logrus.StandardLogger()
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -770,7 +777,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			assert.Equal(t, "1", b.Env["TEST_A"])
 			assert.Equal(t, "", b.Env["TEST_B"])
 
-			bi, err := b.Instantiate(0)
+			bi, err := b.Instantiate(logger, 0)
 			if assert.NoError(t, err) ***REMOVED***
 				_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 				assert.NoError(t, err)
@@ -796,8 +803,9 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
+	logger := logrus.StandardLogger()
 
-	b2, err := NewBundleFromArchive(b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -808,7 +816,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for i := 0; i < vus; i++ ***REMOVED***
-				bi, err := b.Instantiate(int64(i))
+				bi, err := b.Instantiate(logger, int64(i))
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
