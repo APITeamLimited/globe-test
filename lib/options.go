@@ -193,9 +193,7 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 // for wildcards exclusively at the start of the pattern. Items may only
 // be inserted and searched. Internationalized hostnames are valid.
 type HostnameTrie struct ***REMOVED***
-	children []*HostnameTrie
-	r        rune
-	terminal bool // end of a valid match
+	children map[rune]*HostnameTrie
 ***REMOVED***
 
 // Regex description of hostname pattern to enforce blocks by. Global var
@@ -241,6 +239,7 @@ func (t *HostnameTrie) UnmarshalText(b []byte) error ***REMOVED***
 // Insert a hostname pattern into the given HostnameTrie. Returns an error
 // if hostname pattern is illegal.
 func (t *HostnameTrie) Insert(s string) error ***REMOVED***
+	s = strings.ToLower(s)
 	if len(s) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
@@ -249,55 +248,42 @@ func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	rStr := []rune(s) // need to iterate by runes for intl' names
-	last := len(rStr) - 1
-	for _, c := range t.children ***REMOVED***
-		if c.r == rStr[last] ***REMOVED***
-			return c.Insert(string(rStr[:last]))
-		***REMOVED***
+	// mask creation of the trie by initializing the root here
+	if t.children == nil ***REMOVED***
+		t.children = make(map[rune]*HostnameTrie)
 	***REMOVED***
 
-	n := &HostnameTrie***REMOVED***nil, rStr[last], len(rStr) == 1***REMOVED***
-	t.children = append(t.children, n)
-	return n.Insert(string(rStr[:last]))
+	rStr := []rune(s) // need to iterate by runes for intl' names
+	last := len(rStr) - 1
+	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
+		return c.Insert(string(rStr[:last]))
+	***REMOVED***
+
+	t.children[rStr[last]] = &HostnameTrie***REMOVED***make(map[rune]*HostnameTrie)***REMOVED***
+	return t.children[rStr[last]].Insert(string(rStr[:last]))
 ***REMOVED***
 
 // Contains returns whether s matches a pattern in the HostnameTrie
 // along with the matching pattern, if one was found.
-func (t *HostnameTrie) Contains(s string) (bool, string) ***REMOVED***
-	for _, c := range t.children ***REMOVED***
-		if b, m := c.childContains(s, ""); b ***REMOVED***
-			return b, m
-		***REMOVED***
-	***REMOVED***
-	return false, ""
-***REMOVED***
-
-// recursively traverse HostnameTrie children searching for a match.
-func (t *HostnameTrie) childContains(s string, match string) (bool, string) ***REMOVED***
+func (t *HostnameTrie) Contains(s string) (matchedPattern string, matchFound bool) ***REMOVED***
+	s = strings.ToLower(s)
 	if len(s) == 0 ***REMOVED***
-		return false, ""
+		return s, len(t.children) == 0
 	***REMOVED***
 
 	rStr := []rune(s)
 	last := len(rStr) - 1
-
-	switch ***REMOVED***
-	case t.r == '*': // wildcard encounters validate the string
-		return true, string(t.r) + match
-	case t.r != rStr[last]:
-		return false, ""
-	case len(s) == 1:
-		return t.terminal, string(t.r) + match
-	default:
-		for _, c := range t.children ***REMOVED***
-			if b, m := c.childContains(string(rStr[:last]), string(t.r)+match); b ***REMOVED***
-				return b, m
-			***REMOVED***
+	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
+		if match, matched := c.Contains(string(rStr[:last])); matched ***REMOVED***
+			return match + string(rStr[last]), true
 		***REMOVED***
 	***REMOVED***
 
-	return false, ""
+	if _, wild := t.children['*']; wild ***REMOVED***
+		return "*", true
+	***REMOVED***
+
+	return "", false
 ***REMOVED***
 
 type Options struct ***REMOVED***
