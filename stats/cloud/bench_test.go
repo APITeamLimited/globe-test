@@ -26,16 +26,19 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/mailru/easyjson"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext/httpext"
+	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
@@ -286,5 +289,53 @@ func generateHTTPExtTrail(now time.Time, i time.Duration, tags *stats.SampleTags
 		ConnDuration:   500 * time.Millisecond,
 		Duration:       i % 150 * 1500 * time.Millisecond,
 		Tags:           tags,
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
+	script := &loader.SourceData***REMOVED***
+		Data: []byte(""),
+		URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+	***REMOVED***
+
+	options := lib.Options***REMOVED***
+		Duration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+	tb := httpmultibin.NewHTTPMultiBin(b)
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		_, err := fmt.Fprint(w, `***REMOVED***
+			"reference_id": "fake",
+		***REMOVED***`)
+		require.NoError(b, err)
+	***REMOVED***))
+	defer tb.Cleanup()
+	tb.Mux.HandleFunc("/v1/metrics/fake",
+		func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+			_, err := io.Copy(ioutil.Discard, r.Body)
+			assert.NoError(b, err)
+		***REMOVED***,
+	)
+
+	config := NewConfig().Apply(Config***REMOVED***
+		Host:                    null.StringFrom(tb.ServerHTTP.URL),
+		AggregationCalcInterval: types.NullDurationFrom(time.Millisecond * 200),
+		AggregationPeriod:       types.NullDurationFrom(time.Millisecond * 200),
+	***REMOVED***)
+	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	require.NoError(b, err)
+	collector.referenceID = "fake"
+
+	for _, count := range []int***REMOVED***1000, 5000, 50000, 100000, 250000***REMOVED*** ***REMOVED***
+		count := count
+		b.Run(fmt.Sprintf("count:%d", count), func(b *testing.B) ***REMOVED***
+			samples := generateSamples(count)
+			b.ResetTimer()
+			for s := 0; s < b.N; s++ ***REMOVED***
+				b.StopTimer()
+				toSend := append([]*Sample***REMOVED******REMOVED***, samples...)
+				b.StartTimer()
+				require.NoError(b, collector.client.PushMetric("fake", false, toSend))
+			***REMOVED***
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
