@@ -102,6 +102,7 @@ func generateTags(i, tagCount int, additionals ...map[string]string) *stats.Samp
 			res[k] = v
 		***REMOVED***
 	***REMOVED***
+
 	return stats.IntoSampleTags(&res)
 ***REMOVED***
 
@@ -269,6 +270,7 @@ func generateSamples(count int) []*Sample ***REMOVED***
 			samples[i] = NewSampleFromTrail(generateHTTPExtTrail(now, time.Duration(i), tags))
 		***REMOVED***
 	***REMOVED***
+
 	return samples
 ***REMOVED***
 
