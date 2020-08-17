@@ -24,24 +24,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/statsd/common"
 	"github.com/loadimpact/k6/stats/statsd/common/testutil"
 )
 
 func TestCollector(t *testing.T) ***REMOVED***
-	var tagMap = stats.TagSet***REMOVED***"tag1": true, "tag2": true***REMOVED***
-	var handler = tagHandler(tagMap)
-	testutil.BaseTest(t, func(config common.Config) (*common.Collector, error) ***REMOVED***
-		return New(NewConfig().Apply(Config***REMOVED***
+	tagMap := stats.TagSet***REMOVED***"tag1": true, "tag2": true***REMOVED***
+	handler := tagHandler(tagMap)
+	testutil.BaseTest(t, func(logger logrus.FieldLogger, config common.Config) (*common.Collector, error) ***REMOVED***
+		return New(testutils.NewLogger(t), NewConfig().Apply(Config***REMOVED***
 			TagBlacklist: tagMap,
 			Config:       config,
 		***REMOVED***))
 	***REMOVED***, func(t *testing.T, containers []stats.SampleContainer, expectedOutput, output string) ***REMOVED***
-		var outputLines = strings.Split(output, "\n")
-		var expectedOutputLines = strings.Split(expectedOutput, "\n")
+		outputLines := strings.Split(output, "\n")
+		expectedOutputLines := strings.Split(expectedOutput, "\n")
 		for i, container := range containers ***REMOVED***
 			for j, sample := range container.GetSamples() ***REMOVED***
 				var (

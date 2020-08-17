@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -53,12 +54,14 @@ type Client struct ***REMOVED***
 	baseURL        string
 	version        string
 	pushBufferPool sync.Pool
+	logger         logrus.FieldLogger
 
 	retries       int
 	retryInterval time.Duration
 ***REMOVED***
 
-func NewClient(token, host, version string) *Client ***REMOVED***
+// NewClient return a new client for the cloud API
+func NewClient(logger logrus.FieldLogger, token, host, version string) *Client ***REMOVED***
 	c := &Client***REMOVED***
 		client:        &http.Client***REMOVED***Timeout: RequestTimeout***REMOVED***,
 		token:         token,
@@ -71,6 +74,7 @@ func NewClient(token, host, version string) *Client ***REMOVED***
 				return &bytes.Buffer***REMOVED******REMOVED***
 			***REMOVED***,
 		***REMOVED***,
+		logger: logger,
 	***REMOVED***
 	return c
 ***REMOVED***

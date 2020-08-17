@@ -23,6 +23,7 @@ package datadog
 import (
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/statsd/common"
+	"github.com/sirupsen/logrus"
 )
 
 type tagHandler stats.TagSet
@@ -64,10 +65,11 @@ func NewConfig() Config ***REMOVED***
 ***REMOVED***
 
 // New creates a new statsd connector client
-func New(conf Config) (*common.Collector, error) ***REMOVED***
+func New(logger logrus.FieldLogger, conf Config) (*common.Collector, error) ***REMOVED***
 	return &common.Collector***REMOVED***
 		Config:      conf.Config,
 		Type:        "datadog",
 		ProcessTags: tagHandler(conf.TagBlacklist).processTags,
+		Logger:      logger,
 	***REMOVED***, nil
 ***REMOVED***

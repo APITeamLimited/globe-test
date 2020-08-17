@@ -41,6 +41,7 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
@@ -184,7 +185,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	collector, err := New(testutils.NewLogger(t), config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, collector.config.Host.Valid)
@@ -313,7 +314,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	var maxMetricSamplesPerPackage = 20
+	maxMetricSamplesPerPackage := 20
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprintf(w, `***REMOVED***
 			"reference_id": "12",
@@ -342,11 +343,11 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	collector, err := New(testutils.NewLogger(t), config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 	now := time.Now()
 	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
-	var gotTheLimit = false
+	gotTheLimit := false
 	var m sync.Mutex
 
 	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
@@ -379,7 +380,7 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 		Value:  1.0,
 	***REMOVED******REMOVED***)
 	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
-		var container = make([]stats.SampleContainer, 0, 500)
+		container := make([]stats.SampleContainer, 0, 500)
 		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
 			container = append(container, &httpext.Trail***REMOVED***
 				Blocked:        i % 200 * 100 * time.Millisecond,
@@ -435,7 +436,7 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 		NoCompress:                 null.BoolFrom(true),
 		MaxMetricSamplesPerPackage: null.IntFrom(50),
 	***REMOVED***)
-	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	collector, err := New(testutils.NewLogger(t), config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 	now := time.Now()
 	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
@@ -482,7 +483,7 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 		Value:  1.0,
 	***REMOVED******REMOVED***)
 	for j := time.Duration(1); j <= 200; j++ ***REMOVED***
-		var container = make([]stats.SampleContainer, 0, 500)
+		container := make([]stats.SampleContainer, 0, 500)
 		for i := time.Duration(1); i <= 50; i++ ***REMOVED***
 			container = append(container, &httpext.Trail***REMOVED***
 				Blocked:        i % 200 * 100 * time.Millisecond,
@@ -555,7 +556,7 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	collector, err := New(testutils.NewLogger(t), config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, collector.config.Host.Valid)
@@ -614,10 +615,10 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		Host:       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress: null.BoolFrom(true),
 	***REMOVED***)
-	collector, err := New(config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	collector, err := New(testutils.NewLogger(t), config, script, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
 
-	var gotIterations = false
+	gotIterations := false
 	var m sync.Mutex
 	expValues := map[string]float64***REMOVED***
 		"data_received":      100,
@@ -727,7 +728,7 @@ func TestNewName(t *testing.T) ***REMOVED***
 			script := &loader.SourceData***REMOVED***
 				URL: testCase.url,
 			***REMOVED***
-			collector, err := New(NewConfig(), script, lib.Options***REMOVED***
+			collector, err := New(testutils.NewLogger(t), NewConfig(), script, lib.Options***REMOVED***
 				Duration: types.NullDurationFrom(1 * time.Second),
 			***REMOVED***, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 			require.NoError(t, err)

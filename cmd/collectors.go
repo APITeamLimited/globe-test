@@ -28,6 +28,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"github.com/loadimpact/k6/lib"
@@ -66,13 +67,14 @@ func parseCollector(s string) (t, arg string) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-//TODO: totally refactor this...
+// TODO: totally refactor this...
 func getCollector(
+	logger logrus.FieldLogger,
 	collectorName, arg string, src *loader.SourceData, conf Config, executionPlan []lib.ExecutionStep,
 ) (lib.Collector, error) ***REMOVED***
 	switch collectorName ***REMOVED***
 	case collectorJSON:
-		return jsonc.New(afero.NewOsFs(), arg)
+		return jsonc.New(logger, afero.NewOsFs(), arg)
 	case collectorInfluxDB:
 		config := influxdb.NewConfig().Apply(conf.Collectors.InfluxDB)
 		if err := envconfig.Process("", &config); err != nil ***REMOVED***
@@ -83,7 +85,8 @@ func getCollector(
 			return nil, err
 		***REMOVED***
 		config = config.Apply(urlConfig)
-		return influxdb.New(config)
+
+		return influxdb.New(logger, config)
 	case collectorCloud:
 		config := cloud.NewConfig().Apply(conf.Collectors.Cloud)
 		if err := envconfig.Process("", &config); err != nil ***REMOVED***
@@ -92,7 +95,8 @@ func getCollector(
 		if arg != "" ***REMOVED***
 			config.Name = null.StringFrom(arg)
 		***REMOVED***
-		return cloud.New(config, src, conf.Options, executionPlan, consts.Version)
+
+		return cloud.New(logger, config, src, conf.Options, executionPlan, consts.Version)
 	case collectorKafka:
 		config := kafka.NewConfig().Apply(conf.Collectors.Kafka)
 		if err := envconfig.Process("", &config); err != nil ***REMOVED***
@@ -105,19 +109,22 @@ func getCollector(
 			***REMOVED***
 			config = config.Apply(cmdConfig)
 		***REMOVED***
-		return kafka.New(config)
+
+		return kafka.New(logger, config)
 	case collectorStatsD:
 		config := common.NewConfig().Apply(conf.Collectors.StatsD)
 		if err := envconfig.Process("k6_statsd", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return statsd.New(config)
+
+		return statsd.New(logger, config)
 	case collectorDatadog:
 		config := datadog.NewConfig().Apply(conf.Collectors.Datadog)
 		if err := envconfig.Process("k6_datadog", &config); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		return datadog.New(config)
+
+		return datadog.New(logger, config)
 	case collectorCSV:
 		config := csv.NewConfig().Apply(conf.Collectors.CSV)
 		if err := envconfig.Process("", &config); err != nil ***REMOVED***
@@ -131,7 +138,8 @@ func getCollector(
 
 			config = config.Apply(cmdConfig)
 		***REMOVED***
-		return csv.New(afero.NewOsFs(), conf.SystemTags.Map(), config)
+
+		return csv.New(logger, afero.NewOsFs(), conf.SystemTags.Map(), config)
 
 	default:
 		return nil, errors.Errorf("unknown output type: %s", collectorName)
@@ -139,9 +147,10 @@ func getCollector(
 ***REMOVED***
 
 func newCollector(
+	logger logrus.FieldLogger,
 	collectorName, arg string, src *loader.SourceData, conf Config, executionPlan []lib.ExecutionStep,
 ) (lib.Collector, error) ***REMOVED***
-	collector, err := getCollector(collectorName, arg, src, conf, executionPlan)
+	collector, err := getCollector(logger, collectorName, arg, src, conf, executionPlan)
 	if err != nil ***REMOVED***
 		return collector, err
 	***REMOVED***

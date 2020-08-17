@@ -51,13 +51,14 @@ type Collector struct ***REMOVED***
 	bufferLock   sync.Mutex
 	row          []string
 	saveInterval time.Duration
+	logger       logrus.FieldLogger
 ***REMOVED***
 
 // Verify that Collector implements lib.Collector
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
 // New Creates new instance of CSV collector
-func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***REMOVED***
+func New(logger logrus.FieldLogger, fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***REMOVED***
 	resTags := []string***REMOVED******REMOVED***
 	ignoredTags := []string***REMOVED******REMOVED***
 	for tag, flag := range tags ***REMOVED***
@@ -83,6 +84,7 @@ func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***R
 			row:          make([]string, 3+len(resTags)+1),
 			saveInterval: saveInterval,
 			closeFn:      func() error ***REMOVED*** return nil ***REMOVED***,
+			logger:       logger,
 		***REMOVED***, nil
 	***REMOVED***
 
@@ -97,6 +99,7 @@ func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***R
 		ignoredTags:  ignoredTags,
 		row:          make([]string, 3+len(resTags)+1),
 		saveInterval: saveInterval,
+		logger:       logger,
 	***REMOVED***
 
 	if strings.HasSuffix(fname, ".gz") ***REMOVED***
@@ -121,7 +124,7 @@ func (c *Collector) Init() error ***REMOVED***
 	header := MakeHeader(c.resTags)
 	err := c.csvWriter.Write(header)
 	if err != nil ***REMOVED***
-		logrus.WithField("filename", c.fname).Error("CSV: Error writing column names to file")
+		c.logger.WithField("filename", c.fname).Error("CSV: Error writing column names to file")
 	***REMOVED***
 	c.csvWriter.Flush()
 	return nil
@@ -136,7 +139,7 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	defer func() ***REMOVED***
 		err := c.closeFn()
 		if err != nil ***REMOVED***
-			logrus.WithField("filename", c.fname).Errorf("CSV: Error closing the file: %v", err)
+			c.logger.WithField("filename", c.fname).Errorf("CSV: Error closing the file: %v", err)
 		***REMOVED***
 	***REMOVED***()
 
@@ -176,7 +179,7 @@ func (c *Collector) writeToFile() ***REMOVED***
 				row := SampleToRow(&sample, c.resTags, c.ignoredTags, c.row)
 				err := c.csvWriter.Write(row)
 				if err != nil ***REMOVED***
-					logrus.WithField("filename", c.fname).Error("CSV: Error writing to file")
+					c.logger.WithField("filename", c.fname).Error("CSV: Error writing to file")
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***

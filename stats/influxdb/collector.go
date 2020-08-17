@@ -56,6 +56,7 @@ type Collector struct ***REMOVED***
 	Config    Config
 	BatchConf client.BatchPointsConfig
 
+	logger      logrus.FieldLogger
 	buffer      []stats.Sample
 	bufferLock  sync.Mutex
 	wg          sync.WaitGroup
@@ -63,7 +64,8 @@ type Collector struct ***REMOVED***
 	fieldKinds  map[string]FieldKind
 ***REMOVED***
 
-func New(conf Config) (*Collector, error) ***REMOVED***
+// New returns new influxdb collector
+func New(logger logrus.FieldLogger, conf Config) (*Collector, error) ***REMOVED***
 	cl, err := MakeClient(conf)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -74,6 +76,7 @@ func New(conf Config) (*Collector, error) ***REMOVED***
 	***REMOVED***
 	fldKinds, err := MakeFieldKinds(conf)
 	return &Collector***REMOVED***
+		logger:      logger,
 		Client:      cl,
 		Config:      conf,
 		BatchConf:   batchConf,
@@ -87,14 +90,14 @@ func (c *Collector) Init() error ***REMOVED***
 	// usually means we're either a non-admin user to an existing DB or connecting over UDP.
 	_, err := c.Client.Query(client.NewQuery("CREATE DATABASE "+c.BatchConf.Database, "", ""))
 	if err != nil ***REMOVED***
-		logrus.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
+		c.logger.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
 	***REMOVED***
 
 	return nil
 ***REMOVED***
 
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	logrus.Debug("InfluxDB: Running!")
+	c.logger.Debug("InfluxDB: Running!")
 	ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
 	for ***REMOVED***
 		select ***REMOVED***
@@ -133,21 +136,21 @@ func (c *Collector) commit() ***REMOVED***
 	defer func() ***REMOVED***
 		<-c.semaphoreCh
 	***REMOVED***()
-	logrus.Debug("InfluxDB: Committing...")
-	logrus.WithField("samples", len(samples)).Debug("InfluxDB: Writing...")
+	c.logger.Debug("InfluxDB: Committing...")
+	c.logger.WithField("samples", len(samples)).Debug("InfluxDB: Writing...")
 
 	batch, err := c.batchFromSamples(samples)
 	if err != nil ***REMOVED***
 		return
 	***REMOVED***
 
-	logrus.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
+	c.logger.WithField("points", len(batch.Points())).Debug("InfluxDB: Writing...")
 	startTime := time.Now()
 	if err := c.Client.Write(batch); err != nil ***REMOVED***
-		logrus.WithError(err).Error("InfluxDB: Couldn't write stats")
+		c.logger.WithError(err).Error("InfluxDB: Couldn't write stats")
 	***REMOVED***
 	t := time.Since(startTime)
-	logrus.WithField("t", t).Debug("InfluxDB: Batch written!")
+	c.logger.WithField("t", t).Debug("InfluxDB: Batch written!")
 ***REMOVED***
 
 func (c *Collector) extractTagsToValues(tags map[string]string, values map[string]interface***REMOVED******REMOVED***) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
@@ -179,7 +182,7 @@ func (c *Collector) extractTagsToValues(tags map[string]string, values map[strin
 func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints, error) ***REMOVED***
 	batch, err := client.NewBatchPoints(c.BatchConf)
 	if err != nil ***REMOVED***
-		logrus.WithError(err).Error("InfluxDB: Couldn't make a batch")
+		c.logger.WithError(err).Error("InfluxDB: Couldn't make a batch")
 		return nil, err
 	***REMOVED***
 
@@ -190,7 +193,7 @@ func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints
 	cache := map[*stats.SampleTags]cacheItem***REMOVED******REMOVED***
 	for _, sample := range samples ***REMOVED***
 		var tags map[string]string
-		var values = make(map[string]interface***REMOVED******REMOVED***)
+		values := make(map[string]interface***REMOVED******REMOVED***)
 		if cached, ok := cache[sample.Tags]; ok ***REMOVED***
 			tags = cached.tags
 			for k, v := range cached.values ***REMOVED***
@@ -209,7 +212,7 @@ func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints
 			sample.Time,
 		)
 		if err != nil ***REMOVED***
-			logrus.WithError(err).Error("InfluxDB: Couldn't make point from sample!")
+			c.logger.WithError(err).Error("InfluxDB: Couldn't make point from sample!")
 			return nil, err
 		***REMOVED***
 		batch.AddPoint(p)
@@ -222,7 +225,6 @@ func (c *Collector) batchFromSamples(samples []stats.Sample) (client.BatchPoints
 func (c *Collector) Format(samples []stats.Sample) ([]string, error) ***REMOVED***
 	var metrics []string
 	batch, err := c.batchFromSamples(samples)
-
 	if err != nil ***REMOVED***
 		return metrics, err
 	***REMOVED***
