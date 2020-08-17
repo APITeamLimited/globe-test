@@ -27,69 +27,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mailru/easyjson"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/stats"
 )
 
-func TestTimestampMarshaling(t *testing.T) ***REMOVED***
-	t.Parallel()
-
-	oldTimeFormat, err := time.Parse(
-		time.RFC3339,
-		//1521806137415652223 as a unix nanosecond timestamp
-		"2018-03-23T13:55:37.415652223+02:00",
-	)
-	require.NoError(t, err)
-
-	testCases := []struct ***REMOVED***
-		t   time.Time
-		exp string
-	***REMOVED******REMOVED***
-		***REMOVED***oldTimeFormat, `"1521806137415652"`***REMOVED***,
-		***REMOVED***time.Unix(1521806137, 415652223), `"1521806137415652"`***REMOVED***,
-		***REMOVED***time.Unix(1521806137, 0), `"1521806137000000"`***REMOVED***,
-		***REMOVED***time.Unix(0, 0), `"0"`***REMOVED***,
-		***REMOVED***time.Unix(0, 1), `"0"`***REMOVED***,
-		***REMOVED***time.Unix(0, 1000), `"1"`***REMOVED***,
-		***REMOVED***time.Unix(1, 0), `"1000000"`***REMOVED***,
-	***REMOVED***
-
-	for i, tc := range testCases ***REMOVED***
-		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) ***REMOVED***
-			res, err := json.Marshal(Timestamp(tc.t))
-			require.NoError(t, err)
-			assert.Equal(t, string(res), tc.exp)
-
-			var rev Timestamp
-			require.NoError(t, json.Unmarshal(res, &rev))
-
-			assert.Truef(
-				t,
-				rev.Equal(Timestamp(tc.t)),
-				"Expected the difference to be under a microsecond, but is %s (%d and %d)",
-				tc.t.Sub(time.Time(rev)),
-				tc.t.UnixNano(),
-				time.Time(rev).UnixNano(),
-			)
-
-			assert.False(t, Timestamp(time.Now()).Equal(Timestamp(tc.t)))
-		***REMOVED***)
-	***REMOVED***
-
-	var expErr Timestamp
-	assert.Error(t, json.Unmarshal([]byte(`1234`), &expErr))
-	assert.Error(t, json.Unmarshal([]byte(`"1234a"`), &expErr))
-***REMOVED***
-
 func TestSampleMarshaling(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	now := time.Now()
-	expTimestamp := now.UnixNano() / 1000
+	exptoMicroSecond := now.UnixNano() / 1000
 
 	testCases := []struct ***REMOVED***
 		s    *Sample
@@ -101,19 +51,19 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				Metric: metrics.VUs.Name,
 				Data: &SampleDataSingle***REMOVED***
 					Type:  metrics.VUs.Type,
-					Time:  Timestamp(now),
+					Time:  toMicroSecond(now),
 					Tags:  stats.IntoSampleTags(&map[string]string***REMOVED***"aaa": "bbb", "ccc": "123"***REMOVED***),
 					Value: 999,
 				***REMOVED***,
 			***REMOVED***,
-			fmt.Sprintf(`***REMOVED***"type":"Point","metric":"vus","data":***REMOVED***"time":"%d","type":"gauge","tags":***REMOVED***"aaa":"bbb","ccc":"123"***REMOVED***,"value":999***REMOVED******REMOVED***`, expTimestamp),
+			fmt.Sprintf(`***REMOVED***"type":"Point","metric":"vus","data":***REMOVED***"time":"%d","type":"gauge","tags":***REMOVED***"aaa":"bbb","ccc":"123"***REMOVED***,"value":999***REMOVED******REMOVED***`, exptoMicroSecond),
 		***REMOVED***,
 		***REMOVED***
 			&Sample***REMOVED***
 				Type:   DataTypeMap,
 				Metric: "iter_li_all",
 				Data: &SampleDataMap***REMOVED***
-					Time: Timestamp(now),
+					Time: toMicroSecond(now),
 					Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
 					Values: map[string]float64***REMOVED***
 						metrics.DataSent.Name:          1234.5,
@@ -122,7 +72,7 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 					***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
-			fmt.Sprintf(`***REMOVED***"type":"Points","metric":"iter_li_all","data":***REMOVED***"time":"%d","type":"counter","tags":***REMOVED***"test":"mest"***REMOVED***,"values":***REMOVED***"data_received":6789.1,"data_sent":1234.5,"iteration_duration":10000***REMOVED******REMOVED******REMOVED***`, expTimestamp),
+			fmt.Sprintf(`***REMOVED***"type":"Points","metric":"iter_li_all","data":***REMOVED***"time":"%d","type":"counter","tags":***REMOVED***"test":"mest"***REMOVED***,"values":***REMOVED***"data_received":6789.1,"data_sent":1234.5,"iteration_duration":10000***REMOVED******REMOVED******REMOVED***`, exptoMicroSecond),
 		***REMOVED***,
 		***REMOVED***
 			NewSampleFromTrail(&httpext.Trail***REMOVED***
@@ -135,12 +85,12 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 				Waiting:        5000,
 				Receiving:      6000,
 			***REMOVED***),
-			fmt.Sprintf(`***REMOVED***"type":"Points","metric":"http_req_li_all","data":***REMOVED***"time":"%d","type":"counter","values":***REMOVED***"http_req_blocked":0.001,"http_req_connecting":0.002,"http_req_duration":0.123,"http_req_receiving":0.006,"http_req_sending":0.004,"http_req_tls_handshaking":0.003,"http_req_waiting":0.005,"http_reqs":1***REMOVED******REMOVED******REMOVED***`, expTimestamp),
+			fmt.Sprintf(`***REMOVED***"type":"Points","metric":"http_req_li_all","data":***REMOVED***"time":"%d","type":"counter","values":***REMOVED***"http_req_blocked":0.001,"http_req_connecting":0.002,"http_req_duration":0.123,"http_req_receiving":0.006,"http_req_sending":0.004,"http_req_tls_handshaking":0.003,"http_req_waiting":0.005,"http_reqs":1***REMOVED******REMOVED******REMOVED***`, exptoMicroSecond),
 		***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
-		sJSON, err := json.Marshal(tc.s)
+		sJSON, err := easyjson.Marshal(tc.s)
 		if !assert.NoError(t, err) ***REMOVED***
 			continue
 		***REMOVED***
@@ -153,7 +103,7 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 		assert.Equal(t, tc.s.Metric, newS.Metric)
 		assert.IsType(t, tc.s.Data, newS.Data)
 		// Cannot directly compare tc.s.Data and newS.Data (because of internal time.Time and SampleTags fields)
-		newJSON, err := json.Marshal(newS)
+		newJSON, err := easyjson.Marshal(newS)
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(sJSON), string(newJSON))
 	***REMOVED***
