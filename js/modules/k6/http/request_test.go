@@ -965,7 +965,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 
 		t.Run("Tagged", func(t *testing.T) ***REMOVED***
-			_, err := common.RunES6String(rt, `
+			_, err := common.RunES6String(t, rt, `
 			var a = "1";
 			var b = "2";
 			var res = http.get(http.url`+"`"+sr(`HTTPBIN_URL/get?a=$***REMOVED***a***REMOVED***&b=$***REMOVED***b***REMOVED***`)+"`"+`);
@@ -1075,7 +1075,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
 			t.Run("Tagged", func(t *testing.T) ***REMOVED***
-				_, err := common.RunES6String(rt, sr(`
+				_, err := common.RunES6String(t, rt, sr(`
 				let fragment = "get";
 				let reqs = [
 					["GET", http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`],
@@ -1109,7 +1109,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
 				t.Run("Tagged", func(t *testing.T) ***REMOVED***
-					_, err := common.RunES6String(rt, sr(`
+					_, err := common.RunES6String(t, rt, sr(`
 					let fragment = "get";
 					let reqs = [
 						http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`,
@@ -1375,7 +1375,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 			***REMOVED***
 			expectedEncoding = strings.Join(algos, ", ")
 			actualEncoding = expectedEncoding
-			_, err := common.RunES6String(rt, tb.Replacer.Replace(`
+			_, err := common.RunES6String(t, rt, tb.Replacer.Replace(`
 		http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,  ***REMOVED***"compression": "`+testCase.compression+`"***REMOVED***);
 	`))
 			if testCase.expectedError == "" ***REMOVED***
@@ -1393,7 +1393,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 		logHook.Drain()
 		t.Run("encoding", func(t *testing.T) ***REMOVED***
-			_, err := common.RunES6String(rt, tb.Replacer.Replace(`
+			_, err := common.RunES6String(t, rt, tb.Replacer.Replace(`
 				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
 					***REMOVED***"compression": "`+actualEncoding+`",
 					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`"***REMOVED***
@@ -1405,7 +1405,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("encoding and length", func(t *testing.T) ***REMOVED***
-			_, err := common.RunES6String(rt, tb.Replacer.Replace(`
+			_, err := common.RunES6String(t, rt, tb.Replacer.Replace(`
 				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
 					***REMOVED***"compression": "`+actualEncoding+`",
 					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`",
@@ -1419,7 +1419,7 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 		expectedEncoding = actualEncoding
 		t.Run("correct encoding", func(t *testing.T) ***REMOVED***
-			_, err := common.RunES6String(rt, tb.Replacer.Replace(`
+			_, err := common.RunES6String(t, rt, tb.Replacer.Replace(`
 				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
 					***REMOVED***"compression": "`+actualEncoding+`",
 					 "headers": ***REMOVED***"Content-Encoding": "`+actualEncoding+`"***REMOVED***

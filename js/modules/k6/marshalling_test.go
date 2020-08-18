@@ -26,12 +26,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
@@ -117,7 +117,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	`))
 
 	runner, err := js.New(
-		logrus.StandardLogger(),
+		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,

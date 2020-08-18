@@ -37,8 +37,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -55,6 +53,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	_ "github.com/loadimpact/k6/lib/executor" // TODO: figure out something better
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -63,7 +62,7 @@ import (
 
 func TestRunnerNew(t *testing.T) ***REMOVED***
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
-		r, err := getSimpleRunner("/script.js", `
+		r, err := getSimpleRunner(t, "/script.js", `
 			var counter = 0;
 			exports.default = function() ***REMOVED*** counter++; ***REMOVED***
 		`)
@@ -88,30 +87,30 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleRunner("/script.js", `blarg`)
+		_, err := getSimpleRunner(t, "/script.js", `blarg`)
 		assert.EqualError(t, err, "ReferenceError: blarg is not defined at file:///script.js:1:1(0)")
 	***REMOVED***)
 ***REMOVED***
 
 func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
 	***REMOVED***
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r2.GetDefaultGroup())
 	***REMOVED***
 ***REMOVED***
 
 func TestRunnerOptions(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
+	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -155,7 +154,7 @@ func TestOptionsSettingToScript(t *testing.T) ***REMOVED***
 							throw new Error("expected teardownTimeout to be " + __ENV.expectedTeardownTimeout + " but it was " + options.teardownTimeout);
 						***REMOVED***
 					***REMOVED***;`
-			r, err := getSimpleRunner("/script.js", data,
+			r, err := getSimpleRunner(t, "/script.js", data,
 				lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedTeardownTimeout": "4s"***REMOVED******REMOVED***)
 			require.NoError(t, err)
 
@@ -194,12 +193,12 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 			***REMOVED***;`
 
 	expScriptOptions := lib.Options***REMOVED***SetupTimeout: types.NullDurationFrom(1 * time.Second)***REMOVED***
-	r1, err := getSimpleRunner("/script.js", data,
+	r1, err := getSimpleRunner(t, "/script.js", data,
 		lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "1s"***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***"expectedSetupTimeout": "3s"***REMOVED******REMOVED***)
 
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r2.GetOptions())
@@ -240,7 +239,7 @@ func TestMetricName(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`)
 
-	_, err := getSimpleRunner("/script.js", script)
+	_, err := getSimpleRunner(t, "/script.js", script)
 	require.Error(t, err)
 ***REMOVED***
 
@@ -284,15 +283,15 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`)
 
-	runner, err := getSimpleRunner("/script.js", script)
+	runner, err := getSimpleRunner(t, "/script.js", script)
 	require.NoError(t, err)
 
 	options := runner.GetOptions()
 	require.Empty(t, options.Validate())
 
-	execScheduler, err := local.NewExecutionScheduler(runner, logrus.StandardLogger())
+	execScheduler, err := local.NewExecutionScheduler(runner, testutils.NewLogger(t))
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, options, logrus.StandardLogger())
+	engine, err := core.NewEngine(execScheduler, options, testutils.NewLogger(t))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -333,7 +332,7 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 		SetupTimeout:    types.NullDurationFrom(1 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***
-	r1, err := getSimpleRunner("/script.js", data) // TODO fix this
+	r1, err := getSimpleRunner(t, "/script.js", data) // TODO fix this
 	require.NoError(t, err)
 	require.Equal(t, expScriptOptions, r1.GetOptions())
 
@@ -395,7 +394,7 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestConsoleInInitContext(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 			console.log("1");
 			exports.default = function(data) ***REMOVED***
 			***REMOVED***;
@@ -449,7 +448,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 			mod := mod
 			t.Run(mod, func(t *testing.T) ***REMOVED***
 				t.Run("Source", func(t *testing.T) ***REMOVED***
-					_, err := getSimpleRunner("/script.js", fmt.Sprintf(`import "%s"; exports.default = function() ***REMOVED******REMOVED***`, mod), rtOpts)
+					_, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`import "%s"; exports.default = function() ***REMOVED******REMOVED***`, mod), rtOpts)
 					assert.NoError(t, err)
 				***REMOVED***)
 			***REMOVED***)
@@ -458,8 +457,8 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 
 	t.Run("Files", func(t *testing.T) ***REMOVED***
 		fs := afero.NewMemMapFs()
-		require.NoError(t, fs.MkdirAll("/path/to", 0755))
-		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`exports.default = "hi!";`), 0644))
+		require.NoError(t, fs.MkdirAll("/path/to", 0o755))
+		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`exports.default = "hi!";`), 0o644))
 
 		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
 			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/lib.js"***REMOVED***,
@@ -471,14 +470,14 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			name, data := name, data
 			t.Run(name, func(t *testing.T) ***REMOVED***
-				r1, err := getSimpleRunner(data.filename, fmt.Sprintf(`
+				r1, err := getSimpleRunner(t, data.filename, fmt.Sprintf(`
 					var hi = require("%s").default;
 					exports.default = function() ***REMOVED***
 						if (hi != "hi!") ***REMOVED*** throw new Error("incorrect value"); ***REMOVED***
 					***REMOVED***`, data.path), fs)
 				require.NoError(t, err)
 
-				r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+				r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 				require.NoError(t, err)
 
 				testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -500,14 +499,14 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.options = ***REMOVED*** vus: 10 ***REMOVED***;
 		exports.default = function() ***REMOVED*** fn(); ***REMOVED***
 		`)
 	require.NoError(t, err)
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -552,13 +551,13 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 		t.Skip()
 	***REMOVED***
 
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -590,13 +589,13 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 		t.Skip()
 	***REMOVED***
 
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
 	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -637,7 +636,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
 		exports.default = function() ***REMOVED***
 			fnOuter();
@@ -651,7 +650,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -696,7 +695,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
 		var Trend = require("k6/metrics").Trend;
 		var myMetric = new Trend("my_metric");
@@ -704,7 +703,7 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, err)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -771,14 +770,14 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			r1, err := getSimpleRunner("/script.js", `
+			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
 				`)
 			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
-			r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			require.NoError(t, err)
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
@@ -808,7 +807,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`)
@@ -824,7 +823,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***))
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -848,7 +847,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 
 					exports.options = ***REMOVED***
@@ -862,7 +861,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 		return
 	***REMOVED***
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -890,7 +889,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := getSimpleRunner("/script.js",
+	r1, err := getSimpleRunner(t, "/script.js",
 		tb.Replacer.Replace(`
 					var k6 = require("k6");
 					var check = k6.check;
@@ -914,7 +913,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -979,7 +978,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			r1, err := getSimpleRunner("/script.js", `
+			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`)
@@ -988,7 +987,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 			***REMOVED***
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
-			r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -1020,7 +1019,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
-	r, err := getSimpleRunner("/script.js", `
+	r, err := getSimpleRunner(t, "/script.js", `
 			exports.default = function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
 		`)
 	assert.NoError(t, err)
@@ -1036,7 +1035,7 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
-	r, err := getSimpleRunner("/script.js", `
+	r, err := getSimpleRunner(t, "/script.js", `
 			var sneaky = open;
 			exports.default = function() ***REMOVED*** sneaky("/tmp/foo") ***REMOVED***
 		`)
@@ -1056,7 +1055,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED***
 				var url = "HTTPBIN_URL";
@@ -1082,7 +1081,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 		Hosts:        tb.Dialer.Hosts,
 	***REMOVED***)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1110,7 +1109,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED***
 				var url = "HTTPBIN_URL";
@@ -1141,7 +1140,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 		NoCookiesReset: null.BoolFrom(true),
 	***REMOVED***)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1168,7 +1167,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
-	r1, err := getSimpleRunner("/script.js", `
+	r1, err := getSimpleRunner(t, "/script.js", `
 			exports.default = function() ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
@@ -1178,7 +1177,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 	***REMOVED***
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
-	r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -1265,7 +1264,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***
 	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
 
-	r1, err := getSimpleRunner("/script.js", fmt.Sprintf(`
+	r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String()))
@@ -1278,7 +1277,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -1328,7 +1327,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
-		r2, err := NewFromArchive(logrus.StandardLogger(), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -1354,7 +1353,7 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 					var k6 = require("k6");
 					var check = k6.check;
 					var fail = k6.fail;
@@ -1438,7 +1437,7 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 	for _, test := range table ***REMOVED***
 		test := test
 		t.Run(test[0], func(t *testing.T) ***REMOVED***
-			_, err := getSimpleRunner("/script.js", tb.Replacer.Replace(test[1]))
+			_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(test[1]))
 			if assert.Error(t, err) ***REMOVED***
 				assert.Contains(
 					t,
@@ -1468,7 +1467,7 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 		`)
 	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), os.ModePerm))
-	r1, err := getSimpleRunner("/script.js", data, fs)
+	r1, err := getSimpleRunner(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
 	buf := bytes.NewBuffer(nil)
@@ -1476,7 +1475,7 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 
 	arc, err := lib.ReadArchive(buf)
 	require.NoError(t, err)
-	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
@@ -1503,7 +1502,7 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
-	r1, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var fput = open("/non/existent");
 			exports.default = function(data) ***REMOVED******REMOVED***
 		`), fs)
@@ -1511,7 +1510,7 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 
 	arc := r1.MakeArchive()
 	arc.Filesystems = map[string]afero.Fs***REMOVED***"file": afero.NewMemMapFs()***REMOVED***
-	r2, err := NewFromArchive(logrus.StandardLogger(), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	r2, err := NewFromArchive(testutils.NewLogger(t), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
 	// we do want this to error here as this is where we find out that a given file is not in the
 	// archive
 	require.Error(t, err)
@@ -1522,7 +1521,7 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	defer tb.Cleanup()
 
-	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");
 			var ws = require("k6/ws");
 			var group = require("k6").group;
@@ -1593,7 +1592,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	***REMOVED***)
 
-	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 		var http = require("k6/http");
 
 		exports.http_get = function() ***REMOVED***

@@ -37,6 +37,7 @@ import (
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
 )
@@ -71,7 +72,7 @@ func TestConsoleContext(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
+func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Runner, error) ***REMOVED***
 	var (
 		fs     = afero.NewMemMapFs()
 		rtOpts = lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
@@ -85,7 +86,7 @@ func getSimpleRunner(filename, data string, opts ...interface***REMOVED******REM
 		***REMOVED***
 	***REMOVED***
 	return New(
-		logrus.StandardLogger(),
+		testutils.NewLogger(tb),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
@@ -128,7 +129,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 			for args, result := range argsets ***REMOVED***
 				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
-					r, err := getSimpleRunner("/script.js", fmt.Sprintf(
+					r, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(
 						`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 						name, args,
 					))
@@ -220,7 +221,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 								***REMOVED***
 
 							***REMOVED***
-							r, err := getSimpleRunner("/script",
+							r, err := getSimpleRunner(t, "/script",
 								fmt.Sprintf(
 									`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 									name, args,

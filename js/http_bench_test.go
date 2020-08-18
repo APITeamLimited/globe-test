@@ -38,7 +38,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(b)
 	defer tb.Cleanup()
 
-	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r, err := getSimpleRunner(b, "/script.js", tb.Replacer.Replace(`
 			import http from "k6/http";
 			export default function() ***REMOVED***
 				let url = "HTTPBIN_URL";
@@ -57,7 +57,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 
-	var ch = make(chan stats.SampleContainer, 100)
+	ch := make(chan stats.SampleContainer, 100)
 	defer close(ch)
 	go func() ***REMOVED*** // read the channel so it doesn't block
 		for range ch ***REMOVED***
@@ -82,7 +82,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(b)
 	defer tb.Cleanup()
 
-	r, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+	r, err := getSimpleRunner(b, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");
 			exports.default = function() ***REMOVED***
 				var url = "HTTPBIN_URL";
@@ -101,7 +101,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 
-	var ch = make(chan stats.SampleContainer, 100)
+	ch := make(chan stats.SampleContainer, 100)
 	defer close(ch)
 	go func() ***REMOVED*** // read the channel so it doesn't block
 		for range ch ***REMOVED***
