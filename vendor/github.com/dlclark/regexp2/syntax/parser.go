@@ -21,6 +21,7 @@ const (
 	RightToLeft                          = 0x0040 // "r"
 	Debug                                = 0x0080 // "d"
 	ECMAScript                           = 0x0100 // "e"
+	RE2                                  = 0x0200 // RE2 compat mode
 )
 
 func optionFromCode(ch rune) RegexOptions ***REMOVED***
@@ -310,7 +311,7 @@ func (p *parser) countCaptures() error ***REMOVED***
 		switch ch ***REMOVED***
 		case '\\':
 			if p.charsRight() > 0 ***REMOVED***
-				p.moveRight(1)
+				p.scanBackslash(true)
 			***REMOVED***
 
 		case '#':
@@ -354,6 +355,14 @@ func (p *parser) countCaptures() error ***REMOVED***
 								p.noteCaptureName(p.scanCapname(), pos)
 							***REMOVED***
 						***REMOVED***
+					***REMOVED*** else if p.useRE2() && p.charsRight() > 2 && (p.rightChar(0) == 'P' && p.rightChar(1) == '<') ***REMOVED***
+						// RE2-compat (?P<)
+						p.moveRight(2)
+						ch = p.rightChar(0)
+						if IsWordChar(ch) ***REMOVED***
+							p.noteCaptureName(p.scanCapname(), pos)
+						***REMOVED***
+
 					***REMOVED*** else ***REMOVED***
 						// (?...
 
@@ -520,7 +529,7 @@ func (p *parser) scanRegex() (*regexNode, error) ***REMOVED***
 			***REMOVED***
 
 		case '\\':
-			n, err := p.scanBackslash()
+			n, err := p.scanBackslash(false)
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
@@ -1022,6 +1031,50 @@ func (p *parser) scanGroupOpen() (*regexNode, error) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 
+		case 'P':
+			if p.useRE2() ***REMOVED***
+				// support for P<name> syntax
+				if p.charsRight() < 3 ***REMOVED***
+					goto BreakRecognize
+				***REMOVED***
+
+				ch = p.moveRightGetChar()
+				if ch != '<' ***REMOVED***
+					goto BreakRecognize
+				***REMOVED***
+
+				ch = p.moveRightGetChar()
+				p.moveLeft()
+
+				if IsWordChar(ch) ***REMOVED***
+					capnum := -1
+					capname := p.scanCapname()
+
+					if p.isCaptureName(capname) ***REMOVED***
+						capnum = p.captureSlotFromName(capname)
+					***REMOVED***
+
+					// check if we have bogus character after the name
+					if p.charsRight() > 0 && p.rightChar(0) != '>' ***REMOVED***
+						return nil, p.getErr(ErrInvalidGroupName)
+					***REMOVED***
+
+					// actually make the node
+
+					if capnum != -1 && p.charsRight() > 0 && p.moveRightGetChar() == '>' ***REMOVED***
+						return newRegexNodeMN(ntCapture, p.options, capnum, -1), nil
+					***REMOVED***
+					goto BreakRecognize
+
+				***REMOVED*** else ***REMOVED***
+					// bad group name - starts with something other than a word character and isn't a number
+					return nil, p.getErr(ErrInvalidGroupName)
+				***REMOVED***
+			***REMOVED***
+			// if we're not using RE2 compat mode then
+			// we just behave like normal
+			fallthrough
+
 		default:
 			p.moveLeft()
 
@@ -1055,7 +1108,7 @@ BreakRecognize:
 ***REMOVED***
 
 // scans backslash specials and basics
-func (p *parser) scanBackslash() (*regexNode, error) ***REMOVED***
+func (p *parser) scanBackslash(scanOnly bool) (*regexNode, error) ***REMOVED***
 
 	if p.charsRight() == 0 ***REMOVED***
 		return nil, p.getErr(ErrIllegalEndEscape)
@@ -1123,12 +1176,12 @@ func (p *parser) scanBackslash() (*regexNode, error) ***REMOVED***
 		return newRegexNodeSet(ntSet, p.options, cc), nil
 
 	default:
-		return p.scanBasicBackslash()
+		return p.scanBasicBackslash(scanOnly)
 	***REMOVED***
 ***REMOVED***
 
 // Scans \-style backreferences and character escapes
-func (p *parser) scanBasicBackslash() (*regexNode, error) ***REMOVED***
+func (p *parser) scanBasicBackslash(scanOnly bool) (*regexNode, error) ***REMOVED***
 	if p.charsRight() == 0 ***REMOVED***
 		return nil, p.getErr(ErrIllegalEndEscape)
 	***REMOVED***
@@ -1184,19 +1237,23 @@ func (p *parser) scanBasicBackslash() (*regexNode, error) ***REMOVED***
 		if p.charsRight() > 0 && p.moveRightGetChar() == close ***REMOVED***
 			if p.isCaptureSlot(capnum) ***REMOVED***
 				return newRegexNodeM(ntRef, p.options, capnum), nil
-			***REMOVED*** else ***REMOVED***
-				return nil, p.getErr(ErrUndefinedBackRef, capnum)
 			***REMOVED***
+			return nil, p.getErr(ErrUndefinedBackRef, capnum)
 		***REMOVED***
 	***REMOVED*** else if !angled && ch >= '1' && ch <= '9' ***REMOVED*** // Try to parse backreference or octal: \1
 		capnum, err := p.scanDecimal()
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		if p.useOptionE() || p.isCaptureSlot(capnum) ***REMOVED***
+
+		if scanOnly ***REMOVED***
+			return nil, nil
+		***REMOVED***
+
+		if p.isCaptureSlot(capnum) ***REMOVED***
 			return newRegexNodeM(ntRef, p.options, capnum), nil
 		***REMOVED***
-		if capnum <= 9 ***REMOVED***
+		if capnum <= 9 && !p.useOptionE() ***REMOVED***
 			return nil, p.getErr(ErrUndefinedBackRef, capnum)
 		***REMOVED***
 
@@ -1448,11 +1505,26 @@ func (p *parser) scanCharSet(caseInsensitive, scanOnly bool) (*CharSet, error) *
 				savePos := p.textpos()
 
 				p.moveRight(1)
-				p.scanCapname() // throwaway the name
+				negate := false
+				if p.charsRight() > 1 && p.rightChar(0) == '^' ***REMOVED***
+					negate = true
+					p.moveRight(1)
+				***REMOVED***
+
+				nm := p.scanCapname() // snag the name
+				if !scanOnly && p.useRE2() ***REMOVED***
+					// look up the name since these are valid for RE2
+					// add the group based on the name
+					if ok := cc.addNamedASCII(nm, negate); !ok ***REMOVED***
+						return nil, p.getErr(ErrInvalidCharRange)
+					***REMOVED***
+				***REMOVED***
 				if p.charsRight() < 2 || p.moveRightGetChar() != ':' || p.moveRightGetChar() != ']' ***REMOVED***
 					p.textto(savePos)
+				***REMOVED*** else if p.useRE2() ***REMOVED***
+					// move on
+					continue
 				***REMOVED***
-				// else lookup name (nyi)
 			***REMOVED***
 		***REMOVED***
 
@@ -1547,7 +1619,7 @@ func (p *parser) scanDecimal() (int, error) ***REMOVED***
 
 // Returns true for options allowed only at the top level
 func isOnlyTopOption(option RegexOptions) bool ***REMOVED***
-	return option == RightToLeft || option == ECMAScript
+	return option == RightToLeft || option == ECMAScript || option == RE2
 ***REMOVED***
 
 // Scans cimsx-cimsx option string, stops at the first unrecognized char.
@@ -1736,11 +1808,11 @@ func (p *parser) scanOctal() rune ***REMOVED***
 	i := 0
 	d := int(p.rightChar(0) - '0')
 	for c > 0 && d <= 7 ***REMOVED***
-		i *= 8
-		i += d
-		if p.useOptionE() && i >= 0x20 ***REMOVED***
+		if i >= 0x20 && p.useOptionE() ***REMOVED***
 			break
 		***REMOVED***
+		i *= 8
+		i += d
 		c--
 
 		p.moveRight(1)
@@ -1859,6 +1931,11 @@ func (p *parser) useOptionX() bool ***REMOVED***
 // True if E option enabling ECMAScript behavior on.
 func (p *parser) useOptionE() bool ***REMOVED***
 	return (p.options & ECMAScript) != 0
+***REMOVED***
+
+// true to use RE2 compatibility parsing behavior.
+func (p *parser) useRE2() bool ***REMOVED***
+	return (p.options & RE2) != 0
 ***REMOVED***
 
 // True if options stack is empty.

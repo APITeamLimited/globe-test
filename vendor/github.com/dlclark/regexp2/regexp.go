@@ -120,6 +120,7 @@ const (
 	RightToLeft                          = 0x0040 // "r"
 	Debug                                = 0x0080 // "d"
 	ECMAScript                           = 0x0100 // "e"
+	RE2                                  = 0x0200 // RE2 (regexp package) compatibility mode
 )
 
 func (re *Regexp) RightToLeft() bool ***REMOVED***
@@ -234,17 +235,14 @@ func (re *Regexp) getRunesAndStart(s string, startAt int) ([]rune, int) ***REMOV
 		ret[i] = r
 		i++
 	***REMOVED***
+	if startAt == len(s) ***REMOVED***
+		runeIdx = i
+	***REMOVED***
 	return ret[:i], runeIdx
 ***REMOVED***
 
 func getRunes(s string) []rune ***REMOVED***
-	ret := make([]rune, len(s))
-	i := 0
-	for _, r := range s ***REMOVED***
-		ret[i] = r
-		i++
-	***REMOVED***
-	return ret[:i]
+	return []rune(s)
 ***REMOVED***
 
 // MatchRunes return true if the runes matches the regex
