@@ -713,26 +713,16 @@ func (r *Runtime) regexpproto_stdMatcher(call FunctionCall) Value ***REMOVED***
 		return r.regexpproto_stdMatcherGeneric(thisObj, s)
 	***REMOVED***
 	if rx.pattern.global ***REMOVED***
-		rx.setOwnStr("lastIndex", intToValue(0), true)
-		var a []Value
-		var previousLastIndex int64
-		for ***REMOVED***
-			match, result := rx.execRegexp(s)
-			if !match ***REMOVED***
-				break
-			***REMOVED***
-			thisIndex := rx.getStr("lastIndex", nil).ToInteger()
-			if thisIndex == previousLastIndex ***REMOVED***
-				previousLastIndex = int64(advanceStringIndex(s, toInt(previousLastIndex), rx.pattern.unicode))
-				rx.setOwnStr("lastIndex", intToValue(previousLastIndex), true)
-			***REMOVED*** else ***REMOVED***
-				previousLastIndex = thisIndex
-			***REMOVED***
-			a = append(a, s.substring(result[0], result[1]))
-		***REMOVED***
-		if len(a) == 0 ***REMOVED***
+		res := rx.pattern.findAllSubmatchIndex(s, 0, -1, rx.pattern.sticky)
+		if len(res) == 0 ***REMOVED***
+			rx.setOwnStr("lastIndex", intToValue(0), true)
 			return _null
 		***REMOVED***
+		a := make([]Value, 0, len(res))
+		for _, result := range res ***REMOVED***
+			a = append(a, s.substring(result[0], result[1]))
+		***REMOVED***
+		rx.setOwnStr("lastIndex", intToValue(int64(res[len(res)-1][1])), true)
 		return r.newArrayValues(a)
 	***REMOVED*** else ***REMOVED***
 		return rx.exec(s)
