@@ -28,18 +28,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRunString(t *testing.T) ***REMOVED***
-	t.Run("Valid", func(t *testing.T) ***REMOVED***
-		_, err := RunES6String(t, goja.New(), `let a = 1;`)
-		assert.NoError(t, err)
-	***REMOVED***)
-	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := RunES6String(t, goja.New(), `let a = #;`)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "SyntaxError: __string__: Unexpected character '#' (1:8)\n> 1 | let a = #;\n")
-	***REMOVED***)
-***REMOVED***
-
 func TestThrow(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	fn1, ok := goja.AssertFunction(rt.ToValue(func() ***REMOVED*** Throw(rt, errors.New("aaaa")) ***REMOVED***))
