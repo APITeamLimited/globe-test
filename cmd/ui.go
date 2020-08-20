@@ -35,7 +35,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/ui"
 	"github.com/loadimpact/k6/ui/pb"
@@ -242,15 +241,10 @@ func renderMultipleBars(
 // nolint:funlen
 func showProgress(
 	ctx context.Context, conf Config,
-	execScheduler *local.ExecutionScheduler, logger *logrus.Logger,
+	pbs []*pb.ProgressBar, logger *logrus.Logger,
 ) ***REMOVED***
-	if quiet || conf.HTTPDebug.Valid && conf.HTTPDebug.String != "" ***REMOVED***
+	if quiet ***REMOVED***
 		return
-	***REMOVED***
-
-	pbs := []*pb.ProgressBar***REMOVED***execScheduler.GetInitProgressBar()***REMOVED***
-	for _, s := range execScheduler.GetExecutors() ***REMOVED***
-		pbs = append(pbs, s.GetProgress())
 	***REMOVED***
 
 	var errTermGetSize bool

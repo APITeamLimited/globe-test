@@ -187,7 +187,11 @@ a commandline interface for interacting with it.`,
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
 		go func() ***REMOVED***
-			showProgress(progressCtx, conf, execScheduler, logger)
+			pbs := []*pb.ProgressBar***REMOVED***execScheduler.GetInitProgressBar()***REMOVED***
+			for _, s := range execScheduler.GetExecutors() ***REMOVED***
+				pbs = append(pbs, s.GetProgress())
+			***REMOVED***
+			showProgress(progressCtx, conf, pbs, logger)
 			progressBarWG.Done()
 		***REMOVED***()
 
