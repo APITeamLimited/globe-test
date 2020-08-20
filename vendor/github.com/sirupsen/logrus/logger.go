@@ -1,6 +1,7 @@
 package logrus
 
 import (
+	"context"
 	"io"
 	"os"
 	"sync"
@@ -67,10 +68,10 @@ func (mw *MutexWrap) Disable() ***REMOVED***
 // `Out` and `Hooks` directly on the default logger instance. You can also just
 // instantiate your own:
 //
-//    var log = &Logger***REMOVED***
+//    var log = &logrus.Logger***REMOVED***
 //      Out: os.Stderr,
-//      Formatter: new(JSONFormatter),
-//      Hooks: make(LevelHooks),
+//      Formatter: new(logrus.JSONFormatter),
+//      Hooks: make(logrus.LevelHooks),
 //      Level: logrus.DebugLevel,
 //    ***REMOVED***
 //
@@ -99,8 +100,9 @@ func (logger *Logger) releaseEntry(entry *Entry) ***REMOVED***
 	logger.entryPool.Put(entry)
 ***REMOVED***
 
-// Adds a field to the log entry, note that it doesn't log until you call
-// Debug, Print, Info, Warn, Error, Fatal or Panic. It only creates a log entry.
+// WithField allocates a new entry and adds a field to it.
+// Debug, Print, Info, Warn, Error, Fatal or Panic must be then applied to
+// this new returned entry.
 // If you want multiple fields, use `WithFields`.
 func (logger *Logger) WithField(key string, value interface***REMOVED******REMOVED***) *Entry ***REMOVED***
 	entry := logger.newEntry()
@@ -124,6 +126,13 @@ func (logger *Logger) WithError(err error) *Entry ***REMOVED***
 	return entry.WithError(err)
 ***REMOVED***
 
+// Add a context to the log entry.
+func (logger *Logger) WithContext(ctx context.Context) *Entry ***REMOVED***
+	entry := logger.newEntry()
+	defer logger.releaseEntry(entry)
+	return entry.WithContext(ctx)
+***REMOVED***
+
 // Overrides the time of the log entry.
 func (logger *Logger) WithTime(t time.Time) *Entry ***REMOVED***
 	entry := logger.newEntry()
@@ -131,28 +140,24 @@ func (logger *Logger) WithTime(t time.Time) *Entry ***REMOVED***
 	return entry.WithTime(t)
 ***REMOVED***
 
-func (logger *Logger) Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(TraceLevel) ***REMOVED***
+func (logger *Logger) Logf(level Level, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if logger.IsLevelEnabled(level) ***REMOVED***
 		entry := logger.newEntry()
-		entry.Tracef(format, args...)
+		entry.Logf(level, format, args...)
 		logger.releaseEntry(entry)
 	***REMOVED***
+***REMOVED***
+
+func (logger *Logger) Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	logger.Logf(TraceLevel, format, args...)
 ***REMOVED***
 
 func (logger *Logger) Debugf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Debugf(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logf(DebugLevel, format, args...)
 ***REMOVED***
 
 func (logger *Logger) Infof(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Infof(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logf(InfoLevel, format, args...)
 ***REMOVED***
 
 func (logger *Logger) Printf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -162,139 +167,91 @@ func (logger *Logger) Printf(format string, args ...interface***REMOVED******REM
 ***REMOVED***
 
 func (logger *Logger) Warnf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warnf(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logf(WarnLevel, format, args...)
 ***REMOVED***
 
 func (logger *Logger) Warningf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warnf(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Warnf(format, args...)
 ***REMOVED***
 
 func (logger *Logger) Errorf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Errorf(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logf(ErrorLevel, format, args...)
 ***REMOVED***
 
 func (logger *Logger) Fatalf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Fatalf(format, args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logf(FatalLevel, format, args...)
 	logger.Exit(1)
 ***REMOVED***
 
 func (logger *Logger) Panicf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(PanicLevel) ***REMOVED***
+	logger.Logf(PanicLevel, format, args...)
+***REMOVED***
+
+func (logger *Logger) Log(level Level, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if logger.IsLevelEnabled(level) ***REMOVED***
 		entry := logger.newEntry()
-		entry.Panicf(format, args...)
+		entry.Log(level, args...)
 		logger.releaseEntry(entry)
 	***REMOVED***
 ***REMOVED***
 
 func (logger *Logger) Trace(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(TraceLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Trace(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(TraceLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Debug(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Debug(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(DebugLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Info(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Info(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(InfoLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Print(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	entry := logger.newEntry()
-	entry.Info(args...)
+	entry.Print(args...)
 	logger.releaseEntry(entry)
 ***REMOVED***
 
 func (logger *Logger) Warn(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warn(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(WarnLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Warning(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warn(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Warn(args...)
 ***REMOVED***
 
 func (logger *Logger) Error(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Error(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(ErrorLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Fatal(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Log(FatalLevel, args...)
 	logger.Exit(1)
 ***REMOVED***
 
 func (logger *Logger) Panic(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(PanicLevel) ***REMOVED***
+	logger.Log(PanicLevel, args...)
+***REMOVED***
+
+func (logger *Logger) Logln(level Level, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if logger.IsLevelEnabled(level) ***REMOVED***
 		entry := logger.newEntry()
-		entry.Panic(args...)
+		entry.Logln(level, args...)
 		logger.releaseEntry(entry)
 	***REMOVED***
 ***REMOVED***
 
 func (logger *Logger) Traceln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(TraceLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Traceln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(TraceLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Debugln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Debugln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(DebugLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Infoln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Infoln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(InfoLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Println(args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -304,44 +261,24 @@ func (logger *Logger) Println(args ...interface***REMOVED******REMOVED***) ***RE
 ***REMOVED***
 
 func (logger *Logger) Warnln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warnln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(WarnLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Warningln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Warnln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Warnln(args...)
 ***REMOVED***
 
 func (logger *Logger) Errorln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Errorln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(ErrorLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Fatalln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Fatalln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(FatalLevel, args...)
 	logger.Exit(1)
 ***REMOVED***
 
 func (logger *Logger) Panicln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if logger.IsLevelEnabled(PanicLevel) ***REMOVED***
-		entry := logger.newEntry()
-		entry.Panicln(args...)
-		logger.releaseEntry(entry)
-	***REMOVED***
+	logger.Logln(PanicLevel, args...)
 ***REMOVED***
 
 func (logger *Logger) Exit(code int) ***REMOVED***
