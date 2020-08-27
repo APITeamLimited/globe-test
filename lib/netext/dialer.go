@@ -28,27 +28,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/viki-org/dnscache"
-
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 )
 
-// dnsResolver is an interface that fetches dns information
-// about a given address.
-type dnsResolver interface ***REMOVED***
-	FetchOne(address string) (net.IP, error)
-***REMOVED***
-
 // Dialer wraps net.Dialer and provides k6 specific functionality -
 // tracing, blacklists and DNS cache and aliases.
 type Dialer struct ***REMOVED***
 	net.Dialer
 
-	Resolver         dnsResolver
+	Resolver         Resolver
 	Blacklist        []*lib.IPNet
 	BlockedHostnames *types.HostnameTrie
 	Hosts            map[string]*lib.HostAddress
@@ -57,12 +48,8 @@ type Dialer struct ***REMOVED***
 	BytesWritten int64
 ***REMOVED***
 
-// NewDialer constructs a new Dialer and initializes its cache.
-func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
-	return newDialerWithResolver(dialer, dnscache.New(0))
-***REMOVED***
-
-func newDialerWithResolver(dialer net.Dialer, resolver dnsResolver) *Dialer ***REMOVED***
+// NewDialer constructs a new Dialer with the given DNS resolver.
+func NewDialer(dialer net.Dialer, resolver Resolver) *Dialer ***REMOVED***
 	return &Dialer***REMOVED***
 		Dialer:   dialer,
 		Resolver: resolver,
@@ -191,17 +178,13 @@ func (d *Dialer) findRemote(addr string) (*lib.HostAddress, error) ***REMOVED***
 		return lib.NewHostAddress(ip, port)
 	***REMOVED***
 
-	return d.fetchRemoteFromResolver(host, port)
-***REMOVED***
-
-func (d *Dialer) fetchRemoteFromResolver(host, port string) (*lib.HostAddress, error) ***REMOVED***
-	ip, err := d.Resolver.FetchOne(host)
+	ip, err = d.Resolver.LookupIP(host)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
 	if ip == nil ***REMOVED***
-		return nil, errors.Errorf("lookup %s: no such host", host)
+		return nil, fmt.Errorf("lookup %s: no such host", host)
 	***REMOVED***
 
 	return lib.NewHostAddress(ip, port)

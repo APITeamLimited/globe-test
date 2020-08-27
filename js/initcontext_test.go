@@ -388,11 +388,14 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 		Logger:  logger,
 		Group:   root,
 		Transport: &http.Transport***REMOVED***
-			DialContext: (netext.NewDialer(net.Dialer***REMOVED***
-				Timeout:   10 * time.Second,
-				KeepAlive: 60 * time.Second,
-				DualStack: true,
-			***REMOVED***)).DialContext,
+			DialContext: (netext.NewDialer(
+				net.Dialer***REMOVED***
+					Timeout:   10 * time.Second,
+					KeepAlive: 60 * time.Second,
+					DualStack: true,
+				***REMOVED***,
+				netext.NewResolver(net.LookupIP, 0, lib.DNSFirst),
+			)).DialContext,
 		***REMOVED***,
 		BPool:   bpool.NewBufferPool(1),
 		Samples: make(chan stats.SampleContainer, 500),

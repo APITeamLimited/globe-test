@@ -93,6 +93,10 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.StringSlice("tag", nil, "add a `tag` to be applied to all samples, as `[name]=[value]`")
 	flags.String("console-output", "", "redirects the console logging to the provided output file")
 	flags.Bool("discard-response-bodies", false, "Read but don't process or save HTTP response bodies")
+	flags.String("dns", lib.DefaultDNSConfig().String(), "DNS configuration. Possible ttl values are: 'inf' "+
+		"for a persistent cache, '0' to disable the cache,\nor a positive duration, e.g. '1s', '1m', etc. "+
+		"Milliseconds are assumed if no unit is provided.\n"+
+		"Possible select values to return a single IP are: 'first', 'random' or 'round-robin'.\n")
 	return flags
 ***REMOVED***
 
@@ -246,6 +250,14 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 
 	if redirectConFile != "" ***REMOVED***
 		opts.ConsoleOutput = null.StringFrom(redirectConFile)
+	***REMOVED***
+
+	if dns, err := flags.GetString("dns"); err != nil ***REMOVED***
+		return opts, err
+	***REMOVED*** else if dns != "" ***REMOVED***
+		if err := opts.DNS.UnmarshalText([]byte(dns)); err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
 	***REMOVED***
 
 	return opts, nil

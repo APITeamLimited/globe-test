@@ -259,6 +259,12 @@ func applyDefault(conf Config) Config ***REMOVED***
 	if conf.Options.SummaryTrendStats == nil ***REMOVED***
 		conf.Options.SummaryTrendStats = lib.DefaultSummaryTrendStats
 	***REMOVED***
+	if !conf.DNS.TTL.Valid ***REMOVED***
+		conf.DNS.TTL = lib.DefaultDNSConfig().TTL
+	***REMOVED***
+	if !conf.DNS.Select.Valid ***REMOVED***
+		conf.DNS.Select = lib.DefaultDNSConfig().Select
+	***REMOVED***
 	return conf
 ***REMOVED***
 
