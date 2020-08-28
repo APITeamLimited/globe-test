@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -380,12 +381,18 @@ func (s *Socket) trackPong(pingID string) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func (s *Socket) SetTimeout(fn goja.Callable, timeoutMs int) ***REMOVED***
+// SetTimeout executes the provided function inside the socket's event loop after at least the provided
+// timeout, which is in ms, has elapsed
+func (s *Socket) SetTimeout(fn goja.Callable, timeoutMs float64) error ***REMOVED***
 	// Starts a goroutine, blocks once on the timeout and pushes the callable
 	// back to the main loop through the scheduled channel
+	d := time.Duration(timeoutMs * float64(time.Millisecond))
+	if d <= 0 ***REMOVED***
+		return fmt.Errorf("setTimeout requires a >0 timeout parameter, received %.2f", timeoutMs)
+	***REMOVED***
 	go func() ***REMOVED***
 		select ***REMOVED***
-		case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
+		case <-time.After(d):
 			select ***REMOVED***
 			case s.scheduled <- fn:
 			case <-s.done:
@@ -396,11 +403,19 @@ func (s *Socket) SetTimeout(fn goja.Callable, timeoutMs int) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***()
+
+	return nil
 ***REMOVED***
 
-func (s *Socket) SetInterval(fn goja.Callable, intervalMs int) ***REMOVED***
+// SetInterval executes the provided function inside the socket's event loop each interval time, which is
+// in ms
+func (s *Socket) SetInterval(fn goja.Callable, intervalMs float64) error ***REMOVED***
 	// Starts a goroutine, blocks forever on the ticker and pushes the callable
 	// back to the main loop through the scheduled channel
+	d := time.Duration(intervalMs * float64(time.Millisecond))
+	if d <= 0 ***REMOVED***
+		return fmt.Errorf("setInterval requires a >0 timeout parameter, received %.2f", intervalMs)
+	***REMOVED***
 	go func() ***REMOVED***
 		ticker := time.NewTicker(time.Duration(intervalMs) * time.Millisecond)
 		defer ticker.Stop()
@@ -419,6 +434,8 @@ func (s *Socket) SetInterval(fn goja.Callable, intervalMs int) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
+
+	return nil
 ***REMOVED***
 
 func (s *Socket) Close(args ...goja.Value) ***REMOVED***
