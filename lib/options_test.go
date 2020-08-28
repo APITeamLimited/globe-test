@@ -294,8 +294,10 @@ func TestOptions(t *testing.T) ***REMOVED***
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*IPNet***REMOVED******REMOVED***
-				IP:   net.IPv4zero,
-				Mask: net.CIDRMask(1, 1),
+				IPNet: net.IPNet***REMOVED***
+					IP:   net.IPv4zero,
+					Mask: net.CIDRMask(1, 1),
+				***REMOVED***,
 			***REMOVED******REMOVED***,
 		***REMOVED***)
 		assert.NotNil(t, opts.BlacklistIPs)
@@ -305,12 +307,15 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Hosts", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Hosts: map[string]net.IP***REMOVED***
-			"test.loadimpact.com": net.ParseIP("192.0.2.1"),
+		host, err := NewHostAddress(net.ParseIP("192.0.2.1"), "80")
+		assert.NoError(t, err)
+
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Hosts: map[string]*HostAddress***REMOVED***
+			"test.loadimpact.com": host,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Hosts)
 		assert.NotEmpty(t, opts.Hosts)
-		assert.Equal(t, "192.0.2.1", opts.Hosts["test.loadimpact.com"].String())
+		assert.Equal(t, "192.0.2.1:80", opts.Hosts["test.loadimpact.com"].String())
 	***REMOVED***)
 
 	t.Run("Throws", func(t *testing.T) ***REMOVED***
@@ -482,22 +487,22 @@ func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
 	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *IPNet
-		expactFailure  bool
+		expectFailure  bool
 	***REMOVED******REMOVED***
 		***REMOVED***
 			"10.0.0.0/8",
-			&IPNet***REMOVED***
+			&IPNet***REMOVED***IPNet: net.IPNet***REMOVED***
 				IP:   net.IP***REMOVED***10, 0, 0, 0***REMOVED***,
 				Mask: net.IPv4Mask(255, 0, 0, 0),
-			***REMOVED***,
+			***REMOVED******REMOVED***,
 			false,
 		***REMOVED***,
 		***REMOVED***
 			"fc00:1234:5678::/48",
-			&IPNet***REMOVED***
+			&IPNet***REMOVED***IPNet: net.IPNet***REMOVED***
 				IP:   net.ParseIP("fc00:1234:5678::"),
 				Mask: net.CIDRMask(48, 128),
-			***REMOVED***,
+			***REMOVED******REMOVED***,
 			false,
 		***REMOVED***,
 		***REMOVED***"10.0.0.0", nil, true***REMOVED***,
@@ -511,11 +516,70 @@ func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
 			actualIPNet := &IPNet***REMOVED******REMOVED***
 			err := actualIPNet.UnmarshalText([]byte(data.input))
 
-			if data.expactFailure ***REMOVED***
+			if data.expectFailure ***REMOVED***
 				require.EqualError(t, err, "Failed to parse CIDR: invalid CIDR address: "+data.input)
 			***REMOVED*** else ***REMOVED***
 				require.NoError(t, err)
 				assert.Equal(t, data.expectedOutput, actualIPNet)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestHostAddressUnmarshal(t *testing.T) ***REMOVED***
+	testData := []struct ***REMOVED***
+		input          string
+		expectedOutput *HostAddress
+		expectFailure  string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			"1.2.3.4",
+			&HostAddress***REMOVED***IP: net.ParseIP("1.2.3.4")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"1.2.3.4:80",
+			&HostAddress***REMOVED***IP: net.ParseIP("1.2.3.4"), Port: 80***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"1.2.3.4:asdf",
+			nil,
+			"strconv.Atoi: parsing \"asdf\": invalid syntax",
+		***REMOVED***,
+		***REMOVED***
+			"2001:0db8:0000:0000:0000:ff00:0042:8329",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:0db8:0000:0000:0000:ff00:0042:8329")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"2001:db8::68",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:db8::68")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"[2001:db8::68]:80",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:db8::68"), Port: 80***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"[2001:db8::68]:asdf",
+			nil,
+			"strconv.Atoi: parsing \"asdf\": invalid syntax",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, data := range testData ***REMOVED***
+		data := data
+		t.Run(data.input, func(t *testing.T) ***REMOVED***
+			actualHost := &HostAddress***REMOVED******REMOVED***
+			err := actualHost.UnmarshalText([]byte(data.input))
+
+			if data.expectFailure != "" ***REMOVED***
+				require.EqualError(t, err, data.expectFailure)
+			***REMOVED*** else ***REMOVED***
+				require.NoError(t, err)
+				assert.Equal(t, data.expectedOutput, actualHost)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

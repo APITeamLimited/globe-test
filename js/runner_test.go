@@ -908,8 +908,8 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw: null.BoolFrom(true),
-		Hosts: map[string]net.IP***REMOVED***
-			"test.loadimpact.com": net.ParseIP("127.0.0.1"),
+		Hosts: map[string]*lib.HostAddress***REMOVED***
+			"test.loadimpact.com": ***REMOVED***IP: net.ParseIP("127.0.0.1")***REMOVED***,
 		***REMOVED***,
 	***REMOVED***)
 

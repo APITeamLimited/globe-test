@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 
 	"github.com/pkg/errors"
 	"gopkg.in/guregu/null.v3"
@@ -157,10 +158,8 @@ func (c *TLSAuth) Certificate() (*tls.Certificate, error) ***REMOVED***
 ***REMOVED***
 
 // IPNet is a wrapper around net.IPNet for JSON unmarshalling
-type IPNet net.IPNet
-
-func (ipnet *IPNet) String() string ***REMOVED***
-	return (*net.IPNet)(ipnet).String()
+type IPNet struct ***REMOVED***
+	net.IPNet
 ***REMOVED***
 
 // UnmarshalText populates the IPNet from the given CIDR
@@ -175,6 +174,84 @@ func (ipnet *IPNet) UnmarshalText(b []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+// HostAddress stores information about IP and port
+// for a host.
+type HostAddress net.TCPAddr
+
+// NewHostAddress creates a pointer to a new address with an IP object.
+func NewHostAddress(ip net.IP, portString string) (*HostAddress, error) ***REMOVED***
+	var port int
+	if portString != "" ***REMOVED***
+		var err error
+		if port, err = strconv.Atoi(portString); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+	***REMOVED***
+
+	return &HostAddress***REMOVED***
+		IP:   ip,
+		Port: port,
+	***REMOVED***, nil
+***REMOVED***
+
+// String converts a HostAddress into a string.
+func (h *HostAddress) String() string ***REMOVED***
+	return (*net.TCPAddr)(h).String()
+***REMOVED***
+
+// MarshalText implements the encoding.TextMarshaler interface.
+// The encoding is the same as returned by String, with one exception:
+// When len(ip) is zero, it returns an empty slice.
+func (h *HostAddress) MarshalText() ([]byte, error) ***REMOVED***
+	if h == nil || len(h.IP) == 0 ***REMOVED***
+		return []byte(""), nil
+	***REMOVED***
+
+	if len(h.IP) != net.IPv4len && len(h.IP) != net.IPv6len ***REMOVED***
+		return nil, &net.AddrError***REMOVED***Err: "invalid IP address", Addr: h.IP.String()***REMOVED***
+	***REMOVED***
+
+	return []byte(h.String()), nil
+***REMOVED***
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+// The IP address is expected in a form accepted by ParseIP.
+func (h *HostAddress) UnmarshalText(text []byte) error ***REMOVED***
+	if len(text) == 0 ***REMOVED***
+		return &net.ParseError***REMOVED***Type: "IP address", Text: "<nil>"***REMOVED***
+	***REMOVED***
+
+	ip, port, err := splitHostPort(text)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	nh, err := NewHostAddress(ip, port)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	*h = *nh
+
+	return nil
+***REMOVED***
+
+func splitHostPort(text []byte) (net.IP, string, error) ***REMOVED***
+	host, port, err := net.SplitHostPort(string(text))
+	if err != nil ***REMOVED***
+		// This error means that there is no port.
+		// Make host the full text.
+		host = string(text)
+	***REMOVED***
+
+	ip := net.ParseIP(host)
+	if ip == nil ***REMOVED***
+		return nil, "", &net.ParseError***REMOVED***Type: "IP address", Text: host***REMOVED***
+	***REMOVED***
+
+	return ip, port, nil
+***REMOVED***
+
 // ParseCIDR creates an IPNet out of a CIDR string
 func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 	_, ipnet, err := net.ParseCIDR(s)
@@ -182,7 +259,7 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	parsedIPNet := IPNet(*ipnet)
+	parsedIPNet := IPNet***REMOVED***IPNet: *ipnet***REMOVED***
 
 	return &parsedIPNet, nil
 ***REMOVED***
@@ -250,7 +327,7 @@ type Options struct ***REMOVED***
 	BlacklistIPs []*IPNet `json:"blacklistIPs" envconfig:"K6_BLACKLIST_IPS"`
 
 	// Hosts overrides dns entries for given hosts
-	Hosts map[string]net.IP `json:"hosts" envconfig:"K6_HOSTS"`
+	Hosts map[string]*HostAddress `json:"hosts" envconfig:"K6_HOSTS"`
 
 	// Disable keep-alive connections
 	NoConnectionReuse null.Bool `json:"noConnectionReuse" envconfig:"K6_NO_CONNECTION_REUSE"`
