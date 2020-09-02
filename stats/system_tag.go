@@ -23,6 +23,7 @@ package stats
 import (
 	"bytes"
 	"encoding/json"
+	"sort"
 	"strings"
 )
 
@@ -32,12 +33,57 @@ import (
 type SystemTagSet uint32
 
 // TagSet is a string to bool map (for lookup efficiency) that is used to keep track
-// which system tags and non-system tags should be included with with metrics.
+// of which system tags and non-system tags to include.
 type TagSet map[string]bool
 
-//nolint: golint
+// UnmarshalText converts the tag list to TagSet.
+func (i *TagSet) UnmarshalText(data []byte) error ***REMOVED***
+	list := bytes.Split(data, []byte(","))
+	if *i == nil ***REMOVED***
+		*i = make(TagSet, len(list))
+	***REMOVED***
+
+	for _, key := range list ***REMOVED***
+		key := strings.TrimSpace(string(key))
+		if key == "" ***REMOVED***
+			continue
+		***REMOVED***
+		(*i)[key] = true
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+// MarshalJSON converts the TagSet to a list (JS array).
+func (i *TagSet) MarshalJSON() ([]byte, error) ***REMOVED***
+	var tags []string
+	if *i != nil ***REMOVED***
+		tags = make([]string, 0, len(*i))
+		for tag := range *i ***REMOVED***
+			tags = append(tags, tag)
+		***REMOVED***
+		sort.Strings(tags)
+	***REMOVED***
+
+	return json.Marshal(tags)
+***REMOVED***
+
+// UnmarshalJSON converts the tag list back to expected tag set.
+func (i *TagSet) UnmarshalJSON(data []byte) error ***REMOVED***
+	var tags []string
+	if err := json.Unmarshal(data, &tags); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*i = make(TagSet, len(tags))
+	for _, tag := range tags ***REMOVED***
+		(*i)[tag] = true
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+// Default system tags includes all of the system tags emitted with metrics by default.
 const (
-	// Default system tags includes all of the system tags emitted with metrics by default.
 	TagProto SystemTagSet = 1 << iota
 	TagSubproto
 	TagStatus
@@ -131,6 +177,8 @@ func (i *SystemTagSet) MarshalJSON() ([]byte, error) ***REMOVED***
 			tags = append(tags, tag.String())
 		***REMOVED***
 	***REMOVED***
+	sort.Strings(tags)
+
 	return json.Marshal(tags)
 ***REMOVED***
 
@@ -149,7 +197,7 @@ func (i *SystemTagSet) UnmarshalJSON(data []byte) error ***REMOVED***
 
 // UnmarshalText converts the tag list to SystemTagSet.
 func (i *SystemTagSet) UnmarshalText(data []byte) error ***REMOVED***
-	var list = bytes.Split(data, []byte(","))
+	list := bytes.Split(data, []byte(","))
 
 	for _, key := range list ***REMOVED***
 		key := strings.TrimSpace(string(key))
