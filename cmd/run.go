@@ -343,12 +343,13 @@ a commandline interface for interacting with it.`,
 			default:
 				logger.Info("Linger set; waiting for Ctrl+C...")
 				<-lingerCtx.Done()
+				logger.Debug("Ctrl+C received, exiting...")
 			***REMOVED***
 		***REMOVED***
 		globalCancel() // signal the Engine that it should wind down
 		logger.Debug("Waiting for engine processes to finish...")
 		engineWait()
-
+		logger.Debug("Everything has finished, exiting k6!")
 		if engine.IsTainted() ***REMOVED***
 			return ExitCode***REMOVED***error: errors.New("some thresholds have failed"), Code: thresholdHaveFailedErrorCode***REMOVED***
 		***REMOVED***
