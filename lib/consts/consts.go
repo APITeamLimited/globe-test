@@ -48,13 +48,15 @@ func FullVersion() string ***REMOVED***
 	return fmt.Sprintf("%s (dev build, %s)", Version, goVersionArch)
 ***REMOVED***
 
-// Banner contains the ASCII-art banner with the k6 logo and stylized website URL
-// TODO: make these into methods, only the version needs to be a variable
-//nolint:gochecknoglobals
-var Banner = strings.Join([]string***REMOVED***
-	`          /\      |‾‾|  /‾‾/  /‾/   `,
-	`     /\  /  \     |  |_/  /  / /    `,
-	`    /  \/    \    |      |  /  ‾‾\  `,
-	`   /          \   |  |‾\  \ | (_) | `,
-	`  / __________ \  |__|  \__\ \___/ .io`,
-***REMOVED***, "\n")
+// Banner returns the ASCII-art banner with the k6 logo and stylized website URL
+func Banner() string ***REMOVED***
+	banner := strings.Join([]string***REMOVED***
+		`          /\      |‾‾|  /‾‾/  /‾/   `,
+		`     /\  /  \     |  |_/  /  / /    `,
+		`    /  \/    \    |      |  /  ‾‾\  `,
+		`   /          \   |  |‾\  \ | (_) | `,
+		`  / __________ \  |__|  \__\ \___/ .io`,
+	***REMOVED***, "\n")
+
+	return banner
+***REMOVED***
