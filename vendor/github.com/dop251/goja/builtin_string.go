@@ -164,7 +164,7 @@ func (r *Runtime) stringproto_charAt(call FunctionCall) Value ***REMOVED***
 	if pos < 0 || pos >= int64(s.length()) ***REMOVED***
 		return stringEmpty
 	***REMOVED***
-	return newStringValue(string(s.charAt(toInt(pos))))
+	return newStringValue(string(s.charAt(toIntStrict(pos))))
 ***REMOVED***
 
 func (r *Runtime) stringproto_charCodeAt(call FunctionCall) Value ***REMOVED***
@@ -174,7 +174,7 @@ func (r *Runtime) stringproto_charCodeAt(call FunctionCall) Value ***REMOVED***
 	if pos < 0 || pos >= int64(s.length()) ***REMOVED***
 		return _NaN
 	***REMOVED***
-	return intToValue(int64(s.charAt(toInt(pos)) & 0xFFFF))
+	return intToValue(int64(s.charAt(toIntStrict(pos)) & 0xFFFF))
 ***REMOVED***
 
 func (r *Runtime) stringproto_codePointAt(call FunctionCall) Value ***REMOVED***
@@ -185,7 +185,7 @@ func (r *Runtime) stringproto_codePointAt(call FunctionCall) Value ***REMOVED***
 	if p < 0 || p >= int64(size) ***REMOVED***
 		return _undefined
 	***REMOVED***
-	pos := toInt(p)
+	pos := toIntStrict(p)
 	first := s.charAt(pos)
 	if isUTF16FirstSurrogate(first) ***REMOVED***
 		pos++
@@ -256,7 +256,7 @@ func (r *Runtime) stringproto_endsWith(call FunctionCall) Value ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		pos = l
 	***REMOVED***
-	end := toInt(min(max(pos, 0), l))
+	end := toIntStrict(min(max(pos, 0), l))
 	searchLength := searchStr.length()
 	start := end - searchLength
 	if start < 0 ***REMOVED***
@@ -284,7 +284,7 @@ func (r *Runtime) stringproto_includes(call FunctionCall) Value ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		pos = 0
 	***REMOVED***
-	start := toInt(min(max(pos, 0), int64(s.length())))
+	start := toIntStrict(min(max(pos, 0), int64(s.length())))
 	if s.index(searchStr, start) != -1 ***REMOVED***
 		return valueTrue
 	***REMOVED***
@@ -306,7 +306,7 @@ func (r *Runtime) stringproto_indexOf(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return intToValue(int64(value.index(target, toInt(pos))))
+	return intToValue(int64(value.index(target, toIntStrict(pos))))
 ***REMOVED***
 
 func (r *Runtime) stringproto_lastIndexOf(call FunctionCall) Value ***REMOVED***
@@ -330,7 +330,7 @@ func (r *Runtime) stringproto_lastIndexOf(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return intToValue(int64(value.lastIndex(target, toInt(pos))))
+	return intToValue(int64(value.lastIndex(target, toIntStrict(pos))))
 ***REMOVED***
 
 func (r *Runtime) stringproto_localeCompare(call FunctionCall) Value ***REMOVED***
@@ -422,12 +422,12 @@ func (r *Runtime) stringproto_padEnd(call FunctionCall) Value ***REMOVED***
 		filler = asciiString(" ")
 		fillerASCII = true
 	***REMOVED***
-	remaining := toInt(maxLength - stringLength)
+	remaining := toIntStrict(maxLength - stringLength)
 	_, stringASCII := s.(asciiString)
 	if fillerASCII && stringASCII ***REMOVED***
 		fl := filler.length()
 		var sb strings.Builder
-		sb.Grow(toInt(maxLength))
+		sb.Grow(toIntStrict(maxLength))
 		sb.WriteString(s.String())
 		fs := filler.String()
 		for remaining >= fl ***REMOVED***
@@ -440,7 +440,7 @@ func (r *Runtime) stringproto_padEnd(call FunctionCall) Value ***REMOVED***
 		return asciiString(sb.String())
 	***REMOVED***
 	var sb unicodeStringBuilder
-	sb.Grow(toInt(maxLength))
+	sb.Grow(toIntStrict(maxLength))
 	sb.WriteString(s)
 	fl := filler.length()
 	for remaining >= fl ***REMOVED***
@@ -474,12 +474,12 @@ func (r *Runtime) stringproto_padStart(call FunctionCall) Value ***REMOVED***
 		filler = asciiString(" ")
 		fillerASCII = true
 	***REMOVED***
-	remaining := toInt(maxLength - stringLength)
+	remaining := toIntStrict(maxLength - stringLength)
 	_, stringASCII := s.(asciiString)
 	if fillerASCII && stringASCII ***REMOVED***
 		fl := filler.length()
 		var sb strings.Builder
-		sb.Grow(toInt(maxLength))
+		sb.Grow(toIntStrict(maxLength))
 		fs := filler.String()
 		for remaining >= fl ***REMOVED***
 			sb.WriteString(fs)
@@ -492,7 +492,7 @@ func (r *Runtime) stringproto_padStart(call FunctionCall) Value ***REMOVED***
 		return asciiString(sb.String())
 	***REMOVED***
 	var sb unicodeStringBuilder
-	sb.Grow(toInt(maxLength))
+	sb.Grow(toIntStrict(maxLength))
 	fl := filler.length()
 	for remaining >= fl ***REMOVED***
 		sb.WriteString(filler)
@@ -520,7 +520,7 @@ func (r *Runtime) stringproto_repeat(call FunctionCall) Value ***REMOVED***
 	if numInt == 0 || s.length() == 0 ***REMOVED***
 		return stringEmpty
 	***REMOVED***
-	num := toInt(numInt)
+	num := toIntStrict(numInt)
 	if s, ok := s.(asciiString); ok ***REMOVED***
 		var sb strings.Builder
 		sb.Grow(len(s) * num)
@@ -784,7 +784,7 @@ func (r *Runtime) stringproto_startsWith(call FunctionCall) Value ***REMOVED***
 	if posArg := call.Argument(1); posArg != _undefined ***REMOVED***
 		pos = posArg.ToInteger()
 	***REMOVED***
-	start := toInt(min(max(pos, 0), l))
+	start := toIntStrict(min(max(pos, 0), l))
 	searchLength := searchStr.length()
 	if int64(searchLength+start) > l ***REMOVED***
 		return valueFalse

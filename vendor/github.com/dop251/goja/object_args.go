@@ -127,12 +127,16 @@ func (a *argumentsObject) defineOwnPropertyStr(name unistring.String, descr Prop
 	return a.baseObject.defineOwnPropertyStr(name, descr, throw)
 ***REMOVED***
 
-func (a *argumentsObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (a *argumentsObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if v, exists := ctx.get(a); exists ***REMOVED***
+		return v
+	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
+	ctx.put(a, arr)
 	for i := range arr ***REMOVED***
 		v := a.getIdx(valueInt(int64(i)), nil)
 		if v != nil ***REMOVED***
-			arr[i] = v.Export()
+			arr[i] = exportValue(v, ctx)
 		***REMOVED***
 	***REMOVED***
 	return arr

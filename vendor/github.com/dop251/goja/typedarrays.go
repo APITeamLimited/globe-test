@@ -484,7 +484,7 @@ func (a *typedArrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED
 ***REMOVED***
 
 func (a *typedArrayObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
-	v := a._getIdx(toInt(int64(idx)))
+	v := a._getIdx(toIntStrict(int64(idx)))
 	if v != nil ***REMOVED***
 		return &valueProperty***REMOVED***
 			value:      v,
@@ -512,7 +512,7 @@ func (a *typedArrayObject) getStr(name unistring.String, receiver Value) Value *
 ***REMOVED***
 
 func (a *typedArrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
-	prop := a._getIdx(toInt(int64(idx)))
+	prop := a._getIdx(toIntStrict(int64(idx)))
 	if prop == nil ***REMOVED***
 		if a.prototype != nil ***REMOVED***
 			if receiver == nil ***REMOVED***
@@ -548,7 +548,7 @@ func (a *typedArrayObject) setOwnStr(p unistring.String, v Value, throw bool) bo
 ***REMOVED***
 
 func (a *typedArrayObject) setOwnIdx(p valueInt, v Value, throw bool) bool ***REMOVED***
-	return a._putIdx(toInt(int64(p)), v, throw)
+	return a._putIdx(toIntStrict(int64(p)), v, throw)
 ***REMOVED***
 
 func (a *typedArrayObject) setForeignStr(p unistring.String, v, receiver Value, throw bool) (res bool, handled bool) ***REMOVED***
@@ -569,7 +569,7 @@ func (a *typedArrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMO
 ***REMOVED***
 
 func (a *typedArrayObject) hasOwnPropertyIdx(idx valueInt) bool ***REMOVED***
-	return a._hasIdx(toInt(int64(idx)))
+	return a._hasIdx(toIntStrict(int64(idx)))
 ***REMOVED***
 
 func (a *typedArrayObject) _defineIdxProperty(idx int, desc PropertyDescriptor, throw bool) bool ***REMOVED***
@@ -588,7 +588,7 @@ func (a *typedArrayObject) defineOwnPropertyStr(name unistring.String, desc Prop
 ***REMOVED***
 
 func (a *typedArrayObject) defineOwnPropertyIdx(name valueInt, desc PropertyDescriptor, throw bool) bool ***REMOVED***
-	return a._defineIdxProperty(toInt(int64(name)), desc, throw)
+	return a._defineIdxProperty(toIntStrict(int64(name)), desc, throw)
 ***REMOVED***
 
 func (a *typedArrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
@@ -848,7 +848,7 @@ func (o *arrayBufferObject) exportType() reflect.Type ***REMOVED***
 	return arrayBufferType
 ***REMOVED***
 
-func (o *arrayBufferObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (o *arrayBufferObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return ArrayBuffer***REMOVED***
 		buf: o,
 	***REMOVED***

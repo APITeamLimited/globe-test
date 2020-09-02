@@ -32,7 +32,7 @@ type boundFuncObject struct ***REMOVED***
 	wrapped *Object
 ***REMOVED***
 
-func (f *nativeFuncObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (f *nativeFuncObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return f.f
 ***REMOVED***
 
@@ -164,7 +164,7 @@ func (f *funcObject) call(call FunctionCall, newTarget Value) Value ***REMOVED**
 	return vm.pop()
 ***REMOVED***
 
-func (f *funcObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (f *funcObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return f.Call
 ***REMOVED***
 

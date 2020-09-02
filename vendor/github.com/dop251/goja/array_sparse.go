@@ -434,11 +434,15 @@ func (a *sparseArrayObject) sortLen() int64 ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (a *sparseArrayObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (a *sparseArrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if v, exists := ctx.get(a); exists ***REMOVED***
+		return v
+	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
+	ctx.put(a, arr)
 	for _, item := range a.items ***REMOVED***
 		if item.value != nil ***REMOVED***
-			arr[item.idx] = item.value.Export()
+			arr[item.idx] = exportValue(item.value, ctx)
 		***REMOVED***
 	***REMOVED***
 	return arr

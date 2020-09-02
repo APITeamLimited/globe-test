@@ -180,6 +180,12 @@ func (p *PropertyDescriptor) complete() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+type objectExportCacheItem map[reflect.Type]interface***REMOVED******REMOVED***
+
+type objectExportCtx struct ***REMOVED***
+	cache map[objectImpl]interface***REMOVED******REMOVED***
+***REMOVED***
+
 type objectImpl interface ***REMOVED***
 	sortable
 	className() string
@@ -227,7 +233,7 @@ type objectImpl interface ***REMOVED***
 	preventExtensions(throw bool) bool
 	enumerate() iterNextFunc
 	enumerateUnfiltered() iterNextFunc
-	export() interface***REMOVED******REMOVED***
+	export(ctx *objectExportCtx) interface***REMOVED******REMOVED***
 	exportType() reflect.Type
 	equal(objectImpl) bool
 	ownKeys(all bool, accum []Value) []Value
@@ -262,7 +268,7 @@ type primitiveValueObject struct ***REMOVED***
 	pValue Value
 ***REMOVED***
 
-func (o *primitiveValueObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (o *primitiveValueObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return o.pValue.Export()
 ***REMOVED***
 
@@ -946,13 +952,18 @@ func (o *baseObject) swap(i, j int64) ***REMOVED***
 	o.val.self.setOwnIdx(jj, x, false)
 ***REMOVED***
 
-func (o *baseObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
-	m := make(map[string]interface***REMOVED******REMOVED***)
-	for _, itemName := range o.ownKeys(false, nil) ***REMOVED***
+func (o *baseObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if v, exists := ctx.get(o); exists ***REMOVED***
+		return v
+	***REMOVED***
+	keys := o.ownKeys(false, nil)
+	m := make(map[string]interface***REMOVED******REMOVED***, len(keys))
+	ctx.put(o, m)
+	for _, itemName := range keys ***REMOVED***
 		itemNameStr := itemName.String()
 		v := o.val.self.getStr(itemName.string(), nil)
 		if v != nil ***REMOVED***
-			m[itemNameStr] = v.Export()
+			m[itemNameStr] = exportValue(v, ctx)
 		***REMOVED*** else ***REMOVED***
 			m[itemNameStr] = nil
 		***REMOVED***
@@ -1448,4 +1459,62 @@ func (o *guardedObject) deleteStr(name unistring.String, throw bool) bool ***REM
 		o.check(name)
 	***REMOVED***
 	return res
+***REMOVED***
+
+func (ctx *objectExportCtx) get(key objectImpl) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
+	if v, exists := ctx.cache[key]; exists ***REMOVED***
+		if item, ok := v.(objectExportCacheItem); ok ***REMOVED***
+			r, exists := item[key.exportType()]
+			return r, exists
+		***REMOVED*** else ***REMOVED***
+			return v, true
+		***REMOVED***
+	***REMOVED***
+	return nil, false
+***REMOVED***
+
+func (ctx *objectExportCtx) getTyped(key objectImpl, typ reflect.Type) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
+	if v, exists := ctx.cache[key]; exists ***REMOVED***
+		if item, ok := v.(objectExportCacheItem); ok ***REMOVED***
+			r, exists := item[typ]
+			return r, exists
+		***REMOVED*** else ***REMOVED***
+			if reflect.TypeOf(v) == typ ***REMOVED***
+				return v, true
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return nil, false
+***REMOVED***
+
+func (ctx *objectExportCtx) put(key objectImpl, value interface***REMOVED******REMOVED***) ***REMOVED***
+	if ctx.cache == nil ***REMOVED***
+		ctx.cache = make(map[objectImpl]interface***REMOVED******REMOVED***)
+	***REMOVED***
+	if item, ok := ctx.cache[key].(objectExportCacheItem); ok ***REMOVED***
+		item[key.exportType()] = value
+	***REMOVED*** else ***REMOVED***
+		ctx.cache[key] = value
+	***REMOVED***
+***REMOVED***
+
+func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value interface***REMOVED******REMOVED***) ***REMOVED***
+	if ctx.cache == nil ***REMOVED***
+		ctx.cache = make(map[objectImpl]interface***REMOVED******REMOVED***)
+	***REMOVED***
+	v, exists := ctx.cache[key]
+	if exists ***REMOVED***
+		if item, ok := ctx.cache[key].(objectExportCacheItem); ok ***REMOVED***
+			item[typ] = value
+		***REMOVED*** else ***REMOVED***
+			m := make(objectExportCacheItem, 2)
+			m[key.exportType()] = v
+			m[typ] = value
+			ctx.cache[key] = m
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		m := make(objectExportCacheItem)
+		m[typ] = value
+		ctx.cache[key] = m
+	***REMOVED***
 ***REMOVED***

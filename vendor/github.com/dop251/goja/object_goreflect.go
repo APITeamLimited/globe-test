@@ -216,12 +216,11 @@ func (o *objectGoReflect) _put(name string, val Value, throw bool) (has, ok bool
 				o.val.runtime.typeErrorResult(throw, "Cannot assign to a non-addressable or read-only property %s of a host object", name)
 				return true, false
 			***REMOVED***
-			vv, err := o.val.runtime.toReflectValue(val, v.Type())
+			err := o.val.runtime.toReflectValue(val, v, &objectExportCtx***REMOVED******REMOVED***)
 			if err != nil ***REMOVED***
 				o.val.runtime.typeErrorResult(throw, "Go struct conversion error: %v", err)
 				return true, false
 			***REMOVED***
-			v.Set(vv)
 			return true, true
 		***REMOVED***
 	***REMOVED***
@@ -404,7 +403,7 @@ func (o *objectGoReflect) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (o *objectGoReflect) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (o *objectGoReflect) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return o.origValue.Interface()
 ***REMOVED***
 

@@ -655,7 +655,7 @@ func (r *Runtime) getGlobalRegexpMatches(rxObj *Object, s valueString) []Value *
 		a = append(a, res)
 		matchStr := nilSafe(r.toObject(res).self.getIdx(valueInt(0), nil)).toString()
 		if matchStr.length() == 0 ***REMOVED***
-			thisIndex := toInt(nilSafe(rxObj.self.getStr("lastIndex", nil)).ToInteger())
+			thisIndex := toIntStrict(nilSafe(rxObj.self.getStr("lastIndex", nil)).ToInteger())
 			rxObj.self.setOwnStr("lastIndex", valueInt(advanceStringIndex(s, thisIndex, fullUnicode)), true)
 		***REMOVED***
 	***REMOVED***
@@ -962,7 +962,7 @@ func (r *Runtime) regexpproto_stdReplacerGeneric(rxObj *Object, s, replaceStr va
 		nCaptures := max(toLength(obj.self.getStr("length", nil))-1, 0)
 		matched := nilSafe(obj.self.getIdx(valueInt(0), nil)).toString()
 		matchLength := matched.length()
-		position := toInt(max(min(nilSafe(obj.self.getStr("index", nil)).ToInteger(), int64(lengthS)), 0))
+		position := toIntStrict(max(min(nilSafe(obj.self.getStr("index", nil)).ToInteger(), int64(lengthS)), 0))
 		var captures []Value
 		if rcall != nil ***REMOVED***
 			captures = make([]Value, 0, nCaptures+3)
@@ -1080,7 +1080,7 @@ func (r *Runtime) regexpproto_stdReplacer(call FunctionCall) Value ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		index = rx.getLastIndex()
 	***REMOVED***
-	found := rx.pattern.findAllSubmatchIndex(s, toInt(index), find, rx.pattern.sticky)
+	found := rx.pattern.findAllSubmatchIndex(s, toIntStrict(index), find, rx.pattern.sticky)
 	if len(found) > 0 ***REMOVED***
 		if !rx.updateLastIndex(index, found[0], found[len(found)-1]) ***REMOVED***
 			found = nil

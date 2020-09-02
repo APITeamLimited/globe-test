@@ -50,7 +50,7 @@ func (o *objectGoSliceReflect) _getIdx(idx int) Value ***REMOVED***
 ***REMOVED***
 
 func (o *objectGoSliceReflect) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
-	if idx := toInt(int64(idx)); idx >= 0 && idx < o.value.Len() ***REMOVED***
+	if idx := toIntStrict(int64(idx)); idx >= 0 && idx < o.value.Len() ***REMOVED***
 		return o._getIdx(idx)
 	***REMOVED***
 	return o.objectGoReflect.getStr(idx.string(), receiver)
@@ -86,7 +86,7 @@ func (o *objectGoSliceReflect) getOwnPropStr(name unistring.String) Value ***REM
 ***REMOVED***
 
 func (o *objectGoSliceReflect) getOwnPropIdx(idx valueInt) Value ***REMOVED***
-	if idx := toInt(int64(idx)); idx >= 0 && idx < o.value.Len() ***REMOVED***
+	if idx := toIntStrict(int64(idx)); idx >= 0 && idx < o.value.Len() ***REMOVED***
 		return &valueProperty***REMOVED***
 			value:      o._getIdx(idx),
 			writable:   true,
@@ -104,12 +104,11 @@ func (o *objectGoSliceReflect) putIdx(idx int, v Value, throw bool) bool ***REMO
 		***REMOVED***
 		o.grow(idx + 1)
 	***REMOVED***
-	val, err := o.val.runtime.toReflectValue(v, o.value.Type().Elem())
+	err := o.val.runtime.toReflectValue(v, o.value.Index(idx), &objectExportCtx***REMOVED******REMOVED***)
 	if err != nil ***REMOVED***
 		o.val.runtime.typeErrorResult(throw, "Go type conversion error: %v", err)
 		return false
 	***REMOVED***
-	o.value.Index(idx).Set(val)
 	return true
 ***REMOVED***
 
@@ -155,7 +154,7 @@ func (o *objectGoSliceReflect) shrink(size int) ***REMOVED***
 ***REMOVED***
 
 func (o *objectGoSliceReflect) putLength(v Value, throw bool) bool ***REMOVED***
-	newLen := toInt(toLength(v))
+	newLen := toIntStrict(toLength(v))
 	curLen := o.value.Len()
 	if newLen > curLen ***REMOVED***
 		if !o.sliceExtensible ***REMOVED***
@@ -174,7 +173,7 @@ func (o *objectGoSliceReflect) putLength(v Value, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (o *objectGoSliceReflect) setOwnIdx(idx valueInt, val Value, throw bool) bool ***REMOVED***
-	if i := toInt(int64(idx)); i >= 0 ***REMOVED***
+	if i := toIntStrict(int64(idx)); i >= 0 ***REMOVED***
 		if i >= o.value.Len() ***REMOVED***
 			if res, ok := o._setForeignIdx(idx, nil, val, o.val, throw); ok ***REMOVED***
 				return res
@@ -235,7 +234,7 @@ func (o *objectGoSliceReflect) hasOwnPropertyStr(name unistring.String) bool ***
 ***REMOVED***
 
 func (o *objectGoSliceReflect) defineOwnPropertyIdx(idx valueInt, descr PropertyDescriptor, throw bool) bool ***REMOVED***
-	if i := toInt(int64(idx)); i >= 0 ***REMOVED***
+	if i := toIntStrict(int64(idx)); i >= 0 ***REMOVED***
 		if !o.val.runtime.checkHostObjectPropertyDescr(idx.string(), descr, throw) ***REMOVED***
 			return false
 		***REMOVED***

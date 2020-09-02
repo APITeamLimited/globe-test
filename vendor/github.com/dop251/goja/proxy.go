@@ -794,7 +794,7 @@ func (p *proxyObject) exportType() reflect.Type ***REMOVED***
 	return proxyType
 ***REMOVED***
 
-func (p *proxyObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (p *proxyObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return Proxy***REMOVED***
 		proxy: p,
 	***REMOVED***

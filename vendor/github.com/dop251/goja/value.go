@@ -164,7 +164,7 @@ func (i valueInt) String() string ***REMOVED***
 ***REMOVED***
 
 func (i valueInt) ToFloat() float64 ***REMOVED***
-	return float64(int64(i))
+	return float64(i)
 ***REMOVED***
 
 func (i valueInt) ToBoolean() bool ***REMOVED***
@@ -721,7 +721,7 @@ func (o *Object) baseObject(*Runtime) *Object ***REMOVED***
 ***REMOVED***
 
 func (o *Object) Export() interface***REMOVED******REMOVED*** ***REMOVED***
-	return o.self.export()
+	return o.self.export(&objectExportCtx***REMOVED******REMOVED***)
 ***REMOVED***
 
 func (o *Object) ExportType() reflect.Type ***REMOVED***
@@ -949,6 +949,13 @@ func (s *valueSymbol) baseObject(r *Runtime) *Object ***REMOVED***
 
 func (s *valueSymbol) hash(*maphash.Hash) uint64 ***REMOVED***
 	return uint64(s.h)
+***REMOVED***
+
+func exportValue(v Value, ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if obj, ok := v.(*Object); ok ***REMOVED***
+		return obj.self.export(ctx)
+	***REMOVED***
+	return v.Export()
 ***REMOVED***
 
 func newSymbol(s valueString) *valueSymbol ***REMOVED***

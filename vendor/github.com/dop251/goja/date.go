@@ -106,7 +106,7 @@ func (d *dateObject) toPrimitive() Value ***REMOVED***
 	return d.toPrimitiveString()
 ***REMOVED***
 
-func (d *dateObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (d *dateObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	if d.isSet() ***REMOVED***
 		return d.time()
 	***REMOVED***

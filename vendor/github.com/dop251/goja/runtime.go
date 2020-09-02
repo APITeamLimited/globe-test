@@ -943,6 +943,66 @@ func toUint32(v Value) uint32 ***REMOVED***
 	return 0
 ***REMOVED***
 
+func toInt64(v Value) int64 ***REMOVED***
+	v = v.ToNumber()
+	if i, ok := v.(valueInt); ok ***REMOVED***
+		return int64(i)
+	***REMOVED***
+
+	if f, ok := v.(valueFloat); ok ***REMOVED***
+		f := float64(f)
+		if !math.IsNaN(f) && !math.IsInf(f, 0) ***REMOVED***
+			return int64(f)
+		***REMOVED***
+	***REMOVED***
+	return 0
+***REMOVED***
+
+func toUint64(v Value) uint64 ***REMOVED***
+	v = v.ToNumber()
+	if i, ok := v.(valueInt); ok ***REMOVED***
+		return uint64(i)
+	***REMOVED***
+
+	if f, ok := v.(valueFloat); ok ***REMOVED***
+		f := float64(f)
+		if !math.IsNaN(f) && !math.IsInf(f, 0) ***REMOVED***
+			return uint64(int64(f))
+		***REMOVED***
+	***REMOVED***
+	return 0
+***REMOVED***
+
+func toInt(v Value) int ***REMOVED***
+	v = v.ToNumber()
+	if i, ok := v.(valueInt); ok ***REMOVED***
+		return int(i)
+	***REMOVED***
+
+	if f, ok := v.(valueFloat); ok ***REMOVED***
+		f := float64(f)
+		if !math.IsNaN(f) && !math.IsInf(f, 0) ***REMOVED***
+			return int(f)
+		***REMOVED***
+	***REMOVED***
+	return 0
+***REMOVED***
+
+func toUint(v Value) uint ***REMOVED***
+	v = v.ToNumber()
+	if i, ok := v.(valueInt); ok ***REMOVED***
+		return uint(i)
+	***REMOVED***
+
+	if f, ok := v.(valueFloat); ok ***REMOVED***
+		f := float64(f)
+		if !math.IsNaN(f) && !math.IsInf(f, 0) ***REMOVED***
+			return uint(int64(f))
+		***REMOVED***
+	***REMOVED***
+	return 0
+***REMOVED***
+
 func toFloat32(v Value) float32 ***REMOVED***
 	return float32(v.ToFloat())
 ***REMOVED***
@@ -961,7 +1021,7 @@ func toLength(v Value) int64 ***REMOVED***
 	return i
 ***REMOVED***
 
-func toInt(i int64) int ***REMOVED***
+func toIntStrict(i int64) int ***REMOVED***
 	if bits.UintSize == 32 ***REMOVED***
 		if i > math.MaxInt32 || i < math.MinInt32 ***REMOVED***
 			panic(rangeError("Integer value overflows 32-bit int"))
@@ -1515,17 +1575,19 @@ func (r *Runtime) wrapReflectFunc(value reflect.Value) func(FunctionCall) Value 
 			// actual set of variadic Go arguments. if that succeeds, break
 			// out of the loop.
 			if typ.IsVariadic() && len(call.Arguments) == nargs && i == nargs-1 ***REMOVED***
-				if v, err := r.toReflectValue(a, typ.In(n)); err == nil ***REMOVED***
+				v := reflect.New(typ.In(n)).Elem()
+				if err := r.toReflectValue(a, v, &objectExportCtx***REMOVED******REMOVED***); err == nil ***REMOVED***
 					in[i] = v
 					callSlice = true
 					break
 				***REMOVED***
 			***REMOVED***
-			var err error
-			in[i], err = r.toReflectValue(a, t)
+			v := reflect.New(t).Elem()
+			err := r.toReflectValue(a, v, &objectExportCtx***REMOVED******REMOVED***)
 			if err != nil ***REMOVED***
-				panic(r.newError(r.global.TypeError, "Could not convert function call parameter %v to %v", a, t))
+				panic(r.newError(r.global.TypeError, "could not convert function call parameter %v to %v", a, t))
 			***REMOVED***
+			in[i] = v
 		***REMOVED***
 
 		var out []reflect.Value
@@ -1566,99 +1628,138 @@ func (r *Runtime) wrapReflectFunc(value reflect.Value) func(FunctionCall) Value 
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, error) ***REMOVED***
+func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCtx) error ***REMOVED***
+	typ := dst.Type()
 	switch typ.Kind() ***REMOVED***
 	case reflect.String:
-		return reflect.ValueOf(v.String()).Convert(typ), nil
+		dst.Set(reflect.ValueOf(v.String()).Convert(typ))
+		return nil
 	case reflect.Bool:
-		return reflect.ValueOf(v.ToBoolean()).Convert(typ), nil
+		dst.Set(reflect.ValueOf(v.ToBoolean()).Convert(typ))
+		return nil
 	case reflect.Int:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(int(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toInt(v)).Convert(typ))
+		return nil
 	case reflect.Int64:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(i).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toInt64(v)).Convert(typ))
+		return nil
 	case reflect.Int32:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(int32(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toInt32(v)).Convert(typ))
+		return nil
 	case reflect.Int16:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(int16(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toInt16(v)).Convert(typ))
+		return nil
 	case reflect.Int8:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(int8(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toInt8(v)).Convert(typ))
+		return nil
 	case reflect.Uint:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(uint(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toUint(v)).Convert(typ))
+		return nil
 	case reflect.Uint64:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(uint64(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toUint64(v)).Convert(typ))
+		return nil
 	case reflect.Uint32:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(uint32(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toUint32(v)).Convert(typ))
+		return nil
 	case reflect.Uint16:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(uint16(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toUint16(v)).Convert(typ))
+		return nil
 	case reflect.Uint8:
-		i, _ := toInt64(v)
-		return reflect.ValueOf(uint8(i)).Convert(typ), nil
+		dst.Set(reflect.ValueOf(toUint8(v)).Convert(typ))
+		return nil
+	case reflect.Float64:
+		dst.Set(reflect.ValueOf(v.ToFloat()).Convert(typ))
+		return nil
+	case reflect.Float32:
+		dst.Set(reflect.ValueOf(toFloat32(v)).Convert(typ))
+		return nil
 	***REMOVED***
 
 	if typ == typeCallable ***REMOVED***
 		if fn, ok := AssertFunction(v); ok ***REMOVED***
-			return reflect.ValueOf(fn), nil
+			dst.Set(reflect.ValueOf(fn))
+			return nil
 		***REMOVED***
 	***REMOVED***
 
 	if typ == typeValue ***REMOVED***
-		return reflect.ValueOf(v), nil
+		dst.Set(reflect.ValueOf(v))
+		return nil
 	***REMOVED***
 
 	if typ == typeObject ***REMOVED***
 		if obj, ok := v.(*Object); ok ***REMOVED***
-			return reflect.ValueOf(obj), nil
+			dst.Set(reflect.ValueOf(obj))
+			return nil
 		***REMOVED***
 	***REMOVED***
 
-	et := v.ExportType()
-	if et == nil || et == reflectTypeNil ***REMOVED***
-		return reflect.Zero(typ), nil
 	***REMOVED***
-	if et.AssignableTo(typ) ***REMOVED***
-		return reflect.ValueOf(v.Export()), nil
-	***REMOVED*** else if et.ConvertibleTo(typ) ***REMOVED***
-		return reflect.ValueOf(v.Export()).Convert(typ), nil
-	***REMOVED***
-
-	if typ == typeTime && et.Kind() == reflect.String ***REMOVED***
-		tme, ok := dateParse(v.String())
-		if !ok ***REMOVED***
-			return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert string %v to %v", v, typ)
+		et := v.ExportType()
+		if et == nil || et == reflectTypeNil ***REMOVED***
+			dst.Set(reflect.Zero(typ))
+			return nil
 		***REMOVED***
-		return reflect.ValueOf(tme), nil
+		if et.AssignableTo(typ) ***REMOVED***
+			dst.Set(reflect.ValueOf(exportValue(v, ctx)))
+			return nil
+		***REMOVED*** else if et.ConvertibleTo(typ) ***REMOVED***
+			dst.Set(reflect.ValueOf(exportValue(v, ctx)).Convert(typ))
+			return nil
+		***REMOVED***
+		if typ == typeTime ***REMOVED***
+			if obj, ok := v.(*Object); ok ***REMOVED***
+				if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+					dst.Set(reflect.ValueOf(d.time()))
+					return nil
+				***REMOVED***
+			***REMOVED***
+			if et.Kind() == reflect.String ***REMOVED***
+				tme, ok := dateParse(v.String())
+				if !ok ***REMOVED***
+					return fmt.Errorf("could not convert string %v to %v", v, typ)
+				***REMOVED***
+				dst.Set(reflect.ValueOf(tme))
+				return nil
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
 	switch typ.Kind() ***REMOVED***
 	case reflect.Slice:
 		if o, ok := v.(*Object); ok ***REMOVED***
 			if o.self.className() == classArray ***REMOVED***
+				if v, exists := ctx.getTyped(o.self, typ); exists ***REMOVED***
+					dst.Set(reflect.ValueOf(v))
+					return nil
+				***REMOVED***
 				l := int(toLength(o.self.getStr("length", nil)))
-				s := reflect.MakeSlice(typ, l, l)
-				elemTyp := typ.Elem()
+				if dst.IsNil() || dst.Len() != l ***REMOVED***
+					dst.Set(reflect.MakeSlice(typ, l, l))
+				***REMOVED***
+				s := dst
+				ctx.putTyped(o.self, typ, s.Interface())
 				for i := 0; i < l; i++ ***REMOVED***
 					item := o.self.getIdx(valueInt(int64(i)), nil)
-					itemval, err := r.toReflectValue(item, elemTyp)
+					err := r.toReflectValue(item, s.Index(i), ctx)
 					if err != nil ***REMOVED***
-						return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert array element %v to %v at %d: %s", v, typ, i, err)
+						return fmt.Errorf("could not convert array element %v to %v at %d: %w", v, typ, i, err)
 					***REMOVED***
-					s.Index(i).Set(itemval)
 				***REMOVED***
-				return s, nil
+				return nil
 			***REMOVED***
 		***REMOVED***
 	case reflect.Map:
 		if o, ok := v.(*Object); ok ***REMOVED***
-			m := reflect.MakeMap(typ)
+			if v, exists := ctx.getTyped(o.self, typ); exists ***REMOVED***
+				dst.Set(reflect.ValueOf(v))
+				return nil
+			***REMOVED***
+			if dst.IsNil() ***REMOVED***
+				dst.Set(reflect.MakeMap(typ))
+			***REMOVED***
+			m := dst
+			ctx.putTyped(o.self, typ, m.Interface())
 			keyTyp := typ.Key()
 			elemTyp := typ.Elem()
 			needConvertKeys := !reflect.ValueOf("").Type().AssignableTo(keyTyp)
@@ -1666,9 +1767,10 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 				var kv reflect.Value
 				var err error
 				if needConvertKeys ***REMOVED***
-					kv, err = r.toReflectValue(itemName, keyTyp)
+					kv = reflect.New(keyTyp).Elem()
+					err = r.toReflectValue(itemName, kv, ctx)
 					if err != nil ***REMOVED***
-						return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert map key %s to %v", itemName.String(), typ)
+						return fmt.Errorf("could not convert map key %s to %v", itemName.String(), typ)
 					***REMOVED***
 				***REMOVED*** else ***REMOVED***
 					kv = reflect.ValueOf(itemName.String())
@@ -1676,9 +1778,10 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 
 				ival := o.get(itemName, nil)
 				if ival != nil ***REMOVED***
-					vv, err := r.toReflectValue(ival, elemTyp)
+					vv := reflect.New(elemTyp).Elem()
+					err := r.toReflectValue(ival, vv, ctx)
 					if err != nil ***REMOVED***
-						return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert map value %v to %v at key %s", ival, typ, itemName.String())
+						return fmt.Errorf("could not convert map value %v to %v at key %s", ival, typ, itemName.String())
 					***REMOVED***
 					m.SetMapIndex(kv, vv)
 				***REMOVED*** else ***REMOVED***
@@ -1686,11 +1789,17 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 				***REMOVED***
 
 			***REMOVED***
-			return m, nil
+			return nil
 		***REMOVED***
 	case reflect.Struct:
 		if o, ok := v.(*Object); ok ***REMOVED***
-			s := reflect.New(typ).Elem()
+			t := reflect.PtrTo(typ)
+			if v, exists := ctx.getTyped(o.self, t); exists ***REMOVED***
+				dst.Set(reflect.ValueOf(v).Elem())
+				return nil
+			***REMOVED***
+			s := dst
+			ctx.putTyped(o.self, t, s.Addr().Interface())
 			for i := 0; i < typ.NumField(); i++ ***REMOVED***
 				field := typ.Field(i)
 				if ast.IsExported(field.Name) ***REMOVED***
@@ -1706,35 +1815,34 @@ func (r *Runtime) toReflectValue(v Value, typ reflect.Type) (reflect.Value, erro
 					***REMOVED***
 
 					if v != nil ***REMOVED***
-						vv, err := r.toReflectValue(v, field.Type)
+						err := r.toReflectValue(v, s.Field(i), ctx)
 						if err != nil ***REMOVED***
-							return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("Could not convert struct value %v to %v for field %s: %s", v, field.Type, field.Name, err)
-
+							return fmt.Errorf("could not convert struct value %v to %v for field %s: %w", v, field.Type, field.Name, err)
 						***REMOVED***
-						s.Field(i).Set(vv)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			return s, nil
+			return nil
 		***REMOVED***
 	case reflect.Func:
 		if fn, ok := AssertFunction(v); ok ***REMOVED***
-			return reflect.MakeFunc(typ, r.wrapJSFunc(fn, typ)), nil
+			dst.Set(reflect.MakeFunc(typ, r.wrapJSFunc(fn, typ)))
+			return nil
 		***REMOVED***
 	case reflect.Ptr:
-		elemTyp := typ.Elem()
-		v, err := r.toReflectValue(v, elemTyp)
-		if err != nil ***REMOVED***
-			return reflect.Value***REMOVED******REMOVED***, err
+		if o, ok := v.(*Object); ok ***REMOVED***
+			if v, exists := ctx.getTyped(o.self, typ); exists ***REMOVED***
+				dst.Set(reflect.ValueOf(v))
+				return nil
+			***REMOVED***
 		***REMOVED***
-
-		ptrVal := reflect.New(v.Type())
-		ptrVal.Elem().Set(v)
-
-		return ptrVal, nil
+		if dst.IsNil() ***REMOVED***
+			dst.Set(reflect.New(typ.Elem()))
+		***REMOVED***
+		return r.toReflectValue(v, dst.Elem(), ctx)
 	***REMOVED***
 
-	return reflect.Value***REMOVED******REMOVED***, fmt.Errorf("could not convert %v to %v", v, typ)
+	return fmt.Errorf("could not convert %v to %v", v, typ)
 ***REMOVED***
 
 func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.Value) (results []reflect.Value) ***REMOVED***
@@ -1748,7 +1856,11 @@ func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.
 		res, err := fn(_undefined, jsArgs...)
 		if err == nil ***REMOVED***
 			if typ.NumOut() > 0 ***REMOVED***
-				results[0], err = r.toReflectValue(res, typ.Out(0))
+				v := reflect.New(typ.Out(0)).Elem()
+				err = r.toReflectValue(res, v, &objectExportCtx***REMOVED******REMOVED***)
+				if err == nil ***REMOVED***
+					results[0] = v
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 
@@ -1771,18 +1883,17 @@ func (r *Runtime) wrapJSFunc(fn Callable, typ reflect.Type) func(args []reflect.
 ***REMOVED***
 
 // ExportTo converts a JavaScript value into the specified Go value. The second parameter must be a non-nil pointer.
+// Exporting to an interface***REMOVED******REMOVED*** results in a value of the same type as Export() would produce.
+// Exporting to numeric types uses the standard ECMAScript conversion operations, same as used when assigning
+// values to non-clamped typed array items, e.g.
+// https://www.ecma-international.org/ecma-262/10.0/index.html#sec-toint32
 // Returns error if conversion is not possible.
 func (r *Runtime) ExportTo(v Value, target interface***REMOVED******REMOVED***) error ***REMOVED***
 	tval := reflect.ValueOf(target)
 	if tval.Kind() != reflect.Ptr || tval.IsNil() ***REMOVED***
 		return errors.New("target must be a non-nil pointer")
 	***REMOVED***
-	vv, err := r.toReflectValue(v, tval.Elem().Type())
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	tval.Elem().Set(vv)
-	return nil
+	return r.toReflectValue(v, tval.Elem(), &objectExportCtx***REMOVED******REMOVED***)
 ***REMOVED***
 
 // GlobalObject returns the global object.

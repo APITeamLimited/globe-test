@@ -135,7 +135,7 @@ func (o *objectGoSlice) putIdx(idx int, v Value, throw bool) ***REMOVED***
 ***REMOVED***
 
 func (o *objectGoSlice) putLength(v Value, throw bool) bool ***REMOVED***
-	newLen := toInt(toLength(v))
+	newLen := toIntStrict(toLength(v))
 	curLen := len(*o.data)
 	if newLen > curLen ***REMOVED***
 		if !o.sliceExtensible ***REMOVED***
@@ -154,7 +154,7 @@ func (o *objectGoSlice) putLength(v Value, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (o *objectGoSlice) setOwnIdx(idx valueInt, val Value, throw bool) bool ***REMOVED***
-	if i := toInt(int64(idx)); i >= 0 ***REMOVED***
+	if i := toIntStrict(int64(idx)); i >= 0 ***REMOVED***
 		if i >= len(*o.data) ***REMOVED***
 			if res, ok := o._setForeignIdx(idx, nil, val, o.val, throw); ok ***REMOVED***
 				return res
@@ -218,7 +218,7 @@ func (o *objectGoSlice) hasOwnPropertyStr(name unistring.String) bool ***REMOVED
 ***REMOVED***
 
 func (o *objectGoSlice) defineOwnPropertyIdx(idx valueInt, descr PropertyDescriptor, throw bool) bool ***REMOVED***
-	if i := toInt(int64(idx)); i >= 0 ***REMOVED***
+	if i := toIntStrict(int64(idx)); i >= 0 ***REMOVED***
 		if !o.val.runtime.checkHostObjectPropertyDescr(idx.string(), descr, throw) ***REMOVED***
 			return false
 		***REMOVED***
@@ -318,7 +318,7 @@ func (o *objectGoSlice) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (o *objectGoSlice) export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (o *objectGoSlice) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
 	return *o.data
 ***REMOVED***
 
