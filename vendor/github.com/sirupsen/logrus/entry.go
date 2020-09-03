@@ -2,6 +2,7 @@ package logrus
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -69,6 +70,9 @@ type Entry struct ***REMOVED***
 	// When formatter is called in entry.log(), a Buffer may be set to entry
 	Buffer *bytes.Buffer
 
+	// Contains the context set by the user. Useful for hook processing etc.
+	Context context.Context
+
 	// err may contain a field formatting error
 	err string
 ***REMOVED***
@@ -81,10 +85,15 @@ func NewEntry(logger *Logger) *Entry ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Returns the bytes representation of this entry from the formatter.
+func (entry *Entry) Bytes() ([]byte, error) ***REMOVED***
+	return entry.Logger.Formatter.Format(entry)
+***REMOVED***
+
 // Returns the string representation from the reader and ultimately the
 // formatter.
 func (entry *Entry) String() (string, error) ***REMOVED***
-	serialized, err := entry.Logger.Formatter.Format(entry)
+	serialized, err := entry.Bytes()
 	if err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
@@ -95,6 +104,15 @@ func (entry *Entry) String() (string, error) ***REMOVED***
 // Add an error as single field (using the key defined in ErrorKey) to the Entry.
 func (entry *Entry) WithError(err error) *Entry ***REMOVED***
 	return entry.WithField(ErrorKey, err)
+***REMOVED***
+
+// Add a context to the Entry.
+func (entry *Entry) WithContext(ctx context.Context) *Entry ***REMOVED***
+	dataCopy := make(Fields, len(entry.Data))
+	for k, v := range entry.Data ***REMOVED***
+		dataCopy[k] = v
+	***REMOVED***
+	return &Entry***REMOVED***Logger: entry.Logger, Data: dataCopy, Time: entry.Time, err: entry.err, Context: ctx***REMOVED***
 ***REMOVED***
 
 // Add a single field to the Entry.
@@ -108,23 +126,38 @@ func (entry *Entry) WithFields(fields Fields) *Entry ***REMOVED***
 	for k, v := range entry.Data ***REMOVED***
 		data[k] = v
 	***REMOVED***
-	var field_err string
+	fieldErr := entry.err
 	for k, v := range fields ***REMOVED***
-		if t := reflect.TypeOf(v); t != nil && t.Kind() == reflect.Func ***REMOVED***
-			field_err = fmt.Sprintf("can not add field %q", k)
-			if entry.err != "" ***REMOVED***
-				field_err = entry.err + ", " + field_err
+		isErrField := false
+		if t := reflect.TypeOf(v); t != nil ***REMOVED***
+			switch t.Kind() ***REMOVED***
+			case reflect.Func:
+				isErrField = true
+			case reflect.Ptr:
+				isErrField = t.Elem().Kind() == reflect.Func
+			***REMOVED***
+		***REMOVED***
+		if isErrField ***REMOVED***
+			tmp := fmt.Sprintf("can not add field %q", k)
+			if fieldErr != "" ***REMOVED***
+				fieldErr = entry.err + ", " + tmp
+			***REMOVED*** else ***REMOVED***
+				fieldErr = tmp
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			data[k] = v
 		***REMOVED***
 	***REMOVED***
-	return &Entry***REMOVED***Logger: entry.Logger, Data: data, Time: entry.Time, err: field_err***REMOVED***
+	return &Entry***REMOVED***Logger: entry.Logger, Data: data, Time: entry.Time, err: fieldErr, Context: entry.Context***REMOVED***
 ***REMOVED***
 
 // Overrides the time of the Entry.
 func (entry *Entry) WithTime(t time.Time) *Entry ***REMOVED***
-	return &Entry***REMOVED***Logger: entry.Logger, Data: entry.Data, Time: t***REMOVED***
+	dataCopy := make(Fields, len(entry.Data))
+	for k, v := range entry.Data ***REMOVED***
+		dataCopy[k] = v
+	***REMOVED***
+	return &Entry***REMOVED***Logger: entry.Logger, Data: dataCopy, Time: t, err: entry.err, Context: entry.Context***REMOVED***
 ***REMOVED***
 
 // getPackageName reduces a fully qualified function name to the package name
@@ -145,26 +178,34 @@ func getPackageName(f string) string ***REMOVED***
 
 // getCaller retrieves the name of the first non-logrus calling function
 func getCaller() *runtime.Frame ***REMOVED***
+	// cache this package's fully-qualified name
+	callerInitOnce.Do(func() ***REMOVED***
+		pcs := make([]uintptr, maximumCallerDepth)
+		_ = runtime.Callers(0, pcs)
+
+		// dynamic get the package name and the minimum caller depth
+		for i := 0; i < maximumCallerDepth; i++ ***REMOVED***
+			funcName := runtime.FuncForPC(pcs[i]).Name()
+			if strings.Contains(funcName, "getCaller") ***REMOVED***
+				logrusPackage = getPackageName(funcName)
+				break
+			***REMOVED***
+		***REMOVED***
+
+		minimumCallerDepth = knownLogrusFrames
+	***REMOVED***)
+
 	// Restrict the lookback frames to avoid runaway lookups
 	pcs := make([]uintptr, maximumCallerDepth)
 	depth := runtime.Callers(minimumCallerDepth, pcs)
 	frames := runtime.CallersFrames(pcs[:depth])
-
-	// cache this package's fully-qualified name
-	callerInitOnce.Do(func() ***REMOVED***
-		logrusPackage = getPackageName(runtime.FuncForPC(pcs[0]).Name())
-
-		// now that we have the cache, we can skip a minimum count of known-logrus functions
-		// XXX this is dubious, the number of frames may vary store an entry in a logger interface
-		minimumCallerDepth = knownLogrusFrames
-	***REMOVED***)
 
 	for f, again := frames.Next(); again; f, again = frames.Next() ***REMOVED***
 		pkg := getPackageName(f.Function)
 
 		// If the caller isn't part of this package, we're done
 		if pkg != logrusPackage ***REMOVED***
-			return &f
+			return &f //nolint:scopelint
 		***REMOVED***
 	***REMOVED***
 
@@ -194,9 +235,11 @@ func (entry Entry) log(level Level, msg string) ***REMOVED***
 
 	entry.Level = level
 	entry.Message = msg
+	entry.Logger.mu.Lock()
 	if entry.Logger.ReportCaller ***REMOVED***
 		entry.Caller = getCaller()
 	***REMOVED***
+	entry.Logger.mu.Unlock()
 
 	entry.fireHooks()
 
@@ -232,24 +275,25 @@ func (entry *Entry) write() ***REMOVED***
 	serialized, err := entry.Logger.Formatter.Format(entry)
 	if err != nil ***REMOVED***
 		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
-	***REMOVED*** else ***REMOVED***
-		_, err = entry.Logger.Out.Write(serialized)
-		if err != nil ***REMOVED***
-			fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
-		***REMOVED***
+		return
+	***REMOVED***
+	if _, err = entry.Logger.Out.Write(serialized); err != nil ***REMOVED***
+		fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
+	***REMOVED***
+***REMOVED***
+
+func (entry *Entry) Log(level Level, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if entry.Logger.IsLevelEnabled(level) ***REMOVED***
+		entry.log(level, fmt.Sprint(args...))
 	***REMOVED***
 ***REMOVED***
 
 func (entry *Entry) Trace(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(TraceLevel) ***REMOVED***
-		entry.log(TraceLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(TraceLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Debug(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry.log(DebugLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(DebugLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Print(args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -257,15 +301,11 @@ func (entry *Entry) Print(args ...interface***REMOVED******REMOVED***) ***REMOVE
 ***REMOVED***
 
 func (entry *Entry) Info(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry.log(InfoLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(InfoLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Warn(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry.log(WarnLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(WarnLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Warning(args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -273,43 +313,37 @@ func (entry *Entry) Warning(args ...interface***REMOVED******REMOVED***) ***REMO
 ***REMOVED***
 
 func (entry *Entry) Error(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry.log(ErrorLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(ErrorLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry.log(FatalLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(FatalLevel, args...)
 	entry.Logger.Exit(1)
 ***REMOVED***
 
 func (entry *Entry) Panic(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(PanicLevel) ***REMOVED***
-		entry.log(PanicLevel, fmt.Sprint(args...))
-	***REMOVED***
+	entry.Log(PanicLevel, args...)
 	panic(fmt.Sprint(args...))
 ***REMOVED***
 
 // Entry Printf family functions
 
-func (entry *Entry) Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(TraceLevel) ***REMOVED***
-		entry.Trace(fmt.Sprintf(format, args...))
+func (entry *Entry) Logf(level Level, format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if entry.Logger.IsLevelEnabled(level) ***REMOVED***
+		entry.Log(level, fmt.Sprintf(format, args...))
 	***REMOVED***
+***REMOVED***
+
+func (entry *Entry) Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	entry.Logf(TraceLevel, format, args...)
 ***REMOVED***
 
 func (entry *Entry) Debugf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry.Debug(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(DebugLevel, format, args...)
 ***REMOVED***
 
 func (entry *Entry) Infof(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry.Info(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(InfoLevel, format, args...)
 ***REMOVED***
 
 func (entry *Entry) Printf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -317,9 +351,7 @@ func (entry *Entry) Printf(format string, args ...interface***REMOVED******REMOV
 ***REMOVED***
 
 func (entry *Entry) Warnf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry.Warn(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(WarnLevel, format, args...)
 ***REMOVED***
 
 func (entry *Entry) Warningf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -327,42 +359,36 @@ func (entry *Entry) Warningf(format string, args ...interface***REMOVED******REM
 ***REMOVED***
 
 func (entry *Entry) Errorf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry.Error(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(ErrorLevel, format, args...)
 ***REMOVED***
 
 func (entry *Entry) Fatalf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry.Fatal(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(FatalLevel, format, args...)
 	entry.Logger.Exit(1)
 ***REMOVED***
 
 func (entry *Entry) Panicf(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(PanicLevel) ***REMOVED***
-		entry.Panic(fmt.Sprintf(format, args...))
-	***REMOVED***
+	entry.Logf(PanicLevel, format, args...)
 ***REMOVED***
 
 // Entry Println family functions
 
-func (entry *Entry) Traceln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(TraceLevel) ***REMOVED***
-		entry.Trace(entry.sprintlnn(args...))
+func (entry *Entry) Logln(level Level, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if entry.Logger.IsLevelEnabled(level) ***REMOVED***
+		entry.Log(level, entry.sprintlnn(args...))
 	***REMOVED***
+***REMOVED***
+
+func (entry *Entry) Traceln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	entry.Logln(TraceLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Debugln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(DebugLevel) ***REMOVED***
-		entry.Debug(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(DebugLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Infoln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(InfoLevel) ***REMOVED***
-		entry.Info(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(InfoLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Println(args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -370,9 +396,7 @@ func (entry *Entry) Println(args ...interface***REMOVED******REMOVED***) ***REMO
 ***REMOVED***
 
 func (entry *Entry) Warnln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(WarnLevel) ***REMOVED***
-		entry.Warn(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(WarnLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Warningln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -380,22 +404,16 @@ func (entry *Entry) Warningln(args ...interface***REMOVED******REMOVED***) ***RE
 ***REMOVED***
 
 func (entry *Entry) Errorln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(ErrorLevel) ***REMOVED***
-		entry.Error(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(ErrorLevel, args...)
 ***REMOVED***
 
 func (entry *Entry) Fatalln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(FatalLevel) ***REMOVED***
-		entry.Fatal(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(FatalLevel, args...)
 	entry.Logger.Exit(1)
 ***REMOVED***
 
 func (entry *Entry) Panicln(args ...interface***REMOVED******REMOVED***) ***REMOVED***
-	if entry.Logger.IsLevelEnabled(PanicLevel) ***REMOVED***
-		entry.Panic(entry.sprintlnn(args...))
-	***REMOVED***
+	entry.Logln(PanicLevel, args...)
 ***REMOVED***
 
 // Sprintlnn => Sprint no newline. This is to get the behavior of how

@@ -4,25 +4,23 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
-	nocolor = 0
-	red     = 31
-	green   = 32
-	yellow  = 33
-	blue    = 36
-	gray    = 37
+	red    = 31
+	yellow = 33
+	blue   = 36
+	gray   = 37
 )
 
-var (
-	baseTimestamp time.Time
-	emptyFieldMap FieldMap
-)
+var baseTimestamp time.Time
 
 func init() ***REMOVED***
 	baseTimestamp = time.Now()
@@ -35,6 +33,14 @@ type TextFormatter struct ***REMOVED***
 
 	// Force disabling colors.
 	DisableColors bool
+
+	// Force quoting of all values
+	ForceQuote bool
+
+	// DisableQuote disables quoting for all values.
+	// DisableQuote will have a lower priority than ForceQuote.
+	// If both of them are set to true, quote will be forced on all values.
+	DisableQuote bool
 
 	// Override coloring based on CLICOLOR and CLICOLOR_FORCE. - https://bixense.com/clicolors/
 	EnvironmentOverrideColors bool
@@ -61,6 +67,10 @@ type TextFormatter struct ***REMOVED***
 	// Disables the truncation of the level text to 4 characters.
 	DisableLevelTruncation bool
 
+	// PadLevelText Adds padding the level text so that all the levels output at the same length
+	// PadLevelText is a superset of the DisableLevelTruncation option
+	PadLevelText bool
+
 	// QuoteEmptyFields will wrap empty fields in quotes if true
 	QuoteEmptyFields bool
 
@@ -76,28 +86,39 @@ type TextFormatter struct ***REMOVED***
 	//         FieldKeyMsg:   "@message"***REMOVED******REMOVED***
 	FieldMap FieldMap
 
+	// CallerPrettyfier can be set by the user to modify the content
+	// of the function and file keys in the data when ReportCaller is
+	// activated. If any of the returned value is the empty string the
+	// corresponding key will be removed from fields.
+	CallerPrettyfier func(*runtime.Frame) (function string, file string)
+
 	terminalInitOnce sync.Once
+
+	// The max length of the level text, generated dynamically on init
+	levelTextMaxLength int
 ***REMOVED***
 
 func (f *TextFormatter) init(entry *Entry) ***REMOVED***
 	if entry.Logger != nil ***REMOVED***
 		f.isTerminal = checkIfTerminal(entry.Logger.Out)
-
-		if f.isTerminal ***REMOVED***
-			initTerminal(entry.Logger.Out)
+	***REMOVED***
+	// Get the max length of the level text
+	for _, level := range AllLevels ***REMOVED***
+		levelTextLength := utf8.RuneCount([]byte(level.String()))
+		if levelTextLength > f.levelTextMaxLength ***REMOVED***
+			f.levelTextMaxLength = levelTextLength
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
 func (f *TextFormatter) isColored() bool ***REMOVED***
-	isColored := f.ForceColors || f.isTerminal
+	isColored := f.ForceColors || (f.isTerminal && (runtime.GOOS != "windows"))
 
 	if f.EnvironmentOverrideColors ***REMOVED***
-		if force, ok := os.LookupEnv("CLICOLOR_FORCE"); ok && force != "0" ***REMOVED***
+		switch force, ok := os.LookupEnv("CLICOLOR_FORCE"); ***REMOVED***
+		case ok && force != "0":
 			isColored = true
-		***REMOVED*** else if ok && force == "0" ***REMOVED***
-			isColored = false
-		***REMOVED*** else if os.Getenv("CLICOLOR") == "0" ***REMOVED***
+		case ok && force == "0", os.Getenv("CLICOLOR") == "0":
 			isColored = false
 		***REMOVED***
 	***REMOVED***
@@ -107,14 +128,19 @@ func (f *TextFormatter) isColored() bool ***REMOVED***
 
 // Format renders a single log entry
 func (f *TextFormatter) Format(entry *Entry) ([]byte, error) ***REMOVED***
-	prefixFieldClashes(entry.Data, f.FieldMap, entry.HasCaller())
-
-	keys := make([]string, 0, len(entry.Data))
-	for k := range entry.Data ***REMOVED***
+	data := make(Fields)
+	for k, v := range entry.Data ***REMOVED***
+		data[k] = v
+	***REMOVED***
+	prefixFieldClashes(data, f.FieldMap, entry.HasCaller())
+	keys := make([]string, 0, len(data))
+	for k := range data ***REMOVED***
 		keys = append(keys, k)
 	***REMOVED***
 
-	fixedKeys := make([]string, 0, 4+len(entry.Data))
+	var funcVal, fileVal string
+
+	fixedKeys := make([]string, 0, 4+len(data))
 	if !f.DisableTimestamp ***REMOVED***
 		fixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyTime))
 	***REMOVED***
@@ -126,8 +152,19 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) ***REMOVED***
 		fixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyLogrusError))
 	***REMOVED***
 	if entry.HasCaller() ***REMOVED***
-		fixedKeys = append(fixedKeys,
-			f.FieldMap.resolve(FieldKeyFunc), f.FieldMap.resolve(FieldKeyFile))
+		if f.CallerPrettyfier != nil ***REMOVED***
+			funcVal, fileVal = f.CallerPrettyfier(entry.Caller)
+		***REMOVED*** else ***REMOVED***
+			funcVal = entry.Caller.Function
+			fileVal = fmt.Sprintf("%s:%d", entry.Caller.File, entry.Caller.Line)
+		***REMOVED***
+
+		if funcVal != "" ***REMOVED***
+			fixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyFunc))
+		***REMOVED***
+		if fileVal != "" ***REMOVED***
+			fixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyFile))
+		***REMOVED***
 	***REMOVED***
 
 	if !f.DisableSorting ***REMOVED***
@@ -160,8 +197,9 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) ***REMOVED***
 		timestampFormat = defaultTimestampFormat
 	***REMOVED***
 	if f.isColored() ***REMOVED***
-		f.printColored(b, entry, keys, timestampFormat)
+		f.printColored(b, entry, keys, data, timestampFormat)
 	***REMOVED*** else ***REMOVED***
+
 		for _, key := range fixedKeys ***REMOVED***
 			var value interface***REMOVED******REMOVED***
 			switch ***REMOVED***
@@ -174,11 +212,11 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) ***REMOVED***
 			case key == f.FieldMap.resolve(FieldKeyLogrusError):
 				value = entry.err
 			case key == f.FieldMap.resolve(FieldKeyFunc) && entry.HasCaller():
-				value = entry.Caller.Function
+				value = funcVal
 			case key == f.FieldMap.resolve(FieldKeyFile) && entry.HasCaller():
-				value = fmt.Sprintf("%s:%d", entry.Caller.File, entry.Caller.Line)
+				value = fileVal
 			default:
-				value = entry.Data[key]
+				value = data[key]
 			***REMOVED***
 			f.appendKeyValue(b, key, value)
 		***REMOVED***
@@ -188,7 +226,7 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) ***REMOVED***
 	return b.Bytes(), nil
 ***REMOVED***
 
-func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []string, timestampFormat string) ***REMOVED***
+func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []string, data Fields, timestampFormat string) ***REMOVED***
 	var levelColor int
 	switch entry.Level ***REMOVED***
 	case DebugLevel, TraceLevel:
@@ -202,8 +240,17 @@ func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []strin
 	***REMOVED***
 
 	levelText := strings.ToUpper(entry.Level.String())
-	if !f.DisableLevelTruncation ***REMOVED***
+	if !f.DisableLevelTruncation && !f.PadLevelText ***REMOVED***
 		levelText = levelText[0:4]
+	***REMOVED***
+	if f.PadLevelText ***REMOVED***
+		// Generates the format string used in the next line, for example "%-6s" or "%-7s".
+		// Based on the max level text length.
+		formatString := "%-" + strconv.Itoa(f.levelTextMaxLength) + "s"
+		// Formats the level text by appending spaces up to the max length, for example:
+		// 	- "INFO   "
+		//	- "WARNING"
+		levelText = fmt.Sprintf(formatString, levelText)
 	***REMOVED***
 
 	// Remove a single newline if it already exists in the message to keep
@@ -211,29 +258,47 @@ func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []strin
 	entry.Message = strings.TrimSuffix(entry.Message, "\n")
 
 	caller := ""
-
 	if entry.HasCaller() ***REMOVED***
-		caller = fmt.Sprintf("%s:%d %s()",
-			entry.Caller.File, entry.Caller.Line, entry.Caller.Function)
+		funcVal := fmt.Sprintf("%s()", entry.Caller.Function)
+		fileVal := fmt.Sprintf("%s:%d", entry.Caller.File, entry.Caller.Line)
+
+		if f.CallerPrettyfier != nil ***REMOVED***
+			funcVal, fileVal = f.CallerPrettyfier(entry.Caller)
+		***REMOVED***
+
+		if fileVal == "" ***REMOVED***
+			caller = funcVal
+		***REMOVED*** else if funcVal == "" ***REMOVED***
+			caller = fileVal
+		***REMOVED*** else ***REMOVED***
+			caller = fileVal + " " + funcVal
+		***REMOVED***
 	***REMOVED***
 
-	if f.DisableTimestamp ***REMOVED***
+	switch ***REMOVED***
+	case f.DisableTimestamp:
 		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m%s %-44s ", levelColor, levelText, caller, entry.Message)
-	***REMOVED*** else if !f.FullTimestamp ***REMOVED***
+	case !f.FullTimestamp:
 		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%04d]%s %-44s ", levelColor, levelText, int(entry.Time.Sub(baseTimestamp)/time.Second), caller, entry.Message)
-	***REMOVED*** else ***REMOVED***
+	default:
 		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s]%s %-44s ", levelColor, levelText, entry.Time.Format(timestampFormat), caller, entry.Message)
 	***REMOVED***
 	for _, k := range keys ***REMOVED***
-		v := entry.Data[k]
+		v := data[k]
 		fmt.Fprintf(b, " \x1b[%dm%s\x1b[0m=", levelColor, k)
 		f.appendValue(b, v)
 	***REMOVED***
 ***REMOVED***
 
 func (f *TextFormatter) needsQuoting(text string) bool ***REMOVED***
+	if f.ForceQuote ***REMOVED***
+		return true
+	***REMOVED***
 	if f.QuoteEmptyFields && len(text) == 0 ***REMOVED***
 		return true
+	***REMOVED***
+	if f.DisableQuote ***REMOVED***
+		return false
 	***REMOVED***
 	for _, ch := range text ***REMOVED***
 		if !((ch >= 'a' && ch <= 'z') ||
