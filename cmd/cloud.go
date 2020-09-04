@@ -252,9 +252,17 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 		)
 		maxDuration, _ = lib.GetEndOffset(executionPlan)
 
-		testProgress := &cloud.TestProgressResponse***REMOVED******REMOVED***
+		testProgressLock := &sync.Mutex***REMOVED******REMOVED***
+		var testProgress *cloud.TestProgressResponse
 		progressBar.Modify(
 			pb.WithProgress(func() (float64, []string) ***REMOVED***
+				testProgressLock.Lock()
+				defer testProgressLock.Unlock()
+
+				if testProgress == nil ***REMOVED***
+					return 0, []string***REMOVED***"Waiting..."***REMOVED***
+				***REMOVED***
+
 				statusText := testProgress.RunStatusText
 
 				if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
@@ -273,7 +281,6 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 			***REMOVED***),
 		)
 
-		var progressErr error
 		ticker := time.NewTicker(time.Millisecond * 2000)
 		shouldExitLoop := false
 		if showCloudLogs ***REMOVED***
@@ -290,11 +297,15 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 		for ***REMOVED***
 			select ***REMOVED***
 			case <-ticker.C:
-				testProgress, progressErr = client.GetTestProgress(refID)
+				newTestProgress, progressErr := client.GetTestProgress(refID)
 				if progressErr == nil ***REMOVED***
-					if (testProgress.RunStatus > lib.RunStatusRunning) || (exitOnRunning && testProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
+					if (newTestProgress.RunStatus > lib.RunStatusRunning) ||
+						(exitOnRunning && newTestProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
 						shouldExitLoop = true
 					***REMOVED***
+					testProgressLock.Lock()
+					testProgress = newTestProgress
+					testProgressLock.Unlock()
 				***REMOVED*** else ***REMOVED***
 					logger.WithError(progressErr).Error("Test progress error")
 				***REMOVED***
