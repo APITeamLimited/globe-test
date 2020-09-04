@@ -71,19 +71,16 @@ func TestRenderMultipleBars(t *testing.T) ***REMOVED***
 left 0   [--------------------------------------] right 0  000
 left 1 ✓ [======================================] right 1  000
 left 2   [--------------------------------------] right 2  000
-
 `, 62***REMOVED***,
 		***REMOVED***"pad2", 2, 0, `
 left 0     [--------------------------------------] right 0    000
 left 1++ ✓ [======================================] right 1++  000
 left 2     [--------------------------------------] right 2    000
-
 `, 66***REMOVED***,
 		***REMOVED***"pad0compact", 0, -50, `
 left 0   [   0% ] right 0  000
 left 1 ✓ [ 100% ] right 1  000
 left 2   [   0% ] right 2  000
-
 `, 30***REMOVED***,
 	***REMOVED***
 
