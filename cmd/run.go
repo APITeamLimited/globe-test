@@ -102,11 +102,7 @@ a commandline interface for interacting with it.`,
 		// TODO: disable in quiet mode?
 		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner())
 
-		initBar := pb.New(
-			pb.WithConstLeft(" Init"),
-			pb.WithConstProgress(0, "runner"),
-		)
-		printBar(initBar)
+		logger.Debug("Initializing the runner...")
 
 		// Create the Runner.
 		pwd, err := os.Getwd()
@@ -130,7 +126,7 @@ a commandline interface for interacting with it.`,
 			return err
 		***REMOVED***
 
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "options"))
+		logger.Debug("Getting the script options...")
 
 		cliConf, err := getConfig(cmd.Flags())
 		if err != nil ***REMOVED***
@@ -169,7 +165,7 @@ a commandline interface for interacting with it.`,
 		defer runCancel()
 
 		// Create a local execution scheduler wrapping the runner.
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "execution scheduler"))
+		logger.Debug("Initializing the execution scheduler...")
 		execScheduler, err := local.NewExecutionScheduler(r, logger)
 		if err != nil ***REMOVED***
 			return err
@@ -183,7 +179,7 @@ a commandline interface for interacting with it.`,
 		// state one last time, after the test run has finished.
 		progressCtx, progressCancel := context.WithCancel(globalCtx)
 		defer progressCancel()
-		initBar = execScheduler.GetInitProgressBar()
+		initBar := execScheduler.GetInitProgressBar()
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
 		go func() ***REMOVED***
@@ -196,7 +192,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***()
 
 		// Create an engine.
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init engine"))
+		initBar.Modify(pb.WithConstProgress(0, "Init engine"))
 		engine, err := core.NewEngine(execScheduler, conf.Options, logger)
 		if err != nil ***REMOVED***
 			return err
@@ -216,7 +212,7 @@ a commandline interface for interacting with it.`,
 
 		executionPlan := execScheduler.GetExecutionPlan()
 		// Create a collector and assign it to the engine if requested.
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init metric outputs"))
+		initBar.Modify(pb.WithConstProgress(0, "Init metric outputs"))
 		for _, out := range conf.Out ***REMOVED***
 			t, arg := parseCollector(out)
 			collector, cerr := newCollector(logger, t, arg, src, conf, executionPlan)
@@ -231,7 +227,7 @@ a commandline interface for interacting with it.`,
 
 		// Spin up the REST API server, if not disabled.
 		if address != "" ***REMOVED***
-			modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init API server"))
+			initBar.Modify(pb.WithConstProgress(0, "Init API server"))
 			go func() ***REMOVED***
 				logger.Debugf("Starting the REST API server on %s", address)
 				if aerr := api.ListenAndServe(address, engine, logger); aerr != nil ***REMOVED***
@@ -268,7 +264,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***()
 
 		// Initialize the engine
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Init VUs"))
+		initBar.Modify(pb.WithConstProgress(0, "Init VUs..."))
 		engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
 		if err != nil ***REMOVED***
 			return getExitCodeFromEngine(err)
@@ -292,7 +288,7 @@ a commandline interface for interacting with it.`,
 		***REMOVED***
 
 		// Start the test run
-		modifyAndPrintBar(initBar, pb.WithConstProgress(0, "Start test"))
+		initBar.Modify(pb.WithConstProgress(0, "Starting test..."))
 		if err := engineRun(); err != nil ***REMOVED***
 			return getExitCodeFromEngine(err)
 		***REMOVED***
