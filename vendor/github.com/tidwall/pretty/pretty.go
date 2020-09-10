@@ -186,7 +186,7 @@ func appendPrettyObject(buf, json []byte, i int, open, close byte, pretty bool, 
 		if open == '[' || json[i] == '"' ***REMOVED***
 			if n > 0 ***REMOVED***
 				buf = append(buf, ',')
-				if width != -1 ***REMOVED***
+				if width != -1 && open == '[' ***REMOVED***
 					buf = append(buf, ' ')
 				***REMOVED***
 			***REMOVED***
@@ -318,21 +318,25 @@ func hexp(p byte) byte ***REMOVED***
 ***REMOVED***
 
 // TerminalStyle is for terminals
-var TerminalStyle = &Style***REMOVED***
-	Key:    [2]string***REMOVED***"\x1B[94m", "\x1B[0m"***REMOVED***,
-	String: [2]string***REMOVED***"\x1B[92m", "\x1B[0m"***REMOVED***,
-	Number: [2]string***REMOVED***"\x1B[93m", "\x1B[0m"***REMOVED***,
-	True:   [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
-	False:  [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
-	Null:   [2]string***REMOVED***"\x1B[91m", "\x1B[0m"***REMOVED***,
-	Append: func(dst []byte, c byte) []byte ***REMOVED***
-		if c < ' ' && (c != '\r' && c != '\n' && c != '\t' && c != '\v') ***REMOVED***
-			dst = append(dst, "\\u00"...)
-			dst = append(dst, hexp((c>>4)&0xF))
-			return append(dst, hexp((c)&0xF))
-		***REMOVED***
-		return append(dst, c)
-	***REMOVED***,
+var TerminalStyle *Style
+
+func init() ***REMOVED***
+	TerminalStyle = &Style***REMOVED***
+		Key:    [2]string***REMOVED***"\x1B[94m", "\x1B[0m"***REMOVED***,
+		String: [2]string***REMOVED***"\x1B[92m", "\x1B[0m"***REMOVED***,
+		Number: [2]string***REMOVED***"\x1B[93m", "\x1B[0m"***REMOVED***,
+		True:   [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
+		False:  [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
+		Null:   [2]string***REMOVED***"\x1B[91m", "\x1B[0m"***REMOVED***,
+		Append: func(dst []byte, c byte) []byte ***REMOVED***
+			if c < ' ' && (c != '\r' && c != '\n' && c != '\t' && c != '\v') ***REMOVED***
+				dst = append(dst, "\\u00"...)
+				dst = append(dst, hexp((c>>4)&0xF))
+				return append(dst, hexp((c)&0xF))
+			***REMOVED***
+			return append(dst, c)
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 // Color will colorize the json. The style parma is used for customizing

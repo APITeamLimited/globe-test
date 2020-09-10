@@ -55,6 +55,9 @@ Prichard
 
 ## Path Syntax
 
+Below is a quick overview of the path syntax, for more complete information please
+check out [GJSON Syntax](SYNTAX.md).
+
 A path is a series of keys separated by a dot.
 A key may contain special wildcard characters '\*' and '?'.
 To access an array value use the index as the key.
@@ -68,9 +71,9 @@ The dot and wildcard characters can be escaped with '\\'.
   "children": ["Sara","Alex","Jack"],
   "fav.movie": "Deer Hunter",
   "friends": [
-    ***REMOVED***"first": "Dale", "last": "Murphy", "age": 44***REMOVED***,
-    ***REMOVED***"first": "Roger", "last": "Craig", "age": 68***REMOVED***,
-    ***REMOVED***"first": "Jane", "last": "Murphy", "age": 47***REMOVED***
+    ***REMOVED***"first": "Dale", "last": "Murphy", "age": 44, "nets": ["ig", "fb", "tw"]***REMOVED***,
+    ***REMOVED***"first": "Roger", "last": "Craig", "age": 68, "nets": ["fb", "tw"]***REMOVED***,
+    ***REMOVED***"first": "Jane", "last": "Murphy", "age": 47, "nets": ["ig", "tw"]***REMOVED***
   ]
 ***REMOVED***
 ```
@@ -87,45 +90,24 @@ The dot and wildcard characters can be escaped with '\\'.
 "friends.1.last"     >> "Craig"
 ```
 
-You can also query an array for the first match by using `#[...]`, or find all matches with `#[...]#`. 
-Queries support the `==`, `!=`, `<`, `<=`, `>`, `>=` comparison operators and the simple pattern matching `%` operator.
+You can also query an array for the first match by using `#(...)`, or find all 
+matches with `#(...)#`. Queries support the `==`, `!=`, `<`, `<=`, `>`, `>=` 
+comparison operators and the simple pattern matching `%` (like) and `!%` 
+(not like) operators.
 
 ```
-friends.#[last=="Murphy"].first    >> "Dale"
-friends.#[last=="Murphy"]#.first   >> ["Dale","Jane"]
-friends.#[age>45]#.last            >> ["Craig","Murphy"]
-friends.#[first%"D*"].last         >> "Murphy"
+friends.#(last=="Murphy").first    >> "Dale"
+friends.#(last=="Murphy")#.first   >> ["Dale","Jane"]
+friends.#(age>45)#.last            >> ["Craig","Murphy"]
+friends.#(first%"D*").last         >> "Murphy"
+friends.#(first!%"D*").last        >> "Craig"
+friends.#(nets.#(=="fb"))#.first   >> ["Dale","Roger"]
 ```
 
-## JSON Lines
-
-There's support for [JSON Lines](http://jsonlines.org/) using the `..` prefix, which treats a multilined document as an array. 
-
-For example:
-
-```
-***REMOVED***"name": "Gilbert", "age": 61***REMOVED***
-***REMOVED***"name": "Alexa", "age": 34***REMOVED***
-***REMOVED***"name": "May", "age": 57***REMOVED***
-***REMOVED***"name": "Deloise", "age": 44***REMOVED***
-```
-
-```
-..#                   >> 4
-..1                   >> ***REMOVED***"name": "Alexa", "age": 34***REMOVED***
-..3                   >> ***REMOVED***"name": "Deloise", "age": 44***REMOVED***
-..#.name              >> ["Gilbert","Alexa","May","Deloise"]
-..#[name="May"].age   >> 57
-```
-
-The `ForEachLines` function will iterate through JSON lines.
-
-```go
-gjson.ForEachLine(json, func(line gjson.Result) bool***REMOVED***
-    println(line.String())
-    return true
-***REMOVED***)
-```
+*Please note that prior to v1.3.0, queries used the `#[...]` brackets. This was
+changed in v1.3.0 as to avoid confusion with the new
+[multipath](SYNTAX.md#multipaths) syntax. For backwards compatibility, 
+`#[...]` will continue to work until the next major release.*
 
 ## Result Type
 
@@ -193,6 +175,118 @@ result.Int() int64    // -9223372036854775808 to 9223372036854775807
 result.Uint() int64   // 0 to 18446744073709551615
 ```
 
+## Modifiers and path chaining 
+
+New in version 1.2 is support for modifier functions and path chaining.
+
+A modifier is a path component that performs custom processing on the 
+json.
+
+Multiple paths can be "chained" together using the pipe character. 
+This is useful for getting results from a modified query.
+
+For example, using the built-in `@reverse` modifier on the above json document,
+we'll get `children` array and reverse the order:
+
+```
+"children|@reverse"           >> ["Jack","Alex","Sara"]
+"children|@reverse|0"         >> "Jack"
+```
+
+There are currently the following built-in modifiers:
+
+- `@reverse`: Reverse an array or the members of an object.
+- `@ugly`: Remove all whitespace from a json document.
+- `@pretty`: Make the json document more human readable.
+- `@this`: Returns the current element. It can be used to retrieve the root element.
+- `@valid`: Ensure the json document is valid.
+- `@flatten`: Flattens an array.
+- `@join`: Joins multiple objects into a single object.
+
+### Modifier arguments
+
+A modifier may accept an optional argument. The argument can be a valid JSON 
+document or just characters.
+
+For example, the `@pretty` modifier takes a json object as its argument. 
+
+```
+@pretty:***REMOVED***"sortKeys":true***REMOVED*** 
+```
+
+Which makes the json pretty and orders all of its keys.
+
+```json
+***REMOVED***
+  "age":37,
+  "children": ["Sara","Alex","Jack"],
+  "fav.movie": "Deer Hunter",
+  "friends": [
+    ***REMOVED***"age": 44, "first": "Dale", "last": "Murphy"***REMOVED***,
+    ***REMOVED***"age": 68, "first": "Roger", "last": "Craig"***REMOVED***,
+    ***REMOVED***"age": 47, "first": "Jane", "last": "Murphy"***REMOVED***
+  ],
+  "name": ***REMOVED***"first": "Tom", "last": "Anderson"***REMOVED***
+***REMOVED***
+```
+
+*The full list of `@pretty` options are `sortKeys`, `indent`, `prefix`, and `width`. 
+Please see [Pretty Options](https://github.com/tidwall/pretty#customized-output) for more information.*
+
+### Custom modifiers
+
+You can also add custom modifiers.
+
+For example, here we create a modifier that makes the entire json document upper
+or lower case.
+
+```go
+gjson.AddModifier("case", func(json, arg string) string ***REMOVED***
+  if arg == "upper" ***REMOVED***
+    return strings.ToUpper(json)
+  ***REMOVED***
+  if arg == "lower" ***REMOVED***
+    return strings.ToLower(json)
+  ***REMOVED***
+  return json
+***REMOVED***)
+```
+
+```
+"children|@case:upper"           >> ["SARA","ALEX","JACK"]
+"children|@case:lower|@reverse"  >> ["jack","alex","sara"]
+```
+
+## JSON Lines
+
+There's support for [JSON Lines](http://jsonlines.org/) using the `..` prefix, which treats a multilined document as an array. 
+
+For example:
+
+```
+***REMOVED***"name": "Gilbert", "age": 61***REMOVED***
+***REMOVED***"name": "Alexa", "age": 34***REMOVED***
+***REMOVED***"name": "May", "age": 57***REMOVED***
+***REMOVED***"name": "Deloise", "age": 44***REMOVED***
+```
+
+```
+..#                   >> 4
+..1                   >> ***REMOVED***"name": "Alexa", "age": 34***REMOVED***
+..3                   >> ***REMOVED***"name": "Deloise", "age": 44***REMOVED***
+..#.name              >> ["Gilbert","Alexa","May","Deloise"]
+..#(name="May").age   >> 57
+```
+
+The `ForEachLines` function will iterate through JSON lines.
+
+```go
+gjson.ForEachLine(json, func(line gjson.Result) bool***REMOVED***
+    println(line.String())
+    return true
+***REMOVED***)
+```
+
 ## Get nested array values
 
 Suppose you want all the last names from the following json:
@@ -226,7 +320,7 @@ for _, name := range result.Array() ***REMOVED***
 You can also query an object inside an array:
 
 ```go
-name := gjson.Get(json, `programmers.#[lastName="Hunter"].firstName`)
+name := gjson.Get(json, `programmers.#(lastName="Hunter").firstName`)
 println(name.String())  // prints "Elliotte"
 ```
 
