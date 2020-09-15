@@ -235,10 +235,17 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		tags[k] = v
 	***REMOVED***
 
+	if state.Options.SystemTags.Has(stats.TagMethod) ***REMOVED***
+		tags["method"] = preq.Req.Method
+	***REMOVED***
+	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
+		tags["url"] = preq.URL.Clean()
+	***REMOVED***
+
 	// Only set the name system tag if the user didn't explicitly set it beforehand,
 	// and the Name was generated from a tagged template string (via http.url).
 	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(stats.TagName) &&
-		preq.URL.Name != preq.URL.CleanURL ***REMOVED***
+		preq.URL.Name != preq.URL.Clean() ***REMOVED***
 		tags["name"] = preq.URL.Name
 	***REMOVED***
 

@@ -181,7 +181,10 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	state := &lib.State***REMOVED***
-		Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
+		Options: lib.Options***REMOVED***
+			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
 		Transport: srv.Client().Transport,
 		Samples:   samples,
 		Logger:    logger,
@@ -190,7 +193,7 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	req, _ := http.NewRequest("GET", srv.URL, nil)
 	var preq = &ParsedHTTPRequest***REMOVED***
 		Req:     req,
-		URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+		URL:     &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
 		Body:    new(bytes.Buffer),
 		Timeout: 10 * time.Millisecond,
 	***REMOVED***
@@ -199,6 +202,20 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Len(t, samples, 1)
+	sampleCont := <-samples
+	allSamples := sampleCont.GetSamples()
+	require.Len(t, allSamples, 8)
+	expTags := map[string]string***REMOVED***
+		"error":      "context deadline exceeded",
+		"error_code": "1000",
+		"status":     "0",
+		"method":     "GET",
+		"url":        srv.URL,
+		"name":       "",
+	***REMOVED***
+	for _, s := range allSamples ***REMOVED***
+		assert.Equal(t, expTags, s.Tags.CloneTags())
+	***REMOVED***
 ***REMOVED***
 
 func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***
