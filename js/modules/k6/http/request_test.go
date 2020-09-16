@@ -1817,6 +1817,51 @@ func TestNoResponseBodyMangling(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 ***REMOVED***
 
+func TestRedirectMetricTags(t *testing.T) ***REMOVED***
+	tb, _, samples, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	tb.Mux.HandleFunc("/redirect/post", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		http.Redirect(w, r, "/get", http.StatusMovedPermanently)
+	***REMOVED***))
+
+	sr := tb.Replacer.Replace
+	script := sr(`
+		http.post("HTTPBIN_URL/redirect/post", ***REMOVED***data: "some data"***REMOVED***);
+	`)
+
+	_, err := common.RunString(rt, script)
+	require.NoError(t, err)
+
+	require.Len(t, samples, 2)
+
+	checkTags := func(sc stats.SampleContainer, expTags map[string]string) ***REMOVED***
+		allSamples := sc.GetSamples()
+		assert.Len(t, allSamples, 8)
+		for _, s := range allSamples ***REMOVED***
+			assert.Equal(t, expTags, s.Tags.CloneTags())
+		***REMOVED***
+	***REMOVED***
+	expPOSTtags := map[string]string***REMOVED***
+		"group":  "",
+		"method": "POST",
+		"url":    sr("HTTPBIN_URL/redirect/post"),
+		"name":   sr("HTTPBIN_URL/redirect/post"),
+		"status": "301",
+		"proto":  "HTTP/1.1",
+	***REMOVED***
+	expGETtags := map[string]string***REMOVED***
+		"group":  "",
+		"method": "GET",
+		"url":    sr("HTTPBIN_URL/get"),
+		"name":   sr("HTTPBIN_URL/get"),
+		"status": "200",
+		"proto":  "HTTP/1.1",
+	***REMOVED***
+	checkTags(<-samples, expPOSTtags)
+	checkTags(<-samples, expGETtags)
+***REMOVED***
+
 func BenchmarkHandlingOfResponseBodies(b *testing.B) ***REMOVED***
 	tb, state, samples, rt, _ := newRuntime(b)
 	defer tb.Cleanup()
