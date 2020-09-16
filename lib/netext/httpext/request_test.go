@@ -211,7 +211,7 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 		"status":     "0",
 		"method":     "GET",
 		"url":        srv.URL,
-		"name":       "",
+		"name":       srv.URL,
 	***REMOVED***
 	for _, s := range allSamples ***REMOVED***
 		assert.Equal(t, expTags, s.Tags.CloneTags())
