@@ -931,6 +931,35 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				***REMOVED***)
 			***REMOVED***
 
+			t.Run("name/none", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, sr(`
+					var res = http.request("GET", "HTTPBIN_URL/headers");
+					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+					sr("HTTPBIN_URL/headers"), sr("HTTPBIN_URL/headers"), 200, "")
+			***REMOVED***)
+
+			t.Run("name/request", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, sr(`
+					var res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED*** tags: ***REMOVED*** name: "myReq" ***REMOVED******REMOVED***);
+					if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+					sr("HTTPBIN_URL/headers"), "myReq", 200, "")
+			***REMOVED***)
+
+			t.Run("name/template", func(t *testing.T) ***REMOVED***
+				_, err := runES6String(t, rt, "http.get(http.url`"+sr(`HTTPBIN_URL/anything/$***REMOVED***1+1***REMOVED***`)+"`);")
+				assert.NoError(t, err)
+				// There's no /anything endpoint in the go-httpbin library we're using, hence the 404,
+				// but it doesn't matter for this test.
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET",
+					sr("HTTPBIN_URL/anything/2"), sr("HTTPBIN_URL/anything/$***REMOVED******REMOVED***"), 404, "")
+			***REMOVED***)
+
 			t.Run("object", func(t *testing.T) ***REMOVED***
 				_, err := common.RunString(rt, sr(`
 				var res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED*** tags: ***REMOVED*** tag: "value" ***REMOVED*** ***REMOVED***);
