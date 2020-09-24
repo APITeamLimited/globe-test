@@ -50,6 +50,7 @@ type lokiHook struct ***REMOVED***
 	fallbackLogger logrus.FieldLogger
 	profile        bool
 	droppedLabels  map[string]string
+	droppedMsg     string
 ***REMOVED***
 
 func getDefaultLoki() *lokiHook ***REMOVED***
@@ -61,6 +62,7 @@ func getDefaultLoki() *lokiHook ***REMOVED***
 		msgMaxSize:    1024 * 1024, // 1mb
 		ch:            make(chan *logrus.Entry, 1000),
 		allowedLabels: nil,
+		droppedMsg:    "k6 dropped %d log messages because they were above the limit of %d messages / %s",
 	***REMOVED***
 ***REMOVED***
 
@@ -89,17 +91,8 @@ func LokiFromConfigLine(ctx context.Context, fallbackLogger logrus.FieldLogger, 
 	for _, params := range h.labels ***REMOVED***
 		h.droppedLabels[params[0]] = params[1]
 	***REMOVED***
-	if h.allowedLabels != nil ***REMOVED***
-	outer:
-		for key := range h.droppedLabels ***REMOVED***
-			for _, label := range h.allowedLabels ***REMOVED***
-				if key == label ***REMOVED***
-					continue outer
-				***REMOVED***
-			***REMOVED***
-			delete(h.droppedLabels, key)
-		***REMOVED***
-	***REMOVED***
+
+	h.droppedMsg = h.filterLabels(h.droppedLabels, h.droppedMsg)
 
 	h.client = &http.Client***REMOVED***Timeout: h.pushPeriod***REMOVED***
 
@@ -318,19 +311,7 @@ func (h *lokiHook) loop() ***REMOVED***
 				labels[params[0]] = params[1]
 			***REMOVED***
 			labels["level"] = entry.Level.String()
-			msg := entry.Message
-			if h.allowedLabels != nil ***REMOVED*** // TODO we can do this while constructing
-			outer:
-				for key, value := range labels ***REMOVED***
-					for _, label := range h.allowedLabels ***REMOVED***
-						if label == key ***REMOVED***
-							continue outer
-						***REMOVED***
-					***REMOVED***
-					delete(labels, key)
-					msg += " " + key + ":" + value // TODO stringbuilder
-				***REMOVED***
-			***REMOVED***
+			msg := h.filterLabels(labels, entry.Message) // TODO we can do this while constructing
 			// have the cutoff here ?
 			// if we cutoff here we can cut somewhat on the backbuffers and optimize the inserting
 			// in/creating of the final Streams that we push
@@ -354,6 +335,34 @@ func (h *lokiHook) loop() ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (h *lokiHook) filterLabels(labels map[string]string, msg string) string ***REMOVED***
+	if h.allowedLabels == nil ***REMOVED***
+		return msg
+	***REMOVED***
+	var b strings.Builder                  // TODO reuse
+	keys := make([]string, 0, len(labels)) // TODO reuse
+	for key := range labels ***REMOVED***
+		keys = append(keys, key)
+	***REMOVED***
+	sort.Strings(keys)
+	b.WriteString(msg)
+outer:
+	for _, key := range keys ***REMOVED***
+		for _, label := range h.allowedLabels ***REMOVED***
+			if label == key ***REMOVED***
+				continue outer
+			***REMOVED***
+		***REMOVED***
+		b.WriteRune(' ')
+		b.WriteString(key)
+		b.WriteRune('=')
+		b.WriteString(labels[key])
+		delete(labels, key)
+	***REMOVED***
+
+	return b.String()
 ***REMOVED***
 
 func sortAndSplitMsgs(msgs []tmpMsg, cutOff int64) int ***REMOVED***
@@ -383,9 +392,8 @@ func (h *lokiHook) createPushMessage(msgs []tmpMsg, cutOffIndex, dropped int) *l
 	if dropped != 0 ***REMOVED***
 		msg := tmpMsg***REMOVED***
 			labels: h.droppedLabels,
-			msg: fmt.Sprintf("k6 dropped %d log messages because they were above the limit of %d messages / %s",
-				dropped, h.limit, h.pushPeriod),
-			t: msgs[cutOffIndex-1].t,
+			msg:    fmt.Sprintf(h.droppedMsg, dropped, h.limit, h.pushPeriod),
+			t:      msgs[cutOffIndex-1].t,
 		***REMOVED***
 		pushMsg.add(msg)
 	***REMOVED***
