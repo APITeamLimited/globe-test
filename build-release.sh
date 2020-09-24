@@ -40,10 +40,9 @@ package() ***REMOVED***
     echo "- Creating $***REMOVED***NAME***REMOVED***.$***REMOVED***FMT***REMOVED*** package..."
     case $FMT in
     deb|rpm)
-        fpm --force --verbose --name=k6 --version="$VERSION" \
-            --vendor=k6 --license=AGPLv3 --url="https://k6.io/" \
-            --input-type=dir --output-type="$FMT" \
-            --package="$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***.$***REMOVED***FMT***REMOVED***" "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***/k6=/usr/bin/"
+        # The go-bin-* tools expect the binary in /tmp/
+        [ ! -r /tmp/k6 ] && cp "dist/$***REMOVED***NAME***REMOVED***/k6" /tmp/k6
+        "go-bin-$***REMOVED***FMT***REMOVED***" generate --file "packaging/$***REMOVED***FMT***REMOVED***.json" -a amd64 --version $VERSION -o "dist/k6-v$***REMOVED***VERSION***REMOVED***-amd64.$***REMOVED***FMT***REMOVED***"
         ;;
     tgz)
         tar -C "$***REMOVED***OUT_DIR***REMOVED***" -zcf "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***.tar.gz" "$NAME"
