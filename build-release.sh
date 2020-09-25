@@ -41,8 +41,9 @@ package() ***REMOVED***
     case $FMT in
     deb|rpm)
         # The go-bin-* tools expect the binary in /tmp/
-        [ ! -r /tmp/k6 ] && cp "dist/$***REMOVED***NAME***REMOVED***/k6" /tmp/k6
-        "go-bin-$***REMOVED***FMT***REMOVED***" generate --file "packaging/$***REMOVED***FMT***REMOVED***.json" -a amd64 --version $VERSION -o "dist/k6-v$***REMOVED***VERSION***REMOVED***-amd64.$***REMOVED***FMT***REMOVED***"
+        [ ! -r /tmp/k6 ] && cp "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***/k6" /tmp/k6
+        "go-bin-$***REMOVED***FMT***REMOVED***" generate --file "packaging/$***REMOVED***FMT***REMOVED***.json" -a amd64 \
+            --version "$***REMOVED***VERSION#v***REMOVED***" -o "$***REMOVED***OUT_DIR***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.$***REMOVED***FMT***REMOVED***"
         ;;
     tgz)
         tar -C "$***REMOVED***OUT_DIR***REMOVED***" -zcf "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***.tar.gz" "$NAME"
@@ -70,7 +71,7 @@ checksum() ***REMOVED***
 
     echo "--- Generating checksum file..."
     rm -f "$***REMOVED***OUT_DIR***REMOVED***/$CHECKSUM_FILE"
-    (cd "$OUT_DIR" && find * -maxdepth 0 -type f | xargs "$***REMOVED***CHECKSUM_CMD[@]***REMOVED***" > "$CHECKSUM_FILE")
+    (cd "$OUT_DIR" && find . -maxdepth 1 -type f -printf '%P\n' | sort | xargs "$***REMOVED***CHECKSUM_CMD[@]***REMOVED***" > "$CHECKSUM_FILE")
 ***REMOVED***
 
 cleanup() ***REMOVED***
