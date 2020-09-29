@@ -294,8 +294,10 @@ func (h *lokiHook) filterLabels(labels map[string]string, msg string) string ***
 	if h.allowedLabels == nil ***REMOVED***
 		return msg
 	***REMOVED***
-	var b strings.Builder                  // TODO reuse
-	keys := make([]string, 0, len(labels)) // TODO reuse
+	// TODO both can be reused as under load this will just generate a lot of *probably* fairly
+	// similar objects.
+	var b strings.Builder
+	keys := make([]string, 0, len(labels))
 	for key := range labels ***REMOVED***
 		keys = append(keys, key)
 	***REMOVED***
