@@ -190,3 +190,46 @@ func TestLogEntryMarshal(t *testing.T) ***REMOVED***
 
 	require.Equal(t, expected, s)
 ***REMOVED***
+
+func TestFilterLabels(t *testing.T) ***REMOVED***
+	cases := []struct ***REMOVED***
+		allowedLabels  []string
+		labels         map[string]string
+		expectedLabels map[string]string
+		msg            string
+		result         string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			allowedLabels:  []string***REMOVED***"a", "b"***REMOVED***,
+			labels:         map[string]string***REMOVED***"a": "1", "b": "2", "d": "3", "c": "4", "e": "5"***REMOVED***,
+			expectedLabels: map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***,
+			msg:            "some msg",
+			result:         "some msg c=4 d=3 e=5",
+		***REMOVED***,
+		***REMOVED***
+			allowedLabels:  []string***REMOVED***"a", "b"***REMOVED***,
+			labels:         map[string]string***REMOVED***"d": "3", "c": "4", "e": "5"***REMOVED***,
+			expectedLabels: map[string]string***REMOVED******REMOVED***,
+			msg:            "some msg",
+			result:         "some msg c=4 d=3 e=5",
+		***REMOVED***,
+		***REMOVED***
+			allowedLabels:  []string***REMOVED***"a", "b"***REMOVED***,
+			labels:         map[string]string***REMOVED***"a": "1", "d": "3", "c": "4", "e": "5"***REMOVED***,
+			expectedLabels: map[string]string***REMOVED***"a": "1"***REMOVED***,
+			msg:            "some msg",
+			result:         "some msg c=4 d=3 e=5",
+		***REMOVED***,
+	***REMOVED***
+
+	for i, c := range cases ***REMOVED***
+		c := c
+		t.Run(fmt.Sprint(i), func(t *testing.T) ***REMOVED***
+			h := &lokiHook***REMOVED******REMOVED***
+			h.allowedLabels = c.allowedLabels
+			result := h.filterLabels(c.labels, c.msg)
+			assert.Equal(t, c.result, result)
+			assert.Equal(t, c.expectedLabels, c.labels)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
