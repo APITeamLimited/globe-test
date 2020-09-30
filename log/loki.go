@@ -43,83 +43,108 @@ type lokiHook struct ***REMOVED***
 	limit          int
 	msgMaxSize     int
 	levels         []logrus.Level
+	allowedLabels  []string
 	pushPeriod     time.Duration
 	client         *http.Client
 	ctx            context.Context
 	fallbackLogger logrus.FieldLogger
 	profile        bool
+	droppedLabels  map[string]string
+	droppedMsg     string
+***REMOVED***
+
+func getDefaultLoki() *lokiHook ***REMOVED***
+	return &lokiHook***REMOVED***
+		addr:          "http://127.0.0.1:3100/loki/api/v1/push",
+		limit:         100,
+		levels:        logrus.AllLevels,
+		pushPeriod:    time.Second * 1,
+		msgMaxSize:    1024 * 1024, // 1mb
+		ch:            make(chan *logrus.Entry, 1000),
+		allowedLabels: nil,
+		droppedMsg:    "k6 dropped %d log messages because they were above the limit of %d messages / %s",
+	***REMOVED***
 ***REMOVED***
 
 // LokiFromConfigLine returns a new logrus.Hook that pushes logrus.Entrys to loki and is configured
 // through the provided line
 //nolint:funlen
 func LokiFromConfigLine(ctx context.Context, fallbackLogger logrus.FieldLogger, line string) (logrus.Hook, error) ***REMOVED***
-	h := &lokiHook***REMOVED***
-		addr:           "http://127.0.0.1:3100/loki/api/v1/push",
-		limit:          100,
-		levels:         logrus.AllLevels,
-		pushPeriod:     time.Second * 1,
-		ctx:            ctx,
-		msgMaxSize:     1024 * 1024, // 1mb
-		ch:             make(chan *logrus.Entry, 1000),
-		fallbackLogger: fallbackLogger,
-	***REMOVED***
-	if line == "loki" ***REMOVED***
-		return h, nil
-	***REMOVED***
+	h := getDefaultLoki()
 
-	parts := strings.SplitN(line, "=", 2)
-	if parts[0] != "loki" ***REMOVED***
-		return nil, fmt.Errorf("loki configuration should be in the form `loki=url-to-push` but is `%s`", line)
-	***REMOVED***
-	args := strings.Split(parts[1], ",")
-	h.addr = args[0]
-	// TODO use something better ... maybe
-	// https://godoc.org/github.com/kubernetes/helm/pkg/strvals
-	// atleast until https://github.com/loadimpact/k6/issues/926?
-	if len(args) == 1 ***REMOVED***
-		return h, nil
-	***REMOVED***
+	h.ctx = ctx
+	h.fallbackLogger = fallbackLogger
 
-	for _, arg := range args[1:] ***REMOVED***
-		paramParts := strings.SplitN(arg, "=", 2)
-
-		if len(paramParts) != 2 ***REMOVED***
-			return nil, fmt.Errorf("loki arguments should be in the form `address,key1=value1,key2=value2`, got %s", arg)
+	if line != "loki" ***REMOVED***
+		parts := strings.SplitN(line, "=", 2)
+		if parts[0] != "loki" ***REMOVED***
+			return nil, fmt.Errorf("loki configuration should be in the form `loki=url-to-push` but is `%s`", line)
 		***REMOVED***
 
-		key, value := paramParts[0], paramParts[1]
+		err := h.parseArgs(line)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+	***REMOVED***
+	h.droppedLabels = make(map[string]string, 2+len(h.labels))
+	h.droppedLabels["level"] = logrus.WarnLevel.String()
+	for _, params := range h.labels ***REMOVED***
+		h.droppedLabels[params[0]] = params[1]
+	***REMOVED***
+
+	h.droppedMsg = h.filterLabels(h.droppedLabels, h.droppedMsg)
+
+	h.client = &http.Client***REMOVED***Timeout: h.pushPeriod***REMOVED***
+
+	go h.loop()
+
+	return h, nil
+***REMOVED***
+
+func (h *lokiHook) parseArgs(line string) error ***REMOVED***
+	tokens, err := tokenize(line)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	for _, token := range tokens ***REMOVED***
+		key := token.key
+		value := token.value
 
 		var err error
 		switch key ***REMOVED***
+		case "loki":
+			h.addr = value
 		case "pushPeriod":
 			h.pushPeriod, err = time.ParseDuration(value)
 			if err != nil ***REMOVED***
-				return nil, fmt.Errorf("couldn't parse the loki pushPeriod %w", err)
+				return fmt.Errorf("couldn't parse the loki pushPeriod %w", err)
 			***REMOVED***
 		case "profile":
 			h.profile = true
 		case "limit":
 			h.limit, err = strconv.Atoi(value)
 			if err != nil ***REMOVED***
-				return nil, fmt.Errorf("couldn't parse the loki limit as a number %w", err)
+				return fmt.Errorf("couldn't parse the loki limit as a number %w", err)
 			***REMOVED***
 			if !(h.limit > 0) ***REMOVED***
-				return nil, fmt.Errorf("loki limit needs to be a positive number, is %d", h.limit)
+				return fmt.Errorf("loki limit needs to be a positive number, is %d", h.limit)
 			***REMOVED***
 		case "msgMaxSize":
 			h.msgMaxSize, err = strconv.Atoi(value)
 			if err != nil ***REMOVED***
-				return nil, fmt.Errorf("couldn't parse the loki msgMaxSize as a number %w", err)
+				return fmt.Errorf("couldn't parse the loki msgMaxSize as a number %w", err)
 			***REMOVED***
 			if !(h.msgMaxSize > 0) ***REMOVED***
-				return nil, fmt.Errorf("loki msgMaxSize needs to be a positive number, is %d", h.msgMaxSize)
+				return fmt.Errorf("loki msgMaxSize needs to be a positive number, is %d", h.msgMaxSize)
 			***REMOVED***
 		case "level":
 			h.levels, err = getLevels(value)
 			if err != nil ***REMOVED***
-				return nil, err
+				return err
 			***REMOVED***
+		case "allowedLabels":
+			h.allowedLabels = strings.Split(value, ",")
 		default:
 			if strings.HasPrefix(key, "label.") ***REMOVED***
 				labelKey := strings.TrimPrefix(key, "label.")
@@ -128,15 +153,11 @@ func LokiFromConfigLine(ctx context.Context, fallbackLogger logrus.FieldLogger, 
 				continue
 			***REMOVED***
 
-			return nil, fmt.Errorf("unknown loki config key %s", key)
+			return fmt.Errorf("unknown loki config key %s", key)
 		***REMOVED***
 	***REMOVED***
 
-	h.client = &http.Client***REMOVED***Timeout: h.pushPeriod***REMOVED***
-
-	go h.loop()
-
-	return h, nil
+	return nil
 ***REMOVED***
 
 func getLevels(level string) ([]logrus.Level, error) ***REMOVED***
@@ -176,8 +197,7 @@ func (h *lokiHook) loop() ***REMOVED***
 			cutOff := <-ch
 			close(ch) // signal that more buffering can continue
 
-			copy(oldLogs[len(oldLogs):len(oldLogs)+oldCount], msgsToPush[:oldCount])
-			oldLogs = oldLogs[:len(oldLogs)+oldCount]
+			oldLogs = append(oldLogs, msgsToPush[:oldCount]...)
 
 			t := time.Now()
 			cutOffIndex := sortAndSplitMsgs(oldLogs, cutOff)
@@ -244,12 +264,13 @@ func (h *lokiHook) loop() ***REMOVED***
 				labels[params[0]] = params[1]
 			***REMOVED***
 			labels["level"] = entry.Level.String()
+			msg := h.filterLabels(labels, entry.Message) // TODO we can do this while constructing
 			// have the cutoff here ?
 			// if we cutoff here we can cut somewhat on the backbuffers and optimize the inserting
 			// in/creating of the final Streams that we push
 			msgs[count] = tmpMsg***REMOVED***
 				labels: labels,
-				msg:    entry.Message,
+				msg:    msg,
 				t:      entry.Time.UnixNano(),
 			***REMOVED***
 			count++
@@ -267,6 +288,36 @@ func (h *lokiHook) loop() ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (h *lokiHook) filterLabels(labels map[string]string, msg string) string ***REMOVED***
+	if h.allowedLabels == nil ***REMOVED***
+		return msg
+	***REMOVED***
+	// TODO both can be reused as under load this will just generate a lot of *probably* fairly
+	// similar objects.
+	var b strings.Builder
+	keys := make([]string, 0, len(labels))
+	for key := range labels ***REMOVED***
+		keys = append(keys, key)
+	***REMOVED***
+	sort.Strings(keys)
+	b.WriteString(msg)
+outer:
+	for _, key := range keys ***REMOVED***
+		for _, label := range h.allowedLabels ***REMOVED***
+			if label == key ***REMOVED***
+				continue outer
+			***REMOVED***
+		***REMOVED***
+		b.WriteRune(' ')
+		b.WriteString(key)
+		b.WriteRune('=')
+		b.WriteString(labels[key])
+		delete(labels, key)
+	***REMOVED***
+
+	return b.String()
 ***REMOVED***
 
 func sortAndSplitMsgs(msgs []tmpMsg, cutOff int64) int ***REMOVED***
@@ -294,17 +345,10 @@ func (h *lokiHook) createPushMessage(msgs []tmpMsg, cutOffIndex, dropped int) *l
 		pushMsg.add(msg)
 	***REMOVED***
 	if dropped != 0 ***REMOVED***
-		labels := make(map[string]string, 2+len(h.labels))
-		labels["level"] = logrus.WarnLevel.String()
-		for _, params := range h.labels ***REMOVED***
-			labels[params[0]] = params[1]
-		***REMOVED***
-
 		msg := tmpMsg***REMOVED***
-			labels: labels,
-			msg: fmt.Sprintf("k6 dropped %d log messages because they were above the limit of %d messages / %s",
-				dropped, h.limit, h.pushPeriod),
-			t: msgs[cutOffIndex-1].t,
+			labels: h.droppedLabels,
+			msg:    fmt.Sprintf(h.droppedMsg, dropped, h.limit, h.pushPeriod),
+			t:      msgs[cutOffIndex-1].t,
 		***REMOVED***
 		pushMsg.add(msg)
 	***REMOVED***
