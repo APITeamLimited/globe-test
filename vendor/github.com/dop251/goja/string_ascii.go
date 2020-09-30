@@ -40,16 +40,12 @@ func (s asciiString) utf16Reader(start int) io.RuneReader ***REMOVED***
 	return s.reader(start)
 ***REMOVED***
 
-func (s asciiString) runes() []rune ***REMOVED***
+func (s asciiString) utf16Runes() []rune ***REMOVED***
 	runes := make([]rune, len(s))
 	for i := 0; i < len(s); i++ ***REMOVED***
 		runes[i] = rune(s[i])
 	***REMOVED***
 	return runes
-***REMOVED***
-
-func (s asciiString) utf16Runes() []rune ***REMOVED***
-	return s.runes()
 ***REMOVED***
 
 // ss must be trimmed

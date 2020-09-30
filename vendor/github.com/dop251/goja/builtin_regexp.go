@@ -852,21 +852,24 @@ func advanceStringIndex(s valueString, pos int, unicode bool) int ***REMOVED***
 
 func (r *Runtime) regexpproto_stdSplitter(call FunctionCall) Value ***REMOVED***
 	rxObj := r.toObject(call.This)
-	c := r.speciesConstructor(rxObj, r.global.RegExp)
-	flags := nilSafe(rxObj.self.getStr("flags", nil)).toString()
-	flagsStr := flags.String()
-
-	// Add 'y' flag if missing
-	if !strings.Contains(flagsStr, "y") ***REMOVED***
-		flags = newStringValue(flagsStr + "y")
-	***REMOVED***
-	splitter := c([]Value***REMOVED***rxObj, flags***REMOVED***, nil)
-
 	s := call.Argument(0).toString()
 	limitValue := call.Argument(1)
-	search := r.checkStdRegexp(splitter)
-	if search == nil ***REMOVED***
-		return r.regexpproto_stdSplitterGeneric(splitter, s, limitValue, strings.Contains(flagsStr, "u"))
+	var splitter *Object
+	search := r.checkStdRegexp(rxObj)
+	c := r.speciesConstructorObj(rxObj, r.global.RegExp)
+	if search == nil || c != r.global.RegExp ***REMOVED***
+		flags := nilSafe(rxObj.self.getStr("flags", nil)).toString()
+		flagsStr := flags.String()
+
+		// Add 'y' flag if missing
+		if !strings.Contains(flagsStr, "y") ***REMOVED***
+			flags = flags.concat(asciiString("y"))
+		***REMOVED***
+		splitter = r.toConstructor(c)([]Value***REMOVED***rxObj, flags***REMOVED***, nil)
+		search = r.checkStdRegexp(splitter)
+		if search == nil ***REMOVED***
+			return r.regexpproto_stdSplitterGeneric(splitter, s, limitValue, strings.Contains(flagsStr, "u"))
+		***REMOVED***
 	***REMOVED***
 
 	limit := -1

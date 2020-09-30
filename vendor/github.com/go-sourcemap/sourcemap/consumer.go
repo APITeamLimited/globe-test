@@ -9,13 +9,13 @@ import (
 )
 
 type sourceMap struct ***REMOVED***
-	Version        int           `json:"version"`
-	File           string        `json:"file"`
-	SourceRoot     string        `json:"sourceRoot"`
-	Sources        []string      `json:"sources"`
-	SourcesContent []string      `json:"sourcesContent"`
-	Names          []json.Number `json:"names"`
-	Mappings       string        `json:"mappings"`
+	Version        int               `json:"version"`
+	File           string            `json:"file"`
+	SourceRoot     string            `json:"sourceRoot"`
+	Sources        []string          `json:"sources"`
+	SourcesContent []string          `json:"sourcesContent"`
+	Names          []json.RawMessage `json:"names,string"`
+	Mappings       string            `json:"mappings"`
 
 	mappings []mapping
 ***REMOVED***
@@ -86,6 +86,26 @@ func (m *sourceMap) absSource(root *url.URL, source string) string ***REMOVED***
 	***REMOVED***
 
 	return source
+***REMOVED***
+
+func (m *sourceMap) name(idx int) string ***REMOVED***
+	if idx >= len(m.Names) ***REMOVED***
+		return ""
+	***REMOVED***
+
+	raw := m.Names[idx]
+	if len(raw) == 0 ***REMOVED***
+		return ""
+	***REMOVED***
+
+	if raw[0] == '"' && raw[len(raw)-1] == '"' ***REMOVED***
+		var str string
+		if err := json.Unmarshal(raw, &str); err == nil ***REMOVED***
+			return str
+		***REMOVED***
+	***REMOVED***
+
+	return string(raw)
 ***REMOVED***
 
 type section struct ***REMOVED***
@@ -191,7 +211,7 @@ func (c *Consumer) source(
 		source = m.Sources[match.sourcesInd]
 	***REMOVED***
 	if match.namesInd >= 0 ***REMOVED***
-		name = string(m.Names[match.namesInd])
+		name = m.name(int(match.namesInd))
 	***REMOVED***
 	line = int(match.sourceLine)
 	column = int(match.sourceColumn)
