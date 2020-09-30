@@ -1,11 +1,6 @@
 package goja
 
-import "sync"
-
 type weakSet struct ***REMOVED***
-	// need to synchronise access to the data map because it may be accessed
-	// from the finalizer goroutine
-	sync.Mutex
 	data map[uint64]struct***REMOVED******REMOVED***
 ***REMOVED***
 
@@ -26,43 +21,34 @@ func (ws *weakSetObject) init() ***REMOVED***
 ***REMOVED***
 
 func (ws *weakSet) removeId(id uint64) ***REMOVED***
-	ws.Lock()
 	delete(ws.data, id)
-	ws.Unlock()
 ***REMOVED***
 
 func (ws *weakSet) add(o *Object) ***REMOVED***
-	refs := o.getWeakCollRefs()
-	ws.Lock()
-	ws.data[refs.id()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	ws.Unlock()
-	refs.add(ws)
+	ref := o.getWeakRef()
+	ws.data[ref.id] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	o.runtime.addWeakKey(ref.id, ws)
 ***REMOVED***
 
 func (ws *weakSet) remove(o *Object) bool ***REMOVED***
-	if o.weakColls == nil ***REMOVED***
+	ref := o.weakRef
+	if ref == nil ***REMOVED***
 		return false
 	***REMOVED***
-	id := o.weakColls.id()
-	ws.Lock()
-	_, exists := ws.data[id]
+	_, exists := ws.data[ref.id]
 	if exists ***REMOVED***
-		delete(ws.data, id)
-	***REMOVED***
-	ws.Unlock()
-	if exists ***REMOVED***
-		o.weakColls.remove(ws)
+		delete(ws.data, ref.id)
+		o.runtime.removeWeakKey(ref.id, ws)
 	***REMOVED***
 	return exists
 ***REMOVED***
 
 func (ws *weakSet) has(o *Object) bool ***REMOVED***
-	if o.weakColls == nil ***REMOVED***
+	ref := o.weakRef
+	if ref == nil ***REMOVED***
 		return false
 	***REMOVED***
-	ws.Lock()
-	_, exists := ws.data[o.weakColls.id()]
-	ws.Unlock()
+	_, exists := ws.data[ref.id]
 	return exists
 ***REMOVED***
 
