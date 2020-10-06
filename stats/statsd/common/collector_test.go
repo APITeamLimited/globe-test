@@ -27,12 +27,35 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 )
 
+type config struct ***REMOVED***
+	addr, namespace null.String
+	bufferSize      null.Int
+	pushInterval    types.NullDuration
+***REMOVED***
+
+func (c config) GetAddr() null.String ***REMOVED***
+	return c.addr
+***REMOVED***
+
+func (c config) GetBufferSize() null.Int ***REMOVED***
+	return c.bufferSize
+***REMOVED***
+
+func (c config) GetNamespace() null.String ***REMOVED***
+	return c.namespace
+***REMOVED***
+
+func (c config) GetPushInterval() types.NullDuration ***REMOVED***
+	return c.pushInterval
+***REMOVED***
+
 func TestInitWithoutAddressErrors(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED***
-		Config: Config***REMOVED******REMOVED***,
+		Config: config***REMOVED******REMOVED***,
 		Type:   "testtype",
 		Logger: testutils.NewLogger(t),
 	***REMOVED***
@@ -42,8 +65,8 @@ func TestInitWithoutAddressErrors(t *testing.T) ***REMOVED***
 
 func TestInitWithBogusAddressErrors(t *testing.T) ***REMOVED***
 	c := &Collector***REMOVED***
-		Config: Config***REMOVED***
-			Addr: null.StringFrom("localhost:90000"),
+		Config: config***REMOVED***
+			addr: null.StringFrom("localhost:90000"),
 		***REMOVED***,
 		Type:   "testtype",
 		Logger: testutils.NewLogger(t),
@@ -55,8 +78,8 @@ func TestInitWithBogusAddressErrors(t *testing.T) ***REMOVED***
 func TestLinkReturnAddress(t *testing.T) ***REMOVED***
 	bogusValue := "bogus value"
 	c := &Collector***REMOVED***
-		Config: Config***REMOVED***
-			Addr: null.StringFrom(bogusValue),
+		Config: config***REMOVED***
+			addr: null.StringFrom(bogusValue),
 		***REMOVED***,
 	***REMOVED***
 	require.Equal(t, bogusValue, c.Link())
