@@ -22,8 +22,10 @@ package compiler
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja/parser"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/loadimpact/k6/lib"
@@ -148,6 +150,27 @@ func TestCompile(t *testing.T) ***REMOVED***
 			assert.IsType(t, &goja.Exception***REMOVED******REMOVED***, err)
 			assert.Contains(t, err.Error(), `SyntaxError: script.js: Unexpected token (1:3)
 > 1 | 1+(=>2)()`)
+		***REMOVED***)
+
+		t.Run("Invalid for goja but not babel", func(t *testing.T) ***REMOVED***
+			ch := make(chan struct***REMOVED******REMOVED***)
+			go func() ***REMOVED***
+				defer close(ch)
+				// This is a string with U+2029 Paragraph separator in it
+				// the important part is that goja won't parse it but babel will transform it but still
+				// goja won't be able to parse the result it is actually "\<U+2029>"
+				_, _, err := c.Compile(string([]byte***REMOVED***0x22, 0x5c, 0xe2, 0x80, 0xa9, 0x22***REMOVED***), "script.js", "", "", true, lib.CompatibilityModeExtended)
+				assert.IsType(t, parser.ErrorList***REMOVED******REMOVED***, err)
+				assert.Contains(t, err.Error(), ` Unexpected token ILLEGAL`)
+			***REMOVED***()
+
+			select ***REMOVED***
+			case <-ch:
+				// everything is fine
+			case <-time.After(time.Second):
+				// it took too long
+				t.Fatal("takes too long")
+			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***

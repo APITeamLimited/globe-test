@@ -81,7 +81,7 @@ func (c *Compiler) Compile(src, filename, pre, post string,
 			if err != nil ***REMOVED***
 				return nil, code, err
 			***REMOVED***
-			return c.Compile(code, filename, pre, post, strict, compatMode)
+			return c.Compile(code, filename, pre, post, strict, lib.CompatibilityModeBase)
 		***REMOVED***
 		return nil, code, err
 	***REMOVED***
