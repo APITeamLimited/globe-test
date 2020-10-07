@@ -101,6 +101,26 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	***REMOVED***
 
 	enabledTags := t.state.Options.SystemTags
+
+	urlEnabled := enabledTags.Has(stats.TagURL)
+	var setName bool
+	if _, ok := tags["name"]; !ok && enabledTags.Has(stats.TagName) ***REMOVED***
+		setName = true
+	***REMOVED***
+	if urlEnabled || setName ***REMOVED***
+		cleanURL := URL***REMOVED***u: unfReq.request.URL, URL: unfReq.request.URL.String()***REMOVED***.Clean()
+		if urlEnabled ***REMOVED***
+			tags["url"] = cleanURL
+		***REMOVED***
+		if setName ***REMOVED***
+			tags["name"] = cleanURL
+		***REMOVED***
+	***REMOVED***
+
+	if enabledTags.Has(stats.TagMethod) ***REMOVED***
+		tags["method"] = unfReq.request.Method
+	***REMOVED***
+
 	if unfReq.err != nil ***REMOVED***
 		result.errorCode, result.errorMsg = errorCodeForError(unfReq.err)
 		if enabledTags.Has(stats.TagError) ***REMOVED***
@@ -115,10 +135,6 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 			tags["status"] = "0"
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		if enabledTags.Has(stats.TagURL) ***REMOVED***
-			u := URL***REMOVED***u: unfReq.request.URL, URL: unfReq.request.URL.String()***REMOVED***
-			tags["url"] = u.Clean()
-		***REMOVED***
 		if enabledTags.Has(stats.TagStatus) ***REMOVED***
 			tags["status"] = strconv.Itoa(unfReq.response.StatusCode)
 		***REMOVED***

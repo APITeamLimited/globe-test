@@ -2,10 +2,12 @@ package goja
 
 import (
 	"fmt"
+	"regexp"
+
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
-	"regexp"
+	"github.com/dop251/goja/unistring"
 )
 
 var (
@@ -60,18 +62,18 @@ type compiledAssignExpr struct ***REMOVED***
 
 type deleteGlobalExpr struct ***REMOVED***
 	baseCompiledExpr
-	name string
+	name unistring.String
 ***REMOVED***
 
 type deleteVarExpr struct ***REMOVED***
 	baseCompiledExpr
-	name string
+	name unistring.String
 ***REMOVED***
 
 type deletePropExpr struct ***REMOVED***
 	baseCompiledExpr
 	left compiledExpr
-	name string
+	name unistring.String
 ***REMOVED***
 
 type deleteElemExpr struct ***REMOVED***
@@ -91,7 +93,7 @@ type baseCompiledExpr struct ***REMOVED***
 
 type compiledIdentifierExpr struct ***REMOVED***
 	baseCompiledExpr
-	name string
+	name unistring.String
 ***REMOVED***
 
 type compiledFunctionLiteral struct ***REMOVED***
@@ -113,6 +115,10 @@ type compiledNewExpr struct ***REMOVED***
 	baseCompiledExpr
 	callee compiledExpr
 	args   []compiledExpr
+***REMOVED***
+
+type compiledNewTarget struct ***REMOVED***
+	baseCompiledExpr
 ***REMOVED***
 
 type compiledSequenceExpr struct ***REMOVED***
@@ -150,7 +156,7 @@ type compiledBinaryExpr struct ***REMOVED***
 
 type compiledVariableExpr struct ***REMOVED***
 	baseCompiledExpr
-	name        string
+	name        unistring.String
 	initializer compiledExpr
 	expr        *ast.VariableExpression
 ***REMOVED***
@@ -232,6 +238,8 @@ func (c *compiler) compileExpression(v ast.Expression) compiledExpr ***REMOVED**
 		return c.compileSequenceExpression(v)
 	case *ast.NewExpression:
 		return c.compileNewExpression(v)
+	case *ast.MetaProperty:
+		return c.compileMetaProperty(v)
 	default:
 		panic(fmt.Errorf("Unknown expression type: %T", v))
 	***REMOVED***
@@ -246,7 +254,7 @@ func (e *baseCompiledExpr) init(c *compiler, idx file.Idx) ***REMOVED***
 	e.offset = int(idx) - 1
 ***REMOVED***
 
-func (e *baseCompiledExpr) emitSetter(valueExpr compiledExpr) ***REMOVED***
+func (e *baseCompiledExpr) emitSetter(compiledExpr) ***REMOVED***
 	e.c.throwSyntaxError(e.offset, "Not a valid left-value expression")
 ***REMOVED***
 
@@ -258,7 +266,7 @@ func (e *baseCompiledExpr) deleteExpr() compiledExpr ***REMOVED***
 	return r
 ***REMOVED***
 
-func (e *baseCompiledExpr) emitUnary(prepare, body func(), postfix bool, putOnStack bool) ***REMOVED***
+func (e *baseCompiledExpr) emitUnary(func(), func(), bool, bool) ***REMOVED***
 	e.c.throwSyntaxError(e.offset, "Not a valid left-value expression")
 ***REMOVED***
 
@@ -309,12 +317,30 @@ func (e *compiledIdentifierExpr) emitGetterOrRef() ***REMOVED***
 		if found ***REMOVED***
 			e.c.emit(getVar***REMOVED***name: e.name, idx: idx, ref: true***REMOVED***)
 		***REMOVED*** else ***REMOVED***
+			e.c.emit(getVar1Ref(e.name))
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledIdentifierExpr) emitGetterAndCallee() ***REMOVED***
+	e.addSrcMap()
+	if idx, found, noDynamics := e.c.scope.lookupName(e.name); noDynamics ***REMOVED***
+		if found ***REMOVED***
+			e.c.emit(loadUndef)
+			e.c.emit(getLocal(idx))
+		***REMOVED*** else ***REMOVED***
+			panic("No dynamics and not found")
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if found ***REMOVED***
+			e.c.emit(getVar***REMOVED***name: e.name, idx: idx, ref: true, callee: true***REMOVED***)
+		***REMOVED*** else ***REMOVED***
 			e.c.emit(getVar1Callee(e.name))
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitVarSetter1(name string, offset int, emitRight func(isRef bool)) ***REMOVED***
+func (c *compiler) emitVarSetter1(name unistring.String, offset int, emitRight func(isRef bool)) ***REMOVED***
 	if c.scope.strict ***REMOVED***
 		c.checkIdentifierLName(name, offset)
 	***REMOVED***
@@ -347,7 +373,7 @@ func (c *compiler) emitVarSetter1(name string, offset int, emitRight func(isRef 
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitVarSetter(name string, offset int, valueExpr compiledExpr) ***REMOVED***
+func (c *compiler) emitVarSetter(name unistring.String, offset int, valueExpr compiledExpr) ***REMOVED***
 	c.emitVarSetter1(name, offset, func(bool) ***REMOVED***
 		c.emitExpr(valueExpr, true)
 	***REMOVED***)
@@ -426,7 +452,7 @@ func (e *compiledIdentifierExpr) deleteExpr() compiledExpr ***REMOVED***
 type compiledDotExpr struct ***REMOVED***
 	baseCompiledExpr
 	left compiledExpr
-	name string
+	name unistring.String
 ***REMOVED***
 
 func (e *compiledDotExpr) emitGetter(putOnStack bool) ***REMOVED***
@@ -848,7 +874,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	e.c.popScope()
 	e.c.p = savedPrg
 	e.c.blockStart = savedBlockStart
-	name := ""
+	var name unistring.String
 	if e.expr.Name != nil ***REMOVED***
 		name = e.expr.Name.Name
 	***REMOVED***
@@ -923,6 +949,23 @@ func (c *compiler) compileNewExpression(v *ast.NewExpression) compiledExpr ***RE
 	return r
 ***REMOVED***
 
+func (e *compiledNewTarget) emitGetter(putOnStack bool) ***REMOVED***
+	if putOnStack ***REMOVED***
+		e.addSrcMap()
+		e.c.emit(loadNewTarget)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compileMetaProperty(v *ast.MetaProperty) compiledExpr ***REMOVED***
+	if v.Meta.Name == "new" || v.Property.Name != "target" ***REMOVED***
+		r := &compiledNewTarget***REMOVED******REMOVED***
+		r.init(c, v.Idx0())
+		return r
+	***REMOVED***
+	c.throwSyntaxError(int(v.Idx)-1, "Unsupported meta property: %s.%s", v.Meta.Name, v.Property.Name)
+	return nil
+***REMOVED***
+
 func (e *compiledSequenceExpr) emitGetter(putOnStack bool) ***REMOVED***
 	if len(e.sequence) > 0 ***REMOVED***
 		for i := 0; i < len(e.sequence)-1; i++ ***REMOVED***
@@ -950,11 +993,11 @@ func (c *compiler) compileSequenceExpression(v *ast.SequenceExpression) compiled
 
 func (c *compiler) emitThrow(v Value) ***REMOVED***
 	if o, ok := v.(*Object); ok ***REMOVED***
-		t := o.self.getStr("name").String()
+		t := nilSafe(o.self.getStr("name", nil)).toString().String()
 		switch t ***REMOVED***
 		case "TypeError":
 			c.emit(getVar1(t))
-			msg := o.self.getStr("message")
+			msg := o.self.getStr("message", nil)
 			if msg != nil ***REMOVED***
 				c.emit(loadVal(c.p.defineLiteralValue(msg)))
 				c.emit(_new(1))
@@ -965,7 +1008,7 @@ func (c *compiler) emitThrow(v Value) ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
-	panic(fmt.Errorf("Unknown exception type thrown while evaliating constant expression: %s", v.String()))
+	panic(fmt.Errorf("unknown exception type thrown while evaliating constant expression: %s", v.String()))
 ***REMOVED***
 
 func (c *compiler) emitConst(expr compiledExpr, putOnStack bool) ***REMOVED***
@@ -1365,14 +1408,23 @@ func (c *compiler) compileObjectLiteral(v *ast.ObjectLiteral) compiledExpr ***RE
 
 func (e *compiledArrayLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	e.addSrcMap()
+	objCount := 0
 	for _, v := range e.expr.Value ***REMOVED***
 		if v != nil ***REMOVED***
 			e.c.compileExpression(v).emitGetter(true)
+			objCount++
 		***REMOVED*** else ***REMOVED***
 			e.c.emit(loadNil)
 		***REMOVED***
 	***REMOVED***
-	e.c.emit(newArray(len(e.expr.Value)))
+	if objCount == len(e.expr.Value) ***REMOVED***
+		e.c.emit(newArray(objCount))
+	***REMOVED*** else ***REMOVED***
+		e.c.emit(&newArraySparse***REMOVED***
+			l:        len(e.expr.Value),
+			objCount: objCount,
+		***REMOVED***)
+	***REMOVED***
 	if !putOnStack ***REMOVED***
 		e.c.emit(pop)
 	***REMOVED***
@@ -1388,17 +1440,12 @@ func (c *compiler) compileArrayLiteral(v *ast.ArrayLiteral) compiledExpr ***REMO
 
 func (e *compiledRegexpLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	if putOnStack ***REMOVED***
-		pattern, global, ignoreCase, multiline, err := compileRegexp(e.expr.Pattern, e.expr.Flags)
+		pattern, err := compileRegexp(e.expr.Pattern, e.expr.Flags)
 		if err != nil ***REMOVED***
 			e.c.throwSyntaxError(e.offset, err.Error())
 		***REMOVED***
 
-		e.c.emit(&newRegexp***REMOVED***pattern: pattern,
-			src:        newStringValue(e.expr.Pattern),
-			global:     global,
-			ignoreCase: ignoreCase,
-			multiline:  multiline,
-		***REMOVED***)
+		e.c.emit(&newRegexp***REMOVED***pattern: pattern, src: newStringValue(e.expr.Pattern)***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
@@ -1411,7 +1458,7 @@ func (c *compiler) compileRegexpLiteral(v *ast.RegExpLiteral) compiledExpr ***RE
 ***REMOVED***
 
 func (e *compiledCallExpr) emitGetter(putOnStack bool) ***REMOVED***
-	var calleeName string
+	var calleeName unistring.String
 	switch callee := e.callee.(type) ***REMOVED***
 	case *compiledDotExpr:
 		callee.left.emitGetter(true)
@@ -1423,9 +1470,8 @@ func (e *compiledCallExpr) emitGetter(putOnStack bool) ***REMOVED***
 		callee.member.emitGetter(true)
 		e.c.emit(getElemCallee)
 	case *compiledIdentifierExpr:
-		e.c.emit(loadUndef)
 		calleeName = callee.name
-		callee.emitGetterOrRef()
+		callee.emitGetterAndCallee()
 	default:
 		e.c.emit(loadUndef)
 		callee.emitGetter(true)
@@ -1516,7 +1562,7 @@ func (c *compiler) compileNumberLiteral(v *ast.NumberLiteral) compiledExpr ***RE
 
 func (c *compiler) compileStringLiteral(v *ast.StringLiteral) compiledExpr ***REMOVED***
 	r := &compiledLiteral***REMOVED***
-		val: newStringValue(v.Value),
+		val: stringValueFromRaw(v.Value),
 	***REMOVED***
 	r.init(c, v.Idx0())
 	return r

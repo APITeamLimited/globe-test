@@ -484,6 +484,29 @@ func (c *CharSet) addRanges(ranges []singleRange) ***REMOVED***
 	c.canonicalize()
 ***REMOVED***
 
+// Merges everything but the new ranges into our own
+func (c *CharSet) addNegativeRanges(ranges []singleRange) ***REMOVED***
+	if c.anything ***REMOVED***
+		return
+	***REMOVED***
+
+	var hi rune
+
+	// convert incoming ranges into opposites, assume they are in order
+	for _, r := range ranges ***REMOVED***
+		if hi < r.first ***REMOVED***
+			c.ranges = append(c.ranges, singleRange***REMOVED***hi, r.first - 1***REMOVED***)
+		***REMOVED***
+		hi = r.last + 1
+	***REMOVED***
+
+	if hi < utf8.MaxRune ***REMOVED***
+		c.ranges = append(c.ranges, singleRange***REMOVED***hi, utf8.MaxRune***REMOVED***)
+	***REMOVED***
+
+	c.canonicalize()
+***REMOVED***
+
 func isValidUnicodeCat(catName string) bool ***REMOVED***
 	_, ok := unicodeCategories[catName]
 	return ok
@@ -513,6 +536,53 @@ func (c *CharSet) addSubtraction(sub *CharSet) ***REMOVED***
 func (c *CharSet) addRange(chMin, chMax rune) ***REMOVED***
 	c.ranges = append(c.ranges, singleRange***REMOVED***first: chMin, last: chMax***REMOVED***)
 	c.canonicalize()
+***REMOVED***
+
+func (c *CharSet) addNamedASCII(name string, negate bool) bool ***REMOVED***
+	var rs []singleRange
+
+	switch name ***REMOVED***
+	case "alnum":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'0', '9'***REMOVED***, singleRange***REMOVED***'A', 'Z'***REMOVED***, singleRange***REMOVED***'a', 'z'***REMOVED******REMOVED***
+	case "alpha":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'A', 'Z'***REMOVED***, singleRange***REMOVED***'a', 'z'***REMOVED******REMOVED***
+	case "ascii":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***0, 0x7f***REMOVED******REMOVED***
+	case "blank":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'\t', '\t'***REMOVED***, singleRange***REMOVED***' ', ' '***REMOVED******REMOVED***
+	case "cntrl":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***0, 0x1f***REMOVED***, singleRange***REMOVED***0x7f, 0x7f***REMOVED******REMOVED***
+	case "digit":
+		c.addDigit(false, negate, "")
+	case "graph":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'!', '~'***REMOVED******REMOVED***
+	case "lower":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'a', 'z'***REMOVED******REMOVED***
+	case "print":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***' ', '~'***REMOVED******REMOVED***
+	case "punct": //[!-/:-@[-`***REMOVED***-~]
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'!', '/'***REMOVED***, singleRange***REMOVED***':', '@'***REMOVED***, singleRange***REMOVED***'[', '`'***REMOVED***, singleRange***REMOVED***'***REMOVED***', '~'***REMOVED******REMOVED***
+	case "space":
+		c.addSpace(true, negate)
+	case "upper":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'A', 'Z'***REMOVED******REMOVED***
+	case "word":
+		c.addWord(true, negate)
+	case "xdigit":
+		rs = []singleRange***REMOVED***singleRange***REMOVED***'0', '9'***REMOVED***, singleRange***REMOVED***'A', 'F'***REMOVED***, singleRange***REMOVED***'a', 'f'***REMOVED******REMOVED***
+	default:
+		return false
+	***REMOVED***
+
+	if len(rs) > 0 ***REMOVED***
+		if negate ***REMOVED***
+			c.addNegativeRanges(rs)
+		***REMOVED*** else ***REMOVED***
+			c.addRanges(rs)
+		***REMOVED***
+	***REMOVED***
+
+	return true
 ***REMOVED***
 
 type singleRangeSorter []singleRange

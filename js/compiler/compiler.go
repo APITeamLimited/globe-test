@@ -31,6 +31,8 @@ import (
 	"github.com/dop251/goja/parser"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
+
+	"github.com/loadimpact/k6/lib"
 )
 
 var (
@@ -48,24 +50,14 @@ var (
 	globalBabel *babel    // nolint:gochecknoglobals
 )
 
-// CompatibilityMode specifies the JS compatibility mode
-// nolint:lll
-//go:generate enumer -type=CompatibilityMode -transform=snake -trimprefix CompatibilityMode -output compatibility_mode_gen.go
-type CompatibilityMode uint8
-
-const (
-	// CompatibilityModeExtended achieves ES6+ compatibility with Babel and core.js
-	CompatibilityModeExtended CompatibilityMode = iota + 1
-	// CompatibilityModeBase is standard goja ES5.1+
-	CompatibilityModeBase
-)
-
 // A Compiler compiles JavaScript source code (ES5.1 or ES6) into a goja.Program
-type Compiler struct***REMOVED******REMOVED***
+type Compiler struct ***REMOVED***
+	logger logrus.FieldLogger
+***REMOVED***
 
 // New returns a new Compiler
-func New() *Compiler ***REMOVED***
-	return &Compiler***REMOVED******REMOVED***
+func New(logger logrus.FieldLogger) *Compiler ***REMOVED***
+	return &Compiler***REMOVED***logger: logger***REMOVED***
 ***REMOVED***
 
 // Transform the given code into ES5
@@ -75,21 +67,22 @@ func (c *Compiler) Transform(src, filename string) (code string, srcmap *SourceM
 		return
 	***REMOVED***
 
-	return b.Transform(src, filename)
+	return b.Transform(c.logger, src, filename)
 ***REMOVED***
 
-// Compile the program in the given CompatibilityMode, optionally running pre and post code.
+// Compile the program in the given CompatibilityMode, wrapping it between pre and post code
 func (c *Compiler) Compile(src, filename, pre, post string,
-	strict bool, compatMode CompatibilityMode) (*goja.Program, string, error) ***REMOVED***
+	strict bool, compatMode lib.CompatibilityMode) (*goja.Program, string, error) ***REMOVED***
 	code := pre + src + post
 	ast, err := parser.ParseFile(nil, filename, code, 0)
 	if err != nil ***REMOVED***
-		if compatMode == CompatibilityModeExtended ***REMOVED***
+		if compatMode == lib.CompatibilityModeExtended ***REMOVED***
 			code, _, err = c.Transform(src, filename)
 			if err != nil ***REMOVED***
 				return nil, code, err
 			***REMOVED***
-			return c.Compile(code, filename, pre, post, strict, compatMode)
+			// the compatibility mode "decreases" here as we shouldn't transform twice
+			return c.Compile(code, filename, pre, post, strict, lib.CompatibilityModeBase)
 		***REMOVED***
 		return nil, code, err
 	***REMOVED***
@@ -101,7 +94,7 @@ type babel struct ***REMOVED***
 	vm        *goja.Runtime
 	this      goja.Value
 	transform goja.Callable
-	mutex     sync.Mutex //TODO: cache goja.CompileAST() in an init() function?
+	mutex     sync.Mutex // TODO: cache goja.CompileAST() in an init() function?
 ***REMOVED***
 
 func newBabel() (*babel, error) ***REMOVED***
@@ -130,7 +123,7 @@ func newBabel() (*babel, error) ***REMOVED***
 
 // Transform the given code into ES5, while synchronizing to ensure only a single
 // bundle instance / Goja VM is in use at a time.
-func (b *babel) Transform(src, filename string) (string, *SourceMap, error) ***REMOVED***
+func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (string, *SourceMap, error) ***REMOVED***
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	opts := make(map[string]interface***REMOVED******REMOVED***)
@@ -144,7 +137,7 @@ func (b *babel) Transform(src, filename string) (string, *SourceMap, error) ***R
 	if err != nil ***REMOVED***
 		return "", nil, err
 	***REMOVED***
-	logrus.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
+	logger.WithField("t", time.Since(startTime)).Debug("Babel: Transformed")
 
 	vO := v.ToObject(b.vm)
 	var code string

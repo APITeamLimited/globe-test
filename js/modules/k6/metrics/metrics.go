@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
@@ -73,11 +74,7 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***
 
-	tags := state.Options.RunTags.CloneTags()
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = state.Group.Path
-	***REMOVED***
-
+	tags := state.CloneTags()
 	for _, ts := range addTags ***REMOVED***
 		for k, v := range ts ***REMOVED***
 			tags[k] = v

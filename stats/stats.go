@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/mailru/easyjson/jwriter"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -168,6 +169,7 @@ func (t ValueType) String() string ***REMOVED***
 // copy-on-write semantics and uses pointers for faster comparison
 // between maps, since the same tag set is often used for multiple samples.
 // All methods should not panic, even if they are called on a nil pointer.
+//easyjson:skip
 type SampleTags struct ***REMOVED***
 	tags map[string]string
 	json []byte
@@ -241,6 +243,23 @@ func (st *SampleTags) MarshalJSON() ([]byte, error) ***REMOVED***
 	return res, nil
 ***REMOVED***
 
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (st *SampleTags) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
+	w.RawByte('***REMOVED***')
+	first := true
+	for k, v := range st.tags ***REMOVED***
+		if first ***REMOVED***
+			first = false
+		***REMOVED*** else ***REMOVED***
+			w.RawByte(',')
+		***REMOVED***
+		w.String(k)
+		w.RawByte(':')
+		w.String(v)
+	***REMOVED***
+	w.RawByte('***REMOVED***')
+***REMOVED***
+
 // UnmarshalJSON deserializes SampleTags from a JSON string.
 func (st *SampleTags) UnmarshalJSON(data []byte) error ***REMOVED***
 	if st == nil ***REMOVED***
@@ -252,11 +271,12 @@ func (st *SampleTags) UnmarshalJSON(data []byte) error ***REMOVED***
 // CloneTags copies the underlying set of a sample tags and
 // returns it. If the receiver is nil, it returns an empty non-nil map.
 func (st *SampleTags) CloneTags() map[string]string ***REMOVED***
-	res := map[string]string***REMOVED******REMOVED***
-	if st != nil ***REMOVED***
-		for k, v := range st.tags ***REMOVED***
-			res[k] = v
-		***REMOVED***
+	if st == nil ***REMOVED***
+		return map[string]string***REMOVED******REMOVED***
+	***REMOVED***
+	res := make(map[string]string, len(st.tags))
+	for k, v := range st.tags ***REMOVED***
+		res[k] = v
 	***REMOVED***
 	return res
 ***REMOVED***

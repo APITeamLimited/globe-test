@@ -23,19 +23,20 @@ package lib
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/loadimpact/k6/lib/scheduler"
-	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/stats"
 )
 
 func TestOptions(t *testing.T) ***REMOVED***
@@ -48,11 +49,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.VUs.Valid)
 		assert.Equal(t, int64(12345), opts.VUs.Int64)
-	***REMOVED***)
-	t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***VUsMax: null.IntFrom(12345)***REMOVED***)
-		assert.True(t, opts.VUsMax.Valid)
-		assert.Equal(t, int64(12345), opts.VUsMax.Int64)
 	***REMOVED***)
 	t.Run("Duration", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Duration: types.NullDurationFrom(2 * time.Minute)***REMOVED***)
@@ -88,17 +84,7 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.Equal(t, oneStage, opts.Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 		assert.Equal(t, oneStage, Options***REMOVED******REMOVED***.Apply(opts).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Apply(Options***REMOVED***Stages: oneStage***REMOVED***).Stages)
 	***REMOVED***)
-	t.Run("Execution", func(t *testing.T) ***REMOVED***
-		sched := scheduler.NewConstantLoopingVUsConfig("test")
-		sched.VUs = null.IntFrom(123)
-		sched.Duration = types.NullDurationFrom(3 * time.Minute)
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Execution: scheduler.ConfigMap***REMOVED***"test": sched***REMOVED******REMOVED***)
-		cs, ok := opts.Execution["test"].(scheduler.ConstantLoopingVUsConfig)
-		assert.True(t, ok)
-		assert.Equal(t, int64(123), cs.VUs.Int64)
-		assert.Equal(t, "3m0s", cs.Duration.String())
-	***REMOVED***)
-	//TODO: test that any execution option overwrites any other lower-level options
+	// Execution overwriting is tested by the config consolidation test in cmd
 	t.Run("RPS", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***RPS: null.IntFrom(12345)***REMOVED***)
 		assert.True(t, opts.RPS.Valid)
@@ -146,12 +132,20 @@ func TestOptions(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
-
 			t.Run("String", func(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"tlsCipherSuites":["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]***REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, &TLSCipherSuites***REMOVED***tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA***REMOVED***, opts.TLSCipherSuites)
+
+				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
+					data, err := json.Marshal(opts.TLSCipherSuites)
+					assert.NoError(t, err)
+					assert.Equal(t, `["TLS_ECDHE_RSA_WITH_RC4_128_SHA"]`, string(data))
+					var vers2 TLSCipherSuites
+					assert.NoError(t, json.Unmarshal(data, &vers2))
+					assert.Equal(t, &vers2, opts.TLSCipherSuites)
+				***REMOVED***)
 			***REMOVED***)
 			t.Run("Not a string", func(t *testing.T) ***REMOVED***
 				var opts Options
@@ -309,8 +303,10 @@ func TestOptions(t *testing.T) ***REMOVED***
 	t.Run("BlacklistIPs", func(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*IPNet***REMOVED******REMOVED***
-				IP:   net.IPv4zero,
-				Mask: net.CIDRMask(1, 1),
+				IPNet: net.IPNet***REMOVED***
+					IP:   net.IPv4zero,
+					Mask: net.CIDRMask(1, 1),
+				***REMOVED***,
 			***REMOVED******REMOVED***,
 		***REMOVED***)
 		assert.NotNil(t, opts.BlacklistIPs)
@@ -348,12 +344,15 @@ func TestOptions(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Hosts", func(t *testing.T) ***REMOVED***
-		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Hosts: map[string]net.IP***REMOVED***
-			"test.loadimpact.com": net.ParseIP("192.0.2.1"),
+		host, err := NewHostAddress(net.ParseIP("192.0.2.1"), "80")
+		assert.NoError(t, err)
+
+		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***Hosts: map[string]*HostAddress***REMOVED***
+			"test.loadimpact.com": host,
 		***REMOVED******REMOVED***)
 		assert.NotNil(t, opts.Hosts)
 		assert.NotEmpty(t, opts.Hosts)
-		assert.Equal(t, "192.0.2.1", opts.Hosts["test.loadimpact.com"].String())
+		assert.Equal(t, "192.0.2.1:80", opts.Hosts["test.loadimpact.com"].String())
 	***REMOVED***)
 
 	t.Run("Throws", func(t *testing.T) ***REMOVED***
@@ -429,7 +428,6 @@ func TestOptions(t *testing.T) ***REMOVED***
 		assert.True(t, opts.DiscardResponseBodies.Valid)
 		assert.True(t, opts.DiscardResponseBodies.Bool)
 	***REMOVED***)
-
 ***REMOVED***
 
 func TestOptionsEnv(t *testing.T) ***REMOVED***
@@ -443,10 +441,6 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 			"":    null.Int***REMOVED******REMOVED***,
 			"123": null.IntFrom(123),
 		***REMOVED***,
-		***REMOVED***"VUsMax", "K6_VUS_MAX"***REMOVED***: ***REMOVED***
-			"":    null.Int***REMOVED******REMOVED***,
-			"123": null.IntFrom(123),
-		***REMOVED***,
 		***REMOVED***"Duration", "K6_DURATION"***REMOVED***: ***REMOVED***
 			"":    types.NullDuration***REMOVED******REMOVED***,
 			"10s": types.NullDurationFrom(10 * time.Second),
@@ -457,8 +451,10 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***"Stages", "K6_STAGES"***REMOVED***: ***REMOVED***
 			// "": []Stage***REMOVED******REMOVED***,
-			"1s": []Stage***REMOVED******REMOVED***
-				Duration: types.NullDurationFrom(1 * time.Second)***REMOVED***,
+			"1s": []Stage***REMOVED***
+				***REMOVED***
+					Duration: types.NullDurationFrom(1 * time.Second),
+				***REMOVED***,
 			***REMOVED***,
 			"1s:100": []Stage***REMOVED***
 				***REMOVED***Duration: types.NullDurationFrom(1 * time.Second), Target: null.IntFrom(100)***REMOVED***,
@@ -508,11 +504,13 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 		// External
 	***REMOVED***
 	for field, data := range testdata ***REMOVED***
-		os.Clearenv()
+		field, data := field, data
 		t.Run(field.Name, func(t *testing.T) ***REMOVED***
 			for str, val := range data ***REMOVED***
+				str, val := str, val
 				t.Run(`"`+str+`"`, func(t *testing.T) ***REMOVED***
-					assert.NoError(t, os.Setenv(field.Key, str))
+					restore := testutils.SetEnv(t, []string***REMOVED***fmt.Sprintf("%s=%s", field.Key, str)***REMOVED***)
+					defer restore()
 					var opts Options
 					assert.NoError(t, envconfig.Process("k6", &opts))
 					assert.Equal(t, val, reflect.ValueOf(opts).FieldByName(field.Name).Interface())
@@ -523,26 +521,25 @@ func TestOptionsEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
-
-	var testData = []struct ***REMOVED***
+	testData := []struct ***REMOVED***
 		input          string
 		expectedOutput *IPNet
-		expactFailure  bool
+		expectFailure  bool
 	***REMOVED******REMOVED***
 		***REMOVED***
 			"10.0.0.0/8",
-			&IPNet***REMOVED***
+			&IPNet***REMOVED***IPNet: net.IPNet***REMOVED***
 				IP:   net.IP***REMOVED***10, 0, 0, 0***REMOVED***,
 				Mask: net.IPv4Mask(255, 0, 0, 0),
-			***REMOVED***,
+			***REMOVED******REMOVED***,
 			false,
 		***REMOVED***,
 		***REMOVED***
 			"fc00:1234:5678::/48",
-			&IPNet***REMOVED***
+			&IPNet***REMOVED***IPNet: net.IPNet***REMOVED***
 				IP:   net.ParseIP("fc00:1234:5678::"),
 				Mask: net.CIDRMask(48, 128),
-			***REMOVED***,
+			***REMOVED******REMOVED***,
 			false,
 		***REMOVED***,
 		***REMOVED***"10.0.0.0", nil, true***REMOVED***,
@@ -556,11 +553,70 @@ func TestCIDRUnmarshal(t *testing.T) ***REMOVED***
 			actualIPNet := &IPNet***REMOVED******REMOVED***
 			err := actualIPNet.UnmarshalText([]byte(data.input))
 
-			if data.expactFailure ***REMOVED***
+			if data.expectFailure ***REMOVED***
 				require.EqualError(t, err, "Failed to parse CIDR: invalid CIDR address: "+data.input)
 			***REMOVED*** else ***REMOVED***
 				require.NoError(t, err)
 				assert.Equal(t, data.expectedOutput, actualIPNet)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestHostAddressUnmarshal(t *testing.T) ***REMOVED***
+	testData := []struct ***REMOVED***
+		input          string
+		expectedOutput *HostAddress
+		expectFailure  string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			"1.2.3.4",
+			&HostAddress***REMOVED***IP: net.ParseIP("1.2.3.4")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"1.2.3.4:80",
+			&HostAddress***REMOVED***IP: net.ParseIP("1.2.3.4"), Port: 80***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"1.2.3.4:asdf",
+			nil,
+			"strconv.Atoi: parsing \"asdf\": invalid syntax",
+		***REMOVED***,
+		***REMOVED***
+			"2001:0db8:0000:0000:0000:ff00:0042:8329",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:0db8:0000:0000:0000:ff00:0042:8329")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"2001:db8::68",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:db8::68")***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"[2001:db8::68]:80",
+			&HostAddress***REMOVED***IP: net.ParseIP("2001:db8::68"), Port: 80***REMOVED***,
+			"",
+		***REMOVED***,
+		***REMOVED***
+			"[2001:db8::68]:asdf",
+			nil,
+			"strconv.Atoi: parsing \"asdf\": invalid syntax",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, data := range testData ***REMOVED***
+		data := data
+		t.Run(data.input, func(t *testing.T) ***REMOVED***
+			actualHost := &HostAddress***REMOVED******REMOVED***
+			err := actualHost.UnmarshalText([]byte(data.input))
+
+			if data.expectFailure != "" ***REMOVED***
+				require.EqualError(t, err, data.expectFailure)
+			***REMOVED*** else ***REMOVED***
+				require.NoError(t, err)
+				assert.Equal(t, data.expectedOutput, actualHost)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

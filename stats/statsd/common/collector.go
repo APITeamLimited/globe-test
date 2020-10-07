@@ -43,7 +43,7 @@ type Collector struct ***REMOVED***
 	// of those tags that should be sent. No tags are send in case of ProcessTags being null
 	ProcessTags func(map[string]string) []string
 
-	logger     *logrus.Entry
+	Logger     logrus.FieldLogger
 	client     *statsd.Client
 	startTime  time.Time
 	buffer     []*Sample
@@ -52,13 +52,13 @@ type Collector struct ***REMOVED***
 
 // Init sets up the collector
 func (c *Collector) Init() (err error) ***REMOVED***
-	c.logger = logrus.WithField("type", c.Type)
+	c.Logger = c.Logger.WithField("type", c.Type)
 	if address := c.Config.Addr.String; address == "" ***REMOVED***
 		err = fmt.Errorf(
 			"connection string is invalid. Received: \"%+s\"",
 			address,
 		)
-		c.logger.Error(err)
+		c.Logger.Error(err)
 
 		return err
 	***REMOVED***
@@ -66,7 +66,7 @@ func (c *Collector) Init() (err error) ***REMOVED***
 	c.client, err = statsd.NewBuffered(c.Config.Addr.String, int(c.Config.BufferSize.Int64))
 
 	if err != nil ***REMOVED***
-		c.logger.Errorf("Couldn't make buffered client, %s", err)
+		c.Logger.Errorf("Couldn't make buffered client, %s", err)
 		return err
 	***REMOVED***
 
@@ -84,7 +84,7 @@ func (c *Collector) Link() string ***REMOVED***
 
 // Run the collector
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	c.logger.Debugf("%s: Running!", c.Type)
+	c.Logger.Debugf("%s: Running!", c.Type)
 	ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
 	c.startTime = time.Now()
 
@@ -135,12 +135,12 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	c.buffer = nil
 	c.bufferLock.Unlock()
 
-	c.logger.
+	c.Logger.
 		WithField("samples", len(buffer)).
 		Debug("Pushing metrics to server")
 
 	if err := c.commit(buffer); err != nil ***REMOVED***
-		c.logger.
+		c.Logger.
 			WithError(err).
 			Error("Couldn't commit a batch")
 	***REMOVED***
@@ -149,7 +149,7 @@ func (c *Collector) pushMetrics() ***REMOVED***
 func (c *Collector) finish() ***REMOVED***
 	// Close when context is done
 	if err := c.client.Close(); err != nil ***REMOVED***
-		c.logger.Warnf("Error closing the client, %+v", err)
+		c.Logger.Warnf("Error closing the client, %+v", err)
 	***REMOVED***
 ***REMOVED***
 
@@ -158,14 +158,13 @@ func (c *Collector) commit(data []*Sample) error ***REMOVED***
 	for _, entry := range data ***REMOVED***
 		if err := c.dispatch(entry); err != nil ***REMOVED***
 			// No need to return error if just one metric didn't go through
-			c.logger.WithError(err).Debugf("Error while sending metric %s", entry.Metric)
+			c.Logger.WithError(err).Debugf("Error while sending metric %s", entry.Metric)
 			errorCount++
 		***REMOVED***
 	***REMOVED***
 	if errorCount != 0 ***REMOVED***
-		c.logger.Warnf("Couldn't send %d out of %d metrics. Enable debug logging to see individual errors",
+		c.Logger.Warnf("Couldn't send %d out of %d metrics. Enable debug logging to see individual errors",
 			errorCount, len(data))
-
 	***REMOVED***
 	return c.client.Flush()
 ***REMOVED***

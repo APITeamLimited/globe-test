@@ -12,6 +12,7 @@ package ast
 import (
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
+	"github.com/dop251/goja/unistring"
 	"github.com/go-sourcemap/sourcemap"
 )
 
@@ -98,7 +99,7 @@ type (
 	***REMOVED***
 
 	Identifier struct ***REMOVED***
-		Name string
+		Name unistring.String
 		Idx  file.Idx
 	***REMOVED***
 
@@ -134,7 +135,7 @@ type (
 	***REMOVED***
 
 	Property struct ***REMOVED***
-		Key   string
+		Key   unistring.String
 		Kind  string
 		Value Expression
 	***REMOVED***
@@ -153,7 +154,7 @@ type (
 	StringLiteral struct ***REMOVED***
 		Idx     file.Idx
 		Literal string
-		Value   string
+		Value   unistring.String
 	***REMOVED***
 
 	ThisExpression struct ***REMOVED***
@@ -168,9 +169,14 @@ type (
 	***REMOVED***
 
 	VariableExpression struct ***REMOVED***
-		Name        string
+		Name        unistring.String
 		Idx         file.Idx
 		Initializer Expression
+	***REMOVED***
+
+	MetaProperty struct ***REMOVED***
+		Meta, Property *Identifier
+		Idx            file.Idx
 	***REMOVED***
 )
 
@@ -197,6 +203,7 @@ func (*StringLiteral) _expressionNode()         ***REMOVED******REMOVED***
 func (*ThisExpression) _expressionNode()        ***REMOVED******REMOVED***
 func (*UnaryExpression) _expressionNode()       ***REMOVED******REMOVED***
 func (*VariableExpression) _expressionNode()    ***REMOVED******REMOVED***
+func (*MetaProperty) _expressionNode()          ***REMOVED******REMOVED***
 
 // ========= //
 // Statement //
@@ -257,6 +264,13 @@ type (
 	***REMOVED***
 
 	ForInStatement struct ***REMOVED***
+		For    file.Idx
+		Into   Expression
+		Source Expression
+		Body   Statement
+	***REMOVED***
+
+	ForOfStatement struct ***REMOVED***
 		For    file.Idx
 		Into   Expression
 		Source Expression
@@ -338,6 +352,7 @@ func (*DoWhileStatement) _statementNode()    ***REMOVED******REMOVED***
 func (*EmptyStatement) _statementNode()      ***REMOVED******REMOVED***
 func (*ExpressionStatement) _statementNode() ***REMOVED******REMOVED***
 func (*ForInStatement) _statementNode()      ***REMOVED******REMOVED***
+func (*ForOfStatement) _statementNode()      ***REMOVED******REMOVED***
 func (*ForStatement) _statementNode()        ***REMOVED******REMOVED***
 func (*IfStatement) _statementNode()         ***REMOVED******REMOVED***
 func (*LabelledStatement) _statementNode()   ***REMOVED******REMOVED***
@@ -413,6 +428,7 @@ func (self *StringLiteral) Idx0() file.Idx         ***REMOVED*** return self.Idx
 func (self *ThisExpression) Idx0() file.Idx        ***REMOVED*** return self.Idx ***REMOVED***
 func (self *UnaryExpression) Idx0() file.Idx       ***REMOVED*** return self.Idx ***REMOVED***
 func (self *VariableExpression) Idx0() file.Idx    ***REMOVED*** return self.Idx ***REMOVED***
+func (self *MetaProperty) Idx0() file.Idx          ***REMOVED*** return self.Idx ***REMOVED***
 
 func (self *BadStatement) Idx0() file.Idx        ***REMOVED*** return self.From ***REMOVED***
 func (self *BlockStatement) Idx0() file.Idx      ***REMOVED*** return self.LeftBrace ***REMOVED***
@@ -424,6 +440,7 @@ func (self *DoWhileStatement) Idx0() file.Idx    ***REMOVED*** return self.Do **
 func (self *EmptyStatement) Idx0() file.Idx      ***REMOVED*** return self.Semicolon ***REMOVED***
 func (self *ExpressionStatement) Idx0() file.Idx ***REMOVED*** return self.Expression.Idx0() ***REMOVED***
 func (self *ForInStatement) Idx0() file.Idx      ***REMOVED*** return self.For ***REMOVED***
+func (self *ForOfStatement) Idx0() file.Idx      ***REMOVED*** return self.For ***REMOVED***
 func (self *ForStatement) Idx0() file.Idx        ***REMOVED*** return self.For ***REMOVED***
 func (self *IfStatement) Idx0() file.Idx         ***REMOVED*** return self.If ***REMOVED***
 func (self *LabelledStatement) Idx0() file.Idx   ***REMOVED*** return self.Label.Idx0() ***REMOVED***
@@ -471,6 +488,9 @@ func (self *VariableExpression) Idx1() file.Idx ***REMOVED***
 	***REMOVED***
 	return self.Initializer.Idx1()
 ***REMOVED***
+func (self *MetaProperty) Idx1() file.Idx ***REMOVED***
+	return self.Property.Idx1()
+***REMOVED***
 
 func (self *BadStatement) Idx1() file.Idx        ***REMOVED*** return self.To ***REMOVED***
 func (self *BlockStatement) Idx1() file.Idx      ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
@@ -482,6 +502,7 @@ func (self *DoWhileStatement) Idx1() file.Idx    ***REMOVED*** return self.Test.
 func (self *EmptyStatement) Idx1() file.Idx      ***REMOVED*** return self.Semicolon + 1 ***REMOVED***
 func (self *ExpressionStatement) Idx1() file.Idx ***REMOVED*** return self.Expression.Idx1() ***REMOVED***
 func (self *ForInStatement) Idx1() file.Idx      ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *ForOfStatement) Idx1() file.Idx      ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *ForStatement) Idx1() file.Idx        ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *IfStatement) Idx1() file.Idx ***REMOVED***
 	if self.Alternate != nil ***REMOVED***

@@ -48,9 +48,10 @@ type Collector struct ***REMOVED***
 	config      Config
 	referenceID string
 
-	duration   int64
-	thresholds map[string][]*stats.Threshold
-	client     *Client
+	executionPlan []lib.ExecutionStep
+	duration      int64 // in seconds
+	thresholds    map[string][]*stats.Threshold
+	client        *Client
 
 	anonymous bool
 	runStatus lib.RunStatus
@@ -59,7 +60,8 @@ type Collector struct ***REMOVED***
 	bufferHTTPTrails []*httpext.Trail
 	bufferSamples    []*Sample
 
-	opts lib.Options
+	logger logrus.FieldLogger
+	opts   lib.Options
 
 	// TODO: optimize this
 	//
@@ -69,7 +71,7 @@ type Collector struct ***REMOVED***
 	// aggregation buckets. This should save us a some time, since it would make the lookups and WaitPeriod
 	// checks basically O(1). And even if for some reason there are occasional metrics with past times that
 	// don't fit in the chosen ring buffer size, we could just send them along to the buffer unaggregated
-	aggrBuckets map[int64]aggregationBucket
+	aggrBuckets map[int64]map[[3]string]aggregationBucket
 
 	stopSendingMetricsCh chan struct***REMOVED******REMOVED***
 ***REMOVED***
@@ -100,7 +102,10 @@ func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error 
 ***REMOVED***
 
 // New creates a new cloud collector
-func New(conf Config, src *loader.SourceData, opts lib.Options, version string) (*Collector, error) ***REMOVED***
+func New(
+	logger logrus.FieldLogger,
+	conf Config, src *loader.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
+) (*Collector, error) ***REMOVED***
 	if err := MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -121,38 +126,49 @@ func New(conf Config, src *loader.SourceData, opts lib.Options, version string) 
 		thresholds[name] = append(thresholds[name], t.Thresholds...)
 	***REMOVED***
 
-	// Sum test duration from options. -1 for unknown duration.
-	var duration int64 = -1
-	if len(opts.Stages) > 0 ***REMOVED***
-		duration = sumStages(opts.Stages)
-	***REMOVED*** else if opts.Duration.Valid ***REMOVED***
-		duration = int64(time.Duration(opts.Duration.Duration).Seconds())
-	***REMOVED***
-
-	if duration == -1 ***REMOVED***
-		return nil, errors.New("Tests with unspecified duration are not allowed when using Load Impact Insights")
+	duration, testEnds := lib.GetEndOffset(executionPlan)
+	if !testEnds ***REMOVED***
+		return nil, errors.New("tests with unspecified duration are not allowed when outputting data to k6 cloud")
 	***REMOVED***
 
 	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
-		logrus.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
+		logger.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
 		conf.Token = conf.DeprecatedToken
+	***REMOVED***
+
+	if !(conf.MetricPushConcurrency.Int64 > 0) ***REMOVED***
+		return nil, errors.Errorf("metrics push concurrency must be a positive number but is %d",
+			conf.MetricPushConcurrency.Int64)
+	***REMOVED***
+
+	if !(conf.MaxMetricSamplesPerPackage.Int64 > 0) ***REMOVED***
+		return nil, errors.Errorf("metric samples per package must be a positive number but is %d",
+			conf.MaxMetricSamplesPerPackage.Int64)
 	***REMOVED***
 
 	return &Collector***REMOVED***
 		config:               conf,
 		thresholds:           thresholds,
-		client:               NewClient(conf.Token.String, conf.Host.String, version),
+		client:               NewClient(logger, conf.Token.String, conf.Host.String, version),
 		anonymous:            !conf.Token.Valid,
-		duration:             duration,
+		executionPlan:        executionPlan,
+		duration:             int64(duration / time.Second),
 		opts:                 opts,
-		aggrBuckets:          map[int64]aggregationBucket***REMOVED******REMOVED***,
+		aggrBuckets:          map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***,
 		stopSendingMetricsCh: make(chan struct***REMOVED******REMOVED***),
+		logger:               logger,
 	***REMOVED***, nil
 ***REMOVED***
 
 // Init is called between the collector's creation and the call to Run().
 // You should do any lengthy setup here rather than in New.
 func (c *Collector) Init() error ***REMOVED***
+	if c.config.PushRefID.Valid ***REMOVED***
+		c.referenceID = c.config.PushRefID.String
+		c.logger.WithField("referenceId", c.referenceID).Debug("Cloud: directly pushing metrics without init")
+		return nil
+	***REMOVED***
+
 	thresholds := make(map[string][]string)
 
 	for name, t := range c.thresholds ***REMOVED***
@@ -160,11 +176,12 @@ func (c *Collector) Init() error ***REMOVED***
 			thresholds[name] = append(thresholds[name], threshold.Source)
 		***REMOVED***
 	***REMOVED***
+	maxVUs := lib.GetMaxPossibleVUs(c.executionPlan)
 
 	testRun := &TestRun***REMOVED***
 		Name:       c.config.Name.String,
 		ProjectID:  c.config.ProjectID.Int64,
-		VUsMax:     c.opts.VUsMax.Int64,
+		VUsMax:     int64(maxVUs),
 		Thresholds: thresholds,
 		Duration:   c.duration,
 	***REMOVED***
@@ -176,13 +193,13 @@ func (c *Collector) Init() error ***REMOVED***
 	c.referenceID = response.ReferenceID
 
 	if response.ConfigOverride != nil ***REMOVED***
-		logrus.WithFields(logrus.Fields***REMOVED***
+		c.logger.WithFields(logrus.Fields***REMOVED***
 			"override": response.ConfigOverride,
 		***REMOVED***).Debug("Cloud: overriding config options")
 		c.config = c.config.Apply(*response.ConfigOverride)
 	***REMOVED***
 
-	logrus.WithFields(logrus.Fields***REMOVED***
+	c.logger.WithFields(logrus.Fields***REMOVED***
 		"name":        c.config.Name,
 		"projectId":   c.config.ProjectID,
 		"duration":    c.duration,
@@ -295,7 +312,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 				newSamples = append(newSamples, NewSampleFromTrail(sc))
 			***REMOVED***
 		case *netext.NetTrail:
-			//TODO: aggregate?
+			// TODO: aggregate?
 			values := map[string]float64***REMOVED***
 				metrics.DataSent.Name:     float64(sc.BytesWritten),
 				metrics.DataReceived.Name: float64(sc.BytesRead),
@@ -310,10 +327,11 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 				Type:   DataTypeMap,
 				Metric: "iter_li_all",
 				Data: &SampleDataMap***REMOVED***
-					Time:   Timestamp(sc.GetTime()),
+					Time:   toMicroSecond(sc.GetTime()),
 					Tags:   sc.GetTags(),
 					Values: values,
-				***REMOVED******REMOVED***)
+				***REMOVED***,
+			***REMOVED***)
 		default:
 			for _, sample := range sampleContainer.GetSamples() ***REMOVED***
 				newSamples = append(newSamples, &Sample***REMOVED***
@@ -321,13 +339,12 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 					Metric: sample.Metric.Name,
 					Data: &SampleDataSingle***REMOVED***
 						Type:  sample.Metric.Type,
-						Time:  Timestamp(sample.Time),
+						Time:  toMicroSecond(sample.Time),
 						Tags:  sample.Tags,
 						Value: sample.Value,
 					***REMOVED***,
 				***REMOVED***)
 			***REMOVED***
-
 		***REMOVED***
 	***REMOVED***
 
@@ -339,6 +356,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 	***REMOVED***
 ***REMOVED***
 
+//nolint:funlen,nestif,gocognit
 func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 	c.bufferMutex.Lock()
 	newHTTPTrails := c.bufferHTTPTrails
@@ -348,6 +366,10 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 	aggrPeriod := int64(c.config.AggregationPeriod.Duration)
 
 	// Distribute all newly buffered HTTP trails into buckets and sub-buckets
+
+	// this key is here specifically to not incur more allocations then necessary
+	// if you change this code please run the benchmarks and add the results to the commit message
+	var subBucketKey [3]string
 	for _, trail := range newHTTPTrails ***REMOVED***
 		trailTags := trail.GetTags()
 		bucketID := trail.GetTime().UnixNano() / aggrPeriod
@@ -355,23 +377,31 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 		// Get or create a time bucket for that trail period
 		bucket, ok := c.aggrBuckets[bucketID]
 		if !ok ***REMOVED***
-			bucket = aggregationBucket***REMOVED******REMOVED***
+			bucket = make(map[[3]string]aggregationBucket)
 			c.aggrBuckets[bucketID] = bucket
 		***REMOVED***
+		subBucketKey[0], _ = trailTags.Get("name")
+		subBucketKey[1], _ = trailTags.Get("group")
+		subBucketKey[2], _ = trailTags.Get("status")
 
-		// Either use an existing subbucket key or use the trail tags as a new one
-		subBucketKey := trailTags
 		subBucket, ok := bucket[subBucketKey]
 		if !ok ***REMOVED***
-			for sbTags, sb := range bucket ***REMOVED***
+			subBucket = aggregationBucket***REMOVED******REMOVED***
+			bucket[subBucketKey] = subBucket
+		***REMOVED***
+		// Either use an existing subbucket key or use the trail tags as a new one
+		subSubBucketKey := trailTags
+		subSubBucket, ok := subBucket[subSubBucketKey]
+		if !ok ***REMOVED***
+			for sbTags, sb := range subBucket ***REMOVED***
 				if trailTags.IsEqual(sbTags) ***REMOVED***
-					subBucketKey = sbTags
-					subBucket = sb
+					subSubBucketKey = sbTags
+					subSubBucket = sb
 					break
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
-		bucket[subBucketKey] = append(subBucket, trail)
+		subBucket[subSubBucketKey] = append(subSubBucket, trail)
 	***REMOVED***
 
 	// Which buckets are still new and we'll wait for trails to accumulate before aggregating
@@ -387,70 +417,77 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 			continue
 		***REMOVED***
 
-		for tags, httpTrails := range subBuckets ***REMOVED***
-			trailCount := int64(len(httpTrails))
-			if trailCount < c.config.AggregationMinSamples.Int64 ***REMOVED***
-				for _, trail := range httpTrails ***REMOVED***
-					newSamples = append(newSamples, NewSampleFromTrail(trail))
-				***REMOVED***
-				continue
-			***REMOVED***
-
-			aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
-				Time: Timestamp(time.Unix(0, bucketID*aggrPeriod+aggrPeriod/2)),
-				Type: "aggregated_trend",
-				Tags: tags,
-			***REMOVED***
-
-			if c.config.AggregationSkipOutlierDetection.Bool ***REMOVED***
-				// Simply add up all HTTP trails, no outlier detection
-				for _, trail := range httpTrails ***REMOVED***
-					aggrData.Add(trail)
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				connDurations := make(durations, trailCount)
-				reqDurations := make(durations, trailCount)
-				for i, trail := range httpTrails ***REMOVED***
-					connDurations[i] = trail.ConnDuration
-					reqDurations[i] = trail.Duration
-				***REMOVED***
-
-				var minConnDur, maxConnDur, minReqDur, maxReqDur time.Duration
-				if trailCount < c.config.AggregationOutlierAlgoThreshold.Int64 ***REMOVED***
-					// Since there are fewer samples, we'll use the interpolation-enabled and
-					// more precise sorting-based algorithm
-					minConnDur, maxConnDur = connDurations.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
-					minReqDur, maxReqDur = reqDurations.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
-				***REMOVED*** else ***REMOVED***
-					minConnDur, maxConnDur = connDurations.SelectGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
-					minReqDur, maxReqDur = reqDurations.SelectGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
-				***REMOVED***
-
-				for _, trail := range httpTrails ***REMOVED***
-					if trail.ConnDuration < minConnDur ||
-						trail.ConnDuration > maxConnDur ||
-						trail.Duration < minReqDur ||
-						trail.Duration > maxReqDur ***REMOVED***
-						// Seems like an outlier, add it as a standalone metric
+		for _, subBucket := range subBuckets ***REMOVED***
+			for tags, httpTrails := range subBucket ***REMOVED***
+				// start := time.Now() // this is in a combination with the log at the end
+				trailCount := int64(len(httpTrails))
+				if trailCount < c.config.AggregationMinSamples.Int64 ***REMOVED***
+					for _, trail := range httpTrails ***REMOVED***
 						newSamples = append(newSamples, NewSampleFromTrail(trail))
-					***REMOVED*** else ***REMOVED***
-						// Aggregate the trail
+					***REMOVED***
+					continue
+				***REMOVED***
+
+				aggrData := &SampleDataAggregatedHTTPReqs***REMOVED***
+					Time: toMicroSecond(time.Unix(0, bucketID*aggrPeriod+aggrPeriod/2)),
+					Type: "aggregated_trend",
+					Tags: tags,
+				***REMOVED***
+
+				if c.config.AggregationSkipOutlierDetection.Bool ***REMOVED***
+					// Simply add up all HTTP trails, no outlier detection
+					for _, trail := range httpTrails ***REMOVED***
 						aggrData.Add(trail)
 					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					connDurations := make(durations, trailCount)
+					reqDurations := make(durations, trailCount)
+					for i, trail := range httpTrails ***REMOVED***
+						connDurations[i] = trail.ConnDuration
+						reqDurations[i] = trail.Duration
+					***REMOVED***
+
+					var minConnDur, maxConnDur, minReqDur, maxReqDur time.Duration
+					if trailCount < c.config.AggregationOutlierAlgoThreshold.Int64 ***REMOVED***
+						// Since there are fewer samples, we'll use the interpolation-enabled and
+						// more precise sorting-based algorithm
+						minConnDur, maxConnDur = connDurations.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
+						minReqDur, maxReqDur = reqDurations.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
+					***REMOVED*** else ***REMOVED***
+						minConnDur, maxConnDur = connDurations.SelectGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
+						minReqDur, maxReqDur = reqDurations.SelectGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef)
+					***REMOVED***
+
+					for _, trail := range httpTrails ***REMOVED***
+						if trail.ConnDuration < minConnDur ||
+							trail.ConnDuration > maxConnDur ||
+							trail.Duration < minReqDur ||
+							trail.Duration > maxReqDur ***REMOVED***
+							// Seems like an outlier, add it as a standalone metric
+							newSamples = append(newSamples, NewSampleFromTrail(trail))
+						***REMOVED*** else ***REMOVED***
+							// Aggregate the trail
+							aggrData.Add(trail)
+						***REMOVED***
+					***REMOVED***
 				***REMOVED***
-			***REMOVED***
 
-			aggrData.CalcAverages()
+				aggrData.CalcAverages()
 
-			if aggrData.Count > 0 ***REMOVED***
-				logrus.WithFields(logrus.Fields***REMOVED***
-					"http_samples": aggrData.Count,
-				***REMOVED***).Debug("Aggregated HTTP metrics")
-				newSamples = append(newSamples, &Sample***REMOVED***
-					Type:   DataTypeAggregatedHTTPReqs,
-					Metric: "http_req_li_all",
-					Data:   aggrData,
-				***REMOVED***)
+				if aggrData.Count > 0 ***REMOVED***
+					/*
+						c.logger.WithFields(logrus.Fields***REMOVED***
+							"http_samples": aggrData.Count,
+							"ratio":        fmt.Sprintf("%.2f", float64(aggrData.Count)/float64(trailCount)),
+							"t":            time.Since(start),
+						***REMOVED***).Debug("Aggregated HTTP metrics")
+					//*/
+					newSamples = append(newSamples, &Sample***REMOVED***
+						Type:   DataTypeAggregatedHTTPReqs,
+						Metric: "http_req_li_all",
+						Data:   aggrData,
+					***REMOVED***)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		delete(c.aggrBuckets, bucketID)
@@ -472,15 +509,17 @@ func (c *Collector) flushHTTPTrails() ***REMOVED***
 		newSamples = append(newSamples, NewSampleFromTrail(trail))
 	***REMOVED***
 	for _, bucket := range c.aggrBuckets ***REMOVED***
-		for _, trails := range bucket ***REMOVED***
-			for _, trail := range trails ***REMOVED***
-				newSamples = append(newSamples, NewSampleFromTrail(trail))
+		for _, subBucket := range bucket ***REMOVED***
+			for _, trails := range subBucket ***REMOVED***
+				for _, trail := range trails ***REMOVED***
+					newSamples = append(newSamples, NewSampleFromTrail(trail))
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	c.bufferHTTPTrails = nil
-	c.aggrBuckets = map[int64]aggregationBucket***REMOVED******REMOVED***
+	c.aggrBuckets = map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***
 	c.bufferSamples = append(c.bufferSamples, newSamples...)
 ***REMOVED***
 
@@ -496,6 +535,20 @@ func (c *Collector) shouldStopSendingMetrics(err error) bool ***REMOVED***
 	return false
 ***REMOVED***
 
+type pushJob struct ***REMOVED***
+	done    chan error
+	samples []*Sample
+***REMOVED***
+
+// ceil(a/b)
+func ceilDiv(a, b int) int ***REMOVED***
+	r := a / b
+	if a%b != 0 ***REMOVED***
+		r++
+	***REMOVED***
+	return r
+***REMOVED***
+
 func (c *Collector) pushMetrics() ***REMOVED***
 	c.bufferMutex.Lock()
 	if len(c.bufferSamples) == 0 ***REMOVED***
@@ -506,30 +559,65 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	c.bufferSamples = nil
 	c.bufferMutex.Unlock()
 
-	logrus.WithFields(logrus.Fields***REMOVED***
-		"samples": len(buffer),
+	count := len(buffer)
+	c.logger.WithFields(logrus.Fields***REMOVED***
+		"samples": count,
 	***REMOVED***).Debug("Pushing metrics to cloud")
+	start := time.Now()
+
+	numberOfPackages := ceilDiv(len(buffer), int(c.config.MaxMetricSamplesPerPackage.Int64))
+	numberOfWorkers := int(c.config.MetricPushConcurrency.Int64)
+	if numberOfWorkers > numberOfPackages ***REMOVED***
+		numberOfWorkers = numberOfPackages
+	***REMOVED***
+
+	ch := make(chan pushJob, numberOfPackages)
+	for i := 0; i < numberOfWorkers; i++ ***REMOVED***
+		go func() ***REMOVED***
+			for job := range ch ***REMOVED***
+				err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, job.samples)
+				job.done <- err
+				if c.shouldStopSendingMetrics(err) ***REMOVED***
+					return
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***()
+	***REMOVED***
+
+	jobs := make([]pushJob, 0, numberOfPackages)
 
 	for len(buffer) > 0 ***REMOVED***
-		var size = len(buffer)
+		size := len(buffer)
 		if size > int(c.config.MaxMetricSamplesPerPackage.Int64) ***REMOVED***
 			size = int(c.config.MaxMetricSamplesPerPackage.Int64)
 		***REMOVED***
-		err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, buffer[:size])
+		job := pushJob***REMOVED***done: make(chan error, 1), samples: buffer[:size]***REMOVED***
+		ch <- job
+		jobs = append(jobs, job)
+		buffer = buffer[size:]
+	***REMOVED***
+
+	close(ch)
+
+	for _, job := range jobs ***REMOVED***
+		err := <-job.done
 		if err != nil ***REMOVED***
 			if c.shouldStopSendingMetrics(err) ***REMOVED***
-				logrus.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
+				c.logger.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
 				close(c.stopSendingMetricsCh)
 				break
 			***REMOVED***
-			logrus.WithError(err).Warn("Failed to send metrics to cloud")
+			c.logger.WithError(err).Warn("Failed to send metrics to cloud")
 		***REMOVED***
-		buffer = buffer[size:]
 	***REMOVED***
+	c.logger.WithFields(logrus.Fields***REMOVED***
+		"samples": count,
+		"t":       time.Since(start),
+	***REMOVED***).Debug("Pushing metrics to cloud finished")
 ***REMOVED***
 
 func (c *Collector) testFinished() ***REMOVED***
-	if c.referenceID == "" ***REMOVED***
+	if c.referenceID == "" || c.config.PushRefID.Valid ***REMOVED***
 		return
 	***REMOVED***
 
@@ -545,7 +633,7 @@ func (c *Collector) testFinished() ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	logrus.WithFields(logrus.Fields***REMOVED***
+	c.logger.WithFields(logrus.Fields***REMOVED***
 		"ref":     c.referenceID,
 		"tainted": testTainted,
 	***REMOVED***).Debug("Sending test finished")
@@ -557,19 +645,10 @@ func (c *Collector) testFinished() ***REMOVED***
 
 	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted, runStatus)
 	if err != nil ***REMOVED***
-		logrus.WithFields(logrus.Fields***REMOVED***
+		c.logger.WithFields(logrus.Fields***REMOVED***
 			"error": err,
 		***REMOVED***).Warn("Failed to send test finished to cloud")
 	***REMOVED***
-***REMOVED***
-
-func sumStages(stages []lib.Stage) int64 ***REMOVED***
-	var total time.Duration
-	for _, stage := range stages ***REMOVED***
-		total += time.Duration(stage.Duration.Duration)
-	***REMOVED***
-
-	return int64(total.Seconds())
 ***REMOVED***
 
 // GetRequiredSystemTags returns which sample tags are needed by this collector

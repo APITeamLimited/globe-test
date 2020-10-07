@@ -28,12 +28,15 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
+
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/js/modules"
+	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
-	"github.com/pkg/errors"
-	"github.com/spf13/afero"
 )
 
 type programWithSource struct ***REMOVED***
@@ -41,6 +44,9 @@ type programWithSource struct ***REMOVED***
 	src    string
 	module *goja.Object
 ***REMOVED***
+
+const openCantBeUsedOutsideInitContextMsg = `The "open()" function is only available in the init stage ` +
+	`(i.e. the global scope), see https://k6.io/docs/using-k6/test-life-cycle for more information`
 
 // InitContext provides APIs for use in the init context.
 type InitContext struct ***REMOVED***
@@ -58,12 +64,14 @@ type InitContext struct ***REMOVED***
 	// Cache of loaded programs and files.
 	programs map[string]programWithSource
 
-	compatibilityMode compiler.CompatibilityMode
+	compatibilityMode lib.CompatibilityMode
+
+	logger logrus.FieldLogger
 ***REMOVED***
 
 // NewInitContext creates a new initcontext with the provided arguments
 func NewInitContext(
-	rt *goja.Runtime, c *compiler.Compiler, compatMode compiler.CompatibilityMode,
+	logger logrus.FieldLogger, rt *goja.Runtime, c *compiler.Compiler, compatMode lib.CompatibilityMode,
 	ctxPtr *context.Context, filesystems map[string]afero.Fs, pwd *url.URL,
 ) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
@@ -74,6 +82,7 @@ func NewInitContext(
 		pwd:               pwd,
 		programs:          make(map[string]programWithSource),
 		compatibilityMode: compatMode,
+		logger:            logger,
 	***REMOVED***
 ***REMOVED***
 
@@ -81,7 +90,7 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 	// we don't copy the exports as otherwise they will be shared and we don't want this.
 	// this means that all the files will be executed again but once again only once per compilation
 	// of the main file.
-	var programs = make(map[string]programWithSource, len(base.programs))
+	programs := make(map[string]programWithSource, len(base.programs))
 	for key, program := range base.programs ***REMOVED***
 		programs[key] = programWithSource***REMOVED***
 			src: program.src,
@@ -98,6 +107,7 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 
 		programs:          programs,
 		compatibilityMode: base.compatibilityMode,
+		logger:            base.logger,
 	***REMOVED***
 ***REMOVED***
 
@@ -149,7 +159,8 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 
 		if pgm.pgm == nil ***REMOVED***
 			// Load the sources; the loader takes care of remote loading, etc.
-			data, err := loader.Load(i.filesystems, fileURL, name)
+			// TODO: don't use the Global logger
+			data, err := loader.Load(i.logger, i.filesystems, fileURL, name)
 			if err != nil ***REMOVED***
 				return goja.Undefined(), err
 			***REMOVED***
@@ -188,7 +199,11 @@ func (i *InitContext) compileImport(src, filename string) (*goja.Program, error)
 ***REMOVED***
 
 // Open implements open() in the init context and will read and return the contents of a file
-func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) ***REMOVED***
+func (i *InitContext) Open(ctx context.Context, filename string, args ...string) (goja.Value, error) ***REMOVED***
+	if lib.GetState(ctx) != nil ***REMOVED***
+		return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
+	***REMOVED***
+
 	if filename == "" ***REMOVED***
 		return nil, errors.New("open() can't be used with an empty filename")
 	***REMOVED***

@@ -378,6 +378,21 @@ func (self *_parser) parseForIn(idx file.Idx, into ast.Expression) *ast.ForInSta
 	***REMOVED***
 ***REMOVED***
 
+func (self *_parser) parseForOf(idx file.Idx, into ast.Expression) *ast.ForOfStatement ***REMOVED***
+
+	// Already have consumed "<into> of"
+
+	source := self.parseExpression()
+	self.expect(token.RIGHT_PARENTHESIS)
+
+	return &ast.ForOfStatement***REMOVED***
+		For:    idx,
+		Into:   into,
+		Source: source,
+		Body:   self.parseIterationStatement(),
+	***REMOVED***
+***REMOVED***
+
 func (self *_parser) parseFor(idx file.Idx, initializer ast.Expression) *ast.ForStatement ***REMOVED***
 
 	// Already have consumed "<initializer> ;"
@@ -410,6 +425,7 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 	var left []ast.Expression
 
 	forIn := false
+	forOf := false
 	if self.token != token.SEMICOLON ***REMOVED***
 
 		allowIn := self.scope.allowIn
@@ -418,33 +434,46 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 			var_ := self.idx
 			self.next()
 			list := self.parseVariableDeclarationList(var_)
-			if len(list) == 1 && self.token == token.IN ***REMOVED***
-				self.next() // in
-				forIn = true
-				left = []ast.Expression***REMOVED***list[0]***REMOVED*** // There is only one declaration
-			***REMOVED*** else ***REMOVED***
-				left = list
+			if len(list) == 1 ***REMOVED***
+				if self.token == token.IN ***REMOVED***
+					self.next() // in
+					forIn = true
+				***REMOVED*** else if self.token == token.IDENTIFIER ***REMOVED***
+					if self.literal == "of" ***REMOVED***
+						self.next()
+						forOf = true
+					***REMOVED***
+				***REMOVED***
 			***REMOVED***
+			left = list
 		***REMOVED*** else ***REMOVED***
 			left = append(left, self.parseExpression())
 			if self.token == token.IN ***REMOVED***
 				self.next()
 				forIn = true
+			***REMOVED*** else if self.token == token.IDENTIFIER ***REMOVED***
+				if self.literal == "of" ***REMOVED***
+					self.next()
+					forOf = true
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		self.scope.allowIn = allowIn
 	***REMOVED***
 
-	if forIn ***REMOVED***
+	if forIn || forOf ***REMOVED***
 		switch left[0].(type) ***REMOVED***
 		case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.VariableExpression:
 			// These are all acceptable
 		default:
-			self.error(idx, "Invalid left-hand side in for-in")
+			self.error(idx, "Invalid left-hand side in for-in or for-of")
 			self.nextStatement()
 			return &ast.BadStatement***REMOVED***From: idx, To: self.idx***REMOVED***
 		***REMOVED***
-		return self.parseForIn(idx, left[0])
+		if forIn ***REMOVED***
+			return self.parseForIn(idx, left[0])
+		***REMOVED***
+		return self.parseForOf(idx, left[0])
 	***REMOVED***
 
 	self.expect(token.SEMICOLON)

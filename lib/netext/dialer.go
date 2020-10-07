@@ -24,26 +24,33 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
+	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/viki-org/dnscache"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
-
-	"github.com/viki-org/dnscache"
 )
+
+// dnsResolver is an interface that fetches dns information
+// about a given address.
+type dnsResolver interface ***REMOVED***
+	FetchOne(address string) (net.IP, error)
+***REMOVED***
 
 // Dialer wraps net.Dialer and provides k6 specific functionality -
 // tracing, blacklists and DNS cache and aliases.
 type Dialer struct ***REMOVED***
 	net.Dialer
 
-	Resolver         *dnscache.Resolver
+	Resolver         dnsResolver
 	Blacklist        []*lib.IPNet
 	BlockedHostnames *lib.HostnameTrie
-	Hosts            map[string]net.IP
+	Hosts            map[string]*lib.HostAddress
 
 	BytesRead    int64
 	BytesWritten int64
@@ -51,9 +58,13 @@ type Dialer struct ***REMOVED***
 
 // NewDialer constructs a new Dialer and initializes its cache.
 func NewDialer(dialer net.Dialer) *Dialer ***REMOVED***
+	return newDialerWithResolver(dialer, dnscache.New(0))
+***REMOVED***
+
+func newDialerWithResolver(dialer net.Dialer, resolver dnsResolver) *Dialer ***REMOVED***
 	return &Dialer***REMOVED***
 		Dialer:   dialer,
-		Resolver: dnscache.New(0),
+		Resolver: resolver,
 	***REMOVED***
 ***REMOVED***
 
@@ -79,35 +90,11 @@ func (b BlockedHostError) Error() string ***REMOVED***
 
 // DialContext wraps the net.Dialer.DialContext and handles the k6 specifics
 func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn, error) ***REMOVED***
-	delimiter := strings.LastIndex(addr, ":")
-	host := addr[:delimiter]
-
-	if d.BlockedHostnames != nil ***REMOVED***
-		if match, blocked := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
-			return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
-		***REMOVED***
+	dialAddr, err := d.getDialAddr(addr)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-
-	// lookup for domain defined in Hosts option before trying to resolve DNS.
-	ip, ok := d.Hosts[host]
-	if !ok ***REMOVED***
-		var err error
-		ip, err = d.Resolver.FetchOne(host)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-
-	for _, ipnet := range d.Blacklist ***REMOVED***
-		if (*net.IPNet)(ipnet).Contains(ip) ***REMOVED***
-			return nil, BlackListedIPError***REMOVED***ip: ip, net: ipnet***REMOVED***
-		***REMOVED***
-	***REMOVED***
-	ipStr := ip.String()
-	if strings.ContainsRune(ipStr, ':') ***REMOVED***
-		ipStr = "[" + ipStr + "]"
-	***REMOVED***
-	conn, err := d.Dialer.DialContext(ctx, proto, ipStr+":"+addr[delimiter+1:])
+	conn, err := d.Dialer.DialContext(ctx, proto, dialAddr)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -164,6 +151,83 @@ func (d *Dialer) GetTrail(
 		Tags:          tags,
 		Samples:       samples,
 	***REMOVED***
+***REMOVED***
+
+func (d *Dialer) getDialAddr(addr string) (string, error) ***REMOVED***
+	remote, err := d.findRemote(addr)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+
+	for _, ipnet := range d.Blacklist ***REMOVED***
+		if ipnet.Contains(remote.IP) ***REMOVED***
+			return "", BlackListedIPError***REMOVED***ip: remote.IP, net: ipnet***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return remote.String(), nil
+***REMOVED***
+
+func (d *Dialer) findRemote(addr string) (*lib.HostAddress, error) ***REMOVED***
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if d.BlockedHostnames != nil ***REMOVED***
+		if match, blocked := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
+			return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	remote, err := d.getConfiguredHost(addr, host, port)
+	if err != nil || remote != nil ***REMOVED***
+		return remote, err
+	***REMOVED***
+
+	ip := net.ParseIP(host)
+	if ip != nil ***REMOVED***
+		return lib.NewHostAddress(ip, port)
+	***REMOVED***
+
+	return d.fetchRemoteFromResolver(host, port)
+***REMOVED***
+
+func (d *Dialer) fetchRemoteFromResolver(host, port string) (*lib.HostAddress, error) ***REMOVED***
+	ip, err := d.Resolver.FetchOne(host)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if ip == nil ***REMOVED***
+		return nil, errors.Errorf("lookup %s: no such host", host)
+	***REMOVED***
+
+	return lib.NewHostAddress(ip, port)
+***REMOVED***
+
+func (d *Dialer) getConfiguredHost(addr, host, port string) (*lib.HostAddress, error) ***REMOVED***
+	if remote, ok := d.Hosts[addr]; ok ***REMOVED***
+		return remote, nil
+	***REMOVED***
+
+	if remote, ok := d.Hosts[host]; ok ***REMOVED***
+		if remote.Port != 0 || port == "" ***REMOVED***
+			return remote, nil
+		***REMOVED***
+
+		newPort, err := strconv.Atoi(port)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+
+		newRemote := *remote
+		newRemote.Port = newPort
+
+		return &newRemote, nil
+	***REMOVED***
+
+	return nil, nil
 ***REMOVED***
 
 // NetTrail contains information about the exchanged data size and length of a

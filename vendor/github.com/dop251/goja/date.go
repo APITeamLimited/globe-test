@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"math"
 	"time"
 )
 
@@ -13,12 +14,14 @@ const (
 	datetimeLayout_en_GB = "01/02/2006, 15:04:05"
 	dateLayout_en_GB     = "01/02/2006"
 	timeLayout_en_GB     = "15:04:05"
+
+	maxTime   = 8.64e15
+	timeUnset = math.MinInt64
 )
 
 type dateObject struct ***REMOVED***
 	baseObject
-	time  time.Time
-	isSet bool
+	msec int64
 ***REMOVED***
 
 var (
@@ -65,20 +68,23 @@ func dateParse(date string) (time.Time, bool) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	unix := timeToMsec(t)
-	return t, err == nil && unix >= -8640000000000000 && unix <= 8640000000000000
+	return t, err == nil && unix >= -maxTime && unix <= maxTime
 ***REMOVED***
 
-func (r *Runtime) newDateObject(t time.Time, isSet bool) *Object ***REMOVED***
+func (r *Runtime) newDateObject(t time.Time, isSet bool, proto *Object) *Object ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 	d := &dateObject***REMOVED******REMOVED***
 	v.self = d
 	d.val = v
 	d.class = classDate
-	d.prototype = r.global.DatePrototype
+	d.prototype = proto
 	d.extensible = true
 	d.init()
-	d.time = t.In(time.Local)
-	d.isSet = isSet
+	if isSet ***REMOVED***
+		d.msec = timeToMsec(t)
+	***REMOVED*** else ***REMOVED***
+		d.msec = timeUnset
+	***REMOVED***
 	return v
 ***REMOVED***
 
@@ -86,13 +92,49 @@ func dateFormat(t time.Time) string ***REMOVED***
 	return t.Local().Format(dateTimeLayout)
 ***REMOVED***
 
+func timeFromMsec(msec int64) time.Time ***REMOVED***
+	sec := msec / 1000
+	nsec := (msec % 1000) * 1e6
+	return time.Unix(sec, nsec)
+***REMOVED***
+
+func timeToMsec(t time.Time) int64 ***REMOVED***
+	return t.Unix()*1000 + int64(t.Nanosecond())/1e6
+***REMOVED***
+
 func (d *dateObject) toPrimitive() Value ***REMOVED***
 	return d.toPrimitiveString()
 ***REMOVED***
 
-func (d *dateObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
-	if d.isSet ***REMOVED***
-		return d.time
+func (d *dateObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if d.isSet() ***REMOVED***
+		return d.time()
 	***REMOVED***
 	return nil
+***REMOVED***
+
+func (d *dateObject) setTimeMs(ms int64) Value ***REMOVED***
+	if ms >= 0 && ms <= maxTime || ms < 0 && ms >= -maxTime ***REMOVED***
+		d.msec = ms
+		return intToValue(ms)
+	***REMOVED***
+
+	d.unset()
+	return _NaN
+***REMOVED***
+
+func (d *dateObject) isSet() bool ***REMOVED***
+	return d.msec != timeUnset
+***REMOVED***
+
+func (d *dateObject) unset() ***REMOVED***
+	d.msec = timeUnset
+***REMOVED***
+
+func (d *dateObject) time() time.Time ***REMOVED***
+	return timeFromMsec(d.msec)
+***REMOVED***
+
+func (d *dateObject) timeUTC() time.Time ***REMOVED***
+	return timeFromMsec(d.msec).In(time.UTC)
 ***REMOVED***

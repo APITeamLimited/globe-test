@@ -2,20 +2,23 @@ package goja
 
 import (
 	"math"
+	"math/bits"
 	"reflect"
 	"sort"
 	"strconv"
+
+	"github.com/dop251/goja/unistring"
 )
 
 type sparseArrayItem struct ***REMOVED***
-	idx   int64
+	idx   uint32
 	value Value
 ***REMOVED***
 
 type sparseArrayObject struct ***REMOVED***
 	baseObject
 	items          []sparseArrayItem
-	length         int64
+	length         uint32
 	propValueCount int
 	lengthProp     valueProperty
 ***REMOVED***
@@ -27,7 +30,7 @@ func (a *sparseArrayObject) init() ***REMOVED***
 	a._put("length", &a.lengthProp)
 ***REMOVED***
 
-func (a *sparseArrayObject) findIdx(idx int64) int ***REMOVED***
+func (a *sparseArrayObject) findIdx(idx uint32) int ***REMOVED***
 	return sort.Search(len(a.items), func(i int) bool ***REMOVED***
 		return a.items[i].idx >= idx
 	***REMOVED***)
@@ -36,7 +39,7 @@ func (a *sparseArrayObject) findIdx(idx int64) int ***REMOVED***
 func (a *sparseArrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED***
 	if l >= 0 && l <= math.MaxUint32 ***REMOVED***
 		ret := true
-
+		l := uint32(l)
 		if l <= a.length ***REMOVED***
 			if a.propValueCount > 0 ***REMOVED***
 				// Slow path
@@ -74,7 +77,7 @@ func (a *sparseArrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED**
 ***REMOVED***
 
 func (a *sparseArrayObject) setLengthInt(l int64, throw bool) bool ***REMOVED***
-	if l == a.length ***REMOVED***
+	if l == int64(a.length) ***REMOVED***
 		return true
 	***REMOVED***
 	if !a.lengthProp.writable ***REMOVED***
@@ -86,7 +89,7 @@ func (a *sparseArrayObject) setLengthInt(l int64, throw bool) bool ***REMOVED***
 
 func (a *sparseArrayObject) setLength(v Value, throw bool) bool ***REMOVED***
 	l, ok := toIntIgnoreNegZero(v)
-	if ok && l == a.length ***REMOVED***
+	if ok && l == int64(a.length) ***REMOVED***
 		return true
 	***REMOVED***
 	if !a.lengthProp.writable ***REMOVED***
@@ -99,63 +102,71 @@ func (a *sparseArrayObject) setLength(v Value, throw bool) bool ***REMOVED***
 	panic(a.val.runtime.newError(a.val.runtime.global.RangeError, "Invalid array length"))
 ***REMOVED***
 
-func (a *sparseArrayObject) getIdx(idx int64, origNameStr string, origName Value) (v Value) ***REMOVED***
+func (a *sparseArrayObject) _getIdx(idx uint32) Value ***REMOVED***
 	i := a.findIdx(idx)
 	if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
 		return a.items[i].value
 	***REMOVED***
 
-	if a.prototype != nil ***REMOVED***
-		if origName != nil ***REMOVED***
-			v = a.prototype.self.getProp(origName)
-		***REMOVED*** else ***REMOVED***
-			v = a.prototype.self.getPropStr(origNameStr)
-		***REMOVED***
-	***REMOVED***
-	return
+	return nil
 ***REMOVED***
 
-func (a *sparseArrayObject) getProp(n Value) Value ***REMOVED***
-	if idx := toIdx(n); idx >= 0 ***REMOVED***
-		return a.getIdx(idx, "", n)
-	***REMOVED***
+func (a *sparseArrayObject) getStr(name unistring.String, receiver Value) Value ***REMOVED***
+	return a.getStrWithOwnProp(a.getOwnPropStr(name), name, receiver)
+***REMOVED***
 
-	if n.String() == "length" ***REMOVED***
-		return a.getLengthProp()
+func (a *sparseArrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
+	prop := a.getOwnPropIdx(idx)
+	if prop == nil ***REMOVED***
+		if a.prototype != nil ***REMOVED***
+			if receiver == nil ***REMOVED***
+				return a.prototype.self.getIdx(idx, a.val)
+			***REMOVED***
+			return a.prototype.self.getIdx(idx, receiver)
+		***REMOVED***
 	***REMOVED***
-	return a.baseObject.getProp(n)
+	if prop, ok := prop.(*valueProperty); ok ***REMOVED***
+		if receiver == nil ***REMOVED***
+			return prop.get(a.val)
+		***REMOVED***
+		return prop.get(receiver)
+	***REMOVED***
+	return prop
 ***REMOVED***
 
 func (a *sparseArrayObject) getLengthProp() Value ***REMOVED***
-	a.lengthProp.value = intToValue(a.length)
+	a.lengthProp.value = intToValue(int64(a.length))
 	return &a.lengthProp
 ***REMOVED***
 
-func (a *sparseArrayObject) getOwnProp(name string) Value ***REMOVED***
-	if idx := strToIdx(name); idx >= 0 ***REMOVED***
-		i := a.findIdx(idx)
-		if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
-			return a.items[i].value
-		***REMOVED***
-		return nil
+func (a *sparseArrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
+	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+		return a._getIdx(idx)
 	***REMOVED***
 	if name == "length" ***REMOVED***
 		return a.getLengthProp()
 	***REMOVED***
-	return a.baseObject.getOwnProp(name)
+	return a.baseObject.getOwnPropStr(name)
 ***REMOVED***
 
-func (a *sparseArrayObject) getPropStr(name string) Value ***REMOVED***
-	if i := strToIdx(name); i >= 0 ***REMOVED***
-		return a.getIdx(i, name, nil)
+func (a *sparseArrayObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
+	if idx := toIdx(idx); idx != math.MaxUint32 ***REMOVED***
+		return a._getIdx(idx)
 	***REMOVED***
-	if name == "length" ***REMOVED***
-		return a.getLengthProp()
-	***REMOVED***
-	return a.baseObject.getPropStr(name)
+	return a.baseObject.getOwnPropStr(idx.string())
 ***REMOVED***
 
-func (a *sparseArrayObject) putIdx(idx int64, val Value, throw bool, origNameStr string, origName Value) ***REMOVED***
+func (a *sparseArrayObject) add(idx uint32, val Value) ***REMOVED***
+	i := a.findIdx(idx)
+	a.items = append(a.items, sparseArrayItem***REMOVED******REMOVED***)
+	copy(a.items[i+1:], a.items[i:])
+	a.items[i] = sparseArrayItem***REMOVED***
+		idx:   idx,
+		value: val,
+	***REMOVED***
+***REMOVED***
+
+func (a *sparseArrayObject) _setOwnIdx(idx uint32, val Value, throw bool) bool ***REMOVED***
 	var prop Value
 	i := a.findIdx(idx)
 	if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
@@ -163,37 +174,26 @@ func (a *sparseArrayObject) putIdx(idx int64, val Value, throw bool, origNameStr
 	***REMOVED***
 
 	if prop == nil ***REMOVED***
-		if a.prototype != nil ***REMOVED***
-			var pprop Value
-			if origName != nil ***REMOVED***
-				pprop = a.prototype.self.getProp(origName)
-			***REMOVED*** else ***REMOVED***
-				pprop = a.prototype.self.getPropStr(origNameStr)
-			***REMOVED***
-			if pprop, ok := pprop.(*valueProperty); ok ***REMOVED***
-				if !pprop.isWritable() ***REMOVED***
-					a.val.runtime.typeErrorResult(throw)
-					return
-				***REMOVED***
-				if pprop.accessor ***REMOVED***
-					pprop.set(a.val, val)
-					return
-				***REMOVED***
+		if proto := a.prototype; proto != nil ***REMOVED***
+			// we know it's foreign because prototype loops are not allowed
+			if res, ok := proto.self.setForeignIdx(valueInt(idx), val, a.val, throw); ok ***REMOVED***
+				return res
 			***REMOVED***
 		***REMOVED***
 
+		// new property
 		if !a.extensible ***REMOVED***
-			a.val.runtime.typeErrorResult(throw)
-			return
+			a.val.runtime.typeErrorResult(throw, "Cannot add property %d, object is not extensible", idx)
+			return false
 		***REMOVED***
 
 		if idx >= a.length ***REMOVED***
-			if !a.setLengthInt(idx+1, throw) ***REMOVED***
-				return
+			if !a.setLengthInt(int64(idx)+1, throw) ***REMOVED***
+				return false
 			***REMOVED***
 		***REMOVED***
 
-		if a.expand() ***REMOVED***
+		if a.expand(idx) ***REMOVED***
 			a.items = append(a.items, sparseArrayItem***REMOVED******REMOVED***)
 			copy(a.items[i+1:], a.items[i:])
 			a.items[i] = sparseArrayItem***REMOVED***
@@ -201,57 +201,61 @@ func (a *sparseArrayObject) putIdx(idx int64, val Value, throw bool, origNameStr
 				value: val,
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			a.val.self.(*arrayObject).putIdx(idx, val, throw, origNameStr, origName)
-			return
+			ar := a.val.self.(*arrayObject)
+			ar.values[idx] = val
+			ar.objCount++
+			return true
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		if prop, ok := prop.(*valueProperty); ok ***REMOVED***
 			if !prop.isWritable() ***REMOVED***
 				a.val.runtime.typeErrorResult(throw)
-				return
+				return false
 			***REMOVED***
 			prop.set(a.val, val)
-			return
 		***REMOVED*** else ***REMOVED***
 			a.items[i].value = val
 		***REMOVED***
 	***REMOVED***
-
+	return true
 ***REMOVED***
 
-func (a *sparseArrayObject) put(n Value, val Value, throw bool) ***REMOVED***
-	if idx := toIdx(n); idx >= 0 ***REMOVED***
-		a.putIdx(idx, val, throw, "", n)
-	***REMOVED*** else ***REMOVED***
-		if n.String() == "length" ***REMOVED***
-			a.setLength(val, throw)
-		***REMOVED*** else ***REMOVED***
-			a.baseObject.put(n, val, throw)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-func (a *sparseArrayObject) putStr(name string, val Value, throw bool) ***REMOVED***
-	if idx := strToIdx(name); idx >= 0 ***REMOVED***
-		a.putIdx(idx, val, throw, name, nil)
+func (a *sparseArrayObject) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
+	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+		return a._setOwnIdx(idx, val, throw)
 	***REMOVED*** else ***REMOVED***
 		if name == "length" ***REMOVED***
-			a.setLength(val, throw)
+			return a.setLength(val, throw)
 		***REMOVED*** else ***REMOVED***
-			a.baseObject.putStr(name, val, throw)
+			return a.baseObject.setOwnStr(name, val, throw)
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (a *sparseArrayObject) setOwnIdx(idx valueInt, val Value, throw bool) bool ***REMOVED***
+	if idx := toIdx(idx); idx != math.MaxUint32 ***REMOVED***
+		return a._setOwnIdx(idx, val, throw)
+	***REMOVED***
+
+	return a.baseObject.setOwnStr(idx.string(), val, throw)
+***REMOVED***
+
+func (a *sparseArrayObject) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	return a._setForeignStr(name, a.getOwnPropStr(name), val, receiver, throw)
+***REMOVED***
+
+func (a *sparseArrayObject) setForeignIdx(name valueInt, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	return a._setForeignIdx(name, a.getOwnPropIdx(name), val, receiver, throw)
 ***REMOVED***
 
 type sparseArrayPropIter struct ***REMOVED***
-	a         *sparseArrayObject
-	recursive bool
-	idx       int
+	a   *sparseArrayObject
+	idx int
 ***REMOVED***
 
 func (i *sparseArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	for i.idx < len(i.a.items) ***REMOVED***
-		name := strconv.Itoa(int(i.a.items[i.idx].idx))
+		name := unistring.String(strconv.Itoa(int(i.a.items[i.idx].idx)))
 		prop := i.a.items[i.idx].value
 		i.idx++
 		if prop != nil ***REMOVED***
@@ -259,70 +263,75 @@ func (i *sparseArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return i.a.baseObject._enumerate(i.recursive)()
+	return i.a.baseObject.enumerateUnfiltered()()
 ***REMOVED***
 
-func (a *sparseArrayObject) _enumerate(recursive bool) iterNextFunc ***REMOVED***
+func (a *sparseArrayObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
 	return (&sparseArrayPropIter***REMOVED***
-		a:         a,
-		recursive: recursive,
+		a: a,
 	***REMOVED***).next
 ***REMOVED***
 
-func (a *sparseArrayObject) enumerate(all, recursive bool) iterNextFunc ***REMOVED***
-	return (&propFilterIter***REMOVED***
-		wrapped: a._enumerate(recursive),
-		all:     all,
-		seen:    make(map[string]bool),
-	***REMOVED***).next
+func (a *sparseArrayObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+	if all ***REMOVED***
+		for _, item := range a.items ***REMOVED***
+			accum = append(accum, asciiString(strconv.FormatUint(uint64(item.idx), 10)))
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		for _, item := range a.items ***REMOVED***
+			if prop, ok := item.value.(*valueProperty); ok && !prop.enumerable ***REMOVED***
+				continue
+			***REMOVED***
+			accum = append(accum, asciiString(strconv.FormatUint(uint64(item.idx), 10)))
+		***REMOVED***
+	***REMOVED***
+
+	return a.baseObject.ownKeys(all, accum)
 ***REMOVED***
 
-func (a *sparseArrayObject) setValues(values []Value) ***REMOVED***
-	a.items = nil
+func (a *sparseArrayObject) setValues(values []Value, objCount int) ***REMOVED***
+	a.items = make([]sparseArrayItem, 0, objCount)
 	for i, val := range values ***REMOVED***
 		if val != nil ***REMOVED***
 			a.items = append(a.items, sparseArrayItem***REMOVED***
-				idx:   int64(i),
+				idx:   uint32(i),
 				value: val,
 			***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (a *sparseArrayObject) hasOwnProperty(n Value) bool ***REMOVED***
-	if idx := toIdx(n); idx >= 0 ***REMOVED***
+func (a *sparseArrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
+	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
 		i := a.findIdx(idx)
-		if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
-			return a.items[i].value != _undefined
-		***REMOVED***
-		return false
-	***REMOVED*** else ***REMOVED***
-		return a.baseObject.hasOwnProperty(n)
-	***REMOVED***
-***REMOVED***
-
-func (a *sparseArrayObject) hasOwnPropertyStr(name string) bool ***REMOVED***
-	if idx := strToIdx(name); idx >= 0 ***REMOVED***
-		i := a.findIdx(idx)
-		if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
-			return a.items[i].value != _undefined
-		***REMOVED***
-		return false
+		return i < len(a.items) && a.items[i].idx == idx
 	***REMOVED*** else ***REMOVED***
 		return a.baseObject.hasOwnPropertyStr(name)
 	***REMOVED***
 ***REMOVED***
 
-func (a *sparseArrayObject) expand() bool ***REMOVED***
+func (a *sparseArrayObject) hasOwnPropertyIdx(idx valueInt) bool ***REMOVED***
+	if idx := toIdx(idx); idx != math.MaxUint32 ***REMOVED***
+		i := a.findIdx(idx)
+		return i < len(a.items) && a.items[i].idx == idx
+	***REMOVED***
+
+	return a.baseObject.hasOwnPropertyStr(idx.string())
+***REMOVED***
+
+func (a *sparseArrayObject) expand(idx uint32) bool ***REMOVED***
 	if l := len(a.items); l >= 1024 ***REMOVED***
-		if int(a.items[l-1].idx)/l < 8 ***REMOVED***
+		if ii := a.items[l-1].idx; ii > idx ***REMOVED***
+			idx = ii
+		***REMOVED***
+		if (bits.UintSize == 64 || idx < math.MaxInt32) && int(idx)>>3 < l ***REMOVED***
 			//log.Println("Switching sparse->standard")
 			ar := &arrayObject***REMOVED***
 				baseObject:     a.baseObject,
 				length:         a.length,
 				propValueCount: a.propValueCount,
 			***REMOVED***
-			ar.setValuesFromSparse(a.items)
+			ar.setValuesFromSparse(a.items, int(idx))
 			ar.val.self = ar
 			ar.init()
 			ar.lengthProp.writable = a.lengthProp.writable
@@ -332,56 +341,66 @@ func (a *sparseArrayObject) expand() bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (a *sparseArrayObject) defineOwnProperty(n Value, descr propertyDescr, throw bool) bool ***REMOVED***
-	if idx := toIdx(n); idx >= 0 ***REMOVED***
-		var existing Value
-		i := a.findIdx(idx)
-		if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
-			existing = a.items[i].value
-		***REMOVED***
-		prop, ok := a.baseObject._defineOwnProperty(n, existing, descr, throw)
-		if ok ***REMOVED***
-			if idx >= a.length ***REMOVED***
-				if !a.setLengthInt(idx+1, throw) ***REMOVED***
-					return false
-				***REMOVED***
+func (a *sparseArrayObject) _defineIdxProperty(idx uint32, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	var existing Value
+	i := a.findIdx(idx)
+	if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
+		existing = a.items[i].value
+	***REMOVED***
+	prop, ok := a.baseObject._defineOwnProperty(unistring.String(strconv.FormatUint(uint64(idx), 10)), existing, desc, throw)
+	if ok ***REMOVED***
+		if idx >= a.length ***REMOVED***
+			if !a.setLengthInt(int64(idx)+1, throw) ***REMOVED***
+				return false
 			***REMOVED***
-			if i >= len(a.items) || a.items[i].idx != idx ***REMOVED***
-				if a.expand() ***REMOVED***
-					a.items = append(a.items, sparseArrayItem***REMOVED******REMOVED***)
-					copy(a.items[i+1:], a.items[i:])
-					a.items[i] = sparseArrayItem***REMOVED***
-						idx:   idx,
-						value: prop,
-					***REMOVED***
-					if idx >= a.length ***REMOVED***
-						a.length = idx + 1
-					***REMOVED***
-				***REMOVED*** else ***REMOVED***
-					return a.val.self.defineOwnProperty(n, descr, throw)
+		***REMOVED***
+		if i >= len(a.items) || a.items[i].idx != idx ***REMOVED***
+			if a.expand(idx) ***REMOVED***
+				a.items = append(a.items, sparseArrayItem***REMOVED******REMOVED***)
+				copy(a.items[i+1:], a.items[i:])
+				a.items[i] = sparseArrayItem***REMOVED***
+					idx:   idx,
+					value: prop,
+				***REMOVED***
+				if idx >= a.length ***REMOVED***
+					a.length = idx + 1
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
-				a.items[i].value = prop
+				a.val.self.(*arrayObject).values[idx] = prop
 			***REMOVED***
-			if _, ok := prop.(*valueProperty); ok ***REMOVED***
-				a.propValueCount++
-			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			a.items[i].value = prop
 		***REMOVED***
-		return ok
-	***REMOVED*** else ***REMOVED***
-		if n.String() == "length" ***REMOVED***
-			return a.val.runtime.defineArrayLength(&a.lengthProp, descr, a.setLength, throw)
+		if _, ok := prop.(*valueProperty); ok ***REMOVED***
+			a.propValueCount++
 		***REMOVED***
-		return a.baseObject.defineOwnProperty(n, descr, throw)
 	***REMOVED***
+	return ok
 ***REMOVED***
 
-func (a *sparseArrayObject) _deleteProp(idx int64, throw bool) bool ***REMOVED***
+func (a *sparseArrayObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
+	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+		return a._defineIdxProperty(idx, descr, throw)
+	***REMOVED***
+	if name == "length" ***REMOVED***
+		return a.val.runtime.defineArrayLength(&a.lengthProp, descr, a.setLength, throw)
+	***REMOVED***
+	return a.baseObject.defineOwnPropertyStr(name, descr, throw)
+***REMOVED***
+
+func (a *sparseArrayObject) defineOwnPropertyIdx(idx valueInt, descr PropertyDescriptor, throw bool) bool ***REMOVED***
+	if idx := toIdx(idx); idx != math.MaxUint32 ***REMOVED***
+		return a._defineIdxProperty(idx, descr, throw)
+	***REMOVED***
+	return a.baseObject.defineOwnPropertyStr(idx.string(), descr, throw)
+***REMOVED***
+
+func (a *sparseArrayObject) _deleteIdxProp(idx uint32, throw bool) bool ***REMOVED***
 	i := a.findIdx(idx)
 	if i < len(a.items) && a.items[i].idx == idx ***REMOVED***
 		if p, ok := a.items[i].value.(*valueProperty); ok ***REMOVED***
 			if !p.configurable ***REMOVED***
-				a.val.runtime.typeErrorResult(throw, "Cannot delete property '%d' of %s", idx, a.val.ToString())
+				a.val.runtime.typeErrorResult(throw, "Cannot delete property '%d' of %s", idx, a.val.toString())
 				return false
 			***REMOVED***
 			a.propValueCount--
@@ -393,54 +412,37 @@ func (a *sparseArrayObject) _deleteProp(idx int64, throw bool) bool ***REMOVED**
 	return true
 ***REMOVED***
 
-func (a *sparseArrayObject) delete(n Value, throw bool) bool ***REMOVED***
-	if idx := toIdx(n); idx >= 0 ***REMOVED***
-		return a._deleteProp(idx, throw)
-	***REMOVED***
-	return a.baseObject.delete(n, throw)
-***REMOVED***
-
-func (a *sparseArrayObject) deleteStr(name string, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx >= 0 ***REMOVED***
-		return a._deleteProp(idx, throw)
+func (a *sparseArrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
+	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+		return a._deleteIdxProp(idx, throw)
 	***REMOVED***
 	return a.baseObject.deleteStr(name, throw)
 ***REMOVED***
 
+func (a *sparseArrayObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
+	if idx := toIdx(idx); idx != math.MaxUint32 ***REMOVED***
+		return a._deleteIdxProp(idx, throw)
+	***REMOVED***
+	return a.baseObject.deleteStr(idx.string(), throw)
+***REMOVED***
+
 func (a *sparseArrayObject) sortLen() int64 ***REMOVED***
 	if len(a.items) > 0 ***REMOVED***
-		return a.items[len(a.items)-1].idx + 1
+		return int64(a.items[len(a.items)-1].idx) + 1
 	***REMOVED***
 
 	return 0
 ***REMOVED***
 
-func (a *sparseArrayObject) sortGet(i int64) Value ***REMOVED***
-	idx := a.findIdx(i)
-	if idx < len(a.items) && a.items[idx].idx == i ***REMOVED***
-		v := a.items[idx].value
-		if p, ok := v.(*valueProperty); ok ***REMOVED***
-			v = p.get(a.val)
-		***REMOVED***
+func (a *sparseArrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if v, exists := ctx.get(a); exists ***REMOVED***
 		return v
 	***REMOVED***
-	return nil
-***REMOVED***
-
-func (a *sparseArrayObject) swap(i, j int64) ***REMOVED***
-	idxI := a.findIdx(i)
-	idxJ := a.findIdx(j)
-
-	if idxI < len(a.items) && a.items[idxI].idx == i && idxJ < len(a.items) && a.items[idxJ].idx == j ***REMOVED***
-		a.items[idxI].value, a.items[idxJ].value = a.items[idxJ].value, a.items[idxI].value
-	***REMOVED***
-***REMOVED***
-
-func (a *sparseArrayObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
+	ctx.put(a, arr)
 	for _, item := range a.items ***REMOVED***
 		if item.value != nil ***REMOVED***
-			arr[item.idx] = item.value.Export()
+			arr[item.idx] = exportValue(item.value, ctx)
 		***REMOVED***
 	***REMOVED***
 	return arr

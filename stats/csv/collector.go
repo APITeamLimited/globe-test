@@ -22,24 +22,26 @@ package csv
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
 )
 
 // Collector saving output to csv implements the lib.Collector interface
 type Collector struct ***REMOVED***
-	outfile      io.WriteCloser
+	closeFn      func() error
 	fname        string
 	resTags      []string
 	ignoredTags  []string
@@ -49,20 +51,14 @@ type Collector struct ***REMOVED***
 	bufferLock   sync.Mutex
 	row          []string
 	saveInterval time.Duration
+	logger       logrus.FieldLogger
 ***REMOVED***
 
 // Verify that Collector implements lib.Collector
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
-// Similar to ioutil.NopCloser, but for writers
-type nopCloser struct ***REMOVED***
-	io.Writer
-***REMOVED***
-
-func (nopCloser) Close() error ***REMOVED*** return nil ***REMOVED***
-
 // New Creates new instance of CSV collector
-func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***REMOVED***
+func New(logger logrus.FieldLogger, fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***REMOVED***
 	resTags := []string***REMOVED******REMOVED***
 	ignoredTags := []string***REMOVED******REMOVED***
 	for tag, flag := range tags ***REMOVED***
@@ -79,32 +75,48 @@ func New(fs afero.Fs, tags stats.TagSet, config Config) (*Collector, error) ***R
 	fname := config.FileName.String
 
 	if fname == "" || fname == "-" ***REMOVED***
-		logfile := nopCloser***REMOVED***os.Stdout***REMOVED***
+		stdoutWriter := csv.NewWriter(os.Stdout)
 		return &Collector***REMOVED***
-			outfile:      logfile,
 			fname:        "-",
 			resTags:      resTags,
 			ignoredTags:  ignoredTags,
-			csvWriter:    csv.NewWriter(logfile),
+			csvWriter:    stdoutWriter,
 			row:          make([]string, 3+len(resTags)+1),
 			saveInterval: saveInterval,
+			closeFn:      func() error ***REMOVED*** return nil ***REMOVED***,
+			logger:       logger,
 		***REMOVED***, nil
 	***REMOVED***
 
-	logfile, err := fs.Create(fname)
+	logFile, err := fs.Create(fname)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return &Collector***REMOVED***
-		outfile:      logfile,
+	c := Collector***REMOVED***
 		fname:        fname,
 		resTags:      resTags,
 		ignoredTags:  ignoredTags,
-		csvWriter:    csv.NewWriter(logfile),
 		row:          make([]string, 3+len(resTags)+1),
 		saveInterval: saveInterval,
-	***REMOVED***, nil
+		logger:       logger,
+	***REMOVED***
+
+	if strings.HasSuffix(fname, ".gz") ***REMOVED***
+		outfile := gzip.NewWriter(logFile)
+		csvWriter := csv.NewWriter(outfile)
+		c.csvWriter = csvWriter
+		c.closeFn = func() error ***REMOVED***
+			_ = outfile.Close()
+			return logFile.Close()
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		csvWriter := csv.NewWriter(logFile)
+		c.csvWriter = csvWriter
+		c.closeFn = logFile.Close
+	***REMOVED***
+
+	return &c, nil
 ***REMOVED***
 
 // Init writes column names to csv file
@@ -112,7 +124,7 @@ func (c *Collector) Init() error ***REMOVED***
 	header := MakeHeader(c.resTags)
 	err := c.csvWriter.Write(header)
 	if err != nil ***REMOVED***
-		logrus.WithField("filename", c.fname).Error("CSV: Error writing column names to file")
+		c.logger.WithField("filename", c.fname).Error("CSV: Error writing column names to file")
 	***REMOVED***
 	c.csvWriter.Flush()
 	return nil
@@ -124,16 +136,19 @@ func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED**
 // Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	ticker := time.NewTicker(c.saveInterval)
+	defer func() ***REMOVED***
+		err := c.closeFn()
+		if err != nil ***REMOVED***
+			c.logger.WithField("filename", c.fname).Errorf("CSV: Error closing the file: %v", err)
+		***REMOVED***
+	***REMOVED***()
+
 	for ***REMOVED***
 		select ***REMOVED***
 		case <-ticker.C:
-			c.WriteToFile()
+			c.writeToFile()
 		case <-ctx.Done():
-			c.WriteToFile()
-			err := c.outfile.Close()
-			if err != nil ***REMOVED***
-				logrus.WithField("filename", c.fname).Error("CSV: Error closing the file")
-			***REMOVED***
+			c.writeToFile()
 			return
 		***REMOVED***
 	***REMOVED***
@@ -148,8 +163,8 @@ func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// WriteToFile Writes samples to the csv file
-func (c *Collector) WriteToFile() ***REMOVED***
+// writeToFile Writes samples to the csv file
+func (c *Collector) writeToFile() ***REMOVED***
 	c.bufferLock.Lock()
 	samples := c.buffer
 	c.buffer = nil
@@ -164,7 +179,7 @@ func (c *Collector) WriteToFile() ***REMOVED***
 				row := SampleToRow(&sample, c.resTags, c.ignoredTags, c.row)
 				err := c.csvWriter.Write(row)
 				if err != nil ***REMOVED***
-					logrus.WithField("filename", c.fname).Error("CSV: Error writing to file")
+					c.logger.WithField("filename", c.fname).Error("CSV: Error writing to file")
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***

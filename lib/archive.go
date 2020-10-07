@@ -36,9 +36,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/afero"
+
 	"github.com/loadimpact/k6/lib/fsext"
 	"github.com/loadimpact/k6/loader"
-	"github.com/spf13/afero"
 )
 
 //nolint: gochecknoglobals, lll
@@ -107,56 +108,7 @@ func (arc *Archive) getFs(name string) afero.Fs ***REMOVED***
 	return fs
 ***REMOVED***
 
-// cleanUpWrongMetadataJSON fixes issues with the metadata.json contents before
-// they are unmarshalled in the Archive struct.
-//
-// Currently, the only fix this function performs is the discarding of the
-// derived `execution` config value in the consolidated options that was wrongly
-// saved by k6 in the archive metadata.json files until commit
-// 83193f8a96e06a190325b838b2cc451119d6b836. This basically means k6 v0.24.0 and
-// surrounding master commits. We filter these out by the value of the k6version
-// property, saved in the metadata.json since the previous to the above commit.
-func cleanUpWrongMetadataJSON(data []byte) ([]byte, error) ***REMOVED***
-	var tmpArc map[string]interface***REMOVED******REMOVED***
-	if err := json.Unmarshal(data, &tmpArc); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
-	k6Version := ""
-	if k6RawVersion, ok := tmpArc["k6version"]; ok ***REMOVED***
-		if k6Version, ok = k6RawVersion.(string); !ok ***REMOVED***
-			return nil, fmt.Errorf("k6version is present in the archive metadata, but it's not a string")
-		***REMOVED***
-	***REMOVED***
-
-	// TODO: semantically parse the k6version and compare it with the current
-	// one, log a warning if the current k6 version in lib/consts is lower than
-	// the k6 version that generated the archive.
-
-	if k6Version != "" && k6Version != "0.24.0" ***REMOVED***
-		return data, nil
-	***REMOVED***
-
-	if rawOptions, ok := tmpArc["options"]; !ok ***REMOVED***
-		return nil, fmt.Errorf("missing options key in the archive metadata.json")
-	***REMOVED*** else if options, ok := rawOptions.(map[string]interface***REMOVED******REMOVED***); !ok ***REMOVED***
-		return nil, fmt.Errorf("wrong options type in metadata.json")
-	***REMOVED*** else if _, hasExecution := options["execution"]; !hasExecution ***REMOVED***
-		return data, nil // no need to fix anything
-	***REMOVED*** else ***REMOVED***
-		delete(options, "execution")
-		tmpArc["options"] = options
-	***REMOVED***
-
-	return json.Marshal(tmpArc)
-***REMOVED***
-
-func (arc *Archive) loadMetadataJSON(data []byte) error ***REMOVED***
-	data, err := cleanUpWrongMetadataJSON(data)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
+func (arc *Archive) loadMetadataJSON(data []byte) (err error) ***REMOVED***
 	if err = json.Unmarshal(data, &arc); err != nil ***REMOVED***
 		return err
 	***REMOVED***

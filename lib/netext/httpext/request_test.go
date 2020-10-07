@@ -1,3 +1,23 @@
+/*
+ *
+ * k6 - a next-generation load testing tool
+ * Copyright (C) 2019 Load Impact
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 package httpext
 
 import (
@@ -11,12 +31,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/stats"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/stats"
 )
 
 type reader func([]byte) (int, error)
@@ -160,7 +181,10 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	state := &lib.State***REMOVED***
-		Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
+		Options: lib.Options***REMOVED***
+			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
 		Transport: srv.Client().Transport,
 		Samples:   samples,
 		Logger:    logger,
@@ -169,7 +193,7 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	req, _ := http.NewRequest("GET", srv.URL, nil)
 	var preq = &ParsedHTTPRequest***REMOVED***
 		Req:     req,
-		URL:     &URL***REMOVED***u: req.URL***REMOVED***,
+		URL:     &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
 		Body:    new(bytes.Buffer),
 		Timeout: 10 * time.Millisecond,
 	***REMOVED***
@@ -178,6 +202,20 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Len(t, samples, 1)
+	sampleCont := <-samples
+	allSamples := sampleCont.GetSamples()
+	require.Len(t, allSamples, 8)
+	expTags := map[string]string***REMOVED***
+		"error":      "context deadline exceeded",
+		"error_code": "1000",
+		"status":     "0",
+		"method":     "GET",
+		"url":        srv.URL,
+		"name":       srv.URL,
+	***REMOVED***
+	for _, s := range allSamples ***REMOVED***
+		assert.Equal(t, expTags, s.Tags.CloneTags())
+	***REMOVED***
 ***REMOVED***
 
 func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***

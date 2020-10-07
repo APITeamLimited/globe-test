@@ -24,11 +24,10 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/loadimpact/k6/api/v1"
+	v1 "github.com/loadimpact/k6/api/v1"
 )
 
-var MetricsURL = &url.URL***REMOVED***Path: "/v1/metrics"***REMOVED***
-
+// Metrics returns the current metrics summary.
 func (c *Client) Metrics(ctx context.Context) (ret []v1.Metric, err error) ***REMOVED***
-	return ret, c.call(ctx, "GET", MetricsURL, nil, &ret)
+	return ret, c.Call(ctx, "GET", &url.URL***REMOVED***Path: "/v1/metrics"***REMOVED***, nil, &ret)
 ***REMOVED***

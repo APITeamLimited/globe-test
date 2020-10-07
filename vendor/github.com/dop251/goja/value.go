@@ -1,11 +1,31 @@
 package goja
 
 import (
+	"hash/maphash"
 	"math"
 	"reflect"
-	"regexp"
 	"strconv"
+	"unsafe"
+
+	"github.com/dop251/goja/ftoa"
+	"github.com/dop251/goja/unistring"
 )
+
+var (
+	// Not goroutine-safe, do not use for anything other than package level init
+	pkgHasher maphash.Hash
+
+	hashFalse = randomHash()
+	hashTrue  = randomHash()
+	hashNull  = randomHash()
+	hashUndef = randomHash()
+)
+
+// Not goroutine-safe, do not use for anything other than package level init
+func randomHash() uint64 ***REMOVED***
+	pkgHasher.WriteByte(0)
+	return pkgHasher.Sum64()
+***REMOVED***
 
 var (
 	valueFalse    Value = valueBool(false)
@@ -14,8 +34,9 @@ var (
 	_NaN          Value = valueFloat(math.NaN())
 	_positiveInf  Value = valueFloat(math.Inf(+1))
 	_negativeInf  Value = valueFloat(math.Inf(-1))
-	_positiveZero Value
-	_negativeZero Value = valueFloat(math.Float64frombits(0 | (1 << 63)))
+	_positiveZero Value = valueInt(0)
+	negativeZero        = math.Float64frombits(0 | (1 << 63))
+	_negativeZero Value = valueFloat(negativeZero)
 	_epsilon            = valueFloat(2.2204460492503130808472633361816e-16)
 	_undefined    Value = valueUndefined***REMOVED******REMOVED***
 )
@@ -34,7 +55,9 @@ var intCache [256]Value
 
 type Value interface ***REMOVED***
 	ToInteger() int64
-	ToString() valueString
+	toString() valueString
+	string() unistring.String
+	ToString() Value
 	String() string
 	ToFloat() float64
 	ToNumber() Value
@@ -46,12 +69,17 @@ type Value interface ***REMOVED***
 	Export() interface***REMOVED******REMOVED***
 	ExportType() reflect.Type
 
-	assertInt() (int64, bool)
-	assertString() (valueString, bool)
-	assertFloat() (float64, bool)
-
 	baseObject(r *Runtime) *Object
+
+	hash(hasher *maphash.Hash) uint64
 ***REMOVED***
+
+type valueContainer interface ***REMOVED***
+	toValue(*Runtime) Value
+***REMOVED***
+
+type typeError string
+type rangeError string
 
 type valueInt int64
 type valueFloat float64
@@ -60,10 +88,14 @@ type valueNull struct***REMOVED******REMOVED***
 type valueUndefined struct ***REMOVED***
 	valueNull
 ***REMOVED***
+type valueSymbol struct ***REMOVED***
+	h    uintptr
+	desc valueString
+***REMOVED***
 
 type valueUnresolved struct ***REMOVED***
 	r   *Runtime
-	ref string
+	ref unistring.String
 ***REMOVED***
 
 type memberUnresolved struct ***REMOVED***
@@ -89,7 +121,7 @@ func propGetter(o Value, v Value, r *Runtime) *Object ***REMOVED***
 			return obj
 		***REMOVED***
 	***REMOVED***
-	r.typeErrorResult(true, "Getter must be a function: %s", v.ToString())
+	r.typeErrorResult(true, "Getter must be a function: %s", v.toString())
 	return nil
 ***REMOVED***
 
@@ -102,16 +134,29 @@ func propSetter(o Value, v Value, r *Runtime) *Object ***REMOVED***
 			return obj
 		***REMOVED***
 	***REMOVED***
-	r.typeErrorResult(true, "Setter must be a function: %s", v.ToString())
+	r.typeErrorResult(true, "Setter must be a function: %s", v.toString())
 	return nil
+***REMOVED***
+
+func fToStr(num float64, mode ftoa.FToStrMode, prec int) string ***REMOVED***
+	var buf1 [128]byte
+	return string(ftoa.FToStr(num, mode, prec, buf1[:0]))
 ***REMOVED***
 
 func (i valueInt) ToInteger() int64 ***REMOVED***
 	return int64(i)
 ***REMOVED***
 
-func (i valueInt) ToString() valueString ***REMOVED***
+func (i valueInt) toString() valueString ***REMOVED***
 	return asciiString(i.String())
+***REMOVED***
+
+func (i valueInt) string() unistring.String ***REMOVED***
+	return unistring.String(i.String())
+***REMOVED***
+
+func (i valueInt) ToString() Value ***REMOVED***
+	return i
 ***REMOVED***
 
 func (i valueInt) String() string ***REMOVED***
@@ -119,7 +164,7 @@ func (i valueInt) String() string ***REMOVED***
 ***REMOVED***
 
 func (i valueInt) ToFloat() float64 ***REMOVED***
-	return float64(int64(i))
+	return float64(i)
 ***REMOVED***
 
 func (i valueInt) ToBoolean() bool ***REMOVED***
@@ -135,50 +180,35 @@ func (i valueInt) ToNumber() Value ***REMOVED***
 ***REMOVED***
 
 func (i valueInt) SameAs(other Value) bool ***REMOVED***
-	if otherInt, ok := other.assertInt(); ok ***REMOVED***
-		return int64(i) == otherInt
-	***REMOVED***
-	return false
+	return i == other
 ***REMOVED***
 
 func (i valueInt) Equals(other Value) bool ***REMOVED***
-	if o, ok := other.assertInt(); ok ***REMOVED***
-		return int64(i) == o
-	***REMOVED***
-	if o, ok := other.assertFloat(); ok ***REMOVED***
-		return float64(i) == o
-	***REMOVED***
-	if o, ok := other.assertString(); ok ***REMOVED***
+	switch o := other.(type) ***REMOVED***
+	case valueInt:
+		return i == o
+	case valueFloat:
+		return float64(i) == float64(o)
+	case valueString:
 		return o.ToNumber().Equals(i)
-	***REMOVED***
-	if o, ok := other.(valueBool); ok ***REMOVED***
+	case valueBool:
 		return int64(i) == o.ToInteger()
+	case *Object:
+		return i.Equals(o.toPrimitiveNumber())
 	***REMOVED***
-	if o, ok := other.(*Object); ok ***REMOVED***
-		return i.Equals(o.self.toPrimitiveNumber())
-	***REMOVED***
+
 	return false
 ***REMOVED***
 
 func (i valueInt) StrictEquals(other Value) bool ***REMOVED***
-	if otherInt, ok := other.assertInt(); ok ***REMOVED***
-		return int64(i) == otherInt
-	***REMOVED*** else if otherFloat, ok := other.assertFloat(); ok ***REMOVED***
-		return float64(i) == otherFloat
+	switch o := other.(type) ***REMOVED***
+	case valueInt:
+		return i == o
+	case valueFloat:
+		return float64(i) == float64(o)
 	***REMOVED***
+
 	return false
-***REMOVED***
-
-func (i valueInt) assertInt() (int64, bool) ***REMOVED***
-	return int64(i), true
-***REMOVED***
-
-func (i valueInt) assertFloat() (float64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (i valueInt) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
 ***REMOVED***
 
 func (i valueInt) baseObject(r *Runtime) *Object ***REMOVED***
@@ -193,52 +223,64 @@ func (i valueInt) ExportType() reflect.Type ***REMOVED***
 	return reflectTypeInt
 ***REMOVED***
 
-func (o valueBool) ToInteger() int64 ***REMOVED***
-	if o ***REMOVED***
+func (i valueInt) hash(*maphash.Hash) uint64 ***REMOVED***
+	return uint64(i)
+***REMOVED***
+
+func (b valueBool) ToInteger() int64 ***REMOVED***
+	if b ***REMOVED***
 		return 1
 	***REMOVED***
 	return 0
 ***REMOVED***
 
-func (o valueBool) ToString() valueString ***REMOVED***
-	if o ***REMOVED***
+func (b valueBool) toString() valueString ***REMOVED***
+	if b ***REMOVED***
 		return stringTrue
 	***REMOVED***
 	return stringFalse
 ***REMOVED***
 
-func (o valueBool) String() string ***REMOVED***
-	if o ***REMOVED***
+func (b valueBool) ToString() Value ***REMOVED***
+	return b
+***REMOVED***
+
+func (b valueBool) String() string ***REMOVED***
+	if b ***REMOVED***
 		return "true"
 	***REMOVED***
 	return "false"
 ***REMOVED***
 
-func (o valueBool) ToFloat() float64 ***REMOVED***
-	if o ***REMOVED***
+func (b valueBool) string() unistring.String ***REMOVED***
+	return unistring.String(b.String())
+***REMOVED***
+
+func (b valueBool) ToFloat() float64 ***REMOVED***
+	if b ***REMOVED***
 		return 1.0
 	***REMOVED***
 	return 0
 ***REMOVED***
 
-func (o valueBool) ToBoolean() bool ***REMOVED***
-	return bool(o)
+func (b valueBool) ToBoolean() bool ***REMOVED***
+	return bool(b)
 ***REMOVED***
 
-func (o valueBool) ToObject(r *Runtime) *Object ***REMOVED***
-	return r.newPrimitiveObject(o, r.global.BooleanPrototype, "Boolean")
+func (b valueBool) ToObject(r *Runtime) *Object ***REMOVED***
+	return r.newPrimitiveObject(b, r.global.BooleanPrototype, "Boolean")
 ***REMOVED***
 
-func (o valueBool) ToNumber() Value ***REMOVED***
-	if o ***REMOVED***
+func (b valueBool) ToNumber() Value ***REMOVED***
+	if b ***REMOVED***
 		return valueInt(1)
 	***REMOVED***
 	return valueInt(0)
 ***REMOVED***
 
-func (o valueBool) SameAs(other Value) bool ***REMOVED***
+func (b valueBool) SameAs(other Value) bool ***REMOVED***
 	if other, ok := other.(valueBool); ok ***REMOVED***
-		return o == other
+		return b == other
 	***REMOVED***
 	return false
 ***REMOVED***
@@ -256,54 +298,66 @@ func (b valueBool) Equals(other Value) bool ***REMOVED***
 
 ***REMOVED***
 
-func (o valueBool) StrictEquals(other Value) bool ***REMOVED***
+func (b valueBool) StrictEquals(other Value) bool ***REMOVED***
 	if other, ok := other.(valueBool); ok ***REMOVED***
-		return o == other
+		return b == other
 	***REMOVED***
 	return false
 ***REMOVED***
 
-func (o valueBool) assertInt() (int64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (o valueBool) assertFloat() (float64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (o valueBool) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
-***REMOVED***
-
-func (o valueBool) baseObject(r *Runtime) *Object ***REMOVED***
+func (b valueBool) baseObject(r *Runtime) *Object ***REMOVED***
 	return r.global.BooleanPrototype
 ***REMOVED***
 
-func (o valueBool) Export() interface***REMOVED******REMOVED*** ***REMOVED***
-	return bool(o)
+func (b valueBool) Export() interface***REMOVED******REMOVED*** ***REMOVED***
+	return bool(b)
 ***REMOVED***
 
-func (o valueBool) ExportType() reflect.Type ***REMOVED***
+func (b valueBool) ExportType() reflect.Type ***REMOVED***
 	return reflectTypeBool
+***REMOVED***
+
+func (b valueBool) hash(*maphash.Hash) uint64 ***REMOVED***
+	if b ***REMOVED***
+		return hashTrue
+	***REMOVED***
+
+	return hashFalse
 ***REMOVED***
 
 func (n valueNull) ToInteger() int64 ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (n valueNull) ToString() valueString ***REMOVED***
+func (n valueNull) toString() valueString ***REMOVED***
 	return stringNull
+***REMOVED***
+
+func (n valueNull) string() unistring.String ***REMOVED***
+	return stringNull.string()
+***REMOVED***
+
+func (n valueNull) ToString() Value ***REMOVED***
+	return n
 ***REMOVED***
 
 func (n valueNull) String() string ***REMOVED***
 	return "null"
 ***REMOVED***
 
-func (u valueUndefined) ToString() valueString ***REMOVED***
+func (u valueUndefined) toString() valueString ***REMOVED***
 	return stringUndefined
 ***REMOVED***
 
+func (u valueUndefined) ToString() Value ***REMOVED***
+	return u
+***REMOVED***
+
 func (u valueUndefined) String() string ***REMOVED***
+	return "undefined"
+***REMOVED***
+
+func (u valueUndefined) string() unistring.String ***REMOVED***
 	return "undefined"
 ***REMOVED***
 
@@ -323,6 +377,10 @@ func (u valueUndefined) StrictEquals(other Value) bool ***REMOVED***
 
 func (u valueUndefined) ToFloat() float64 ***REMOVED***
 	return math.NaN()
+***REMOVED***
+
+func (u valueUndefined) hash(*maphash.Hash) uint64 ***REMOVED***
+	return hashUndef
 ***REMOVED***
 
 func (n valueNull) ToFloat() float64 ***REMOVED***
@@ -361,19 +419,7 @@ func (n valueNull) StrictEquals(other Value) bool ***REMOVED***
 	return same
 ***REMOVED***
 
-func (n valueNull) assertInt() (int64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (n valueNull) assertFloat() (float64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (n valueNull) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
-***REMOVED***
-
-func (n valueNull) baseObject(r *Runtime) *Object ***REMOVED***
+func (n valueNull) baseObject(*Runtime) *Object ***REMOVED***
 	return nil
 ***REMOVED***
 
@@ -385,12 +431,24 @@ func (n valueNull) ExportType() reflect.Type ***REMOVED***
 	return reflectTypeNil
 ***REMOVED***
 
+func (n valueNull) hash(*maphash.Hash) uint64 ***REMOVED***
+	return hashNull
+***REMOVED***
+
 func (p *valueProperty) ToInteger() int64 ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (p *valueProperty) ToString() valueString ***REMOVED***
+func (p *valueProperty) toString() valueString ***REMOVED***
 	return stringEmpty
+***REMOVED***
+
+func (p *valueProperty) string() unistring.String ***REMOVED***
+	return ""
+***REMOVED***
+
+func (p *valueProperty) ToString() Value ***REMOVED***
+	return _undefined
 ***REMOVED***
 
 func (p *valueProperty) String() string ***REMOVED***
@@ -405,24 +463,12 @@ func (p *valueProperty) ToBoolean() bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (p *valueProperty) ToObject(r *Runtime) *Object ***REMOVED***
+func (p *valueProperty) ToObject(*Runtime) *Object ***REMOVED***
 	return nil
 ***REMOVED***
 
 func (p *valueProperty) ToNumber() Value ***REMOVED***
 	return nil
-***REMOVED***
-
-func (p *valueProperty) assertInt() (int64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (p *valueProperty) assertFloat() (float64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (p *valueProperty) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
 ***REMOVED***
 
 func (p *valueProperty) isWritable() bool ***REMOVED***
@@ -461,62 +507,61 @@ func (p *valueProperty) SameAs(other Value) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (p *valueProperty) Equals(other Value) bool ***REMOVED***
+func (p *valueProperty) Equals(Value) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (p *valueProperty) StrictEquals(other Value) bool ***REMOVED***
+func (p *valueProperty) StrictEquals(Value) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (n *valueProperty) baseObject(r *Runtime) *Object ***REMOVED***
+func (p *valueProperty) baseObject(r *Runtime) *Object ***REMOVED***
 	r.typeErrorResult(true, "BUG: baseObject() is called on valueProperty") // TODO error message
 	return nil
 ***REMOVED***
 
-func (n *valueProperty) Export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (p *valueProperty) Export() interface***REMOVED******REMOVED*** ***REMOVED***
 	panic("Cannot export valueProperty")
 ***REMOVED***
 
-func (n *valueProperty) ExportType() reflect.Type ***REMOVED***
+func (p *valueProperty) ExportType() reflect.Type ***REMOVED***
 	panic("Cannot export valueProperty")
+***REMOVED***
+
+func (p *valueProperty) hash(*maphash.Hash) uint64 ***REMOVED***
+	panic("valueProperty should never be used in maps or sets")
+***REMOVED***
+
+func floatToIntClip(n float64) int64 ***REMOVED***
+	switch ***REMOVED***
+	case math.IsNaN(n):
+		return 0
+	case n >= math.MaxInt64:
+		return math.MaxInt64
+	case n <= math.MinInt64:
+		return math.MinInt64
+	***REMOVED***
+	return int64(n)
 ***REMOVED***
 
 func (f valueFloat) ToInteger() int64 ***REMOVED***
-	switch ***REMOVED***
-	case math.IsNaN(float64(f)):
-		return 0
-	case math.IsInf(float64(f), 1):
-		return int64(math.MaxInt64)
-	case math.IsInf(float64(f), -1):
-		return int64(math.MinInt64)
-	***REMOVED***
-	return int64(f)
+	return floatToIntClip(float64(f))
 ***REMOVED***
 
-func (f valueFloat) ToString() valueString ***REMOVED***
+func (f valueFloat) toString() valueString ***REMOVED***
 	return asciiString(f.String())
 ***REMOVED***
 
-var matchLeading0Exponent = regexp.MustCompile(`([eE][\+\-])0+([1-9])`) // 1e-07 => 1e-7
+func (f valueFloat) string() unistring.String ***REMOVED***
+	return unistring.String(f.String())
+***REMOVED***
+
+func (f valueFloat) ToString() Value ***REMOVED***
+	return f
+***REMOVED***
 
 func (f valueFloat) String() string ***REMOVED***
-	value := float64(f)
-	if math.IsNaN(value) ***REMOVED***
-		return "NaN"
-	***REMOVED*** else if math.IsInf(value, 0) ***REMOVED***
-		if math.Signbit(value) ***REMOVED***
-			return "-Infinity"
-		***REMOVED***
-		return "Infinity"
-	***REMOVED*** else if f == _negativeZero ***REMOVED***
-		return "0"
-	***REMOVED***
-	exponent := math.Log10(math.Abs(value))
-	if exponent >= 21 || exponent < -6 ***REMOVED***
-		return matchLeading0Exponent.ReplaceAllString(strconv.FormatFloat(value, 'g', -1, 64), "$1$2")
-	***REMOVED***
-	return strconv.FormatFloat(value, 'f', -1, 64)
+	return fToStr(float64(f), ftoa.ModeStandard, 0)
 ***REMOVED***
 
 func (f valueFloat) ToFloat() float64 ***REMOVED***
@@ -536,18 +581,20 @@ func (f valueFloat) ToNumber() Value ***REMOVED***
 ***REMOVED***
 
 func (f valueFloat) SameAs(other Value) bool ***REMOVED***
-	if o, ok := other.assertFloat(); ok ***REMOVED***
+	switch o := other.(type) ***REMOVED***
+	case valueFloat:
 		this := float64(f)
-		if math.IsNaN(this) && math.IsNaN(o) ***REMOVED***
+		o1 := float64(o)
+		if math.IsNaN(this) && math.IsNaN(o1) ***REMOVED***
 			return true
 		***REMOVED*** else ***REMOVED***
-			ret := this == o
+			ret := this == o1
 			if ret && this == 0 ***REMOVED***
-				ret = math.Signbit(this) == math.Signbit(o)
+				ret = math.Signbit(this) == math.Signbit(o1)
 			***REMOVED***
 			return ret
 		***REMOVED***
-	***REMOVED*** else if o, ok := other.assertInt(); ok ***REMOVED***
+	case valueInt:
 		this := float64(f)
 		ret := this == float64(o)
 		if ret && this == 0 ***REMOVED***
@@ -555,52 +602,34 @@ func (f valueFloat) SameAs(other Value) bool ***REMOVED***
 		***REMOVED***
 		return ret
 	***REMOVED***
+
 	return false
 ***REMOVED***
 
 func (f valueFloat) Equals(other Value) bool ***REMOVED***
-	if o, ok := other.assertFloat(); ok ***REMOVED***
-		return float64(f) == o
-	***REMOVED***
-
-	if o, ok := other.assertInt(); ok ***REMOVED***
+	switch o := other.(type) ***REMOVED***
+	case valueFloat:
+		return f == o
+	case valueInt:
 		return float64(f) == float64(o)
-	***REMOVED***
-
-	if _, ok := other.assertString(); ok ***REMOVED***
-		return float64(f) == other.ToFloat()
-	***REMOVED***
-
-	if o, ok := other.(valueBool); ok ***REMOVED***
+	case valueString, valueBool:
 		return float64(f) == o.ToFloat()
-	***REMOVED***
-
-	if o, ok := other.(*Object); ok ***REMOVED***
-		return f.Equals(o.self.toPrimitiveNumber())
+	case *Object:
+		return f.Equals(o.toPrimitiveNumber())
 	***REMOVED***
 
 	return false
 ***REMOVED***
 
 func (f valueFloat) StrictEquals(other Value) bool ***REMOVED***
-	if o, ok := other.assertFloat(); ok ***REMOVED***
-		return float64(f) == o
-	***REMOVED*** else if o, ok := other.assertInt(); ok ***REMOVED***
+	switch o := other.(type) ***REMOVED***
+	case valueFloat:
+		return f == o
+	case valueInt:
 		return float64(f) == float64(o)
 	***REMOVED***
+
 	return false
-***REMOVED***
-
-func (f valueFloat) assertInt() (int64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (f valueFloat) assertFloat() (float64, bool) ***REMOVED***
-	return float64(f), true
-***REMOVED***
-
-func (f valueFloat) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
 ***REMOVED***
 
 func (f valueFloat) baseObject(r *Runtime) *Object ***REMOVED***
@@ -615,32 +644,47 @@ func (f valueFloat) ExportType() reflect.Type ***REMOVED***
 	return reflectTypeFloat
 ***REMOVED***
 
-func (o *Object) ToInteger() int64 ***REMOVED***
-	return o.self.toPrimitiveNumber().ToNumber().ToInteger()
+func (f valueFloat) hash(*maphash.Hash) uint64 ***REMOVED***
+	if f == _negativeZero ***REMOVED***
+		return 0
+	***REMOVED***
+	return math.Float64bits(float64(f))
 ***REMOVED***
 
-func (o *Object) ToString() valueString ***REMOVED***
-	return o.self.toPrimitiveString().ToString()
+func (o *Object) ToInteger() int64 ***REMOVED***
+	return o.toPrimitiveNumber().ToNumber().ToInteger()
+***REMOVED***
+
+func (o *Object) toString() valueString ***REMOVED***
+	return o.toPrimitiveString().toString()
+***REMOVED***
+
+func (o *Object) string() unistring.String ***REMOVED***
+	return o.toPrimitiveString().string()
+***REMOVED***
+
+func (o *Object) ToString() Value ***REMOVED***
+	return o.toPrimitiveString().ToString()
 ***REMOVED***
 
 func (o *Object) String() string ***REMOVED***
-	return o.self.toPrimitiveString().String()
+	return o.toPrimitiveString().String()
 ***REMOVED***
 
 func (o *Object) ToFloat() float64 ***REMOVED***
-	return o.self.toPrimitiveNumber().ToFloat()
+	return o.toPrimitiveNumber().ToFloat()
 ***REMOVED***
 
 func (o *Object) ToBoolean() bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (o *Object) ToObject(r *Runtime) *Object ***REMOVED***
+func (o *Object) ToObject(*Runtime) *Object ***REMOVED***
 	return o
 ***REMOVED***
 
 func (o *Object) ToNumber() Value ***REMOVED***
-	return o.self.toPrimitiveNumber().ToNumber()
+	return o.toPrimitiveNumber().ToNumber()
 ***REMOVED***
 
 func (o *Object) SameAs(other Value) bool ***REMOVED***
@@ -655,21 +699,13 @@ func (o *Object) Equals(other Value) bool ***REMOVED***
 		return o == other || o.self.equal(other.self)
 	***REMOVED***
 
-	if _, ok := other.assertInt(); ok ***REMOVED***
-		return o.self.toPrimitive().Equals(other)
+	switch o1 := other.(type) ***REMOVED***
+	case valueInt, valueFloat, valueString:
+		return o.toPrimitive().Equals(other)
+	case valueBool:
+		return o.Equals(o1.ToNumber())
 	***REMOVED***
 
-	if _, ok := other.assertFloat(); ok ***REMOVED***
-		return o.self.toPrimitive().Equals(other)
-	***REMOVED***
-
-	if other, ok := other.(valueBool); ok ***REMOVED***
-		return o.Equals(other.ToNumber())
-	***REMOVED***
-
-	if _, ok := other.assertString(); ok ***REMOVED***
-		return o.self.toPrimitive().Equals(other)
-	***REMOVED***
 	return false
 ***REMOVED***
 
@@ -680,37 +716,31 @@ func (o *Object) StrictEquals(other Value) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (o *Object) assertInt() (int64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (o *Object) assertFloat() (float64, bool) ***REMOVED***
-	return 0, false
-***REMOVED***
-
-func (o *Object) assertString() (valueString, bool) ***REMOVED***
-	return nil, false
-***REMOVED***
-
-func (o *Object) baseObject(r *Runtime) *Object ***REMOVED***
+func (o *Object) baseObject(*Runtime) *Object ***REMOVED***
 	return o
 ***REMOVED***
 
 func (o *Object) Export() interface***REMOVED******REMOVED*** ***REMOVED***
-	return o.self.export()
+	return o.self.export(&objectExportCtx***REMOVED******REMOVED***)
 ***REMOVED***
 
 func (o *Object) ExportType() reflect.Type ***REMOVED***
 	return o.self.exportType()
 ***REMOVED***
 
+func (o *Object) hash(*maphash.Hash) uint64 ***REMOVED***
+	return o.getId()
+***REMOVED***
+
 func (o *Object) Get(name string) Value ***REMOVED***
-	return o.self.getStr(name)
+	return o.self.getStr(unistring.NewFromString(name), nil)
 ***REMOVED***
 
 func (o *Object) Keys() (keys []string) ***REMOVED***
-	for item, f := o.self.enumerate(false, false)(); f != nil; item, f = f() ***REMOVED***
-		keys = append(keys, item.name)
+	names := o.self.ownKeys(false, nil)
+	keys = make([]string, 0, len(names))
+	for _, name := range names ***REMOVED***
+		keys = append(keys, name.String())
 	***REMOVED***
 
 	return
@@ -720,7 +750,7 @@ func (o *Object) Keys() (keys []string) ***REMOVED***
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineDataProperty(name string, value Value, writable, configurable, enumerable Flag) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
-		o.self.defineOwnProperty(newStringValue(name), propertyDescr***REMOVED***
+		o.self.defineOwnPropertyStr(unistring.NewFromString(name), PropertyDescriptor***REMOVED***
 			Value:        value,
 			Writable:     writable,
 			Configurable: configurable,
@@ -733,7 +763,7 @@ func (o *Object) DefineDataProperty(name string, value Value, writable, configur
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineAccessorProperty(name string, getter, setter Value, configurable, enumerable Flag) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
-		o.self.defineOwnProperty(newStringValue(name), propertyDescr***REMOVED***
+		o.self.defineOwnPropertyStr(unistring.NewFromString(name), PropertyDescriptor***REMOVED***
 			Getter:       getter,
 			Setter:       setter,
 			Configurable: configurable,
@@ -744,7 +774,7 @@ func (o *Object) DefineAccessorProperty(name string, getter, setter Value, confi
 
 func (o *Object) Set(name string, value interface***REMOVED******REMOVED***) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
-		o.self.putStr(name, o.runtime.ToValue(value), true)
+		o.self.setOwnStr(unistring.NewFromString(name), o.runtime.ToValue(value), true)
 	***REMOVED***)
 ***REMOVED***
 
@@ -779,7 +809,17 @@ func (o valueUnresolved) ToInteger() int64 ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (o valueUnresolved) ToString() valueString ***REMOVED***
+func (o valueUnresolved) toString() valueString ***REMOVED***
+	o.throw()
+	return nil
+***REMOVED***
+
+func (o valueUnresolved) string() unistring.String ***REMOVED***
+	o.throw()
+	return ""
+***REMOVED***
+
+func (o valueUnresolved) ToString() Value ***REMOVED***
 	o.throw()
 	return nil
 ***REMOVED***
@@ -799,7 +839,7 @@ func (o valueUnresolved) ToBoolean() bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (o valueUnresolved) ToObject(r *Runtime) *Object ***REMOVED***
+func (o valueUnresolved) ToObject(*Runtime) *Object ***REMOVED***
 	o.throw()
 	return nil
 ***REMOVED***
@@ -809,37 +849,22 @@ func (o valueUnresolved) ToNumber() Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (o valueUnresolved) SameAs(other Value) bool ***REMOVED***
+func (o valueUnresolved) SameAs(Value) bool ***REMOVED***
 	o.throw()
 	return false
 ***REMOVED***
 
-func (o valueUnresolved) Equals(other Value) bool ***REMOVED***
+func (o valueUnresolved) Equals(Value) bool ***REMOVED***
 	o.throw()
 	return false
 ***REMOVED***
 
-func (o valueUnresolved) StrictEquals(other Value) bool ***REMOVED***
+func (o valueUnresolved) StrictEquals(Value) bool ***REMOVED***
 	o.throw()
 	return false
 ***REMOVED***
 
-func (o valueUnresolved) assertInt() (int64, bool) ***REMOVED***
-	o.throw()
-	return 0, false
-***REMOVED***
-
-func (o valueUnresolved) assertFloat() (float64, bool) ***REMOVED***
-	o.throw()
-	return 0, false
-***REMOVED***
-
-func (o valueUnresolved) assertString() (valueString, bool) ***REMOVED***
-	o.throw()
-	return nil, false
-***REMOVED***
-
-func (o valueUnresolved) baseObject(r *Runtime) *Object ***REMOVED***
+func (o valueUnresolved) baseObject(*Runtime) *Object ***REMOVED***
 	o.throw()
 	return nil
 ***REMOVED***
@@ -852,6 +877,97 @@ func (o valueUnresolved) Export() interface***REMOVED******REMOVED*** ***REMOVED
 func (o valueUnresolved) ExportType() reflect.Type ***REMOVED***
 	o.throw()
 	return nil
+***REMOVED***
+
+func (o valueUnresolved) hash(*maphash.Hash) uint64 ***REMOVED***
+	o.throw()
+	return 0
+***REMOVED***
+
+func (s *valueSymbol) ToInteger() int64 ***REMOVED***
+	panic(typeError("Cannot convert a Symbol value to a number"))
+***REMOVED***
+
+func (s *valueSymbol) toString() valueString ***REMOVED***
+	panic(typeError("Cannot convert a Symbol value to a string"))
+***REMOVED***
+
+func (s *valueSymbol) ToString() Value ***REMOVED***
+	return s
+***REMOVED***
+
+func (s *valueSymbol) String() string ***REMOVED***
+	return s.desc.String()
+***REMOVED***
+
+func (s *valueSymbol) string() unistring.String ***REMOVED***
+	return s.desc.string()
+***REMOVED***
+
+func (s *valueSymbol) ToFloat() float64 ***REMOVED***
+	panic(typeError("Cannot convert a Symbol value to a number"))
+***REMOVED***
+
+func (s *valueSymbol) ToNumber() Value ***REMOVED***
+	panic(typeError("Cannot convert a Symbol value to a number"))
+***REMOVED***
+
+func (s *valueSymbol) ToBoolean() bool ***REMOVED***
+	return true
+***REMOVED***
+
+func (s *valueSymbol) ToObject(r *Runtime) *Object ***REMOVED***
+	return s.baseObject(r)
+***REMOVED***
+
+func (s *valueSymbol) SameAs(other Value) bool ***REMOVED***
+	if s1, ok := other.(*valueSymbol); ok ***REMOVED***
+		return s == s1
+	***REMOVED***
+	return false
+***REMOVED***
+
+func (s *valueSymbol) Equals(o Value) bool ***REMOVED***
+	return s.SameAs(o)
+***REMOVED***
+
+func (s *valueSymbol) StrictEquals(o Value) bool ***REMOVED***
+	return s.SameAs(o)
+***REMOVED***
+
+func (s *valueSymbol) Export() interface***REMOVED******REMOVED*** ***REMOVED***
+	return s.String()
+***REMOVED***
+
+func (s *valueSymbol) ExportType() reflect.Type ***REMOVED***
+	return reflectTypeString
+***REMOVED***
+
+func (s *valueSymbol) baseObject(r *Runtime) *Object ***REMOVED***
+	return r.newPrimitiveObject(s, r.global.SymbolPrototype, "Symbol")
+***REMOVED***
+
+func (s *valueSymbol) hash(*maphash.Hash) uint64 ***REMOVED***
+	return uint64(s.h)
+***REMOVED***
+
+func exportValue(v Value, ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if obj, ok := v.(*Object); ok ***REMOVED***
+		return obj.self.export(ctx)
+	***REMOVED***
+	return v.Export()
+***REMOVED***
+
+func newSymbol(s valueString) *valueSymbol ***REMOVED***
+	r := &valueSymbol***REMOVED***
+		desc: asciiString("Symbol(").concat(s).concat(asciiString(")")),
+	***REMOVED***
+	// This may need to be reconsidered in the future.
+	// Depending on changes in Go's allocation policy and/or introduction of a compacting GC
+	// this may no longer provide sufficient dispersion. The alternative, however, is a globally
+	// synchronised random generator/hasher/sequencer and I don't want to go down that route just yet.
+	r.h = uintptr(unsafe.Pointer(r))
+	return r
 ***REMOVED***
 
 func init() ***REMOVED***

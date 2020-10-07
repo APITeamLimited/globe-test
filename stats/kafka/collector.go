@@ -41,11 +41,12 @@ type Collector struct ***REMOVED***
 	Config   Config
 
 	Samples []stats.Sample
+	logger  logrus.FieldLogger
 	lock    sync.Mutex
 ***REMOVED***
 
 // New creates an instance of the collector
-func New(conf Config) (*Collector, error) ***REMOVED***
+func New(logger logrus.FieldLogger, conf Config) (*Collector, error) ***REMOVED***
 	producer, err := sarama.NewSyncProducer(conf.Brokers, nil)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -54,6 +55,7 @@ func New(conf Config) (*Collector, error) ***REMOVED***
 	return &Collector***REMOVED***
 		Producer: producer,
 		Config:   conf,
+		logger:   logger,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -62,7 +64,7 @@ func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
 
 // Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	logrus.Debug("Kafka: Running!")
+	c.logger.Debug("Kafka: Running!")
 	ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
 	for ***REMOVED***
 		select ***REMOVED***
@@ -73,7 +75,7 @@ func (c *Collector) Run(ctx context.Context) ***REMOVED***
 
 			err := c.Producer.Close()
 			if err != nil ***REMOVED***
-				logrus.WithError(err).Error("Kafka: Failed to close producer.")
+				c.logger.WithError(err).Error("Kafka: Failed to close producer.")
 			***REMOVED***
 			return
 		***REMOVED***
@@ -112,7 +114,7 @@ func (c *Collector) formatSamples(samples stats.Samples) ([]string, error) ***RE
 
 	switch c.Config.Format.String ***REMOVED***
 	case "influxdb":
-		i, err := influxdb.New(c.Config.InfluxDBConfig)
+		i, err := influxdb.New(c.logger, c.Config.InfluxDBConfig)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -147,20 +149,20 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	// Format the samples
 	formattedSamples, err := c.formatSamples(samples)
 	if err != nil ***REMOVED***
-		logrus.WithError(err).Error("Kafka: Couldn't format the samples")
+		c.logger.WithError(err).Error("Kafka: Couldn't format the samples")
 		return
 	***REMOVED***
 
 	// Send the samples
-	logrus.Debug("Kafka: Delivering...")
+	c.logger.Debug("Kafka: Delivering...")
 
 	for _, sample := range formattedSamples ***REMOVED***
 		msg := &sarama.ProducerMessage***REMOVED***Topic: c.Config.Topic.String, Value: sarama.StringEncoder(sample)***REMOVED***
 		partition, offset, err := c.Producer.SendMessage(msg)
 		if err != nil ***REMOVED***
-			logrus.WithError(err).Error("Kafka: failed to send message.")
+			c.logger.WithError(err).Error("Kafka: failed to send message.")
 		***REMOVED*** else ***REMOVED***
-			logrus.WithFields(logrus.Fields***REMOVED***
+			c.logger.WithFields(logrus.Fields***REMOVED***
 				"partition": partition,
 				"offset":    offset,
 			***REMOVED***).Debug("Kafka: message sent.")
@@ -168,5 +170,5 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	***REMOVED***
 
 	t := time.Since(startTime)
-	logrus.WithField("t", t).Debug("Kafka: Delivered!")
+	c.logger.WithField("t", t).Debug("Kafka: Delivered!")
 ***REMOVED***

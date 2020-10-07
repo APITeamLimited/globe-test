@@ -33,9 +33,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 func init() ***REMOVED***
@@ -55,7 +57,7 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 
 	tr := &TestRun***REMOVED***
 		Name: "test",
@@ -93,7 +95,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 
 	samples := []*Sample***REMOVED***
 		***REMOVED***
@@ -101,7 +103,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 			Metric: "metric",
 			Data: &SampleDataSingle***REMOVED***
 				Type:  1,
-				Time:  Timestamp(time.Now()),
+				Time:  toMicroSecond(time.Now()),
 				Value: 1.2,
 			***REMOVED***,
 		***REMOVED***,
@@ -117,7 +119,7 @@ func TestFinished(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 
 	thresholds := map[string]map[string]bool***REMOVED***
 		"threshold": ***REMOVED***
@@ -138,7 +140,7 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 
 	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
 
@@ -156,7 +158,7 @@ func TestDetailsError(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 
 	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
 
@@ -180,7 +182,7 @@ func TestRetry(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 	client.retryInterval = 1 * time.Millisecond
 	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
 
@@ -208,7 +210,7 @@ func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 	client.retryInterval = 1 * time.Millisecond
 	resp, err := client.CreateTestRun(&TestRun***REMOVED***Name: "test"***REMOVED***)
 
@@ -232,7 +234,7 @@ func TestIdempotencyKey(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	client := NewClient("token", server.URL, "1.0")
+	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
 	client.retryInterval = 1 * time.Millisecond
 	req, err := client.NewRequest(http.MethodPost, server.URL, nil)
 	assert.NoError(t, err)

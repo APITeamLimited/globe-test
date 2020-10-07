@@ -1,5 +1,7 @@
 package goja
 
+import "github.com/dop251/goja/unistring"
+
 type argumentsObject struct ***REMOVED***
 	baseObject
 	length int
@@ -10,15 +12,16 @@ type mappedProperty struct ***REMOVED***
 	v *Value
 ***REMOVED***
 
-func (a *argumentsObject) getPropStr(name string) Value ***REMOVED***
-	if prop, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
-		return *prop.v
-	***REMOVED***
-	return a.baseObject.getPropStr(name)
+func (a *argumentsObject) getStr(name unistring.String, receiver Value) Value ***REMOVED***
+	return a.getStrWithOwnProp(a.getOwnPropStr(name), name, receiver)
 ***REMOVED***
 
-func (a *argumentsObject) getProp(n Value) Value ***REMOVED***
-	return a.getPropStr(n.String())
+func (a *argumentsObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
+	if mapped, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
+		return *mapped.v
+	***REMOVED***
+
+	return a.baseObject.getOwnPropStr(name)
 ***REMOVED***
 
 func (a *argumentsObject) init() ***REMOVED***
@@ -26,11 +29,23 @@ func (a *argumentsObject) init() ***REMOVED***
 	a._putProp("length", intToValue(int64(a.length)), true, false, true)
 ***REMOVED***
 
-func (a *argumentsObject) put(n Value, val Value, throw bool) ***REMOVED***
-	a.putStr(n.String(), val, throw)
+func (a *argumentsObject) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
+	if prop, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
+		if !prop.writable ***REMOVED***
+			a.val.runtime.typeErrorResult(throw, "Property is not writable: %s", name)
+			return false
+		***REMOVED***
+		*prop.v = val
+		return true
+	***REMOVED***
+	return a.baseObject.setOwnStr(name, val, throw)
 ***REMOVED***
 
-func (a *argumentsObject) putStr(name string, val Value, throw bool) ***REMOVED***
+func (a *argumentsObject) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	return a._setForeignStr(name, a.getOwnPropStr(name), val, receiver, throw)
+***REMOVED***
+
+/*func (a *argumentsObject) putStr(name string, val Value, throw bool) ***REMOVED***
 	if prop, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
 		if !prop.writable ***REMOVED***
 			a.val.runtime.typeErrorResult(throw, "Property is not writable: %s", name)
@@ -40,9 +55,9 @@ func (a *argumentsObject) putStr(name string, val Value, throw bool) ***REMOVED*
 		return
 	***REMOVED***
 	a.baseObject.putStr(name, val, throw)
-***REMOVED***
+***REMOVED****/
 
-func (a *argumentsObject) deleteStr(name string, throw bool) bool ***REMOVED***
+func (a *argumentsObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
 	if prop, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
 		if !a.checkDeleteProp(name, &prop.valueProperty, throw) ***REMOVED***
 			return false
@@ -52,16 +67,6 @@ func (a *argumentsObject) deleteStr(name string, throw bool) bool ***REMOVED***
 	***REMOVED***
 
 	return a.baseObject.deleteStr(name, throw)
-***REMOVED***
-
-func (a *argumentsObject) delete(n Value, throw bool) bool ***REMOVED***
-	return a.deleteStr(n.String(), throw)
-***REMOVED***
-
-type argumentsPropIter1 struct ***REMOVED***
-	a         *argumentsObject
-	idx       int
-	recursive bool
 ***REMOVED***
 
 type argumentsPropIter struct ***REMOVED***
@@ -80,21 +85,13 @@ func (i *argumentsPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	return item, i.next
 ***REMOVED***
 
-func (a *argumentsObject) _enumerate(recursive bool) iterNextFunc ***REMOVED***
-	return (&argumentsPropIter***REMOVED***
-		wrapped: a.baseObject._enumerate(recursive),
-	***REMOVED***).next
-
+func (a *argumentsObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
+	return a.recursiveIter((&argumentsPropIter***REMOVED***
+		wrapped: a.ownIter(),
+	***REMOVED***).next)
 ***REMOVED***
 
-func (a *argumentsObject) enumerate(all, recursive bool) iterNextFunc ***REMOVED***
-	return (&argumentsPropIter***REMOVED***
-		wrapped: a.baseObject.enumerate(all, recursive),
-	***REMOVED***).next
-***REMOVED***
-
-func (a *argumentsObject) defineOwnProperty(n Value, descr propertyDescr, throw bool) bool ***REMOVED***
-	name := n.String()
+func (a *argumentsObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
 	if mapped, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
 		existing := &valueProperty***REMOVED***
 			configurable: mapped.configurable,
@@ -103,7 +100,7 @@ func (a *argumentsObject) defineOwnProperty(n Value, descr propertyDescr, throw 
 			value:        mapped.get(a.val),
 		***REMOVED***
 
-		val, ok := a.baseObject._defineOwnProperty(n, existing, descr, throw)
+		val, ok := a.baseObject._defineOwnProperty(name, existing, descr, throw)
 		if !ok ***REMOVED***
 			return false
 		***REMOVED***
@@ -127,23 +124,19 @@ func (a *argumentsObject) defineOwnProperty(n Value, descr propertyDescr, throw 
 		return true
 	***REMOVED***
 
-	return a.baseObject.defineOwnProperty(n, descr, throw)
+	return a.baseObject.defineOwnPropertyStr(name, descr, throw)
 ***REMOVED***
 
-func (a *argumentsObject) getOwnProp(name string) Value ***REMOVED***
-	if mapped, ok := a.values[name].(*mappedProperty); ok ***REMOVED***
-		return *mapped.v
+func (a *argumentsObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	if v, exists := ctx.get(a); exists ***REMOVED***
+		return v
 	***REMOVED***
-
-	return a.baseObject.getOwnProp(name)
-***REMOVED***
-
-func (a *argumentsObject) export() interface***REMOVED******REMOVED*** ***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
-	for i, _ := range arr ***REMOVED***
-		v := a.get(intToValue(int64(i)))
+	ctx.put(a, arr)
+	for i := range arr ***REMOVED***
+		v := a.getIdx(valueInt(int64(i)), nil)
 		if v != nil ***REMOVED***
-			arr[i] = v.Export()
+			arr[i] = exportValue(v, ctx)
 		***REMOVED***
 	***REMOVED***
 	return arr

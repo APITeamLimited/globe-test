@@ -2,14 +2,17 @@ package goja
 
 import (
 	"fmt"
-	"github.com/dop251/goja/ast"
-	"github.com/dop251/goja/file"
 	"sort"
 	"strconv"
+
+	"github.com/dop251/goja/ast"
+	"github.com/dop251/goja/file"
+	"github.com/dop251/goja/unistring"
 )
 
 const (
 	blockLoop = iota
+	blockLoopEnum
 	blockTry
 	blockBranch
 	blockSwitch
@@ -39,7 +42,7 @@ type Program struct ***REMOVED***
 	code   []instruction
 	values []Value
 
-	funcName string
+	funcName unistring.String
 	src      *SrcFile
 	srcMap   []srcMapItem
 ***REMOVED***
@@ -56,7 +59,7 @@ type compiler struct ***REMOVED***
 ***REMOVED***
 
 type scope struct ***REMOVED***
-	names      map[string]uint32
+	names      map[unistring.String]uint32
 	outer      *scope
 	strict     bool
 	eval       bool
@@ -66,13 +69,13 @@ type scope struct ***REMOVED***
 	argsNeeded bool
 	thisNeeded bool
 
-	namesMap    map[string]string
+	namesMap    map[unistring.String]unistring.String
 	lastFreeTmp int
 ***REMOVED***
 
 type block struct ***REMOVED***
 	typ        int
-	label      string
+	label      unistring.String
 	needResult bool
 	cont       int
 	breaks     []int
@@ -85,7 +88,7 @@ func (c *compiler) leaveBlock() ***REMOVED***
 	for _, item := range c.block.breaks ***REMOVED***
 		c.p.code[item] = jump(lbl - item)
 	***REMOVED***
-	if c.block.typ == blockLoop ***REMOVED***
+	if t := c.block.typ; t == blockLoop || t == blockLoopEnum ***REMOVED***
 		for _, item := range c.block.conts ***REMOVED***
 			c.p.code[item] = jump(c.block.cont - item)
 		***REMOVED***
@@ -111,9 +114,9 @@ func (c *compiler) newScope() ***REMOVED***
 	***REMOVED***
 	c.scope = &scope***REMOVED***
 		outer:    c.scope,
-		names:    make(map[string]uint32),
+		names:    make(map[unistring.String]uint32),
 		strict:   strict,
-		namesMap: make(map[string]string),
+		namesMap: make(map[unistring.String]unistring.String),
 	***REMOVED***
 ***REMOVED***
 
@@ -176,7 +179,7 @@ func (s *scope) isFunction() bool ***REMOVED***
 	return s.outer.isFunction()
 ***REMOVED***
 
-func (s *scope) lookupName(name string) (idx uint32, found, noDynamics bool) ***REMOVED***
+func (s *scope) lookupName(name unistring.String) (idx uint32, found, noDynamics bool) ***REMOVED***
 	var level uint32 = 0
 	noDynamics = true
 	for curScope := s; curScope != nil; curScope = curScope.outer ***REMOVED***
@@ -186,7 +189,7 @@ func (s *scope) lookupName(name string) (idx uint32, found, noDynamics bool) ***
 		if curScope.dynamic ***REMOVED***
 			noDynamics = false
 		***REMOVED*** else ***REMOVED***
-			var mapped string
+			var mapped unistring.String
 			if m, exists := curScope.namesMap[name]; exists ***REMOVED***
 				mapped = m
 			***REMOVED*** else ***REMOVED***
@@ -210,7 +213,7 @@ func (s *scope) lookupName(name string) (idx uint32, found, noDynamics bool) ***
 	return
 ***REMOVED***
 
-func (s *scope) bindName(name string) (uint32, bool) ***REMOVED***
+func (s *scope) bindName(name unistring.String) (uint32, bool) ***REMOVED***
 	if s.lexical ***REMOVED***
 		return s.outer.bindName(name)
 	***REMOVED***
@@ -223,7 +226,7 @@ func (s *scope) bindName(name string) (uint32, bool) ***REMOVED***
 	return idx, true
 ***REMOVED***
 
-func (s *scope) bindNameShadow(name string) (uint32, bool) ***REMOVED***
+func (s *scope) bindNameShadow(name unistring.String) (uint32, bool) ***REMOVED***
 	if s.lexical ***REMOVED***
 		return s.outer.bindName(name)
 	***REMOVED***
@@ -234,7 +237,7 @@ func (s *scope) bindNameShadow(name string) (uint32, bool) ***REMOVED***
 		unique = false
 		// shadow the var
 		delete(s.names, name)
-		n := strconv.Itoa(int(idx))
+		n := unistring.String(strconv.Itoa(int(idx)))
 		s.names[n] = idx
 	***REMOVED***
 	idx := uint32(len(s.names))
@@ -446,14 +449,14 @@ func (c *compiler) isStrictStatement(s ast.Statement) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (c *compiler) checkIdentifierName(name string, offset int) ***REMOVED***
+func (c *compiler) checkIdentifierName(name unistring.String, offset int) ***REMOVED***
 	switch name ***REMOVED***
 	case "implements", "interface", "let", "package", "private", "protected", "public", "static", "yield":
 		c.throwSyntaxError(offset, "Unexpected strict mode reserved word")
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) checkIdentifierLName(name string, offset int) ***REMOVED***
+func (c *compiler) checkIdentifierLName(name unistring.String, offset int) ***REMOVED***
 	switch name ***REMOVED***
 	case "eval", "arguments":
 		c.throwSyntaxError(offset, "Assignment to eval or arguments is not allowed in strict mode")

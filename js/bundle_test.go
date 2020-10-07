@@ -33,21 +33,22 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/loadimpact/k6/js/compiler"
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/consts"
-	"github.com/loadimpact/k6/lib/fsext"
-	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
+	"github.com/loadimpact/k6/lib/fsext"
+	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/loader"
 )
 
 const isWindows = runtime.GOOS == "windows"
 
-func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
+func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
 	var (
 		fs     = afero.NewMemMapFs()
 		rtOpts = lib.RuntimeOptions***REMOVED******REMOVED***
@@ -61,6 +62,7 @@ func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REM
 		***REMOVED***
 	***REMOVED***
 	return NewBundle(
+		testutils.NewLogger(tb),
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
@@ -72,40 +74,40 @@ func getSimpleBundle(filename, data string, opts ...interface***REMOVED******REM
 
 func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", "")
-		assert.EqualError(t, err, "script must export a default function")
+		_, err := getSimpleBundle(t, "/script.js", "")
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", "\x00")
+		_, err := getSimpleBundle(t, "/script.js", "\x00")
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 	***REMOVED***)
 	t.Run("Error", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `throw new Error("aaaa");`)
+		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
 		assert.EqualError(t, err, "Error: aaaa at file:///script.js:1:7(3)")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `exports = null`)
+		_, err := getSimpleBundle(t, "/script.js", `exports = null`)
 		assert.EqualError(t, err, "exports must be an object")
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `export default undefined;`)
-		assert.EqualError(t, err, "script must export a default function")
+		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`)
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `export default null;`)
-		assert.EqualError(t, err, "script must export a default function")
+		_, err := getSimpleBundle(t, "/script.js", `export default null;`)
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `export default 12345;`)
-		assert.EqualError(t, err, "default export must be a function")
+		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`)
+		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
-		_, err := getSimpleBundle("/script.js", `export default function() ***REMOVED******REMOVED***;`)
+		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`)
 		assert.NoError(t, err)
 	***REMOVED***)
 	t.Run("stdin", func(t *testing.T) ***REMOVED***
-		b, err := getSimpleBundle("-", `export default function() ***REMOVED******REMOVED***;`)
+		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "file://-", b.Filename.String())
 			assert.Equal(t, "file:///", b.BaseInitContext.pwd.String())
@@ -114,15 +116,18 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
 		t.Run("Extended/ok/CoreJS", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeExtended.String())***REMOVED***
-			_, err := getSimpleBundle("/script.js",
-				`export default function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`, rtOpts)
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
+			***REMOVED***
+			_, err := getSimpleBundle(t, "/script.js",
+				`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`, rtOpts)
+
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(compiler.CompatibilityModeBase.String())***REMOVED***
-			_, err := getSimpleBundle("/script.js",
+				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
+			***REMOVED***
+			_, err := getSimpleBundle(t, "/script.js",
 				`module.exports.default = function() ***REMOVED******REMOVED***;`, rtOpts)
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -133,26 +138,34 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				code       string
 				expErr     string
 			***REMOVED******REMOVED***
-				***REMOVED***"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
-					`invalid compatibility mode "es1". Use: "extended", "base"`***REMOVED***,
+				***REMOVED***
+					"InvalidCompat", "es1", `export default function() ***REMOVED******REMOVED***;`,
+					`invalid compatibility mode "es1". Use: "extended", "base"`,
+				***REMOVED***,
 				// ES2015 modules are not supported
-				***REMOVED***"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:1 Unexpected reserved word"***REMOVED***,
+				***REMOVED***
+					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
+					"file:///script.js: Line 1:1 Unexpected reserved word",
+				***REMOVED***,
 				// Arrow functions are not supported
-				***REMOVED***"ArrowFuncs", "base",
+				***REMOVED***
+					"ArrowFuncs", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)"***REMOVED***,
-				// ES2015 objects polyfilled by core.js are not supported
-				***REMOVED***"CoreJS", "base",
-					`module.exports.default = function() ***REMOVED******REMOVED***; new Set([1, 2, 3, 2, 1]);`,
-					"ReferenceError: Set is not defined at file:///script.js:1:45(5)"***REMOVED***,
+					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)",
+				***REMOVED***,
+				// some ES2015 objects polyfilled by core.js are not supported
+				***REMOVED***
+					"CoreJS", "base",
+					`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`,
+					"ReferenceError: Promise is not defined at file:///script.js:1:45(5)",
+				***REMOVED***,
 			***REMOVED***
 
 			for _, tc := range testCases ***REMOVED***
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) ***REMOVED***
 					rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-					_, err := getSimpleBundle("/script.js", tc.code, rtOpts)
+					_, err := getSimpleBundle(t, "/script.js", tc.code, rtOpts)
 					assert.EqualError(t, err, tc.expErr)
 				***REMOVED***)
 			***REMOVED***
@@ -160,7 +173,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Options", func(t *testing.T) ***REMOVED***
 		t.Run("Empty", func(t *testing.T) ***REMOVED***
-			_, err := getSimpleBundle("/script.js", `
+			_, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED******REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
 			`)
@@ -175,7 +188,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 			for name, data := range invalidOptions ***REMOVED***
 				t.Run(name, func(t *testing.T) ***REMOVED***
-					_, err := getSimpleBundle("/script.js", fmt.Sprintf(`
+					_, err := getSimpleBundle(t, "/script.js", fmt.Sprintf(`
 						export let options = %s;
 						export default function() ***REMOVED******REMOVED***;
 					`, data.Expr))
@@ -185,7 +198,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Paused", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					paused: true,
 				***REMOVED***;
@@ -196,7 +209,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("VUs", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					vus: 100,
 				***REMOVED***;
@@ -206,19 +219,8 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				assert.Equal(t, null.IntFrom(100), b.Options.VUs)
 			***REMOVED***
 		***REMOVED***)
-		t.Run("VUsMax", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
-				export let options = ***REMOVED***
-					vusMax: 100,
-				***REMOVED***;
-				export default function() ***REMOVED******REMOVED***;
-			`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, null.IntFrom(100), b.Options.VUsMax)
-			***REMOVED***
-		***REMOVED***)
 		t.Run("Duration", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					duration: "10s",
 				***REMOVED***;
@@ -229,7 +231,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					iterations: 100,
 				***REMOVED***;
@@ -240,7 +242,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Stages", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					stages: [],
 				***REMOVED***;
@@ -251,7 +253,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			t.Run("Empty", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
 							***REMOVED******REMOVED***,
@@ -266,7 +268,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("Target", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
 							***REMOVED***target: 10***REMOVED***,
@@ -281,7 +283,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("Duration", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
 							***REMOVED***duration: "10s"***REMOVED***,
@@ -296,7 +298,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("DurationAndTarget", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
 							***REMOVED***duration: "10s", target: 10***REMOVED***,
@@ -311,7 +313,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("RampUpAndPlateau", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
 							***REMOVED***duration: "10s", target: 10***REMOVED***,
@@ -329,7 +331,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					maxRedirects: 10,
 				***REMOVED***;
@@ -340,7 +342,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					insecureSkipTLSVerify: true,
 				***REMOVED***;
@@ -361,7 +363,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					`
 					script = fmt.Sprintf(script, suiteName)
 
-					b, err := getSimpleBundle("/script.js", script)
+					b, err := getSimpleBundle(t, "/script.js", script)
 					if assert.NoError(t, err) ***REMOVED***
 						if assert.Len(t, *b.Options.TLSCipherSuites, 1) ***REMOVED***
 							assert.Equal(t, (*b.Options.TLSCipherSuites)[0], suiteID)
@@ -372,7 +374,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***)
 		t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
 			t.Run("Object", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						tlsVersion: ***REMOVED***
 							min: "ssl3.0",
@@ -387,7 +389,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
-				b, err := getSimpleBundle("/script.js", `
+				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						tlsVersion: "ssl3.0"
 					***REMOVED***;
@@ -397,11 +399,10 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
 					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionSSL30))
 				***REMOVED***
-
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
-			b, err := getSimpleBundle("/script.js", `
+			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					thresholds: ***REMOVED***
 						http_req_duration: ["avg<100"],
@@ -418,88 +419,128 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func getArchive(tb testing.TB, data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
+	b, err := getSimpleBundle(tb, "script.js", data, rtOpts)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return b.makeArchive(), nil
+***REMOVED***
+
 func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
-	getArchive := func(data string, rtOpts lib.RuntimeOptions) (*lib.Archive, error) ***REMOVED***
-		b, err := getSimpleBundle("script.js", data, rtOpts)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		return b.makeArchive(), nil
+	t.Parallel()
+
+	es5Code := `module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***; module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`
+	es6Code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`
+	baseCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String())***REMOVED***
+	extCompatModeRtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String())***REMOVED***
+
+	logger := testutils.NewLogger(t)
+	checkBundle := func(t *testing.T, b *Bundle) ***REMOVED***
+		assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
+		bi, err := b.Instantiate(logger, 0)
+		require.NoError(t, err)
+		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
+		require.NoError(t, err)
+		assert.Equal(t, "hi!", val.Export())
 	***REMOVED***
 
-	t.Run("ok", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			compatMode, code string
-		***REMOVED******REMOVED***
-			// An empty value will assume "extended"
-			***REMOVED***"", `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeExtended.String(), `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`***REMOVED***,
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
-				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				module.exports.default = function() ***REMOVED*** return "hi!" ***REMOVED***;`***REMOVED***,
+	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
+		b, err := NewBundleFromArchive(logger, arc, rtOpts)
+		if expError != "" ***REMOVED***
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), expError)
+		***REMOVED*** else ***REMOVED***
+			require.NoError(t, err)
+			checkBundle(t, b)
 		***REMOVED***
+	***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-				arc, err := getArchive(tc.code, rtOpts)
-				assert.NoError(t, err)
-				b, err := NewBundleFromArchive(arc, rtOpts)
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, lib.Options***REMOVED***VUs: null.IntFrom(12345)***REMOVED***, b.Options)
-				expCM := tc.compatMode
-				if expCM == "" ***REMOVED***
-					expCM = compiler.CompatibilityModeExtended.String()
-				***REMOVED***
-				assert.Equal(t, expCM, b.CompatibilityMode.String())
+	t.Run("es6_script_default", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es6Code, lib.RuntimeOptions***REMOVED******REMOVED***) // default options
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
 
-				bi, err := b.Instantiate()
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				val, err := bi.Default(goja.Undefined())
-				if !assert.NoError(t, err) ***REMOVED***
-					return
-				***REMOVED***
-				assert.Equal(t, "hi!", val.Export())
-			***REMOVED***)
-		***REMOVED***
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "") // default options
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
 	***REMOVED***)
-	t.Run("err", func(t *testing.T) ***REMOVED***
-		testCases := []struct ***REMOVED***
-			compatMode, code, expErr string
-		***REMOVED******REMOVED***
-			// Incompatible mode
-			***REMOVED***compiler.CompatibilityModeBase.String(), `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				"file://script.js: Line 2:5 Unexpected reserved word (and 2 more errors)"***REMOVED***,
-			***REMOVED***"wrongcompat", `
-				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
-				export default function() ***REMOVED*** return "hi!"; ***REMOVED***;`,
-				`invalid compatibility mode "wrongcompat". Use: "extended", "base"`***REMOVED***,
-		***REMOVED***
 
-		for _, tc := range testCases ***REMOVED***
-			tc := tc
-			t.Run(tc.compatMode, func(t *testing.T) ***REMOVED***
-				rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
-				_, err := getArchive(tc.code, rtOpts)
-				assert.EqualError(t, err, tc.expErr)
-			***REMOVED***)
+	t.Run("es6_script_explicit", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")
+	***REMOVED***)
+
+	t.Run("es5_script_with_extended", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es5Code, lib.RuntimeOptions***REMOVED******REMOVED***)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeExtended.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "")
+	***REMOVED***)
+
+	t.Run("es5_script", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es5Code, baseCompatModeRtOpts)
+		require.NoError(t, err)
+		require.Equal(t, lib.CompatibilityModeBase.String(), arc.CompatibilityMode)
+
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "")
+		checkArchive(t, arc, extCompatModeRtOpts, "")
+		checkArchive(t, arc, baseCompatModeRtOpts, "")
+	***REMOVED***)
+
+	t.Run("es6_archive_with_wrong_compat_mode", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es6Code, baseCompatModeRtOpts)
+		require.Error(t, err)
+		require.Nil(t, arc)
+	***REMOVED***)
+
+	t.Run("messed_up_archive", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		arc, err := getArchive(t, es6Code, extCompatModeRtOpts)
+		require.NoError(t, err)
+		arc.CompatibilityMode = "blah"                                           // intentionally break the archive
+		checkArchive(t, arc, lib.RuntimeOptions***REMOVED******REMOVED***, "invalid compatibility mode") // fails when it uses the archive one
+		checkArchive(t, arc, extCompatModeRtOpts, "")                            // works when I force the compat mode
+		checkArchive(t, arc, baseCompatModeRtOpts, "Unexpected reserved word")   // failes because of ES6
+	***REMOVED***)
+
+	t.Run("script_options_dont_overwrite_metadata", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		code := `export let options = ***REMOVED*** vus: 12345 ***REMOVED***; export default function() ***REMOVED*** return options.vus; ***REMOVED***;`
+		arc := &lib.Archive***REMOVED***
+			Type:        "js",
+			FilenameURL: &url.URL***REMOVED***Scheme: "file", Path: "/script"***REMOVED***,
+			K6Version:   consts.Version,
+			Data:        []byte(code),
+			Options:     lib.Options***REMOVED***VUs: null.IntFrom(999)***REMOVED***,
+			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
+			Filesystems: nil,
 		***REMOVED***
+		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+		require.NoError(t, err)
+		bi, err := b.Instantiate(logger, 0)
+		require.NoError(t, err)
+		val, err := bi.exports[consts.DefaultFn](goja.Undefined())
+		require.NoError(t, err)
+		assert.Equal(t, int64(999), val.Export())
 	***REMOVED***)
 ***REMOVED***
 
 func TestOpen(t *testing.T) ***REMOVED***
-	var testCases = [...]struct ***REMOVED***
+	testCases := [...]struct ***REMOVED***
 		name           string
 		openPath       string
 		pwd            string
@@ -573,8 +614,8 @@ func TestOpen(t *testing.T) ***REMOVED***
 	fss := map[string]func() (afero.Fs, string, func())***REMOVED***
 		"MemMapFS": func() (afero.Fs, string, func()) ***REMOVED***
 			fs := afero.NewMemMapFs()
-			require.NoError(t, fs.MkdirAll("/path/to", 0755))
-			require.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644))
+			require.NoError(t, fs.MkdirAll("/path/to", 0o755))
+			require.NoError(t, afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644))
 			return fs, "", func() ***REMOVED******REMOVED***
 		***REMOVED***,
 		"OsFS": func() (afero.Fs, string, func()) ***REMOVED***
@@ -582,14 +623,16 @@ func TestOpen(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			fs := afero.NewOsFs()
 			filePath := filepath.Join(prefix, "/path/to/file.txt")
-			require.NoError(t, fs.MkdirAll(filepath.Join(prefix, "/path/to"), 0755))
-			require.NoError(t, afero.WriteFile(fs, filePath, []byte(`hi`), 0644))
+			require.NoError(t, fs.MkdirAll(filepath.Join(prefix, "/path/to"), 0o755))
+			require.NoError(t, afero.WriteFile(fs, filePath, []byte(`hi`), 0o644))
 			if isWindows ***REMOVED***
 				fs = fsext.NewTrimFilePathSeparatorFs(fs)
 			***REMOVED***
 			return fs, prefix, func() ***REMOVED*** require.NoError(t, os.RemoveAll(prefix)) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
+
+	logger := testutils.NewLogger(t)
 
 	for name, fsInit := range fss ***REMOVED***
 		fs, prefix, cleanUp := fsInit()
@@ -599,8 +642,8 @@ func TestOpen(t *testing.T) ***REMOVED***
 			for _, tCase := range testCases ***REMOVED***
 				tCase := tCase
 
-				var testFunc = func(t *testing.T) ***REMOVED***
-					var openPath = tCase.openPath
+				testFunc := func(t *testing.T) ***REMOVED***
+					openPath := tCase.openPath
 					// if fullpath prepend prefix
 					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
 						openPath = filepath.Join(prefix, openPath)
@@ -608,7 +651,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					if isWindows ***REMOVED***
 						openPath = strings.Replace(openPath, `\`, `\\`, -1)
 					***REMOVED***
-					var pwd = tCase.pwd
+					pwd := tCase.pwd
 					if pwd == "" ***REMOVED***
 						pwd = "/path/to/"
 					***REMOVED***
@@ -616,23 +659,23 @@ func TestOpen(t *testing.T) ***REMOVED***
 						export let file = open("` + openPath + `");
 						export default function() ***REMOVED*** return file ***REMOVED***;`
 
-					sourceBundle, err := getSimpleBundle(filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
+					sourceBundle, err := getSimpleBundle(t, filepath.ToSlash(filepath.Join(prefix, pwd, "script.js")), data, fs)
 					if tCase.isError ***REMOVED***
 						assert.Error(t, err)
 						return
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					arcBundle, err := NewBundleFromArchive(logger, sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 
 					require.NoError(t, err)
 
 					for source, b := range map[string]*Bundle***REMOVED***"source": sourceBundle, "archive": arcBundle***REMOVED*** ***REMOVED***
 						b := b
 						t.Run(source, func(t *testing.T) ***REMOVED***
-							bi, err := b.Instantiate()
+							bi, err := b.Instantiate(logger, 0)
 							require.NoError(t, err)
-							v, err := bi.Default(goja.Undefined())
+							v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 							require.NoError(t, err)
 							assert.Equal(t, "hi", v.Export())
 						***REMOVED***)
@@ -652,7 +695,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleInstantiate(t *testing.T) ***REMOVED***
-	b, err := getSimpleBundle("/script.js", `
+	b, err := getSimpleBundle(t, "/script.js", `
 		export let options = ***REMOVED***
 			vus: 5,
 			teardownTimeout: '1s',
@@ -663,14 +706,15 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
+	logger := testutils.NewLogger(t)
 
-	bi, err := b.Instantiate()
+	bi, err := b.Instantiate(logger, 0)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
 	t.Run("Run", func(t *testing.T) ***REMOVED***
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
@@ -678,7 +722,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
 		bi.Runtime.Set("val", false)
-		v, err := bi.Default(goja.Undefined())
+		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, false, v.Export())
 		***REMOVED***
@@ -695,7 +739,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		// Ensure options propagate correctly from outside to the script
 		optOrig := b.Options.VUs
 		b.Options.VUs = null.IntFrom(10)
-		bi2, err := b.Instantiate()
+		bi2, err := b.Instantiate(logger, 0)
 		assert.NoError(t, err)
 		jsOptions = bi2.Runtime.Get("options").ToObject(bi2.Runtime)
 		vus = jsOptions.Get("vus").Export()
@@ -715,25 +759,27 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 			if (__ENV.TEST_B !== "") ***REMOVED*** throw new Error("Invalid TEST_B: " + __ENV.TEST_B); ***REMOVED***
 		***REMOVED***
 	`
-	b1, err := getSimpleBundle("/script.js", data, rtOpts)
+	b1, err := getSimpleBundle(t, "/script.js", data, rtOpts)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
-	b2, err := NewBundleFromArchive(b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	logger := testutils.NewLogger(t)
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
 	for name, b := range bundles ***REMOVED***
+		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			assert.Equal(t, "1", b.Env["TEST_A"])
 			assert.Equal(t, "", b.Env["TEST_B"])
 
-			bi, err := b.Instantiate()
+			bi, err := b.Instantiate(logger, 0)
 			if assert.NoError(t, err) ***REMOVED***
-				_, err := bi.Default(goja.Undefined())
+				_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 				assert.NoError(t, err)
 			***REMOVED***
 		***REMOVED***)
@@ -753,12 +799,13 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	`
-	b1, err := getSimpleBundle("/script.js", data)
+	b1, err := getSimpleBundle(t, "/script.js", data)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
+	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
 	if !assert.NoError(t, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -769,12 +816,11 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			for i := 0; i < vus; i++ ***REMOVED***
-				bi, err := b.Instantiate()
-				bi.Runtime.Set("__VU", i)
+				bi, err := b.Instantiate(logger, int64(i))
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)
-					_, err := bi.Default(goja.Undefined())
+					_, err := bi.exports[consts.DefaultFn](goja.Undefined())
 					assert.NoError(t, err)
 				***REMOVED***
 			***REMOVED***
@@ -784,34 +830,38 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***
-		cm      compiler.CompatibilityMode
+		cm      lib.CompatibilityMode
 		script  string
 		exclaim string
 	***REMOVED******REMOVED***
-		***REMOVED***compiler.CompatibilityModeExtended, `
+		***REMOVED***
+			lib.CompatibilityModeExtended, `
 				import exclaim from "./exclaim.js";
 				export let options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				export let file = open("./file.txt");
 				export default function() ***REMOVED*** return exclaim(file); ***REMOVED***;`,
-			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
-		***REMOVED***compiler.CompatibilityModeBase, `
+			`export default function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
+		***REMOVED***
+			lib.CompatibilityModeBase, `
 				var exclaim = require("./exclaim.js");
 				module.exports.options = ***REMOVED*** vus: 12345 ***REMOVED***;
 				module.exports.file = open("./file.txt");
 				module.exports.default = function() ***REMOVED*** return exclaim(module.exports.file); ***REMOVED***;`,
-			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`***REMOVED***,
+			`module.exports.default = function(s) ***REMOVED*** return s + "!" ***REMOVED***;`,
+		***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
-			_ = fs.MkdirAll("/path/to", 0755)
-			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0644)
-			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0644)
+			_ = fs.MkdirAll("/path/to", 0o755)
+			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644)
+			_ = afero.WriteFile(fs, "/path/to/exclaim.js", []byte(tc.exclaim), 0o644)
 
 			rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.cm.String())***REMOVED***
-			b, err := getSimpleBundle("/path/to/script.js", tc.script, fs, rtOpts)
+			b, err := getSimpleBundle(t, "/path/to/script.js", tc.script, fs, rtOpts)
 			assert.NoError(t, err)
 
 			arc := b.makeArchive()

@@ -36,7 +36,7 @@ import (
 
 	"github.com/Azure/go-ntlmssp"
 	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
@@ -74,19 +74,17 @@ func (u URL) Clean() string ***REMOVED***
 		return u.CleanURL
 	***REMOVED***
 
-	out := u.URL
-
-	if u.u != nil && u.u.User != nil ***REMOVED***
-		schemeIndex := strings.Index(out, "://")
-		atIndex := strings.Index(out, "@")
-		if _, passwordOk := u.u.User.Password(); passwordOk ***REMOVED***
-			out = out[:schemeIndex+3] + "****:****" + out[atIndex:]
-		***REMOVED*** else ***REMOVED***
-			out = out[:schemeIndex+3] + "****" + out[atIndex:]
-		***REMOVED***
+	if u.u == nil || u.u.User == nil ***REMOVED***
+		return u.URL
 	***REMOVED***
 
-	return out
+	if password, passwordOk := u.u.User.Password(); passwordOk ***REMOVED***
+		// here 3 is for the '://' and 4 is because of '://' and ':' between the credentials
+		return u.URL[:len(u.u.Scheme)+3] + "****:****" + u.URL[len(u.u.Scheme)+4+len(u.u.User.Username())+len(password):]
+	***REMOVED***
+
+	// here 3 in both places is for the '://'
+	return u.URL[:len(u.u.Scheme)+3] + "****" + u.URL[len(u.u.Scheme)+3+len(u.u.User.Username()):]
 ***REMOVED***
 
 // GetURL returns the internal url.URL
@@ -231,30 +229,17 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 	***REMOVED***
 
-	tags := state.Options.RunTags.CloneTags()
+	tags := state.CloneTags()
+	// Override any global tags with request-specific ones.
 	for k, v := range preq.Tags ***REMOVED***
 		tags[k] = v
 	***REMOVED***
 
-	if state.Options.SystemTags.Has(stats.TagMethod) ***REMOVED***
-		tags["method"] = preq.Req.Method
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
-		tags["url"] = preq.URL.Clean()
-	***REMOVED***
-
-	// Only set the name system tag if the user didn't explicitly set it beforehand
-	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(stats.TagName) ***REMOVED***
+	// Only set the name system tag if the user didn't explicitly set it beforehand,
+	// and the Name was generated from a tagged template string (via http.url).
+	if _, ok := tags["name"]; !ok && state.Options.SystemTags.Has(stats.TagName) &&
+		preq.URL.Name != "" && preq.URL.Name != preq.URL.Clean() ***REMOVED***
 		tags["name"] = preq.URL.Name
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		tags["group"] = state.Group.Path
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagVU) ***REMOVED***
-		tags["vu"] = strconv.FormatInt(state.Vu, 10)
-	***REMOVED***
-	if state.Options.SystemTags.Has(stats.TagIter) ***REMOVED***
-		tags["iter"] = strconv.FormatInt(state.Iteration, 10)
 	***REMOVED***
 
 	// Check rate limit *after* we've prepared a request; no need to wait with that part.
@@ -271,6 +256,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		transport = httpDebugTransport***REMOVED***
 			originalTransport: transport,
 			httpDebugOption:   state.Options.HTTPDebug.String,
+			logger:            state.Logger.WithField("source", "http-debug"),
 		***REMOVED***
 	***REMOVED***
 
@@ -368,15 +354,15 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	if resErr != nil ***REMOVED***
+		if preq.Throw ***REMOVED*** // if we are going to throw, we shouldn't log it
+			return nil, resErr
+		***REMOVED***
+
 		// Do *not* log errors about the context being cancelled.
 		select ***REMOVED***
 		case <-ctx.Done():
 		default:
 			state.Logger.WithField("error", resErr).Warn("Request Failed")
-		***REMOVED***
-
-		if preq.Throw ***REMOVED***
-			return nil, resErr
 		***REMOVED***
 	***REMOVED***
 

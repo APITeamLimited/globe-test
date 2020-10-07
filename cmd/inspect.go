@@ -26,10 +26,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
-	"github.com/spf13/cobra"
 )
 
 // inspectCmd represents the resume command
@@ -39,12 +41,14 @@ var inspectCmd = &cobra.Command***REMOVED***
 	Long:  `Inspect a script or archive.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+		// TODO: don't use the Global logger
+		logger := logrus.StandardLogger()
 		pwd, err := os.Getwd()
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		filesystems := loader.CreateFilesystems()
-		src, err := loader.ReadSource(args[0], pwd, filesystems, os.Stdin)
+		src, err := loader.ReadSource(logger, args[0], pwd, filesystems, os.Stdin)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -54,7 +58,7 @@ var inspectCmd = &cobra.Command***REMOVED***
 			typ = detectType(src.Data)
 		***REMOVED***
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -70,13 +74,13 @@ var inspectCmd = &cobra.Command***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			b, err = js.NewBundleFromArchive(arc, runtimeOptions)
+			b, err = js.NewBundleFromArchive(logger, arc, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 			opts = b.Options
 		case typeJS:
-			b, err = js.NewBundle(src, filesystems, runtimeOptions)
+			b, err = js.NewBundle(logger, src, filesystems, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
