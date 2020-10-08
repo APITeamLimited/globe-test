@@ -30,8 +30,8 @@ type positionMapItem struct ***REMOVED***
 type positionMap []positionMapItem
 
 func (m positionMap) get(src int) int ***REMOVED***
-	if src == 0 ***REMOVED***
-		return 0
+	if src <= 0 ***REMOVED***
+		return src
 	***REMOVED***
 	res := sort.Search(len(m), func(n int) bool ***REMOVED*** return m[n].src >= src ***REMOVED***)
 	if res >= len(m) || m[res].src != src ***REMOVED***
