@@ -153,6 +153,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Invalid for goja but not babel", func(t *testing.T) ***REMOVED***
+			t.Skip("Find something else that breaks this as this was fixed in goja :(")
 			ch := make(chan struct***REMOVED******REMOVED***)
 			go func() ***REMOVED***
 				defer close(ch)
