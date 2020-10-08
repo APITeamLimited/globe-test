@@ -566,9 +566,22 @@ func (r *runner) execute() error ***REMOVED***
 			continue
 
 		case syntax.EndZ:
-			if r.rightchars() > 1 || r.rightchars() == 1 && r.charAt(r.textPos()) != '\n' ***REMOVED***
+			rchars := r.rightchars()
+			if rchars > 1 ***REMOVED***
 				break
 			***REMOVED***
+			// RE2 and EcmaScript define $ as "asserts position at the end of the string"
+			// PCRE/.NET adds "or before the line terminator right at the end of the string (if any)"
+			if (r.re.options & (RE2 | ECMAScript)) != 0 ***REMOVED***
+				// RE2/Ecmascript mode
+				if rchars > 0 ***REMOVED***
+					break
+				***REMOVED***
+			***REMOVED*** else if rchars == 1 && r.charAt(r.textPos()) != '\n' ***REMOVED***
+				// "regular" mode
+				break
+			***REMOVED***
+
 			r.advance(0)
 			continue
 
@@ -938,8 +951,8 @@ func (r *runner) advance(i int) ***REMOVED***
 ***REMOVED***
 
 func (r *runner) goTo(newpos int) ***REMOVED***
-	// when branching backward, ensure storage
-	if newpos < r.codepos ***REMOVED***
+	// when branching backward or in place, ensure storage
+	if newpos <= r.codepos ***REMOVED***
 		r.ensureStorage()
 	***REMOVED***
 
