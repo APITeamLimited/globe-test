@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,6 +75,42 @@ func TestDialerAddr(t *testing.T) ***REMOVED***
 		***REMOVED***"[::1.2.3.4]", "", "address [::1.2.3.4]: missing port in address"***REMOVED***,
 		***REMOVED***"example-ipv6-deny-resolver.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
 		***REMOVED***"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
+		***REMOVED***"example-ipv6-deny-host.com:80", "", "IP (::1) is in a blacklisted range (::/24)"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+
+		t.Run(tc.address, func(t *testing.T) ***REMOVED***
+			addr, err := dialer.getDialAddr(tc.address)
+
+			if tc.expErr != "" ***REMOVED***
+				require.EqualError(t, err, tc.expErr)
+			***REMOVED*** else ***REMOVED***
+				require.NoError(t, err)
+				require.Equal(t, tc.expAddress, addr)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestDialerAddrBlockHostnamesStar(t *testing.T) ***REMOVED***
+	dialer := newDialerWithResolver(net.Dialer***REMOVED******REMOVED***, newResolver())
+	dialer.Hosts = map[string]*lib.HostAddress***REMOVED***
+		"example.com": ***REMOVED***IP: net.ParseIP("3.4.5.6")***REMOVED***,
+	***REMOVED***
+
+	blocked, err := types.NewHostnameTrie([]string***REMOVED***"*"***REMOVED***)
+	require.NoError(t, err)
+	dialer.BlockedHostnames = blocked
+	testCases := []struct ***REMOVED***
+		address, expAddress, expErr string
+	***REMOVED******REMOVED***
+		// IPv4
+		***REMOVED***"example.com:80", "", "hostname (example.com) is in a blocked pattern (*)"***REMOVED***,
+		***REMOVED***"example.com:443", "", "hostname (example.com) is in a blocked pattern (*)"***REMOVED***,
+		***REMOVED***"not.com:30", "", "hostname (not.com) is in a blocked pattern (*)"***REMOVED***,
+		***REMOVED***"1.2.3.4:80", "1.2.3.4:80", ""***REMOVED***,
 	***REMOVED***
 
 	for _, tc := range testCases ***REMOVED***
