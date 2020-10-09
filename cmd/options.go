@@ -194,7 +194,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		return opts, err
 	***REMOVED***
 	if flags.Changed("block-hostname") ***REMOVED***
-		opts.BlockedHostnames, err = lib.NewNullHostnameTrie(blockedHostnameStrings)
+		opts.BlockedHostnames, err = types.NewNullHostnameTrie(blockedHostnameStrings)
 		if err != nil ***REMOVED***
 			return opts, err
 		***REMOVED***
