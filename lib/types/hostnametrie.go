@@ -96,10 +96,9 @@ func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
 
 // Regex description of hostname pattern to enforce blocks by. Global var
 // to avoid compilation penalty at runtime.
-// Matches against strings composed entirely of letters, numbers, or '.'s
-// with an optional wildcard at the start.
-//nolint:gochecknoglobals
-var legalHostnamePattern *regexp.Regexp = regexp.MustCompile(`^\*?(\pL|[0-9\.])*`)
+// based on regex from https://stackoverflow.com/a/106223/5427244
+//nolint:gochecknoglobals,lll
+var legalHostnamePattern *regexp.Regexp = regexp.MustCompile(`^(\*\.?)?((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))?$`)
 
 func legalHostname(s string) error ***REMOVED***
 	if len(legalHostnamePattern.FindString(s)) != len(s) ***REMOVED***
@@ -112,12 +111,16 @@ func legalHostname(s string) error ***REMOVED***
 // if hostname pattern is illegal.
 func (t *HostnameTrie) insert(s string) error ***REMOVED***
 	s = strings.ToLower(s)
-	if len(s) == 0 ***REMOVED***
-		return nil
-	***REMOVED***
-
 	if err := legalHostname(s); err != nil ***REMOVED***
 		return err
+	***REMOVED***
+
+	return t.childInsert(s)
+***REMOVED***
+
+func (t *HostnameTrie) childInsert(s string) error ***REMOVED***
+	if len(s) == 0 ***REMOVED***
+		return nil
 	***REMOVED***
 
 	// mask creation of the trie by initializing the root here
@@ -128,11 +131,11 @@ func (t *HostnameTrie) insert(s string) error ***REMOVED***
 	rStr := []rune(s) // need to iterate by runes for intl' names
 	last := len(rStr) - 1
 	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
-		return c.insert(string(rStr[:last]))
+		return c.childInsert(string(rStr[:last]))
 	***REMOVED***
 
 	t.children[rStr[last]] = &HostnameTrie***REMOVED***children: make(map[rune]*HostnameTrie)***REMOVED***
-	return t.children[rStr[last]].insert(string(rStr[:last]))
+	return t.children[rStr[last]].childInsert(string(rStr[:last]))
 ***REMOVED***
 
 // Contains returns whether s matches a pattern in the HostnameTrie
