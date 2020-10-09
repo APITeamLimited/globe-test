@@ -892,11 +892,11 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 				`)
 	require.NoError(t, err)
 
-	hostnames := lib.HostnameTrie***REMOVED******REMOVED***
-	require.NoError(t, hostnames.Insert("*.io"))
+	hostnames, err := lib.NewNullHostnameTrie([]string***REMOVED***"*.io"***REMOVED***)
+	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:            null.BoolFrom(true),
-		BlockedHostnames: &hostnames,
+		BlockedHostnames: hostnames,
 	***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)

@@ -21,6 +21,7 @@
 package lib
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -279,11 +280,89 @@ func ParseCIDR(s string) (*IPNet, error) ***REMOVED***
 	return &parsedIPNet, nil
 ***REMOVED***
 
+// NullHostnameTrie is a nullable HostnameTrie, in the same vein as the nullable types provided by
+// package gopkg.in/guregu/null.v3
+type NullHostnameTrie struct ***REMOVED***
+	Trie  *HostnameTrie
+	Valid bool
+***REMOVED***
+
+// UnmarshalText converts text data to a valid NullHostnameTrie
+func (d *NullHostnameTrie) UnmarshalText(data []byte) error ***REMOVED***
+	if len(data) == 0 ***REMOVED***
+		*d = NullHostnameTrie***REMOVED******REMOVED***
+		return nil
+	***REMOVED***
+	var err error
+	d.Trie, err = NewHostnameTrie(strings.Split(string(data), ","))
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	d.Valid = true
+	return nil
+***REMOVED***
+
+// UnmarshalJSON converts JSON data to a valid NullHostnameTrie
+func (d *NullHostnameTrie) UnmarshalJSON(data []byte) error ***REMOVED***
+	if bytes.Equal(data, []byte(`null`)) ***REMOVED***
+		d.Valid = false
+		return nil
+	***REMOVED***
+
+	var m []string
+	var err error
+	if err = json.Unmarshal(data, &m); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	d.Trie, err = NewHostnameTrie(m)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	d.Valid = true
+	return nil
+***REMOVED***
+
+// MarshalJSON implements json.Marshaler interface
+func (d NullHostnameTrie) MarshalJSON() ([]byte, error) ***REMOVED***
+	if !d.Valid ***REMOVED***
+		return []byte(`null`), nil
+	***REMOVED***
+	return json.Marshal(d.Trie.source)
+***REMOVED***
+
 // HostnameTrie is a tree-structured list of hostname matches with support
 // for wildcards exclusively at the start of the pattern. Items may only
 // be inserted and searched. Internationalized hostnames are valid.
 type HostnameTrie struct ***REMOVED***
+	source []string
+
 	children map[rune]*HostnameTrie
+***REMOVED***
+
+// NewNullHostnameTrie returns a NullHostnameTrie encapsulating HostnameTrie or an error if the
+// input is incorrect
+func NewNullHostnameTrie(source []string) (NullHostnameTrie, error) ***REMOVED***
+	h, err := NewHostnameTrie(source)
+	if err != nil ***REMOVED***
+		return NullHostnameTrie***REMOVED******REMOVED***, err
+	***REMOVED***
+	return NullHostnameTrie***REMOVED***
+		Valid: true,
+		Trie:  h,
+	***REMOVED***, nil
+***REMOVED***
+
+// NewHostnameTrie returns a pointer to a new HostnameTrie or an error if the input is incorrect
+func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
+	h := &HostnameTrie***REMOVED***
+		source: source,
+	***REMOVED***
+	for _, s := range h.source ***REMOVED***
+		if err := h.insert(s); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+	***REMOVED***
+	return h, nil
 ***REMOVED***
 
 // Regex description of hostname pattern to enforce blocks by. Global var
@@ -300,35 +379,9 @@ func legalHostname(s string) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// UnmarshalJSON forms a HostnameTrie from the provided hostname pattern
-// list.
-func (t *HostnameTrie) UnmarshalJSON(data []byte) error ***REMOVED***
-	m := make([]string, 0)
-	if err := json.Unmarshal(data, &m); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	for _, h := range m ***REMOVED***
-		if insertErr := t.Insert(h); insertErr != nil ***REMOVED***
-			return insertErr
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-// UnmarshalText forms a HostnameTrie from a comma-delimited list
-// of hostname patterns.
-func (t *HostnameTrie) UnmarshalText(b []byte) error ***REMOVED***
-	for _, s := range strings.Split(string(b), ",") ***REMOVED***
-		if err := t.Insert(s); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-// Insert a hostname pattern into the given HostnameTrie. Returns an error
+// insert a hostname pattern into the given HostnameTrie. Returns an error
 // if hostname pattern is illegal.
-func (t *HostnameTrie) Insert(s string) error ***REMOVED***
+func (t *HostnameTrie) insert(s string) error ***REMOVED***
 	s = strings.ToLower(s)
 	if len(s) == 0 ***REMOVED***
 		return nil
@@ -346,11 +399,11 @@ func (t *HostnameTrie) Insert(s string) error ***REMOVED***
 	rStr := []rune(s) // need to iterate by runes for intl' names
 	last := len(rStr) - 1
 	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
-		return c.Insert(string(rStr[:last]))
+		return c.insert(string(rStr[:last]))
 	***REMOVED***
 
-	t.children[rStr[last]] = &HostnameTrie***REMOVED***make(map[rune]*HostnameTrie)***REMOVED***
-	return t.children[rStr[last]].Insert(string(rStr[:last]))
+	t.children[rStr[last]] = &HostnameTrie***REMOVED***children: make(map[rune]*HostnameTrie)***REMOVED***
+	return t.children[rStr[last]].insert(string(rStr[:last]))
 ***REMOVED***
 
 // Contains returns whether s matches a pattern in the HostnameTrie
@@ -439,7 +492,7 @@ type Options struct ***REMOVED***
 	BlacklistIPs []*IPNet `json:"blacklistIPs" envconfig:"K6_BLACKLIST_IPS"`
 
 	// Block hostname patterns that tests may not contact.
-	BlockedHostnames *HostnameTrie `json:"blockHostnames" envconfig:"K6_BLOCK_HOSTNAMES"`
+	BlockedHostnames NullHostnameTrie `json:"blockHostnames" envconfig:"K6_BLOCK_HOSTNAMES"`
 
 	// Hosts overrides dns entries for given hosts
 	Hosts map[string]*HostAddress `json:"hosts" envconfig:"K6_HOSTS"`
@@ -596,7 +649,7 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.BlacklistIPs != nil ***REMOVED***
 		o.BlacklistIPs = opts.BlacklistIPs
 	***REMOVED***
-	if opts.BlockedHostnames != nil ***REMOVED***
+	if opts.BlockedHostnames.Valid ***REMOVED***
 		o.BlockedHostnames = opts.BlockedHostnames
 	***REMOVED***
 	if opts.Hosts != nil ***REMOVED***
