@@ -142,6 +142,59 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+func TestResponseStatus(t *testing.T) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		name                     string
+		statusCode               int
+		statusCodeExpected       int
+		statusCodeStringExpected string
+	***REMOVED******REMOVED***
+		***REMOVED***"status 200", 200, 200, "200 OK"***REMOVED***,
+		***REMOVED***"status 201", 201, 201, "201 Created"***REMOVED***,
+		***REMOVED***"status 202", 202, 202, "202 Accepted"***REMOVED***,
+		***REMOVED***"status 203", 203, 203, "203 Non-Authoritative Information"***REMOVED***,
+		***REMOVED***"status 204", 204, 204, "204 No Content"***REMOVED***,
+		***REMOVED***"status 205", 205, 205, "205 Reset Content"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+				//_, err := w.Write([]byte("some body"))
+				//require.NoError(t, err)
+				w.WriteHeader(tc.statusCode)
+			***REMOVED***))
+			defer server.Close()
+			logger := logrus.New()
+			logger.Level = logrus.DebugLevel
+			state := &lib.State***REMOVED***
+				Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
+				Transport: server.Client().Transport,
+				Logger:    logger,
+				Samples:   make(chan<- stats.SampleContainer, 1),
+			***REMOVED***
+			ctx := lib.WithState(context.Background(), state)
+			req, err := http.NewRequest("GET", server.URL, nil)
+			require.NoError(t, err)
+
+			var preq = &ParsedHTTPRequest***REMOVED***
+				Req:          req,
+				URL:          &URL***REMOVED***u: req.URL***REMOVED***,
+				Body:         new(bytes.Buffer),
+				Timeout:      10 * time.Second,
+				ResponseType: ResponseTypeNone,
+			***REMOVED***
+
+			res, err := MakeRequest(ctx, preq)
+			require.NoError(t, err)
+			//require.NotNil(t, res)
+			assert.Equal(t, tc.statusCodeExpected, res.Status)
+			assert.Equal(t, tc.statusCodeStringExpected, res.StatusText)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestURL(t *testing.T) ***REMOVED***
 	t.Run("Clean", func(t *testing.T) ***REMOVED***
 		testCases := []struct ***REMOVED***
