@@ -164,8 +164,6 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) ***REMOVED***
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-					//_, err := w.Write([]byte("some body"))
-					//require.NoError(t, err)
 					w.WriteHeader(tc.statusCode)
 				***REMOVED***))
 				defer server.Close()
