@@ -253,7 +253,7 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 		Timeout:   2 * time.Second,
 		KeepAlive: 10 * time.Second,
 		DualStack: true,
-	***REMOVED***, netext.NewResolver(net.LookupIP, 0, lib.DNSFirst))
+	***REMOVED***, netext.NewResolver(net.LookupIP, 0, lib.DNSFirst, lib.DNSpreferIPv4))
 	dialer.Hosts = map[string]*lib.HostAddress***REMOVED***
 		httpDomain:  httpDomainValue,
 		httpsDomain: httpsDomainValue,

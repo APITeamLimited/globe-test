@@ -386,18 +386,21 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			assert.Equal(t, lib.DNSConfig***REMOVED***
 				TTL:    null.NewString("5m", false),
 				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
+				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=5,select=round-robin"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			assert.Equal(t, lib.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("5"),
 				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRoundRobin, Valid: true***REMOVED***,
+				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=inf,select=random,policy=preferIPv6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			assert.Equal(t, lib.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("inf"),
 				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: true***REMOVED***,
+				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv6, Valid: true***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		// This is functionally invalid, but will error out in validation done in js.parseTTL().
@@ -405,6 +408,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			assert.Equal(t, lib.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("-1"),
 				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
+				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=0,blah=nope"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
@@ -412,25 +416,32 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			assert.Equal(t, lib.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("0"),
 				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
+				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=5s,select="***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
-		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0", "select": "round-robin"***REMOVED******REMOVED***`)***REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
-				TTL:    null.StringFrom("0"),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRoundRobin, Valid: true***REMOVED***,
-			***REMOVED***, c.Options.DNS)
-		***REMOVED******REMOVED***,
+		***REMOVED***
+			opts***REMOVED***fs: defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0", "select": "round-robin", "policy": "onlyIPv4"***REMOVED******REMOVED***`)***REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, lib.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("0"),
+					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRoundRobin, Valid: true***REMOVED***,
+					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSonlyIPv4, Valid: true***REMOVED***,
+				***REMOVED***, c.Options.DNS)
+			***REMOVED***,
+		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
 				fs:  defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0"***REMOVED******REMOVED***`),
-				env: []string***REMOVED***"K6_DNS=ttl=30"***REMOVED***,
+				env: []string***REMOVED***"K6_DNS=ttl=30,policy=any"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
 				assert.Equal(t, lib.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("30"),
 					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
+					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSany, Valid: true***REMOVED***,
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,
@@ -438,7 +449,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			// CLI overrides all, falling back to env
 			opts***REMOVED***
 				fs:  defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "60", "select": "first"***REMOVED******REMOVED***`),
-				env: []string***REMOVED***"K6_DNS=ttl=30,select=random"***REMOVED***,
+				env: []string***REMOVED***"K6_DNS=ttl=30,select=random,policy=any"***REMOVED***,
 				cli: []string***REMOVED***"--dns", "ttl=5"***REMOVED***,
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
@@ -446,6 +457,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				assert.Equal(t, lib.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("5"),
 					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: true***REMOVED***,
+					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSany, Valid: true***REMOVED***,
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,

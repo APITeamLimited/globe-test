@@ -42,6 +42,9 @@ func TestResolver(t *testing.T) ***REMOVED***
 			net.ParseIP("127.0.0.10"),
 			net.ParseIP("127.0.0.11"),
 			net.ParseIP("127.0.0.12"),
+			net.ParseIP("2001:db8::10"),
+			net.ParseIP("2001:db8::11"),
+			net.ParseIP("2001:db8::12"),
 		***REMOVED***,
 	***REMOVED***, nil)
 
@@ -49,11 +52,28 @@ func TestResolver(t *testing.T) ***REMOVED***
 		testCases := []struct ***REMOVED***
 			ttl   time.Duration
 			sel   lib.DNSSelect
+			pol   lib.DNSPolicy
 			expIP []net.IP
 		***REMOVED******REMOVED***
-			***REMOVED***0, lib.DNSFirst, []net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED******REMOVED***,
-			***REMOVED***time.Second, lib.DNSFirst, []net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED******REMOVED***,
-			***REMOVED***0, lib.DNSRoundRobin, []net.IP***REMOVED***
+			***REMOVED***
+				0, lib.DNSFirst, lib.DNSpreferIPv4,
+				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
+			***REMOVED***,
+			***REMOVED***
+				time.Second, lib.DNSFirst, lib.DNSpreferIPv4,
+				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
+			***REMOVED***,
+			***REMOVED***0, lib.DNSRoundRobin, lib.DNSonlyIPv6, []net.IP***REMOVED***
+				net.ParseIP("2001:db8::10"),
+				net.ParseIP("2001:db8::11"),
+				net.ParseIP("2001:db8::12"),
+				net.ParseIP("2001:db8::10"),
+			***REMOVED******REMOVED***,
+			***REMOVED***
+				0, lib.DNSFirst, lib.DNSpreferIPv6,
+				[]net.IP***REMOVED***net.ParseIP("2001:db8::10")***REMOVED***,
+			***REMOVED***,
+			***REMOVED***0, lib.DNSRoundRobin, lib.DNSpreferIPv4, []net.IP***REMOVED***
 				net.ParseIP("127.0.0.10"),
 				net.ParseIP("127.0.0.11"),
 				net.ParseIP("127.0.0.12"),
@@ -63,8 +83,8 @@ func TestResolver(t *testing.T) ***REMOVED***
 
 		for _, tc := range testCases ***REMOVED***
 			tc := tc
-			t.Run(fmt.Sprintf("%s_%s", tc.ttl, tc.sel), func(t *testing.T) ***REMOVED***
-				r := NewResolver(mr.LookupIPAll, tc.ttl, tc.sel)
+			t.Run(fmt.Sprintf("%s_%s_%s", tc.ttl, tc.sel, tc.pol), func(t *testing.T) ***REMOVED***
+				r := NewResolver(mr.LookupIPAll, tc.ttl, tc.sel, tc.pol)
 				ip, err := r.LookupIP(host)
 				require.NoError(t, err)
 				assert.Equal(t, tc.expIP[0], ip)

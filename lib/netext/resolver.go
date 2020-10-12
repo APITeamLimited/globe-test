@@ -40,6 +40,7 @@ type Resolver interface ***REMOVED***
 type resolver struct ***REMOVED***
 	resolve     MultiResolver
 	selectIndex lib.DNSSelect
+	policy      lib.DNSPolicy
 	rrm         *sync.Mutex
 	rand        *rand.Rand
 	roundRobin  map[string]uint8
@@ -59,12 +60,15 @@ type cacheResolver struct ***REMOVED***
 
 // NewResolver returns a new DNS resolver. If ttl is not 0, responses
 // will be cached per host for the specified period. The IP returned from
-// LookupIP() will be selected based on the given sel value.
-func NewResolver(actRes MultiResolver, ttl time.Duration, sel lib.DNSSelect) Resolver ***REMOVED***
+// LookupIP() will be selected based on the given sel and pol values.
+func NewResolver(
+	actRes MultiResolver, ttl time.Duration, sel lib.DNSSelect, pol lib.DNSPolicy,
+) Resolver ***REMOVED***
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // nolint: gosec
 	res := resolver***REMOVED***
 		resolve:     actRes,
 		selectIndex: sel,
+		policy:      pol,
 		rrm:         &sync.Mutex***REMOVED******REMOVED***,
 		rand:        r,
 		roundRobin:  make(map[string]uint8),
@@ -80,27 +84,29 @@ func NewResolver(actRes MultiResolver, ttl time.Duration, sel lib.DNSSelect) Res
 	***REMOVED***
 ***REMOVED***
 
-// LookupIP returns a single IP resolved for host, selected by the
-// configured select strategy.
+// LookupIP returns a single IP resolved for host, selected according to the
+// configured select and policy options.
 func (r *resolver) LookupIP(host string) (net.IP, error) ***REMOVED***
 	ips, err := r.resolve(host)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+
+	ips = r.applyPolicy(ips)
 	return r.selectOne(host, ips), nil
 ***REMOVED***
 
-// LookupIP returns a single IP resolved for host, selected by the configured
-// select strategy. Results are cached per host and will be refreshed if the
-// last lookup time exceeds the configured TTL (not the TTL returned in the DNS
-// record).
+// LookupIP returns a single IP resolved for host, selected according to the
+// configured select and policy options. Results are cached per host and will be
+// refreshed if the last lookup time exceeds the configured TTL (not the TTL
+// returned in the DNS record).
 func (r *cacheResolver) LookupIP(host string) (net.IP, error) ***REMOVED***
 	r.cm.Lock()
 
 	var ips []net.IP
 	// TODO: Invalidate? When?
-	if d, ok := r.cache[host]; ok && time.Now().Before(d.lastLookup.Add(r.ttl)) ***REMOVED***
-		ips = r.cache[host].ips
+	if cr, ok := r.cache[host]; ok && time.Now().Before(cr.lastLookup.Add(r.ttl)) ***REMOVED***
+		ips = cr.ips
 	***REMOVED*** else ***REMOVED***
 		r.cm.Unlock() // The lookup could take some time, so unlock momentarily.
 		var err error
@@ -108,11 +114,13 @@ func (r *cacheResolver) LookupIP(host string) (net.IP, error) ***REMOVED***
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
+		ips = r.applyPolicy(ips)
 		r.cm.Lock()
 		r.cache[host] = cacheRecord***REMOVED***ips: ips, lastLookup: time.Now()***REMOVED***
 	***REMOVED***
 
 	r.cm.Unlock()
+
 	return r.selectOne(host, ips), nil
 ***REMOVED***
 
@@ -120,6 +128,7 @@ func (r *resolver) selectOne(host string, ips []net.IP) net.IP ***REMOVED***
 	if len(ips) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
+
 	var ip net.IP
 	switch r.selectIndex ***REMOVED***
 	case lib.DNSFirst:
@@ -136,5 +145,46 @@ func (r *resolver) selectOne(host string, ips []net.IP) net.IP ***REMOVED***
 		ip = ips[r.rand.Intn(len(ips))]
 		r.rrm.Unlock()
 	***REMOVED***
+
 	return ip
+***REMOVED***
+
+func (r *resolver) applyPolicy(ips []net.IP) (retIPs []net.IP) ***REMOVED***
+	if r.policy == lib.DNSany ***REMOVED***
+		return ips
+	***REMOVED***
+	ip4, ip6 := groupByVersion(ips)
+	switch r.policy ***REMOVED***
+	case lib.DNSpreferIPv4:
+		retIPs = ip4
+		if len(retIPs) == 0 ***REMOVED***
+			retIPs = ip6
+		***REMOVED***
+	case lib.DNSpreferIPv6:
+		retIPs = ip6
+		if len(retIPs) == 0 ***REMOVED***
+			retIPs = ip4
+		***REMOVED***
+	case lib.DNSonlyIPv4:
+		retIPs = ip4
+	case lib.DNSonlyIPv6:
+		retIPs = ip6
+	// Already checked above, but added to satisfy 'exhaustive' linter.
+	case lib.DNSany:
+		retIPs = ips
+	***REMOVED***
+
+	return
+***REMOVED***
+
+func groupByVersion(ips []net.IP) (ip4 []net.IP, ip6 []net.IP) ***REMOVED***
+	for _, ip := range ips ***REMOVED***
+		if ip.To4() != nil ***REMOVED***
+			ip4 = append(ip4, ip)
+		***REMOVED*** else ***REMOVED***
+			ip6 = append(ip6, ip)
+		***REMOVED***
+	***REMOVED***
+
+	return
 ***REMOVED***
