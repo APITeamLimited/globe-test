@@ -87,7 +87,6 @@ func TestTracer(t *testing.T) ***REMOVED***
 			trail.SaveSamples(stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
 			samples := trail.GetSamples()
 
-			assert.Empty(t, tracer.protoErrors)
 			assertLaterOrZero(t, tracer.getConn, isReuse)
 			assertLaterOrZero(t, tracer.connectStart, isReuse)
 			assertLaterOrZero(t, tracer.connectDone, isReuse)
@@ -207,10 +206,6 @@ func TestTracerError(t *testing.T) ***REMOVED***
 				tracer.Trace())))
 
 	assert.Error(t, err)
-
-	assert.Len(t, tracer.protoErrors, 1)
-	assert.Error(t, tracer.protoErrors[0])
-	assert.Equal(t, tracer.protoErrors, tracer.Done().Errors)
 ***REMOVED***
 
 func TestCancelledRequest(t *testing.T) ***REMOVED***
@@ -232,10 +227,9 @@ func TestCancelledRequest(t *testing.T) ***REMOVED***
 		***REMOVED***()
 
 		resp, err := srv.Client().Transport.RoundTrip(req)
-		trail := tracer.Done()
-		if resp == nil && err == nil && len(trail.Errors) == 0 ***REMOVED***
-			t.Errorf("Expected either a RoundTrip response, error or trail errors but got %#v, %#v and %#v", resp, err, trail.Errors)
-		***REMOVED***
+		_ = tracer.Done()
+		assert.Nil(t, resp)
+		assert.Error(t, err)
 	***REMOVED***
 
 	// This Run will not return until the parallel subtests complete.
