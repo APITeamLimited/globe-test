@@ -175,26 +175,22 @@ func (d *Dialer) findRemote(addr string) (*lib.HostAddress, error) ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	remote, err := d.getConfiguredHost(addr, host, port)
-	if err != nil || remote != nil ***REMOVED***
-		if err == nil && d.BlockedHostnames != nil && net.ParseIP(host) == nil ***REMOVED***
-			if match, blocked := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
-				return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
-			***REMOVED***
-		***REMOVED***
-		return remote, err
-	***REMOVED***
-
 	ip := net.ParseIP(host)
-	if ip != nil ***REMOVED***
-		return lib.NewHostAddress(ip, port)
-	***REMOVED***
-
-	if d.BlockedHostnames != nil ***REMOVED***
+	if d.BlockedHostnames != nil && ip == nil ***REMOVED***
 		if match, blocked := d.BlockedHostnames.Contains(host); blocked ***REMOVED***
 			return nil, BlockedHostError***REMOVED***hostname: host, match: match***REMOVED***
 		***REMOVED***
 	***REMOVED***
+
+	remote, err := d.getConfiguredHost(addr, host, port)
+	if err != nil || remote != nil ***REMOVED***
+		return remote, err
+	***REMOVED***
+
+	if ip != nil ***REMOVED***
+		return lib.NewHostAddress(ip, port)
+	***REMOVED***
+
 	return d.fetchRemoteFromResolver(host, port)
 ***REMOVED***
 
