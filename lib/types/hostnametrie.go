@@ -118,20 +118,20 @@ func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
 // to avoid compilation penalty at runtime.
 // based on regex from https://stackoverflow.com/a/106223/5427244
 //nolint:gochecknoglobals,lll
-var legalHostnamePattern *regexp.Regexp = regexp.MustCompile(`^(\*\.?)?((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))?$`)
+var validHostnamePattern *regexp.Regexp = regexp.MustCompile(`^(\*\.?)?((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))?$`)
 
-func legalHostname(s string) error ***REMOVED***
-	if len(legalHostnamePattern.FindString(s)) != len(s) ***REMOVED***
+func isValidHostnamePattern(s string) error ***REMOVED***
+	if len(validHostnamePattern.FindString(s)) != len(s) ***REMOVED***
 		return errors.Errorf("invalid hostname pattern %s", s)
 	***REMOVED***
 	return nil
 ***REMOVED***
 
 // insert a hostname pattern into the given HostnameTrie. Returns an error
-// if hostname pattern is illegal.
+// if hostname pattern is valid.
 func (t *HostnameTrie) insert(s string) error ***REMOVED***
 	s = strings.ToLower(s)
-	if err := legalHostname(s); err != nil ***REMOVED***
+	if err := isValidHostnamePattern(s); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
