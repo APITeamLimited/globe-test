@@ -383,40 +383,40 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED******REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
 				TTL:    null.NewString("5m", false),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
-				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=5,select=round-robin"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("5"),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRoundRobin, Valid: true***REMOVED***,
-				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRoundRobin, Valid: true***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=inf,select=random,policy=preferIPv6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("inf"),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: true***REMOVED***,
-				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv6, Valid: true***REMOVED***,
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: true***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv6, Valid: true***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		// This is functionally invalid, but will error out in validation done in js.parseTTL().
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=-1"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("-1"),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
-				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=0,blah=nope"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=0"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
-			assert.Equal(t, lib.DNSConfig***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
 				TTL:    null.StringFrom("0"),
-				Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
-				Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 			***REMOVED***, c.Options.DNS)
 		***REMOVED******REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=5s,select="***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
@@ -424,10 +424,10 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			opts***REMOVED***fs: defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0", "select": "round-robin", "policy": "onlyIPv4"***REMOVED******REMOVED***`)***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
-				assert.Equal(t, lib.DNSConfig***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("0"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRoundRobin, Valid: true***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSonlyIPv4, Valid: true***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRoundRobin, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSonlyIPv4, Valid: true***REMOVED***,
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,
@@ -438,10 +438,10 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
-				assert.Equal(t, lib.DNSConfig***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("30"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: false***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSany, Valid: true***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: false***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,
@@ -454,10 +454,10 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			***REMOVED***,
 			exp***REMOVED******REMOVED***,
 			func(t *testing.T, c Config) ***REMOVED***
-				assert.Equal(t, lib.DNSConfig***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("5"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSRandom, Valid: true***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSany, Valid: true***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSRandom, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,

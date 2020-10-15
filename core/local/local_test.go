@@ -1002,27 +1002,27 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 			expLogEntries int
 		***REMOVED******REMOVED***
 			"default": ***REMOVED*** // IPs are cached for 5m
-				lib.Options***REMOVED***DNS: lib.DefaultDNSConfig()***REMOVED***, 0,
+				lib.Options***REMOVED***DNS: types.DefaultDNSConfig()***REMOVED***, 0,
 			***REMOVED***,
 			"0": ***REMOVED*** // cache is disabled, every request does a DNS lookup
-				lib.Options***REMOVED***DNS: lib.DNSConfig***REMOVED***
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("0"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSFirst, Valid: true***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSFirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 				***REMOVED******REMOVED***, 5,
 			***REMOVED***,
 			"1000": ***REMOVED*** // cache IPs for 1s, check that unitless values are interpreted as ms
-				lib.Options***REMOVED***DNS: lib.DNSConfig***REMOVED***
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("1000"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSFirst, Valid: true***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSFirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 				***REMOVED******REMOVED***, 4,
 			***REMOVED***,
 			"3s": ***REMOVED***
-				lib.Options***REMOVED***DNS: lib.DNSConfig***REMOVED***
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
 					TTL:    null.StringFrom("3s"),
-					Select: lib.NullDNSSelect***REMOVED***DNSSelect: lib.DNSFirst, Valid: true***REMOVED***,
-					Policy: lib.NullDNSPolicy***REMOVED***DNSPolicy: lib.DNSpreferIPv4, Valid: false***REMOVED***,
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSFirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
 				***REMOVED******REMOVED***, 3,
 			***REMOVED***,
 		***REMOVED***
@@ -1204,7 +1204,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		expTags = append(expTags, addExpTags...)
 		return netext.NewDialer(
 			net.Dialer***REMOVED******REMOVED***,
-			netext.NewResolver(net.LookupIP, 0, lib.DNSFirst, lib.DNSpreferIPv4),
+			netext.NewResolver(net.LookupIP, 0, types.DNSFirst, types.DNSpreferIPv4),
 		).GetTrail(time.Now(), time.Now(),
 			true, emitIterations, getTags(expTags...))
 	***REMOVED***
