@@ -72,6 +72,8 @@ func optionFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Duration("min-iteration-duration", 0, "minimum amount of time k6 will take executing a single iteration")
 	flags.BoolP("throw", "w", false, "throw warnings (like failed http requests) as errors")
 	flags.StringSlice("blacklist-ip", nil, "blacklist an `ip range` from being called")
+	flags.StringSlice("block-hostname", nil, "block a case-insensitive hostname `pattern`,"+
+		" with optional leading wildcard, from being called")
 
 	// The comment about system-tags also applies for summary-trend-stats. The default values
 	// are set in applyDefault().
@@ -185,6 +187,17 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 			return opts, errors.Wrap(parseErr, "blacklist-ip")
 		***REMOVED***
 		opts.BlacklistIPs = append(opts.BlacklistIPs, net)
+	***REMOVED***
+
+	blockedHostnameStrings, err := flags.GetStringSlice("block-hostname")
+	if err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	if flags.Changed("block-hostname") ***REMOVED***
+		opts.BlockedHostnames, err = types.NewNullHostnameTrie(blockedHostnameStrings)
+		if err != nil ***REMOVED***
+			return opts, err
+		***REMOVED***
 	***REMOVED***
 
 	if flags.Changed("summary-trend-stats") ***REMOVED***
