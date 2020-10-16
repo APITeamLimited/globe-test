@@ -216,20 +216,21 @@ func TestCancelledRequest(t *testing.T) ***REMOVED***
 	cancelTest := func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		tracer := &Tracer***REMOVED******REMOVED***
-		req, err := http.NewRequest("GET", srv.URL+"/delay/1", nil)
+		req, err := http.NewRequestWithContext(context.Background(), "GET", srv.URL+"/delay/1", nil)
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithCancel(httptrace.WithClientTrace(req.Context(), tracer.Trace()))
 		req = req.WithContext(ctx)
 		go func() ***REMOVED***
-			time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond)
+			time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond) //nolint:gosec
 			cancel()
 		***REMOVED***()
 
-		resp, err := srv.Client().Transport.RoundTrip(req)
+		resp, err := srv.Client().Transport.RoundTrip(req) //nolint:bodyclose
 		_ = tracer.Done()
-		assert.Nil(t, resp)
-		assert.Error(t, err)
+		if resp == nil && err == nil ***REMOVED***
+			t.Errorf("Expected either a RoundTrip response or error but got %#v and %#v", resp, err)
+		***REMOVED***
 	***REMOVED***
 
 	// This Run will not return until the parallel subtests complete.
