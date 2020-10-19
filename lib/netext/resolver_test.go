@@ -56,24 +56,24 @@ func TestResolver(t *testing.T) ***REMOVED***
 			expIP []net.IP
 		***REMOVED******REMOVED***
 			***REMOVED***
-				0, types.DNSFirst, types.DNSpreferIPv4,
+				0, types.DNSfirst, types.DNSpreferIPv4,
 				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
 			***REMOVED***,
 			***REMOVED***
-				time.Second, types.DNSFirst, types.DNSpreferIPv4,
+				time.Second, types.DNSfirst, types.DNSpreferIPv4,
 				[]net.IP***REMOVED***net.ParseIP("127.0.0.10")***REMOVED***,
 			***REMOVED***,
-			***REMOVED***0, types.DNSRoundRobin, types.DNSonlyIPv6, []net.IP***REMOVED***
+			***REMOVED***0, types.DNSroundRobin, types.DNSonlyIPv6, []net.IP***REMOVED***
 				net.ParseIP("2001:db8::10"),
 				net.ParseIP("2001:db8::11"),
 				net.ParseIP("2001:db8::12"),
 				net.ParseIP("2001:db8::10"),
 			***REMOVED******REMOVED***,
 			***REMOVED***
-				0, types.DNSFirst, types.DNSpreferIPv6,
+				0, types.DNSfirst, types.DNSpreferIPv6,
 				[]net.IP***REMOVED***net.ParseIP("2001:db8::10")***REMOVED***,
 			***REMOVED***,
-			***REMOVED***0, types.DNSRoundRobin, types.DNSpreferIPv4, []net.IP***REMOVED***
+			***REMOVED***0, types.DNSroundRobin, types.DNSpreferIPv4, []net.IP***REMOVED***
 				net.ParseIP("127.0.0.10"),
 				net.ParseIP("127.0.0.11"),
 				net.ParseIP("127.0.0.12"),
@@ -101,7 +101,7 @@ func TestResolver(t *testing.T) ***REMOVED***
 					assert.True(t, cr.cache[host].lastLookup.After(firstLookup))
 				***REMOVED***
 
-				if tc.sel == types.DNSRoundRobin ***REMOVED***
+				if tc.sel == types.DNSroundRobin ***REMOVED***
 					ips := []net.IP***REMOVED***ip***REMOVED***
 					for i := 0; i < 3; i++ ***REMOVED***
 						ip, err = r.LookupIP(host)
