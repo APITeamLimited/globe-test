@@ -139,7 +139,7 @@ type file struct ***REMOVED***
 func getFS(files []file) afero.Fs ***REMOVED***
 	fs := afero.NewMemMapFs()
 	for _, f := range files ***REMOVED***
-		must(afero.WriteFile(fs, f.filepath, []byte(f.contents), 0644)) // modes don't matter in the afero.MemMapFs
+		must(afero.WriteFile(fs, f.filepath, []byte(f.contents), 0o644)) // modes don't matter in the afero.MemMapFs
 	***REMOVED***
 	return fs
 ***REMOVED***
@@ -214,11 +214,13 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "30s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(3), 30*time.Second)***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "4", "--duration", "60s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(4), 1*time.Minute)***REMOVED***,
 		***REMOVED***
-			opts***REMOVED***cli: []string***REMOVED***"--stage", "20s:10", "-s", "3m:5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
+			opts***REMOVED***cli: []string***REMOVED***"--stage", "20s:10", "-s", "3m:5"***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
 			verifyRampingVUs(null.NewInt(1, false), buildStages(20, 10, 180, 5)),
 		***REMOVED***,
 		***REMOVED***
-			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
+			opts***REMOVED***cli: []string***REMOVED***"-s", "1m6s:5", "--vus", "10"***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
 			verifyRampingVUs(null.NewInt(10, true), buildStages(66, 5)),
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
@@ -248,11 +250,13 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(15))***REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 20*time.Second)***REMOVED***,
 		***REMOVED***
-			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=2m30s:11,1h1m:100"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
+			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=2m30s:11,1h1m:100"***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
 			verifyRampingVUs(null.NewInt(1, false), buildStages(150, 11, 3660, 100)),
 		***REMOVED***,
 		***REMOVED***
-			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=100s:100,0m30s:0", "K6_VUS=0"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***,
+			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=100s:100,0m30s:0", "K6_VUS=0"***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
 			verifyRampingVUs(null.NewInt(0, true), buildStages(100, 100, 30, 0)),
 		***REMOVED***,
 		// Test if JSON configs work as expected
@@ -275,14 +279,16 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				env: []string***REMOVED***"K6_DURATION=15s"***REMOVED***,
 				cli: []string***REMOVED***"--stage", ""***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED***logWarning: true***REMOVED***, verifyOneIterPerOneVU,
+			exp***REMOVED***logWarning: true***REMOVED***,
+			verifyOneIterPerOneVU,
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
 				runner: &lib.Options***REMOVED***VUs: null.IntFrom(5), Duration: types.NullDurationFrom(50 * time.Second)***REMOVED***,
 				cli:    []string***REMOVED***"--stage", "5s:5"***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED******REMOVED***, verifyRampingVUs(I(5), buildStages(5, 5)),
+			exp***REMOVED******REMOVED***,
+			verifyRampingVUs(I(5), buildStages(5, 5)),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -323,7 +329,8 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				env: []string***REMOVED***"K6_ITERATIONS=25"***REMOVED***,
 				cli: []string***REMOVED***"--vus", "12"***REMOVED***,
 			***REMOVED***,
-			exp***REMOVED******REMOVED***, verifySharedIters(I(12), I(25)),
+			exp***REMOVED******REMOVED***,
+			verifySharedIters(I(12), I(25)),
 		***REMOVED***,
 
 		// TODO: test the externally controlled executor
@@ -375,6 +382,86 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				assert.Equal(t, []string***REMOVED***"avg", "p(90)", "count"***REMOVED***, c.Options.SummaryTrendStats)
 			***REMOVED***,
 		***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED******REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
+				TTL:    null.NewString("5m", false),
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+			***REMOVED***, c.Options.DNS)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=5,select=roundRobin"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
+				TTL:    null.StringFrom("5"),
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSroundRobin, Valid: true***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+			***REMOVED***, c.Options.DNS)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_DNS=ttl=inf,select=random,policy=preferIPv6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
+				TTL:    null.StringFrom("inf"),
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: true***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv6, Valid: true***REMOVED***,
+			***REMOVED***, c.Options.DNS)
+		***REMOVED******REMOVED***,
+		// This is functionally invalid, but will error out in validation done in js.parseTTL().
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=-1"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
+				TTL:    null.StringFrom("-1"),
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+			***REMOVED***, c.Options.DNS)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=0,blah=nope"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=0"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+			assert.Equal(t, types.DNSConfig***REMOVED***
+				TTL:    null.StringFrom("0"),
+				Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: false***REMOVED***,
+				Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+			***REMOVED***, c.Options.DNS)
+		***REMOVED******REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--dns", "ttl=5s,select="***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***fs: defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0", "select": "roundRobin", "policy": "onlyIPv4"***REMOVED******REMOVED***`)***REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("0"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSroundRobin, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSonlyIPv4, Valid: true***REMOVED***,
+				***REMOVED***, c.Options.DNS)
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***
+				fs:  defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "0"***REMOVED******REMOVED***`),
+				env: []string***REMOVED***"K6_DNS=ttl=30,policy=any"***REMOVED***,
+			***REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("30"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: false***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
+				***REMOVED***, c.Options.DNS)
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			// CLI overrides all, falling back to env
+			opts***REMOVED***
+				fs:  defaultConfig(`***REMOVED***"dns": ***REMOVED***"ttl": "60", "select": "first"***REMOVED******REMOVED***`),
+				env: []string***REMOVED***"K6_DNS=ttl=30,select=random,policy=any"***REMOVED***,
+				cli: []string***REMOVED***"--dns", "ttl=5"***REMOVED***,
+			***REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("5"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSrandom, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSany, Valid: true***REMOVED***,
+				***REMOVED***, c.Options.DNS)
+			***REMOVED***,
+		***REMOVED***,
+
 		// TODO: test for differences between flagsets
 		// TODO: more tests in general, especially ones not related to execution parameters...
 	***REMOVED***

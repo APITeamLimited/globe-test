@@ -35,6 +35,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/executor"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/csv"
@@ -259,6 +260,17 @@ func applyDefault(conf Config) Config ***REMOVED***
 	if conf.Options.SummaryTrendStats == nil ***REMOVED***
 		conf.Options.SummaryTrendStats = lib.DefaultSummaryTrendStats
 	***REMOVED***
+	defDNS := types.DefaultDNSConfig()
+	if !conf.DNS.TTL.Valid ***REMOVED***
+		conf.DNS.TTL = defDNS.TTL
+	***REMOVED***
+	if !conf.DNS.Select.Valid ***REMOVED***
+		conf.DNS.Select = defDNS.Select
+	***REMOVED***
+	if !conf.DNS.Policy.Valid ***REMOVED***
+		conf.DNS.Policy = defDNS.Policy
+	***REMOVED***
+
 	return conf
 ***REMOVED***
 

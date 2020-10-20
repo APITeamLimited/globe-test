@@ -24,19 +24,15 @@ import (
 	"net"
 	"testing"
 
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils/mockresolver"
+	"github.com/loadimpact/k6/lib/types"
 )
 
-type testResolver struct ***REMOVED***
-	hosts map[string]net.IP
-***REMOVED***
-
-func (r testResolver) FetchOne(host string) (net.IP, error) ***REMOVED*** return r.hosts[host], nil ***REMOVED***
-
 func TestDialerAddr(t *testing.T) ***REMOVED***
-	dialer := newDialerWithResolver(net.Dialer***REMOVED******REMOVED***, newResolver())
+	dialer := NewDialer(net.Dialer***REMOVED******REMOVED***, newResolver())
 	dialer.Hosts = map[string]*lib.HostAddress***REMOVED***
 		"example.com":                ***REMOVED***IP: net.ParseIP("3.4.5.6")***REMOVED***,
 		"example.com:443":            ***REMOVED***IP: net.ParseIP("3.4.5.6"), Port: 8443***REMOVED***,
@@ -95,7 +91,7 @@ func TestDialerAddr(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDialerAddrBlockHostnamesStar(t *testing.T) ***REMOVED***
-	dialer := newDialerWithResolver(net.Dialer***REMOVED******REMOVED***, newResolver())
+	dialer := NewDialer(net.Dialer***REMOVED******REMOVED***, newResolver())
 	dialer.Hosts = map[string]*lib.HostAddress***REMOVED***
 		"example.com": ***REMOVED***IP: net.ParseIP("3.4.5.6")***REMOVED***,
 	***REMOVED***
@@ -129,12 +125,12 @@ func TestDialerAddrBlockHostnamesStar(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func newResolver() testResolver ***REMOVED***
-	return testResolver***REMOVED***
-		hosts: map[string]net.IP***REMOVED***
-			"example-resolver.com":           net.ParseIP("1.2.3.4"),
-			"example-deny-resolver.com":      net.ParseIP("8.9.10.11"),
-			"example-ipv6-deny-resolver.com": net.ParseIP("::1"),
-		***REMOVED***,
-	***REMOVED***
+func newResolver() *mockresolver.MockResolver ***REMOVED***
+	return mockresolver.New(
+		map[string][]net.IP***REMOVED***
+			"example-resolver.com":           ***REMOVED***net.ParseIP("1.2.3.4")***REMOVED***,
+			"example-deny-resolver.com":      ***REMOVED***net.ParseIP("8.9.10.11")***REMOVED***,
+			"example-ipv6-deny-resolver.com": ***REMOVED***net.ParseIP("::1")***REMOVED***,
+		***REMOVED***, nil,
+	)
 ***REMOVED***

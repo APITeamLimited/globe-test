@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"reflect"
@@ -47,6 +48,7 @@ import (
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/testutils/minirunner"
+	"github.com/loadimpact/k6/lib/testutils/mockresolver"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
@@ -974,6 +976,106 @@ func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	assert.NoError(t, <-err)
 ***REMOVED***
 
+// TestDNSResolver checks the DNS resolution behavior at the ExecutionScheduler level.
+func TestDNSResolver(t *testing.T) ***REMOVED***
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+	script := sr(`
+		import http from "k6/http";
+		import ***REMOVED*** sleep ***REMOVED*** from "k6";
+
+		export let options = ***REMOVED***
+			vus: 1,
+			iterations: 8,
+			noConnectionReuse: true,
+		***REMOVED***
+
+		export default function () ***REMOVED***
+			const res = http.get("http://myhost:HTTPBIN_PORT/", ***REMOVED*** timeout: 50 ***REMOVED***);
+			sleep(0.7);  // somewhat uneven multiple of 0.5 to minimize races with asserts
+		***REMOVED***`)
+
+	t.Run("cache", func(t *testing.T) ***REMOVED***
+		testCases := map[string]struct ***REMOVED***
+			opts          lib.Options
+			expLogEntries int
+		***REMOVED******REMOVED***
+			"default": ***REMOVED*** // IPs are cached for 5m
+				lib.Options***REMOVED***DNS: types.DefaultDNSConfig()***REMOVED***, 0,
+			***REMOVED***,
+			"0": ***REMOVED*** // cache is disabled, every request does a DNS lookup
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("0"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+				***REMOVED******REMOVED***, 5,
+			***REMOVED***,
+			"1000": ***REMOVED*** // cache IPs for 1s, check that unitless values are interpreted as ms
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("1000"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+				***REMOVED******REMOVED***, 4,
+			***REMOVED***,
+			"3s": ***REMOVED***
+				lib.Options***REMOVED***DNS: types.DNSConfig***REMOVED***
+					TTL:    null.StringFrom("3s"),
+					Select: types.NullDNSSelect***REMOVED***DNSSelect: types.DNSfirst, Valid: true***REMOVED***,
+					Policy: types.NullDNSPolicy***REMOVED***DNSPolicy: types.DNSpreferIPv4, Valid: false***REMOVED***,
+				***REMOVED******REMOVED***, 3,
+			***REMOVED***,
+		***REMOVED***
+
+		expErr := sr(`dial tcp 127.0.0.254:HTTPBIN_PORT: connect: connection refused`)
+		if runtime.GOOS == "windows" ***REMOVED***
+			expErr = "context deadline exceeded"
+		***REMOVED***
+		for name, tc := range testCases ***REMOVED***
+			tc := tc
+			t.Run(name, func(t *testing.T) ***REMOVED***
+				logger := logrus.New()
+				logger.SetOutput(ioutil.Discard)
+				logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED******REMOVED***
+				logger.AddHook(&logHook)
+
+				runner, err := js.New(logger, &loader.SourceData***REMOVED***
+					URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(script),
+				***REMOVED***, nil, lib.RuntimeOptions***REMOVED******REMOVED***)
+				require.NoError(t, err)
+
+				mr := mockresolver.New(nil, net.LookupIP)
+				runner.ActualResolver = mr.LookupIPAll
+
+				ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, tc.opts)
+				defer cancel()
+
+				mr.Set("myhost", sr("HTTPBIN_IP"))
+				time.AfterFunc(1700*time.Millisecond, func() ***REMOVED***
+					mr.Set("myhost", "127.0.0.254")
+				***REMOVED***)
+				defer mr.Unset("myhost")
+
+				errCh := make(chan error, 1)
+				go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+
+				select ***REMOVED***
+				case err := <-errCh:
+					require.NoError(t, err)
+					entries := logHook.Drain()
+					require.Len(t, entries, tc.expLogEntries)
+					for _, entry := range entries ***REMOVED***
+						require.IsType(t, &url.Error***REMOVED******REMOVED***, entry.Data["error"])
+						assert.EqualError(t, entry.Data["error"].(*url.Error).Err, expErr)
+					***REMOVED***
+				case <-time.After(10 * time.Second):
+					t.Fatal("timed out")
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
+
 func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	if runtime.GOOS == "windows" ***REMOVED***
 		t.Skip()
@@ -1100,7 +1202,10 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 	getDummyTrail := func(group string, emitIterations bool, addExpTags ...string) stats.SampleContainer ***REMOVED***
 		expTags := []string***REMOVED***"group", group***REMOVED***
 		expTags = append(expTags, addExpTags...)
-		return netext.NewDialer(net.Dialer***REMOVED******REMOVED***).GetTrail(time.Now(), time.Now(),
+		return netext.NewDialer(
+			net.Dialer***REMOVED******REMOVED***,
+			netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
+		).GetTrail(time.Now(), time.Now(),
 			true, emitIterations, getTags(expTags...))
 	***REMOVED***
 

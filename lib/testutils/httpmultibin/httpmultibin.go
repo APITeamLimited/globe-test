@@ -49,6 +49,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 // GetTLSClientConfig returns a TLS config that trusts the supplied
@@ -253,7 +254,7 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 		Timeout:   2 * time.Second,
 		KeepAlive: 10 * time.Second,
 		DualStack: true,
-	***REMOVED***)
+	***REMOVED***, netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4))
 	dialer.Hosts = map[string]*lib.HostAddress***REMOVED***
 		httpDomain:  httpDomainValue,
 		httpsDomain: httpsDomainValue,
