@@ -712,7 +712,7 @@ func (b *BmPrefix) Scan(text []rune, index, beglimit, endlimit int) int ***REMOV
 
 				if chTest != b.pattern[match] ***REMOVED***
 					advance = b.positive[match]
-					if (chTest & 0xFF80) == 0 ***REMOVED***
+					if chTest < 128 ***REMOVED***
 						test2 = (match - startmatch) + b.negativeASCII[chTest]
 					***REMOVED*** else if chTest < 0xffff && len(b.negativeUnicode) > 0 ***REMOVED***
 						unicodeLookup = b.negativeUnicode[chTest>>8]
