@@ -48,10 +48,9 @@ func TestConstantVUsRun(t *testing.T) ***REMOVED***
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
-	var ctx, cancel, executor, _ = setupExecutor(
+	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestConstantVUsConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
-			time.Sleep(200 * time.Millisecond)
 			select ***REMOVED***
 			case <-ctx.Done():
 				return nil
@@ -60,6 +59,7 @@ func TestConstantVUsRun(t *testing.T) ***REMOVED***
 			state := lib.GetState(ctx)
 			currIter, _ := result.LoadOrStore(state.Vu, uint64(0))
 			result.Store(state.Vu, currIter.(uint64)+1)
+			time.Sleep(200 * time.Millisecond)
 			return nil
 		***REMOVED***),
 	)
