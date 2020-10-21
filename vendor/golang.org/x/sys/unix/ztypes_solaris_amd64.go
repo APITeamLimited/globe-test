@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x8
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x8
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x8
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x8
+	SizeofLongLong = 0x8
 	PathMax        = 0x400
 	MaxHostNameLen = 0x100
 )
@@ -75,58 +75,41 @@ type Rlimit struct ***REMOVED***
 
 type _Gid_t uint32
 
-const (
-	S_IFMT   = 0xf000
-	S_IFIFO  = 0x1000
-	S_IFCHR  = 0x2000
-	S_IFDIR  = 0x4000
-	S_IFBLK  = 0x6000
-	S_IFREG  = 0x8000
-	S_IFLNK  = 0xa000
-	S_IFSOCK = 0xc000
-	S_ISUID  = 0x800
-	S_ISGID  = 0x400
-	S_ISVTX  = 0x200
-	S_IRUSR  = 0x100
-	S_IWUSR  = 0x80
-	S_IXUSR  = 0x40
-)
-
 type Stat_t struct ***REMOVED***
-	Dev       uint64
-	Ino       uint64
-	Mode      uint32
-	Nlink     uint32
-	Uid       uint32
-	Gid       uint32
-	Rdev      uint64
-	Size      int64
-	Atim      Timespec
-	Mtim      Timespec
-	Ctim      Timespec
-	Blksize   int32
-	Pad_cgo_0 [4]byte
-	Blocks    int64
-	Fstype    [16]int8
+	Dev     uint64
+	Ino     uint64
+	Mode    uint32
+	Nlink   uint32
+	Uid     uint32
+	Gid     uint32
+	Rdev    uint64
+	Size    int64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Blksize int32
+	_       [4]byte
+	Blocks  int64
+	Fstype  [16]int8
 ***REMOVED***
 
 type Flock_t struct ***REMOVED***
-	Type      int16
-	Whence    int16
-	Pad_cgo_0 [4]byte
-	Start     int64
-	Len       int64
-	Sysid     int32
-	Pid       int32
-	Pad       [4]int64
+	Type   int16
+	Whence int16
+	_      [4]byte
+	Start  int64
+	Len    int64
+	Sysid  int32
+	Pid    int32
+	Pad    [4]int64
 ***REMOVED***
 
 type Dirent struct ***REMOVED***
-	Ino       uint64
-	Off       int64
-	Reclen    uint16
-	Name      [1]int8
-	Pad_cgo_0 [5]byte
+	Ino    uint64
+	Off    int64
+	Reclen uint16
+	Name   [1]int8
+	_      [5]byte
 ***REMOVED***
 
 type _Fsblkcnt_t uint64
@@ -213,19 +196,25 @@ type IPv6Mreq struct ***REMOVED***
 type Msghdr struct ***REMOVED***
 	Name         *byte
 	Namelen      uint32
-	Pad_cgo_0    [4]byte
+	_            [4]byte
 	Iov          *Iovec
 	Iovlen       int32
-	Pad_cgo_1    [4]byte
+	_            [4]byte
 	Accrights    *int8
 	Accrightslen int32
-	Pad_cgo_2    [4]byte
+	_            [4]byte
 ***REMOVED***
 
 type Cmsghdr struct ***REMOVED***
 	Len   uint32
 	Level int32
 	Type  int32
+***REMOVED***
+
+type Inet4Pktinfo struct ***REMOVED***
+	Ifindex  uint32
+	Spec_dst [4]byte /* in_addr */
+	Addr     [4]byte /* in_addr */
 ***REMOVED***
 
 type Inet6Pktinfo struct ***REMOVED***
@@ -253,6 +242,7 @@ const (
 	SizeofIPv6Mreq         = 0x14
 	SizeofMsghdr           = 0x30
 	SizeofCmsghdr          = 0xc
+	SizeofInet4Pktinfo     = 0xc
 	SizeofInet6Pktinfo     = 0x14
 	SizeofIPv6MTUInfo      = 0x24
 	SizeofICMPv6Filter     = 0x20
@@ -271,11 +261,11 @@ type Utsname struct ***REMOVED***
 ***REMOVED***
 
 type Ustat_t struct ***REMOVED***
-	Tfree     int64
-	Tinode    uint64
-	Fname     [6]int8
-	Fpack     [6]int8
-	Pad_cgo_0 [4]byte
+	Tfree  int64
+	Tinode uint64
+	Fname  [6]int8
+	Fpack  [6]int8
+	_      [4]byte
 ***REMOVED***
 
 const (
@@ -295,21 +285,21 @@ const (
 )
 
 type IfMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Data      IfData
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	_       [2]byte
+	Data    IfData
 ***REMOVED***
 
 type IfData struct ***REMOVED***
 	Type       uint8
 	Addrlen    uint8
 	Hdrlen     uint8
-	Pad_cgo_0  [1]byte
+	_          [1]byte
 	Mtu        uint32
 	Metric     uint32
 	Baudrate   uint32
@@ -328,30 +318,30 @@ type IfData struct ***REMOVED***
 ***REMOVED***
 
 type IfaMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Metric    int32
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	_       [2]byte
+	Metric  int32
 ***REMOVED***
 
 type RtMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Flags     int32
-	Addrs     int32
-	Pid       int32
-	Seq       int32
-	Errno     int32
-	Use       int32
-	Inits     uint32
-	Rmx       RtMetrics
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Index   uint16
+	_       [2]byte
+	Flags   int32
+	Addrs   int32
+	Pid     int32
+	Seq     int32
+	Errno   int32
+	Use     int32
+	Inits   uint32
+	Rmx     RtMetrics
 ***REMOVED***
 
 type RtMetrics struct ***REMOVED***
@@ -388,9 +378,9 @@ type BpfStat struct ***REMOVED***
 ***REMOVED***
 
 type BpfProgram struct ***REMOVED***
-	Len       uint32
-	Pad_cgo_0 [4]byte
-	Insns     *BpfInsn
+	Len   uint32
+	_     [4]byte
+	Insns *BpfInsn
 ***REMOVED***
 
 type BpfInsn struct ***REMOVED***
@@ -406,30 +396,30 @@ type BpfTimeval struct ***REMOVED***
 ***REMOVED***
 
 type BpfHdr struct ***REMOVED***
-	Tstamp    BpfTimeval
-	Caplen    uint32
-	Datalen   uint32
-	Hdrlen    uint16
-	Pad_cgo_0 [2]byte
+	Tstamp  BpfTimeval
+	Caplen  uint32
+	Datalen uint32
+	Hdrlen  uint16
+	_       [2]byte
 ***REMOVED***
 
 type Termios struct ***REMOVED***
-	Iflag     uint32
-	Oflag     uint32
-	Cflag     uint32
-	Lflag     uint32
-	Cc        [19]uint8
-	Pad_cgo_0 [1]byte
+	Iflag uint32
+	Oflag uint32
+	Cflag uint32
+	Lflag uint32
+	Cc    [19]uint8
+	_     [1]byte
 ***REMOVED***
 
 type Termio struct ***REMOVED***
-	Iflag     uint16
-	Oflag     uint16
-	Cflag     uint16
-	Lflag     uint16
-	Line      int8
-	Cc        [8]uint8
-	Pad_cgo_0 [1]byte
+	Iflag uint16
+	Oflag uint16
+	Cflag uint16
+	Lflag uint16
+	Line  int8
+	Cc    [8]uint8
+	_     [1]byte
 ***REMOVED***
 
 type Winsize struct ***REMOVED***

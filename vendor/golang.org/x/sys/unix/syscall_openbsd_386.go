@@ -28,6 +28,14 @@ func (msghdr *Msghdr) SetControllen(length int) ***REMOVED***
 	msghdr.Controllen = uint32(length)
 ***REMOVED***
 
+func (msghdr *Msghdr) SetIovlen(length int) ***REMOVED***
+	msghdr.Iovlen = uint32(length)
+***REMOVED***
+
 func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint32(length)
 ***REMOVED***
+
+// SYS___SYSCTL is used by syscall_bsd.go for all BSDs, but in modern versions
+// of openbsd/386 the syscall is called sysctl instead of __sysctl.
+const SYS___SYSCTL = SYS_SYSCTL

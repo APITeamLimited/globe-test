@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x8
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x8
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x8
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x8
+	SizeofLongLong = 0x8
 )
 
 type (
@@ -57,40 +57,50 @@ type Rlimit struct ***REMOVED***
 type _Gid_t uint32
 
 const (
-	S_IFMT   = 0xf000
-	S_IFIFO  = 0x1000
-	S_IFCHR  = 0x2000
-	S_IFDIR  = 0x4000
-	S_IFBLK  = 0x6000
-	S_IFREG  = 0x8000
-	S_IFLNK  = 0xa000
-	S_IFSOCK = 0xc000
-	S_ISUID  = 0x800
-	S_ISGID  = 0x400
-	S_ISVTX  = 0x200
-	S_IRUSR  = 0x100
-	S_IWUSR  = 0x80
-	S_IXUSR  = 0x40
+	_statfsVersion = 0x20140518
+	_dirblksiz     = 0x400
 )
 
 type Stat_t struct ***REMOVED***
-	Dev           uint32
-	Ino           uint32
-	Mode          uint16
-	Nlink         uint16
-	Uid           uint32
-	Gid           uint32
-	Rdev          uint32
-	Atimespec     Timespec
-	Mtimespec     Timespec
-	Ctimespec     Timespec
-	Size          int64
-	Blocks        int64
-	Blksize       int32
-	Flags         uint32
-	Gen           uint32
-	Lspare        int32
-	Birthtimespec Timespec
+	Dev     uint64
+	Ino     uint64
+	Nlink   uint64
+	Mode    uint16
+	_0      int16
+	Uid     uint32
+	Gid     uint32
+	_1      int32
+	Rdev    uint64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint64
+	Spare   [10]uint64
+***REMOVED***
+
+type stat_freebsd11_t struct ***REMOVED***
+	Dev     uint32
+	Ino     uint32
+	Mode    uint16
+	Nlink   uint16
+	Uid     uint32
+	Gid     uint32
+	Rdev    uint32
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint32
+	Lspare  int32
+	Btim    Timespec
 ***REMOVED***
 
 type Statfs_t struct ***REMOVED***
@@ -113,22 +123,58 @@ type Statfs_t struct ***REMOVED***
 	Owner       uint32
 	Fsid        Fsid
 	Charspare   [80]int8
-	Fstypename  [16]int8
-	Mntfromname [88]int8
-	Mntonname   [88]int8
+	Fstypename  [16]byte
+	Mntfromname [1024]byte
+	Mntonname   [1024]byte
+***REMOVED***
+
+type statfs_freebsd11_t struct ***REMOVED***
+	Version     uint32
+	Type        uint32
+	Flags       uint64
+	Bsize       uint64
+	Iosize      uint64
+	Blocks      uint64
+	Bfree       uint64
+	Bavail      int64
+	Files       uint64
+	Ffree       int64
+	Syncwrites  uint64
+	Asyncwrites uint64
+	Syncreads   uint64
+	Asyncreads  uint64
+	Spare       [10]uint64
+	Namemax     uint32
+	Owner       uint32
+	Fsid        Fsid
+	Charspare   [80]int8
+	Fstypename  [16]byte
+	Mntfromname [88]byte
+	Mntonname   [88]byte
 ***REMOVED***
 
 type Flock_t struct ***REMOVED***
-	Start     int64
-	Len       int64
-	Pid       int32
-	Type      int16
-	Whence    int16
-	Sysid     int32
-	Pad_cgo_0 [4]byte
+	Start  int64
+	Len    int64
+	Pid    int32
+	Type   int16
+	Whence int16
+	Sysid  int32
+	_      [4]byte
 ***REMOVED***
 
 type Dirent struct ***REMOVED***
+	Fileno uint64
+	Off    int64
+	Reclen uint16
+	Type   uint8
+	Pad0   uint8
+	Namlen uint16
+	Pad1   uint16
+	Name   [256]int8
+***REMOVED***
+
+type dirent_freebsd11 struct ***REMOVED***
 	Fileno uint32
 	Reclen uint16
 	Type   uint8
@@ -229,10 +275,8 @@ type IPv6Mreq struct ***REMOVED***
 type Msghdr struct ***REMOVED***
 	Name       *byte
 	Namelen    uint32
-	Pad_cgo_0  [4]byte
 	Iov        *Iovec
 	Iovlen     int32
-	Pad_cgo_1  [4]byte
 	Control    *byte
 	Controllen uint32
 	Flags      int32
@@ -276,10 +320,114 @@ const (
 )
 
 const (
-	PTRACE_TRACEME = 0x0
-	PTRACE_CONT    = 0x7
-	PTRACE_KILL    = 0x8
+	PTRACE_ATTACH     = 0xa
+	PTRACE_CONT       = 0x7
+	PTRACE_DETACH     = 0xb
+	PTRACE_GETFPREGS  = 0x23
+	PTRACE_GETFSBASE  = 0x47
+	PTRACE_GETLWPLIST = 0xf
+	PTRACE_GETNUMLWPS = 0xe
+	PTRACE_GETREGS    = 0x21
+	PTRACE_GETXSTATE  = 0x45
+	PTRACE_IO         = 0xc
+	PTRACE_KILL       = 0x8
+	PTRACE_LWPEVENTS  = 0x18
+	PTRACE_LWPINFO    = 0xd
+	PTRACE_SETFPREGS  = 0x24
+	PTRACE_SETREGS    = 0x22
+	PTRACE_SINGLESTEP = 0x9
+	PTRACE_TRACEME    = 0x0
 )
+
+const (
+	PIOD_READ_D  = 0x1
+	PIOD_WRITE_D = 0x2
+	PIOD_READ_I  = 0x3
+	PIOD_WRITE_I = 0x4
+)
+
+const (
+	PL_FLAG_BORN   = 0x100
+	PL_FLAG_EXITED = 0x200
+	PL_FLAG_SI     = 0x20
+)
+
+const (
+	TRAP_BRKPT = 0x1
+	TRAP_TRACE = 0x2
+)
+
+type PtraceLwpInfoStruct struct ***REMOVED***
+	Lwpid        int32
+	Event        int32
+	Flags        int32
+	Sigmask      Sigset_t
+	Siglist      Sigset_t
+	Siginfo      __Siginfo
+	Tdname       [20]int8
+	Child_pid    int32
+	Syscall_code uint32
+	Syscall_narg uint32
+***REMOVED***
+
+type __Siginfo struct ***REMOVED***
+	Signo  int32
+	Errno  int32
+	Code   int32
+	Pid    int32
+	Uid    uint32
+	Status int32
+	Addr   *byte
+	Value  [8]byte
+	_      [40]byte
+***REMOVED***
+
+type Sigset_t struct ***REMOVED***
+	Val [4]uint32
+***REMOVED***
+
+type Reg struct ***REMOVED***
+	R15    int64
+	R14    int64
+	R13    int64
+	R12    int64
+	R11    int64
+	R10    int64
+	R9     int64
+	R8     int64
+	Rdi    int64
+	Rsi    int64
+	Rbp    int64
+	Rbx    int64
+	Rdx    int64
+	Rcx    int64
+	Rax    int64
+	Trapno uint32
+	Fs     uint16
+	Gs     uint16
+	Err    uint32
+	Es     uint16
+	Ds     uint16
+	Rip    int64
+	Cs     int64
+	Rflags int64
+	Rsp    int64
+	Ss     int64
+***REMOVED***
+
+type FpReg struct ***REMOVED***
+	Env   [4]uint64
+	Acc   [8][16]uint8
+	Xacc  [16][16]uint8
+	Spare [12]uint64
+***REMOVED***
+
+type PtraceIoDesc struct ***REMOVED***
+	Op   int32
+	Offs *byte
+	Addr *byte
+	Len  uint64
+***REMOVED***
 
 type Kevent_t struct ***REMOVED***
 	Ident  uint64
@@ -291,7 +439,7 @@ type Kevent_t struct ***REMOVED***
 ***REMOVED***
 
 type FdSet struct ***REMOVED***
-	X__fds_bits [16]uint64
+	Bits [16]uint64
 ***REMOVED***
 
 const (
@@ -307,53 +455,52 @@ const (
 )
 
 type ifMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Data      ifData
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	_       uint16
+	Data    ifData
 ***REMOVED***
 
 type IfMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Data      IfData
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	Data    IfData
 ***REMOVED***
 
 type ifData struct ***REMOVED***
-	Type              uint8
-	Physical          uint8
-	Addrlen           uint8
-	Hdrlen            uint8
-	Link_state        uint8
-	Vhid              uint8
-	Datalen           uint16
-	Mtu               uint32
-	Metric            uint32
-	Baudrate          uint64
-	Ipackets          uint64
-	Ierrors           uint64
-	Opackets          uint64
-	Oerrors           uint64
-	Collisions        uint64
-	Ibytes            uint64
-	Obytes            uint64
-	Imcasts           uint64
-	Omcasts           uint64
-	Iqdrops           uint64
-	Oqdrops           uint64
-	Noproto           uint64
-	Hwassist          uint64
-	X__ifi_epoch      [8]byte
-	X__ifi_lastchange [16]byte
+	Type       uint8
+	Physical   uint8
+	Addrlen    uint8
+	Hdrlen     uint8
+	Link_state uint8
+	Vhid       uint8
+	Datalen    uint16
+	Mtu        uint32
+	Metric     uint32
+	Baudrate   uint64
+	Ipackets   uint64
+	Ierrors    uint64
+	Opackets   uint64
+	Oerrors    uint64
+	Collisions uint64
+	Ibytes     uint64
+	Obytes     uint64
+	Imcasts    uint64
+	Omcasts    uint64
+	Iqdrops    uint64
+	Oqdrops    uint64
+	Noproto    uint64
+	Hwassist   uint64
+	_          [8]byte
+	_          [16]byte
 ***REMOVED***
 
 type IfData struct ***REMOVED***
@@ -385,24 +532,24 @@ type IfData struct ***REMOVED***
 ***REMOVED***
 
 type IfaMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Metric    int32
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	_       uint16
+	Metric  int32
 ***REMOVED***
 
 type IfmaMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Addrs     int32
-	Flags     int32
-	Index     uint16
-	Pad_cgo_0 [2]byte
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Addrs   int32
+	Flags   int32
+	Index   uint16
+	_       uint16
 ***REMOVED***
 
 type IfAnnounceMsghdr struct ***REMOVED***
@@ -415,19 +562,19 @@ type IfAnnounceMsghdr struct ***REMOVED***
 ***REMOVED***
 
 type RtMsghdr struct ***REMOVED***
-	Msglen    uint16
-	Version   uint8
-	Type      uint8
-	Index     uint16
-	Pad_cgo_0 [2]byte
-	Flags     int32
-	Addrs     int32
-	Pid       int32
-	Seq       int32
-	Errno     int32
-	Fmask     int32
-	Inits     uint64
-	Rmx       RtMetrics
+	Msglen  uint16
+	Version uint8
+	Type    uint8
+	Index   uint16
+	_       uint16
+	Flags   int32
+	Addrs   int32
+	Pid     int32
+	Seq     int32
+	Errno   int32
+	Fmask   int32
+	Inits   uint64
+	Rmx     RtMetrics
 ***REMOVED***
 
 type RtMetrics struct ***REMOVED***
@@ -472,9 +619,8 @@ type BpfZbuf struct ***REMOVED***
 ***REMOVED***
 
 type BpfProgram struct ***REMOVED***
-	Len       uint32
-	Pad_cgo_0 [4]byte
-	Insns     *BpfInsn
+	Len   uint32
+	Insns *BpfInsn
 ***REMOVED***
 
 type BpfInsn struct ***REMOVED***
@@ -485,18 +631,18 @@ type BpfInsn struct ***REMOVED***
 ***REMOVED***
 
 type BpfHdr struct ***REMOVED***
-	Tstamp    Timeval
-	Caplen    uint32
-	Datalen   uint32
-	Hdrlen    uint16
-	Pad_cgo_0 [6]byte
+	Tstamp  Timeval
+	Caplen  uint32
+	Datalen uint32
+	Hdrlen  uint16
+	_       [6]byte
 ***REMOVED***
 
 type BpfZbufHeader struct ***REMOVED***
 	Kernel_gen uint32
 	Kernel_len uint32
 	User_gen   uint32
-	X_bzh_pad  [5]uint32
+	_          [5]uint32
 ***REMOVED***
 
 type Termios struct ***REMOVED***
@@ -553,4 +699,14 @@ type Utsname struct ***REMOVED***
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+***REMOVED***
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct ***REMOVED***
+	Hz     int32
+	Tick   int32
+	Spare  int32
+	Stathz int32
+	Profhz int32
 ***REMOVED***

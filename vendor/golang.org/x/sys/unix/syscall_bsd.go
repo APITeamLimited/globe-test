@@ -63,15 +63,6 @@ func Setgroups(gids []int) (err error) ***REMOVED***
 	return setgroups(len(a), &a[0])
 ***REMOVED***
 
-func ReadDirent(fd int, buf []byte) (n int, err error) ***REMOVED***
-	// Final argument is (basep *uintptr) and the syscall doesn't take nil.
-	// 64 bits should be enough. (32 bits isn't even on 386). Since the
-	// actual system call is getdirentries64, 64 is a good guess.
-	// TODO(rsc): Can we use a single global basep for all calls?
-	var base = (*uintptr)(unsafe.Pointer(new(uint64)))
-	return Getdirentries(fd, buf, base)
-***REMOVED***
-
 // Wait status is 7 bits at bottom, either 0 (exited),
 // 0x7F (stopped), or a signal number that caused an exit.
 // The 0x80 bit is whether there was a core dump.
@@ -86,6 +77,7 @@ const (
 	shift = 8
 
 	exited  = 0
+	killed  = 9
 	stopped = 0x7F
 )
 
@@ -111,6 +103,8 @@ func (w WaitStatus) Signal() syscall.Signal ***REMOVED***
 func (w WaitStatus) CoreDump() bool ***REMOVED*** return w.Signaled() && w&core != 0 ***REMOVED***
 
 func (w WaitStatus) Stopped() bool ***REMOVED*** return w&mask == stopped && syscall.Signal(w>>shift) != SIGSTOP ***REMOVED***
+
+func (w WaitStatus) Killed() bool ***REMOVED*** return w&mask == killed && syscall.Signal(w>>shift) != SIGKILL ***REMOVED***
 
 func (w WaitStatus) Continued() bool ***REMOVED*** return w&mask == stopped && syscall.Signal(w>>shift) == SIGSTOP ***REMOVED***
 
@@ -206,7 +200,7 @@ func (sa *SockaddrDatalink) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMO
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrDatalink, nil
 ***REMOVED***
 
-func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
+func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 	switch rsa.Addr.Family ***REMOVED***
 	case AF_LINK:
 		pp := (*RawSockaddrDatalink)(unsafe.Pointer(rsa))
@@ -243,7 +237,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 				break
 			***REMOVED***
 		***REMOVED***
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
 		sa.Name = string(bytes)
 		return sa, nil
 
@@ -286,7 +280,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 		Close(nfd)
 		return 0, nil, ECONNABORTED
 	***REMOVED***
-	sa, err = anyToSockaddr(&rsa)
+	sa, err = anyToSockaddr(fd, &rsa)
 	if err != nil ***REMOVED***
 		Close(nfd)
 		nfd = 0
@@ -306,51 +300,10 @@ func Getsockname(fd int) (sa Sockaddr, err error) ***REMOVED***
 		rsa.Addr.Family = AF_UNIX
 		rsa.Addr.Len = SizeofSockaddrUnix
 	***REMOVED***
-	return anyToSockaddr(&rsa)
+	return anyToSockaddr(fd, &rsa)
 ***REMOVED***
 
 //sysnb socketpair(domain int, typ int, proto int, fd *[2]int32) (err error)
-
-func GetsockoptByte(fd, level, opt int) (value byte, err error) ***REMOVED***
-	var n byte
-	vallen := _Socklen(1)
-	err = getsockopt(fd, level, opt, unsafe.Pointer(&n), &vallen)
-	return n, err
-***REMOVED***
-
-func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) ***REMOVED***
-	vallen := _Socklen(4)
-	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
-	return value, err
-***REMOVED***
-
-func GetsockoptIPMreq(fd, level, opt int) (*IPMreq, error) ***REMOVED***
-	var value IPMreq
-	vallen := _Socklen(SizeofIPMreq)
-	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
-	return &value, err
-***REMOVED***
-
-func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) ***REMOVED***
-	var value IPv6Mreq
-	vallen := _Socklen(SizeofIPv6Mreq)
-	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
-	return &value, err
-***REMOVED***
-
-func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) ***REMOVED***
-	var value IPv6MTUInfo
-	vallen := _Socklen(SizeofIPv6MTUInfo)
-	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
-	return &value, err
-***REMOVED***
-
-func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) ***REMOVED***
-	var value ICMPv6Filter
-	vallen := _Socklen(SizeofICMPv6Filter)
-	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
-	return &value, err
-***REMOVED***
 
 // GetsockoptString returns the string value of the socket option opt for the
 // socket associated with fd at the given socket level.
@@ -397,7 +350,7 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	recvflags = int(msg.Flags)
 	// source address is only specified if the socket is unconnected
 	if rsa.Addr.Family != AF_UNSPEC ***REMOVED***
-		from, err = anyToSockaddr(&rsa)
+		from, err = anyToSockaddr(fd, &rsa)
 	***REMOVED***
 	return
 ***REMOVED***
@@ -459,8 +412,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err e
 	***REMOVED***
 	return kevent(kq, change, len(changes), event, len(events), timeout)
 ***REMOVED***
-
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 // sysctlmib translates name to mib number and appends any additional args.
 func sysctlmib(name string, args ...int) ([]_C_int, error) ***REMOVED***
@@ -559,6 +510,23 @@ func SysctlRaw(name string, args ...int) ([]byte, error) ***REMOVED***
 	return buf[:n], nil
 ***REMOVED***
 
+func SysctlClockinfo(name string) (*Clockinfo, error) ***REMOVED***
+	mib, err := sysctlmib(name)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	n := uintptr(SizeofClockinfo)
+	var ci Clockinfo
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&ci)), &n, nil, 0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if n != SizeofClockinfo ***REMOVED***
+		return nil, EIO
+	***REMOVED***
+	return &ci, nil
+***REMOVED***
+
 //sys	utimes(path string, timeval *[2]Timeval) (err error)
 
 func Utimes(path string, tv []Timeval) error ***REMOVED***
@@ -625,8 +593,6 @@ func Futimes(fd int, tv []Timeval) error ***REMOVED***
 	***REMOVED***
 	return futimes(fd, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 ***REMOVED***
-
-//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
 //sys   poll(fds *PollFd, nfds int, timeout int) (n int, err error)
 

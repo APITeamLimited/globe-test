@@ -45,6 +45,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	grpctest "google.golang.org/grpc/test/grpc_testing"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
@@ -91,6 +95,8 @@ type HTTPMultiBin struct ***REMOVED***
 	ServerHTTP      *httptest.Server
 	ServerHTTPS     *httptest.Server
 	ServerHTTP2     *httptest.Server
+	ServerGRPC      *grpc.Server
+	GRPCStub        *GRPCStub
 	Replacer        *strings.Replacer
 	TLSClientConfig *tls.Config
 	Dialer          *netext.Dialer
@@ -202,6 +208,51 @@ func getZstdBrHandler(t testing.TB) http.Handler ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
+// GRPCStub is an easily customisable TestServiceServer
+type GRPCStub struct ***REMOVED***
+	EmptyCallFunc func(context.Context, *grpctest.Empty) (*grpctest.Empty, error)
+	UnaryCallFunc func(context.Context, *grpctest.SimpleRequest) (*grpctest.SimpleResponse, error)
+***REMOVED***
+
+// EmptyCall implements the interface for the gRPC TestServiceServer
+func (s *GRPCStub) EmptyCall(ctx context.Context, req *grpctest.Empty) (*grpctest.Empty, error) ***REMOVED***
+	if s.EmptyCallFunc != nil ***REMOVED***
+		return s.EmptyCallFunc(ctx, req)
+	***REMOVED***
+
+	return nil, status.Errorf(codes.Unimplemented, "method EmptyCall not implemented")
+***REMOVED***
+
+// UnaryCall implements the interface for the gRPC TestServiceServer
+func (s *GRPCStub) UnaryCall(ctx context.Context, req *grpctest.SimpleRequest) (*grpctest.SimpleResponse, error) ***REMOVED***
+	if s.UnaryCallFunc != nil ***REMOVED***
+		return s.UnaryCallFunc(ctx, req)
+	***REMOVED***
+
+	return nil, status.Errorf(codes.Unimplemented, "method UnaryCall not implemented")
+***REMOVED***
+
+// StreamingOutputCall implements the interface for the gRPC TestServiceServer
+func (*GRPCStub) StreamingOutputCall(*grpctest.StreamingOutputCallRequest,
+	grpctest.TestService_StreamingOutputCallServer) error ***REMOVED***
+	return status.Errorf(codes.Unimplemented, "method StreamingOutputCall not implemented")
+***REMOVED***
+
+// StreamingInputCall implements the interface for the gRPC TestServiceServer
+func (*GRPCStub) StreamingInputCall(grpctest.TestService_StreamingInputCallServer) error ***REMOVED***
+	return status.Errorf(codes.Unimplemented, "method StreamingInputCall not implemented")
+***REMOVED***
+
+// FullDuplexCall implements the interface for the gRPC TestServiceServer
+func (*GRPCStub) FullDuplexCall(grpctest.TestService_FullDuplexCallServer) error ***REMOVED***
+	return status.Errorf(codes.Unimplemented, "method FullDuplexCall not implemented")
+***REMOVED***
+
+// HalfDuplexCall implements the interface for the gRPC TestServiceServer
+func (*GRPCStub) HalfDuplexCall(grpctest.TestService_HalfDuplexCallServer) error ***REMOVED***
+	return status.Errorf(codes.Unimplemented, "method HalfDuplexCall not implemented")
+***REMOVED***
+
 // NewHTTPMultiBin returns a fully configured and running HTTPMultiBin
 func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	// Create a http.ServeMux and set the httpbin handler as the default
@@ -230,11 +281,23 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	require.NotNil(t, httpsIP)
 	tlsConfig := GetTLSClientConfig(t, httpsSrv)
 
-	// Initialize the HTTP2 server, with a copy of the https tls config
-	http2Srv := httptest.NewUnstartedServer(mux)
-	err = http2.ConfigureServer(http2Srv.Config, &http2.Server***REMOVED***
-		IdleTimeout: 30,
+	// Initialize the gRPC server
+	grpcSrv := grpc.NewServer()
+	stub := &GRPCStub***REMOVED******REMOVED***
+	grpctest.RegisterTestServiceServer(grpcSrv, stub)
+
+	cmux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") ***REMOVED***
+			grpcSrv.ServeHTTP(w, r)
+
+			return
+		***REMOVED***
+		mux.ServeHTTP(w, r)
 	***REMOVED***)
+
+	// Initialize the HTTP2 server, with a copy of the https tls config
+	http2Srv := httptest.NewUnstartedServer(cmux)
+	http2Srv.EnableHTTP2 = true
 	http2Srv.TLS = &(*tlsConfig) // copy it
 	http2Srv.TLS.NextProtos = []string***REMOVED***http2.NextProtoTLS***REMOVED***
 	require.NoError(t, err)
@@ -268,11 +331,14 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 	require.NoError(t, http2.ConfigureTransport(transport))
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
+
 	return &HTTPMultiBin***REMOVED***
 		Mux:         mux,
 		ServerHTTP:  httpSrv,
 		ServerHTTPS: httpsSrv,
 		ServerHTTP2: http2Srv,
+		ServerGRPC:  grpcSrv,
+		GRPCStub:    stub,
 		Replacer: strings.NewReplacer(
 			"HTTPBIN_IP_URL", httpSrv.URL,
 			"HTTPBIN_DOMAIN", httpDomain,
@@ -292,12 +358,15 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 			"HTTP2BIN_URL", fmt.Sprintf("https://%s:%s", httpsDomain, http2URL.Port()),
 			"HTTP2BIN_IP", http2IP.String(),
 			"HTTP2BIN_PORT", http2URL.Port(),
+
+			"GRPCBIN_ADDR", fmt.Sprintf("%s:%s", httpsDomain, http2URL.Port()),
 		),
 		TLSClientConfig: tlsConfig,
 		Dialer:          dialer,
 		HTTPTransport:   transport,
 		Context:         ctx,
 		Cleanup: func() ***REMOVED***
+			grpcSrv.Stop()
 			http2Srv.Close()
 			httpsSrv.Close()
 			httpSrv.Close()

@@ -7,7 +7,7 @@
 package unix
 
 import (
-	errorspkg "errors"
+	"errors"
 	"fmt"
 )
 
@@ -60,26 +60,26 @@ func CapRightsSet(rights *CapRights, setrights []uint64) error ***REMOVED***
 
 	n := caparsize(rights)
 	if n < capArSizeMin || n > capArSizeMax ***REMOVED***
-		return errorspkg.New("bad rights size")
+		return errors.New("bad rights size")
 	***REMOVED***
 
 	for _, right := range setrights ***REMOVED***
 		if caprver(right) != CAP_RIGHTS_VERSION_00 ***REMOVED***
-			return errorspkg.New("bad right version")
+			return errors.New("bad right version")
 		***REMOVED***
 		i, err := rightToIndex(right)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		if i >= n ***REMOVED***
-			return errorspkg.New("index overflow")
+			return errors.New("index overflow")
 		***REMOVED***
 		if capidxbit(rights.Rights[i]) != capidxbit(right) ***REMOVED***
-			return errorspkg.New("index mismatch")
+			return errors.New("index mismatch")
 		***REMOVED***
 		rights.Rights[i] |= right
 		if capidxbit(rights.Rights[i]) != capidxbit(right) ***REMOVED***
-			return errorspkg.New("index mismatch (after assign)")
+			return errors.New("index mismatch (after assign)")
 		***REMOVED***
 	***REMOVED***
 
@@ -95,26 +95,26 @@ func CapRightsClear(rights *CapRights, clearrights []uint64) error ***REMOVED***
 
 	n := caparsize(rights)
 	if n < capArSizeMin || n > capArSizeMax ***REMOVED***
-		return errorspkg.New("bad rights size")
+		return errors.New("bad rights size")
 	***REMOVED***
 
 	for _, right := range clearrights ***REMOVED***
 		if caprver(right) != CAP_RIGHTS_VERSION_00 ***REMOVED***
-			return errorspkg.New("bad right version")
+			return errors.New("bad right version")
 		***REMOVED***
 		i, err := rightToIndex(right)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		if i >= n ***REMOVED***
-			return errorspkg.New("index overflow")
+			return errors.New("index overflow")
 		***REMOVED***
 		if capidxbit(rights.Rights[i]) != capidxbit(right) ***REMOVED***
-			return errorspkg.New("index mismatch")
+			return errors.New("index mismatch")
 		***REMOVED***
 		rights.Rights[i] &= ^(right & 0x01FFFFFFFFFFFFFF)
 		if capidxbit(rights.Rights[i]) != capidxbit(right) ***REMOVED***
-			return errorspkg.New("index mismatch (after assign)")
+			return errors.New("index mismatch (after assign)")
 		***REMOVED***
 	***REMOVED***
 
@@ -130,22 +130,22 @@ func CapRightsIsSet(rights *CapRights, setrights []uint64) (bool, error) ***REMO
 
 	n := caparsize(rights)
 	if n < capArSizeMin || n > capArSizeMax ***REMOVED***
-		return false, errorspkg.New("bad rights size")
+		return false, errors.New("bad rights size")
 	***REMOVED***
 
 	for _, right := range setrights ***REMOVED***
 		if caprver(right) != CAP_RIGHTS_VERSION_00 ***REMOVED***
-			return false, errorspkg.New("bad right version")
+			return false, errors.New("bad right version")
 		***REMOVED***
 		i, err := rightToIndex(right)
 		if err != nil ***REMOVED***
 			return false, err
 		***REMOVED***
 		if i >= n ***REMOVED***
-			return false, errorspkg.New("index overflow")
+			return false, errors.New("index overflow")
 		***REMOVED***
 		if capidxbit(rights.Rights[i]) != capidxbit(right) ***REMOVED***
-			return false, errorspkg.New("index mismatch")
+			return false, errors.New("index mismatch")
 		***REMOVED***
 		if (rights.Rights[i] & right) != right ***REMOVED***
 			return false, nil

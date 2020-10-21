@@ -28,6 +28,10 @@ func (msghdr *Msghdr) SetControllen(length int) ***REMOVED***
 	msghdr.Controllen = uint32(length)
 ***REMOVED***
 
+func (msghdr *Msghdr) SetIovlen(length int) ***REMOVED***
+	msghdr.Iovlen = int32(length)
+***REMOVED***
+
 func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint32(length)
 ***REMOVED***

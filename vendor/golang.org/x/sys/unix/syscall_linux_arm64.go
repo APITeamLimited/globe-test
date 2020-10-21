@@ -6,7 +6,17 @@
 
 package unix
 
+import "unsafe"
+
+func EpollCreate(size int) (fd int, err error) ***REMOVED***
+	if size <= 0 ***REMOVED***
+		return -1, EINVAL
+	***REMOVED***
+	return EpollCreate1(0)
+***REMOVED***
+
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
+//sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
 //sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
@@ -15,11 +25,12 @@ package unix
 //sysnb	Getegid() (egid int)
 //sysnb	Geteuid() (euid int)
 //sysnb	Getgid() (gid int)
-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
 //sys	Listen(s int, n int) (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) ***REMOVED***
@@ -31,12 +42,12 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
 ***REMOVED***
 
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
-//sys	Setfsgid(gid int) (err error)
-//sys	Setfsuid(uid int) (err error)
+//sys	setfsgid(gid int) (prev int, err error)
+//sys	setfsuid(uid int) (prev int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
@@ -56,6 +67,11 @@ func Lstat(path string, stat *Stat_t) (err error) ***REMOVED***
 //sys	Statfs(path string, buf *Statfs_t) (err error)
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
 //sys	Truncate(path string, length int64) (err error)
+
+func Ustat(dev int, ubuf *Ustat_t) (err error) ***REMOVED***
+	return ENOSYS
+***REMOVED***
+
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
 //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
@@ -84,6 +100,18 @@ func setTimeval(sec, usec int64) Timeval ***REMOVED***
 	return Timeval***REMOVED***Sec: sec, Usec: usec***REMOVED***
 ***REMOVED***
 
+func futimesat(dirfd int, path string, tv *[2]Timeval) (err error) ***REMOVED***
+	if tv == nil ***REMOVED***
+		return utimensat(dirfd, path, nil, 0)
+	***REMOVED***
+
+	ts := []Timespec***REMOVED***
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	***REMOVED***
+	return utimensat(dirfd, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+***REMOVED***
+
 func Time(t *Time_t) (Time_t, error) ***REMOVED***
 	var tv Timeval
 	err := Gettimeofday(&tv)
@@ -102,6 +130,18 @@ func Utime(path string, buf *Utimbuf) error ***REMOVED***
 		***REMOVED***Sec: buf.Modtime***REMOVED***,
 	***REMOVED***
 	return Utimes(path, tv)
+***REMOVED***
+
+func utimes(path string, tv *[2]Timeval) (err error) ***REMOVED***
+	if tv == nil ***REMOVED***
+		return utimensat(AT_FDCWD, path, nil, 0)
+	***REMOVED***
+
+	ts := []Timespec***REMOVED***
+		NsecToTimespec(TimevalToNsec(tv[0])),
+		NsecToTimespec(TimevalToNsec(tv[1])),
+	***REMOVED***
+	return utimensat(AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
 ***REMOVED***
 
 func Pipe(p []int) (err error) ***REMOVED***
@@ -128,6 +168,24 @@ func Pipe2(p []int, flags int) (err error) ***REMOVED***
 	return
 ***REMOVED***
 
+// Getrlimit prefers the prlimit64 system call. See issue 38604.
+func Getrlimit(resource int, rlim *Rlimit) error ***REMOVED***
+	err := prlimit(0, resource, nil, rlim)
+	if err != ENOSYS ***REMOVED***
+		return err
+	***REMOVED***
+	return getrlimit(resource, rlim)
+***REMOVED***
+
+// Setrlimit prefers the prlimit64 system call. See issue 38604.
+func Setrlimit(resource int, rlim *Rlimit) error ***REMOVED***
+	err := prlimit(0, resource, rlim, nil)
+	if err != ENOSYS ***REMOVED***
+		return err
+	***REMOVED***
+	return setrlimit(resource, rlim)
+***REMOVED***
+
 func (r *PtraceRegs) PC() uint64 ***REMOVED*** return r.Pc ***REMOVED***
 
 func (r *PtraceRegs) SetPC(pc uint64) ***REMOVED*** r.Pc = pc ***REMOVED***
@@ -140,6 +198,10 @@ func (msghdr *Msghdr) SetControllen(length int) ***REMOVED***
 	msghdr.Controllen = uint64(length)
 ***REMOVED***
 
+func (msghdr *Msghdr) SetIovlen(length int) ***REMOVED***
+	msghdr.Iovlen = uint64(length)
+***REMOVED***
+
 func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint64(length)
 ***REMOVED***
@@ -148,33 +210,14 @@ func InotifyInit() (fd int, err error) ***REMOVED***
 	return InotifyInit1(0)
 ***REMOVED***
 
-func Dup2(oldfd int, newfd int) (err error) ***REMOVED***
-	return Dup3(oldfd, newfd, 0)
-***REMOVED***
+// dup2 exists because func Dup3 in syscall_linux.go references
+// it in an unreachable path. dup2 isn't available on arm64.
+func dup2(oldfd int, newfd int) error
 
-func Pause() (err error) ***REMOVED***
-	_, _, e1 := Syscall6(SYS_PPOLL, 0, 0, 0, 0, 0, 0)
-	if e1 != 0 ***REMOVED***
-		err = errnoErr(e1)
-	***REMOVED***
-	return
+func Pause() error ***REMOVED***
+	_, err := ppoll(nil, 0, nil, nil)
+	return err
 ***REMOVED***
-
-// TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
-// these when the deprecated syscalls that the syscall package relies on
-// are removed.
-const (
-	SYS_GETPGRP      = 1060
-	SYS_UTIMES       = 1037
-	SYS_FUTIMESAT    = 1066
-	SYS_PAUSE        = 1061
-	SYS_USTAT        = 1070
-	SYS_UTIME        = 1063
-	SYS_LCHOWN       = 1032
-	SYS_TIME         = 1062
-	SYS_EPOLL_CREATE = 1042
-	SYS_EPOLL_WAIT   = 1069
-)
 
 func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
 	var ts *Timespec
@@ -186,4 +229,17 @@ func Poll(fds []PollFd, timeout int) (n int, err error) ***REMOVED***
 		return ppoll(nil, 0, ts, nil)
 	***REMOVED***
 	return ppoll(&fds[0], len(fds), ts, nil)
+***REMOVED***
+
+//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
+
+func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error ***REMOVED***
+	cmdlineLen := len(cmdline)
+	if cmdlineLen > 0 ***REMOVED***
+		// Account for the additional NULL byte added by
+		// BytePtrFromString in kexecFileLoad. The kexec_file_load
+		// syscall expects a NULL-terminated string.
+		cmdlineLen++
+	***REMOVED***
+	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
 ***REMOVED***
