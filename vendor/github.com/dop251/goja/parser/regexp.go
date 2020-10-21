@@ -95,8 +95,15 @@ func (self *_RegExp_parser) scanGroup() ***REMOVED***
 	str := self.str[self.chrOffset:]
 	if len(str) > 1 ***REMOVED*** // A possibility of (?= or (?!
 		if str[0] == '?' ***REMOVED***
-			if str[1] == '=' || str[1] == '!' ***REMOVED***
+			ch := str[1]
+			switch ***REMOVED***
+			case ch == '=' || ch == '!':
 				self.error(-1, "re2: Invalid (%s) <lookahead>", self.str[self.chrOffset:self.chrOffset+2])
+			case ch == '<':
+				self.error(-1, "re2: Invalid (%s) <lookbehind>", self.str[self.chrOffset:self.chrOffset+2])
+			case ch != ':':
+				self.error(-1, "Invalid group")
+				self.invalid = true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -305,7 +312,6 @@ func (self *_RegExp_parser) scanEscape(inClass bool) ***REMOVED***
 	case 'S':
 		if inClass ***REMOVED***
 			self.error(self.chrOffset, "S in class")
-			self.invalid = true
 			return
 		***REMOVED*** else ***REMOVED***
 			self.goRegexp.WriteString("[^" + WhitespaceChars + "]")
@@ -321,9 +327,8 @@ func (self *_RegExp_parser) scanEscape(inClass bool) ***REMOVED***
 			if err != nil ***REMOVED***
 				self.errors = append(self.errors, err)
 			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			// Unescape the character for re2
 		***REMOVED***
+		// Unescape the character for re2
 		self.pass()
 		return
 	***REMOVED***
