@@ -35,7 +35,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/js/internal/modules"
 )
+
+func init() ***REMOVED***
+	modules.Register("k6/crypto/x509", New())
+***REMOVED***
 
 // X509 certificate functionality
 type X509 struct***REMOVED******REMOVED***

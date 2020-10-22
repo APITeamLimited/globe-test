@@ -30,9 +30,14 @@ import (
 	"github.com/dop251/goja"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/js/internal/modules"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
+
+func init() ***REMOVED***
+	modules.Register("k6/metrics", New())
+***REMOVED***
 
 var nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ !\\?/&#\\(\\)<>%-]***REMOVED***1,128***REMOVED***$"
 

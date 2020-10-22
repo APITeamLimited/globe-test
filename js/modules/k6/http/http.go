@@ -24,9 +24,14 @@ import (
 	"context"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/js/internal/modules"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 )
+
+func init() ***REMOVED***
+	modules.Register("k6/http", New())
+***REMOVED***
 
 const (
 	HTTP_METHOD_GET     = "GET"
