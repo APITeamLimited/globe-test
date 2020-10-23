@@ -301,13 +301,13 @@ export let options = ***REMOVED***
 
 // Main function
 export default function () ***REMOVED***
-    let response = http.get("https://test.loadimpact.com/");
+    let response = http.get("https://test.k6.io/");
 
     // check() returns false if any of the specified conditions fail
     let checkRes = check(response, ***REMOVED***
         "http2 is used": (r) => r.proto === "HTTP/2.0",
         "status is 200": (r) => r.status === 200,
-        "content is present": (r) => r.body.indexOf("Welcome to the LoadImpact.com demo site!") !== -1,
+        "content is present": (r) => r.body.indexOf("Collection of simple web-pages suitable for load testing.") !== -1,
     ***REMOVED***);
 
     // We reverse the check() result since we want to count the failures
@@ -317,8 +317,9 @@ export default function () ***REMOVED***
     group("Static Assets", function () ***REMOVED***
         // Execute multiple requests in parallel like a browser, to fetch some static resources
         let resps = http.batch([
-            ["GET", "https://test.loadimpact.com/style.css", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
-            ["GET", "https://test.loadimpact.com/images/logo.png", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***]
+            ["GET", "https://test.k6.io/static/css/site.css", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
+            ["GET", "https://test.k6.io/static/favicon.ico", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
+            ["GET", "https://test.k6.io/static/js/prisms.js", null, ***REMOVED*** tags: ***REMOVED*** staticAsset: "yes" ***REMOVED*** ***REMOVED***],
         ]);
         // Combine check() call with failure tracking
         failureRate.add(!check(resps, ***REMOVED***

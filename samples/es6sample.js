@@ -25,21 +25,21 @@ export default function() ***REMOVED***
 		***REMOVED***);
 
 		group("json", function() ***REMOVED***
-			let res = http.get("https://httpbin.org/get", null, ***REMOVED***
+			let res = http.get("https://httpbin.org/get", ***REMOVED***
 				headers: ***REMOVED*** "X-Test": "abc123" ***REMOVED***,
 			***REMOVED***);
+
 			check(res, ***REMOVED***
 				"status is 200": (res) => res.status === 200,
 				"X-Test header is correct": (res) => res.json().headers['X-Test'] === "abc123",
 			***REMOVED***);
-			// console.log(res.body);
 		***REMOVED***);
 
 		group("html", function() ***REMOVED***
-			check(http.get("http://test.loadimpact.com/"), ***REMOVED***
+			check(http.get("http://test.k6.io/"), ***REMOVED***
 				"status is 200": (res) => res.status === 200,
-				"content type is html": (res) => res.headers['Content-Type'] === "text/html",
-				"welcome message is correct": (res) => res.html("h2").text() === "Welcome to the LoadImpact.com demo site!",
+				"content type is html": (res) => res.headers['Content-Type'].startsWith("text/html"),
+				"welcome message is correct": (res) => res.html("p.description").text() === "Collection of simple web-pages suitable for load testing.",
 			***REMOVED***);
 		***REMOVED***);
 
