@@ -48,9 +48,6 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-//nolint:gochecknoglobals
-var errInterrupt = errors.New("context cancelled")
-
 // Ensure Runner implements the lib.Runner interface
 var _ lib.Runner = &Runner***REMOVED******REMOVED***
 
@@ -404,7 +401,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 	defer cancel()
 	go func() ***REMOVED***
 		<-ctx.Done()
-		vu.Runtime.Interrupt(errInterrupt)
+		vu.Runtime.Interrupt(context.Canceled)
 	***REMOVED***()
 	*vu.Context = ctx
 
@@ -422,8 +419,8 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 
 	// deadline is reached so we have timeouted but this might've not been registered correctly
 	if deadline, ok := ctx.Deadline(); ok && time.Now().After(deadline) ***REMOVED***
-		// we could have an error that is not errInterrupt in which case we should return it instead
-		if err, ok := err.(*goja.InterruptedError); ok && v != nil && err.Value() != errInterrupt ***REMOVED***
+		// we could have an error that is not context.Canceled in which case we should return it instead
+		if err, ok := err.(*goja.InterruptedError); ok && v != nil && err.Value() != context.Canceled ***REMOVED***
 			// TODO: silence this error?
 			return v, err
 		***REMOVED***
@@ -535,7 +532,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		// Wait for the run context to be over
 		<-params.RunContext.Done()
 		// Interrupt the JS runtime
-		u.Runtime.Interrupt(errInterrupt)
+		u.Runtime.Interrupt(context.Canceled)
 		// Wait for the VU to stop running, if it was, and prevent it from
 		// running again for this activation
 		avu.busy <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
@@ -583,7 +580,7 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 	// Call the exported function.
 	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, true, fn, u.setupData)
 
-	// If MinIterationDuration is specified and the iteration wasn't cancelled
+	// If MinIterationDuration is specified and the iteration wasn't canceled
 	// and was less than it, sleep for the remainder
 	if isFullIteration && u.Runner.Bundle.Options.MinIterationDuration.Valid ***REMOVED***
 		durationDiff := time.Duration(u.Runner.Bundle.Options.MinIterationDuration.Duration) - totalTime

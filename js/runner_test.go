@@ -578,7 +578,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = activeVU.RunOnce()
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "context cancelled")
+			assert.Contains(t, err.Error(), "context canceled")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -624,7 +624,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 					close(ch)
 					vuErr := vu.RunOnce()
 					assert.Error(t, vuErr)
-					assert.Contains(t, vuErr.Error(), "context cancelled")
+					assert.Contains(t, vuErr.Error(), "context canceled")
 				***REMOVED***()
 				<-ch
 				time.Sleep(time.Millisecond * 1) // NOTE: increase this in case of problems ;)

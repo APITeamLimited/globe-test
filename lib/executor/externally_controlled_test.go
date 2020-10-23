@@ -53,7 +53,7 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 
 	doneIters := new(uint64)
-	var ctx, cancel, executor, _ = setupExecutor(
+	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestExternallyControlledConfig(), es,
 		simpleRunner(func(ctx context.Context) error ***REMOVED***
 			time.Sleep(200 * time.Millisecond)
@@ -129,6 +129,6 @@ func TestExternallyControlledRun(t *testing.T) ***REMOVED***
 
 	wg.Wait()
 	require.NoError(t, <-errCh)
-	assert.Equal(t, uint64(48), atomic.LoadUint64(doneIters))
+	assert.InDelta(t, 48, int(atomic.LoadUint64(doneIters)), 2)
 	assert.Equal(t, [][]int64***REMOVED******REMOVED***2, 10***REMOVED***, ***REMOVED***4, 10***REMOVED***, ***REMOVED***8, 20***REMOVED***, ***REMOVED***4, 10***REMOVED***, ***REMOVED***0, 10***REMOVED******REMOVED***, resultVUCount)
 ***REMOVED***
