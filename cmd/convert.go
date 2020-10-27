@@ -47,11 +47,13 @@ var (
 	skip                []string
 )
 
-var convertCmd = &cobra.Command***REMOVED***
-	Use:   "convert",
-	Short: "Convert a HAR file to a k6 script",
-	Long:  "Convert a HAR (HTTP Archive) file to a k6 script",
-	Example: `
+//nolint:funlen,gocognit
+func getConvertCmd() *cobra.Command ***REMOVED***
+	convertCmd := &cobra.Command***REMOVED***
+		Use:   "convert",
+		Short: "Convert a HAR file to a k6 script",
+		Long:  "Convert a HAR (HTTP Archive) file to a k6 script",
+		Example: `
   # Convert a HAR file to a k6 script.
   k6 convert -O har-session.js session.har
 
@@ -63,72 +65,71 @@ var convertCmd = &cobra.Command***REMOVED***
 
   # Run the k6 script.
   k6 run har-session.js`[1:],
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// Parse the HAR file
-		filePath, err := filepath.Abs(args[0])
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		r, err := defaultFs.Open(filePath)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		h, err := har.Decode(r)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := r.Close(); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		// recordings include redirections as separate requests, and we dont want to trigger them twice
-		options := lib.Options***REMOVED***MaxRedirects: null.IntFrom(0)***REMOVED***
-
-		if optionsFilePath != "" ***REMOVED***
-			optionsFileContents, err := ioutil.ReadFile(optionsFilePath)
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			// Parse the HAR file
+			filePath, err := filepath.Abs(args[0])
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			var injectedOptions lib.Options
-			if err := json.Unmarshal(optionsFileContents, &injectedOptions); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			options = options.Apply(injectedOptions)
-		***REMOVED***
-
-		//TODO: refactor...
-		script, err := har.Convert(h, options, minSleep, maxSleep, enableChecks, returnOnFailedCheck, threshold, nobatch, correlate, only, skip)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		// Write script content to stdout or file
-		if output == "" || output == "-" ***REMOVED***
-			if _, err := io.WriteString(defaultWriter, script); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			f, err := defaultFs.Create(output)
+			r, err := defaultFs.Open(filePath)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			if _, err := f.WriteString(script); err != nil ***REMOVED***
+			h, err := har.Decode(r)
+			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			if err := f.Sync(); err != nil ***REMOVED***
+			if err = r.Close(); err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			if err := f.Close(); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-		***REMOVED***
-		return nil
-	***REMOVED***,
-***REMOVED***
 
-func init() ***REMOVED***
-	RootCmd.AddCommand(convertCmd)
+			// recordings include redirections as separate requests, and we dont want to trigger them twice
+			options := lib.Options***REMOVED***MaxRedirects: null.IntFrom(0)***REMOVED***
+
+			if optionsFilePath != "" ***REMOVED***
+				optionsFileContents, err := ioutil.ReadFile(optionsFilePath) //nolint:gosec,govet
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				var injectedOptions lib.Options
+				if err := json.Unmarshal(optionsFileContents, &injectedOptions); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				options = options.Apply(injectedOptions)
+			***REMOVED***
+
+			// TODO: refactor...
+			script, err := har.Convert(h, options, minSleep, maxSleep, enableChecks,
+				returnOnFailedCheck, threshold, nobatch, correlate, only, skip)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+
+			// Write script content to stdout or file
+			if output == "" || output == "-" ***REMOVED*** //nolint:nestif
+				if _, err := io.WriteString(defaultWriter, script); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				f, err := defaultFs.Create(output)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				if _, err := f.WriteString(script); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				if err := f.Sync(); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				if err := f.Close(); err != nil ***REMOVED***
+					return err
+				***REMOVED***
+			***REMOVED***
+			return nil
+		***REMOVED***,
+	***REMOVED***
+
 	convertCmd.Flags().SortFlags = false
 	convertCmd.Flags().StringVarP(&output, "output", "O", output, "k6 script output filename (stdout by default)")
 	convertCmd.Flags().StringVarP(&optionsFilePath, "options", "", output, "path to a JSON file with options that would be injected in the output script")
@@ -141,4 +142,10 @@ func init() ***REMOVED***
 	convertCmd.Flags().BoolVarP(&correlate, "correlate", "", false, "detect values in responses being used in subsequent requests and try adapt the script accordingly (only redirects and JSON values for now)")
 	convertCmd.Flags().UintVarP(&minSleep, "min-sleep", "", 20, "the minimum amount of seconds to sleep after each iteration")
 	convertCmd.Flags().UintVarP(&maxSleep, "max-sleep", "", 40, "the maximum amount of seconds to sleep after each iteration")
+	return convertCmd
+***REMOVED***
+
+func init() ***REMOVED***
+	convertCmd := getConvertCmd()
+	RootCmd.AddCommand(convertCmd)
 ***REMOVED***

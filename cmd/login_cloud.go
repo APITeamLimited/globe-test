@@ -36,14 +36,16 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-// loginCloudCommand represents the 'login cloud' command
-var loginCloudCommand = &cobra.Command***REMOVED***
-	Use:   "cloud",
-	Short: "Authenticate with Load Impact",
-	Long: `Authenticate with Load Impact.
+//nolint:funlen
+func getLoginCloudCommand() *cobra.Command ***REMOVED***
+	// loginCloudCommand represents the 'login cloud' command
+	loginCloudCommand := &cobra.Command***REMOVED***
+		Use:   "cloud",
+		Short: "Authenticate with Load Impact",
+		Long: `Authenticate with Load Impact.
 
 This will set the default token used when just "k6 run -o cloud" is passed.`,
-	Example: `
+		Example: `
   # Show the stored token.
   k6 login cloud -s
 
@@ -52,86 +54,81 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 
   # Log in with an email/password.
   k6 login cloud`[1:],
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// TODO: don't use a global... or maybe change the logger?
-		logger := logrus.StandardLogger()
-		fs := afero.NewOsFs()
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			// TODO: don't use a global... or maybe change the logger?
+			logger := logrus.StandardLogger()
+			fs := afero.NewOsFs()
 
-		k6Conf, err := getConsolidatedConfig(fs, Config***REMOVED******REMOVED***, nil)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		currentDiskConf, configPath, err := readDiskConfig(fs)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		show := getNullBool(cmd.Flags(), "show")
-		reset := getNullBool(cmd.Flags(), "reset")
-		token := getNullString(cmd.Flags(), "token")
-
-		newCloudConf := cloud.NewConfig().Apply(currentDiskConf.Collectors.Cloud)
-
-		switch ***REMOVED***
-		case reset.Valid:
-			newCloudConf.Token = null.StringFromPtr(nil)
-			fprintf(stdout, "  token reset\n")
-		case show.Bool:
-		case token.Valid:
-			newCloudConf.Token = token
-		default:
-			form := ui.Form***REMOVED***
-				Fields: []ui.Field***REMOVED***
-					ui.StringField***REMOVED***
-						Key:   "Email",
-						Label: "Email",
-					***REMOVED***,
-					ui.PasswordField***REMOVED***
-						Key:   "Password",
-						Label: "Password",
-					***REMOVED***,
-				***REMOVED***,
-			***REMOVED***
-			if !terminal.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
-				logger.Warn("Stdin is not a terminal, falling back to plain text input")
-			***REMOVED***
-			vals, err := form.Run(os.Stdin, stdout)
-			if err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			email := vals["Email"].(string)
-			password := vals["Password"].(string)
-
-			client := cloud.NewClient(logger, "", k6Conf.Collectors.Cloud.Host.String, consts.Version)
-			res, err := client.Login(email, password)
+			k6Conf, err := getConsolidatedConfig(fs, Config***REMOVED******REMOVED***, nil)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
-			if res.Token == "" ***REMOVED***
-				return errors.New(`your account has no API token, please generate one at https://app.k6.io/account/api-token`)
+			currentDiskConf, configPath, err := readDiskConfig(fs)
+			if err != nil ***REMOVED***
+				return err
 			***REMOVED***
 
-			newCloudConf.Token = null.StringFrom(res.Token)
-		***REMOVED***
+			show := getNullBool(cmd.Flags(), "show")
+			reset := getNullBool(cmd.Flags(), "reset")
+			token := getNullString(cmd.Flags(), "token")
 
-		currentDiskConf.Collectors.Cloud = newCloudConf
-		if err := writeDiskConfig(fs, configPath, currentDiskConf); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			newCloudConf := cloud.NewConfig().Apply(currentDiskConf.Collectors.Cloud)
 
-		if newCloudConf.Token.Valid ***REMOVED***
-			fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(newCloudConf.Token.String))
-		***REMOVED***
-		return nil
-	***REMOVED***,
-***REMOVED***
+			switch ***REMOVED***
+			case reset.Valid:
+				newCloudConf.Token = null.StringFromPtr(nil)
+				fprintf(stdout, "  token reset\n")
+			case show.Bool:
+			case token.Valid:
+				newCloudConf.Token = token
+			default:
+				form := ui.Form***REMOVED***
+					Fields: []ui.Field***REMOVED***
+						ui.StringField***REMOVED***
+							Key:   "Email",
+							Label: "Email",
+						***REMOVED***,
+						ui.PasswordField***REMOVED***
+							Key:   "Password",
+							Label: "Password",
+						***REMOVED***,
+					***REMOVED***,
+				***REMOVED***
+				if !terminal.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
+					logger.Warn("Stdin is not a terminal, falling back to plain text input")
+				***REMOVED***
+				vals, err := form.Run(os.Stdin, stdout)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				email := vals["Email"].(string)
+				password := vals["Password"].(string)
 
-func init() ***REMOVED***
-	loginCmd.AddCommand(loginCloudCommand)
-	loginCloudCommand.Flags().StringP("token", "t", "", "specify `token` to use")
-	loginCloudCommand.Flags().BoolP("show", "s", false, "display saved token and exit")
-	loginCloudCommand.Flags().BoolP("reset", "r", false, "reset token")
+				client := cloud.NewClient(logger, "", k6Conf.Collectors.Cloud.Host.String, consts.Version)
+				res, err := client.Login(email, password)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+
+				if res.Token == "" ***REMOVED***
+					return errors.New(`your account has no API token, please generate one at https://app.k6.io/account/api-token`)
+				***REMOVED***
+
+				newCloudConf.Token = null.StringFrom(res.Token)
+			***REMOVED***
+
+			currentDiskConf.Collectors.Cloud = newCloudConf
+			if err := writeDiskConfig(fs, configPath, currentDiskConf); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+
+			if newCloudConf.Token.Valid ***REMOVED***
+				fprintf(stdout, "  token: %s\n", ui.ValueColor.Sprint(newCloudConf.Token.String))
+			***REMOVED***
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	return loginCloudCommand
 ***REMOVED***

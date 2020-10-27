@@ -26,39 +26,43 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/loadimpact/k6/api/v1"
+	v1 "github.com/loadimpact/k6/api/v1"
 	"github.com/loadimpact/k6/api/v1/client"
 	"github.com/loadimpact/k6/ui"
 )
 
-// scaleCmd represents the scale command
-var scaleCmd = &cobra.Command***REMOVED***
-	Use:   "scale",
-	Short: "Scale a running test",
-	Long: `Scale a running test.
+func getScaleCmd() *cobra.Command ***REMOVED***
+	// scaleCmd represents the scale command
+	scaleCmd := &cobra.Command***REMOVED***
+		Use:   "scale",
+		Short: "Scale a running test",
+		Long: `Scale a running test.
 
   Use the global --address flag to specify the URL to the API server.`,
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		vus := getNullInt64(cmd.Flags(), "vus")
-		max := getNullInt64(cmd.Flags(), "max")
-		if !vus.Valid && !max.Valid ***REMOVED***
-			return errors.New("Specify either -u/--vus or -m/--max")
-		***REMOVED***
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			vus := getNullInt64(cmd.Flags(), "vus")
+			max := getNullInt64(cmd.Flags(), "max")
+			if !vus.Valid && !max.Valid ***REMOVED***
+				return errors.New("Specify either -u/--vus or -m/--max") //nolint:golint
+			***REMOVED***
 
-		c, err := client.New(address)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		status, err := c.SetStatus(context.Background(), v1.Status***REMOVED***VUs: vus, VUsMax: max***REMOVED***)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		ui.Dump(stdout, status)
-		return nil
-	***REMOVED***,
+			c, err := client.New(address)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			status, err := c.SetStatus(context.Background(), v1.Status***REMOVED***VUs: vus, VUsMax: max***REMOVED***)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			ui.Dump(stdout, status)
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	return scaleCmd
 ***REMOVED***
 
 func init() ***REMOVED***
+	scaleCmd := getScaleCmd()
 	RootCmd.AddCommand(scaleCmd)
 
 	scaleCmd.Flags().Int64P("vus", "u", 1, "number of virtual users")

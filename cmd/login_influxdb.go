@@ -36,88 +36,88 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-// loginInfluxDBCommand represents the 'login influxdb' command
-var loginInfluxDBCommand = &cobra.Command***REMOVED***
-	Use:   "influxdb [uri]",
-	Short: "Authenticate with InfluxDB",
-	Long: `Authenticate with InfluxDB.
+//nolint:funlen
+func getLoginInfluxDBCommand() *cobra.Command ***REMOVED***
+	// loginInfluxDBCommand represents the 'login influxdb' command
+	loginInfluxDBCommand := &cobra.Command***REMOVED***
+		Use:   "influxdb [uri]",
+		Short: "Authenticate with InfluxDB",
+		Long: `Authenticate with InfluxDB.
 
 This will set the default server used when just "-o influxdb" is passed.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// TODO: don't use a global... or maybe change the logger?
-		logger := logrus.StandardLogger()
-		fs := afero.NewOsFs()
-		config, configPath, err := readDiskConfig(fs)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		conf := influxdb.NewConfig().Apply(config.Collectors.InfluxDB)
-		if len(args) > 0 ***REMOVED***
-			urlConf, err := influxdb.ParseURL(args[0])
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			// TODO: don't use a global... or maybe change the logger?
+			logger := logrus.StandardLogger()
+			fs := afero.NewOsFs()
+			config, configPath, err := readDiskConfig(fs)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			conf = conf.Apply(urlConf)
-		***REMOVED***
 
-		form := ui.Form***REMOVED***
-			Fields: []ui.Field***REMOVED***
-				ui.StringField***REMOVED***
-					Key:     "Addr",
-					Label:   "Address",
-					Default: conf.Addr.String,
+			conf := influxdb.NewConfig().Apply(config.Collectors.InfluxDB)
+			if len(args) > 0 ***REMOVED***
+				urlConf, err := influxdb.ParseURL(args[0]) //nolint:govet
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				conf = conf.Apply(urlConf)
+			***REMOVED***
+
+			form := ui.Form***REMOVED***
+				Fields: []ui.Field***REMOVED***
+					ui.StringField***REMOVED***
+						Key:     "Addr",
+						Label:   "Address",
+						Default: conf.Addr.String,
+					***REMOVED***,
+					ui.StringField***REMOVED***
+						Key:     "DB",
+						Label:   "Database",
+						Default: conf.DB.String,
+					***REMOVED***,
+					ui.StringField***REMOVED***
+						Key:     "Username",
+						Label:   "Username",
+						Default: conf.Username.String,
+					***REMOVED***,
+					ui.PasswordField***REMOVED***
+						Key:   "Password",
+						Label: "Password",
+					***REMOVED***,
 				***REMOVED***,
-				ui.StringField***REMOVED***
-					Key:     "DB",
-					Label:   "Database",
-					Default: conf.DB.String,
-				***REMOVED***,
-				ui.StringField***REMOVED***
-					Key:     "Username",
-					Label:   "Username",
-					Default: conf.Username.String,
-				***REMOVED***,
-				ui.PasswordField***REMOVED***
-					Key:   "Password",
-					Label: "Password",
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***
-		if !terminal.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
-			logger.Warn("Stdin is not a terminal, falling back to plain text input")
-		***REMOVED***
-		vals, err := form.Run(os.Stdin, stdout)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			***REMOVED***
+			if !terminal.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
+				logger.Warn("Stdin is not a terminal, falling back to plain text input")
+			***REMOVED***
+			vals, err := form.Run(os.Stdin, stdout)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig***REMOVED***
-			DecodeHook: types.NullDecoder,
-			Result:     &conf,
-		***REMOVED***)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig***REMOVED***
+				DecodeHook: types.NullDecoder,
+				Result:     &conf,
+			***REMOVED***)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		if err := dec.Decode(vals); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			if err = dec.Decode(vals); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		coll, err := influxdb.New(logger, conf)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if _, _, err := coll.Client.Ping(10 * time.Second); err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			coll, err := influxdb.New(logger, conf)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if _, _, err := coll.Client.Ping(10 * time.Second); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		config.Collectors.InfluxDB = conf
-		return writeDiskConfig(fs, configPath, config)
-	***REMOVED***,
-***REMOVED***
-
-func init() ***REMOVED***
-	loginCmd.AddCommand(loginInfluxDBCommand)
+			config.Collectors.InfluxDB = conf
+			return writeDiskConfig(fs, configPath, config)
+		***REMOVED***,
+	***REMOVED***
+	return loginInfluxDBCommand
 ***REMOVED***

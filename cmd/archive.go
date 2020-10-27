@@ -33,71 +33,74 @@ import (
 
 var archiveOut = "archive.tar"
 
-// archiveCmd represents the pause command
-var archiveCmd = &cobra.Command***REMOVED***
-	Use:   "archive",
-	Short: "Create an archive",
-	Long: `Create an archive.
+func getArchiveCmd() *cobra.Command ***REMOVED***
+	// archiveCmd represents the pause command
+	archiveCmd := &cobra.Command***REMOVED***
+		Use:   "archive",
+		Short: "Create an archive",
+		Long: `Create an archive.
 
 An archive is a fully self-contained test run, and can be executed identically elsewhere.`,
-	Example: `
+		Example: `
   # Archive a test run.
   k6 archive -u 10 -d 10s -O myarchive.tar script.js
 
   # Run the resulting archive.
   k6 run myarchive.tar`[1:],
-	Args: cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// TODO: don't use the Global logger
-		logger := logrus.StandardLogger()
-		// Runner.
-		pwd, err := os.Getwd()
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		filename := args[0]
-		filesystems := loader.CreateFilesystems()
-		src, err := loader.ReadSource(logger, filename, pwd, filesystems, os.Stdin)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			// TODO: don't use the Global logger
+			logger := logrus.StandardLogger()
+			// Runner.
+			pwd, err := os.Getwd()
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			filename := args[0]
+			filesystems := loader.CreateFilesystems()
+			src, err := loader.ReadSource(logger, filename, pwd, filesystems, os.Stdin)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		cliOpts, err := getOptions(cmd.Flags())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			cliOpts, err := getOptions(cmd.Flags())
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		if _, cerr := deriveAndValidateConfig(conf, r.IsExecutable); cerr != nil ***REMOVED***
-			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
-		***REMOVED***
+			if _, cerr := deriveAndValidateConfig(conf, r.IsExecutable); cerr != nil ***REMOVED***
+				return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
+			***REMOVED***
 
-		err = r.SetOptions(conf.Options)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			err = r.SetOptions(conf.Options)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		// Archive.
-		arc := r.MakeArchive()
-		f, err := os.Create(archiveOut)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		return arc.Write(f)
-	***REMOVED***,
+			// Archive.
+			arc := r.MakeArchive()
+			f, err := os.Create(archiveOut)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			return arc.Write(f)
+		***REMOVED***,
+	***REMOVED***
+	return archiveCmd
 ***REMOVED***
 
 func archiveCmdFlagSet() *pflag.FlagSet ***REMOVED***
@@ -111,6 +114,7 @@ func archiveCmdFlagSet() *pflag.FlagSet ***REMOVED***
 ***REMOVED***
 
 func init() ***REMOVED***
+	archiveCmd := getArchiveCmd()
 	RootCmd.AddCommand(archiveCmd)
 	archiveCmd.Flags().SortFlags = false
 	archiveCmd.Flags().AddFlagSet(archiveCmdFlagSet())

@@ -29,27 +29,30 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-// statusCmd represents the status command
-var statusCmd = &cobra.Command***REMOVED***
-	Use:   "status",
-	Short: "Show test status",
-	Long: `Show test status.
+func getStatusCmd() *cobra.Command ***REMOVED***
+	// statusCmd represents the status command
+	statusCmd := &cobra.Command***REMOVED***
+		Use:   "status",
+		Short: "Show test status",
+		Long: `Show test status.
 
   Use the global --address flag to specify the URL to the API server.`,
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		c, err := client.New(address)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		status, err := c.Status(context.Background())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		ui.Dump(stdout, status)
-		return nil
-	***REMOVED***,
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			c, err := client.New(address)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			status, err := c.Status(context.Background())
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			ui.Dump(stdout, status)
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	return statusCmd
 ***REMOVED***
 
 func init() ***REMOVED***
-	RootCmd.AddCommand(statusCmd)
+	RootCmd.AddCommand(getStatusCmd())
 ***REMOVED***
