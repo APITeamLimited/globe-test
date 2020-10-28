@@ -73,7 +73,7 @@ var (
 	address   string
 )
 
-func getRootCmd() *cobra.Command ***REMOVED***
+func getRootCmd(ctx context.Context, logger *logrus.Logger, fallbackLogger logrus.FieldLogger) *cobra.Command ***REMOVED***
 	// RootCmd represents the base command when called without any subcommands.
 	RootCmd := &cobra.Command***REMOVED***
 		Use:           "k6",
@@ -82,13 +82,12 @@ func getRootCmd() *cobra.Command ***REMOVED***
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-			logger := logrus.StandardLogger() // don't use the global one to begin with
 			if !cmd.Flags().Changed("log-output") ***REMOVED***
 				if envLogOutput, ok := os.LookupEnv("K6_LOG_OUTPUT"); ok ***REMOVED***
 					logOutput = envLogOutput
 				***REMOVED***
 			***REMOVED***
-			err := setupLoggers(logger, logFmt, logOutput)
+			err := setupLoggers(ctx, logger, fallbackLogger, logFmt, logOutput)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -120,7 +119,21 @@ func getRootCmd() *cobra.Command ***REMOVED***
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED*** //nolint:funlen
-	RootCmd := getRootCmd()
+	ctx := context.Background()
+	logger := &logrus.Logger***REMOVED***
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	***REMOVED***
+
+	var fallbackLogger logrus.FieldLogger = &logrus.Logger***REMOVED***
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	***REMOVED***
+	RootCmd := getRootCmd(ctx, logger, fallbackLogger)
 	confDir, err := os.UserConfigDir()
 	if err != nil ***REMOVED***
 		logrus.WithError(err).Warn("could not get config directory")
@@ -135,19 +148,19 @@ func Execute() ***REMOVED*** //nolint:funlen
 
 	RootCmd.PersistentFlags().AddFlagSet(rootCmdPersistentFlagSet())
 
-	archiveCmd := getArchiveCmd()
+	archiveCmd := getArchiveCmd(logger)
 	RootCmd.AddCommand(archiveCmd)
 	archiveCmd.Flags().SortFlags = false
 	archiveCmd.Flags().AddFlagSet(archiveCmdFlagSet())
 
-	cloudCmd := getCloudCmd()
+	cloudCmd := getCloudCmd(ctx, logger)
 	RootCmd.AddCommand(cloudCmd)
 	cloudCmd.Flags().SortFlags = false
 	cloudCmd.Flags().AddFlagSet(cloudCmdFlagSet())
 
 	RootCmd.AddCommand(getConvertCmd())
 
-	inspectCmd := getInspectCmd()
+	inspectCmd := getInspectCmd(logger)
 	RootCmd.AddCommand(inspectCmd)
 	inspectCmd.Flags().SortFlags = false
 	inspectCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
@@ -156,47 +169,46 @@ func Execute() ***REMOVED*** //nolint:funlen
 	loginCmd := getLoginCmd()
 	RootCmd.AddCommand(loginCmd)
 
-	loginCloudCommand := getLoginCloudCommand()
+	loginCloudCommand := getLoginCloudCommand(logger)
 	loginCmd.AddCommand(loginCloudCommand)
 	loginCloudCommand.Flags().StringP("token", "t", "", "specify `token` to use")
 	loginCloudCommand.Flags().BoolP("show", "s", false, "display saved token and exit")
 	loginCloudCommand.Flags().BoolP("reset", "r", false, "reset token")
 
-	loginInfluxDBCommand := getLoginInfluxDBCommand()
-	loginCmd.AddCommand(loginInfluxDBCommand)
+	loginCmd.AddCommand(getLoginInfluxDBCommand(logger))
 
-	RootCmd.AddCommand(getPauseCmd())
+	RootCmd.AddCommand(getPauseCmd(ctx))
 
-	RootCmd.AddCommand(getResumeCmd())
+	RootCmd.AddCommand(getResumeCmd(ctx))
 
-	scaleCmd := getScaleCmd()
+	scaleCmd := getScaleCmd(ctx)
 	RootCmd.AddCommand(scaleCmd)
 
 	scaleCmd.Flags().Int64P("vus", "u", 1, "number of virtual users")
 	scaleCmd.Flags().Int64P("max", "m", 0, "max available virtual users")
 
-	runCmd := getRunCmd()
+	runCmd := getRunCmd(ctx, logger)
 	RootCmd.AddCommand(runCmd)
 
 	runCmd.Flags().SortFlags = false
 	runCmd.Flags().AddFlagSet(runCmdFlagSet())
 
-	RootCmd.AddCommand(getStatsCmd())
+	RootCmd.AddCommand(getStatsCmd(ctx))
 
-	RootCmd.AddCommand(getStatusCmd())
+	RootCmd.AddCommand(getStatusCmd(ctx))
 
 	RootCmd.AddCommand(getVersionCmd())
 
 	if err := RootCmd.Execute(); err != nil ***REMOVED***
+		fields := logrus.Fields***REMOVED******REMOVED***
 		code := -1
-		var logger logrus.FieldLogger = logrus.StandardLogger()
 		if e, ok := err.(ExitCode); ok ***REMOVED***
 			code = e.Code
 			if e.Hint != "" ***REMOVED***
-				logger = logger.WithField("hint", e.Hint)
+				fields["hint"] = e.Hint
 			***REMOVED***
 		***REMOVED***
-		logger.Error(err)
+		logger.WithFields(fields).Error(err)
 		os.Exit(code)
 	***REMOVED***
 ***REMOVED***
@@ -238,7 +250,9 @@ func (f RawFormatter) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
 	return append([]byte(entry.Message), '\n'), nil
 ***REMOVED***
 
-func setupLoggers(logger *logrus.Logger, logFmt string, logOutput string) error ***REMOVED***
+func setupLoggers(
+	ctx context.Context, logger *logrus.Logger, fallbackLogger logrus.FieldLogger, logFmt, logOutput string,
+) error ***REMOVED***
 	if verbose ***REMOVED***
 		logger.SetLevel(logrus.DebugLevel)
 	***REMOVED***
@@ -250,18 +264,11 @@ func setupLoggers(logger *logrus.Logger, logFmt string, logOutput string) error 
 	case "none":
 		logger.SetOutput(ioutil.Discard)
 	default:
-		fallbackLogger := &logrus.Logger***REMOVED***
-			Out:       os.Stderr,
-			Formatter: new(logrus.TextFormatter),
-			Hooks:     make(logrus.LevelHooks),
-			Level:     logrus.InfoLevel,
-		***REMOVED***
-
 		if !strings.HasPrefix(logOutput, "loki") ***REMOVED***
 			return fmt.Errorf("unsupported log output `%s`", logOutput)
 		***REMOVED***
 		// TODO use some context that we can cancel
-		hook, err := log.LokiFromConfigLine(context.Background(), fallbackLogger, logOutput)
+		hook, err := log.LokiFromConfigLine(ctx, fallbackLogger, logOutput)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***

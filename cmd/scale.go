@@ -31,7 +31,7 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-func getScaleCmd() *cobra.Command ***REMOVED***
+func getScaleCmd(ctx context.Context) *cobra.Command ***REMOVED***
 	// scaleCmd represents the scale command
 	scaleCmd := &cobra.Command***REMOVED***
 		Use:   "scale",
@@ -50,7 +50,7 @@ func getScaleCmd() *cobra.Command ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			status, err := c.SetStatus(context.Background(), v1.Status***REMOVED***VUs: vus, VUsMax: max***REMOVED***)
+			status, err := c.SetStatus(ctx, v1.Status***REMOVED***VUs: vus, VUsMax: max***REMOVED***)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

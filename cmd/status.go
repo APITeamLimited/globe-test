@@ -29,7 +29,7 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-func getStatusCmd() *cobra.Command ***REMOVED***
+func getStatusCmd(ctx context.Context) *cobra.Command ***REMOVED***
 	// statusCmd represents the status command
 	statusCmd := &cobra.Command***REMOVED***
 		Use:   "status",
@@ -42,7 +42,7 @@ func getStatusCmd() *cobra.Command ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			status, err := c.Status(context.Background())
+			status, err := c.Status(ctx)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

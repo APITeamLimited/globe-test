@@ -33,7 +33,7 @@ import (
 
 var archiveOut = "archive.tar"
 
-func getArchiveCmd() *cobra.Command ***REMOVED***
+func getArchiveCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 	// archiveCmd represents the pause command
 	archiveCmd := &cobra.Command***REMOVED***
 		Use:   "archive",
@@ -49,8 +49,6 @@ An archive is a fully self-contained test run, and can be executed identically e
   k6 run myarchive.tar`[1:],
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-			// TODO: don't use the Global logger
-			logger := logrus.StandardLogger()
 			// Runner.
 			pwd, err := os.Getwd()
 			if err != nil ***REMOVED***
