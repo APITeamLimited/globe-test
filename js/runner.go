@@ -167,6 +167,14 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 		BlockedHostnames: r.Bundle.Options.BlockedHostnames.Trie,
 		Hosts:            r.Bundle.Options.Hosts,
 	***REMOVED***
+	if r.Bundle.Options.LocalIPs.Valid ***REMOVED***
+		var ipIndex uint64
+		if id > 0 ***REMOVED***
+			ipIndex = uint64(id - 1)
+		***REMOVED***
+		dialer.Dialer.LocalAddr = &net.TCPAddr***REMOVED***IP: r.Bundle.Options.LocalIPs.Pool.GetIP(ipIndex)***REMOVED***
+	***REMOVED***
+
 	tlsConfig := &tls.Config***REMOVED***
 		InsecureSkipVerify: r.Bundle.Options.InsecureSkipTLSVerify.Bool,
 		CipherSuites:       cipherSuites,
@@ -304,7 +312,6 @@ func (r *Runner) IsExecutable(name string) bool ***REMOVED***
 
 func (r *Runner) SetOptions(opts lib.Options) error ***REMOVED***
 	r.Bundle.Options = opts
-
 	r.RPSLimit = nil
 	if rps := opts.RPS; rps.Valid ***REMOVED***
 		r.RPSLimit = rate.NewLimiter(rate.Limit(rps.Int64), 1)
