@@ -52,7 +52,3 @@ func getStatusCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 	return statusCmd
 ***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(getStatusCmd())
-***REMOVED***

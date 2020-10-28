@@ -56,7 +56,3 @@ func getPauseCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 	return pauseCmd
 ***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(getPauseCmd())
-***REMOVED***

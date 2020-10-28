@@ -429,14 +429,6 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	return flags
 ***REMOVED***
 
-func init() ***REMOVED***
-	runCmd := getRunCmd()
-	RootCmd.AddCommand(runCmd)
-
-	runCmd.Flags().SortFlags = false
-	runCmd.Flags().AddFlagSet(runCmdFlagSet())
-***REMOVED***
-
 // Creates a new runner.
 func newRunner(
 	logger *logrus.Logger, src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,

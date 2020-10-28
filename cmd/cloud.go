@@ -366,10 +366,3 @@ func cloudCmdFlagSet() *pflag.FlagSet ***REMOVED***
 
 	return flags
 ***REMOVED***
-
-func init() ***REMOVED***
-	cloudCmd := getCloudCmd()
-	RootCmd.AddCommand(cloudCmd)
-	cloudCmd.Flags().SortFlags = false
-	cloudCmd.Flags().AddFlagSet(cloudCmdFlagSet())
-***REMOVED***

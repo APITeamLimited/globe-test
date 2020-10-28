@@ -112,10 +112,3 @@ func archiveCmdFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.StringVarP(&archiveOut, "archive-out", "O", archiveOut, "archive output filename")
 	return flags
 ***REMOVED***
-
-func init() ***REMOVED***
-	archiveCmd := getArchiveCmd()
-	RootCmd.AddCommand(archiveCmd)
-	archiveCmd.Flags().SortFlags = false
-	archiveCmd.Flags().AddFlagSet(archiveCmdFlagSet())
-***REMOVED***

@@ -40,7 +40,3 @@ func getVersionCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 	return versionCmd
 ***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(getVersionCmd())
-***REMOVED***

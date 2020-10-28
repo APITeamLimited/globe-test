@@ -56,7 +56,3 @@ func getResumeCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 	return resumeCmd
 ***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(getResumeCmd())
-***REMOVED***

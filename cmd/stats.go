@@ -52,7 +52,3 @@ func getStatsCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 	return statsCmd
 ***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(getStatsCmd())
-***REMOVED***
