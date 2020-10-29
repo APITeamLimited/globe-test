@@ -315,20 +315,52 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("UserAgent", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`
-			var res = http.get("HTTPBIN_URL/user-agent");
-			if (res.json()['user-agent'] != "TestUserAgent") ***REMOVED***
-				throw new Error("incorrect user agent: " + res.json()['user-agent'])
+			var res = http.get("HTTPBIN_URL/headers");
+			var headers = res.json()["headers"];
+			if (headers['User-Agent'] != "TestUserAgent") ***REMOVED***
+				throw new Error("incorrect user agent: " + headers['User-Agent'])
 			***REMOVED***
 		`))
 		assert.NoError(t, err)
 
 		t.Run("Override", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, sr(`
-				var res = http.get("HTTPBIN_URL/user-agent", ***REMOVED***
+				var res = http.get("HTTPBIN_URL/headers", ***REMOVED***
 					headers: ***REMOVED*** "User-Agent": "OtherUserAgent" ***REMOVED***,
 				***REMOVED***);
-				if (res.json()['user-agent'] != "OtherUserAgent") ***REMOVED***
-					throw new Error("incorrect user agent: " + res.json()['user-agent'])
+				var headers = res.json()["headers"];
+				if (headers['User-Agent'] != "OtherUserAgent") ***REMOVED***
+					throw new Error("incorrect user agent: " + headers['User-Agent'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+
+		t.Run("Override empty", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, sr(`
+				var res = http.get("HTTPBIN_URL/headers", ***REMOVED***
+					headers: ***REMOVED*** "User-Agent": "" ***REMOVED***,
+				***REMOVED***);
+				var headers = res.json()["headers"]
+				if (typeof headers['User-Agent'] !== 'undefined') ***REMOVED***
+					throw new Error("not undefined user agent: " +  headers['User-Agent'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
+
+		t.Run("empty", func(t *testing.T) ***REMOVED***
+			oldUserAgent := state.Options.UserAgent
+			defer func() ***REMOVED***
+				state.Options.UserAgent = oldUserAgent
+			***REMOVED***()
+
+			state.Options.UserAgent = null.NewString("", true)
+			_, err := common.RunString(rt, sr(`
+				var res = http.get("HTTPBIN_URL/headers");
+				var headers = res.json()["headers"]
+				if (typeof headers['User-Agent'] !== 'undefined') ***REMOVED***
+					throw new Error("not undefined user agent: " + headers['User-Agent'])
 				***REMOVED***
 			`))
 			assert.NoError(t, err)

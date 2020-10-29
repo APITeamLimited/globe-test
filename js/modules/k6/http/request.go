@@ -234,7 +234,7 @@ func (h *HTTP) parseRequest(
 		***REMOVED***
 	***REMOVED***
 
-	if userAgent := state.Options.UserAgent; userAgent.String != "" ***REMOVED***
+	if userAgent := state.Options.UserAgent; userAgent.Valid ***REMOVED***
 		result.Req.Header.Set("User-Agent", userAgent.String)
 	***REMOVED***
 
