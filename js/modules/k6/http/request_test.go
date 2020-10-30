@@ -365,6 +365,23 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			`))
 			assert.NoError(t, err)
 		***REMOVED***)
+
+		t.Run("default", func(t *testing.T) ***REMOVED***
+			oldUserAgent := state.Options.UserAgent
+			defer func() ***REMOVED***
+				state.Options.UserAgent = oldUserAgent
+			***REMOVED***()
+
+			state.Options.UserAgent = null.NewString("Default one", false)
+			_, err := common.RunString(rt, sr(`
+				var res = http.get("HTTPBIN_URL/headers");
+				var headers = res.json()["headers"]
+				if (headers['User-Agent'] != "Default one") ***REMOVED***
+					throw new Error("incorrect user agent: " + headers['User-Agent'])
+				***REMOVED***
+			`))
+			assert.NoError(t, err)
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("Compression", func(t *testing.T) ***REMOVED***
 		t.Run("gzip", func(t *testing.T) ***REMOVED***

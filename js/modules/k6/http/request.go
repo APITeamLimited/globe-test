@@ -234,9 +234,7 @@ func (h *HTTP) parseRequest(
 		***REMOVED***
 	***REMOVED***
 
-	if userAgent := state.Options.UserAgent; userAgent.Valid ***REMOVED***
-		result.Req.Header.Set("User-Agent", userAgent.String)
-	***REMOVED***
+	result.Req.Header.Set("User-Agent", state.Options.UserAgent.String)
 
 	if state.CookieJar != nil ***REMOVED***
 		result.ActiveJar = state.CookieJar
