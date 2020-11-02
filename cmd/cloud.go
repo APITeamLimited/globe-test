@@ -199,6 +199,9 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 			name = filepath.Base(filename)
 		***REMOVED***
 
+		globalCtx, globalCancel := context.WithCancel(context.Background())
+		defer globalCancel()
+
 		// Start cloud test run
 		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Validating script options"))
 		client := cloud.NewClient(logger, cloudConfig.Token.String, cloudConfig.Host.String, consts.Version)
@@ -226,7 +229,7 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 			pb.WithConstProgress(0, "Initializing the cloud test"),
 		)
 
-		progressCtx, progressCancel := context.WithCancel(context.Background())
+		progressCtx, progressCancel := context.WithCancel(globalCtx)
 		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
 		progressBarWG.Add(1)
 		defer progressBarWG.Wait()
@@ -240,6 +243,19 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 		sigC := make(chan os.Signal, 1)
 		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sigC)
+		go func() ***REMOVED***
+			sig := <-sigC
+			logger.WithField("sig", sig).Print("Stopping k6 in response to signal...")
+			err := client.StopCloudTestRun(refID)
+			if err != nil ***REMOVED***
+				logger.WithError(err).Error("Stop cloud test error")
+			***REMOVED***
+			globalCancel()
+
+			sig = <-sigC
+			logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
+			os.Exit(externalAbortErrorCode)
+		***REMOVED***()
 
 		var (
 			startTime   time.Time
@@ -279,12 +295,11 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 		)
 
 		ticker := time.NewTicker(time.Millisecond * 2000)
-		shouldExitLoop := false
 		if showCloudLogs ***REMOVED***
 			go func() ***REMOVED***
 				logger.Debug("Connecting to cloud logs server...")
 				// TODO replace with another context
-				if err := cloudConfig.StreamLogsToLogger(context.Background(), logger, refID, 0); err != nil ***REMOVED***
+				if err := cloudConfig.StreamLogsToLogger(globalCtx, logger, refID, 0); err != nil ***REMOVED***
 					logger.WithError(err).Error("error while tailing cloud logs")
 				***REMOVED***
 			***REMOVED***()
@@ -298,7 +313,8 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 				if progressErr == nil ***REMOVED***
 					if (newTestProgress.RunStatus > lib.RunStatusRunning) ||
 						(exitOnRunning && newTestProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
-						shouldExitLoop = true
+						globalCancel()
+						break runningLoop
 					***REMOVED***
 					testProgressLock.Lock()
 					testProgress = newTestProgress
@@ -306,16 +322,8 @@ This will execute the test on the k6 cloud service. Use "k6 login cloud" to auth
 				***REMOVED*** else ***REMOVED***
 					logger.WithError(progressErr).Error("Test progress error")
 				***REMOVED***
-				if shouldExitLoop ***REMOVED***
-					break runningLoop
-				***REMOVED***
-			case sig := <-sigC:
-				logger.WithField("sig", sig).Print("Exiting in response to signal...")
-				err := client.StopCloudTestRun(refID)
-				if err != nil ***REMOVED***
-					logger.WithError(err).Error("Stop cloud test error")
-				***REMOVED***
-				shouldExitLoop = true // Exit after the next GetTestProgress call
+			case <-globalCtx.Done():
+				break runningLoop
 			***REMOVED***
 		***REMOVED***
 
