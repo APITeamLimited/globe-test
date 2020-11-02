@@ -21,6 +21,7 @@
 package js
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -28,6 +29,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -601,9 +603,8 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 
 func (u *VU) runFn(
 	ctx context.Context, isDefault bool, fn goja.Callable, args ...goja.Value,
-) (goja.Value, bool, time.Duration, error) ***REMOVED***
+) (v goja.Value, isFullIteration bool, t time.Duration, err error) ***REMOVED***
 	if !u.Runner.Bundle.Options.NoCookiesReset.ValueOrZero() ***REMOVED***
-		var err error
 		u.state.CookieJar, err = cookiejar.New(nil)
 		if err != nil ***REMOVED***
 			return goja.Undefined(), false, time.Duration(0), err
@@ -621,11 +622,26 @@ func (u *VU) runFn(
 	u.Runtime.Set("__ITER", u.Iteration)
 	u.Iteration++
 
+	defer func() ***REMOVED***
+		if r := recover(); r != nil ***REMOVED***
+			gojaStack := u.Runtime.CaptureCallStack(20, nil)
+			err = fmt.Errorf("a panic occurred in VU code but was caught: %s", r)
+			// TODO figure out how to use PanicLevel without panicing .. this might require changing
+			// the logger we use see
+			// https://github.com/sirupsen/logrus/issues/1028
+			// https://github.com/sirupsen/logrus/issues/993
+			b := new(bytes.Buffer)
+			for _, s := range gojaStack ***REMOVED***
+				s.Write(b)
+			***REMOVED***
+			u.state.Logger.Log(logrus.ErrorLevel, "panic: ", r, "\n", string(debug.Stack()), "\nGoja stack:\n", b.String())
+		***REMOVED***
+	***REMOVED***()
+
 	startTime := time.Now()
-	v, err := fn(goja.Undefined(), args...) // Actually run the JS script
+	v, err = fn(goja.Undefined(), args...) // Actually run the JS script
 	endTime := time.Now()
 
-	var isFullIteration bool
 	select ***REMOVED***
 	case <-ctx.Done():
 		isFullIteration = false

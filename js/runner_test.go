@@ -33,10 +33,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -1732,6 +1734,69 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 					assert.Equal(t, tc.expVal, emittedVal)
 				***REMOVED***
 			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestVUPanic(t *testing.T) ***REMOVED***
+	r1, err := getSimpleRunner(t, "/script.js", `
+			var group = require("k6").group;
+			exports.default = function() ***REMOVED***
+				group("panic here", function() ***REMOVED***
+					if (__ITER == 0) ***REMOVED***
+						panic("here we panic");
+					***REMOVED***
+					console.log("here we don't");
+				***REMOVED***)
+			***REMOVED***`,
+	)
+	require.NoError(t, err)
+
+	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	if !assert.NoError(t, err) ***REMOVED***
+		return
+	***REMOVED***
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			initVU, err := r.NewVU(1234, make(chan stats.SampleContainer, 100))
+			if !assert.NoError(t, err) ***REMOVED***
+				return
+			***REMOVED***
+
+			logger := logrus.New()
+			logger.SetLevel(logrus.InfoLevel)
+			logger.Out = ioutil.Discard
+			hook := testutils.SimpleLogrusHook***REMOVED***
+				HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel***REMOVED***,
+			***REMOVED***
+			logger.AddHook(&hook)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			vu.(*ActiveVU).Runtime.Set("panic", func(str string) ***REMOVED*** panic(str) ***REMOVED***)
+			vu.(*ActiveVU).state.Logger = logger
+
+			vu.(*ActiveVU).Console.logger = logger.WithField("source", "console")
+			err = vu.RunOnce()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "a panic occurred in VU code but was caught: here we panic")
+			entries := hook.Drain()
+			require.Len(t, entries, 1)
+			assert.Equal(t, logrus.ErrorLevel, entries[0].Level)
+			require.True(t, strings.HasPrefix(entries[0].Message, "panic: here we panic"))
+			require.True(t, strings.HasSuffix(entries[0].Message, "Goja stack:\nfile:///script.js:3:4(12)"))
+
+			err = vu.RunOnce()
+			assert.NoError(t, err)
+
+			entries = hook.Drain()
+			require.Len(t, entries, 1)
+			assert.Equal(t, logrus.InfoLevel, entries[0].Level)
+			require.Contains(t, entries[0].Message, "here we don't")
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
