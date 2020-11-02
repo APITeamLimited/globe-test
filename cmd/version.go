@@ -28,16 +28,15 @@ import (
 	"github.com/loadimpact/k6/lib/consts"
 )
 
-// versionCmd represents the version command.
-var versionCmd = &cobra.Command***REMOVED***
-	Use:   "version",
-	Short: "Show application version",
-	Long:  `Show the application version and exit.`,
-	Run: func(cmd *cobra.Command, args []string) ***REMOVED***
-		fmt.Println("k6 v" + consts.FullVersion())
-	***REMOVED***,
-***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(versionCmd)
+func getVersionCmd() *cobra.Command ***REMOVED***
+	// versionCmd represents the version command.
+	versionCmd := &cobra.Command***REMOVED***
+		Use:   "version",
+		Short: "Show application version",
+		Long:  `Show the application version and exit.`,
+		Run: func(cmd *cobra.Command, args []string) ***REMOVED***
+			fmt.Println("k6 v" + consts.FullVersion())
+		***REMOVED***,
+	***REMOVED***
+	return versionCmd
 ***REMOVED***

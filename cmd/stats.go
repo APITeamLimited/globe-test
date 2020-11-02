@@ -29,27 +29,26 @@ import (
 	"github.com/loadimpact/k6/ui"
 )
 
-// statsCmd represents the stats command
-var statsCmd = &cobra.Command***REMOVED***
-	Use:   "stats",
-	Short: "Show test metrics",
-	Long: `Show test metrics.
+func getStatsCmd(ctx context.Context) *cobra.Command ***REMOVED***
+	// statsCmd represents the stats command
+	statsCmd := &cobra.Command***REMOVED***
+		Use:   "stats",
+		Short: "Show test metrics",
+		Long: `Show test metrics.
 
   Use the global --address flag to specify the URL to the API server.`,
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		c, err := client.New(address)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		metrics, err := c.Metrics(context.Background())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		ui.Dump(stdout, metrics)
-		return nil
-	***REMOVED***,
-***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(statsCmd)
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			c, err := client.New(address)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			metrics, err := c.Metrics(ctx)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			ui.Dump(stdout, metrics)
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	return statsCmd
 ***REMOVED***

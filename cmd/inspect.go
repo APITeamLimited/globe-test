@@ -34,71 +34,70 @@ import (
 	"github.com/loadimpact/k6/loader"
 )
 
-// inspectCmd represents the resume command
-var inspectCmd = &cobra.Command***REMOVED***
-	Use:   "inspect [file]",
-	Short: "Inspect a script or archive",
-	Long:  `Inspect a script or archive.`,
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// TODO: don't use the Global logger
-		logger := logrus.StandardLogger()
-		pwd, err := os.Getwd()
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		filesystems := loader.CreateFilesystems()
-		src, err := loader.ReadSource(logger, args[0], pwd, filesystems, os.Stdin)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		typ := runType
-		if typ == "" ***REMOVED***
-			typ = detectType(src.Data)
-		***REMOVED***
-
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		var (
-			opts lib.Options
-			b    *js.Bundle
-		)
-		switch typ ***REMOVED***
-		case typeArchive:
-			var arc *lib.Archive
-			arc, err = lib.ReadArchive(bytes.NewBuffer(src.Data))
+func getInspectCmd(logger logrus.FieldLogger) *cobra.Command ***REMOVED***
+	// inspectCmd represents the inspect command
+	inspectCmd := &cobra.Command***REMOVED***
+		Use:   "inspect [file]",
+		Short: "Inspect a script or archive",
+		Long:  `Inspect a script or archive.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			pwd, err := os.Getwd()
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			b, err = js.NewBundleFromArchive(logger, arc, runtimeOptions)
+			filesystems := loader.CreateFilesystems()
+			src, err := loader.ReadSource(logger, args[0], pwd, filesystems, os.Stdin)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			opts = b.Options
-		case typeJS:
-			b, err = js.NewBundle(logger, src, filesystems, runtimeOptions)
+
+			typ := runType
+			if typ == "" ***REMOVED***
+				typ = detectType(src.Data)
+			***REMOVED***
+
+			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			opts = b.Options
-		***REMOVED***
 
-		data, err := json.MarshalIndent(opts, "", "  ")
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		fmt.Println(string(data))
-		return nil
-	***REMOVED***,
-***REMOVED***
+			var (
+				opts lib.Options
+				b    *js.Bundle
+			)
+			switch typ ***REMOVED***
+			case typeArchive:
+				var arc *lib.Archive
+				arc, err = lib.ReadArchive(bytes.NewBuffer(src.Data))
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				b, err = js.NewBundleFromArchive(logger, arc, runtimeOptions)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				opts = b.Options
+			case typeJS:
+				b, err = js.NewBundle(logger, src, filesystems, runtimeOptions)
+				if err != nil ***REMOVED***
+					return err
+				***REMOVED***
+				opts = b.Options
+			***REMOVED***
 
-func init() ***REMOVED***
-	RootCmd.AddCommand(inspectCmd)
+			data, err := json.MarshalIndent(opts, "", "  ")
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			fmt.Println(string(data))
+			return nil
+		***REMOVED***,
+	***REMOVED***
+
 	inspectCmd.Flags().SortFlags = false
 	inspectCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
 	inspectCmd.Flags().StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
+
+	return inspectCmd
 ***REMOVED***

@@ -59,288 +59,289 @@ var (
 	showCloudLogs = true
 )
 
-//nolint:gochecknoglobals
-var cloudCmd = &cobra.Command***REMOVED***
-	Use:   "cloud",
-	Short: "Run a test on the cloud",
-	Long: `Run a test on the cloud.
+//nolint:funlen,gocognit,gocyclo
+func getCloudCmd(ctx context.Context, logger *logrus.Logger) *cobra.Command ***REMOVED***
+	cloudCmd := &cobra.Command***REMOVED***
+		Use:   "cloud",
+		Short: "Run a test on the cloud",
+		Long: `Run a test on the cloud.
 
 This will execute the test on the k6 cloud service. Use "k6 login cloud" to authenticate.`,
-	Example: `
+		Example: `
         k6 cloud script.js`[1:],
-	Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
-	RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		// TODO: don't use the Global logger
-		logger := logrus.StandardLogger()
-		// we specifically first parse it and return an error if it has bad value and then check if
-		// we are going to set it  ... so we always parse it instead of it breaking the command if
-		// the cli flag is removed
-		if showCloudLogsEnv, ok := os.LookupEnv("K6_SHOW_CLOUD_LOGS"); ok ***REMOVED***
-			showCloudLogsValue, err := strconv.ParseBool(showCloudLogsEnv)
+		Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
+		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			// we specifically first parse it and return an error if it has bad value and then check if
+			// we are going to set it  ... so we always parse it instead of it breaking the command if
+			// the cli flag is removed
+			if showCloudLogsEnv, ok := os.LookupEnv("K6_SHOW_CLOUD_LOGS"); ok ***REMOVED***
+				showCloudLogsValue, err := strconv.ParseBool(showCloudLogsEnv)
+				if err != nil ***REMOVED***
+					return fmt.Errorf("parsing K6_SHOW_CLOUD_LOGS returned an error: %w", err)
+				***REMOVED***
+				if !cmd.Flags().Changed("show-logs") ***REMOVED***
+					showCloudLogs = showCloudLogsValue
+				***REMOVED***
+			***REMOVED***
+			// TODO: disable in quiet mode?
+			_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner())
+
+			progressBar := pb.New(
+				pb.WithConstLeft("Init"),
+				pb.WithConstProgress(0, "Parsing script"),
+			)
+			printBar(progressBar)
+
+			// Runner
+			pwd, err := os.Getwd()
 			if err != nil ***REMOVED***
-				return fmt.Errorf("parsing K6_SHOW_CLOUD_LOGS returned an error: %w", err)
-			***REMOVED***
-			if !cmd.Flags().Changed("show-logs") ***REMOVED***
-				showCloudLogs = showCloudLogsValue
-			***REMOVED***
-
-		***REMOVED***
-		// TODO: disable in quiet mode?
-		_, _ = BannerColor.Fprintf(stdout, "\n%s\n\n", consts.Banner())
-
-		progressBar := pb.New(
-			pb.WithConstLeft("Init"),
-			pb.WithConstProgress(0, "Parsing script"),
-		)
-		printBar(progressBar)
-
-		// Runner
-		pwd, err := os.Getwd()
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		filename := args[0]
-		filesystems := loader.CreateFilesystems()
-		src, err := loader.ReadSource(logger, filename, pwd, filesystems, os.Stdin)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Getting script options"))
-		r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Consolidating options"))
-		cliOpts, err := getOptions(cmd.Flags())
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		derivedConf, cerr := deriveAndValidateConfig(conf, r.IsExecutable)
-		if cerr != nil ***REMOVED***
-			return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
-		***REMOVED***
-
-		// TODO: validate for usage of execution segment
-		// TODO: validate for externally controlled executor (i.e. executors that aren't distributable)
-		// TODO: move those validations to a separate function and reuse validateConfig()?
-
-		err = r.SetOptions(conf.Options)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		// Cloud config
-		cloudConfig := cloud.NewConfig().Apply(derivedConf.Collectors.Cloud)
-		if err = envconfig.Process("", &cloudConfig); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if !cloudConfig.Token.Valid ***REMOVED***
-			return errors.New("Not logged in, please use `k6 login cloud`.")
-		***REMOVED***
-
-		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Building the archive"))
-		arc := r.MakeArchive()
-		// TODO: Fix this
-		// We reuse cloud.Config for parsing options.ext.loadimpact, but this probably shouldn't be
-		// done as the idea of options.ext is that they are extensible without touching k6. But in
-		// order for this to happen we shouldn't actually marshall cloud.Config on top of it because
-		// it will be missing some fields that aren't actually mentioned in the struct.
-		// So in order for use to copy the fields that we need for loadimpact's api we unmarshal in
-		// map[string]interface***REMOVED******REMOVED*** and copy what we need if it isn't set already
-		var tmpCloudConfig map[string]interface***REMOVED******REMOVED***
-		if val, ok := arc.Options.External["loadimpact"]; ok ***REMOVED***
-			dec := json.NewDecoder(bytes.NewReader(val))
-			dec.UseNumber() // otherwise float64 are used
-			if err := dec.Decode(&tmpCloudConfig); err != nil ***REMOVED***
 				return err
 			***REMOVED***
-		***REMOVED***
 
-		if err := cloud.MergeFromExternal(arc.Options.External, &cloudConfig); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if tmpCloudConfig == nil ***REMOVED***
-			tmpCloudConfig = make(map[string]interface***REMOVED******REMOVED***, 3)
-		***REMOVED***
-
-		if _, ok := tmpCloudConfig["token"]; !ok && cloudConfig.Token.Valid ***REMOVED***
-			tmpCloudConfig["token"] = cloudConfig.Token
-		***REMOVED***
-		if _, ok := tmpCloudConfig["name"]; !ok && cloudConfig.Name.Valid ***REMOVED***
-			tmpCloudConfig["name"] = cloudConfig.Name
-		***REMOVED***
-		if _, ok := tmpCloudConfig["projectID"]; !ok && cloudConfig.ProjectID.Valid ***REMOVED***
-			tmpCloudConfig["projectID"] = cloudConfig.ProjectID
-		***REMOVED***
-
-		if arc.Options.External == nil ***REMOVED***
-			arc.Options.External = make(map[string]json.RawMessage)
-		***REMOVED***
-		arc.Options.External["loadimpact"], err = json.Marshal(tmpCloudConfig)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		name := cloudConfig.Name.String
-		if !cloudConfig.Name.Valid || cloudConfig.Name.String == "" ***REMOVED***
-			name = filepath.Base(filename)
-		***REMOVED***
-
-		globalCtx, globalCancel := context.WithCancel(context.Background())
-		defer globalCancel()
-
-		// Start cloud test run
-		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Validating script options"))
-		client := cloud.NewClient(logger, cloudConfig.Token.String, cloudConfig.Host.String, consts.Version)
-		if err := client.ValidateOptions(arc.Options); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Uploading archive"))
-		refID, err := client.StartCloudTestRun(name, cloudConfig.ProjectID.Int64, arc)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-
-		et, err := lib.NewExecutionTuple(derivedConf.ExecutionSegment, derivedConf.ExecutionSegmentSequence)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		testURL := cloud.URLForResults(refID, cloudConfig)
-		executionPlan := derivedConf.Scenarios.GetFullExecutionRequirements(et)
-		printExecutionDescription("cloud", filename, testURL, derivedConf, et, executionPlan, nil)
-
-		modifyAndPrintBar(
-			progressBar,
-			pb.WithConstLeft("Run "),
-			pb.WithConstProgress(0, "Initializing the cloud test"),
-		)
-
-		progressCtx, progressCancel := context.WithCancel(globalCtx)
-		progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
-		progressBarWG.Add(1)
-		defer progressBarWG.Wait()
-		defer progressCancel()
-		go func() ***REMOVED***
-			showProgress(progressCtx, conf, []*pb.ProgressBar***REMOVED***progressBar***REMOVED***, logger)
-			progressBarWG.Done()
-		***REMOVED***()
-
-		// Trap Interrupts, SIGINTs and SIGTERMs.
-		sigC := make(chan os.Signal, 1)
-		signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-		defer signal.Stop(sigC)
-		go func() ***REMOVED***
-			sig := <-sigC
-			logger.WithField("sig", sig).Print("Stopping k6 in response to signal...")
-			err := client.StopCloudTestRun(refID)
+			filename := args[0]
+			filesystems := loader.CreateFilesystems()
+			src, err := loader.ReadSource(logger, filename, pwd, filesystems, os.Stdin)
 			if err != nil ***REMOVED***
-				logger.WithError(err).Error("Stop cloud test error")
+				return err
 			***REMOVED***
-			globalCancel()
 
-			sig = <-sigC
-			logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
-			os.Exit(externalAbortErrorCode)
-		***REMOVED***()
+			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), buildEnvMap(os.Environ()))
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		var (
-			startTime   time.Time
-			maxDuration time.Duration
-		)
-		maxDuration, _ = lib.GetEndOffset(executionPlan)
+			modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Getting script options"))
+			r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		testProgressLock := &sync.Mutex***REMOVED******REMOVED***
-		var testProgress *cloud.TestProgressResponse
-		progressBar.Modify(
-			pb.WithProgress(func() (float64, []string) ***REMOVED***
-				testProgressLock.Lock()
-				defer testProgressLock.Unlock()
+			modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Consolidating options"))
+			cliOpts, err := getOptions(cmd.Flags())
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-				if testProgress == nil ***REMOVED***
-					return 0, []string***REMOVED***"Waiting..."***REMOVED***
+			derivedConf, cerr := deriveAndValidateConfig(conf, r.IsExecutable)
+			if cerr != nil ***REMOVED***
+				return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
+			***REMOVED***
+
+			// TODO: validate for usage of execution segment
+			// TODO: validate for externally controlled executor (i.e. executors that aren't distributable)
+			// TODO: move those validations to a separate function and reuse validateConfig()?
+
+			err = r.SetOptions(conf.Options)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+
+			// Cloud config
+			cloudConfig := cloud.NewConfig().Apply(derivedConf.Collectors.Cloud)
+			if err = envconfig.Process("", &cloudConfig); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if !cloudConfig.Token.Valid ***REMOVED***
+				return errors.New("Not logged in, please use `k6 login cloud`.") //nolint:golint
+			***REMOVED***
+
+			modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Building the archive"))
+			arc := r.MakeArchive()
+			// TODO: Fix this
+			// We reuse cloud.Config for parsing options.ext.loadimpact, but this probably shouldn't be
+			// done as the idea of options.ext is that they are extensible without touching k6. But in
+			// order for this to happen we shouldn't actually marshall cloud.Config on top of it because
+			// it will be missing some fields that aren't actually mentioned in the struct.
+			// So in order for use to copy the fields that we need for loadimpact's api we unmarshal in
+			// map[string]interface***REMOVED******REMOVED*** and copy what we need if it isn't set already
+			var tmpCloudConfig map[string]interface***REMOVED******REMOVED***
+			if val, ok := arc.Options.External["loadimpact"]; ok ***REMOVED***
+				dec := json.NewDecoder(bytes.NewReader(val))
+				dec.UseNumber() // otherwise float64 are used
+				if err = dec.Decode(&tmpCloudConfig); err != nil ***REMOVED***
+					return err
 				***REMOVED***
+			***REMOVED***
 
-				statusText := testProgress.RunStatusText
+			if err = cloud.MergeFromExternal(arc.Options.External, &cloudConfig); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if tmpCloudConfig == nil ***REMOVED***
+				tmpCloudConfig = make(map[string]interface***REMOVED******REMOVED***, 3)
+			***REMOVED***
 
-				if testProgress.RunStatus == lib.RunStatusFinished ***REMOVED***
-					testProgress.Progress = 1
-				***REMOVED*** else if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
-					if startTime.IsZero() ***REMOVED***
-						startTime = time.Now()
-					***REMOVED***
-					spent := time.Since(startTime)
-					if spent > maxDuration ***REMOVED***
-						statusText = maxDuration.String()
-					***REMOVED*** else ***REMOVED***
-						statusText = fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, maxDuration), maxDuration)
-					***REMOVED***
-				***REMOVED***
+			if _, ok := tmpCloudConfig["token"]; !ok && cloudConfig.Token.Valid ***REMOVED***
+				tmpCloudConfig["token"] = cloudConfig.Token
+			***REMOVED***
+			if _, ok := tmpCloudConfig["name"]; !ok && cloudConfig.Name.Valid ***REMOVED***
+				tmpCloudConfig["name"] = cloudConfig.Name
+			***REMOVED***
+			if _, ok := tmpCloudConfig["projectID"]; !ok && cloudConfig.ProjectID.Valid ***REMOVED***
+				tmpCloudConfig["projectID"] = cloudConfig.ProjectID
+			***REMOVED***
 
-				return testProgress.Progress, []string***REMOVED***statusText***REMOVED***
-			***REMOVED***),
-		)
+			if arc.Options.External == nil ***REMOVED***
+				arc.Options.External = make(map[string]json.RawMessage)
+			***REMOVED***
+			arc.Options.External["loadimpact"], err = json.Marshal(tmpCloudConfig)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		ticker := time.NewTicker(time.Millisecond * 2000)
-		if showCloudLogs ***REMOVED***
+			name := cloudConfig.Name.String
+			if !cloudConfig.Name.Valid || cloudConfig.Name.String == "" ***REMOVED***
+				name = filepath.Base(filename)
+			***REMOVED***
+
+			globalCtx, globalCancel := context.WithCancel(ctx)
+			defer globalCancel()
+
+			// Start cloud test run
+			modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Validating script options"))
+			client := cloud.NewClient(logger, cloudConfig.Token.String, cloudConfig.Host.String, consts.Version)
+			if err = client.ValidateOptions(arc.Options); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+
+			modifyAndPrintBar(progressBar, pb.WithConstProgress(0, "Uploading archive"))
+			refID, err := client.StartCloudTestRun(name, cloudConfig.ProjectID.Int64, arc)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+
+			et, err := lib.NewExecutionTuple(derivedConf.ExecutionSegment, derivedConf.ExecutionSegmentSequence)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			testURL := cloud.URLForResults(refID, cloudConfig)
+			executionPlan := derivedConf.Scenarios.GetFullExecutionRequirements(et)
+			printExecutionDescription("cloud", filename, testURL, derivedConf, et, executionPlan, nil)
+
+			modifyAndPrintBar(
+				progressBar,
+				pb.WithConstLeft("Run "),
+				pb.WithConstProgress(0, "Initializing the cloud test"),
+			)
+
+			progressCtx, progressCancel := context.WithCancel(globalCtx)
+			progressBarWG := &sync.WaitGroup***REMOVED******REMOVED***
+			progressBarWG.Add(1)
+			defer progressBarWG.Wait()
+			defer progressCancel()
 			go func() ***REMOVED***
-				logger.Debug("Connecting to cloud logs server...")
-				// TODO replace with another context
-				if err := cloudConfig.StreamLogsToLogger(globalCtx, logger, refID, 0); err != nil ***REMOVED***
-					logger.WithError(err).Error("error while tailing cloud logs")
-				***REMOVED***
+				showProgress(progressCtx, conf, []*pb.ProgressBar***REMOVED***progressBar***REMOVED***, logger)
+				progressBarWG.Done()
 			***REMOVED***()
-		***REMOVED***
 
-	runningLoop:
-		for ***REMOVED***
-			select ***REMOVED***
-			case <-ticker.C:
-				newTestProgress, progressErr := client.GetTestProgress(refID)
-				if progressErr == nil ***REMOVED***
-					if (newTestProgress.RunStatus > lib.RunStatusRunning) ||
-						(exitOnRunning && newTestProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
-						globalCancel()
-						break runningLoop
-					***REMOVED***
-					testProgressLock.Lock()
-					testProgress = newTestProgress
-					testProgressLock.Unlock()
-				***REMOVED*** else ***REMOVED***
-					logger.WithError(progressErr).Error("Test progress error")
+			// Trap Interrupts, SIGINTs and SIGTERMs.
+			sigC := make(chan os.Signal, 1)
+			signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+			defer signal.Stop(sigC)
+			go func() ***REMOVED***
+				sig := <-sigC
+				logger.WithField("sig", sig).Print("Stopping k6 in response to signal...")
+				err := client.StopCloudTestRun(refID)
+				if err != nil ***REMOVED***
+					logger.WithError(err).Error("Stop cloud test error")
 				***REMOVED***
-			case <-globalCtx.Done():
-				break runningLoop
+				globalCancel()
+
+				sig = <-sigC
+				logger.WithField("sig", sig).Error("Aborting k6 in response to signal")
+				os.Exit(externalAbortErrorCode)
+			***REMOVED***()
+
+			var (
+				startTime   time.Time
+				maxDuration time.Duration
+			)
+			maxDuration, _ = lib.GetEndOffset(executionPlan)
+
+			testProgressLock := &sync.Mutex***REMOVED******REMOVED***
+			var testProgress *cloud.TestProgressResponse
+			progressBar.Modify(
+				pb.WithProgress(func() (float64, []string) ***REMOVED***
+					testProgressLock.Lock()
+					defer testProgressLock.Unlock()
+
+					if testProgress == nil ***REMOVED***
+						return 0, []string***REMOVED***"Waiting..."***REMOVED***
+					***REMOVED***
+
+					statusText := testProgress.RunStatusText
+
+					if testProgress.RunStatus == lib.RunStatusFinished ***REMOVED***
+						testProgress.Progress = 1
+					***REMOVED*** else if testProgress.RunStatus == lib.RunStatusRunning ***REMOVED***
+						if startTime.IsZero() ***REMOVED***
+							startTime = time.Now()
+						***REMOVED***
+						spent := time.Since(startTime)
+						if spent > maxDuration ***REMOVED***
+							statusText = maxDuration.String()
+						***REMOVED*** else ***REMOVED***
+							statusText = fmt.Sprintf("%s/%s", pb.GetFixedLengthDuration(spent, maxDuration), maxDuration)
+						***REMOVED***
+					***REMOVED***
+
+					return testProgress.Progress, []string***REMOVED***statusText***REMOVED***
+				***REMOVED***),
+			)
+
+			ticker := time.NewTicker(time.Millisecond * 2000)
+			if showCloudLogs ***REMOVED***
+				go func() ***REMOVED***
+					logger.Debug("Connecting to cloud logs server...")
+					if err := cloudConfig.StreamLogsToLogger(globalCtx, logger, refID, 0); err != nil ***REMOVED***
+						logger.WithError(err).Error("error while tailing cloud logs")
+					***REMOVED***
+				***REMOVED***()
 			***REMOVED***
-		***REMOVED***
 
-		if testProgress == nil ***REMOVED***
-			//nolint:golint
-			return ExitCode***REMOVED***error: errors.New("Test progress error"), Code: cloudFailedToGetProgressErrorCode***REMOVED***
-		***REMOVED***
+		runningLoop:
+			for ***REMOVED***
+				select ***REMOVED***
+				case <-ticker.C:
+					newTestProgress, progressErr := client.GetTestProgress(refID)
+					if progressErr == nil ***REMOVED***
+						if (newTestProgress.RunStatus > lib.RunStatusRunning) ||
+							(exitOnRunning && newTestProgress.RunStatus == lib.RunStatusRunning) ***REMOVED***
+							globalCancel()
+							break runningLoop
+						***REMOVED***
+						testProgressLock.Lock()
+						testProgress = newTestProgress
+						testProgressLock.Unlock()
+					***REMOVED*** else ***REMOVED***
+						logger.WithError(progressErr).Error("Test progress error")
+					***REMOVED***
+				case <-globalCtx.Done():
+					break runningLoop
+				***REMOVED***
+			***REMOVED***
 
-		fprintf(stdout, "     test status: %s\n", ui.ValueColor.Sprint(testProgress.RunStatusText))
+			if testProgress == nil ***REMOVED***
+				//nolint:golint
+				return ExitCode***REMOVED***error: errors.New("Test progress error"), Code: cloudFailedToGetProgressErrorCode***REMOVED***
+			***REMOVED***
 
-		if testProgress.ResultStatus == cloud.ResultStatusFailed ***REMOVED***
-			//nolint:golint
-			return ExitCode***REMOVED***error: errors.New("The test has failed"), Code: cloudTestRunFailedErrorCode***REMOVED***
-		***REMOVED***
+			fprintf(stdout, "     test status: %s\n", ui.ValueColor.Sprint(testProgress.RunStatusText))
 
-		return nil
-	***REMOVED***,
+			if testProgress.ResultStatus == cloud.ResultStatusFailed ***REMOVED***
+				//nolint:golint
+				return ExitCode***REMOVED***error: errors.New("The test has failed"), Code: cloudTestRunFailedErrorCode***REMOVED***
+			***REMOVED***
+
+			return nil
+		***REMOVED***,
+	***REMOVED***
+	cloudCmd.Flags().SortFlags = false
+	cloudCmd.Flags().AddFlagSet(cloudCmdFlagSet())
+	return cloudCmd
 ***REMOVED***
 
 func cloudCmdFlagSet() *pflag.FlagSet ***REMOVED***
@@ -363,10 +364,4 @@ func cloudCmdFlagSet() *pflag.FlagSet ***REMOVED***
 		"enable showing of logs when a test is executed in the cloud")
 
 	return flags
-***REMOVED***
-
-func init() ***REMOVED***
-	RootCmd.AddCommand(cloudCmd)
-	cloudCmd.Flags().SortFlags = false
-	cloudCmd.Flags().AddFlagSet(cloudCmdFlagSet())
 ***REMOVED***

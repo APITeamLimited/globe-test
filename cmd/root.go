@@ -73,60 +73,111 @@ var (
 	address   string
 )
 
-// RootCmd represents the base command when called without any subcommands.
-var RootCmd = &cobra.Command***REMOVED***
-	Use:           "k6",
-	Short:         "a next-generation load generator",
-	Long:          BannerColor.Sprintf("\n%s", consts.Banner()),
-	SilenceUsage:  true,
-	SilenceErrors: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-		logger := logrus.StandardLogger() // don't use the global one to begin with
-		if !cmd.Flags().Changed("log-output") ***REMOVED***
-			if envLogOutput, ok := os.LookupEnv("K6_LOG_OUTPUT"); ok ***REMOVED***
-				logOutput = envLogOutput
+func getRootCmd(ctx context.Context, logger *logrus.Logger, fallbackLogger logrus.FieldLogger) *cobra.Command ***REMOVED***
+	// RootCmd represents the base command when called without any subcommands.
+	RootCmd := &cobra.Command***REMOVED***
+		Use:           "k6",
+		Short:         "a next-generation load generator",
+		Long:          BannerColor.Sprintf("\n%s", consts.Banner()),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
+			if !cmd.Flags().Changed("log-output") ***REMOVED***
+				if envLogOutput, ok := os.LookupEnv("K6_LOG_OUTPUT"); ok ***REMOVED***
+					logOutput = envLogOutput
+				***REMOVED***
 			***REMOVED***
-		***REMOVED***
-		err := setupLoggers(logger, logFmt, logOutput)
-		if err != nil ***REMOVED***
-			return err
-		***REMOVED***
+			err := setupLoggers(ctx, logger, fallbackLogger, logFmt, logOutput)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 
-		if noColor ***REMOVED***
-			// TODO: figure out something else... currently, with the wrappers
-			// below, we're stripping any colors from the output after we've
-			// added them. The problem is that, besides being very inefficient,
-			// this actually also strips other special characters from the
-			// intended output, like the progressbar formatting ones, which
-			// would otherwise be fine (in a TTY).
-			//
-			// It would be much better if we avoid messing with the output and
-			// instead have a parametrized instance of the color library. It
-			// will return colored output if colors are enabled and simply
-			// return the passed input as-is (i.e. be a noop) if colors are
-			// disabled...
-			stdout.Writer = colorable.NewNonColorable(os.Stdout)
-			stderr.Writer = colorable.NewNonColorable(os.Stderr)
-		***REMOVED***
-		stdlog.SetOutput(logger.Writer())
-		logger.Debugf("k6 version: v%s", consts.FullVersion())
-		return nil
-	***REMOVED***,
+			if noColor ***REMOVED***
+				// TODO: figure out something else... currently, with the wrappers
+				// below, we're stripping any colors from the output after we've
+				// added them. The problem is that, besides being very inefficient,
+				// this actually also strips other special characters from the
+				// intended output, like the progressbar formatting ones, which
+				// would otherwise be fine (in a TTY).
+				//
+				// It would be much better if we avoid messing with the output and
+				// instead have a parametrized instance of the color library. It
+				// will return colored output if colors are enabled and simply
+				// return the passed input as-is (i.e. be a noop) if colors are
+				// disabled...
+				stdout.Writer = colorable.NewNonColorable(os.Stdout)
+				stderr.Writer = colorable.NewNonColorable(os.Stderr)
+			***REMOVED***
+			stdlog.SetOutput(logger.Writer())
+			logger.Debugf("k6 version: v%s", consts.FullVersion())
+			return nil
+		***REMOVED***,
+	***REMOVED***
+
+	confDir, err := os.UserConfigDir()
+	if err != nil ***REMOVED***
+		logrus.WithError(err).Warn("could not get config directory")
+		confDir = ".config"
+	***REMOVED***
+	defaultConfigFilePath = filepath.Join(
+		confDir,
+		"loadimpact",
+		"k6",
+		defaultConfigFileName,
+	)
+
+	RootCmd.PersistentFlags().AddFlagSet(rootCmdPersistentFlagSet())
+
+	return RootCmd
 ***REMOVED***
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED***
+	ctx := context.Background()
+	logger := &logrus.Logger***REMOVED***
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	***REMOVED***
+
+	var fallbackLogger logrus.FieldLogger = &logrus.Logger***REMOVED***
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     logrus.InfoLevel,
+	***REMOVED***
+
+	RootCmd := getRootCmd(ctx, logger, fallbackLogger)
+
+	loginCmd := getLoginCmd()
+	loginCmd.AddCommand(getLoginCloudCommand(logger), getLoginInfluxDBCommand(logger))
+	RootCmd.AddCommand(
+		getArchiveCmd(logger),
+		getCloudCmd(ctx, logger),
+		getConvertCmd(),
+		getInspectCmd(logger),
+		loginCmd,
+		getPauseCmd(ctx),
+		getResumeCmd(ctx),
+		getScaleCmd(ctx),
+		getRunCmd(ctx, logger),
+		getStatsCmd(ctx),
+		getStatusCmd(ctx),
+		getVersionCmd(),
+	)
+
 	if err := RootCmd.Execute(); err != nil ***REMOVED***
+		fields := logrus.Fields***REMOVED******REMOVED***
 		code := -1
-		var logger logrus.FieldLogger = logrus.StandardLogger()
 		if e, ok := err.(ExitCode); ok ***REMOVED***
 			code = e.Code
 			if e.Hint != "" ***REMOVED***
-				logger = logger.WithField("hint", e.Hint)
+				fields["hint"] = e.Hint
 			***REMOVED***
 		***REMOVED***
-		logger.Error(err)
+		logger.WithFields(fields).Error(err)
 		os.Exit(code)
 	***REMOVED***
 ***REMOVED***
@@ -151,22 +202,6 @@ func rootCmdPersistentFlagSet() *pflag.FlagSet ***REMOVED***
 	return flags
 ***REMOVED***
 
-func init() ***REMOVED***
-	confDir, err := os.UserConfigDir()
-	if err != nil ***REMOVED***
-		logrus.WithError(err).Warn("could not get config directory")
-		confDir = ".config"
-	***REMOVED***
-	defaultConfigFilePath = filepath.Join(
-		confDir,
-		"loadimpact",
-		"k6",
-		defaultConfigFileName,
-	)
-
-	RootCmd.PersistentFlags().AddFlagSet(rootCmdPersistentFlagSet())
-***REMOVED***
-
 // fprintf panics when where's an error writing to the supplied io.Writer
 func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED***) (n int) ***REMOVED***
 	n, err := fmt.Fprintf(w, format, a...)
@@ -184,7 +219,9 @@ func (f RawFormatter) Format(entry *logrus.Entry) ([]byte, error) ***REMOVED***
 	return append([]byte(entry.Message), '\n'), nil
 ***REMOVED***
 
-func setupLoggers(logger *logrus.Logger, logFmt string, logOutput string) error ***REMOVED***
+func setupLoggers(
+	ctx context.Context, logger *logrus.Logger, fallbackLogger logrus.FieldLogger, logFmt, logOutput string,
+) error ***REMOVED***
 	if verbose ***REMOVED***
 		logger.SetLevel(logrus.DebugLevel)
 	***REMOVED***
@@ -196,18 +233,11 @@ func setupLoggers(logger *logrus.Logger, logFmt string, logOutput string) error 
 	case "none":
 		logger.SetOutput(ioutil.Discard)
 	default:
-		fallbackLogger := &logrus.Logger***REMOVED***
-			Out:       os.Stderr,
-			Formatter: new(logrus.TextFormatter),
-			Hooks:     make(logrus.LevelHooks),
-			Level:     logrus.InfoLevel,
-		***REMOVED***
-
 		if !strings.HasPrefix(logOutput, "loki") ***REMOVED***
 			return fmt.Errorf("unsupported log output `%s`", logOutput)
 		***REMOVED***
 		// TODO use some context that we can cancel
-		hook, err := log.LokiFromConfigLine(context.Background(), fallbackLogger, logOutput)
+		hook, err := log.LokiFromConfigLine(ctx, fallbackLogger, logOutput)
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
