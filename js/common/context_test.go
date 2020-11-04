@@ -36,3 +36,9 @@ func TestContextRuntime(t *testing.T) ***REMOVED***
 func TestContextRuntimeNil(t *testing.T) ***REMOVED***
 	assert.Nil(t, GetRuntime(context.Background()))
 ***REMOVED***
+
+func TestContextInitEnv(t *testing.T) ***REMOVED***
+	ie := &InitEnvironment***REMOVED******REMOVED***
+	assert.Nil(t, GetInitEnv(context.Background()))
+	assert.Equal(t, ie, GetInitEnv(WithInitEnv(context.Background(), ie)))
+***REMOVED***
