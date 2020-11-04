@@ -1,4 +1,4 @@
-import grpc from 'k6/protocols/grpc';
+import grpc from 'k6/net/grpc';
 import ***REMOVED*** check ***REMOVED*** from "k6";
 
 let client = grpc.newClient();
