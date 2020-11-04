@@ -259,15 +259,12 @@ func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bo
 				if r.ToBoolean() ***REMOVED***
 					testConst = true
 				***REMOVED*** else ***REMOVED***
-					// TODO: Properly implement dummy compilation (no garbage in block, scope, etc..)
-					/*
-						p := c.p
-						c.p = &program***REMOVED******REMOVED***
-						c.compileStatement(v.Body, false)
-						if v.Update != nil ***REMOVED***
-							c.compileExpression(v.Update).emitGetter(false)
-						***REMOVED***
-						c.p = p*/
+					leave := c.enterDummyMode()
+					c.compileStatement(v.Body, false)
+					if v.Update != nil ***REMOVED***
+						c.compileExpression(v.Update).emitGetter(false)
+					***REMOVED***
+					leave()
 					goto end
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
@@ -398,10 +395,7 @@ func (c *compiler) compileLabeledWhileStatement(v *ast.WhileStatement, needResul
 			if t.ToBoolean() ***REMOVED***
 				testTrue = true
 			***REMOVED*** else ***REMOVED***
-				p := c.p
-				c.p = &Program***REMOVED******REMOVED***
-				c.compileStatement(v.Body, false)
-				c.p = p
+				c.compileStatementDummy(v.Body)
 				goto end
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
@@ -605,11 +599,7 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 				c.p = p
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			// TODO: Properly implement dummy compilation (no garbage in block, scope, etc..)
-			p := c.p
-			c.p = &Program***REMOVED******REMOVED***
-			c.compileStatement(v.Consequent, false)
-			c.p = p
+			c.compileStatementDummy(v.Consequent)
 			if v.Alternate != nil ***REMOVED***
 				c.compileStatement(v.Alternate, needResult)
 			***REMOVED*** else ***REMOVED***

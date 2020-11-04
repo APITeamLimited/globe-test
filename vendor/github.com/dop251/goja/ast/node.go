@@ -135,7 +135,7 @@ type (
 	***REMOVED***
 
 	Property struct ***REMOVED***
-		Key   unistring.String
+		Key   Expression
 		Kind  string
 		Value Expression
 	***REMOVED***

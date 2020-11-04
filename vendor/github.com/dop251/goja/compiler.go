@@ -462,3 +462,30 @@ func (c *compiler) checkIdentifierLName(name unistring.String, offset int) ***RE
 		c.throwSyntaxError(offset, "Assignment to eval or arguments is not allowed in strict mode")
 	***REMOVED***
 ***REMOVED***
+
+// Enter a 'dummy' compilation mode. Any code produced after this method is called will be discarded after
+// leaveFunc is called with no additional side effects. This is useful for compiling code inside a
+// constant falsy condition 'if' branch or a loop (i.e 'if (false) ***REMOVED*** ... ***REMOVED*** or while (false) ***REMOVED*** ... ***REMOVED***).
+// Such code should not be included in the final compilation result as it's never called, but it must
+// still produce compilation errors if there are any.
+func (c *compiler) enterDummyMode() (leaveFunc func()) ***REMOVED***
+	savedBlock, savedBlockStart, savedProgram := c.block, c.blockStart, c.p
+	if savedBlock != nil ***REMOVED***
+		c.block = &block***REMOVED***
+			typ:   savedBlock.typ,
+			label: savedBlock.label,
+		***REMOVED***
+	***REMOVED***
+	c.p = &Program***REMOVED******REMOVED***
+	c.newScope()
+	return func() ***REMOVED***
+		c.block, c.blockStart, c.p = savedBlock, savedBlockStart, savedProgram
+		c.popScope()
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compileStatementDummy(statement ast.Statement) ***REMOVED***
+	leave := c.enterDummyMode()
+	c.compileStatement(statement, false)
+	leave()
+***REMOVED***

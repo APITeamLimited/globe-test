@@ -189,27 +189,42 @@ func (self *_parser) parseVariableDeclarationList(var_ file.Idx) []ast.Expressio
 	return list
 ***REMOVED***
 
-func (self *_parser) parseObjectPropertyKey() (string, unistring.String) ***REMOVED***
+func (self *_parser) parseObjectPropertyKey() (string, ast.Expression) ***REMOVED***
 	idx, tkn, literal, parsedLiteral := self.idx, self.token, self.literal, self.parsedLiteral
-	var value unistring.String
+	var value ast.Expression
 	self.next()
 	switch tkn ***REMOVED***
 	case token.IDENTIFIER:
-		value = parsedLiteral
+		value = &ast.StringLiteral***REMOVED***
+			Idx:     idx,
+			Literal: literal,
+			Value:   unistring.String(literal),
+		***REMOVED***
 	case token.NUMBER:
-		var err error
-		_, err = parseNumberLiteral(literal)
+		num, err := parseNumberLiteral(literal)
 		if err != nil ***REMOVED***
 			self.error(idx, err.Error())
 		***REMOVED*** else ***REMOVED***
-			value = unistring.String(literal)
+			value = &ast.NumberLiteral***REMOVED***
+				Idx:     idx,
+				Literal: literal,
+				Value:   num,
+			***REMOVED***
 		***REMOVED***
 	case token.STRING:
-		value = parsedLiteral
+		value = &ast.StringLiteral***REMOVED***
+			Idx:     idx,
+			Literal: literal,
+			Value:   parsedLiteral,
+		***REMOVED***
 	default:
 		// null, false, class, etc.
 		if isId(tkn) ***REMOVED***
-			value = unistring.String(literal)
+			value = &ast.StringLiteral***REMOVED***
+				Idx:     idx,
+				Literal: literal,
+				Value:   unistring.String(literal),
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return literal, value
