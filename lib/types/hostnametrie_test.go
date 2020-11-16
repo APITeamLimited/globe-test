@@ -42,6 +42,7 @@ func TestHostnameTrieContains(t *testing.T) ***REMOVED***
 		"tEsT.k6.Io":            "test.k6.io",
 		"TESt.K6.IO":            "test.k6.io",
 		"blocked.valId.paTtern": "*valid.pattern",
+		"valId.paTtern":         "*valid.pattern",
 		"example.test.k6.io":    "",
 	***REMOVED***
 	for key, value := range cases ***REMOVED***
