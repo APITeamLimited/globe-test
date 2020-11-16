@@ -83,9 +83,8 @@ func (d NullHostnameTrie) MarshalJSON() ([]byte, error) ***REMOVED***
 // for wildcards exclusively at the start of the pattern. Items may only
 // be inserted and searched. Internationalized hostnames are valid.
 type HostnameTrie struct ***REMOVED***
+	*trieNode
 	source []string
-
-	children map[rune]*HostnameTrie
 ***REMOVED***
 
 // NewNullHostnameTrie returns a NullHostnameTrie encapsulating HostnameTrie or an error if the
@@ -105,6 +104,10 @@ func NewNullHostnameTrie(source []string) (NullHostnameTrie, error) ***REMOVED**
 func NewHostnameTrie(source []string) (*HostnameTrie, error) ***REMOVED***
 	h := &HostnameTrie***REMOVED***
 		source: source,
+		trieNode: &trieNode***REMOVED***
+			isLeaf:   false,
+			children: make(map[rune]*trieNode),
+		***REMOVED***,
 	***REMOVED***
 	for _, s := range h.source ***REMOVED***
 		if err := h.insert(s); err != nil ***REMOVED***
@@ -135,42 +138,52 @@ func (t *HostnameTrie) insert(s string) error ***REMOVED***
 		return err
 	***REMOVED***
 
-	return t.childInsert(s)
-***REMOVED***
-
-func (t *HostnameTrie) childInsert(s string) error ***REMOVED***
-	if len(s) == 0 ***REMOVED***
-		return nil
-	***REMOVED***
-
-	// mask creation of the trie by initializing the root here
-	if t.children == nil ***REMOVED***
-		t.children = make(map[rune]*HostnameTrie)
-	***REMOVED***
-
-	rStr := []rune(s) // need to iterate by runes for intl' names
-	last := len(rStr) - 1
-	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
-		return c.childInsert(string(rStr[:last]))
-	***REMOVED***
-
-	t.children[rStr[last]] = &HostnameTrie***REMOVED***children: make(map[rune]*HostnameTrie)***REMOVED***
-	return t.children[rStr[last]].childInsert(string(rStr[:last]))
+	return t.trieNode.insert(s)
 ***REMOVED***
 
 // Contains returns whether s matches a pattern in the HostnameTrie
 // along with the matching pattern, if one was found.
 func (t *HostnameTrie) Contains(s string) (matchedPattern string, matchFound bool) ***REMOVED***
+	return t.trieNode.contains(s)
+***REMOVED***
+
+type trieNode struct ***REMOVED***
+	isLeaf   bool
+	children map[rune]*trieNode
+***REMOVED***
+
+func (t *trieNode) insert(s string) error ***REMOVED***
+	if len(s) == 0 ***REMOVED***
+		t.isLeaf = true
+		return nil
+	***REMOVED***
+
+	// mask creation of the trie by initializing the root here
+	if t.children == nil ***REMOVED***
+		t.children = make(map[rune]*trieNode)
+	***REMOVED***
+
+	rStr := []rune(s) // need to iterate by runes for intl' names
+	last := len(rStr) - 1
+	if c, ok := t.children[rStr[last]]; ok ***REMOVED***
+		return c.insert(string(rStr[:last]))
+	***REMOVED***
+
+	t.children[rStr[last]] = &trieNode***REMOVED***children: make(map[rune]*trieNode)***REMOVED***
+	return t.children[rStr[last]].insert(string(rStr[:last]))
+***REMOVED***
+
+func (t *trieNode) contains(s string) (matchedPattern string, matchFound bool) ***REMOVED***
 	s = strings.ToLower(s)
 	if len(s) == 0 ***REMOVED***
-		if len(t.children) == 0 ***REMOVED***
+		if t.isLeaf ***REMOVED***
 			return "", true
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		rStr := []rune(s)
 		last := len(rStr) - 1
 		if c, ok := t.children[rStr[last]]; ok ***REMOVED***
-			if match, matched := c.Contains(string(rStr[:last])); matched ***REMOVED***
+			if match, matched := c.contains(string(rStr[:last])); matched ***REMOVED***
 				return match + string(rStr[last]), true
 			***REMOVED***
 		***REMOVED***
