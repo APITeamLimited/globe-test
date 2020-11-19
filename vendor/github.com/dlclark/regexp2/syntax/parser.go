@@ -1186,19 +1186,24 @@ func (p *parser) scanBasicBackslash(scanOnly bool) (*regexNode, error) ***REMOVE
 		return nil, p.getErr(ErrIllegalEndEscape)
 	***REMOVED***
 	angled := false
+	k := false
 	close := '\x00'
 
 	backpos := p.textpos()
 	ch := p.rightChar(0)
 
-	// allow \k<foo> instead of \<foo>, which is now deprecated
+	// Allow \k<foo> instead of \<foo>, which is now deprecated.
 
-	if ch == 'k' ***REMOVED***
+	// According to ECMAScript specification, \k<name> is only parsed as a named group reference if
+	// there is at least one group name in the regexp.
+	// See https://www.ecma-international.org/ecma-262/#sec-isvalidregularexpressionliteral, step 7.
+	// Note, during the first (scanOnly) run we may not have all group names scanned, but that's ok.
+	if ch == 'k' && (!p.useOptionE() || len(p.capnames) > 0) ***REMOVED***
 		if p.charsRight() >= 2 ***REMOVED***
 			p.moveRight(1)
 			ch = p.moveRightGetChar()
 
-			if ch == '<' || ch == '\'' ***REMOVED***
+			if ch == '<' || (!p.useOptionE() && ch == '\'') ***REMOVED*** // No support for \k'name' in ECMAScript
 				angled = true
 				if ch == '\'' ***REMOVED***
 					close = '\''
@@ -1213,8 +1218,9 @@ func (p *parser) scanBasicBackslash(scanOnly bool) (*regexNode, error) ***REMOVE
 		***REMOVED***
 
 		ch = p.rightChar(0)
+		k = true
 
-	***REMOVED*** else if (ch == '<' || ch == '\'') && p.charsRight() > 1 ***REMOVED*** // Note angle without \g
+	***REMOVED*** else if !p.useOptionE() && (ch == '<' || ch == '\'') && p.charsRight() > 1 ***REMOVED*** // Note angle without \g
 		angled = true
 		if ch == '\'' ***REMOVED***
 			close = '\''
@@ -1257,14 +1263,23 @@ func (p *parser) scanBasicBackslash(scanOnly bool) (*regexNode, error) ***REMOVE
 			return nil, p.getErr(ErrUndefinedBackRef, capnum)
 		***REMOVED***
 
-	***REMOVED*** else if angled && IsWordChar(ch) ***REMOVED***
+	***REMOVED*** else if angled ***REMOVED***
 		capname := p.scanCapname()
 
-		if p.charsRight() > 0 && p.moveRightGetChar() == close ***REMOVED***
+		if capname != "" && p.charsRight() > 0 && p.moveRightGetChar() == close ***REMOVED***
+
+			if scanOnly ***REMOVED***
+				return nil, nil
+			***REMOVED***
+
 			if p.isCaptureName(capname) ***REMOVED***
 				return newRegexNodeM(ntRef, p.options, p.captureSlotFromName(capname)), nil
 			***REMOVED***
 			return nil, p.getErr(ErrUndefinedNameRef, capname)
+		***REMOVED*** else ***REMOVED***
+			if k ***REMOVED***
+				return nil, p.getErr(ErrMalformedNameRef)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
@@ -1274,6 +1289,10 @@ func (p *parser) scanBasicBackslash(scanOnly bool) (*regexNode, error) ***REMOVE
 	ch, err := p.scanCharEscape()
 	if err != nil ***REMOVED***
 		return nil, err
+	***REMOVED***
+
+	if scanOnly ***REMOVED***
+		return nil, nil
 	***REMOVED***
 
 	if p.useOptionI() ***REMOVED***
