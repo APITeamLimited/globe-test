@@ -464,25 +464,6 @@ func (self *_parser) read() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// This is here since the functions are so similar
-func (self *_RegExp_parser) read() ***REMOVED***
-	if self.offset < self.length ***REMOVED***
-		self.chrOffset = self.offset
-		chr, width := rune(self.str[self.offset]), 1
-		if chr >= utf8.RuneSelf ***REMOVED*** // !ASCII
-			chr, width = utf8.DecodeRuneInString(self.str[self.offset:])
-			if chr == utf8.RuneError && width == 1 ***REMOVED***
-				self.error(self.chrOffset, "Invalid UTF-8 character")
-			***REMOVED***
-		***REMOVED***
-		self.offset += width
-		self.chr = chr
-	***REMOVED*** else ***REMOVED***
-		self.chrOffset = self.length
-		self.chr = -1 // EOF
-	***REMOVED***
-***REMOVED***
-
 func (self *_parser) skipSingleLineComment() ***REMOVED***
 	for self.chr != -1 ***REMOVED***
 		self.read()

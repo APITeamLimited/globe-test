@@ -252,7 +252,7 @@ func compileRegexp(patternStr, flags string) (p *regexpPattern, err error) ***RE
 		***REMOVED***
 		wrapper = (*regexpWrapper)(pattern)
 	***REMOVED*** else ***REMOVED***
-		if re2Str == "" ***REMOVED***
+		if _, incompat := err1.(parser.RegexpErrorIncompatible); !incompat ***REMOVED***
 			err = err1
 			return
 		***REMOVED***

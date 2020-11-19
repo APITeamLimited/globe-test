@@ -1936,19 +1936,10 @@ func (r *Runtime) SetTimeSource(now Now) ***REMOVED***
 
 // New is an equivalent of the 'new' operator allowing to call it directly from Go.
 func (r *Runtime) New(construct Value, args ...Value) (o *Object, err error) ***REMOVED***
-	defer func() ***REMOVED***
-		if x := recover(); x != nil ***REMOVED***
-			switch x := x.(type) ***REMOVED***
-			case *Exception:
-				err = x
-			case *InterruptedError:
-				err = x
-			default:
-				panic(x)
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***()
-	return r.builtin_new(r.toObject(construct), args), nil
+	err = tryFunc(func() ***REMOVED***
+		o = r.builtin_new(r.toObject(construct), args)
+	***REMOVED***)
+	return
 ***REMOVED***
 
 // Callable represents a JavaScript function that can be called from Go.
