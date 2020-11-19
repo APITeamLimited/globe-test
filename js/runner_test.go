@@ -551,11 +551,6 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
-	// TODO: figure out why interrupt sometimes fails... data race in goja?
-	if isWindows ***REMOVED***
-		t.Skip()
-	***REMOVED***
-
 	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
@@ -589,11 +584,6 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
-	// TODO: figure out why interrupt sometimes fails... data race in goja?
-	if isWindows ***REMOVED***
-		t.Skip()
-	***REMOVED***
-
 	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
