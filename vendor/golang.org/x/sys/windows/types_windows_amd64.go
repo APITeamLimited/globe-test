@@ -20,3 +20,15 @@ type Servent struct ***REMOVED***
 	Proto   *byte
 	Port    uint16
 ***REMOVED***
+
+type JOBOBJECT_BASIC_LIMIT_INFORMATION struct ***REMOVED***
+	PerProcessUserTimeLimit int64
+	PerJobUserTimeLimit     int64
+	LimitFlags              uint32
+	MinimumWorkingSetSize   uintptr
+	MaximumWorkingSetSize   uintptr
+	ActiveProcessLimit      uint32
+	Affinity                uintptr
+	PriorityClass           uint32
+	SchedulingClass         uint32
+***REMOVED***

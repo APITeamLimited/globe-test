@@ -21,7 +21,7 @@ import (
 
 type State struct***REMOVED******REMOVED***
 
-// IsTerminal returns true if the given file descriptor is a terminal.
+// IsTerminal returns whether the given file descriptor is a terminal.
 func IsTerminal(fd int) bool ***REMOVED***
 	return false
 ***REMOVED***

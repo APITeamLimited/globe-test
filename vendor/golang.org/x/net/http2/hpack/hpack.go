@@ -92,6 +92,8 @@ type Decoder struct ***REMOVED***
 	// saveBuf is previous data passed to Write which we weren't able
 	// to fully parse before. Unlike buf, we own this data.
 	saveBuf bytes.Buffer
+
+	firstField bool // processing the first field of the header block
 ***REMOVED***
 
 // NewDecoder returns a new decoder with the provided maximum dynamic
@@ -101,6 +103,7 @@ func NewDecoder(maxDynamicTableSize uint32, emitFunc func(f HeaderField)) *Decod
 	d := &Decoder***REMOVED***
 		emit:        emitFunc,
 		emitEnabled: true,
+		firstField:  true,
 	***REMOVED***
 	d.dynTab.table.init()
 	d.dynTab.allowedMaxSize = maxDynamicTableSize
@@ -226,11 +229,15 @@ func (d *Decoder) DecodeFull(p []byte) ([]HeaderField, error) ***REMOVED***
 	return hf, nil
 ***REMOVED***
 
+// Close declares that the decoding is complete and resets the Decoder
+// to be reused again for a new header block. If there is any remaining
+// data in the decoder's buffer, Close returns an error.
 func (d *Decoder) Close() error ***REMOVED***
 	if d.saveBuf.Len() > 0 ***REMOVED***
 		d.saveBuf.Reset()
 		return DecodingError***REMOVED***errors.New("truncated headers")***REMOVED***
 	***REMOVED***
+	d.firstField = true
 	return nil
 ***REMOVED***
 
@@ -266,6 +273,7 @@ func (d *Decoder) Write(p []byte) (n int, err error) ***REMOVED***
 			d.saveBuf.Write(d.buf)
 			return len(p), nil
 		***REMOVED***
+		d.firstField = false
 		if err != nil ***REMOVED***
 			break
 		***REMOVED***
@@ -391,7 +399,7 @@ func (d *Decoder) callEmit(hf HeaderField) error ***REMOVED***
 func (d *Decoder) parseDynamicTableSizeUpdate() error ***REMOVED***
 	// RFC 7541, sec 4.2: This dynamic table size update MUST occur at the
 	// beginning of the first header block following the change to the dynamic table size.
-	if d.dynTab.size > 0 ***REMOVED***
+	if !d.firstField && d.dynTab.size > 0 ***REMOVED***
 		return DecodingError***REMOVED***errors.New("dynamic table size update MUST occur at the beginning of a header block")***REMOVED***
 	***REMOVED***
 

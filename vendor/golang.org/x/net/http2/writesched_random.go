@@ -19,7 +19,8 @@ type randomWriteScheduler struct ***REMOVED***
 	zero writeQueue
 
 	// sq contains the stream-specific queues, keyed by stream ID.
-	// When a stream is idle or closed, it's deleted from the map.
+	// When a stream is idle, closed, or emptied, it's deleted
+	// from the map.
 	sq map[uint32]*writeQueue
 
 	// pool of empty queues for reuse.
@@ -63,8 +64,12 @@ func (ws *randomWriteScheduler) Pop() (FrameWriteRequest, bool) ***REMOVED***
 		return ws.zero.shift(), true
 	***REMOVED***
 	// Iterate over all non-idle streams until finding one that can be consumed.
-	for _, q := range ws.sq ***REMOVED***
+	for streamID, q := range ws.sq ***REMOVED***
 		if wr, ok := q.consume(math.MaxInt32); ok ***REMOVED***
+			if q.empty() ***REMOVED***
+				delete(ws.sq, streamID)
+				ws.queuePool.put(q)
+			***REMOVED***
 			return wr, true
 		***REMOVED***
 	***REMOVED***

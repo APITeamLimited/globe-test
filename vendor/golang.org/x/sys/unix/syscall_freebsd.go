@@ -140,22 +140,7 @@ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 	return
 ***REMOVED***
 
-const ImplementsGetwd = true
-
 //sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-
-func Getwd() (string, error) ***REMOVED***
-	var buf [PathMax]byte
-	_, err := Getcwd(buf[0:])
-	if err != nil ***REMOVED***
-		return "", err
-	***REMOVED***
-	n := clen(buf[:])
-	if n < 1 ***REMOVED***
-		return "", EINVAL
-	***REMOVED***
-	return string(buf[:n]), nil
-***REMOVED***
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, err error) ***REMOVED***
 	var (

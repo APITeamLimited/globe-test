@@ -184,6 +184,17 @@ func (p *parser) clearStackToContext(s scope) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// parseGenericRawTextElements implements the generic raw text element parsing
+// algorithm defined in 12.2.6.2.
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-elements-that-contain-only-text
+// TODO: Since both RAWTEXT and RCDATA states are treated as tokenizer's part
+// officially, need to make tokenizer consider both states.
+func (p *parser) parseGenericRawTextElement() ***REMOVED***
+	p.addElement()
+	p.originalIM = p.im
+	p.im = textIM
+***REMOVED***
+
 // generateImpliedEndTags pops nodes off the stack of open elements as long as
 // the top node has a tag name of dd, dt, li, optgroup, option, p, rb, rp, rt or rtc.
 // If exceptions are specified, nodes with that name will not be popped off.
@@ -192,16 +203,17 @@ func (p *parser) generateImpliedEndTags(exceptions ...string) ***REMOVED***
 loop:
 	for i = len(p.oe) - 1; i >= 0; i-- ***REMOVED***
 		n := p.oe[i]
-		if n.Type == ElementNode ***REMOVED***
-			switch n.DataAtom ***REMOVED***
-			case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc:
-				for _, except := range exceptions ***REMOVED***
-					if n.Data == except ***REMOVED***
-						break loop
-					***REMOVED***
+		if n.Type != ElementNode ***REMOVED***
+			break
+		***REMOVED***
+		switch n.DataAtom ***REMOVED***
+		case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc:
+			for _, except := range exceptions ***REMOVED***
+				if n.Data == except ***REMOVED***
+					break loop
 				***REMOVED***
-				continue
 			***REMOVED***
+			continue
 		***REMOVED***
 		break
 	***REMOVED***
@@ -369,8 +381,7 @@ findIdenticalElements:
 // Section 12.2.4.3.
 func (p *parser) clearActiveFormattingElements() ***REMOVED***
 	for ***REMOVED***
-		n := p.afe.pop()
-		if len(p.afe) == 0 || n.Type == scopeMarkerNode ***REMOVED***
+		if n := p.afe.pop(); len(p.afe) == 0 || n.Type == scopeMarkerNode ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
@@ -439,9 +450,6 @@ func (p *parser) resetInsertionMode() ***REMOVED***
 		case a.Select:
 			if !last ***REMOVED***
 				for ancestor, first := n, p.oe[0]; ancestor != first; ***REMOVED***
-					if ancestor == first ***REMOVED***
-						break
-					***REMOVED***
 					ancestor = p.oe[p.oe.index(ancestor)-1]
 					switch ancestor.DataAtom ***REMOVED***
 					case a.Template:
@@ -628,15 +636,28 @@ func inHeadIM(p *parser) bool ***REMOVED***
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Html:
 			return inBodyIM(p)
-		case a.Base, a.Basefont, a.Bgsound, a.Command, a.Link, a.Meta:
+		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta:
 			p.addElement()
 			p.oe.pop()
 			p.acknowledgeSelfClosingTag()
 			return true
-		case a.Script, a.Title, a.Noscript, a.Noframes, a.Style:
+		case a.Noscript:
+			if p.scripting ***REMOVED***
+				p.parseGenericRawTextElement()
+				return true
+			***REMOVED***
+			p.addElement()
+			p.im = inHeadNoscriptIM
+			// Don't let the tokenizer go into raw text mode when scripting is disabled.
+			p.tokenizer.NextIsNotRawText()
+			return true
+		case a.Script, a.Title:
 			p.addElement()
 			p.setOriginalIM()
 			p.im = textIM
+			return true
+		case a.Noframes, a.Style:
+			p.parseGenericRawTextElement()
 			return true
 		case a.Head:
 			// Ignore the token.
@@ -692,6 +713,49 @@ func inHeadIM(p *parser) bool ***REMOVED***
 	***REMOVED***
 
 	p.parseImpliedToken(EndTagToken, a.Head, a.Head.String())
+	return false
+***REMOVED***
+
+// 12.2.6.4.5.
+func inHeadNoscriptIM(p *parser) bool ***REMOVED***
+	switch p.tok.Type ***REMOVED***
+	case DoctypeToken:
+		// Ignore the token.
+		return true
+	case StartTagToken:
+		switch p.tok.DataAtom ***REMOVED***
+		case a.Html:
+			return inBodyIM(p)
+		case a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Style:
+			return inHeadIM(p)
+		case a.Head, a.Noscript:
+			// Ignore the token.
+			return true
+		***REMOVED***
+	case EndTagToken:
+		switch p.tok.DataAtom ***REMOVED***
+		case a.Noscript, a.Br:
+		default:
+			// Ignore the token.
+			return true
+		***REMOVED***
+	case TextToken:
+		s := strings.TrimLeft(p.tok.Data, whitespace)
+		if len(s) == 0 ***REMOVED***
+			// It was all whitespace.
+			return inHeadIM(p)
+		***REMOVED***
+	case CommentToken:
+		return inHeadIM(p)
+	***REMOVED***
+	p.oe.pop()
+	if p.top().DataAtom != a.Head ***REMOVED***
+		panic("html: the new current node will be a head element.")
+	***REMOVED***
+	p.im = inHeadIM
+	if p.tok.DataAtom == a.Noscript ***REMOVED***
+		return true
+	***REMOVED***
 	return false
 ***REMOVED***
 
@@ -806,7 +870,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 				return true
 			***REMOVED***
 			copyAttributes(p.oe[0], p.tok)
-		case a.Base, a.Basefont, a.Bgsound, a.Command, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Template, a.Title:
+		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Template, a.Title:
 			return inHeadIM(p)
 		case a.Body:
 			if p.oe.contains(a.Template) ***REMOVED***
@@ -832,7 +896,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			p.addElement()
 			p.im = inFramesetIM
 			return true
-		case a.Address, a.Article, a.Aside, a.Blockquote, a.Center, a.Details, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Menu, a.Nav, a.Ol, a.P, a.Section, a.Summary, a.Ul:
+		case a.Address, a.Article, a.Aside, a.Blockquote, a.Center, a.Details, a.Dialog, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Main, a.Menu, a.Nav, a.Ol, a.P, a.Section, a.Summary, a.Ul:
 			p.popUntil(buttonScope, a.P)
 			p.addElement()
 		case a.H1, a.H2, a.H3, a.H4, a.H5, a.H6:
@@ -904,7 +968,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.A:
 			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- ***REMOVED***
 				if n := p.afe[i]; n.Type == ElementNode && n.DataAtom == a.A ***REMOVED***
-					p.inBodyEndTagFormatting(a.A)
+					p.inBodyEndTagFormatting(a.A, "a")
 					p.oe.remove(n)
 					p.afe.remove(n)
 					break
@@ -918,7 +982,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.Nobr:
 			p.reconstructActiveFormattingElements()
 			if p.elementInScope(defaultScope, a.Nobr) ***REMOVED***
-				p.inBodyEndTagFormatting(a.Nobr)
+				p.inBodyEndTagFormatting(a.Nobr, "nobr")
 				p.reconstructActiveFormattingElements()
 			***REMOVED***
 			p.addFormattingElement()
@@ -965,53 +1029,6 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			p.tok.DataAtom = a.Img
 			p.tok.Data = a.Img.String()
 			return false
-		case a.Isindex:
-			if p.form != nil ***REMOVED***
-				// Ignore the token.
-				return true
-			***REMOVED***
-			action := ""
-			prompt := "This is a searchable index. Enter search keywords: "
-			attr := []Attribute***REMOVED******REMOVED***Key: "name", Val: "isindex"***REMOVED******REMOVED***
-			for _, t := range p.tok.Attr ***REMOVED***
-				switch t.Key ***REMOVED***
-				case "action":
-					action = t.Val
-				case "name":
-					// Ignore the attribute.
-				case "prompt":
-					prompt = t.Val
-				default:
-					attr = append(attr, t)
-				***REMOVED***
-			***REMOVED***
-			p.acknowledgeSelfClosingTag()
-			p.popUntil(buttonScope, a.P)
-			p.parseImpliedToken(StartTagToken, a.Form, a.Form.String())
-			if p.form == nil ***REMOVED***
-				// NOTE: The 'isindex' element has been removed,
-				// and the 'template' element has not been designed to be
-				// collaborative with the index element.
-				//
-				// Ignore the token.
-				return true
-			***REMOVED***
-			if action != "" ***REMOVED***
-				p.form.Attr = []Attribute***REMOVED******REMOVED***Key: "action", Val: action***REMOVED******REMOVED***
-			***REMOVED***
-			p.parseImpliedToken(StartTagToken, a.Hr, a.Hr.String())
-			p.parseImpliedToken(StartTagToken, a.Label, a.Label.String())
-			p.addText(prompt)
-			p.addChild(&Node***REMOVED***
-				Type:     ElementNode,
-				DataAtom: a.Input,
-				Data:     a.Input.String(),
-				Attr:     attr,
-			***REMOVED***)
-			p.oe.pop()
-			p.parseImpliedToken(EndTagToken, a.Label, a.Label.String())
-			p.parseImpliedToken(StartTagToken, a.Hr, a.Hr.String())
-			p.parseImpliedToken(EndTagToken, a.Form, a.Form.String())
 		case a.Textarea:
 			p.addElement()
 			p.setOriginalIM()
@@ -1021,18 +1038,21 @@ func inBodyIM(p *parser) bool ***REMOVED***
 			p.popUntil(buttonScope, a.P)
 			p.reconstructActiveFormattingElements()
 			p.framesetOK = false
-			p.addElement()
-			p.setOriginalIM()
-			p.im = textIM
+			p.parseGenericRawTextElement()
 		case a.Iframe:
 			p.framesetOK = false
+			p.parseGenericRawTextElement()
+		case a.Noembed:
+			p.parseGenericRawTextElement()
+		case a.Noscript:
+			if p.scripting ***REMOVED***
+				p.parseGenericRawTextElement()
+				return true
+			***REMOVED***
+			p.reconstructActiveFormattingElements()
 			p.addElement()
-			p.setOriginalIM()
-			p.im = textIM
-		case a.Noembed, a.Noscript:
-			p.addElement()
-			p.setOriginalIM()
-			p.im = textIM
+			// Don't let the tokenizer go into raw text mode when scripting is disabled.
+			p.tokenizer.NextIsNotRawText()
 		case a.Select:
 			p.reconstructActiveFormattingElements()
 			p.addElement()
@@ -1088,7 +1108,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 				return false
 			***REMOVED***
 			return true
-		case a.Address, a.Article, a.Aside, a.Blockquote, a.Button, a.Center, a.Details, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Listing, a.Menu, a.Nav, a.Ol, a.Pre, a.Section, a.Summary, a.Ul:
+		case a.Address, a.Article, a.Aside, a.Blockquote, a.Button, a.Center, a.Details, a.Dialog, a.Dir, a.Div, a.Dl, a.Fieldset, a.Figcaption, a.Figure, a.Footer, a.Header, a.Hgroup, a.Listing, a.Main, a.Menu, a.Nav, a.Ol, a.Pre, a.Section, a.Summary, a.Ul:
 			p.popUntil(defaultScope, p.tok.DataAtom)
 		case a.Form:
 			if p.oe.contains(a.Template) ***REMOVED***
@@ -1126,7 +1146,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.H1, a.H2, a.H3, a.H4, a.H5, a.H6:
 			p.popUntil(defaultScope, a.H1, a.H2, a.H3, a.H4, a.H5, a.H6)
 		case a.A, a.B, a.Big, a.Code, a.Em, a.Font, a.I, a.Nobr, a.S, a.Small, a.Strike, a.Strong, a.Tt, a.U:
-			p.inBodyEndTagFormatting(p.tok.DataAtom)
+			p.inBodyEndTagFormatting(p.tok.DataAtom, p.tok.Data)
 		case a.Applet, a.Marquee, a.Object:
 			if p.popUntil(defaultScope, p.tok.DataAtom) ***REMOVED***
 				p.clearActiveFormattingElements()
@@ -1137,7 +1157,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		case a.Template:
 			return inHeadIM(p)
 		default:
-			p.inBodyEndTagOther(p.tok.DataAtom)
+			p.inBodyEndTagOther(p.tok.DataAtom, p.tok.Data)
 		***REMOVED***
 	case CommentToken:
 		p.addChild(&Node***REMOVED***
@@ -1149,14 +1169,13 @@ func inBodyIM(p *parser) bool ***REMOVED***
 		if len(p.templateStack) > 0 ***REMOVED***
 			p.im = inTemplateIM
 			return false
-		***REMOVED*** else ***REMOVED***
-			for _, e := range p.oe ***REMOVED***
-				switch e.DataAtom ***REMOVED***
-				case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc, a.Tbody, a.Td, a.Tfoot, a.Th,
-					a.Thead, a.Tr, a.Body, a.Html:
-				default:
-					return true
-				***REMOVED***
+		***REMOVED***
+		for _, e := range p.oe ***REMOVED***
+			switch e.DataAtom ***REMOVED***
+			case a.Dd, a.Dt, a.Li, a.Optgroup, a.Option, a.P, a.Rb, a.Rp, a.Rt, a.Rtc, a.Tbody, a.Td, a.Tfoot, a.Th,
+				a.Thead, a.Tr, a.Body, a.Html:
+			default:
+				return true
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -1164,7 +1183,7 @@ func inBodyIM(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
+func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom, tagName string) ***REMOVED***
 	// This is the "adoption agency" algorithm, described at
 	// https://html.spec.whatwg.org/multipage/syntax.html#adoptionAgency
 
@@ -1172,9 +1191,15 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 	// Once the code successfully parses the comprehensive test suite, we should
 	// refactor this code to be more idiomatic.
 
-	// Steps 1-4. The outer loop.
+	// Steps 1-2
+	if current := p.oe.top(); current.Data == tagName && p.afe.index(current) == -1 ***REMOVED***
+		p.oe.pop()
+		return
+	***REMOVED***
+
+	// Steps 3-5. The outer loop.
 	for i := 0; i < 8; i++ ***REMOVED***
-		// Step 5. Find the formatting element.
+		// Step 6. Find the formatting element.
 		var formattingElement *Node
 		for j := len(p.afe) - 1; j >= 0; j-- ***REMOVED***
 			if p.afe[j].Type == scopeMarkerNode ***REMOVED***
@@ -1186,20 +1211,25 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		if formattingElement == nil ***REMOVED***
-			p.inBodyEndTagOther(tagAtom)
+			p.inBodyEndTagOther(tagAtom, tagName)
 			return
 		***REMOVED***
+
+		// Step 7. Ignore the tag if formatting element is not in the stack of open elements.
 		feIndex := p.oe.index(formattingElement)
 		if feIndex == -1 ***REMOVED***
 			p.afe.remove(formattingElement)
 			return
 		***REMOVED***
+		// Step 8. Ignore the tag if formatting element is not in the scope.
 		if !p.elementInScope(defaultScope, tagAtom) ***REMOVED***
 			// Ignore the tag.
 			return
 		***REMOVED***
 
-		// Steps 9-10. Find the furthest block.
+		// Step 9. This step is omitted because it's just a parse error but no need to return.
+
+		// Steps 10-11. Find the furthest block.
 		var furthestBlock *Node
 		for _, e := range p.oe[feIndex:] ***REMOVED***
 			if isSpecialElement(e) ***REMOVED***
@@ -1216,47 +1246,65 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 			return
 		***REMOVED***
 
-		// Steps 11-12. Find the common ancestor and bookmark node.
+		// Steps 12-13. Find the common ancestor and bookmark node.
 		commonAncestor := p.oe[feIndex-1]
 		bookmark := p.afe.index(formattingElement)
 
-		// Step 13. The inner loop. Find the lastNode to reparent.
+		// Step 14. The inner loop. Find the lastNode to reparent.
 		lastNode := furthestBlock
 		node := furthestBlock
 		x := p.oe.index(node)
-		// Steps 13.1-13.2
-		for j := 0; j < 3; j++ ***REMOVED***
-			// Step 13.3.
+		// Step 14.1.
+		j := 0
+		for ***REMOVED***
+			// Step 14.2.
+			j++
+			// Step. 14.3.
 			x--
 			node = p.oe[x]
-			// Step 13.4 - 13.5.
+			// Step 14.4. Go to the next step if node is formatting element.
+			if node == formattingElement ***REMOVED***
+				break
+			***REMOVED***
+			// Step 14.5. Remove node from the list of active formatting elements if
+			// inner loop counter is greater than three and node is in the list of
+			// active formatting elements.
+			if ni := p.afe.index(node); j > 3 && ni > -1 ***REMOVED***
+				p.afe.remove(node)
+				// If any element of the list of active formatting elements is removed,
+				// we need to take care whether bookmark should be decremented or not.
+				// This is because the value of bookmark may exceed the size of the
+				// list by removing elements from the list.
+				if ni <= bookmark ***REMOVED***
+					bookmark--
+				***REMOVED***
+				continue
+			***REMOVED***
+			// Step 14.6. Continue the next inner loop if node is not in the list of
+			// active formatting elements.
 			if p.afe.index(node) == -1 ***REMOVED***
 				p.oe.remove(node)
 				continue
 			***REMOVED***
-			// Step 13.6.
-			if node == formattingElement ***REMOVED***
-				break
-			***REMOVED***
-			// Step 13.7.
+			// Step 14.7.
 			clone := node.clone()
 			p.afe[p.afe.index(node)] = clone
 			p.oe[p.oe.index(node)] = clone
 			node = clone
-			// Step 13.8.
+			// Step 14.8.
 			if lastNode == furthestBlock ***REMOVED***
 				bookmark = p.afe.index(node) + 1
 			***REMOVED***
-			// Step 13.9.
+			// Step 14.9.
 			if lastNode.Parent != nil ***REMOVED***
 				lastNode.Parent.RemoveChild(lastNode)
 			***REMOVED***
 			node.AppendChild(lastNode)
-			// Step 13.10.
+			// Step 14.10.
 			lastNode = node
 		***REMOVED***
 
-		// Step 14. Reparent lastNode to the common ancestor,
+		// Step 15. Reparent lastNode to the common ancestor,
 		// or for misnested table nodes, to the foster parent.
 		if lastNode.Parent != nil ***REMOVED***
 			lastNode.Parent.RemoveChild(lastNode)
@@ -1268,13 +1316,13 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 			commonAncestor.AppendChild(lastNode)
 		***REMOVED***
 
-		// Steps 15-17. Reparent nodes from the furthest block's children
+		// Steps 16-18. Reparent nodes from the furthest block's children
 		// to a clone of the formatting element.
 		clone := formattingElement.clone()
 		reparentChildren(clone, furthestBlock)
 		furthestBlock.AppendChild(clone)
 
-		// Step 18. Fix up the list of active formatting elements.
+		// Step 19. Fix up the list of active formatting elements.
 		if oldLoc := p.afe.index(formattingElement); oldLoc != -1 && oldLoc < bookmark ***REMOVED***
 			// Move the bookmark with the rest of the list.
 			bookmark--
@@ -1282,7 +1330,7 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 		p.afe.remove(formattingElement)
 		p.afe.insert(bookmark, clone)
 
-		// Step 19. Fix up the stack of open elements.
+		// Step 20. Fix up the stack of open elements.
 		p.oe.remove(formattingElement)
 		p.oe.insert(p.oe.index(furthestBlock)+1, clone)
 	***REMOVED***
@@ -1291,9 +1339,17 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) ***REMOVED***
 // inBodyEndTagOther performs the "any other end tag" algorithm for inBodyIM.
 // "Any other end tag" handling from 12.2.6.5 The rules for parsing tokens in foreign content
 // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inforeign
-func (p *parser) inBodyEndTagOther(tagAtom a.Atom) ***REMOVED***
+func (p *parser) inBodyEndTagOther(tagAtom a.Atom, tagName string) ***REMOVED***
 	for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
-		if p.oe[i].DataAtom == tagAtom ***REMOVED***
+		// Two element nodes have the same tag if they have the same Data (a
+		// string-typed field). As an optimization, for common HTML tags, each
+		// Data string is assigned a unique, non-zero DataAtom (a uint32-typed
+		// field), since integer comparison is faster than string comparison.
+		// Uncommon (custom) tags get a zero DataAtom.
+		//
+		// The if condition here is equivalent to (p.oe[i].Data == tagName).
+		if (p.oe[i].DataAtom == tagAtom) &&
+			((tagAtom != 0) || (p.oe[i].Data == tagName)) ***REMOVED***
 			p.oe = p.oe[:i]
 			break
 		***REMOVED***
@@ -1445,14 +1501,13 @@ func inCaptionIM(p *parser) bool ***REMOVED***
 	case StartTagToken:
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Caption, a.Col, a.Colgroup, a.Tbody, a.Td, a.Tfoot, a.Thead, a.Tr:
-			if p.popUntil(tableScope, a.Caption) ***REMOVED***
-				p.clearActiveFormattingElements()
-				p.im = inTableIM
-				return false
-			***REMOVED*** else ***REMOVED***
+			if !p.popUntil(tableScope, a.Caption) ***REMOVED***
 				// Ignore the token.
 				return true
 			***REMOVED***
+			p.clearActiveFormattingElements()
+			p.im = inTableIM
+			return false
 		case a.Select:
 			p.reconstructActiveFormattingElements()
 			p.addElement()
@@ -1469,14 +1524,13 @@ func inCaptionIM(p *parser) bool ***REMOVED***
 			***REMOVED***
 			return true
 		case a.Table:
-			if p.popUntil(tableScope, a.Caption) ***REMOVED***
-				p.clearActiveFormattingElements()
-				p.im = inTableIM
-				return false
-			***REMOVED*** else ***REMOVED***
+			if !p.popUntil(tableScope, a.Caption) ***REMOVED***
 				// Ignore the token.
 				return true
 			***REMOVED***
+			p.clearActiveFormattingElements()
+			p.im = inTableIM
+			return false
 		case a.Body, a.Col, a.Colgroup, a.Html, a.Tbody, a.Td, a.Tfoot, a.Th, a.Thead, a.Tr:
 			// Ignore the token.
 			return true
@@ -1687,8 +1741,9 @@ func inCellIM(p *parser) bool ***REMOVED***
 				return true
 			***REMOVED***
 			// Close the cell and reprocess.
-			p.popUntil(tableScope, a.Td, a.Th)
-			p.clearActiveFormattingElements()
+			if p.popUntil(tableScope, a.Td, a.Th) ***REMOVED***
+				p.clearActiveFormattingElements()
+			***REMOVED***
 			p.im = inRowIM
 			return false
 		***REMOVED***
@@ -1719,8 +1774,11 @@ func inSelectIM(p *parser) bool ***REMOVED***
 			***REMOVED***
 			p.addElement()
 		case a.Select:
-			p.tok.Type = EndTagToken
-			return false
+			if !p.popUntil(selectScope, a.Select) ***REMOVED***
+				// Ignore the token.
+				return true
+			***REMOVED***
+			p.resetInsertionMode()
 		case a.Input, a.Keygen, a.Textarea:
 			if p.elementInScope(selectScope, a.Select) ***REMOVED***
 				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String())
@@ -1748,9 +1806,11 @@ func inSelectIM(p *parser) bool ***REMOVED***
 				p.oe = p.oe[:i]
 			***REMOVED***
 		case a.Select:
-			if p.popUntil(selectScope, a.Select) ***REMOVED***
-				p.resetInsertionMode()
+			if !p.popUntil(selectScope, a.Select) ***REMOVED***
+				// Ignore the token.
+				return true
 			***REMOVED***
+			p.resetInsertionMode()
 		case a.Template:
 			return inHeadIM(p)
 		***REMOVED***
@@ -1775,13 +1835,22 @@ func inSelectInTableIM(p *parser) bool ***REMOVED***
 	case StartTagToken, EndTagToken:
 		switch p.tok.DataAtom ***REMOVED***
 		case a.Caption, a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr, a.Td, a.Th:
-			if p.tok.Type == StartTagToken || p.elementInScope(tableScope, p.tok.DataAtom) ***REMOVED***
-				p.parseImpliedToken(EndTagToken, a.Select, a.Select.String())
-				return false
-			***REMOVED*** else ***REMOVED***
+			if p.tok.Type == EndTagToken && !p.elementInScope(tableScope, p.tok.DataAtom) ***REMOVED***
 				// Ignore the token.
 				return true
 			***REMOVED***
+			// This is like p.popUntil(selectScope, a.Select), but it also
+			// matches <math select>, not just <select>. Matching the MathML
+			// tag is arguably incorrect (conceptually), but it mimics what
+			// Chromium does.
+			for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
+				if n := p.oe[i]; n.DataAtom == a.Select ***REMOVED***
+					p.oe = p.oe[:i]
+					break
+				***REMOVED***
+			***REMOVED***
+			p.resetInsertionMode()
+			return false
 		***REMOVED***
 	***REMOVED***
 	return inSelectIM(p)
@@ -2062,28 +2131,31 @@ func parseForeignContent(p *parser) bool ***REMOVED***
 			Data: p.tok.Data,
 		***REMOVED***)
 	case StartTagToken:
-		b := breakout[p.tok.Data]
-		if p.tok.DataAtom == a.Font ***REMOVED***
-		loop:
-			for _, attr := range p.tok.Attr ***REMOVED***
-				switch attr.Key ***REMOVED***
-				case "color", "face", "size":
-					b = true
-					break loop
+		if !p.fragment ***REMOVED***
+			b := breakout[p.tok.Data]
+			if p.tok.DataAtom == a.Font ***REMOVED***
+			loop:
+				for _, attr := range p.tok.Attr ***REMOVED***
+					switch attr.Key ***REMOVED***
+					case "color", "face", "size":
+						b = true
+						break loop
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-		***REMOVED***
-		if b ***REMOVED***
-			for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
-				n := p.oe[i]
-				if n.Namespace == "" || htmlIntegrationPoint(n) || mathMLTextIntegrationPoint(n) ***REMOVED***
-					p.oe = p.oe[:i+1]
-					break
+			if b ***REMOVED***
+				for i := len(p.oe) - 1; i >= 0; i-- ***REMOVED***
+					n := p.oe[i]
+					if n.Namespace == "" || htmlIntegrationPoint(n) || mathMLTextIntegrationPoint(n) ***REMOVED***
+						p.oe = p.oe[:i+1]
+						break
+					***REMOVED***
 				***REMOVED***
+				return false
 			***REMOVED***
-			return false
 		***REMOVED***
-		switch p.top().Namespace ***REMOVED***
+		current := p.adjustedCurrentNode()
+		switch current.Namespace ***REMOVED***
 		case "math":
 			adjustAttributeNames(p.tok.Attr, mathMLAttributeAdjustments)
 		case "svg":
@@ -2098,7 +2170,7 @@ func parseForeignContent(p *parser) bool ***REMOVED***
 			panic("html: bad parser state: unexpected namespace")
 		***REMOVED***
 		adjustForeignAttributes(p.tok.Attr)
-		namespace := p.top().Namespace
+		namespace := current.Namespace
 		p.addElement()
 		p.top().Namespace = namespace
 		if namespace != "" ***REMOVED***
@@ -2127,12 +2199,20 @@ func parseForeignContent(p *parser) bool ***REMOVED***
 	return true
 ***REMOVED***
 
+// Section 12.2.4.2.
+func (p *parser) adjustedCurrentNode() *Node ***REMOVED***
+	if len(p.oe) == 1 && p.fragment && p.context != nil ***REMOVED***
+		return p.context
+	***REMOVED***
+	return p.oe.top()
+***REMOVED***
+
 // Section 12.2.6.
 func (p *parser) inForeignContent() bool ***REMOVED***
 	if len(p.oe) == 0 ***REMOVED***
 		return false
 	***REMOVED***
-	n := p.oe[len(p.oe)-1]
+	n := p.adjustedCurrentNode()
 	if n.Namespace == "" ***REMOVED***
 		return false
 	***REMOVED***
@@ -2226,6 +2306,33 @@ func (p *parser) parse() error ***REMOVED***
 //
 // The input is assumed to be UTF-8 encoded.
 func Parse(r io.Reader) (*Node, error) ***REMOVED***
+	return ParseWithOptions(r)
+***REMOVED***
+
+// ParseFragment parses a fragment of HTML and returns the nodes that were
+// found. If the fragment is the InnerHTML for an existing element, pass that
+// element in context.
+//
+// It has the same intricacies as Parse.
+func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
+	return ParseFragmentWithOptions(r, context)
+***REMOVED***
+
+// ParseOption configures a parser.
+type ParseOption func(p *parser)
+
+// ParseOptionEnableScripting configures the scripting flag.
+// https://html.spec.whatwg.org/multipage/webappapis.html#enabling-and-disabling-scripting
+//
+// By default, scripting is enabled.
+func ParseOptionEnableScripting(enable bool) ParseOption ***REMOVED***
+	return func(p *parser) ***REMOVED***
+		p.scripting = enable
+	***REMOVED***
+***REMOVED***
+
+// ParseWithOptions is like Parse, with options.
+func ParseWithOptions(r io.Reader, opts ...ParseOption) (*Node, error) ***REMOVED***
 	p := &parser***REMOVED***
 		tokenizer: NewTokenizer(r),
 		doc: &Node***REMOVED***
@@ -2235,19 +2342,19 @@ func Parse(r io.Reader) (*Node, error) ***REMOVED***
 		framesetOK: true,
 		im:         initialIM,
 	***REMOVED***
-	err := p.parse()
-	if err != nil ***REMOVED***
+
+	for _, f := range opts ***REMOVED***
+		f(p)
+	***REMOVED***
+
+	if err := p.parse(); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	return p.doc, nil
 ***REMOVED***
 
-// ParseFragment parses a fragment of HTML and returns the nodes that were
-// found. If the fragment is the InnerHTML for an existing element, pass that
-// element in context.
-//
-// It has the same intricacies as Parse.
-func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
+// ParseFragmentWithOptions is like ParseFragment, with options.
+func ParseFragmentWithOptions(r io.Reader, context *Node, opts ...ParseOption) ([]*Node, error) ***REMOVED***
 	contextTag := ""
 	if context != nil ***REMOVED***
 		if context.Type != ElementNode ***REMOVED***
@@ -2262,13 +2369,21 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
 		contextTag = context.DataAtom.String()
 	***REMOVED***
 	p := &parser***REMOVED***
-		tokenizer: NewTokenizerFragment(r, contextTag),
 		doc: &Node***REMOVED***
 			Type: DocumentNode,
 		***REMOVED***,
 		scripting: true,
 		fragment:  true,
 		context:   context,
+	***REMOVED***
+	if context != nil && context.Namespace != "" ***REMOVED***
+		p.tokenizer = NewTokenizer(r)
+	***REMOVED*** else ***REMOVED***
+		p.tokenizer = NewTokenizerFragment(r, contextTag)
+	***REMOVED***
+
+	for _, f := range opts ***REMOVED***
+		f(p)
 	***REMOVED***
 
 	root := &Node***REMOVED***
@@ -2290,8 +2405,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	err := p.parse()
-	if err != nil ***REMOVED***
+	if err := p.parse(); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 

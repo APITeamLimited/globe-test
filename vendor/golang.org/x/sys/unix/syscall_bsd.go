@@ -18,6 +18,21 @@ import (
 	"unsafe"
 )
 
+const ImplementsGetwd = true
+
+func Getwd() (string, error) ***REMOVED***
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	n := clen(buf[:])
+	if n < 1 ***REMOVED***
+		return "", EINVAL
+	***REMOVED***
+	return string(buf[:n]), nil
+***REMOVED***
+
 /*
  * Wrapped
  */
@@ -272,7 +287,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) ***REMOVED***
 	if err != nil ***REMOVED***
 		return
 	***REMOVED***
-	if runtime.GOOS == "darwin" && len == 0 ***REMOVED***
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && len == 0 ***REMOVED***
 		// Accepted socket has no address.
 		// This is likely due to a bug in xnu kernels,
 		// where instead of ECONNABORTED error socket
@@ -525,6 +540,23 @@ func SysctlClockinfo(name string) (*Clockinfo, error) ***REMOVED***
 		return nil, EIO
 	***REMOVED***
 	return &ci, nil
+***REMOVED***
+
+func SysctlTimeval(name string) (*Timeval, error) ***REMOVED***
+	mib, err := sysctlmib(name)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	var tv Timeval
+	n := uintptr(unsafe.Sizeof(tv))
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&tv)), &n, nil, 0); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if n != unsafe.Sizeof(tv) ***REMOVED***
+		return nil, EIO
+	***REMOVED***
+	return &tv, nil
 ***REMOVED***
 
 //sys	utimes(path string, timeval *[2]Timeval) (err error)

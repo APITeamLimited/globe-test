@@ -4,7 +4,10 @@
 
 // Package acme provides an implementation of the
 // Automatic Certificate Management Environment (ACME) spec.
-// See https://tools.ietf.org/html/draft-ietf-acme-acme-02 for details.
+// The intial implementation was based on ACME draft-02 and
+// is now being extended to comply with RFC 8555.
+// See https://tools.ietf.org/html/draft-ietf-acme-acme-02
+// and https://tools.ietf.org/html/rfc8555 for details.
 //
 // Most common scenarios will want to use autocert subdirectory instead,
 // which provides automatic access to certificates from Let's Encrypt
@@ -14,7 +17,6 @@
 package acme
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -23,6 +25,8 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -33,18 +37,34 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-// LetsEncryptURL is the Directory endpoint of Let's Encrypt CA.
-const LetsEncryptURL = "https://acme-v01.api.letsencrypt.org/directory"
+const (
+	// LetsEncryptURL is the Directory endpoint of Let's Encrypt CA.
+	LetsEncryptURL = "https://acme-v02.api.letsencrypt.org/directory"
+
+	// ALPNProto is the ALPN protocol name used by a CA server when validating
+	// tls-alpn-01 challenges.
+	//
+	// Package users must ensure their servers can negotiate the ACME ALPN in
+	// order for tls-alpn-01 challenge verifications to succeed.
+	// See the crypto/tls package's Config.NextProtos field.
+	ALPNProto = "acme-tls/1"
+)
+
+// idPeACMEIdentifier is the OID for the ACME extension for the TLS-ALPN challenge.
+// https://tools.ietf.org/html/draft-ietf-acme-tls-alpn-05#section-5.1
+var idPeACMEIdentifier = asn1.ObjectIdentifier***REMOVED***1, 3, 6, 1, 5, 5, 7, 1, 31***REMOVED***
 
 const (
 	maxChainLen = 5       // max depth and breadth of a certificate chain
-	maxCertSize = 1 << 20 // max size of a certificate, in bytes
+	maxCertSize = 1 << 20 // max size of a certificate, in DER bytes
+	// Used for decoding certs from application/pem-certificate-chain response,
+	// the default when in RFC mode.
+	maxCertChainSize = maxCertSize * maxChainLen
 
 	// Max number of collected nonces kept in memory.
 	// Expect usual peak of 1 or 2.
@@ -64,6 +84,10 @@ const (
 type Client struct ***REMOVED***
 	// Key is the account key used to register with a CA and sign requests.
 	// Key.Public() must return a *rsa.PublicKey or *ecdsa.PublicKey.
+	//
+	// The following algorithms are supported:
+	// RS256, ES256, ES384 and ES512.
+	// See RFC7518 for more details about the algorithms.
 	Key crypto.Signer
 
 	// HTTPClient optionally specifies an HTTP client to use
@@ -76,11 +100,61 @@ type Client struct ***REMOVED***
 	// will have no effect.
 	DirectoryURL string
 
-	dirMu sync.Mutex // guards writes to dir
-	dir   *Directory // cached result of Client's Discover method
+	// RetryBackoff computes the duration after which the nth retry of a failed request
+	// should occur. The value of n for the first call on failure is 1.
+	// The values of r and resp are the request and response of the last failed attempt.
+	// If the returned value is negative or zero, no more retries are done and an error
+	// is returned to the caller of the original method.
+	//
+	// Requests which result in a 4xx client error are not retried,
+	// except for 400 Bad Request due to "bad nonce" errors and 429 Too Many Requests.
+	//
+	// If RetryBackoff is nil, a truncated exponential backoff algorithm
+	// with the ceiling of 10 seconds is used, where each subsequent retry n
+	// is done after either ("Retry-After" + jitter) or (2^n seconds + jitter),
+	// preferring the former if "Retry-After" header is found in the resp.
+	// The jitter is a random value up to 1 second.
+	RetryBackoff func(n int, r *http.Request, resp *http.Response) time.Duration
+
+	// UserAgent is prepended to the User-Agent header sent to the ACME server,
+	// which by default is this package's name and version.
+	//
+	// Reusable libraries and tools in particular should set this value to be
+	// identifiable by the server, in case they are causing issues.
+	UserAgent string
+
+	cacheMu sync.Mutex
+	dir     *Directory // cached result of Client's Discover method
+	kid     keyID      // cached Account.URI obtained from registerRFC or getAccountRFC
 
 	noncesMu sync.Mutex
 	nonces   map[string]struct***REMOVED******REMOVED*** // nonces collected from previous responses
+***REMOVED***
+
+// accountKID returns a key ID associated with c.Key, the account identity
+// provided by the CA during RFC based registration.
+// It assumes c.Discover has already been called.
+//
+// accountKID requires at most one network roundtrip.
+// It caches only successful result.
+//
+// When in pre-RFC mode or when c.getRegRFC responds with an error, accountKID
+// returns noKeyID.
+func (c *Client) accountKID(ctx context.Context) keyID ***REMOVED***
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	if !c.dir.rfcCompliant() ***REMOVED***
+		return noKeyID
+	***REMOVED***
+	if c.kid != noKeyID ***REMOVED***
+		return c.kid
+	***REMOVED***
+	a, err := c.getRegRFC(ctx)
+	if err != nil ***REMOVED***
+		return noKeyID
+	***REMOVED***
+	c.kid = keyID(a.URI)
+	return c.kid
 ***REMOVED***
 
 // Discover performs ACME server discovery using c.DirectoryURL.
@@ -89,53 +163,82 @@ type Client struct ***REMOVED***
 // a network round-trip. This also means mutating c.DirectoryURL after successful call
 // of this method will have no effect.
 func (c *Client) Discover(ctx context.Context) (Directory, error) ***REMOVED***
-	c.dirMu.Lock()
-	defer c.dirMu.Unlock()
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
 	if c.dir != nil ***REMOVED***
 		return *c.dir, nil
 	***REMOVED***
 
-	dirURL := c.DirectoryURL
-	if dirURL == "" ***REMOVED***
-		dirURL = LetsEncryptURL
-	***REMOVED***
-	res, err := c.get(ctx, dirURL)
+	res, err := c.get(ctx, c.directoryURL(), wantStatus(http.StatusOK))
 	if err != nil ***REMOVED***
 		return Directory***REMOVED******REMOVED***, err
 	***REMOVED***
 	defer res.Body.Close()
 	c.addNonce(res.Header)
-	if res.StatusCode != http.StatusOK ***REMOVED***
-		return Directory***REMOVED******REMOVED***, responseError(res)
-	***REMOVED***
 
 	var v struct ***REMOVED***
-		Reg    string `json:"new-reg"`
-		Authz  string `json:"new-authz"`
-		Cert   string `json:"new-cert"`
-		Revoke string `json:"revoke-cert"`
-		Meta   struct ***REMOVED***
-			Terms   string   `json:"terms-of-service"`
-			Website string   `json:"website"`
-			CAA     []string `json:"caa-identities"`
+		Reg          string `json:"new-reg"`
+		RegRFC       string `json:"newAccount"`
+		Authz        string `json:"new-authz"`
+		AuthzRFC     string `json:"newAuthz"`
+		OrderRFC     string `json:"newOrder"`
+		Cert         string `json:"new-cert"`
+		Revoke       string `json:"revoke-cert"`
+		RevokeRFC    string `json:"revokeCert"`
+		NonceRFC     string `json:"newNonce"`
+		KeyChangeRFC string `json:"keyChange"`
+		Meta         struct ***REMOVED***
+			Terms           string   `json:"terms-of-service"`
+			TermsRFC        string   `json:"termsOfService"`
+			WebsiteRFC      string   `json:"website"`
+			CAA             []string `json:"caa-identities"`
+			CAARFC          []string `json:"caaIdentities"`
+			ExternalAcctRFC bool     `json:"externalAccountRequired"`
 		***REMOVED***
 	***REMOVED***
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil ***REMOVED***
 		return Directory***REMOVED******REMOVED***, err
 	***REMOVED***
+	if v.OrderRFC == "" ***REMOVED***
+		// Non-RFC compliant ACME CA.
+		c.dir = &Directory***REMOVED***
+			RegURL:    v.Reg,
+			AuthzURL:  v.Authz,
+			CertURL:   v.Cert,
+			RevokeURL: v.Revoke,
+			Terms:     v.Meta.Terms,
+			Website:   v.Meta.WebsiteRFC,
+			CAA:       v.Meta.CAA,
+		***REMOVED***
+		return *c.dir, nil
+	***REMOVED***
+	// RFC compliant ACME CA.
 	c.dir = &Directory***REMOVED***
-		RegURL:    v.Reg,
-		AuthzURL:  v.Authz,
-		CertURL:   v.Cert,
-		RevokeURL: v.Revoke,
-		Terms:     v.Meta.Terms,
-		Website:   v.Meta.Website,
-		CAA:       v.Meta.CAA,
+		RegURL:                  v.RegRFC,
+		AuthzURL:                v.AuthzRFC,
+		OrderURL:                v.OrderRFC,
+		RevokeURL:               v.RevokeRFC,
+		NonceURL:                v.NonceRFC,
+		KeyChangeURL:            v.KeyChangeRFC,
+		Terms:                   v.Meta.TermsRFC,
+		Website:                 v.Meta.WebsiteRFC,
+		CAA:                     v.Meta.CAARFC,
+		ExternalAccountRequired: v.Meta.ExternalAcctRFC,
 	***REMOVED***
 	return *c.dir, nil
 ***REMOVED***
 
+func (c *Client) directoryURL() string ***REMOVED***
+	if c.DirectoryURL != "" ***REMOVED***
+		return c.DirectoryURL
+	***REMOVED***
+	return LetsEncryptURL
+***REMOVED***
+
 // CreateCert requests a new certificate using the Certificate Signing Request csr encoded in DER format.
+// It is incompatible with RFC 8555. Callers should use CreateOrderCert when interfacing
+// with an RFC-compliant CA.
+//
 // The exp argument indicates the desired certificate validity duration. CA may issue a certificate
 // with a different duration.
 // If the bundle argument is true, the returned value will also contain the CA (issuer) certificate chain.
@@ -166,14 +269,11 @@ func (c *Client) CreateCert(ctx context.Context, csr []byte, exp time.Duration, 
 		req.NotAfter = now.Add(exp).Format(time.RFC3339)
 	***REMOVED***
 
-	res, err := c.retryPostJWS(ctx, c.Key, c.dir.CertURL, req)
+	res, err := c.post(ctx, nil, c.dir.CertURL, req, wantStatus(http.StatusCreated))
 	if err != nil ***REMOVED***
 		return nil, "", err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusCreated ***REMOVED***
-		return nil, "", responseError(res)
-	***REMOVED***
 
 	curl := res.Header.Get("Location") // cert permanent URL
 	if res.ContentLength == 0 ***REMOVED***
@@ -190,32 +290,27 @@ func (c *Client) CreateCert(ctx context.Context, csr []byte, exp time.Duration, 
 // It retries the request until the certificate is successfully retrieved,
 // context is cancelled by the caller or an error response is received.
 //
-// The returned value will also contain the CA (issuer) certificate if the bundle argument is true.
+// If the bundle argument is true, the returned value also contains the CA (issuer)
+// certificate chain.
 //
 // FetchCert returns an error if the CA's response or chain was unreasonably large.
 // Callers are encouraged to parse the returned value to ensure the certificate is valid
 // and has expected features.
 func (c *Client) FetchCert(ctx context.Context, url string, bundle bool) ([][]byte, error) ***REMOVED***
-	for ***REMOVED***
-		res, err := c.get(ctx, url)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		defer res.Body.Close()
-		if res.StatusCode == http.StatusOK ***REMOVED***
-			return c.responseCert(ctx, res, bundle)
-		***REMOVED***
-		if res.StatusCode > 299 ***REMOVED***
-			return nil, responseError(res)
-		***REMOVED***
-		d := retryAfter(res.Header.Get("Retry-After"), 3*time.Second)
-		select ***REMOVED***
-		case <-time.After(d):
-			// retry
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		***REMOVED***
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
+	if dir.rfcCompliant() ***REMOVED***
+		return c.fetchCertRFC(ctx, url, bundle)
+	***REMOVED***
+
+	// Legacy non-authenticated GET request.
+	res, err := c.get(ctx, url, wantStatus(http.StatusOK))
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return c.responseCert(ctx, res, bundle)
 ***REMOVED***
 
 // RevokeCert revokes a previously issued certificate cert, provided in DER format.
@@ -225,10 +320,15 @@ func (c *Client) FetchCert(ctx context.Context, url string, bundle bool) ([][]by
 // For instance, the key pair of the certificate may be authorized.
 // If the key is nil, c.Key is used instead.
 func (c *Client) RevokeCert(ctx context.Context, key crypto.Signer, cert []byte, reason CRLReasonCode) error ***REMOVED***
-	if _, err := c.Discover(ctx); err != nil ***REMOVED***
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	if dir.rfcCompliant() ***REMOVED***
+		return c.revokeCertRFC(ctx, key, cert, reason)
+	***REMOVED***
 
+	// Legacy CA.
 	body := &struct ***REMOVED***
 		Resource string `json:"resource"`
 		Cert     string `json:"certificate"`
@@ -238,17 +338,11 @@ func (c *Client) RevokeCert(ctx context.Context, key crypto.Signer, cert []byte,
 		Cert:     base64.RawURLEncoding.EncodeToString(cert),
 		Reason:   int(reason),
 	***REMOVED***
-	if key == nil ***REMOVED***
-		key = c.Key
-	***REMOVED***
-	res, err := c.retryPostJWS(ctx, key, c.dir.RevokeURL, body)
+	res, err := c.post(ctx, key, dir.RevokeURL, body, wantStatus(http.StatusOK))
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK ***REMOVED***
-		return responseError(res)
-	***REMOVED***
 	return nil
 ***REMOVED***
 
@@ -256,20 +350,30 @@ func (c *Client) RevokeCert(ctx context.Context, key crypto.Signer, cert []byte,
 // during account registration. See Register method of Client for more details.
 func AcceptTOS(tosURL string) bool ***REMOVED*** return true ***REMOVED***
 
-// Register creates a new account registration by following the "new-reg" flow.
-// It returns the registered account. The account is not modified.
+// Register creates a new account with the CA using c.Key.
+// It returns the registered account. The account acct is not modified.
 //
 // The registration may require the caller to agree to the CA's Terms of Service (TOS).
 // If so, and the account has not indicated the acceptance of the terms (see Account for details),
 // Register calls prompt with a TOS URL provided by the CA. Prompt should report
 // whether the caller agrees to the terms. To always accept the terms, the caller can use AcceptTOS.
-func (c *Client) Register(ctx context.Context, a *Account, prompt func(tosURL string) bool) (*Account, error) ***REMOVED***
-	if _, err := c.Discover(ctx); err != nil ***REMOVED***
+//
+// When interfacing with an RFC-compliant CA, non-RFC 8555 fields of acct are ignored
+// and prompt is called if Directory's Terms field is non-zero.
+// Also see Error's Instance field for when a CA requires already registered accounts to agree
+// to an updated Terms of Service.
+func (c *Client) Register(ctx context.Context, acct *Account, prompt func(tosURL string) bool) (*Account, error) ***REMOVED***
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+	if dir.rfcCompliant() ***REMOVED***
+		return c.registerRFC(ctx, acct, prompt)
+	***REMOVED***
 
-	var err error
-	if a, err = c.doReg(ctx, c.dir.RegURL, "new-reg", a); err != nil ***REMOVED***
+	// Legacy ACME draft registration flow.
+	a, err := c.doReg(ctx, dir.RegURL, "new-reg", acct)
+	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	var accept bool
@@ -283,9 +387,20 @@ func (c *Client) Register(ctx context.Context, a *Account, prompt func(tosURL st
 	return a, err
 ***REMOVED***
 
-// GetReg retrieves an existing registration.
-// The url argument is an Account URI.
+// GetReg retrieves an existing account associated with c.Key.
+//
+// The url argument is an Account URI used with pre-RFC 8555 CAs.
+// It is ignored when interfacing with an RFC-compliant CA.
 func (c *Client) GetReg(ctx context.Context, url string) (*Account, error) ***REMOVED***
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if dir.rfcCompliant() ***REMOVED***
+		return c.getRegRFC(ctx)
+	***REMOVED***
+
+	// Legacy CA.
 	a, err := c.doReg(ctx, url, "reg", nil)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -296,9 +411,21 @@ func (c *Client) GetReg(ctx context.Context, url string) (*Account, error) ***RE
 
 // UpdateReg updates an existing registration.
 // It returns an updated account copy. The provided account is not modified.
-func (c *Client) UpdateReg(ctx context.Context, a *Account) (*Account, error) ***REMOVED***
-	uri := a.URI
-	a, err := c.doReg(ctx, uri, "reg", a)
+//
+// When interfacing with RFC-compliant CAs, a.URI is ignored and the account URL
+// associated with c.Key is used instead.
+func (c *Client) UpdateReg(ctx context.Context, acct *Account) (*Account, error) ***REMOVED***
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if dir.rfcCompliant() ***REMOVED***
+		return c.updateRegRFC(ctx, acct)
+	***REMOVED***
+
+	// Legacy CA.
+	uri := acct.URI
+	a, err := c.doReg(ctx, uri, "reg", acct)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -306,14 +433,36 @@ func (c *Client) UpdateReg(ctx context.Context, a *Account) (*Account, error) **
 	return a, nil
 ***REMOVED***
 
-// Authorize performs the initial step in an authorization flow.
+// Authorize performs the initial step in the pre-authorization flow,
+// as opposed to order-based flow.
 // The caller will then need to choose from and perform a set of returned
 // challenges using c.Accept in order to successfully complete authorization.
 //
+// Once complete, the caller can use AuthorizeOrder which the CA
+// should provision with the already satisfied authorization.
+// For pre-RFC CAs, the caller can proceed directly to requesting a certificate
+// using CreateCert method.
+//
 // If an authorization has been previously granted, the CA may return
-// a valid authorization (Authorization.Status is StatusValid). If so, the caller
-// need not fulfill any challenge and can proceed to requesting a certificate.
+// a valid authorization which has its Status field set to StatusValid.
+//
+// More about pre-authorization can be found at
+// https://tools.ietf.org/html/rfc8555#section-7.4.1.
 func (c *Client) Authorize(ctx context.Context, domain string) (*Authorization, error) ***REMOVED***
+	return c.authorize(ctx, "dns", domain)
+***REMOVED***
+
+// AuthorizeIP is the same as Authorize but requests IP address authorization.
+// Clients which successfully obtain such authorization may request to issue
+// a certificate for IP addresses.
+//
+// See the ACME spec extension for more details about IP address identifiers:
+// https://tools.ietf.org/html/draft-ietf-acme-ip.
+func (c *Client) AuthorizeIP(ctx context.Context, ipaddr string) (*Authorization, error) ***REMOVED***
+	return c.authorize(ctx, "ip", ipaddr)
+***REMOVED***
+
+func (c *Client) authorize(ctx context.Context, typ, val string) (*Authorization, error) ***REMOVED***
 	if _, err := c.Discover(ctx); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -327,16 +476,13 @@ func (c *Client) Authorize(ctx context.Context, domain string) (*Authorization, 
 		Identifier authzID `json:"identifier"`
 	***REMOVED******REMOVED***
 		Resource:   "new-authz",
-		Identifier: authzID***REMOVED***Type: "dns", Value: domain***REMOVED***,
+		Identifier: authzID***REMOVED***Type: typ, Value: val***REMOVED***,
 	***REMOVED***
-	res, err := c.retryPostJWS(ctx, c.Key, c.dir.AuthzURL, req)
+	res, err := c.post(ctx, nil, c.dir.AuthzURL, req, wantStatus(http.StatusCreated))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusCreated ***REMOVED***
-		return nil, responseError(res)
-	***REMOVED***
 
 	var v wireAuthz
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil ***REMOVED***
@@ -353,14 +499,21 @@ func (c *Client) Authorize(ctx context.Context, domain string) (*Authorization, 
 // If a caller needs to poll an authorization until its status is final,
 // see the WaitAuthorization method.
 func (c *Client) GetAuthorization(ctx context.Context, url string) (*Authorization, error) ***REMOVED***
-	res, err := c.get(ctx, url)
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	var res *http.Response
+	if dir.rfcCompliant() ***REMOVED***
+		res, err = c.postAsGet(ctx, url, wantStatus(http.StatusOK))
+	***REMOVED*** else ***REMOVED***
+		res, err = c.get(ctx, url, wantStatus(http.StatusOK, http.StatusAccepted))
+	***REMOVED***
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted ***REMOVED***
-		return nil, responseError(res)
-	***REMOVED***
 	var v wireAuthz
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil ***REMOVED***
 		return nil, fmt.Errorf("acme: invalid response: %v", err)
@@ -373,11 +526,16 @@ func (c *Client) GetAuthorization(ctx context.Context, url string) (*Authorizati
 // The url argument is an Authorization.URI value.
 //
 // If successful, the caller will be required to obtain a new authorization
-// using the Authorize method before being able to request a new certificate
-// for the domain associated with the authorization.
+// using the Authorize or AuthorizeOrder methods before being able to request
+// a new certificate for the domain associated with the authorization.
 //
 // It does not revoke existing certificates.
 func (c *Client) RevokeAuthorization(ctx context.Context, url string) error ***REMOVED***
+	// Required for c.accountKID() when in RFC mode.
+	if _, err := c.Discover(ctx); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
 	req := struct ***REMOVED***
 		Resource string `json:"resource"`
 		Status   string `json:"status"`
@@ -387,14 +545,11 @@ func (c *Client) RevokeAuthorization(ctx context.Context, url string) error ***R
 		Status:   "deactivated",
 		Delete:   true,
 	***REMOVED***
-	res, err := c.retryPostJWS(ctx, c.Key, url, req)
+	res, err := c.post(ctx, nil, url, req, wantStatus(http.StatusOK))
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK ***REMOVED***
-		return responseError(res)
-	***REMOVED***
 	return nil
 ***REMOVED***
 
@@ -406,44 +561,52 @@ func (c *Client) RevokeAuthorization(ctx context.Context, url string) error ***R
 // In all other cases WaitAuthorization returns an error.
 // If the Status is StatusInvalid, the returned error is of type *AuthorizationError.
 func (c *Client) WaitAuthorization(ctx context.Context, url string) (*Authorization, error) ***REMOVED***
-	sleep := sleeper(ctx)
+	// Required for c.accountKID() when in RFC mode.
+	dir, err := c.Discover(ctx)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	getfn := c.postAsGet
+	if !dir.rfcCompliant() ***REMOVED***
+		getfn = c.get
+	***REMOVED***
+
 	for ***REMOVED***
-		res, err := c.get(ctx, url)
+		res, err := getfn(ctx, url, wantStatus(http.StatusOK, http.StatusAccepted))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		if res.StatusCode >= 400 && res.StatusCode <= 499 ***REMOVED***
-			// Non-retriable error. For instance, Let's Encrypt may return 404 Not Found
-			// when requesting an expired authorization.
-			defer res.Body.Close()
-			return nil, responseError(res)
-		***REMOVED***
 
-		retry := res.Header.Get("Retry-After")
-		if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted ***REMOVED***
-			res.Body.Close()
-			if err := sleep(retry, 1); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			continue
-		***REMOVED***
 		var raw wireAuthz
 		err = json.NewDecoder(res.Body).Decode(&raw)
 		res.Body.Close()
-		if err != nil ***REMOVED***
-			if err := sleep(retry, 0); err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			continue
-		***REMOVED***
-		if raw.Status == StatusValid ***REMOVED***
+		switch ***REMOVED***
+		case err != nil:
+			// Skip and retry.
+		case raw.Status == StatusValid:
 			return raw.authorization(url), nil
-		***REMOVED***
-		if raw.Status == StatusInvalid ***REMOVED***
+		case raw.Status == StatusInvalid:
 			return nil, raw.error(url)
 		***REMOVED***
-		if err := sleep(retry, 0); err != nil ***REMOVED***
-			return nil, err
+
+		// Exponential backoff is implemented in c.get above.
+		// This is just to prevent continuously hitting the CA
+		// while waiting for a final authorization status.
+		d := retryAfter(res.Header.Get("Retry-After"))
+		if d == 0 ***REMOVED***
+			// Given that the fastest challenges TLS-SNI and HTTP-01
+			// require a CA to make at least 1 network round trip
+			// and most likely persist a challenge state,
+			// this default delay seems reasonable.
+			d = time.Second
+		***REMOVED***
+		t := time.NewTimer(d)
+		select ***REMOVED***
+		case <-ctx.Done():
+			t.Stop()
+			return nil, ctx.Err()
+		case <-t.C:
+			// Retry.
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -452,14 +615,22 @@ func (c *Client) WaitAuthorization(ctx context.Context, url string) (*Authorizat
 //
 // A client typically polls a challenge status using this method.
 func (c *Client) GetChallenge(ctx context.Context, url string) (*Challenge, error) ***REMOVED***
-	res, err := c.get(ctx, url)
+	// Required for c.accountKID() when in RFC mode.
+	dir, err := c.Discover(ctx)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted ***REMOVED***
-		return nil, responseError(res)
+
+	getfn := c.postAsGet
+	if !dir.rfcCompliant() ***REMOVED***
+		getfn = c.get
 	***REMOVED***
+	res, err := getfn(ctx, url, wantStatus(http.StatusOK, http.StatusAccepted))
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	defer res.Body.Close()
 	v := wireChallenge***REMOVED***URI: url***REMOVED***
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil ***REMOVED***
 		return nil, fmt.Errorf("acme: invalid response: %v", err)
@@ -472,30 +643,36 @@ func (c *Client) GetChallenge(ctx context.Context, url string) (*Challenge, erro
 //
 // The server will then perform the validation asynchronously.
 func (c *Client) Accept(ctx context.Context, chal *Challenge) (*Challenge, error) ***REMOVED***
-	auth, err := keyAuth(c.Key.Public(), chal.Token)
+	// Required for c.accountKID() when in RFC mode.
+	dir, err := c.Discover(ctx)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	req := struct ***REMOVED***
-		Resource string `json:"resource"`
-		Type     string `json:"type"`
-		Auth     string `json:"keyAuthorization"`
-	***REMOVED******REMOVED***
-		Resource: "challenge",
-		Type:     chal.Type,
-		Auth:     auth,
+	var req interface***REMOVED******REMOVED*** = json.RawMessage("***REMOVED******REMOVED***") // RFC-compliant CA
+	if !dir.rfcCompliant() ***REMOVED***
+		auth, err := keyAuth(c.Key.Public(), chal.Token)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		req = struct ***REMOVED***
+			Resource string `json:"resource"`
+			Type     string `json:"type"`
+			Auth     string `json:"keyAuthorization"`
+		***REMOVED******REMOVED***
+			Resource: "challenge",
+			Type:     chal.Type,
+			Auth:     auth,
+		***REMOVED***
 	***REMOVED***
-	res, err := c.retryPostJWS(ctx, c.Key, chal.URI, req)
+	res, err := c.post(ctx, nil, chal.URI, req, wantStatus(
+		http.StatusOK,       // according to the spec
+		http.StatusAccepted, // Let's Encrypt: see https://goo.gl/WsJ7VT (acme-divergences.md)
+	))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer res.Body.Close()
-	// Note: the protocol specifies 200 as the expected response code, but
-	// letsencrypt seems to be returning 202.
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted ***REMOVED***
-		return nil, responseError(res)
-	***REMOVED***
 
 	var v wireChallenge
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil ***REMOVED***
@@ -538,21 +715,8 @@ func (c *Client) HTTP01ChallengePath(token string) string ***REMOVED***
 ***REMOVED***
 
 // TLSSNI01ChallengeCert creates a certificate for TLS-SNI-01 challenge response.
-// Servers can present the certificate to validate the challenge and prove control
-// over a domain name.
 //
-// The implementation is incomplete in that the returned value is a single certificate,
-// computed only for Z0 of the key authorization. ACME CAs are expected to update
-// their implementations to use the newer version, TLS-SNI-02.
-// For more details on TLS-SNI-01 see https://tools.ietf.org/html/draft-ietf-acme-acme-01#section-7.3.
-//
-// The token argument is a Challenge.Token value.
-// If a WithKey option is provided, its private part signs the returned cert,
-// and the public part is used to specify the signee.
-// If no WithKey option is provided, a new ECDSA key is generated using P-256 curve.
-//
-// The returned certificate is valid for the next 24 hours and must be presented only when
-// the server name of the client hello matches exactly the returned name value.
+// Deprecated: This challenge type is unused in both draft-02 and RFC versions of ACME spec.
 func (c *Client) TLSSNI01ChallengeCert(token string, opt ...CertOption) (cert tls.Certificate, name string, err error) ***REMOVED***
 	ka, err := keyAuth(c.Key.Public(), token)
 	if err != nil ***REMOVED***
@@ -569,17 +733,8 @@ func (c *Client) TLSSNI01ChallengeCert(token string, opt ...CertOption) (cert tl
 ***REMOVED***
 
 // TLSSNI02ChallengeCert creates a certificate for TLS-SNI-02 challenge response.
-// Servers can present the certificate to validate the challenge and prove control
-// over a domain name. For more details on TLS-SNI-02 see
-// https://tools.ietf.org/html/draft-ietf-acme-acme-03#section-7.3.
 //
-// The token argument is a Challenge.Token value.
-// If a WithKey option is provided, its private part signs the returned cert,
-// and the public part is used to specify the signee.
-// If no WithKey option is provided, a new ECDSA key is generated using P-256 curve.
-//
-// The returned certificate is valid for the next 24 hours and must be presented only when
-// the server name in the client hello matches exactly the returned name value.
+// Deprecated: This challenge type is unused in both draft-02 and RFC versions of ACME spec.
 func (c *Client) TLSSNI02ChallengeCert(token string, opt ...CertOption) (cert tls.Certificate, name string, err error) ***REMOVED***
 	b := sha256.Sum256([]byte(token))
 	h := hex.EncodeToString(b[:])
@@ -600,7 +755,53 @@ func (c *Client) TLSSNI02ChallengeCert(token string, opt ...CertOption) (cert tl
 	return cert, sanA, nil
 ***REMOVED***
 
-// doReg sends all types of registration requests.
+// TLSALPN01ChallengeCert creates a certificate for TLS-ALPN-01 challenge response.
+// Servers can present the certificate to validate the challenge and prove control
+// over a domain name. For more details on TLS-ALPN-01 see
+// https://tools.ietf.org/html/draft-shoemaker-acme-tls-alpn-00#section-3
+//
+// The token argument is a Challenge.Token value.
+// If a WithKey option is provided, its private part signs the returned cert,
+// and the public part is used to specify the signee.
+// If no WithKey option is provided, a new ECDSA key is generated using P-256 curve.
+//
+// The returned certificate is valid for the next 24 hours and must be presented only when
+// the server name in the TLS ClientHello matches the domain, and the special acme-tls/1 ALPN protocol
+// has been specified.
+func (c *Client) TLSALPN01ChallengeCert(token, domain string, opt ...CertOption) (cert tls.Certificate, err error) ***REMOVED***
+	ka, err := keyAuth(c.Key.Public(), token)
+	if err != nil ***REMOVED***
+		return tls.Certificate***REMOVED******REMOVED***, err
+	***REMOVED***
+	shasum := sha256.Sum256([]byte(ka))
+	extValue, err := asn1.Marshal(shasum[:])
+	if err != nil ***REMOVED***
+		return tls.Certificate***REMOVED******REMOVED***, err
+	***REMOVED***
+	acmeExtension := pkix.Extension***REMOVED***
+		Id:       idPeACMEIdentifier,
+		Critical: true,
+		Value:    extValue,
+	***REMOVED***
+
+	tmpl := defaultTLSChallengeCertTemplate()
+
+	var newOpt []CertOption
+	for _, o := range opt ***REMOVED***
+		switch o := o.(type) ***REMOVED***
+		case *certOptTemplate:
+			t := *(*x509.Certificate)(o) // shallow copy is ok
+			tmpl = &t
+		default:
+			newOpt = append(newOpt, o)
+		***REMOVED***
+	***REMOVED***
+	tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, acmeExtension)
+	newOpt = append(newOpt, WithTemplate(tmpl))
+	return tlsChallengeCert([]string***REMOVED***domain***REMOVED***, newOpt)
+***REMOVED***
+
+// doReg sends all types of registration requests the old way (pre-RFC world).
 // The type of request is identified by typ argument, which is a "resource"
 // in the ACME spec terms.
 //
@@ -619,14 +820,15 @@ func (c *Client) doReg(ctx context.Context, url string, typ string, acct *Accoun
 		req.Contact = acct.Contact
 		req.Agreement = acct.AgreedTerms
 	***REMOVED***
-	res, err := c.retryPostJWS(ctx, c.Key, url, req)
+	res, err := c.post(ctx, nil, url, req, wantStatus(
+		http.StatusOK,       // updates and deletes
+		http.StatusCreated,  // new account creation
+		http.StatusAccepted, // Let's Encrypt divergent implementation
+	))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode > 299 ***REMOVED***
-		return nil, responseError(res)
-	***REMOVED***
 
 	var v struct ***REMOVED***
 		Contact        []string
@@ -656,66 +858,23 @@ func (c *Client) doReg(ctx context.Context, url string, typ string, acct *Accoun
 	***REMOVED***, nil
 ***REMOVED***
 
-// retryPostJWS will retry calls to postJWS if there is a badNonce error,
-// clearing the stored nonces after each error.
-// If the response was 4XX-5XX, then responseError is called on the body,
-// the body is closed, and the error returned.
-func (c *Client) retryPostJWS(ctx context.Context, key crypto.Signer, url string, body interface***REMOVED******REMOVED***) (*http.Response, error) ***REMOVED***
-	sleep := sleeper(ctx)
-	for ***REMOVED***
-		res, err := c.postJWS(ctx, key, url, body)
-		if err != nil ***REMOVED***
-			return nil, err
-		***REMOVED***
-		// handle errors 4XX-5XX with responseError
-		if res.StatusCode >= 400 && res.StatusCode <= 599 ***REMOVED***
-			err := responseError(res)
-			res.Body.Close()
-			// according to spec badNonce is urn:ietf:params:acme:error:badNonce
-			// however, acme servers in the wild return their version of the error
-			// https://tools.ietf.org/html/draft-ietf-acme-acme-02#section-5.4
-			if ae, ok := err.(*Error); ok && strings.HasSuffix(strings.ToLower(ae.ProblemType), ":badnonce") ***REMOVED***
-				// clear any nonces that we might've stored that might now be
-				// considered bad
-				c.clearNonces()
-				retry := res.Header.Get("Retry-After")
-				if err := sleep(retry, 1); err != nil ***REMOVED***
-					return nil, err
-				***REMOVED***
-				continue
-			***REMOVED***
-			return nil, err
-		***REMOVED***
-		return res, nil
-	***REMOVED***
-***REMOVED***
-
-// postJWS signs the body with the given key and POSTs it to the provided url.
-// The body argument must be JSON-serializable.
-func (c *Client) postJWS(ctx context.Context, key crypto.Signer, url string, body interface***REMOVED******REMOVED***) (*http.Response, error) ***REMOVED***
-	nonce, err := c.popNonce(ctx, url)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	b, err := jwsEncodeJSON(body, key, nonce)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	res, err := c.post(ctx, url, "application/jose+json", bytes.NewReader(b))
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	c.addNonce(res.Header)
-	return res, nil
-***REMOVED***
-
 // popNonce returns a nonce value previously stored with c.addNonce
-// or fetches a fresh one from the given URL.
+// or fetches a fresh one from c.dir.NonceURL.
+// If NonceURL is empty, it first tries c.directoryURL() and, failing that,
+// the provided url.
 func (c *Client) popNonce(ctx context.Context, url string) (string, error) ***REMOVED***
 	c.noncesMu.Lock()
 	defer c.noncesMu.Unlock()
 	if len(c.nonces) == 0 ***REMOVED***
-		return c.fetchNonce(ctx, url)
+		if c.dir != nil && c.dir.NonceURL != "" ***REMOVED***
+			return c.fetchNonce(ctx, c.dir.NonceURL)
+		***REMOVED***
+		dirURL := c.directoryURL()
+		v, err := c.fetchNonce(ctx, dirURL)
+		if err != nil && url != dirURL ***REMOVED***
+			v, err = c.fetchNonce(ctx, url)
+		***REMOVED***
+		return v, err
 	***REMOVED***
 	var nonce string
 	for nonce = range c.nonces ***REMOVED***
@@ -749,58 +908,12 @@ func (c *Client) addNonce(h http.Header) ***REMOVED***
 	c.nonces[v] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 ***REMOVED***
 
-func (c *Client) httpClient() *http.Client ***REMOVED***
-	if c.HTTPClient != nil ***REMOVED***
-		return c.HTTPClient
-	***REMOVED***
-	return http.DefaultClient
-***REMOVED***
-
-func (c *Client) get(ctx context.Context, urlStr string) (*http.Response, error) ***REMOVED***
-	req, err := http.NewRequest("GET", urlStr, nil)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	return c.do(ctx, req)
-***REMOVED***
-
-func (c *Client) head(ctx context.Context, urlStr string) (*http.Response, error) ***REMOVED***
-	req, err := http.NewRequest("HEAD", urlStr, nil)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	return c.do(ctx, req)
-***REMOVED***
-
-func (c *Client) post(ctx context.Context, urlStr, contentType string, body io.Reader) (*http.Response, error) ***REMOVED***
-	req, err := http.NewRequest("POST", urlStr, body)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	req.Header.Set("Content-Type", contentType)
-	return c.do(ctx, req)
-***REMOVED***
-
-func (c *Client) do(ctx context.Context, req *http.Request) (*http.Response, error) ***REMOVED***
-	res, err := c.httpClient().Do(req.WithContext(ctx))
-	if err != nil ***REMOVED***
-		select ***REMOVED***
-		case <-ctx.Done():
-			// Prefer the unadorned context error.
-			// (The acme package had tests assuming this, previously from ctxhttp's
-			// behavior, predating net/http supporting contexts natively)
-			// TODO(bradfitz): reconsider this in the future. But for now this
-			// requires no test updates.
-			return nil, ctx.Err()
-		default:
-			return nil, err
-		***REMOVED***
-	***REMOVED***
-	return res, nil
-***REMOVED***
-
 func (c *Client) fetchNonce(ctx context.Context, url string) (string, error) ***REMOVED***
-	resp, err := c.head(ctx, url)
+	r, err := http.NewRequest("HEAD", url, nil)
+	if err != nil ***REMOVED***
+		return "", err
+	***REMOVED***
+	resp, err := c.doNoRetry(ctx, r)
 	if err != nil ***REMOVED***
 		return "", err
 	***REMOVED***
@@ -852,24 +965,6 @@ func (c *Client) responseCert(ctx context.Context, res *http.Response, bundle bo
 	return cert, nil
 ***REMOVED***
 
-// responseError creates an error of Error type from resp.
-func responseError(resp *http.Response) error ***REMOVED***
-	// don't care if ReadAll returns an error:
-	// json.Unmarshal will fail in that case anyway
-	b, _ := ioutil.ReadAll(resp.Body)
-	e := &wireError***REMOVED***Status: resp.StatusCode***REMOVED***
-	if err := json.Unmarshal(b, e); err != nil ***REMOVED***
-		// this is not a regular error response:
-		// populate detail with anything we received,
-		// e.Status will already contain HTTP response code value
-		e.Detail = string(b)
-		if e.Detail == "" ***REMOVED***
-			e.Detail = resp.Status
-		***REMOVED***
-	***REMOVED***
-	return e.error(resp.Header)
-***REMOVED***
-
 // chainCert fetches CA certificate chain recursively by following "up" links.
 // Each recursive call increments the depth by 1, resulting in an error
 // if the recursion level reaches maxChainLen.
@@ -880,14 +975,11 @@ func (c *Client) chainCert(ctx context.Context, url string, depth int) ([][]byte
 		return nil, errors.New("acme: certificate chain is too deep")
 	***REMOVED***
 
-	res, err := c.get(ctx, url)
+	res, err := c.get(ctx, url, wantStatus(http.StatusOK))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK ***REMOVED***
-		return nil, responseError(res)
-	***REMOVED***
 	b, err := ioutil.ReadAll(io.LimitReader(res.Body, maxCertSize+1))
 	if err != nil ***REMOVED***
 		return nil, err
@@ -932,65 +1024,6 @@ func linkHeader(h http.Header, rel string) []string ***REMOVED***
 	return links
 ***REMOVED***
 
-// sleeper returns a function that accepts the Retry-After HTTP header value
-// and an increment that's used with backoff to increasingly sleep on
-// consecutive calls until the context is done. If the Retry-After header
-// cannot be parsed, then backoff is used with a maximum sleep time of 10
-// seconds.
-func sleeper(ctx context.Context) func(ra string, inc int) error ***REMOVED***
-	var count int
-	return func(ra string, inc int) error ***REMOVED***
-		count += inc
-		d := backoff(count, 10*time.Second)
-		d = retryAfter(ra, d)
-		wakeup := time.NewTimer(d)
-		defer wakeup.Stop()
-		select ***REMOVED***
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-wakeup.C:
-			return nil
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-// retryAfter parses a Retry-After HTTP header value,
-// trying to convert v into an int (seconds) or use http.ParseTime otherwise.
-// It returns d if v cannot be parsed.
-func retryAfter(v string, d time.Duration) time.Duration ***REMOVED***
-	if i, err := strconv.Atoi(v); err == nil ***REMOVED***
-		return time.Duration(i) * time.Second
-	***REMOVED***
-	t, err := http.ParseTime(v)
-	if err != nil ***REMOVED***
-		return d
-	***REMOVED***
-	return t.Sub(timeNow())
-***REMOVED***
-
-// backoff computes a duration after which an n+1 retry iteration should occur
-// using truncated exponential backoff algorithm.
-//
-// The n argument is always bounded between 0 and 30.
-// The max argument defines upper bound for the returned value.
-func backoff(n int, max time.Duration) time.Duration ***REMOVED***
-	if n < 0 ***REMOVED***
-		n = 0
-	***REMOVED***
-	if n > 30 ***REMOVED***
-		n = 30
-	***REMOVED***
-	var d time.Duration
-	if x, err := rand.Int(rand.Reader, big.NewInt(1000)); err == nil ***REMOVED***
-		d = time.Duration(x.Int64()) * time.Millisecond
-	***REMOVED***
-	d += time.Duration(1<<uint(n)) * time.Second
-	if d > max ***REMOVED***
-		return max
-	***REMOVED***
-	return d
-***REMOVED***
-
 // keyAuth generates a key authorization string for a given token.
 func keyAuth(pub crypto.PublicKey, token string) (string, error) ***REMOVED***
 	th, err := JWKThumbprint(pub)
@@ -1000,15 +1033,25 @@ func keyAuth(pub crypto.PublicKey, token string) (string, error) ***REMOVED***
 	return fmt.Sprintf("%s.%s", token, th), nil
 ***REMOVED***
 
+// defaultTLSChallengeCertTemplate is a template used to create challenge certs for TLS challenges.
+func defaultTLSChallengeCertTemplate() *x509.Certificate ***REMOVED***
+	return &x509.Certificate***REMOVED***
+		SerialNumber:          big.NewInt(1),
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage***REMOVED***x509.ExtKeyUsageServerAuth***REMOVED***,
+	***REMOVED***
+***REMOVED***
+
 // tlsChallengeCert creates a temporary certificate for TLS-SNI challenges
 // with the given SANs and auto-generated public/private key pair.
 // The Subject Common Name is set to the first SAN to aid debugging.
 // To create a cert with a custom key pair, specify WithKey option.
 func tlsChallengeCert(san []string, opt []CertOption) (tls.Certificate, error) ***REMOVED***
-	var (
-		key  crypto.Signer
-		tmpl *x509.Certificate
-	)
+	var key crypto.Signer
+	tmpl := defaultTLSChallengeCertTemplate()
 	for _, o := range opt ***REMOVED***
 		switch o := o.(type) ***REMOVED***
 		case *certOptKey:
@@ -1017,7 +1060,7 @@ func tlsChallengeCert(san []string, opt []CertOption) (tls.Certificate, error) *
 			***REMOVED***
 			key = o.key
 		case *certOptTemplate:
-			var t = *(*x509.Certificate)(o) // shallow copy is ok
+			t := *(*x509.Certificate)(o) // shallow copy is ok
 			tmpl = &t
 		default:
 			// package's fault, if we let this happen:
@@ -1028,16 +1071,6 @@ func tlsChallengeCert(san []string, opt []CertOption) (tls.Certificate, error) *
 		var err error
 		if key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader); err != nil ***REMOVED***
 			return tls.Certificate***REMOVED******REMOVED***, err
-		***REMOVED***
-	***REMOVED***
-	if tmpl == nil ***REMOVED***
-		tmpl = &x509.Certificate***REMOVED***
-			SerialNumber:          big.NewInt(1),
-			NotBefore:             time.Now(),
-			NotAfter:              time.Now().Add(24 * time.Hour),
-			BasicConstraintsValid: true,
-			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-			ExtKeyUsage:           []x509.ExtKeyUsage***REMOVED***x509.ExtKeyUsageServerAuth***REMOVED***,
 		***REMOVED***
 	***REMOVED***
 	tmpl.DNSNames = san

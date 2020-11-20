@@ -17,7 +17,7 @@ type State struct ***REMOVED***
 	termios unix.Termios
 ***REMOVED***
 
-// IsTerminal returns true if the given file descriptor is a terminal.
+// IsTerminal returns whether the given file descriptor is a terminal.
 func IsTerminal(fd int) bool ***REMOVED***
 	_, err := unix.IoctlGetTermio(fd, unix.TCGETA)
 	return err == nil

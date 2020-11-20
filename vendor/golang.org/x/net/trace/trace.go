@@ -86,6 +86,12 @@ import (
 // FOR DEBUGGING ONLY. This will slow down the program.
 var DebugUseAfterFinish = false
 
+// HTTP ServeMux paths.
+const (
+	debugRequestsPath = "/debug/requests"
+	debugEventsPath   = "/debug/events"
+)
+
 // AuthRequest determines whether a specific request is permitted to load the
 // /debug/requests or /debug/events pages.
 //
@@ -112,8 +118,8 @@ var AuthRequest = func(req *http.Request) (any, sensitive bool) ***REMOVED***
 ***REMOVED***
 
 func init() ***REMOVED***
-	_, pat := http.DefaultServeMux.Handler(&http.Request***REMOVED***URL: &url.URL***REMOVED***Path: "/debug/requests"***REMOVED******REMOVED***)
-	if pat != "" ***REMOVED***
+	_, pat := http.DefaultServeMux.Handler(&http.Request***REMOVED***URL: &url.URL***REMOVED***Path: debugRequestsPath***REMOVED******REMOVED***)
+	if pat == debugRequestsPath ***REMOVED***
 		panic("/debug/requests is already registered. You may have two independent copies of " +
 			"golang.org/x/net/trace in your binary, trying to maintain separate state. This may " +
 			"involve a vendored copy of golang.org/x/net/trace.")
@@ -121,8 +127,8 @@ func init() ***REMOVED***
 
 	// TODO(jbd): Serve Traces from /debug/traces in the future?
 	// There is no requirement for a request to be present to have traces.
-	http.HandleFunc("/debug/requests", Traces)
-	http.HandleFunc("/debug/events", Events)
+	http.HandleFunc(debugRequestsPath, Traces)
+	http.HandleFunc(debugEventsPath, Events)
 ***REMOVED***
 
 // NewContext returns a copy of the parent context

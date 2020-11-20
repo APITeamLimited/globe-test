@@ -17,6 +17,7 @@ type pipe struct ***REMOVED***
 	mu       sync.Mutex
 	c        sync.Cond     // c.L lazily initialized to &p.mu
 	b        pipeBuffer    // nil when done reading
+	unread   int           // bytes unread when done
 	err      error         // read error once empty. non-nil means closed.
 	breakErr error         // immediate read error (caller doesn't see rest of b)
 	donec    chan struct***REMOVED******REMOVED*** // closed on error
@@ -33,7 +34,7 @@ func (p *pipe) Len() int ***REMOVED***
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.b == nil ***REMOVED***
-		return 0
+		return p.unread
 	***REMOVED***
 	return p.b.Len()
 ***REMOVED***
@@ -80,6 +81,7 @@ func (p *pipe) Write(d []byte) (n int, err error) ***REMOVED***
 		return 0, errClosedPipeWrite
 	***REMOVED***
 	if p.breakErr != nil ***REMOVED***
+		p.unread += len(d)
 		return len(d), nil // discard when there is no reader
 	***REMOVED***
 	return p.b.Write(d)
@@ -117,6 +119,9 @@ func (p *pipe) closeWithError(dst *error, err error, fn func()) ***REMOVED***
 	***REMOVED***
 	p.readFn = fn
 	if dst == &p.breakErr ***REMOVED***
+		if p.b != nil ***REMOVED***
+			p.unread += p.b.Len()
+		***REMOVED***
 		p.b = nil
 	***REMOVED***
 	*dst = err

@@ -1584,18 +1584,6 @@ const (
 	JOB_OBJECT_LIMIT_WORKINGSET                 = 0x00000001
 )
 
-type JOBOBJECT_BASIC_LIMIT_INFORMATION struct ***REMOVED***
-	PerProcessUserTimeLimit int64
-	PerJobUserTimeLimit     int64
-	LimitFlags              uint32
-	MinimumWorkingSetSize   uintptr
-	MaximumWorkingSetSize   uintptr
-	ActiveProcessLimit      uint32
-	Affinity                uintptr
-	PriorityClass           uint32
-	SchedulingClass         uint32
-***REMOVED***
-
 type IO_COUNTERS struct ***REMOVED***
 	ReadOperationCount  uint64
 	WriteOperationCount uint64

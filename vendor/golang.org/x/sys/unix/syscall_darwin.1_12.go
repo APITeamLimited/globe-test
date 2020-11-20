@@ -10,6 +10,8 @@ import (
 	"unsafe"
 )
 
+const _SYS_GETDIRENTRIES64 = 344
+
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) ***REMOVED***
 	// To implement this using libSystem we'd need syscall_syscallPtr for
 	// fdopendir. However, syscallPtr was only added in Go 1.13, so we fall
@@ -20,7 +22,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) ***REM
 	***REMOVED*** else ***REMOVED***
 		p = unsafe.Pointer(&_zero)
 	***REMOVED***
-	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES64, uintptr(fd), uintptr(p), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+	r0, _, e1 := Syscall6(_SYS_GETDIRENTRIES64, uintptr(fd), uintptr(p), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
 	n = int(r0)
 	if e1 != 0 ***REMOVED***
 		return n, errnoErr(e1)

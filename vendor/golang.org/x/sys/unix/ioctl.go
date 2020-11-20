@@ -20,6 +20,15 @@ func IoctlSetInt(fd int, req uint, value int) error ***REMOVED***
 	return ioctl(fd, req, uintptr(value))
 ***REMOVED***
 
+// IoctlSetPointerInt performs an ioctl operation which sets an
+// integer value on fd, using the specified request number. The ioctl
+// argument is called with a pointer to the integer value, rather than
+// passing the integer value directly.
+func IoctlSetPointerInt(fd int, req uint, value int) error ***REMOVED***
+	v := int32(value)
+	return ioctl(fd, req, uintptr(unsafe.Pointer(&v)))
+***REMOVED***
+
 // IoctlSetWinsize performs an ioctl on fd with a *Winsize argument.
 //
 // To change fd's window size, the req argument should be TIOCSWINSZ.

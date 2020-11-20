@@ -82,17 +82,14 @@ func IoctlRetInt(fd int, req uint) (int, error) ***REMOVED***
 	return int(ret), nil
 ***REMOVED***
 
-// IoctlSetPointerInt performs an ioctl operation which sets an
-// integer value on fd, using the specified request number. The ioctl
-// argument is called with a pointer to the integer value, rather than
-// passing the integer value directly.
-func IoctlSetPointerInt(fd int, req uint, value int) error ***REMOVED***
-	v := int32(value)
-	return ioctl(fd, req, uintptr(unsafe.Pointer(&v)))
-***REMOVED***
-
 func IoctlSetRTCTime(fd int, value *RTCTime) error ***REMOVED***
 	err := ioctl(fd, RTC_SET_TIME, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+***REMOVED***
+
+func IoctlSetRTCWkAlrm(fd int, value *RTCWkAlrm) error ***REMOVED***
+	err := ioctl(fd, RTC_WKALM_SET, uintptr(unsafe.Pointer(value)))
 	runtime.KeepAlive(value)
 	return err
 ***REMOVED***
@@ -107,6 +104,37 @@ func IoctlGetRTCTime(fd int) (*RTCTime, error) ***REMOVED***
 	var value RTCTime
 	err := ioctl(fd, RTC_RD_TIME, uintptr(unsafe.Pointer(&value)))
 	return &value, err
+***REMOVED***
+
+func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) ***REMOVED***
+	var value RTCWkAlrm
+	err := ioctl(fd, RTC_WKALM_RD, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+***REMOVED***
+
+// IoctlFileClone performs an FICLONERANGE ioctl operation to clone the range of
+// data conveyed in value to the file associated with the file descriptor
+// destFd. See the ioctl_ficlonerange(2) man page for details.
+func IoctlFileCloneRange(destFd int, value *FileCloneRange) error ***REMOVED***
+	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
+***REMOVED***
+
+// IoctlFileClone performs an FICLONE ioctl operation to clone the entire file
+// associated with the file description srcFd to the file associated with the
+// file descriptor destFd. See the ioctl_ficlone(2) man page for details.
+func IoctlFileClone(destFd, srcFd int) error ***REMOVED***
+	return ioctl(destFd, FICLONE, uintptr(srcFd))
+***REMOVED***
+
+// IoctlFileClone performs an FIDEDUPERANGE ioctl operation to share the range of
+// data conveyed in value with the file associated with the file descriptor
+// destFd. See the ioctl_fideduperange(2) man page for details.
+func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error ***REMOVED***
+	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
+	runtime.KeepAlive(value)
+	return err
 ***REMOVED***
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
@@ -131,6 +159,12 @@ func Open(path string, mode int, perm uint32) (fd int, err error) ***REMOVED***
 
 func Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error) ***REMOVED***
 	return openat(dirfd, path, flags|O_LARGEFILE, mode)
+***REMOVED***
+
+//sys	openat2(dirfd int, path string, open_how *OpenHow, size int) (fd int, err error)
+
+func Openat2(dirfd int, path string, how *OpenHow) (fd int, err error) ***REMOVED***
+	return openat2(dirfd, path, how, SizeofOpenHow)
 ***REMOVED***
 
 //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
@@ -873,6 +907,35 @@ func (sa *SockaddrL2TPIP6) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOV
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrL2TPIP6, nil
 ***REMOVED***
 
+// SockaddrIUCV implements the Sockaddr interface for AF_IUCV sockets.
+type SockaddrIUCV struct ***REMOVED***
+	UserID string
+	Name   string
+	raw    RawSockaddrIUCV
+***REMOVED***
+
+func (sa *SockaddrIUCV) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Family = AF_IUCV
+	// These are EBCDIC encoded by the kernel, but we still need to pad them
+	// with blanks. Initializing with blanks allows the caller to feed in either
+	// a padded or an unpadded string.
+	for i := 0; i < 8; i++ ***REMOVED***
+		sa.raw.Nodeid[i] = ' '
+		sa.raw.User_id[i] = ' '
+		sa.raw.Name[i] = ' '
+	***REMOVED***
+	if len(sa.UserID) > 8 || len(sa.Name) > 8 ***REMOVED***
+		return nil, 0, EINVAL
+	***REMOVED***
+	for i, b := range []byte(sa.UserID[:]) ***REMOVED***
+		sa.raw.User_id[i] = int8(b)
+	***REMOVED***
+	for i, b := range []byte(sa.Name[:]) ***REMOVED***
+		sa.raw.Name[i] = int8(b)
+	***REMOVED***
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrIUCV, nil
+***REMOVED***
+
 func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 	switch rsa.Addr.Family ***REMOVED***
 	case AF_NETLINK:
@@ -1053,6 +1116,38 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		***REMOVED***
 
 		return sa, nil
+	case AF_IUCV:
+		pp := (*RawSockaddrIUCV)(unsafe.Pointer(rsa))
+
+		var user [8]byte
+		var name [8]byte
+
+		for i := 0; i < 8; i++ ***REMOVED***
+			user[i] = byte(pp.User_id[i])
+			name[i] = byte(pp.Name[i])
+		***REMOVED***
+
+		sa := &SockaddrIUCV***REMOVED***
+			UserID: string(user[:]),
+			Name:   string(name[:]),
+		***REMOVED***
+		return sa, nil
+
+	case AF_CAN:
+		pp := (*RawSockaddrCAN)(unsafe.Pointer(rsa))
+		sa := &SockaddrCAN***REMOVED***
+			Ifindex: int(pp.Ifindex),
+		***REMOVED***
+		rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
+		for i := 0; i < 4; i++ ***REMOVED***
+			rx[i] = pp.Addr[i]
+		***REMOVED***
+		tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
+		for i := 0; i < 4; i++ ***REMOVED***
+			tx[i] = pp.Addr[i+4]
+		***REMOVED***
+		return sa, nil
+
 	***REMOVED***
 	return nil, EAFNOSUPPORT
 ***REMOVED***
@@ -1938,11 +2033,30 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) ***REMOVED***
 	return int(n), nil
 ***REMOVED***
 
+func isGroupMember(gid int) bool ***REMOVED***
+	groups, err := Getgroups()
+	if err != nil ***REMOVED***
+		return false
+	***REMOVED***
+
+	for _, g := range groups ***REMOVED***
+		if g == gid ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
+***REMOVED***
+
 //sys	faccessat(dirfd int, path string, mode uint32) (err error)
+//sys	Faccessat2(dirfd int, path string, mode uint32, flags int) (err error)
 
 func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) ***REMOVED***
-	if flags & ^(AT_SYMLINK_NOFOLLOW|AT_EACCESS) != 0 ***REMOVED***
-		return EINVAL
+	if flags == 0 ***REMOVED***
+		return faccessat(dirfd, path, mode)
+	***REMOVED***
+
+	if err := Faccessat2(dirfd, path, mode, flags); err != ENOSYS && err != EPERM ***REMOVED***
+		return err
 	***REMOVED***
 
 	// The Linux kernel faccessat system call does not take any flags.
@@ -1951,8 +2065,8 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) ***RE
 	// Because people naturally expect syscall.Faccessat to act
 	// like C faccessat, we do the same.
 
-	if flags == 0 ***REMOVED***
-		return faccessat(dirfd, path, mode)
+	if flags & ^(AT_SYMLINK_NOFOLLOW|AT_EACCESS) != 0 ***REMOVED***
+		return EINVAL
 	***REMOVED***
 
 	var st Stat_t
@@ -1995,7 +2109,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) ***RE
 			gid = Getgid()
 		***REMOVED***
 
-		if uint32(gid) == st.Gid ***REMOVED***
+		if uint32(gid) == st.Gid || isGroupMember(gid) ***REMOVED***
 			fmode = (st.Mode >> 3) & 7
 		***REMOVED*** else ***REMOVED***
 			fmode = st.Mode & 7
@@ -2095,6 +2209,18 @@ func Klogset(typ int, arg int) (err error) ***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
+
+// RemoteIovec is Iovec with the pointer replaced with an integer.
+// It is used for ProcessVMReadv and ProcessVMWritev, where the pointer
+// refers to a location in a different process' address space, which
+// would confuse the Go garbage collector.
+type RemoteIovec struct ***REMOVED***
+	Base uintptr
+	Len  int
+***REMOVED***
+
+//sys	ProcessVMReadv(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_READV
+//sys	ProcessVMWritev(pid int, localIov []Iovec, remoteIov []RemoteIovec, flags uint) (n int, err error) = SYS_PROCESS_VM_WRITEV
 
 /*
  * Unimplemented

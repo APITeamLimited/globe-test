@@ -72,18 +72,13 @@ func NewListener(domains ...string) net.Listener ***REMOVED***
 // the Manager m's Prompt, Cache, HostPolicy, and other desired options.
 func (m *Manager) Listener() net.Listener ***REMOVED***
 	ln := &listener***REMOVED***
-		m: m,
-		conf: &tls.Config***REMOVED***
-			GetCertificate: m.GetCertificate,           // bonus: panic on nil m
-			NextProtos:     []string***REMOVED***"h2", "http/1.1"***REMOVED***, // Enable HTTP/2
-		***REMOVED***,
+		conf: m.TLSConfig(),
 	***REMOVED***
 	ln.tcpListener, ln.tcpListenErr = net.Listen("tcp", ":443")
 	return ln
 ***REMOVED***
 
 type listener struct ***REMOVED***
-	m    *Manager
 	conf *tls.Config
 
 	tcpListener  net.Listener

@@ -149,7 +149,7 @@ func (n *priorityNode) addBytes(b int64) ***REMOVED***
 ***REMOVED***
 
 // walkReadyInOrder iterates over the tree in priority order, calling f for each node
-// with a non-empty write queue. When f returns true, this funcion returns true and the
+// with a non-empty write queue. When f returns true, this function returns true and the
 // walk halts. tmp is used as scratch space for sorting.
 //
 // f(n, openParent) takes two arguments: the node to visit, n, and a bool that is true

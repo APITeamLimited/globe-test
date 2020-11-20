@@ -117,6 +117,13 @@ type Flock_t struct ***REMOVED***
 	_      [4]byte
 ***REMOVED***
 
+type DmNameList struct ***REMOVED***
+	Dev  uint64
+	Next uint32
+	Name [0]byte
+	_    [4]byte
+***REMOVED***
+
 const (
 	FADV_DONTNEED = 0x6
 	FADV_NOREUSE  = 0x7

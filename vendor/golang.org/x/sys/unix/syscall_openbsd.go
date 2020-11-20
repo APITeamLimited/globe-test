@@ -114,22 +114,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) ***REM
 	return
 ***REMOVED***
 
-const ImplementsGetwd = true
-
 //sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
-
-func Getwd() (string, error) ***REMOVED***
-	var buf [PathMax]byte
-	_, err := Getcwd(buf[0:])
-	if err != nil ***REMOVED***
-		return "", err
-	***REMOVED***
-	n := clen(buf[:])
-	if n < 1 ***REMOVED***
-		return "", EINVAL
-	***REMOVED***
-	return string(buf[:n]), nil
-***REMOVED***
 
 func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) ***REMOVED***
 	if raceenabled ***REMOVED***

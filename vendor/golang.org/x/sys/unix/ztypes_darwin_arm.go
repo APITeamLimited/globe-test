@@ -146,6 +146,10 @@ type Dirent struct ***REMOVED***
 	_       [3]byte
 ***REMOVED***
 
+const (
+	PathMax = 0x400
+)
+
 type RawSockaddrInet4 struct ***REMOVED***
 	Len    uint8
 	Family uint8
