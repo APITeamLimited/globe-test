@@ -94,7 +94,7 @@ func TestSyslogFromConfigLine(t *testing.T) ***REMOVED***
 		t.Run(test.line, func(t *testing.T) ***REMOVED***
 			// no parallel because this is way too fast and parallel will only slow it down
 
-			res, err := LokiFromConfigLine(context.Background(), nil, test.line)
+			res, err := LokiFromConfigLine(context.Background(), nil, test.line, make(chan struct***REMOVED******REMOVED***))
 
 			if test.err ***REMOVED***
 				require.Error(t, err)
@@ -103,6 +103,7 @@ func TestSyslogFromConfigLine(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			test.res.client = res.(*lokiHook).client
 			test.res.ch = res.(*lokiHook).ch
+			test.res.lokiStopped = res.(*lokiHook).lokiStopped
 			require.Equal(t, &test.res, res)
 		***REMOVED***)
 	***REMOVED***
