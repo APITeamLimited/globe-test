@@ -312,6 +312,24 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			logEntry := hook.LastEntry()
 			assert.Nil(t, logEntry)
 		***REMOVED***)
+		t.Run("10s", func(t *testing.T) ***REMOVED***
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			startTime := time.Now()
+			_, err := common.RunString(rt, sr(`
+				http.get("HTTPBIN_URL/delay/10", ***REMOVED***
+					timeout: "1s",
+				***REMOVED***)
+			`))
+			endTime := time.Now()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "context deadline exceeded")
+			assert.WithinDuration(t, startTime.Add(1*time.Second), endTime, 2*time.Second)
+
+			logEntry := hook.LastEntry()
+			assert.Nil(t, logEntry)
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("UserAgent", func(t *testing.T) ***REMOVED***
 		_, err := common.RunString(rt, sr(`

@@ -200,7 +200,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		if !assert.Error(t, err) ***REMOVED***
 			return
 		***REMOVED***
-		assert.Contains(t, err.Error(), "unable to parse \"timeout\"")
+		assert.Contains(t, err.Error(), "invalid duration")
 	***REMOVED***)
 
 	t.Run("ConnectStringTimeout", func(t *testing.T) ***REMOVED***
@@ -258,7 +258,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		if !assert.Error(t, err) ***REMOVED***
 			return
 		***REMOVED***
-		assert.Contains(t, err.Error(), "unable to use type bool as a timeout value")
+		assert.Contains(t, err.Error(), "invalid timeout value: unable to use type bool as a duration value")
 	***REMOVED***)
 
 	t.Run("InvokeInvalidTimeout", func(t *testing.T) ***REMOVED***
@@ -268,7 +268,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		if !assert.Error(t, err) ***REMOVED***
 			return
 		***REMOVED***
-		assert.Contains(t, err.Error(), " unable to parse \"timeout\"")
+		assert.Contains(t, err.Error(), "invalid duration")
 	***REMOVED***)
 
 	t.Run("InvokeStringTimeout", func(t *testing.T) ***REMOVED***

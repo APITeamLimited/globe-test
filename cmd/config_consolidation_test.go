@@ -204,9 +204,11 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		// Verify some CLI errors
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--blah", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--duration", "1000"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***, // intentionally unsupported
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--iterations", "blah"***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--execution", ""***REMOVED******REMOVED***, exp***REMOVED***cliParseError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "10:20s"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***,
+		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--stage", "1000:20"***REMOVED******REMOVED***, exp***REMOVED***cliReadError: true***REMOVED***, nil***REMOVED***, // intentionally unsupported
 		// Check if CLI shortcuts generate correct execution values
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "1", "--iterations", "5"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(1), I(5))***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(2), I(6))***REMOVED***,
@@ -249,6 +251,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		// Test if environment variable shortcuts are working as expected
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=5", "K6_ITERATIONS=15"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(5), I(15))***REMOVED***,
 		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=20s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 20*time.Second)***REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_VUS=10", "K6_DURATION=10000"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(10), 10*time.Second)***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***env: []string***REMOVED***"K6_STAGES=2m30s:11,1h1m:100"***REMOVED******REMOVED***,
 			exp***REMOVED******REMOVED***,
@@ -259,6 +262,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			exp***REMOVED******REMOVED***,
 			verifyRampingVUs(null.NewInt(0, true), buildStages(100, 100, 30, 0)),
 		***REMOVED***,
+		***REMOVED***opts***REMOVED***env: []string***REMOVED***"K6_STAGES=1000:100"***REMOVED******REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***, // intentionally unsupported
 		// Test if JSON configs work as expected
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"iterations": 77, "vus": 7***REMOVED***`)***REMOVED***, exp***REMOVED******REMOVED***, verifySharedIters(I(7), I(77))***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`wrong-json`)***REMOVED***, exp***REMOVED***consolidationError: true***REMOVED***, nil***REMOVED***,
@@ -272,6 +276,12 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				fs:  getFS([]file***REMOVED******REMOVED***"/my/config.file", `***REMOVED***"vus": 8, "duration": "2m"***REMOVED***`***REMOVED******REMOVED***),
 				cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED***,
 			***REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(I(8), 120*time.Second),
+		***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***
+				fs:  getFS([]file***REMOVED******REMOVED***"/my/config.file", `***REMOVED***"duration": 20000***REMOVED***`***REMOVED******REMOVED***),
+				cli: []string***REMOVED***"--config", "/my/config.file"***REMOVED***,
+			***REMOVED***, exp***REMOVED******REMOVED***, verifyConstLoopingVUs(null.NewInt(1, false), 20*time.Second),
 		***REMOVED***,
 		***REMOVED***
 			opts***REMOVED***
@@ -332,7 +342,24 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 			exp***REMOVED******REMOVED***,
 			verifySharedIters(I(12), I(25)),
 		***REMOVED***,
-
+		***REMOVED***
+			opts***REMOVED***
+				fs: defaultConfig(`***REMOVED***"scenarios": ***REMOVED*** "foo": ***REMOVED***
+					"executor": "constant-vus", "vus": 2, "duration": "1d",
+					"gracefulStop": "10000", "startTime": 1000.5
+				***REMOVED******REMOVED******REMOVED***`),
+			***REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
+				exec := c.Scenarios["foo"]
+				require.NotEmpty(t, exec)
+				require.IsType(t, executor.ConstantVUsConfig***REMOVED******REMOVED***, exec)
+				clvc, ok := exec.(executor.ConstantVUsConfig)
+				require.True(t, ok)
+				assert.Equal(t, null.IntFrom(2), clvc.VUs)
+				assert.Equal(t, types.NullDurationFrom(24*time.Hour), clvc.Duration)
+				assert.Equal(t, types.NullDurationFrom(time.Second+500*time.Microsecond), clvc.StartTime)
+				assert.Equal(t, types.NullDurationFrom(10*time.Second), clvc.GracefulStop)
+			***REMOVED***,
+		***REMOVED***,
 		// TODO: test the externally controlled executor
 		// TODO: test execution-segment
 

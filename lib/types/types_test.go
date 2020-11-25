@@ -157,7 +157,7 @@ func TestDuration(t *testing.T) ***REMOVED***
 		t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
 			t.Run("Number", func(t *testing.T) ***REMOVED***
 				var d Duration
-				assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
+				assert.NoError(t, json.Unmarshal([]byte(`75000`), &d))
 				assert.Equal(t, Duration(75*time.Second), d)
 			***REMOVED***)
 			t.Run("Seconds", func(t *testing.T) ***REMOVED***
@@ -198,7 +198,7 @@ func TestNullDuration(t *testing.T) ***REMOVED***
 		t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
 			t.Run("Number", func(t *testing.T) ***REMOVED***
 				var d NullDuration
-				assert.NoError(t, json.Unmarshal([]byte(`75000000000`), &d))
+				assert.NoError(t, json.Unmarshal([]byte(`75000`), &d))
 				assert.Equal(t, NullDuration***REMOVED***Duration(75 * time.Second), true***REMOVED***, d)
 			***REMOVED***)
 			t.Run("Seconds", func(t *testing.T) ***REMOVED***
@@ -247,4 +247,55 @@ func TestNullDuration(t *testing.T) ***REMOVED***
 
 func TestNullDurationFrom(t *testing.T) ***REMOVED***
 	assert.Equal(t, NullDuration***REMOVED***Duration(10 * time.Second), true***REMOVED***, NullDurationFrom(10*time.Second))
+***REMOVED***
+
+func TestGetDurationValue(t *testing.T) ***REMOVED***
+	testCases := []struct ***REMOVED***
+		val      interface***REMOVED******REMOVED***
+		expError bool
+		exp      time.Duration
+	***REMOVED******REMOVED***
+		***REMOVED***false, true, 0***REMOVED***,
+		***REMOVED***time.Now(), true, 0***REMOVED***,
+		***REMOVED***"invalid", true, 0***REMOVED***,
+		***REMOVED***uint64(math.MaxInt64) + 1, true, 0***REMOVED***,
+
+		***REMOVED***int8(100), false, 100 * time.Millisecond***REMOVED***,
+		***REMOVED***uint8(100), false, 100 * time.Millisecond***REMOVED***,
+		***REMOVED***uint(1000), false, time.Second***REMOVED***,
+		***REMOVED***int(1000), false, time.Second***REMOVED***,
+		***REMOVED***uint16(1000), false, time.Second***REMOVED***,
+		***REMOVED***int16(1000), false, time.Second***REMOVED***,
+		***REMOVED***uint32(1000), false, time.Second***REMOVED***,
+		***REMOVED***int32(1000), false, time.Second***REMOVED***,
+		***REMOVED***uint(1000), false, time.Second***REMOVED***,
+		***REMOVED***int(1000), false, time.Second***REMOVED***,
+		***REMOVED***uint64(1000), false, time.Second***REMOVED***,
+		***REMOVED***int64(1000), false, time.Second***REMOVED***,
+		***REMOVED***1000, false, time.Second***REMOVED***,
+		***REMOVED***1000, false, time.Second***REMOVED***,
+		***REMOVED***1000.0, false, time.Second***REMOVED***,
+		***REMOVED***float32(1000.0), false, time.Second***REMOVED***,
+		***REMOVED***float64(1000.001), false, time.Second + time.Microsecond***REMOVED***,
+		***REMOVED***"1000", false, time.Second***REMOVED***,
+		***REMOVED***"1000.001", false, time.Second + time.Microsecond***REMOVED***,
+		***REMOVED***"1s", false, time.Second***REMOVED***,
+		***REMOVED***"1.5s", false, 1500 * time.Millisecond***REMOVED***,
+		***REMOVED***time.Second, false, time.Second***REMOVED***,
+		***REMOVED***"1d3h1s", false, 27*time.Hour + time.Second***REMOVED***,
+		// TODO: test for int overflows when that's implemented
+	***REMOVED***
+
+	for i, tc := range testCases ***REMOVED***
+		i, tc := i, tc
+		t.Run(fmt.Sprintf("testcase_%02d", i), func(t *testing.T) ***REMOVED***
+			res, err := GetDurationValue(tc.val)
+			if tc.expError ***REMOVED***
+				assert.Error(t, err)
+			***REMOVED*** else ***REMOVED***
+				assert.NoError(t, err)
+				assert.Equal(t, tc.exp, res)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
