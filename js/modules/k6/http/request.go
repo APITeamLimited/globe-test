@@ -287,12 +287,10 @@ func (h *HTTP) parseRequest(
 				***REMOVED***
 				for _, key := range headers.Keys() ***REMOVED***
 					str := headers.Get(key).String()
-					switch strings.ToLower(key) ***REMOVED***
-					case "host":
+					if strings.ToLower(key) == "host" ***REMOVED***
 						result.Req.Host = str
-					default:
-						result.Req.Header.Set(key, str)
 					***REMOVED***
+					result.Req.Header.Set(key, str)
 				***REMOVED***
 			case "jar":
 				jarV := params.Get(k)

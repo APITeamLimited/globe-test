@@ -985,6 +985,31 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.NoError(t, err)
 				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
 			***REMOVED***)
+
+			t.Run("response_request", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, sr(`
+				var res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED***
+					headers: ***REMOVED*** "host": "HTTPBIN_DOMAIN" ***REMOVED***,
+				***REMOVED***);
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				if (res.request.headers["Host"] != "HTTPBIN_DOMAIN") ***REMOVED*** throw new Error("wrong Host: " + res.request.headers["Host"]); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+			***REMOVED***)
+
+			t.Run("differentHost", func(t *testing.T) ***REMOVED***
+				_, err := common.RunString(rt, sr(`
+				var custHost = 'k6.io';
+				var res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED***
+					headers: ***REMOVED*** "host": custHost ***REMOVED***,
+				***REMOVED***);
+				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
+				if (res.request.headers["Host"] != custHost) ***REMOVED*** throw new Error("wrong Host: " + res.request.headers["Host"]); ***REMOVED***
+				`))
+				assert.NoError(t, err)
+				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/headers"), "", 200, "")
+			***REMOVED***)
 		***REMOVED***)
 
 		t.Run("tags", func(t *testing.T) ***REMOVED***
