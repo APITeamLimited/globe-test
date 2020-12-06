@@ -1647,6 +1647,41 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+
+	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
+			var parseHTML = require("k6/html").parseHTML;
+
+			exports.options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
+
+			exports.default = function() ***REMOVED***
+				var doc = parseHTML("<html>");
+				var o = doc.find(".something").slice(0, 4).toArray()
+			***REMOVED***;
+		`))
+	require.NoError(t, err)
+
+	ch := make(chan stats.SampleContainer, 1000)
+	initVU, err := r.NewVU(1, ch)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- vu.RunOnce() ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(15 * time.Second):
+		cancel()
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		cancel()
+		require.NoError(t, err)
+	***REMOVED***
+***REMOVED***
+
 func TestSystemTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)

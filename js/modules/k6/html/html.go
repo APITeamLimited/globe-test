@@ -398,7 +398,10 @@ func (s Selection) Map(v goja.Value) []string ***REMOVED***
 ***REMOVED***
 
 func (s Selection) Slice(start int, def ...int) Selection ***REMOVED***
-	if len(def) > 0 ***REMOVED***
+	// We are forced to check that def[0] is inferior to the length of the array
+	// otherwise the s.sel.Slice panics. Besides returning the whole array when
+	// the end value for slicing is superior to the array length is standard in js.
+	if len(def) > 0 && def[0] < len(s.sel.Nodes) ***REMOVED***
 		return Selection***REMOVED***s.rt, s.sel.Slice(start, def[0]), s.URL***REMOVED***
 	***REMOVED***
 
