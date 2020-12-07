@@ -65,6 +65,11 @@ func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED*****
 
 			color.Set(color.FgCyan)
 			s, err := field.GetContents(r)
+
+			if _, ok := field.(PasswordField); ok ***REMOVED***
+				fmt.Fprint(w, "\n")
+			***REMOVED***
+
 			color.Unset()
 			if err != nil ***REMOVED***
 				return nil, err
