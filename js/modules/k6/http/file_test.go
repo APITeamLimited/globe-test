@@ -75,9 +75,8 @@ func TestHTTPFile(t *testing.T) ***REMOVED***
 					err := recover()
 					require.NotNil(t, err)
 					require.IsType(t, &goja.Object***REMOVED******REMOVED***, err)
-					require.IsType(t, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***, err.(*goja.Object).Export())
-					val := err.(*goja.Object).Export().(map[string]interface***REMOVED******REMOVED***)
-					assert.Equal(t, tc.expErr, fmt.Sprintf("%s", val["value"]))
+					val := err.(*goja.Object).Export()
+					require.EqualError(t, val.(error), tc.expErr)
 				***REMOVED***()
 			***REMOVED***
 			h := new(GlobalHTTP).NewModuleInstancePerVU().(*HTTP)

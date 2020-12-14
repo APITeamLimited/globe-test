@@ -197,13 +197,13 @@ func TestResponse(t *testing.T) ***REMOVED***
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/html").json();`))
 			//nolint:lll
-			assert.Contains(t, err.Error(), "GoError: cannot parse json due to an error at line 1, character 2 , error: invalid character '<' looking for beginning of value")
+			assert.Contains(t, err.Error(), "cannot parse json due to an error at line 1, character 2 , error: invalid character '<' looking for beginning of value")
 		***REMOVED***)
 
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`http.request("GET", "HTTPBIN_URL/invalidjson").json();`))
 			//nolint:lll
-			assert.Contains(t, err.Error(), "GoError: cannot parse json due to an error at line 3, character 9 , error: invalid character 'e' in literal true (expecting 'r')")
+			assert.Contains(t, err.Error(), "cannot parse json due to an error at line 3, character 9 , error: invalid character 'e' in literal true (expecting 'r')")
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("JsonSelector", func(t *testing.T) ***REMOVED***
@@ -326,7 +326,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res.submitForm(***REMOVED*** formSelector: "#doesNotExist" ***REMOVED***)
 			`))
-			assert.Contains(t, err.Error(), sr("GoError: no form found for selector '#doesNotExist' in response 'HTTPBIN_URL/forms/post'"))
+			assert.Contains(t, err.Error(), sr("no form found for selector '#doesNotExist' in response 'HTTPBIN_URL/forms/post'"))
 		***REMOVED***)
 
 		t.Run("withGetMethod", func(t *testing.T) ***REMOVED***
@@ -377,7 +377,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink(***REMOVED*** selector: 'a#doesNotExist' ***REMOVED***)
 			`))
-			assert.Contains(t, err.Error(), sr("GoError: no element found for selector 'a#doesNotExist' in response 'HTTPBIN_URL/links/10/0'"))
+			assert.Contains(t, err.Error(), sr("no element found for selector 'a#doesNotExist' in response 'HTTPBIN_URL/links/10/0'"))
 		***REMOVED***)
 
 		t.Run("withRequestParams", func(t *testing.T) ***REMOVED***

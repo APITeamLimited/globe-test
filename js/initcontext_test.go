@@ -53,7 +53,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 		t.Run("Nonexistent", func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			_, err := getSimpleBundle(t, "/script.js", `import "k6/NONEXISTENT";`)
-			assert.Contains(t, err.Error(), "GoError: unknown module: k6/NONEXISTENT")
+			assert.Contains(t, err.Error(), "unknown module: k6/NONEXISTENT")
 		***REMOVED***)
 
 		t.Run("k6", func(t *testing.T) ***REMOVED***
@@ -318,7 +318,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		t.Parallel()
 		path := filepath.FromSlash("/nonexistent.txt")
 		_, err := getSimpleBundle(t, "/script.js", `open("/nonexistent.txt"); export default function() ***REMOVED******REMOVED***`)
-		assert.Contains(t, err.Error(), fmt.Sprintf("GoError: open %s: file does not exist", path))
+		assert.Contains(t, err.Error(), fmt.Sprintf("open %s: file does not exist", path))
 	***REMOVED***)
 
 	t.Run("Directory", func(t *testing.T) ***REMOVED***
@@ -327,7 +327,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		fs := afero.NewMemMapFs()
 		assert.NoError(t, fs.MkdirAll(path, 0o755))
 		_, err := getSimpleBundle(t, "/script.js", `open("/some/dir"); export default function() ***REMOVED******REMOVED***`, fs)
-		assert.Contains(t, err.Error(), fmt.Sprintf("GoError: open() can't be used with directories, path: %q", path))
+		assert.Contains(t, err.Error(), fmt.Sprintf("open() can't be used with directories, path: %q", path))
 	***REMOVED***)
 ***REMOVED***
 
