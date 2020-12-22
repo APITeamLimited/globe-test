@@ -222,6 +222,8 @@ func (h *HTTP) parseRequest(
 			if err := handleObjectBody(newData); err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
+		case goja.ArrayBuffer:
+			result.Body = bytes.NewBuffer(data.Bytes())
 		case map[string]interface***REMOVED******REMOVED***:
 			if err := handleObjectBody(data); err != nil ***REMOVED***
 				return nil, err
