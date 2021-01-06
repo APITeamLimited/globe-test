@@ -215,7 +215,7 @@ func (f *baseFuncObject) hasInstance(v Value) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object, args []Value) *Object ***REMOVED***
+func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object, args []Value, newTarget *Object) *Object ***REMOVED***
 	proto := f.getStr("prototype", nil)
 	var protoObj *Object
 	if p, ok := proto.(*Object); ok ***REMOVED***
@@ -227,6 +227,7 @@ func (f *nativeFuncObject) defaultConstruct(ccall func(ConstructorCall) *Object,
 	ret := ccall(ConstructorCall***REMOVED***
 		This:      obj,
 		Arguments: args,
+		NewTarget: newTarget,
 	***REMOVED***)
 
 	if ret != nil ***REMOVED***

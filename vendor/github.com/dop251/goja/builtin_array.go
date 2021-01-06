@@ -38,7 +38,7 @@ func arraySpeciesCreate(obj *Object, size int64) *Object ***REMOVED***
 	if isArray(obj) ***REMOVED***
 		v := obj.self.getStr("constructor", nil)
 		if constructObj, ok := v.(*Object); ok ***REMOVED***
-			v = constructObj.self.getSym(symSpecies, nil)
+			v = constructObj.self.getSym(SymSpecies, nil)
 			if v == _null ***REMOVED***
 				v = nil
 			***REMOVED***
@@ -256,7 +256,7 @@ func (r *Runtime) arrayproto_toLocaleString(call FunctionCall) Value ***REMOVED*
 ***REMOVED***
 
 func isConcatSpreadable(obj *Object) bool ***REMOVED***
-	spreadable := obj.self.getSym(symIsConcatSpreadable, nil)
+	spreadable := obj.self.getSym(SymIsConcatSpreadable, nil)
 	if spreadable != nil && spreadable != _undefined ***REMOVED***
 		return spreadable.ToBoolean()
 	***REMOVED***
@@ -1045,7 +1045,7 @@ func (r *Runtime) checkStdArray(v Value) *arrayObject ***REMOVED***
 
 func (r *Runtime) checkStdArrayIter(v Value) *arrayObject ***REMOVED***
 	if arr := r.checkStdArray(v); arr != nil &&
-		arr.getSym(symIterator, nil) == r.global.arrayValues ***REMOVED***
+		arr.getSym(SymIterator, nil) == r.global.arrayValues ***REMOVED***
 
 		return arr
 	***REMOVED***
@@ -1084,7 +1084,7 @@ func (r *Runtime) array_from(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	var arr *Object
-	if usingIterator := toMethod(r.getV(items, symIterator)); usingIterator != nil ***REMOVED***
+	if usingIterator := toMethod(r.getV(items, SymIterator)); usingIterator != nil ***REMOVED***
 		if ctor != nil ***REMOVED***
 			arr = ctor([]Value***REMOVED******REMOVED***, nil)
 		***REMOVED*** else ***REMOVED***
@@ -1228,7 +1228,7 @@ func (r *Runtime) createArrayProto(val *Object) objectImpl ***REMOVED***
 	r.global.arrayValues = valuesFunc
 	o._putProp("values", valuesFunc, true, false, true)
 
-	o._putSym(symIterator, valueProp(valuesFunc, true, false, true))
+	o._putSym(SymIterator, valueProp(valuesFunc, true, false, true))
 
 	bl := r.newBaseObject(nil, classObject)
 	bl.setOwnStr("copyWithin", valueTrue, true)
@@ -1239,7 +1239,7 @@ func (r *Runtime) createArrayProto(val *Object) objectImpl ***REMOVED***
 	bl.setOwnStr("includes", valueTrue, true)
 	bl.setOwnStr("keys", valueTrue, true)
 	bl.setOwnStr("values", valueTrue, true)
-	o._putSym(symUnscopables, valueProp(bl.val, false, false, true))
+	o._putSym(SymUnscopables, valueProp(bl.val, false, false, true))
 
 	return o
 ***REMOVED***
@@ -1249,7 +1249,7 @@ func (r *Runtime) createArray(val *Object) objectImpl ***REMOVED***
 	o._putProp("from", r.newNativeFunc(r.array_from, nil, "from", nil, 1), true, false, true)
 	o._putProp("isArray", r.newNativeFunc(r.array_isArray, nil, "isArray", nil, 1), true, false, true)
 	o._putProp("of", r.newNativeFunc(r.array_of, nil, "of", nil, 0), true, false, true)
-	o._putSym(symSpecies, &valueProperty***REMOVED***
+	o._putSym(SymSpecies, &valueProperty***REMOVED***
 		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
 		accessor:     true,
 		configurable: true,
@@ -1262,7 +1262,7 @@ func (r *Runtime) createArrayIterProto(val *Object) objectImpl ***REMOVED***
 	o := newBaseObjectObj(val, r.global.IteratorPrototype, classObject)
 
 	o._putProp("next", r.newNativeFunc(r.arrayIterProto_next, nil, "next", nil, 0), true, false, true)
-	o._putSym(symToStringTag, valueProp(asciiString(classArrayIterator), false, false, true))
+	o._putSym(SymToStringTag, valueProp(asciiString(classArrayIterator), false, false, true))
 
 	return o
 ***REMOVED***

@@ -210,15 +210,15 @@ func (r *Runtime) createSetProto(val *Object) objectImpl ***REMOVED***
 	o._putProp("values", valuesFunc, true, false, true)
 	o._putProp("keys", valuesFunc, true, false, true)
 	o._putProp("entries", r.newNativeFunc(r.setProto_entries, nil, "entries", nil, 0), true, false, true)
-	o._putSym(symIterator, valueProp(valuesFunc, true, false, true))
-	o._putSym(symToStringTag, valueProp(asciiString(classSet), false, false, true))
+	o._putSym(SymIterator, valueProp(valuesFunc, true, false, true))
+	o._putSym(SymToStringTag, valueProp(asciiString(classSet), false, false, true))
 
 	return o
 ***REMOVED***
 
 func (r *Runtime) createSet(val *Object) objectImpl ***REMOVED***
 	o := r.newNativeConstructOnly(val, r.builtin_newSet, r.global.SetPrototype, "Set", 0)
-	o._putSym(symSpecies, &valueProperty***REMOVED***
+	o._putSym(SymSpecies, &valueProperty***REMOVED***
 		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
 		accessor:     true,
 		configurable: true,
@@ -231,7 +231,7 @@ func (r *Runtime) createSetIterProto(val *Object) objectImpl ***REMOVED***
 	o := newBaseObjectObj(val, r.global.IteratorPrototype, classObject)
 
 	o._putProp("next", r.newNativeFunc(r.setIterProto_next, nil, "next", nil, 0), true, false, true)
-	o._putSym(symToStringTag, valueProp(asciiString(classSetIterator), false, false, true))
+	o._putSym(SymToStringTag, valueProp(asciiString(classSetIterator), false, false, true))
 
 	return o
 ***REMOVED***

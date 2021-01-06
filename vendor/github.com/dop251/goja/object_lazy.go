@@ -23,7 +23,7 @@ func (o *lazyObject) getIdx(p valueInt, receiver Value) Value ***REMOVED***
 	return obj.getIdx(p, receiver)
 ***REMOVED***
 
-func (o *lazyObject) getSym(p *valueSymbol, receiver Value) Value ***REMOVED***
+func (o *lazyObject) getSym(p *Symbol, receiver Value) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.getSym(p, receiver)
@@ -35,7 +35,7 @@ func (o *lazyObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 	return obj.getOwnPropIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) getOwnPropSym(s *valueSymbol) Value ***REMOVED***
+func (o *lazyObject) getOwnPropSym(s *Symbol) Value ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.getOwnPropSym(s)
@@ -47,7 +47,7 @@ func (o *lazyObject) hasPropertyIdx(idx valueInt) bool ***REMOVED***
 	return obj.hasPropertyIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) hasPropertySym(s *valueSymbol) bool ***REMOVED***
+func (o *lazyObject) hasPropertySym(s *Symbol) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.hasPropertySym(s)
@@ -59,7 +59,7 @@ func (o *lazyObject) hasOwnPropertyIdx(idx valueInt) bool ***REMOVED***
 	return obj.hasOwnPropertyIdx(idx)
 ***REMOVED***
 
-func (o *lazyObject) hasOwnPropertySym(s *valueSymbol) bool ***REMOVED***
+func (o *lazyObject) hasOwnPropertySym(s *Symbol) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.hasOwnPropertySym(s)
@@ -77,7 +77,7 @@ func (o *lazyObject) defineOwnPropertyIdx(name valueInt, desc PropertyDescriptor
 	return obj.defineOwnPropertyIdx(name, desc, throw)
 ***REMOVED***
 
-func (o *lazyObject) defineOwnPropertySym(name *valueSymbol, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+func (o *lazyObject) defineOwnPropertySym(name *Symbol, desc PropertyDescriptor, throw bool) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.defineOwnPropertySym(name, desc, throw)
@@ -89,7 +89,7 @@ func (o *lazyObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 	return obj.deleteIdx(idx, throw)
 ***REMOVED***
 
-func (o *lazyObject) deleteSym(s *valueSymbol, throw bool) bool ***REMOVED***
+func (o *lazyObject) deleteSym(s *Symbol, throw bool) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.deleteSym(s, throw)
@@ -119,7 +119,7 @@ func (o *lazyObject) setOwnIdx(p valueInt, v Value, throw bool) bool ***REMOVED*
 	return obj.setOwnIdx(p, v, throw)
 ***REMOVED***
 
-func (o *lazyObject) setOwnSym(p *valueSymbol, v Value, throw bool) bool ***REMOVED***
+func (o *lazyObject) setOwnSym(p *Symbol, v Value, throw bool) bool ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.setOwnSym(p, v, throw)
@@ -137,7 +137,7 @@ func (o *lazyObject) setForeignIdx(p valueInt, v, receiver Value, throw bool) (b
 	return obj.setForeignIdx(p, v, receiver, throw)
 ***REMOVED***
 
-func (o *lazyObject) setForeignSym(p *valueSymbol, v, receiver Value, throw bool) (bool, bool) ***REMOVED***
+func (o *lazyObject) setForeignSym(p *Symbol, v, receiver Value, throw bool) (bool, bool) ***REMOVED***
 	obj := o.create(o.val)
 	o.val.self = obj
 	return obj.setForeignSym(p, v, receiver, throw)
@@ -159,7 +159,7 @@ func (o *lazyObject) _putProp(unistring.String, Value, bool, bool, bool) Value *
 	panic("cannot use _putProp() in lazy object")
 ***REMOVED***
 
-func (o *lazyObject) _putSym(*valueSymbol, Value) ***REMOVED***
+func (o *lazyObject) _putSym(*Symbol, Value) ***REMOVED***
 	panic("cannot use _putSym() in lazy object")
 ***REMOVED***
 

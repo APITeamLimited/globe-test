@@ -2,13 +2,14 @@ package parser
 
 import (
 	"encoding/base64"
+	"fmt"
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
 	"github.com/go-sourcemap/sourcemap"
 	"io/ioutil"
 	"net/url"
-	"os"
+	"path"
 	"strings"
 )
 
@@ -578,48 +579,86 @@ func (self *_parser) parseSourceElements() []ast.Statement ***REMOVED***
 func (self *_parser) parseProgram() *ast.Program ***REMOVED***
 	self.openScope()
 	defer self.closeScope()
-	return &ast.Program***REMOVED***
+	prg := &ast.Program***REMOVED***
 		Body:            self.parseSourceElements(),
 		DeclarationList: self.scope.declarationList,
 		File:            self.file,
-		SourceMap:       self.parseSourceMap(),
 	***REMOVED***
+	self.file.SetSourceMap(self.parseSourceMap())
+	return prg
+***REMOVED***
+
+func extractSourceMapLine(str string) string ***REMOVED***
+	for ***REMOVED***
+		p := strings.LastIndexByte(str, '\n')
+		line := str[p+1:]
+		if line != "" && line != "***REMOVED***)" ***REMOVED***
+			if strings.HasPrefix(line, "//# sourceMappingURL=") ***REMOVED***
+				return line
+			***REMOVED***
+			break
+		***REMOVED***
+		if p >= 0 ***REMOVED***
+			str = str[:p]
+		***REMOVED*** else ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+	return ""
 ***REMOVED***
 
 func (self *_parser) parseSourceMap() *sourcemap.Consumer ***REMOVED***
-	lastLine := self.str[strings.LastIndexByte(self.str, '\n')+1:]
-	if strings.HasPrefix(lastLine, "//# sourceMappingURL") ***REMOVED***
-		urlIndex := strings.Index(lastLine, "=")
-		urlStr := lastLine[urlIndex+1:]
+	if self.opts.disableSourceMaps ***REMOVED***
+		return nil
+	***REMOVED***
+	if smLine := extractSourceMapLine(self.str); smLine != "" ***REMOVED***
+		urlIndex := strings.Index(smLine, "=")
+		urlStr := smLine[urlIndex+1:]
 
 		var data []byte
+		var err error
 		if strings.HasPrefix(urlStr, "data:application/json") ***REMOVED***
 			b64Index := strings.Index(urlStr, ",")
 			b64 := urlStr[b64Index+1:]
-			if d, err := base64.StdEncoding.DecodeString(b64); err == nil ***REMOVED***
-				data = d
-			***REMOVED***
+			data, err = base64.StdEncoding.DecodeString(b64)
 		***REMOVED*** else ***REMOVED***
-			if smUrl, err := url.Parse(urlStr); err == nil ***REMOVED***
-				if smUrl.Scheme == "" || smUrl.Scheme == "file" ***REMOVED***
-					if f, err := os.Open(smUrl.Path); err == nil ***REMOVED***
-						if d, err := ioutil.ReadAll(f); err == nil ***REMOVED***
-							data = d
-						***REMOVED***
+			var smUrl *url.URL
+			if smUrl, err = url.Parse(urlStr); err == nil ***REMOVED***
+				p := smUrl.Path
+				if !path.IsAbs(p) ***REMOVED***
+					baseName := self.file.Name()
+					baseUrl, err1 := url.Parse(baseName)
+					if err1 == nil && baseUrl.Scheme != "" ***REMOVED***
+						baseUrl.Path = path.Join(path.Dir(baseUrl.Path), p)
+						p = baseUrl.String()
+					***REMOVED*** else ***REMOVED***
+						p = path.Join(path.Dir(baseName), p)
 					***REMOVED***
+				***REMOVED***
+				if self.opts.sourceMapLoader != nil ***REMOVED***
+					data, err = self.opts.sourceMapLoader(p)
 				***REMOVED*** else ***REMOVED***
-					// Not implemented - compile error?
-					return nil
+					if smUrl.Scheme == "" || smUrl.Scheme == "file" ***REMOVED***
+						data, err = ioutil.ReadFile(p)
+					***REMOVED*** else ***REMOVED***
+						err = fmt.Errorf("unsupported source map URL scheme: %s", smUrl.Scheme)
+					***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 
+		if err != nil ***REMOVED***
+			self.error(file.Idx(0), "Could not load source map: %v", err)
+			return nil
+		***REMOVED***
 		if data == nil ***REMOVED***
 			return nil
 		***REMOVED***
 
 		if sm, err := sourcemap.Parse(self.file.Name(), data); err == nil ***REMOVED***
 			return sm
+		***REMOVED*** else ***REMOVED***
+			self.error(file.Idx(0), "Could not parse source map: %v", err)
 		***REMOVED***
 	***REMOVED***
 	return nil

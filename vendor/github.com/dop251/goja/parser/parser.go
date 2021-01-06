@@ -52,6 +52,32 @@ const (
 	IgnoreRegExpErrors Mode = 1 << iota // Ignore RegExp compatibility errors (allow backtracking)
 )
 
+type options struct ***REMOVED***
+	disableSourceMaps bool
+	sourceMapLoader   func(path string) ([]byte, error)
+***REMOVED***
+
+// Option represents one of the options for the parser to use in the Parse methods. Currently supported are:
+// WithDisableSourceMaps and WithSourceMapLoader.
+type Option func(*options)
+
+// WithDisableSourceMaps is an option to disable source maps support. May save a bit of time when source maps
+// are not in use.
+func WithDisableSourceMaps(opts *options) ***REMOVED***
+	opts.disableSourceMaps = true
+***REMOVED***
+
+// WithSourceMapLoader is an option to set a custom source map loader. The loader will be given a path or a
+// URL from the sourceMappingURL. If sourceMappingURL is not absolute it is resolved relatively to the name
+// of the file being parsed. Any error returned by the loader will fail the parsing.
+// Note that setting this to nil does not disable source map support, there is a default loader which reads
+// from the filesystem. Use WithDisableSourceMaps to disable source map support.
+func WithSourceMapLoader(loader func(path string) ([]byte, error)) Option ***REMOVED***
+	return func(opts *options) ***REMOVED***
+		opts.sourceMapLoader = loader
+	***REMOVED***
+***REMOVED***
+
 type _parser struct ***REMOVED***
 	str    string
 	length int
@@ -79,18 +105,23 @@ type _parser struct ***REMOVED***
 	***REMOVED***
 
 	mode Mode
+	opts options
 
 	file *file.File
 ***REMOVED***
 
-func _newParser(filename, src string, base int) *_parser ***REMOVED***
-	return &_parser***REMOVED***
+func _newParser(filename, src string, base int, opts ...Option) *_parser ***REMOVED***
+	p := &_parser***REMOVED***
 		chr:    ' ', // This is set so we can start scanning by skipping whitespace
 		str:    src,
 		length: len(src),
 		base:   base,
 		file:   file.NewFile(filename, src, base),
 	***REMOVED***
+	for _, opt := range opts ***REMOVED***
+		opt(&p.opts)
+	***REMOVED***
+	return p
 ***REMOVED***
 
 func newParser(filename, src string) *_parser ***REMOVED***
@@ -133,7 +164,7 @@ func ReadSource(filename string, src interface***REMOVED******REMOVED***) ([]byt
 //      // Parse some JavaScript, yielding a *ast.Program and/or an ErrorList
 //      program, err := parser.ParseFile(nil, "", `if (abc > 1) ***REMOVED******REMOVED***`, 0)
 //
-func ParseFile(fileSet *file.FileSet, filename string, src interface***REMOVED******REMOVED***, mode Mode) (*ast.Program, error) ***REMOVED***
+func ParseFile(fileSet *file.FileSet, filename string, src interface***REMOVED******REMOVED***, mode Mode, options ...Option) (*ast.Program, error) ***REMOVED***
 	str, err := ReadSource(filename, src)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -146,7 +177,7 @@ func ParseFile(fileSet *file.FileSet, filename string, src interface***REMOVED**
 			base = fileSet.AddFile(filename, str)
 		***REMOVED***
 
-		parser := _newParser(filename, str, base)
+		parser := _newParser(filename, str, base, options...)
 		parser.mode = mode
 		return parser.parse()
 	***REMOVED***
@@ -157,11 +188,11 @@ func ParseFile(fileSet *file.FileSet, filename string, src interface***REMOVED**
 //
 // The parameter list, if any, should be a comma-separated list of identifiers.
 //
-func ParseFunction(parameterList, body string) (*ast.FunctionLiteral, error) ***REMOVED***
+func ParseFunction(parameterList, body string, options ...Option) (*ast.FunctionLiteral, error) ***REMOVED***
 
 	src := "(function(" + parameterList + ") ***REMOVED***\n" + body + "\n***REMOVED***)"
 
-	parser := _newParser("", src, 1)
+	parser := _newParser("", src, 1, options...)
 	program, err := parser.parse()
 	if err != nil ***REMOVED***
 		return nil, err
@@ -233,42 +264,6 @@ func (self *_parser) expect(value token.Token) file.Idx ***REMOVED***
 	return idx
 ***REMOVED***
 
-func lineCount(str string) (int, int) ***REMOVED***
-	line, last := 0, -1
-	pair := false
-	for index, chr := range str ***REMOVED***
-		switch chr ***REMOVED***
-		case '\r':
-			line += 1
-			last = index
-			pair = true
-			continue
-		case '\n':
-			if !pair ***REMOVED***
-				line += 1
-			***REMOVED***
-			last = index
-		case '\u2028', '\u2029':
-			line += 1
-			last = index + 2
-		***REMOVED***
-		pair = false
-	***REMOVED***
-	return line, last
-***REMOVED***
-
 func (self *_parser) position(idx file.Idx) file.Position ***REMOVED***
-	position := file.Position***REMOVED******REMOVED***
-	offset := int(idx) - self.base
-	str := self.str[:offset]
-	position.Filename = self.file.Name()
-	line, last := lineCount(str)
-	position.Line = 1 + line
-	if last >= 0 ***REMOVED***
-		position.Column = offset - last
-	***REMOVED*** else ***REMOVED***
-		position.Column = 1 + len(str)
-	***REMOVED***
-
-	return position
+	return self.file.Position(int(idx) - self.base)
 ***REMOVED***

@@ -410,7 +410,7 @@ func (r *Runtime) objectproto_toString(call FunctionCall) Value ***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			clsName = obj.self.className()
 		***REMOVED***
-		if tag := obj.self.getSym(symToStringTag, nil); tag != nil ***REMOVED***
+		if tag := obj.self.getSym(SymToStringTag, nil); tag != nil ***REMOVED***
 			if str, ok := tag.(valueString); ok ***REMOVED***
 				clsName = str.String()
 			***REMOVED***

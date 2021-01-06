@@ -26,8 +26,8 @@ func toString(arg Value) valueString ***REMOVED***
 	if s, ok := arg.(valueString); ok ***REMOVED***
 		return s
 	***REMOVED***
-	if s, ok := arg.(*valueSymbol); ok ***REMOVED***
-		return s.desc
+	if s, ok := arg.(*Symbol); ok ***REMOVED***
+		return s.descriptiveString()
 	***REMOVED***
 	return arg.toString()
 ***REMOVED***
@@ -344,7 +344,7 @@ func (r *Runtime) stringproto_match(call FunctionCall) Value ***REMOVED***
 	r.checkObjectCoercible(call.This)
 	regexp := call.Argument(0)
 	if regexp != _undefined && regexp != _null ***REMOVED***
-		if matcher := toMethod(r.getV(regexp, symMatch)); matcher != nil ***REMOVED***
+		if matcher := toMethod(r.getV(regexp, SymMatch)); matcher != nil ***REMOVED***
 			return matcher(FunctionCall***REMOVED***
 				This:      regexp,
 				Arguments: []Value***REMOVED***call.This***REMOVED***,
@@ -361,7 +361,7 @@ func (r *Runtime) stringproto_match(call FunctionCall) Value ***REMOVED***
 		rx = r.newRegExp(regexp, nil, r.global.RegExpPrototype).self.(*regexpObject)
 	***REMOVED***
 
-	if matcher, ok := r.toObject(rx.getSym(symMatch, nil)).self.assertCallable(); ok ***REMOVED***
+	if matcher, ok := r.toObject(rx.getSym(SymMatch, nil)).self.assertCallable(); ok ***REMOVED***
 		return matcher(FunctionCall***REMOVED***
 			This:      rx.val,
 			Arguments: []Value***REMOVED***call.This.toString()***REMOVED***,
@@ -624,7 +624,7 @@ func (r *Runtime) stringproto_replace(call FunctionCall) Value ***REMOVED***
 	searchValue := call.Argument(0)
 	replaceValue := call.Argument(1)
 	if searchValue != _undefined && searchValue != _null ***REMOVED***
-		if replacer := toMethod(r.getV(searchValue, symReplace)); replacer != nil ***REMOVED***
+		if replacer := toMethod(r.getV(searchValue, SymReplace)); replacer != nil ***REMOVED***
 			return replacer(FunctionCall***REMOVED***
 				This:      searchValue,
 				Arguments: []Value***REMOVED***call.This, replaceValue***REMOVED***,
@@ -648,7 +648,7 @@ func (r *Runtime) stringproto_search(call FunctionCall) Value ***REMOVED***
 	r.checkObjectCoercible(call.This)
 	regexp := call.Argument(0)
 	if regexp != _undefined && regexp != _null ***REMOVED***
-		if searcher := toMethod(r.getV(regexp, symSearch)); searcher != nil ***REMOVED***
+		if searcher := toMethod(r.getV(regexp, SymSearch)); searcher != nil ***REMOVED***
 			return searcher(FunctionCall***REMOVED***
 				This:      regexp,
 				Arguments: []Value***REMOVED***call.This***REMOVED***,
@@ -665,7 +665,7 @@ func (r *Runtime) stringproto_search(call FunctionCall) Value ***REMOVED***
 		rx = r.newRegExp(regexp, nil, r.global.RegExpPrototype).self.(*regexpObject)
 	***REMOVED***
 
-	if searcher, ok := r.toObject(rx.getSym(symSearch, nil)).self.assertCallable(); ok ***REMOVED***
+	if searcher, ok := r.toObject(rx.getSym(SymSearch, nil)).self.assertCallable(); ok ***REMOVED***
 		return searcher(FunctionCall***REMOVED***
 			This:      rx.val,
 			Arguments: []Value***REMOVED***call.This.toString()***REMOVED***,
@@ -721,7 +721,7 @@ func (r *Runtime) stringproto_split(call FunctionCall) Value ***REMOVED***
 	separatorValue := call.Argument(0)
 	limitValue := call.Argument(1)
 	if separatorValue != _undefined && separatorValue != _null ***REMOVED***
-		if splitter := toMethod(r.getV(separatorValue, symSplit)); splitter != nil ***REMOVED***
+		if splitter := toMethod(r.getV(separatorValue, SymSplit)); splitter != nil ***REMOVED***
 			return splitter(FunctionCall***REMOVED***
 				This:      separatorValue,
 				Arguments: []Value***REMOVED***call.This, limitValue***REMOVED***,
@@ -902,7 +902,7 @@ func (r *Runtime) createStringIterProto(val *Object) objectImpl ***REMOVED***
 	o := newBaseObjectObj(val, r.global.IteratorPrototype, classObject)
 
 	o._putProp("next", r.newNativeFunc(r.stringIterProto_next, nil, "next", nil, 0), true, false, true)
-	o._putSym(symToStringTag, valueProp(asciiString(classStringIterator), false, false, true))
+	o._putSym(SymToStringTag, valueProp(asciiString(classStringIterator), false, false, true))
 
 	return o
 ***REMOVED***
@@ -942,7 +942,7 @@ func (r *Runtime) initString() ***REMOVED***
 	o._putProp("trimStart", r.newNativeFunc(r.stringproto_trimStart, nil, "trimStart", nil, 0), true, false, true)
 	o._putProp("valueOf", r.newNativeFunc(r.stringproto_valueOf, nil, "valueOf", nil, 0), true, false, true)
 
-	o._putSym(symIterator, valueProp(r.newNativeFunc(r.stringproto_iterator, nil, "[Symbol.iterator]", nil, 0), true, false, true))
+	o._putSym(SymIterator, valueProp(r.newNativeFunc(r.stringproto_iterator, nil, "[Symbol.iterator]", nil, 0), true, false, true))
 
 	// Annex B
 	o._putProp("substr", r.newNativeFunc(r.stringproto_substr, nil, "substr", nil, 2), true, false, true)

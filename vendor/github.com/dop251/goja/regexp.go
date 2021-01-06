@@ -17,6 +17,7 @@ type regexp2MatchCache struct ***REMOVED***
 	posMap []int
 ***REMOVED***
 
+// Not goroutine-safe. Use regexp2Wrapper.clone()
 type regexp2Wrapper struct ***REMOVED***
 	rx    *regexp2.Regexp
 	cache *regexp2MatchCache
@@ -56,6 +57,7 @@ func (rd *arrayRuneReader) ReadRune() (r rune, size int, err error) ***REMOVED**
 	return
 ***REMOVED***
 
+// Not goroutine-safe. Use regexpPattern.clone()
 type regexpPattern struct ***REMOVED***
 	src string
 
@@ -163,6 +165,25 @@ func (p *regexpPattern) findAllSubmatchIndex(s valueString, start int, limit int
 
 	p.createRegexp2()
 	return p.regexp2Wrapper.findAllSubmatchIndex(s, start, limit, sticky, p.unicode)
+***REMOVED***
+
+// clone creates a copy of the regexpPattern which can be used concurrently.
+func (p *regexpPattern) clone() *regexpPattern ***REMOVED***
+	ret := &regexpPattern***REMOVED***
+		src:        p.src,
+		global:     p.global,
+		ignoreCase: p.ignoreCase,
+		multiline:  p.multiline,
+		sticky:     p.sticky,
+		unicode:    p.unicode,
+	***REMOVED***
+	if p.regexpWrapper != nil ***REMOVED***
+		ret.regexpWrapper = p.regexpWrapper.clone()
+	***REMOVED***
+	if p.regexp2Wrapper != nil ***REMOVED***
+		ret.regexp2Wrapper = p.regexp2Wrapper.clone()
+	***REMOVED***
+	return ret
 ***REMOVED***
 
 type regexpObject struct ***REMOVED***
@@ -428,6 +449,12 @@ func (r *regexp2Wrapper) findAllSubmatchIndex(s valueString, start, limit int, s
 	***REMOVED***
 ***REMOVED***
 
+func (r *regexp2Wrapper) clone() *regexp2Wrapper ***REMOVED***
+	return &regexp2Wrapper***REMOVED***
+		rx: r.rx,
+	***REMOVED***
+***REMOVED***
+
 func (r *regexpWrapper) findAllSubmatchIndex(s string, limit int, sticky bool) (results [][]int) ***REMOVED***
 	wrapped := (*regexp.Regexp)(r)
 	results = wrapped.FindAllStringSubmatchIndex(s, limit)
@@ -474,6 +501,10 @@ func (r *regexpWrapper) findSubmatchIndexUnicode(s unicodeString, fullUnicode bo
 		return res
 	***REMOVED***
 	return wrapped.FindReaderSubmatchIndex(s.utf16Reader(0))
+***REMOVED***
+
+func (r *regexpWrapper) clone() *regexpWrapper ***REMOVED***
+	return r
 ***REMOVED***
 
 func (r *regexpObject) execResultToArray(target valueString, result []int) Value ***REMOVED***

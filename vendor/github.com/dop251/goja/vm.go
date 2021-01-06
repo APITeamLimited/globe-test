@@ -205,7 +205,7 @@ func (s *valueStack) expand(idx int) ***REMOVED***
 
 func stashObjHas(obj *Object, name unistring.String) bool ***REMOVED***
 	if obj.self.hasPropertyStr(name) ***REMOVED***
-		if unscopables, ok := obj.self.getSym(symUnscopables, nil).(*Object); ok ***REMOVED***
+		if unscopables, ok := obj.self.getSym(SymUnscopables, nil).(*Object); ok ***REMOVED***
 			if b := unscopables.self.getStr(name, nil); b != nil ***REMOVED***
 				return !b.ToBoolean()
 			***REMOVED***
@@ -1278,7 +1278,7 @@ type newRegexp struct ***REMOVED***
 ***REMOVED***
 
 func (n *newRegexp) exec(vm *vm) ***REMOVED***
-	vm.push(vm.r.newRegExpp(n.pattern, n.src, vm.r.global.RegExpPrototype))
+	vm.push(vm.r.newRegExpp(n.pattern.clone(), n.src, vm.r.global.RegExpPrototype))
 	vm.pc++
 ***REMOVED***
 
@@ -1946,7 +1946,7 @@ func (n *newFunc) exec(vm *vm) ***REMOVED***
 	obj := vm.r.newFunc(n.name, int(n.length), n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
-	obj.src = n.prg.src.src[n.srcStart:n.srcEnd]
+	obj.src = n.prg.src.Source()[n.srcStart:n.srcEnd]
 	vm.push(obj.val)
 	vm.pc++
 ***REMOVED***
@@ -2356,7 +2356,7 @@ func (_typeof) exec(vm *vm) ***REMOVED***
 		r = stringString
 	case valueInt, valueFloat:
 		r = stringNumber
-	case *valueSymbol:
+	case *Symbol:
 		r = stringSymbol
 	default:
 		panic(fmt.Errorf("Unknown type: %T", v))

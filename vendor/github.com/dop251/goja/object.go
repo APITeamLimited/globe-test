@@ -202,35 +202,35 @@ type objectImpl interface ***REMOVED***
 	className() string
 	getStr(p unistring.String, receiver Value) Value
 	getIdx(p valueInt, receiver Value) Value
-	getSym(p *valueSymbol, receiver Value) Value
+	getSym(p *Symbol, receiver Value) Value
 
 	getOwnPropStr(unistring.String) Value
 	getOwnPropIdx(valueInt) Value
-	getOwnPropSym(*valueSymbol) Value
+	getOwnPropSym(*Symbol) Value
 
 	setOwnStr(p unistring.String, v Value, throw bool) bool
 	setOwnIdx(p valueInt, v Value, throw bool) bool
-	setOwnSym(p *valueSymbol, v Value, throw bool) bool
+	setOwnSym(p *Symbol, v Value, throw bool) bool
 
 	setForeignStr(p unistring.String, v, receiver Value, throw bool) (res bool, handled bool)
 	setForeignIdx(p valueInt, v, receiver Value, throw bool) (res bool, handled bool)
-	setForeignSym(p *valueSymbol, v, receiver Value, throw bool) (res bool, handled bool)
+	setForeignSym(p *Symbol, v, receiver Value, throw bool) (res bool, handled bool)
 
 	hasPropertyStr(unistring.String) bool
 	hasPropertyIdx(idx valueInt) bool
-	hasPropertySym(s *valueSymbol) bool
+	hasPropertySym(s *Symbol) bool
 
 	hasOwnPropertyStr(unistring.String) bool
 	hasOwnPropertyIdx(valueInt) bool
-	hasOwnPropertySym(s *valueSymbol) bool
+	hasOwnPropertySym(s *Symbol) bool
 
 	defineOwnPropertyStr(name unistring.String, desc PropertyDescriptor, throw bool) bool
 	defineOwnPropertyIdx(name valueInt, desc PropertyDescriptor, throw bool) bool
-	defineOwnPropertySym(name *valueSymbol, desc PropertyDescriptor, throw bool) bool
+	defineOwnPropertySym(name *Symbol, desc PropertyDescriptor, throw bool) bool
 
 	deleteStr(name unistring.String, throw bool) bool
 	deleteIdx(idx valueInt, throw bool) bool
-	deleteSym(s *valueSymbol, throw bool) bool
+	deleteSym(s *Symbol, throw bool) bool
 
 	toPrimitiveNumber() Value
 	toPrimitiveString() Value
@@ -252,7 +252,7 @@ type objectImpl interface ***REMOVED***
 	ownPropertyKeys(all bool, accum []Value) []Value
 
 	_putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value
-	_putSym(s *valueSymbol, prop Value)
+	_putSym(s *Symbol, prop Value)
 ***REMOVED***
 
 type baseObject struct ***REMOVED***
@@ -295,6 +295,7 @@ type FunctionCall struct ***REMOVED***
 type ConstructorCall struct ***REMOVED***
 	This      *Object
 	Arguments []Value
+	NewTarget *Object
 ***REMOVED***
 
 func (f FunctionCall) Argument(idx int) Value ***REMOVED***
@@ -333,7 +334,7 @@ func (o *baseObject) hasPropertyIdx(idx valueInt) bool ***REMOVED***
 	return o.val.self.hasPropertyStr(idx.string())
 ***REMOVED***
 
-func (o *baseObject) hasPropertySym(s *valueSymbol) bool ***REMOVED***
+func (o *baseObject) hasPropertySym(s *Symbol) bool ***REMOVED***
 	if o.hasOwnPropertySym(s) ***REMOVED***
 		return true
 	***REMOVED***
@@ -379,7 +380,7 @@ func (o *baseObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
 	return o.val.self.getStr(idx.string(), receiver)
 ***REMOVED***
 
-func (o *baseObject) getSym(s *valueSymbol, receiver Value) Value ***REMOVED***
+func (o *baseObject) getSym(s *Symbol, receiver Value) Value ***REMOVED***
 	return o.getWithOwnProp(o.getOwnPropSym(s), s, receiver)
 ***REMOVED***
 
@@ -406,7 +407,7 @@ func (o *baseObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 	return o.val.self.getOwnPropStr(idx.string())
 ***REMOVED***
 
-func (o *baseObject) getOwnPropSym(s *valueSymbol) Value ***REMOVED***
+func (o *baseObject) getOwnPropSym(s *Symbol) Value ***REMOVED***
 	if o.symValues != nil ***REMOVED***
 		return o.symValues.get(s)
 	***REMOVED***
@@ -453,7 +454,7 @@ func (o *baseObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 	return o.val.self.deleteStr(idx.string(), throw)
 ***REMOVED***
 
-func (o *baseObject) deleteSym(s *valueSymbol, throw bool) bool ***REMOVED***
+func (o *baseObject) deleteSym(s *Symbol, throw bool) bool ***REMOVED***
 	if o.symValues != nil ***REMOVED***
 		if val := o.symValues.get(s); val != nil ***REMOVED***
 			if !o.checkDelete(s.desc.string(), val, throw) ***REMOVED***
@@ -531,7 +532,7 @@ func (o *baseObject) setOwnIdx(idx valueInt, val Value, throw bool) bool ***REMO
 	return o.val.self.setOwnStr(idx.string(), val, throw)
 ***REMOVED***
 
-func (o *baseObject) setOwnSym(name *valueSymbol, val Value, throw bool) bool ***REMOVED***
+func (o *baseObject) setOwnSym(name *Symbol, val Value, throw bool) bool ***REMOVED***
 	var ownDesc Value
 	if o.symValues != nil ***REMOVED***
 		ownDesc = o.symValues.get(name)
@@ -622,7 +623,7 @@ func (o *baseObject) setForeignIdx(name valueInt, val, receiver Value, throw boo
 	return o.val.self.setForeignStr(name.string(), val, receiver, throw)
 ***REMOVED***
 
-func (o *baseObject) setForeignSym(name *valueSymbol, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+func (o *baseObject) setForeignSym(name *Symbol, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
 	var prop Value
 	if o.symValues != nil ***REMOVED***
 		prop = o.symValues.get(name)
@@ -649,7 +650,7 @@ func (o *baseObject) setForeignSym(name *valueSymbol, val, receiver Value, throw
 	return false, false
 ***REMOVED***
 
-func (o *baseObject) hasOwnPropertySym(s *valueSymbol) bool ***REMOVED***
+func (o *baseObject) hasOwnPropertySym(s *Symbol) bool ***REMOVED***
 	if o.symValues != nil ***REMOVED***
 		return o.symValues.has(s)
 	***REMOVED***
@@ -784,7 +785,7 @@ func (o *baseObject) defineOwnPropertyIdx(idx valueInt, desc PropertyDescriptor,
 	return o.val.self.defineOwnPropertyStr(idx.string(), desc, throw)
 ***REMOVED***
 
-func (o *baseObject) defineOwnPropertySym(s *valueSymbol, descr PropertyDescriptor, throw bool) bool ***REMOVED***
+func (o *baseObject) defineOwnPropertySym(s *Symbol, descr PropertyDescriptor, throw bool) bool ***REMOVED***
 	var existingVal Value
 	if o.symValues != nil ***REMOVED***
 		existingVal = o.symValues.get(s)
@@ -825,7 +826,7 @@ func (o *baseObject) _putProp(name unistring.String, value Value, writable, enum
 	return prop
 ***REMOVED***
 
-func (o *baseObject) _putSym(s *valueSymbol, prop Value) ***REMOVED***
+func (o *baseObject) _putSym(s *Symbol, prop Value) ***REMOVED***
 	if o.symValues == nil ***REMOVED***
 		o.symValues = newOrderedMap(nil)
 	***REMOVED***
@@ -886,7 +887,7 @@ func (o *baseObject) toPrimitive() Value ***REMOVED***
 ***REMOVED***
 
 func (o *Object) tryExoticToPrimitive(hint Value) Value ***REMOVED***
-	exoticToPrimitive := toMethod(o.self.getSym(symToPrimitive, nil))
+	exoticToPrimitive := toMethod(o.self.getSym(SymToPrimitive, nil))
 	if exoticToPrimitive != nil ***REMOVED***
 		ret := exoticToPrimitive(FunctionCall***REMOVED***
 			This:      o,
@@ -1201,7 +1202,7 @@ func toMethod(v Value) func(FunctionCall) Value ***REMOVED***
 ***REMOVED***
 
 func instanceOfOperator(o Value, c *Object) bool ***REMOVED***
-	if instOfHandler := toMethod(c.self.getSym(symHasInstance, c)); instOfHandler != nil ***REMOVED***
+	if instOfHandler := toMethod(c.self.getSym(SymHasInstance, c)); instOfHandler != nil ***REMOVED***
 		return instOfHandler(FunctionCall***REMOVED***
 			This:      c,
 			Arguments: []Value***REMOVED***o***REMOVED***,
@@ -1215,7 +1216,7 @@ func (o *Object) get(p Value, receiver Value) Value ***REMOVED***
 	switch p := p.(type) ***REMOVED***
 	case valueInt:
 		return o.self.getIdx(p, receiver)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.getSym(p, receiver)
 	default:
 		return o.self.getStr(p.string(), receiver)
@@ -1226,7 +1227,7 @@ func (o *Object) getOwnProp(p Value) Value ***REMOVED***
 	switch p := p.(type) ***REMOVED***
 	case valueInt:
 		return o.self.getOwnPropIdx(p)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.getOwnPropSym(p)
 	default:
 		return o.self.getOwnPropStr(p.string())
@@ -1237,7 +1238,7 @@ func (o *Object) hasOwnProperty(p Value) bool ***REMOVED***
 	switch p := p.(type) ***REMOVED***
 	case valueInt:
 		return o.self.hasOwnPropertyIdx(p)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.hasOwnPropertySym(p)
 	default:
 		return o.self.hasOwnPropertyStr(p.string())
@@ -1248,7 +1249,7 @@ func (o *Object) hasProperty(p Value) bool ***REMOVED***
 	switch p := p.(type) ***REMOVED***
 	case valueInt:
 		return o.self.hasPropertyIdx(p)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.hasPropertySym(p)
 	default:
 		return o.self.hasPropertyStr(p.string())
@@ -1296,7 +1297,7 @@ func (o *Object) set(name Value, val, receiver Value, throw bool) bool ***REMOVE
 	switch name := name.(type) ***REMOVED***
 	case valueInt:
 		return o.setIdx(name, val, receiver, throw)
-	case *valueSymbol:
+	case *Symbol:
 		return o.setSym(name, val, receiver, throw)
 	default:
 		return o.setStr(name.string(), val, receiver, throw)
@@ -1307,7 +1308,7 @@ func (o *Object) setOwn(name Value, val Value, throw bool) bool ***REMOVED***
 	switch name := name.(type) ***REMOVED***
 	case valueInt:
 		return o.self.setOwnIdx(name, val, throw)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.setOwnSym(name, val, throw)
 	default:
 		return o.self.setOwnStr(name.string(), val, throw)
@@ -1351,7 +1352,7 @@ func (o *Object) setIdx(name valueInt, val, receiver Value, throw bool) bool ***
 	return true
 ***REMOVED***
 
-func (o *Object) setSym(name *valueSymbol, val, receiver Value, throw bool) bool ***REMOVED***
+func (o *Object) setSym(name *Symbol, val, receiver Value, throw bool) bool ***REMOVED***
 	if receiver == o ***REMOVED***
 		return o.self.setOwnSym(name, val, throw)
 	***REMOVED*** else ***REMOVED***
@@ -1392,7 +1393,7 @@ func (o *Object) delete(n Value, throw bool) bool ***REMOVED***
 	switch n := n.(type) ***REMOVED***
 	case valueInt:
 		return o.self.deleteIdx(n, throw)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.deleteSym(n, throw)
 	default:
 		return o.self.deleteStr(n.string(), throw)
@@ -1403,7 +1404,7 @@ func (o *Object) defineOwnProperty(n Value, desc PropertyDescriptor, throw bool)
 	switch n := n.(type) ***REMOVED***
 	case valueInt:
 		return o.self.defineOwnPropertyIdx(n, desc, throw)
-	case *valueSymbol:
+	case *Symbol:
 		return o.self.defineOwnPropertySym(n, desc, throw)
 	default:
 		return o.self.defineOwnPropertyStr(n.string(), desc, throw)

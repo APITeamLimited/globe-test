@@ -21,7 +21,7 @@ const (
 
 type CompilerError struct ***REMOVED***
 	Message string
-	File    *SrcFile
+	File    *file.File
 	Offset  int
 ***REMOVED***
 
@@ -43,7 +43,7 @@ type Program struct ***REMOVED***
 	values []Value
 
 	funcName unistring.String
-	src      *SrcFile
+	src      *file.File
 	srcMap   []srcMapItem
 ***REMOVED***
 
@@ -250,7 +250,7 @@ func (c *compiler) markBlockStart() ***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compile(in *ast.Program) ***REMOVED***
-	c.p.src = NewSrcFile(in.File.Name(), in.File.Source(), in.SourceMap)
+	c.p.src = in.File
 
 	if len(in.Body) > 0 ***REMOVED***
 		if !c.scope.strict ***REMOVED***

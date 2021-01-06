@@ -4,7 +4,11 @@ package file
 
 import (
 	"fmt"
-	"strings"
+	"path"
+	"sort"
+	"sync"
+
+	"github.com/go-sourcemap/sourcemap"
 )
 
 // Idx is a compact encoding of a source position within a file set.
@@ -16,7 +20,6 @@ type Idx int
 // including the filename, line, and column location.
 type Position struct ***REMOVED***
 	Filename string // The filename where the error occurred, if any
-	Offset   int    // The src offset
 	Line     int    // The line number, starting at 1
 	Column   int    // The column number, starting at 1 (The character count)
 
@@ -35,7 +38,7 @@ func (self *Position) isValid() bool ***REMOVED***
 //	file                An invalid position with filename
 //	-                   An invalid position without filename
 //
-func (self *Position) String() string ***REMOVED***
+func (self Position) String() string ***REMOVED***
 	str := self.Filename
 	if self.isValid() ***REMOVED***
 		if str != "" ***REMOVED***
@@ -89,29 +92,23 @@ func (self *FileSet) File(idx Idx) *File ***REMOVED***
 ***REMOVED***
 
 // Position converts an Idx in the FileSet into a Position.
-func (self *FileSet) Position(idx Idx) *Position ***REMOVED***
-	position := &Position***REMOVED******REMOVED***
+func (self *FileSet) Position(idx Idx) Position ***REMOVED***
 	for _, file := range self.files ***REMOVED***
 		if idx <= Idx(file.base+len(file.src)) ***REMOVED***
-			offset := int(idx) - file.base
-			src := file.src[:offset]
-			position.Filename = file.name
-			position.Offset = offset
-			position.Line = 1 + strings.Count(src, "\n")
-			if index := strings.LastIndex(src, "\n"); index >= 0 ***REMOVED***
-				position.Column = offset - index
-			***REMOVED*** else ***REMOVED***
-				position.Column = 1 + len(src)
-			***REMOVED***
+			return file.Position(int(idx) - file.base)
 		***REMOVED***
 	***REMOVED***
-	return position
+	return Position***REMOVED******REMOVED***
 ***REMOVED***
 
 type File struct ***REMOVED***
-	name string
-	src  string
-	base int // This will always be 1 or greater
+	mu                sync.Mutex
+	name              string
+	src               string
+	base              int // This will always be 1 or greater
+	sourceMap         *sourcemap.Consumer
+	lineOffsets       []int
+	lastScannedOffset int
 ***REMOVED***
 
 func NewFile(filename, src string, base int) *File ***REMOVED***
@@ -132,4 +129,87 @@ func (fl *File) Source() string ***REMOVED***
 
 func (fl *File) Base() int ***REMOVED***
 	return fl.base
+***REMOVED***
+
+func (fl *File) SetSourceMap(m *sourcemap.Consumer) ***REMOVED***
+	fl.sourceMap = m
+***REMOVED***
+
+func (fl *File) Position(offset int) Position ***REMOVED***
+	var line int
+	var lineOffsets []int
+	fl.mu.Lock()
+	if offset > fl.lastScannedOffset ***REMOVED***
+		line = fl.scanTo(offset)
+		lineOffsets = fl.lineOffsets
+		fl.mu.Unlock()
+	***REMOVED*** else ***REMOVED***
+		lineOffsets = fl.lineOffsets
+		fl.mu.Unlock()
+		line = sort.Search(len(lineOffsets), func(x int) bool ***REMOVED*** return lineOffsets[x] > offset ***REMOVED***) - 1
+	***REMOVED***
+
+	var lineStart int
+	if line >= 0 ***REMOVED***
+		lineStart = lineOffsets[line]
+	***REMOVED***
+
+	row := line + 2
+	col := offset - lineStart + 1
+
+	if fl.sourceMap != nil ***REMOVED***
+		if source, _, row, col, ok := fl.sourceMap.Source(row, col); ok ***REMOVED***
+			if !path.IsAbs(source) ***REMOVED***
+				source = path.Join(path.Dir(fl.name), source)
+			***REMOVED***
+			return Position***REMOVED***
+				Filename: source,
+				Line:     row,
+				Column:   col,
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return Position***REMOVED***
+		Filename: fl.name,
+		Line:     row,
+		Column:   col,
+	***REMOVED***
+***REMOVED***
+
+func findNextLineStart(s string) int ***REMOVED***
+	for pos, ch := range s ***REMOVED***
+		switch ch ***REMOVED***
+		case '\r':
+			if pos < len(s)-1 && s[pos+1] == '\n' ***REMOVED***
+				return pos + 2
+			***REMOVED***
+			return pos + 1
+		case '\n':
+			return pos + 1
+		case '\u2028', '\u2029':
+			return pos + 3
+		***REMOVED***
+	***REMOVED***
+	return -1
+***REMOVED***
+
+func (fl *File) scanTo(offset int) int ***REMOVED***
+	o := fl.lastScannedOffset
+	for o < offset ***REMOVED***
+		p := findNextLineStart(fl.src[o:])
+		if p == -1 ***REMOVED***
+			fl.lastScannedOffset = len(fl.src)
+			return len(fl.lineOffsets) - 1
+		***REMOVED***
+		o = o + p
+		fl.lineOffsets = append(fl.lineOffsets, o)
+	***REMOVED***
+	fl.lastScannedOffset = o
+
+	if o == offset ***REMOVED***
+		return len(fl.lineOffsets) - 1
+	***REMOVED***
+
+	return len(fl.lineOffsets) - 2
 ***REMOVED***

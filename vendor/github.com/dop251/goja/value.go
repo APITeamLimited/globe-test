@@ -88,7 +88,12 @@ type valueNull struct***REMOVED******REMOVED***
 type valueUndefined struct ***REMOVED***
 	valueNull
 ***REMOVED***
-type valueSymbol struct ***REMOVED***
+
+// *Symbol is a Value containing ECMAScript Symbol primitive. Symbols must only be created
+// using NewSymbol(). Zero values and copying of values (i.e. *s1 = *s2) are not permitted.
+// Well-known Symbols can be accessed using Sym* package variables (SymIterator, etc...)
+// Symbols can be shared by multiple Runtimes.
+type Symbol struct ***REMOVED***
 	h    uintptr
 	desc valueString
 ***REMOVED***
@@ -736,6 +741,12 @@ func (o *Object) Get(name string) Value ***REMOVED***
 	return o.self.getStr(unistring.NewFromString(name), nil)
 ***REMOVED***
 
+// GetSymbol returns the value of a symbol property. Use one of the Sym* values for well-known
+// symbols (such as SymIterator, SymToStringTag, etc...).
+func (o *Object) GetSymbol(sym *Symbol) Value ***REMOVED***
+	return o.self.getSym(sym, nil)
+***REMOVED***
+
 func (o *Object) Keys() (keys []string) ***REMOVED***
 	names := o.self.ownKeys(false, nil)
 	keys = make([]string, 0, len(names))
@@ -744,6 +755,15 @@ func (o *Object) Keys() (keys []string) ***REMOVED***
 	***REMOVED***
 
 	return
+***REMOVED***
+
+func (o *Object) Symbols() []*Symbol ***REMOVED***
+	symbols := o.self.ownSymbols(false, nil)
+	ret := make([]*Symbol, len(symbols))
+	for i, sym := range symbols ***REMOVED***
+		ret[i], _ = sym.(*Symbol)
+	***REMOVED***
+	return ret
 ***REMOVED***
 
 // DefineDataProperty is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***value: value, writable: writable,
@@ -772,15 +792,53 @@ func (o *Object) DefineAccessorProperty(name string, getter, setter Value, confi
 	***REMOVED***)
 ***REMOVED***
 
+// DefineDataPropertySymbol is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***value: value, writable: writable,
+// configurable: configurable, enumerable: enumerable***REMOVED***)
+func (o *Object) DefineDataPropertySymbol(name *Symbol, value Value, writable, configurable, enumerable Flag) error ***REMOVED***
+	return tryFunc(func() ***REMOVED***
+		o.self.defineOwnPropertySym(name, PropertyDescriptor***REMOVED***
+			Value:        value,
+			Writable:     writable,
+			Configurable: configurable,
+			Enumerable:   enumerable,
+		***REMOVED***, true)
+	***REMOVED***)
+***REMOVED***
+
+// DefineAccessorPropertySymbol is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***get: getter, set: setter,
+// configurable: configurable, enumerable: enumerable***REMOVED***)
+func (o *Object) DefineAccessorPropertySymbol(name *Symbol, getter, setter Value, configurable, enumerable Flag) error ***REMOVED***
+	return tryFunc(func() ***REMOVED***
+		o.self.defineOwnPropertySym(name, PropertyDescriptor***REMOVED***
+			Getter:       getter,
+			Setter:       setter,
+			Configurable: configurable,
+			Enumerable:   enumerable,
+		***REMOVED***, true)
+	***REMOVED***)
+***REMOVED***
+
 func (o *Object) Set(name string, value interface***REMOVED******REMOVED***) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
 		o.self.setOwnStr(unistring.NewFromString(name), o.runtime.ToValue(value), true)
 	***REMOVED***)
 ***REMOVED***
 
+func (o *Object) SetSymbol(name *Symbol, value interface***REMOVED******REMOVED***) error ***REMOVED***
+	return tryFunc(func() ***REMOVED***
+		o.self.setOwnSym(name, o.runtime.ToValue(value), true)
+	***REMOVED***)
+***REMOVED***
+
 func (o *Object) Delete(name string) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
 		o.self.deleteStr(unistring.NewFromString(name), true)
+	***REMOVED***)
+***REMOVED***
+
+func (o *Object) DeleteSymbol(name *Symbol) error ***REMOVED***
+	return tryFunc(func() ***REMOVED***
+		o.self.deleteSym(name, true)
 	***REMOVED***)
 ***REMOVED***
 
@@ -890,70 +948,70 @@ func (o valueUnresolved) hash(*maphash.Hash) uint64 ***REMOVED***
 	return 0
 ***REMOVED***
 
-func (s *valueSymbol) ToInteger() int64 ***REMOVED***
+func (s *Symbol) ToInteger() int64 ***REMOVED***
 	panic(typeError("Cannot convert a Symbol value to a number"))
 ***REMOVED***
 
-func (s *valueSymbol) toString() valueString ***REMOVED***
+func (s *Symbol) toString() valueString ***REMOVED***
 	panic(typeError("Cannot convert a Symbol value to a string"))
 ***REMOVED***
 
-func (s *valueSymbol) ToString() Value ***REMOVED***
+func (s *Symbol) ToString() Value ***REMOVED***
 	return s
 ***REMOVED***
 
-func (s *valueSymbol) String() string ***REMOVED***
+func (s *Symbol) String() string ***REMOVED***
 	return s.desc.String()
 ***REMOVED***
 
-func (s *valueSymbol) string() unistring.String ***REMOVED***
+func (s *Symbol) string() unistring.String ***REMOVED***
 	return s.desc.string()
 ***REMOVED***
 
-func (s *valueSymbol) ToFloat() float64 ***REMOVED***
+func (s *Symbol) ToFloat() float64 ***REMOVED***
 	panic(typeError("Cannot convert a Symbol value to a number"))
 ***REMOVED***
 
-func (s *valueSymbol) ToNumber() Value ***REMOVED***
+func (s *Symbol) ToNumber() Value ***REMOVED***
 	panic(typeError("Cannot convert a Symbol value to a number"))
 ***REMOVED***
 
-func (s *valueSymbol) ToBoolean() bool ***REMOVED***
+func (s *Symbol) ToBoolean() bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (s *valueSymbol) ToObject(r *Runtime) *Object ***REMOVED***
+func (s *Symbol) ToObject(r *Runtime) *Object ***REMOVED***
 	return s.baseObject(r)
 ***REMOVED***
 
-func (s *valueSymbol) SameAs(other Value) bool ***REMOVED***
-	if s1, ok := other.(*valueSymbol); ok ***REMOVED***
+func (s *Symbol) SameAs(other Value) bool ***REMOVED***
+	if s1, ok := other.(*Symbol); ok ***REMOVED***
 		return s == s1
 	***REMOVED***
 	return false
 ***REMOVED***
 
-func (s *valueSymbol) Equals(o Value) bool ***REMOVED***
+func (s *Symbol) Equals(o Value) bool ***REMOVED***
 	return s.SameAs(o)
 ***REMOVED***
 
-func (s *valueSymbol) StrictEquals(o Value) bool ***REMOVED***
+func (s *Symbol) StrictEquals(o Value) bool ***REMOVED***
 	return s.SameAs(o)
 ***REMOVED***
 
-func (s *valueSymbol) Export() interface***REMOVED******REMOVED*** ***REMOVED***
+func (s *Symbol) Export() interface***REMOVED******REMOVED*** ***REMOVED***
 	return s.String()
 ***REMOVED***
 
-func (s *valueSymbol) ExportType() reflect.Type ***REMOVED***
+func (s *Symbol) ExportType() reflect.Type ***REMOVED***
 	return reflectTypeString
 ***REMOVED***
 
-func (s *valueSymbol) baseObject(r *Runtime) *Object ***REMOVED***
+func (s *Symbol) baseObject(r *Runtime) *Object ***REMOVED***
 	return r.newPrimitiveObject(s, r.global.SymbolPrototype, "Symbol")
 ***REMOVED***
 
-func (s *valueSymbol) hash(*maphash.Hash) uint64 ***REMOVED***
+func (s *Symbol) hash(*maphash.Hash) uint64 ***REMOVED***
 	return uint64(s.h)
 ***REMOVED***
 
@@ -964,9 +1022,9 @@ func exportValue(v Value, ctx *objectExportCtx) interface***REMOVED******REMOVED
 	return v.Export()
 ***REMOVED***
 
-func newSymbol(s valueString) *valueSymbol ***REMOVED***
-	r := &valueSymbol***REMOVED***
-		desc: asciiString("Symbol(").concat(s).concat(asciiString(")")),
+func newSymbol(s valueString) *Symbol ***REMOVED***
+	r := &Symbol***REMOVED***
+		desc: s,
 	***REMOVED***
 	// This may need to be reconsidered in the future.
 	// Depending on changes in Go's allocation policy and/or introduction of a compacting GC
@@ -974,6 +1032,17 @@ func newSymbol(s valueString) *valueSymbol ***REMOVED***
 	// synchronised random generator/hasher/sequencer and I don't want to go down that route just yet.
 	r.h = uintptr(unsafe.Pointer(r))
 	return r
+***REMOVED***
+
+func NewSymbol(s string) *Symbol ***REMOVED***
+	return newSymbol(newStringValue(s))
+***REMOVED***
+
+func (s *Symbol) descriptiveString() valueString ***REMOVED***
+	if s.desc == nil ***REMOVED***
+		return stringEmpty
+	***REMOVED***
+	return asciiString("Symbol(").concat(s.desc).concat(asciiString(")"))
 ***REMOVED***
 
 func init() ***REMOVED***
