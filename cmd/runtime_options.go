@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -65,18 +66,47 @@ extended: base + Babel with ES2015 preset + core.js v2,
           slower and memory consuming but with greater JS support
 `)
 	flags.StringArrayP("env", "e", nil, "add/override environment variable with `VAR=value`")
+	flags.Bool("no-thresholds", false, "don't run thresholds")
+	flags.Bool("no-summary", false, "don't show the summary at the end of the test")
+	flags.String(
+		"summary-export",
+		"",
+		"output the end-of-test summary report to JSON file",
+	)
 	return flags
 ***REMOVED***
 
+func saveBoolFromEnv(env map[string]string, varName string, placeholder *null.Bool) error ***REMOVED***
+	strValue, ok := env[varName]
+	if !ok ***REMOVED***
+		return nil
+	***REMOVED***
+	val, err := strconv.ParseBool(strValue)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("env var '%s' is not a valid boolean value: %w", varName, err)
+	***REMOVED***
+	// Only override if not explicitly set via the CLI flag
+	if !placeholder.Valid ***REMOVED***
+		*placeholder = null.BoolFrom(val)
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func getRuntimeOptions(flags *pflag.FlagSet, environment map[string]string) (lib.RuntimeOptions, error) ***REMOVED***
+	// TODO: refactor with composable helpers as a part of #883, to reduce copy-paste
+	// TODO: get these options out of the JSON config file as well?
 	opts := lib.RuntimeOptions***REMOVED***
 		IncludeSystemEnvVars: getNullBool(flags, "include-system-env-vars"),
 		CompatibilityMode:    getNullString(flags, "compatibility-mode"),
+		NoThresholds:         getNullBool(flags, "no-thresholds"),
+		NoSummary:            getNullBool(flags, "no-summary"),
+		SummaryExport:        getNullString(flags, "summary-export"),
 		Env:                  make(map[string]string),
 	***REMOVED***
 
-	if !opts.CompatibilityMode.Valid ***REMOVED*** // If not explicitly set via CLI flags, look for an environment variable
-		if envVar, ok := environment["K6_COMPATIBILITY_MODE"]; ok ***REMOVED***
+	if envVar, ok := environment["K6_COMPATIBILITY_MODE"]; ok ***REMOVED***
+		// Only override if not explicitly set via the CLI flag
+		if !opts.CompatibilityMode.Valid ***REMOVED***
 			opts.CompatibilityMode = null.StringFrom(envVar)
 		***REMOVED***
 	***REMOVED***
@@ -85,13 +115,19 @@ func getRuntimeOptions(flags *pflag.FlagSet, environment map[string]string) (lib
 		return opts, err
 	***REMOVED***
 
-	if !opts.IncludeSystemEnvVars.Valid ***REMOVED*** // If not explicitly set via CLI flags, look for an environment variable
-		if envVar, ok := environment["K6_INCLUDE_SYSTEM_ENV_VARS"]; ok ***REMOVED***
-			val, err := strconv.ParseBool(envVar)
-			if err != nil ***REMOVED***
-				return opts, err
-			***REMOVED***
-			opts.IncludeSystemEnvVars = null.BoolFrom(val)
+	if err := saveBoolFromEnv(environment, "K6_INCLUDE_SYSTEM_ENV_VARS", &opts.IncludeSystemEnvVars); err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	if err := saveBoolFromEnv(environment, "K6_NO_THRESHOLDS", &opts.NoThresholds); err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+	if err := saveBoolFromEnv(environment, "K6_NO_SUMMARY", &opts.NoSummary); err != nil ***REMOVED***
+		return opts, err
+	***REMOVED***
+
+	if envVar, ok := environment["K6_SUMMARY_EXPORT"]; ok ***REMOVED***
+		if !opts.SummaryExport.Valid ***REMOVED***
+			opts.SummaryExport = null.StringFrom(envVar)
 		***REMOVED***
 	***REMOVED***
 

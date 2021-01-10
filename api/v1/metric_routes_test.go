@@ -45,7 +45,7 @@ func TestGetMetrics(t *testing.T) ***REMOVED***
 	logger.SetOutput(testutils.NewTestOutput(t))
 	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logger)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
 
 	engine.Metrics = map[string]*stats.Metric***REMOVED***
@@ -88,7 +88,7 @@ func TestGetMetric(t *testing.T) ***REMOVED***
 	logger.SetOutput(testutils.NewTestOutput(t))
 	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, logger)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, logger)
 	require.NoError(t, err)
 
 	engine.Metrics = map[string]*stats.Metric***REMOVED***
