@@ -3,11 +3,11 @@ import ***REMOVED*** Counter, Gauge, Rate, Trend ***REMOVED*** from "k6/metrics"
 import ***REMOVED*** check ***REMOVED*** from "k6";
 
 /*
- * Custom metrics are useful when you want to track something that is not 
+ * Custom metrics are useful when you want to track something that is not
  * provided out of the box.
- * 
+ *
  * There are four types of custom metrics: Counter, Gauge, Rate and Trend.
- * 
+ *
  * - Counter: a sum of all values added to the metric
  * - Gauge: a value that change to whatever you set it to
  * - Rate: rate of "truthiness", how many values out of total are !=0
@@ -22,7 +22,7 @@ let myTrend = new Trend("my_trend");
 
 let maxResponseTime = 0.0;
 
-export default function() ***REMOVED***
+export default function () ***REMOVED***
     let res = http.get("http://httpbin.org/");
     let passed = check(res, ***REMOVED*** "status is 200": (r) => r.status === 200 ***REMOVED***);
 
@@ -36,6 +36,6 @@ export default function() ***REMOVED***
     // Add check success or failure to keep track of rate
     myRate.add(passed);
 
-    // Keep track of DNS+TCP-connecting part of the response time
-    myTrend.add(res.timings.looking_up + res.timings.connecting);
+    // Keep track of TCP-connecting and TLS handshaking part of the response time
+    myTrend.add(res.timings.connecting + res.timings.tls_handshaking);
 ***REMOVED***
