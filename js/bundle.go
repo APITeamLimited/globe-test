@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/compiler"
@@ -49,8 +50,8 @@ type Bundle struct ***REMOVED***
 
 	BaseInitContext *InitContext
 
-	Env               map[string]string
-	CompatibilityMode lib.CompatibilityMode
+	RuntimeOptions    lib.RuntimeOptions
+	CompatibilityMode lib.CompatibilityMode // parsed value
 
 	exports map[string]goja.Callable
 ***REMOVED***
@@ -90,7 +91,7 @@ func NewBundle(
 		Program:  pgm,
 		BaseInitContext: NewInitContext(logger, rt, c, compatMode, new(context.Context),
 			filesystems, loader.Dir(src.URL)),
-		Env:               rtOpts.Env,
+		RuntimeOptions:    rtOpts,
 		CompatibilityMode: compatMode,
 		exports:           make(map[string]goja.Callable),
 	***REMOVED***
@@ -112,13 +113,12 @@ func NewBundleFromArchive(logger logrus.FieldLogger, arc *lib.Archive, rtOpts li
 		return nil, errors.Errorf("expected bundle type 'js', got '%s'", arc.Type)
 	***REMOVED***
 
-	compatModeStr := arc.CompatibilityMode
-	if rtOpts.CompatibilityMode.Valid ***REMOVED***
-		// `k6 run --compatibility-mode=whatever archive.tar` should  override
+	if !rtOpts.CompatibilityMode.Valid ***REMOVED***
+		// `k6 run --compatibility-mode=whatever archive.tar` should override
 		// whatever value is in the archive
-		compatModeStr = rtOpts.CompatibilityMode.String
+		rtOpts.CompatibilityMode = null.StringFrom(arc.CompatibilityMode)
 	***REMOVED***
-	compatMode, err := lib.ValidateCompatibilityMode(compatModeStr)
+	compatMode, err := lib.ValidateCompatibilityMode(rtOpts.CompatibilityMode.String)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -140,6 +140,7 @@ func NewBundleFromArchive(logger logrus.FieldLogger, arc *lib.Archive, rtOpts li
 	for k, v := range rtOpts.Env ***REMOVED***
 		env[k] = v
 	***REMOVED***
+	rtOpts.Env = env
 
 	bundle := &Bundle***REMOVED***
 		Filename:          arc.FilenameURL,
@@ -147,7 +148,7 @@ func NewBundleFromArchive(logger logrus.FieldLogger, arc *lib.Archive, rtOpts li
 		Program:           pgm,
 		Options:           arc.Options,
 		BaseInitContext:   initctx,
-		Env:               env,
+		RuntimeOptions:    rtOpts,
 		CompatibilityMode: compatMode,
 		exports:           make(map[string]goja.Callable),
 	***REMOVED***
@@ -174,13 +175,13 @@ func (b *Bundle) makeArchive() *lib.Archive ***REMOVED***
 		FilenameURL:       b.Filename,
 		Data:              []byte(b.Source),
 		PwdURL:            b.BaseInitContext.pwd,
-		Env:               make(map[string]string, len(b.Env)),
+		Env:               make(map[string]string, len(b.RuntimeOptions.Env)),
 		CompatibilityMode: b.CompatibilityMode.String(),
 		K6Version:         consts.Version,
 		Goos:              runtime.GOOS,
 	***REMOVED***
 	// Copy env so changes in the archive are not reflected in the source Bundle
-	for k, v := range b.Env ***REMOVED***
+	for k, v := range b.RuntimeOptions.Env ***REMOVED***
 		arc.Env[k] = v
 	***REMOVED***
 
@@ -245,7 +246,7 @@ func (b *Bundle) Instantiate(logger logrus.FieldLogger, vuID int64) (bi *BundleI
 		Runtime: rt,
 		Context: ctxPtr,
 		exports: make(map[string]goja.Callable),
-		env:     b.Env,
+		env:     b.RuntimeOptions.Env,
 	***REMOVED***
 
 	// Grab any exported functions that could be executed. These were
@@ -291,8 +292,8 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	_ = module.Set("exports", exports)
 	rt.Set("module", module)
 
-	env := make(map[string]string, len(b.Env))
-	for key, value := range b.Env ***REMOVED***
+	env := make(map[string]string, len(b.RuntimeOptions.Env))
+	for key, value := range b.RuntimeOptions.Env ***REMOVED***
 		env[key] = value
 	***REMOVED***
 	rt.Set("__ENV", env)
