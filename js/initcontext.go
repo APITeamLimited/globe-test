@@ -69,6 +69,8 @@ type InitContext struct ***REMOVED***
 	compatibilityMode lib.CompatibilityMode
 
 	logger logrus.FieldLogger
+
+	sharedObjects *common.SharedObjects
 ***REMOVED***
 
 // NewInitContext creates a new initcontext with the provided arguments
@@ -85,6 +87,7 @@ func NewInitContext(
 		programs:          make(map[string]programWithSource),
 		compatibilityMode: compatMode,
 		logger:            logger,
+		sharedObjects:     common.NewSharedObjects(),
 	***REMOVED***
 ***REMOVED***
 
@@ -110,6 +113,7 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 		programs:          programs,
 		compatibilityMode: base.compatibilityMode,
 		logger:            base.logger,
+		sharedObjects:     base.sharedObjects,
 	***REMOVED***
 ***REMOVED***
 
@@ -162,7 +166,6 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 
 		if pgm.pgm == nil ***REMOVED***
 			// Load the sources; the loader takes care of remote loading, etc.
-			// TODO: don't use the Global logger
 			data, err := loader.Load(i.logger, i.filesystems, fileURL, name)
 			if err != nil ***REMOVED***
 				return goja.Undefined(), err

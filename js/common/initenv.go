@@ -23,6 +23,7 @@ package common
 import (
 	"net/url"
 	"path/filepath"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -37,6 +38,7 @@ type InitEnvironment struct ***REMOVED***
 	// TODO: add RuntimeOptions and other properties, goja sources, etc.
 	// ideally, we should leave this as the only data structure necessary for
 	// executing the init context for all JS modules
+	SharedObjects *SharedObjects
 ***REMOVED***
 
 // GetAbsFilePath should be used to access the FileSystems, since afero has a
@@ -59,4 +61,35 @@ func (ie *InitEnvironment) GetAbsFilePath(filename string) string ***REMOVED***
 		filename = afero.FilePathSeparator + filename
 	***REMOVED***
 	return filename
+***REMOVED***
+
+// SharedObjects is a collection of general store for objects to be shared. It is mostly a wrapper
+// around map[string]interface with a lock and stuff.
+// The reason behind not just using sync.Map is that it still needs a lock when we want to only call
+// the function constructor if there is no such key at which point you already need a lock so ...
+type SharedObjects struct ***REMOVED***
+	data map[string]interface***REMOVED******REMOVED***
+	l    sync.Mutex
+***REMOVED***
+
+// NewSharedObjects returns a new SharedObjects ready to use
+func NewSharedObjects() *SharedObjects ***REMOVED***
+	return &SharedObjects***REMOVED***
+		data: make(map[string]interface***REMOVED******REMOVED***),
+	***REMOVED***
+***REMOVED***
+
+// GetOrCreateShare returns a shared value with the given name or sets it's value whatever
+// createCallback returns and returns it.
+func (so *SharedObjects) GetOrCreateShare(name string, createCallback func() interface***REMOVED******REMOVED***) interface***REMOVED******REMOVED*** ***REMOVED***
+	so.l.Lock()
+	defer so.l.Unlock()
+
+	value, ok := so.data[name]
+	if !ok ***REMOVED***
+		value = createCallback()
+		so.data[name] = value
+	***REMOVED***
+
+	return value
 ***REMOVED***

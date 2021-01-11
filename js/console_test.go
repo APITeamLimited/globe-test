@@ -76,6 +76,7 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 	var (
 		fs     = afero.NewMemMapFs()
 		rtOpts = lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***
+		logger = testutils.NewLogger(tb)
 	)
 	for _, o := range opts ***REMOVED***
 		switch opt := o.(type) ***REMOVED***
@@ -83,10 +84,12 @@ func getSimpleRunner(tb testing.TB, filename, data string, opts ...interface***R
 			fs = opt
 		case lib.RuntimeOptions:
 			rtOpts = opt
+		case *logrus.Logger:
+			logger = opt
 		***REMOVED***
 	***REMOVED***
 	return New(
-		testutils.NewLogger(tb),
+		logger,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
