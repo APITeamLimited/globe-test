@@ -281,3 +281,72 @@ func TestSampleImplementations(t *testing.T) ***REMOVED***
 	assert.Equal(t, now, cSamples.GetTime())
 	assert.Equal(t, sample.GetTags(), sample.GetTags())
 ***REMOVED***
+
+func TestGetResolversForTrendColumnsValidation(t *testing.T) ***REMOVED***
+	validateTests := []struct ***REMOVED***
+		stats  []string
+		expErr bool
+	***REMOVED******REMOVED***
+		***REMOVED***[]string***REMOVED******REMOVED***, false***REMOVED***,
+		***REMOVED***[]string***REMOVED***"avg", "min", "med", "max", "p(0)", "p(99)", "p(99.999)", "count"***REMOVED***, false***REMOVED***,
+		***REMOVED***[]string***REMOVED***"avg", "p(err)"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"nil", "p(err)"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"p90"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"p(90"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***" avg"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"avg "***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"", "avg "***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"p(-1)"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"p(101)"***REMOVED***, true***REMOVED***,
+		***REMOVED***[]string***REMOVED***"p(1)"***REMOVED***, false***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range validateTests ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("%v", tc.stats), func(t *testing.T) ***REMOVED***
+			_, err := GetResolversForTrendColumns(tc.stats)
+			if tc.expErr ***REMOVED***
+				assert.Error(t, err)
+			***REMOVED*** else ***REMOVED***
+				assert.NoError(t, err)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func createTestTrendSink(count int) *TrendSink ***REMOVED***
+	sink := TrendSink***REMOVED******REMOVED***
+
+	for i := 0; i < count; i++ ***REMOVED***
+		sink.Add(Sample***REMOVED***Value: float64(i)***REMOVED***)
+	***REMOVED***
+
+	return &sink
+***REMOVED***
+
+func TestResolversForTrendColumnsCalculation(t *testing.T) ***REMOVED***
+	customResolversTests := []struct ***REMOVED***
+		stats      string
+		percentile float64
+	***REMOVED******REMOVED***
+		***REMOVED***"p(50)", 0.5***REMOVED***,
+		***REMOVED***"p(99)", 0.99***REMOVED***,
+		***REMOVED***"p(99.9)", 0.999***REMOVED***,
+		***REMOVED***"p(99.99)", 0.9999***REMOVED***,
+		***REMOVED***"p(99.999)", 0.99999***REMOVED***,
+	***REMOVED***
+
+	sink := createTestTrendSink(100)
+
+	for _, tc := range customResolversTests ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("%v", tc.stats), func(t *testing.T) ***REMOVED***
+			res, err := GetResolversForTrendColumns([]string***REMOVED***tc.stats***REMOVED***)
+			assert.NoError(t, err)
+			assert.Len(t, res, 1)
+			for k := range res ***REMOVED***
+				assert.InDelta(t, sink.P(tc.percentile), res[k](sink), 0.000001)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***

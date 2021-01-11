@@ -21,7 +21,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -29,12 +28,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 )
+
+// TODO: delete everything here after we move it to a JS function
 
 const (
 	groupPrefix   = "█"
@@ -44,97 +44,19 @@ const (
 	failMark = "✗"
 )
 
-//nolint: gochecknoglobals
-var (
-	errStatEmptyString            = errors.New("invalid stat, empty string")
-	errStatUnknownFormat          = errors.New("invalid stat, unknown format")
-	errPercentileStatInvalidValue = errors.New(
-		"invalid percentile stat value, accepts a number between 0 and 100")
-	staticResolvers = map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED******REMOVED***
-		"avg":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Avg ***REMOVED***,
-		"min":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Min ***REMOVED***,
-		"med":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Med ***REMOVED***,
-		"max":   func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Max ***REMOVED***,
-		"count": func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.Count ***REMOVED***,
-	***REMOVED***
-)
-
-// ErrInvalidStat represents an invalid trend column stat
-type ErrInvalidStat struct ***REMOVED***
-	name string
-	err  error
-***REMOVED***
-
-func (e ErrInvalidStat) Error() string ***REMOVED***
-	return errors.Wrapf(e.err, "'%s'", e.name).Error()
-***REMOVED***
-
 // Summary handles test summary output
 type Summary struct ***REMOVED***
 	trendColumns        []string
-	trendValueResolvers map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED***
+	trendValueResolvers map[string]func(s *stats.TrendSink) float64
 ***REMOVED***
 
 // NewSummary returns a new Summary instance, used for writing a
 // summary/report of the test metrics data.
 func NewSummary(cols []string) *Summary ***REMOVED***
-	s := Summary***REMOVED***trendColumns: cols, trendValueResolvers: staticResolvers***REMOVED***
+	s := Summary***REMOVED***trendColumns: cols***REMOVED***
 
-	customResolvers := s.generateCustomTrendValueResolvers(cols)
-	for name, res := range customResolvers ***REMOVED***
-		s.trendValueResolvers[name] = res
-	***REMOVED***
-
+	s.trendValueResolvers, _ = stats.GetResolversForTrendColumns(cols)
 	return &s
-***REMOVED***
-
-func (s *Summary) generateCustomTrendValueResolvers(cols []string) map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED***
-	resolvers := make(map[string]func(s *stats.TrendSink) interface***REMOVED******REMOVED***)
-
-	for _, stat := range cols ***REMOVED***
-		if _, exists := s.trendValueResolvers[stat]; !exists ***REMOVED***
-			percentile, err := validatePercentile(stat)
-			if err == nil ***REMOVED***
-				resolvers[stat] = func(s *stats.TrendSink) interface***REMOVED******REMOVED*** ***REMOVED*** return s.P(percentile / 100) ***REMOVED***
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	return resolvers
-***REMOVED***
-
-// ValidateSummary checks if passed trend columns are valid for use in
-// the summary output.
-func ValidateSummary(trendColumns []string) error ***REMOVED***
-	for _, stat := range trendColumns ***REMOVED***
-		if stat == "" ***REMOVED***
-			return ErrInvalidStat***REMOVED***stat, errStatEmptyString***REMOVED***
-		***REMOVED***
-
-		if _, exists := staticResolvers[stat]; exists ***REMOVED***
-			continue
-		***REMOVED***
-
-		if _, err := validatePercentile(stat); err != nil ***REMOVED***
-			return ErrInvalidStat***REMOVED***stat, err***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
-func validatePercentile(stat string) (float64, error) ***REMOVED***
-	if !strings.HasPrefix(stat, "p(") || !strings.HasSuffix(stat, ")") ***REMOVED***
-		return 0, errStatUnknownFormat
-	***REMOVED***
-
-	percentile, err := strconv.ParseFloat(stat[2:len(stat)-1], 64)
-
-	if err != nil || ((0 > percentile) || (percentile > 100)) ***REMOVED***
-		return 0, errPercentileStatInvalidValue
-	***REMOVED***
-
-	return percentile, nil
 ***REMOVED***
 
 // StrWidth returns the actual width of the string.
@@ -244,25 +166,6 @@ func nonTrendMetricValueForSum(t time.Duration, timeUnit string, m *stats.Metric
 	***REMOVED***
 ***REMOVED***
 
-func nonTrendMetricValueForSumJSON(t time.Duration, m *stats.Metric) map[string]interface***REMOVED******REMOVED*** ***REMOVED***
-	data := make(map[string]interface***REMOVED******REMOVED***)
-	switch sink := m.Sink.(type) ***REMOVED***
-	case *stats.CounterSink:
-		rate := 0.0
-		if t > 0 ***REMOVED***
-			rate = sink.Value / (float64(t) / float64(time.Second))
-		***REMOVED***
-		data["rate"] = rate
-	case *stats.GaugeSink:
-		data["min"] = sink.Min
-		data["max"] = sink.Max
-	case *stats.RateSink:
-		data["passes"] = sink.Trues
-		data["fails"] = sink.Total - sink.Trues
-	***REMOVED***
-	return data
-***REMOVED***
-
 func displayNameForMetric(m *stats.Metric) string ***REMOVED***
 	if m.Sub.Parent != "" ***REMOVED***
 		return "***REMOVED*** " + m.Sub.Suffix + " ***REMOVED***"
@@ -309,11 +212,11 @@ func (s *Summary) summarizeMetrics(w io.Writer, indent string, t time.Duration,
 
 				resolver := s.trendValueResolvers[tc]
 
-				switch v := resolver(sink).(type) ***REMOVED***
-				case float64:
+				v := resolver(sink)
+				if tc != "count" ***REMOVED*** // sigh
 					value = m.HumanizeValue(v, timeUnit)
-				case uint64:
-					value = strconv.FormatUint(v, 10)
+				***REMOVED*** else ***REMOVED***
+					value = strconv.FormatInt(int64(v), 10)
 				***REMOVED***
 				if l := StrWidth(value); l > trendColMaxLens[i] ***REMOVED***
 					trendColMaxLens[i] = l
@@ -404,55 +307,4 @@ func (s *Summary) SummarizeMetrics(w io.Writer, indent string, data SummaryData)
 	***REMOVED***
 
 	s.summarizeMetrics(w, indent+"  ", data.Time, data.TimeUnit, data.Metrics)
-***REMOVED***
-
-// SummarizeMetricsJSON summarizes a dataset in JSON format.
-func (s *Summary) SummarizeMetricsJSON(w io.Writer, data SummaryData) error ***REMOVED***
-	m := make(map[string]interface***REMOVED******REMOVED***)
-	m["root_group"] = data.RootGroup
-
-	metricsData := make(map[string]interface***REMOVED******REMOVED***)
-	for name, m := range data.Metrics ***REMOVED***
-		m.Sink.Calc()
-
-		sinkData := m.Sink.Format(data.Time)
-		metricsData[name] = sinkData
-
-		var thresholds map[string]interface***REMOVED******REMOVED***
-		if len(m.Thresholds.Thresholds) > 0 ***REMOVED***
-			sinkDataWithThreshold := make(map[string]interface***REMOVED******REMOVED***)
-			for k, v := range sinkData ***REMOVED***
-				sinkDataWithThreshold[k] = v
-			***REMOVED***
-			thresholds = make(map[string]interface***REMOVED******REMOVED***)
-			for _, threshold := range m.Thresholds.Thresholds ***REMOVED***
-				thresholds[threshold.Source] = threshold.LastFailed
-			***REMOVED***
-			sinkDataWithThreshold["thresholds"] = thresholds
-			metricsData[name] = sinkDataWithThreshold
-		***REMOVED***
-
-		if _, ok := m.Sink.(*stats.TrendSink); ok ***REMOVED***
-			continue
-		***REMOVED***
-
-		extra := nonTrendMetricValueForSumJSON(data.Time, m)
-		if len(extra) > 1 ***REMOVED***
-			extraData := make(map[string]interface***REMOVED******REMOVED***)
-			extraData["value"] = sinkData["value"]
-			if thresholds != nil ***REMOVED***
-				extraData["thresholds"] = thresholds
-			***REMOVED***
-			for k, v := range extra ***REMOVED***
-				extraData[k] = v
-			***REMOVED***
-			metricsData[name] = extraData
-		***REMOVED***
-	***REMOVED***
-	m["metrics"] = metricsData
-	encoder := json.NewEncoder(w)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "    ")
-
-	return encoder.Encode(m)
 ***REMOVED***
