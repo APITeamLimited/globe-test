@@ -195,7 +195,7 @@ func summarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 	***REMOVED***
 
 	var checkNames []string
-	for _, check := range group.Checks ***REMOVED***
+	for _, check := range group.OrderedChecks ***REMOVED***
 		checkNames = append(checkNames, check.Name)
 	***REMOVED***
 	for _, name := range checkNames ***REMOVED***
@@ -206,7 +206,7 @@ func summarizeGroup(w io.Writer, indent string, group *lib.Group) ***REMOVED***
 	***REMOVED***
 
 	var groupNames []string
-	for _, grp := range group.Groups ***REMOVED***
+	for _, grp := range group.OrderedGroups ***REMOVED***
 		groupNames = append(groupNames, grp.Name)
 	***REMOVED***
 	for _, name := range groupNames ***REMOVED***

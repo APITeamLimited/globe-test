@@ -192,21 +192,9 @@ a commandline interface for interacting with it.`,
 
 			// Create an engine.
 			initBar.Modify(pb.WithConstProgress(0, "Init engine"))
-			engine, err := core.NewEngine(execScheduler, conf.Options, logger)
+			engine, err := core.NewEngine(execScheduler, conf.Options, runtimeOptions, logger)
 			if err != nil ***REMOVED***
 				return err
-			***REMOVED***
-
-			// TODO: refactor, the engine should have a copy of the config...
-			// Configure the engine.
-			if conf.NoThresholds.Valid ***REMOVED***
-				engine.NoThresholds = conf.NoThresholds.Bool
-			***REMOVED***
-			if conf.NoSummary.Valid ***REMOVED***
-				engine.NoSummary = conf.NoSummary.Bool
-			***REMOVED***
-			if conf.SummaryExport.Valid ***REMOVED***
-				engine.SummaryExport = conf.SummaryExport.String != ""
 			***REMOVED***
 
 			executionPlan := execScheduler.GetExecutionPlan()
@@ -309,7 +297,7 @@ a commandline interface for interacting with it.`,
 				TimeUnit:  conf.Options.SummaryTimeUnit.String,
 			***REMOVED***
 			// Print the end-of-test summary.
-			if !conf.NoSummary.Bool ***REMOVED***
+			if !runtimeOptions.NoSummary.Bool ***REMOVED***
 				fprintf(stdout, "\n")
 
 				s := ui.NewSummary(conf.SummaryTrendStats)
@@ -318,8 +306,8 @@ a commandline interface for interacting with it.`,
 				fprintf(stdout, "\n")
 			***REMOVED***
 
-			if conf.SummaryExport.ValueOrZero() != "" ***REMOVED*** //nolint:nestif
-				f, err := os.Create(conf.SummaryExport.String)
+			if runtimeOptions.SummaryExport.ValueOrZero() != "" ***REMOVED*** //nolint:nestif
+				f, err := os.Create(runtimeOptions.SummaryExport.String)
 				if err != nil ***REMOVED***
 					logger.WithError(err).Error("failed to create summary export file")
 				***REMOVED*** else ***REMOVED***

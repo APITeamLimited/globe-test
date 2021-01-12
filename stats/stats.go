@@ -35,14 +35,14 @@ import (
 )
 
 const (
-	counterString = `"counter"`
-	gaugeString   = `"gauge"`
-	trendString   = `"trend"`
-	rateString    = `"rate"`
+	counterString = "counter"
+	gaugeString   = "gauge"
+	trendString   = "trend"
+	rateString    = "rate"
 
-	defaultString = `"default"`
-	timeString    = `"time"`
-	dataString    = `"data"`
+	defaultString = "default"
+	timeString    = "time"
+	dataString    = "data"
 )
 
 // Possible values for MetricType.
@@ -71,6 +71,15 @@ type MetricType int
 
 // MarshalJSON serializes a MetricType as a human readable string.
 func (t MetricType) MarshalJSON() ([]byte, error) ***REMOVED***
+	txt, err := t.MarshalText()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return []byte(`"` + string(txt) + `"`), nil
+***REMOVED***
+
+// MarshalText serializes a MetricType as a human readable string.
+func (t MetricType) MarshalText() ([]byte, error) ***REMOVED***
 	switch t ***REMOVED***
 	case Counter:
 		return []byte(counterString), nil
@@ -85,8 +94,8 @@ func (t MetricType) MarshalJSON() ([]byte, error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// UnmarshalJSON deserializes a MetricType from a string representation.
-func (t *MetricType) UnmarshalJSON(data []byte) error ***REMOVED***
+// UnmarshalText deserializes a MetricType from a string representation.
+func (t *MetricType) UnmarshalText(data []byte) error ***REMOVED***
 	switch string(data) ***REMOVED***
 	case counterString:
 		*t = Counter
@@ -121,8 +130,17 @@ func (t MetricType) String() string ***REMOVED***
 // The type of values a metric contains.
 type ValueType int
 
-// MarshalJSON serializes a ValueType as a human readable string.
+// MarshalJSON serializes a ValueType to a JSON string.
 func (t ValueType) MarshalJSON() ([]byte, error) ***REMOVED***
+	txt, err := t.MarshalText()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return []byte(`"` + string(txt) + `"`), nil
+***REMOVED***
+
+// MarshalText serializes a ValueType as a human readable string.
+func (t ValueType) MarshalText() ([]byte, error) ***REMOVED***
 	switch t ***REMOVED***
 	case Default:
 		return []byte(defaultString), nil
@@ -135,8 +153,8 @@ func (t ValueType) MarshalJSON() ([]byte, error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// UnmarshalJSON deserializes a ValueType from a string representation.
-func (t *ValueType) UnmarshalJSON(data []byte) error ***REMOVED***
+// UnmarshalText deserializes a ValueType from a string representation.
+func (t *ValueType) UnmarshalText(data []byte) error ***REMOVED***
 	switch string(data) ***REMOVED***
 	case defaultString:
 		*t = Default

@@ -54,11 +54,9 @@ type Engine struct ***REMOVED***
 	ExecutionScheduler lib.ExecutionScheduler
 	executionState     *lib.ExecutionState
 
-	Options       lib.Options
-	Collectors    []lib.Collector
-	NoThresholds  bool
-	NoSummary     bool
-	SummaryExport bool
+	Options        lib.Options
+	runtimeOptions lib.RuntimeOptions
+	Collectors     []lib.Collector
 
 	logger   *logrus.Entry
 	stopOnce sync.Once
@@ -78,7 +76,9 @@ type Engine struct ***REMOVED***
 ***REMOVED***
 
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
-func NewEngine(ex lib.ExecutionScheduler, o lib.Options, logger *logrus.Logger) (*Engine, error) ***REMOVED***
+func NewEngine(
+	ex lib.ExecutionScheduler, opts lib.Options, rtOpts lib.RuntimeOptions, logger *logrus.Logger,
+) (*Engine, error) ***REMOVED***
 	if ex == nil ***REMOVED***
 		return nil, errors.New("missing ExecutionScheduler instance")
 	***REMOVED***
@@ -87,14 +87,15 @@ func NewEngine(ex lib.ExecutionScheduler, o lib.Options, logger *logrus.Logger) 
 		ExecutionScheduler: ex,
 		executionState:     ex.GetState(),
 
-		Options:  o,
-		Metrics:  make(map[string]*stats.Metric),
-		Samples:  make(chan stats.SampleContainer, o.MetricSamplesBufferSize.Int64),
-		stopChan: make(chan struct***REMOVED******REMOVED***),
-		logger:   logger.WithField("component", "engine"),
+		Options:        opts,
+		runtimeOptions: rtOpts,
+		Metrics:        make(map[string]*stats.Metric),
+		Samples:        make(chan stats.SampleContainer, opts.MetricSamplesBufferSize.Int64),
+		stopChan:       make(chan struct***REMOVED******REMOVED***),
+		logger:         logger.WithField("component", "engine"),
 	***REMOVED***
 
-	e.thresholds = o.Thresholds
+	e.thresholds = opts.Thresholds
 	e.submetrics = make(map[string][]*stats.Submetric)
 	for name := range e.thresholds ***REMOVED***
 		if !strings.Contains(name, "***REMOVED***") ***REMOVED***
@@ -221,7 +222,7 @@ func (e *Engine) startBackgroundProcesses( //nolint:funlen
 	***REMOVED***()
 
 	// Run thresholds, if not disabled.
-	if !e.NoThresholds ***REMOVED***
+	if !e.runtimeOptions.NoThresholds.Bool ***REMOVED***
 		processes.Add(1)
 		go func() ***REMOVED***
 			defer processes.Done()
@@ -260,7 +261,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 		***REMOVED***
 		e.processSamples(sampleContainers)
 
-		if !e.NoThresholds ***REMOVED***
+		if !e.runtimeOptions.NoThresholds.Bool ***REMOVED***
 			e.processThresholds() // Process the thresholds one final time
 		***REMOVED***
 	***REMOVED***()
@@ -285,7 +286,7 @@ func (e *Engine) processMetrics(globalCtx context.Context, processMetricsAfterRu
 		case <-processMetricsAfterRun:
 			e.logger.Debug("Processing metrics and thresholds after the test run has ended...")
 			processSamples()
-			if !e.NoThresholds ***REMOVED***
+			if !e.runtimeOptions.NoThresholds.Bool ***REMOVED***
 				e.processThresholds()
 			***REMOVED***
 			processMetricsAfterRun <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
@@ -438,7 +439,7 @@ func (e *Engine) processSamples(sampleContainers []stats.SampleContainer) ***REM
 	defer e.MetricsLock.Unlock()
 
 	// TODO: run this and the below code in goroutines?
-	if !(e.NoSummary && e.NoThresholds && !e.SummaryExport) ***REMOVED***
+	if !(e.runtimeOptions.NoSummary.Bool && e.runtimeOptions.NoThresholds.Bool) ***REMOVED***
 		e.processSamplesForMetrics(sampleContainers)
 	***REMOVED***
 

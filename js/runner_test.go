@@ -295,7 +295,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 
 	execScheduler, err := local.NewExecutionScheduler(runner, testutils.NewLogger(t))
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, options, testutils.NewLogger(t))
+	engine, err := core.NewEngine(execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, testutils.NewLogger(t))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
