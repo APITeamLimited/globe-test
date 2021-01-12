@@ -37,6 +37,7 @@ import (
 )
 
 func TestTextSummary(t *testing.T) ***REMOVED***
+	t.Parallel()
 	var (
 		checksOut = "     █ child\n\n" +
 			"       ✓ check1\n" +
@@ -71,7 +72,7 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 				t, "/script.js",
 				fmt.Sprintf(`
 					exports.options = ***REMOVED***summaryTrendStats: %s***REMOVED***;
-					exports.default = function() ***REMOVED******REMOVED***;
+					exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
 				`, string(trendStats)),
 				lib.RuntimeOptions***REMOVED***
 					CompatibilityMode: null.NewString("base", true),
@@ -162,9 +163,7 @@ func createTestMetrics(t *testing.T) (map[string]*stats.Metric, *lib.Group) ***R
 	return metrics, rootG
 ***REMOVED***
 
-func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
-	metrics, rootG := createTestMetrics(t)
-	expected := `***REMOVED***
+const expectedOldJSONExportResult = `***REMOVED***
     "root_group": ***REMOVED***
         "name": "",
         "path": "",
@@ -237,11 +236,13 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 `
 
+func TestOldJSONExport(t *testing.T) ***REMOVED***
+	t.Parallel()
 	runner, err := getSimpleRunner(
 		t, "/script.js",
 		`
 		exports.options = ***REMOVED***summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)", "count"]***REMOVED***;
-		exports.default = function() ***REMOVED******REMOVED***;
+		exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
 		`,
 		lib.RuntimeOptions***REMOVED***
 			CompatibilityMode: null.NewString("base", true),
@@ -251,6 +252,7 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
 
 	require.NoError(t, err)
 
+	metrics, rootG := createTestMetrics(t)
 	result, err := runner.HandleSummary(context.Background(), &lib.Summary***REMOVED***
 		Metrics:         metrics,
 		RootGroup:       rootG,
@@ -263,5 +265,152 @@ func TestSummarizeMetricsJSON(t *testing.T) ***REMOVED***
 	require.NotNil(t, result["result.json"])
 	jsonExport, err := ioutil.ReadAll(result["result.json"])
 	require.NoError(t, err)
-	assert.JSONEq(t, expected, string(jsonExport))
+	assert.JSONEq(t, expectedOldJSONExportResult, string(jsonExport))
+***REMOVED***
+
+const expectedHandleSummaryRawData = `
+***REMOVED***
+    "root_group": ***REMOVED***
+        "groups": [
+            ***REMOVED***
+                "name": "child",
+                "path": "::child",
+                "id": "f41cbb53a398ec1c9fb3d33e20c9b040",
+                "groups": [],
+                "checks": [
+                        ***REMOVED***
+                            "id": "6289a7a06253a1c3f6137dfb25695563",
+                            "passes": 30,
+                            "fails": 0,
+                            "name": "check1",
+                            "path": "::child::check1"
+                        ***REMOVED***,
+                        ***REMOVED***
+                            "fails": 5,
+                            "name": "check3",
+                            "path": "::child::check3",
+                            "id": "c7553eca92d3e034b5808332296d304a",
+                            "passes": 10
+                        ***REMOVED***,
+                        ***REMOVED***
+                            "name": "check2",
+                            "path": "::child::check2",
+                            "id": "06f5922794bef0d4584ba76a49893e1f",
+                            "passes": 5,
+                            "fails": 10
+                        ***REMOVED***
+                    ]
+            ***REMOVED***
+        ],
+        "checks": [],
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e"
+    ***REMOVED***,
+    "options": ***REMOVED***
+        "summaryTrendStats": [
+            "avg",
+            "min",
+            "med",
+            "max",
+            "p(90)",
+            "p(95)",
+            "p(99)",
+            "count"
+        ],
+        "summaryTimeUnit": ""
+    ***REMOVED***,
+    "metrics": ***REMOVED***
+        "checks": ***REMOVED***
+            "contains": "default",
+            "values": ***REMOVED***
+                "passes": 45,
+                "fails": 15,
+                "rate": 0.75
+            ***REMOVED***,
+            "type": "rate"
+        ***REMOVED***,
+        "my_trend": ***REMOVED***
+            "thresholds": ***REMOVED***
+                "my_trend<1000": ***REMOVED***
+                    "ok": false
+                ***REMOVED***
+            ***REMOVED***,
+            "type": "trend",
+            "contains": "time",
+            "values": ***REMOVED***
+                "max": 20,
+                "p(90)": 19,
+                "p(95)": 19.5,
+                "p(99)": 19.9,
+                "count": 3,
+                "avg": 15,
+                "min": 10,
+                "med": 15
+            ***REMOVED***
+        ***REMOVED***,
+        "vus": ***REMOVED***
+            "contains": "default",
+            "values": ***REMOVED***
+                "value": 1,
+                "min": 1,
+                "max": 1
+            ***REMOVED***,
+            "type": "gauge"
+        ***REMOVED***,
+        "http_reqs": ***REMOVED***
+            "type": "counter",
+            "contains": "default",
+            "values": ***REMOVED***
+                "count": 3,
+                "rate": 3
+            ***REMOVED***,
+            "thresholds": ***REMOVED***
+                "rate<100": ***REMOVED***
+                    "ok": true
+                ***REMOVED***
+            ***REMOVED***
+        ***REMOVED***
+    ***REMOVED***
+***REMOVED***`
+
+func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
+	t.Parallel()
+	runner, err := getSimpleRunner(
+		t, "/script.js",
+		`
+		exports.options = ***REMOVED***summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)", "count"]***REMOVED***;
+		exports.default = function() ***REMOVED*** /* we don't run this, metrics are mocked */ ***REMOVED***;
+		exports.handleSummary = function(data) ***REMOVED***
+			return ***REMOVED***'rawdata.json': JSON.stringify(data)***REMOVED***;
+		***REMOVED***;
+		`,
+		lib.RuntimeOptions***REMOVED***
+			CompatibilityMode: null.NewString("base", true),
+			// we still want to check this
+			SummaryExport: null.StringFrom("old-export.json"),
+		***REMOVED***,
+	)
+
+	require.NoError(t, err)
+
+	metrics, rootG := createTestMetrics(t)
+	result, err := runner.HandleSummary(context.Background(), &lib.Summary***REMOVED***
+		Metrics:         metrics,
+		RootGroup:       rootG,
+		TestRunDuration: time.Second,
+	***REMOVED***)
+	require.NoError(t, err)
+
+	require.Len(t, result, 2)
+	require.Nil(t, result["stdout"])
+
+	require.NotNil(t, result["old-export.json"])
+	oldExport, err := ioutil.ReadAll(result["old-export.json"])
+	require.NoError(t, err)
+	assert.JSONEq(t, expectedOldJSONExportResult, string(oldExport))
+	require.NotNil(t, result["rawdata.json"])
+	newRawData, err := ioutil.ReadAll(result["rawdata.json"])
+	require.NoError(t, err)
+	assert.JSONEq(t, expectedHandleSummaryRawData, string(newRawData))
 ***REMOVED***
