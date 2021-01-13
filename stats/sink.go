@@ -148,6 +148,7 @@ func (t *TrendSink) Calc() ***REMOVED***
 
 func (t *TrendSink) Format(tt time.Duration) map[string]float64 ***REMOVED***
 	t.Calc()
+	// TODO: respect the summaryTrendStats for REST API
 	return map[string]float64***REMOVED***
 		"min":   t.Min,
 		"max":   t.Max,

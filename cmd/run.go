@@ -25,6 +25,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -46,7 +48,6 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
-	"github.com/loadimpact/k6/ui"
 	"github.com/loadimpact/k6/ui/pb"
 )
 
@@ -120,7 +121,7 @@ a commandline interface for interacting with it.`,
 				return err
 			***REMOVED***
 
-			r, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
+			initRunner, err := newRunner(logger, src, runType, filesystems, runtimeOptions)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -131,18 +132,18 @@ a commandline interface for interacting with it.`,
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			conf, err := getConsolidatedConfig(afero.NewOsFs(), cliConf, r)
+			conf, err := getConsolidatedConfig(afero.NewOsFs(), cliConf, initRunner)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
-			conf, cerr := deriveAndValidateConfig(conf, r.IsExecutable)
+			conf, cerr := deriveAndValidateConfig(conf, initRunner.IsExecutable)
 			if cerr != nil ***REMOVED***
 				return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
 			***REMOVED***
 
 			// Write options back to the runner too.
-			if err = r.SetOptions(conf.Options); err != nil ***REMOVED***
+			if err = initRunner.SetOptions(conf.Options); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
@@ -165,7 +166,7 @@ a commandline interface for interacting with it.`,
 
 			// Create a local execution scheduler wrapping the runner.
 			logger.Debug("Initializing the execution scheduler...")
-			execScheduler, err := local.NewExecutionScheduler(r, logger)
+			execScheduler, err := local.NewExecutionScheduler(initRunner, logger)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -290,36 +291,18 @@ a commandline interface for interacting with it.`,
 				logger.Warn("No script iterations finished, consider making the test duration longer")
 			***REMOVED***
 
-			data := ui.SummaryData***REMOVED***
-				Metrics:   engine.Metrics,
-				RootGroup: engine.ExecutionScheduler.GetRunner().GetDefaultGroup(),
-				Time:      executionState.GetCurrentTestRunDuration(),
-				TimeUnit:  conf.Options.SummaryTimeUnit.String,
-			***REMOVED***
-			// Print the end-of-test summary.
+			// Handle the end-of-test summary.
 			if !runtimeOptions.NoSummary.Bool ***REMOVED***
-				fprintf(stdout, "\n")
-
-				s := ui.NewSummary(conf.SummaryTrendStats)
-				s.SummarizeMetrics(stdout, "", data)
-
-				fprintf(stdout, "\n")
-			***REMOVED***
-
-			if runtimeOptions.SummaryExport.ValueOrZero() != "" ***REMOVED*** //nolint:nestif
-				f, err := os.Create(runtimeOptions.SummaryExport.String)
+				summaryResult, err := initRunner.HandleSummary(globalCtx, &lib.Summary***REMOVED***
+					Metrics:         engine.Metrics,
+					RootGroup:       engine.ExecutionScheduler.GetRunner().GetDefaultGroup(),
+					TestRunDuration: executionState.GetCurrentTestRunDuration(),
+				***REMOVED***)
+				if err == nil ***REMOVED***
+					err = handleSummaryResult(afero.NewOsFs(), os.Stdout, os.Stderr, summaryResult)
+				***REMOVED***
 				if err != nil ***REMOVED***
-					logger.WithError(err).Error("failed to create summary export file")
-				***REMOVED*** else ***REMOVED***
-					defer func() ***REMOVED***
-						if err := f.Close(); err != nil ***REMOVED***
-							logger.WithError(err).Error("failed to close summary export file")
-						***REMOVED***
-					***REMOVED***()
-					s := ui.NewSummary(conf.SummaryTrendStats)
-					if err := s.SummarizeMetricsJSON(f, data); err != nil ***REMOVED***
-						logger.WithError(err).Error("failed to make summary export file")
-					***REMOVED***
+					logger.WithError(err).Error("failed to handle the end-of-test summary")
 				***REMOVED***
 			***REMOVED***
 
@@ -448,4 +431,29 @@ func detectType(data []byte) string ***REMOVED***
 		return typeArchive
 	***REMOVED***
 	return typeJS
+***REMOVED***
+
+func handleSummaryResult(fs afero.Fs, stdOut, stdErr io.Writer, result map[string]io.Reader) error ***REMOVED***
+	var errs []error
+
+	getWriter := func(path string) (io.Writer, error) ***REMOVED***
+		switch path ***REMOVED***
+		case "stdout":
+			return stdOut, nil
+		case "stderr":
+			return stdErr, nil
+		default:
+			return fs.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		***REMOVED***
+	***REMOVED***
+
+	for path, value := range result ***REMOVED***
+		if writer, err := getWriter(path); err != nil ***REMOVED***
+			errs = append(errs, fmt.Errorf("could not open '%s': %w", path, err))
+		***REMOVED*** else if n, err := io.Copy(writer, value); err != nil ***REMOVED***
+			errs = append(errs, fmt.Errorf("error saving summary to '%s' after %d bytes: %w", path, n, err))
+		***REMOVED***
+	***REMOVED***
+
+	return consolidateErrorMessage(errs, "Could not save some summary information:")
 ***REMOVED***

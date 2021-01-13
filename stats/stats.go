@@ -543,14 +543,51 @@ func NewSubmetric(name string) (parentName string, sm *Submetric) ***REMOVED***
 	return parts[0], &Submetric***REMOVED***Name: name, Parent: parts[0], Suffix: parts[1], Tags: IntoSampleTags(&tags)***REMOVED***
 ***REMOVED***
 
-func (m *Metric) Summary(t time.Duration) *Summary ***REMOVED***
-	return &Summary***REMOVED***
-		Metric:  m,
-		Summary: m.Sink.Format(t),
+// parsePercentile is a helper function to parse and validate percentile notations
+func parsePercentile(stat string) (float64, error) ***REMOVED***
+	if !strings.HasPrefix(stat, "p(") || !strings.HasSuffix(stat, ")") ***REMOVED***
+		return 0, fmt.Errorf("invalid trend stat '%s', unknown format", stat)
 	***REMOVED***
+
+	percentile, err := strconv.ParseFloat(stat[2:len(stat)-1], 64)
+
+	if err != nil || (percentile < 0) || (percentile > 100) ***REMOVED***
+		return 0, fmt.Errorf("invalid percentile trend stat value '%s', provide a number between 0 and 100", stat)
+	***REMOVED***
+
+	return percentile, nil
 ***REMOVED***
 
-type Summary struct ***REMOVED***
-	Metric  *Metric            `json:"metric"`
-	Summary map[string]float64 `json:"summary"`
+// GetResolversForTrendColumns checks if passed trend columns are valid for use in
+// the summary output and then returns a map of the corresponding resolvers.
+func GetResolversForTrendColumns(trendColumns []string) (map[string]func(s *TrendSink) float64, error) ***REMOVED***
+	staticResolvers := map[string]func(s *TrendSink) float64***REMOVED***
+		"avg":   func(s *TrendSink) float64 ***REMOVED*** return s.Avg ***REMOVED***,
+		"min":   func(s *TrendSink) float64 ***REMOVED*** return s.Min ***REMOVED***,
+		"med":   func(s *TrendSink) float64 ***REMOVED*** return s.Med ***REMOVED***,
+		"max":   func(s *TrendSink) float64 ***REMOVED*** return s.Max ***REMOVED***,
+		"count": func(s *TrendSink) float64 ***REMOVED*** return float64(s.Count) ***REMOVED***,
+	***REMOVED***
+	dynamicResolver := func(percentile float64) func(s *TrendSink) float64 ***REMOVED***
+		return func(s *TrendSink) float64 ***REMOVED***
+			return s.P(percentile / 100)
+		***REMOVED***
+	***REMOVED***
+
+	result := make(map[string]func(s *TrendSink) float64, len(trendColumns))
+
+	for _, stat := range trendColumns ***REMOVED***
+		if staticStat, ok := staticResolvers[stat]; ok ***REMOVED***
+			result[stat] = staticStat
+			continue
+		***REMOVED***
+
+		percentile, err := parsePercentile(stat)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		result[stat] = dynamicResolver(percentile)
+	***REMOVED***
+
+	return result, nil
 ***REMOVED***

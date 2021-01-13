@@ -21,6 +21,10 @@
 package common
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+
 	"github.com/dop251/goja"
 )
 
@@ -35,4 +39,20 @@ func Throw(rt *goja.Runtime, err error) ***REMOVED***
 		panic(e)
 	***REMOVED***
 	panic(rt.NewGoError(err))
+***REMOVED***
+
+// GetReader tries to return an io.Reader value from an exported goja value.
+func GetReader(data interface***REMOVED******REMOVED***) (io.Reader, error) ***REMOVED***
+	switch r := data.(type) ***REMOVED***
+	case string:
+		return bytes.NewBufferString(r), nil
+	case []byte:
+		return bytes.NewBuffer(r), nil
+	case io.Reader:
+		return r, nil
+	case goja.ArrayBuffer:
+		return bytes.NewBuffer(r.Bytes()), nil
+	default:
+		return nil, fmt.Errorf("invalid type %T, it needs to be a string, byte array or an ArrayBuffer", data)
+	***REMOVED***
 ***REMOVED***
