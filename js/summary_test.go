@@ -28,29 +28,32 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
+)
+
+const (
+	checksOut = "     █ child\n\n" +
+		"       ✓ check1\n" +
+		"       ✗ check3\n        ↳  66% — ✓ 10 / ✗ 5\n" +
+		"       ✗ check2\n        ↳  33% — ✓ 5 / ✗ 10\n\n" +
+		"   ✓ checks......: 75.00% ✓ 45  ✗ 15 \n"
+	countOut = "   ✗ http_reqs...: 3      3/s\n"
+	gaugeOut = "     vus.........: 1      min=1 max=1\n"
+	trendOut = "   ✗ my_trend....: avg=15ms min=10ms med=15ms max=20ms p(90)=19ms " +
+		"p(95)=19.5ms p(99.9)=19.99ms\n"
 )
 
 func TestTextSummary(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var (
-		checksOut = "     █ child\n\n" +
-			"       ✓ check1\n" +
-			"       ✗ check3\n        ↳  66% — ✓ 10 / ✗ 5\n" +
-			"       ✗ check2\n        ↳  33% — ✓ 5 / ✗ 10\n\n" +
-			"   ✓ checks......: 75.00% ✓ 45  ✗ 15 \n"
-		countOut = "   ✗ http_reqs...: 3      3/s\n"
-		gaugeOut = "     vus.........: 1      min=1 max=1\n"
-		trendOut = "   ✗ my_trend....: avg=15ms min=10ms med=15ms max=20ms p(90)=19ms " +
-			"p(95)=19.5ms p(99.9)=19.99ms\n"
-	)
 
-	metrics, rootG := createTestMetrics(t)
+	summary := createTestSummary(t)
 	testCases := []struct ***REMOVED***
 		stats    []string
 		expected string
@@ -63,9 +66,10 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 		***REMOVED***[]string***REMOVED***"avg", "count"***REMOVED***, checksOut + countOut + "   ✗ my_trend....: avg=15ms count=3\n" + gaugeOut***REMOVED***,
 	***REMOVED***
 
-	for _, tc := range testCases ***REMOVED***
-		tc := tc
-		t.Run(fmt.Sprintf("%v", tc.stats), func(t *testing.T) ***REMOVED***
+	for i, tc := range testCases ***REMOVED***
+		i, tc := i, tc
+		t.Run(fmt.Sprintf("%d_%v", i, tc.stats), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			trendStats, err := json.Marshal(tc.stats)
 			require.NoError(t, err)
 			runner, err := getSimpleRunner(
@@ -74,17 +78,11 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 					exports.options = ***REMOVED***summaryTrendStats: %s***REMOVED***;
 					exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
 				`, string(trendStats)),
-				lib.RuntimeOptions***REMOVED***
-					CompatibilityMode: null.NewString("base", true),
-				***REMOVED***,
+				lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
 			)
 			require.NoError(t, err)
 
-			result, err := runner.HandleSummary(context.Background(), &lib.Summary***REMOVED***
-				Metrics:         metrics,
-				RootGroup:       rootG,
-				TestRunDuration: time.Second,
-			***REMOVED***)
+			result, err := runner.HandleSummary(context.Background(), summary)
 			require.NoError(t, err)
 
 			require.Len(t, result, 1)
@@ -161,6 +159,15 @@ func createTestMetrics(t *testing.T) (map[string]*stats.Metric, *lib.Group) ***R
 	***REMOVED***
 
 	return metrics, rootG
+***REMOVED***
+
+func createTestSummary(t *testing.T) *lib.Summary ***REMOVED***
+	metrics, rootG := createTestMetrics(t)
+	return &lib.Summary***REMOVED***
+		Metrics:         metrics,
+		RootGroup:       rootG,
+		TestRunDuration: time.Second,
+	***REMOVED***
 ***REMOVED***
 
 const expectedOldJSONExportResult = `***REMOVED***
@@ -252,16 +259,15 @@ func TestOldJSONExport(t *testing.T) ***REMOVED***
 
 	require.NoError(t, err)
 
-	metrics, rootG := createTestMetrics(t)
-	result, err := runner.HandleSummary(context.Background(), &lib.Summary***REMOVED***
-		Metrics:         metrics,
-		RootGroup:       rootG,
-		TestRunDuration: time.Second,
-	***REMOVED***)
+	summary := createTestSummary(t)
+	result, err := runner.HandleSummary(context.Background(), summary)
 	require.NoError(t, err)
 
 	require.Len(t, result, 2)
 	require.NotNil(t, result["stdout"])
+	textSummary, err := ioutil.ReadAll(result["stdout"])
+	require.NoError(t, err)
+	assert.Contains(t, string(textSummary), checksOut+countOut)
 	require.NotNil(t, result["result.json"])
 	jsonExport, err := ioutil.ReadAll(result["result.json"])
 	require.NoError(t, err)
@@ -394,12 +400,8 @@ func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
 
 	require.NoError(t, err)
 
-	metrics, rootG := createTestMetrics(t)
-	result, err := runner.HandleSummary(context.Background(), &lib.Summary***REMOVED***
-		Metrics:         metrics,
-		RootGroup:       rootG,
-		TestRunDuration: time.Second,
-	***REMOVED***)
+	summary := createTestSummary(t)
+	result, err := runner.HandleSummary(context.Background(), summary)
 	require.NoError(t, err)
 
 	require.Len(t, result, 2)
@@ -413,4 +415,63 @@ func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
 	newRawData, err := ioutil.ReadAll(result["rawdata.json"])
 	require.NoError(t, err)
 	assert.JSONEq(t, expectedHandleSummaryRawData, string(newRawData))
+***REMOVED***
+
+func TestWrongSummaryHandlerExportTypes(t *testing.T) ***REMOVED***
+	t.Parallel()
+	testCases := []string***REMOVED***"***REMOVED******REMOVED***", `"foo"`, "null", "undefined", "123"***REMOVED***
+
+	for i, tc := range testCases ***REMOVED***
+		i, tc := i, tc
+		t.Run(fmt.Sprintf("%d_%s", i, tc), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			runner, err := getSimpleRunner(t, "/script.js",
+				fmt.Sprintf(`
+					exports.default = function() ***REMOVED*** /* we don't run this, metrics are mocked */ ***REMOVED***;
+					exports.handleSummary = %s;
+				`, tc),
+				lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+			)
+			require.NoError(t, err)
+
+			summary := createTestSummary(t)
+			_, err = runner.HandleSummary(context.Background(), summary)
+			require.Error(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestExceptionInHandleSummaryFallsBackToTextSummary(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	logger := logrus.New()
+	logger.SetOutput(ioutil.Discard)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.ErrorLevel***REMOVED******REMOVED***
+	logger.AddHook(&logHook)
+
+	runner, err := getSimpleRunner(t, "/script.js", `
+			exports.default = function() ***REMOVED***/* we don't run this, metrics are mocked */***REMOVED***;
+			exports.handleSummary = function(data) ***REMOVED***
+				throw new Error('intentional error');
+			***REMOVED***;
+		`, logger, lib.RuntimeOptions***REMOVED***CompatibilityMode: null.NewString("base", true)***REMOVED***,
+	)
+
+	require.NoError(t, err)
+
+	summary := createTestSummary(t)
+	result, err := runner.HandleSummary(context.Background(), summary)
+	require.NoError(t, err)
+
+	require.Len(t, result, 1)
+	require.NotNil(t, result["stdout"])
+	textSummary, err := ioutil.ReadAll(result["stdout"])
+	require.NoError(t, err)
+	assert.Contains(t, string(textSummary), checksOut+countOut)
+
+	logErrors := logHook.Drain()
+	assert.Equal(t, 1, len(logErrors))
+	errMsg, err := logErrors[0].String()
+	require.NoError(t, err)
+	assert.Contains(t, errMsg, "intentional error")
 ***REMOVED***
