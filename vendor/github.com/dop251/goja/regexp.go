@@ -608,6 +608,17 @@ func (r *regexpObject) defineOwnPropertyStr(name unistring.String, desc Property
 	return res
 ***REMOVED***
 
+func (r *regexpObject) defineOwnPropertySym(name *Symbol, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	res := r.baseObject.defineOwnPropertySym(name, desc, throw)
+	if res && r.standard ***REMOVED***
+		switch name ***REMOVED***
+		case SymMatch, SymSearch, SymSplit, SymReplace:
+			r.standard = false
+		***REMOVED***
+	***REMOVED***
+	return res
+***REMOVED***
+
 func (r *regexpObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
 	res := r.baseObject.deleteStr(name, throw)
 	if res ***REMOVED***
@@ -617,14 +628,20 @@ func (r *regexpObject) deleteStr(name unistring.String, throw bool) bool ***REMO
 ***REMOVED***
 
 func (r *regexpObject) setOwnStr(name unistring.String, value Value, throw bool) bool ***REMOVED***
-	if r.standard ***REMOVED***
-		if name == "exec" ***REMOVED***
-			res := r.baseObject.setOwnStr(name, value, throw)
-			if res ***REMOVED***
-				r.standard = false
-			***REMOVED***
-			return res
+	res := r.baseObject.setOwnStr(name, value, throw)
+	if res && r.standard && name == "exec" ***REMOVED***
+		r.standard = false
+	***REMOVED***
+	return res
+***REMOVED***
+
+func (r *regexpObject) setOwnSym(name *Symbol, value Value, throw bool) bool ***REMOVED***
+	res := r.baseObject.setOwnSym(name, value, throw)
+	if res && r.standard ***REMOVED***
+		switch name ***REMOVED***
+		case SymMatch, SymSearch, SymSplit, SymReplace:
+			r.standard = false
 		***REMOVED***
 	***REMOVED***
-	return r.baseObject.setOwnStr(name, value, throw)
+	return res
 ***REMOVED***

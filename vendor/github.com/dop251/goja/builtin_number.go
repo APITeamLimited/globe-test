@@ -169,7 +169,11 @@ func (r *Runtime) number_isNaN(call FunctionCall) Value ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) number_isSafeInteger(call FunctionCall) Value ***REMOVED***
-	if i, ok := call.Argument(0).(valueInt); ok && i >= -(maxInt-1) && i <= maxInt-1 ***REMOVED***
+	arg := call.Argument(0)
+	if i, ok := arg.(valueInt); ok && i >= -(maxInt-1) && i <= maxInt-1 ***REMOVED***
+		return valueTrue
+	***REMOVED***
+	if arg == _negativeZero ***REMOVED***
 		return valueTrue
 	***REMOVED***
 	return valueFalse

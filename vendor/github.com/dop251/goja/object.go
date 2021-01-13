@@ -27,6 +27,7 @@ const (
 	classRegExp   = "RegExp"
 	classDate     = "Date"
 	classJSON     = "JSON"
+	classGlobal   = "global"
 
 	classArrayIterator  = "Array Iterator"
 	classMapIterator    = "Map Iterator"
@@ -485,12 +486,14 @@ func (o *baseObject) setProto(proto *Object, throw bool) bool ***REMOVED***
 		o.val.runtime.typeErrorResult(throw, "%s is not extensible", o.val)
 		return false
 	***REMOVED***
-	for p := proto; p != nil; ***REMOVED***
+	for p := proto; p != nil; p = p.self.proto() ***REMOVED***
 		if p.SameAs(o.val) ***REMOVED***
 			o.val.runtime.typeErrorResult(throw, "Cyclic __proto__ value")
 			return false
 		***REMOVED***
-		p = p.self.proto()
+		if _, ok := p.self.(*proxyObject); ok ***REMOVED***
+			break
+		***REMOVED***
 	***REMOVED***
 	o.prototype = proto
 	return true

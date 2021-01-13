@@ -298,15 +298,15 @@ func (r *Runtime) builtin_newRegExp(args []Value, proto *Object) *Object ***REMO
 func (r *Runtime) newRegExp(patternVal, flagsVal Value, proto *Object) *Object ***REMOVED***
 	var pattern valueString
 	var flags string
-	if obj, ok := patternVal.(*Object); ok ***REMOVED***
-		if rx, ok := obj.self.(*regexpObject); ok ***REMOVED***
-			if flagsVal == nil || flagsVal == _undefined ***REMOVED***
-				return rx.clone()
+	if isRegexp(patternVal) ***REMOVED*** // this may have side effects so need to call it anyway
+		if obj, ok := patternVal.(*Object); ok ***REMOVED***
+			if rx, ok := obj.self.(*regexpObject); ok ***REMOVED***
+				if flagsVal == nil || flagsVal == _undefined ***REMOVED***
+					return rx.clone()
+				***REMOVED*** else ***REMOVED***
+					return r._newRegExp(rx.source, flagsVal.toString().String(), proto)
+				***REMOVED***
 			***REMOVED*** else ***REMOVED***
-				return r._newRegExp(rx.source, flagsVal.toString().String(), proto)
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			if isRegexp(patternVal) ***REMOVED***
 				pattern = nilSafe(obj.self.getStr("source", nil)).toString()
 				if flagsVal == nil || flagsVal == _undefined ***REMOVED***
 					flags = nilSafe(obj.self.getStr("flags", nil)).toString().String()
@@ -660,8 +660,8 @@ func (r *Runtime) getGlobalRegexpMatches(rxObj *Object, s valueString) []Value *
 		a = append(a, res)
 		matchStr := nilSafe(r.toObject(res).self.getIdx(valueInt(0), nil)).toString()
 		if matchStr.length() == 0 ***REMOVED***
-			thisIndex := toIntStrict(nilSafe(rxObj.self.getStr("lastIndex", nil)).ToInteger())
-			rxObj.self.setOwnStr("lastIndex", valueInt(advanceStringIndex(s, thisIndex, fullUnicode)), true)
+			thisIndex := toLength(rxObj.self.getStr("lastIndex", nil))
+			rxObj.self.setOwnStr("lastIndex", valueInt(advanceStringIndex64(s, thisIndex, fullUnicode)), true)
 		***REMOVED***
 	***REMOVED***
 
@@ -855,6 +855,24 @@ func advanceStringIndex(s valueString, pos int, unicode bool) int ***REMOVED***
 	return next + 1
 ***REMOVED***
 
+func advanceStringIndex64(s valueString, pos int64, unicode bool) int64 ***REMOVED***
+	next := pos + 1
+	if !unicode ***REMOVED***
+		return next
+	***REMOVED***
+	l := int64(s.length())
+	if next >= l ***REMOVED***
+		return next
+	***REMOVED***
+	if !isUTF16FirstSurrogate(s.charAt(int(pos))) ***REMOVED***
+		return next
+	***REMOVED***
+	if !isUTF16SecondSurrogate(s.charAt(int(next))) ***REMOVED***
+		return next
+	***REMOVED***
+	return next + 1
+***REMOVED***
+
 func (r *Runtime) regexpproto_stdSplitter(call FunctionCall) Value ***REMOVED***
 	rxObj := r.toObject(call.This)
 	s := call.Argument(0).toString()
@@ -877,6 +895,7 @@ func (r *Runtime) regexpproto_stdSplitter(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	pattern := search.pattern // toUint32() may recompile the pattern, but we still need to use the original
 	limit := -1
 	if limitValue != _undefined ***REMOVED***
 		limit = int(toUint32(limitValue))
@@ -891,7 +910,7 @@ func (r *Runtime) regexpproto_stdSplitter(call FunctionCall) Value ***REMOVED***
 	lastIndex := 0
 	found := 0
 
-	result := search.pattern.findAllSubmatchIndex(s, 0, -1, false)
+	result := pattern.findAllSubmatchIndex(s, 0, -1, false)
 	if targetLength == 0 ***REMOVED***
 		if result == nil ***REMOVED***
 			valueArray = append(valueArray, s)

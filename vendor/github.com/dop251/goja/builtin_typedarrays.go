@@ -407,6 +407,7 @@ func (r *Runtime) typedArrayProto_copyWithin(call FunctionCall) Value ***REMOVED
 		offset := ta.offset
 		elemSize := ta.elemSize
 		if final > from ***REMOVED***
+			ta.viewedArrayBuf.ensureNotDetached()
 			copy(data[(offset+to)*elemSize:], data[(offset+from)*elemSize:(offset+final)*elemSize])
 		***REMOVED***
 		return call.This
@@ -828,7 +829,7 @@ func (r *Runtime) typedArrayProto_reverse(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_set(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		srcObj := r.toObject(call.Argument(0))
+		srcObj := call.Argument(0).ToObject(r)
 		targetOffset := toIntStrict(call.Argument(1).ToInteger())
 		if targetOffset < 0 ***REMOVED***
 			panic(r.newError(r.global.RangeError, "offset should be >= 0"))
@@ -963,8 +964,8 @@ func (r *Runtime) typedArrayProto_sort(call FunctionCall) Value ***REMOVED***
 		ta.viewedArrayBuf.ensureNotDetached()
 		var compareFn func(FunctionCall) Value
 
-		if arg, ok := call.Argument(0).(*Object); ok ***REMOVED***
-			compareFn, _ = arg.self.assertCallable()
+		if arg := call.Argument(0); arg != _undefined ***REMOVED***
+			compareFn = r.toCallable(arg)
 		***REMOVED***
 
 		ctx := typedArraySortCtx***REMOVED***
