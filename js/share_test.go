@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInitContextNewSharedArray(t *testing.T) ***REMOVED***
+func TestNewSharedArrayIntegration(t *testing.T) ***REMOVED***
 	data := `'use strict';
 var SharedArray = require("k6/data").SharedArray;
 function generateArray() ***REMOVED***
@@ -47,39 +47,6 @@ function generateArray() ***REMOVED***
 ***REMOVED***
 
 var s = new SharedArray("something", generateArray);
-
-try ***REMOVED***
-	var p = new SharedArray("wat", function() ***REMOVED***return "whatever"***REMOVED***);
-	throw "the previous line should've errored as we returned a string not array";
-***REMOVED*** catch (e) ***REMOVED***
-	if (!e.toString().includes("only arrays can be made into SharedArray")) ***REMOVED***
-		throw "wrong error " + e.toString();
-	***REMOVED***
-***REMOVED***
-
-try ***REMOVED***
-	var p = new SharedArray("", generateArray);
-	throw "the previous line should've errored as we provided an empty name";
-***REMOVED*** catch (e)***REMOVED***
-	if (!e.toString().includes("empty name provided to SharedArray's constructor")) ***REMOVED***
-		throw "wrong error " + e.toString();
-	***REMOVED***
-***REMOVED***
-
-try ***REMOVED***
-	var p = new SharedArray("wat2", function() ***REMOVED***return [***REMOVED***s: function() ***REMOVED***return "whatever"***REMOVED******REMOVED***]***REMOVED***);
-	// throw "the previous line should've errored as function was stringified";
-	// unfortunately JSON.stringify is defined that it will acctually just remove stuff (or make them null)
-	// that can't be JSONified like functions
-	if (p[0].s != undefined) ***REMOVED***
-		throw "only arrays can be made into SharedArray";
-	***REMOVED***
-***REMOVED*** catch (e) ***REMOVED***
-	if (!e.toString().includes("only arrays can be made into SharedArray")) ***REMOVED***
-		throw "wrong error " + e.toString();
-	***REMOVED***
-***REMOVED***
-
 
 exports.default = function() ***REMOVED***
 	if (s[2].value !== "something2") ***REMOVED***
@@ -95,47 +62,6 @@ exports.default = function() ***REMOVED***
 			throw new Error("bad v.value="+v.value+" for i="+i);
 		***REMOVED***
 		i++;
-
-		try ***REMOVED***
-			v.data = "help";
-			throw "the previous line should've errored v.data = 'help'";
-		***REMOVED*** catch(e) ***REMOVED***
-			if (!e.toString().includes("TypeError: Cannot add property data, object is not extensible")) ***REMOVED***
-				throw "wrong error " + e.toString();
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	try ***REMOVED***
-		s[2].data = "help";
-		throw "the previous line should've errored s[2].data = 'help'";
-	***REMOVED*** catch(e) ***REMOVED***
-		if (!e.toString().includes("TypeError: Cannot add property data, object is not extensible")) ***REMOVED***
-			throw "wrong error " + e.toString();
-		***REMOVED***
-	***REMOVED***
-
-	if (s.something != undefined) ***REMOVED***
-		throw "s.something should've been undefined but was " + s.something;
-	***REMOVED***
-
-	try ***REMOVED***
-		s.something = 21
-		throw "the previous line should've errored s.something = 21";
-	***REMOVED*** catch(e) ***REMOVED***
-		if (!e.toString().includes("Host object field something cannot be made configurable")) ***REMOVED***
-			throw "wrong error " + e.toString();
-		***REMOVED***
-	***REMOVED***
-
-	try ***REMOVED***
-		s[1]= "21";
-
-		throw "the previous line should've errored";
-	***REMOVED*** catch(e) ***REMOVED***
-		if (!e.toString().includes("Host object field 1 cannot be made configurable")) ***REMOVED***
-			throw "wrong error " + e.toString();
-		***REMOVED***
 	***REMOVED***
 ***REMOVED***`
 
