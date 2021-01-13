@@ -493,3 +493,36 @@ func TestLoadingUnexistingModuleDoesntPanic(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestLoadingSourceMapsDoesntErrorOut(t *testing.T) ***REMOVED***
+	fs := afero.NewMemMapFs()
+	data := `exports.default = function() ***REMOVED******REMOVED***
+//# sourceMappingURL=test.min.js.map`
+	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), 0o644))
+	r1, err := getSimpleRunner(t, "/script.js", data, fs)
+	require.NoError(t, err)
+
+	arc := r1.MakeArchive()
+	buf := &bytes.Buffer***REMOVED******REMOVED***
+	require.NoError(t, arc.Write(buf))
+	arc, err = lib.ReadArchive(buf)
+	require.NoError(t, err)
+	r2, err := NewFromArchive(testutils.NewLogger(t), arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, err)
+
+	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+	for name, r := range runners ***REMOVED***
+		r := r
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			ch := newDevNullSampleChannel()
+			defer close(ch)
+			initVU, err := r.NewVU(1, ch)
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
+			require.NoError(t, err)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
