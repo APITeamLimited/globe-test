@@ -279,6 +279,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		//***REMOVED***[]byte***REMOVED***00, 36, 32, 127***REMOVED***, "utf-16", 2***REMOVED***,   // $€
 	***REMOVED***
 	for _, tc := range testCases ***REMOVED***
+		tc := tc
 		t.Run(tc.file, func(t *testing.T) ***REMOVED***
 			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, "")
 			if !assert.NoError(t, err) ***REMOVED***
@@ -303,6 +304,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, loadPath := range testdata ***REMOVED***
+		loadPath := loadPath
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, "")
 			if !assert.NoError(t, err) ***REMOVED***
