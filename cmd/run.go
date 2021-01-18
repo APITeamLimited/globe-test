@@ -299,7 +299,7 @@ a commandline interface for interacting with it.`,
 					TestRunDuration: executionState.GetCurrentTestRunDuration(),
 				***REMOVED***)
 				if err == nil ***REMOVED***
-					err = handleSummaryResult(afero.NewOsFs(), os.Stdout, os.Stderr, summaryResult)
+					err = handleSummaryResult(afero.NewOsFs(), stdout, stderr, summaryResult)
 				***REMOVED***
 				if err != nil ***REMOVED***
 					logger.WithError(err).Error("failed to handle the end-of-test summary")

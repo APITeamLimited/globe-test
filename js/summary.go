@@ -36,10 +36,12 @@ import (
 // TODO: move this to a separate JS file and use go.rice to embed it
 const summaryWrapperLambdaCode = `
 (function() ***REMOVED***
-	var forEach = function(obj, callback) ***REMOVED***
+	var forEach = function (obj, callback) ***REMOVED***
 		for (var key in obj) ***REMOVED***
 			if (obj.hasOwnProperty(key)) ***REMOVED***
-				callback(key, obj[key]);
+				if (callback(key, obj[key])) ***REMOVED***
+					break;
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -88,9 +90,7 @@ const summaryWrapperLambdaCode = `
 		return JSON.stringify(results, null, 4);
 	***REMOVED***;
 
-	var oldTextSummary = function(data) ***REMOVED***
-		// TODO: implement something like the current end of test summary
-	***REMOVED***;
+	// TODO: bundle the text summary generation from jslib and get rid of oldCallback
 
 	return function(exportedSummaryCallback, jsonSummaryPath, data, oldCallback) ***REMOVED***
 		var result = ***REMOVED******REMOVED***;
@@ -99,12 +99,10 @@ const summaryWrapperLambdaCode = `
 				result = exportedSummaryCallback(data, oldCallback);
 			***REMOVED*** catch (e) ***REMOVED***
 				console.error('handleSummary() failed with error "' + e + '", falling back to the default summary');
-				//result["stdout"] = oldTextSummary(data);
-				result["stdout"] = oldCallback(); // TODO: delete
+				result["stdout"] = oldCallback(); // TODO: replace with JS function
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			// result["stdout"] = oldTextSummary(data);
-			result["stdout"] = oldCallback(); // TODO: delete
+			result["stdout"] = oldCallback(); // TODO: replace with JS function
 		***REMOVED***
 
 		// TODO: ensure we're returning a map of strings or null/undefined...
