@@ -302,12 +302,15 @@ jobs:
         uses: crazy-max/ghaction-chocolatey@b6061d587628735be315d74358228b83a7dba9a7
         with:
           args: pack --verbose --outputdirectory .\packaging .\packaging\k6.portable.nuspec
+      - name: Rename MSI package
+        # To keep it consistent with the other artifacts
+        run: move "packaging\k6.msi" "packaging\k6-$env:VERSION-win64.msi"
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
           name: binaries-windows
           path: |
-            packaging/k6.msi
+            packaging/k6-*.msi
             packaging/k6.*.nupkg
           retention-days: 7
 
@@ -379,7 +382,7 @@ jobs:
             "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/deb/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6-$VERSION-amd64.rpm" \
             "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/rpm/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.rpm?publish=1&override=1"
-          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6.msi" \
+          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6-$VERSION-win64.msi" \
             "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/windows/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.msi?publish=1&override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6.portable.$***REMOVED***VERSION#v***REMOVED***.nupkg" \
             "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/choco/k6.portable/$***REMOVED***VERSION#v***REMOVED***/k6.portable.$***REMOVED***VERSION***REMOVED***.nupkg?publish=1&override=1"
