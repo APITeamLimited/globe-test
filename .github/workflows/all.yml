@@ -349,7 +349,10 @@ jobs:
     env:
       VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
     steps:
+      - name: Download source code archive
+        run: curl -fsSL "$***REMOVED***GITHUB_SERVER_URL***REMOVED***/$***REMOVED***GITHUB_REPOSITORY***REMOVED***/archive/$***REMOVED***VERSION***REMOVED***.tar.gz" -o "$***REMOVED***VERSION***REMOVED***.tar.gz"
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@2eb78889a50ba021d744837934f1af2d8c4458ec
       - name: Create version bump PR
-        run: brew bump-formula-pr k6 --tag="$VERSION" --revision="$GITHUB_SHA"
+        run: brew bump-formula-pr k6 --url="$***REMOVED***GITHUB_SERVER_URL***REMOVED***/$***REMOVED***GITHUB_REPOSITORY***REMOVED***/archive/$***REMOVED***VERSION***REMOVED***.tar.gz" \
+               --sha256="$(shasum -a 256 $***REMOVED***VERSION***REMOVED***.tar.gz | cut -d' ' -f1)"
