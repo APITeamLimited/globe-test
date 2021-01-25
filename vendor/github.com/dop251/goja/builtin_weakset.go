@@ -1,55 +1,13 @@
 package goja
 
-type weakSet struct ***REMOVED***
-	data map[uint64]struct***REMOVED******REMOVED***
-***REMOVED***
-
 type weakSetObject struct ***REMOVED***
 	baseObject
-	s *weakSet
-***REMOVED***
-
-func newWeakSet() *weakSet ***REMOVED***
-	return &weakSet***REMOVED***
-		data: make(map[uint64]struct***REMOVED******REMOVED***),
-	***REMOVED***
+	s weakMap
 ***REMOVED***
 
 func (ws *weakSetObject) init() ***REMOVED***
 	ws.baseObject.init()
-	ws.s = newWeakSet()
-***REMOVED***
-
-func (ws *weakSet) removeId(id uint64) ***REMOVED***
-	delete(ws.data, id)
-***REMOVED***
-
-func (ws *weakSet) add(o *Object) ***REMOVED***
-	ref := o.getWeakRef()
-	ws.data[ref.id] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	o.runtime.addWeakKey(ref.id, ws)
-***REMOVED***
-
-func (ws *weakSet) remove(o *Object) bool ***REMOVED***
-	ref := o.weakRef
-	if ref == nil ***REMOVED***
-		return false
-	***REMOVED***
-	_, exists := ws.data[ref.id]
-	if exists ***REMOVED***
-		delete(ws.data, ref.id)
-		o.runtime.removeWeakKey(ref.id, ws)
-	***REMOVED***
-	return exists
-***REMOVED***
-
-func (ws *weakSet) has(o *Object) bool ***REMOVED***
-	ref := o.weakRef
-	if ref == nil ***REMOVED***
-		return false
-	***REMOVED***
-	_, exists := ws.data[ref.id]
-	return exists
+	ws.s = weakMap(ws.val.runtime.genId())
 ***REMOVED***
 
 func (r *Runtime) weakSetProto_add(call FunctionCall) Value ***REMOVED***
@@ -58,7 +16,7 @@ func (r *Runtime) weakSetProto_add(call FunctionCall) Value ***REMOVED***
 	if !ok ***REMOVED***
 		panic(r.NewTypeError("Method WeakSet.prototype.add called on incompatible receiver %s", thisObj.String()))
 	***REMOVED***
-	wso.s.add(r.toObject(call.Argument(0)))
+	wso.s.set(r.toObject(call.Argument(0)), nil)
 	return call.This
 ***REMOVED***
 
@@ -119,7 +77,7 @@ func (r *Runtime) builtin_newWeakSet(args []Value, newTarget *Object) *Object **
 			if adder == r.global.weakSetAdder ***REMOVED***
 				if arr := r.checkStdArrayIter(arg); arr != nil ***REMOVED***
 					for _, v := range arr.values ***REMOVED***
-						wso.s.add(r.toObject(v))
+						wso.s.set(r.toObject(v), nil)
 					***REMOVED***
 					return o
 				***REMOVED***

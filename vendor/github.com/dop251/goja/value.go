@@ -748,10 +748,11 @@ func (o *Object) GetSymbol(sym *Symbol) Value ***REMOVED***
 ***REMOVED***
 
 func (o *Object) Keys() (keys []string) ***REMOVED***
-	names := o.self.ownKeys(false, nil)
-	keys = make([]string, 0, len(names))
-	for _, name := range names ***REMOVED***
-		keys = append(keys, name.String())
+	iter := &enumerableIter***REMOVED***
+		wrapped: o.self.enumerateOwnKeys(),
+	***REMOVED***
+	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
+		keys = append(keys, item.name.String())
 	***REMOVED***
 
 	return
@@ -839,6 +840,20 @@ func (o *Object) Delete(name string) error ***REMOVED***
 func (o *Object) DeleteSymbol(name *Symbol) error ***REMOVED***
 	return tryFunc(func() ***REMOVED***
 		o.self.deleteSym(name, true)
+	***REMOVED***)
+***REMOVED***
+
+// Prototype returns the Object's prototype, same as Object.getPrototypeOf(). If the prototype is null
+// returns nil.
+func (o *Object) Prototype() *Object ***REMOVED***
+	return o.self.proto()
+***REMOVED***
+
+// SetPrototype sets the Object's prototype, same as Object.setPrototypeOf(). Setting proto to nil
+// is an equivalent of Object.setPrototypeOf(null).
+func (o *Object) SetPrototype(proto *Object) error ***REMOVED***
+	return tryFunc(func() ***REMOVED***
+		o.self.setProto(proto, true)
 	***REMOVED***)
 ***REMOVED***
 

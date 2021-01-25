@@ -2,7 +2,6 @@ package goja
 
 import (
 	"math"
-	"math/bits"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -456,16 +455,8 @@ func (a *typedArrayObject) _getIdx(idx int) Value ***REMOVED***
 	return nil
 ***REMOVED***
 
-func strToTAIdx(s unistring.String) (int, bool) ***REMOVED***
-	i, err := strconv.ParseInt(string(s), 10, bits.UintSize)
-	if err != nil ***REMOVED***
-		return 0, false
-	***REMOVED***
-	return int(i), true
-***REMOVED***
-
 func (a *typedArrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
-	if idx, ok := strToTAIdx(name); ok ***REMOVED***
+	if idx, ok := strPropToInt(name); ok ***REMOVED***
 		v := a._getIdx(idx)
 		if v != nil ***REMOVED***
 			return &valueProperty***REMOVED***
@@ -492,7 +483,7 @@ func (a *typedArrayObject) getOwnPropIdx(idx valueInt) Value ***REMOVED***
 ***REMOVED***
 
 func (a *typedArrayObject) getStr(name unistring.String, receiver Value) Value ***REMOVED***
-	if idx, ok := strToTAIdx(name); ok ***REMOVED***
+	if idx, ok := strPropToInt(name); ok ***REMOVED***
 		prop := a._getIdx(idx)
 		if prop == nil ***REMOVED***
 			if a.prototype != nil ***REMOVED***
@@ -537,7 +528,7 @@ func (a *typedArrayObject) _hasIdx(idx int) bool ***REMOVED***
 ***REMOVED***
 
 func (a *typedArrayObject) setOwnStr(p unistring.String, v Value, throw bool) bool ***REMOVED***
-	if idx, ok := strToTAIdx(p); ok ***REMOVED***
+	if idx, ok := strPropToInt(p); ok ***REMOVED***
 		return a._putIdx(idx, v, throw)
 	***REMOVED***
 	return a.baseObject.setOwnStr(p, v, throw)
@@ -556,7 +547,7 @@ func (a *typedArrayObject) setForeignIdx(p valueInt, v, receiver Value, throw bo
 ***REMOVED***
 
 func (a *typedArrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
-	if idx, ok := strToTAIdx(name); ok ***REMOVED***
+	if idx, ok := strPropToInt(name); ok ***REMOVED***
 		a.viewedArrayBuf.ensureNotDetached()
 		return idx < a.length
 	***REMOVED***
@@ -577,7 +568,7 @@ func (a *typedArrayObject) _defineIdxProperty(idx int, desc PropertyDescriptor, 
 ***REMOVED***
 
 func (a *typedArrayObject) defineOwnPropertyStr(name unistring.String, desc PropertyDescriptor, throw bool) bool ***REMOVED***
-	if idx, ok := strToTAIdx(name); ok ***REMOVED***
+	if idx, ok := strPropToInt(name); ok ***REMOVED***
 		return a._defineIdxProperty(idx, desc, throw)
 	***REMOVED***
 	return a.baseObject.defineOwnPropertyStr(name, desc, throw)
@@ -588,7 +579,7 @@ func (a *typedArrayObject) defineOwnPropertyIdx(name valueInt, desc PropertyDesc
 ***REMOVED***
 
 func (a *typedArrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
-	if idx, ok := strToTAIdx(name); ok ***REMOVED***
+	if idx, ok := strPropToInt(name); ok ***REMOVED***
 		if idx < a.length ***REMOVED***
 			a.val.runtime.typeErrorResult(throw, "Cannot delete property '%d' of %s", idx, a.val.String())
 		***REMOVED***
@@ -628,10 +619,10 @@ func (i *typedArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		return propIterItem***REMOVED***name: unistring.String(name), value: prop***REMOVED***, i.next
 	***REMOVED***
 
-	return i.a.baseObject.enumerateUnfiltered()()
+	return i.a.baseObject.enumerateOwnKeys()()
 ***REMOVED***
 
-func (a *typedArrayObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
+func (a *typedArrayObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	return (&typedArrayPropIter***REMOVED***
 		a: a,
 	***REMOVED***).next

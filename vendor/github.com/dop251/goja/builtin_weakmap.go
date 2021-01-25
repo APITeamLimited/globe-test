@@ -1,63 +1,35 @@
 package goja
 
-type weakMap struct ***REMOVED***
-	data map[uint64]Value
-***REMOVED***
+type weakMap uint64
 
 type weakMapObject struct ***REMOVED***
 	baseObject
-	m *weakMap
-***REMOVED***
-
-func newWeakMap() *weakMap ***REMOVED***
-	return &weakMap***REMOVED***
-		data: make(map[uint64]Value),
-	***REMOVED***
+	m weakMap
 ***REMOVED***
 
 func (wmo *weakMapObject) init() ***REMOVED***
 	wmo.baseObject.init()
-	wmo.m = newWeakMap()
+	wmo.m = weakMap(wmo.val.runtime.genId())
 ***REMOVED***
 
-func (wm *weakMap) removeId(id uint64) ***REMOVED***
-	delete(wm.data, id)
+func (wm weakMap) set(key *Object, value Value) ***REMOVED***
+	key.getWeakRefs()[wm] = value
 ***REMOVED***
 
-func (wm *weakMap) set(key *Object, value Value) ***REMOVED***
-	ref := key.getWeakRef()
-	wm.data[ref.id] = value
-	key.runtime.addWeakKey(ref.id, wm)
+func (wm weakMap) get(key *Object) Value ***REMOVED***
+	return key.weakRefs[wm]
 ***REMOVED***
 
-func (wm *weakMap) get(key *Object) Value ***REMOVED***
-	ref := key.weakRef
-	if ref == nil ***REMOVED***
-		return nil
+func (wm weakMap) remove(key *Object) bool ***REMOVED***
+	if _, exists := key.weakRefs[wm]; exists ***REMOVED***
+		delete(key.weakRefs, wm)
+		return true
 	***REMOVED***
-	ret := wm.data[ref.id]
-	return ret
+	return false
 ***REMOVED***
 
-func (wm *weakMap) remove(key *Object) bool ***REMOVED***
-	ref := key.weakRef
-	if ref == nil ***REMOVED***
-		return false
-	***REMOVED***
-	_, exists := wm.data[ref.id]
-	if exists ***REMOVED***
-		delete(wm.data, ref.id)
-		key.runtime.removeWeakKey(ref.id, wm)
-	***REMOVED***
-	return exists
-***REMOVED***
-
-func (wm *weakMap) has(key *Object) bool ***REMOVED***
-	ref := key.weakRef
-	if ref == nil ***REMOVED***
-		return false
-	***REMOVED***
-	_, exists := wm.data[ref.id]
+func (wm weakMap) has(key *Object) bool ***REMOVED***
+	_, exists := key.weakRefs[wm]
 	return exists
 ***REMOVED***
 

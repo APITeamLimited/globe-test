@@ -74,6 +74,19 @@ func (r *Runtime) object_getOwnPropertyDescriptor(call FunctionCall) Value ***RE
 	return r.valuePropToDescriptorObject(o.getOwnProp(propName))
 ***REMOVED***
 
+func (r *Runtime) object_getOwnPropertyDescriptors(call FunctionCall) Value ***REMOVED***
+	o := call.Argument(0).ToObject(r)
+	ownKeys := o.self.ownPropertyKeys(true, nil)
+	result := r.newBaseObject(r.global.ObjectPrototype, classObject).val
+	for _, key := range ownKeys ***REMOVED***
+		descriptor := r.valuePropToDescriptorObject(o.getOwnProp(key))
+		if descriptor != _undefined ***REMOVED***
+			createDataPropertyOrThrow(result, key, descriptor)
+		***REMOVED***
+	***REMOVED***
+	return result
+***REMOVED***
+
 func (r *Runtime) object_getOwnPropertyNames(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
 
@@ -355,6 +368,37 @@ func (r *Runtime) object_keys(call FunctionCall) Value ***REMOVED***
 	return r.newArrayValues(obj.self.ownKeys(false, nil))
 ***REMOVED***
 
+func (r *Runtime) object_entries(call FunctionCall) Value ***REMOVED***
+	obj := call.Argument(0).ToObject(r)
+
+	var values []Value
+	iter := &enumerableIter***REMOVED***
+		wrapped: obj.self.enumerateOwnKeys(),
+	***REMOVED***
+
+	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
+		v := obj.self.getStr(item.name, nil)
+		values = append(values, r.newArrayValues([]Value***REMOVED***stringValueFromRaw(item.name), v***REMOVED***))
+	***REMOVED***
+
+	return r.newArrayValues(values)
+***REMOVED***
+
+func (r *Runtime) object_values(call FunctionCall) Value ***REMOVED***
+	obj := call.Argument(0).ToObject(r)
+
+	var values []Value
+	iter := &enumerableIter***REMOVED***
+		wrapped: obj.self.enumerateOwnKeys(),
+	***REMOVED***
+
+	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
+		values = append(values, obj.self.getStr(item.name, nil))
+	***REMOVED***
+
+	return r.newArrayValues(values)
+***REMOVED***
+
 func (r *Runtime) objectproto_hasOwnProperty(call FunctionCall) Value ***REMOVED***
 	p := toPropertyKey(call.Argument(0))
 	o := call.This.ToObject(r)
@@ -518,7 +562,9 @@ func (r *Runtime) initObject() ***REMOVED***
 	o._putProp("assign", r.newNativeFunc(r.object_assign, nil, "assign", nil, 2), true, false, true)
 	o._putProp("defineProperty", r.newNativeFunc(r.object_defineProperty, nil, "defineProperty", nil, 3), true, false, true)
 	o._putProp("defineProperties", r.newNativeFunc(r.object_defineProperties, nil, "defineProperties", nil, 2), true, false, true)
+	o._putProp("entries", r.newNativeFunc(r.object_entries, nil, "entries", nil, 1), true, false, true)
 	o._putProp("getOwnPropertyDescriptor", r.newNativeFunc(r.object_getOwnPropertyDescriptor, nil, "getOwnPropertyDescriptor", nil, 2), true, false, true)
+	o._putProp("getOwnPropertyDescriptors", r.newNativeFunc(r.object_getOwnPropertyDescriptors, nil, "getOwnPropertyDescriptors", nil, 1), true, false, true)
 	o._putProp("getPrototypeOf", r.newNativeFunc(r.object_getPrototypeOf, nil, "getPrototypeOf", nil, 1), true, false, true)
 	o._putProp("is", r.newNativeFunc(r.object_is, nil, "is", nil, 2), true, false, true)
 	o._putProp("getOwnPropertyNames", r.newNativeFunc(r.object_getOwnPropertyNames, nil, "getOwnPropertyNames", nil, 1), true, false, true)
@@ -532,6 +578,7 @@ func (r *Runtime) initObject() ***REMOVED***
 	o._putProp("isExtensible", r.newNativeFunc(r.object_isExtensible, nil, "isExtensible", nil, 1), true, false, true)
 	o._putProp("keys", r.newNativeFunc(r.object_keys, nil, "keys", nil, 1), true, false, true)
 	o._putProp("setPrototypeOf", r.newNativeFunc(r.object_setPrototypeOf, nil, "setPrototypeOf", nil, 2), true, false, true)
+	o._putProp("values", r.newNativeFunc(r.object_values, nil, "values", nil, 1), true, false, true)
 
 	r.addToGlobal("Object", r.global.Object)
 ***REMOVED***

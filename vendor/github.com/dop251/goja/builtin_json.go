@@ -150,12 +150,15 @@ func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holde
 				***REMOVED***
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			for _, itemName := range object.self.ownKeys(false, nil) ***REMOVED***
-				value := r.builtinJSON_reviveWalk(reviver, object, itemName)
+			iter := &enumerableIter***REMOVED***
+				wrapped: object.self.enumerateOwnKeys(),
+			***REMOVED***
+			for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
+				value := r.builtinJSON_reviveWalk(reviver, object, stringValueFromRaw(item.name))
 				if value == _undefined ***REMOVED***
-					object.self.deleteStr(itemName.string(), false)
+					object.self.deleteStr(item.name, false)
 				***REMOVED*** else ***REMOVED***
-					object.self.setOwnStr(itemName.string(), value, false)
+					object.self.setOwnStr(item.name, value, false)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -417,7 +420,7 @@ func (ctx *_builtinJSON_stringifyContext) jo(object *Object) ***REMOVED***
 
 	var props []Value
 	if ctx.propertyList == nil ***REMOVED***
-		props = append(props, object.self.ownKeys(false, nil)...)
+		props = object.self.ownKeys(false, nil)
 	***REMOVED*** else ***REMOVED***
 		props = ctx.propertyList
 	***REMOVED***

@@ -308,7 +308,6 @@ func (vm *vm) run() ***REMOVED***
 		ticks++
 		if ticks > 10000 ***REMOVED***
 			runtime.Gosched()
-			vm.r.removeDeadKeys()
 			ticks = 0
 		***REMOVED***
 	***REMOVED***
@@ -1278,7 +1277,7 @@ type newRegexp struct ***REMOVED***
 ***REMOVED***
 
 func (n *newRegexp) exec(vm *vm) ***REMOVED***
-	vm.push(vm.r.newRegExpp(n.pattern.clone(), n.src, vm.r.global.RegExpPrototype))
+	vm.push(vm.r.newRegExpp(n.pattern.clone(), n.src, vm.r.global.RegExpPrototype).val)
 	vm.pc++
 ***REMOVED***
 
@@ -2462,7 +2461,7 @@ func (_enumerate) exec(vm *vm) ***REMOVED***
 	if v == _undefined || v == _null ***REMOVED***
 		vm.iterStack = append(vm.iterStack, iterStackItem***REMOVED***f: emptyIter***REMOVED***)
 	***REMOVED*** else ***REMOVED***
-		vm.iterStack = append(vm.iterStack, iterStackItem***REMOVED***f: v.ToObject(vm.r).self.enumerate()***REMOVED***)
+		vm.iterStack = append(vm.iterStack, iterStackItem***REMOVED***f: enumerateRecursive(v.ToObject(vm.r))***REMOVED***)
 	***REMOVED***
 	vm.sp--
 	vm.pc++
