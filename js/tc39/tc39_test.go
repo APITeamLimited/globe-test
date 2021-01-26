@@ -59,8 +59,11 @@ var (
 	***REMOVED***
 
 	featuresBlockList = []string***REMOVED***
-		"BigInt",    // not supported at all
-		"IsHTMLDDA", // not supported at all
+		"BigInt",                    // not supported at all
+		"IsHTMLDDA",                 // not supported at all
+		"generators",                // not supported in a meaningful way IMO
+		"Array.prototype.item",      // not even standard yet
+		"TypedArray.prototype.item", // not even standard yet
 	***REMOVED***
 	skipList       = map[string]bool***REMOVED******REMOVED***
 	pathBasedBlock = map[string]bool***REMOVED*** // This completely skips any path matching it without any kind of message
@@ -333,27 +336,12 @@ func shouldBeSkipped(t testing.TB, meta *tc39Meta) ***REMOVED***
 	if meta.hasFlag("async") ***REMOVED*** // this is totally not supported
 		t.Skipf("Skipping as it has flag async")
 	***REMOVED***
-	if meta.Es6id == "" && meta.Es5id == "" ***REMOVED*** //nolint:nestif
-		skip := true
 
-		if skip ***REMOVED***
-			if meta.Esid != "" ***REMOVED***
-				for _, prefix := range esIDPrefixAllowList ***REMOVED***
-					if strings.HasPrefix(meta.Esid, prefix) ***REMOVED***
-						skip = false
-					***REMOVED***
-				***REMOVED***
+	for _, feature := range meta.Features ***REMOVED***
+		for _, bl := range featuresBlockList ***REMOVED***
+			if feature == bl ***REMOVED***
+				t.Skipf("Blocklisted feature %s", feature)
 			***REMOVED***
-		***REMOVED***
-		for _, feature := range meta.Features ***REMOVED***
-			for _, bl := range featuresBlockList ***REMOVED***
-				if feature == bl ***REMOVED***
-					t.Skipf("Blocklisted feature %s", feature)
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-		if skip ***REMOVED***
-			t.Skipf("Not ES6 or ES5 esid: %s", meta.Esid)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
