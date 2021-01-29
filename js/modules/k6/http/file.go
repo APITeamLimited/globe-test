@@ -21,9 +21,12 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/loadimpact/k6/js/common"
 )
 
 // FileData represents a binary file requiring multipart request encoding
@@ -40,7 +43,7 @@ func escapeQuotes(s string) string ***REMOVED***
 ***REMOVED***
 
 // File returns a FileData parameter
-func (h *HTTP) File(data []byte, args ...string) FileData ***REMOVED***
+func (h *HTTP) File(ctx context.Context, data interface***REMOVED******REMOVED***, args ...string) FileData ***REMOVED***
 	// supply valid default if filename and content-type are not specified
 	fname, ct := fmt.Sprintf("%d", time.Now().UnixNano()), "application/octet-stream"
 
@@ -52,8 +55,13 @@ func (h *HTTP) File(data []byte, args ...string) FileData ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	dt, err := common.ToBytes(data)
+	if err != nil ***REMOVED***
+		common.Throw(common.GetRuntime(ctx), err)
+	***REMOVED***
+
 	return FileData***REMOVED***
-		Data:        data,
+		Data:        dt,
 		Filename:    fname,
 		ContentType: ct,
 	***REMOVED***
