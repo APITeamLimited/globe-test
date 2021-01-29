@@ -60,6 +60,16 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 			***REMOVED***`)
 			assert.NoError(t, err)
 		***REMOVED***)
+		t.Run("DefaultArrayBufferEnc", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			var exp = "aGVsbG8=";
+			var input = new Uint8Array([104, 101, 108, 108, 111]); // "hello"
+			var encoded = encoding.b64encode(input.buffer);
+			if (encoded !== exp) ***REMOVED***
+				throw new Error("Encoding mismatch: " + encoded);
+			***REMOVED***`)
+			assert.NoError(t, err)
+		***REMOVED***)
 		t.Run("DefaultUnicodeEnc", func(t *testing.T) ***REMOVED***
 			_, err := common.RunString(rt, `
 			var correct = "44GT44KT44Gr44Gh44Gv5LiW55WM";
