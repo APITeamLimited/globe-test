@@ -227,7 +227,7 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 		t.Skip("Excluded")
 	***REMOVED***
 	failf := func(str string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
-		str = fmt.Sprintf(str, args)
+		str = fmt.Sprintf(str, args...)
 		ctx.fail(t, name, strict, str)
 	***REMOVED***
 	defer func() ***REMOVED***
