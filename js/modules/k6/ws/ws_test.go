@@ -122,7 +122,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
 	t.Run("connect_ws", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
@@ -133,7 +133,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), 101, "")
 
 	t.Run("connect_wss", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var res = ws.connect("WSSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
@@ -144,7 +144,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSSBIN_URL/ws-echo"), 101, "")
 
 	t.Run("open", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var opened = false;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
@@ -159,7 +159,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), 101, "")
 
 	t.Run("send_receive", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.send("test")
@@ -181,7 +181,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertMetricEmitted(t, metrics.WSMessagesReceived, samplesBuf, sr("WSBIN_URL/ws-echo"))
 
 	t.Run("interval", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var counter = 0;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.setInterval(function () ***REMOVED***
@@ -195,7 +195,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), 101, "")
 	t.Run("bad interval", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var counter = 0;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.setInterval(function () ***REMOVED***
@@ -209,7 +209,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("timeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var start = new Date().getTime();
 		var ellapsed = new Date().getTime() - start;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
@@ -226,7 +226,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("bad timeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var start = new Date().getTime();
 		var ellapsed = new Date().getTime() - start;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
@@ -242,7 +242,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo"), 101, "")
 
 	t.Run("ping", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var pongReceived = false;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function(data) ***REMOVED***
@@ -266,7 +266,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertMetricEmitted(t, metrics.WSPing, samplesBuf, sr("WSBIN_URL/ws-echo"))
 
 	t.Run("multiple_handlers", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var pongReceived = false;
 		var otherPongReceived = false;
 
@@ -300,7 +300,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	assertMetricEmitted(t, metrics.WSPing, samplesBuf, sr("WSBIN_URL/ws-echo"))
 
 	t.Run("client_close", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var closed = false;
 		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
@@ -330,7 +330,7 @@ func TestSession(t *testing.T) ***REMOVED***
 	for _, tc := range serverCloseTests ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, sr(fmt.Sprintf(`
+			_, err := rt.RunString(sr(fmt.Sprintf(`
 			var closed = false;
 			var res = ws.connect("WSBIN_URL%s", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
@@ -375,7 +375,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	rt.Set("ws", common.Bind(rt, New(), &ctx))
 
 	t.Run("invalid_url", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		var res = ws.connect("INVALID", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
 				socket.close();
@@ -387,7 +387,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 	t.Run("invalid_url_message_panic", func(t *testing.T) ***REMOVED***
 		// Attempting to send a message to a non-existent socket shouldn't panic
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		var res = ws.connect("INVALID", function(socket)***REMOVED***
 			socket.send("new message");
 		***REMOVED***);
@@ -396,7 +396,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("error_in_setup", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
 			throw new Error("error in setup");
 		***REMOVED***);
@@ -405,7 +405,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("send_after_close", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var hasError = false;
 		var res = ws.connect("WSBIN_URL/ws-echo-invalid", function(socket)***REMOVED***
 			socket.on("open", function() ***REMOVED***
@@ -426,7 +426,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("error on close", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var closed = false;
 		var res = ws.connect("WSBIN_URL/ws-close", function(socket)***REMOVED***
 			socket.on('open', function open() ***REMOVED***
@@ -490,7 +490,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		expectedTag := expectedTag
 		t.Run("only "+expectedTag, func(t *testing.T) ***REMOVED***
 			state.Options.SystemTags = stats.ToSystemTagSet([]string***REMOVED***expectedTag***REMOVED***)
-			_, err := common.RunString(rt, sr(`
+			_, err := rt.RunString(sr(`
 			var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
 				socket.on("open", function() ***REMOVED***
 					socket.send("test")
@@ -554,7 +554,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 			InsecureSkipVerify: true,
 		***REMOVED***
 
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 		var res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
 			socket.close()
 		***REMOVED***);
@@ -567,7 +567,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 	t.Run("custom certificates", func(t *testing.T) ***REMOVED***
 		state.TLSConfig = tb.TLSClientConfig
 
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			var res = ws.connect("WSSBIN_URL/ws-close", function(socket)***REMOVED***
 				socket.close()
 			***REMOVED***);

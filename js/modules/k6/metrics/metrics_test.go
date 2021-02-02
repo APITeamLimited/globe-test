@@ -80,16 +80,14 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					if isTime ***REMOVED***
 						isTimeString = `, true`
 					***REMOVED***
-					_, err := common.RunString(rt,
-						fmt.Sprintf(`var m = new metrics.%s("my_metric"%s)`, fn, isTimeString),
-					)
+					_, err := rt.RunString(fmt.Sprintf(`var m = new metrics.%s("my_metric"%s)`, fn, isTimeString))
 					if !assert.NoError(t, err) ***REMOVED***
 						return
 					***REMOVED***
 
 					t.Run("ExitInit", func(t *testing.T) ***REMOVED***
 						*ctxPtr = lib.WithState(*ctxPtr, state)
-						_, err := common.RunString(rt, fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
+						_, err := rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
 						assert.EqualError(t, err, "GoError: metrics must be declared in the init context at apply (native)")
 					***REMOVED***)
 
@@ -103,9 +101,10 @@ func TestMetrics(t *testing.T) ***REMOVED***
 							state.Group = g
 							state.Tags["group"] = g.Path
 							for name, val := range values ***REMOVED***
+								name, val := name, val
 								t.Run(name, func(t *testing.T) ***REMOVED***
 									t.Run("Simple", func(t *testing.T) ***REMOVED***
-										_, err := common.RunString(rt, fmt.Sprintf(`m.add(%v)`, val.JS))
+										_, err := rt.RunString(fmt.Sprintf(`m.add(%v)`, val.JS))
 										assert.NoError(t, err)
 										bufSamples := stats.GetBufferedSamples(samples)
 										if assert.Len(t, bufSamples, 1) ***REMOVED***
@@ -123,7 +122,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 										***REMOVED***
 									***REMOVED***)
 									t.Run("Tags", func(t *testing.T) ***REMOVED***
-										_, err := common.RunString(rt, fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS))
+										_, err := rt.RunString(fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS))
 										assert.NoError(t, err)
 										bufSamples := stats.GetBufferedSamples(samples)
 										if assert.Len(t, bufSamples, 1) ***REMOVED***
@@ -153,7 +152,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 
 func TestMetricNames(t *testing.T) ***REMOVED***
 	t.Parallel()
-	var testMap = map[string]bool***REMOVED***
+	testMap := map[string]bool***REMOVED***
 		"simple":       true,
 		"still_simple": true,
 		"":             false,

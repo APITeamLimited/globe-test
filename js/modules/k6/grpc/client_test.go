@@ -117,7 +117,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	rt.Set("grpc", common.Bind(rt, New(), &ctx))
 
 	t.Run("New", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var client = new grpc.Client();
 			if (!client) throw new Error("no client created")
 		`)
@@ -125,7 +125,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("LoadNotFound", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.load([], "./does_not_exist.proto");
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -139,7 +139,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Load", func(t *testing.T) ***REMOVED***
-		respV, err := common.RunString(rt, `
+		respV, err := rt.RunString(`
 			client.load([], "../../../../vendor/google.golang.org/grpc/test/grpc_testing/test.proto");
 		`)
 		if !assert.NoError(t, err) ***REMOVED***
@@ -151,7 +151,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("ConnectInit", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.connect();
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -161,7 +161,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("invokeInit", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var err = client.invoke();
 			throw new Error(err)
 		`)
@@ -174,7 +174,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	ctx = lib.WithState(ctx, state)
 
 	t.Run("NoConnect", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -184,7 +184,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("UnknownConnectParam", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR", ***REMOVED*** name: "k6" ***REMOVED***);
 		`))
 		if !assert.Error(t, err) ***REMOVED***
@@ -194,7 +194,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("ConnectInvalidTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR", ***REMOVED*** timeout: "k6" ***REMOVED***);
 		`))
 		if !assert.Error(t, err) ***REMOVED***
@@ -204,35 +204,35 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("ConnectStringTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR", ***REMOVED*** timeout: "1h3s" ***REMOVED***);
 		`))
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("ConnectFloatTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR", ***REMOVED*** timeout: 3456.3 ***REMOVED***);
 		`))
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("ConnectIntegerTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR", ***REMOVED*** timeout: 3000 ***REMOVED***);
 		`))
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("Connect", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, sr(`
+		_, err := rt.RunString(sr(`
 			client.connect("GRPCBIN_ADDR");
 		`))
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("InvokeNotFound", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("foo/bar", ***REMOVED******REMOVED***)
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -242,7 +242,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("InvokeInvalidParam", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** void: true ***REMOVED***)
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -252,7 +252,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("InvokeInvalidTimeoutType", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** timeout: true ***REMOVED***)
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -262,7 +262,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("InvokeInvalidTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** timeout: "please" ***REMOVED***)
 		`)
 		if !assert.Error(t, err) ***REMOVED***
@@ -272,21 +272,21 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("InvokeStringTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** timeout: "1h42m" ***REMOVED***)
 		`)
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("InvokeFloatTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** timeout: 400.50 ***REMOVED***)
 		`)
 		assert.NoError(t, err)
 	***REMOVED***)
 
 	t.Run("InvokeIntegerTimeout", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** timeout: 2000 ***REMOVED***)
 		`)
 		assert.NoError(t, err)
@@ -296,7 +296,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		tb.GRPCStub.EmptyCallFunc = func(context.Context, *grpc_testing.Empty) (*grpc_testing.Empty, error) ***REMOVED***
 			return &grpc_testing.Empty***REMOVED******REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 			if (resp.status !== grpc.StatusOK) ***REMOVED***
 				throw new Error("unexpected error status: " + resp.status)
@@ -315,7 +315,7 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			return &grpc_testing.SimpleResponse***REMOVED******REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/UnaryCall", ***REMOVED*** payload: ***REMOVED*** body: "6LSf6L295rWL6K+V"***REMOVED*** ***REMOVED***)
 			if (resp.status !== grpc.StatusOK) ***REMOVED***
 				throw new Error("server did not receive the correct request message")
@@ -333,7 +333,7 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			return &grpc_testing.Empty***REMOVED******REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** headers: ***REMOVED*** "X-Load-Tester": "k6" ***REMOVED*** ***REMOVED***)
 			if (resp.status !== grpc.StatusOK) ***REMOVED***
 				throw new Error("failed to send correct headers in the request")
@@ -348,7 +348,7 @@ func TestClient(t *testing.T) ***REMOVED***
 				OauthScope: "水",
 			***REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/UnaryCall", ***REMOVED******REMOVED***)
 			if (!resp.message || resp.message.username !== "" || resp.message.oauthScope !== "水") ***REMOVED***
 				throw new Error("unexpected response message: " + JSON.stringify(resp.message))
@@ -363,7 +363,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		tb.GRPCStub.EmptyCallFunc = func(context.Context, *grpc_testing.Empty) (*grpc_testing.Empty, error) ***REMOVED***
 			return nil, status.Error(codes.DataLoss, "foobar")
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 			if (resp.status !== grpc.StatusDataLoss) ***REMOVED***
 				throw new Error("unexpected error status: " + resp.status)
@@ -384,7 +384,7 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			return &grpc_testing.Empty***REMOVED******REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 			if (resp.status !== grpc.StatusOK) ***REMOVED***
 				throw new Error("unexpected error status: " + resp.status)
@@ -403,7 +403,7 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			return &grpc_testing.Empty***REMOVED******REMOVED***, nil
 		***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***)
 			if (resp.status !== grpc.StatusOK) ***REMOVED***
 				throw new Error("unexpected error status: " + resp.status)
@@ -416,7 +416,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("LoadNotInit", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, "client.load()")
+		_, err := rt.RunString("client.load()")
 		if !assert.Error(t, err) ***REMOVED***
 			return
 		***REMOVED***
@@ -424,7 +424,7 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Close", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 			client.close();
 			client.invoke();
 		`)

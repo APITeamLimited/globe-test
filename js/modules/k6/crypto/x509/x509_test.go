@@ -147,14 +147,14 @@ func TestParse(t *testing.T) ***REMOVED***
 	rt := makeRuntime()
 
 	t.Run("DecodeFailure", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		x509.parse("bad-certificate");`)
 		assert.Contains(
 			t, err.Error(), "GoError: failed to decode certificate PEM file")
 	***REMOVED***)
 
 	t.Run("ParseFailure", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		x509.parse(pem);`, material.publicKey))
 		if assert.Error(t, err) ***REMOVED***
@@ -166,7 +166,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SignatureAlgorithm", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.signatureAlgorithm;
@@ -177,7 +177,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Subject", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		if (typeof cert.subject !== "object") ***REMOVED***
@@ -187,7 +187,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectCommonName", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.commonName : null;
@@ -198,7 +198,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectCountry", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.country : null;
@@ -209,7 +209,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectPostalCode", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.postalCode : null;
@@ -220,7 +220,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectProvince", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.stateOrProvinceName : null;
@@ -231,7 +231,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectLocality", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.localityName : null;
@@ -242,7 +242,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectStreetAddress", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.streetAddress : null;
@@ -253,7 +253,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectOrganization", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.subject ? cert.subject.organizationName : null;
@@ -264,7 +264,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectOrganizationalUnit", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values =
@@ -282,7 +282,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SubjectNames", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values = cert.subject ? cert.subject.names : null;
@@ -311,7 +311,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Issuer", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		if (typeof cert.issuer !== "object") ***REMOVED***
@@ -321,7 +321,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerCommonName", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.commonName : null;
@@ -332,7 +332,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerCountry", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.country : null;
@@ -343,7 +343,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerProvince", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.stateOrProvinceName : null;
@@ -354,7 +354,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerLocality", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.localityName : null;
@@ -365,7 +365,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerOrganization", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.issuer ? cert.issuer.organizationName : null;
@@ -376,7 +376,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("IssuerNames", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values = cert.issuer ? cert.issuer.names : null;
@@ -405,7 +405,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("NotBefore", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.notBefore;
@@ -416,7 +416,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("NotAfter", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.notAfter;
@@ -427,7 +427,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("AltNames", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var values = cert.altNames;
@@ -448,7 +448,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("FingerPrint", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.fingerPrint;
@@ -463,7 +463,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("PublicKey", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		if (typeof cert.publicKey !== "object") ***REMOVED***
@@ -473,7 +473,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("RSAPublicKey", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey;
@@ -491,7 +491,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("RSAPublicKeyExponent", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey ? cert.publicKey.key.e : null;
@@ -502,7 +502,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("RSAPublicKeyModulus", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey ? cert.publicKey.key.n.bytes() : null;
@@ -533,7 +533,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("DSAPublicKey", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey;
@@ -550,7 +550,7 @@ func TestParse(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("ECDSAPublicKey", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var cert = x509.parse(pem);
 		var value = cert.publicKey;
@@ -575,13 +575,13 @@ func TestGetAltNames(t *testing.T) ***REMOVED***
 	rt := makeRuntime()
 
 	t.Run("Failure", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		x509.getAltNames("bad-certificate");`)
 		assert.Error(t, err)
 	***REMOVED***)
 
 	t.Run("Success", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var altNames = x509.getAltNames(pem);
 		if (!(
@@ -609,13 +609,13 @@ func TestGetIssuer(t *testing.T) ***REMOVED***
 	rt := makeRuntime()
 
 	t.Run("Failure", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		x509.getIssuer("bad-certificate");`)
 		assert.Error(t, err)
 	***REMOVED***)
 
 	t.Run("Success", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var issuer = x509.getIssuer(pem);
 		if (!(
@@ -641,13 +641,13 @@ func TestGetSubject(t *testing.T) ***REMOVED***
 	rt := makeRuntime()
 
 	t.Run("Failure", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		x509.getSubject("bad-certificate");`)
 		assert.Error(t, err)
 	***REMOVED***)
 
 	t.Run("Success", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, fmt.Sprintf(`
+		_, err := rt.RunString(fmt.Sprintf(`
 		var pem = %q;
 		var subject = x509.getSubject(pem);
 		if (!(

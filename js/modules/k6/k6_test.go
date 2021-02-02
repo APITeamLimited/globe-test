@@ -40,7 +40,7 @@ import (
 func TestFail(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.Set("k6", common.Bind(rt, New(), nil))
-	_, err := common.RunString(rt, `k6.fail("blah")`)
+	_, err := rt.RunString(`k6.fail("blah")`)
 	assert.Contains(t, err.Error(), "GoError: blah")
 ***REMOVED***
 
@@ -57,7 +57,7 @@ func TestSleep(t *testing.T) ***REMOVED***
 	for name, d := range testdata ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			startTime := time.Now()
-			_, err := common.RunString(rt, `k6.sleep(1)`)
+			_, err := rt.RunString(`k6.sleep(1)`)
 			endTime := time.Now()
 			assert.NoError(t, err)
 			assert.True(t, endTime.Sub(startTime) > d, "did not sleep long enough")
@@ -68,7 +68,7 @@ func TestSleep(t *testing.T) ***REMOVED***
 		dch := make(chan time.Duration)
 		go func() ***REMOVED***
 			startTime := time.Now()
-			_, err := common.RunString(rt, `k6.sleep(10)`)
+			_, err := rt.RunString(`k6.sleep(10)`)
 			endTime := time.Now()
 			assert.NoError(t, err)
 			dch <- endTime.Sub(startTime)
@@ -93,13 +93,13 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 	rt.Set("k6", common.Bind(rt, New(), &ctx))
 
 	rand := 0.8487305991992138
-	_, err := common.RunString(rt, fmt.Sprintf(`
+	_, err := rt.RunString(fmt.Sprintf(`
 		var rnd = Math.random();
 		if (rnd == %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
 	`, rand))
 	assert.NoError(t, err)
 
-	_, err = common.RunString(rt, fmt.Sprintf(`
+	_, err = rt.RunString(fmt.Sprintf(`
 		k6.randomSeed(12345)
 		var rnd = Math.random();
 		if (rnd != %.16f) ***REMOVED*** throw new Error("wrong random: " + rnd); ***REMOVED***
@@ -125,16 +125,17 @@ func TestGroup(t *testing.T) ***REMOVED***
 			assert.Equal(t, state.Group.Name, "my group")
 			assert.Equal(t, state.Group.Parent, root)
 		***REMOVED***)
-		_, err = common.RunString(rt, `k6.group("my group", fn)`)
+		_, err = rt.RunString(`k6.group("my group", fn)`)
 		assert.NoError(t, err)
 		assert.Equal(t, state.Group, root)
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := common.RunString(rt, `k6.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
+		_, err := rt.RunString(`k6.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
 		assert.Contains(t, err.Error(), "GoError: group and check names may not contain '::'")
 	***REMOVED***)
 ***REMOVED***
+
 func TestCheck(t *testing.T) ***REMOVED***
 	rt := goja.New()
 
@@ -162,7 +163,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		state, samples := getState()
 		*ctx = lib.WithState(baseCtx, state)
 
-		_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+		_, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 		assert.NoError(t, err)
 
 		bufSamples := stats.GetBufferedSamples(samples)
@@ -183,7 +184,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			state, samples := getState()
 			*ctx = lib.WithState(baseCtx, state)
 
-			_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
+			_, err := rt.RunString(`k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
 			assert.NoError(t, err)
 
 			bufSamples := stats.GetBufferedSamples(samples)
@@ -210,7 +211,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "::": true ***REMOVED***)`)
+			_, err := rt.RunString(`k6.check(null, ***REMOVED*** "::": true ***REMOVED***)`)
 			assert.Contains(t, err.Error(), "GoError: group and check names may not contain '::'")
 		***REMOVED***)
 	***REMOVED***)
@@ -219,7 +220,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		state, samples := getState()
 		*ctx = lib.WithState(baseCtx, state)
 
-		_, err := common.RunString(rt, `k6.check(null, [ true ])`)
+		_, err := rt.RunString(`k6.check(null, [ true ])`)
 		assert.NoError(t, err)
 
 		bufSamples := stats.GetBufferedSamples(samples)
@@ -241,7 +242,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		state, samples := getState()
 		*ctx = lib.WithState(baseCtx, state)
 
-		_, err := common.RunString(rt, `k6.check(null, 12345)`)
+		_, err := rt.RunString(`k6.check(null, 12345)`)
 		assert.NoError(t, err)
 		assert.Len(t, stats.GetBufferedSamples(samples), 0)
 	***REMOVED***)
@@ -250,7 +251,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		state, samples := getState()
 		*ctx = lib.WithState(baseCtx, state)
 
-		_, err := common.RunString(rt, `
+		_, err := rt.RunString(`
 		k6.check(null, ***REMOVED***
 			"a": function() ***REMOVED*** throw new Error("error A") ***REMOVED***,
 			"b": function() ***REMOVED*** throw new Error("error B") ***REMOVED***,
@@ -292,13 +293,15 @@ func TestCheck(t *testing.T) ***REMOVED***
 			`undefined`: false,
 		***REMOVED***
 		for name, tpl := range templates ***REMOVED***
+			name, tpl := name, tpl
 			t.Run(name, func(t *testing.T) ***REMOVED***
 				for value, succ := range testdata ***REMOVED***
+					value, succ := value, succ
 					t.Run(value, func(t *testing.T) ***REMOVED***
 						state, samples := getState()
 						*ctx = lib.WithState(baseCtx, state)
 
-						v, err := common.RunString(rt, fmt.Sprintf(tpl, value))
+						v, err := rt.RunString(fmt.Sprintf(tpl, value))
 						if assert.NoError(t, err) ***REMOVED***
 							assert.Equal(t, succ, v.Export())
 						***REMOVED***
@@ -333,7 +336,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			ctx2, cancel := context.WithCancel(lib.WithState(baseCtx, state))
 			*ctx = ctx2
 
-			v, err := common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+			v, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, true, v.Export())
 			***REMOVED***
@@ -344,7 +347,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 
 			cancel()
 
-			v, err = common.RunString(rt, `k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+			v, err = rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, true, v.Export())
 			***REMOVED***
@@ -358,7 +361,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 		state, samples := getState()
 		*ctx = lib.WithState(baseCtx, state)
 
-		v, err := common.RunString(rt, `k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
+		v, err := rt.RunString(`k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***

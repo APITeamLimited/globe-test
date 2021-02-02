@@ -297,25 +297,25 @@ func TestBind(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		***REMOVED***"Fields", bridgeTestFieldsType***REMOVED***"a", "b", "c", "d", "e"***REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			t.Run("Exported", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.exported`)
+				v, err := rt.RunString(`obj.exported`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, "a", v.Export())
 				***REMOVED***
 			***REMOVED***)
 			t.Run("ExportedTag", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.renamed`)
+				v, err := rt.RunString(`obj.renamed`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, "b", v.Export())
 				***REMOVED***
 			***REMOVED***)
 			t.Run("unexported", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.unexported`)
+				v, err := rt.RunString(`obj.unexported`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, nil, v.Export())
 				***REMOVED***
 			***REMOVED***)
 			t.Run("unexportedTag", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.unexportedTag`)
+				v, err := rt.RunString(`obj.unexportedTag`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, nil, v.Export())
 				***REMOVED***
@@ -323,19 +323,19 @@ func TestBind(t *testing.T) ***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"Methods", bridgeTestMethodsType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
 			t.Run("unexportedFn", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.unexportedFn()`)
+				_, err := rt.RunString(`obj.unexportedFn()`)
 				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedFn' at <eval>:1:17(3)")
 			***REMOVED***)
 			t.Run("ExportedFn", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.exportedFn()`)
+				_, err := rt.RunString(`obj.exportedFn()`)
 				assert.NoError(t, err)
 			***REMOVED***)
 			t.Run("unexportedPtrFn", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.unexportedPtrFn()`)
+				_, err := rt.RunString(`obj.unexportedPtrFn()`)
 				assert.EqualError(t, err, "TypeError: Object has no member 'unexportedPtrFn' at <eval>:1:20(3)")
 			***REMOVED***)
 			t.Run("ExportedPtrFn", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.exportedPtrFn()`)
+				_, err := rt.RunString(`obj.exportedPtrFn()`)
 				switch obj.(type) ***REMOVED***
 				case *bridgeTestMethodsType:
 					assert.NoError(t, err)
@@ -347,53 +347,53 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Error", bridgeTestErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.error()`)
+			_, err := rt.RunString(`obj.error()`)
 			assert.Contains(t, err.Error(), "GoError: error")
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValue", bridgeTestJSValueType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `obj.func(1234)`)
+			v, err := rt.RunString(`obj.func(1234)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(1234), v.Export())
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueError", bridgeTestJSValueErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: missing argument")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.func(1234)`)
+				v, err := rt.RunString(`obj.func(1234)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(1234), v.Export())
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueContext", bridgeTestJSValueContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				v, err := RunString(rt, `obj.func(1234)`)
+				v, err := rt.RunString(`obj.func(1234)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(1234), v.Export())
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"JSValueContextError", bridgeTestJSValueContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				_, err := RunString(rt, `obj.func()`)
+				_, err := rt.RunString(`obj.func()`)
 				assert.Contains(t, err.Error(), "GoError: missing argument")
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
-					v, err := RunString(rt, `obj.func(1234)`)
+					v, err := rt.RunString(`obj.func(1234)`)
 					if assert.NoError(t, err) ***REMOVED***
 						assert.Equal(t, int64(1234), v.Export())
 					***REMOVED***
@@ -401,49 +401,49 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunction", bridgeTestNativeFunctionType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `obj.func(1234)`)
+			v, err := rt.RunString(`obj.func(1234)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(1234), v.Export())
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionError", bridgeTestNativeFunctionErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: missing argument")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
-				v, err := RunString(rt, `obj.func(1234)`)
+				v, err := rt.RunString(`obj.func(1234)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(1234), v.Export())
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionContext", bridgeTestNativeFunctionContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				v, err := RunString(rt, `obj.func(1234)`)
+				v, err := rt.RunString(`obj.func(1234)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(1234), v.Export())
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"NativeFunctionContextError", bridgeTestNativeFunctionContextErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.func()`)
+			_, err := rt.RunString(`obj.func()`)
 			assert.Contains(t, err.Error(), "GoError: func() can only be called from within default()")
 
 			t.Run("Context", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				_, err := RunString(rt, `obj.func()`)
+				_, err := rt.RunString(`obj.func()`)
 				assert.Contains(t, err.Error(), "GoError: missing argument")
 
 				t.Run("Valid", func(t *testing.T) ***REMOVED***
-					v, err := RunString(rt, `obj.func(1234)`)
+					v, err := rt.RunString(`obj.func(1234)`)
 					if assert.NoError(t, err) ***REMOVED***
 						assert.Equal(t, int64(1234), v.Export())
 					***REMOVED***
@@ -451,80 +451,80 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Add", bridgeTestAddType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `obj.add(1, 2)`)
+			v, err := rt.RunString(`obj.add(1, 2)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(3), v.Export())
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"AddWithError", bridgeTestAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `obj.addWithError(1, 2)`)
+			v, err := rt.RunString(`obj.addWithError(1, 2)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(3), v.Export())
 			***REMOVED***
 
 			t.Run("Negative", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.addWithError(0, -1)`)
+				_, err := rt.RunString(`obj.addWithError(0, -1)`)
 				assert.Contains(t, err.Error(), "GoError: answer is negative")
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"AddWithError", bridgeTestAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `obj.addWithError(1, 2)`)
+			v, err := rt.RunString(`obj.addWithError(1, 2)`)
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(3), v.Export())
 			***REMOVED***
 
 			t.Run("Negative", func(t *testing.T) ***REMOVED***
-				_, err := RunString(rt, `obj.addWithError(0, -1)`)
+				_, err := rt.RunString(`obj.addWithError(0, -1)`)
 				assert.Contains(t, err.Error(), "GoError: answer is negative")
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Context", bridgeTestContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.context()`)
+			_, err := rt.RunString(`obj.context()`)
 			assert.Contains(t, err.Error(), "GoError: context() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				_, err := RunString(rt, `obj.context()`)
+				_, err := rt.RunString(`obj.context()`)
 				assert.NoError(t, err)
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAdd", bridgeTestContextAddType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.contextAdd(1, 2)`)
+			_, err := rt.RunString(`obj.contextAdd(1, 2)`)
 			assert.Contains(t, err.Error(), "GoError: contextAdd() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				v, err := RunString(rt, `obj.contextAdd(1, 2)`)
+				v, err := rt.RunString(`obj.contextAdd(1, 2)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(3), v.Export())
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextAddWithError", bridgeTestContextAddWithErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.contextAddWithError(1, 2)`)
+			_, err := rt.RunString(`obj.contextAddWithError(1, 2)`)
 			assert.Contains(t, err.Error(), "GoError: contextAddWithError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
 				*ctxPtr = context.Background()
 				defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-				v, err := RunString(rt, `obj.contextAddWithError(1, 2)`)
+				v, err := rt.RunString(`obj.contextAddWithError(1, 2)`)
 				if assert.NoError(t, err) ***REMOVED***
 					assert.Equal(t, int64(3), v.Export())
 				***REMOVED***
 
 				t.Run("Negative", func(t *testing.T) ***REMOVED***
-					_, err := RunString(rt, `obj.contextAddWithError(0, -1)`)
+					_, err := rt.RunString(`obj.contextAddWithError(0, -1)`)
 					assert.Contains(t, err.Error(), "GoError: answer is negative")
 				***REMOVED***)
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextInject", bridgeTestContextInjectType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.contextInject()`)
+			_, err := rt.RunString(`obj.contextInject()`)
 			switch impl := obj.(type) ***REMOVED***
 			case bridgeTestContextInjectType:
 				assert.EqualError(t, err, "TypeError: Object has no member 'contextInject' at <eval>:1:18(3)")
@@ -536,14 +536,14 @@ func TestBind(t *testing.T) ***REMOVED***
 					*ctxPtr = context.Background()
 					defer func() ***REMOVED*** *ctxPtr = nil ***REMOVED***()
 
-					_, err := RunString(rt, `obj.contextInject()`)
+					_, err := rt.RunString(`obj.contextInject()`)
 					assert.NoError(t, err)
 					assert.Equal(t, *ctxPtr, impl.ctx)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"ContextInjectPtr", bridgeTestContextInjectPtrType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.contextInjectPtr()`)
+			_, err := rt.RunString(`obj.contextInjectPtr()`)
 			switch impl := obj.(type) ***REMOVED***
 			case bridgeTestContextInjectPtrType:
 				assert.EqualError(t, err, "TypeError: Object has no member 'contextInjectPtr' at <eval>:1:21(3)")
@@ -557,7 +557,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			case *bridgeTestCounterType:
 				for i := 0; i < 10; i++ ***REMOVED***
 					t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
-						v, err := RunString(rt, `obj.count()`)
+						v, err := rt.RunString(`obj.count()`)
 						if assert.NoError(t, err) ***REMOVED***
 							assert.Equal(t, int64(i+1), v.Export())
 							assert.Equal(t, i+1, impl.Counter)
@@ -565,7 +565,7 @@ func TestBind(t *testing.T) ***REMOVED***
 					***REMOVED***)
 				***REMOVED***
 			case bridgeTestCounterType:
-				_, err := RunString(rt, `obj.count()`)
+				_, err := rt.RunString(`obj.count()`)
 				assert.EqualError(t, err, "TypeError: Object has no member 'count' at <eval>:1:10(3)")
 			default:
 				assert.Fail(t, "UNKNOWN TYPE")
@@ -579,7 +579,7 @@ func TestBind(t *testing.T) ***REMOVED***
 				sum += i
 				t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
 					code := fmt.Sprintf(`obj.sum(%s)`, strings.Join(args, ", "))
-					v, err := RunString(rt, code)
+					v, err := rt.RunString(code)
 					if assert.NoError(t, err) ***REMOVED***
 						assert.Equal(t, int64(sum), v.Export())
 					***REMOVED***
@@ -587,7 +587,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContext", bridgeTestSumWithContextType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.sumWithContext(1, 2)`)
+			_, err := rt.RunString(`obj.sumWithContext(1, 2)`)
 			assert.Contains(t, err.Error(), "GoError: sumWithContext() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
@@ -601,7 +601,7 @@ func TestBind(t *testing.T) ***REMOVED***
 					sum += i
 					t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
 						code := fmt.Sprintf(`obj.sumWithContext(%s)`, strings.Join(args, ", "))
-						v, err := RunString(rt, code)
+						v, err := rt.RunString(code)
 						if assert.NoError(t, err) ***REMOVED***
 							assert.Equal(t, int64(sum), v.Export())
 						***REMOVED***
@@ -617,7 +617,7 @@ func TestBind(t *testing.T) ***REMOVED***
 				sum += i
 				t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
 					code := fmt.Sprintf(`obj.sumWithError(%s)`, strings.Join(args, ", "))
-					v, err := RunString(rt, code)
+					v, err := rt.RunString(code)
 					if assert.NoError(t, err) ***REMOVED***
 						assert.Equal(t, int64(sum), v.Export())
 					***REMOVED***
@@ -625,7 +625,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED******REMOVED***,
 		***REMOVED***"SumWithContextAndError", bridgeTestSumWithContextAndErrorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			_, err := RunString(rt, `obj.sumWithContextAndError(1, 2)`)
+			_, err := rt.RunString(`obj.sumWithContextAndError(1, 2)`)
 			assert.Contains(t, err.Error(), "GoError: sumWithContextAndError() can only be called from within default()")
 
 			t.Run("Valid", func(t *testing.T) ***REMOVED***
@@ -639,7 +639,7 @@ func TestBind(t *testing.T) ***REMOVED***
 					sum += i
 					t.Run(strconv.Itoa(i), func(t *testing.T) ***REMOVED***
 						code := fmt.Sprintf(`obj.sumWithContextAndError(%s)`, strings.Join(args, ", "))
-						v, err := RunString(rt, code)
+						v, err := rt.RunString(code)
 						if assert.NoError(t, err) ***REMOVED***
 							assert.Equal(t, int64(sum), v.Export())
 						***REMOVED***
@@ -648,7 +648,7 @@ func TestBind(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED******REMOVED***,
 		***REMOVED***"Constructor", bridgeTestConstructorType***REMOVED******REMOVED***, func(t *testing.T, obj interface***REMOVED******REMOVED***, rt *goja.Runtime) ***REMOVED***
-			v, err := RunString(rt, `new obj.Constructor()`)
+			v, err := rt.RunString(`new obj.Constructor()`)
 			assert.NoError(t, err)
 			assert.IsType(t, bridgeTestConstructorSpawnedType***REMOVED******REMOVED***, v.Export())
 		***REMOVED******REMOVED***,

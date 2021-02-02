@@ -63,124 +63,124 @@ func TestElement(t *testing.T) ***REMOVED***
 	rt.Set("html", common.Bind(rt, &HTML***REMOVED******REMOVED***, &ctx))
 	// compileProtoElem()
 
-	_, err := common.RunString(rt, `var doc = html.parseHTML(src)`)
+	_, err := rt.RunString(`var doc = html.parseHTML(src)`)
 
 	assert.NoError(t, err)
 	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
 
 	t.Run("NodeName", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("#top").get(0).nodeName()`)
+		v, err := rt.RunString(`doc.find("#top").get(0).nodeName()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "h1", v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("NodeType", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("#top").get(0).nodeType()`)
+		v, err := rt.RunString(`doc.find("#top").get(0).nodeType()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "1", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("NodeValue", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("#top").get(0).firstChild().nodeValue()`)
+		v, err := rt.RunString(`doc.find("#top").get(0).firstChild().nodeValue()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "Lorem ipsum", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("InnerHtml", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("span").get(0).innerHTML()`)
+		v, err := rt.RunString(`doc.find("span").get(0).innerHTML()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "<b>test content</b>", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("TextContent", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("b").get(0).textContent()`)
+		v, err := rt.RunString(`doc.find("b").get(0).textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "test content", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("OwnerDocument", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).ownerDocument().nodeName()`)
+		v, err := rt.RunString(`doc.find("body").get(0).ownerDocument().nodeName()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "#document", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Attributes", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).attributes()`)
+		v, err := rt.RunString(`doc.find("div").get(0).attributes()`)
 		if assert.NoError(t, err) ***REMOVED***
 			attrs := v.Export().(map[string]Attribute)
 			assert.Equal(t, "div_elem", attrs["id"].Value)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("FirstChild", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).firstChild().nodeValue()`)
+		v, err := rt.RunString(`doc.find("div").get(0).firstChild().nodeValue()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "innerfirst")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("LastChild", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).lastChild().nodeValue()`)
+		v, err := rt.RunString(`doc.find("div").get(0).lastChild().nodeValue()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "innerlast")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ChildElementCount", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).childElementCount()`)
+		v, err := rt.RunString(`doc.find("body").get(0).childElementCount()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, int64(6), v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("FirstElementChild", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).firstElementChild().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).firstElementChild().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "Nullam id nisi ")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("LastElementChild", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).lastElementChild().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).lastElementChild().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "Maecenas augue ligula")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("PreviousSibling", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).previousSibling().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).previousSibling().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "pretext")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("NextSibling", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).nextSibling().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).nextSibling().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "aftertext")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("PreviousElementSibling", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).previousElementSibling().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).previousElementSibling().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "consectetur adipiscing elit")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("NextElementSibling", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).nextElementSibling().textContent()`)
+		v, err := rt.RunString(`doc.find("div").get(0).nextElementSibling().textContent()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Contains(t, v.Export(), "This is the footer.")
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ParentElement", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).parentElement().nodeName()`)
+		v, err := rt.RunString(`doc.find("div").get(0).parentElement().nodeName()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "body", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ParentNode", func(t *testing.T) ***REMOVED***
-		nodeVal, err1 := common.RunString(rt, `doc.find("html").get(0).parentNode().nodeName()`)
-		nilVal, err2 := common.RunString(rt, `doc.find("html").get(0).parentElement()`)
+		nodeVal, err1 := rt.RunString(`doc.find("html").get(0).parentNode().nodeName()`)
+		nilVal, err2 := rt.RunString(`doc.find("html").get(0).parentElement()`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, "#document", nodeVal.String())
 			assert.Equal(t, nil, nilVal.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ChildNodes", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).childNodes()`)
+		v, err := rt.RunString(`doc.find("div").get(0).childNodes()`)
 		if assert.NoError(t, err) ***REMOVED***
 			nodes := v.Export().([]goja.Value)
 			assert.Equal(t, 9, len(nodes))
@@ -189,7 +189,7 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Children", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).children()`)
+		v, err := rt.RunString(`doc.find("div").get(0).children()`)
 		if assert.NoError(t, err) ***REMOVED***
 			nodes := v.Export().([]goja.Value)
 			assert.Equal(t, 4, len(nodes))
@@ -198,7 +198,7 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ClassList", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).classList()`)
+		v, err := rt.RunString(`doc.find("div").get(0).classList()`)
 		if assert.NoError(t, err) ***REMOVED***
 			clsNames := v.Export().([]string)
 			assert.Equal(t, 2, len(clsNames))
@@ -206,79 +206,79 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ClassName", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).className()`)
+		v, err := rt.RunString(`doc.find("div").get(0).className()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "class1 class2", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Lang", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).lang()`)
+		v, err := rt.RunString(`doc.find("div").get(0).lang()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "en", v.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ToString", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("div").get(0).toString()`)
-		v2, err2 := common.RunString(rt, `doc.find("div").get(0).previousSibling().toString()`)
+		v1, err1 := rt.RunString(`doc.find("div").get(0).toString()`)
+		v2, err2 := rt.RunString(`doc.find("div").get(0).previousSibling().toString()`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, "[object html.Node]", v1.String())
 			assert.Equal(t, "[object #text]", v2.String())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("HasAttribute", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("div").get(0).hasAttribute("id")`)
-		v2, err2 := common.RunString(rt, `doc.find("div").get(0).hasAttribute("noattr")`)
+		v1, err1 := rt.RunString(`doc.find("div").get(0).hasAttribute("id")`)
+		v2, err2 := rt.RunString(`doc.find("div").get(0).hasAttribute("noattr")`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, true, v1.Export())
 			assert.Equal(t, false, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetAttribute", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).getAttribute("id")`)
+		v, err := rt.RunString(`doc.find("div").get(0).getAttribute("id")`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "div_elem", v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetAttributeNode", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).getAttributeNode("id")`)
+		v, err := rt.RunString(`doc.find("div").get(0).getAttributeNode("id")`)
 		if assert.NoError(t, err) && assert.IsType(t, Attribute***REMOVED******REMOVED***, v.Export()) ***REMOVED***
 			assert.Equal(t, "div_elem", v.Export().(Attribute).Value)
 		***REMOVED***
 	***REMOVED***)
 	t.Run("HasAttributes", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("h1").get(0).hasAttributes()`)
-		v2, err2 := common.RunString(rt, `doc.find("footer").get(0).hasAttributes()`)
+		v1, err1 := rt.RunString(`doc.find("h1").get(0).hasAttributes()`)
+		v2, err2 := rt.RunString(`doc.find("footer").get(0).hasAttributes()`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, true, v1.Export())
 			assert.Equal(t, false, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("HasChildNodes", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("p").get(0).hasChildNodes()`)
-		v2, err2 := common.RunString(rt, `doc.find("empty").get(0).hasChildNodes()`)
+		v1, err1 := rt.RunString(`doc.find("p").get(0).hasChildNodes()`)
+		v2, err2 := rt.RunString(`doc.find("empty").get(0).hasChildNodes()`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, true, v1.Export())
 			assert.Equal(t, false, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("IsSameNode", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("p").get(0).isSameNode(doc.find("p").get(1))`)
-		v2, err2 := common.RunString(rt, `doc.find("p").get(0).isSameNode(doc.find("p").get(0))`)
+		v1, err1 := rt.RunString(`doc.find("p").get(0).isSameNode(doc.find("p").get(1))`)
+		v2, err2 := rt.RunString(`doc.find("p").get(0).isSameNode(doc.find("p").get(0))`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, false, v1.Export())
 			assert.Equal(t, true, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("IsEqualNode", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("p").get(0).isEqualNode(doc.find("p").get(1))`)
-		v2, err2 := common.RunString(rt, `doc.find("p").get(0).isEqualNode(doc.find("p").get(0))`)
+		v1, err1 := rt.RunString(`doc.find("p").get(0).isEqualNode(doc.find("p").get(1))`)
+		v2, err2 := rt.RunString(`doc.find("p").get(0).isEqualNode(doc.find("p").get(0))`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, true, v1.Export())
 			assert.Equal(t, true, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetElementsByClassName", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).getElementsByClassName("class2")`)
+		v, err := rt.RunString(`doc.find("body").get(0).getElementsByClassName("class2")`)
 		if assert.NoError(t, err) ***REMOVED***
 			elems := v.Export().([]goja.Value)
 			assert.Equal(t, "div_elem", elems[0].Export().(Element).Id())
@@ -286,20 +286,20 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("GetElementsByTagName", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).getElementsByTagName("span")`)
+		v, err := rt.RunString(`doc.find("body").get(0).getElementsByTagName("span")`)
 		if assert.NoError(t, err) ***REMOVED***
 			elems := v.Export().([]goja.Value)
 			assert.Equal(t, 2, len(elems))
 		***REMOVED***
 	***REMOVED***)
 	t.Run("QuerySelector", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).querySelector("#div_elem").id()`)
+		v, err := rt.RunString(`doc.find("body").get(0).querySelector("#div_elem").id()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "div_elem", v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("QuerySelectorAll", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("body").get(0).querySelectorAll("span")`)
+		v, err := rt.RunString(`doc.find("body").get(0).querySelectorAll("span")`)
 		if assert.NoError(t, err) ***REMOVED***
 			elems := v.Export().([]goja.Value)
 			assert.Equal(t, "span1", elems[0].Export().(Element).Id())
@@ -307,28 +307,28 @@ func TestElement(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Contains", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("html").get(0).contains(doc.find("body").get(0))`)
-		v2, err2 := common.RunString(rt, `doc.find("body").get(0).contains(doc.find("body").get(0))`)
+		v1, err1 := rt.RunString(`doc.find("html").get(0).contains(doc.find("body").get(0))`)
+		v2, err2 := rt.RunString(`doc.find("body").get(0).contains(doc.find("body").get(0))`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, true, v1.Export())
 			assert.Equal(t, false, v2.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Matches", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("div").get(0).matches("#div_elem")`)
+		v, err := rt.RunString(`doc.find("div").get(0).matches("#div_elem")`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("NamespaceURI", func(t *testing.T) ***REMOVED***
-		v, err := common.RunString(rt, `doc.find("#svg_elem").get(0).namespaceURI()`)
+		v, err := rt.RunString(`doc.find("#svg_elem").get(0).namespaceURI()`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "http://www.w3.org/2000/svg", v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("IsDefaultNamespace", func(t *testing.T) ***REMOVED***
-		v1, err1 := common.RunString(rt, `doc.find("#svg_elem").get(0).isDefaultNamespace()`)
-		v2, err2 := common.RunString(rt, `doc.find("#div_elem").get(0).isDefaultNamespace()`)
+		v1, err1 := rt.RunString(`doc.find("#svg_elem").get(0).isDefaultNamespace()`)
+		v2, err2 := rt.RunString(`doc.find("#div_elem").get(0).isDefaultNamespace()`)
 		if assert.NoError(t, err1) && assert.NoError(t, err2) ***REMOVED***
 			assert.Equal(t, false, v1.ToBoolean())
 			assert.Equal(t, true, v2.ToBoolean())

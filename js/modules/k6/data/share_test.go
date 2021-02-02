@@ -84,7 +84,7 @@ func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 	for name, testCase := range cases ***REMOVED***
 		name, testCase := name, testCase
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			_, err := common.RunString(rt, testCase.code)
+			_, err := rt.RunString(testCase.code)
 			if testCase.err == "" ***REMOVED***
 				require.NoError(t, err)
 				return // the t.Run
