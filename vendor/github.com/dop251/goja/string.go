@@ -290,10 +290,10 @@ func (i *stringPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		return propIterItem***REMOVED***name: unistring.String(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 	***REMOVED***
 
-	return i.obj.baseObject.enumerateUnfiltered()()
+	return i.obj.baseObject.enumerateOwnKeys()()
 ***REMOVED***
 
-func (s *stringObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
+func (s *stringObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	return (&stringPropIter***REMOVED***
 		str:    s.value,
 		obj:    s,

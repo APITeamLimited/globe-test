@@ -376,18 +376,15 @@ func (i *goreflectPropIter) nextMethod() (propIterItem, iterNextFunc) ***REMOVED
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoReflect) enumerateUnfiltered() iterNextFunc ***REMOVED***
+func (o *objectGoReflect) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	r := &goreflectPropIter***REMOVED***
 		o: o,
 	***REMOVED***
-	var next iterNextFunc
 	if o.value.Kind() == reflect.Struct ***REMOVED***
-		next = r.nextField
-	***REMOVED*** else ***REMOVED***
-		next = r.nextMethod
+		return r.nextField
 	***REMOVED***
 
-	return o.recursiveIter(next)
+	return r.nextMethod
 ***REMOVED***
 
 func (o *objectGoReflect) ownKeys(_ bool, accum []Value) []Value ***REMOVED***

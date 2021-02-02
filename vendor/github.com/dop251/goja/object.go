@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"runtime"
 	"sort"
-	"sync"
 
 	"github.com/dop251/goja/unistring"
 )
@@ -29,10 +27,11 @@ const (
 	classJSON     = "JSON"
 	classGlobal   = "global"
 
-	classArrayIterator  = "Array Iterator"
-	classMapIterator    = "Map Iterator"
-	classSetIterator    = "Set Iterator"
-	classStringIterator = "String Iterator"
+	classArrayIterator        = "Array Iterator"
+	classMapIterator          = "Map Iterator"
+	classSetIterator          = "Set Iterator"
+	classStringIterator       = "String Iterator"
+	classRegExpStringIterator = "RegExp String Iterator"
 )
 
 var (
@@ -41,80 +40,12 @@ var (
 	hintString  Value = asciiString("string")
 )
 
-type weakCollection interface ***REMOVED***
-	removeId(uint64)
-***REMOVED***
-
-type weakCollections struct ***REMOVED***
-	objId uint64
-	colls []weakCollection
-***REMOVED***
-
-func (r *weakCollections) add(c weakCollection) ***REMOVED***
-	for _, ec := range r.colls ***REMOVED***
-		if ec == c ***REMOVED***
-			return
-		***REMOVED***
-	***REMOVED***
-	r.colls = append(r.colls, c)
-***REMOVED***
-
-func (r *weakCollections) id() uint64 ***REMOVED***
-	return r.objId
-***REMOVED***
-
-func (r *weakCollections) remove(c weakCollection) ***REMOVED***
-	if cap(r.colls) > 16 && cap(r.colls)>>2 > len(r.colls) ***REMOVED***
-		// shrink
-		colls := make([]weakCollection, 0, len(r.colls))
-		for _, coll := range r.colls ***REMOVED***
-			if coll != c ***REMOVED***
-				colls = append(colls, coll)
-			***REMOVED***
-		***REMOVED***
-		r.colls = colls
-	***REMOVED*** else ***REMOVED***
-		for i, coll := range r.colls ***REMOVED***
-			if coll == c ***REMOVED***
-				l := len(r.colls) - 1
-				r.colls[i] = r.colls[l]
-				r.colls[l] = nil
-				r.colls = r.colls[:l]
-				break
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
-func finalizeObjectWeakRefs(r *objectWeakRef) ***REMOVED***
-	r.tracker.add(r.id)
-***REMOVED***
-
-type weakRefTracker struct ***REMOVED***
-	sync.Mutex
-	list []uint64
-***REMOVED***
-
-func (t *weakRefTracker) add(id uint64) ***REMOVED***
-	t.Lock()
-	t.list = append(t.list, id)
-	t.Unlock()
-***REMOVED***
-
-// An object that gets finalized when the corresponding *Object is garbage-collected.
-// It must be ensured that neither the *Object, nor the *Runtime is reachable from this struct,
-// otherwise it will create a circular reference with a Finalizer which will make it not garbage-collectable.
-type objectWeakRef struct ***REMOVED***
-	id      uint64
-	tracker *weakRefTracker
-***REMOVED***
-
 type Object struct ***REMOVED***
 	id      uint64
 	runtime *Runtime
 	self    objectImpl
 
-	weakRef *objectWeakRef
+	weakRefs map[weakMap]Value
 ***REMOVED***
 
 type iterNextFunc func() (propIterItem, iterNextFunc)
@@ -138,7 +69,9 @@ func (p *PropertyDescriptor) toValue(r *Runtime) Value ***REMOVED***
 	if p.jsDescriptor != nil ***REMOVED***
 		return p.jsDescriptor
 	***REMOVED***
-
+	if p.Empty() ***REMOVED***
+		return _undefined
+	***REMOVED***
 	o := r.NewObject()
 	s := o.self
 
@@ -243,8 +176,7 @@ type objectImpl interface ***REMOVED***
 	hasInstance(v Value) bool
 	isExtensible() bool
 	preventExtensions(throw bool) bool
-	enumerate() iterNextFunc
-	enumerateUnfiltered() iterNextFunc
+	enumerateOwnKeys() iterNextFunc
 	export(ctx *objectExportCtx) interface***REMOVED******REMOVED***
 	exportType() reflect.Type
 	equal(objectImpl) bool
@@ -438,8 +370,17 @@ func (o *baseObject) _delete(name unistring.String) ***REMOVED***
 	delete(o.values, name)
 	for i, n := range o.propNames ***REMOVED***
 		if n == name ***REMOVED***
-			copy(o.propNames[i:], o.propNames[i+1:])
-			o.propNames = o.propNames[:len(o.propNames)-1]
+			names := o.propNames
+			if namesMarkedForCopy(names) ***REMOVED***
+				newNames := make([]unistring.String, len(names)-1, shrinkCap(len(names), cap(names)))
+				copy(newNames, names[:i])
+				copy(newNames[i:], names[i+1:])
+				o.propNames = newNames
+			***REMOVED*** else ***REMOVED***
+				copy(names[i:], names[i+1:])
+				names[len(names)-1] = ""
+				o.propNames = names[:len(names)-1]
+			***REMOVED***
 			if i < o.lastSortedPropLen ***REMOVED***
 				o.lastSortedPropLen--
 				if i < o.idxPropCount ***REMOVED***
@@ -514,7 +455,8 @@ func (o *baseObject) setOwnStr(name unistring.String, val Value, throw bool) boo
 			return false
 		***REMOVED*** else ***REMOVED***
 			o.values[name] = val
-			o.propNames = append(o.propNames, name)
+			names := copyNamesIfNeeded(o.propNames, 1)
+			o.propNames = append(names, name)
 		***REMOVED***
 		return true
 	***REMOVED***
@@ -777,7 +719,8 @@ func (o *baseObject) defineOwnPropertyStr(name unistring.String, descr PropertyD
 	if v, ok := o._defineOwnProperty(name, existingVal, descr, throw); ok ***REMOVED***
 		o.values[name] = v
 		if existingVal == nil ***REMOVED***
-			o.propNames = append(o.propNames, name)
+			names := copyNamesIfNeeded(o.propNames, 1)
+			o.propNames = append(names, name)
 		***REMOVED***
 		return true
 	***REMOVED***
@@ -805,7 +748,8 @@ func (o *baseObject) defineOwnPropertySym(s *Symbol, descr PropertyDescriptor, t
 
 func (o *baseObject) _put(name unistring.String, v Value) ***REMOVED***
 	if _, exists := o.values[name]; !exists ***REMOVED***
-		o.propNames = append(o.propNames, name)
+		names := copyNamesIfNeeded(o.propNames, 1)
+		o.propNames = append(names, name)
 	***REMOVED***
 
 	o.values[name] = v
@@ -836,11 +780,11 @@ func (o *baseObject) _putSym(s *Symbol, prop Value) ***REMOVED***
 	o.symValues.set(s, prop)
 ***REMOVED***
 
-func (o *baseObject) tryPrimitive(methodName unistring.String) Value ***REMOVED***
-	if method, ok := o.val.self.getStr(methodName, nil).(*Object); ok ***REMOVED***
+func (o *Object) tryPrimitive(methodName unistring.String) Value ***REMOVED***
+	if method, ok := o.self.getStr(methodName, nil).(*Object); ok ***REMOVED***
 		if call, ok := method.self.assertCallable(); ok ***REMOVED***
 			v := call(FunctionCall***REMOVED***
-				This: o.val,
+				This: o,
 			***REMOVED***)
 			if _, fail := v.(*Object); !fail ***REMOVED***
 				return v
@@ -850,7 +794,7 @@ func (o *baseObject) tryPrimitive(methodName unistring.String) Value ***REMOVED*
 	return nil
 ***REMOVED***
 
-func (o *baseObject) toPrimitiveNumber() Value ***REMOVED***
+func (o *Object) genericToPrimitiveNumber() Value ***REMOVED***
 	if v := o.tryPrimitive("valueOf"); v != nil ***REMOVED***
 		return v
 	***REMOVED***
@@ -859,34 +803,35 @@ func (o *baseObject) toPrimitiveNumber() Value ***REMOVED***
 		return v
 	***REMOVED***
 
-	o.val.runtime.typeErrorResult(true, "Could not convert %v to primitive", o)
-	return nil
+	panic(o.runtime.NewTypeError("Could not convert %v to primitive", o.self))
+***REMOVED***
+
+func (o *baseObject) toPrimitiveNumber() Value ***REMOVED***
+	return o.val.genericToPrimitiveNumber()
+***REMOVED***
+
+func (o *Object) genericToPrimitiveString() Value ***REMOVED***
+	if v := o.tryPrimitive("toString"); v != nil ***REMOVED***
+		return v
+	***REMOVED***
+
+	if v := o.tryPrimitive("valueOf"); v != nil ***REMOVED***
+		return v
+	***REMOVED***
+
+	panic(o.runtime.NewTypeError("Could not convert %v to primitive", o.self))
+***REMOVED***
+
+func (o *Object) genericToPrimitive() Value ***REMOVED***
+	return o.genericToPrimitiveNumber()
 ***REMOVED***
 
 func (o *baseObject) toPrimitiveString() Value ***REMOVED***
-	if v := o.tryPrimitive("toString"); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-
-	if v := o.tryPrimitive("valueOf"); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-
-	o.val.runtime.typeErrorResult(true, "Could not convert %v to primitive", o)
-	return nil
+	return o.val.genericToPrimitiveString()
 ***REMOVED***
 
 func (o *baseObject) toPrimitive() Value ***REMOVED***
-	if v := o.tryPrimitive("valueOf"); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-
-	if v := o.tryPrimitive("toString"); v != nil ***REMOVED***
-		return v
-	***REMOVED***
-
-	o.val.runtime.typeErrorResult(true, "Could not convert %v to primitive", o)
-	return nil
+	return o.val.genericToPrimitiveNumber()
 ***REMOVED***
 
 func (o *Object) tryExoticToPrimitive(hint Value) Value ***REMOVED***
@@ -1011,37 +956,64 @@ type objectPropIter struct ***REMOVED***
 	idx       int
 ***REMOVED***
 
-type propFilterIter struct ***REMOVED***
-	wrapped iterNextFunc
-	all     bool
-	seen    map[unistring.String]bool
+type recursivePropIter struct ***REMOVED***
+	o    objectImpl
+	cur  iterNextFunc
+	seen map[unistring.String]struct***REMOVED******REMOVED***
 ***REMOVED***
 
-func (i *propFilterIter) next() (propIterItem, iterNextFunc) ***REMOVED***
+type enumerableIter struct ***REMOVED***
+	wrapped iterNextFunc
+***REMOVED***
+
+func (i *enumerableIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	for ***REMOVED***
 		var item propIterItem
 		item, i.wrapped = i.wrapped()
 		if i.wrapped == nil ***REMOVED***
-			return propIterItem***REMOVED******REMOVED***, nil
+			return item, nil
 		***REMOVED***
-
-		if !i.seen[item.name] ***REMOVED***
-			i.seen[item.name] = true
-			if !i.all ***REMOVED***
-				if item.enumerable == _ENUM_FALSE ***REMOVED***
+		if item.enumerable == _ENUM_FALSE ***REMOVED***
+			continue
+		***REMOVED***
+		if item.enumerable == _ENUM_UNKNOWN ***REMOVED***
+			if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
+				if !prop.enumerable ***REMOVED***
 					continue
 				***REMOVED***
-				if item.enumerable == _ENUM_UNKNOWN ***REMOVED***
-					if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
-						if !prop.enumerable ***REMOVED***
-							continue
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
 			***REMOVED***
+		***REMOVED***
+		return item, i.next
+	***REMOVED***
+***REMOVED***
+
+func (i *recursivePropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
+	for ***REMOVED***
+		var item propIterItem
+		item, i.cur = i.cur()
+		if i.cur == nil ***REMOVED***
+			if proto := i.o.proto(); proto != nil ***REMOVED***
+				i.cur = proto.self.enumerateOwnKeys()
+				i.o = proto.self
+				continue
+			***REMOVED***
+			return propIterItem***REMOVED******REMOVED***, nil
+		***REMOVED***
+		if _, exists := i.seen[item.name]; !exists ***REMOVED***
+			i.seen[item.name] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 			return item, i.next
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func enumerateRecursive(o *Object) iterNextFunc ***REMOVED***
+	return (&enumerableIter***REMOVED***
+		wrapped: (&recursivePropIter***REMOVED***
+			o:    o.self,
+			cur:  o.self.enumerateOwnKeys(),
+			seen: make(map[unistring.String]struct***REMOVED******REMOVED***),
+		***REMOVED***).next,
+	***REMOVED***).next
 ***REMOVED***
 
 func (i *objectPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
@@ -1053,55 +1025,76 @@ func (i *objectPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 			return propIterItem***REMOVED***name: name, value: prop***REMOVED***, i.next
 		***REMOVED***
 	***REMOVED***
-
+	clearNamesCopyMarker(i.propNames)
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *baseObject) enumerate() iterNextFunc ***REMOVED***
-	return (&propFilterIter***REMOVED***
-		wrapped: o.val.self.enumerateUnfiltered(),
-		seen:    make(map[unistring.String]bool),
-	***REMOVED***).next
+var copyMarker = unistring.String(" ")
+
+// Set a copy-on-write flag so that any subsequent modifications of anything below the current length
+// trigger a copy.
+// The marker is a special value put at the index position of cap-1. Capacity is set so that the marker is
+// beyond the current length (therefore invisible to normal slice operations).
+// This function is called before an iteration begins to avoid copying of the names array if
+// there are no modifications within the iteration.
+// Note that the copying also occurs in two cases: nested iterations (on the same object) and
+// iterations after a previously abandoned iteration (because there is currently no mechanism to close an
+// iterator). It is still better than copying every time.
+func prepareNamesForCopy(names []unistring.String) []unistring.String ***REMOVED***
+	if len(names) == 0 ***REMOVED***
+		return names
+	***REMOVED***
+	if namesMarkedForCopy(names) || cap(names) == len(names) ***REMOVED***
+		var newcap int
+		if cap(names) == len(names) ***REMOVED***
+			newcap = growCap(len(names)+1, len(names), cap(names))
+		***REMOVED*** else ***REMOVED***
+			newcap = cap(names)
+		***REMOVED***
+		newNames := make([]unistring.String, len(names), newcap)
+		copy(newNames, names)
+		names = newNames
+	***REMOVED***
+	names[cap(names)-1 : cap(names)][0] = copyMarker
+	return names
 ***REMOVED***
 
-func (o *baseObject) ownIter() iterNextFunc ***REMOVED***
+func namesMarkedForCopy(names []unistring.String) bool ***REMOVED***
+	return cap(names) > len(names) && names[cap(names)-1 : cap(names)][0] == copyMarker
+***REMOVED***
+
+func clearNamesCopyMarker(names []unistring.String) ***REMOVED***
+	if cap(names) > len(names) ***REMOVED***
+		names[cap(names)-1 : cap(names)][0] = ""
+	***REMOVED***
+***REMOVED***
+
+func copyNamesIfNeeded(names []unistring.String, extraCap int) []unistring.String ***REMOVED***
+	if namesMarkedForCopy(names) && len(names)+extraCap >= cap(names) ***REMOVED***
+		var newcap int
+		newsize := len(names) + extraCap + 1
+		if newsize > cap(names) ***REMOVED***
+			newcap = growCap(newsize, len(names), cap(names))
+		***REMOVED*** else ***REMOVED***
+			newcap = cap(names)
+		***REMOVED***
+		newNames := make([]unistring.String, len(names), newcap)
+		copy(newNames, names)
+		return newNames
+	***REMOVED***
+	return names
+***REMOVED***
+
+func (o *baseObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	if len(o.propNames) > o.lastSortedPropLen ***REMOVED***
 		o.fixPropOrder()
 	***REMOVED***
-	propNames := make([]unistring.String, len(o.propNames))
-	copy(propNames, o.propNames)
+	propNames := prepareNamesForCopy(o.propNames)
+	o.propNames = propNames
 	return (&objectPropIter***REMOVED***
 		o:         o,
 		propNames: propNames,
 	***REMOVED***).next
-***REMOVED***
-
-func (o *baseObject) recursiveIter(iter iterNextFunc) iterNextFunc ***REMOVED***
-	return (&recursiveIter***REMOVED***
-		o:       o,
-		wrapped: iter,
-	***REMOVED***).next
-***REMOVED***
-
-func (o *baseObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
-	return o.recursiveIter(o.ownIter())
-***REMOVED***
-
-type recursiveIter struct ***REMOVED***
-	o       *baseObject
-	wrapped iterNextFunc
-***REMOVED***
-
-func (iter *recursiveIter) next() (propIterItem, iterNextFunc) ***REMOVED***
-	item, next := iter.wrapped()
-	if next != nil ***REMOVED***
-		iter.wrapped = next
-		return item, iter.next
-	***REMOVED***
-	if proto := iter.o.prototype; proto != nil ***REMOVED***
-		return proto.self.enumerateUnfiltered()()
-	***REMOVED***
-	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
 func (o *baseObject) equal(objectImpl) bool ***REMOVED***
@@ -1110,7 +1103,7 @@ func (o *baseObject) equal(objectImpl) bool ***REMOVED***
 ***REMOVED***
 
 // Reorder property names so that any integer properties are shifted to the beginning of the list
-// in ascending order. This is to conform to ES6 9.1.12.
+// in ascending order. This is to conform to https://262.ecma-international.org/#sec-ordinaryownpropertykeys.
 // Personally I think this requirement is strange. I can sort of understand where they are coming from,
 // this way arrays can be specified just as objects with a 'magic' length property. However, I think
 // it's safe to assume most devs don't use Objects to store integer properties. Therefore, performing
@@ -1125,7 +1118,16 @@ func (o *baseObject) fixPropOrder() ***REMOVED***
 				return strToIdx(names[j]) >= idx
 			***REMOVED***)
 			if k < i ***REMOVED***
-				copy(names[k+1:i+1], names[k:i])
+				if namesMarkedForCopy(names) ***REMOVED***
+					newNames := make([]unistring.String, len(names), cap(names))
+					copy(newNames[:k], names)
+					copy(newNames[k+1:i+1], names[k:i])
+					copy(newNames[i+1:], names[i+1:])
+					names = newNames
+					o.propNames = names
+				***REMOVED*** else ***REMOVED***
+					copy(names[k+1:i+1], names[k:i])
+				***REMOVED***
 				names[k] = name
 			***REMOVED***
 			o.idxPropCount++
@@ -1414,31 +1416,22 @@ func (o *Object) defineOwnProperty(n Value, desc PropertyDescriptor, throw bool)
 	***REMOVED***
 ***REMOVED***
 
-func (o *Object) getWeakRef() *objectWeakRef ***REMOVED***
-	if o.weakRef == nil ***REMOVED***
-		if o.runtime.weakRefTracker == nil ***REMOVED***
-			o.runtime.weakRefTracker = &weakRefTracker***REMOVED******REMOVED***
-		***REMOVED***
-		o.weakRef = &objectWeakRef***REMOVED***
-			id:      o.getId(),
-			tracker: o.runtime.weakRefTracker,
-		***REMOVED***
-		runtime.SetFinalizer(o.weakRef, finalizeObjectWeakRefs)
+func (o *Object) getWeakRefs() map[weakMap]Value ***REMOVED***
+	refs := o.weakRefs
+	if refs == nil ***REMOVED***
+		refs = make(map[weakMap]Value)
+		o.weakRefs = refs
 	***REMOVED***
-
-	return o.weakRef
+	return refs
 ***REMOVED***
 
 func (o *Object) getId() uint64 ***REMOVED***
-	for o.id == 0 ***REMOVED***
-		if o.runtime.hash == nil ***REMOVED***
-			h := o.runtime.getHash()
-			o.runtime.idSeq = h.Sum64()
-		***REMOVED***
-		o.id = o.runtime.idSeq
-		o.runtime.idSeq++
+	id := o.id
+	if id == 0 ***REMOVED***
+		id = o.runtime.genId()
+		o.id = id
 	***REMOVED***
-	return o.id
+	return id
 ***REMOVED***
 
 func (o *guardedObject) guard(props ...unistring.String) ***REMOVED***

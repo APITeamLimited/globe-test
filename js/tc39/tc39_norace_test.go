@@ -7,7 +7,7 @@ import "testing"
 
 func (ctx *tc39TestCtx) runTest(name string, f func(t *testing.T)) ***REMOVED***
 	ctx.t.Run(name, func(t *testing.T) ***REMOVED***
-		// t.Parallel()
+		t.Parallel()
 		f(t)
 	***REMOVED***)
 ***REMOVED***

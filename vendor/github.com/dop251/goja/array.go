@@ -161,9 +161,11 @@ func (a *arrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
 ***REMOVED***
 
 func (a *arrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
-	if i := strToIdx(name); i != math.MaxUint32 ***REMOVED***
-		if i < uint32(len(a.values)) ***REMOVED***
-			return a.values[i]
+	if len(a.values) > 0 ***REMOVED***
+		if i := strToIdx(name); i != math.MaxUint32 ***REMOVED***
+			if i < uint32(len(a.values)) ***REMOVED***
+				return a.values[i]
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if name == "length" ***REMOVED***
@@ -282,12 +284,13 @@ func (a *arrayObject) setForeignStr(name unistring.String, val, receiver Value, 
 ***REMOVED***
 
 type arrayPropIter struct ***REMOVED***
-	a   *arrayObject
-	idx int
+	a     *arrayObject
+	limit int
+	idx   int
 ***REMOVED***
 
 func (i *arrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
-	for i.idx < len(i.a.values) ***REMOVED***
+	for i.idx < len(i.a.values) && i.idx < i.limit ***REMOVED***
 		name := unistring.String(strconv.Itoa(i.idx))
 		prop := i.a.values[i.idx]
 		i.idx++
@@ -296,12 +299,13 @@ func (i *arrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return i.a.baseObject.enumerateUnfiltered()()
+	return i.a.baseObject.enumerateOwnKeys()()
 ***REMOVED***
 
-func (a *arrayObject) enumerateUnfiltered() iterNextFunc ***REMOVED***
+func (a *arrayObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	return (&arrayPropIter***REMOVED***
-		a: a,
+		a:     a,
+		limit: len(a.values),
 	***REMOVED***).next
 ***REMOVED***
 
@@ -345,13 +349,13 @@ func (a *arrayObject) expand(idx uint32) bool ***REMOVED***
 				//log.Println("Switching standard->sparse")
 				sa := &sparseArrayObject***REMOVED***
 					baseObject:     a.baseObject,
-					length:         uint32(a.length),
+					length:         a.length,
 					propValueCount: a.propValueCount,
 				***REMOVED***
 				sa.setValues(a.values, a.objCount+1)
 				sa.val.self = sa
-				sa.init()
 				sa.lengthProp.writable = a.lengthProp.writable
+				sa._put("length", &sa.lengthProp)
 				return false
 			***REMOVED*** else ***REMOVED***
 				if bits.UintSize == 32 ***REMOVED***
@@ -360,21 +364,7 @@ func (a *arrayObject) expand(idx uint32) bool ***REMOVED***
 					***REMOVED***
 				***REMOVED***
 				tl := int(targetLen)
-				// Use the same algorithm as in runtime.growSlice
-				newcap := cap(a.values)
-				doublecap := newcap + newcap
-				if tl > doublecap ***REMOVED***
-					newcap = tl
-				***REMOVED*** else ***REMOVED***
-					if len(a.values) < 1024 ***REMOVED***
-						newcap = doublecap
-					***REMOVED*** else ***REMOVED***
-						for newcap < tl ***REMOVED***
-							newcap += newcap / 4
-						***REMOVED***
-					***REMOVED***
-				***REMOVED***
-				newValues := make([]Value, tl, newcap)
+				newValues := make([]Value, tl, growCap(tl, len(a.values), cap(a.values)))
 				copy(newValues, a.values)
 				a.values = newValues
 			***REMOVED***
