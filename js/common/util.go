@@ -56,3 +56,17 @@ func GetReader(data interface***REMOVED******REMOVED***) (io.Reader, error) ***R
 		return nil, fmt.Errorf("invalid type %T, it needs to be a string, byte array or an ArrayBuffer", data)
 	***REMOVED***
 ***REMOVED***
+
+// ToBytes tries to return a byte slice from compatible types.
+func ToBytes(data interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
+	switch dt := data.(type) ***REMOVED***
+	case []byte:
+		return dt, nil
+	case string:
+		return []byte(dt), nil
+	case goja.ArrayBuffer:
+		return dt.Bytes(), nil
+	default:
+		return nil, fmt.Errorf("invalid type %T, expected string, []byte or ArrayBuffer", data)
+	***REMOVED***
+***REMOVED***

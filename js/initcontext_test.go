@@ -415,6 +415,150 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 	<-ch
 ***REMOVED***
 
+func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	ch := make(chan bool, 1)
+
+	h := func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		defer func() ***REMOVED***
+			ch <- true
+		***REMOVED***()
+
+		require.NoError(t, r.ParseMultipartForm(32<<20))
+		require.Len(t, r.MultipartForm.File["files"], 2)
+		for i, fh := range r.MultipartForm.File["files"] ***REMOVED***
+			f, _ := fh.Open()
+			defer func() ***REMOVED*** assert.NoError(t, f.Close()) ***REMOVED***()
+			bytes := make([]byte, 5)
+			_, err := f.Read(bytes)
+			assert.NoError(t, err)
+			switch i ***REMOVED***
+			case 0:
+				assert.Equal(t, []byte("file1"), bytes)
+			case 1:
+				assert.Equal(t, []byte("file2"), bytes)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	srv := httptest.NewServer(http.HandlerFunc(h))
+	defer srv.Close()
+
+	fs := afero.NewMemMapFs()
+	assert.NoError(t, fs.MkdirAll("/path/to", 0o755))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file1.bin", []byte("file1"), 0o644))
+	assert.NoError(t, afero.WriteFile(fs, "/path/to/file2.bin", []byte("file2"), 0o644))
+
+	b, err := getSimpleBundle(t, "/path/to/script.js",
+		fmt.Sprintf(`
+	import http from 'k6/http';
+
+	function toByteArray(obj) ***REMOVED***
+		let arr = [];
+		if (typeof obj === 'string') ***REMOVED***
+			for (let i=0; i < obj.length; i++) ***REMOVED***
+			  arr.push(obj.charCodeAt(i) & 0xff);
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			obj = new Uint8Array(obj);
+			for (let i=0; i < obj.byteLength; i++) ***REMOVED***
+			  arr.push(obj[i] & 0xff);
+			***REMOVED***
+		***REMOVED***
+		return arr;
+	***REMOVED***
+
+	// A more robust version of this polyfill is available here:
+	// https://jslib.k6.io/formdata/0.0.1/index.js
+	function FormData() ***REMOVED***
+		this.boundary = '----boundary';
+		this.files = [];
+	***REMOVED***
+
+	FormData.prototype.append = function(name, value, filename) ***REMOVED***
+		this.files.push(***REMOVED***
+			name: name,
+			value: value,
+			filename: filename,
+		***REMOVED***);
+	***REMOVED***
+
+	FormData.prototype.body = function(name, value, filename) ***REMOVED***
+		let body = [];
+		let barr = toByteArray('--' + this.boundary + '\r\n');
+		for (let i=0; i < this.files.length; i++) ***REMOVED***
+			body.push(...barr);
+			let cdarr = toByteArray('Content-Disposition: form-data; name="'
+							+ this.files[i].name + '"; filename="'
+							+ this.files[i].filename
+							+ '"\r\nContent-Type: application/octet-stream\r\n\r\n');
+			body.push(...cdarr);
+			body.push(...toByteArray(this.files[i].value));
+			body.push(...toByteArray('\r\n'));
+		***REMOVED***
+		body.push(...toByteArray('--' + this.boundary + '--\r\n'));
+		return new Uint8Array(body).buffer;
+	***REMOVED***
+
+	const file1 = open('/path/to/file1.bin', 'b');
+	const file2 = open('/path/to/file2.bin', 'b');
+
+	export default function () ***REMOVED***
+		const fd = new FormData();
+		fd.append('files', file1, 'file1.bin');
+		fd.append('files', file2, 'file2.bin');
+		let res = http.post('%s', fd.body(),
+				***REMOVED*** headers: ***REMOVED*** 'Content-Type': 'multipart/form-data; boundary=' + fd.boundary ***REMOVED******REMOVED***);
+		if (res.status !== 200) ***REMOVED***
+			throw new Error('Expected HTTP 200 response, received: ' + res.status);
+		***REMOVED***
+		return true;
+	***REMOVED***
+			`, srv.URL), fs)
+	require.NoError(t, err)
+
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
+	assert.NoError(t, err)
+
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	logger.Out = ioutil.Discard
+
+	state := &lib.State***REMOVED***
+		Options: lib.Options***REMOVED******REMOVED***,
+		Logger:  logger,
+		Group:   root,
+		Transport: &http.Transport***REMOVED***
+			DialContext: (netext.NewDialer(
+				net.Dialer***REMOVED***
+					Timeout:   10 * time.Second,
+					KeepAlive: 60 * time.Second,
+					DualStack: true,
+				***REMOVED***,
+				netext.NewResolver(net.LookupIP, 0, types.DNSfirst, types.DNSpreferIPv4),
+			)).DialContext,
+		***REMOVED***,
+		BPool:   bpool.NewBufferPool(1),
+		Samples: make(chan stats.SampleContainer, 500),
+	***REMOVED***
+
+	ctx := context.Background()
+	ctx = lib.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, bi.Runtime)
+	*bi.Context = ctx
+
+	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
+	assert.NoError(t, err)
+	require.NotNil(t, v)
+	assert.Equal(t, true, v.Export())
+
+	<-ch
+***REMOVED***
+
 func TestInitContextVU(t *testing.T) ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", `
 		let vu = __VU;

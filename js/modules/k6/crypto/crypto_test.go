@@ -24,10 +24,12 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
@@ -373,6 +375,18 @@ func TestHMac(t *testing.T) ***REMOVED***
 
 			assert.NoError(t, err)
 		***REMOVED***)
+
+		t.Run(algorithm+" ArrayBuffer: valid", func(t *testing.T) ***REMOVED***
+			_, err := common.RunString(rt, `
+			var data = new Uint8Array([115,111,109,101,32,100,97,116,97,32,116,
+										111,32,104,97,115,104]).buffer;
+			var resultHex = crypto.hmac(algorithm, "a secret", data, "hex");
+			if (resultHex !== correctHex) ***REMOVED***
+				throw new Error("Hex encoding mismatch: " + resultHex);
+			***REMOVED***`)
+
+			assert.NoError(t, err)
+		***REMOVED***)
 	***REMOVED***
 
 	// Algorithms not supported or typing error
@@ -410,6 +424,42 @@ func TestHMac(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestHexEncodeOK(t *testing.T) ***REMOVED***
+	rt := goja.New()
+	input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
+	testCases := []interface***REMOVED******REMOVED******REMOVED***
+		input, string(input), rt.NewArrayBuffer(input),
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("%T", tc), func(t *testing.T) ***REMOVED***
+			c := New()
+			ctx := common.WithRuntime(context.Background(), rt)
+			out := c.HexEncode(ctx, tc)
+			assert.Equal(t, "68656c6c6f", out)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestHexEncodeError(t *testing.T) ***REMOVED***
+	rt := goja.New()
+
+	expErr := "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"
+	defer func() ***REMOVED***
+		err := recover()
+		require.NotNil(t, err)
+		require.IsType(t, &goja.Object***REMOVED******REMOVED***, err)
+		require.IsType(t, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***, err.(*goja.Object).Export())
+		val := err.(*goja.Object).Export().(map[string]interface***REMOVED******REMOVED***)
+		assert.Equal(t, expErr, fmt.Sprintf("%s", val["value"]))
+	***REMOVED***()
+
+	c := New()
+	ctx := common.WithRuntime(context.Background(), rt)
+	c.HexEncode(ctx, struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+***REMOVED***
+
 func TestAWSv4(t *testing.T) ***REMOVED***
 	// example values from https://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
 	rt := goja.New()
@@ -421,7 +471,7 @@ func TestAWSv4(t *testing.T) ***REMOVED***
 	_, err := common.RunString(rt, `
 		var HexEncode = crypto.hexEncode;
 		var HmacSHA256 = function(data, key) ***REMOVED***
-			return crypto.hmac("sha256",key, data, "binary");
+			return crypto.hmac("sha256", key, data, "binary");
 		***REMOVED***;
 
 		var expectedKDate    = '969fbb94feb542b71ede6f87fe4d5fa29c789342b0f407474670f0c2489e0a0d'
