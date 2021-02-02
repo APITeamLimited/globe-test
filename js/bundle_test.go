@@ -114,15 +114,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
-		t.Run("Extended/ok/CoreJS", func(t *testing.T) ***REMOVED***
-			rtOpts := lib.RuntimeOptions***REMOVED***
-				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
-			***REMOVED***
-			_, err := getSimpleBundle(t, "/script.js",
-				`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`, rtOpts)
-
-			assert.NoError(t, err)
-		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
 			rtOpts := lib.RuntimeOptions***REMOVED***
 				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
@@ -153,9 +144,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
 					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)",
 				***REMOVED***,
-				// some ES2015 objects polyfilled by core.js are not supported
+				// Promises are not supported
 				***REMOVED***
-					"CoreJS", "base",
+					"Promise", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`,
 					"ReferenceError: Promise is not defined at file:///script.js:1:45(5)",
 				***REMOVED***,
