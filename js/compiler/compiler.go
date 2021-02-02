@@ -37,7 +37,39 @@ import (
 
 var (
 	DefaultOpts = map[string]interface***REMOVED******REMOVED******REMOVED***
-		"presets":       []string***REMOVED***"latest"***REMOVED***,
+		// "presets": []string***REMOVED***"latest"***REMOVED***,
+		"plugins": []interface***REMOVED******REMOVED******REMOVED***
+			// es2015 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2015/src/index.js
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-template-literals", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false, "spec": false***REMOVED******REMOVED***,
+			"transform-es2015-literals",
+			"transform-es2015-function-name",
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***,
+			"transform-es2015-block-scoped-functions",
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			"transform-es2015-object-super",
+			"transform-es2015-shorthand-properties",
+			"transform-es2015-duplicate-keys",
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			// "transform-es2015-for-of", // in goja
+			// "transform-es2015-sticky-regex", // in goja
+			// "transform-es2015-unicode-regex", // in goja
+			"check-es2015-constants",
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-spread", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			"transform-es2015-parameters",
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-destructuring", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			"transform-es2015-block-scoping", // let/const which particularly slow on big inputs
+			// "transform-es2015-typeof-symbol", // in goja
+			// all the other module plugins are just dropped
+			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-modules-commonjs", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			// "transform-regenerator", // Doesn't really work unless regeneratorRuntime is also added
+
+			// es2016 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2016/src/index.js
+			"transform-exponentiation-operator",
+
+			// es2017 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2017/src/index.js
+			// "syntax-trailing-function-commas", // in goja
+			// "transform-async-to-generator", // Doesn't really work unless regeneratorRuntime is also added
+		***REMOVED***,
 		"ast":           false,
 		"sourceMaps":    false,
 		"babelrc":       false,
