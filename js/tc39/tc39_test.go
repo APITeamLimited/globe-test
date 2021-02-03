@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -129,7 +130,7 @@ type tc39BenchmarkItem struct ***REMOVED***
 type tc39BenchmarkData []tc39BenchmarkItem
 
 type tc39TestCtx struct ***REMOVED***
-	compiler       *compiler.Compiler
+	compilerPool   *compiler.Pool
 	base           string
 	t              *testing.T
 	prgCache       map[string]*goja.Program
@@ -224,16 +225,12 @@ func (ctx *tc39TestCtx) fail(t testing.TB, name string, strict bool, errStr stri
 	if ok ***REMOVED***
 		if !assert.Equal(t, expected, errStr) ***REMOVED***
 			ctx.errorsLock.Lock()
-			fmt.Println("different")
-			fmt.Println(expected)
-			fmt.Println(errStr)
 			ctx.errors[nameKey] = errStr
 			ctx.errorsLock.Unlock()
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		assert.Empty(t, errStr)
 		ctx.errorsLock.Lock()
-		fmt.Println("no error", name)
 		ctx.errors[nameKey] = errStr
 		ctx.errorsLock.Unlock()
 	***REMOVED***
@@ -441,7 +438,9 @@ func (ctx *tc39TestCtx) compile(base, name string) (*goja.Program, error) ***REM
 		***REMOVED***
 
 		str := string(b)
-		prg, _, err = ctx.compiler.Compile(str, name, "", "", false, lib.CompatibilityModeExtended)
+		compiler := ctx.compilerPool.Get()
+		defer ctx.compilerPool.Put(compiler)
+		prg, _, err = compiler.Compile(str, name, "", "", false, lib.CompatibilityModeExtended)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -480,11 +479,13 @@ func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *g
 	***REMOVED***
 
 	var p *goja.Program
-	p, _, origErr = ctx.compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
+	compiler := ctx.compilerPool.Get()
+	defer ctx.compilerPool.Put(compiler)
+	p, _, origErr = compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
 	if origErr != nil ***REMOVED***
-		src, _, err = ctx.compiler.Transform(src, name)
+		src, _, err = compiler.Transform(src, name)
 		if err == nil ***REMOVED***
-			p, _, err = ctx.compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
+			p, _, err = compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		err = origErr
@@ -548,8 +549,8 @@ func TestTC39(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	ctx := &tc39TestCtx***REMOVED***
-		base:     tc39BASE,
-		compiler: compiler.New(testutils.NewLogger(t)),
+		base:         tc39BASE,
+		compilerPool: compiler.NewPool(testutils.NewLogger(t), runtime.GOMAXPROCS(0)),
 	***REMOVED***
 	ctx.init()
 	// ctx.enableBench = true
