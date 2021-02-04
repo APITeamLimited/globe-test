@@ -1722,6 +1722,27 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		http.post("HTTPBIN_URL/compare-bin", respBin.body);
+
+		// Check ArrayBuffer response
+		var respBin = http.get("HTTPBIN_URL/get-bin", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
+		if (respBin.byteLength !== expBinLength) ***REMOVED***
+			throw new Error("response body length should be '" + expBinLength + "' but was '" + respBin.byteLength + "'");
+		***REMOVED***
+
+		// Check ArrayBuffer responses with http.batch()
+		var responses = http.batch([
+			["GET", "HTTPBIN_URL/get-bin", null, ***REMOVED*** responseType: "binary" ***REMOVED***],
+			["GET", "HTTPBIN_URL/get-bin", null, ***REMOVED*** responseType: "binary" ***REMOVED***],
+		]);
+		if (responses.length != 2) ***REMOVED***
+			throw new Error("expected 2 responses, received " + responses.length);
+		***REMOVED***
+		for (var i = 0; i < responses.length; i++) ***REMOVED***
+			if (responses[i].body.byteLength !== expBinLength) ***REMOVED***
+				throw new Error("response body length should be '"
+					+ expBinLength + "' but was '" + responses[i].body.byteLength + "'");
+			***REMOVED***
+		***REMOVED***
 	`))
 	assert.NoError(t, err)
 
