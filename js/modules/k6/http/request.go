@@ -113,6 +113,7 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
+	processResponse(ctx, resp, req.ResponseType)
 	return h.responseFromHttpext(resp), nil
 ***REMOVED***
 

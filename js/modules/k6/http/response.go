@@ -21,6 +21,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -37,6 +38,16 @@ import (
 type Response struct ***REMOVED***
 	*httpext.Response `js:"-"`
 	h                 *HTTP
+***REMOVED***
+
+// processResponse stores the body as an ArrayBuffer if indicated by
+// respType. This is done here instead of in httpext.readResponseBody to avoid
+// a reverse dependency on js/common or goja.
+func processResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) ***REMOVED***
+	if respType == httpext.ResponseTypeBinary ***REMOVED***
+		rt := common.GetRuntime(ctx)
+		resp.Body = rt.NewArrayBuffer(resp.Body.([]byte))
+	***REMOVED***
 ***REMOVED***
 
 func (h *HTTP) responseFromHttpext(resp *httpext.Response) *Response ***REMOVED***
