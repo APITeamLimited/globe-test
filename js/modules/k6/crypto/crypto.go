@@ -175,6 +175,7 @@ func (hasher *Hasher) Update(input interface***REMOVED******REMOVED***) ***REMOV
 // Digest returns the hash value in the given encoding.
 func (hasher *Hasher) Digest(outputEncoding string) interface***REMOVED******REMOVED*** ***REMOVED***
 	sum := hasher.hash.Sum(nil)
+	rt := common.GetRuntime(hasher.ctx)
 
 	switch outputEncoding ***REMOVED***
 	case "base64":
@@ -190,11 +191,12 @@ func (hasher *Hasher) Digest(outputEncoding string) interface***REMOVED******REM
 		return hex.EncodeToString(sum)
 
 	case "binary":
-		return sum
+		ab := rt.NewArrayBuffer(sum)
+		return &ab
 
 	default:
 		err := errors.New("Invalid output encoding: " + outputEncoding)
-		common.Throw(common.GetRuntime(hasher.ctx), err)
+		common.Throw(rt, err)
 	***REMOVED***
 
 	return ""

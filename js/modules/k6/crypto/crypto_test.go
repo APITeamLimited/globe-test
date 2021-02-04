@@ -303,7 +303,7 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		  return true;
 		***REMOVED***
 
-		var resultBinary = hasher.digest("binary");
+		var resultBinary = new Uint8Array(hasher.digest("binary"));
 		if (!arraysEqual(resultBinary,  correctBinary)) ***REMOVED***
 			throw new Error("Binary encoding mismatch: " + JSON.stringify(resultBinary));
 		***REMOVED***
