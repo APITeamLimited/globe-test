@@ -21,16 +21,24 @@
 package cloud
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
-	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/mailru/easyjson"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/cloudapi"
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
@@ -45,13 +53,14 @@ const TestName = "k6 test"
 
 // Collector sends result data to the Load Impact cloud service.
 type Collector struct ***REMOVED***
-	config      Config
+	config      cloudapi.Config
 	referenceID string
 
-	executionPlan []lib.ExecutionStep
-	duration      int64 // in seconds
-	thresholds    map[string][]*stats.Threshold
-	client        *Client
+	executionPlan  []lib.ExecutionStep
+	duration       int64 // in seconds
+	thresholds     map[string][]*stats.Threshold
+	client         *cloudapi.Client
+	pushBufferPool sync.Pool
 
 	anonymous bool
 	runStatus lib.RunStatus
@@ -79,34 +88,12 @@ type Collector struct ***REMOVED***
 // Verify that Collector implements lib.Collector
 var _ lib.Collector = &Collector***REMOVED******REMOVED***
 
-// MergeFromExternal merges three fields from json in a loadimact key of the provided external map
-func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error ***REMOVED***
-	if val, ok := external["loadimpact"]; ok ***REMOVED***
-		// TODO: Important! Separate configs and fix the whole 2 configs mess!
-		tmpConfig := Config***REMOVED******REMOVED***
-		if err := json.Unmarshal(val, &tmpConfig); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		// Only take out the ProjectID, Name and Token from the options.ext.loadimpact map:
-		if tmpConfig.ProjectID.Valid ***REMOVED***
-			conf.ProjectID = tmpConfig.ProjectID
-		***REMOVED***
-		if tmpConfig.Name.Valid ***REMOVED***
-			conf.Name = tmpConfig.Name
-		***REMOVED***
-		if tmpConfig.Token.Valid ***REMOVED***
-			conf.Token = tmpConfig.Token
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
 // New creates a new cloud collector
 func New(
 	logger logrus.FieldLogger,
-	conf Config, src *loader.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
+	conf cloudapi.Config, src *loader.SourceData, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
 ) (*Collector, error) ***REMOVED***
-	if err := MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
+	if err := cloudapi.MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
@@ -149,7 +136,7 @@ func New(
 	return &Collector***REMOVED***
 		config:               conf,
 		thresholds:           thresholds,
-		client:               NewClient(logger, conf.Token.String, conf.Host.String, version),
+		client:               cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, version),
 		anonymous:            !conf.Token.Valid,
 		executionPlan:        executionPlan,
 		duration:             int64(duration / time.Second),
@@ -157,6 +144,11 @@ func New(
 		aggrBuckets:          map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***,
 		stopSendingMetricsCh: make(chan struct***REMOVED******REMOVED***),
 		logger:               logger,
+		pushBufferPool: sync.Pool***REMOVED***
+			New: func() interface***REMOVED******REMOVED*** ***REMOVED***
+				return &bytes.Buffer***REMOVED******REMOVED***
+			***REMOVED***,
+		***REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -178,7 +170,7 @@ func (c *Collector) Init() error ***REMOVED***
 	***REMOVED***
 	maxVUs := lib.GetMaxPossibleVUs(c.executionPlan)
 
-	testRun := &TestRun***REMOVED***
+	testRun := &cloudapi.TestRun***REMOVED***
 		Name:       c.config.Name.String,
 		ProjectID:  c.config.ProjectID.Int64,
 		VUsMax:     int64(maxVUs),
@@ -210,7 +202,7 @@ func (c *Collector) Init() error ***REMOVED***
 
 // Link return a link that is shown to the user.
 func (c *Collector) Link() string ***REMOVED***
-	return URLForResults(c.referenceID, c.config)
+	return cloudapi.URLForResults(c.referenceID, c.config)
 ***REMOVED***
 
 // Run is called in a goroutine and starts the collector. Should commit samples to the backend
@@ -528,7 +520,7 @@ func (c *Collector) shouldStopSendingMetrics(err error) bool ***REMOVED***
 		return false
 	***REMOVED***
 
-	if errResp, ok := err.(ErrorResponse); ok && errResp.Response != nil ***REMOVED***
+	if errResp, ok := err.(cloudapi.ErrorResponse); ok && errResp.Response != nil ***REMOVED***
 		return errResp.Response.StatusCode == http.StatusForbidden && errResp.Code == 4
 	***REMOVED***
 
@@ -575,7 +567,7 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	for i := 0; i < numberOfWorkers; i++ ***REMOVED***
 		go func() ***REMOVED***
 			for job := range ch ***REMOVED***
-				err := c.client.PushMetric(c.referenceID, c.config.NoCompress.Bool, job.samples)
+				err := c.PushMetric(c.referenceID, c.config.NoCompress.Bool, job.samples)
 				job.done <- err
 				if c.shouldStopSendingMetrics(err) ***REMOVED***
 					return
@@ -622,7 +614,7 @@ func (c *Collector) testFinished() ***REMOVED***
 	***REMOVED***
 
 	testTainted := false
-	thresholdResults := make(ThresholdResult)
+	thresholdResults := make(cloudapi.ThresholdResult)
 	for name, thresholds := range c.thresholds ***REMOVED***
 		thresholdResults[name] = make(map[string]bool)
 		for _, t := range thresholds ***REMOVED***
@@ -659,4 +651,74 @@ func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
 // SetRunStatus Set run status
 func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED***
 	c.runStatus = status
+***REMOVED***
+
+const expectedGzipRatio = 6 // based on test it is around 6.8, but we don't need to be that accurate
+
+// PushMetric pushes the provided metric samples for the given referenceID
+func (c *Collector) PushMetric(referenceID string, noCompress bool, s []*Sample) error ***REMOVED***
+	start := time.Now()
+	url := fmt.Sprintf("%s/v1/metrics/%s", c.config.Host.String, referenceID)
+
+	jsonStart := time.Now()
+	b, err := easyjson.Marshal(samples(s))
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	jsonTime := time.Since(jsonStart)
+
+	// TODO: change the context, maybe to one with a timeout
+	req, err := http.NewRequestWithContext(context.Background(), "POST", url, nil)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	req.Header.Set("X-Payload-Sample-Count", strconv.Itoa(len(s)))
+	var additionalFields logrus.Fields
+
+	if !noCompress ***REMOVED***
+		buf := c.pushBufferPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		defer c.pushBufferPool.Put(buf)
+		unzippedSize := len(b)
+		buf.Grow(unzippedSize / expectedGzipRatio)
+		gzipStart := time.Now()
+		***REMOVED***
+			g, _ := gzip.NewWriterLevel(buf, gzip.BestSpeed)
+			if _, err = g.Write(b); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			if err = g.Close(); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED***
+		gzipTime := time.Since(gzipStart)
+
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("X-Payload-Byte-Count", strconv.Itoa(unzippedSize))
+
+		additionalFields = logrus.Fields***REMOVED***
+			"unzipped_size":  unzippedSize,
+			"gzip_t":         gzipTime,
+			"content_length": buf.Len(),
+		***REMOVED***
+
+		b = buf.Bytes()
+	***REMOVED***
+
+	req.Header.Set("Content-Length", strconv.Itoa(len(b)))
+	req.Body = ioutil.NopCloser(bytes.NewReader(b))
+	req.GetBody = func() (io.ReadCloser, error) ***REMOVED***
+		return ioutil.NopCloser(bytes.NewReader(b)), nil
+	***REMOVED***
+
+	err = c.client.Do(req, nil)
+
+	c.logger.WithFields(logrus.Fields***REMOVED***
+		"t":         time.Since(start),
+		"json_t":    jsonTime,
+		"part_size": len(s),
+	***REMOVED***).WithFields(additionalFields).Debug("Pushed part to cloud")
+
+	return err
 ***REMOVED***

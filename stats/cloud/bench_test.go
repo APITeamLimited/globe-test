@@ -36,6 +36,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/loadimpact/k6/cloudapi"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils"
@@ -55,7 +56,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 		Duration: types.NullDurationFrom(1 * time.Second),
 	***REMOVED***
 
-	config := NewConfig().Apply(Config***REMOVED***
+	config := cloudapi.NewConfig().Apply(cloudapi.Config***REMOVED***
 		NoCompress:              null.BoolFrom(true),
 		AggregationCalcInterval: types.NullDurationFrom(time.Millisecond * 200),
 		AggregationPeriod:       types.NullDurationFrom(time.Millisecond * 200),
@@ -317,7 +318,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		***REMOVED***,
 	)
 
-	config := NewConfig().Apply(Config***REMOVED***
+	config := cloudapi.NewConfig().Apply(cloudapi.Config***REMOVED***
 		Host:                    null.StringFrom(tb.ServerHTTP.URL),
 		AggregationCalcInterval: types.NullDurationFrom(time.Millisecond * 200),
 		AggregationPeriod:       types.NullDurationFrom(time.Millisecond * 200),
@@ -335,7 +336,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 				b.StopTimer()
 				toSend := append([]*Sample***REMOVED******REMOVED***, samples...)
 				b.StartTimer()
-				require.NoError(b, collector.client.PushMetric("fake", false, toSend))
+				require.NoError(b, collector.PushMetric("fake", false, toSend))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

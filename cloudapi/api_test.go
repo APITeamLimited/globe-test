@@ -18,18 +18,14 @@
  *
  */
 
-package cloud
+package cloudapi
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -70,47 +66,6 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 	assert.True(t, resp.ConfigOverride.AggregationPeriod.Valid)
 	assert.Equal(t, types.Duration(2*time.Second), resp.ConfigOverride.AggregationPeriod.Duration)
 	assert.False(t, resp.ConfigOverride.AggregationMinSamples.Valid)
-***REMOVED***
-
-func TestPublishMetric(t *testing.T) ***REMOVED***
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		g, err := gzip.NewReader(r.Body)
-
-		require.NoError(t, err)
-		var buf bytes.Buffer
-		_, err = io.Copy(&buf, g)
-		require.NoError(t, err)
-		byteCount, err := strconv.Atoi(r.Header.Get("x-payload-byte-count"))
-		require.NoError(t, err)
-		require.Equal(t, buf.Len(), byteCount)
-
-		samplesCount, err := strconv.Atoi(r.Header.Get("x-payload-sample-count"))
-		require.NoError(t, err)
-		var samples []*Sample
-		err = json.Unmarshal(buf.Bytes(), &samples)
-		require.NoError(t, err)
-		require.Equal(t, len(samples), samplesCount)
-
-		fprintf(t, w, "")
-	***REMOVED***))
-	defer server.Close()
-
-	client := NewClient(testutils.NewLogger(t), "token", server.URL, "1.0")
-
-	samples := []*Sample***REMOVED***
-		***REMOVED***
-			Type:   "Point",
-			Metric: "metric",
-			Data: &SampleDataSingle***REMOVED***
-				Type:  1,
-				Time:  toMicroSecond(time.Now()),
-				Value: 1.2,
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***
-	err := client.PushMetric("1", false, samples)
-
-	assert.Nil(t, err)
 ***REMOVED***
 
 func TestFinished(t *testing.T) ***REMOVED***
