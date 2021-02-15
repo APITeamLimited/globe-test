@@ -175,9 +175,6 @@ func newRuntime(
 ***REMOVED***
 
 func TestRequestAndBatch(t *testing.T) ***REMOVED***
-	if runtime.GOOS == "windows" ***REMOVED***
-		t.Skip()
-	***REMOVED***
 	t.Parallel()
 	tb, state, samples, rt, ctx := newRuntime(t)
 	defer tb.Cleanup()
@@ -518,55 +515,6 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assert.Equal(t, "HTTP/2.0", proto)
 			***REMOVED***
 		***REMOVED***
-	***REMOVED***)
-	t.Run("TLS", func(t *testing.T) ***REMOVED***
-		t.Run("cert_expired", func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(`http.get("https://expired.badssl.com/");`)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "x509: certificate has expired or is not yet valid")
-		***REMOVED***)
-		tlsVersionTests := []struct ***REMOVED***
-			Name, URL, Version string
-		***REMOVED******REMOVED***
-			***REMOVED***Name: "tls10", URL: "https://tls-v1-0.badssl.com:1010/", Version: "http.TLS_1_0"***REMOVED***,
-			***REMOVED***Name: "tls11", URL: "https://tls-v1-1.badssl.com:1011/", Version: "http.TLS_1_1"***REMOVED***,
-			***REMOVED***Name: "tls12", URL: "https://badssl.com/", Version: "http.TLS_1_2"***REMOVED***,
-		***REMOVED***
-		for _, versionTest := range tlsVersionTests ***REMOVED***
-			t.Run(versionTest.Name, func(t *testing.T) ***REMOVED***
-				_, err := rt.RunString(fmt.Sprintf(`
-					var res = http.get("%s");
-					if (res.tls_version != %s) ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
-				`, versionTest.URL, versionTest.Version))
-				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", versionTest.URL, "", 200, "")
-			***REMOVED***)
-		***REMOVED***
-		tlsCipherSuiteTests := []struct ***REMOVED***
-			Name, URL, CipherSuite string
-		***REMOVED******REMOVED***
-			***REMOVED***Name: "cipher_suite_cbc", URL: "https://cbc.badssl.com/", CipherSuite: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"***REMOVED***,
-			***REMOVED***Name: "cipher_suite_ecc384", URL: "https://ecc384.badssl.com/", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"***REMOVED***,
-		***REMOVED***
-		for _, cipherSuiteTest := range tlsCipherSuiteTests ***REMOVED***
-			t.Run(cipherSuiteTest.Name, func(t *testing.T) ***REMOVED***
-				_, err := rt.RunString(fmt.Sprintf(`
-					var res = http.get("%s");
-					if (res.tls_cipher_suite != "%s") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
-				`, cipherSuiteTest.URL, cipherSuiteTest.CipherSuite))
-				assert.NoError(t, err)
-				assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", cipherSuiteTest.URL, "", 200, "")
-			***REMOVED***)
-		***REMOVED***
-		t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
-			website := "https://www.wikipedia.org/"
-			_, err := rt.RunString(fmt.Sprintf(`
-			var res = http.request("GET", "%s");
-			if (res.ocsp.status != http.OCSP_STATUS_GOOD) ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.status); ***REMOVED***
-			`, website))
-			assert.NoError(t, err)
-			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", website, "", 200, "")
-		***REMOVED***)
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
 		hook := logtest.NewLocal(state.Logger)
@@ -2115,6 +2063,65 @@ func TestErrorsWithDecompression(t *testing.T) ***REMOVED***
 		["gzip", "deflate", "br", "zstd"].forEach(handleResponseEncodingError);
 	`))
 	assert.NoError(t, err)
+***REMOVED***
+
+func TestRequestAndBatchTLS(t *testing.T) ***REMOVED***
+	if runtime.GOOS == "windows" ***REMOVED***
+		t.Skip()
+	***REMOVED***
+	t.Parallel()
+	tb, _, samples, rt, _ := newRuntime(t)
+	defer tb.Cleanup()
+
+	t.Run("cert_expired", func(t *testing.T) ***REMOVED***
+		_, err := rt.RunString(`http.get("https://expired.badssl.com/");`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "x509: certificate has expired or is not yet valid")
+	***REMOVED***)
+	tlsVersionTests := []struct ***REMOVED***
+		Name, URL, Version string
+	***REMOVED******REMOVED***
+		***REMOVED***Name: "tls10", URL: "https://tls-v1-0.badssl.com:1010/", Version: "http.TLS_1_0"***REMOVED***,
+		***REMOVED***Name: "tls11", URL: "https://tls-v1-1.badssl.com:1011/", Version: "http.TLS_1_1"***REMOVED***,
+		***REMOVED***Name: "tls12", URL: "https://badssl.com/", Version: "http.TLS_1_2"***REMOVED***,
+	***REMOVED***
+	for _, versionTest := range tlsVersionTests ***REMOVED***
+		versionTest := versionTest
+		t.Run(versionTest.Name, func(t *testing.T) ***REMOVED***
+			_, err := rt.RunString(fmt.Sprintf(`
+					var res = http.get("%s");
+					if (res.tls_version != %s) ***REMOVED*** throw new Error("wrong TLS version: " + res.tls_version); ***REMOVED***
+				`, versionTest.URL, versionTest.Version))
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", versionTest.URL, "", 200, "")
+		***REMOVED***)
+	***REMOVED***
+	tlsCipherSuiteTests := []struct ***REMOVED***
+		Name, URL, CipherSuite string
+	***REMOVED******REMOVED***
+		***REMOVED***Name: "cipher_suite_cbc", URL: "https://cbc.badssl.com/", CipherSuite: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"***REMOVED***,
+		***REMOVED***Name: "cipher_suite_ecc384", URL: "https://ecc384.badssl.com/", CipherSuite: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"***REMOVED***,
+	***REMOVED***
+	for _, cipherSuiteTest := range tlsCipherSuiteTests ***REMOVED***
+		cipherSuiteTest := cipherSuiteTest
+		t.Run(cipherSuiteTest.Name, func(t *testing.T) ***REMOVED***
+			_, err := rt.RunString(fmt.Sprintf(`
+					var res = http.get("%s");
+					if (res.tls_cipher_suite != "%s") ***REMOVED*** throw new Error("wrong TLS cipher suite: " + res.tls_cipher_suite); ***REMOVED***
+				`, cipherSuiteTest.URL, cipherSuiteTest.CipherSuite))
+			assert.NoError(t, err)
+			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", cipherSuiteTest.URL, "", 200, "")
+		***REMOVED***)
+	***REMOVED***
+	t.Run("ocsp_stapled_good", func(t *testing.T) ***REMOVED***
+		website := "https://www.wikipedia.org/"
+		_, err := rt.RunString(fmt.Sprintf(`
+			var res = http.request("GET", "%s");
+			if (res.ocsp.status != http.OCSP_STATUS_GOOD) ***REMOVED*** throw new Error("wrong ocsp stapled response status: " + res.ocsp.status); ***REMOVED***
+			`, website))
+		assert.NoError(t, err)
+		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", website, "", 200, "")
+	***REMOVED***)
 ***REMOVED***
 
 func TestDigestAuthWithBody(t *testing.T) ***REMOVED***
