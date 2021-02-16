@@ -241,7 +241,7 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	return c
 ***REMOVED***
 
-// MergeFromExternal merges three fields from json in a loadimact key of the provided external map
+// MergeFromExternal merges three fields from json in a loadimpact key of the provided external map
 func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error ***REMOVED***
 	if val, ok := external["loadimpact"]; ok ***REMOVED***
 		// TODO: Important! Separate configs and fix the whole 2 configs mess!
