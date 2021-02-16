@@ -21,8 +21,6 @@
 package data
 
 import (
-	"context"
-
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 )
@@ -33,103 +31,84 @@ type sharedArray struct ***REMOVED***
 	arr []string
 ***REMOVED***
 
-func (s sharedArray) wrap(ctxPtr *context.Context, rt *goja.Runtime) goja.Value ***REMOVED***
-	cal, err := rt.RunString(arrayWrapperCode)
-	if err != nil ***REMOVED***
-		common.Throw(rt, err)
-	***REMOVED***
-	call, _ := goja.AssertFunction(cal)
-	wrapped, err := call(goja.Undefined(), rt.ToValue(common.Bind(rt, s, ctxPtr)))
-	if err != nil ***REMOVED***
-		common.Throw(rt, err)
-	***REMOVED***
+type wrappedSharedArray struct ***REMOVED***
+	sharedArray
 
-	return wrapped
+	rt       *goja.Runtime
+	freeze   goja.Callable
+	isFrozen goja.Callable
+	parse    goja.Callable
 ***REMOVED***
 
-func (s sharedArray) Get(index int) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+func (s sharedArray) wrap(rt *goja.Runtime) goja.Value ***REMOVED***
+	freeze, _ := goja.AssertFunction(rt.GlobalObject().Get("Object").ToObject(rt).Get("freeze"))
+	isFrozen, _ := goja.AssertFunction(rt.GlobalObject().Get("Object").ToObject(rt).Get("isFrozen"))
+	parse, _ := goja.AssertFunction(rt.GlobalObject().Get("JSON").ToObject(rt).Get("parse"))
+	return rt.NewDynamicArray(wrappedSharedArray***REMOVED***
+		sharedArray: s,
+		rt:          rt,
+		freeze:      freeze,
+		isFrozen:    isFrozen,
+		parse:       parse,
+	***REMOVED***)
+***REMOVED***
+
+func (s wrappedSharedArray) Set(index int, val goja.Value) bool ***REMOVED***
+	panic(s.rt.NewTypeError("SharedArray is immutable")) // this is specifically a type error
+***REMOVED***
+
+func (s wrappedSharedArray) SetLen(len int) bool ***REMOVED***
+	panic(s.rt.NewTypeError("SharedArray is immutable")) // this is specifically a type error
+***REMOVED***
+
+func (s wrappedSharedArray) Get(index int) goja.Value ***REMOVED***
 	if index < 0 || index >= len(s.arr) ***REMOVED***
-		return goja.Undefined(), nil
+		return goja.Undefined()
+	***REMOVED***
+	val, err := s.parse(goja.Undefined(), s.rt.ToValue(s.arr[index]))
+	if err != nil ***REMOVED***
+		common.Throw(s.rt, err)
+	***REMOVED***
+	err = s.deepFreeze(s.rt, val)
+	if err != nil ***REMOVED***
+		common.Throw(s.rt, err)
 	***REMOVED***
 
-	// we specifically use JSON.parse to get the json to an object inside as otherwise we won't be
-	// able to freeze it as goja doesn't let us unless it is a pure goja object and this is the
-	// easiest way to get one.
-	return s.arr[index], nil
+	return val
 ***REMOVED***
 
-func (s sharedArray) Length() int ***REMOVED***
+func (s wrappedSharedArray) Len() int ***REMOVED***
 	return len(s.arr)
 ***REMOVED***
 
-/* This implementation is commented as with it - it is harder to deepFreeze it with this implementation.
-type sharedArrayIterator struct ***REMOVED***
-	a     *sharedArray
-	index int
-***REMOVED***
-
-func (sai *sharedArrayIterator) Next() (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	if sai.index == len(sai.a.arr)-1 ***REMOVED***
-		return map[string]bool***REMOVED***"done": true***REMOVED***, nil
+func (s wrappedSharedArray) deepFreeze(rt *goja.Runtime, val goja.Value) error ***REMOVED***
+	if val != nil && goja.IsNull(val) ***REMOVED***
+		return nil
 	***REMOVED***
-	sai.index++
-	var tmp interface***REMOVED******REMOVED***
-	if err := json.Unmarshal(sai.a.arr[sai.index], &tmp); err != nil ***REMOVED***
-		return goja.Undefined(), err
+
+	_, err := s.freeze(goja.Undefined(), val)
+	if err != nil ***REMOVED***
+		return err
 	***REMOVED***
-	return map[string]interface***REMOVED******REMOVED******REMOVED***"value": tmp***REMOVED***, nil
-***REMOVED***
 
-func (s sharedArray) Iterator() *sharedArrayIterator ***REMOVED***
-	return &sharedArrayIterator***REMOVED***a: &s, index: -1***REMOVED***
-***REMOVED***
-*/
-
-const arrayWrapperCode = `(function(val) ***REMOVED***
-	function deepFreeze(o) ***REMOVED***
-		Object.freeze(o);
-		if (o === undefined) ***REMOVED***
-			return o;
-		***REMOVED***
-
-		Object.getOwnPropertyNames(o).forEach(function (prop) ***REMOVED***
-			if (o[prop] !== null
-				&& (typeof o[prop] === "object" || typeof o[prop] === "function")
-				&& !Object.isFrozen(o[prop])) ***REMOVED***
-				deepFreeze(o[prop]);
+	o := val.ToObject(rt)
+	if o == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	for _, key := range o.Keys() ***REMOVED***
+		prop := o.Get(key)
+		if prop != nil ***REMOVED***
+			// isFrozen returns true for all non objects so it we don't need to check that
+			frozen, err := s.isFrozen(goja.Undefined(), prop)
+			if err != nil ***REMOVED***
+				return err
 			***REMOVED***
-		***REMOVED***);
-
-		return o;
-	***REMOVED***;
-
-	var arrayHandler = ***REMOVED***
-		get: function(target, property, receiver) ***REMOVED***
-			switch (property)***REMOVED***
-			case "length":
-				return target.length();
-			case Symbol.iterator:
-				return function()***REMOVED***
-					var index = 0;
-					return ***REMOVED***
-						"next": function() ***REMOVED***
-							if (index >= target.length()) ***REMOVED***
-								return ***REMOVED***done: true***REMOVED***
-							***REMOVED***
-							var result = ***REMOVED***value: deepFreeze(JSON.parse(target.get(index)))***REMOVED***;
-							index++;
-							return result;
-						***REMOVED***
-					***REMOVED***
+			if !frozen.ToBoolean() ***REMOVED*** // prevent cycles
+				if err = s.deepFreeze(rt, prop); err != nil ***REMOVED***
+					return err
 				***REMOVED***
 			***REMOVED***
-			var i = parseInt(property);
-			if (isNaN(i)) ***REMOVED***
-				return undefined;
-			***REMOVED***
-
-			return deepFreeze(JSON.parse(target.get(i)));
 		***REMOVED***
-	***REMOVED***;
-	return new Proxy(val, arrayHandler);
-***REMOVED***)`
+	***REMOVED***
+	return nil
+***REMOVED***

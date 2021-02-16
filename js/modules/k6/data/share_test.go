@@ -126,13 +126,13 @@ func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 			code: `'use strict'; array[2].data2 = "bad2"`,
 			err:  "Cannot add property data2, object is not extensible",
 		***REMOVED***,
-		"setting property on the proxy": ***REMOVED***
+		"setting property on the shared array": ***REMOVED***
 			code: `'use strict'; array.something = "something"`,
-			err:  "Host object field something cannot be made configurable",
+			err:  `Cannot set property "something" on a dynamic array`,
 		***REMOVED***,
-		"setting index on the proxy": ***REMOVED***
+		"setting index on the shared array": ***REMOVED***
 			code: `'use strict'; array[2] = "something"`,
-			err:  "Host object field 2 cannot be made configurable",
+			err:  "SharedArray is immutable",
 		***REMOVED***,
 	***REMOVED***
 
@@ -184,6 +184,16 @@ func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 		***REMOVED***
 		i++;
 	***REMOVED***
+
+	i = 0;
+	array.forEach(function(v)***REMOVED***
+		if (v.value !== "something"+i) ***REMOVED***
+			throw new Error("bad v.value="+v.value+" for i="+i);
+		***REMOVED***
+		i++;
+	***REMOVED***);
+
+
 	`)
 	require.NoError(t, err)
 ***REMOVED***
