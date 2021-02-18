@@ -282,10 +282,13 @@ func showProgress(
 	// Limit to maximum left text length
 	maxLeft := int(lib.Min(leftLen, maxLeftLength))
 
+	var progressBarsLastRenderLock sync.Mutex
 	var progressBarsLastRender []byte
 
 	printProgressBars := func() ***REMOVED***
+		progressBarsLastRenderLock.Lock()
 		_, _ = stdout.Writer.Write(progressBarsLastRender)
+		progressBarsLastRenderLock.Unlock()
 	***REMOVED***
 
 	var widthDelta int
@@ -293,7 +296,9 @@ func showProgress(
 	renderProgressBars := func(goBack bool) ***REMOVED***
 		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
 		widthDelta = termWidth - longestLine - termPadding
+		progressBarsLastRenderLock.Lock()
 		progressBarsLastRender = []byte(barText)
+		progressBarsLastRenderLock.Unlock()
 	***REMOVED***
 
 	// Otherwise fallback to fixed compact progress bars
@@ -301,7 +306,9 @@ func showProgress(
 		widthDelta = -pb.DefaultWidth
 		renderProgressBars = func(goBack bool) ***REMOVED***
 			barText, _ := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
+			progressBarsLastRenderLock.Lock()
 			progressBarsLastRender = []byte(barText)
+			progressBarsLastRenderLock.Unlock()
 		***REMOVED***
 	***REMOVED***
 
