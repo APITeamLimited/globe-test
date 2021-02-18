@@ -211,7 +211,7 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 				case 0: // Not a keyword
 					if parsedLiteral == "true" || parsedLiteral == "false" ***REMOVED***
 						if hasEscape ***REMOVED***
-							tkn = token.ILLEGAL
+							tkn = token.STRING
 							return
 						***REMOVED***
 						self.insertSemicolon = true
@@ -219,7 +219,7 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 						return
 					***REMOVED*** else if parsedLiteral == "null" ***REMOVED***
 						if hasEscape ***REMOVED***
-							tkn = token.ILLEGAL
+							tkn = token.STRING
 							return
 						***REMOVED***
 						self.insertSemicolon = true
@@ -229,7 +229,7 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 
 				case token.KEYWORD:
 					if hasEscape ***REMOVED***
-						tkn = token.ILLEGAL
+						tkn = token.STRING
 						return
 					***REMOVED***
 					tkn = token.KEYWORD
@@ -247,7 +247,7 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 					token.CONTINUE,
 					token.DEBUGGER:
 					if hasEscape ***REMOVED***
-						tkn = token.ILLEGAL
+						tkn = token.STRING
 						return
 					***REMOVED***
 					self.insertSemicolon = true
@@ -255,7 +255,7 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 
 				default:
 					if hasEscape ***REMOVED***
-						tkn = token.ILLEGAL
+						tkn = token.STRING
 					***REMOVED***
 					return
 

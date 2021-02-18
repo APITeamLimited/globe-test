@@ -973,7 +973,7 @@ func (r *Runtime) typedArrayProto_sort(call FunctionCall) Value ***REMOVED***
 			compare: compareFn,
 		***REMOVED***
 
-		sort.Sort(&ctx)
+		sort.Stable(&ctx)
 		return call.This
 	***REMOVED***
 	panic(r.NewTypeError("Method TypedArray.prototype.sort called on incompatible receiver %s", call.This.String()))
