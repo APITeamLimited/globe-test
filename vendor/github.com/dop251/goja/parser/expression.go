@@ -189,7 +189,7 @@ func (self *_parser) parseVariableDeclarationList(var_ file.Idx) []ast.Expressio
 	return list
 ***REMOVED***
 
-func (self *_parser) parseObjectPropertyKey() (string, ast.Expression) ***REMOVED***
+func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression, token.Token) ***REMOVED***
 	idx, tkn, literal, parsedLiteral := self.idx, self.token, self.literal, self.parsedLiteral
 	var value ast.Expression
 	self.next()
@@ -225,43 +225,72 @@ func (self *_parser) parseObjectPropertyKey() (string, ast.Expression) ***REMOVE
 				Literal: literal,
 				Value:   unistring.String(literal),
 			***REMOVED***
+			tkn = token.STRING
 		***REMOVED***
 	***REMOVED***
-	return literal, value
+	return parsedLiteral, value, tkn
 ***REMOVED***
 
 func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
+	literal, value, tkn := self.parseObjectPropertyKey()
+	if tkn == token.IDENTIFIER || tkn == token.STRING ***REMOVED***
+		switch ***REMOVED***
+		case self.token == token.LEFT_PARENTHESIS:
+			idx := self.idx
+			parameterList := self.parseFunctionParameterList()
 
-	literal, value := self.parseObjectPropertyKey()
-	if literal == "get" && self.token != token.COLON ***REMOVED***
-		idx := self.idx
-		_, value := self.parseObjectPropertyKey()
-		parameterList := self.parseFunctionParameterList()
+			node := &ast.FunctionLiteral***REMOVED***
+				Function:      idx,
+				ParameterList: parameterList,
+			***REMOVED***
+			self.parseFunctionBlock(node)
 
-		node := &ast.FunctionLiteral***REMOVED***
-			Function:      idx,
-			ParameterList: parameterList,
-		***REMOVED***
-		self.parseFunctionBlock(node)
-		return ast.Property***REMOVED***
-			Key:   value,
-			Kind:  "get",
-			Value: node,
-		***REMOVED***
-	***REMOVED*** else if literal == "set" && self.token != token.COLON ***REMOVED***
-		idx := self.idx
-		_, value := self.parseObjectPropertyKey()
-		parameterList := self.parseFunctionParameterList()
+			return ast.Property***REMOVED***
+				Key:   value,
+				Kind:  "method",
+				Value: node,
+			***REMOVED***
+		case self.token == token.COMMA || self.token == token.RIGHT_BRACE: // shorthand property
+			return ast.Property***REMOVED***
+				Key:  value,
+				Kind: "value",
+				Value: &ast.Identifier***REMOVED***
+					Name: literal,
+					Idx:  self.idx,
+				***REMOVED***,
+			***REMOVED***
+		case literal == "get" && self.token != token.COLON:
+			idx := self.idx
+			_, value, _ := self.parseObjectPropertyKey()
+			parameterList := self.parseFunctionParameterList()
 
-		node := &ast.FunctionLiteral***REMOVED***
-			Function:      idx,
-			ParameterList: parameterList,
-		***REMOVED***
-		self.parseFunctionBlock(node)
-		return ast.Property***REMOVED***
-			Key:   value,
-			Kind:  "set",
-			Value: node,
+			node := &ast.FunctionLiteral***REMOVED***
+				Function:      idx,
+				ParameterList: parameterList,
+			***REMOVED***
+			self.parseFunctionBlock(node)
+			return ast.Property***REMOVED***
+				Key:   value,
+				Kind:  "get",
+				Value: node,
+			***REMOVED***
+		case literal == "set" && self.token != token.COLON:
+			idx := self.idx
+			_, value, _ := self.parseObjectPropertyKey()
+			parameterList := self.parseFunctionParameterList()
+
+			node := &ast.FunctionLiteral***REMOVED***
+				Function:      idx,
+				ParameterList: parameterList,
+			***REMOVED***
+
+			self.parseFunctionBlock(node)
+
+			return ast.Property***REMOVED***
+				Key:   value,
+				Kind:  "set",
+				Value: node,
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 

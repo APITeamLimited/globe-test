@@ -47,7 +47,7 @@ var (
 			"transform-es2015-block-scoped-functions",
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
 			"transform-es2015-object-super",
-			"transform-es2015-shorthand-properties",
+			// "transform-es2015-shorthand-properties", // in goja
 			"transform-es2015-duplicate-keys",
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
 			// "transform-es2015-for-of", // in goja

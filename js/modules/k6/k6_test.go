@@ -257,7 +257,7 @@ func TestCheck(t *testing.T) ***REMOVED***
 			"b": function() ***REMOVED*** throw new Error("error B") ***REMOVED***,
 		***REMOVED***)
 		`)
-		assert.EqualError(t, err, "Error: error A at <eval>:3:28(4)")
+		assert.EqualError(t, err, "Error: error A at a (<eval>:3:28(4))")
 
 		bufSamples := stats.GetBufferedSamples(samples)
 		if assert.Len(t, bufSamples, 1) ***REMOVED***

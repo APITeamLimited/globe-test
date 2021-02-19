@@ -352,7 +352,7 @@ func (r *Runtime) arrayproto_sort(call FunctionCall) Value ***REMOVED***
 		compare: compareFn,
 	***REMOVED***
 
-	sort.Sort(&ctx)
+	sort.Stable(&ctx)
 	return o
 ***REMOVED***
 
