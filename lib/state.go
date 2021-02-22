@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"sync"
 
 	"github.com/oxtoacart/bpool"
 	"github.com/sirupsen/logrus"
@@ -67,15 +68,18 @@ type State struct ***REMOVED***
 	// TODO: maybe use https://golang.org/pkg/sync/#Pool ?
 	BPool *bpool.BufferPool
 
-	Vu, Iteration uint64
-	Tags          map[string]string
-	ScenarioName  string
-	scenarioVUID  map[string]uint64
+	Vu, Iteration  uint64
+	Tags           map[string]string
+	ScenarioName   string
+	scenarioVUID   map[string]uint64
+	scIterMx       sync.RWMutex
+	scenarioVUIter map[string]uint64
 ***REMOVED***
 
 // Init initializes some private state fields.
 func (s *State) Init() ***REMOVED***
 	s.scenarioVUID = make(map[string]uint64)
+	s.scenarioVUIter = make(map[string]uint64)
 ***REMOVED***
 
 // CloneTags makes a copy of the tags map and returns it.
@@ -96,4 +100,20 @@ func (s *State) GetScenarioVUID() (uint64, bool) ***REMOVED***
 // SetScenarioVUID sets the scenario-specific ID for this VU.
 func (s *State) SetScenarioVUID(id uint64) ***REMOVED***
 	s.scenarioVUID[s.ScenarioName] = id
+***REMOVED***
+
+// GetScenarioVUIter returns the scenario-specific count of completed iterations
+// for this VU.
+func (s *State) GetScenarioVUIter() uint64 ***REMOVED***
+	s.scIterMx.RLock()
+	defer s.scIterMx.RUnlock()
+	return s.scenarioVUIter[s.ScenarioName]
+***REMOVED***
+
+// IncrScenarioVUIter increments the scenario-specific count of completed
+// iterations for this VU.
+func (s *State) IncrScenarioVUIter() ***REMOVED***
+	s.scIterMx.Lock()
+	s.scenarioVUIter[s.ScenarioName]++
+	s.scIterMx.Unlock()
 ***REMOVED***
