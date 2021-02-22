@@ -234,6 +234,7 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 		Tags:      vu.Runner.Bundle.Options.RunTags.CloneTags(),
 		Group:     r.defaultGroup,
 	***REMOVED***
+	vu.state.Init()
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
 	// This is here mostly so if someone tries they get a nice message
@@ -601,6 +602,12 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	params.RunContext = common.WithRuntime(params.RunContext, u.Runtime)
 	params.RunContext = lib.WithState(params.RunContext, u.state)
 	*u.Context = params.RunContext
+	u.state.ScenarioName = params.Scenario
+	if params.GetScenarioVUID != nil ***REMOVED***
+		if _, ok := u.state.GetScenarioVUID(); !ok ***REMOVED***
+			u.state.SetScenarioVUID(params.GetScenarioVUID())
+		***REMOVED***
+	***REMOVED***
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,

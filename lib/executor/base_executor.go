@@ -23,6 +23,7 @@ package executor
 import (
 	"context"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 
@@ -38,6 +39,7 @@ import (
 type BaseExecutor struct ***REMOVED***
 	config         lib.ExecutorConfig
 	executionState *lib.ExecutionState
+	localVUID      *uint64 // counter for assigning executor-specific VU IDs
 	logger         *logrus.Entry
 	progress       *pb.ProgressBar
 ***REMOVED***
@@ -47,6 +49,7 @@ func NewBaseExecutor(config lib.ExecutorConfig, es *lib.ExecutionState, logger *
 	return &BaseExecutor***REMOVED***
 		config:         config,
 		executionState: es,
+		localVUID:      new(uint64),
 		logger:         logger,
 		progress: pb.New(
 			pb.WithLeft(config.GetName),
@@ -64,6 +67,12 @@ func (bs *BaseExecutor) Init(_ context.Context) error ***REMOVED***
 // GetConfig returns the configuration with which this executor was launched.
 func (bs BaseExecutor) GetConfig() lib.ExecutorConfig ***REMOVED***
 	return bs.config
+***REMOVED***
+
+// GetNextLocalVUID increments and returns the next VU ID that's specific for
+// this executor (i.e. not global like __VU).
+func (bs BaseExecutor) GetNextLocalVUID() uint64 ***REMOVED***
+	return atomic.AddUint64(bs.localVUID, 1)
 ***REMOVED***
 
 // GetLogger returns the executor logger entry.
