@@ -122,14 +122,14 @@ func TestVUHandleStartStopRace(t *testing.T) ***REMOVED***
 	// testLog.Level = logrus.DebugLevel
 	logEntry := logrus.NewEntry(testLog)
 
-	var vuID int64 = -1
+	var vuID uint64
 
 	testIterations := 10000
 	returned := make(chan struct***REMOVED******REMOVED***)
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
 		returned = make(chan struct***REMOVED******REMOVED***)
 		return &minirunner.VU***REMOVED***
-			ID: atomic.AddInt64(&vuID, 1),
+			ID: atomic.AddUint64(&vuID, 1),
 			R: &minirunner.MiniRunner***REMOVED***
 				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 					// TODO: do something
@@ -140,7 +140,7 @@ func TestVUHandleStartStopRace(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	returnVU := func(v lib.InitializedVU) ***REMOVED***
-		require.Equal(t, atomic.LoadInt64(&vuID), v.(*minirunner.VU).ID)
+		require.Equal(t, atomic.LoadUint64(&vuID), v.(*minirunner.VU).ID)
 		close(returned)
 	***REMOVED***
 	var interruptedIter int64

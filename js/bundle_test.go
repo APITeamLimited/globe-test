@@ -910,7 +910,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			for i := 0; i < vus; i++ ***REMOVED***
-				bi, err := b.Instantiate(logger, int64(i))
+				bi, err := b.Instantiate(logger, uint64(i))
 				require.NoError(t, err)
 				for j := 0; j < iters; j++ ***REMOVED***
 					bi.Runtime.Set("__ITER", j)

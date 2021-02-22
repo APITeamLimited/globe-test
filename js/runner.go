@@ -126,7 +126,7 @@ func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(id int64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
+func (r *Runner) NewVU(id uint64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
 	vu, err := r.newVU(id, samplesOut)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -135,7 +135,7 @@ func (r *Runner) NewVU(id int64, samplesOut chan<- stats.SampleContainer) (lib.I
 ***REMOVED***
 
 // nolint:funlen
-func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
 	bi, err := r.Bundle.Instantiate(r.Logger, id)
 	if err != nil ***REMOVED***
@@ -526,13 +526,12 @@ func (r *Runner) getTimeoutFor(stage string) time.Duration ***REMOVED***
 type VU struct ***REMOVED***
 	BundleInstance
 
-	Runner    *Runner
-	Transport *http.Transport
-	Dialer    *netext.Dialer
-	CookieJar *cookiejar.Jar
-	TLSConfig *tls.Config
-	ID        int64
-	Iteration int64
+	Runner        *Runner
+	Transport     *http.Transport
+	Dialer        *netext.Dialer
+	CookieJar     *cookiejar.Jar
+	TLSConfig     *tls.Config
+	ID, Iteration uint64
 
 	Console *console
 	BPool   *bpool.BufferPool
@@ -558,7 +557,7 @@ type ActiveVU struct ***REMOVED***
 ***REMOVED***
 
 // GetID returns the unique VU ID.
-func (u *VU) GetID() int64 ***REMOVED***
+func (u *VU) GetID() uint64 ***REMOVED***
 	return u.ID
 ***REMOVED***
 
@@ -587,10 +586,10 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.state.Tags[k] = v
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
-		u.state.Tags["vu"] = strconv.FormatInt(u.ID, 10)
+		u.state.Tags["vu"] = strconv.FormatUint(u.ID, 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatUint(u.Iteration, 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		u.state.Tags["group"] = u.state.Group.Path
@@ -688,7 +687,7 @@ func (u *VU) runFn(
 
 	opts := &u.Runner.Bundle.Options
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatUint(u.Iteration, 10)
 	***REMOVED***
 
 	// TODO: this seems like the wrong place for the iteration incrementation

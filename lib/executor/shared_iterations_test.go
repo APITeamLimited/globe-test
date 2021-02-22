@@ -71,7 +71,7 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	t.Parallel()
 	var (
 		result   sync.Map
-		slowVUID int64
+		slowVUID uint64
 	)
 	et, err := lib.NewExecutionTuple(nil, nil)
 	require.NoError(t, err)
@@ -82,9 +82,9 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 			time.Sleep(10 * time.Millisecond) // small wait to stabilize the test
 			state := lib.GetState(ctx)
 			// Pick one VU randomly and always slow it down.
-			sid := atomic.LoadInt64(&slowVUID)
-			if sid == int64(0) ***REMOVED***
-				atomic.StoreInt64(&slowVUID, state.Vu)
+			sid := atomic.LoadUint64(&slowVUID)
+			if sid == uint64(0) ***REMOVED***
+				atomic.StoreUint64(&slowVUID, state.Vu)
 			***REMOVED***
 			if sid == state.Vu ***REMOVED***
 				time.Sleep(200 * time.Millisecond)
