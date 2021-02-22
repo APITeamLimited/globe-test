@@ -599,9 +599,10 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.state.Tags["scenario"] = params.Scenario
 	***REMOVED***
 
-	params.RunContext = common.WithRuntime(params.RunContext, u.Runtime)
-	params.RunContext = lib.WithState(params.RunContext, u.state)
-	*u.Context = params.RunContext
+	ctx := common.WithRuntime(params.RunContext, u.Runtime)
+	ctx = lib.WithState(ctx, u.state)
+	params.RunContext = ctx
+	*u.Context = ctx
 	u.state.ScenarioName = params.Scenario
 	if params.GetScenarioVUID != nil ***REMOVED***
 		if _, ok := u.state.GetScenarioVUID(); !ok ***REMOVED***
@@ -617,7 +618,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 
 	go func() ***REMOVED***
 		// Wait for the run context to be over
-		<-params.RunContext.Done()
+		<-ctx.Done()
 		// Interrupt the JS runtime
 		u.Runtime.Interrupt(context.Canceled)
 		// Wait for the VU to stop running, if it was, and prevent it from
