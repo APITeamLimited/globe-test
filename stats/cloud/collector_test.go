@@ -401,8 +401,15 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		_, err := fmt.Fprint(w, `***REMOVED***
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
+		body, err := ioutil.ReadAll(req.Body)
+		require.NoError(t, err)
+		data := &cloudapi.TestRun***REMOVED******REMOVED***
+		err = json.Unmarshal(body, &data)
+		require.NoError(t, err)
+		assert.Equal(t, "my-custom-name", data.Name)
+
+		_, err = fmt.Fprint(resp, `***REMOVED***
 			"reference_id": "12",
 			"config": ***REMOVED***
 				"metricPushInterval": "200ms",
@@ -424,6 +431,7 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 		Host:                       null.StringFrom(tb.ServerHTTP.URL),
 		NoCompress:                 null.BoolFrom(true),
 		MaxMetricSamplesPerPackage: null.IntFrom(50),
+		Name:                       null.StringFrom("my-custom-name"),
 	***REMOVED***)
 	collector, err := New(testutils.NewLogger(t), config, &url.URL***REMOVED***Path: ""***REMOVED***, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(t, err)
@@ -515,6 +523,21 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestCloudCollectorRequireScriptName(t *testing.T) ***REMOVED***
+	t.Parallel()
+	options := lib.Options***REMOVED***
+		Duration: types.NullDurationFrom(1 * time.Second),
+	***REMOVED***
+
+	config := cloudapi.NewConfig().Apply(cloudapi.Config***REMOVED***
+		NoCompress:                 null.BoolFrom(true),
+		MaxMetricSamplesPerPackage: null.IntFrom(50),
+	***REMOVED***)
+	_, err := New(testutils.NewLogger(t), config, &url.URL***REMOVED***Path: ""***REMOVED***, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "script name not set")
+***REMOVED***
+
 func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -580,8 +603,15 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
-		_, err := fmt.Fprintf(w, `***REMOVED***"reference_id": "123"***REMOVED***`)
+	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
+		body, err := ioutil.ReadAll(req.Body)
+		require.NoError(t, err)
+		data := &cloudapi.TestRun***REMOVED******REMOVED***
+		err = json.Unmarshal(body, &data)
+		require.NoError(t, err)
+		assert.Equal(t, "script.js", data.Name)
+
+		_, err = fmt.Fprintf(resp, `***REMOVED***"reference_id": "123"***REMOVED***`)
 		require.NoError(t, err)
 	***REMOVED***))
 	defer tb.Cleanup()

@@ -97,11 +97,17 @@ func New(
 	***REMOVED***
 
 	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags.Has(stats.TagVU) || opts.SystemTags.Has(stats.TagIter)) ***REMOVED***
-		return nil, errors.New("Aggregation cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
+		return nil, errors.New("aggregation cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
 	***REMOVED***
 
 	if !conf.Name.Valid || conf.Name.String == "" ***REMOVED***
-		conf.Name = null.StringFrom(filepath.Base(scriptURL.String()))
+		scriptPath := scriptURL.String()
+		if scriptPath == "" ***REMOVED***
+			// Script from stdin without a name, likely from stdin
+			return nil, errors.New("script name not set, please specify K6_CLOUD_NAME or options.ext.loadimpact.name")
+		***REMOVED***
+
+		conf.Name = null.StringFrom(filepath.Base(scriptPath))
 	***REMOVED***
 	if conf.Name.String == "-" ***REMOVED***
 		conf.Name = null.StringFrom(TestName)
