@@ -53,7 +53,6 @@ const (
 func TestTextSummary(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	summary := createTestSummary(t)
 	testCases := []struct ***REMOVED***
 		stats    []string
 		expected string
@@ -70,6 +69,7 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 		i, tc := i, tc
 		t.Run(fmt.Sprintf("%d_%v", i, tc.stats), func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			summary := createTestSummary(t)
 			trendStats, err := json.Marshal(tc.stats)
 			require.NoError(t, err)
 			runner, err := getSimpleRunner(
@@ -88,9 +88,9 @@ func TestTextSummary(t *testing.T) ***REMOVED***
 			require.Len(t, result, 1)
 			stdout := result["stdout"]
 			require.NotNil(t, stdout)
-			summary, err := ioutil.ReadAll(stdout)
+			summaryOut, err := ioutil.ReadAll(stdout)
 			require.NoError(t, err)
-			assert.Equal(t, "\n"+tc.expected+"\n", string(summary))
+			assert.Equal(t, "\n"+tc.expected+"\n", string(summaryOut))
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
