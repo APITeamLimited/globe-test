@@ -36,6 +36,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/ui"
 	"github.com/loadimpact/k6/ui/pb"
 )
@@ -111,31 +112,25 @@ func modifyAndPrintBar(bar *pb.ProgressBar, options ...pb.ProgressBarOption) ***
 // Print execution description for both cloud and local execution.
 // TODO: Clean this up as part of #1499 or #1427
 func printExecutionDescription(
-	execution, filename, output string, conf Config, et *lib.ExecutionTuple,
-	execPlan []lib.ExecutionStep, collectors []lib.Collector,
+	execution, filename, outputOverride string, conf Config, et *lib.ExecutionTuple,
+	execPlan []lib.ExecutionStep, outputs []output.Output,
 ) ***REMOVED***
 	fprintf(stdout, "  execution: %s\n", ui.ValueColor.Sprint(execution))
 	fprintf(stdout, "     script: %s\n", ui.ValueColor.Sprint(filename))
 
-	if execution == "local" ***REMOVED***
-		out := "-"
-		link := ""
-
-		for idx, collector := range collectors ***REMOVED***
-			if out != "-" ***REMOVED***
-				out = out + "; " + conf.Out[idx]
-			***REMOVED*** else ***REMOVED***
-				out = conf.Out[idx]
-			***REMOVED***
-
-			if l := collector.Link(); l != "" ***REMOVED***
-				link = link + " (" + l + ")"
-			***REMOVED***
+	var outputDescriptions []string
+	switch ***REMOVED***
+	case outputOverride != "":
+		outputDescriptions = []string***REMOVED***outputOverride***REMOVED***
+	case len(outputs) == 0:
+		outputDescriptions = []string***REMOVED***"-"***REMOVED***
+	default:
+		for _, out := range outputs ***REMOVED***
+			outputDescriptions = append(outputDescriptions, out.Description())
 		***REMOVED***
-		fprintf(stdout, "     output: %s%s\n", ui.ValueColor.Sprint(out), ui.ExtraColor.Sprint(link))
-	***REMOVED*** else ***REMOVED***
-		fprintf(stdout, "     output: %s\n", ui.ValueColor.Sprint(output))
 	***REMOVED***
+
+	fprintf(stdout, "     output: %s\n", ui.ValueColor.Sprint(strings.Join(outputDescriptions, ", ")))
 	fprintf(stdout, "\n")
 
 	maxDuration, _ := lib.GetEndOffset(execPlan)

@@ -33,8 +33,10 @@ import (
 	"github.com/loadimpact/k6/lib"
 )
 
+// TODO: fix this... or remove k6 convert
+//nolint: gochecknoglobals
 var (
-	output              string
+	convertOutput       string
 	optionsFilePath     string
 	minSleep            uint
 	maxSleep            uint
@@ -107,12 +109,12 @@ func getConvertCmd() *cobra.Command ***REMOVED***
 			***REMOVED***
 
 			// Write script content to stdout or file
-			if output == "" || output == "-" ***REMOVED*** //nolint:nestif
+			if convertOutput == "" || convertOutput == "-" ***REMOVED*** //nolint:nestif
 				if _, err := io.WriteString(defaultWriter, script); err != nil ***REMOVED***
 					return err
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
-				f, err := defaultFs.Create(output)
+				f, err := defaultFs.Create(convertOutput)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***
@@ -131,8 +133,14 @@ func getConvertCmd() *cobra.Command ***REMOVED***
 	***REMOVED***
 
 	convertCmd.Flags().SortFlags = false
-	convertCmd.Flags().StringVarP(&output, "output", "O", output, "k6 script output filename (stdout by default)")
-	convertCmd.Flags().StringVarP(&optionsFilePath, "options", "", output, "path to a JSON file with options that would be injected in the output script")
+	convertCmd.Flags().StringVarP(
+		&convertOutput, "output", "O", convertOutput,
+		"k6 script output filename (stdout by default)",
+	)
+	convertCmd.Flags().StringVarP(
+		&optionsFilePath, "options", "", optionsFilePath,
+		"path to a JSON file with options that would be injected in the output script",
+	)
 	convertCmd.Flags().StringSliceVarP(&only, "only", "", []string***REMOVED******REMOVED***, "include only requests from the given domains")
 	convertCmd.Flags().StringSliceVarP(&skip, "skip", "", []string***REMOVED******REMOVED***, "skip requests from the given domains")
 	convertCmd.Flags().UintVarP(&threshold, "batch-threshold", "", 500, "batch request idle time threshold (see example)")

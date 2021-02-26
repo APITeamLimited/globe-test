@@ -26,38 +26,40 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
+// Envelope is the data format we use to export both metrics and metric samples
+// to the JSON file.
 type Envelope struct ***REMOVED***
 	Type   string      `json:"type"`
 	Data   interface***REMOVED******REMOVED*** `json:"data"`
 	Metric string      `json:"metric,omitempty"`
 ***REMOVED***
 
-type JSONSample struct ***REMOVED***
+// Sample is the data format for metric sample data in the JSON file.
+type Sample struct ***REMOVED***
 	Time  time.Time         `json:"time"`
 	Value float64           `json:"value"`
 	Tags  *stats.SampleTags `json:"tags"`
 ***REMOVED***
 
-func NewJSONSample(sample *stats.Sample) *JSONSample ***REMOVED***
-	return &JSONSample***REMOVED***
+func newJSONSample(sample stats.Sample) Sample ***REMOVED***
+	return Sample***REMOVED***
 		Time:  sample.Time,
 		Value: sample.Value,
 		Tags:  sample.Tags,
 	***REMOVED***
 ***REMOVED***
 
-func WrapSample(sample *stats.Sample) *Envelope ***REMOVED***
-	if sample == nil ***REMOVED***
-		return nil
-	***REMOVED***
-	return &Envelope***REMOVED***
+// WrapSample is used to package a metric sample in a way that's nice to export
+// to JSON.
+func WrapSample(sample stats.Sample) Envelope ***REMOVED***
+	return Envelope***REMOVED***
 		Type:   "Point",
 		Metric: sample.Metric.Name,
-		Data:   NewJSONSample(sample),
+		Data:   newJSONSample(sample),
 	***REMOVED***
 ***REMOVED***
 
-func WrapMetric(metric *stats.Metric) *Envelope ***REMOVED***
+func wrapMetric(metric *stats.Metric) *Envelope ***REMOVED***
 	if metric == nil ***REMOVED***
 		return nil
 	***REMOVED***

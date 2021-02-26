@@ -21,8 +21,10 @@
 package kafka
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/kubernetes/helm/pkg/strvals"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/guregu/null.v3"
@@ -119,4 +121,34 @@ func ParseArg(arg string) (Config, error) ***REMOVED***
 	c.Format = null.StringFrom(cfg.Format)
 
 	return c, nil
+***REMOVED***
+
+// GetConsolidatedConfig combines ***REMOVED***default config values + JSON config +
+// environment vars + arg config values***REMOVED***, and returns the final result.
+func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, arg string) (Config, error) ***REMOVED***
+	result := NewConfig()
+	if jsonRawConf != nil ***REMOVED***
+		jsonConf := Config***REMOVED******REMOVED***
+		if err := json.Unmarshal(jsonRawConf, &jsonConf); err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(jsonConf)
+	***REMOVED***
+
+	envConfig := Config***REMOVED******REMOVED***
+	if err := envconfig.Process("", &envConfig); err != nil ***REMOVED***
+		// TODO: get rid of envconfig and actually use the env parameter...
+		return result, err
+	***REMOVED***
+	result = result.Apply(envConfig)
+
+	if arg != "" ***REMOVED***
+		urlConf, err := ParseArg(arg)
+		if err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(urlConf)
+	***REMOVED***
+
+	return result, nil
 ***REMOVED***

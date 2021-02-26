@@ -58,10 +58,11 @@ import (
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
+	"github.com/loadimpact/k6/lib/testutils/mockoutput"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
+	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/stats"
-	"github.com/loadimpact/k6/stats/dummy"
 )
 
 func TestRunnerNew(t *testing.T) ***REMOVED***
@@ -295,15 +296,17 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 
 	execScheduler, err := local.NewExecutionScheduler(runner, testutils.NewLogger(t))
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, testutils.NewLogger(t))
+
+	mockOutput := mockoutput.New()
+	engine, err := core.NewEngine(
+		execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, []output.Output***REMOVED***mockOutput***REMOVED***, testutils.NewLogger(t),
+	)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	run, wait, err := engine.Init(ctx, ctx)
 	require.NoError(t, err)
 
-	collector := &dummy.Collector***REMOVED******REMOVED***
-	engine.Collectors = []lib.Collector***REMOVED***collector***REMOVED***
 	require.Empty(t, runner.defaultGroup.Groups)
 
 	errC := make(chan error)
@@ -322,7 +325,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 	require.Contains(t, runner.defaultGroup.Groups, "setup")
 	require.Contains(t, runner.defaultGroup.Groups, "teardown")
 	var count int
-	for _, s := range collector.Samples ***REMOVED***
+	for _, s := range mockOutput.Samples ***REMOVED***
 		if s.Metric.Name == "mycounter" ***REMOVED***
 			count += int(s.Value)
 		***REMOVED***

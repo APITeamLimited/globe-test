@@ -21,11 +21,13 @@
 package influxdb
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/kubernetes/helm/pkg/strvals"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -52,8 +54,9 @@ type Config struct ***REMOVED***
 	TagsAsFields []string    `json:"tagsAsFields,omitempty" envconfig:"K6_INFLUXDB_TAGS_AS_FIELDS"`
 ***REMOVED***
 
-func NewConfig() *Config ***REMOVED***
-	c := &Config***REMOVED***
+// NewConfig creates a new InfluxDB output config with some default values.
+func NewConfig() Config ***REMOVED***
+	c := Config***REMOVED***
 		Addr:             null.NewString("http://localhost:8086", false),
 		DB:               null.NewString("k6", false),
 		TagsAsFields:     []string***REMOVED***"vu", "iter", "url"***REMOVED***,
@@ -135,6 +138,14 @@ func ParseMap(m map[string]interface***REMOVED******REMOVED***) (Config, error) 
 	return c, err
 ***REMOVED***
 
+// ParseJSON parses the supplied JSON into a Config.
+func ParseJSON(data json.RawMessage) (Config, error) ***REMOVED***
+	conf := Config***REMOVED******REMOVED***
+	err := json.Unmarshal(data, &conf)
+	return conf, err
+***REMOVED***
+
+// ParseURL parses the supplied URL into a Config.
 func ParseURL(text string) (Config, error) ***REMOVED***
 	c := Config***REMOVED******REMOVED***
 	u, err := url.Parse(text)
@@ -197,4 +208,34 @@ func ParseURL(text string) (Config, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return c, err
+***REMOVED***
+
+// GetConsolidatedConfig combines ***REMOVED***default config values + JSON config +
+// environment vars + URL config values***REMOVED***, and returns the final result.
+func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, url string) (Config, error) ***REMOVED***
+	result := NewConfig()
+	if jsonRawConf != nil ***REMOVED***
+		jsonConf, err := ParseJSON(jsonRawConf)
+		if err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(jsonConf)
+	***REMOVED***
+
+	envConfig := Config***REMOVED******REMOVED***
+	if err := envconfig.Process("", &envConfig); err != nil ***REMOVED***
+		// TODO: get rid of envconfig and actually use the env parameter...
+		return result, err
+	***REMOVED***
+	result = result.Apply(envConfig)
+
+	if url != "" ***REMOVED***
+		urlConf, err := ParseURL(url)
+		if err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(urlConf)
+	***REMOVED***
+
+	return result, nil
 ***REMOVED***

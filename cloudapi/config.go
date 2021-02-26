@@ -26,6 +26,7 @@ import (
 
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/loadimpact/k6/lib/types"
 )
 
@@ -241,7 +242,8 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	return c
 ***REMOVED***
 
-// MergeFromExternal merges three fields from json in a loadimpact key of the provided external map
+// MergeFromExternal merges three fields from the JSON in a loadimpact key of
+// the provided external map. Used for options.ext.loadimpact settings.
 func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error ***REMOVED***
 	if val, ok := external["loadimpact"]; ok ***REMOVED***
 		// TODO: Important! Separate configs and fix the whole 2 configs mess!
@@ -261,4 +263,30 @@ func MergeFromExternal(external map[string]json.RawMessage, conf *Config) error 
 		***REMOVED***
 	***REMOVED***
 	return nil
+***REMOVED***
+
+// GetConsolidatedConfig combines the default config values with the JSON config
+// values and environment variables and returns the final result.
+func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, configArg string) (Config, error) ***REMOVED***
+	result := NewConfig()
+	if jsonRawConf != nil ***REMOVED***
+		jsonConf := Config***REMOVED******REMOVED***
+		if err := json.Unmarshal(jsonRawConf, &jsonConf); err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(jsonConf)
+	***REMOVED***
+
+	envConfig := Config***REMOVED******REMOVED***
+	if err := envconfig.Process("", &envConfig); err != nil ***REMOVED***
+		// TODO: get rid of envconfig and actually use the env parameter...
+		return result, err
+	***REMOVED***
+	result = result.Apply(envConfig)
+
+	if configArg != "" ***REMOVED***
+		result.Name = null.StringFrom(configArg)
+	***REMOVED***
+
+	return result, nil
 ***REMOVED***

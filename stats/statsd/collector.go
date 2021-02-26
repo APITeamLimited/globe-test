@@ -21,8 +21,10 @@
 package statsd
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
@@ -95,4 +97,26 @@ func New(logger logrus.FieldLogger, conf common.Config) (*common.Collector, erro
 		Type:   "statsd",
 		Logger: logger,
 	***REMOVED***, nil
+***REMOVED***
+
+// GetConsolidatedConfig combines ***REMOVED***default config values + JSON config +
+// environment vars***REMOVED***, and returns the final result.
+func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string) (Config, error) ***REMOVED***
+	result := NewConfig()
+	if jsonRawConf != nil ***REMOVED***
+		jsonConf := Config***REMOVED******REMOVED***
+		if err := json.Unmarshal(jsonRawConf, &jsonConf); err != nil ***REMOVED***
+			return result, err
+		***REMOVED***
+		result = result.Apply(jsonConf)
+	***REMOVED***
+
+	envConfig := Config***REMOVED******REMOVED***
+	if err := envconfig.Process("", &envConfig); err != nil ***REMOVED***
+		// TODO: get rid of envconfig and actually use the env parameter...
+		return result, err
+	***REMOVED***
+	result = result.Apply(envConfig)
+
+	return result, nil
 ***REMOVED***

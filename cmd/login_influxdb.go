@@ -21,6 +21,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"syscall"
 	"time"
@@ -52,7 +53,15 @@ This will set the default server used when just "-o influxdb" is passed.`,
 				return err
 			***REMOVED***
 
-			conf := influxdb.NewConfig().Apply(config.Collectors.InfluxDB)
+			conf := influxdb.NewConfig()
+			jsonConf := config.Collectors["influxdb"]
+			if jsonConf != nil ***REMOVED***
+				jsonConfParsed, jsonerr := influxdb.ParseJSON(jsonConf)
+				if jsonerr != nil ***REMOVED***
+					return jsonerr
+				***REMOVED***
+				conf = conf.Apply(jsonConfParsed)
+			***REMOVED***
 			if len(args) > 0 ***REMOVED***
 				urlConf, err := influxdb.ParseURL(args[0]) //nolint:govet
 				if err != nil ***REMOVED***
@@ -112,7 +121,10 @@ This will set the default server used when just "-o influxdb" is passed.`,
 				return err
 			***REMOVED***
 
-			config.Collectors.InfluxDB = conf
+			config.Collectors["influxdb"], err = json.Marshal(conf)
+			if err != nil ***REMOVED***
+				return err
+			***REMOVED***
 			return writeDiskConfig(fs, configPath, config)
 		***REMOVED***,
 	***REMOVED***
