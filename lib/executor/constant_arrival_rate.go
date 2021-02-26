@@ -171,6 +171,7 @@ func (carc ConstantArrivalRateConfig) NewExecutor(
 	return &ConstantArrivalRate***REMOVED***
 		BaseExecutor: NewBaseExecutor(&carc, es, logger),
 		config:       carc,
+		globalIter:   new(uint64),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -183,8 +184,10 @@ func (carc ConstantArrivalRateConfig) HasWork(et *lib.ExecutionTuple) bool ***RE
 // specific period.
 type ConstantArrivalRate struct ***REMOVED***
 	*BaseExecutor
-	config ConstantArrivalRateConfig
-	et     *lib.ExecutionTuple
+	config     ConstantArrivalRateConfig
+	et         *lib.ExecutionTuple
+	segIdx     *lib.SegmentedIndex
+	globalIter *uint64
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
@@ -196,7 +199,22 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 	// with no work, as determined by their config's HasWork() method.
 	et, err := car.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(car.config.MaxVUs.Int64)
 	car.et = et
+	start, offsets, lcd := et.GetStripedOffsets()
+	car.segIdx = lib.NewSegmentedIndex(start, lcd, offsets)
+
 	return err
+***REMOVED***
+
+// incrGlobalIter increments the global iteration count for this executor,
+// taking into account the configured execution segment.
+func (car *ConstantArrivalRate) incrGlobalIter() ***REMOVED***
+	car.segIdx.Next()
+	atomic.StoreUint64(car.globalIter, uint64(car.segIdx.GetUnscaled()))
+***REMOVED***
+
+// getGlobalIter returns the global iteration count for this executor.
+func (car *ConstantArrivalRate) getGlobalIter() uint64 ***REMOVED***
+	return atomic.LoadUint64(car.globalIter)
 ***REMOVED***
 
 // Run executes a constant number of iterations per second.
@@ -268,11 +286,12 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
 
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       car.config.Name,
-		Executor:   car.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-		GetIter:    car.getScenarioIter,
+		Name:          car.config.Name,
+		Executor:      car.config.Type,
+		StartTime:     startTime,
+		ProgressFn:    progressFn,
+		GetIter:       car.getScenarioIter,
+		GetGlobalIter: car.getGlobalIter,
 	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
