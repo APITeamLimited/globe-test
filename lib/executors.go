@@ -116,6 +116,7 @@ type ScenarioState struct ***REMOVED***
 	StartTime      time.Time
 	ProgressFn     func() (float64, []string)
 	GetIter        func() uint64
+	GetGlobalIter  func() uint64
 ***REMOVED***
 
 // InitVUFunc is just a shorthand so we don't have to type the function

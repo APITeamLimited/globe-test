@@ -82,7 +82,7 @@ func validateStages(stages []Stage) []error ***REMOVED***
 //
 // TODO: emit the end-of-test iteration metrics here (https://github.com/k6io/k6/issues/1250)
 func getIterationRunner(
-	executionState *lib.ExecutionState, incrScenarioIter func(), logger *logrus.Entry,
+	executionState *lib.ExecutionState, incrIter func(), logger *logrus.Entry,
 ) func(context.Context, lib.ActiveVU) bool ***REMOVED***
 	return func(ctx context.Context, vu lib.ActiveVU) bool ***REMOVED***
 		err := vu.RunOnce()
@@ -110,7 +110,7 @@ func getIterationRunner(
 
 			// TODO: move emission of end-of-iteration metrics here?
 			executionState.AddFullIterations(1)
-			incrScenarioIter()
+			incrIter()
 			return true
 		***REMOVED***
 	***REMOVED***

@@ -151,6 +151,7 @@ func (sic SharedIterationsConfig) NewExecutor(
 	return &SharedIterations***REMOVED***
 		BaseExecutor: NewBaseExecutor(sic, es, logger),
 		config:       sic,
+		globalIter:   new(uint64),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -158,8 +159,10 @@ func (sic SharedIterationsConfig) NewExecutor(
 // all shared by the configured VUs.
 type SharedIterations struct ***REMOVED***
 	*BaseExecutor
-	config SharedIterationsConfig
-	et     *lib.ExecutionTuple
+	config     SharedIterationsConfig
+	et         *lib.ExecutionTuple
+	segIdx     *lib.SegmentedIndex
+	globalIter *uint64
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
@@ -176,7 +179,22 @@ func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 	// with no work, as determined by their config's HasWork() method.
 	et, err := si.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(si.config.VUs.Int64)
 	si.et = et
+	start, offsets, lcd := et.GetStripedOffsets()
+	si.segIdx = lib.NewSegmentedIndex(start, lcd, offsets)
+
 	return err
+***REMOVED***
+
+// incrGlobalIter increments the global iteration count for this executor,
+// taking into account the configured execution segment.
+func (si *SharedIterations) incrGlobalIter() ***REMOVED***
+	si.segIdx.Next()
+	atomic.StoreUint64(si.globalIter, uint64(si.segIdx.GetUnscaled()))
+***REMOVED***
+
+// getGlobalIter returns the global iteration count for this executor.
+func (si *SharedIterations) getGlobalIter() uint64 ***REMOVED***
+	return atomic.LoadUint64(si.globalIter)
 ***REMOVED***
 
 // Run executes a specific total number of iterations, which are all shared by
@@ -230,14 +248,18 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 	***REMOVED***()
 
 	regDurationDone := regDurationCtx.Done()
-	runIteration := getIterationRunner(si.executionState, si.incrScenarioIter, si.logger)
+	runIteration := getIterationRunner(si.executionState, func() ***REMOVED***
+		si.incrScenarioIter()
+		si.incrGlobalIter()
+	***REMOVED***, si.logger)
 
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       si.config.Name,
-		Executor:   si.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-		GetIter:    si.getScenarioIter,
+		Name:          si.config.Name,
+		Executor:      si.config.Type,
+		StartTime:     startTime,
+		ProgressFn:    progressFn,
+		GetIter:       si.getScenarioIter,
+		GetGlobalIter: si.getGlobalIter,
 	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
