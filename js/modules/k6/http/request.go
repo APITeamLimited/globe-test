@@ -113,7 +113,7 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return responseFromHttpext(resp), nil
+	return h.responseFromHttpext(resp), nil
 ***REMOVED***
 
 //TODO break this function up
@@ -377,7 +377,7 @@ func (h *HTTP) prepareBatchArray(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		***REMOVED***
-		results[i] = &Response***REMOVED***response***REMOVED***
+		results[i] = h.responseFromHttpext(response)
 	***REMOVED***
 
 	return batchReqs, results, nil
@@ -401,7 +401,7 @@ func (h *HTTP) prepareBatchObject(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		***REMOVED***
-		results[key] = &Response***REMOVED***response***REMOVED***
+		results[key] = h.responseFromHttpext(response)
 		i++
 	***REMOVED***
 
