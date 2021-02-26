@@ -158,9 +158,10 @@ func (varc RampingArrivalRateConfig) GetExecutionRequirements(et *lib.ExecutionT
 func (varc RampingArrivalRateConfig) NewExecutor(
 	es *lib.ExecutionState, logger *logrus.Entry,
 ) (lib.Executor, error) ***REMOVED***
-	return RampingArrivalRate***REMOVED***
+	return &RampingArrivalRate***REMOVED***
 		BaseExecutor: NewBaseExecutor(&varc, es, logger),
 		config:       varc,
+		globalIter:   new(uint64),
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -174,11 +175,38 @@ func (varc RampingArrivalRateConfig) HasWork(et *lib.ExecutionTuple) bool ***REM
 // TODO: combine with the ConstantArrivalRate?
 type RampingArrivalRate struct ***REMOVED***
 	*BaseExecutor
-	config RampingArrivalRateConfig
+	config     RampingArrivalRateConfig
+	et         *lib.ExecutionTuple
+	segIdx     *lib.SegmentedIndex
+	globalIter *uint64
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
 var _ lib.Executor = &RampingArrivalRate***REMOVED******REMOVED***
+
+// Init values needed for the execution
+func (varr *RampingArrivalRate) Init(ctx context.Context) error ***REMOVED***
+	// err should always be nil, because Init() won't be called for executors
+	// with no work, as determined by their config's HasWork() method.
+	et, err := varr.BaseExecutor.executionState.ExecutionTuple.GetNewExecutionTupleFromValue(varr.config.MaxVUs.Int64)
+	varr.et = et
+	start, offsets, lcd := et.GetStripedOffsets()
+	varr.segIdx = lib.NewSegmentedIndex(start, lcd, offsets)
+
+	return err
+***REMOVED***
+
+// incrGlobalIter increments the global iteration count for this executor,
+// taking into account the configured execution segment.
+func (varr *RampingArrivalRate) incrGlobalIter() ***REMOVED***
+	varr.segIdx.Next()
+	atomic.StoreUint64(varr.globalIter, uint64(varr.segIdx.GetUnscaled()))
+***REMOVED***
+
+// getGlobalIter returns the global iteration count for this executor.
+func (varr *RampingArrivalRate) getGlobalIter() uint64 ***REMOVED***
+	return atomic.LoadUint64(varr.globalIter)
+***REMOVED***
 
 // cal calculates the  transtitions between stages and gives the next full value produced by the
 // stages. In this explanation we are talking about events and in practice those events are starting
@@ -377,14 +405,15 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	***REMOVED***
 
 	varr.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, varr, progressFn)
+	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &varr, progressFn)
 
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
-		Name:       varr.config.Name,
-		Executor:   varr.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
-		GetIter:    varr.getScenarioIter,
+		Name:          varr.config.Name,
+		Executor:      varr.config.Type,
+		StartTime:     startTime,
+		ProgressFn:    progressFn,
+		GetIter:       varr.getScenarioIter,
+		GetGlobalIter: varr.getGlobalIter,
 	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
@@ -392,7 +421,11 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		activeVUsWg.Done()
 	***REMOVED***
 
-	runIterationBasic := getIterationRunner(varr.executionState, varr.incrScenarioIter, varr.logger)
+	runIterationBasic := getIterationRunner(varr.executionState, func() ***REMOVED***
+		varr.incrScenarioIter()
+		varr.incrGlobalIter()
+	***REMOVED***, varr.logger)
+
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(
@@ -439,7 +472,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	var prevTime time.Duration
 	shownWarning := false
 	metricTags := varr.getMetricTags(nil)
-	go varr.config.cal(varr.executionState.ExecutionTuple, ch)
+	go varr.config.cal(varr.et, ch)
 	for nextTime := range ch ***REMOVED***
 		select ***REMOVED***
 		case <-regDurationDone:

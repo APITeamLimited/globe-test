@@ -36,6 +36,7 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
+	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/stats"
 )
@@ -684,5 +685,67 @@ func (varc RampingArrivalRateConfig) calRat(et *lib.ExecutionTuple, ch chan<- ti
 		doneSoFar.Set(endCount) // copy
 		curr = target
 		base += time.Duration(stage.Duration.Duration)
+	***REMOVED***
+***REMOVED***
+
+func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	config := &RampingArrivalRateConfig***REMOVED***
+		BaseConfig:      BaseConfig***REMOVED***GracefulStop: types.NullDurationFrom(100 * time.Millisecond)***REMOVED***,
+		TimeUnit:        types.NullDurationFrom(950 * time.Millisecond),
+		StartRate:       null.IntFrom(0),
+		PreAllocatedVUs: null.IntFrom(2),
+		MaxVUs:          null.IntFrom(5),
+		Stages: []Stage***REMOVED***
+			***REMOVED***
+				Duration: types.NullDurationFrom(1 * time.Second),
+				Target:   null.IntFrom(20),
+			***REMOVED***,
+			***REMOVED***
+				Duration: types.NullDurationFrom(1 * time.Second),
+				Target:   null.IntFrom(0),
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	testCases := []struct ***REMOVED***
+		seq, seg string
+		expIters []uint64
+	***REMOVED******REMOVED***
+		***REMOVED***"0,1/4,3/4,1", "0:1/4", []uint64***REMOVED***0, 2, 7, 12***REMOVED******REMOVED***,
+		***REMOVED***"0,1/4,3/4,1", "1/4:3/4", []uint64***REMOVED***0, 1, 3, 5, 6, 8, 10, 11, 13, 15, 16, 18, 20***REMOVED******REMOVED***,
+		***REMOVED***"0,1/4,3/4,1", "3/4:1", []uint64***REMOVED***0, 4, 9***REMOVED******REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED***
+		tc := tc
+		t.Run(fmt.Sprintf("%s_%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			ess, err := lib.NewExecutionSegmentSequenceFromString(tc.seq)
+			require.NoError(t, err)
+			seg, err := lib.NewExecutionSegmentFromString(tc.seg)
+			require.NoError(t, err)
+			et, err := lib.NewExecutionTuple(seg, &ess)
+			require.NoError(t, err)
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 5, 5)
+
+			runner := &minirunner.MiniRunner***REMOVED******REMOVED***
+			ctx, cancel, executor, _ := setupExecutor(t, config, es, runner)
+			defer cancel()
+
+			gotIters := []uint64***REMOVED******REMOVED***
+			var mx sync.Mutex
+			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
+				mx.Lock()
+				gotIters = append(gotIters, executor.(*RampingArrivalRate).getGlobalIter())
+				mx.Unlock()
+				return nil
+			***REMOVED***
+
+			engineOut := make(chan stats.SampleContainer, 100)
+			err = executor.Run(ctx, engineOut)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expIters, gotIters)
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
