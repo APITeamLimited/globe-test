@@ -28,7 +28,6 @@ import (
 
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 )
 
 type config struct ***REMOVED***
@@ -83,9 +82,4 @@ func TestLinkReturnAddress(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	require.Equal(t, bogusValue, c.Link())
-***REMOVED***
-
-func TestGetRequiredSystemTags(t *testing.T) ***REMOVED***
-	c := &Collector***REMOVED******REMOVED***
-	require.Equal(t, stats.SystemTagSet(0), c.GetRequiredSystemTags())
 ***REMOVED***

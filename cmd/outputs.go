@@ -29,14 +29,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
-	"github.com/loadimpact/k6/cloudapi"
 	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/output"
+	"github.com/loadimpact/k6/output/cloud"
 	"github.com/loadimpact/k6/output/json"
 	"github.com/loadimpact/k6/stats"
-	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/stats/csv"
 	"github.com/loadimpact/k6/stats/datadog"
 	"github.com/loadimpact/k6/stats/influxdb"
@@ -49,7 +47,8 @@ import (
 func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, error), error) ***REMOVED***
 	// Start with the built-in outputs
 	result := map[string]func(output.Params) (output.Output, error)***REMOVED***
-		"json": json.New,
+		"json":  json.New,
+		"cloud": cloud.New,
 
 		// TODO: remove all of these
 		"influxdb": func(params output.Params) (output.Output, error) ***REMOVED***
@@ -61,20 +60,7 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			return newCollectorAdapter(params, influxc)
-		***REMOVED***,
-		"cloud": func(params output.Params) (output.Output, error) ***REMOVED***
-			conf, err := cloudapi.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			cloudc, err := cloud.New(
-				params.Logger, conf, params.ScriptPath, params.ScriptOptions, params.ExecutionPlan, consts.Version,
-			)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return newCollectorAdapter(params, cloudc)
+			return newCollectorAdapter(params, influxc), nil
 		***REMOVED***,
 		"kafka": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := kafka.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
@@ -85,7 +71,7 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			return newCollectorAdapter(params, kafkac)
+			return newCollectorAdapter(params, kafkac), nil
 		***REMOVED***,
 		"statsd": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := statsd.GetConsolidatedConfig(params.JSONConfig, params.Environment)
@@ -96,7 +82,7 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			return newCollectorAdapter(params, statsdc)
+			return newCollectorAdapter(params, statsdc), nil
 		***REMOVED***,
 		"datadog": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := datadog.GetConsolidatedConfig(params.JSONConfig, params.Environment)
@@ -107,7 +93,7 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			return newCollectorAdapter(params, datadogc)
+			return newCollectorAdapter(params, datadogc), nil
 		***REMOVED***,
 		"csv": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := csv.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
@@ -118,7 +104,7 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***
-			return newCollectorAdapter(params, csvc)
+			return newCollectorAdapter(params, csvc), nil
 		***REMOVED***,
 	***REMOVED***
 
@@ -202,27 +188,12 @@ func parseOutputArgument(s string) (t, arg string) ***REMOVED***
 
 // TODO: remove this after we transition every collector to the output interface
 
-func newCollectorAdapter(params output.Params, collector lib.Collector) (output.Output, error) ***REMOVED***
-	// Check if all required tags are present
-	missingRequiredTags := []string***REMOVED******REMOVED***
-	requiredTags := collector.GetRequiredSystemTags()
-	for _, tag := range stats.SystemTagSetValues() ***REMOVED***
-		if requiredTags.Has(tag) && !params.ScriptOptions.SystemTags.Has(tag) ***REMOVED***
-			missingRequiredTags = append(missingRequiredTags, tag.String())
-		***REMOVED***
-	***REMOVED***
-	if len(missingRequiredTags) > 0 ***REMOVED***
-		return nil, fmt.Errorf(
-			"the specified output '%s' needs the following system tags enabled: %s",
-			params.OutputType, strings.Join(missingRequiredTags, ", "),
-		)
-	***REMOVED***
-
+func newCollectorAdapter(params output.Params, collector lib.Collector) output.Output ***REMOVED***
 	return &collectorAdapter***REMOVED***
 		outputType: params.OutputType,
 		collector:  collector,
 		stopCh:     make(chan struct***REMOVED******REMOVED***),
-	***REMOVED***, nil
+	***REMOVED***
 ***REMOVED***
 
 // collectorAdapter is a _temporary_ fix until we move all of the old
@@ -259,15 +230,9 @@ func (ca *collectorAdapter) AddMetricSamples(samples []stats.SampleContainer) **
 	ca.collector.Collect(samples)
 ***REMOVED***
 
-func (ca *collectorAdapter) SetRunStatus(latestStatus lib.RunStatus) ***REMOVED***
-	ca.collector.SetRunStatus(latestStatus)
-***REMOVED***
-
 // Stop implements the new output interface.
 func (ca *collectorAdapter) Stop() error ***REMOVED***
 	ca.runCtxCancel()
 	<-ca.stopCh
 	return nil
 ***REMOVED***
-
-var _ output.WithRunStatusUpdates = &collectorAdapter***REMOVED******REMOVED***
