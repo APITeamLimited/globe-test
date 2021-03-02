@@ -330,3 +330,33 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func BenchmarkNewSampleFromTrail(b *testing.B) ***REMOVED***
+	tags := generateTags(1, 200)
+	now := time.Now()
+	trail := &httpext.Trail***REMOVED***
+		Blocked:        200 * 100 * time.Millisecond,
+		Connecting:     200 * 200 * time.Millisecond,
+		TLSHandshaking: 200 * 300 * time.Millisecond,
+		Sending:        200 * 400 * time.Millisecond,
+		Waiting:        500 * time.Millisecond,
+		Receiving:      600 * time.Millisecond,
+		EndTime:        now,
+		ConnDuration:   500 * time.Millisecond,
+		Duration:       150 * 1500 * time.Millisecond,
+		Tags:           tags,
+	***REMOVED***
+
+	b.Run("no failed", func(b *testing.B) ***REMOVED***
+		for s := 0; s < b.N; s++ ***REMOVED***
+			_ = NewSampleFromTrail(trail)
+		***REMOVED***
+	***REMOVED***)
+	trail.Failed = null.BoolFrom(true)
+
+	b.Run("failed", func(b *testing.B) ***REMOVED***
+		for s := 0; s < b.N; s++ ***REMOVED***
+			_ = NewSampleFromTrail(trail)
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***

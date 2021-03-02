@@ -113,7 +113,7 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	return responseFromHttpext(resp), nil
+	return h.responseFromHttpext(resp), nil
 ***REMOVED***
 
 //TODO break this function up
@@ -134,12 +134,14 @@ func (h *HTTP) parseRequest(
 			URL:    reqURL.GetURL(),
 			Header: make(http.Header),
 		***REMOVED***,
-		Timeout:   60 * time.Second,
-		Throw:     state.Options.Throw.Bool,
-		Redirects: state.Options.MaxRedirects,
-		Cookies:   make(map[string]*httpext.HTTPRequestCookie),
-		Tags:      make(map[string]string),
+		Timeout:          60 * time.Second,
+		Throw:            state.Options.Throw.Bool,
+		Redirects:        state.Options.MaxRedirects,
+		Cookies:          make(map[string]*httpext.HTTPRequestCookie),
+		Tags:             make(map[string]string),
+		ResponseCallback: h.responseCallback,
 	***REMOVED***
+
 	if state.Options.DiscardResponseBodies.Bool ***REMOVED***
 		result.ResponseType = httpext.ResponseTypeNone
 	***REMOVED*** else ***REMOVED***
@@ -349,6 +351,15 @@ func (h *HTTP) parseRequest(
 					return nil, err
 				***REMOVED***
 				result.ResponseType = responseType
+			case "responseCallback":
+				v := params.Get(k).Export()
+				if v == nil ***REMOVED***
+					result.ResponseCallback = nil
+				***REMOVED*** else if c, ok := v.(*expectedStatuses); ok ***REMOVED***
+					result.ResponseCallback = c.match
+				***REMOVED*** else ***REMOVED***
+					return nil, fmt.Errorf("unsupported responseCallback")
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -377,7 +388,7 @@ func (h *HTTP) prepareBatchArray(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		***REMOVED***
-		results[i] = &Response***REMOVED***response***REMOVED***
+		results[i] = h.responseFromHttpext(response)
 	***REMOVED***
 
 	return batchReqs, results, nil
@@ -401,7 +412,7 @@ func (h *HTTP) prepareBatchObject(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		***REMOVED***
-		results[key] = &Response***REMOVED***response***REMOVED***
+		results[key] = h.responseFromHttpext(response)
 		i++
 	***REMOVED***
 

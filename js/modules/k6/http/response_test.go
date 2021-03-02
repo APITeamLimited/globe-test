@@ -55,6 +55,7 @@ const testGetFormHTML = `
 	</form>
 </body>
 `
+
 const jsonData = `***REMOVED***"glossary": ***REMOVED***
     "friends": [
       ***REMOVED***"first": "Dale", "last": "Murphy", "age": 44***REMOVED***,
@@ -413,7 +414,7 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 		tc := tc
 		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
 			for n := 0; n < b.N; n++ ***REMOVED***
-				resp := responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
+				resp := new(HTTP).responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
 				resp.JSON(tc.selector)
 			***REMOVED***
 		***REMOVED***)
@@ -421,7 +422,7 @@ func BenchmarkResponseJson(b *testing.B) ***REMOVED***
 
 	b.Run("Without selector", func(b *testing.B) ***REMOVED***
 		for n := 0; n < b.N; n++ ***REMOVED***
-			resp := responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
+			resp := new(HTTP).responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
 			resp.JSON()
 		***REMOVED***
 	***REMOVED***)

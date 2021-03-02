@@ -103,18 +103,19 @@ type Request struct ***REMOVED***
 
 // ParsedHTTPRequest a represantion of a request after it has been parsed from a user script
 type ParsedHTTPRequest struct ***REMOVED***
-	URL          *URL
-	Body         *bytes.Buffer
-	Req          *http.Request
-	Timeout      time.Duration
-	Auth         string
-	Throw        bool
-	ResponseType ResponseType
-	Compressions []CompressionType
-	Redirects    null.Int
-	ActiveJar    *cookiejar.Jar
-	Cookies      map[string]*HTTPRequestCookie
-	Tags         map[string]string
+	URL              *URL
+	Body             *bytes.Buffer
+	Req              *http.Request
+	Timeout          time.Duration
+	Auth             string
+	Throw            bool
+	ResponseType     ResponseType
+	ResponseCallback func(int) bool
+	Compressions     []CompressionType
+	Redirects        null.Int
+	ActiveJar        *cookiejar.Jar
+	Cookies          map[string]*HTTPRequestCookie
+	Tags             map[string]string
 ***REMOVED***
 
 // Matches non-compliant io.Closer implementations (e.g. zstd.Decoder)
@@ -139,7 +140,7 @@ func (r readCloser) Close() error ***REMOVED***
 ***REMOVED***
 
 func stdCookiesToHTTPRequestCookies(cookies []*http.Cookie) map[string][]*HTTPRequestCookie ***REMOVED***
-	var result = make(map[string][]*HTTPRequestCookie, len(cookies))
+	result := make(map[string][]*HTTPRequestCookie, len(cookies))
 	for _, cookie := range cookies ***REMOVED***
 		result[cookie.Name] = append(result[cookie.Name],
 			&HTTPRequestCookie***REMOVED***Name: cookie.Name, Value: cookie.Value***REMOVED***)
@@ -249,7 +250,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		***REMOVED***
 	***REMOVED***
 
-	tracerTransport := newTransport(ctx, state, tags)
+	tracerTransport := newTransport(ctx, state, tags, preq.ResponseCallback)
 	var transport http.RoundTripper = tracerTransport
 
 	// Combine tags with common log fields
@@ -269,8 +270,26 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	***REMOVED***
 
 	if preq.Auth == "digest" ***REMOVED***
+		// Until digest authentication is refactored, the first response will always
+		// be a 401 error, so we expect that.
+		if tracerTransport.responseCallback != nil ***REMOVED***
+			originalResponseCallback := tracerTransport.responseCallback
+			tracerTransport.responseCallback = func(status int) bool ***REMOVED***
+				tracerTransport.responseCallback = originalResponseCallback
+				return status == 401
+			***REMOVED***
+		***REMOVED***
 		transport = digestTransport***REMOVED***originalTransport: transport***REMOVED***
 	***REMOVED*** else if preq.Auth == "ntlm" ***REMOVED***
+		// The first response of NTLM auth may be a 401 error.
+		if tracerTransport.responseCallback != nil ***REMOVED***
+			originalResponseCallback := tracerTransport.responseCallback
+			tracerTransport.responseCallback = func(status int) bool ***REMOVED***
+				tracerTransport.responseCallback = originalResponseCallback
+				// ntlm is connection-level based so we could've already authorized the connection and to now reuse it
+				return status == 401 || originalResponseCallback(status)
+			***REMOVED***
+		***REMOVED***
 		transport = ntlmssp.Negotiator***REMOVED***RoundTripper: transport***REMOVED***
 	***REMOVED***
 
@@ -381,7 +400,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 // SetRequestCookies sets the cookies of the requests getting those cookies both from the jar and
 // from the reqCookies map. The Replace field of the HTTPRequestCookie will be taken into account
 func SetRequestCookies(req *http.Request, jar *cookiejar.Jar, reqCookies map[string]*HTTPRequestCookie) ***REMOVED***
-	var replacedCookies = make(map[string]struct***REMOVED******REMOVED***)
+	replacedCookies := make(map[string]struct***REMOVED******REMOVED***)
 	for key, reqCookie := range reqCookies ***REMOVED***
 		req.AddCookie(&http.Cookie***REMOVED***Name: key, Value: reqCookie.Value***REMOVED***)
 		if reqCookie.Replace ***REMOVED***

@@ -382,6 +382,7 @@ func easyjson9def2ecdDecode(in *jlexer.Lexer, out *struct ***REMOVED***
 	Sending        AggregatedMetric `json:"http_req_sending"`
 	Waiting        AggregatedMetric `json:"http_req_waiting"`
 	Receiving      AggregatedMetric `json:"http_req_receiving"`
+	Failed         AggregatedRate   `json:"http_req_failed,omitempty"`
 ***REMOVED***) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
@@ -415,6 +416,8 @@ func easyjson9def2ecdDecode(in *jlexer.Lexer, out *struct ***REMOVED***
 			easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud4(in, &out.Waiting)
 		case "http_req_receiving":
 			easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud4(in, &out.Receiving)
+		case "http_req_failed":
+			easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud5(in, &out.Failed)
 		default:
 			in.SkipRecursive()
 		***REMOVED***
@@ -433,6 +436,7 @@ func easyjson9def2ecdEncode(out *jwriter.Writer, in struct ***REMOVED***
 	Sending        AggregatedMetric `json:"http_req_sending"`
 	Waiting        AggregatedMetric `json:"http_req_waiting"`
 	Receiving      AggregatedMetric `json:"http_req_receiving"`
+	Failed         AggregatedRate   `json:"http_req_failed,omitempty"`
 ***REMOVED***) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
@@ -471,6 +475,60 @@ func easyjson9def2ecdEncode(out *jwriter.Writer, in struct ***REMOVED***
 		const prefix string = ",\"http_req_receiving\":"
 		out.RawString(prefix)
 		easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud4(out, in.Receiving)
+	***REMOVED***
+	if (in.Failed).IsDefined() ***REMOVED***
+		const prefix string = ",\"http_req_failed\":"
+		out.RawString(prefix)
+		easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud5(out, in.Failed)
+	***REMOVED***
+	out.RawByte('***REMOVED***')
+***REMOVED***
+func easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud5(in *jlexer.Lexer, out *AggregatedRate) ***REMOVED***
+	isTopLevel := in.IsStart()
+	if in.IsNull() ***REMOVED***
+		if isTopLevel ***REMOVED***
+			in.Consumed()
+		***REMOVED***
+		in.Skip()
+		return
+	***REMOVED***
+	in.Delim('***REMOVED***')
+	for !in.IsDelim('***REMOVED***') ***REMOVED***
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() ***REMOVED***
+			in.Skip()
+			in.WantComma()
+			continue
+		***REMOVED***
+		switch key ***REMOVED***
+		case "count":
+			out.Count = float64(in.Float64())
+		case "nz_count":
+			out.NzCount = float64(in.Float64())
+		default:
+			in.SkipRecursive()
+		***REMOVED***
+		in.WantComma()
+	***REMOVED***
+	in.Delim('***REMOVED***')
+	if isTopLevel ***REMOVED***
+		in.Consumed()
+	***REMOVED***
+***REMOVED***
+func easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud5(out *jwriter.Writer, in AggregatedRate) ***REMOVED***
+	out.RawByte('***REMOVED***')
+	first := true
+	_ = first
+	***REMOVED***
+		const prefix string = ",\"count\":"
+		out.RawString(prefix[1:])
+		out.Float64(float64(in.Count))
+	***REMOVED***
+	***REMOVED***
+		const prefix string = ",\"nz_count\":"
+		out.RawString(prefix)
+		out.Float64(float64(in.NzCount))
 	***REMOVED***
 	out.RawByte('***REMOVED***')
 ***REMOVED***
@@ -530,7 +588,7 @@ func easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud4(out *jwriter.Writer,
 	***REMOVED***
 	out.RawByte('***REMOVED***')
 ***REMOVED***
-func easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud5(in *jlexer.Lexer, out *Sample) ***REMOVED***
+func easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud6(in *jlexer.Lexer, out *Sample) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -571,7 +629,7 @@ func easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud5(in *jlexer.Lexer, ou
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud5(out *jwriter.Writer, in Sample) ***REMOVED***
+func easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud6(out *jwriter.Writer, in Sample) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -601,10 +659,10 @@ func easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud5(out *jwriter.Writer,
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Sample) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
-	easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud5(w, v)
+	easyjson9def2ecdEncodeGithubComLoadimpactK6StatsCloud6(w, v)
 ***REMOVED***
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Sample) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
-	easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud5(l, v)
+	easyjson9def2ecdDecodeGithubComLoadimpactK6StatsCloud6(l, v)
 ***REMOVED***

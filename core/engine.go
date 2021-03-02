@@ -108,6 +108,20 @@ func NewEngine(
 		e.submetrics[parent] = append(e.submetrics[parent], sm)
 	***REMOVED***
 
+	// TODO: refactor this out of here when https://github.com/loadimpact/k6/issues/1832 lands and
+	// there is a better way to enable a metric with tag
+	if opts.SystemTags.Has(stats.TagExpectedResponse) ***REMOVED***
+		for _, name := range []string***REMOVED***
+			"http_req_duration***REMOVED***expected_response:true***REMOVED***",
+		***REMOVED*** ***REMOVED***
+			if _, ok := e.thresholds[name]; ok ***REMOVED***
+				continue
+			***REMOVED***
+			parent, sm := stats.NewSubmetric(name)
+			e.submetrics[parent] = append(e.submetrics[parent], sm)
+		***REMOVED***
+	***REMOVED***
+
 	return e, nil
 ***REMOVED***
 
