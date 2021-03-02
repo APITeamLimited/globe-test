@@ -366,13 +366,15 @@ jobs:
           done
           hub release create "$***REMOVED***assets[@]***REMOVED***" -m "$VERSION" -m "$(cat ./release\ notes/$***REMOVED***VERSION***REMOVED***.md)" "$VERSION"
 
-  publish-bintray:
+  publish-packages:
     runs-on: ubuntu-latest
     needs: [configure, build, package-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     env:
       VERSION: $***REMOVED******REMOVED*** needs.configure.outputs.version ***REMOVED******REMOVED***
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -383,13 +385,16 @@ jobs:
         with:
           name: binaries-windows
           path: dist
-      - name: Upload packages to Bintray
+      - name: Setup docker-compose environment
         run: |
-          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6-$VERSION-amd64.deb" \
-            "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/deb/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
-          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6-$VERSION-amd64.rpm" \
-            "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/rpm/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.rpm?publish=1&override=1"
-          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6-$VERSION-win64.msi" \
-            "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/windows/k6/$***REMOVED***VERSION#v***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.msi?publish=1&override=1"
-          curl -fsS -H "X-GPG-PASSPHRASE: $***REMOVED******REMOVED*** secrets.GPG_PASSPHRASE ***REMOVED******REMOVED***" -T "dist/k6.portable.$***REMOVED***VERSION#v***REMOVED***.nupkg" \
-            "https://$***REMOVED******REMOVED*** secrets.BINTRAY_USER ***REMOVED******REMOVED***:$***REMOVED******REMOVED*** secrets.BINTRAY_KEY ***REMOVED******REMOVED***@api.bintray.com/content/loadimpact/choco/k6.portable/$***REMOVED***VERSION#v***REMOVED***/k6.portable.$***REMOVED***VERSION***REMOVED***.nupkg?publish=1&override=1"
+          cat > packaging/.env <<EOF
+          AWS_ACCESS_KEY_ID=$***REMOVED******REMOVED*** secrets.AWS_ACCESS_KEY_ID ***REMOVED******REMOVED***
+          AWS_SECRET_ACCESS_KEY=$***REMOVED******REMOVED*** secrets.AWS_SECRET_ACCESS_KEY ***REMOVED******REMOVED***
+          PGP_SIGN_KEY_PASSPHRASE=$***REMOVED******REMOVED*** secrets.PGP_SIGN_KEY_PASSPHRASE ***REMOVED******REMOVED***
+          EOF
+          echo "$***REMOVED******REMOVED*** secrets.PGP_SIGN_KEY ***REMOVED******REMOVED***" > packaging/sign-key.gpg
+      - name: Publish packages
+        run: |
+          cd packaging
+          # TODO: Build and publish k6io/packager image to GH Container Registry
+          docker-compose run --rm packager
