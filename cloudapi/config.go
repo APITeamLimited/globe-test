@@ -188,6 +188,9 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.DeprecatedToken.Valid ***REMOVED***
 		c.DeprecatedToken = cfg.DeprecatedToken
 	***REMOVED***
+	if cfg.ProjectID.Valid && cfg.ProjectID.Int64 > 0 ***REMOVED***
+		c.ProjectID = cfg.ProjectID
+	***REMOVED***
 	if cfg.Name.Valid && cfg.Name.String != "" ***REMOVED***
 		c.Name = cfg.Name
 	***REMOVED***
@@ -197,21 +200,25 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.LogsTailURL.Valid && cfg.LogsTailURL.String != "" ***REMOVED***
 		c.LogsTailURL = cfg.LogsTailURL
 	***REMOVED***
+	if cfg.PushRefID.Valid ***REMOVED***
+		c.PushRefID = cfg.PushRefID
+	***REMOVED***
 	if cfg.WebAppURL.Valid ***REMOVED***
 		c.WebAppURL = cfg.WebAppURL
 	***REMOVED***
 	if cfg.NoCompress.Valid ***REMOVED***
 		c.NoCompress = cfg.NoCompress
 	***REMOVED***
-	if cfg.ProjectID.Valid && cfg.ProjectID.Int64 > 0 ***REMOVED***
-		c.ProjectID = cfg.ProjectID
+	if cfg.MaxMetricSamplesPerPackage.Valid ***REMOVED***
+		c.MaxMetricSamplesPerPackage = cfg.MaxMetricSamplesPerPackage
 	***REMOVED***
 	if cfg.MetricPushInterval.Valid ***REMOVED***
 		c.MetricPushInterval = cfg.MetricPushInterval
 	***REMOVED***
-	if cfg.MaxMetricSamplesPerPackage.Valid ***REMOVED***
-		c.MaxMetricSamplesPerPackage = cfg.MaxMetricSamplesPerPackage
+	if cfg.MetricPushConcurrency.Valid ***REMOVED***
+		c.MetricPushConcurrency = cfg.MetricPushConcurrency
 	***REMOVED***
+
 	if cfg.AggregationPeriod.Valid ***REMOVED***
 		c.AggregationPeriod = cfg.AggregationPeriod
 	***REMOVED***

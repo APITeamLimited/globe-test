@@ -83,7 +83,7 @@ type WithThresholds interface ***REMOVED***
 // TODO: add some way for outputs to report mid-test errors and potentially
 // abort the whole test run
 
-// WithRunStatusUpdates means the output can receivetest run status updates.
+// WithRunStatusUpdates means the output can receive test run status updates.
 type WithRunStatusUpdates interface ***REMOVED***
 	Output
 	SetRunStatus(latestStatus lib.RunStatus)

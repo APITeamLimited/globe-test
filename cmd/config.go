@@ -80,6 +80,9 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.NoUsageReport.Valid ***REMOVED***
 		c.NoUsageReport = cfg.NoUsageReport
 	***REMOVED***
+	if len(cfg.Collectors) > 0 ***REMOVED***
+		c.Collectors = cfg.Collectors
+	***REMOVED***
 	return c
 ***REMOVED***
 
