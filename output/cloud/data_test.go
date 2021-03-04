@@ -233,10 +233,10 @@ func TestMetricAggregation(t *testing.T) ***REMOVED***
 // I've not used that after the initial tests because it's a big
 // external dependency that's not really needed for the tests at
 // this point.
-func getDurations(count int, min, multiplier float64) durations ***REMOVED***
+func getDurations(r *rand.Rand, count int, min, multiplier float64) durations ***REMOVED***
 	data := make(durations, count)
 	for j := 0; j < count; j++ ***REMOVED***
-		data[j] = time.Duration(min + rand.Float64()*multiplier)
+		data[j] = time.Duration(min + r.Float64()*multiplier) //nolint:gosec
 	***REMOVED***
 	return data
 ***REMOVED***
@@ -246,10 +246,14 @@ func BenchmarkDurationBounds(b *testing.B) ***REMOVED***
 	iqrLowerCoef := 1.5
 	iqrUpperCoef := 1.5
 
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed)) //nolint:gosec
+	b.Logf("Random source seeded with %d\n", seed)
+
 	getData := func(b *testing.B, count int) durations ***REMOVED***
 		b.StopTimer()
 		defer b.StartTimer()
-		return getDurations(count, 0.1*float64(time.Second), float64(time.Second))
+		return getDurations(r, count, 0.1*float64(time.Second), float64(time.Second))
 	***REMOVED***
 
 	for count := 100; count <= 5000; count += 500 ***REMOVED***
@@ -277,11 +281,15 @@ func BenchmarkDurationBounds(b *testing.B) ***REMOVED***
 
 func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	seed := time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed)) //nolint:gosec
+	t.Logf("Random source seeded with %d\n", seed)
+
 	mult := time.Millisecond
-	for _, count := range []int***REMOVED***1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100, 250 + rand.Intn(100)***REMOVED*** ***REMOVED***
+	for _, count := range []int***REMOVED***1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100, 250 + r.Intn(100)***REMOVED*** ***REMOVED***
 		count := count
 		t.Run(fmt.Sprintf("simple-%d", count), func(t *testing.T) ***REMOVED***
-			t.Parallel()
 			data := make(durations, count)
 			for i := 0; i < count; i++ ***REMOVED***
 				data[i] = time.Duration(i) * mult
@@ -290,13 +298,11 @@ func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 			for i := 0; i < 10; i++ ***REMOVED***
 				dataCopy := make(durations, count)
 				assert.Equal(t, count, copy(dataCopy, data))
-				k := rand.Intn(count)
+				k := r.Intn(count)
 				assert.Equal(t, dataCopy.quickSelect(k), time.Duration(k)*mult)
 			***REMOVED***
 		***REMOVED***)
 		t.Run(fmt.Sprintf("random-%d", count), func(t *testing.T) ***REMOVED***
-			t.Parallel()
-
 			testCases := []struct***REMOVED*** r, l, u float64 ***REMOVED******REMOVED***
 				***REMOVED***0.25, 1.5, 1.5***REMOVED***, // Textbook
 				***REMOVED***0.25, 1.5, 1.3***REMOVED***, // Defaults
@@ -306,7 +312,7 @@ func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 
 			for tcNum, tc := range testCases ***REMOVED***
 				tc := tc
-				data := getDurations(count, 0.3*float64(time.Second), 2*float64(time.Second))
+				data := getDurations(r, count, 0.3*float64(time.Second), 2*float64(time.Second))
 				dataForSort := make(durations, count)
 				dataForSelect := make(durations, count)
 				assert.Equal(t, count, copy(dataForSort, data))
@@ -320,7 +326,7 @@ func TestQuickSelectAndBounds(t *testing.T) ***REMOVED***
 					assert.Equal(t, sortMin, selectMin)
 					assert.Equal(t, sortMax, selectMax)
 
-					k := rand.Intn(count)
+					k := r.Intn(count)
 					assert.Equal(t, dataForSort[k], dataForSelect.quickSelect(k))
 					assert.Equal(t, dataForSort[k], data.quickSelect(k))
 				***REMOVED***)
