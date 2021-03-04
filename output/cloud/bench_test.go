@@ -23,6 +23,7 @@ package cloud
 import (
 	"bytes"
 	"compress/gzip"
+	json "encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,29 +37,28 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/loadimpact/k6/cloudapi"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
+	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/stats"
 )
 
 func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
-	options := lib.Options***REMOVED***
-		Duration: types.NullDurationFrom(1 * time.Second),
-	***REMOVED***
-
-	config := cloudapi.NewConfig().Apply(cloudapi.Config***REMOVED***
-		NoCompress:              null.BoolFrom(true),
-		AggregationCalcInterval: types.NullDurationFrom(time.Millisecond * 200),
-		AggregationPeriod:       types.NullDurationFrom(time.Millisecond * 200),
+	out, err := newOutput(output.Params***REMOVED***
+		Logger:     testutils.NewLogger(b),
+		JSONConfig: json.RawMessage(`***REMOVED***"noCompress": true, "aggregationCalcInterval": "200ms","aggregationPeriod": "200ms"***REMOVED***`),
+		ScriptOptions: lib.Options***REMOVED***
+			Duration:   types.NullDurationFrom(1 * time.Second),
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
-	collector, err := New(testutils.NewLogger(b), config, &url.URL***REMOVED***Path: "/script.js"***REMOVED***, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(b, err)
 	now := time.Now()
-	collector.referenceID = "something"
+	out.referenceID = "something"
 	containersCount := 500000
 
 	for _, tagCount := range []int***REMOVED***1, 5, 35, 315, 3645***REMOVED*** ***REMOVED***
@@ -79,10 +79,10 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 					tags := generateTags(i, tagCount, map[string]string***REMOVED***"status": status***REMOVED***)
 					container[i-1] = generateHTTPExtTrail(now, time.Duration(i), tags)
 				***REMOVED***
-				collector.Collect(container)
+				out.AddMetricSamples(container)
 				b.StartTimer()
-				collector.aggregateHTTPTrails(time.Millisecond * 200)
-				collector.bufferSamples = nil
+				out.aggregateHTTPTrails(time.Millisecond * 200)
+				out.bufferSamples = nil
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -289,9 +289,6 @@ func generateHTTPExtTrail(now time.Time, i time.Duration, tags *stats.SampleTags
 ***REMOVED***
 
 func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
-	options := lib.Options***REMOVED***
-		Duration: types.NullDurationFrom(1 * time.Second),
-	***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(b)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprint(w, `***REMOVED***
@@ -307,14 +304,22 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		***REMOVED***,
 	)
 
-	config := cloudapi.NewConfig().Apply(cloudapi.Config***REMOVED***
-		Host:                    null.StringFrom(tb.ServerHTTP.URL),
-		AggregationCalcInterval: types.NullDurationFrom(time.Millisecond * 200),
-		AggregationPeriod:       types.NullDurationFrom(time.Millisecond * 200),
+	out, err := newOutput(output.Params***REMOVED***
+		Logger: testutils.NewLogger(b),
+		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
+			"host": "%s",
+			"noCompress": true,
+			"aggregationCalcInterval": "200ms",
+			"aggregationPeriod": "200ms"
+		***REMOVED***`, tb.ServerHTTP.URL)),
+		ScriptOptions: lib.Options***REMOVED***
+			Duration:   types.NullDurationFrom(1 * time.Second),
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
-	collector, err := New(testutils.NewLogger(b), config, &url.URL***REMOVED***Path: "/script.js"***REMOVED***, options, []lib.ExecutionStep***REMOVED******REMOVED***, "1.0")
 	require.NoError(b, err)
-	collector.referenceID = "fake"
+	out.referenceID = "fake"
 
 	for _, count := range []int***REMOVED***1000, 5000, 50000, 100000, 250000***REMOVED*** ***REMOVED***
 		count := count
@@ -325,7 +330,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 				b.StopTimer()
 				toSend := append([]*Sample***REMOVED******REMOVED***, samples...)
 				b.StartTimer()
-				require.NoError(b, collector.PushMetric("fake", false, toSend))
+				require.NoError(b, out.PushMetric("fake", false, toSend))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

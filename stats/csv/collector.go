@@ -130,9 +130,6 @@ func (c *Collector) Init() error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// SetRunStatus does nothing
-func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED***
-
 // Run just blocks until the context is done
 func (c *Collector) Run(ctx context.Context) ***REMOVED***
 	ticker := time.NewTicker(c.saveInterval)
@@ -244,9 +241,4 @@ func IsStringInSlice(slice []string, str string) bool ***REMOVED***
 		return false
 	***REMOVED***
 	return true
-***REMOVED***
-
-// GetRequiredSystemTags returns which sample tags are needed by this collector
-func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
-	return stats.SystemTagSet(0) // There are no required tags for this collector
 ***REMOVED***

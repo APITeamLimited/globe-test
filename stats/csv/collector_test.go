@@ -462,18 +462,6 @@ func TestNew(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestGetRequiredSystemTags(t *testing.T) ***REMOVED***
-	collector, err := New(
-		testutils.NewLogger(t),
-		afero.NewMemMapFs(),
-		stats.TagSet***REMOVED***"tag1": true, "tag2": false, "tag3": true***REMOVED***,
-		Config***REMOVED***FileName: null.StringFrom("name"), SaveInterval: types.NewNullDuration(time.Duration(1), true)***REMOVED***,
-	)
-	assert.NoError(t, err)
-	assert.NotNil(t, collector)
-	assert.Equal(t, stats.SystemTagSet(0), collector.GetRequiredSystemTags())
-***REMOVED***
-
 func TestLink(t *testing.T) ***REMOVED***
 	collector, err := New(
 		testutils.NewLogger(t),

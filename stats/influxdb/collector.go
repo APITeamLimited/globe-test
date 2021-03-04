@@ -235,11 +235,3 @@ func (c *Collector) Format(samples []stats.Sample) ([]string, error) ***REMOVED*
 
 	return metrics, nil
 ***REMOVED***
-
-// GetRequiredSystemTags returns which sample tags are needed by this collector
-func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
-	return stats.SystemTagSet(0) // There are no required tags for this collector
-***REMOVED***
-
-// SetRunStatus does nothing in the InfluxDB collector
-func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED******REMOVED***

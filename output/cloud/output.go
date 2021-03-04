@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,8 +40,10 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/cloudapi"
+	"github.com/loadimpact/k6/output"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
@@ -50,8 +53,8 @@ import (
 // TestName is the default Load Impact Cloud test name
 const TestName = "k6 test"
 
-// Collector sends result data to the Load Impact cloud service.
-type Collector struct ***REMOVED***
+// Output sends result data to the Load Impact cloud service.
+type Output struct ***REMOVED***
 	config      cloudapi.Config
 	referenceID string
 
@@ -61,7 +64,6 @@ type Collector struct ***REMOVED***
 	client         *cloudapi.Client
 	pushBufferPool sync.Pool
 
-	anonymous bool
 	runStatus lib.RunStatus
 
 	bufferMutex      sync.Mutex
@@ -81,27 +83,48 @@ type Collector struct ***REMOVED***
 	// don't fit in the chosen ring buffer size, we could just send them along to the buffer unaggregated
 	aggrBuckets map[int64]map[[3]string]aggregationBucket
 
-	stopSendingMetricsCh chan struct***REMOVED******REMOVED***
+	stopSendingMetrics chan struct***REMOVED******REMOVED***
+	stopAggregation    chan struct***REMOVED******REMOVED***
+	aggregationDone    *sync.WaitGroup
+	stopOutput         chan struct***REMOVED******REMOVED***
+	outputDone         *sync.WaitGroup
 ***REMOVED***
 
-// Verify that Collector implements lib.Collector
-var _ lib.Collector = &Collector***REMOVED******REMOVED***
+// Verify that Output implements the wanted interfaces
+var _ interface ***REMOVED***
+	output.WithRunStatusUpdates
+	output.WithThresholds
+***REMOVED*** = &Output***REMOVED******REMOVED***
 
-// New creates a new cloud collector
-func New(
-	logger logrus.FieldLogger,
-	conf cloudapi.Config, scriptURL fmt.Stringer, opts lib.Options, executionPlan []lib.ExecutionStep, version string,
-) (*Collector, error) ***REMOVED***
-	if err := cloudapi.MergeFromExternal(opts.External, &conf); err != nil ***REMOVED***
+// New creates a new cloud output.
+func New(params output.Params) (output.Output, error) ***REMOVED***
+	return newOutput(params)
+***REMOVED***
+
+// New creates a new cloud output.
+func newOutput(params output.Params) (*Output, error) ***REMOVED***
+	conf, err := cloudapi.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
+	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	if conf.AggregationPeriod.Duration > 0 && (opts.SystemTags.Has(stats.TagVU) || opts.SystemTags.Has(stats.TagIter)) ***REMOVED***
+	if err := validateRequiredSystemTags(params.ScriptOptions.SystemTags); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	logger := params.Logger.WithFields(logrus.Fields***REMOVED***"output": "cloud"***REMOVED***)
+
+	if err := cloudapi.MergeFromExternal(params.ScriptOptions.External, &conf); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if conf.AggregationPeriod.Duration > 0 &&
+		(params.ScriptOptions.SystemTags.Has(stats.TagVU) || params.ScriptOptions.SystemTags.Has(stats.TagIter)) ***REMOVED***
 		return nil, errors.New("aggregation cannot be enabled if the 'vu' or 'iter' system tag is also enabled")
 	***REMOVED***
 
 	if !conf.Name.Valid || conf.Name.String == "" ***REMOVED***
-		scriptPath := scriptURL.String()
+		scriptPath := params.ScriptPath.String()
 		if scriptPath == "" ***REMOVED***
 			// Script from stdin without a name, likely from stdin
 			return nil, errors.New("script name not set, please specify K6_CLOUD_NAME or options.ext.loadimpact.name")
@@ -113,12 +136,7 @@ func New(
 		conf.Name = null.StringFrom(TestName)
 	***REMOVED***
 
-	thresholds := make(map[string][]*stats.Threshold)
-	for name, t := range opts.Thresholds ***REMOVED***
-		thresholds[name] = append(thresholds[name], t.Thresholds...)
-	***REMOVED***
-
-	duration, testEnds := lib.GetEndOffset(executionPlan)
+	duration, testEnds := lib.GetEndOffset(params.ExecutionPlan)
 	if !testEnds ***REMOVED***
 		return nil, errors.New("tests with unspecified duration are not allowed when outputting data to k6 cloud")
 	***REMOVED***
@@ -138,130 +156,179 @@ func New(
 			conf.MaxMetricSamplesPerPackage.Int64)
 	***REMOVED***
 
-	return &Collector***REMOVED***
-		config:               conf,
-		thresholds:           thresholds,
-		client:               cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, version),
-		anonymous:            !conf.Token.Valid,
-		executionPlan:        executionPlan,
-		duration:             int64(duration / time.Second),
-		opts:                 opts,
-		aggrBuckets:          map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***,
-		stopSendingMetricsCh: make(chan struct***REMOVED******REMOVED***),
-		logger:               logger,
+	return &Output***REMOVED***
+		config:        conf,
+		client:        cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, consts.Version),
+		executionPlan: params.ExecutionPlan,
+		duration:      int64(duration / time.Second),
+		opts:          params.ScriptOptions,
+		aggrBuckets:   map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***,
+		logger:        logger,
 		pushBufferPool: sync.Pool***REMOVED***
 			New: func() interface***REMOVED******REMOVED*** ***REMOVED***
 				return &bytes.Buffer***REMOVED******REMOVED***
 			***REMOVED***,
 		***REMOVED***,
+		stopSendingMetrics: make(chan struct***REMOVED******REMOVED***),
+		stopAggregation:    make(chan struct***REMOVED******REMOVED***),
+		aggregationDone:    &sync.WaitGroup***REMOVED******REMOVED***,
+		stopOutput:         make(chan struct***REMOVED******REMOVED***),
+		outputDone:         &sync.WaitGroup***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
-// Init is called between the collector's creation and the call to Run().
-// You should do any lengthy setup here rather than in New.
-func (c *Collector) Init() error ***REMOVED***
-	if c.config.PushRefID.Valid ***REMOVED***
-		c.referenceID = c.config.PushRefID.String
-		c.logger.WithField("referenceId", c.referenceID).Debug("Cloud: directly pushing metrics without init")
+// validateRequiredSystemTags checks if all required tags are present.
+func validateRequiredSystemTags(scriptTags *stats.SystemTagSet) error ***REMOVED***
+	missingRequiredTags := []string***REMOVED******REMOVED***
+	requiredTags := stats.TagName | stats.TagMethod | stats.TagStatus | stats.TagError | stats.TagCheck | stats.TagGroup
+	for _, tag := range stats.SystemTagSetValues() ***REMOVED***
+		if requiredTags.Has(tag) && !scriptTags.Has(tag) ***REMOVED***
+			missingRequiredTags = append(missingRequiredTags, tag.String())
+		***REMOVED***
+	***REMOVED***
+	if len(missingRequiredTags) > 0 ***REMOVED***
+		return fmt.Errorf(
+			"the cloud output needs the following system tags enabled: %s",
+			strings.Join(missingRequiredTags, ", "),
+		)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// Start calls the k6 Cloud API to initialize the test run, and then starts the
+// goroutine that would listen for metric samples and send them to the cloud.
+func (out *Output) Start() error ***REMOVED***
+	if out.config.PushRefID.Valid ***REMOVED***
+		out.referenceID = out.config.PushRefID.String
+		out.logger.WithField("referenceId", out.referenceID).Debug("directly pushing metrics without init")
 		return nil
 	***REMOVED***
 
 	thresholds := make(map[string][]string)
 
-	for name, t := range c.thresholds ***REMOVED***
+	for name, t := range out.thresholds ***REMOVED***
 		for _, threshold := range t ***REMOVED***
 			thresholds[name] = append(thresholds[name], threshold.Source)
 		***REMOVED***
 	***REMOVED***
-	maxVUs := lib.GetMaxPossibleVUs(c.executionPlan)
+	maxVUs := lib.GetMaxPossibleVUs(out.executionPlan)
 
 	testRun := &cloudapi.TestRun***REMOVED***
-		Name:       c.config.Name.String,
-		ProjectID:  c.config.ProjectID.Int64,
+		Name:       out.config.Name.String,
+		ProjectID:  out.config.ProjectID.Int64,
 		VUsMax:     int64(maxVUs),
 		Thresholds: thresholds,
-		Duration:   c.duration,
+		Duration:   out.duration,
 	***REMOVED***
 
-	response, err := c.client.CreateTestRun(testRun)
+	response, err := out.client.CreateTestRun(testRun)
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	c.referenceID = response.ReferenceID
+	out.referenceID = response.ReferenceID
 
 	if response.ConfigOverride != nil ***REMOVED***
-		c.logger.WithFields(logrus.Fields***REMOVED***
+		out.logger.WithFields(logrus.Fields***REMOVED***
 			"override": response.ConfigOverride,
-		***REMOVED***).Debug("Cloud: overriding config options")
-		c.config = c.config.Apply(*response.ConfigOverride)
+		***REMOVED***).Debug("overriding config options")
+		out.config = out.config.Apply(*response.ConfigOverride)
 	***REMOVED***
 
-	c.logger.WithFields(logrus.Fields***REMOVED***
-		"name":        c.config.Name,
-		"projectId":   c.config.ProjectID,
-		"duration":    c.duration,
-		"referenceId": c.referenceID,
-	***REMOVED***).Debug("Cloud: Initialized")
+	out.startBackgroundProcesses()
+
+	out.logger.WithFields(logrus.Fields***REMOVED***
+		"name":        out.config.Name,
+		"projectId":   out.config.ProjectID,
+		"duration":    out.duration,
+		"referenceId": out.referenceID,
+	***REMOVED***).Debug("Started!")
 	return nil
 ***REMOVED***
 
-// Link return a link that is shown to the user.
-func (c *Collector) Link() string ***REMOVED***
-	return cloudapi.URLForResults(c.referenceID, c.config)
-***REMOVED***
-
-// Run is called in a goroutine and starts the collector. Should commit samples to the backend
-// at regular intervals and when the context is terminated.
-func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	wg := sync.WaitGroup***REMOVED******REMOVED***
-	quit := ctx.Done()
-	aggregationPeriod := time.Duration(c.config.AggregationPeriod.Duration)
+func (out *Output) startBackgroundProcesses() ***REMOVED***
+	aggregationPeriod := time.Duration(out.config.AggregationPeriod.Duration)
 	// If enabled, start periodically aggregating the collected HTTP trails
 	if aggregationPeriod > 0 ***REMOVED***
-		wg.Add(1)
-		aggregationTicker := time.NewTicker(aggregationPeriod)
-		aggregationWaitPeriod := time.Duration(c.config.AggregationWaitPeriod.Duration)
-		signalQuit := make(chan struct***REMOVED******REMOVED***)
-		quit = signalQuit
-
+		out.aggregationDone.Add(1)
 		go func() ***REMOVED***
-			defer wg.Done()
+			defer out.aggregationDone.Done()
+			aggregationWaitPeriod := time.Duration(out.config.AggregationWaitPeriod.Duration)
+			aggregationTicker := time.NewTicker(aggregationPeriod)
+			defer aggregationTicker.Stop()
+
 			for ***REMOVED***
 				select ***REMOVED***
-				case <-c.stopSendingMetricsCh:
+				case <-out.stopSendingMetrics:
 					return
 				case <-aggregationTicker.C:
-					c.aggregateHTTPTrails(aggregationWaitPeriod)
-				case <-ctx.Done():
-					c.aggregateHTTPTrails(0)
-					c.flushHTTPTrails()
-					close(signalQuit)
+					out.aggregateHTTPTrails(aggregationWaitPeriod)
+				case <-out.stopAggregation:
+					out.aggregateHTTPTrails(0)
+					out.flushHTTPTrails()
 					return
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***()
 	***REMOVED***
 
-	defer func() ***REMOVED***
-		wg.Wait()
-		c.testFinished()
+	out.outputDone.Add(1)
+	go func() ***REMOVED***
+		defer out.outputDone.Done()
+		pushTicker := time.NewTicker(time.Duration(out.config.MetricPushInterval.Duration))
+		defer pushTicker.Stop()
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-out.stopSendingMetrics:
+				return
+			default:
+			***REMOVED***
+			select ***REMOVED***
+			case <-out.stopOutput:
+				out.pushMetrics()
+				return
+			case <-pushTicker.C:
+				out.pushMetrics()
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***()
+***REMOVED***
 
-	pushTicker := time.NewTicker(time.Duration(c.config.MetricPushInterval.Duration))
-	for ***REMOVED***
-		select ***REMOVED***
-		case <-c.stopSendingMetricsCh:
-			return
-		default:
-		***REMOVED***
-		select ***REMOVED***
-		case <-quit:
-			c.pushMetrics()
-			return
-		case <-pushTicker.C:
-			c.pushMetrics()
-		***REMOVED***
+// Stop gracefully stops all metric emission from the output and when all metric
+// samples are emitted, it sends an API to the cloud to finish the test run.
+func (out *Output) Stop() error ***REMOVED***
+	out.logger.Debug("Stopping the cloud output...")
+	close(out.stopAggregation)
+	out.aggregationDone.Wait() // could be a no-op, if we have never started the aggregation
+	out.logger.Debug("Aggregation stopped, stopping metric emission...")
+	close(out.stopOutput)
+	out.outputDone.Wait()
+	out.logger.Debug("Metric emission stopped, calling cloud API...")
+	err := out.testFinished()
+	if err != nil ***REMOVED***
+		out.logger.WithFields(logrus.Fields***REMOVED***"error": err***REMOVED***).Warn("Failed to send test finished to the cloud")
+	***REMOVED*** else ***REMOVED***
+		out.logger.Debug("Cloud output successfully stopped!")
 	***REMOVED***
+	return err
+***REMOVED***
+
+// Description returns the URL with the test run results.
+func (out *Output) Description() string ***REMOVED***
+	return fmt.Sprintf("cloud (%s)", cloudapi.URLForResults(out.referenceID, out.config))
+***REMOVED***
+
+// SetRunStatus receives the latest run status from the Engine.
+func (out *Output) SetRunStatus(status lib.RunStatus) ***REMOVED***
+	out.runStatus = status
+***REMOVED***
+
+// SetThresholds receives the thresholds before the output is Start()-ed.
+func (out *Output) SetThresholds(scriptThresholds map[string]stats.Thresholds) ***REMOVED***
+	thresholds := make(map[string][]*stats.Threshold)
+	for name, t := range scriptThresholds ***REMOVED***
+		thresholds[name] = append(thresholds[name], t.Thresholds...)
+	***REMOVED***
+	out.thresholds = thresholds
 ***REMOVED***
 
 func useCloudTags(source *httpext.Trail) *httpext.Trail ***REMOVED***
@@ -282,16 +349,17 @@ func useCloudTags(source *httpext.Trail) *httpext.Trail ***REMOVED***
 	return dest
 ***REMOVED***
 
-// Collect receives a set of samples. This method is never called concurrently, and only while
-// the context for Run() is valid, but should defer as much work as possible to Run().
-func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED***
+// AddMetricSamples receives a set of metric samples. This method is never
+// called concurrently, so it defers as much of the work as possible to the
+// asynchronous goroutines initialized in Start().
+func (out *Output) AddMetricSamples(sampleContainers []stats.SampleContainer) ***REMOVED***
 	select ***REMOVED***
-	case <-c.stopSendingMetricsCh:
+	case <-out.stopSendingMetrics:
 		return
 	default:
 	***REMOVED***
 
-	if c.referenceID == "" ***REMOVED***
+	if out.referenceID == "" ***REMOVED***
 		return
 	***REMOVED***
 
@@ -303,7 +371,7 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 		case *httpext.Trail:
 			sc = useCloudTags(sc)
 			// Check if aggregation is enabled,
-			if c.config.AggregationPeriod.Duration > 0 ***REMOVED***
+			if out.config.AggregationPeriod.Duration > 0 ***REMOVED***
 				newHTTPTrails = append(newHTTPTrails, sc)
 			***REMOVED*** else ***REMOVED***
 				newSamples = append(newSamples, NewSampleFromTrail(sc))
@@ -346,21 +414,21 @@ func (c *Collector) Collect(sampleContainers []stats.SampleContainer) ***REMOVED
 	***REMOVED***
 
 	if len(newSamples) > 0 || len(newHTTPTrails) > 0 ***REMOVED***
-		c.bufferMutex.Lock()
-		c.bufferSamples = append(c.bufferSamples, newSamples...)
-		c.bufferHTTPTrails = append(c.bufferHTTPTrails, newHTTPTrails...)
-		c.bufferMutex.Unlock()
+		out.bufferMutex.Lock()
+		out.bufferSamples = append(out.bufferSamples, newSamples...)
+		out.bufferHTTPTrails = append(out.bufferHTTPTrails, newHTTPTrails...)
+		out.bufferMutex.Unlock()
 	***REMOVED***
 ***REMOVED***
 
 //nolint:funlen,nestif,gocognit
-func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
-	c.bufferMutex.Lock()
-	newHTTPTrails := c.bufferHTTPTrails
-	c.bufferHTTPTrails = nil
-	c.bufferMutex.Unlock()
+func (out *Output) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
+	out.bufferMutex.Lock()
+	newHTTPTrails := out.bufferHTTPTrails
+	out.bufferHTTPTrails = nil
+	out.bufferMutex.Unlock()
 
-	aggrPeriod := int64(c.config.AggregationPeriod.Duration)
+	aggrPeriod := int64(out.config.AggregationPeriod.Duration)
 
 	// Distribute all newly buffered HTTP trails into buckets and sub-buckets
 
@@ -372,10 +440,10 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 		bucketID := trail.GetTime().UnixNano() / aggrPeriod
 
 		// Get or create a time bucket for that trail period
-		bucket, ok := c.aggrBuckets[bucketID]
+		bucket, ok := out.aggrBuckets[bucketID]
 		if !ok ***REMOVED***
 			bucket = make(map[[3]string]aggregationBucket)
-			c.aggrBuckets[bucketID] = bucket
+			out.aggrBuckets[bucketID] = bucket
 		***REMOVED***
 		subBucketKey[0], _ = trailTags.Get("name")
 		subBucketKey[1], _ = trailTags.Get("group")
@@ -403,13 +471,13 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 
 	// Which buckets are still new and we'll wait for trails to accumulate before aggregating
 	bucketCutoffID := time.Now().Add(-waitPeriod).UnixNano() / aggrPeriod
-	iqrRadius := c.config.AggregationOutlierIqrRadius.Float64
-	iqrLowerCoef := c.config.AggregationOutlierIqrCoefLower.Float64
-	iqrUpperCoef := c.config.AggregationOutlierIqrCoefUpper.Float64
+	iqrRadius := out.config.AggregationOutlierIqrRadius.Float64
+	iqrLowerCoef := out.config.AggregationOutlierIqrCoefLower.Float64
+	iqrUpperCoef := out.config.AggregationOutlierIqrCoefUpper.Float64
 	newSamples := []*Sample***REMOVED******REMOVED***
 
 	// Handle all aggregation buckets older than bucketCutoffID
-	for bucketID, subBuckets := range c.aggrBuckets ***REMOVED***
+	for bucketID, subBuckets := range out.aggrBuckets ***REMOVED***
 		if bucketID > bucketCutoffID ***REMOVED***
 			continue
 		***REMOVED***
@@ -418,7 +486,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 			for tags, httpTrails := range subBucket ***REMOVED***
 				// start := time.Now() // this is in a combination with the log at the end
 				trailCount := int64(len(httpTrails))
-				if trailCount < c.config.AggregationMinSamples.Int64 ***REMOVED***
+				if trailCount < out.config.AggregationMinSamples.Int64 ***REMOVED***
 					for _, trail := range httpTrails ***REMOVED***
 						newSamples = append(newSamples, NewSampleFromTrail(trail))
 					***REMOVED***
@@ -431,7 +499,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 					Tags: tags,
 				***REMOVED***
 
-				if c.config.AggregationSkipOutlierDetection.Bool ***REMOVED***
+				if out.config.AggregationSkipOutlierDetection.Bool ***REMOVED***
 					// Simply add up all HTTP trails, no outlier detection
 					for _, trail := range httpTrails ***REMOVED***
 						aggrData.Add(trail)
@@ -445,7 +513,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 					***REMOVED***
 
 					var minConnDur, maxConnDur, minReqDur, maxReqDur time.Duration
-					if trailCount < c.config.AggregationOutlierAlgoThreshold.Int64 ***REMOVED***
+					if trailCount < out.config.AggregationOutlierAlgoThreshold.Int64 ***REMOVED***
 						// Since there are fewer samples, we'll use the interpolation-enabled and
 						// more precise sorting-based algorithm
 						minConnDur, maxConnDur = connDurations.SortGetNormalBounds(iqrRadius, iqrLowerCoef, iqrUpperCoef, true)
@@ -473,7 +541,7 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 
 				if aggrData.Count > 0 ***REMOVED***
 					/*
-						c.logger.WithFields(logrus.Fields***REMOVED***
+						out.logger.WithFields(logrus.Fields***REMOVED***
 							"http_samples": aggrData.Count,
 							"ratio":        fmt.Sprintf("%.2f", float64(aggrData.Count)/float64(trailCount)),
 							"t":            time.Since(start),
@@ -487,25 +555,25 @@ func (c *Collector) aggregateHTTPTrails(waitPeriod time.Duration) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
-		delete(c.aggrBuckets, bucketID)
+		delete(out.aggrBuckets, bucketID)
 	***REMOVED***
 
 	if len(newSamples) > 0 ***REMOVED***
-		c.bufferMutex.Lock()
-		c.bufferSamples = append(c.bufferSamples, newSamples...)
-		c.bufferMutex.Unlock()
+		out.bufferMutex.Lock()
+		out.bufferSamples = append(out.bufferSamples, newSamples...)
+		out.bufferMutex.Unlock()
 	***REMOVED***
 ***REMOVED***
 
-func (c *Collector) flushHTTPTrails() ***REMOVED***
-	c.bufferMutex.Lock()
-	defer c.bufferMutex.Unlock()
+func (out *Output) flushHTTPTrails() ***REMOVED***
+	out.bufferMutex.Lock()
+	defer out.bufferMutex.Unlock()
 
 	newSamples := []*Sample***REMOVED******REMOVED***
-	for _, trail := range c.bufferHTTPTrails ***REMOVED***
+	for _, trail := range out.bufferHTTPTrails ***REMOVED***
 		newSamples = append(newSamples, NewSampleFromTrail(trail))
 	***REMOVED***
-	for _, bucket := range c.aggrBuckets ***REMOVED***
+	for _, bucket := range out.aggrBuckets ***REMOVED***
 		for _, subBucket := range bucket ***REMOVED***
 			for _, trails := range subBucket ***REMOVED***
 				for _, trail := range trails ***REMOVED***
@@ -515,12 +583,12 @@ func (c *Collector) flushHTTPTrails() ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	c.bufferHTTPTrails = nil
-	c.aggrBuckets = map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***
-	c.bufferSamples = append(c.bufferSamples, newSamples...)
+	out.bufferHTTPTrails = nil
+	out.aggrBuckets = map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***
+	out.bufferSamples = append(out.bufferSamples, newSamples...)
 ***REMOVED***
 
-func (c *Collector) shouldStopSendingMetrics(err error) bool ***REMOVED***
+func (out *Output) shouldStopSendingMetrics(err error) bool ***REMOVED***
 	if err == nil ***REMOVED***
 		return false
 	***REMOVED***
@@ -546,24 +614,24 @@ func ceilDiv(a, b int) int ***REMOVED***
 	return r
 ***REMOVED***
 
-func (c *Collector) pushMetrics() ***REMOVED***
-	c.bufferMutex.Lock()
-	if len(c.bufferSamples) == 0 ***REMOVED***
-		c.bufferMutex.Unlock()
+func (out *Output) pushMetrics() ***REMOVED***
+	out.bufferMutex.Lock()
+	if len(out.bufferSamples) == 0 ***REMOVED***
+		out.bufferMutex.Unlock()
 		return
 	***REMOVED***
-	buffer := c.bufferSamples
-	c.bufferSamples = nil
-	c.bufferMutex.Unlock()
+	buffer := out.bufferSamples
+	out.bufferSamples = nil
+	out.bufferMutex.Unlock()
 
 	count := len(buffer)
-	c.logger.WithFields(logrus.Fields***REMOVED***
+	out.logger.WithFields(logrus.Fields***REMOVED***
 		"samples": count,
 	***REMOVED***).Debug("Pushing metrics to cloud")
 	start := time.Now()
 
-	numberOfPackages := ceilDiv(len(buffer), int(c.config.MaxMetricSamplesPerPackage.Int64))
-	numberOfWorkers := int(c.config.MetricPushConcurrency.Int64)
+	numberOfPackages := ceilDiv(len(buffer), int(out.config.MaxMetricSamplesPerPackage.Int64))
+	numberOfWorkers := int(out.config.MetricPushConcurrency.Int64)
 	if numberOfWorkers > numberOfPackages ***REMOVED***
 		numberOfWorkers = numberOfPackages
 	***REMOVED***
@@ -572,9 +640,9 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	for i := 0; i < numberOfWorkers; i++ ***REMOVED***
 		go func() ***REMOVED***
 			for job := range ch ***REMOVED***
-				err := c.PushMetric(c.referenceID, c.config.NoCompress.Bool, job.samples)
+				err := out.PushMetric(out.referenceID, out.config.NoCompress.Bool, job.samples)
 				job.done <- err
-				if c.shouldStopSendingMetrics(err) ***REMOVED***
+				if out.shouldStopSendingMetrics(err) ***REMOVED***
 					return
 				***REMOVED***
 			***REMOVED***
@@ -585,8 +653,8 @@ func (c *Collector) pushMetrics() ***REMOVED***
 
 	for len(buffer) > 0 ***REMOVED***
 		size := len(buffer)
-		if size > int(c.config.MaxMetricSamplesPerPackage.Int64) ***REMOVED***
-			size = int(c.config.MaxMetricSamplesPerPackage.Int64)
+		if size > int(out.config.MaxMetricSamplesPerPackage.Int64) ***REMOVED***
+			size = int(out.config.MaxMetricSamplesPerPackage.Int64)
 		***REMOVED***
 		job := pushJob***REMOVED***done: make(chan error, 1), samples: buffer[:size]***REMOVED***
 		ch <- job
@@ -599,28 +667,28 @@ func (c *Collector) pushMetrics() ***REMOVED***
 	for _, job := range jobs ***REMOVED***
 		err := <-job.done
 		if err != nil ***REMOVED***
-			if c.shouldStopSendingMetrics(err) ***REMOVED***
-				c.logger.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
-				close(c.stopSendingMetricsCh)
+			if out.shouldStopSendingMetrics(err) ***REMOVED***
+				out.logger.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
+				close(out.stopSendingMetrics)
 				break
 			***REMOVED***
-			c.logger.WithError(err).Warn("Failed to send metrics to cloud")
+			out.logger.WithError(err).Warn("Failed to send metrics to cloud")
 		***REMOVED***
 	***REMOVED***
-	c.logger.WithFields(logrus.Fields***REMOVED***
+	out.logger.WithFields(logrus.Fields***REMOVED***
 		"samples": count,
 		"t":       time.Since(start),
 	***REMOVED***).Debug("Pushing metrics to cloud finished")
 ***REMOVED***
 
-func (c *Collector) testFinished() ***REMOVED***
-	if c.referenceID == "" || c.config.PushRefID.Valid ***REMOVED***
-		return
+func (out *Output) testFinished() error ***REMOVED***
+	if out.referenceID == "" || out.config.PushRefID.Valid ***REMOVED***
+		return nil
 	***REMOVED***
 
 	testTainted := false
 	thresholdResults := make(cloudapi.ThresholdResult)
-	for name, thresholds := range c.thresholds ***REMOVED***
+	for name, thresholds := range out.thresholds ***REMOVED***
 		thresholdResults[name] = make(map[string]bool)
 		for _, t := range thresholds ***REMOVED***
 			thresholdResults[name][t.Source] = t.LastFailed
@@ -630,40 +698,25 @@ func (c *Collector) testFinished() ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	c.logger.WithFields(logrus.Fields***REMOVED***
-		"ref":     c.referenceID,
+	out.logger.WithFields(logrus.Fields***REMOVED***
+		"ref":     out.referenceID,
 		"tainted": testTainted,
 	***REMOVED***).Debug("Sending test finished")
 
 	runStatus := lib.RunStatusFinished
-	if c.runStatus != lib.RunStatusQueued ***REMOVED***
-		runStatus = c.runStatus
+	if out.runStatus != lib.RunStatusQueued ***REMOVED***
+		runStatus = out.runStatus
 	***REMOVED***
 
-	err := c.client.TestFinished(c.referenceID, thresholdResults, testTainted, runStatus)
-	if err != nil ***REMOVED***
-		c.logger.WithFields(logrus.Fields***REMOVED***
-			"error": err,
-		***REMOVED***).Warn("Failed to send test finished to cloud")
-	***REMOVED***
-***REMOVED***
-
-// GetRequiredSystemTags returns which sample tags are needed by this collector
-func (c *Collector) GetRequiredSystemTags() stats.SystemTagSet ***REMOVED***
-	return stats.TagName | stats.TagMethod | stats.TagStatus | stats.TagError | stats.TagCheck | stats.TagGroup
-***REMOVED***
-
-// SetRunStatus Set run status
-func (c *Collector) SetRunStatus(status lib.RunStatus) ***REMOVED***
-	c.runStatus = status
+	return out.client.TestFinished(out.referenceID, thresholdResults, testTainted, runStatus)
 ***REMOVED***
 
 const expectedGzipRatio = 6 // based on test it is around 6.8, but we don't need to be that accurate
 
 // PushMetric pushes the provided metric samples for the given referenceID
-func (c *Collector) PushMetric(referenceID string, noCompress bool, s []*Sample) error ***REMOVED***
+func (out *Output) PushMetric(referenceID string, noCompress bool, s []*Sample) error ***REMOVED***
 	start := time.Now()
-	url := fmt.Sprintf("%s/v1/metrics/%s", c.config.Host.String, referenceID)
+	url := fmt.Sprintf("%s/v1/metrics/%s", out.config.Host.String, referenceID)
 
 	jsonStart := time.Now()
 	b, err := easyjson.Marshal(samples(s))
@@ -682,9 +735,9 @@ func (c *Collector) PushMetric(referenceID string, noCompress bool, s []*Sample)
 	var additionalFields logrus.Fields
 
 	if !noCompress ***REMOVED***
-		buf := c.pushBufferPool.Get().(*bytes.Buffer)
+		buf := out.pushBufferPool.Get().(*bytes.Buffer)
 		buf.Reset()
-		defer c.pushBufferPool.Put(buf)
+		defer out.pushBufferPool.Put(buf)
 		unzippedSize := len(b)
 		buf.Grow(unzippedSize / expectedGzipRatio)
 		gzipStart := time.Now()
@@ -717,9 +770,9 @@ func (c *Collector) PushMetric(referenceID string, noCompress bool, s []*Sample)
 		return ioutil.NopCloser(bytes.NewReader(b)), nil
 	***REMOVED***
 
-	err = c.client.Do(req, nil)
+	err = out.client.Do(req, nil)
 
-	c.logger.WithFields(logrus.Fields***REMOVED***
+	out.logger.WithFields(logrus.Fields***REMOVED***
 		"t":         time.Since(start),
 		"json_t":    jsonTime,
 		"part_size": len(s),
