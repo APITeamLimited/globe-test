@@ -142,13 +142,13 @@ func skewTrail(t httpext.Trail, minCoef, maxCoef float64) httpext.Trail ***REMOV
 	return t
 ***REMOVED***
 
-func TestCloudCollector(t *testing.T) ***REMOVED***
+func TestCloudOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	getTestRunner := func(minSamples int) func(t *testing.T) ***REMOVED***
 		return func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			runCloudCollectorTestCase(t, minSamples)
+			runCloudOutputTestCase(t, minSamples)
 		***REMOVED***
 	***REMOVED***
 
@@ -157,7 +157,7 @@ func TestCloudCollector(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
+func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		_, err := fmt.Fprintf(w, `***REMOVED***
@@ -174,7 +174,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 	***REMOVED***))
 	defer tb.Cleanup()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": true***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
@@ -185,22 +185,22 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 	***REMOVED***)
 	require.NoError(t, err)
 
-	assert.True(t, collector.config.Host.Valid)
-	assert.Equal(t, tb.ServerHTTP.URL, collector.config.Host.String)
-	assert.True(t, collector.config.NoCompress.Valid)
-	assert.True(t, collector.config.NoCompress.Bool)
-	assert.False(t, collector.config.MetricPushInterval.Valid)
-	assert.False(t, collector.config.AggregationPeriod.Valid)
-	assert.False(t, collector.config.AggregationWaitPeriod.Valid)
+	assert.True(t, out.config.Host.Valid)
+	assert.Equal(t, tb.ServerHTTP.URL, out.config.Host.String)
+	assert.True(t, out.config.NoCompress.Valid)
+	assert.True(t, out.config.NoCompress.Bool)
+	assert.False(t, out.config.MetricPushInterval.Valid)
+	assert.False(t, out.config.AggregationPeriod.Valid)
+	assert.False(t, out.config.AggregationWaitPeriod.Valid)
 
-	require.NoError(t, collector.Start())
-	assert.Equal(t, "123", collector.referenceID)
-	assert.True(t, collector.config.MetricPushInterval.Valid)
-	assert.Equal(t, types.Duration(10*time.Millisecond), collector.config.MetricPushInterval.Duration)
-	assert.True(t, collector.config.AggregationPeriod.Valid)
-	assert.Equal(t, types.Duration(30*time.Millisecond), collector.config.AggregationPeriod.Duration)
-	assert.True(t, collector.config.AggregationWaitPeriod.Valid)
-	assert.Equal(t, types.Duration(5*time.Millisecond), collector.config.AggregationWaitPeriod.Duration)
+	require.NoError(t, out.Start())
+	assert.Equal(t, "123", out.referenceID)
+	assert.True(t, out.config.MetricPushInterval.Valid)
+	assert.Equal(t, types.Duration(10*time.Millisecond), out.config.MetricPushInterval.Duration)
+	assert.True(t, out.config.AggregationPeriod.Valid)
+	assert.Equal(t, types.Duration(30*time.Millisecond), out.config.AggregationPeriod.Duration)
+	assert.True(t, out.config.AggregationWaitPeriod.Valid)
+	assert.Equal(t, types.Duration(5*time.Millisecond), out.config.AggregationWaitPeriod.Duration)
 
 	now := time.Now()
 	tagMap := map[string]string***REMOVED***"test": "mest", "a": "b", "name": "name", "url": "url"***REMOVED***
@@ -211,12 +211,12 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 
 	expSamples := make(chan []Sample)
 	defer close(expSamples)
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/tests/%s", collector.referenceID), func(rw http.ResponseWriter, _ *http.Request) ***REMOVED***
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", out.referenceID), getSampleChecker(t, expSamples))
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/tests/%s", out.referenceID), func(rw http.ResponseWriter, _ *http.Request) ***REMOVED***
 		rw.WriteHeader(http.StatusOK) // silence a test warning
 	***REMOVED***)
 
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
 		Time:   now,
 		Metric: metrics.VUs,
 		Tags:   tags,
@@ -246,14 +246,14 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 		Duration:     1500 * time.Millisecond,
 		Tags:         tags,
 	***REMOVED***
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleTrail***REMOVED***)
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleTrail***REMOVED***)
 	expSamples <- []Sample***REMOVED****NewSampleFromTrail(&simpleTrail)***REMOVED***
 
 	smallSkew := 0.02
 
 	trails := []stats.SampleContainer***REMOVED******REMOVED***
 	durations := make([]time.Duration, len(trails))
-	for i := int64(0); i < collector.config.AggregationMinSamples.Int64; i++ ***REMOVED***
+	for i := int64(0); i < out.config.AggregationMinSamples.Int64; i++ ***REMOVED***
 		similarTrail := skewTrail(simpleTrail, 1.0, 1.0+smallSkew)
 		trails = append(trails, &similarTrail)
 		durations = append(durations, similarTrail.Duration)
@@ -271,7 +271,7 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 
 	outlierTrail := skewTrail(simpleTrail, 2.0+smallSkew, 3.0+smallSkew)
 	trails = append(trails, &outlierTrail)
-	collector.AddMetricSamples(trails)
+	out.AddMetricSamples(trails)
 	expSamples <- []Sample***REMOVED***
 		*NewSampleFromTrail(&outlierTrail),
 		***REMOVED***
@@ -281,9 +281,9 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 				aggrData, ok := data.(*SampleDataAggregatedHTTPReqs)
 				assert.True(t, ok)
 				assert.True(t, aggrData.Tags.IsEqual(expectedTags))
-				assert.Equal(t, collector.config.AggregationMinSamples.Int64, int64(aggrData.Count))
+				assert.Equal(t, out.config.AggregationMinSamples.Int64, int64(aggrData.Count))
 				assert.Equal(t, "aggregated_trend", aggrData.Type)
-				assert.InDelta(t, now.UnixNano(), aggrData.Time*1000, float64(collector.config.AggregationPeriod.Duration))
+				assert.InDelta(t, now.UnixNano(), aggrData.Time*1000, float64(out.config.AggregationPeriod.Duration))
 
 				checkAggrMetric(simpleTrail.Duration, aggrData.Values.Duration)
 				checkAggrMetric(simpleTrail.Blocked, aggrData.Values.Blocked)
@@ -296,10 +296,10 @@ func runCloudCollectorTestCase(t *testing.T, minSamples int) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	require.NoError(t, collector.Stop())
+	require.NoError(t, out.Stop())
 ***REMOVED***
 
-func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
+func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	maxMetricSamplesPerPackage := 20
@@ -319,7 +319,7 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/v1/tests/12", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
 	defer tb.Cleanup()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": true***REMOVED***`, tb.ServerHTTP.URL)),
 		ScriptOptions: lib.Options***REMOVED***
@@ -335,7 +335,7 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 	gotTheLimit := false
 	var m sync.Mutex
 
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", out.referenceID),
 		func(_ http.ResponseWriter, r *http.Request) ***REMOVED***
 			body, err := ioutil.ReadAll(r.Body)
 			assert.NoError(t, err)
@@ -349,9 +349,9 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 
-	require.NoError(t, collector.Start())
+	require.NoError(t, out.Start())
 
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
 		Time:   now,
 		Metric: metrics.VUs,
 		Tags:   stats.NewSampleTags(tags.CloneTags()),
@@ -374,14 +374,14 @@ func TestCloudCollectorMaxPerPacket(t *testing.T) ***REMOVED***
 				Tags:         stats.NewSampleTags(tags.CloneTags()),
 			***REMOVED***)
 		***REMOVED***
-		collector.AddMetricSamples(container)
+		out.AddMetricSamples(container)
 	***REMOVED***
 
-	require.NoError(t, collector.Stop())
+	require.NoError(t, out.Stop())
 	require.True(t, gotTheLimit)
 ***REMOVED***
 
-func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
+func TestCloudOutputStopSendingMetric(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
@@ -407,7 +407,7 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/v1/tests/12", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
 	defer tb.Cleanup()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s", "noCompress": true,
@@ -429,7 +429,7 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 
 	count := 1
 	max := 5
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", out.referenceID),
 		func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 			count++
 			if count == max ***REMOVED***
@@ -453,9 +453,9 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 			assert.NoError(t, json.Unmarshal(body, &receivedSamples))
 		***REMOVED***)
 
-	require.NoError(t, collector.Start())
+	require.NoError(t, out.Start())
 
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
 		Time:   now,
 		Metric: metrics.VUs,
 		Tags:   stats.NewSampleTags(tags.CloneTags()),
@@ -478,34 +478,34 @@ func TestCloudCollectorStopSendingMetric(t *testing.T) ***REMOVED***
 				Tags:         stats.NewSampleTags(tags.CloneTags()),
 			***REMOVED***)
 		***REMOVED***
-		collector.AddMetricSamples(container)
+		out.AddMetricSamples(container)
 	***REMOVED***
 
-	require.NoError(t, collector.Stop())
+	require.NoError(t, out.Stop())
 
-	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
+	require.Equal(t, lib.RunStatusQueued, out.runStatus)
 	select ***REMOVED***
-	case <-collector.stopSendingMetrics:
+	case <-out.stopSendingMetrics:
 		// all is fine
 	default:
 		t.Fatal("sending metrics wasn't stopped")
 	***REMOVED***
 	require.Equal(t, max, count)
 
-	nBufferSamples := len(collector.bufferSamples)
-	nBufferHTTPTrails := len(collector.bufferHTTPTrails)
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+	nBufferSamples := len(out.bufferSamples)
+	nBufferHTTPTrails := len(out.bufferHTTPTrails)
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
 		Time:   now,
 		Metric: metrics.VUs,
 		Tags:   stats.NewSampleTags(tags.CloneTags()),
 		Value:  1.0,
 	***REMOVED******REMOVED***)
-	if nBufferSamples != len(collector.bufferSamples) || nBufferHTTPTrails != len(collector.bufferHTTPTrails) ***REMOVED***
-		t.Errorf("Collector still collects data after stop sending metrics")
+	if nBufferSamples != len(out.bufferSamples) || nBufferHTTPTrails != len(out.bufferHTTPTrails) ***REMOVED***
+		t.Errorf("Output still collects data after stop sending metrics")
 	***REMOVED***
 ***REMOVED***
 
-func TestCloudCollectorRequireScriptName(t *testing.T) ***REMOVED***
+func TestCloudOutputRequireScriptName(t *testing.T) ***REMOVED***
 	t.Parallel()
 	_, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
@@ -519,7 +519,7 @@ func TestCloudCollectorRequireScriptName(t *testing.T) ***REMOVED***
 	assert.Contains(t, err.Error(), "script name not set")
 ***REMOVED***
 
-func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
+func TestCloudOutputAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -537,7 +537,7 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/v1/tests/123", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
 	defer tb.Cleanup()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s", "noCompress": true,
@@ -551,32 +551,32 @@ func TestCloudCollectorAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	require.NoError(t, err)
 
-	assert.True(t, collector.config.Host.Valid)
-	assert.Equal(t, tb.ServerHTTP.URL, collector.config.Host.String)
-	assert.True(t, collector.config.NoCompress.Valid)
-	assert.True(t, collector.config.NoCompress.Bool)
-	assert.False(t, collector.config.MetricPushInterval.Valid)
-	assert.False(t, collector.config.AggregationPeriod.Valid)
-	assert.False(t, collector.config.AggregationWaitPeriod.Valid)
+	assert.True(t, out.config.Host.Valid)
+	assert.Equal(t, tb.ServerHTTP.URL, out.config.Host.String)
+	assert.True(t, out.config.NoCompress.Valid)
+	assert.True(t, out.config.NoCompress.Bool)
+	assert.False(t, out.config.MetricPushInterval.Valid)
+	assert.False(t, out.config.AggregationPeriod.Valid)
+	assert.False(t, out.config.AggregationWaitPeriod.Valid)
 
-	require.NoError(t, collector.Start())
-	assert.Equal(t, "123", collector.referenceID)
-	assert.True(t, collector.config.MetricPushInterval.Valid)
-	assert.Equal(t, types.Duration(10*time.Millisecond), collector.config.MetricPushInterval.Duration)
-	assert.True(t, collector.config.AggregationPeriod.Valid)
-	assert.Equal(t, types.Duration(0), collector.config.AggregationPeriod.Duration)
-	assert.True(t, collector.config.AggregationWaitPeriod.Valid)
-	assert.Equal(t, types.Duration(5*time.Millisecond), collector.config.AggregationWaitPeriod.Duration)
+	require.NoError(t, out.Start())
+	assert.Equal(t, "123", out.referenceID)
+	assert.True(t, out.config.MetricPushInterval.Valid)
+	assert.Equal(t, types.Duration(10*time.Millisecond), out.config.MetricPushInterval.Duration)
+	assert.True(t, out.config.AggregationPeriod.Valid)
+	assert.Equal(t, types.Duration(0), out.config.AggregationPeriod.Duration)
+	assert.True(t, out.config.AggregationWaitPeriod.Valid)
+	assert.Equal(t, types.Duration(5*time.Millisecond), out.config.AggregationWaitPeriod.Duration)
 
 	expSamples := make(chan []Sample)
 	defer close(expSamples)
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID), getSampleChecker(t, expSamples))
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", out.referenceID), getSampleChecker(t, expSamples))
 
-	require.NoError(t, collector.Stop())
-	require.Equal(t, lib.RunStatusQueued, collector.runStatus)
+	require.NoError(t, out.Stop())
+	require.Equal(t, lib.RunStatusQueued, out.runStatus)
 ***REMOVED***
 
-func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
+func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
@@ -593,7 +593,7 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 	tb.Mux.HandleFunc("/v1/tests/123", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
 	defer tb.Cleanup()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s", "noCompress": true,
@@ -616,7 +616,7 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		"iterations":         1,
 	***REMOVED***
 
-	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", collector.referenceID),
+	tb.Mux.HandleFunc(fmt.Sprintf("/v1/metrics/%s", out.referenceID),
 		func(_ http.ResponseWriter, r *http.Request) ***REMOVED***
 			body, err := ioutil.ReadAll(r.Body)
 			assert.NoError(t, err)
@@ -636,7 +636,7 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 			m.Unlock()
 		***REMOVED***)
 
-	require.NoError(t, collector.Start())
+	require.NoError(t, out.Start())
 
 	now := time.Now()
 	simpleNetTrail := netext.NetTrail***REMOVED***
@@ -664,8 +664,8 @@ func TestCloudCollectorRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	collector.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleNetTrail***REMOVED***)
-	require.NoError(t, collector.Stop())
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***&simpleNetTrail***REMOVED***)
+	require.NoError(t, out.Stop())
 	require.True(t, gotIterations)
 ***REMOVED***
 
@@ -705,7 +705,7 @@ func TestNewName(t *testing.T) ***REMOVED***
 		testCase := testCase
 
 		t.Run(testCase.url.String(), func(t *testing.T) ***REMOVED***
-			collector, err := newOutput(output.Params***REMOVED***
+			out, err := newOutput(output.Params***REMOVED***
 				Logger: testutils.NewLogger(t),
 				ScriptOptions: lib.Options***REMOVED***
 					Duration:   types.NullDurationFrom(1 * time.Second),
@@ -714,7 +714,7 @@ func TestNewName(t *testing.T) ***REMOVED***
 				ScriptPath: testCase.url,
 			***REMOVED***)
 			require.NoError(t, err)
-			require.Equal(t, collector.config.Name.String, testCase.expected)
+			require.Equal(t, out.config.Name.String, testCase.expected)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -743,7 +743,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 	***REMOVED***))
 	defer server.Close()
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(t),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s", "noCompress": true***REMOVED***`, server.URL)),
 		ScriptOptions: lib.Options***REMOVED***
@@ -765,7 +765,7 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***,
 	***REMOVED***
-	err = collector.PushMetric("1", false, samples)
+	err = out.PushMetric("1", false, samples)
 
 	assert.Nil(t, err)
 ***REMOVED***

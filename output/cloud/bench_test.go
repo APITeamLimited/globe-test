@@ -47,7 +47,7 @@ import (
 )
 
 func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(b),
 		JSONConfig: json.RawMessage(`***REMOVED***"noCompress": true, "aggregationCalcInterval": "200ms","aggregationPeriod": "200ms"***REMOVED***`),
 		ScriptOptions: lib.Options***REMOVED***
@@ -58,7 +58,7 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 	now := time.Now()
-	collector.referenceID = "something"
+	out.referenceID = "something"
 	containersCount := 500000
 
 	for _, tagCount := range []int***REMOVED***1, 5, 35, 315, 3645***REMOVED*** ***REMOVED***
@@ -79,10 +79,10 @@ func BenchmarkAggregateHTTP(b *testing.B) ***REMOVED***
 					tags := generateTags(i, tagCount, map[string]string***REMOVED***"status": status***REMOVED***)
 					container[i-1] = generateHTTPExtTrail(now, time.Duration(i), tags)
 				***REMOVED***
-				collector.AddMetricSamples(container)
+				out.AddMetricSamples(container)
 				b.StartTimer()
-				collector.aggregateHTTPTrails(time.Millisecond * 200)
-				collector.bufferSamples = nil
+				out.aggregateHTTPTrails(time.Millisecond * 200)
+				out.bufferSamples = nil
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
@@ -304,7 +304,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		***REMOVED***,
 	)
 
-	collector, err := newOutput(output.Params***REMOVED***
+	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(b),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s",
@@ -319,7 +319,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
 	require.NoError(b, err)
-	collector.referenceID = "fake"
+	out.referenceID = "fake"
 
 	for _, count := range []int***REMOVED***1000, 5000, 50000, 100000, 250000***REMOVED*** ***REMOVED***
 		count := count
@@ -330,7 +330,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 				b.StopTimer()
 				toSend := append([]*Sample***REMOVED******REMOVED***, samples...)
 				b.StartTimer()
-				require.NoError(b, collector.PushMetric("fake", false, toSend))
+				require.NoError(b, out.PushMetric("fake", false, toSend))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***

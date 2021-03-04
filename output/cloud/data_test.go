@@ -253,6 +253,7 @@ func BenchmarkDurationBounds(b *testing.B) ***REMOVED***
 	***REMOVED***
 
 	for count := 100; count <= 5000; count += 500 ***REMOVED***
+		count := count
 		b.Run(fmt.Sprintf("Sort-no-interp-%d-elements", count), func(b *testing.B) ***REMOVED***
 			for i := 0; i < b.N; i++ ***REMOVED***
 				data := getData(b, count)
