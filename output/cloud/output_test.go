@@ -580,6 +580,69 @@ func TestCloudOutputAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 	require.Equal(t, lib.RunStatusQueued, out.runStatus)
 ***REMOVED***
 
+func TestCloudOutputPushRefID(t *testing.T) ***REMOVED***
+	t.Parallel()
+	expSamples := make(chan []Sample)
+	defer close(expSamples)
+
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	failHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		t.Errorf("%s should not have been called at all", r.RequestURI)
+	***REMOVED***)
+	tb.Mux.HandleFunc("/v1/tests", failHandler)
+	tb.Mux.HandleFunc("/v1/tests/333", failHandler)
+	tb.Mux.HandleFunc("/v1/metrics/333", getSampleChecker(t, expSamples))
+
+	out, err := newOutput(output.Params***REMOVED***
+		Logger: testutils.NewLogger(t),
+		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
+			"host": "%s", "noCompress": true,
+			"metricPushInterval": "10ms",
+			"aggregationPeriod": "0ms",
+			"pushRefID": "333"
+		***REMOVED***`, tb.ServerHTTP.URL)),
+		ScriptOptions: lib.Options***REMOVED***
+			Duration:   types.NullDurationFrom(1 * time.Second),
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+	***REMOVED***)
+	require.NoError(t, err)
+
+	assert.Equal(t, "333", out.config.PushRefID.String)
+	require.NoError(t, out.Start())
+	assert.Equal(t, "333", out.referenceID)
+
+	now := time.Now()
+	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
+
+	out.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***
+		Time:   now,
+		Metric: metrics.HTTPReqDuration,
+		Tags:   tags,
+		Value:  123.45,
+	***REMOVED******REMOVED***)
+	exp := []Sample***REMOVED******REMOVED***
+		Type:   DataTypeSingle,
+		Metric: metrics.HTTPReqDuration.Name,
+		Data: &SampleDataSingle***REMOVED***
+			Type:  metrics.HTTPReqDuration.Type,
+			Time:  toMicroSecond(now),
+			Tags:  tags,
+			Value: 123.45,
+		***REMOVED***,
+	***REMOVED******REMOVED***
+
+	select ***REMOVED***
+	case expSamples <- exp:
+	case <-time.After(5 * time.Second):
+		t.Error("test timeout")
+	***REMOVED***
+
+	require.NoError(t, out.Stop())
+***REMOVED***
+
 func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
