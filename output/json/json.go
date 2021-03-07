@@ -32,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: add option for emitting proper JSON files (https://github.com/loadimpact/k6/issues/1052)
+// TODO: add option for emitting proper JSON files (https://github.com/loadimpact/k6/issues/737)
 const flushPeriod = 200 * time.Millisecond // TODO: make this configurable
 
 // Output funnels all passed metrics to an (optionally gzipped) JSON file.
@@ -47,6 +47,7 @@ type Output struct ***REMOVED***
 	encoder     *stdlibjson.Encoder
 	closeFn     func() error
 	seenMetrics map[string]struct***REMOVED******REMOVED***
+	thresholds  map[string][]*stats.Threshold
 ***REMOVED***
 
 // New returns a new JSON output.
@@ -118,6 +119,15 @@ func (o *Output) Stop() error ***REMOVED***
 	return o.closeFn()
 ***REMOVED***
 
+// SetThresholds receives the thresholds before the output is Start()-ed.
+func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) ***REMOVED***
+	ths := make(map[string][]*stats.Threshold)
+	for name, t := range thresholds ***REMOVED***
+		ths[name] = append(ths[name], t.Thresholds...)
+	***REMOVED***
+	o.thresholds = ths
+***REMOVED***
+
 func (o *Output) flushMetrics() ***REMOVED***
 	samples := o.GetBufferedSamples()
 	start := time.Now()
@@ -127,6 +137,7 @@ func (o *Output) flushMetrics() ***REMOVED***
 		count += len(samples)
 		for _, sample := range samples ***REMOVED***
 			sample := sample
+			sample.Metric.Thresholds.Thresholds = o.thresholds[sample.Metric.Name]
 			o.handleMetric(sample.Metric)
 			err := o.encoder.Encode(WrapSample(sample))
 			if err != nil ***REMOVED***

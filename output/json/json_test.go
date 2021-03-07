@@ -71,9 +71,8 @@ func generateTestMetricSamples(t *testing.T) ([]stats.SampleContainer, func(io.R
 		***REMOVED***, Time: time2, Tags: connTags***REMOVED***,
 		stats.Sample***REMOVED***Time: time3, Metric: metric2, Value: float64(5), Tags: stats.NewSampleTags(map[string]string***REMOVED***"tag3": "val3"***REMOVED***)***REMOVED***,
 	***REMOVED***
-	// TODO: fix JSON thresholds (https://github.com/loadimpact/k6/issues/1052)
 	expected := []string***REMOVED***
-		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":[],"submetrics":null,"sub":***REMOVED***"name":"","parent":"","suffix":"","tags":null***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
+		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric1","type":"gauge","contains":"default","tainted":null,"thresholds":["rate<0.01", "p(99)<250"],"submetrics":null,"sub":***REMOVED***"name":"","parent":"","suffix":"","tags":null***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":1,"tags":***REMOVED***"tag1":"val1"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Point","data":***REMOVED***"time":"2021-02-24T13:37:10Z","value":2,"tags":***REMOVED***"tag2":"val2"***REMOVED******REMOVED***,"metric":"my_metric1"***REMOVED***`,
 		`***REMOVED***"type":"Metric","data":***REMOVED***"name":"my_metric2","type":"counter","contains":"data","tainted":null,"thresholds":[],"submetrics":null,"sub":***REMOVED***"name":"","parent":"","suffix":"","tags":null***REMOVED******REMOVED***,"metric":"my_metric2"***REMOVED***`,
@@ -94,6 +93,8 @@ func TestJsonOutputStdout(t *testing.T) ***REMOVED***
 		StdOut: stdout,
 	***REMOVED***)
 	require.NoError(t, err)
+
+	setThresholds(t, out)
 	require.NoError(t, out.Start())
 
 	samples, validateResults := generateTestMetricSamples(t)
@@ -130,6 +131,8 @@ func TestJsonOutputFile(t *testing.T) ***REMOVED***
 		ConfigArgument: "/json-output",
 	***REMOVED***)
 	require.NoError(t, err)
+
+	setThresholds(t, out)
 	require.NoError(t, out.Start())
 
 	samples, validateResults := generateTestMetricSamples(t)
@@ -156,6 +159,8 @@ func TestJsonOutputFileGzipped(t *testing.T) ***REMOVED***
 		ConfigArgument: "/json-output.gz",
 	***REMOVED***)
 	require.NoError(t, err)
+
+	setThresholds(t, out)
 	require.NoError(t, out.Start())
 
 	samples, validateResults := generateTestMetricSamples(t)
@@ -184,4 +189,16 @@ func TestWrapMetricWithMetricPointer(t *testing.T) ***REMOVED***
 	t.Parallel()
 	out := wrapMetric(&stats.Metric***REMOVED******REMOVED***)
 	assert.NotEqual(t, out, (*Envelope)(nil))
+***REMOVED***
+
+func setThresholds(t *testing.T, out output.Output) ***REMOVED***
+	t.Helper()
+
+	jout, ok := out.(*Output)
+	require.True(t, ok)
+
+	ts, err := stats.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
+	require.NoError(t, err)
+
+	jout.SetThresholds(map[string]stats.Thresholds***REMOVED***"my_metric1": ts***REMOVED***)
 ***REMOVED***
