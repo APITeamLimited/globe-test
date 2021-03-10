@@ -170,17 +170,17 @@ func TestOptions(t *testing.T) ***REMOVED***
 		t.Run("JSON", func(t *testing.T) ***REMOVED***
 			t.Run("Object", func(t *testing.T) ***REMOVED***
 				var opts Options
-				jsonStr := `***REMOVED***"tlsVersion":***REMOVED***"min":"ssl3.0","max":"tls1.2"***REMOVED******REMOVED***`
+				jsonStr := `***REMOVED***"tlsVersion":***REMOVED***"min":"tls1.0","max":"tls1.2"***REMOVED******REMOVED***`
 				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &opts))
 				assert.Equal(t, &TLSVersions***REMOVED***
-					Min: TLSVersion(tls.VersionSSL30),
+					Min: TLSVersion(tls.VersionTLS10),
 					Max: TLSVersion(tls.VersionTLS12),
 				***REMOVED***, opts.TLSVersion)
 
 				t.Run("Roundtrip", func(t *testing.T) ***REMOVED***
 					data, err := json.Marshal(opts.TLSVersion)
 					assert.NoError(t, err)
-					assert.Equal(t, `***REMOVED***"min":"ssl3.0","max":"tls1.2"***REMOVED***`, string(data))
+					assert.Equal(t, `***REMOVED***"min":"tls1.0","max":"tls1.2"***REMOVED***`, string(data))
 					var vers2 TLSVersions
 					assert.NoError(t, json.Unmarshal(data, &vers2))
 					assert.Equal(t, &vers2, opts.TLSVersion)
@@ -209,6 +209,9 @@ func TestOptions(t *testing.T) ***REMOVED***
 			t.Run("Unsupported version", func(t *testing.T) ***REMOVED***
 				var opts Options
 				jsonStr := `***REMOVED***"tlsVersion":"-1"***REMOVED***`
+				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
+
+				jsonStr = `***REMOVED***"tlsVersion":"ssl3.0"***REMOVED***`
 				assert.Error(t, json.Unmarshal([]byte(jsonStr), &opts))
 			***REMOVED***)
 		***REMOVED***)

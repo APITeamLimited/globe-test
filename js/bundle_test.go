@@ -380,27 +380,27 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						tlsVersion: ***REMOVED***
-							min: "ssl3.0",
+							min: "tls1.0",
 							max: "tls1.2"
 						***REMOVED***
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
 				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
+					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
 					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS12))
 				***REMOVED***
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
-						tlsVersion: "ssl3.0"
+						tlsVersion: "tls1.0"
 					***REMOVED***;
 					export default function() ***REMOVED******REMOVED***;
 				`)
 				if assert.NoError(t, err) ***REMOVED***
-					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionSSL30))
-					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionSSL30))
+					assert.Equal(t, b.Options.TLSVersion.Min, lib.TLSVersion(tls.VersionTLS10))
+					assert.Equal(t, b.Options.TLSVersion.Max, lib.TLSVersion(tls.VersionTLS10))
 				***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
