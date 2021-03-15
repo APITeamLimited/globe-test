@@ -21,20 +21,13 @@
 package cloud
 
 import (
-	"bytes"
-	"compress/gzip"
-	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/mailru/easyjson"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
@@ -58,11 +51,10 @@ type Output struct ***REMOVED***
 	config      cloudapi.Config
 	referenceID string
 
-	executionPlan  []lib.ExecutionStep
-	duration       int64 // in seconds
-	thresholds     map[string][]*stats.Threshold
-	client         *cloudapi.Client
-	pushBufferPool sync.Pool
+	executionPlan []lib.ExecutionStep
+	duration      int64 // in seconds
+	thresholds    map[string][]*stats.Threshold
+	client        *MetricsClient
 
 	runStatus lib.RunStatus
 
@@ -156,19 +148,17 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 			conf.MaxMetricSamplesPerPackage.Int64)
 	***REMOVED***
 
+	apiClient := cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, consts.Version)
+
 	return &Output***REMOVED***
 		config:        conf,
-		client:        cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, consts.Version),
+		client:        NewMetricsClient(apiClient, logger, conf.Host.String, conf.NoCompress.Bool),
 		executionPlan: params.ExecutionPlan,
 		duration:      int64(duration / time.Second),
 		opts:          params.ScriptOptions,
 		aggrBuckets:   map[int64]map[[3]string]aggregationBucket***REMOVED******REMOVED***,
 		logger:        logger,
-		pushBufferPool: sync.Pool***REMOVED***
-			New: func() interface***REMOVED******REMOVED*** ***REMOVED***
-				return &bytes.Buffer***REMOVED******REMOVED***
-			***REMOVED***,
-		***REMOVED***,
+
 		stopSendingMetrics: make(chan struct***REMOVED******REMOVED***),
 		stopAggregation:    make(chan struct***REMOVED******REMOVED***),
 		aggregationDone:    &sync.WaitGroup***REMOVED******REMOVED***,
@@ -641,7 +631,7 @@ func (out *Output) pushMetrics() ***REMOVED***
 	for i := 0; i < numberOfWorkers; i++ ***REMOVED***
 		go func() ***REMOVED***
 			for job := range ch ***REMOVED***
-				err := out.PushMetric(out.referenceID, out.config.NoCompress.Bool, job.samples)
+				err := out.client.PushMetric(out.referenceID, job.samples)
 				job.done <- err
 				if out.shouldStopSendingMetrics(err) ***REMOVED***
 					return
@@ -713,71 +703,3 @@ func (out *Output) testFinished() error ***REMOVED***
 ***REMOVED***
 
 const expectedGzipRatio = 6 // based on test it is around 6.8, but we don't need to be that accurate
-
-// PushMetric pushes the provided metric samples for the given referenceID
-func (out *Output) PushMetric(referenceID string, noCompress bool, s []*Sample) error ***REMOVED***
-	start := time.Now()
-	url := fmt.Sprintf("%s/v1/metrics/%s", out.config.Host.String, referenceID)
-
-	jsonStart := time.Now()
-	b, err := easyjson.Marshal(samples(s))
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	jsonTime := time.Since(jsonStart)
-
-	// TODO: change the context, maybe to one with a timeout
-	req, err := http.NewRequestWithContext(context.Background(), "POST", url, nil)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	req.Header.Set("X-Payload-Sample-Count", strconv.Itoa(len(s)))
-	var additionalFields logrus.Fields
-
-	if !noCompress ***REMOVED***
-		buf := out.pushBufferPool.Get().(*bytes.Buffer)
-		buf.Reset()
-		defer out.pushBufferPool.Put(buf)
-		unzippedSize := len(b)
-		buf.Grow(unzippedSize / expectedGzipRatio)
-		gzipStart := time.Now()
-		***REMOVED***
-			g, _ := gzip.NewWriterLevel(buf, gzip.BestSpeed)
-			if _, err = g.Write(b); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-			if err = g.Close(); err != nil ***REMOVED***
-				return err
-			***REMOVED***
-		***REMOVED***
-		gzipTime := time.Since(gzipStart)
-
-		req.Header.Set("Content-Encoding", "gzip")
-		req.Header.Set("X-Payload-Byte-Count", strconv.Itoa(unzippedSize))
-
-		additionalFields = logrus.Fields***REMOVED***
-			"unzipped_size":  unzippedSize,
-			"gzip_t":         gzipTime,
-			"content_length": buf.Len(),
-		***REMOVED***
-
-		b = buf.Bytes()
-	***REMOVED***
-
-	req.Header.Set("Content-Length", strconv.Itoa(len(b)))
-	req.Body = ioutil.NopCloser(bytes.NewReader(b))
-	req.GetBody = func() (io.ReadCloser, error) ***REMOVED***
-		return ioutil.NopCloser(bytes.NewReader(b)), nil
-	***REMOVED***
-
-	err = out.client.Do(req, nil)
-
-	out.logger.WithFields(logrus.Fields***REMOVED***
-		"t":         time.Since(start),
-		"json_t":    jsonTime,
-		"part_size": len(s),
-	***REMOVED***).WithFields(additionalFields).Debug("Pushed part to cloud")
-
-	return err
-***REMOVED***

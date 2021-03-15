@@ -308,7 +308,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 		Logger: testutils.NewLogger(b),
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s",
-			"noCompress": true,
+			"noCompress": false,
 			"aggregationCalcInterval": "200ms",
 			"aggregationPeriod": "200ms"
 		***REMOVED***`, tb.ServerHTTP.URL)),
@@ -320,6 +320,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 	***REMOVED***)
 	require.NoError(b, err)
 	out.referenceID = "fake"
+	assert.False(b, out.config.NoCompress.Bool)
 
 	for _, count := range []int***REMOVED***1000, 5000, 50000, 100000, 250000***REMOVED*** ***REMOVED***
 		count := count
@@ -330,7 +331,7 @@ func BenchmarkHTTPPush(b *testing.B) ***REMOVED***
 				b.StopTimer()
 				toSend := append([]*Sample***REMOVED******REMOVED***, samples...)
 				b.StartTimer()
-				require.NoError(b, out.PushMetric("fake", false, toSend))
+				require.NoError(b, out.client.PushMetric("fake", toSend))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
