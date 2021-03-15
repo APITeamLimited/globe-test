@@ -160,7 +160,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 					"Promise", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`,
-					"ReferenceError: Promise is not defined at file:///script.js:1:45(5)",
+					"ReferenceError: Promise is not defined at file:///script.js:1:45(4)",
 				***REMOVED***,
 			***REMOVED***
 

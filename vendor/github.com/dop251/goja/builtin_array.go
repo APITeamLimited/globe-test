@@ -892,6 +892,17 @@ func (r *Runtime) arrayproto_reverse(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) arrayproto_shift(call FunctionCall) Value ***REMOVED***
 	o := call.This.ToObject(r)
+	if a := r.checkStdArrayObj(o); a != nil ***REMOVED***
+		if len(a.values) == 0 ***REMOVED***
+			return _undefined
+		***REMOVED***
+		first := a.values[0]
+		copy(a.values, a.values[1:])
+		a.values[len(a.values)-1] = nil
+		a.values = a.values[:len(a.values)-1]
+		a.length--
+		return first
+	***REMOVED***
 	length := toLength(o.self.getStr("length", nil))
 	if length == 0 ***REMOVED***
 		o.self.setOwnStr("length", intToValue(0), true)
@@ -899,11 +910,12 @@ func (r *Runtime) arrayproto_shift(call FunctionCall) Value ***REMOVED***
 	***REMOVED***
 	first := o.self.getIdx(valueInt(0), nil)
 	for i := int64(1); i < length; i++ ***REMOVED***
-		v := o.self.getIdx(valueInt(i), nil)
-		if v != nil ***REMOVED***
-			o.self.setOwnIdx(valueInt(i-1), v, true)
+		idxFrom := valueInt(i)
+		idxTo := valueInt(i - 1)
+		if o.self.hasPropertyIdx(idxFrom) ***REMOVED***
+			o.self.setOwnIdx(idxTo, nilSafe(o.self.getIdx(idxFrom, nil)), true)
 		***REMOVED*** else ***REMOVED***
-			o.self.deleteIdx(valueInt(i-1), true)
+			o.self.deleteIdx(idxTo, true)
 		***REMOVED***
 	***REMOVED***
 
@@ -1292,11 +1304,9 @@ func (r *Runtime) createArrayProto(val *Object) objectImpl ***REMOVED***
 	o._putProp("toLocaleString", r.newNativeFunc(r.arrayproto_toLocaleString, nil, "toLocaleString", nil, 0), true, false, true)
 	o._putProp("toString", r.global.arrayToString, true, false, true)
 	o._putProp("unshift", r.newNativeFunc(r.arrayproto_unshift, nil, "unshift", nil, 1), true, false, true)
-	valuesFunc := r.newNativeFunc(r.arrayproto_values, nil, "values", nil, 0)
-	r.global.arrayValues = valuesFunc
-	o._putProp("values", valuesFunc, true, false, true)
+	o._putProp("values", r.global.arrayValues, true, false, true)
 
-	o._putSym(SymIterator, valueProp(valuesFunc, true, false, true))
+	o._putSym(SymIterator, valueProp(r.global.arrayValues, true, false, true))
 
 	bl := r.newBaseObject(nil, classObject)
 	bl.setOwnStr("copyWithin", valueTrue, true)
@@ -1338,6 +1348,7 @@ func (r *Runtime) createArrayIterProto(val *Object) objectImpl ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) initArray() ***REMOVED***
+	r.global.arrayValues = r.newNativeFunc(r.arrayproto_values, nil, "values", nil, 0)
 	r.global.arrayToString = r.newNativeFunc(r.arrayproto_toString, nil, "toString", nil, 0)
 
 	r.global.ArrayIteratorPrototype = r.newLazyObject(r.createArrayIterProto)

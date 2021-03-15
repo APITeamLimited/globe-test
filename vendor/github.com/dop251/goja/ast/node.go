@@ -91,10 +91,10 @@ type (
 		Function      file.Idx
 		Name          *Identifier
 		ParameterList *ParameterList
-		Body          Statement
+		Body          *BlockStatement
 		Source        string
 
-		DeclarationList []Declaration
+		DeclarationList []*VariableDeclaration
 	***REMOVED***
 
 	Identifier struct ***REMOVED***
@@ -241,7 +241,7 @@ type (
 	CatchStatement struct ***REMOVED***
 		Catch     file.Idx
 		Parameter *Identifier
-		Body      Statement
+		Body      *BlockStatement
 	***REMOVED***
 
 	DebuggerStatement struct ***REMOVED***
@@ -264,21 +264,21 @@ type (
 
 	ForInStatement struct ***REMOVED***
 		For    file.Idx
-		Into   Expression
+		Into   ForInto
 		Source Expression
 		Body   Statement
 	***REMOVED***
 
 	ForOfStatement struct ***REMOVED***
 		For    file.Idx
-		Into   Expression
+		Into   ForInto
 		Source Expression
 		Body   Statement
 	***REMOVED***
 
 	ForStatement struct ***REMOVED***
 		For         file.Idx
-		Initializer Expression
+		Initializer ForLoopInitializer
 		Update      Expression
 		Test        Expression
 		Body        Statement
@@ -316,14 +316,20 @@ type (
 
 	TryStatement struct ***REMOVED***
 		Try     file.Idx
-		Body    Statement
+		Body    *BlockStatement
 		Catch   *CatchStatement
-		Finally Statement
+		Finally *BlockStatement
 	***REMOVED***
 
 	VariableStatement struct ***REMOVED***
 		Var  file.Idx
-		List []Expression
+		List []*VariableExpression
+	***REMOVED***
+
+	LexicalDeclaration struct ***REMOVED***
+		Idx   file.Idx
+		Token token.Token
+		List  []*VariableExpression
 	***REMOVED***
 
 	WhileStatement struct ***REMOVED***
@@ -336,6 +342,10 @@ type (
 		With   file.Idx
 		Object Expression
 		Body   Statement
+	***REMOVED***
+
+	FunctionDeclaration struct ***REMOVED***
+		Function *FunctionLiteral
 	***REMOVED***
 )
 
@@ -362,31 +372,75 @@ func (*TryStatement) _statementNode()        ***REMOVED******REMOVED***
 func (*VariableStatement) _statementNode()   ***REMOVED******REMOVED***
 func (*WhileStatement) _statementNode()      ***REMOVED******REMOVED***
 func (*WithStatement) _statementNode()       ***REMOVED******REMOVED***
+func (*LexicalDeclaration) _statementNode()  ***REMOVED******REMOVED***
+func (*FunctionDeclaration) _statementNode() ***REMOVED******REMOVED***
 
 // =========== //
 // Declaration //
 // =========== //
 
 type (
-	// All declaration nodes implement the Declaration interface.
-	Declaration interface ***REMOVED***
-		_declarationNode()
-	***REMOVED***
-
-	FunctionDeclaration struct ***REMOVED***
-		Function *FunctionLiteral
-	***REMOVED***
-
 	VariableDeclaration struct ***REMOVED***
 		Var  file.Idx
 		List []*VariableExpression
 	***REMOVED***
 )
 
-// _declarationNode
+type (
+	ForLoopInitializer interface ***REMOVED***
+		_forLoopInitializer()
+	***REMOVED***
 
-func (*FunctionDeclaration) _declarationNode() ***REMOVED******REMOVED***
-func (*VariableDeclaration) _declarationNode() ***REMOVED******REMOVED***
+	ForLoopInitializerExpression struct ***REMOVED***
+		Expression Expression
+	***REMOVED***
+
+	ForLoopInitializerVarDeclList struct ***REMOVED***
+		Var  file.Idx
+		List []*VariableExpression
+	***REMOVED***
+
+	ForLoopInitializerLexicalDecl struct ***REMOVED***
+		LexicalDeclaration LexicalDeclaration
+	***REMOVED***
+
+	ForInto interface ***REMOVED***
+		_forInto()
+	***REMOVED***
+
+	ForIntoVar struct ***REMOVED***
+		Binding *VariableExpression
+	***REMOVED***
+
+	ForBinding interface ***REMOVED***
+		_forBinding()
+	***REMOVED***
+
+	BindingIdentifier struct ***REMOVED***
+		Idx  file.Idx
+		Name unistring.String
+	***REMOVED***
+
+	ForDeclaration struct ***REMOVED***
+		Idx     file.Idx
+		IsConst bool
+		Binding ForBinding
+	***REMOVED***
+
+	ForIntoExpression struct ***REMOVED***
+		Expression Expression
+	***REMOVED***
+)
+
+func (*ForLoopInitializerExpression) _forLoopInitializer()  ***REMOVED******REMOVED***
+func (*ForLoopInitializerVarDeclList) _forLoopInitializer() ***REMOVED******REMOVED***
+func (*ForLoopInitializerLexicalDecl) _forLoopInitializer() ***REMOVED******REMOVED***
+
+func (*ForIntoVar) _forInto()        ***REMOVED******REMOVED***
+func (*ForDeclaration) _forInto()    ***REMOVED******REMOVED***
+func (*ForIntoExpression) _forInto() ***REMOVED******REMOVED***
+
+func (*BindingIdentifier) _forBinding() ***REMOVED******REMOVED***
 
 // ==== //
 // Node //
@@ -395,7 +449,7 @@ func (*VariableDeclaration) _declarationNode() ***REMOVED******REMOVED***
 type Program struct ***REMOVED***
 	Body []Statement
 
-	DeclarationList []Declaration
+	DeclarationList []*VariableDeclaration
 
 	File *file.File
 ***REMOVED***
@@ -449,6 +503,10 @@ func (self *TryStatement) Idx0() file.Idx        ***REMOVED*** return self.Try *
 func (self *VariableStatement) Idx0() file.Idx   ***REMOVED*** return self.Var ***REMOVED***
 func (self *WhileStatement) Idx0() file.Idx      ***REMOVED*** return self.While ***REMOVED***
 func (self *WithStatement) Idx0() file.Idx       ***REMOVED*** return self.With ***REMOVED***
+func (self *LexicalDeclaration) Idx0() file.Idx  ***REMOVED*** return self.Idx ***REMOVED***
+func (self *FunctionDeclaration) Idx0() file.Idx ***REMOVED*** return self.Function.Idx0() ***REMOVED***
+
+func (self *ForLoopInitializerVarDeclList) Idx0() file.Idx ***REMOVED*** return self.List[0].Idx0() ***REMOVED***
 
 // ==== //
 // Idx1 //
@@ -507,12 +565,16 @@ func (self *IfStatement) Idx1() file.Idx ***REMOVED***
 	***REMOVED***
 	return self.Consequent.Idx1()
 ***REMOVED***
-func (self *LabelledStatement) Idx1() file.Idx ***REMOVED*** return self.Colon + 1 ***REMOVED***
-func (self *Program) Idx1() file.Idx           ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
-func (self *ReturnStatement) Idx1() file.Idx   ***REMOVED*** return self.Return ***REMOVED***
-func (self *SwitchStatement) Idx1() file.Idx   ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
-func (self *ThrowStatement) Idx1() file.Idx    ***REMOVED*** return self.Throw ***REMOVED***
-func (self *TryStatement) Idx1() file.Idx      ***REMOVED*** return self.Try ***REMOVED***
-func (self *VariableStatement) Idx1() file.Idx ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
-func (self *WhileStatement) Idx1() file.Idx    ***REMOVED*** return self.Body.Idx1() ***REMOVED***
-func (self *WithStatement) Idx1() file.Idx     ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *LabelledStatement) Idx1() file.Idx   ***REMOVED*** return self.Colon + 1 ***REMOVED***
+func (self *Program) Idx1() file.Idx             ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
+func (self *ReturnStatement) Idx1() file.Idx     ***REMOVED*** return self.Return ***REMOVED***
+func (self *SwitchStatement) Idx1() file.Idx     ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
+func (self *ThrowStatement) Idx1() file.Idx      ***REMOVED*** return self.Throw ***REMOVED***
+func (self *TryStatement) Idx1() file.Idx        ***REMOVED*** return self.Try ***REMOVED***
+func (self *VariableStatement) Idx1() file.Idx   ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
+func (self *WhileStatement) Idx1() file.Idx      ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *WithStatement) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *LexicalDeclaration) Idx1() file.Idx  ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
+func (self *FunctionDeclaration) Idx1() file.Idx ***REMOVED*** return self.Function.Idx1() ***REMOVED***
+
+func (self *ForLoopInitializerVarDeclList) Idx1() file.Idx ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***

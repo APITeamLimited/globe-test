@@ -80,6 +80,7 @@ type valueContainer interface ***REMOVED***
 
 type typeError string
 type rangeError string
+type referenceError string
 
 type valueInt int64
 type valueFloat float64
@@ -116,6 +117,11 @@ type valueProperty struct ***REMOVED***
 	getterFunc   *Object
 	setterFunc   *Object
 ***REMOVED***
+
+var (
+	errAccessBeforeInit = referenceError("Cannot access a variable before initialization")
+	errAssignToConst    = typeError("Assignment to constant variable.")
+)
 
 func propGetter(o Value, v Value, r *Runtime) *Object ***REMOVED***
 	if v == _undefined ***REMOVED***
@@ -199,7 +205,7 @@ func (i valueInt) Equals(other Value) bool ***REMOVED***
 	case valueBool:
 		return int64(i) == o.ToInteger()
 	case *Object:
-		return i.Equals(o.toPrimitiveNumber())
+		return i.Equals(o.toPrimitive())
 	***REMOVED***
 
 	return false
@@ -620,7 +626,7 @@ func (f valueFloat) Equals(other Value) bool ***REMOVED***
 	case valueString, valueBool:
 		return float64(f) == o.ToFloat()
 	case *Object:
-		return f.Equals(o.toPrimitiveNumber())
+		return f.Equals(o.toPrimitive())
 	***REMOVED***
 
 	return false
@@ -705,7 +711,7 @@ func (o *Object) Equals(other Value) bool ***REMOVED***
 	***REMOVED***
 
 	switch o1 := other.(type) ***REMOVED***
-	case valueInt, valueFloat, valueString:
+	case valueInt, valueFloat, valueString, *Symbol:
 		return o.toPrimitive().Equals(other)
 	case valueBool:
 		return o.Equals(o1.ToNumber())
@@ -725,8 +731,15 @@ func (o *Object) baseObject(*Runtime) *Object ***REMOVED***
 	return o
 ***REMOVED***
 
-func (o *Object) Export() interface***REMOVED******REMOVED*** ***REMOVED***
-	return o.self.export(&objectExportCtx***REMOVED******REMOVED***)
+// Export the Object to a plain Go type. The returned value will be map[string]interface***REMOVED******REMOVED*** unless
+// the Object is a wrapped Go value (created using ToValue()).
+// This method will panic with an *Exception if a JavaScript exception is thrown in the process.
+func (o *Object) Export() (ret interface***REMOVED******REMOVED***) ***REMOVED***
+	o.runtime.tryPanic(func() ***REMOVED***
+		ret = o.self.export(&objectExportCtx***REMOVED******REMOVED***)
+	***REMOVED***)
+
+	return
 ***REMOVED***
 
 func (o *Object) ExportType() reflect.Type ***REMOVED***
@@ -737,16 +750,21 @@ func (o *Object) hash(*maphash.Hash) uint64 ***REMOVED***
 	return o.getId()
 ***REMOVED***
 
+// Get an object's property by name.
+// This method will panic with an *Exception if a JavaScript exception is thrown in the process.
 func (o *Object) Get(name string) Value ***REMOVED***
 	return o.self.getStr(unistring.NewFromString(name), nil)
 ***REMOVED***
 
 // GetSymbol returns the value of a symbol property. Use one of the Sym* values for well-known
 // symbols (such as SymIterator, SymToStringTag, etc...).
+// This method will panic with an *Exception if a JavaScript exception is thrown in the process.
 func (o *Object) GetSymbol(sym *Symbol) Value ***REMOVED***
 	return o.self.getSym(sym, nil)
 ***REMOVED***
 
+// Keys returns a list of Object's enumerable keys.
+// This method will panic with an *Exception if a JavaScript exception is thrown in the process.
 func (o *Object) Keys() (keys []string) ***REMOVED***
 	iter := &enumerableIter***REMOVED***
 		wrapped: o.self.enumerateOwnKeys(),
@@ -758,6 +776,8 @@ func (o *Object) Keys() (keys []string) ***REMOVED***
 	return
 ***REMOVED***
 
+// Symbols returns a list of Object's enumerable symbol properties.
+// This method will panic with an *Exception if a JavaScript exception is thrown in the process.
 func (o *Object) Symbols() []*Symbol ***REMOVED***
 	symbols := o.self.ownSymbols(false, nil)
 	ret := make([]*Symbol, len(symbols))
@@ -770,7 +790,7 @@ func (o *Object) Symbols() []*Symbol ***REMOVED***
 // DefineDataProperty is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***value: value, writable: writable,
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineDataProperty(name string, value Value, writable, configurable, enumerable Flag) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.defineOwnPropertyStr(unistring.NewFromString(name), PropertyDescriptor***REMOVED***
 			Value:        value,
 			Writable:     writable,
@@ -783,7 +803,7 @@ func (o *Object) DefineDataProperty(name string, value Value, writable, configur
 // DefineAccessorProperty is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***get: getter, set: setter,
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineAccessorProperty(name string, getter, setter Value, configurable, enumerable Flag) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.defineOwnPropertyStr(unistring.NewFromString(name), PropertyDescriptor***REMOVED***
 			Getter:       getter,
 			Setter:       setter,
@@ -796,7 +816,7 @@ func (o *Object) DefineAccessorProperty(name string, getter, setter Value, confi
 // DefineDataPropertySymbol is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***value: value, writable: writable,
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineDataPropertySymbol(name *Symbol, value Value, writable, configurable, enumerable Flag) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.defineOwnPropertySym(name, PropertyDescriptor***REMOVED***
 			Value:        value,
 			Writable:     writable,
@@ -809,7 +829,7 @@ func (o *Object) DefineDataPropertySymbol(name *Symbol, value Value, writable, c
 // DefineAccessorPropertySymbol is a Go equivalent of Object.defineProperty(o, name, ***REMOVED***get: getter, set: setter,
 // configurable: configurable, enumerable: enumerable***REMOVED***)
 func (o *Object) DefineAccessorPropertySymbol(name *Symbol, getter, setter Value, configurable, enumerable Flag) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.defineOwnPropertySym(name, PropertyDescriptor***REMOVED***
 			Getter:       getter,
 			Setter:       setter,
@@ -820,25 +840,25 @@ func (o *Object) DefineAccessorPropertySymbol(name *Symbol, getter, setter Value
 ***REMOVED***
 
 func (o *Object) Set(name string, value interface***REMOVED******REMOVED***) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.setOwnStr(unistring.NewFromString(name), o.runtime.ToValue(value), true)
 	***REMOVED***)
 ***REMOVED***
 
 func (o *Object) SetSymbol(name *Symbol, value interface***REMOVED******REMOVED***) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.setOwnSym(name, o.runtime.ToValue(value), true)
 	***REMOVED***)
 ***REMOVED***
 
 func (o *Object) Delete(name string) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.deleteStr(unistring.NewFromString(name), true)
 	***REMOVED***)
 ***REMOVED***
 
 func (o *Object) DeleteSymbol(name *Symbol) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.deleteSym(name, true)
 	***REMOVED***)
 ***REMOVED***
@@ -852,7 +872,7 @@ func (o *Object) Prototype() *Object ***REMOVED***
 // SetPrototype sets the Object's prototype, same as Object.setPrototypeOf(). Setting proto to nil
 // is an equivalent of Object.setPrototypeOf(null).
 func (o *Object) SetPrototype(proto *Object) error ***REMOVED***
-	return tryFunc(func() ***REMOVED***
+	return o.runtime.try(func() ***REMOVED***
 		o.self.setProto(proto, true)
 	***REMOVED***)
 ***REMOVED***
@@ -1007,6 +1027,10 @@ func (s *Symbol) SameAs(other Value) bool ***REMOVED***
 ***REMOVED***
 
 func (s *Symbol) Equals(o Value) bool ***REMOVED***
+	switch o := o.(type) ***REMOVED***
+	case *Object:
+		return s.Equals(o.toPrimitive())
+	***REMOVED***
 	return s.SameAs(o)
 ***REMOVED***
 
