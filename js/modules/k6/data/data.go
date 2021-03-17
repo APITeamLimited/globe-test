@@ -27,14 +27,14 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/js/internal/modules"
 	"github.com/loadimpact/k6/lib"
 )
 
 type data struct***REMOVED******REMOVED***
 
-func init() ***REMOVED***
-	modules.Register("k6/data", new(data))
+// New return a new Module instance
+func New() interface***REMOVED******REMOVED*** ***REMOVED***
+	return new(data)
 ***REMOVED***
 
 const sharedArrayNamePrefix = "k6/data/SharedArray."

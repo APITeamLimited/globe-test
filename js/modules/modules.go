@@ -29,11 +29,6 @@ import (
 
 const extPrefix string = "k6/x/"
 
-// Get returns the module registered with name.
-func Get(name string) interface***REMOVED******REMOVED*** ***REMOVED***
-	return modules.Get(name)
-***REMOVED***
-
 // Register the given mod as an external JavaScript module that can be imported
 // by name. The name must be unique across all registered modules and must be
 // prefixed with "k6/x/", otherwise this function will panic.

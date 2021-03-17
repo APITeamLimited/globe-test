@@ -22,13 +22,7 @@ package grpc
 
 import (
 	"google.golang.org/grpc/codes"
-
-	"github.com/loadimpact/k6/js/internal/modules"
 )
-
-func init() ***REMOVED***
-	modules.Register("k6/net/grpc", New())
-***REMOVED***
 
 // GRPC represents the gRPC protocol module for k6
 type GRPC struct ***REMOVED***
