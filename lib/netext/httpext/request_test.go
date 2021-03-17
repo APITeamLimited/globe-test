@@ -31,12 +31,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mccutchen/go-httpbin/httpbin"
+	"github.com/oxtoacart/bpool"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/metrics"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -278,5 +282,70 @@ func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ ***REMOVED***
 		_ = wrapDecompressionError(err)
+	***REMOVED***
+***REMOVED***
+
+func TestTrailFailed(t *testing.T) ***REMOVED***
+	t.Parallel()
+	srv := httptest.NewTLSServer(httpbin.New().Handler())
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	samples := make(chan stats.SampleContainer, 10)
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	state := &lib.State***REMOVED***
+		Options: lib.Options***REMOVED***
+			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		Transport: srv.Client().Transport,
+		Samples:   samples,
+		Logger:    logger,
+		BPool:     bpool.NewBufferPool(2),
+	***REMOVED***
+	ctx = lib.WithState(ctx, state)
+
+	testCases := map[string]struct ***REMOVED***
+		responseCallback func(int) bool
+		failed           null.Bool
+	***REMOVED******REMOVED***
+		"null responsecallback": ***REMOVED***responseCallback: nil, failed: null.NewBool(false, false)***REMOVED***,
+		"unexpected response":   ***REMOVED***responseCallback: func(int) bool ***REMOVED*** return false ***REMOVED***, failed: null.NewBool(true, true)***REMOVED***,
+		"expected response":     ***REMOVED***responseCallback: func(int) bool ***REMOVED*** return true ***REMOVED***, failed: null.NewBool(false, true)***REMOVED***,
+	***REMOVED***
+	for name, testCase := range testCases ***REMOVED***
+		responseCallback := testCase.responseCallback
+		failed := testCase.failed
+
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			req, _ := http.NewRequest("GET", srv.URL, nil)
+			preq := &ParsedHTTPRequest***REMOVED***
+				Req:              req,
+				URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+				Body:             new(bytes.Buffer),
+				Timeout:          10 * time.Millisecond,
+				ResponseCallback: responseCallback,
+			***REMOVED***
+			res, err := MakeRequest(ctx, preq)
+
+			require.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Len(t, samples, 1)
+			sample := <-samples
+			trail := sample.(*Trail)
+			require.Equal(t, failed, trail.Failed)
+
+			var httpReqFailedSampleValue null.Bool
+			for _, s := range sample.GetSamples() ***REMOVED***
+				if s.Metric.Name == metrics.HTTPReqFailed.Name ***REMOVED***
+					httpReqFailedSampleValue.Valid = true
+					if s.Value == 1.0 ***REMOVED***
+						httpReqFailedSampleValue.Bool = true
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+			require.Equal(t, failed, httpReqFailedSampleValue)
+		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
