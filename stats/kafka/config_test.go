@@ -21,11 +21,16 @@
 package kafka
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats/influxdb"
 )
 
@@ -63,4 +68,56 @@ func TestConfigParseArg(t *testing.T) ***REMOVED***
 	assert.Equal(t, null.StringFrom("someTopic"), c.Topic)
 	assert.Equal(t, null.StringFrom("influxdb"), c.Format)
 	assert.Equal(t, expInfluxConfig, c.InfluxDBConfig)
+***REMOVED***
+
+func TestConsolidatedConfig(t *testing.T) ***REMOVED***
+	t.Parallel()
+	// TODO: add more cases
+	testCases := map[string]struct ***REMOVED***
+		jsonRaw json.RawMessage
+		env     map[string]string
+		arg     string
+		config  Config
+		err     string
+	***REMOVED******REMOVED***
+		"default": ***REMOVED***
+			config: Config***REMOVED***
+				Format:         null.StringFrom("json"),
+				PushInterval:   types.NullDurationFrom(1 * time.Second),
+				InfluxDBConfig: influxdb.NewConfig(),
+			***REMOVED***,
+		***REMOVED***,
+		"bad influxdb concurrent writes": ***REMOVED***
+			env: map[string]string***REMOVED***"K6_INFLUXDB_CONCURRENT_WRITES": "-2"***REMOVED***,
+			config: Config***REMOVED***
+				Format:       null.StringFrom("json"),
+				PushInterval: types.NullDurationFrom(1 * time.Second),
+				InfluxDBConfig: influxdb.NewConfig().Apply(
+					influxdb.Config***REMOVED***
+						ConcurrentWrites: null.IntFrom(-2),
+					***REMOVED***),
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+
+	for name, testCase := range testCases ***REMOVED***
+		testCase := testCase
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			// hacks around env not actually being taken into account
+			os.Clearenv()
+			defer os.Clearenv()
+			for k, v := range testCase.env ***REMOVED***
+				require.NoError(t, os.Setenv(k, v))
+			***REMOVED***
+
+			config, err := GetConsolidatedConfig(testCase.jsonRaw, testCase.env, testCase.arg)
+			if testCase.err != "" ***REMOVED***
+				require.Error(t, err)
+				require.Contains(t, err.Error(), testCase.err)
+				return
+			***REMOVED***
+			require.NoError(t, err)
+			require.Equal(t, testCase.config, config)
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***

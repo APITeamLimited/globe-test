@@ -60,8 +60,9 @@ type config struct ***REMOVED***
 // NewConfig creates a new Config instance with default values for some fields.
 func NewConfig() Config ***REMOVED***
 	return Config***REMOVED***
-		Format:       null.StringFrom("json"),
-		PushInterval: types.NullDurationFrom(1 * time.Second),
+		Format:         null.StringFrom("json"),
+		PushInterval:   types.NullDurationFrom(1 * time.Second),
+		InfluxDBConfig: influxdb.NewConfig(),
 	***REMOVED***
 ***REMOVED***
 
@@ -78,6 +79,7 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.PushInterval.Valid ***REMOVED***
 		c.PushInterval = cfg.PushInterval
 	***REMOVED***
+	c.InfluxDBConfig = c.InfluxDBConfig.Apply(cfg.InfluxDBConfig)
 	return c
 ***REMOVED***
 
@@ -85,7 +87,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 func ParseArg(arg string) (Config, error) ***REMOVED***
 	c := Config***REMOVED******REMOVED***
 	params, err := strvals.Parse(arg)
-
 	if err != nil ***REMOVED***
 		return c, err
 	***REMOVED***
