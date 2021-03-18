@@ -91,10 +91,6 @@ func (v *TLSVersions) UnmarshalJSON(data []byte) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func (v *TLSVersions) isTLS13() bool ***REMOVED***
-	return v.Min == TLSVersion13 || v.Max == TLSVersion13
-***REMOVED***
-
 // A list of TLS cipher suites.
 // Marshals and unmarshals from a list of names, eg. "TLS_ECDHE_RSA_WITH_RC4_128_SHA".
 type TLSCipherSuites []uint16
@@ -487,9 +483,6 @@ func (o Options) Apply(opts Options) Options ***REMOVED***
 	***REMOVED***
 	if opts.TLSVersion != nil ***REMOVED***
 		o.TLSVersion = opts.TLSVersion
-		if o.TLSVersion.isTLS13() ***REMOVED***
-			enableTLS13()
-		***REMOVED***
 	***REMOVED***
 	if opts.TLSAuth != nil ***REMOVED***
 		o.TLSAuth = opts.TLSAuth

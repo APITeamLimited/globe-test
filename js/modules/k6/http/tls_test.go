@@ -23,6 +23,7 @@
 package http
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"testing"
@@ -44,7 +45,7 @@ func TestTLS13Support(t *testing.T) ***REMOVED***
 
 	// We don't expect any failed requests
 	state.Options.Throw = null.BoolFrom(true)
-	state.Options.Apply(lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Max: lib.TLSVersion13***REMOVED******REMOVED***)
+	state.Options.Apply(lib.Options***REMOVED***TLSVersion: &lib.TLSVersions***REMOVED***Max: tls.VersionTLS13***REMOVED******REMOVED***)
 
 	_, err := rt.RunString(tb.Replacer.Replace(`
 		var resp = http.get("HTTPSBIN_URL/tls-version");
