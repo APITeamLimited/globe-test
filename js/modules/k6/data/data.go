@@ -24,20 +24,49 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 )
 
-type data struct***REMOVED******REMOVED***
+type data struct ***REMOVED***
+	shared sharedArrays
+***REMOVED***
+
+type sharedArrays struct ***REMOVED***
+	data map[string]sharedArray
+	mu   sync.RWMutex
+***REMOVED***
+
+func (s *sharedArrays) get(rt *goja.Runtime, name string, call goja.Callable) sharedArray ***REMOVED***
+	s.mu.RLock()
+	array, ok := s.data[name]
+	s.mu.RUnlock()
+	if !ok ***REMOVED***
+		s.mu.Lock()
+		array, ok = s.data[name]
+		if !ok ***REMOVED***
+			func() ***REMOVED*** // this is done for the defer below
+				defer s.mu.Unlock()
+				array = getShareArrayFromCall(rt, call)
+				s.data[name] = array
+			***REMOVED***()
+		***REMOVED***
+	***REMOVED***
+
+	return array
+***REMOVED***
 
 // New return a new Module instance
 func New() interface***REMOVED******REMOVED*** ***REMOVED***
-	return new(data)
+	return &data***REMOVED***
+		shared: sharedArrays***REMOVED***
+			data: make(map[string]sharedArray),
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
-
-const sharedArrayNamePrefix = "k6/data/SharedArray."
 
 // XSharedArray is a constructor returning a shareable read-only array
 // indentified by the name and having their contents be whatever the call returns
@@ -46,24 +75,14 @@ func (d *data) XSharedArray(ctx context.Context, name string, call goja.Callable
 		return nil, errors.New("new SharedArray must be called in the init context")
 	***REMOVED***
 
-	initEnv := common.GetInitEnv(ctx)
-	if initEnv == nil ***REMOVED***
-		return nil, errors.New("missing init environment")
-	***REMOVED***
 	if len(name) == 0 ***REMOVED***
 		return nil, errors.New("empty name provided to SharedArray's constructor")
 	***REMOVED***
 
-	name = sharedArrayNamePrefix + name
-	value := initEnv.SharedObjects.GetOrCreateShare(name, func() interface***REMOVED******REMOVED*** ***REMOVED***
-		return getShareArrayFromCall(common.GetRuntime(ctx), call)
-	***REMOVED***)
-	array, ok := value.(sharedArray)
-	if !ok ***REMOVED*** // TODO more info in the error?
-		return nil, errors.New("wrong type of shared object")
-	***REMOVED***
+	rt := common.GetRuntime(ctx)
+	array := d.shared.get(rt, name, call)
 
-	return array.wrap(common.GetRuntime(ctx)), nil
+	return array.wrap(rt), nil
 ***REMOVED***
 
 func getShareArrayFromCall(rt *goja.Runtime, call goja.Callable) sharedArray ***REMOVED***

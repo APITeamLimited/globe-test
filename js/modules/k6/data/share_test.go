@@ -40,24 +40,22 @@ var array = new data.SharedArray("shared",function() ***REMOVED***
 ***REMOVED***);
 `
 
-func newConfiguredRuntime(initEnv *common.InitEnvironment) (*goja.Runtime, error) ***REMOVED***
+func newConfiguredRuntime(moduleInstance interface***REMOVED******REMOVED***) (*goja.Runtime, error) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	ctx := common.WithRuntime(context.Background(), rt)
+	err := rt.Set("data", common.Bind(rt, moduleInstance, &ctx))
+	if err != nil ***REMOVED***
+		return rt, err //nolint:wrapcheck
+	***REMOVED***
+	_, err = rt.RunString("var SharedArray = data.SharedArray;")
 
-	ctx := common.WithInitEnv(context.Background(), initEnv)
-	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("data", common.Bind(rt, new(data), &ctx))
-	_, err := rt.RunString("var SharedArray = data.SharedArray;")
-
-	return rt, err
+	return rt, err //nolint:wrapcheck
 ***REMOVED***
 
 func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 	t.Parallel()
-	initEnv := &common.InitEnvironment***REMOVED***
-		SharedObjects: common.NewSharedObjects(),
-	***REMOVED***
-	rt, err := newConfiguredRuntime(initEnv)
+	rt, err := newConfiguredRuntime(New())
 	require.NoError(t, err)
 	cases := map[string]struct ***REMOVED***
 		code, err string
@@ -100,16 +98,13 @@ func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	initEnv := &common.InitEnvironment***REMOVED***
-		SharedObjects: common.NewSharedObjects(),
-	***REMOVED***
-	rt, err := newConfiguredRuntime(initEnv)
+	moduleInstance := New()
+	rt, err := newConfiguredRuntime(moduleInstance)
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
 
-	// create another Runtime with new ctx but keep the initEnv
-	rt, err = newConfiguredRuntime(initEnv)
+	rt, err = newConfiguredRuntime(moduleInstance)
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
@@ -155,16 +150,14 @@ func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	initEnv := &common.InitEnvironment***REMOVED***
-		SharedObjects: common.NewSharedObjects(),
-	***REMOVED***
-	rt, err := newConfiguredRuntime(initEnv)
+	moduleInstance := New()
+	rt, err := newConfiguredRuntime(moduleInstance)
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
 
 	// create another Runtime with new ctx but keep the initEnv
-	rt, err = newConfiguredRuntime(initEnv)
+	rt, err = newConfiguredRuntime(moduleInstance)
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
