@@ -53,7 +53,7 @@ func (v TLSVersion) MarshalJSON() ([]byte, error) ***REMOVED***
 
 func (v *TLSVersion) UnmarshalJSON(data []byte) error ***REMOVED***
 	var str string
-	if err := json.Unmarshal(data, &str); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &str); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	if str == "" ***REMOVED***
@@ -79,9 +79,9 @@ type TLSVersions TLSVersionsFields
 
 func (v *TLSVersions) UnmarshalJSON(data []byte) error ***REMOVED***
 	var fields TLSVersionsFields
-	if err := json.Unmarshal(data, &fields); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &fields); err != nil ***REMOVED***
 		var ver TLSVersion
-		if err2 := json.Unmarshal(data, &ver); err2 != nil ***REMOVED***
+		if err2 := StrictJSONUnmarshal(data, &ver); err2 != nil ***REMOVED***
 			return err
 		***REMOVED***
 		fields.Min = ver
@@ -111,7 +111,7 @@ func (s *TLSCipherSuites) MarshalJSON() ([]byte, error) ***REMOVED***
 
 func (s *TLSCipherSuites) UnmarshalJSON(data []byte) error ***REMOVED***
 	var suiteNames []string
-	if err := json.Unmarshal(data, &suiteNames); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &suiteNames); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -146,7 +146,7 @@ type TLSAuth struct ***REMOVED***
 ***REMOVED***
 
 func (c *TLSAuth) UnmarshalJSON(data []byte) error ***REMOVED***
-	if err := json.Unmarshal(data, &c.TLSAuthFields); err != nil ***REMOVED***
+	if err := StrictJSONUnmarshal(data, &c.TLSAuthFields); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 	if _, err := c.Certificate(); err != nil ***REMOVED***
