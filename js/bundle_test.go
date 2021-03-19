@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,8 +51,9 @@ const isWindows = runtime.GOOS == "windows"
 
 func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***REMOVED******REMOVED***) (*Bundle, error) ***REMOVED***
 	var (
-		fs     = afero.NewMemMapFs()
-		rtOpts = lib.RuntimeOptions***REMOVED******REMOVED***
+		fs                        = afero.NewMemMapFs()
+		rtOpts                    = lib.RuntimeOptions***REMOVED******REMOVED***
+		logger logrus.FieldLogger = testutils.NewLogger(tb)
 	)
 	for _, o := range opts ***REMOVED***
 		switch opt := o.(type) ***REMOVED***
@@ -59,10 +61,12 @@ func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***R
 			fs = opt
 		case lib.RuntimeOptions:
 			rtOpts = opt
+		case logrus.FieldLogger:
+			logger = opt
 		***REMOVED***
 	***REMOVED***
 	return NewBundle(
-		testutils.NewLogger(tb),
+		logger,
 		&loader.SourceData***REMOVED***
 			URL:  &url.URL***REMOVED***Path: filename, Scheme: "file"***REMOVED***,
 			Data: []byte(data),
@@ -418,6 +422,31 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					assert.Equal(t, "avg<100", b.Options.Thresholds["http_req_duration"].Thresholds[0].Source)
 				***REMOVED***
 			***REMOVED***
+		***REMOVED***)
+
+		t.Run("Unknown field", func(t *testing.T) ***REMOVED***
+			logger := logrus.New()
+			logger.SetLevel(logrus.InfoLevel)
+			logger.Out = ioutil.Discard
+			hook := testutils.SimpleLogrusHook***REMOVED***
+				HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel, logrus.InfoLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel***REMOVED***,
+			***REMOVED***
+			logger.AddHook(&hook)
+
+			_, err := getSimpleBundle(t, "/script.js", `
+				export let options = ***REMOVED***
+					something: ***REMOVED***
+						http_req_duration: ["avg<100"],
+					***REMOVED***,
+				***REMOVED***;
+				export default function() ***REMOVED******REMOVED***;
+			`, logger)
+			require.NoError(t, err)
+			entries := hook.Drain()
+			require.Len(t, entries, 1)
+			assert.Equal(t, logrus.WarnLevel, entries[0].Level)
+			require.Contains(t, entries[0].Message, "There were unknown fields")
+			require.Contains(t, entries[0].Data["error"].(error).Error(), "unknown field \"something\"")
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
