@@ -44,7 +44,7 @@ var (
 			"transform-es2015-literals",
 			"transform-es2015-function-name",
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***,
-			"transform-es2015-block-scoped-functions",
+			// "transform-es2015-block-scoped-functions", // in goja
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
 			"transform-es2015-object-super",
 			// "transform-es2015-shorthand-properties", // in goja
@@ -53,11 +53,11 @@ var (
 			// "transform-es2015-for-of", // in goja
 			// "transform-es2015-sticky-regex", // in goja
 			// "transform-es2015-unicode-regex", // in goja
-			"check-es2015-constants",
+			// "check-es2015-constants", // in goja
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-spread", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
 			"transform-es2015-parameters",
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-destructuring", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
-			"transform-es2015-block-scoping", // let/const which particularly slow on big inputs
+			// "transform-es2015-block-scoping", // in goja
 			// "transform-es2015-typeof-symbol", // in goja
 			// all the other module plugins are just dropped
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-modules-commonjs", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
