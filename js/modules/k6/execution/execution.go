@@ -73,8 +73,9 @@ func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED*
 			common.Throw(rt, err)
 		***REMOVED***
 	***REMOVED***
-	defProp("scenario", mi.newScenarioInfo)
 	defProp("instance", mi.newInstanceInfo)
+	defProp("scenario", mi.newScenarioInfo)
+	defProp("test", mi.newTestInfo)
 	defProp("vu", mi.newVUInfo)
 
 	mi.obj = o
@@ -90,14 +91,10 @@ func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
 // newScenarioInfo returns a goja.Object with property accessors to retrieve
 // information about the scenario the current VU is running in.
 func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.vu.Context()
-	rt := common.GetRuntime(ctx)
+	rt := mi.vu.Runtime()
 	vuState := mi.vu.State()
 	if vuState == nil ***REMOVED***
 		return nil, errors.New("getting scenario information in the init context is not supported")
-	***REMOVED***
-	if rt == nil ***REMOVED***
-		return nil, errors.New("goja runtime is nil in context")
 	***REMOVED***
 	getScenarioState := func() *lib.ScenarioState ***REMOVED***
 		ss := lib.GetScenarioState(mi.vu.Context())
@@ -140,16 +137,11 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
 // newInstanceInfo returns a goja.Object with property accessors to retrieve
 // information about the local instance stats.
 func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.vu.Context()
-	es := lib.GetExecutionState(ctx)
+	es := lib.GetExecutionState(mi.vu.Context())
 	if es == nil ***REMOVED***
 		return nil, errors.New("getting instance information in the init context is not supported")
 	***REMOVED***
-
-	rt := common.GetRuntime(ctx)
-	if rt == nil ***REMOVED***
-		return nil, errors.New("goja runtime is nil in context")
-	***REMOVED***
+	rt := mi.vu.Runtime()
 
 	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
 		"currentTestRunDuration": func() interface***REMOVED******REMOVED*** ***REMOVED***
@@ -172,19 +164,34 @@ func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
 	return newInfoObj(rt, ti)
 ***REMOVED***
 
+// newTestInfo returns a goja.Object with property accessors to retrieve
+// information and control execution of the overall test run.
+func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) ***REMOVED***
+	rt := mi.vu.Runtime()
+	ti := map[string]func() interface***REMOVED******REMOVED******REMOVED***
+		// stop the test run
+		"abort": func() interface***REMOVED******REMOVED*** ***REMOVED***
+			return func(msg goja.Value) ***REMOVED***
+				reason := common.AbortTest
+				if msg != nil && !goja.IsUndefined(msg) ***REMOVED***
+					reason = fmt.Sprintf("%s: %s", reason, msg.String())
+				***REMOVED***
+				rt.Interrupt(&common.InterruptError***REMOVED***Reason: reason***REMOVED***)
+			***REMOVED***
+		***REMOVED***,
+	***REMOVED***
+
+	return newInfoObj(rt, ti)
+***REMOVED***
+
 // newVUInfo returns a goja.Object with property accessors to retrieve
 // information about the currently executing VU.
 func (mi *ModuleInstance) newVUInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.vu.Context()
-	vuState := lib.GetState(ctx)
+	vuState := mi.vu.State()
 	if vuState == nil ***REMOVED***
 		return nil, errors.New("getting VU information in the init context is not supported")
 	***REMOVED***
-
-	rt := common.GetRuntime(ctx)
-	if rt == nil ***REMOVED***
-		return nil, errors.New("goja runtime is nil in context")
-	***REMOVED***
+	rt := mi.vu.Runtime()
 
 	vi := map[string]func() interface***REMOVED******REMOVED******REMOVED***
 		"idInInstance":        func() interface***REMOVED******REMOVED*** ***REMOVED*** return vuState.VUID ***REMOVED***,

@@ -22,6 +22,7 @@
 package k6
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"sync/atomic"
@@ -149,6 +150,17 @@ func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) ***REMOVE
 	***REMOVED***)
 
 	return ret, err
+***REMOVED***
+
+// AbortTest exposes abortTest function in the k6 module. When called it will
+// interrupt the active goja runtime passed with ctx.
+func (*K6) AbortTest(ctx context.Context, msg goja.Value) ***REMOVED***
+	rt := common.GetRuntime(ctx)
+	reason := common.AbortTest
+	if !goja.IsUndefined(msg) ***REMOVED***
+		reason = msg.String()
+	***REMOVED***
+	rt.Interrupt(&common.InterruptError***REMOVED***Reason: reason***REMOVED***)
 ***REMOVED***
 
 // Check will emit check metrics for the provided checks.

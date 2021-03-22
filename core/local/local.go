@@ -30,7 +30,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
+	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/executor"
 	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/stats"
 	"go.k6.io/k6/ui/pb"
@@ -386,8 +388,14 @@ func (e *ExecutionScheduler) Run(
 	// Start all executors at their particular startTime in a separate goroutine...
 	logger.Debug("Start all executors...")
 	e.state.SetExecutionStatus(lib.ExecutionStatusRunning)
+
+	// We are using this context to allow lib.Executor implementations to cancel
+	// this context effectively stopping all executions.
+	//
+	// This is for addressing abortTest()
+	execCtx := executor.Context(runSubCtx)
 	for _, exec := range e.executors ***REMOVED***
-		go e.runExecutor(runSubCtx, runResults, engineOut, exec, builtinMetrics)
+		go e.runExecutor(execCtx, runResults, engineOut, exec, builtinMetrics)
 	***REMOVED***
 
 	// Wait for all executors to finish
@@ -414,7 +422,10 @@ func (e *ExecutionScheduler) Run(
 			return err
 		***REMOVED***
 	***REMOVED***
-
+	if err := executor.CancelReason(execCtx); err != nil && common.IsInterruptError(err) ***REMOVED***
+		// The execution was interupted
+		return err
+	***REMOVED***
 	return firstErr
 ***REMOVED***
 
