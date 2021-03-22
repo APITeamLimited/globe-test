@@ -1184,15 +1184,17 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		***REMOVED***)
 		t.Run("GET", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`
-			var reqs = [
+		***REMOVED***
+			let reqs = [
 				["GET", "HTTPBIN_URL/"],
 				["GET", "HTTPBIN_IP_URL/"],
 			];
-			var res = http.batch(reqs);
+			let res = http.batch(reqs);
 			for (var key in res) ***REMOVED***
 				if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + res[key].status); ***REMOVED***
 				if (res[key].url != reqs[key][1]) ***REMOVED*** throw new Error("wrong url: " + res[key].url); ***REMOVED***
-			***REMOVED***`))
+			***REMOVED***
+		***REMOVED***`))
 			require.NoError(t, err)
 			bufSamples := stats.GetBufferedSamples(samples)
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
@@ -1200,6 +1202,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 			t.Run("Tagged", func(t *testing.T) ***REMOVED***
 				_, err := runES6String(t, rt, sr(`
+			***REMOVED***
 				let fragment = "get";
 				let reqs = [
 					["GET", http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`],
@@ -1209,7 +1212,8 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				for (var key in res) ***REMOVED***
 					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
 					if (res[key].url != reqs[key][1].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key][1].url); ***REMOVED***
-				***REMOVED***`))
+				***REMOVED***
+			***REMOVED***`))
 				assert.NoError(t, err)
 				bufSamples := stats.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get"), sr("HTTPBIN_URL/$***REMOVED******REMOVED***"), 200, "")
@@ -1218,15 +1222,17 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 			t.Run("Shorthand", func(t *testing.T) ***REMOVED***
 				_, err := rt.RunString(sr(`
-				var reqs = [
+			***REMOVED***
+				let reqs = [
 					"HTTPBIN_URL/",
 					"HTTPBIN_IP_URL/",
 				];
-				var res = http.batch(reqs);
+				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
 					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
 					if (res[key].url != reqs[key]) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url); ***REMOVED***
-				***REMOVED***`))
+				***REMOVED***
+			***REMOVED***`))
 				assert.NoError(t, err)
 				bufSamples := stats.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")
@@ -1234,6 +1240,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 				t.Run("Tagged", func(t *testing.T) ***REMOVED***
 					_, err := runES6String(t, rt, sr(`
+				***REMOVED***
 					let fragment = "get";
 					let reqs = [
 						http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`,
@@ -1243,7 +1250,8 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 					for (var key in res) ***REMOVED***
 						if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
 						if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key].url); ***REMOVED***
-					***REMOVED***`))
+					***REMOVED***
+				***REMOVED***`))
 					assert.NoError(t, err)
 					bufSamples := stats.GetBufferedSamples(samples)
 					assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/get"), sr("HTTPBIN_URL/$***REMOVED******REMOVED***"), 200, "")
@@ -1253,15 +1261,17 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 			t.Run("ObjectForm", func(t *testing.T) ***REMOVED***
 				_, err := rt.RunString(sr(`
-				var reqs = [
+			***REMOVED***
+				let reqs = [
 					***REMOVED*** method: "GET", url: "HTTPBIN_URL/" ***REMOVED***,
 					***REMOVED*** url: "HTTPBIN_IP_URL/", method: "GET"***REMOVED***,
 				];
-				var res = http.batch(reqs);
+				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
 					if (res[key].status != 200) ***REMOVED*** throw new Error("wrong status: " + key + ": " + res[key].status); ***REMOVED***
 					if (res[key].url != reqs[key].url) ***REMOVED*** throw new Error("wrong url: " + key + ": " + res[key].url + " != " + reqs[key].url); ***REMOVED***
-				***REMOVED***`))
+				***REMOVED***
+			***REMOVED***`))
 				assert.NoError(t, err)
 				bufSamples := stats.GetBufferedSamples(samples)
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_URL/"), "", 200, "")

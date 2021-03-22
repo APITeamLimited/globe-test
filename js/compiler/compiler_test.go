@@ -64,7 +64,7 @@ func TestTransform(t *testing.T) ***REMOVED***
 			`    return a + b;`,
 			`***REMOVED***;`,
 			``,
-			`var res = add(1, 2);`,
+			`let res = add(1, 2);`,
 		***REMOVED***, "\n"), src)
 		// assert.Equal(t, 3, srcmap.Version)
 		// assert.Equal(t, "test.js", srcmap.File)

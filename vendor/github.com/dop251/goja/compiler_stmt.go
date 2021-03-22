@@ -2,8 +2,6 @@ package goja
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
@@ -19,7 +17,9 @@ func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED
 	case *ast.ExpressionStatement:
 		c.compileExpressionStatement(v, needResult)
 	case *ast.VariableStatement:
-		c.compileVariableStatement(v, needResult)
+		c.compileVariableStatement(v)
+	case *ast.LexicalDeclaration:
+		c.compileLexicalDeclaration(v)
 	case *ast.ReturnStatement:
 		c.compileReturnStatement(v)
 	case *ast.IfStatement:
@@ -35,12 +35,9 @@ func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED
 	case *ast.WhileStatement:
 		c.compileWhileStatement(v, needResult)
 	case *ast.BranchStatement:
-		c.compileBranchStatement(v, needResult)
+		c.compileBranchStatement(v)
 	case *ast.TryStatement:
-		c.compileTryStatement(v)
-		if needResult ***REMOVED***
-			c.emit(loadUndef)
-		***REMOVED***
+		c.compileTryStatement(v, needResult)
 	case *ast.ThrowStatement:
 		c.compileThrowStatement(v)
 	case *ast.SwitchStatement:
@@ -49,6 +46,9 @@ func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED
 		c.compileLabeledStatement(v, needResult)
 	case *ast.EmptyStatement:
 		c.compileEmptyStatement(needResult)
+	case *ast.FunctionDeclaration:
+		c.compileStandaloneFunctionDecl(v)
+		// note functions inside blocks are hoisted to the top of the block and are compiled using compileFunctions()
 	case *ast.WithStatement:
 		c.compileWithStatement(v, needResult)
 	case *ast.DebuggerStatement:
@@ -59,6 +59,9 @@ func (c *compiler) compileStatement(v ast.Statement, needResult bool) ***REMOVED
 
 func (c *compiler) compileLabeledStatement(v *ast.LabelledStatement, needResult bool) ***REMOVED***
 	label := v.Label.Name
+	if c.scope.strict ***REMOVED***
+		c.checkIdentifierName(label, int(v.Label.Idx)-1)
+	***REMOVED***
 	for b := c.block; b != nil; b = b.outer ***REMOVED***
 		if b.label == label ***REMOVED***
 			c.throwSyntaxError(int(v.Label.Idx-1), "Label '%s' has already been declared", label)
@@ -76,12 +79,30 @@ func (c *compiler) compileLabeledStatement(v *ast.LabelledStatement, needResult 
 	case *ast.DoWhileStatement:
 		c.compileLabeledDoWhileStatement(s, needResult, label)
 	default:
-		c.compileGenericLabeledStatement(v.Statement, needResult, label)
+		c.compileGenericLabeledStatement(s, needResult, label)
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) compileTryStatement(v *ast.TryStatement) ***REMOVED***
-	if c.scope.strict && v.Catch != nil ***REMOVED***
+func (c *compiler) updateEnterBlock(enter *enterBlock) ***REMOVED***
+	scope := c.scope
+	stashSize, stackSize := 0, 0
+	if scope.dynLookup ***REMOVED***
+		stashSize = len(scope.bindings)
+		enter.names = scope.makeNamesMap()
+	***REMOVED*** else ***REMOVED***
+		for _, b := range scope.bindings ***REMOVED***
+			if b.inStash ***REMOVED***
+				stashSize++
+			***REMOVED*** else ***REMOVED***
+				stackSize++
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	enter.stashSize, enter.stackSize = uint32(stashSize), uint32(stackSize)
+***REMOVED***
+
+func (c *compiler) compileTryStatement(v *ast.TryStatement, needResult bool) ***REMOVED***
+	if c.scope.strict && v.Catch != nil && v.Catch.Parameter != nil ***REMOVED***
 		switch v.Catch.Parameter.Name ***REMOVED***
 		case "arguments", "eval":
 			c.throwSyntaxError(int(v.Catch.Parameter.Idx)-1, "Catch variable may not be eval or arguments in strict mode")
@@ -91,95 +112,67 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement) ***REMOVED***
 		typ:   blockTry,
 		outer: c.block,
 	***REMOVED***
+	var lp int
+	var bodyNeedResult bool
+	var finallyBreaking *block
+	if v.Finally != nil ***REMOVED***
+		lp, finallyBreaking = c.scanStatements(v.Finally.List)
+	***REMOVED***
+	if finallyBreaking != nil ***REMOVED***
+		c.block.breaking = finallyBreaking
+		if lp == -1 ***REMOVED***
+			bodyNeedResult = finallyBreaking.needResult
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		bodyNeedResult = needResult
+	***REMOVED***
 	lbl := len(c.p.code)
 	c.emit(nil)
-	c.compileStatement(v.Body, false)
+	if needResult ***REMOVED***
+		c.emit(clearResult)
+	***REMOVED***
+	c.compileBlockStatement(v.Body, bodyNeedResult)
 	c.emit(halt)
 	lbl2 := len(c.p.code)
 	c.emit(nil)
 	var catchOffset int
-	dynamicCatch := true
 	if v.Catch != nil ***REMOVED***
-		dyn := nearestNonLexical(c.scope).dynamic
-		accessed := c.scope.accessed
-		c.newScope()
-		c.scope.bindName(v.Catch.Parameter.Name)
-		c.scope.lexical = true
-		start := len(c.p.code)
-		c.emit(nil)
 		catchOffset = len(c.p.code) - lbl
-		c.emit(enterCatch(v.Catch.Parameter.Name))
-		c.compileStatement(v.Catch.Body, false)
-		dyn1 := c.scope.dynamic
-		accessed1 := c.scope.accessed
-		c.popScope()
-		if !dyn && !dyn1 && !accessed1 ***REMOVED***
-			c.scope.accessed = accessed
-			dynamicCatch = false
-			code := c.p.code[start+1:]
-			m := make(map[uint32]uint32)
-			remap := func(instr uint32) uint32 ***REMOVED***
-				level := instr >> 24
-				idx := instr & 0x00FFFFFF
-				if level > 0 ***REMOVED***
-					level--
-					return (level << 24) | idx
-				***REMOVED*** else ***REMOVED***
-					// remap
-					newIdx, exists := m[idx]
-					if !exists ***REMOVED***
-						exname := unistring.String(" __tmp" + strconv.Itoa(c.scope.lastFreeTmp))
-						c.scope.lastFreeTmp++
-						newIdx, _ = c.scope.bindName(exname)
-						m[idx] = newIdx
-					***REMOVED***
-					return newIdx
+		if v.Catch.Parameter != nil ***REMOVED***
+			c.block = &block***REMOVED***
+				typ:   blockScope,
+				outer: c.block,
+			***REMOVED***
+			c.newBlockScope()
+			list := v.Catch.Body.List
+			funcs := c.extractFunctions(list)
+			c.createFunctionBindings(funcs)
+			c.scope.bindNameLexical(v.Catch.Parameter.Name, true, int(v.Catch.Parameter.Idx)-1)
+			bindings := c.scope.bindings
+			if l := len(bindings); l > 1 ***REMOVED***
+				// make sure the catch variable always goes first
+				bindings[0], bindings[l-1] = bindings[l-1], bindings[0]
+			***REMOVED***
+			c.compileLexicalDeclarations(list, true)
+			enter := &enterBlock***REMOVED******REMOVED***
+			c.emit(enter)
+			c.compileFunctions(funcs)
+			c.compileStatements(list, bodyNeedResult)
+			c.leaveScopeBlock(enter)
+			if c.scope.dynLookup || c.scope.bindings[0].inStash ***REMOVED***
+				c.p.code[lbl+catchOffset] = &enterCatchBlock***REMOVED***
+					names:     enter.names,
+					stashSize: enter.stashSize,
+					stackSize: enter.stackSize,
 				***REMOVED***
-			***REMOVED***
-			for pc, instr := range code ***REMOVED***
-				switch instr := instr.(type) ***REMOVED***
-				case getLocal:
-					code[pc] = getLocal(remap(uint32(instr)))
-				case setLocal:
-					code[pc] = setLocal(remap(uint32(instr)))
-				case setLocalP:
-					code[pc] = setLocalP(remap(uint32(instr)))
-				***REMOVED***
-			***REMOVED***
-			c.p.code[start+1] = pop
-			if catchVarIdx, exists := m[0]; exists ***REMOVED***
-				c.p.code[start] = setLocal(catchVarIdx)
-				catchOffset--
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			c.scope.accessed = true
-		***REMOVED***
-
-		/*
-			if true/*sc.dynamic/ ***REMOVED***
-				dynamicCatch = true
-				c.scope.accessed = true
-				c.newScope()
-				c.scope.bindName(v.Catch.Parameter.Name)
-				c.scope.lexical = true
-				c.emit(enterCatch(v.Catch.Parameter.Name))
-				c.compileStatement(v.Catch.Body, false)
-				c.popScope()
 			***REMOVED*** else ***REMOVED***
-				exname := " __tmp" + strconv.Itoa(c.scope.lastFreeTmp)
-				c.scope.lastFreeTmp++
-				catchVarIdx, _ := c.scope.bindName(exname)
-				c.emit(setLocal(catchVarIdx), pop)
-				saved, wasSaved := c.scope.namesMap[v.Catch.Parameter.Name]
-				c.scope.namesMap[v.Catch.Parameter.Name] = exname
-				c.compileStatement(v.Catch.Body, false)
-				if wasSaved ***REMOVED***
-					c.scope.namesMap[v.Catch.Parameter.Name] = saved
-				***REMOVED*** else ***REMOVED***
-					delete(c.scope.namesMap, v.Catch.Parameter.Name)
-				***REMOVED***
-				c.scope.lastFreeTmp--
-			***REMOVED****/
+				enter.stackSize--
+			***REMOVED***
+			c.popScope()
+		***REMOVED*** else ***REMOVED***
+			c.emit(pop)
+			c.compileBlockStatement(v.Catch.Body, bodyNeedResult)
+		***REMOVED***
 		c.emit(halt)
 	***REMOVED***
 	var finallyOffset int
@@ -187,11 +180,12 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement) ***REMOVED***
 		lbl1 := len(c.p.code)
 		c.emit(nil)
 		finallyOffset = len(c.p.code) - lbl
-		c.compileStatement(v.Finally, false)
+		c.compileBlockStatement(v.Finally, false)
 		c.emit(halt, retFinally)
+
 		c.p.code[lbl1] = jump(len(c.p.code) - lbl1)
 	***REMOVED***
-	c.p.code[lbl] = try***REMOVED***catchOffset: int32(catchOffset), finallyOffset: int32(finallyOffset), dynamic: dynamicCatch***REMOVED***
+	c.p.code[lbl] = try***REMOVED***catchOffset: int32(catchOffset), finallyOffset: int32(finallyOffset)***REMOVED***
 	c.p.code[lbl2] = jump(len(c.p.code) - lbl2)
 	c.leaveBlock()
 ***REMOVED***
@@ -214,14 +208,7 @@ func (c *compiler) compileLabeledDoWhileStatement(v *ast.DoWhileStatement, needR
 		needResult: needResult,
 	***REMOVED***
 
-	if needResult ***REMOVED***
-		c.emit(jump(2))
-	***REMOVED***
 	start := len(c.p.code)
-	if needResult ***REMOVED***
-		c.emit(pop)
-	***REMOVED***
-	c.markBlockStart()
 	c.compileStatement(v.Body, needResult)
 	c.block.cont = len(c.p.code)
 	c.emitExpr(c.compileExpression(v.Test), true)
@@ -233,22 +220,55 @@ func (c *compiler) compileForStatement(v *ast.ForStatement, needResult bool) ***
 	c.compileLabeledForStatement(v, needResult, "")
 ***REMOVED***
 
-func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bool, label unistring.String) ***REMOVED***
+func (c *compiler) compileForHeadLexDecl(decl *ast.LexicalDeclaration, needResult bool) *enterBlock ***REMOVED***
 	c.block = &block***REMOVED***
+		typ:        blockIterScope,
+		outer:      c.block,
+		needResult: needResult,
+	***REMOVED***
+
+	c.newBlockScope()
+	enterIterBlock := &enterBlock***REMOVED******REMOVED***
+	c.emit(enterIterBlock)
+	c.createLexicalBindings(decl)
+	c.compileLexicalDeclaration(decl)
+	return enterIterBlock
+***REMOVED***
+
+func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bool, label unistring.String) ***REMOVED***
+	loopBlock := &block***REMOVED***
 		typ:        blockLoop,
 		outer:      c.block,
 		label:      label,
 		needResult: needResult,
 	***REMOVED***
+	c.block = loopBlock
 
-	if v.Initializer != nil ***REMOVED***
-		c.compileExpression(v.Initializer).emitGetter(false)
+	var enterIterBlock *enterBlock
+	switch init := v.Initializer.(type) ***REMOVED***
+	case nil:
+		// no-op
+	case *ast.ForLoopInitializerLexicalDecl:
+		enterIterBlock = c.compileForHeadLexDecl(&init.LexicalDeclaration, needResult)
+	case *ast.ForLoopInitializerVarDeclList:
+		for _, expr := range init.List ***REMOVED***
+			c.compileVariableExpression(expr).emitGetter(false)
+		***REMOVED***
+	case *ast.ForLoopInitializerExpression:
+		c.compileExpression(init.Expression).emitGetter(false)
+	default:
+		panic(fmt.Sprintf("Unsupported for loop initializer: %T", init))
 	***REMOVED***
+
 	if needResult ***REMOVED***
-		c.emit(loadUndef) // initial result
+		c.emit(clearResult) // initial result
 	***REMOVED***
+
+	if enterIterBlock != nil ***REMOVED***
+		c.emit(jump(1))
+	***REMOVED***
+
 	start := len(c.p.code)
-	c.markBlockStart()
 	var j int
 	testConst := false
 	if v.Test != nil ***REMOVED***
@@ -279,13 +299,27 @@ func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bo
 		***REMOVED***
 	***REMOVED***
 	if needResult ***REMOVED***
-		c.emit(pop) // remove last result
+		c.emit(clearResult)
 	***REMOVED***
-	c.markBlockStart()
 	c.compileStatement(v.Body, needResult)
-	c.block.cont = len(c.p.code)
+	loopBlock.cont = len(c.p.code)
+	if enterIterBlock != nil ***REMOVED***
+		c.emit(jump(1))
+	***REMOVED***
 	if v.Update != nil ***REMOVED***
 		c.compileExpression(v.Update).emitGetter(false)
+	***REMOVED***
+	if enterIterBlock != nil ***REMOVED***
+		if c.scope.needStash || c.scope.isDynamic() ***REMOVED***
+			c.p.code[start-1] = copyStash***REMOVED******REMOVED***
+			c.p.code[loopBlock.cont] = copyStash***REMOVED******REMOVED***
+		***REMOVED*** else ***REMOVED***
+			if l := len(c.p.code); l > loopBlock.cont ***REMOVED***
+				loopBlock.cont++
+			***REMOVED*** else ***REMOVED***
+				c.p.code = c.p.code[:l-1]
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 	c.emit(jump(start - len(c.p.code)))
 	if v.Test != nil ***REMOVED***
@@ -294,43 +328,131 @@ func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bo
 		***REMOVED***
 	***REMOVED***
 end:
+	if enterIterBlock != nil ***REMOVED***
+		c.leaveScopeBlock(enterIterBlock)
+		c.popScope()
+	***REMOVED***
 	c.leaveBlock()
-	c.markBlockStart()
 ***REMOVED***
 
 func (c *compiler) compileForInStatement(v *ast.ForInStatement, needResult bool) ***REMOVED***
 	c.compileLabeledForInStatement(v, needResult, "")
 ***REMOVED***
 
-func (c *compiler) compileLabeledForInStatement(v *ast.ForInStatement, needResult bool, label unistring.String) ***REMOVED***
+func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *enterBlock) ***REMOVED***
+	switch into := into.(type) ***REMOVED***
+	case *ast.ForIntoExpression:
+		c.compileExpression(into.Expression).emitSetter(&c.enumGetExpr, false)
+	case *ast.ForIntoVar:
+		if c.scope.strict && into.Binding.Initializer != nil ***REMOVED***
+			c.throwSyntaxError(int(into.Binding.Initializer.Idx0())-1, "for-in loop variable declaration may not have an initializer.")
+		***REMOVED***
+		c.compileIdentifierExpression(&ast.Identifier***REMOVED***
+			Name: into.Binding.Name,
+			Idx:  into.Binding.Idx0(),
+		***REMOVED***).emitSetter(&c.enumGetExpr, false)
+	case *ast.ForDeclaration:
+
+		c.block = &block***REMOVED***
+			typ:        blockIterScope,
+			outer:      c.block,
+			needResult: needResult,
+		***REMOVED***
+
+		c.newBlockScope()
+		enter = &enterBlock***REMOVED******REMOVED***
+		c.emit(enter)
+		if binding, ok := into.Binding.(*ast.BindingIdentifier); ok ***REMOVED***
+			b := c.createLexicalBinding(binding.Name, into.IsConst, int(into.Idx)-1)
+			c.enumGetExpr.emitGetter(true)
+			b.emitInit()
+		***REMOVED*** else ***REMOVED***
+			c.throwSyntaxError(int(into.Idx)-1, "Unsupported ForBinding: %T", into.Binding)
+		***REMOVED***
+	default:
+		panic(fmt.Sprintf("Unsupported for-into: %T", into))
+	***REMOVED***
+
+	return
+***REMOVED***
+
+func (c *compiler) compileLabeledForInOfStatement(into ast.ForInto, source ast.Expression, body ast.Statement, iter, needResult bool, label unistring.String) ***REMOVED***
 	c.block = &block***REMOVED***
 		typ:        blockLoopEnum,
 		outer:      c.block,
 		label:      label,
 		needResult: needResult,
 	***REMOVED***
-
-	c.compileExpression(v.Source).emitGetter(true)
-	c.emit(enumerate)
+	enterPos := -1
+	if forDecl, ok := into.(*ast.ForDeclaration); ok ***REMOVED***
+		if binding, ok := forDecl.Binding.(*ast.BindingIdentifier); ok ***REMOVED***
+			c.block = &block***REMOVED***
+				typ:        blockScope,
+				outer:      c.block,
+				needResult: false,
+			***REMOVED***
+			c.newBlockScope()
+			enterPos = len(c.p.code)
+			c.emit(jump(1))
+			c.createLexicalBinding(binding.Name, forDecl.IsConst, int(forDecl.Idx)-1)
+		***REMOVED*** else ***REMOVED***
+			c.throwSyntaxError(int(forDecl.Idx)-1, "Unsupported ForBinding: %T", forDecl.Binding)
+		***REMOVED***
+	***REMOVED***
+	c.compileExpression(source).emitGetter(true)
+	if enterPos != -1 ***REMOVED***
+		s := c.scope
+		used := len(c.block.breaks) > 0
+		if !used ***REMOVED***
+			for _, b := range s.bindings ***REMOVED***
+				if b.useCount() > 0 ***REMOVED***
+					used = true
+					break
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		if used ***REMOVED***
+			enter := &enterBlock***REMOVED******REMOVED***
+			c.p.code[enterPos] = enter
+			c.leaveScopeBlock(enter)
+		***REMOVED*** else ***REMOVED***
+			c.block = c.block.outer
+		***REMOVED***
+		c.popScope()
+	***REMOVED***
+	if iter ***REMOVED***
+		c.emit(iterate)
+	***REMOVED*** else ***REMOVED***
+		c.emit(enumerate)
+	***REMOVED***
 	if needResult ***REMOVED***
-		c.emit(loadUndef)
+		c.emit(clearResult)
 	***REMOVED***
 	start := len(c.p.code)
-	c.markBlockStart()
 	c.block.cont = start
 	c.emit(nil)
-	c.compileExpression(v.Into).emitSetter(&c.enumGetExpr)
-	c.emit(pop)
+	enterIterBlock := c.compileForInto(into, needResult)
 	if needResult ***REMOVED***
-		c.emit(pop) // remove last result
+		c.emit(clearResult)
 	***REMOVED***
-	c.markBlockStart()
-	c.compileStatement(v.Body, needResult)
+	c.compileStatement(body, needResult)
+	if enterIterBlock != nil ***REMOVED***
+		c.leaveScopeBlock(enterIterBlock)
+		c.popScope()
+	***REMOVED***
 	c.emit(jump(start - len(c.p.code)))
-	c.p.code[start] = enumNext(len(c.p.code) - start)
+	if iter ***REMOVED***
+		c.p.code[start] = iterNext(len(c.p.code) - start)
+	***REMOVED*** else ***REMOVED***
+		c.p.code[start] = enumNext(len(c.p.code) - start)
+	***REMOVED***
+	c.emit(enumPop, jump(2))
 	c.leaveBlock()
-	c.markBlockStart()
-	c.emit(enumPop)
+	c.emit(enumPopClose)
+***REMOVED***
+
+func (c *compiler) compileLabeledForInStatement(v *ast.ForInStatement, needResult bool, label unistring.String) ***REMOVED***
+	c.compileLabeledForInOfStatement(v.Into, v.Source, v.Body, false, needResult, label)
 ***REMOVED***
 
 func (c *compiler) compileForOfStatement(v *ast.ForOfStatement, needResult bool) ***REMOVED***
@@ -338,35 +460,7 @@ func (c *compiler) compileForOfStatement(v *ast.ForOfStatement, needResult bool)
 ***REMOVED***
 
 func (c *compiler) compileLabeledForOfStatement(v *ast.ForOfStatement, needResult bool, label unistring.String) ***REMOVED***
-	c.block = &block***REMOVED***
-		typ:        blockLoopEnum,
-		outer:      c.block,
-		label:      label,
-		needResult: needResult,
-	***REMOVED***
-
-	c.compileExpression(v.Source).emitGetter(true)
-	c.emit(iterate)
-	if needResult ***REMOVED***
-		c.emit(loadUndef)
-	***REMOVED***
-	start := len(c.p.code)
-	c.markBlockStart()
-	c.block.cont = start
-
-	c.emit(nil)
-	c.compileExpression(v.Into).emitSetter(&c.enumGetExpr)
-	c.emit(pop)
-	if needResult ***REMOVED***
-		c.emit(pop) // remove last result
-	***REMOVED***
-	c.markBlockStart()
-	c.compileStatement(v.Body, needResult)
-	c.emit(jump(start - len(c.p.code)))
-	c.p.code[start] = iterNext(len(c.p.code) - start)
-	c.leaveBlock()
-	c.markBlockStart()
-	c.emit(enumPop)
+	c.compileLabeledForInOfStatement(v.Into, v.Source, v.Body, true, needResult, label)
 ***REMOVED***
 
 func (c *compiler) compileWhileStatement(v *ast.WhileStatement, needResult bool) ***REMOVED***
@@ -382,10 +476,9 @@ func (c *compiler) compileLabeledWhileStatement(v *ast.WhileStatement, needResul
 	***REMOVED***
 
 	if needResult ***REMOVED***
-		c.emit(loadUndef)
+		c.emit(clearResult)
 	***REMOVED***
 	start := len(c.p.code)
-	c.markBlockStart()
 	c.block.cont = start
 	expr := c.compileExpression(v.Test)
 	testTrue := false
@@ -408,9 +501,8 @@ func (c *compiler) compileLabeledWhileStatement(v *ast.WhileStatement, needResul
 		c.emit(nil)
 	***REMOVED***
 	if needResult ***REMOVED***
-		c.emit(pop)
+		c.emit(clearResult)
 	***REMOVED***
-	c.markBlockStart()
 	c.compileStatement(v.Body, needResult)
 	c.emit(jump(start - len(c.p.code)))
 	if !testTrue ***REMOVED***
@@ -418,19 +510,15 @@ func (c *compiler) compileLabeledWhileStatement(v *ast.WhileStatement, needResul
 	***REMOVED***
 end:
 	c.leaveBlock()
-	c.markBlockStart()
 ***REMOVED***
 
 func (c *compiler) compileEmptyStatement(needResult bool) ***REMOVED***
 	if needResult ***REMOVED***
-		if len(c.p.code) == c.blockStart ***REMOVED***
-			// first statement in block, use undefined as result
-			c.emit(loadUndef)
-		***REMOVED***
+		c.emit(clearResult)
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) compileBranchStatement(v *ast.BranchStatement, needResult bool) ***REMOVED***
+func (c *compiler) compileBranchStatement(v *ast.BranchStatement) ***REMOVED***
 	switch v.Token ***REMOVED***
 	case token.BREAK:
 		c.compileBreak(v.Label, v.Idx)
@@ -444,27 +532,52 @@ func (c *compiler) compileBranchStatement(v *ast.BranchStatement, needResult boo
 func (c *compiler) findBranchBlock(st *ast.BranchStatement) *block ***REMOVED***
 	switch st.Token ***REMOVED***
 	case token.BREAK:
-		return c.findBreakBlock(st.Label)
+		return c.findBreakBlock(st.Label, true)
 	case token.CONTINUE:
-		return c.findContinueBlock(st.Label)
+		return c.findBreakBlock(st.Label, false)
 	***REMOVED***
 	return nil
 ***REMOVED***
 
-func (c *compiler) findContinueBlock(label *ast.Identifier) (block *block) ***REMOVED***
+func (c *compiler) findBreakBlock(label *ast.Identifier, isBreak bool) (res *block) ***REMOVED***
 	if label != nil ***REMOVED***
+		var found *block
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if (b.typ == blockLoop || b.typ == blockLoopEnum) && b.label == label.Name ***REMOVED***
-				block = b
+			if res == nil ***REMOVED***
+				if bb := b.breaking; bb != nil ***REMOVED***
+					res = bb
+					if isBreak ***REMOVED***
+						return
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+			if b.label == label.Name ***REMOVED***
+				found = b
 				break
 			***REMOVED***
 		***REMOVED***
+		if !isBreak && found != nil && found.typ != blockLoop && found.typ != blockLoopEnum ***REMOVED***
+			c.throwSyntaxError(int(label.Idx)-1, "Illegal continue statement: '%s' does not denote an iteration statement", label.Name)
+		***REMOVED***
+		if res == nil ***REMOVED***
+			res = found
+		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		// find the nearest loop
+		// find the nearest loop or switch (if break)
+	L:
 		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.typ == blockLoop || b.typ == blockLoopEnum ***REMOVED***
-				block = b
-				break
+			if bb := b.breaking; bb != nil ***REMOVED***
+				return bb
+			***REMOVED***
+			switch b.typ ***REMOVED***
+			case blockLoop, blockLoopEnum:
+				res = b
+				break L
+			case blockSwitch:
+				if isBreak ***REMOVED***
+					res = b
+					break L
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -472,115 +585,70 @@ func (c *compiler) findContinueBlock(label *ast.Identifier) (block *block) ***RE
 	return
 ***REMOVED***
 
-func (c *compiler) findBreakBlock(label *ast.Identifier) (block *block) ***REMOVED***
-	if label != nil ***REMOVED***
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.label == label.Name ***REMOVED***
-				block = b
-				break
-			***REMOVED***
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// find the nearest loop or switch
-	L:
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			switch b.typ ***REMOVED***
-			case blockLoop, blockLoopEnum, blockSwitch:
-				block = b
+func (c *compiler) emitBlockExitCode(label *ast.Identifier, idx file.Idx, isBreak bool) *block ***REMOVED***
+	block := c.findBreakBlock(label, isBreak)
+	if block == nil ***REMOVED***
+		c.throwSyntaxError(int(idx)-1, "Could not find block")
+		panic("unreachable")
+	***REMOVED***
+L:
+	for b := c.block; b != block; b = b.outer ***REMOVED***
+		switch b.typ ***REMOVED***
+		case blockIterScope:
+			if !isBreak && b.outer == block ***REMOVED***
 				break L
 			***REMOVED***
+			fallthrough
+		case blockScope:
+			b.breaks = append(b.breaks, len(c.p.code))
+			c.emit(nil)
+		case blockTry:
+			c.emit(halt)
+		case blockWith:
+			c.emit(leaveWith)
+		case blockLoopEnum:
+			c.emit(enumPopClose)
 		***REMOVED***
 	***REMOVED***
-
-	return
+	return block
 ***REMOVED***
 
 func (c *compiler) compileBreak(label *ast.Identifier, idx file.Idx) ***REMOVED***
-	var block *block
-	if label != nil ***REMOVED***
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			switch b.typ ***REMOVED***
-			case blockTry:
-				c.emit(halt)
-			case blockWith:
-				c.emit(leaveWith)
-			***REMOVED***
-			if b.label == label.Name ***REMOVED***
-				block = b
-				break
-			***REMOVED***
-		***REMOVED***
-		if block == nil ***REMOVED***
-			c.throwSyntaxError(int(idx)-1, "Undefined label '%s'", label.Name)
-			return
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// find the nearest loop or switch
-	L:
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			switch b.typ ***REMOVED***
-			case blockTry:
-				c.emit(halt)
-			case blockWith:
-				c.emit(leaveWith)
-			case blockLoop, blockLoopEnum, blockSwitch:
-				block = b
-				break L
-			***REMOVED***
-		***REMOVED***
-		if block == nil ***REMOVED***
-			c.throwSyntaxError(int(idx)-1, "Could not find block")
-			return
-		***REMOVED***
-	***REMOVED***
-
-	if len(c.p.code) == c.blockStart && block.needResult ***REMOVED***
-		c.emit(loadUndef)
-	***REMOVED***
+	block := c.emitBlockExitCode(label, idx, true)
 	block.breaks = append(block.breaks, len(c.p.code))
 	c.emit(nil)
 ***REMOVED***
 
 func (c *compiler) compileContinue(label *ast.Identifier, idx file.Idx) ***REMOVED***
-	var block *block
-	if label != nil ***REMOVED***
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.typ == blockTry ***REMOVED***
-				c.emit(halt)
-			***REMOVED*** else if (b.typ == blockLoop || b.typ == blockLoopEnum) && b.label == label.Name ***REMOVED***
-				block = b
-				break
-			***REMOVED***
-		***REMOVED***
-		if block == nil ***REMOVED***
-			c.throwSyntaxError(int(idx)-1, "Undefined label '%s'", label.Name)
-			return
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// find the nearest loop
-		for b := c.block; b != nil; b = b.outer ***REMOVED***
-			if b.typ == blockTry ***REMOVED***
-				c.emit(halt)
-			***REMOVED*** else if b.typ == blockLoop || b.typ == blockLoopEnum ***REMOVED***
-				block = b
-				break
-			***REMOVED***
-		***REMOVED***
-		if block == nil ***REMOVED***
-			c.throwSyntaxError(int(idx)-1, "Could not find block")
-			return
-		***REMOVED***
-	***REMOVED***
-
-	if len(c.p.code) == c.blockStart && block.needResult ***REMOVED***
-		c.emit(loadUndef)
-	***REMOVED***
+	block := c.emitBlockExitCode(label, idx, false)
 	block.conts = append(block.conts, len(c.p.code))
 	c.emit(nil)
 ***REMOVED***
 
+func (c *compiler) compileIfBody(s ast.Statement, needResult bool) ***REMOVED***
+	if !c.scope.strict ***REMOVED***
+		if s, ok := s.(*ast.FunctionDeclaration); ok ***REMOVED***
+			c.compileFunction(s)
+			if needResult ***REMOVED***
+				c.emit(clearResult)
+			***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED***
+	c.compileStatement(s, needResult)
+***REMOVED***
+
+func (c *compiler) compileIfBodyDummy(s ast.Statement) ***REMOVED***
+	leave := c.enterDummyMode()
+	defer leave()
+	c.compileIfBody(s, false)
+***REMOVED***
+
 func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***REMOVED***
 	test := c.compileExpression(v.Test)
+	if needResult ***REMOVED***
+		c.emit(clearResult)
+	***REMOVED***
 	if test.constant() ***REMOVED***
 		r, ex := c.evalConst(test)
 		if ex != nil ***REMOVED***
@@ -589,22 +657,17 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 			return
 		***REMOVED***
 		if r.ToBoolean() ***REMOVED***
-			c.markBlockStart()
-			c.compileStatement(v.Consequent, needResult)
+			c.compileIfBody(v.Consequent, needResult)
 			if v.Alternate != nil ***REMOVED***
-				p := c.p
-				c.p = &Program***REMOVED******REMOVED***
-				c.markBlockStart()
-				c.compileStatement(v.Alternate, false)
-				c.p = p
+				c.compileIfBodyDummy(v.Alternate)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			c.compileStatementDummy(v.Consequent)
+			c.compileIfBodyDummy(v.Consequent)
 			if v.Alternate != nil ***REMOVED***
-				c.compileStatement(v.Alternate, needResult)
+				c.compileIfBody(v.Alternate, needResult)
 			***REMOVED*** else ***REMOVED***
 				if needResult ***REMOVED***
-					c.emit(loadUndef)
+					c.emit(clearResult)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -613,25 +676,20 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 	test.emitGetter(true)
 	jmp := len(c.p.code)
 	c.emit(nil)
-	c.markBlockStart()
-	c.compileStatement(v.Consequent, needResult)
+	c.compileIfBody(v.Consequent, needResult)
 	if v.Alternate != nil ***REMOVED***
 		jmp1 := len(c.p.code)
 		c.emit(nil)
 		c.p.code[jmp] = jne(len(c.p.code) - jmp)
-		c.markBlockStart()
-		c.compileStatement(v.Alternate, needResult)
+		c.compileIfBody(v.Alternate, needResult)
 		c.p.code[jmp1] = jump(len(c.p.code) - jmp1)
-		c.markBlockStart()
 	***REMOVED*** else ***REMOVED***
 		if needResult ***REMOVED***
 			c.emit(jump(2))
 			c.p.code[jmp] = jne(len(c.p.code) - jmp)
-			c.emit(loadUndef)
-			c.markBlockStart()
+			c.emit(clearResult)
 		***REMOVED*** else ***REMOVED***
 			c.p.code[jmp] = jne(len(c.p.code) - jmp)
-			c.markBlockStart()
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -639,7 +697,6 @@ func (c *compiler) compileIfStatement(v *ast.IfStatement, needResult bool) ***RE
 func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 	if v.Argument != nil ***REMOVED***
 		c.compileExpression(v.Argument).emitGetter(true)
-		//c.emit(checkResolve)
 	***REMOVED*** else ***REMOVED***
 		c.emit(loadUndef)
 	***REMOVED***
@@ -648,85 +705,138 @@ func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 		case blockTry:
 			c.emit(halt)
 		case blockLoopEnum:
-			c.emit(enumPop)
+			c.emit(enumPopClose)
 		***REMOVED***
 	***REMOVED***
 	c.emit(ret)
 ***REMOVED***
 
-func (c *compiler) compileVariableStatement(v *ast.VariableStatement, needResult bool) ***REMOVED***
+func (c *compiler) compileVariableStatement(v *ast.VariableStatement) ***REMOVED***
 	for _, expr := range v.List ***REMOVED***
+		for sc := c.scope; sc != nil; sc = sc.outer ***REMOVED***
+			if b, exists := sc.boundNames[expr.Name]; exists && !b.isVar ***REMOVED***
+				c.throwSyntaxError(int(expr.Idx)-1, "Identifier '%s' has already been declared", expr.Name)
+			***REMOVED***
+			if sc.function ***REMOVED***
+				break
+			***REMOVED***
+		***REMOVED***
 		c.compileExpression(expr).emitGetter(false)
 	***REMOVED***
-	if needResult ***REMOVED***
-		c.emit(loadUndef)
-	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) getFirstNonEmptyStatement(st ast.Statement) ast.Statement ***REMOVED***
-	switch st := st.(type) ***REMOVED***
-	case *ast.BlockStatement:
-		return c.getFirstNonEmptyStatementList(st.List)
-	case *ast.LabelledStatement:
-		return c.getFirstNonEmptyStatement(st.Statement)
-	***REMOVED***
-	return st
-***REMOVED***
-
-func (c *compiler) getFirstNonEmptyStatementList(list []ast.Statement) ast.Statement ***REMOVED***
-	for _, st := range list ***REMOVED***
-		switch st := st.(type) ***REMOVED***
-		case *ast.EmptyStatement:
-			continue
-		case *ast.BlockStatement:
-			return c.getFirstNonEmptyStatementList(st.List)
-		case *ast.LabelledStatement:
-			return c.getFirstNonEmptyStatement(st.Statement)
+func (c *compiler) compileLexicalDeclaration(v *ast.LexicalDeclaration) ***REMOVED***
+	for _, e := range v.List ***REMOVED***
+		b := c.scope.boundNames[e.Name]
+		if b == nil ***REMOVED***
+			panic("Lexical declaration for an unbound name")
 		***REMOVED***
-		return st
+		if e.Initializer != nil ***REMOVED***
+			initializer := c.compileExpression(e.Initializer)
+			if fn, ok := initializer.(*compiledFunctionLiteral); ok ***REMOVED***
+				fn.lhsName = e.Name
+			***REMOVED***
+			initializer.emitGetter(true)
+		***REMOVED*** else ***REMOVED***
+			if v.Token == token.CONST ***REMOVED***
+				c.throwSyntaxError(int(e.Idx1())-1, "Missing initializer in const declaration")
+			***REMOVED***
+			c.emit(loadUndef)
+		***REMOVED***
+		if c.scope.outer != nil ***REMOVED***
+			b.emitInit()
+		***REMOVED*** else ***REMOVED***
+			c.emit(initGlobal(e.Name))
+		***REMOVED***
 	***REMOVED***
-	return nil
+***REMOVED***
+
+func (c *compiler) isEmptyResult(st ast.Statement) bool ***REMOVED***
+	switch st := st.(type) ***REMOVED***
+	case *ast.EmptyStatement, *ast.VariableStatement, *ast.LexicalDeclaration, *ast.FunctionDeclaration,
+		*ast.BranchStatement, *ast.DebuggerStatement:
+		return true
+	case *ast.LabelledStatement:
+		return c.isEmptyResult(st.Statement)
+	case *ast.BlockStatement:
+		for _, s := range st.List ***REMOVED***
+			if _, ok := s.(*ast.BranchStatement); ok ***REMOVED***
+				return true
+			***REMOVED***
+			if !c.isEmptyResult(s) ***REMOVED***
+				return false
+			***REMOVED***
+		***REMOVED***
+		return true
+	***REMOVED***
+	return false
+***REMOVED***
+
+func (c *compiler) scanStatements(list []ast.Statement) (lastProducingIdx int, breakingBlock *block) ***REMOVED***
+	lastProducingIdx = -1
+	for i, st := range list ***REMOVED***
+		if bs, ok := st.(*ast.BranchStatement); ok ***REMOVED***
+			if blk := c.findBranchBlock(bs); blk != nil ***REMOVED***
+				breakingBlock = blk
+			***REMOVED***
+			break
+		***REMOVED***
+		if !c.isEmptyResult(st) ***REMOVED***
+			lastProducingIdx = i
+		***REMOVED***
+	***REMOVED***
+	return
+***REMOVED***
+
+func (c *compiler) compileStatementsNeedResult(list []ast.Statement, lastProducingIdx int) ***REMOVED***
+	if lastProducingIdx >= 0 ***REMOVED***
+		for _, st := range list[:lastProducingIdx] ***REMOVED***
+			if _, ok := st.(*ast.FunctionDeclaration); ok ***REMOVED***
+				continue
+			***REMOVED***
+			c.compileStatement(st, false)
+		***REMOVED***
+		c.compileStatement(list[lastProducingIdx], true)
+	***REMOVED***
+	var leave func()
+	defer func() ***REMOVED***
+		if leave != nil ***REMOVED***
+			leave()
+		***REMOVED***
+	***REMOVED***()
+	for _, st := range list[lastProducingIdx+1:] ***REMOVED***
+		if _, ok := st.(*ast.FunctionDeclaration); ok ***REMOVED***
+			continue
+		***REMOVED***
+		c.compileStatement(st, false)
+		if leave == nil ***REMOVED***
+			if _, ok := st.(*ast.BranchStatement); ok ***REMOVED***
+				leave = c.enterDummyMode()
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compileStatements(list []ast.Statement, needResult bool) ***REMOVED***
-	if len(list) > 0 ***REMOVED***
-		cur := list[0]
-		for idx := 0; idx < len(list); ***REMOVED***
-			var next ast.Statement
-			// find next non-empty statement
-			for idx++; idx < len(list); idx++ ***REMOVED***
-				if _, empty := list[idx].(*ast.EmptyStatement); !empty ***REMOVED***
-					next = list[idx]
-					break
-				***REMOVED***
-			***REMOVED***
-
-			if next != nil ***REMOVED***
-				bs := c.getFirstNonEmptyStatement(next)
-				if bs, ok := bs.(*ast.BranchStatement); ok ***REMOVED***
-					block := c.findBranchBlock(bs)
-					if block != nil ***REMOVED***
-						c.compileStatement(cur, block.needResult)
-						cur = next
-						continue
-					***REMOVED***
-				***REMOVED***
-				c.compileStatement(cur, false)
-				cur = next
-			***REMOVED*** else ***REMOVED***
-				c.compileStatement(cur, needResult)
-			***REMOVED***
+	lastProducingIdx, blk := c.scanStatements(list)
+	if blk != nil ***REMOVED***
+		needResult = blk.needResult
+	***REMOVED***
+	if needResult ***REMOVED***
+		c.compileStatementsNeedResult(list, lastProducingIdx)
+		return
+	***REMOVED***
+	for _, st := range list ***REMOVED***
+		if _, ok := st.(*ast.FunctionDeclaration); ok ***REMOVED***
+			continue
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		if needResult ***REMOVED***
-			c.emit(loadUndef)
-		***REMOVED***
+		c.compileStatement(st, false)
 	***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compileGenericLabeledStatement(v ast.Statement, needResult bool, label unistring.String) ***REMOVED***
 	c.block = &block***REMOVED***
-		typ:        blockBranch,
+		typ:        blockLabel,
 		outer:      c.block,
 		label:      label,
 		needResult: needResult,
@@ -735,8 +845,60 @@ func (c *compiler) compileGenericLabeledStatement(v ast.Statement, needResult bo
 	c.leaveBlock()
 ***REMOVED***
 
+func (c *compiler) createLexicalBinding(name unistring.String, isConst bool, offset int) *binding ***REMOVED***
+	if name == "let" ***REMOVED***
+		c.throwSyntaxError(offset, "let is disallowed as a lexically bound name")
+	***REMOVED***
+	b, _ := c.scope.bindNameLexical(name, true, offset)
+	b.isConst = isConst
+	return b
+***REMOVED***
+
+func (c *compiler) createLexicalBindings(lex *ast.LexicalDeclaration) ***REMOVED***
+	for _, d := range lex.List ***REMOVED***
+		c.createLexicalBinding(d.Name, lex.Token == token.CONST, int(d.Idx)-1)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compileLexicalDeclarations(list []ast.Statement, scopeDeclared bool) bool ***REMOVED***
+	for _, st := range list ***REMOVED***
+		if lex, ok := st.(*ast.LexicalDeclaration); ok ***REMOVED***
+			if !scopeDeclared ***REMOVED***
+				c.newBlockScope()
+				scopeDeclared = true
+			***REMOVED***
+			c.createLexicalBindings(lex)
+		***REMOVED***
+	***REMOVED***
+	return scopeDeclared
+***REMOVED***
+
 func (c *compiler) compileBlockStatement(v *ast.BlockStatement, needResult bool) ***REMOVED***
+	var scopeDeclared bool
+	funcs := c.extractFunctions(v.List)
+	if len(funcs) > 0 ***REMOVED***
+		c.newBlockScope()
+		scopeDeclared = true
+	***REMOVED***
+	c.createFunctionBindings(funcs)
+	scopeDeclared = c.compileLexicalDeclarations(v.List, scopeDeclared)
+
+	var enter *enterBlock
+	if scopeDeclared ***REMOVED***
+		c.block = &block***REMOVED***
+			outer:      c.block,
+			typ:        blockScope,
+			needResult: needResult,
+		***REMOVED***
+		enter = &enterBlock***REMOVED******REMOVED***
+		c.emit(enter)
+	***REMOVED***
+	c.compileFunctions(funcs)
 	c.compileStatements(v.List, needResult)
+	if scopeDeclared ***REMOVED***
+		c.leaveScopeBlock(enter)
+		c.popScope()
+	***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compileExpressionStatement(v *ast.ExpressionStatement, needResult bool) ***REMOVED***
@@ -745,6 +907,9 @@ func (c *compiler) compileExpressionStatement(v *ast.ExpressionStatement, needRe
 		c.emitConst(expr, needResult)
 	***REMOVED*** else ***REMOVED***
 		expr.emitGetter(needResult)
+	***REMOVED***
+	if needResult ***REMOVED***
+		c.emit(saveResult)
 	***REMOVED***
 ***REMOVED***
 
@@ -760,9 +925,8 @@ func (c *compiler) compileWithStatement(v *ast.WithStatement, needResult bool) *
 		typ:        blockWith,
 		needResult: needResult,
 	***REMOVED***
-	c.newScope()
+	c.newBlockScope()
 	c.scope.dynamic = true
-	c.scope.lexical = true
 	c.compileStatement(v.Body, needResult)
 	c.emit(leaveWith)
 	c.leaveBlock()
@@ -778,20 +942,79 @@ func (c *compiler) compileSwitchStatement(v *ast.SwitchStatement, needResult boo
 
 	c.compileExpression(v.Discriminant).emitGetter(true)
 
+	var funcs []*ast.FunctionDeclaration
+	for _, s := range v.Body ***REMOVED***
+		f := c.extractFunctions(s.Consequent)
+		funcs = append(funcs, f...)
+	***REMOVED***
+	var scopeDeclared bool
+	if len(funcs) > 0 ***REMOVED***
+		c.newBlockScope()
+		scopeDeclared = true
+		c.createFunctionBindings(funcs)
+	***REMOVED***
+
+	for _, s := range v.Body ***REMOVED***
+		scopeDeclared = c.compileLexicalDeclarations(s.Consequent, scopeDeclared)
+	***REMOVED***
+
+	var enter *enterBlock
+	var db *binding
+	if scopeDeclared ***REMOVED***
+		c.block = &block***REMOVED***
+			typ:        blockScope,
+			outer:      c.block,
+			needResult: needResult,
+		***REMOVED***
+		enter = &enterBlock***REMOVED******REMOVED***
+		c.emit(enter)
+		// create anonymous variable for the discriminant
+		bindings := c.scope.bindings
+		var bb []*binding
+		if cap(bindings) == len(bindings) ***REMOVED***
+			bb = make([]*binding, len(bindings)+1)
+		***REMOVED*** else ***REMOVED***
+			bb = bindings[:len(bindings)+1]
+		***REMOVED***
+		copy(bb[1:], bindings)
+		db = &binding***REMOVED***
+			scope:   c.scope,
+			isConst: true,
+		***REMOVED***
+		bb[0] = db
+		c.scope.bindings = bb
+	***REMOVED***
+
+	c.compileFunctions(funcs)
+
+	if needResult ***REMOVED***
+		c.emit(clearResult)
+	***REMOVED***
+
 	jumps := make([]int, len(v.Body))
 
 	for i, s := range v.Body ***REMOVED***
 		if s.Test != nil ***REMOVED***
-			c.emit(dup)
+			if db != nil ***REMOVED***
+				db.emitGet()
+			***REMOVED*** else ***REMOVED***
+				c.emit(dup)
+			***REMOVED***
 			c.compileExpression(s.Test).emitGetter(true)
 			c.emit(op_strict_eq)
-			c.emit(jne(3), pop)
+			if db != nil ***REMOVED***
+				c.emit(jne(2))
+			***REMOVED*** else ***REMOVED***
+				c.emit(jne(3), pop)
+			***REMOVED***
 			jumps[i] = len(c.p.code)
 			c.emit(nil)
 		***REMOVED***
 	***REMOVED***
 
-	c.emit(pop)
+	if db == nil ***REMOVED***
+		c.emit(pop)
+	***REMOVED***
 	jumpNoMatch := -1
 	if v.Default != -1 ***REMOVED***
 		if v.Default != 0 ***REMOVED***
@@ -806,35 +1029,17 @@ func (c *compiler) compileSwitchStatement(v *ast.SwitchStatement, needResult boo
 	for i, s := range v.Body ***REMOVED***
 		if s.Test != nil || i != 0 ***REMOVED***
 			c.p.code[jumps[i]] = jump(len(c.p.code) - jumps[i])
-			c.markBlockStart()
 		***REMOVED***
-		nr := false
-		c.markBlockStart()
-		if needResult ***REMOVED***
-			if i < len(v.Body)-1 ***REMOVED***
-				st := c.getFirstNonEmptyStatementList(v.Body[i+1].Consequent)
-				if st, ok := st.(*ast.BranchStatement); ok && st.Token == token.BREAK ***REMOVED***
-					if c.findBreakBlock(st.Label) != nil ***REMOVED***
-						stmts := append(s.Consequent, st)
-						c.compileStatements(stmts, false)
-						continue
-					***REMOVED***
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				nr = true
-			***REMOVED***
-		***REMOVED***
-		c.compileStatements(s.Consequent, nr)
+		c.compileStatements(s.Consequent, needResult)
 	***REMOVED***
+
 	if jumpNoMatch != -1 ***REMOVED***
-		if needResult ***REMOVED***
-			c.emit(jump(2))
-		***REMOVED***
 		c.p.code[jumpNoMatch] = jump(len(c.p.code) - jumpNoMatch)
-		if needResult ***REMOVED***
-			c.emit(loadUndef)
-		***REMOVED***
+	***REMOVED***
+	if enter != nil ***REMOVED***
+		c.leaveScopeBlock(enter)
+		enter.stackSize--
+		c.popScope()
 	***REMOVED***
 	c.leaveBlock()
-	c.markBlockStart()
 ***REMOVED***

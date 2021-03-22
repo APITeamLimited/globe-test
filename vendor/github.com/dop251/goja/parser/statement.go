@@ -29,6 +29,7 @@ func (self *_parser) parseEmptyStatement() ast.Statement ***REMOVED***
 
 func (self *_parser) parseStatementList() (list []ast.Statement) ***REMOVED***
 	for self.token != token.RIGHT_BRACE && self.token != token.EOF ***REMOVED***
+		self.scope.allowLet = true
 		list = append(list, self.parseStatement())
 	***REMOVED***
 
@@ -65,10 +66,18 @@ func (self *_parser) parseStatement() ast.Statement ***REMOVED***
 		return self.parseWithStatement()
 	case token.VAR:
 		return self.parseVariableStatement()
+	case token.LET:
+		tok := self.peek()
+		if tok == token.LEFT_BRACKET || self.scope.allowLet && (tok == token.IDENTIFIER || tok == token.LET || tok == token.LEFT_BRACE) ***REMOVED***
+			return self.parseLexicalDeclaration(self.token)
+		***REMOVED***
+		self.insertSemicolon = true
+	case token.CONST:
+		return self.parseLexicalDeclaration(self.token)
 	case token.FUNCTION:
-		self.parseFunction(true)
-		// FIXME
-		return &ast.EmptyStatement***REMOVED******REMOVED***
+		return &ast.FunctionDeclaration***REMOVED***
+			Function: self.parseFunction(true),
+		***REMOVED***
 	case token.SWITCH:
 		return self.parseSwitchStatement()
 	case token.RETURN:
@@ -92,6 +101,7 @@ func (self *_parser) parseStatement() ast.Statement ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		self.scope.labels = append(self.scope.labels, label) // Push the label
+		self.scope.allowLet = false
 		statement := self.parseStatement()
 		self.scope.labels = self.scope.labels[:len(self.scope.labels)-1] // Pop the label
 		return &ast.LabelledStatement***REMOVED***
@@ -118,19 +128,22 @@ func (self *_parser) parseTryStatement() ast.Statement ***REMOVED***
 	if self.token == token.CATCH ***REMOVED***
 		catch := self.idx
 		self.next()
-		self.expect(token.LEFT_PARENTHESIS)
-		if self.token != token.IDENTIFIER ***REMOVED***
-			self.expect(token.IDENTIFIER)
-			self.nextStatement()
-			return &ast.BadStatement***REMOVED***From: catch, To: self.idx***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			identifier := self.parseIdentifier()
-			self.expect(token.RIGHT_PARENTHESIS)
-			node.Catch = &ast.CatchStatement***REMOVED***
-				Catch:     catch,
-				Parameter: identifier,
-				Body:      self.parseBlockStatement(),
+		var parameter *ast.Identifier
+		if self.token == token.LEFT_PARENTHESIS ***REMOVED***
+			self.next()
+			if self.token != token.IDENTIFIER ***REMOVED***
+				self.expect(token.IDENTIFIER)
+				self.nextStatement()
+				return &ast.BadStatement***REMOVED***From: catch, To: self.idx***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				parameter = self.parseIdentifier()
+				self.expect(token.RIGHT_PARENTHESIS)
 			***REMOVED***
+		***REMOVED***
+		node.Catch = &ast.CatchStatement***REMOVED***
+			Catch:     catch,
+			Parameter: parameter,
+			Body:      self.parseBlockStatement(),
 		***REMOVED***
 	***REMOVED***
 
@@ -192,11 +205,6 @@ func (self *_parser) parseFunction(declaration bool) *ast.FunctionLiteral ***REM
 	var name *ast.Identifier
 	if self.token == token.IDENTIFIER ***REMOVED***
 		name = self.parseIdentifier()
-		if declaration ***REMOVED***
-			self.scope.declare(&ast.FunctionDeclaration***REMOVED***
-				Function: node,
-			***REMOVED***)
-		***REMOVED***
 	***REMOVED*** else if declaration ***REMOVED***
 		// Use expect error handling
 		self.expect(token.IDENTIFIER)
@@ -322,7 +330,7 @@ func (self *_parser) parseWithStatement() ast.Statement ***REMOVED***
 		Object: self.parseExpression(),
 	***REMOVED***
 	self.expect(token.RIGHT_PARENTHESIS)
-
+	self.scope.allowLet = false
 	node.Body = self.parseStatement()
 
 	return node
@@ -361,10 +369,11 @@ func (self *_parser) parseIterationStatement() ast.Statement ***REMOVED***
 	defer func() ***REMOVED***
 		self.scope.inIteration = inIteration
 	***REMOVED***()
+	self.scope.allowLet = false
 	return self.parseStatement()
 ***REMOVED***
 
-func (self *_parser) parseForIn(idx file.Idx, into ast.Expression) *ast.ForInStatement ***REMOVED***
+func (self *_parser) parseForIn(idx file.Idx, into ast.ForInto) *ast.ForInStatement ***REMOVED***
 
 	// Already have consumed "<into> in"
 
@@ -379,11 +388,11 @@ func (self *_parser) parseForIn(idx file.Idx, into ast.Expression) *ast.ForInSta
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) parseForOf(idx file.Idx, into ast.Expression) *ast.ForOfStatement ***REMOVED***
+func (self *_parser) parseForOf(idx file.Idx, into ast.ForInto) *ast.ForOfStatement ***REMOVED***
 
 	// Already have consumed "<into> of"
 
-	source := self.parseExpression()
+	source := self.parseAssignmentExpression()
 	self.expect(token.RIGHT_PARENTHESIS)
 
 	return &ast.ForOfStatement***REMOVED***
@@ -394,7 +403,7 @@ func (self *_parser) parseForOf(idx file.Idx, into ast.Expression) *ast.ForOfSta
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) parseFor(idx file.Idx, initializer ast.Expression) *ast.ForStatement ***REMOVED***
+func (self *_parser) parseFor(idx file.Idx, initializer ast.ForLoopInitializer) *ast.ForStatement ***REMOVED***
 
 	// Already have consumed "<initializer> ;"
 
@@ -423,74 +432,141 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 	idx := self.expect(token.FOR)
 	self.expect(token.LEFT_PARENTHESIS)
 
-	var left []ast.Expression
+	var initializer ast.ForLoopInitializer
 
 	forIn := false
 	forOf := false
+	var into ast.ForInto
 	if self.token != token.SEMICOLON ***REMOVED***
 
 		allowIn := self.scope.allowIn
 		self.scope.allowIn = false
-		if self.token == token.VAR ***REMOVED***
-			var_ := self.idx
+		tok := self.token
+		if tok == token.LET ***REMOVED***
+			switch self.peek() ***REMOVED***
+			case token.IDENTIFIER, token.LEFT_BRACKET, token.LEFT_BRACE:
+			default:
+				tok = token.IDENTIFIER
+			***REMOVED***
+		***REMOVED***
+		if tok == token.VAR || tok == token.LET || tok == token.CONST ***REMOVED***
+			idx := self.idx
 			self.next()
-			list := self.parseVariableDeclarationList(var_)
+			var list []*ast.VariableExpression
+			if tok == token.VAR ***REMOVED***
+				list = self.parseVarDeclarationList(idx)
+			***REMOVED*** else ***REMOVED***
+				list = self.parseVariableDeclarationList()
+			***REMOVED***
 			if len(list) == 1 ***REMOVED***
 				if self.token == token.IN ***REMOVED***
 					self.next() // in
 					forIn = true
-				***REMOVED*** else if self.token == token.IDENTIFIER ***REMOVED***
-					if self.literal == "of" ***REMOVED***
-						self.next()
-						forOf = true
+				***REMOVED*** else if self.token == token.IDENTIFIER && self.literal == "of" ***REMOVED***
+					self.next()
+					forOf = true
+				***REMOVED***
+			***REMOVED***
+			if forIn || forOf ***REMOVED***
+				if tok == token.VAR ***REMOVED***
+					into = &ast.ForIntoVar***REMOVED***
+						Binding: list[0],
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					if list[0].Initializer != nil ***REMOVED***
+						self.error(list[0].Initializer.Idx0(), "for-in loop variable declaration may not have an initializer")
+					***REMOVED***
+					into = &ast.ForDeclaration***REMOVED***
+						Idx:     idx,
+						IsConst: tok == token.CONST,
+						Binding: &ast.BindingIdentifier***REMOVED***
+							Name: list[0].Name,
+							Idx:  list[0].Idx,
+						***REMOVED***,
+					***REMOVED***
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				if tok == token.VAR ***REMOVED***
+					initializer = &ast.ForLoopInitializerVarDeclList***REMOVED***
+						List: list,
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					initializer = &ast.ForLoopInitializerLexicalDecl***REMOVED***
+						LexicalDeclaration: ast.LexicalDeclaration***REMOVED***
+							Idx:   idx,
+							Token: tok,
+							List:  list,
+						***REMOVED***,
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			left = list
 		***REMOVED*** else ***REMOVED***
-			left = append(left, self.parseExpression())
+			expr := self.parseExpression()
 			if self.token == token.IN ***REMOVED***
 				self.next()
 				forIn = true
-			***REMOVED*** else if self.token == token.IDENTIFIER ***REMOVED***
-				if self.literal == "of" ***REMOVED***
-					self.next()
-					forOf = true
+			***REMOVED*** else if self.token == token.IDENTIFIER && self.literal == "of" ***REMOVED***
+				self.next()
+				forOf = true
+			***REMOVED***
+			if forIn || forOf ***REMOVED***
+				switch expr.(type) ***REMOVED***
+				case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.VariableExpression:
+					// These are all acceptable
+				default:
+					self.error(idx, "Invalid left-hand side in for-in or for-of")
+					self.nextStatement()
+					return &ast.BadStatement***REMOVED***From: idx, To: self.idx***REMOVED***
+				***REMOVED***
+				into = &ast.ForIntoExpression***REMOVED***
+					Expression: expr,
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				initializer = &ast.ForLoopInitializerExpression***REMOVED***
+					Expression: expr,
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		self.scope.allowIn = allowIn
 	***REMOVED***
 
-	if forIn || forOf ***REMOVED***
-		switch left[0].(type) ***REMOVED***
-		case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.VariableExpression:
-			// These are all acceptable
-		default:
-			self.error(idx, "Invalid left-hand side in for-in or for-of")
-			self.nextStatement()
-			return &ast.BadStatement***REMOVED***From: idx, To: self.idx***REMOVED***
-		***REMOVED***
-		if forIn ***REMOVED***
-			return self.parseForIn(idx, left[0])
-		***REMOVED***
-		return self.parseForOf(idx, left[0])
+	if forIn ***REMOVED***
+		return self.parseForIn(idx, into)
+	***REMOVED***
+	if forOf ***REMOVED***
+		return self.parseForOf(idx, into)
 	***REMOVED***
 
 	self.expect(token.SEMICOLON)
-	return self.parseFor(idx, &ast.SequenceExpression***REMOVED***Sequence: left***REMOVED***)
+	return self.parseFor(idx, initializer)
 ***REMOVED***
 
 func (self *_parser) parseVariableStatement() *ast.VariableStatement ***REMOVED***
 
 	idx := self.expect(token.VAR)
 
-	list := self.parseVariableDeclarationList(idx)
+	list := self.parseVarDeclarationList(idx)
 	self.semicolon()
 
 	return &ast.VariableStatement***REMOVED***
 		Var:  idx,
 		List: list,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) parseLexicalDeclaration(tok token.Token) *ast.LexicalDeclaration ***REMOVED***
+	idx := self.expect(tok)
+	if !self.scope.allowLet ***REMOVED***
+		self.error(idx, "Lexical declaration cannot appear in a single-statement context")
+	***REMOVED***
+
+	list := self.parseVariableDeclarationList()
+	self.semicolon()
+
+	return &ast.LexicalDeclaration***REMOVED***
+		Idx:   idx,
+		Token: tok,
+		List:  list,
 	***REMOVED***
 ***REMOVED***
 
@@ -506,6 +582,7 @@ func (self *_parser) parseDoWhileStatement() ast.Statement ***REMOVED***
 	if self.token == token.LEFT_BRACE ***REMOVED***
 		node.Body = self.parseBlockStatement()
 	***REMOVED*** else ***REMOVED***
+		self.scope.allowLet = false
 		node.Body = self.parseStatement()
 	***REMOVED***
 
@@ -543,34 +620,23 @@ func (self *_parser) parseIfStatement() ast.Statement ***REMOVED***
 	if self.token == token.LEFT_BRACE ***REMOVED***
 		node.Consequent = self.parseBlockStatement()
 	***REMOVED*** else ***REMOVED***
+		self.scope.allowLet = false
 		node.Consequent = self.parseStatement()
 	***REMOVED***
 
 	if self.token == token.ELSE ***REMOVED***
 		self.next()
+		self.scope.allowLet = false
 		node.Alternate = self.parseStatement()
 	***REMOVED***
 
 	return node
 ***REMOVED***
 
-func (self *_parser) parseSourceElement() ast.Statement ***REMOVED***
-	return self.parseStatement()
-***REMOVED***
-
-func (self *_parser) parseSourceElements() []ast.Statement ***REMOVED***
-	body := []ast.Statement(nil)
-
-	for ***REMOVED***
-		if self.token != token.STRING ***REMOVED***
-			break
-		***REMOVED***
-
-		body = append(body, self.parseSourceElement())
-	***REMOVED***
-
+func (self *_parser) parseSourceElements() (body []ast.Statement) ***REMOVED***
 	for self.token != token.EOF ***REMOVED***
-		body = append(body, self.parseSourceElement())
+		self.scope.allowLet = true
+		body = append(body, self.parseStatement())
 	***REMOVED***
 
 	return body

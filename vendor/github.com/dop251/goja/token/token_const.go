@@ -79,6 +79,7 @@ const (
 	DO
 
 	VAR
+	LET
 	FOR
 	NEW
 	TRY
@@ -89,6 +90,7 @@ const (
 	VOID
 	WITH
 
+	CONST
 	WHILE
 	BREAK
 	CATCH
@@ -173,6 +175,7 @@ var token2string = [...]string***REMOVED***
 	OF:                          "of",
 	DO:                          "do",
 	VAR:                         "var",
+	LET:                         "let",
 	FOR:                         "for",
 	NEW:                         "new",
 	TRY:                         "try",
@@ -181,6 +184,7 @@ var token2string = [...]string***REMOVED***
 	CASE:                        "case",
 	VOID:                        "void",
 	WITH:                        "with",
+	CONST:                       "const",
 	WHILE:                       "while",
 	BREAK:                       "break",
 	CATCH:                       "catch",
@@ -277,8 +281,7 @@ var keywordTable = map[string]_keyword***REMOVED***
 		token: INSTANCEOF,
 	***REMOVED***,
 	"const": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
+		token: CONST,
 	***REMOVED***,
 	"class": ***REMOVED***
 		token:         KEYWORD,
@@ -315,9 +318,8 @@ var keywordTable = map[string]_keyword***REMOVED***
 		strict:        true,
 	***REMOVED***,
 	"let": ***REMOVED***
-		token:         KEYWORD,
-		futureKeyword: true,
-		strict:        true,
+		token:  LET,
+		strict: true,
 	***REMOVED***,
 	"package": ***REMOVED***
 		token:         KEYWORD,

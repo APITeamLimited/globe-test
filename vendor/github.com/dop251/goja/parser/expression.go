@@ -141,7 +141,9 @@ func (self *_parser) parseRegExpLiteral() *ast.RegExpLiteral ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.VariableExpression) ast.Expression ***REMOVED***
-
+	if self.token == token.LET ***REMOVED***
+		self.token = token.IDENTIFIER
+	***REMOVED***
 	if self.token != token.IDENTIFIER ***REMOVED***
 		idx := self.expect(token.IDENTIFIER)
 		self.nextStatement()
@@ -168,25 +170,26 @@ func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.VariableEx
 	return node
 ***REMOVED***
 
-func (self *_parser) parseVariableDeclarationList(var_ file.Idx) []ast.Expression ***REMOVED***
-
-	var declarationList []*ast.VariableExpression // Avoid bad expressions
-	var list []ast.Expression
-
+func (self *_parser) parseVariableDeclarationList() (declarationList []*ast.VariableExpression) ***REMOVED***
 	for ***REMOVED***
-		list = append(list, self.parseVariableDeclaration(&declarationList))
+		self.parseVariableDeclaration(&declarationList)
 		if self.token != token.COMMA ***REMOVED***
 			break
 		***REMOVED***
 		self.next()
 	***REMOVED***
+	return
+***REMOVED***
+
+func (self *_parser) parseVarDeclarationList(var_ file.Idx) []*ast.VariableExpression ***REMOVED***
+	declarationList := self.parseVariableDeclarationList()
 
 	self.scope.declare(&ast.VariableDeclaration***REMOVED***
 		Var:  var_,
 		List: declarationList,
 	***REMOVED***)
 
-	return list
+	return declarationList
 ***REMOVED***
 
 func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression, token.Token) ***REMOVED***
@@ -778,6 +781,9 @@ func (self *_parser) parseConditionlExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseAssignmentExpression() ast.Expression ***REMOVED***
+	if self.token == token.LET ***REMOVED***
+		self.token = token.IDENTIFIER
+	***REMOVED***
 	left := self.parseConditionlExpression()
 	var operator token.Token
 	switch self.token ***REMOVED***
@@ -828,6 +834,9 @@ func (self *_parser) parseAssignmentExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseExpression() ast.Expression ***REMOVED***
+	if self.token == token.LET ***REMOVED***
+		self.token = token.IDENTIFIER
+	***REMOVED***
 	next := self.parseAssignmentExpression
 	left := next()
 
