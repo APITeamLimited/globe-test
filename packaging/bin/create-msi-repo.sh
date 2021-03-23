@@ -18,6 +18,8 @@ S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/msi"
 mkdir -p "$REPODIR"
 
 # Download existing packages
+# For MSI packages this is only done to be able to generate the index.html correctly.
+# Should we fake it and create empty files that have the same timestamp and size as the original ones?
 s3cmd sync --exclude='*' --include='*.msi' "s3://$***REMOVED***S3PATH***REMOVED***/" "$REPODIR/"
 
 # Copy the new packages in
