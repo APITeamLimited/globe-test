@@ -10,6 +10,9 @@ set -eEuo pipefail
 #   For signing the script expects the private signing key to already be
 #   imported and PGPKEYID and PGP_SIGN_KEY_PASSPHRASE to be set in the
 #   environment.
+# - generate_index.py
+#   For generating the index.html of each directory. It's available in the
+#   packaging/bin directory of the k6 repo, and should be in $PATH.
 
 _s3bucket="$***REMOVED***S3_BUCKET-dl-k6-io***REMOVED***"
 _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED***]"
@@ -18,6 +21,10 @@ REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The p
 S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/deb"
 # Number of packages to keep for each architecture, older packages will be deleted.
 RETAIN_PKG_COUNT=25
+
+log() ***REMOVED***
+    echo "$(date -Iseconds) $*"
+***REMOVED***
 
 delete_old_pkgs() ***REMOVED***
   find "$1" -name '*.deb' -type f | sort -r | tail -n "+$((RETAIN_PKG_COUNT+1))" | xargs -r rm -v
@@ -29,10 +36,25 @@ delete_old_pkgs() ***REMOVED***
   done
 ***REMOVED***
 
+sync_to_s3() ***REMOVED***
+  log "Syncing to S3 ..."
+  s3cmd sync --delete-removed "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
+
+  # Disable cache for repo metadata and index files, so that new releases will be
+  # available immediately.
+  s3cmd modify --add-header="Cache-Control:no-cache, max-age=0" \
+    "s3://$***REMOVED***S3PATH***REMOVED***/dists/stable/"***REMOVED***Release,Release.gpg,InRelease***REMOVED***
+  s3cmd modify --add-header="Cache-Control:no-cache, max-age=0" \
+    "s3://$***REMOVED***S3PATH***REMOVED***/dists/stable/main/binary-amd64"/Packages***REMOVED***,.gz,.bz2***REMOVED***
+  s3cmd modify --recursive --exclude='*' --include='index.html' \
+    --add-header='Cache-Control:no-cache, max-age=0' "s3://$***REMOVED***S3PATH***REMOVED***/"
+***REMOVED***
+
 # We don't publish i386 packages, but the repo structure is needed for
 # compatibility on some systems. See https://unix.stackexchange.com/a/272916 .
 architectures="amd64 i386"
 
+pushd . > /dev/null
 mkdir -p "$REPODIR" && cd "$_"
 
 for arch in $architectures; do
@@ -61,7 +83,7 @@ for arch in $architectures; do
   delete_old_pkgs "$bindir"
 done
 
-echo "Creating release file..."
+log "Creating release file..."
 apt-ftparchive release \
   -o APT::FTPArchive::Release::Origin="k6" \
   -o APT::FTPArchive::Release::Label="k6" \
@@ -79,3 +101,9 @@ gpg2 --default-key="$PGPKEYID" --passphrase="$PGP_SIGN_KEY_PASSPHRASE" \
 gpg2 --default-key="$PGPKEYID" --passphrase="$PGP_SIGN_KEY_PASSPHRASE" \
   --pinentry-mode=loopback --yes --clear-sign \
   -o "dists/stable/InRelease" "dists/stable/Release"
+
+log "Generating index.html ..."
+generate_index.py -r
+
+popd > /dev/null
+sync_to_s3
