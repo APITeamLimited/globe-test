@@ -11,9 +11,12 @@ _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED
 PKGDIR="$***REMOVED***1?$***REMOVED***_usage***REMOVED******REMOVED***"  # The directory where .msi files are located
 REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The package repository working directory
 S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/msi"
+# Number of packages to keep, older packages will be deleted.
+RETAIN_PKG_COUNT=25
 
-# TODO: Remove old package versions?
-# Something like: https://github.com/kopia/kopia/blob/master/tools/apt-publish.sh#L23-L25
+delete_old_pkgs() ***REMOVED***
+  find "$1" -name '*.msi' -type f | sort -r | tail -n "+$((RETAIN_PKG_COUNT+1))" | xargs -r rm -v
+***REMOVED***
 
 mkdir -p "$REPODIR"
 
@@ -24,3 +27,5 @@ s3cmd sync --exclude='*' --include='*.msi' "s3://$***REMOVED***S3PATH***REMOVED*
 
 # Copy the new packages in
 find "$PKGDIR" -name "*.msi" -type f -print0 | xargs -r0 cp -t "$REPODIR"
+
+delete_old_pkgs "$REPODIR"

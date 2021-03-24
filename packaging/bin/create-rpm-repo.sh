@@ -16,11 +16,14 @@ _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED
 PKGDIR="$***REMOVED***1?$***REMOVED***_usage***REMOVED******REMOVED***"  # The directory where .rpm files are located
 REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The package repository working directory
 S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/rpm"
+# Number of packages to keep for each architecture, older packages will be deleted.
+RETAIN_PKG_COUNT=25
+
+delete_old_pkgs() ***REMOVED***
+  find "$1" -name '*.rpm' -type f | sort -r | tail -n "+$((RETAIN_PKG_COUNT+1))" | xargs -r rm -v
+***REMOVED***
 
 architectures="x86_64"
-
-# TODO: Remove old package versions?
-# Something like: https://github.com/kopia/kopia/blob/master/tools/apt-publish.sh#L23-L25
 
 mkdir -p "$REPODIR" && cd "$_"
 
@@ -40,4 +43,6 @@ for arch in $architectures; do
   done
   createrepo .
   cd -
+
+  delete_old_pkgs "$arch"
 done
