@@ -13,6 +13,19 @@ import (
 	"unicode/utf8"
 )
 
+// jsonNumber is the interface of the encoding/json.Number datatype.
+// Repeating the interface here avoids a dependency on encoding/json, and also
+// supports other libraries like jsoniter, which use a similar datatype with
+// the same interface. Detecting this interface is useful when dealing with
+// structures containing json.Number, which is a string under the hood. The
+// encoder should prefer the use of Int64(), Float64() and string(), in that
+// order, when encoding this type.
+type jsonNumber interface ***REMOVED***
+	Float64() (float64, error)
+	Int64() (int64, error)
+	String() string
+***REMOVED***
+
 type encoder struct ***REMOVED***
 	emitter yaml_emitter_t
 	event   yaml_event_t
@@ -89,6 +102,21 @@ func (e *encoder) marshal(tag string, in reflect.Value) ***REMOVED***
 	***REMOVED***
 	iface := in.Interface()
 	switch m := iface.(type) ***REMOVED***
+	case jsonNumber:
+		integer, err := m.Int64()
+		if err == nil ***REMOVED***
+			// In this case the json.Number is a valid int64
+			in = reflect.ValueOf(integer)
+			break
+		***REMOVED***
+		float, err := m.Float64()
+		if err == nil ***REMOVED***
+			// In this case the json.Number is a valid float64
+			in = reflect.ValueOf(float)
+			break
+		***REMOVED***
+		// fallback case - no number could be obtained
+		in = reflect.ValueOf(m.String())
 	case time.Time, *time.Time:
 		// Although time.Time implements TextMarshaler,
 		// we don't want to treat it as a string for YAML
@@ -131,7 +159,7 @@ func (e *encoder) marshal(tag string, in reflect.Value) ***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			e.structv(tag, in)
 		***REMOVED***
-	case reflect.Slice:
+	case reflect.Slice, reflect.Array:
 		if in.Type().Elem() == mapItemType ***REMOVED***
 			e.itemsv(tag, in)
 		***REMOVED*** else ***REMOVED***
@@ -328,14 +356,18 @@ func (e *encoder) uintv(tag string, in reflect.Value) ***REMOVED***
 
 func (e *encoder) timev(tag string, in reflect.Value) ***REMOVED***
 	t := in.Interface().(time.Time)
-	if tag == "" ***REMOVED***
-		tag = yaml_TIMESTAMP_TAG
-	***REMOVED***
-	e.emitScalar(t.Format(time.RFC3339Nano), "", tag, yaml_PLAIN_SCALAR_STYLE)
+	s := t.Format(time.RFC3339Nano)
+	e.emitScalar(s, "", tag, yaml_PLAIN_SCALAR_STYLE)
 ***REMOVED***
 
 func (e *encoder) floatv(tag string, in reflect.Value) ***REMOVED***
-	s := strconv.FormatFloat(in.Float(), 'g', -1, 64)
+	// Issue #352: When formatting, use the precision of the underlying value
+	precision := 64
+	if in.Kind() == reflect.Float32 ***REMOVED***
+		precision = 32
+	***REMOVED***
+
+	s := strconv.FormatFloat(in.Float(), 'g', -1, precision)
 	switch s ***REMOVED***
 	case "+Inf":
 		s = ".inf"

@@ -113,6 +113,10 @@ func (p *parser) fail() ***REMOVED***
 	var line int
 	if p.parser.problem_mark.line != 0 ***REMOVED***
 		line = p.parser.problem_mark.line
+		// Scanner errors don't iterate line before returning error
+		if p.parser.error == yaml_SCANNER_ERROR ***REMOVED***
+			line++
+		***REMOVED***
 	***REMOVED*** else if p.parser.context_mark.line != 0 ***REMOVED***
 		line = p.parser.context_mark.line
 	***REMOVED***
@@ -225,6 +229,10 @@ type decoder struct ***REMOVED***
 	mapType reflect.Type
 	terrors []string
 	strict  bool
+
+	decodeCount int
+	aliasCount  int
+	aliasDepth  int
 ***REMOVED***
 
 var (
@@ -310,7 +318,43 @@ func (d *decoder) prepare(n *node, out reflect.Value) (newout reflect.Value, unm
 	return out, false, false
 ***REMOVED***
 
+const (
+	// 400,000 decode operations is ~500kb of dense object declarations, or
+	// ~5kb of dense object declarations with 10000% alias expansion
+	alias_ratio_range_low = 400000
+
+	// 4,000,000 decode operations is ~5MB of dense object declarations, or
+	// ~4.5MB of dense object declarations with 10% alias expansion
+	alias_ratio_range_high = 4000000
+
+	// alias_ratio_range is the range over which we scale allowed alias ratios
+	alias_ratio_range = float64(alias_ratio_range_high - alias_ratio_range_low)
+)
+
+func allowedAliasRatio(decodeCount int) float64 ***REMOVED***
+	switch ***REMOVED***
+	case decodeCount <= alias_ratio_range_low:
+		// allow 99% to come from alias expansion for small-to-medium documents
+		return 0.99
+	case decodeCount >= alias_ratio_range_high:
+		// allow 10% to come from alias expansion for very large documents
+		return 0.10
+	default:
+		// scale smoothly from 99% down to 10% over the range.
+		// this maps to 396,000 - 400,000 allowed alias-driven decodes over the range.
+		// 400,000 decode operations is ~100MB of allocations in worst-case scenarios (single-item maps).
+		return 0.99 - 0.89*(float64(decodeCount-alias_ratio_range_low)/alias_ratio_range)
+	***REMOVED***
+***REMOVED***
+
 func (d *decoder) unmarshal(n *node, out reflect.Value) (good bool) ***REMOVED***
+	d.decodeCount++
+	if d.aliasDepth > 0 ***REMOVED***
+		d.aliasCount++
+	***REMOVED***
+	if d.aliasCount > 100 && d.decodeCount > 1000 && float64(d.aliasCount)/float64(d.decodeCount) > allowedAliasRatio(d.decodeCount) ***REMOVED***
+		failf("document contains excessive aliasing")
+	***REMOVED***
 	switch n.kind ***REMOVED***
 	case documentNode:
 		return d.document(n, out)
@@ -349,7 +393,9 @@ func (d *decoder) alias(n *node, out reflect.Value) (good bool) ***REMOVED***
 		failf("anchor '%s' value contains itself", n.value)
 	***REMOVED***
 	d.aliases[n] = true
+	d.aliasDepth++
 	good = d.unmarshal(n.alias, out)
+	d.aliasDepth--
 	delete(d.aliases, n)
 	return good
 ***REMOVED***
@@ -430,6 +476,7 @@ func (d *decoder) scalar(n *node, out reflect.Value) bool ***REMOVED***
 			// reasons we set it as a string, so that code that unmarshals
 			// timestamp-like values into interface***REMOVED******REMOVED*** will continue to
 			// see a string and not a time.Time.
+			// TODO(v3) Drop this.
 			out.Set(reflect.ValueOf(n.value))
 		***REMOVED*** else ***REMOVED***
 			out.Set(reflect.ValueOf(resolved))
@@ -542,6 +589,10 @@ func (d *decoder) sequence(n *node, out reflect.Value) (good bool) ***REMOVED***
 	switch out.Kind() ***REMOVED***
 	case reflect.Slice:
 		out.Set(reflect.MakeSlice(out.Type(), l, l))
+	case reflect.Array:
+		if l != out.Len() ***REMOVED***
+			failf("invalid array: want %d elements but got %d", out.Len(), l)
+		***REMOVED***
 	case reflect.Interface:
 		// No type hints. Will have to use a generic sequence.
 		iface = out
@@ -560,7 +611,9 @@ func (d *decoder) sequence(n *node, out reflect.Value) (good bool) ***REMOVED***
 			j++
 		***REMOVED***
 	***REMOVED***
-	out.Set(out.Slice(0, j))
+	if out.Kind() != reflect.Array ***REMOVED***
+		out.Set(out.Slice(0, j))
+	***REMOVED***
 	if iface.IsValid() ***REMOVED***
 		iface.Set(out)
 	***REMOVED***
@@ -735,8 +788,7 @@ func (d *decoder) merge(n *node, out reflect.Value) ***REMOVED***
 	case mappingNode:
 		d.unmarshal(n, out)
 	case aliasNode:
-		an, ok := d.doc.anchors[n.value]
-		if ok && an.kind != mappingNode ***REMOVED***
+		if n.alias != nil && n.alias.kind != mappingNode ***REMOVED***
 			failWantMap()
 		***REMOVED***
 		d.unmarshal(n, out)
@@ -745,8 +797,7 @@ func (d *decoder) merge(n *node, out reflect.Value) ***REMOVED***
 		for i := len(n.children) - 1; i >= 0; i-- ***REMOVED***
 			ni := n.children[i]
 			if ni.kind == aliasNode ***REMOVED***
-				an, ok := d.doc.anchors[ni.value]
-				if ok && an.kind != mappingNode ***REMOVED***
+				if ni.alias != nil && ni.alias.kind != mappingNode ***REMOVED***
 					failWantMap()
 				***REMOVED***
 			***REMOVED*** else if ni.kind != mappingNode ***REMOVED***

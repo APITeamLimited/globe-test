@@ -5,7 +5,6 @@ package codec
 
 import (
 	"math"
-	"reflect"
 	"time"
 )
 
@@ -55,21 +54,67 @@ const (
 	// others not currently supported
 )
 
+func bincdesc(vd, vs byte) string ***REMOVED***
+	switch vd ***REMOVED***
+	case bincVdSpecial:
+		switch vs ***REMOVED***
+		case bincSpNil:
+			return "nil"
+		case bincSpFalse:
+			return "false"
+		case bincSpTrue:
+			return "true"
+		case bincSpNan, bincSpPosInf, bincSpNegInf, bincSpZeroFloat:
+			return "float"
+		case bincSpZero:
+			return "uint"
+		case bincSpNegOne:
+			return "int"
+		default:
+			return "unknown"
+		***REMOVED***
+	case bincVdSmallInt, bincVdPosInt:
+		return "uint"
+	case bincVdNegInt:
+		return "int"
+	case bincVdFloat:
+		return "float"
+	case bincVdSymbol:
+		return "string"
+	case bincVdString:
+		return "string"
+	case bincVdByteArray:
+		return "bytes"
+	case bincVdTimestamp:
+		return "time"
+	case bincVdCustomExt:
+		return "ext"
+	case bincVdArray:
+		return "array"
+	case bincVdMap:
+		return "map"
+	default:
+		return "unknown"
+	***REMOVED***
+***REMOVED***
+
 type bincEncDriver struct ***REMOVED***
-	e *Encoder
-	h *BincHandle
-	w encWriter
-	m map[string]uint16 // symbols
-	b [16]byte          // scratch, used for encoding numbers - bigendian style
-	s uint16            // symbols sequencer
-	// c containerState
-	encDriverTrackContainerWriter
 	noBuiltInTypes
-	// encNoSeparator
+	encDriverNoopContainerWriter
+	h *BincHandle
+	m map[string]uint16 // symbols
+	b [8]byte           // scratch, used for encoding numbers - bigendian style
+	s uint16            // symbols sequencer
+	_ [4]uint64         // padding
+	e Encoder
+***REMOVED***
+
+func (e *bincEncDriver) encoder() *Encoder ***REMOVED***
+	return &e.e
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeNil() ***REMOVED***
-	e.w.writen1(bincVdSpecial<<4 | bincSpNil)
+	e.e.encWr.writen1(bincVdSpecial<<4 | bincSpNil)
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeTime(t time.Time) ***REMOVED***
@@ -77,31 +122,31 @@ func (e *bincEncDriver) EncodeTime(t time.Time) ***REMOVED***
 		e.EncodeNil()
 	***REMOVED*** else ***REMOVED***
 		bs := bincEncodeTime(t)
-		e.w.writen1(bincVdTimestamp<<4 | uint8(len(bs)))
-		e.w.writeb(bs)
+		e.e.encWr.writen1(bincVdTimestamp<<4 | uint8(len(bs)))
+		e.e.encWr.writeb(bs)
 	***REMOVED***
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeBool(b bool) ***REMOVED***
 	if b ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpTrue)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpTrue)
 	***REMOVED*** else ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpFalse)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpFalse)
 	***REMOVED***
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeFloat32(f float32) ***REMOVED***
 	if f == 0 ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpZeroFloat)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpZeroFloat)
 		return
 	***REMOVED***
-	e.w.writen1(bincVdFloat<<4 | bincFlBin32)
-	bigenHelper***REMOVED***e.b[:4], e.w***REMOVED***.writeUint32(math.Float32bits(f))
+	e.e.encWr.writen1(bincVdFloat<<4 | bincFlBin32)
+	bigenHelper***REMOVED***e.b[:4], e.e.w()***REMOVED***.writeUint32(math.Float32bits(f))
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeFloat64(f float64) ***REMOVED***
 	if f == 0 ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpZeroFloat)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpZeroFloat)
 		return
 	***REMOVED***
 	bigen.PutUint64(e.b[:8], math.Float64bits(f))
@@ -111,14 +156,14 @@ func (e *bincEncDriver) EncodeFloat64(f float64) ***REMOVED***
 		***REMOVED***
 		i++
 		if i <= 6 ***REMOVED***
-			e.w.writen1(bincVdFloat<<4 | 0x8 | bincFlBin64)
-			e.w.writen1(byte(i))
-			e.w.writeb(e.b[:i])
+			e.e.encWr.writen1(bincVdFloat<<4 | 0x8 | bincFlBin64)
+			e.e.encWr.writen1(byte(i))
+			e.e.encWr.writeb(e.b[:i])
 			return
 		***REMOVED***
 	***REMOVED***
-	e.w.writen1(bincVdFloat<<4 | bincFlBin64)
-	e.w.writeb(e.b[:8])
+	e.e.encWr.writen1(bincVdFloat<<4 | bincFlBin64)
+	e.e.encWr.writeb(e.b[:8])
 ***REMOVED***
 
 func (e *bincEncDriver) encIntegerPrune(bd byte, pos bool, v uint64, lim uint8) ***REMOVED***
@@ -129,20 +174,20 @@ func (e *bincEncDriver) encIntegerPrune(bd byte, pos bool, v uint64, lim uint8) 
 	***REMOVED***
 	if bincDoPrune ***REMOVED***
 		i := pruneSignExt(e.b[:lim], pos)
-		e.w.writen1(bd | lim - 1 - byte(i))
-		e.w.writeb(e.b[i:lim])
+		e.e.encWr.writen1(bd | lim - 1 - byte(i))
+		e.e.encWr.writeb(e.b[i:lim])
 	***REMOVED*** else ***REMOVED***
-		e.w.writen1(bd | lim - 1)
-		e.w.writeb(e.b[:lim])
+		e.e.encWr.writen1(bd | lim - 1)
+		e.e.encWr.writeb(e.b[:lim])
 	***REMOVED***
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeInt(v int64) ***REMOVED***
-	const nbd byte = bincVdNegInt << 4
+	// const nbd byte = bincVdNegInt << 4
 	if v >= 0 ***REMOVED***
 		e.encUint(bincVdPosInt<<4, true, uint64(v))
 	***REMOVED*** else if v == -1 ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpNegOne)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpNegOne)
 	***REMOVED*** else ***REMOVED***
 		e.encUint(bincVdNegInt<<4, false, uint64(-v))
 	***REMOVED***
@@ -154,14 +199,14 @@ func (e *bincEncDriver) EncodeUint(v uint64) ***REMOVED***
 
 func (e *bincEncDriver) encUint(bd byte, pos bool, v uint64) ***REMOVED***
 	if v == 0 ***REMOVED***
-		e.w.writen1(bincVdSpecial<<4 | bincSpZero)
+		e.e.encWr.writen1(bincVdSpecial<<4 | bincSpZero)
 	***REMOVED*** else if pos && v >= 1 && v <= 16 ***REMOVED***
-		e.w.writen1(bincVdSmallInt<<4 | byte(v-1))
+		e.e.encWr.writen1(bincVdSmallInt<<4 | byte(v-1))
 	***REMOVED*** else if v <= math.MaxUint8 ***REMOVED***
-		e.w.writen2(bd|0x0, byte(v))
+		e.e.encWr.writen2(bd|0x0, byte(v))
 	***REMOVED*** else if v <= math.MaxUint16 ***REMOVED***
-		e.w.writen1(bd | 0x01)
-		bigenHelper***REMOVED***e.b[:2], e.w***REMOVED***.writeUint16(uint16(v))
+		e.e.encWr.writen1(bd | 0x01)
+		bigenHelper***REMOVED***e.b[:2], e.e.w()***REMOVED***.writeUint16(uint16(v))
 	***REMOVED*** else if v <= math.MaxUint32 ***REMOVED***
 		e.encIntegerPrune(bd, pos, v, 4)
 	***REMOVED*** else ***REMOVED***
@@ -169,46 +214,41 @@ func (e *bincEncDriver) encUint(bd byte, pos bool, v uint64) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e *bincEncDriver) EncodeExt(rv interface***REMOVED******REMOVED***, xtag uint64, ext Ext, _ *Encoder) ***REMOVED***
-	bs := ext.WriteExt(rv)
+func (e *bincEncDriver) EncodeExt(v interface***REMOVED******REMOVED***, xtag uint64, ext Ext) ***REMOVED***
+	var bs []byte
+	if ext == SelfExt ***REMOVED***
+		bs = e.e.blist.get(1024)[:0]
+		e.e.sideEncode(v, &bs)
+	***REMOVED*** else ***REMOVED***
+		bs = ext.WriteExt(v)
+	***REMOVED***
 	if bs == nil ***REMOVED***
 		e.EncodeNil()
 		return
 	***REMOVED***
 	e.encodeExtPreamble(uint8(xtag), len(bs))
-	e.w.writeb(bs)
+	e.e.encWr.writeb(bs)
+	if ext == SelfExt ***REMOVED***
+		e.e.blist.put(bs)
+	***REMOVED***
 ***REMOVED***
 
-func (e *bincEncDriver) EncodeRawExt(re *RawExt, _ *Encoder) ***REMOVED***
+func (e *bincEncDriver) EncodeRawExt(re *RawExt) ***REMOVED***
 	e.encodeExtPreamble(uint8(re.Tag), len(re.Data))
-	e.w.writeb(re.Data)
+	e.e.encWr.writeb(re.Data)
 ***REMOVED***
 
 func (e *bincEncDriver) encodeExtPreamble(xtag byte, length int) ***REMOVED***
 	e.encLen(bincVdCustomExt<<4, uint64(length))
-	e.w.writen1(xtag)
+	e.e.encWr.writen1(xtag)
 ***REMOVED***
 
 func (e *bincEncDriver) WriteArrayStart(length int) ***REMOVED***
 	e.encLen(bincVdArray<<4, uint64(length))
-	e.c = containerArrayStart
 ***REMOVED***
 
 func (e *bincEncDriver) WriteMapStart(length int) ***REMOVED***
 	e.encLen(bincVdMap<<4, uint64(length))
-	e.c = containerMapStart
-***REMOVED***
-
-func (e *bincEncDriver) EncodeString(c charEncoding, v string) ***REMOVED***
-	if e.c == containerMapKey && c == cUTF8 && (e.h.AsSymbols == 0 || e.h.AsSymbols == 1) ***REMOVED***
-		e.EncodeSymbol(v)
-		return
-	***REMOVED***
-	l := uint64(len(v))
-	e.encBytesLen(c, l)
-	if l > 0 ***REMOVED***
-		e.w.writestr(v)
-	***REMOVED***
 ***REMOVED***
 
 func (e *bincEncDriver) EncodeSymbol(v string) ***REMOVED***
@@ -227,7 +267,7 @@ func (e *bincEncDriver) EncodeSymbol(v string) ***REMOVED***
 		return
 	***REMOVED*** else if l == 1 ***REMOVED***
 		e.encBytesLen(cUTF8, 1)
-		e.w.writen1(v[0])
+		e.e.encWr.writen1(v[0])
 		return
 	***REMOVED***
 	if e.m == nil ***REMOVED***
@@ -236,10 +276,10 @@ func (e *bincEncDriver) EncodeSymbol(v string) ***REMOVED***
 	ui, ok := e.m[v]
 	if ok ***REMOVED***
 		if ui <= math.MaxUint8 ***REMOVED***
-			e.w.writen2(bincVdSymbol<<4, byte(ui))
+			e.e.encWr.writen2(bincVdSymbol<<4, byte(ui))
 		***REMOVED*** else ***REMOVED***
-			e.w.writen1(bincVdSymbol<<4 | 0x8)
-			bigenHelper***REMOVED***e.b[:2], e.w***REMOVED***.writeUint16(ui)
+			e.e.encWr.writen1(bincVdSymbol<<4 | 0x8)
+			bigenHelper***REMOVED***e.b[:2], e.e.w()***REMOVED***.writeUint16(ui)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		e.s++
@@ -257,38 +297,61 @@ func (e *bincEncDriver) EncodeSymbol(v string) ***REMOVED***
 			lenprec = 3
 		***REMOVED***
 		if ui <= math.MaxUint8 ***REMOVED***
-			e.w.writen2(bincVdSymbol<<4|0x0|0x4|lenprec, byte(ui))
+			e.e.encWr.writen2(bincVdSymbol<<4|0x0|0x4|lenprec, byte(ui))
 		***REMOVED*** else ***REMOVED***
-			e.w.writen1(bincVdSymbol<<4 | 0x8 | 0x4 | lenprec)
-			bigenHelper***REMOVED***e.b[:2], e.w***REMOVED***.writeUint16(ui)
+			e.e.encWr.writen1(bincVdSymbol<<4 | 0x8 | 0x4 | lenprec)
+			bigenHelper***REMOVED***e.b[:2], e.e.w()***REMOVED***.writeUint16(ui)
 		***REMOVED***
 		if lenprec == 0 ***REMOVED***
-			e.w.writen1(byte(l))
+			e.e.encWr.writen1(byte(l))
 		***REMOVED*** else if lenprec == 1 ***REMOVED***
-			bigenHelper***REMOVED***e.b[:2], e.w***REMOVED***.writeUint16(uint16(l))
+			bigenHelper***REMOVED***e.b[:2], e.e.w()***REMOVED***.writeUint16(uint16(l))
 		***REMOVED*** else if lenprec == 2 ***REMOVED***
-			bigenHelper***REMOVED***e.b[:4], e.w***REMOVED***.writeUint32(uint32(l))
+			bigenHelper***REMOVED***e.b[:4], e.e.w()***REMOVED***.writeUint32(uint32(l))
 		***REMOVED*** else ***REMOVED***
-			bigenHelper***REMOVED***e.b[:8], e.w***REMOVED***.writeUint64(uint64(l))
+			bigenHelper***REMOVED***e.b[:8], e.e.w()***REMOVED***.writeUint64(uint64(l))
 		***REMOVED***
-		e.w.writestr(v)
+		e.e.encWr.writestr(v)
 	***REMOVED***
 ***REMOVED***
 
-func (e *bincEncDriver) EncodeStringBytes(c charEncoding, v []byte) ***REMOVED***
+func (e *bincEncDriver) EncodeString(v string) ***REMOVED***
+	if e.h.StringToRaw ***REMOVED***
+		e.encLen(bincVdByteArray<<4, uint64(len(v))) // e.encBytesLen(c, l)
+		if len(v) > 0 ***REMOVED***
+			e.e.encWr.writestr(v)
+		***REMOVED***
+		return
+	***REMOVED***
+	e.EncodeStringEnc(cUTF8, v)
+***REMOVED***
+
+func (e *bincEncDriver) EncodeStringEnc(c charEncoding, v string) ***REMOVED***
+	if e.e.c == containerMapKey && c == cUTF8 && (e.h.AsSymbols == 1) ***REMOVED***
+		e.EncodeSymbol(v)
+		return
+	***REMOVED***
+	e.encLen(bincVdString<<4, uint64(len(v))) // e.encBytesLen(c, l)
+	if len(v) > 0 ***REMOVED***
+		e.e.encWr.writestr(v)
+	***REMOVED***
+***REMOVED***
+
+func (e *bincEncDriver) EncodeStringBytesRaw(v []byte) ***REMOVED***
 	if v == nil ***REMOVED***
 		e.EncodeNil()
 		return
 	***REMOVED***
-	l := uint64(len(v))
-	e.encBytesLen(c, l)
-	if l > 0 ***REMOVED***
-		e.w.writeb(v)
+	e.encLen(bincVdByteArray<<4, uint64(len(v))) // e.encBytesLen(c, l)
+	if len(v) > 0 ***REMOVED***
+		e.e.encWr.writeb(v)
 	***REMOVED***
 ***REMOVED***
 
 func (e *bincEncDriver) encBytesLen(c charEncoding, length uint64) ***REMOVED***
-	//TODO: support bincUnicodeOther (for now, just use string or bytearray)
+	// NOTE: we currently only support UTF-8 (string) and RAW (bytearray).
+	// We should consider supporting bincUnicodeOther.
+
 	if c == cRAW ***REMOVED***
 		e.encLen(bincVdByteArray<<4, length)
 	***REMOVED*** else ***REMOVED***
@@ -298,7 +361,7 @@ func (e *bincEncDriver) encBytesLen(c charEncoding, length uint64) ***REMOVED***
 
 func (e *bincEncDriver) encLen(bd byte, l uint64) ***REMOVED***
 	if l < 12 ***REMOVED***
-		e.w.writen1(bd | uint8(l+4))
+		e.e.encWr.writen1(bd | uint8(l+4))
 	***REMOVED*** else ***REMOVED***
 		e.encLenNumber(bd, l)
 	***REMOVED***
@@ -306,52 +369,49 @@ func (e *bincEncDriver) encLen(bd byte, l uint64) ***REMOVED***
 
 func (e *bincEncDriver) encLenNumber(bd byte, v uint64) ***REMOVED***
 	if v <= math.MaxUint8 ***REMOVED***
-		e.w.writen2(bd, byte(v))
+		e.e.encWr.writen2(bd, byte(v))
 	***REMOVED*** else if v <= math.MaxUint16 ***REMOVED***
-		e.w.writen1(bd | 0x01)
-		bigenHelper***REMOVED***e.b[:2], e.w***REMOVED***.writeUint16(uint16(v))
+		e.e.encWr.writen1(bd | 0x01)
+		bigenHelper***REMOVED***e.b[:2], e.e.w()***REMOVED***.writeUint16(uint16(v))
 	***REMOVED*** else if v <= math.MaxUint32 ***REMOVED***
-		e.w.writen1(bd | 0x02)
-		bigenHelper***REMOVED***e.b[:4], e.w***REMOVED***.writeUint32(uint32(v))
+		e.e.encWr.writen1(bd | 0x02)
+		bigenHelper***REMOVED***e.b[:4], e.e.w()***REMOVED***.writeUint32(uint32(v))
 	***REMOVED*** else ***REMOVED***
-		e.w.writen1(bd | 0x03)
-		bigenHelper***REMOVED***e.b[:8], e.w***REMOVED***.writeUint64(uint64(v))
+		e.e.encWr.writen1(bd | 0x03)
+		bigenHelper***REMOVED***e.b[:8], e.e.w()***REMOVED***.writeUint64(uint64(v))
 	***REMOVED***
 ***REMOVED***
 
 //------------------------------------
 
-type bincDecSymbol struct ***REMOVED***
-	s string
-	b []byte
-	i uint16
-***REMOVED***
-
 type bincDecDriver struct ***REMOVED***
 	decDriverNoopContainerReader
 	noBuiltInTypes
 
-	d      *Decoder
 	h      *BincHandle
-	r      decReader
-	br     bool // bytes reader
 	bdRead bool
 	bd     byte
 	vd     byte
 	vs     byte
-	_      [3]byte // padding
+
+	fnil bool
+	// _      [3]byte // padding
 	// linear searching on this slice is ok,
 	// because we typically expect < 32 symbols in each stream.
-	s []bincDecSymbol
+	s map[uint16][]byte // []bincDecSymbol
 
-	// noStreamingCodec
-	// decNoSeparator
+	b [8]byte   // scratch for decoding numbers - big endian style
+	_ [4]uint64 // padding cache-aligned
 
-	b [8 * 8]byte // scratch
+	d Decoder
+***REMOVED***
+
+func (d *bincDecDriver) decoder() *Decoder ***REMOVED***
+	return &d.d
 ***REMOVED***
 
 func (d *bincDecDriver) readNextBd() ***REMOVED***
-	d.bd = d.r.readn1()
+	d.bd = d.d.decRd.readn1()
 	d.vd = d.bd >> 4
 	d.vs = d.bd & 0x0f
 	d.bdRead = true
@@ -359,16 +419,41 @@ func (d *bincDecDriver) readNextBd() ***REMOVED***
 
 func (d *bincDecDriver) uncacheRead() ***REMOVED***
 	if d.bdRead ***REMOVED***
-		d.r.unreadn1()
+		d.d.decRd.unreadn1()
 		d.bdRead = false
 	***REMOVED***
+***REMOVED***
+
+func (d *bincDecDriver) advanceNil() (null bool) ***REMOVED***
+	d.fnil = false
+	if !d.bdRead ***REMOVED***
+		d.readNextBd()
+	***REMOVED***
+	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
+		d.bdRead = false
+		d.fnil = true
+		null = true
+	***REMOVED***
+	return
+***REMOVED***
+
+func (d *bincDecDriver) Nil() bool ***REMOVED***
+	return d.fnil
+***REMOVED***
+
+func (d *bincDecDriver) TryNil() bool ***REMOVED***
+	return d.advanceNil()
 ***REMOVED***
 
 func (d *bincDecDriver) ContainerType() (vt valueType) ***REMOVED***
 	if !d.bdRead ***REMOVED***
 		d.readNextBd()
 	***REMOVED***
-	if d.vd == bincVdSpecial && d.vs == bincSpNil ***REMOVED***
+	d.fnil = false
+	// if d.vd == bincVdSpecial && d.vs == bincSpNil ***REMOVED***
+	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
+		d.bdRead = false
+		d.fnil = true
 		return valueTypeNil
 	***REMOVED*** else if d.vd == bincVdByteArray ***REMOVED***
 		return valueTypeBytes
@@ -379,36 +464,18 @@ func (d *bincDecDriver) ContainerType() (vt valueType) ***REMOVED***
 	***REMOVED*** else if d.vd == bincVdMap ***REMOVED***
 		return valueTypeMap
 	***REMOVED***
-	// else ***REMOVED***
-	// d.d.errorf("isContainerType: unsupported parameter: %v", vt)
-	// ***REMOVED***
 	return valueTypeUnset
 ***REMOVED***
 
-func (d *bincDecDriver) TryDecodeAsNil() bool ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
-	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
-		d.bdRead = false
-		return true
-	***REMOVED***
-	return false
-***REMOVED***
-
 func (d *bincDecDriver) DecodeTime() (t time.Time) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
-	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
-		d.bdRead = false
+	if d.advanceNil() ***REMOVED***
 		return
 	***REMOVED***
 	if d.vd != bincVdTimestamp ***REMOVED***
-		d.d.errorf("Invalid d.vd. Expecting 0x%x. Received: 0x%x", bincVdTimestamp, d.vd)
+		d.d.errorf("cannot decode time - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
-	t, err := bincDecodeTime(d.r.readx(int(d.vs)))
+	t, err := bincDecodeTime(d.d.decRd.readx(uint(d.vs)))
 	if err != nil ***REMOVED***
 		panic(err)
 	***REMOVED***
@@ -418,22 +485,22 @@ func (d *bincDecDriver) DecodeTime() (t time.Time) ***REMOVED***
 
 func (d *bincDecDriver) decFloatPre(vs, defaultLen byte) ***REMOVED***
 	if vs&0x8 == 0 ***REMOVED***
-		d.r.readb(d.b[0:defaultLen])
+		d.d.decRd.readb(d.b[0:defaultLen])
 	***REMOVED*** else ***REMOVED***
-		l := d.r.readn1()
+		l := d.d.decRd.readn1()
 		if l > 8 ***REMOVED***
-			d.d.errorf("At most 8 bytes used to represent float. Received: %v bytes", l)
+			d.d.errorf("cannot read float - at most 8 bytes used to represent float - received %v bytes", l)
 			return
 		***REMOVED***
 		for i := l; i < 8; i++ ***REMOVED***
 			d.b[i] = 0
 		***REMOVED***
-		d.r.readb(d.b[0:l])
+		d.d.decRd.readb(d.b[0:l])
 	***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) decFloat() (f float64) ***REMOVED***
-	//if true ***REMOVED*** f = math.Float64frombits(bigen.Uint64(d.r.readx(8))); break; ***REMOVED***
+	//if true ***REMOVED*** f = math.Float64frombits(bigen.Uint64(d.d.decRd.readx(8))); break; ***REMOVED***
 	if x := d.vs & 0x7; x == bincFlBin32 ***REMOVED***
 		d.decFloatPre(d.vs, 4)
 		f = float64(math.Float32frombits(bigen.Uint32(d.b[0:4])))
@@ -441,7 +508,8 @@ func (d *bincDecDriver) decFloat() (f float64) ***REMOVED***
 		d.decFloatPre(d.vs, 8)
 		f = math.Float64frombits(bigen.Uint64(d.b[0:8]))
 	***REMOVED*** else ***REMOVED***
-		d.d.errorf("only float32 and float64 are supported. d.vd: 0x%x, d.vs: 0x%x", d.vd, d.vs)
+		d.d.errorf("read float - only float32 and float64 are supported - %s %x-%x/%s",
+			msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	return
@@ -451,26 +519,26 @@ func (d *bincDecDriver) decUint() (v uint64) ***REMOVED***
 	// need to inline the code (interface conversion and type assertion expensive)
 	switch d.vs ***REMOVED***
 	case 0:
-		v = uint64(d.r.readn1())
+		v = uint64(d.d.decRd.readn1())
 	case 1:
-		d.r.readb(d.b[6:8])
+		d.d.decRd.readb(d.b[6:8])
 		v = uint64(bigen.Uint16(d.b[6:8]))
 	case 2:
 		d.b[4] = 0
-		d.r.readb(d.b[5:8])
+		d.d.decRd.readb(d.b[5:8])
 		v = uint64(bigen.Uint32(d.b[4:8]))
 	case 3:
-		d.r.readb(d.b[4:8])
+		d.d.decRd.readb(d.b[4:8])
 		v = uint64(bigen.Uint32(d.b[4:8]))
 	case 4, 5, 6:
-		lim := int(7 - d.vs)
-		d.r.readb(d.b[lim:8])
-		for i := 0; i < lim; i++ ***REMOVED***
+		lim := 7 - d.vs
+		d.d.decRd.readb(d.b[lim:8])
+		for i := uint8(0); i < lim; i++ ***REMOVED***
 			d.b[i] = 0
 		***REMOVED***
 		v = uint64(bigen.Uint64(d.b[:8]))
 	case 7:
-		d.r.readb(d.b[:8])
+		d.d.decRd.readb(d.b[:8])
 		v = uint64(bigen.Uint64(d.b[:8]))
 	default:
 		d.d.errorf("unsigned integers with greater than 64 bits of precision not supported")
@@ -480,9 +548,6 @@ func (d *bincDecDriver) decUint() (v uint64) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) decCheckInteger() (ui uint64, neg bool) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
 	vd, vs := d.vd, d.vs
 	if vd == bincVdPosInt ***REMOVED***
 		ui = d.decUint()
@@ -498,7 +563,8 @@ func (d *bincDecDriver) decCheckInteger() (ui uint64, neg bool) ***REMOVED***
 			neg = true
 			ui = 1
 		***REMOVED*** else ***REMOVED***
-			d.d.errorf("numeric decode fails for special value: d.vs: 0x%x", d.vs)
+			d.d.errorf("integer decode fails - invalid special value from descriptor %x-%x/%s",
+				d.vd, d.vs, bincdesc(d.vd, d.vs))
 			return
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -509,6 +575,9 @@ func (d *bincDecDriver) decCheckInteger() (ui uint64, neg bool) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) DecodeInt64() (i int64) ***REMOVED***
+	if d.advanceNil() ***REMOVED***
+		return
+	***REMOVED***
 	ui, neg := d.decCheckInteger()
 	i = chkOvf.SignedIntV(ui)
 	if neg ***REMOVED***
@@ -519,9 +588,12 @@ func (d *bincDecDriver) DecodeInt64() (i int64) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) DecodeUint64() (ui uint64) ***REMOVED***
+	if d.advanceNil() ***REMOVED***
+		return
+	***REMOVED***
 	ui, neg := d.decCheckInteger()
 	if neg ***REMOVED***
-		d.d.errorf("Assigning negative signed value to unsigned type")
+		d.d.errorf("assigning negative signed value to unsigned integer type")
 		return
 	***REMOVED***
 	d.bdRead = false
@@ -529,8 +601,8 @@ func (d *bincDecDriver) DecodeUint64() (ui uint64) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) DecodeFloat64() (f float64) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
+	if d.advanceNil() ***REMOVED***
+		return
 	***REMOVED***
 	vd, vs := d.vd, d.vs
 	if vd == bincVdSpecial ***REMOVED***
@@ -544,7 +616,8 @@ func (d *bincDecDriver) DecodeFloat64() (f float64) ***REMOVED***
 		***REMOVED*** else if vs == bincSpNegInf ***REMOVED***
 			return math.Inf(-1)
 		***REMOVED*** else ***REMOVED***
-			d.d.errorf("Invalid d.vs decoding float where d.vd=bincVdSpecial: %v", d.vs)
+			d.d.errorf("float - invalid special value from descriptor %x-%x/%s",
+				d.vd, d.vs, bincdesc(d.vd, d.vs))
 			return
 		***REMOVED***
 	***REMOVED*** else if vd == bincVdFloat ***REMOVED***
@@ -558,15 +631,15 @@ func (d *bincDecDriver) DecodeFloat64() (f float64) ***REMOVED***
 
 // bool can be decoded from bool only (single byte).
 func (d *bincDecDriver) DecodeBool() (b bool) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
+	if d.advanceNil() ***REMOVED***
+		return
 	***REMOVED***
-	if bd := d.bd; bd == (bincVdSpecial | bincSpFalse) ***REMOVED***
+	if d.bd == (bincVdSpecial | bincSpFalse) ***REMOVED***
 		// b = false
-	***REMOVED*** else if bd == (bincVdSpecial | bincSpTrue) ***REMOVED***
+	***REMOVED*** else if d.bd == (bincVdSpecial | bincSpTrue) ***REMOVED***
 		b = true
 	***REMOVED*** else ***REMOVED***
-		d.d.errorf("Invalid single-byte value for bool: %s: %x", msgBadDesc, d.bd)
+		d.d.errorf("bool - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	d.bdRead = false
@@ -574,11 +647,11 @@ func (d *bincDecDriver) DecodeBool() (b bool) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) ReadMapStart() (length int) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
+	if d.advanceNil() ***REMOVED***
+		return decContainerLenNil
 	***REMOVED***
 	if d.vd != bincVdMap ***REMOVED***
-		d.d.errorf("Invalid d.vd for map. Expecting 0x%x. Got: 0x%x", bincVdMap, d.vd)
+		d.d.errorf("map - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	length = d.decLen()
@@ -587,11 +660,11 @@ func (d *bincDecDriver) ReadMapStart() (length int) ***REMOVED***
 ***REMOVED***
 
 func (d *bincDecDriver) ReadArrayStart() (length int) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
+	if d.advanceNil() ***REMOVED***
+		return decContainerLenNil
 	***REMOVED***
 	if d.vd != bincVdArray ***REMOVED***
-		d.d.errorf("Invalid d.vd for array. Expecting 0x%x. Got: 0x%x", bincVdArray, d.vd)
+		d.d.errorf("array - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	length = d.decLen()
@@ -608,27 +681,22 @@ func (d *bincDecDriver) decLen() int ***REMOVED***
 
 func (d *bincDecDriver) decLenNumber() (v uint64) ***REMOVED***
 	if x := d.vs; x == 0 ***REMOVED***
-		v = uint64(d.r.readn1())
+		v = uint64(d.d.decRd.readn1())
 	***REMOVED*** else if x == 1 ***REMOVED***
-		d.r.readb(d.b[6:8])
+		d.d.decRd.readb(d.b[6:8])
 		v = uint64(bigen.Uint16(d.b[6:8]))
 	***REMOVED*** else if x == 2 ***REMOVED***
-		d.r.readb(d.b[4:8])
+		d.d.decRd.readb(d.b[4:8])
 		v = uint64(bigen.Uint32(d.b[4:8]))
 	***REMOVED*** else ***REMOVED***
-		d.r.readb(d.b[:8])
+		d.d.decRd.readb(d.b[:8])
 		v = bigen.Uint64(d.b[:8])
 	***REMOVED***
 	return
 ***REMOVED***
 
-func (d *bincDecDriver) decStringAndBytes(bs []byte, withString, zerocopy bool) (
-	bs2 []byte, s string) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
-	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
-		d.bdRead = false
+func (d *bincDecDriver) decStringBytes(bs []byte, zerocopy bool) (bs2 []byte) ***REMOVED***
+	if d.advanceNil() ***REMOVED***
 		return
 	***REMOVED***
 	var slen = -1
@@ -637,18 +705,15 @@ func (d *bincDecDriver) decStringAndBytes(bs []byte, withString, zerocopy bool) 
 	case bincVdString, bincVdByteArray:
 		slen = d.decLen()
 		if zerocopy ***REMOVED***
-			if d.br ***REMOVED***
-				bs2 = d.r.readx(slen)
+			if d.d.bytes ***REMOVED***
+				bs2 = d.d.decRd.readx(uint(slen))
 			***REMOVED*** else if len(bs) == 0 ***REMOVED***
-				bs2 = decByteSlice(d.r, slen, d.d.h.MaxInitLen, d.b[:])
+				bs2 = decByteSlice(d.d.r(), slen, d.d.h.MaxInitLen, d.d.b[:])
 			***REMOVED*** else ***REMOVED***
-				bs2 = decByteSlice(d.r, slen, d.d.h.MaxInitLen, bs)
+				bs2 = decByteSlice(d.d.r(), slen, d.d.h.MaxInitLen, bs)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			bs2 = decByteSlice(d.r, slen, d.d.h.MaxInitLen, bs)
-		***REMOVED***
-		if withString ***REMOVED***
-			s = string(bs2)
+			bs2 = decByteSlice(d.d.r(), slen, d.d.h.MaxInitLen, bs)
 		***REMOVED***
 	case bincVdSymbol:
 		// zerocopy doesn't apply for symbols,
@@ -661,135 +726,121 @@ func (d *bincDecDriver) decStringAndBytes(bs []byte, withString, zerocopy bool) 
 		var symbol uint16
 		vs := d.vs
 		if vs&0x8 == 0 ***REMOVED***
-			symbol = uint16(d.r.readn1())
+			symbol = uint16(d.d.decRd.readn1())
 		***REMOVED*** else ***REMOVED***
-			symbol = uint16(bigen.Uint16(d.r.readx(2)))
+			symbol = uint16(bigen.Uint16(d.d.decRd.readx(2)))
 		***REMOVED***
 		if d.s == nil ***REMOVED***
-			d.s = make([]bincDecSymbol, 0, 16)
+			// d.s = pool4mapU16Bytes.Get().(map[uint16][]byte) // make([]bincDecSymbol, 0, 16)
+			d.s = make(map[uint16][]byte, 16)
 		***REMOVED***
 
 		if vs&0x4 == 0 ***REMOVED***
-			for i := range d.s ***REMOVED***
-				j := &d.s[i]
-				if j.i == symbol ***REMOVED***
-					bs2 = j.b
-					if withString ***REMOVED***
-						if j.s == "" && bs2 != nil ***REMOVED***
-							j.s = string(bs2)
-						***REMOVED***
-						s = j.s
-					***REMOVED***
-					break
-				***REMOVED***
-			***REMOVED***
+			bs2 = d.s[symbol]
 		***REMOVED*** else ***REMOVED***
 			switch vs & 0x3 ***REMOVED***
 			case 0:
-				slen = int(d.r.readn1())
+				slen = int(d.d.decRd.readn1())
 			case 1:
-				slen = int(bigen.Uint16(d.r.readx(2)))
+				slen = int(bigen.Uint16(d.d.decRd.readx(2)))
 			case 2:
-				slen = int(bigen.Uint32(d.r.readx(4)))
+				slen = int(bigen.Uint32(d.d.decRd.readx(4)))
 			case 3:
-				slen = int(bigen.Uint64(d.r.readx(8)))
+				slen = int(bigen.Uint64(d.d.decRd.readx(8)))
 			***REMOVED***
 			// since using symbols, do not store any part of
 			// the parameter bs in the map, as it might be a shared buffer.
-			// bs2 = decByteSlice(d.r, slen, bs)
-			bs2 = decByteSlice(d.r, slen, d.d.h.MaxInitLen, nil)
-			if withString ***REMOVED***
-				s = string(bs2)
-			***REMOVED***
-			d.s = append(d.s, bincDecSymbol***REMOVED***i: symbol, s: s, b: bs2***REMOVED***)
+			// bs2 = decByteSlice(d.d.r(), slen, bs)
+			bs2 = decByteSlice(d.d.r(), slen, d.d.h.MaxInitLen, nil)
+			d.s[symbol] = bs2
+			// d.s = append(d.s, bincDecSymbol***REMOVED***i: symbol, s: s, b: bs2***REMOVED***)
 		***REMOVED***
 	default:
-		d.d.errorf("Invalid d.vd. Expecting string:0x%x, bytearray:0x%x or symbol: 0x%x. Got: 0x%x",
-			bincVdString, bincVdByteArray, bincVdSymbol, d.vd)
+		d.d.errorf("string/bytes - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	d.bdRead = false
 	return
 ***REMOVED***
 
-func (d *bincDecDriver) DecodeString() (s string) ***REMOVED***
-	// DecodeBytes does not accommodate symbols, whose impl stores string version in map.
-	// Use decStringAndBytes directly.
-	// return string(d.DecodeBytes(d.b[:], true, true))
-	_, s = d.decStringAndBytes(d.b[:], true, true)
-	return
-***REMOVED***
-
 func (d *bincDecDriver) DecodeStringAsBytes() (s []byte) ***REMOVED***
-	s, _ = d.decStringAndBytes(d.b[:], false, true)
-	return
+	return d.decStringBytes(d.d.b[:], true)
 ***REMOVED***
 
 func (d *bincDecDriver) DecodeBytes(bs []byte, zerocopy bool) (bsOut []byte) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
-	if d.bd == bincVdSpecial<<4|bincSpNil ***REMOVED***
-		d.bdRead = false
-		return nil
+	if d.advanceNil() ***REMOVED***
+		return
 	***REMOVED***
 	// check if an "array" of uint8's (see ContainerType for how to infer if an array)
 	if d.vd == bincVdArray ***REMOVED***
-		bsOut, _ = fastpathTV.DecSliceUint8V(bs, true, d.d)
-		return
+		if zerocopy && len(bs) == 0 ***REMOVED***
+			bs = d.d.b[:]
+		***REMOVED***
+		// bsOut, _ = fastpathTV.DecSliceUint8V(bs, true, d.d)
+		slen := d.ReadArrayStart()
+		bs = usableByteSlice(bs, slen)
+		for i := 0; i < slen; i++ ***REMOVED***
+			bs[i] = uint8(chkOvf.UintV(d.DecodeUint64(), 8))
+		***REMOVED***
+		return bs
 	***REMOVED***
 	var clen int
 	if d.vd == bincVdString || d.vd == bincVdByteArray ***REMOVED***
 		clen = d.decLen()
 	***REMOVED*** else ***REMOVED***
-		d.d.errorf("Invalid d.vd for bytes. Expecting string:0x%x or bytearray:0x%x. Got: 0x%x",
-			bincVdString, bincVdByteArray, d.vd)
+		d.d.errorf("bytes - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	d.bdRead = false
 	if zerocopy ***REMOVED***
-		if d.br ***REMOVED***
-			return d.r.readx(clen)
+		if d.d.bytes ***REMOVED***
+			return d.d.decRd.readx(uint(clen))
 		***REMOVED*** else if len(bs) == 0 ***REMOVED***
-			bs = d.b[:]
+			bs = d.d.b[:]
 		***REMOVED***
 	***REMOVED***
-	return decByteSlice(d.r, clen, d.d.h.MaxInitLen, bs)
+	return decByteSlice(d.d.r(), clen, d.d.h.MaxInitLen, bs)
 ***REMOVED***
 
-func (d *bincDecDriver) DecodeExt(rv interface***REMOVED******REMOVED***, xtag uint64, ext Ext) (realxtag uint64) ***REMOVED***
+func (d *bincDecDriver) DecodeExt(rv interface***REMOVED******REMOVED***, xtag uint64, ext Ext) ***REMOVED***
 	if xtag > 0xff ***REMOVED***
-		d.d.errorf("decodeExt: tag must be <= 0xff; got: %v", xtag)
+		d.d.errorf("ext: tag must be <= 0xff; got: %v", xtag)
+		return
+	***REMOVED***
+	if d.advanceNil() ***REMOVED***
 		return
 	***REMOVED***
 	realxtag1, xbs := d.decodeExtV(ext != nil, uint8(xtag))
-	realxtag = uint64(realxtag1)
+	realxtag := uint64(realxtag1)
 	if ext == nil ***REMOVED***
 		re := rv.(*RawExt)
 		re.Tag = realxtag
-		re.Data = detachZeroCopyBytes(d.br, re.Data, xbs)
+		re.Data = detachZeroCopyBytes(d.d.bytes, re.Data, xbs)
+	***REMOVED*** else if ext == SelfExt ***REMOVED***
+		d.d.sideDecode(rv, xbs)
 	***REMOVED*** else ***REMOVED***
 		ext.ReadExt(rv, xbs)
 	***REMOVED***
-	return
 ***REMOVED***
 
 func (d *bincDecDriver) decodeExtV(verifyTag bool, tag byte) (xtag byte, xbs []byte) ***REMOVED***
-	if !d.bdRead ***REMOVED***
-		d.readNextBd()
-	***REMOVED***
 	if d.vd == bincVdCustomExt ***REMOVED***
 		l := d.decLen()
-		xtag = d.r.readn1()
+		xtag = d.d.decRd.readn1()
 		if verifyTag && xtag != tag ***REMOVED***
-			d.d.errorf("Wrong extension tag. Got %b. Expecting: %v", xtag, tag)
+			d.d.errorf("wrong extension tag - got %b, expecting: %v", xtag, tag)
 			return
 		***REMOVED***
-		xbs = d.r.readx(l)
+		if d.d.bytes ***REMOVED***
+			xbs = d.d.decRd.readx(uint(l))
+		***REMOVED*** else ***REMOVED***
+			xbs = decByteSlice(d.d.r(), l, d.d.h.MaxInitLen, d.d.b[:])
+		***REMOVED***
 	***REMOVED*** else if d.vd == bincVdByteArray ***REMOVED***
 		xbs = d.DecodeBytes(nil, true)
 	***REMOVED*** else ***REMOVED***
-		d.d.errorf("Invalid d.vd for extensions (Expecting extensions or byte array). Got: 0x%x", d.vd)
+		d.d.errorf("ext - expecting extensions or byte array - %s %x-%x/%s",
+			msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 		return
 	***REMOVED***
 	d.bdRead = false
@@ -801,7 +852,8 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 		d.readNextBd()
 	***REMOVED***
 
-	n := d.d.n
+	d.fnil = false
+	n := d.d.naked()
 	var decodeFurther bool
 
 	switch d.vd ***REMOVED***
@@ -809,6 +861,7 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 		switch d.vs ***REMOVED***
 		case bincSpNil:
 			n.v = valueTypeNil
+			d.fnil = true
 		case bincSpFalse:
 			n.v = valueTypeBool
 			n.b = false
@@ -834,7 +887,8 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 			n.v = valueTypeInt
 			n.i = int64(-1) // int8(-1)
 		default:
-			d.d.errorf("decodeNaked: Unrecognized special value 0x%x", d.vs)
+			d.d.errorf("cannot infer value - unrecognized special value from descriptor %x-%x/%s",
+				d.vd, d.vs, bincdesc(d.vd, d.vs))
 		***REMOVED***
 	case bincVdSmallInt:
 		n.v = valueTypeUint
@@ -850,16 +904,15 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 		n.f = d.decFloat()
 	case bincVdSymbol:
 		n.v = valueTypeSymbol
-		n.s = d.DecodeString()
+		n.s = string(d.DecodeStringAsBytes())
 	case bincVdString:
 		n.v = valueTypeString
-		n.s = d.DecodeString()
+		n.s = string(d.DecodeStringAsBytes())
 	case bincVdByteArray:
-		n.v = valueTypeBytes
-		n.l = d.DecodeBytes(nil, false)
+		decNakedReadRawBytes(d, &d.d, n, d.h.RawToString)
 	case bincVdTimestamp:
 		n.v = valueTypeTime
-		tt, err := bincDecodeTime(d.r.readx(int(d.vs)))
+		tt, err := bincDecodeTime(d.d.decRd.readx(uint(d.vs)))
 		if err != nil ***REMOVED***
 			panic(err)
 		***REMOVED***
@@ -867,8 +920,12 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 	case bincVdCustomExt:
 		n.v = valueTypeExt
 		l := d.decLen()
-		n.u = uint64(d.r.readn1())
-		n.l = d.r.readx(l)
+		n.u = uint64(d.d.decRd.readn1())
+		if d.d.bytes ***REMOVED***
+			n.l = d.d.decRd.readx(uint(l))
+		***REMOVED*** else ***REMOVED***
+			n.l = decByteSlice(d.d.r(), l, d.d.h.MaxInitLen, d.d.b[:])
+		***REMOVED***
 	case bincVdArray:
 		n.v = valueTypeArray
 		decodeFurther = true
@@ -876,7 +933,7 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 		n.v = valueTypeMap
 		decodeFurther = true
 	default:
-		d.d.errorf("decodeNaked: Unrecognized d.vd: 0x%x", d.vd)
+		d.d.errorf("cannot infer value - %s %x-%x/%s", msgBadDesc, d.vd, d.vs, bincdesc(d.vd, d.vs))
 	***REMOVED***
 
 	if !decodeFurther ***REMOVED***
@@ -886,7 +943,6 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 		n.v = valueTypeInt
 		n.i = int64(n.u)
 	***REMOVED***
-	return
 ***REMOVED***
 
 //------------------------------------
@@ -906,7 +962,7 @@ func (d *bincDecDriver) DecodeNaked() ***REMOVED***
 type BincHandle struct ***REMOVED***
 	BasicHandle
 	binaryEncodingType
-	noElemSeparators
+	// noElemSeparators
 
 	// AsSymbols defines what should be encoded as symbols.
 	//
@@ -928,36 +984,53 @@ type BincHandle struct ***REMOVED***
 	// - n: none
 	// - a: all: same as m, s, ...
 
-	_ [1]uint64 // padding
+	_ [7]uint64 // padding (cache-aligned)
 ***REMOVED***
 
 // Name returns the name of the handle: binc
 func (h *BincHandle) Name() string ***REMOVED*** return "binc" ***REMOVED***
 
-// SetBytesExt sets an extension
-func (h *BincHandle) SetBytesExt(rt reflect.Type, tag uint64, ext BytesExt) (err error) ***REMOVED***
-	return h.SetExt(rt, tag, &extWrapper***REMOVED***ext, interfaceExtFailer***REMOVED******REMOVED******REMOVED***)
+func (h *BincHandle) newEncDriver() encDriver ***REMOVED***
+	var e = &bincEncDriver***REMOVED***h: h***REMOVED***
+	e.e.e = e
+	e.e.init(h)
+	e.reset()
+	return e
 ***REMOVED***
 
-func (h *BincHandle) newEncDriver(e *Encoder) encDriver ***REMOVED***
-	return &bincEncDriver***REMOVED***e: e, h: h, w: e.w***REMOVED***
-***REMOVED***
-
-func (h *BincHandle) newDecDriver(d *Decoder) decDriver ***REMOVED***
-	return &bincDecDriver***REMOVED***d: d, h: h, r: d.r, br: d.bytes***REMOVED***
+func (h *BincHandle) newDecDriver() decDriver ***REMOVED***
+	d := &bincDecDriver***REMOVED***h: h***REMOVED***
+	d.d.d = d
+	d.d.init(h)
+	d.reset()
+	return d
 ***REMOVED***
 
 func (e *bincEncDriver) reset() ***REMOVED***
-	e.w = e.e.w
 	e.s = 0
-	e.c = 0
 	e.m = nil
 ***REMOVED***
 
+func (e *bincEncDriver) atEndOfEncode() ***REMOVED***
+	if e.m != nil ***REMOVED***
+		for k := range e.m ***REMOVED***
+			delete(e.m, k)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func (d *bincDecDriver) reset() ***REMOVED***
-	d.r, d.br = d.d.r, d.d.bytes
 	d.s = nil
 	d.bd, d.bdRead, d.vd, d.vs = 0, false, 0, 0
+	d.fnil = false
+***REMOVED***
+
+func (d *bincDecDriver) atEndOfDecode() ***REMOVED***
+	if d.s != nil ***REMOVED***
+		for k := range d.s ***REMOVED***
+			delete(d.s, k)
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 // var timeDigits = [...]byte***REMOVED***'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'***REMOVED***
@@ -1012,7 +1085,7 @@ func (d *bincDecDriver) reset() ***REMOVED***
 //       Bits 13..0 = timezone offset in minutes. It is a signed integer in Big Endian format.
 //
 func bincEncodeTime(t time.Time) []byte ***REMOVED***
-	//t := rv.Interface().(time.Time)
+	// t := rv2i(rv).(time.Time)
 	tsecs, tnsecs := t.Unix(), t.Nanosecond()
 	var (
 		bd   byte
@@ -1044,7 +1117,7 @@ func bincEncodeTime(t time.Time) []byte ***REMOVED***
 		bd = bd | 0x20
 		// Note that Go Libs do not give access to dst flag.
 		_, zoneOffset := t.Zone()
-		//zoneName, zoneOffset := t.Zone()
+		// zoneName, zoneOffset := t.Zone()
 		zoneOffset /= 60
 		z := uint16(zoneOffset)
 		bigen.PutUint16(btmp[:2], z)
@@ -1073,10 +1146,10 @@ func bincDecodeTime(bs []byte) (tt time.Time, err error) ***REMOVED***
 		n = ((bd >> 2) & 0x7) + 1
 		i2 = i + n
 		copy(btmp[8-n:], bs[i:i2])
-		//if first bit of bs[i] is set, then fill btmp[0..8-n] with 0xff (ie sign extend it)
+		// if first bit of bs[i] is set, then fill btmp[0..8-n] with 0xff (ie sign extend it)
 		if bs[i]&(1<<7) != 0 ***REMOVED***
 			copy(btmp[0:8-n], bsAll0xff)
-			//for j,k := byte(0), 8-n; j < k; j++ ***REMOVED***	btmp[j] = 0xff ***REMOVED***
+			// for j,k := byte(0), 8-n; j < k; j++ ***REMOVED***	btmp[j] = 0xff ***REMOVED***
 		***REMOVED***
 		i = i2
 		tsec = int64(bigen.Uint64(btmp[:]))
@@ -1094,7 +1167,7 @@ func bincDecodeTime(bs []byte) (tt time.Time, err error) ***REMOVED***
 		return
 	***REMOVED***
 	// In stdlib time.Parse, when a date is parsed without a zone name, it uses "" as zone name.
-	// However, we need name here, so it can be shown when time is printed.
+	// However, we need name here, so it can be shown when time is printf.d.
 	// Zone name is in form: UTC-08:00.
 	// Note that Go Libs do not give access to dst flag, so we ignore dst bits
 
@@ -1119,6 +1192,28 @@ func bincDecodeTime(bs []byte) (tt time.Time, err error) ***REMOVED***
 	***REMOVED***
 	return
 ***REMOVED***
+
+// func timeLocUTCName(tzint int16) string ***REMOVED***
+// 	if tzint == 0 ***REMOVED***
+// 		return "UTC"
+// 	***REMOVED***
+// 	var tzname = []byte("UTC+00:00")
+// 	//tzname := fmt.Sprintf("UTC%s%02d:%02d", tzsign, tz/60, tz%60) //perf issue using Sprintf.. inline below.
+// 	//tzhr, tzmin := tz/60, tz%60 //faster if u convert to int first
+// 	var tzhr, tzmin int16
+// 	if tzint < 0 ***REMOVED***
+// 		tzname[3] = '-'
+// 		tzhr, tzmin = -tzint/60, (-tzint)%60
+// 	***REMOVED*** else ***REMOVED***
+// 		tzhr, tzmin = tzint/60, tzint%60
+// 	***REMOVED***
+// 	tzname[4] = timeDigits[tzhr/10]
+// 	tzname[5] = timeDigits[tzhr%10]
+// 	tzname[7] = timeDigits[tzmin/10]
+// 	tzname[8] = timeDigits[tzmin%10]
+// 	return string(tzname)
+// 	//return time.FixedZone(string(tzname), int(tzint)*60)
+// ***REMOVED***
 
 var _ decDriver = (*bincDecDriver)(nil)
 var _ encDriver = (*bincEncDriver)(nil)

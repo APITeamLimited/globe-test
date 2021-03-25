@@ -7,7 +7,7 @@ package bidi
 import "log"
 
 // This implementation is a port based on the reference implementation found at:
-// http://www.unicode.org/Public/PROGRAMS/BidiReferenceJava/
+// https://www.unicode.org/Public/PROGRAMS/BidiReferenceJava/
 //
 // described in Unicode Bidirectional Algorithm (UAX #9).
 //
@@ -480,15 +480,15 @@ func (s *isolatingRunSequence) resolveWeakTypes() ***REMOVED***
 
 	// Rule W1.
 	// Changes all NSMs.
-	preceedingCharacterType := s.sos
+	precedingCharacterType := s.sos
 	for i, t := range s.types ***REMOVED***
 		if t == NSM ***REMOVED***
-			s.types[i] = preceedingCharacterType
+			s.types[i] = precedingCharacterType
 		***REMOVED*** else ***REMOVED***
 			if t.in(LRI, RLI, FSI, PDI) ***REMOVED***
-				preceedingCharacterType = ON
+				precedingCharacterType = ON
 			***REMOVED***
-			preceedingCharacterType = t
+			precedingCharacterType = t
 		***REMOVED***
 	***REMOVED***
 

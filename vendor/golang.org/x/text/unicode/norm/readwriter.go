@@ -60,8 +60,8 @@ func (w *normWriter) Close() error ***REMOVED***
 ***REMOVED***
 
 // Writer returns a new writer that implements Write(b)
-// by writing f(b) to w.  The returned writer may use an
-// an internal buffer to maintain state across Write calls.
+// by writing f(b) to w. The returned writer may use an
+// internal buffer to maintain state across Write calls.
 // Calling its Close method writes any buffered data to w.
 func (f Form) Writer(w io.Writer) io.WriteCloser ***REMOVED***
 	wr := &normWriter***REMOVED***rb: reorderBuffer***REMOVED******REMOVED***, w: w***REMOVED***

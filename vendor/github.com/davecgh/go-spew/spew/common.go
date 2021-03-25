@@ -180,7 +180,7 @@ func printComplex(w io.Writer, c complex128, floatPrecision int) ***REMOVED***
 	w.Write(closeParenBytes)
 ***REMOVED***
 
-// printHexPtr outputs a uintptr formatted as hexidecimal with a leading '0x'
+// printHexPtr outputs a uintptr formatted as hexadecimal with a leading '0x'
 // prefix to Writer w.
 func printHexPtr(w io.Writer, p uintptr) ***REMOVED***
 	// Null pointer.

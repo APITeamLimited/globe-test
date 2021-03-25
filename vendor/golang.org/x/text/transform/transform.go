@@ -78,8 +78,8 @@ type SpanningTransformer interface ***REMOVED***
 	// considering the error err.
 	//
 	// A nil error means that all input bytes are known to be identical to the
-	// output produced by the Transformer. A nil error can be be returned
-	// regardless of whether atEOF is true. If err is nil, then then n must
+	// output produced by the Transformer. A nil error can be returned
+	// regardless of whether atEOF is true. If err is nil, then n must
 	// equal len(src); the converse is not necessarily true.
 	//
 	// ErrEndOfSpan means that the Transformer output may differ from the
@@ -493,7 +493,7 @@ func (c *chain) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err erro
 	return dstL.n, srcL.p, err
 ***REMOVED***
 
-// Deprecated: use runes.Remove instead.
+// Deprecated: Use runes.Remove instead.
 func RemoveFunc(f func(r rune) bool) Transformer ***REMOVED***
 	return removeF(f)
 ***REMOVED***
@@ -648,7 +648,8 @@ func String(t Transformer, s string) (result string, n int, err error) ***REMOVE
 	// Transform the remaining input, growing dst and src buffers as necessary.
 	for ***REMOVED***
 		n := copy(src, s[pSrc:])
-		nDst, nSrc, err := t.Transform(dst[pDst:], src[:n], pSrc+n == len(s))
+		atEOF := pSrc+n == len(s)
+		nDst, nSrc, err := t.Transform(dst[pDst:], src[:n], atEOF)
 		pDst += nDst
 		pSrc += nSrc
 
@@ -659,6 +660,9 @@ func String(t Transformer, s string) (result string, n int, err error) ***REMOVE
 				dst = grow(dst, pDst)
 			***REMOVED***
 		***REMOVED*** else if err == ErrShortSrc ***REMOVED***
+			if atEOF ***REMOVED***
+				return string(dst[:pDst]), pSrc, err
+			***REMOVED***
 			if nSrc == 0 ***REMOVED***
 				src = grow(src, 0)
 			***REMOVED***
