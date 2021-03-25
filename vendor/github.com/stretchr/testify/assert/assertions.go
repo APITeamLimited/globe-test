@@ -27,6 +27,22 @@ type TestingT interface ***REMOVED***
 	Errorf(format string, args ...interface***REMOVED******REMOVED***)
 ***REMOVED***
 
+// ComparisonAssertionFunc is a common function prototype when comparing two values.  Can be useful
+// for table driven tests.
+type ComparisonAssertionFunc func(TestingT, interface***REMOVED******REMOVED***, interface***REMOVED******REMOVED***, ...interface***REMOVED******REMOVED***) bool
+
+// ValueAssertionFunc is a common function prototype when validating a single value.  Can be useful
+// for table driven tests.
+type ValueAssertionFunc func(TestingT, interface***REMOVED******REMOVED***, ...interface***REMOVED******REMOVED***) bool
+
+// BoolAssertionFunc is a common function prototype when validating a bool value.  Can be useful
+// for table driven tests.
+type BoolAssertionFunc func(TestingT, bool, ...interface***REMOVED******REMOVED***) bool
+
+// ValuesAssertionFunc is a common function prototype when validating an error value.  Can be useful
+// for table driven tests.
+type ErrorAssertionFunc func(TestingT, error, ...interface***REMOVED******REMOVED***) bool
+
 // Comparison a custom function that returns true on success and false on failure
 type Comparison func() (success bool)
 
@@ -38,21 +54,23 @@ type Comparison func() (success bool)
 //
 // This function does no assertion of any kind.
 func ObjectsAreEqual(expected, actual interface***REMOVED******REMOVED***) bool ***REMOVED***
-
 	if expected == nil || actual == nil ***REMOVED***
 		return expected == actual
 	***REMOVED***
-	if exp, ok := expected.([]byte); ok ***REMOVED***
-		act, ok := actual.([]byte)
-		if !ok ***REMOVED***
-			return false
-		***REMOVED*** else if exp == nil || act == nil ***REMOVED***
-			return exp == nil && act == nil
-		***REMOVED***
-		return bytes.Equal(exp, act)
-	***REMOVED***
-	return reflect.DeepEqual(expected, actual)
 
+	exp, ok := expected.([]byte)
+	if !ok ***REMOVED***
+		return reflect.DeepEqual(expected, actual)
+	***REMOVED***
+
+	act, ok := actual.([]byte)
+	if !ok ***REMOVED***
+		return false
+	***REMOVED***
+	if exp == nil || act == nil ***REMOVED***
+		return exp == nil && act == nil
+	***REMOVED***
+	return bytes.Equal(exp, act)
 ***REMOVED***
 
 // ObjectsAreEqualValues gets whether two objects are equal, or if their
@@ -156,21 +174,6 @@ func isTest(name, prefix string) bool ***REMOVED***
 	return !unicode.IsLower(rune)
 ***REMOVED***
 
-// getWhitespaceString returns a string that is long enough to overwrite the default
-// output from the go testing framework.
-func getWhitespaceString() string ***REMOVED***
-
-	_, file, line, ok := runtime.Caller(1)
-	if !ok ***REMOVED***
-		return ""
-	***REMOVED***
-	parts := strings.Split(file, "/")
-	file = parts[len(parts)-1]
-
-	return strings.Repeat(" ", len(fmt.Sprintf("%s:%d:        ", file, line)))
-
-***REMOVED***
-
 func messageFromMsgAndArgs(msgAndArgs ...interface***REMOVED******REMOVED***) string ***REMOVED***
 	if len(msgAndArgs) == 0 || msgAndArgs == nil ***REMOVED***
 		return ""
@@ -195,7 +198,7 @@ func indentMessageLines(message string, longestLabelLen int) string ***REMOVED**
 		// no need to align first line because it starts at the correct location (after the label)
 		if i != 0 ***REMOVED***
 			// append alignLen+1 spaces to align with "***REMOVED******REMOVED***longestLabel***REMOVED******REMOVED***:" before adding tab
-			outBuf.WriteString("\n\r\t" + strings.Repeat(" ", longestLabelLen+1) + "\t")
+			outBuf.WriteString("\n\t" + strings.Repeat(" ", longestLabelLen+1) + "\t")
 		***REMOVED***
 		outBuf.WriteString(scanner.Text())
 	***REMOVED***
@@ -209,6 +212,9 @@ type failNower interface ***REMOVED***
 
 // FailNow fails test
 func FailNow(t TestingT, failureMessage string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	Fail(t, failureMessage, msgAndArgs...)
 
 	// We cannot extend TestingT with FailNow() and
@@ -227,8 +233,11 @@ func FailNow(t TestingT, failureMessage string, msgAndArgs ...interface***REMOVE
 
 // Fail reports a failure through
 func Fail(t TestingT, failureMessage string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	content := []labeledContent***REMOVED***
-		***REMOVED***"Error Trace", strings.Join(CallerInfo(), "\n\r\t\t\t")***REMOVED***,
+		***REMOVED***"Error Trace", strings.Join(CallerInfo(), "\n\t\t\t")***REMOVED***,
 		***REMOVED***"Error", failureMessage***REMOVED***,
 	***REMOVED***
 
@@ -244,7 +253,7 @@ func Fail(t TestingT, failureMessage string, msgAndArgs ...interface***REMOVED**
 		content = append(content, labeledContent***REMOVED***"Messages", message***REMOVED***)
 	***REMOVED***
 
-	t.Errorf("%s", "\r"+getWhitespaceString()+labeledOutput(content...))
+	t.Errorf("\n%s", ""+labeledOutput(content...))
 
 	return false
 ***REMOVED***
@@ -256,7 +265,7 @@ type labeledContent struct ***REMOVED***
 
 // labeledOutput returns a string consisting of the provided labeledContent. Each labeled output is appended in the following manner:
 //
-//   \r\t***REMOVED******REMOVED***label***REMOVED******REMOVED***:***REMOVED******REMOVED***align_spaces***REMOVED******REMOVED***\t***REMOVED******REMOVED***content***REMOVED******REMOVED***\n
+//   \t***REMOVED******REMOVED***label***REMOVED******REMOVED***:***REMOVED******REMOVED***align_spaces***REMOVED******REMOVED***\t***REMOVED******REMOVED***content***REMOVED******REMOVED***\n
 //
 // The initial carriage return is required to undo/erase any padding added by testing.T.Errorf. The "\t***REMOVED******REMOVED***label***REMOVED******REMOVED***:" is for the label.
 // If a label is shorter than the longest label provided, padding spaces are added to make all the labels match in length. Once this
@@ -272,7 +281,7 @@ func labeledOutput(content ...labeledContent) string ***REMOVED***
 	***REMOVED***
 	var output string
 	for _, v := range content ***REMOVED***
-		output += "\r\t" + v.label + ":" + strings.Repeat(" ", longestLabel-len(v.label)) + "\t" + indentMessageLines(v.content, longestLabel) + "\n"
+		output += "\t" + v.label + ":" + strings.Repeat(" ", longestLabel-len(v.label)) + "\t" + indentMessageLines(v.content, longestLabel) + "\n"
 	***REMOVED***
 	return output
 ***REMOVED***
@@ -281,6 +290,9 @@ func labeledOutput(content ...labeledContent) string ***REMOVED***
 //
 //    assert.Implements(t, (*MyInterface)(nil), new(MyObject))
 func Implements(t TestingT, interfaceObject interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	interfaceType := reflect.TypeOf(interfaceObject).Elem()
 
 	if object == nil ***REMOVED***
@@ -295,6 +307,9 @@ func Implements(t TestingT, interfaceObject interface***REMOVED******REMOVED***,
 
 // IsType asserts that the specified objects are of the same type.
 func IsType(t TestingT, expectedType interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if !ObjectsAreEqual(reflect.TypeOf(object), reflect.TypeOf(expectedType)) ***REMOVED***
 		return Fail(t, fmt.Sprintf("Object expected to be of type %v, but was %v", reflect.TypeOf(expectedType), reflect.TypeOf(object)), msgAndArgs...)
@@ -311,6 +326,9 @@ func IsType(t TestingT, expectedType interface***REMOVED******REMOVED***, object
 // referenced values (as opposed to the memory addresses). Function equality
 // cannot be determined and will always fail.
 func Equal(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if err := validateEqualArgs(expected, actual); err != nil ***REMOVED***
 		return Fail(t, fmt.Sprintf("Invalid operation: %#v == %#v (%s)",
 			expected, actual, err), msgAndArgs...)
@@ -349,6 +367,9 @@ func formatUnequalValues(expected, actual interface***REMOVED******REMOVED***) (
 //
 //    assert.EqualValues(t, uint32(123), int32(123))
 func EqualValues(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if !ObjectsAreEqualValues(expected, actual) ***REMOVED***
 		diff := diff(expected, actual)
@@ -366,12 +387,15 @@ func EqualValues(t TestingT, expected, actual interface***REMOVED******REMOVED**
 //
 //    assert.Exactly(t, int32(123), int64(123))
 func Exactly(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	aType := reflect.TypeOf(expected)
 	bType := reflect.TypeOf(actual)
 
 	if aType != bType ***REMOVED***
-		return Fail(t, fmt.Sprintf("Types expected to match exactly\n\r\t%v != %v", aType, bType), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Types expected to match exactly\n\t%v != %v", aType, bType), msgAndArgs...)
 	***REMOVED***
 
 	return Equal(t, expected, actual, msgAndArgs...)
@@ -382,6 +406,9 @@ func Exactly(t TestingT, expected, actual interface***REMOVED******REMOVED***, m
 //
 //    assert.NotNil(t, err)
 func NotNil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if !isNil(object) ***REMOVED***
 		return true
 	***REMOVED***
@@ -407,6 +434,9 @@ func isNil(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 //
 //    assert.Nil(t, err)
 func Nil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if isNil(object) ***REMOVED***
 		return true
 	***REMOVED***
@@ -446,6 +476,9 @@ func isEmpty(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 //
 //  assert.Empty(t, obj)
 func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	pass := isEmpty(object)
 	if !pass ***REMOVED***
@@ -463,6 +496,9 @@ func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ..
 //    assert.Equal(t, "two", obj[1])
 //  ***REMOVED***
 func NotEmpty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	pass := !isEmpty(object)
 	if !pass ***REMOVED***
@@ -490,6 +526,9 @@ func getLen(x interface***REMOVED******REMOVED***) (ok bool, length int) ***REMO
 //
 //    assert.Len(t, mySlice, 3)
 func Len(t TestingT, object interface***REMOVED******REMOVED***, length int, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	ok, l := getLen(object)
 	if !ok ***REMOVED***
 		return Fail(t, fmt.Sprintf("\"%s\" could not be applied builtin len()", object), msgAndArgs...)
@@ -505,6 +544,14 @@ func Len(t TestingT, object interface***REMOVED******REMOVED***, length int, msg
 //
 //    assert.True(t, myBool)
 func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if h, ok := t.(interface ***REMOVED***
+		Helper()
+	***REMOVED***); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if value != true ***REMOVED***
 		return Fail(t, "Should be true", msgAndArgs...)
@@ -518,6 +565,9 @@ func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED
 //
 //    assert.False(t, myBool)
 func False(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if value != false ***REMOVED***
 		return Fail(t, "Should be false", msgAndArgs...)
@@ -534,6 +584,9 @@ func False(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVE
 // Pointer variable equality is determined based on the equality of the
 // referenced values (as opposed to the memory addresses).
 func NotEqual(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if err := validateEqualArgs(expected, actual); err != nil ***REMOVED***
 		return Fail(t, fmt.Sprintf("Invalid operation: %#v != %#v (%s)",
 			expected, actual, err), msgAndArgs...)
@@ -592,6 +645,9 @@ func includeElement(list interface***REMOVED******REMOVED***, element interface*
 //    assert.Contains(t, ["Hello", "World"], "World")
 //    assert.Contains(t, ***REMOVED***"Hello": "World"***REMOVED***, "Hello")
 func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	ok, found := includeElement(s, contains)
 	if !ok ***REMOVED***
@@ -612,6 +668,9 @@ func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAn
 //    assert.NotContains(t, ["Hello", "World"], "Earth")
 //    assert.NotContains(t, ***REMOVED***"Hello": "World"***REMOVED***, "Earth")
 func NotContains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	ok, found := includeElement(s, contains)
 	if !ok ***REMOVED***
@@ -630,6 +689,9 @@ func NotContains(t TestingT, s, contains interface***REMOVED******REMOVED***, ms
 //
 //    assert.Subset(t, [1, 2, 3], [1, 2], "But [1, 2, 3] does contain [1, 2]")
 func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if subset == nil ***REMOVED***
 		return true // we consider nil to be equal to the nil set
 	***REMOVED***
@@ -671,6 +733,9 @@ func Subset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAnd
 //
 //    assert.NotSubset(t, [1, 3, 4], [1, 2], "But [1, 3, 4] does not contain [1, 2]")
 func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if subset == nil ***REMOVED***
 		return Fail(t, fmt.Sprintf("nil is the empty set which is a subset of every set"), msgAndArgs...)
 	***REMOVED***
@@ -713,6 +778,9 @@ func NotSubset(t TestingT, list, subset interface***REMOVED******REMOVED***, msg
 //
 // assert.ElementsMatch(t, [1, 3, 2, 3], [1, 3, 3, 2])
 func ElementsMatch(t TestingT, listA, listB interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if isEmpty(listA) && isEmpty(listB) ***REMOVED***
 		return true
 	***REMOVED***
@@ -763,6 +831,9 @@ func ElementsMatch(t TestingT, listA, listB interface***REMOVED******REMOVED***,
 
 // Condition uses a Comparison to assert a complex condition.
 func Condition(t TestingT, comp Comparison, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	result := comp()
 	if !result ***REMOVED***
 		Fail(t, "Condition failed!", msgAndArgs...)
@@ -800,9 +871,12 @@ func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***) ***RE
 //
 //   assert.Panics(t, func()***REMOVED*** GoCrazy() ***REMOVED***)
 func Panics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if funcDidPanic, panicValue := didPanic(f); !funcDidPanic ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should panic\n\r\tPanic value:\t%v", f, panicValue), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("func %#v should panic\n\tPanic value:\t%#v", f, panicValue), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -813,13 +887,16 @@ func Panics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******
 //
 //   assert.PanicsWithValue(t, "crazy error", func()***REMOVED*** GoCrazy() ***REMOVED***)
 func PanicsWithValue(t TestingT, expected interface***REMOVED******REMOVED***, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	funcDidPanic, panicValue := didPanic(f)
 	if !funcDidPanic ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should panic\n\r\tPanic value:\t%v", f, panicValue), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("func %#v should panic\n\tPanic value:\t%#v", f, panicValue), msgAndArgs...)
 	***REMOVED***
 	if panicValue != expected ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should panic with value:\t%v\n\r\tPanic value:\t%v", f, expected, panicValue), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("func %#v should panic with value:\t%#v\n\tPanic value:\t%#v", f, expected, panicValue), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -829,9 +906,12 @@ func PanicsWithValue(t TestingT, expected interface***REMOVED******REMOVED***, f
 //
 //   assert.NotPanics(t, func()***REMOVED*** RemainCalm() ***REMOVED***)
 func NotPanics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if funcDidPanic, panicValue := didPanic(f); funcDidPanic ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should not panic\n\r\tPanic value:\t%v", f, panicValue), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("func %#v should not panic\n\tPanic value:\t%v", f, panicValue), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -841,6 +921,9 @@ func NotPanics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED***
 //
 //   assert.WithinDuration(t, time.Now(), time.Now(), 10*time.Second)
 func WithinDuration(t TestingT, expected, actual time.Time, delta time.Duration, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	dt := expected.Sub(actual)
 	if dt < -delta || dt > delta ***REMOVED***
@@ -890,6 +973,9 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 //
 // 	 assert.InDelta(t, math.Pi, (22 / 7.0), 0.01)
 func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	af, aok := toFloat(expected)
 	bf, bok := toFloat(actual)
@@ -916,6 +1002,9 @@ func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, d
 
 // InDeltaSlice is the same as InDelta, except it compares two slices.
 func InDeltaSlice(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if expected == nil || actual == nil ||
 		reflect.TypeOf(actual).Kind() != reflect.Slice ||
 		reflect.TypeOf(expected).Kind() != reflect.Slice ***REMOVED***
@@ -937,6 +1026,9 @@ func InDeltaSlice(t TestingT, expected, actual interface***REMOVED******REMOVED*
 
 // InDeltaMapValues is the same as InDelta, but it compares all values between two maps. Both maps must have exactly the same keys.
 func InDeltaMapValues(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if expected == nil || actual == nil ||
 		reflect.TypeOf(actual).Kind() != reflect.Map ||
 		reflect.TypeOf(expected).Kind() != reflect.Map ***REMOVED***
@@ -994,6 +1086,9 @@ func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (fl
 
 // InEpsilon asserts that expected and actual have a relative error less than epsilon
 func InEpsilon(t TestingT, expected, actual interface***REMOVED******REMOVED***, epsilon float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	actualEpsilon, err := calcRelativeError(expected, actual)
 	if err != nil ***REMOVED***
 		return Fail(t, err.Error(), msgAndArgs...)
@@ -1008,6 +1103,9 @@ func InEpsilon(t TestingT, expected, actual interface***REMOVED******REMOVED***,
 
 // InEpsilonSlice is the same as InEpsilon, except it compares each value from two slices.
 func InEpsilonSlice(t TestingT, expected, actual interface***REMOVED******REMOVED***, epsilon float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if expected == nil || actual == nil ||
 		reflect.TypeOf(actual).Kind() != reflect.Slice ||
 		reflect.TypeOf(expected).Kind() != reflect.Slice ***REMOVED***
@@ -1038,6 +1136,9 @@ func InEpsilonSlice(t TestingT, expected, actual interface***REMOVED******REMOVE
 //	   assert.Equal(t, expectedObj, actualObj)
 //   ***REMOVED***
 func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if err != nil ***REMOVED***
 		return Fail(t, fmt.Sprintf("Received unexpected error:\n%+v", err), msgAndArgs...)
 	***REMOVED***
@@ -1052,6 +1153,9 @@ func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOV
 //	   assert.Equal(t, expectedError, err)
 //   ***REMOVED***
 func Error(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	if err == nil ***REMOVED***
 		return Fail(t, "An error is expected but got nil.", msgAndArgs...)
@@ -1066,6 +1170,9 @@ func Error(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED
 //   actualObj, err := SomeFunction()
 //   assert.EqualError(t, err,  expectedErrorString)
 func EqualError(t TestingT, theError error, errString string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if !Error(t, theError, msgAndArgs...) ***REMOVED***
 		return false
 	***REMOVED***
@@ -1099,6 +1206,9 @@ func matchRegexp(rx interface***REMOVED******REMOVED***, str interface***REMOVED
 //  assert.Regexp(t, regexp.MustCompile("start"), "it's starting")
 //  assert.Regexp(t, "start...$", "it's not starting")
 func Regexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 
 	match := matchRegexp(rx, str)
 
@@ -1114,6 +1224,9 @@ func Regexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***
 //  assert.NotRegexp(t, regexp.MustCompile("starts"), "it's starting")
 //  assert.NotRegexp(t, "^start", "it's not starting")
 func NotRegexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	match := matchRegexp(rx, str)
 
 	if match ***REMOVED***
@@ -1126,6 +1239,9 @@ func NotRegexp(t TestingT, rx interface***REMOVED******REMOVED***, str interface
 
 // Zero asserts that i is the zero value for its type.
 func Zero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if i != nil && !reflect.DeepEqual(i, reflect.Zero(reflect.TypeOf(i)).Interface()) ***REMOVED***
 		return Fail(t, fmt.Sprintf("Should be zero, but was %v", i), msgAndArgs...)
 	***REMOVED***
@@ -1134,6 +1250,9 @@ func Zero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...inter
 
 // NotZero asserts that i is not the zero value for its type.
 func NotZero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	if i == nil || reflect.DeepEqual(i, reflect.Zero(reflect.TypeOf(i)).Interface()) ***REMOVED***
 		return Fail(t, fmt.Sprintf("Should not be zero, but was %v", i), msgAndArgs...)
 	***REMOVED***
@@ -1142,6 +1261,9 @@ func NotZero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...in
 
 // FileExists checks whether a file exists in the given path. It also fails if the path points to a directory or there is an error when trying to check the file.
 func FileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	info, err := os.Lstat(path)
 	if err != nil ***REMOVED***
 		if os.IsNotExist(err) ***REMOVED***
@@ -1157,6 +1279,9 @@ func FileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******
 
 // DirExists checks whether a directory exists in the given path. It also fails if the path is a file rather a directory or there is an error checking whether it exists.
 func DirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	info, err := os.Lstat(path)
 	if err != nil ***REMOVED***
 		if os.IsNotExist(err) ***REMOVED***
@@ -1174,6 +1299,9 @@ func DirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******R
 //
 //  assert.JSONEq(t, `***REMOVED***"hello": "world", "foo": "bar"***REMOVED***`, `***REMOVED***"foo": "bar", "hello": "world"***REMOVED***`)
 func JSONEq(t TestingT, expected string, actual string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
 	var expectedJSONAsInterface, actualJSONAsInterface interface***REMOVED******REMOVED***
 
 	if err := json.Unmarshal([]byte(expected), &expectedJSONAsInterface); err != nil ***REMOVED***
@@ -1212,12 +1340,18 @@ func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOV
 		return ""
 	***REMOVED***
 
-	if ek != reflect.Struct && ek != reflect.Map && ek != reflect.Slice && ek != reflect.Array ***REMOVED***
+	if ek != reflect.Struct && ek != reflect.Map && ek != reflect.Slice && ek != reflect.Array && ek != reflect.String ***REMOVED***
 		return ""
 	***REMOVED***
 
-	e := spewConfig.Sdump(expected)
-	a := spewConfig.Sdump(actual)
+	var e, a string
+	if ek != reflect.String ***REMOVED***
+		e = spewConfig.Sdump(expected)
+		a = spewConfig.Sdump(actual)
+	***REMOVED*** else ***REMOVED***
+		e = expected.(string)
+		a = actual.(string)
+	***REMOVED***
 
 	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff***REMOVED***
 		A:        difflib.SplitLines(e),
@@ -1253,4 +1387,8 @@ var spewConfig = spew.ConfigState***REMOVED***
 	DisablePointerAddresses: true,
 	DisableCapacities:       true,
 	SortKeys:                true,
+***REMOVED***
+
+type tHelper interface ***REMOVED***
+	Helper()
 ***REMOVED***

@@ -130,7 +130,7 @@ type numberConverter struct ***REMOVED***
 // init completes initialization of a numberConverter and prepares it for adding
 // more digits. elems is assumed to have a digit starting at oldLen.
 func (nc *numberConverter) init(elems []Elem, oldLen int, isZero bool) ***REMOVED***
-	// Insert a marker indicating the start of a number and and a placeholder
+	// Insert a marker indicating the start of a number and a placeholder
 	// for the number of digits.
 	if isZero ***REMOVED***
 		elems = append(elems[:oldLen], nc.w.numberStart, 0)

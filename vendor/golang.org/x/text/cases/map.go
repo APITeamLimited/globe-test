@@ -808,7 +808,7 @@ func nlTitleSpan(c *context) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-// Not part of CLDR, but see http://unicode.org/cldr/trac/ticket/7078.
+// Not part of CLDR, but see https://unicode.org/cldr/trac/ticket/7078.
 func afnlRewrite(c *context) ***REMOVED***
 	if c.hasPrefix("'") || c.hasPrefix("’") ***REMOVED***
 		c.isMidWord = true

@@ -626,30 +626,17 @@ func trace(args ...interface***REMOVED******REMOVED***) func() ***REMOVED***
 func yaml_parser_fetch_more_tokens(parser *yaml_parser_t) bool ***REMOVED***
 	// While we need more tokens to fetch, do it.
 	for ***REMOVED***
-		// Check if we really need to fetch more tokens.
-		need_more_tokens := false
-
-		if parser.tokens_head == len(parser.tokens) ***REMOVED***
-			// Queue is empty.
-			need_more_tokens = true
-		***REMOVED*** else ***REMOVED***
-			// Check if any potential simple key may occupy the head position.
-			if !yaml_parser_stale_simple_keys(parser) ***REMOVED***
+		if parser.tokens_head != len(parser.tokens) ***REMOVED***
+			// If queue is non-empty, check if any potential simple key may
+			// occupy the head position.
+			head_tok_idx, ok := parser.simple_keys_by_tok[parser.tokens_parsed]
+			if !ok ***REMOVED***
+				break
+			***REMOVED*** else if valid, ok := yaml_simple_key_is_valid(parser, &parser.simple_keys[head_tok_idx]); !ok ***REMOVED***
 				return false
+			***REMOVED*** else if !valid ***REMOVED***
+				break
 			***REMOVED***
-
-			for i := range parser.simple_keys ***REMOVED***
-				simple_key := &parser.simple_keys[i]
-				if simple_key.possible && simple_key.token_number == parser.tokens_parsed ***REMOVED***
-					need_more_tokens = true
-					break
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-
-		// We are finished.
-		if !need_more_tokens ***REMOVED***
-			break
 		***REMOVED***
 		// Fetch the next token.
 		if !yaml_parser_fetch_next_token(parser) ***REMOVED***
@@ -675,11 +662,6 @@ func yaml_parser_fetch_next_token(parser *yaml_parser_t) bool ***REMOVED***
 
 	// Eat whitespaces and comments until we reach the next token.
 	if !yaml_parser_scan_to_next_token(parser) ***REMOVED***
-		return false
-	***REMOVED***
-
-	// Remove obsolete potential simple keys.
-	if !yaml_parser_stale_simple_keys(parser) ***REMOVED***
 		return false
 	***REMOVED***
 
@@ -837,29 +819,30 @@ func yaml_parser_fetch_next_token(parser *yaml_parser_t) bool ***REMOVED***
 		"found character that cannot start any token")
 ***REMOVED***
 
-// Check the list of potential simple keys and remove the positions that
-// cannot contain simple keys anymore.
-func yaml_parser_stale_simple_keys(parser *yaml_parser_t) bool ***REMOVED***
-	// Check for a potential simple key for each flow level.
-	for i := range parser.simple_keys ***REMOVED***
-		simple_key := &parser.simple_keys[i]
-
-		// The specification requires that a simple key
-		//
-		//  - is limited to a single line,
-		//  - is shorter than 1024 characters.
-		if simple_key.possible && (simple_key.mark.line < parser.mark.line || simple_key.mark.index+1024 < parser.mark.index) ***REMOVED***
-
-			// Check if the potential simple key to be removed is required.
-			if simple_key.required ***REMOVED***
-				return yaml_parser_set_scanner_error(parser,
-					"while scanning a simple key", simple_key.mark,
-					"could not find expected ':'")
-			***REMOVED***
-			simple_key.possible = false
-		***REMOVED***
+func yaml_simple_key_is_valid(parser *yaml_parser_t, simple_key *yaml_simple_key_t) (valid, ok bool) ***REMOVED***
+	if !simple_key.possible ***REMOVED***
+		return false, true
 	***REMOVED***
-	return true
+
+	// The 1.2 specification says:
+	//
+	//     "If the ? indicator is omitted, parsing needs to see past the
+	//     implicit key to recognize it as such. To limit the amount of
+	//     lookahead required, the “:” indicator must appear at most 1024
+	//     Unicode characters beyond the start of the key. In addition, the key
+	//     is restricted to a single line."
+	//
+	if simple_key.mark.line < parser.mark.line || simple_key.mark.index+1024 < parser.mark.index ***REMOVED***
+		// Check if the potential simple key to be removed is required.
+		if simple_key.required ***REMOVED***
+			return false, yaml_parser_set_scanner_error(parser,
+				"while scanning a simple key", simple_key.mark,
+				"could not find expected ':'")
+		***REMOVED***
+		simple_key.possible = false
+		return false, true
+	***REMOVED***
+	return true, true
 ***REMOVED***
 
 // Check if a simple key may start at the current position and add it if
@@ -871,12 +854,6 @@ func yaml_parser_save_simple_key(parser *yaml_parser_t) bool ***REMOVED***
 
 	required := parser.flow_level == 0 && parser.indent == parser.mark.column
 
-	// A simple key is required only when it is the first token in the current
-	// line.  Therefore it is always allowed.  But we add a check anyway.
-	if required && !parser.simple_key_allowed ***REMOVED***
-		panic("should not happen")
-	***REMOVED***
-
 	//
 	// If the current position may start a simple key, save it.
 	//
@@ -885,13 +862,14 @@ func yaml_parser_save_simple_key(parser *yaml_parser_t) bool ***REMOVED***
 			possible:     true,
 			required:     required,
 			token_number: parser.tokens_parsed + (len(parser.tokens) - parser.tokens_head),
+			mark:         parser.mark,
 		***REMOVED***
-		simple_key.mark = parser.mark
 
 		if !yaml_parser_remove_simple_key(parser) ***REMOVED***
 			return false
 		***REMOVED***
 		parser.simple_keys[len(parser.simple_keys)-1] = simple_key
+		parser.simple_keys_by_tok[simple_key.token_number] = len(parser.simple_keys) - 1
 	***REMOVED***
 	return true
 ***REMOVED***
@@ -906,19 +884,33 @@ func yaml_parser_remove_simple_key(parser *yaml_parser_t) bool ***REMOVED***
 				"while scanning a simple key", parser.simple_keys[i].mark,
 				"could not find expected ':'")
 		***REMOVED***
+		// Remove the key from the stack.
+		parser.simple_keys[i].possible = false
+		delete(parser.simple_keys_by_tok, parser.simple_keys[i].token_number)
 	***REMOVED***
-	// Remove the key from the stack.
-	parser.simple_keys[i].possible = false
 	return true
 ***REMOVED***
+
+// max_flow_level limits the flow_level
+const max_flow_level = 10000
 
 // Increase the flow level and resize the simple key list if needed.
 func yaml_parser_increase_flow_level(parser *yaml_parser_t) bool ***REMOVED***
 	// Reset the simple key on the next level.
-	parser.simple_keys = append(parser.simple_keys, yaml_simple_key_t***REMOVED******REMOVED***)
+	parser.simple_keys = append(parser.simple_keys, yaml_simple_key_t***REMOVED***
+		possible:     false,
+		required:     false,
+		token_number: parser.tokens_parsed + (len(parser.tokens) - parser.tokens_head),
+		mark:         parser.mark,
+	***REMOVED***)
 
 	// Increase the flow level.
 	parser.flow_level++
+	if parser.flow_level > max_flow_level ***REMOVED***
+		return yaml_parser_set_scanner_error(parser,
+			"while increasing flow level", parser.simple_keys[len(parser.simple_keys)-1].mark,
+			fmt.Sprintf("exceeded max depth of %d", max_flow_level))
+	***REMOVED***
 	return true
 ***REMOVED***
 
@@ -926,10 +918,15 @@ func yaml_parser_increase_flow_level(parser *yaml_parser_t) bool ***REMOVED***
 func yaml_parser_decrease_flow_level(parser *yaml_parser_t) bool ***REMOVED***
 	if parser.flow_level > 0 ***REMOVED***
 		parser.flow_level--
-		parser.simple_keys = parser.simple_keys[:len(parser.simple_keys)-1]
+		last := len(parser.simple_keys) - 1
+		delete(parser.simple_keys_by_tok, parser.simple_keys[last].token_number)
+		parser.simple_keys = parser.simple_keys[:last]
 	***REMOVED***
 	return true
 ***REMOVED***
+
+// max_indents limits the indents stack size
+const max_indents = 10000
 
 // Push the current indentation level to the stack and set the new level
 // the current column is greater than the indentation level.  In this case,
@@ -945,6 +942,11 @@ func yaml_parser_roll_indent(parser *yaml_parser_t, column, number int, typ yaml
 		// indentation level.
 		parser.indents = append(parser.indents, parser.indent)
 		parser.indent = column
+		if len(parser.indents) > max_indents ***REMOVED***
+			return yaml_parser_set_scanner_error(parser,
+				"while increasing indent level", parser.simple_keys[len(parser.simple_keys)-1].mark,
+				fmt.Sprintf("exceeded max depth of %d", max_indents))
+		***REMOVED***
 
 		// Create a token and insert it into the queue.
 		token := yaml_token_t***REMOVED***
@@ -994,6 +996,8 @@ func yaml_parser_fetch_stream_start(parser *yaml_parser_t) bool ***REMOVED***
 
 	// Initialize the simple key stack.
 	parser.simple_keys = append(parser.simple_keys, yaml_simple_key_t***REMOVED******REMOVED***)
+
+	parser.simple_keys_by_tok = make(map[int]int)
 
 	// A simple key is allowed at the beginning of the stream.
 	parser.simple_key_allowed = true
@@ -1276,7 +1280,11 @@ func yaml_parser_fetch_value(parser *yaml_parser_t) bool ***REMOVED***
 	simple_key := &parser.simple_keys[len(parser.simple_keys)-1]
 
 	// Have we found a simple key?
-	if simple_key.possible ***REMOVED***
+	if valid, ok := yaml_simple_key_is_valid(parser, simple_key); !ok ***REMOVED***
+		return false
+
+	***REMOVED*** else if valid ***REMOVED***
+
 		// Create the KEY token and insert it into the queue.
 		token := yaml_token_t***REMOVED***
 			typ:        yaml_KEY_TOKEN,
@@ -1294,6 +1302,7 @@ func yaml_parser_fetch_value(parser *yaml_parser_t) bool ***REMOVED***
 
 		// Remove the simple key.
 		simple_key.possible = false
+		delete(parser.simple_keys_by_tok, simple_key.token_number)
 
 		// A simple key cannot follow another simple key.
 		parser.simple_key_allowed = false
@@ -2475,6 +2484,10 @@ func yaml_parser_scan_flow_scalar(parser *yaml_parser_t, token *yaml_token_t, si
 			***REMOVED***
 		***REMOVED***
 
+		if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) ***REMOVED***
+			return false
+		***REMOVED***
+
 		// Check if we are at the end of the scalar.
 		if single ***REMOVED***
 			if parser.buffer[parser.buffer_pos] == '\'' ***REMOVED***
@@ -2487,10 +2500,6 @@ func yaml_parser_scan_flow_scalar(parser *yaml_parser_t, token *yaml_token_t, si
 		***REMOVED***
 
 		// Consume blank characters.
-		if parser.unread < 1 && !yaml_parser_update_buffer(parser, 1) ***REMOVED***
-			return false
-		***REMOVED***
-
 		for is_blank(parser.buffer, parser.buffer_pos) || is_break(parser.buffer, parser.buffer_pos) ***REMOVED***
 			if is_blank(parser.buffer, parser.buffer_pos) ***REMOVED***
 				// Consume a space or a tab character.
@@ -2647,10 +2656,10 @@ func yaml_parser_scan_plain_scalar(parser *yaml_parser_t, token *yaml_token_t) b
 		for is_blank(parser.buffer, parser.buffer_pos) || is_break(parser.buffer, parser.buffer_pos) ***REMOVED***
 			if is_blank(parser.buffer, parser.buffer_pos) ***REMOVED***
 
-				// Check for tab character that abuse indentation.
+				// Check for tab characters that abuse indentation.
 				if leading_blanks && parser.mark.column < indent && is_tab(parser.buffer, parser.buffer_pos) ***REMOVED***
 					yaml_parser_set_scanner_error(parser, "while scanning a plain scalar",
-						start_mark, "found a tab character that violate indentation")
+						start_mark, "found a tab character that violates indentation")
 					return false
 				***REMOVED***
 

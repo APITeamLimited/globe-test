@@ -193,7 +193,7 @@ func (c *Collator) compare() int ***REMOVED***
 // The returned slice will point to an allocation in Buffer and will remain
 // valid until the next call to buf.Reset().
 func (c *Collator) Key(buf *Buffer, str []byte) []byte ***REMOVED***
-	// See http://www.unicode.org/reports/tr10/#Main_Algorithm for more details.
+	// See https://www.unicode.org/reports/tr10/#Main_Algorithm for more details.
 	buf.init()
 	return c.key(buf, c.getColElems(str))
 ***REMOVED***
@@ -203,7 +203,7 @@ func (c *Collator) Key(buf *Buffer, str []byte) []byte ***REMOVED***
 // The returned slice will point to an allocation in Buffer and will retain
 // valid until the next call to buf.ResetKeys().
 func (c *Collator) KeyFromString(buf *Buffer, str string) []byte ***REMOVED***
-	// See http://www.unicode.org/reports/tr10/#Main_Algorithm for more details.
+	// See https://www.unicode.org/reports/tr10/#Main_Algorithm for more details.
 	buf.init()
 	return c.key(buf, c.getColElemsString(str))
 ***REMOVED***

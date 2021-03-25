@@ -81,7 +81,7 @@ func resolvableTag(tag string) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-var yamlStyleFloat = regexp.MustCompile(`^[-+]?[0-9]*\.?[0-9]+([eE][-+][0-9]+)?$`)
+var yamlStyleFloat = regexp.MustCompile(`^[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?$`)
 
 func resolve(tag string, in string) (rtag string, out interface***REMOVED******REMOVED***) ***REMOVED***
 	if !resolvableTag(tag) ***REMOVED***
@@ -92,6 +92,19 @@ func resolve(tag string, in string) (rtag string, out interface***REMOVED******R
 		switch tag ***REMOVED***
 		case "", rtag, yaml_STR_TAG, yaml_BINARY_TAG:
 			return
+		case yaml_FLOAT_TAG:
+			if rtag == yaml_INT_TAG ***REMOVED***
+				switch v := out.(type) ***REMOVED***
+				case int64:
+					rtag = yaml_FLOAT_TAG
+					out = float64(v)
+					return
+				case int:
+					rtag = yaml_FLOAT_TAG
+					out = float64(v)
+					return
+				***REMOVED***
+			***REMOVED***
 		***REMOVED***
 		failf("cannot decode %s `%s` as a %s", shortTag(rtag), in, shortTag(tag))
 	***REMOVED***()
@@ -167,12 +180,12 @@ func resolve(tag string, in string) (rtag string, out interface***REMOVED******R
 					return yaml_INT_TAG, uintv
 				***REMOVED***
 			***REMOVED*** else if strings.HasPrefix(plain, "-0b") ***REMOVED***
-				intv, err := strconv.ParseInt(plain[3:], 2, 64)
+				intv, err := strconv.ParseInt("-" + plain[3:], 2, 64)
 				if err == nil ***REMOVED***
-					if intv == int64(int(intv)) ***REMOVED***
-						return yaml_INT_TAG, -int(intv)
+					if true || intv == int64(int(intv)) ***REMOVED***
+						return yaml_INT_TAG, int(intv)
 					***REMOVED*** else ***REMOVED***
-						return yaml_INT_TAG, -intv
+						return yaml_INT_TAG, intv
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
@@ -211,10 +224,10 @@ func encodeBase64(s string) string ***REMOVED***
 // This is a subset of the formats allowed by the regular expression
 // defined at http://yaml.org/type/timestamp.html.
 var allowedTimestampFormats = []string***REMOVED***
-	"2006-1-2T15:4:5Z07:00",
-	"2006-1-2t15:4:5Z07:00", // RFC3339 with lower-case "t".
-	"2006-1-2 15:4:5",       // space separated with no time zone
-	"2006-1-2",              // date only
+	"2006-1-2T15:4:5.999999999Z07:00", // RCF3339Nano with short date fields.
+	"2006-1-2t15:4:5.999999999Z07:00", // RFC3339Nano with short date fields and lower-case "t".
+	"2006-1-2 15:4:5.999999999",       // space separated with no time zone
+	"2006-1-2",                        // date only
 	// Notable exception: time.Parse cannot handle: "2001-12-14 21:59:43.10 -5"
 	// from the set of examples.
 ***REMOVED***

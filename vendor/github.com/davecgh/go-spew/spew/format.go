@@ -182,10 +182,10 @@ func (f *formatState) formatPtr(v reflect.Value) ***REMOVED***
 
 	// Display dereferenced value.
 	switch ***REMOVED***
-	case nilFound == true:
+	case nilFound:
 		f.fs.Write(nilAngleBytes)
 
-	case cycleFound == true:
+	case cycleFound:
 		f.fs.Write(circularShortBytes)
 
 	default:

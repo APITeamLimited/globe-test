@@ -104,6 +104,9 @@ func growCap(oldCap, unit, num int) (newCap int) ***REMOVED***
 	if num > 0 ***REMOVED***
 		newCap += num
 	***REMOVED***
+	if newCap <= oldCap ***REMOVED***
+		newCap = oldCap + 1
+	***REMOVED***
 
 	// ensure newCap is a multiple of 64 (if it is > 64) or 16.
 	if newCap > 64 ***REMOVED***

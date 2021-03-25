@@ -7,6 +7,8 @@ package language
 import (
 	"fmt"
 	"sort"
+
+	"golang.org/x/text/internal/language"
 )
 
 // The Coverage interface is used to define the level of coverage of an
@@ -44,9 +46,9 @@ type allSubtags struct***REMOVED******REMOVED***
 // consecutive range, it simply returns a slice of numbers in increasing order.
 // The "undefined" region is not returned.
 func (s allSubtags) Regions() []Region ***REMOVED***
-	reg := make([]Region, numRegions)
+	reg := make([]Region, language.NumRegions)
 	for i := range reg ***REMOVED***
-		reg[i] = Region***REMOVED***regionID(i + 1)***REMOVED***
+		reg[i] = Region***REMOVED***language.Region(i + 1)***REMOVED***
 	***REMOVED***
 	return reg
 ***REMOVED***
@@ -55,9 +57,9 @@ func (s allSubtags) Regions() []Region ***REMOVED***
 // consecutive range, it simply returns a slice of numbers in increasing order.
 // The "undefined" script is not returned.
 func (s allSubtags) Scripts() []Script ***REMOVED***
-	scr := make([]Script, numScripts)
+	scr := make([]Script, language.NumScripts)
 	for i := range scr ***REMOVED***
-		scr[i] = Script***REMOVED***scriptID(i + 1)***REMOVED***
+		scr[i] = Script***REMOVED***language.Script(i + 1)***REMOVED***
 	***REMOVED***
 	return scr
 ***REMOVED***
@@ -65,22 +67,10 @@ func (s allSubtags) Scripts() []Script ***REMOVED***
 // BaseLanguages returns the list of all supported base languages. It generates
 // the list by traversing the internal structures.
 func (s allSubtags) BaseLanguages() []Base ***REMOVED***
-	base := make([]Base, 0, numLanguages)
-	for i := 0; i < langNoIndexOffset; i++ ***REMOVED***
-		// We included "und" already for the value 0.
-		if i != nonCanonicalUnd ***REMOVED***
-			base = append(base, Base***REMOVED***langID(i)***REMOVED***)
-		***REMOVED***
-	***REMOVED***
-	i := langNoIndexOffset
-	for _, v := range langNoIndex ***REMOVED***
-		for k := 0; k < 8; k++ ***REMOVED***
-			if v&1 == 1 ***REMOVED***
-				base = append(base, Base***REMOVED***langID(i)***REMOVED***)
-			***REMOVED***
-			v >>= 1
-			i++
-		***REMOVED***
+	bs := language.BaseLanguages()
+	base := make([]Base, len(bs))
+	for i, b := range bs ***REMOVED***
+		base[i] = Base***REMOVED***b***REMOVED***
 	***REMOVED***
 	return base
 ***REMOVED***
@@ -90,7 +80,7 @@ func (s allSubtags) Tags() []Tag ***REMOVED***
 	return nil
 ***REMOVED***
 
-// coverage is used used by NewCoverage which is used as a convenient way for
+// coverage is used by NewCoverage which is used as a convenient way for
 // creating Coverage implementations for partially defined data. Very often a
 // package will only need to define a subset of slices. coverage provides a
 // convenient way to do this. Moreover, packages using NewCoverage, instead of
@@ -134,7 +124,7 @@ func (s *coverage) BaseLanguages() []Base ***REMOVED***
 		***REMOVED***
 		a := make([]Base, len(tags))
 		for i, t := range tags ***REMOVED***
-			a[i] = Base***REMOVED***langID(t.lang)***REMOVED***
+			a[i] = Base***REMOVED***language.Language(t.lang())***REMOVED***
 		***REMOVED***
 		sort.Sort(bases(a))
 		k := 0

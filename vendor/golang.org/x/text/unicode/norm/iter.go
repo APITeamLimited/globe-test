@@ -128,8 +128,9 @@ func (i *Iter) Next() []byte ***REMOVED***
 func nextASCIIBytes(i *Iter) []byte ***REMOVED***
 	p := i.p + 1
 	if p >= i.rb.nsrc ***REMOVED***
+		p0 := i.p
 		i.setDone()
-		return i.rb.src.bytes[i.p:p]
+		return i.rb.src.bytes[p0:p]
 	***REMOVED***
 	if i.rb.src.bytes[p] < utf8.RuneSelf ***REMOVED***
 		p0 := i.p
