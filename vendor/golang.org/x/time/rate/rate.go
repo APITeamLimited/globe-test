@@ -6,6 +6,7 @@
 package rate
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
@@ -52,10 +53,9 @@ func Every(interval time.Duration) Limit ***REMOVED***
 //
 // The methods AllowN, ReserveN, and WaitN consume n tokens.
 type Limiter struct ***REMOVED***
-	limit Limit
-	burst int
-
 	mu     sync.Mutex
+	limit  Limit
+	burst  int
 	tokens float64
 	// last is the last time the limiter's tokens field was updated
 	last time.Time
@@ -75,6 +75,8 @@ func (lim *Limiter) Limit() Limit ***REMOVED***
 // Burst values allow more events to happen at once.
 // A zero Burst allows no events, unless limit == Inf.
 func (lim *Limiter) Burst() int ***REMOVED***
+	lim.mu.Lock()
+	defer lim.mu.Unlock()
 	return lim.burst
 ***REMOVED***
 
@@ -195,7 +197,7 @@ func (lim *Limiter) Reserve() *Reservation ***REMOVED***
 
 // ReserveN returns a Reservation that indicates how long the caller must wait before n events happen.
 // The Limiter takes this Reservation into account when allowing future events.
-// ReserveN returns false if n exceeds the Limiter's burst size.
+// The returned Reservation’s OK() method returns false if n exceeds the Limiter's burst size.
 // Usage example:
 //   r := lim.ReserveN(time.Now(), 1)
 //   if !r.OK() ***REMOVED***
@@ -212,19 +214,8 @@ func (lim *Limiter) ReserveN(now time.Time, n int) *Reservation ***REMOVED***
 	return &r
 ***REMOVED***
 
-// contextContext is a temporary(?) copy of the context.Context type
-// to support both Go 1.6 using golang.org/x/net/context and Go 1.7+
-// with the built-in context package. If people ever stop using Go 1.6
-// we can remove this.
-type contextContext interface ***REMOVED***
-	Deadline() (deadline time.Time, ok bool)
-	Done() <-chan struct***REMOVED******REMOVED***
-	Err() error
-	Value(key interface***REMOVED******REMOVED***) interface***REMOVED******REMOVED***
-***REMOVED***
-
 // Wait is shorthand for WaitN(ctx, 1).
-func (lim *Limiter) wait(ctx contextContext) (err error) ***REMOVED***
+func (lim *Limiter) Wait(ctx context.Context) (err error) ***REMOVED***
 	return lim.WaitN(ctx, 1)
 ***REMOVED***
 
@@ -232,9 +223,14 @@ func (lim *Limiter) wait(ctx contextContext) (err error) ***REMOVED***
 // It returns an error if n exceeds the Limiter's burst size, the Context is
 // canceled, or the expected wait time exceeds the Context's Deadline.
 // The burst limit is ignored if the rate limit is Inf.
-func (lim *Limiter) waitN(ctx contextContext, n int) (err error) ***REMOVED***
-	if n > lim.burst && lim.limit != Inf ***REMOVED***
-		return fmt.Errorf("rate: Wait(n=%d) exceeds limiter's burst %d", n, lim.burst)
+func (lim *Limiter) WaitN(ctx context.Context, n int) (err error) ***REMOVED***
+	lim.mu.Lock()
+	burst := lim.burst
+	limit := lim.limit
+	lim.mu.Unlock()
+
+	if n > burst && limit != Inf ***REMOVED***
+		return fmt.Errorf("rate: Wait(n=%d) exceeds limiter's burst %d", n, burst)
 	***REMOVED***
 	// Check if ctx is already cancelled
 	select ***REMOVED***
@@ -253,8 +249,12 @@ func (lim *Limiter) waitN(ctx contextContext, n int) (err error) ***REMOVED***
 	if !r.ok ***REMOVED***
 		return fmt.Errorf("rate: Wait(n=%d) would exceed context deadline", n)
 	***REMOVED***
-	// Wait
-	t := time.NewTimer(r.DelayFrom(now))
+	// Wait if necessary
+	delay := r.DelayFrom(now)
+	if delay == 0 ***REMOVED***
+		return nil
+	***REMOVED***
+	t := time.NewTimer(delay)
 	defer t.Stop()
 	select ***REMOVED***
 	case <-t.C:
@@ -285,6 +285,23 @@ func (lim *Limiter) SetLimitAt(now time.Time, newLimit Limit) ***REMOVED***
 	lim.last = now
 	lim.tokens = tokens
 	lim.limit = newLimit
+***REMOVED***
+
+// SetBurst is shorthand for SetBurstAt(time.Now(), newBurst).
+func (lim *Limiter) SetBurst(newBurst int) ***REMOVED***
+	lim.SetBurstAt(time.Now(), newBurst)
+***REMOVED***
+
+// SetBurstAt sets a new burst size for the limiter.
+func (lim *Limiter) SetBurstAt(now time.Time, newBurst int) ***REMOVED***
+	lim.mu.Lock()
+	defer lim.mu.Unlock()
+
+	now, _, tokens := lim.advance(now)
+
+	lim.last = now
+	lim.tokens = tokens
+	lim.burst = newBurst
 ***REMOVED***
 
 // reserveN is a helper method for AllowN, ReserveN, and WaitN.
@@ -343,6 +360,7 @@ func (lim *Limiter) reserveN(now time.Time, n int, maxFutureReserve time.Duratio
 
 // advance calculates and returns an updated state for lim resulting from the passage of time.
 // lim is not changed.
+// advance requires that lim.mu is held.
 func (lim *Limiter) advance(now time.Time) (newNow time.Time, newLast time.Time, newTokens float64) ***REMOVED***
 	last := lim.last
 	if now.Before(last) ***REMOVED***
@@ -376,5 +394,9 @@ func (limit Limit) durationFromTokens(tokens float64) time.Duration ***REMOVED**
 // tokensFromDuration is a unit conversion function from a time duration to the number of tokens
 // which could be accumulated during that duration at a rate of limit tokens per second.
 func (limit Limit) tokensFromDuration(d time.Duration) float64 ***REMOVED***
-	return d.Seconds() * float64(limit)
+	// Split the integer and fractional parts ourself to minimize rounding errors.
+	// See golang.org/issues/34861.
+	sec := float64(d/time.Second) * float64(limit)
+	nsec := float64(d%time.Second) * float64(limit)
+	return sec + nsec/1e9
 ***REMOVED***

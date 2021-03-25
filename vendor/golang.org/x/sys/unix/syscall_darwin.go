@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -30,10 +31,40 @@ type SockaddrDatalink struct ***REMOVED***
 	raw    RawSockaddrDatalink
 ***REMOVED***
 
+// SockaddrCtl implements the Sockaddr interface for AF_SYSTEM type sockets.
+type SockaddrCtl struct ***REMOVED***
+	ID   uint32
+	Unit uint32
+	raw  RawSockaddrCtl
+***REMOVED***
+
+func (sa *SockaddrCtl) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	sa.raw.Sc_len = SizeofSockaddrCtl
+	sa.raw.Sc_family = AF_SYSTEM
+	sa.raw.Ss_sysaddr = AF_SYS_CONTROL
+	sa.raw.Sc_id = sa.ID
+	sa.raw.Sc_unit = sa.Unit
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrCtl, nil
+***REMOVED***
+
+func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
+	switch rsa.Addr.Family ***REMOVED***
+	case AF_SYSTEM:
+		pp := (*RawSockaddrCtl)(unsafe.Pointer(rsa))
+		if pp.Ss_sysaddr == AF_SYS_CONTROL ***REMOVED***
+			sa := new(SockaddrCtl)
+			sa.ID = pp.Sc_id
+			sa.Unit = pp.Sc_unit
+			return sa, nil
+		***REMOVED***
+	***REMOVED***
+	return nil, EAFNOSUPPORT
+***REMOVED***
+
 // Some external packages rely on SYS___SYSCTL being defined to implement their
 // own sysctl wrappers. Provide it here, even though direct syscalls are no
 // longer supported on darwin.
-const SYS___SYSCTL = 202
+const SYS___SYSCTL = SYS_SYSCTL
 
 // Translate "kern.hostname" to []_C_int***REMOVED***0,1,2,3***REMOVED***.
 func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
@@ -256,6 +287,35 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) error ***R
 func Kill(pid int, signum syscall.Signal) (err error) ***REMOVED*** return kill(pid, int(signum), 1) ***REMOVED***
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+
+func IoctlCtlInfo(fd int, ctlInfo *CtlInfo) error ***REMOVED***
+	err := ioctl(fd, CTLIOCGINFO, uintptr(unsafe.Pointer(ctlInfo)))
+	runtime.KeepAlive(ctlInfo)
+	return err
+***REMOVED***
+
+// IfreqMTU is struct ifreq used to get or set a network device's MTU.
+type IfreqMTU struct ***REMOVED***
+	Name [IFNAMSIZ]byte
+	MTU  int32
+***REMOVED***
+
+// IoctlGetIfreqMTU performs the SIOCGIFMTU ioctl operation on fd to get the MTU
+// of the network device specified by ifname.
+func IoctlGetIfreqMTU(fd int, ifname string) (*IfreqMTU, error) ***REMOVED***
+	var ifreq IfreqMTU
+	copy(ifreq.Name[:], ifname)
+	err := ioctl(fd, SIOCGIFMTU, uintptr(unsafe.Pointer(&ifreq)))
+	return &ifreq, err
+***REMOVED***
+
+// IoctlSetIfreqMTU performs the SIOCSIFMTU ioctl operation on fd to set the MTU
+// of the network device specified by ifreq.Name.
+func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error ***REMOVED***
+	err := ioctl(fd, SIOCSIFMTU, uintptr(unsafe.Pointer(ifreq)))
+	runtime.KeepAlive(ifreq)
+	return err
+***REMOVED***
 
 //sys   sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
 

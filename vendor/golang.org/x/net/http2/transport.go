@@ -154,12 +154,21 @@ func (t *Transport) pingTimeout() time.Duration ***REMOVED***
 
 // ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
 // It returns an error if t1 has already been HTTP/2-enabled.
+//
+// Use ConfigureTransports instead to configure the HTTP/2 Transport.
 func ConfigureTransport(t1 *http.Transport) error ***REMOVED***
-	_, err := configureTransport(t1)
+	_, err := ConfigureTransports(t1)
 	return err
 ***REMOVED***
 
-func configureTransport(t1 *http.Transport) (*Transport, error) ***REMOVED***
+// ConfigureTransports configures a net/http HTTP/1 Transport to use HTTP/2.
+// It returns a new HTTP/2 Transport for further configuration.
+// It returns an error if t1 has already been HTTP/2-enabled.
+func ConfigureTransports(t1 *http.Transport) (*Transport, error) ***REMOVED***
+	return configureTransports(t1)
+***REMOVED***
+
+func configureTransports(t1 *http.Transport) (*Transport, error) ***REMOVED***
 	connPool := new(clientConnPool)
 	t2 := &Transport***REMOVED***
 		ConnPool: noDialClientConnPool***REMOVED***connPool***REMOVED***,
@@ -689,6 +698,7 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool) (*ClientConn, erro
 	cc.inflow.add(transportDefaultConnFlow + initialWindowSize)
 	cc.bw.Flush()
 	if cc.werr != nil ***REMOVED***
+		cc.Close()
 		return nil, cc.werr
 	***REMOVED***
 
@@ -1080,6 +1090,15 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 	bodyWriter := cc.t.getBodyWriterState(cs, body)
 	cs.on100 = bodyWriter.on100
 
+	defer func() ***REMOVED***
+		cc.wmu.Lock()
+		werr := cc.werr
+		cc.wmu.Unlock()
+		if werr != nil ***REMOVED***
+			cc.Close()
+		***REMOVED***
+	***REMOVED***()
+
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
 	werr := cc.writeHeaders(cs.ID, endStream, int(cc.maxFrameSize), hdrs)
@@ -1129,6 +1148,9 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			// we can keep it.
 			bodyWriter.cancel()
 			cs.abortRequestBodyWrite(errStopReqBodyWrite)
+			if hasBody && !bodyWritten ***REMOVED***
+				<-bodyWriter.resc
+			***REMOVED***
 		***REMOVED***
 		if re.err != nil ***REMOVED***
 			cc.forgetStreamID(cs.ID)
@@ -1149,6 +1171,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			***REMOVED*** else ***REMOVED***
 				bodyWriter.cancel()
 				cs.abortRequestBodyWrite(errStopReqBodyWriteAndCancel)
+				<-bodyWriter.resc
 			***REMOVED***
 			cc.forgetStreamID(cs.ID)
 			return nil, cs.getStartedWrite(), errTimeout
@@ -1158,6 +1181,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			***REMOVED*** else ***REMOVED***
 				bodyWriter.cancel()
 				cs.abortRequestBodyWrite(errStopReqBodyWriteAndCancel)
+				<-bodyWriter.resc
 			***REMOVED***
 			cc.forgetStreamID(cs.ID)
 			return nil, cs.getStartedWrite(), ctx.Err()
@@ -1167,6 +1191,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			***REMOVED*** else ***REMOVED***
 				bodyWriter.cancel()
 				cs.abortRequestBodyWrite(errStopReqBodyWriteAndCancel)
+				<-bodyWriter.resc
 			***REMOVED***
 			cc.forgetStreamID(cs.ID)
 			return nil, cs.getStartedWrite(), errRequestCanceled
@@ -1176,6 +1201,7 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 			// forgetStreamID.
 			return nil, cs.getStartedWrite(), cs.resetErr
 		case err := <-bodyWriter.resc:
+			bodyWritten = true
 			// Prefer the read loop's response, if available. Issue 16102.
 			select ***REMOVED***
 			case re := <-readLoopResCh:
@@ -1186,7 +1212,6 @@ func (cc *ClientConn) roundTrip(req *http.Request) (res *http.Response, gotErrAf
 				cc.forgetStreamID(cs.ID)
 				return nil, cs.getStartedWrite(), err
 			***REMOVED***
-			bodyWritten = true
 			if d := cc.responseHeaderTimeout(); d != 0 ***REMOVED***
 				timer := time.NewTimer(d)
 				defer timer.Stop()
@@ -2006,8 +2031,8 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 	if !streamEnded || isHead ***REMOVED***
 		res.ContentLength = -1
 		if clens := res.Header["Content-Length"]; len(clens) == 1 ***REMOVED***
-			if clen64, err := strconv.ParseInt(clens[0], 10, 64); err == nil ***REMOVED***
-				res.ContentLength = clen64
+			if cl, err := strconv.ParseUint(clens[0], 10, 63); err == nil ***REMOVED***
+				res.ContentLength = int64(cl)
 			***REMOVED*** else ***REMOVED***
 				// TODO: care? unlike http/1, it won't mess up our framing, so it's
 				// more safe smuggling-wise to ignore.
@@ -2525,6 +2550,7 @@ func strSliceContains(ss []string, s string) bool ***REMOVED***
 
 type erringRoundTripper struct***REMOVED*** err error ***REMOVED***
 
+func (rt erringRoundTripper) RoundTripErr() error                             ***REMOVED*** return rt.err ***REMOVED***
 func (rt erringRoundTripper) RoundTrip(*http.Request) (*http.Response, error) ***REMOVED*** return nil, rt.err ***REMOVED***
 
 // gzipReader wraps a response body so it can lazily
@@ -2606,7 +2632,9 @@ func (t *Transport) getBodyWriterState(cs *clientStream, body io.Reader) (s body
 
 func (s bodyWriterState) cancel() ***REMOVED***
 	if s.timer != nil ***REMOVED***
-		s.timer.Stop()
+		if s.timer.Stop() ***REMOVED***
+			s.resc <- nil
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 

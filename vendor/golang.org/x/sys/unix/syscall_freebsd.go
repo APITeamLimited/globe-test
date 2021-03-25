@@ -54,6 +54,10 @@ type SockaddrDatalink struct ***REMOVED***
 	raw    RawSockaddrDatalink
 ***REMOVED***
 
+func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
+	return nil, EAFNOSUPPORT
+***REMOVED***
+
 // Translate "kern.hostname" to []_C_int***REMOVED***0,1,2,3***REMOVED***.
 func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 	const siz = unsafe.Sizeof(mib[0])

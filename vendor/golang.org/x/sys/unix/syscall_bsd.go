@@ -277,7 +277,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		***REMOVED***
 		return sa, nil
 	***REMOVED***
-	return nil, EAFNOSUPPORT
+	return anyToSockaddrGOOS(fd, rsa)
 ***REMOVED***
 
 func Accept(fd int) (nfd int, sa Sockaddr, err error) ***REMOVED***

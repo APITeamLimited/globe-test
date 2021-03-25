@@ -2021,7 +2021,11 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 	***REMOVED***
 	if bodyOpen ***REMOVED***
 		if vv, ok := rp.header["Content-Length"]; ok ***REMOVED***
-			req.ContentLength, _ = strconv.ParseInt(vv[0], 10, 64)
+			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil ***REMOVED***
+				req.ContentLength = int64(cl)
+			***REMOVED*** else ***REMOVED***
+				req.ContentLength = 0
+			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			req.ContentLength = -1
 		***REMOVED***
@@ -2404,9 +2408,8 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) ***REMOV
 		var ctype, clen string
 		if clen = rws.snapHeader.Get("Content-Length"); clen != "" ***REMOVED***
 			rws.snapHeader.Del("Content-Length")
-			clen64, err := strconv.ParseInt(clen, 10, 64)
-			if err == nil && clen64 >= 0 ***REMOVED***
-				rws.sentContentLen = clen64
+			if cl, err := strconv.ParseUint(clen, 10, 63); err == nil ***REMOVED***
+				rws.sentContentLen = int64(cl)
 			***REMOVED*** else ***REMOVED***
 				clen = ""
 			***REMOVED***
