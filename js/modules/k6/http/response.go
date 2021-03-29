@@ -22,11 +22,13 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/tidwall/gjson"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/modules/k6/html"
@@ -37,6 +39,20 @@ import (
 type Response struct ***REMOVED***
 	*httpext.Response `js:"-"`
 	h                 *HTTP
+
+	cachedJSON    interface***REMOVED******REMOVED***
+	validatedJSON bool
+***REMOVED***
+
+type jsonError struct ***REMOVED***
+	line      int
+	character int
+	err       error
+***REMOVED***
+
+func (j jsonError) Error() string ***REMOVED***
+	errMessage := "cannot parse json due to an error at line"
+	return fmt.Sprintf("%s %d, character %d , error: %v", errMessage, j.line, j.character, j.err)
 ***REMOVED***
 
 // processResponse stores the body as an ArrayBuffer if indicated by
@@ -51,18 +67,6 @@ func processResponse(ctx context.Context, resp *httpext.Response, respType httpe
 
 func (h *HTTP) responseFromHttpext(resp *httpext.Response) *Response ***REMOVED***
 	return &Response***REMOVED***Response: resp, h: h***REMOVED***
-***REMOVED***
-
-// JSON parses the body of a response as json and returns it to the goja VM
-func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
-	v, err := res.Response.JSON(selector...)
-	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.GetCtx()), err)
-	***REMOVED***
-	if v == nil ***REMOVED***
-		return goja.Undefined()
-	***REMOVED***
-	return common.GetRuntime(res.GetCtx()).ToValue(v)
 ***REMOVED***
 
 // HTML returns the body as an html.Selection
@@ -81,6 +85,69 @@ func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
 		sel = sel.Find(selector[0])
 	***REMOVED***
 	return sel
+***REMOVED***
+
+// JSON parses the body of a response as JSON and returns it to the goja VM.
+func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
+	rt := common.GetRuntime(res.GetCtx())
+	hasSelector := len(selector) > 0
+	if res.cachedJSON == nil || hasSelector ***REMOVED*** //nolint:nestif
+		var v interface***REMOVED******REMOVED***
+
+		body, err := common.ToBytes(res.Body)
+		if err != nil ***REMOVED***
+			common.Throw(rt, err)
+		***REMOVED***
+
+		if hasSelector ***REMOVED***
+			if !res.validatedJSON ***REMOVED***
+				if !gjson.ValidBytes(body) ***REMOVED***
+					return goja.Undefined()
+				***REMOVED***
+				res.validatedJSON = true
+			***REMOVED***
+
+			result := gjson.GetBytes(body, selector[0])
+
+			if !result.Exists() ***REMOVED***
+				return goja.Undefined()
+			***REMOVED***
+			return rt.ToValue(result.Value())
+		***REMOVED***
+
+		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
+			if syntaxError, ok := err.(*json.SyntaxError); ok ***REMOVED***
+				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
+			***REMOVED***
+			common.Throw(rt, err)
+		***REMOVED***
+		res.validatedJSON = true
+		res.cachedJSON = v
+	***REMOVED***
+
+	return rt.ToValue(res.cachedJSON)
+***REMOVED***
+
+func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
+	lf := '\n'
+	str := string(input)
+
+	// Humans tend to count from 1.
+	line := 1
+	character := 0
+
+	for i, b := range str ***REMOVED***
+		if b == lf ***REMOVED***
+			line++
+			character = 0
+		***REMOVED***
+		character++
+		if i == offset ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+
+	return jsonError***REMOVED***line: line, character: character, err: err***REMOVED***
 ***REMOVED***
 
 // SubmitForm parses the body as an html looking for a from and then submitting it
