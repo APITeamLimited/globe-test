@@ -40,6 +40,7 @@ import (
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/internal/binarylog"
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/grpcrand"
@@ -57,6 +58,12 @@ const (
 	defaultServerMaxReceiveMessageSize = 1024 * 1024 * 4
 	defaultServerMaxSendMessageSize    = math.MaxInt32
 )
+
+func init() ***REMOVED***
+	internal.GetServerCredentials = func(srv *Server) credentials.TransportCredentials ***REMOVED***
+		return srv.opts.creds
+	***REMOVED***
+***REMOVED***
 
 var statusOK = status.New(codes.OK, "")
 var logger = grpclog.Component("core")
@@ -80,13 +87,14 @@ type ServiceDesc struct ***REMOVED***
 	Metadata    interface***REMOVED******REMOVED***
 ***REMOVED***
 
-// service consists of the information of the server serving this service and
-// the methods in this service.
-type service struct ***REMOVED***
-	server interface***REMOVED******REMOVED*** // the server for service methods
-	md     map[string]*MethodDesc
-	sd     map[string]*StreamDesc
-	mdata  interface***REMOVED******REMOVED***
+// serviceInfo wraps information about a service. It is very similar to
+// ServiceDesc and is constructed from it for internal purposes.
+type serviceInfo struct ***REMOVED***
+	// Contains the implementation for the methods in this service.
+	serviceImpl interface***REMOVED******REMOVED***
+	methods     map[string]*MethodDesc
+	streams     map[string]*StreamDesc
+	mdata       interface***REMOVED******REMOVED***
 ***REMOVED***
 
 type serverWorkerData struct ***REMOVED***
@@ -99,14 +107,14 @@ type serverWorkerData struct ***REMOVED***
 type Server struct ***REMOVED***
 	opts serverOptions
 
-	mu     sync.Mutex // guards following
-	lis    map[net.Listener]bool
-	conns  map[transport.ServerTransport]bool
-	serve  bool
-	drain  bool
-	cv     *sync.Cond          // signaled when connections close for GracefulStop
-	m      map[string]*service // service name -> service info
-	events trace.EventLog
+	mu       sync.Mutex // guards following
+	lis      map[net.Listener]bool
+	conns    map[transport.ServerTransport]bool
+	serve    bool
+	drain    bool
+	cv       *sync.Cond              // signaled when connections close for GracefulStop
+	services map[string]*serviceInfo // service name -> service info
+	events   trace.EventLog
 
 	quit               *grpcsync.Event
 	done               *grpcsync.Event
@@ -162,7 +170,10 @@ type ServerOption interface ***REMOVED***
 // EmptyServerOption does not alter the server configuration. It can be embedded
 // in another structure to build custom server options.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type EmptyServerOption struct***REMOVED******REMOVED***
 
 func (EmptyServerOption) apply(*serverOptions) ***REMOVED******REMOVED***
@@ -404,7 +415,10 @@ func UnknownServiceHandler(streamHandler StreamHandler) ServerOption ***REMOVED*
 // new connections.  If this is not set, the default is 120 seconds.  A zero or
 // negative value will result in an immediate timeout.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func ConnectionTimeout(d time.Duration) ServerOption ***REMOVED***
 	return newFuncServerOption(func(o *serverOptions) ***REMOVED***
 		o.connectionTimeout = d
@@ -422,7 +436,10 @@ func MaxHeaderListSize(s uint32) ServerOption ***REMOVED***
 // HeaderTableSize returns a ServerOption that sets the size of dynamic
 // header table for stream.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func HeaderTableSize(s uint32) ServerOption ***REMOVED***
 	return newFuncServerOption(func(o *serverOptions) ***REMOVED***
 		o.headerTableSize = &s
@@ -434,7 +451,10 @@ func HeaderTableSize(s uint32) ServerOption ***REMOVED***
 // zero (default) will disable workers and spawn a new goroutine for each
 // stream.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func NumStreamWorkers(numServerWorkers uint32) ServerOption ***REMOVED***
 	// TODO: If/when this API gets stabilized (i.e. stream workers become the
 	// only way streams are processed), change the behavior of the zero value to
@@ -497,13 +517,13 @@ func NewServer(opt ...ServerOption) *Server ***REMOVED***
 		o.apply(&opts)
 	***REMOVED***
 	s := &Server***REMOVED***
-		lis:    make(map[net.Listener]bool),
-		opts:   opts,
-		conns:  make(map[transport.ServerTransport]bool),
-		m:      make(map[string]*service),
-		quit:   grpcsync.NewEvent(),
-		done:   grpcsync.NewEvent(),
-		czData: new(channelzData),
+		lis:      make(map[net.Listener]bool),
+		opts:     opts,
+		conns:    make(map[transport.ServerTransport]bool),
+		services: make(map[string]*serviceInfo),
+		quit:     grpcsync.NewEvent(),
+		done:     grpcsync.NewEvent(),
+		czData:   new(channelzData),
 	***REMOVED***
 	chainUnaryServerInterceptors(s)
 	chainStreamServerInterceptors(s)
@@ -539,14 +559,29 @@ func (s *Server) errorf(format string, a ...interface***REMOVED******REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
+// ServiceRegistrar wraps a single method that supports service registration. It
+// enables users to pass concrete types other than grpc.Server to the service
+// registration methods exported by the IDL generated code.
+type ServiceRegistrar interface ***REMOVED***
+	// RegisterService registers a service and its implementation to the
+	// concrete type implementing this interface.  It may not be called
+	// once the server has started serving.
+	// desc describes the service and its methods and handlers. impl is the
+	// service implementation which is passed to the method handlers.
+	RegisterService(desc *ServiceDesc, impl interface***REMOVED******REMOVED***)
+***REMOVED***
+
 // RegisterService registers a service and its implementation to the gRPC
 // server. It is called from the IDL generated code. This must be called before
-// invoking Serve.
+// invoking Serve. If ss is non-nil (for legacy code), its type is checked to
+// ensure it implements sd.HandlerType.
 func (s *Server) RegisterService(sd *ServiceDesc, ss interface***REMOVED******REMOVED***) ***REMOVED***
-	ht := reflect.TypeOf(sd.HandlerType).Elem()
-	st := reflect.TypeOf(ss)
-	if !st.Implements(ht) ***REMOVED***
-		logger.Fatalf("grpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
+	if ss != nil ***REMOVED***
+		ht := reflect.TypeOf(sd.HandlerType).Elem()
+		st := reflect.TypeOf(ss)
+		if !st.Implements(ht) ***REMOVED***
+			logger.Fatalf("grpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
+		***REMOVED***
 	***REMOVED***
 	s.register(sd, ss)
 ***REMOVED***
@@ -558,24 +593,24 @@ func (s *Server) register(sd *ServiceDesc, ss interface***REMOVED******REMOVED**
 	if s.serve ***REMOVED***
 		logger.Fatalf("grpc: Server.RegisterService after Server.Serve for %q", sd.ServiceName)
 	***REMOVED***
-	if _, ok := s.m[sd.ServiceName]; ok ***REMOVED***
+	if _, ok := s.services[sd.ServiceName]; ok ***REMOVED***
 		logger.Fatalf("grpc: Server.RegisterService found duplicate service registration for %q", sd.ServiceName)
 	***REMOVED***
-	srv := &service***REMOVED***
-		server: ss,
-		md:     make(map[string]*MethodDesc),
-		sd:     make(map[string]*StreamDesc),
-		mdata:  sd.Metadata,
+	info := &serviceInfo***REMOVED***
+		serviceImpl: ss,
+		methods:     make(map[string]*MethodDesc),
+		streams:     make(map[string]*StreamDesc),
+		mdata:       sd.Metadata,
 	***REMOVED***
 	for i := range sd.Methods ***REMOVED***
 		d := &sd.Methods[i]
-		srv.md[d.MethodName] = d
+		info.methods[d.MethodName] = d
 	***REMOVED***
 	for i := range sd.Streams ***REMOVED***
 		d := &sd.Streams[i]
-		srv.sd[d.StreamName] = d
+		info.streams[d.StreamName] = d
 	***REMOVED***
-	s.m[sd.ServiceName] = srv
+	s.services[sd.ServiceName] = info
 ***REMOVED***
 
 // MethodInfo contains the information of an RPC including its method name and type.
@@ -599,16 +634,16 @@ type ServiceInfo struct ***REMOVED***
 // Service names include the package names, in the form of <package>.<service>.
 func (s *Server) GetServiceInfo() map[string]ServiceInfo ***REMOVED***
 	ret := make(map[string]ServiceInfo)
-	for n, srv := range s.m ***REMOVED***
-		methods := make([]MethodInfo, 0, len(srv.md)+len(srv.sd))
-		for m := range srv.md ***REMOVED***
+	for n, srv := range s.services ***REMOVED***
+		methods := make([]MethodInfo, 0, len(srv.methods)+len(srv.streams))
+		for m := range srv.methods ***REMOVED***
 			methods = append(methods, MethodInfo***REMOVED***
 				Name:           m,
 				IsClientStream: false,
 				IsServerStream: false,
 			***REMOVED***)
 		***REMOVED***
-		for m, d := range srv.sd ***REMOVED***
+		for m, d := range srv.streams ***REMOVED***
 			methods = append(methods, MethodInfo***REMOVED***
 				Name:           m,
 				IsClientStream: d.ClientStreams,
@@ -877,8 +912,12 @@ var _ http.Handler = (*Server)(nil)
 // Note that ServeHTTP uses Go's HTTP/2 server implementation which is totally
 // separate from grpc-go's HTTP/2 server. Performance and features may vary
 // between the two paths. ServeHTTP does not support some gRPC features
-// available through grpc-go's HTTP/2 server, and it is currently EXPERIMENTAL
-// and subject to change.
+// available through grpc-go's HTTP/2 server.
+//
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) ***REMOVED***
 	st, err := transport.NewServerHandlerTransport(w, r, s.opts.statsHandler)
 	if err != nil ***REMOVED***
@@ -1020,7 +1059,7 @@ func getChainUnaryHandler(interceptors []UnaryServerInterceptor, curr int, info 
 	***REMOVED***
 ***REMOVED***
 
-func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.Stream, srv *service, md *MethodDesc, trInfo *traceInfo) (err error) ***REMOVED***
+func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.Stream, info *serviceInfo, md *MethodDesc, trInfo *traceInfo) (err error) ***REMOVED***
 	sh := s.opts.statsHandler
 	if sh != nil || trInfo != nil || channelz.IsOn() ***REMOVED***
 		if channelz.IsOn() ***REMOVED***
@@ -1143,10 +1182,8 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 	***REMOVED***
 	d, err := recvAndDecompress(&parser***REMOVED***r: stream***REMOVED***, stream, dc, s.opts.maxReceiveMessageSize, payInfo, decomp)
 	if err != nil ***REMOVED***
-		if st, ok := status.FromError(err); ok ***REMOVED***
-			if e := t.WriteStatus(stream, st); e != nil ***REMOVED***
-				channelz.Warningf(logger, s.channelzID, "grpc: Server.processUnaryRPC failed to write status %v", e)
-			***REMOVED***
+		if e := t.WriteStatus(stream, status.Convert(err)); e != nil ***REMOVED***
+			channelz.Warningf(logger, s.channelzID, "grpc: Server.processUnaryRPC failed to write status %v", e)
 		***REMOVED***
 		return err
 	***REMOVED***
@@ -1161,7 +1198,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 			sh.HandleRPC(stream.Context(), &stats.InPayload***REMOVED***
 				RecvTime:   time.Now(),
 				Payload:    v,
-				WireLength: payInfo.wireLength,
+				WireLength: payInfo.wireLength + headerLen,
 				Data:       d,
 				Length:     len(d),
 			***REMOVED***)
@@ -1177,7 +1214,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		return nil
 	***REMOVED***
 	ctx := NewContextWithServerTransportStream(stream.Context(), stream)
-	reply, appErr := md.Handler(srv.server, ctx, df, s.opts.unaryInt)
+	reply, appErr := md.Handler(info.serviceImpl, ctx, df, s.opts.unaryInt)
 	if appErr != nil ***REMOVED***
 		appStatus, ok := status.FromError(appErr)
 		if !ok ***REMOVED***
@@ -1303,7 +1340,7 @@ func getChainStreamHandler(interceptors []StreamServerInterceptor, curr int, inf
 	***REMOVED***
 ***REMOVED***
 
-func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transport.Stream, srv *service, sd *StreamDesc, trInfo *traceInfo) (err error) ***REMOVED***
+func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transport.Stream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) (err error) ***REMOVED***
 	if channelz.IsOn() ***REMOVED***
 		s.incrCallsStarted()
 	***REMOVED***
@@ -1420,8 +1457,8 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 	***REMOVED***
 	var appErr error
 	var server interface***REMOVED******REMOVED***
-	if srv != nil ***REMOVED***
-		server = srv.server
+	if info != nil ***REMOVED***
+		server = info.serviceImpl
 	***REMOVED***
 	if s.opts.streamInt == nil ***REMOVED***
 		appErr = sd.Handler(server, ss)
@@ -1497,13 +1534,13 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 	service := sm[:pos]
 	method := sm[pos+1:]
 
-	srv, knownService := s.m[service]
+	srv, knownService := s.services[service]
 	if knownService ***REMOVED***
-		if md, ok := srv.md[method]; ok ***REMOVED***
+		if md, ok := srv.methods[method]; ok ***REMOVED***
 			s.processUnaryRPC(t, stream, srv, md, trInfo)
 			return
 		***REMOVED***
-		if sd, ok := srv.sd[method]; ok ***REMOVED***
+		if sd, ok := srv.streams[method]; ok ***REMOVED***
 			s.processStreamingRPC(t, stream, srv, sd, trInfo)
 			return
 		***REMOVED***
@@ -1541,7 +1578,10 @@ type streamKey struct***REMOVED******REMOVED***
 // NewContextWithServerTransportStream creates a new context from ctx and
 // attaches stream to it.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func NewContextWithServerTransportStream(ctx context.Context, stream ServerTransportStream) context.Context ***REMOVED***
 	return context.WithValue(ctx, streamKey***REMOVED******REMOVED***, stream)
 ***REMOVED***
@@ -1553,7 +1593,10 @@ func NewContextWithServerTransportStream(ctx context.Context, stream ServerTrans
 //
 // See also NewContextWithServerTransportStream.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type ServerTransportStream interface ***REMOVED***
 	Method() string
 	SetHeader(md metadata.MD) error
@@ -1565,7 +1608,10 @@ type ServerTransportStream interface ***REMOVED***
 // ctx. Returns nil if the given context has no stream associated with it
 // (which implies it is not an RPC invocation context).
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func ServerTransportStreamFromContext(ctx context.Context) ServerTransportStream ***REMOVED***
 	s, _ := ctx.Value(streamKey***REMOVED******REMOVED***).(ServerTransportStream)
 	return s

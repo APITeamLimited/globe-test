@@ -21,9 +21,7 @@ package binarylog
 import (
 	"bufio"
 	"encoding/binary"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"sync"
 	"time"
 
@@ -32,20 +30,14 @@ import (
 )
 
 var (
-	defaultSink Sink = &noopSink***REMOVED******REMOVED*** // TODO(blog): change this default (file in /tmp).
+	// DefaultSink is the sink where the logs will be written to. It's exported
+	// for the binarylog package to update.
+	DefaultSink Sink = &noopSink***REMOVED******REMOVED*** // TODO(blog): change this default (file in /tmp).
 )
 
-// SetDefaultSink sets the sink where binary logs will be written to.
-//
-// Not thread safe. Only set during initialization.
-func SetDefaultSink(s Sink) ***REMOVED***
-	if defaultSink != nil ***REMOVED***
-		defaultSink.Close()
-	***REMOVED***
-	defaultSink = s
-***REMOVED***
-
 // Sink writes log entry into the binary log sink.
+//
+// sink is a copy of the exported binarylog.Sink, to avoid circular dependency.
 type Sink interface ***REMOVED***
 	// Write will be called to write the log entry into the sink.
 	//
@@ -66,7 +58,7 @@ func (ns *noopSink) Close() error                 ***REMOVED*** return nil ***RE
 // message is prefixed with a 4 byte big endian unsigned integer as the length.
 //
 // No buffer is done, Close() doesn't try to close the writer.
-func newWriterSink(w io.Writer) *writerSink ***REMOVED***
+func newWriterSink(w io.Writer) Sink ***REMOVED***
 	return &writerSink***REMOVED***out: w***REMOVED***
 ***REMOVED***
 
@@ -92,17 +84,17 @@ func (ws *writerSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
 
 func (ws *writerSink) Close() error ***REMOVED*** return nil ***REMOVED***
 
-type bufWriteCloserSink struct ***REMOVED***
+type bufferedSink struct ***REMOVED***
 	mu     sync.Mutex
 	closer io.Closer
-	out    *writerSink   // out is built on buf.
+	out    Sink          // out is built on buf.
 	buf    *bufio.Writer // buf is kept for flush.
 
 	writeStartOnce sync.Once
 	writeTicker    *time.Ticker
 ***REMOVED***
 
-func (fs *bufWriteCloserSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
+func (fs *bufferedSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
 	// Start the write loop when Write is called.
 	fs.writeStartOnce.Do(fs.startFlushGoroutine)
 	fs.mu.Lock()
@@ -118,44 +110,50 @@ const (
 	bufFlushDuration = 60 * time.Second
 )
 
-func (fs *bufWriteCloserSink) startFlushGoroutine() ***REMOVED***
+func (fs *bufferedSink) startFlushGoroutine() ***REMOVED***
 	fs.writeTicker = time.NewTicker(bufFlushDuration)
 	go func() ***REMOVED***
 		for range fs.writeTicker.C ***REMOVED***
 			fs.mu.Lock()
-			fs.buf.Flush()
+			if err := fs.buf.Flush(); err != nil ***REMOVED***
+				grpclogLogger.Warningf("failed to flush to Sink: %v", err)
+			***REMOVED***
 			fs.mu.Unlock()
 		***REMOVED***
 	***REMOVED***()
 ***REMOVED***
 
-func (fs *bufWriteCloserSink) Close() error ***REMOVED***
+func (fs *bufferedSink) Close() error ***REMOVED***
 	if fs.writeTicker != nil ***REMOVED***
 		fs.writeTicker.Stop()
 	***REMOVED***
 	fs.mu.Lock()
-	fs.buf.Flush()
-	fs.closer.Close()
-	fs.out.Close()
+	if err := fs.buf.Flush(); err != nil ***REMOVED***
+		grpclogLogger.Warningf("failed to flush to Sink: %v", err)
+	***REMOVED***
+	if err := fs.closer.Close(); err != nil ***REMOVED***
+		grpclogLogger.Warningf("failed to close the underlying WriterCloser: %v", err)
+	***REMOVED***
+	if err := fs.out.Close(); err != nil ***REMOVED***
+		grpclogLogger.Warningf("failed to close the Sink: %v", err)
+	***REMOVED***
 	fs.mu.Unlock()
 	return nil
 ***REMOVED***
 
-func newBufWriteCloserSink(o io.WriteCloser) Sink ***REMOVED***
+// NewBufferedSink creates a binary log sink with the given WriteCloser.
+//
+// Write() marshals the proto message and writes it to the given writer. Each
+// message is prefixed with a 4 byte big endian unsigned integer as the length.
+//
+// Content is kept in a buffer, and is flushed every 60 seconds.
+//
+// Close closes the WriteCloser.
+func NewBufferedSink(o io.WriteCloser) Sink ***REMOVED***
 	bufW := bufio.NewWriter(o)
-	return &bufWriteCloserSink***REMOVED***
+	return &bufferedSink***REMOVED***
 		closer: o,
 		out:    newWriterSink(bufW),
 		buf:    bufW,
 	***REMOVED***
-***REMOVED***
-
-// NewTempFileSink creates a temp file and returns a Sink that writes to this
-// file.
-func NewTempFileSink() (Sink, error) ***REMOVED***
-	tempFile, err := ioutil.TempFile("/tmp", "grpcgo_binarylog_*.txt")
-	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("failed to create temp file: %v", err)
-	***REMOVED***
-	return newBufWriteCloserSink(tempFile), nil
 ***REMOVED***

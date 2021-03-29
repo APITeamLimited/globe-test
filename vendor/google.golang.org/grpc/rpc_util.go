@@ -27,7 +27,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -198,7 +197,11 @@ func Header(md *metadata.MD) CallOption ***REMOVED***
 
 // HeaderCallOption is a CallOption for collecting response header metadata.
 // The metadata field will be populated *after* the RPC completes.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type HeaderCallOption struct ***REMOVED***
 	HeaderAddr *metadata.MD
 ***REMOVED***
@@ -216,7 +219,11 @@ func Trailer(md *metadata.MD) CallOption ***REMOVED***
 
 // TrailerCallOption is a CallOption for collecting response trailer metadata.
 // The metadata field will be populated *after* the RPC completes.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type TrailerCallOption struct ***REMOVED***
 	TrailerAddr *metadata.MD
 ***REMOVED***
@@ -234,7 +241,11 @@ func Peer(p *peer.Peer) CallOption ***REMOVED***
 
 // PeerCallOption is a CallOption for collecting the identity of the remote
 // peer. The peer field will be populated *after* the RPC completes.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type PeerCallOption struct ***REMOVED***
 	PeerAddr *peer.Peer
 ***REMOVED***
@@ -269,7 +280,11 @@ func FailFast(failFast bool) CallOption ***REMOVED***
 
 // FailFastCallOption is a CallOption for indicating whether an RPC should fail
 // fast or not.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type FailFastCallOption struct ***REMOVED***
 	FailFast bool
 ***REMOVED***
@@ -288,7 +303,11 @@ func MaxCallRecvMsgSize(bytes int) CallOption ***REMOVED***
 
 // MaxRecvMsgSizeCallOption is a CallOption that indicates the maximum message
 // size in bytes the client can receive.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type MaxRecvMsgSizeCallOption struct ***REMOVED***
 	MaxRecvMsgSize int
 ***REMOVED***
@@ -307,7 +326,11 @@ func MaxCallSendMsgSize(bytes int) CallOption ***REMOVED***
 
 // MaxSendMsgSizeCallOption is a CallOption that indicates the maximum message
 // size in bytes the client can send.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type MaxSendMsgSizeCallOption struct ***REMOVED***
 	MaxSendMsgSize int
 ***REMOVED***
@@ -326,7 +349,11 @@ func PerRPCCredentials(creds credentials.PerRPCCredentials) CallOption ***REMOVE
 
 // PerRPCCredsCallOption is a CallOption that indicates the per-RPC
 // credentials to use for the call.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type PerRPCCredsCallOption struct ***REMOVED***
 	Creds credentials.PerRPCCredentials
 ***REMOVED***
@@ -341,13 +368,20 @@ func (o PerRPCCredsCallOption) after(c *callInfo, attempt *csAttempt) ***REMOVED
 // sending the request.  If WithCompressor is also set, UseCompressor has
 // higher priority.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func UseCompressor(name string) CallOption ***REMOVED***
 	return CompressorCallOption***REMOVED***CompressorType: name***REMOVED***
 ***REMOVED***
 
 // CompressorCallOption is a CallOption that indicates the compressor to use.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type CompressorCallOption struct ***REMOVED***
 	CompressorType string
 ***REMOVED***
@@ -380,7 +414,11 @@ func CallContentSubtype(contentSubtype string) CallOption ***REMOVED***
 
 // ContentSubtypeCallOption is a CallOption that indicates the content-subtype
 // used for marshaling messages.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type ContentSubtypeCallOption struct ***REMOVED***
 	ContentSubtype string
 ***REMOVED***
@@ -404,7 +442,10 @@ func (o ContentSubtypeCallOption) after(c *callInfo, attempt *csAttempt) ***REMO
 // This function is provided for advanced users; prefer to use only
 // CallContentSubtype to select a registered codec instead.
 //
-// This is an EXPERIMENTAL API.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func ForceCodec(codec encoding.Codec) CallOption ***REMOVED***
 	return ForceCodecCallOption***REMOVED***Codec: codec***REMOVED***
 ***REMOVED***
@@ -412,7 +453,10 @@ func ForceCodec(codec encoding.Codec) CallOption ***REMOVED***
 // ForceCodecCallOption is a CallOption that indicates the codec used for
 // marshaling messages.
 //
-// This is an EXPERIMENTAL API.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type ForceCodecCallOption struct ***REMOVED***
 	Codec encoding.Codec
 ***REMOVED***
@@ -434,7 +478,10 @@ func CallCustomCodec(codec Codec) CallOption ***REMOVED***
 // CustomCodecCallOption is a CallOption that indicates the codec used for
 // marshaling messages.
 //
-// This is an EXPERIMENTAL API.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type CustomCodecCallOption struct ***REMOVED***
 	Codec Codec
 ***REMOVED***
@@ -448,14 +495,21 @@ func (o CustomCodecCallOption) after(c *callInfo, attempt *csAttempt) ***REMOVED
 // MaxRetryRPCBufferSize returns a CallOption that limits the amount of memory
 // used for buffering this RPC's requests for retry purposes.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func MaxRetryRPCBufferSize(bytes int) CallOption ***REMOVED***
 	return MaxRetryRPCBufferSizeCallOption***REMOVED***bytes***REMOVED***
 ***REMOVED***
 
 // MaxRetryRPCBufferSizeCallOption is a CallOption indicating the amount of
 // memory to be used for caching this RPC for retry purposes.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type MaxRetryRPCBufferSizeCallOption struct ***REMOVED***
 	MaxRetryRPCBufferSize int
 ***REMOVED***
@@ -817,40 +871,6 @@ func setCallInfoCodec(c *callInfo) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// parseDialTarget returns the network and address to pass to dialer
-func parseDialTarget(target string) (net string, addr string) ***REMOVED***
-	net = "tcp"
-
-	m1 := strings.Index(target, ":")
-	m2 := strings.Index(target, ":/")
-
-	// handle unix:addr which will fail with url.Parse
-	if m1 >= 0 && m2 < 0 ***REMOVED***
-		if n := target[0:m1]; n == "unix" ***REMOVED***
-			net = n
-			addr = target[m1+1:]
-			return net, addr
-		***REMOVED***
-	***REMOVED***
-	if m2 >= 0 ***REMOVED***
-		t, err := url.Parse(target)
-		if err != nil ***REMOVED***
-			return net, target
-		***REMOVED***
-		scheme := t.Scheme
-		addr = t.Path
-		if scheme == "unix" ***REMOVED***
-			net = scheme
-			if addr == "" ***REMOVED***
-				addr = t.Host
-			***REMOVED***
-			return net, addr
-		***REMOVED***
-	***REMOVED***
-
-	return net, target
-***REMOVED***
-
 // channelzData is used to store channelz related data for ClientConn, addrConn and Server.
 // These fields cannot be embedded in the original structs (e.g. ClientConn), since to do atomic
 // operation on int64 variable on 32-bit machine, user is responsible to enforce memory alignment.
@@ -866,10 +886,9 @@ type channelzData struct ***REMOVED***
 
 // The SupportPackageIsVersion variables are referenced from generated protocol
 // buffer files to ensure compatibility with the gRPC version used.  The latest
-// support package version is 6.
+// support package version is 7.
 //
-// Older versions are kept for compatibility. They may be removed if
-// compatibility cannot be maintained.
+// Older versions are kept for compatibility.
 //
 // These constants should not be referenced from any other code.
 const (
@@ -877,6 +896,7 @@ const (
 	SupportPackageIsVersion4 = true
 	SupportPackageIsVersion5 = true
 	SupportPackageIsVersion6 = true
+	SupportPackageIsVersion7 = true
 )
 
 const grpcUA = "grpc-go/" + Version

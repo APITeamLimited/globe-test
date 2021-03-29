@@ -11,7 +11,8 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+// Requires gRPC-Go v1.32.0 or later.
+const _ = grpc.SupportPackageIsVersion7
 
 // TestServiceClient is the client API for TestService service.
 //
@@ -66,7 +67,7 @@ func (c *testServiceClient) UnaryCall(ctx context.Context, in *SimpleRequest, op
 ***REMOVED***
 
 func (c *testServiceClient) StreamingOutputCall(ctx context.Context, in *StreamingOutputCallRequest, opts ...grpc.CallOption) (TestService_StreamingOutputCallClient, error) ***REMOVED***
-	stream, err := c.cc.NewStream(ctx, &_TestService_serviceDesc.Streams[0], "/grpc.testing.TestService/StreamingOutputCall", opts...)
+	stream, err := c.cc.NewStream(ctx, &TestService_ServiceDesc.Streams[0], "/grpc.testing.TestService/StreamingOutputCall", opts...)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -98,7 +99,7 @@ func (x *testServiceStreamingOutputCallClient) Recv() (*StreamingOutputCallRespo
 ***REMOVED***
 
 func (c *testServiceClient) StreamingInputCall(ctx context.Context, opts ...grpc.CallOption) (TestService_StreamingInputCallClient, error) ***REMOVED***
-	stream, err := c.cc.NewStream(ctx, &_TestService_serviceDesc.Streams[1], "/grpc.testing.TestService/StreamingInputCall", opts...)
+	stream, err := c.cc.NewStream(ctx, &TestService_ServiceDesc.Streams[1], "/grpc.testing.TestService/StreamingInputCall", opts...)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -132,7 +133,7 @@ func (x *testServiceStreamingInputCallClient) CloseAndRecv() (*StreamingInputCal
 ***REMOVED***
 
 func (c *testServiceClient) FullDuplexCall(ctx context.Context, opts ...grpc.CallOption) (TestService_FullDuplexCallClient, error) ***REMOVED***
-	stream, err := c.cc.NewStream(ctx, &_TestService_serviceDesc.Streams[2], "/grpc.testing.TestService/FullDuplexCall", opts...)
+	stream, err := c.cc.NewStream(ctx, &TestService_ServiceDesc.Streams[2], "/grpc.testing.TestService/FullDuplexCall", opts...)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -163,7 +164,7 @@ func (x *testServiceFullDuplexCallClient) Recv() (*StreamingOutputCallResponse, 
 ***REMOVED***
 
 func (c *testServiceClient) HalfDuplexCall(ctx context.Context, opts ...grpc.CallOption) (TestService_HalfDuplexCallClient, error) ***REMOVED***
-	stream, err := c.cc.NewStream(ctx, &_TestService_serviceDesc.Streams[3], "/grpc.testing.TestService/HalfDuplexCall", opts...)
+	stream, err := c.cc.NewStream(ctx, &TestService_ServiceDesc.Streams[3], "/grpc.testing.TestService/HalfDuplexCall", opts...)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -194,7 +195,7 @@ func (x *testServiceHalfDuplexCallClient) Recv() (*StreamingOutputCallResponse, 
 ***REMOVED***
 
 // TestServiceServer is the server API for TestService service.
-// All implementations should embed UnimplementedTestServiceServer
+// All implementations must embed UnimplementedTestServiceServer
 // for forward compatibility
 type TestServiceServer interface ***REMOVED***
 	// One empty request followed by one empty response.
@@ -217,33 +218,42 @@ type TestServiceServer interface ***REMOVED***
 	// stream of responses are returned to the client when the server starts with
 	// first request.
 	HalfDuplexCall(TestService_HalfDuplexCallServer) error
+	mustEmbedUnimplementedTestServiceServer()
 ***REMOVED***
 
-// UnimplementedTestServiceServer should be embedded to have forward compatible implementations.
+// UnimplementedTestServiceServer must be embedded to have forward compatible implementations.
 type UnimplementedTestServiceServer struct ***REMOVED***
 ***REMOVED***
 
-func (*UnimplementedTestServiceServer) EmptyCall(context.Context, *Empty) (*Empty, error) ***REMOVED***
+func (UnimplementedTestServiceServer) EmptyCall(context.Context, *Empty) (*Empty, error) ***REMOVED***
 	return nil, status.Errorf(codes.Unimplemented, "method EmptyCall not implemented")
 ***REMOVED***
-func (*UnimplementedTestServiceServer) UnaryCall(context.Context, *SimpleRequest) (*SimpleResponse, error) ***REMOVED***
+func (UnimplementedTestServiceServer) UnaryCall(context.Context, *SimpleRequest) (*SimpleResponse, error) ***REMOVED***
 	return nil, status.Errorf(codes.Unimplemented, "method UnaryCall not implemented")
 ***REMOVED***
-func (*UnimplementedTestServiceServer) StreamingOutputCall(*StreamingOutputCallRequest, TestService_StreamingOutputCallServer) error ***REMOVED***
+func (UnimplementedTestServiceServer) StreamingOutputCall(*StreamingOutputCallRequest, TestService_StreamingOutputCallServer) error ***REMOVED***
 	return status.Errorf(codes.Unimplemented, "method StreamingOutputCall not implemented")
 ***REMOVED***
-func (*UnimplementedTestServiceServer) StreamingInputCall(TestService_StreamingInputCallServer) error ***REMOVED***
+func (UnimplementedTestServiceServer) StreamingInputCall(TestService_StreamingInputCallServer) error ***REMOVED***
 	return status.Errorf(codes.Unimplemented, "method StreamingInputCall not implemented")
 ***REMOVED***
-func (*UnimplementedTestServiceServer) FullDuplexCall(TestService_FullDuplexCallServer) error ***REMOVED***
+func (UnimplementedTestServiceServer) FullDuplexCall(TestService_FullDuplexCallServer) error ***REMOVED***
 	return status.Errorf(codes.Unimplemented, "method FullDuplexCall not implemented")
 ***REMOVED***
-func (*UnimplementedTestServiceServer) HalfDuplexCall(TestService_HalfDuplexCallServer) error ***REMOVED***
+func (UnimplementedTestServiceServer) HalfDuplexCall(TestService_HalfDuplexCallServer) error ***REMOVED***
 	return status.Errorf(codes.Unimplemented, "method HalfDuplexCall not implemented")
 ***REMOVED***
+func (UnimplementedTestServiceServer) mustEmbedUnimplementedTestServiceServer() ***REMOVED******REMOVED***
 
-func RegisterTestServiceServer(s *grpc.Server, srv TestServiceServer) ***REMOVED***
-	s.RegisterService(&_TestService_serviceDesc, srv)
+// UnsafeTestServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TestServiceServer will
+// result in compilation errors.
+type UnsafeTestServiceServer interface ***REMOVED***
+	mustEmbedUnimplementedTestServiceServer()
+***REMOVED***
+
+func RegisterTestServiceServer(s grpc.ServiceRegistrar, srv TestServiceServer) ***REMOVED***
+	s.RegisterService(&TestService_ServiceDesc, srv)
 ***REMOVED***
 
 func _TestService_EmptyCall_Handler(srv interface***REMOVED******REMOVED***, ctx context.Context, dec func(interface***REMOVED******REMOVED***) error, interceptor grpc.UnaryServerInterceptor) (interface***REMOVED******REMOVED***, error) ***REMOVED***
@@ -381,7 +391,10 @@ func (x *testServiceHalfDuplexCallServer) Recv() (*StreamingOutputCallRequest, e
 	return m, nil
 ***REMOVED***
 
-var _TestService_serviceDesc = grpc.ServiceDesc***REMOVED***
+// TestService_ServiceDesc is the grpc.ServiceDesc for TestService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TestService_ServiceDesc = grpc.ServiceDesc***REMOVED***
 	ServiceName: "grpc.testing.TestService",
 	HandlerType: (*TestServiceServer)(nil),
 	Methods: []grpc.MethodDesc***REMOVED***

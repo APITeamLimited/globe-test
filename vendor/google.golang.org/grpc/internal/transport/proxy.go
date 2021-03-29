@@ -16,13 +16,12 @@
  *
  */
 
-package grpc
+package transport
 
 import (
 	"bufio"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -34,8 +33,6 @@ import (
 const proxyAuthHeaderKey = "Proxy-Authorization"
 
 var (
-	// errDisabled indicates that proxy is disabled for the address.
-	errDisabled = errors.New("proxy is disabled for the address")
 	// The following variable will be overwritten in the tests.
 	httpProxyFromEnvironment = http.ProxyFromEnvironment
 )
@@ -50,9 +47,6 @@ func mapAddress(ctx context.Context, address string) (*url.URL, error) ***REMOVE
 	url, err := httpProxyFromEnvironment(req)
 	if err != nil ***REMOVED***
 		return nil, err
-	***REMOVED***
-	if url == nil ***REMOVED***
-		return nil, errDisabled
 	***REMOVED***
 	return url, nil
 ***REMOVED***
@@ -76,7 +70,7 @@ func basicAuth(username, password string) string ***REMOVED***
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 ***REMOVED***
 
-func doHTTPConnectHandshake(ctx context.Context, conn net.Conn, backendAddr string, proxyURL *url.URL) (_ net.Conn, err error) ***REMOVED***
+func doHTTPConnectHandshake(ctx context.Context, conn net.Conn, backendAddr string, proxyURL *url.URL, grpcUA string) (_ net.Conn, err error) ***REMOVED***
 	defer func() ***REMOVED***
 		if err != nil ***REMOVED***
 			conn.Close()
@@ -115,32 +109,28 @@ func doHTTPConnectHandshake(ctx context.Context, conn net.Conn, backendAddr stri
 	return &bufConn***REMOVED***Conn: conn, r: r***REMOVED***, nil
 ***REMOVED***
 
-// newProxyDialer returns a dialer that connects to proxy first if necessary.
-// The returned dialer checks if a proxy is necessary, dial to the proxy with the
-// provided dialer, does HTTP CONNECT handshake and returns the connection.
-func newProxyDialer(dialer func(context.Context, string) (net.Conn, error)) func(context.Context, string) (net.Conn, error) ***REMOVED***
-	return func(ctx context.Context, addr string) (conn net.Conn, err error) ***REMOVED***
-		var newAddr string
-		proxyURL, err := mapAddress(ctx, addr)
-		if err != nil ***REMOVED***
-			if err != errDisabled ***REMOVED***
-				return nil, err
-			***REMOVED***
-			newAddr = addr
-		***REMOVED*** else ***REMOVED***
-			newAddr = proxyURL.Host
-		***REMOVED***
+// proxyDial dials, connecting to a proxy first if necessary. Checks if a proxy
+// is necessary, dials, does the HTTP CONNECT handshake, and returns the
+// connection.
+func proxyDial(ctx context.Context, addr string, grpcUA string) (conn net.Conn, err error) ***REMOVED***
+	newAddr := addr
+	proxyURL, err := mapAddress(ctx, addr)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if proxyURL != nil ***REMOVED***
+		newAddr = proxyURL.Host
+	***REMOVED***
 
-		conn, err = dialer(ctx, newAddr)
-		if err != nil ***REMOVED***
-			return
-		***REMOVED***
-		if proxyURL != nil ***REMOVED***
-			// proxy is disabled if proxyURL is nil.
-			conn, err = doHTTPConnectHandshake(ctx, conn, addr, proxyURL)
-		***REMOVED***
+	conn, err = (&net.Dialer***REMOVED******REMOVED***).DialContext(ctx, "tcp", newAddr)
+	if err != nil ***REMOVED***
 		return
 	***REMOVED***
+	if proxyURL != nil ***REMOVED***
+		// proxy is disabled if proxyURL is nil.
+		conn, err = doHTTPConnectHandshake(ctx, conn, addr, proxyURL, grpcUA)
+	***REMOVED***
+	return
 ***REMOVED***
 
 func sendHTTPRequest(ctx context.Context, req *http.Request, conn net.Conn) error ***REMOVED***

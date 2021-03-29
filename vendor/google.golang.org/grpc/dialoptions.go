@@ -71,7 +71,6 @@ type dialOptions struct ***REMOVED***
 	// we need to be able to configure this in tests.
 	resolveNowBackoff func(int) time.Duration
 	resolvers         []resolver.Builder
-	withProxy         bool
 ***REMOVED***
 
 // DialOption configures how we set up the connection.
@@ -82,7 +81,10 @@ type DialOption interface ***REMOVED***
 // EmptyDialOption does not alter the dial configuration. It can be embedded in
 // another structure to build custom dial options.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type EmptyDialOption struct***REMOVED******REMOVED***
 
 func (EmptyDialOption) apply(*dialOptions) ***REMOVED******REMOVED***
@@ -238,7 +240,10 @@ func WithServiceConfig(c <-chan ServiceConfig) DialOption ***REMOVED***
 // using the backoff.DefaultConfig as a base, in cases where you want to
 // override only a subset of the backoff configuration.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithConnectParams(p ConnectParams) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.bs = internalbackoff.Exponential***REMOVED***Config: p.Backoff***REMOVED***
@@ -290,7 +295,10 @@ func WithBlock() DialOption ***REMOVED***
 // the context.DeadlineExceeded error.
 // Implies WithBlock()
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithReturnConnectionError() DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.block = true
@@ -310,10 +318,13 @@ func WithInsecure() DialOption ***REMOVED***
 // WithNoProxy returns a DialOption which disables the use of proxies for this
 // ClientConn. This is ignored if WithDialer or WithContextDialer are used.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithNoProxy() DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
-		o.withProxy = false
+		o.copts.UseProxy = false
 	***REMOVED***)
 ***REMOVED***
 
@@ -338,7 +349,10 @@ func WithPerRPCCredentials(creds credentials.PerRPCCredentials) DialOption ***RE
 // the ClientConn.WithCreds. This should not be used together with
 // WithTransportCredentials.
 //
-// This API is experimental.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithCredentialsBundle(b credentials.Bundle) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.copts.CredsBundle = b
@@ -403,7 +417,10 @@ func WithStatsHandler(h stats.Handler) DialOption ***REMOVED***
 // FailOnNonTempDialError only affects the initial dial, and does not do
 // anything useful unless you are also using WithBlock().
 //
-// This is an EXPERIMENTAL API.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func FailOnNonTempDialError(f bool) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.copts.FailOnNonTempDialError = f
@@ -481,7 +498,10 @@ func WithAuthority(a string) DialOption ***REMOVED***
 // current ClientConn's parent. This function is used in nested channel creation
 // (e.g. grpclb dial).
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithChannelzParentID(id int64) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.channelzParentID = id
@@ -507,7 +527,10 @@ func WithDisableServiceConfig() DialOption ***REMOVED***
 // 2. Resolver does not return a service config or if the resolver returns an
 //    invalid service config.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithDefaultServiceConfig(s string) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.defaultServiceConfigRawJSON = &s
@@ -523,7 +546,10 @@ func WithDefaultServiceConfig(s string) DialOption ***REMOVED***
 // default in the future.  Until then, it may be enabled by setting the
 // environment variable "GRPC_GO_RETRY" to "on".
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithDisableRetry() DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.disableRetry = true
@@ -541,7 +567,10 @@ func WithMaxHeaderListSize(s uint32) DialOption ***REMOVED***
 // WithDisableHealthCheck disables the LB channel health checking for all
 // SubConns of this ClientConn.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithDisableHealthCheck() DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.disableHealthCheck = true
@@ -565,9 +594,9 @@ func defaultDialOptions() dialOptions ***REMOVED***
 		copts: transport.ConnectOptions***REMOVED***
 			WriteBufferSize: defaultWriteBufSize,
 			ReadBufferSize:  defaultReadBufSize,
+			UseProxy:        true,
 		***REMOVED***,
 		resolveNowBackoff: internalbackoff.DefaultExponential.Backoff,
-		withProxy:         true,
 	***REMOVED***
 ***REMOVED***
 
@@ -597,7 +626,10 @@ func withResolveNowBackoff(f func(int) time.Duration) DialOption ***REMOVED***
 // resolver.Register.  They will be matched against the scheme used for the
 // current Dial only, and will take precedence over the global registry.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func WithResolvers(rs ...resolver.Builder) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.resolvers = append(o.resolvers, rs...)

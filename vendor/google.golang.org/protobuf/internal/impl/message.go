@@ -12,7 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"google.golang.org/protobuf/internal/genname"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -148,19 +148,19 @@ func (mi *MessageInfo) makeStructInfo(t reflect.Type) structInfo ***REMOVED***
 fieldLoop:
 	for i := 0; i < t.NumField(); i++ ***REMOVED***
 		switch f := t.Field(i); f.Name ***REMOVED***
-		case genname.SizeCache, genname.SizeCacheA:
+		case genid.SizeCache_goname, genid.SizeCacheA_goname:
 			if f.Type == sizecacheType ***REMOVED***
 				si.sizecacheOffset = offsetOf(f, mi.Exporter)
 			***REMOVED***
-		case genname.WeakFields, genname.WeakFieldsA:
+		case genid.WeakFields_goname, genid.WeakFieldsA_goname:
 			if f.Type == weakFieldsType ***REMOVED***
 				si.weakOffset = offsetOf(f, mi.Exporter)
 			***REMOVED***
-		case genname.UnknownFields, genname.UnknownFieldsA:
+		case genid.UnknownFields_goname, genid.UnknownFieldsA_goname:
 			if f.Type == unknownFieldsType ***REMOVED***
 				si.unknownOffset = offsetOf(f, mi.Exporter)
 			***REMOVED***
-		case genname.ExtensionFields, genname.ExtensionFieldsA, genname.ExtensionFieldsB:
+		case genid.ExtensionFields_goname, genid.ExtensionFieldsA_goname, genid.ExtensionFieldsB_goname:
 			if f.Type == extensionFieldsType ***REMOVED***
 				si.extensionOffset = offsetOf(f, mi.Exporter)
 			***REMOVED***

@@ -1,4 +1,4 @@
-// +build go1.10
+// +build !appengine
 
 /*
  *
@@ -25,10 +25,13 @@ package credentials
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"net/url"
 
 	"google.golang.org/grpc/grpclog"
 )
+
+var logger = grpclog.Component("credentials")
 
 // SPIFFEIDFromState parses the SPIFFE ID from State. If the SPIFFE ID format
 // is invalid, return nil with warning.
@@ -36,27 +39,36 @@ func SPIFFEIDFromState(state tls.ConnectionState) *url.URL ***REMOVED***
 	if len(state.PeerCertificates) == 0 || len(state.PeerCertificates[0].URIs) == 0 ***REMOVED***
 		return nil
 	***REMOVED***
+	return SPIFFEIDFromCert(state.PeerCertificates[0])
+***REMOVED***
+
+// SPIFFEIDFromCert parses the SPIFFE ID from x509.Certificate. If the SPIFFE
+// ID format is invalid, return nil with warning.
+func SPIFFEIDFromCert(cert *x509.Certificate) *url.URL ***REMOVED***
+	if cert == nil || cert.URIs == nil ***REMOVED***
+		return nil
+	***REMOVED***
 	var spiffeID *url.URL
-	for _, uri := range state.PeerCertificates[0].URIs ***REMOVED***
+	for _, uri := range cert.URIs ***REMOVED***
 		if uri == nil || uri.Scheme != "spiffe" || uri.Opaque != "" || (uri.User != nil && uri.User.Username() != "") ***REMOVED***
 			continue
 		***REMOVED***
 		// From this point, we assume the uri is intended for a SPIFFE ID.
 		if len(uri.String()) > 2048 ***REMOVED***
-			grpclog.Warning("invalid SPIFFE ID: total ID length larger than 2048 bytes")
+			logger.Warning("invalid SPIFFE ID: total ID length larger than 2048 bytes")
 			return nil
 		***REMOVED***
-		if len(uri.Host) == 0 || len(uri.RawPath) == 0 || len(uri.Path) == 0 ***REMOVED***
-			grpclog.Warning("invalid SPIFFE ID: domain or workload ID is empty")
+		if len(uri.Host) == 0 || len(uri.Path) == 0 ***REMOVED***
+			logger.Warning("invalid SPIFFE ID: domain or workload ID is empty")
 			return nil
 		***REMOVED***
 		if len(uri.Host) > 255 ***REMOVED***
-			grpclog.Warning("invalid SPIFFE ID: domain length larger than 255 characters")
+			logger.Warning("invalid SPIFFE ID: domain length larger than 255 characters")
 			return nil
 		***REMOVED***
 		// A valid SPIFFE certificate can only have exactly one URI SAN field.
-		if len(state.PeerCertificates[0].URIs) > 1 ***REMOVED***
-			grpclog.Warning("invalid SPIFFE ID: multiple URI SANs")
+		if len(cert.URIs) > 1 ***REMOVED***
+			logger.Warning("invalid SPIFFE ID: multiple URI SANs")
 			return nil
 		***REMOVED***
 		spiffeID = uri

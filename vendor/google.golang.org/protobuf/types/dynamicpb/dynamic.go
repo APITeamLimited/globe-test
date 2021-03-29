@@ -14,6 +14,39 @@ import (
 	"google.golang.org/protobuf/runtime/protoimpl"
 )
 
+// enum is a dynamic protoreflect.Enum.
+type enum struct ***REMOVED***
+	num pref.EnumNumber
+	typ pref.EnumType
+***REMOVED***
+
+func (e enum) Descriptor() pref.EnumDescriptor ***REMOVED*** return e.typ.Descriptor() ***REMOVED***
+func (e enum) Type() pref.EnumType             ***REMOVED*** return e.typ ***REMOVED***
+func (e enum) Number() pref.EnumNumber         ***REMOVED*** return e.num ***REMOVED***
+
+// enumType is a dynamic protoreflect.EnumType.
+type enumType struct ***REMOVED***
+	desc pref.EnumDescriptor
+***REMOVED***
+
+// NewEnumType creates a new EnumType with the provided descriptor.
+//
+// EnumTypes created by this package are equal if their descriptors are equal.
+// That is, if ed1 == ed2, then NewEnumType(ed1) == NewEnumType(ed2).
+//
+// Enum values created by the EnumType are equal if their numbers are equal.
+func NewEnumType(desc pref.EnumDescriptor) pref.EnumType ***REMOVED***
+	return enumType***REMOVED***desc***REMOVED***
+***REMOVED***
+
+func (et enumType) New(n pref.EnumNumber) pref.Enum ***REMOVED*** return enum***REMOVED***n, et***REMOVED*** ***REMOVED***
+func (et enumType) Descriptor() pref.EnumDescriptor ***REMOVED*** return et.desc ***REMOVED***
+
+// extensionType is a dynamic protoreflect.ExtensionType.
+type extensionType struct ***REMOVED***
+	desc extensionTypeDescriptor
+***REMOVED***
+
 // A Message is a dynamically constructed protocol buffer message.
 //
 // Message implements the proto.Message interface, and may be used with all
@@ -575,11 +608,6 @@ func newListEntry(fd pref.FieldDescriptor) pref.Value ***REMOVED***
 		return pref.ValueOfMessage(NewMessage(fd.Message()).ProtoReflect())
 	***REMOVED***
 	panic(errors.New("%v: unknown kind %v", fd.FullName(), fd.Kind()))
-***REMOVED***
-
-// extensionType is a dynamic protoreflect.ExtensionType.
-type extensionType struct ***REMOVED***
-	desc extensionTypeDescriptor
 ***REMOVED***
 
 // NewExtensionType creates a new ExtensionType with the provided descriptor.

@@ -27,7 +27,6 @@ import (
 	"net"
 	"net/url"
 
-	"google.golang.org/grpc/credentials/internal"
 	credinternal "google.golang.org/grpc/internal/credentials"
 )
 
@@ -73,7 +72,7 @@ func (c tlsCreds) Info() ProtocolInfo ***REMOVED***
 
 func (c *tlsCreds) ClientHandshake(ctx context.Context, authority string, rawConn net.Conn) (_ net.Conn, _ AuthInfo, err error) ***REMOVED***
 	// use local cfg to avoid clobbering ServerName if using multiple endpoints
-	cfg := cloneTLSConfig(c.config)
+	cfg := credinternal.CloneTLSConfig(c.config)
 	if cfg.ServerName == "" ***REMOVED***
 		serverName, _, err := net.SplitHostPort(authority)
 		if err != nil ***REMOVED***
@@ -108,7 +107,7 @@ func (c *tlsCreds) ClientHandshake(ctx context.Context, authority string, rawCon
 	if id != nil ***REMOVED***
 		tlsInfo.SPIFFEID = id
 	***REMOVED***
-	return internal.WrapSyscallConn(rawConn, conn), tlsInfo, nil
+	return credinternal.WrapSyscallConn(rawConn, conn), tlsInfo, nil
 ***REMOVED***
 
 func (c *tlsCreds) ServerHandshake(rawConn net.Conn) (net.Conn, AuthInfo, error) ***REMOVED***
@@ -127,7 +126,7 @@ func (c *tlsCreds) ServerHandshake(rawConn net.Conn) (net.Conn, AuthInfo, error)
 	if id != nil ***REMOVED***
 		tlsInfo.SPIFFEID = id
 	***REMOVED***
-	return internal.WrapSyscallConn(rawConn, conn), tlsInfo, nil
+	return credinternal.WrapSyscallConn(rawConn, conn), tlsInfo, nil
 ***REMOVED***
 
 func (c *tlsCreds) Clone() TransportCredentials ***REMOVED***
@@ -139,23 +138,10 @@ func (c *tlsCreds) OverrideServerName(serverNameOverride string) error ***REMOVE
 	return nil
 ***REMOVED***
 
-const alpnProtoStrH2 = "h2"
-
-func appendH2ToNextProtos(ps []string) []string ***REMOVED***
-	for _, p := range ps ***REMOVED***
-		if p == alpnProtoStrH2 ***REMOVED***
-			return ps
-		***REMOVED***
-	***REMOVED***
-	ret := make([]string, 0, len(ps)+1)
-	ret = append(ret, ps...)
-	return append(ret, alpnProtoStrH2)
-***REMOVED***
-
 // NewTLS uses c to construct a TransportCredentials based on TLS.
 func NewTLS(c *tls.Config) TransportCredentials ***REMOVED***
-	tc := &tlsCreds***REMOVED***cloneTLSConfig(c)***REMOVED***
-	tc.config.NextProtos = appendH2ToNextProtos(tc.config.NextProtos)
+	tc := &tlsCreds***REMOVED***credinternal.CloneTLSConfig(c)***REMOVED***
+	tc.config.NextProtos = credinternal.AppendH2ToNextProtos(tc.config.NextProtos)
 	return tc
 ***REMOVED***
 
@@ -209,7 +195,10 @@ func NewServerTLSFromFile(certFile, keyFile string) (TransportCredentials, error
 // TLSChannelzSecurityValue defines the struct that TLS protocol should return
 // from GetSecurityValue(), containing security info like cipher and certificate used.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This type is EXPERIMENTAL and may be changed or removed in a
+// later release.
 type TLSChannelzSecurityValue struct ***REMOVED***
 	ChannelzSecurityValue
 	StandardName      string
@@ -241,19 +230,4 @@ var cipherSuiteLookup = map[uint16]string***REMOVED***
 	tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:   "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
 	tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305:    "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
 	tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:  "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-***REMOVED***
-
-// cloneTLSConfig returns a shallow clone of the exported
-// fields of cfg, ignoring the unexported sync.Once, which
-// contains a mutex and must not be copied.
-//
-// If cfg is nil, a new zero tls.Config is returned.
-//
-// TODO: inline this function if possible.
-func cloneTLSConfig(cfg *tls.Config) *tls.Config ***REMOVED***
-	if cfg == nil ***REMOVED***
-		return &tls.Config***REMOVED******REMOVED***
-	***REMOVED***
-
-	return cfg.Clone()
 ***REMOVED***

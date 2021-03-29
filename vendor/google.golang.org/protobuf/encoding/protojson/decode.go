@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/internal/encoding/messageset"
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/internal/flags"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/internal/set"
 	"google.golang.org/protobuf/proto"
@@ -111,8 +112,8 @@ func (d decoder) syntaxError(pos int, f string, x ...interface***REMOVED******RE
 
 // unmarshalMessage unmarshals a message into the given protoreflect.Message.
 func (d decoder) unmarshalMessage(m pref.Message, skipTypeURL bool) error ***REMOVED***
-	if isCustomType(m.Descriptor().FullName()) ***REMOVED***
-		return d.unmarshalCustomType(m)
+	if unmarshal := wellKnownTypeUnmarshaler(m.Descriptor().FullName()); unmarshal != nil ***REMOVED***
+		return unmarshal(d, m)
 	***REMOVED***
 
 	tok, err := d.Read()
@@ -267,12 +268,12 @@ func (d decoder) findExtension(xtName pref.FullName) (pref.ExtensionType, error)
 
 func isKnownValue(fd pref.FieldDescriptor) bool ***REMOVED***
 	md := fd.Message()
-	return md != nil && md.FullName() == "google.protobuf.Value"
+	return md != nil && md.FullName() == genid.Value_message_fullname
 ***REMOVED***
 
 func isNullValue(fd pref.FieldDescriptor) bool ***REMOVED***
 	ed := fd.Enum()
-	return ed != nil && ed.FullName() == "google.protobuf.NullValue"
+	return ed != nil && ed.FullName() == genid.NullValue_enum_fullname
 ***REMOVED***
 
 // unmarshalSingular unmarshals to the non-repeated field specified
