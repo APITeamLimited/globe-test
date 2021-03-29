@@ -6,7 +6,7 @@ log() ***REMOVED***
 ***REMOVED***
 
 signkeypath="$PWD/sign-key.gpg"
-s3bucket="$***REMOVED***S3_BUCKET-dl-k6-io***REMOVED***"
+s3bucket="$***REMOVED***S3_BUCKET-dl.k6.io***REMOVED***"
 
 if ! [ -r "$signkeypath" ]; then
   log "ERROR: Signing key not found at '$signkeypath'"

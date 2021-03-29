@@ -14,7 +14,7 @@ set -eEuo pipefail
 #   For generating the index.html of each directory. It's available in the
 #   packaging/bin directory of the k6 repo, and should be in $PATH.
 
-_s3bucket="$***REMOVED***S3_BUCKET-dl-k6-io***REMOVED***"
+_s3bucket="$***REMOVED***S3_BUCKET-dl.k6.io***REMOVED***"
 _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED***]"
 PKGDIR="$***REMOVED***1?$***REMOVED***_usage***REMOVED******REMOVED***"  # The directory where .rpm files are located
 REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The package repository working directory
