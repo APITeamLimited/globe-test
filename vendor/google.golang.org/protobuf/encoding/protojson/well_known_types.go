@@ -106,13 +106,11 @@ func (e encoder) marshalAny(m pref.Message) error ***REMOVED***
 	fdType := fds.ByNumber(genid.Any_TypeUrl_field_number)
 	fdValue := fds.ByNumber(genid.Any_Value_field_number)
 
-	// Start writing the JSON object.
-	e.StartObject()
-	defer e.EndObject()
-
 	if !m.Has(fdType) ***REMOVED***
 		if !m.Has(fdValue) ***REMOVED***
 			// If message is empty, marshal out empty JSON object.
+			e.StartObject()
+			e.EndObject()
 			return nil
 		***REMOVED*** else ***REMOVED***
 			// Return error if type_url field is not set, but value is set.
@@ -123,14 +121,8 @@ func (e encoder) marshalAny(m pref.Message) error ***REMOVED***
 	typeVal := m.Get(fdType)
 	valueVal := m.Get(fdValue)
 
-	// Marshal out @type field.
-	typeURL := typeVal.String()
-	e.WriteName("@type")
-	if err := e.WriteString(typeURL); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
 	// Resolve the type in order to unmarshal value field.
+	typeURL := typeVal.String()
 	emt, err := e.opts.Resolver.FindMessageByURL(typeURL)
 	if err != nil ***REMOVED***
 		return errors.New("%s: unable to resolve %q: %v", genid.Any_message_fullname, typeURL, err)
@@ -149,12 +141,21 @@ func (e encoder) marshalAny(m pref.Message) error ***REMOVED***
 	// with corresponding custom JSON encoding of the embedded message as a
 	// field.
 	if marshal := wellKnownTypeMarshaler(emt.Descriptor().FullName()); marshal != nil ***REMOVED***
+		e.StartObject()
+		defer e.EndObject()
+
+		// Marshal out @type field.
+		e.WriteName("@type")
+		if err := e.WriteString(typeURL); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
 		e.WriteName("value")
 		return marshal(e, em)
 	***REMOVED***
 
 	// Else, marshal out the embedded message's fields in this Any object.
-	if err := e.marshalFields(em); err != nil ***REMOVED***
+	if err := e.marshalMessage(em, typeURL); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 

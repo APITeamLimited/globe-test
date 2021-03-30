@@ -2529,17 +2529,14 @@ func (m *Message) mergeFrom(pm proto.Message) error ***REMOVED***
 
 	// extension fields
 	rexts, _ := proto.ExtensionDescs(pm)
-	var unknownExtensions []byte
 	for _, ed := range rexts ***REMOVED***
 		v, _ := proto.GetExtension(pm, ed)
 		if v == nil ***REMOVED***
 			continue
 		***REMOVED***
 		if ed.ExtensionType == nil ***REMOVED***
-			extBytes, _ := v.([]byte)
-			if len(extBytes) > 0 ***REMOVED***
-				unknownExtensions = append(unknownExtensions, extBytes...)
-			***REMOVED***
+			// unrecognized extension: we'll handle that below when we
+			// handle other unrecognized fields
 			continue
 		***REMOVED***
 		fd := m.er.FindExtension(m.md.GetFullyQualifiedName(), ed.Field)
@@ -2569,13 +2566,6 @@ func (m *Message) mergeFrom(pm proto.Message) error ***REMOVED***
 		_ = m.UnmarshalMerge(data)
 	***REMOVED***
 
-	// lastly, also extract any unknown extensions the message may have (unknown extensions
-	// are stored with other extensions, not in the XXX_unrecognized field, so we have to do
-	// more than just the step above...)
-	if len(unknownExtensions) > 0 ***REMOVED***
-		// pulling in unknown fields is best-effort, so we just ignore errors
-		_ = m.UnmarshalMerge(unknownExtensions)
-	***REMOVED***
 	return nil
 ***REMOVED***
 
@@ -2627,11 +2617,14 @@ func (m *Message) validateRecursive(prefix string) error ***REMOVED***
 			var dm *Message
 			if d, ok := pm.(*Message); ok ***REMOVED***
 				dm = d
-			***REMOVED*** else ***REMOVED***
+			***REMOVED*** else if pm != nil ***REMOVED***
 				dm = m.mf.NewDynamicMessage(md)
 				if err := dm.ConvertFrom(pm); err != nil ***REMOVED***
 					return nil
 				***REMOVED***
+			***REMOVED***
+			if dm == nil ***REMOVED***
+				return nil
 			***REMOVED***
 			if err := dm.validateRecursive(chprefix); err != nil ***REMOVED***
 				return err

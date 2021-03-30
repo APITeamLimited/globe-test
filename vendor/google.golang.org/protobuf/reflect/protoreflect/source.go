@@ -4,6 +4,10 @@
 
 package protoreflect
 
+import (
+	"strconv"
+)
+
 // SourceLocations is a list of source locations.
 type SourceLocations interface ***REMOVED***
 	// Len reports the number of source locations in the proto file.
@@ -11,9 +15,20 @@ type SourceLocations interface ***REMOVED***
 	// Get returns the ith SourceLocation. It panics if out of bounds.
 	Get(int) SourceLocation
 
-	doNotImplement
+	// ByPath returns the SourceLocation for the given path,
+	// returning the first location if multiple exist for the same path.
+	// If multiple locations exist for the same path,
+	// then SourceLocation.Next index can be used to identify the
+	// index of the next SourceLocation.
+	// If no location exists for this path, it returns the zero value.
+	ByPath(path SourcePath) SourceLocation
 
-	// TODO: Add ByPath and ByDescriptor helper methods.
+	// ByDescriptor returns the SourceLocation for the given descriptor,
+	// returning the first location if multiple exist for the same path.
+	// If no location exists for this descriptor, it returns the zero value.
+	ByDescriptor(desc Descriptor) SourceLocation
+
+	doNotImplement
 ***REMOVED***
 
 // SourceLocation describes a source location and
@@ -39,6 +54,10 @@ type SourceLocation struct ***REMOVED***
 	LeadingComments string
 	// TrailingComments is the trailing attached comment for the declaration.
 	TrailingComments string
+
+	// Next is an index into SourceLocations for the next source location that
+	// has the same Path. It is zero if there is no next location.
+	Next int
 ***REMOVED***
 
 // SourcePath identifies part of a file descriptor for a source location.
@@ -48,5 +67,62 @@ type SourceLocation struct ***REMOVED***
 // See google.protobuf.SourceCodeInfo.Location.path.
 type SourcePath []int32
 
-// TODO: Add SourcePath.String method to pretty-print the path. For example:
-//	".message_type[6].nested_type[15].field[3]"
+// Equal reports whether p1 equals p2.
+func (p1 SourcePath) Equal(p2 SourcePath) bool ***REMOVED***
+	if len(p1) != len(p2) ***REMOVED***
+		return false
+	***REMOVED***
+	for i := range p1 ***REMOVED***
+		if p1[i] != p2[i] ***REMOVED***
+			return false
+		***REMOVED***
+	***REMOVED***
+	return true
+***REMOVED***
+
+// String formats the path in a humanly readable manner.
+// The output is guaranteed to be deterministic,
+// making it suitable for use as a key into a Go map.
+// It is not guaranteed to be stable as the exact output could change
+// in a future version of this module.
+//
+// Example output:
+//	.message_type[6].nested_type[15].field[3]
+func (p SourcePath) String() string ***REMOVED***
+	b := p.appendFileDescriptorProto(nil)
+	for _, i := range p ***REMOVED***
+		b = append(b, '.')
+		b = strconv.AppendInt(b, int64(i), 10)
+	***REMOVED***
+	return string(b)
+***REMOVED***
+
+type appendFunc func(*SourcePath, []byte) []byte
+
+func (p *SourcePath) appendSingularField(b []byte, name string, f appendFunc) []byte ***REMOVED***
+	if len(*p) == 0 ***REMOVED***
+		return b
+	***REMOVED***
+	b = append(b, '.')
+	b = append(b, name...)
+	*p = (*p)[1:]
+	if f != nil ***REMOVED***
+		b = f(p, b)
+	***REMOVED***
+	return b
+***REMOVED***
+
+func (p *SourcePath) appendRepeatedField(b []byte, name string, f appendFunc) []byte ***REMOVED***
+	b = p.appendSingularField(b, name, nil)
+	if len(*p) == 0 || (*p)[0] < 0 ***REMOVED***
+		return b
+	***REMOVED***
+	b = append(b, '[')
+	b = strconv.AppendUint(b, uint64((*p)[0]), 10)
+	b = append(b, ']')
+	*p = (*p)[1:]
+	if f != nil ***REMOVED***
+		b = f(p, b)
+	***REMOVED***
+	return b
+***REMOVED***

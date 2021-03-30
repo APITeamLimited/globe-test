@@ -17,6 +17,7 @@ import (
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/internal"
+	"github.com/jhump/protoreflect/desc/protoparse/ast"
 )
 
 //go:generate goyacc -o proto.y.go -p proto proto.y
@@ -118,6 +119,12 @@ type Parser struct ***REMOVED***
 	// desc.LoadFileDescriptor.
 	LookupImport func(string) (*desc.FileDescriptor, error)
 
+	// LookupImportProto has the same functionality as LookupImport, however it returns
+	// a FileDescriptorProto instead of a FileDescriptor.
+	//
+	// It is an error to set both LookupImport and LookupImportProto.
+	LookupImportProto func(string) (*dpb.FileDescriptorProto, error)
+
 	// Used to create a reader for a given filename, when loading proto source
 	// file contents. If unset, os.Open is used. If ImportPaths is also empty
 	// then relative paths are will be relative to the process's current working
@@ -200,11 +207,20 @@ func (p Parser) ParseFiles(filenames ...string) ([]*desc.FileDescriptor, error) 
 			return nil, ret
 		***REMOVED***
 	***REMOVED***
+	lookupImport, err := p.getLookupImport()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
 	protos := map[string]*parseResult***REMOVED******REMOVED***
-	results := &parseResults***REMOVED***resultsByFilename: protos***REMOVED***
+	results := &parseResults***REMOVED***
+		resultsByFilename:      protos,
+		recursive:              true,
+		validate:               true,
+		createDescriptorProtos: true,
+	***REMOVED***
 	errs := newErrorHandler(p.ErrorReporter, p.WarningReporter)
-	parseProtoFiles(accessor, filenames, errs, true, true, results, p.LookupImport)
+	parseProtoFiles(accessor, filenames, errs, results, lookupImport)
 	if err := errs.getError(); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -248,19 +264,19 @@ func (p Parser) ParseFiles(filenames ...string) ([]*desc.FileDescriptor, error) 
 //      scope in which the type reference appears. This goes for fields that
 //      have message and enum types. It also applies to methods and their
 //      references to request and response message types.
-//   3. Enum fields are not known. Until a field's type reference is resolved
-//      (during linking), it is not known whether the type refers to a message
-//      or an enum. So all fields with such type references have their Type set
-//      to TYPE_MESSAGE.
+//   3. Type references are not known. For non-scalar fields, until the type
+//      name is resolved (during linking), it is not known whether the type
+//      refers to a message or an enum. So all fields with such type references
+//      will not have their Type set, only the TypeName.
 //
 // This method will still validate the syntax of parsed files. If the parser's
 // ValidateUnlinkedFiles field is true, additional checks, beyond syntax will
 // also be performed.
 //
-// If the Parser has no ErrorReporter set and a syntax or link error occurs,
-// parsing will abort with the first such error encountered. If there is an
+// If the Parser has no ErrorReporter set and a syntax error occurs, parsing
+// will abort with the first such error encountered. If there is an
 // ErrorReporter configured and it returns non-nil, parsing will abort with the
-// error it returns. If syntax or link errors are encountered but the configured
+// error it returns. If syntax errors are encountered but the configured
 // ErrorReporter always returns nil, the parse fails with ErrInvalidSource.
 func (p Parser) ParseFilesButDoNotLink(filenames ...string) ([]*dpb.FileDescriptorProto, error) ***REMOVED***
 	accessor := p.Accessor
@@ -269,10 +285,19 @@ func (p Parser) ParseFilesButDoNotLink(filenames ...string) ([]*dpb.FileDescript
 			return os.Open(name)
 		***REMOVED***
 	***REMOVED***
+	lookupImport, err := p.getLookupImport()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
 	protos := map[string]*parseResult***REMOVED******REMOVED***
 	errs := newErrorHandler(p.ErrorReporter, p.WarningReporter)
-	parseProtoFiles(accessor, filenames, errs, false, p.ValidateUnlinkedFiles, &parseResults***REMOVED***resultsByFilename: protos***REMOVED***, p.LookupImport)
+	results := &parseResults***REMOVED***
+		resultsByFilename:      protos,
+		validate:               p.ValidateUnlinkedFiles,
+		createDescriptorProtos: true,
+	***REMOVED***
+	parseProtoFiles(accessor, filenames, errs, results, lookupImport)
 	if err := errs.getError(); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -299,6 +324,67 @@ func (p Parser) ParseFilesButDoNotLink(filenames ...string) ([]*dpb.FileDescript
 		fds[i] = fd
 	***REMOVED***
 	return fds, nil
+***REMOVED***
+
+// ParseToAST parses the named files into ASTs, or Abstract Syntax Trees. This
+// is for consumers of proto files that don't care about compiling the files to
+// descriptors, but care deeply about a non-lossy structured representation of
+// the source (since descriptors are lossy). This includes formatting tools and
+// possibly linters, too.
+//
+// If the requested filenames include standard imports (such as
+// "google/protobuf/empty.proto") and no source is provided, the corresponding
+// AST in the returned slice will be nil. These standard imports are only
+// available for use as descriptors; no source is available unless it is
+// provided by the configured Accessor.
+//
+// If the Parser has no ErrorReporter set and a syntax error occurs, parsing
+// will abort with the first such error encountered. If there is an
+// ErrorReporter configured and it returns non-nil, parsing will abort with the
+// error it returns. If syntax errors are encountered but the configured
+// ErrorReporter always returns nil, the parse fails with ErrInvalidSource.
+func (p Parser) ParseToAST(filenames ...string) ([]*ast.FileNode, error) ***REMOVED***
+	accessor := p.Accessor
+	if accessor == nil ***REMOVED***
+		accessor = func(name string) (io.ReadCloser, error) ***REMOVED***
+			return os.Open(name)
+		***REMOVED***
+	***REMOVED***
+	lookupImport, err := p.getLookupImport()
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	protos := map[string]*parseResult***REMOVED******REMOVED***
+	errs := newErrorHandler(p.ErrorReporter, p.WarningReporter)
+	parseProtoFiles(accessor, filenames, errs, &parseResults***REMOVED***resultsByFilename: protos***REMOVED***, lookupImport)
+	if err := errs.getError(); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	ret := make([]*ast.FileNode, 0, len(filenames))
+	for _, name := range filenames ***REMOVED***
+		ret = append(ret, protos[name].root)
+	***REMOVED***
+	return ret, nil
+***REMOVED***
+
+func (p Parser) getLookupImport() (func(string) (*dpb.FileDescriptorProto, error), error) ***REMOVED***
+	if p.LookupImport != nil && p.LookupImportProto != nil ***REMOVED***
+		return nil, ErrLookupImportAndProtoSet
+	***REMOVED***
+	if p.LookupImportProto != nil ***REMOVED***
+		return p.LookupImportProto, nil
+	***REMOVED***
+	if p.LookupImport != nil ***REMOVED***
+		return func(path string) (*dpb.FileDescriptorProto, error) ***REMOVED***
+			value, err := p.LookupImport(path)
+			if value != nil ***REMOVED***
+				return value.AsFileDescriptorProto(), err
+			***REMOVED***
+			return nil, err
+		***REMOVED***, nil
+	***REMOVED***
+	return nil, nil
 ***REMOVED***
 
 func fixupFilenames(protos map[string]*parseResult) map[string]*parseResult ***REMOVED***
@@ -409,21 +495,21 @@ func fixupFilenames(protos map[string]*parseResult) map[string]*parseResult ***R
 	return revisedProtos
 ***REMOVED***
 
-func parseProtoFiles(acc FileAccessor, filenames []string, errs *errorHandler, recursive, validate bool, parsed *parseResults, lookupImport func(string) (*desc.FileDescriptor, error)) ***REMOVED***
+func parseProtoFiles(acc FileAccessor, filenames []string, errs *errorHandler, parsed *parseResults, lookupImport func(string) (*dpb.FileDescriptorProto, error)) ***REMOVED***
 	for _, name := range filenames ***REMOVED***
-		parseProtoFile(acc, name, nil, errs, recursive, validate, parsed, lookupImport)
+		parseProtoFile(acc, name, nil, errs, parsed, lookupImport)
 		if errs.err != nil ***REMOVED***
 			return
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, errs *errorHandler, recursive, validate bool, parsed *parseResults, lookupImport func(string) (*desc.FileDescriptor, error)) ***REMOVED***
-	if parsed.has(filename) ***REMOVED***
+func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, errs *errorHandler, results *parseResults, lookupImport func(string) (*dpb.FileDescriptorProto, error)) ***REMOVED***
+	if results.has(filename) ***REMOVED***
 		return
 	***REMOVED***
 	if lookupImport == nil ***REMOVED***
-		lookupImport = func(string) (*desc.FileDescriptor, error) ***REMOVED***
+		lookupImport = func(string) (*dpb.FileDescriptorProto, error) ***REMOVED***
 			return nil, errors.New("no import lookup function")
 		***REMOVED***
 	***REMOVED***
@@ -437,12 +523,12 @@ func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, err
 				// closing need not fail this operation
 				_ = in.Close()
 			***REMOVED***()
-			result = parseProto(filename, in, errs, validate)
+			result = parseProto(filename, in, errs, results.validate, results.createDescriptorProtos)
 		***REMOVED***()
 	***REMOVED*** else if d, lookupErr := lookupImport(filename); lookupErr == nil ***REMOVED***
 		// This is a user-provided descriptor, which is acting similarly to a
 		// well-known import.
-		result = &parseResult***REMOVED***fd: proto.Clone(d.AsFileDescriptorProto()).(*dpb.FileDescriptorProto)***REMOVED***
+		result = &parseResult***REMOVED***fd: proto.Clone(d).(*dpb.FileDescriptorProto)***REMOVED***
 	***REMOVED*** else if d, ok := standardImports[filename]; ok ***REMOVED***
 		// it's a well-known import
 		// (we clone it to make sure we're not sharing state with other
@@ -472,20 +558,20 @@ func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, err
 		return
 	***REMOVED***
 
-	parsed.add(filename, result)
+	results.add(filename, result)
 
 	if errs.err != nil ***REMOVED***
 		return // abort
 	***REMOVED***
 
-	if recursive ***REMOVED***
+	if results.recursive ***REMOVED***
 		fd := result.fd
 		decl := result.getFileNode(fd)
-		fnode, ok := decl.(*fileNode)
+		fnode, ok := decl.(*ast.FileNode)
 		if !ok ***REMOVED***
 			// no AST for this file? use imports in descriptor
 			for _, dep := range fd.Dependency ***REMOVED***
-				parseProtoFile(acc, dep, decl.start(), errs, true, validate, parsed, lookupImport)
+				parseProtoFile(acc, dep, decl.Start(), errs, results, lookupImport)
 				if errs.getError() != nil ***REMOVED***
 					return // abort
 				***REMOVED***
@@ -493,10 +579,12 @@ func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, err
 			return
 		***REMOVED***
 		// we have an AST; use it so we can report import location in errors
-		for _, dep := range fnode.imports ***REMOVED***
-			parseProtoFile(acc, dep.name.val, dep.name.start(), errs, true, validate, parsed, lookupImport)
-			if errs.getError() != nil ***REMOVED***
-				return // abort
+		for _, decl := range fnode.Decls ***REMOVED***
+			if dep, ok := decl.(*ast.ImportNode); ok ***REMOVED***
+				parseProtoFile(acc, dep.Name.AsString(), dep.Name.Start(), errs, results, lookupImport)
+				if errs.getError() != nil ***REMOVED***
+					return // abort
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -505,6 +593,8 @@ func parseProtoFile(acc FileAccessor, filename string, importLoc *SourcePos, err
 type parseResults struct ***REMOVED***
 	resultsByFilename map[string]*parseResult
 	filenames         []string
+
+	recursive, validate, createDescriptorProtos bool
 ***REMOVED***
 
 func (r *parseResults) has(filename string) bool ***REMOVED***
@@ -522,6 +612,8 @@ type parseResult struct ***REMOVED***
 	// or validation
 	errs *errorHandler
 
+	// the root of the AST
+	root *ast.FileNode
 	// the parsed file descriptor
 	fd *dpb.FileDescriptorProto
 
@@ -532,141 +624,149 @@ type parseResult struct ***REMOVED***
 
 	// a map of elements in the descriptor to nodes in the AST
 	// (for extracting position information when validating the descriptor)
-	nodes map[proto.Message]node
+	nodes map[proto.Message]ast.Node
 
 	// a map of uninterpreted option AST nodes to their relative path
 	// in the resulting options message
-	interpretedOptions map[*optionNode][]int32
+	interpretedOptions map[*ast.OptionNode][]int32
 ***REMOVED***
 
-func (r *parseResult) getFileNode(f *dpb.FileDescriptorProto) fileDecl ***REMOVED***
+func (r *parseResult) getFileNode(f *dpb.FileDescriptorProto) ast.FileDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(f.GetName())***REMOVED***
+		return ast.NewNoSourceNode(f.GetName())
 	***REMOVED***
-	return r.nodes[f].(fileDecl)
+	return r.nodes[f].(ast.FileDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getOptionNode(o *dpb.UninterpretedOption) optionDecl ***REMOVED***
+func (r *parseResult) getOptionNode(o *dpb.UninterpretedOption) ast.OptionDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[o].(optionDecl)
+	return r.nodes[o].(ast.OptionDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getOptionNamePartNode(o *dpb.UninterpretedOption_NamePart) node ***REMOVED***
+func (r *parseResult) getOptionNamePartNode(o *dpb.UninterpretedOption_NamePart) ast.Node ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
 	return r.nodes[o]
 ***REMOVED***
 
-func (r *parseResult) getFieldNode(f *dpb.FieldDescriptorProto) fieldDecl ***REMOVED***
+func (r *parseResult) getFieldNode(f *dpb.FieldDescriptorProto) ast.FieldDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[f].(fieldDecl)
+	return r.nodes[f].(ast.FieldDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getExtensionRangeNode(e *dpb.DescriptorProto_ExtensionRange) rangeDecl ***REMOVED***
+func (r *parseResult) getExtensionRangeNode(e *dpb.DescriptorProto_ExtensionRange) ast.RangeDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[e].(rangeDecl)
+	return r.nodes[e].(ast.RangeDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getMessageReservedRangeNode(rr *dpb.DescriptorProto_ReservedRange) rangeDecl ***REMOVED***
+func (r *parseResult) getMessageReservedRangeNode(rr *dpb.DescriptorProto_ReservedRange) ast.RangeDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[rr].(rangeDecl)
+	return r.nodes[rr].(ast.RangeDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getEnumNode(e *dpb.EnumDescriptorProto) node ***REMOVED***
+func (r *parseResult) getEnumNode(e *dpb.EnumDescriptorProto) ast.Node ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
 	return r.nodes[e]
 ***REMOVED***
 
-func (r *parseResult) getEnumValueNode(e *dpb.EnumValueDescriptorProto) enumValueDecl ***REMOVED***
+func (r *parseResult) getEnumValueNode(e *dpb.EnumValueDescriptorProto) ast.EnumValueDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[e].(enumValueDecl)
+	return r.nodes[e].(ast.EnumValueDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getEnumReservedRangeNode(rr *dpb.EnumDescriptorProto_EnumReservedRange) rangeDecl ***REMOVED***
+func (r *parseResult) getEnumReservedRangeNode(rr *dpb.EnumDescriptorProto_EnumReservedRange) ast.RangeDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[rr].(rangeDecl)
+	return r.nodes[rr].(ast.RangeDeclNode)
 ***REMOVED***
 
-func (r *parseResult) getMethodNode(m *dpb.MethodDescriptorProto) methodDecl ***REMOVED***
+func (r *parseResult) getMethodNode(m *dpb.MethodDescriptorProto) ast.RPCDeclNode ***REMOVED***
 	if r.nodes == nil ***REMOVED***
-		return noSourceNode***REMOVED***pos: unknownPos(r.fd.GetName())***REMOVED***
+		return ast.NewNoSourceNode(r.fd.GetName())
 	***REMOVED***
-	return r.nodes[m].(methodDecl)
+	return r.nodes[m].(ast.RPCDeclNode)
 ***REMOVED***
 
-func (r *parseResult) putFileNode(f *dpb.FileDescriptorProto, n *fileNode) ***REMOVED***
+func (r *parseResult) putFileNode(f *dpb.FileDescriptorProto, n *ast.FileNode) ***REMOVED***
 	r.nodes[f] = n
 ***REMOVED***
 
-func (r *parseResult) putOptionNode(o *dpb.UninterpretedOption, n *optionNode) ***REMOVED***
+func (r *parseResult) putOptionNode(o *dpb.UninterpretedOption, n *ast.OptionNode) ***REMOVED***
 	r.nodes[o] = n
 ***REMOVED***
 
-func (r *parseResult) putOptionNamePartNode(o *dpb.UninterpretedOption_NamePart, n *optionNamePartNode) ***REMOVED***
+func (r *parseResult) putOptionNamePartNode(o *dpb.UninterpretedOption_NamePart, n *ast.FieldReferenceNode) ***REMOVED***
 	r.nodes[o] = n
 ***REMOVED***
 
-func (r *parseResult) putMessageNode(m *dpb.DescriptorProto, n msgDecl) ***REMOVED***
+func (r *parseResult) putMessageNode(m *dpb.DescriptorProto, n ast.MessageDeclNode) ***REMOVED***
 	r.nodes[m] = n
 ***REMOVED***
 
-func (r *parseResult) putFieldNode(f *dpb.FieldDescriptorProto, n fieldDecl) ***REMOVED***
+func (r *parseResult) putFieldNode(f *dpb.FieldDescriptorProto, n ast.FieldDeclNode) ***REMOVED***
 	r.nodes[f] = n
 ***REMOVED***
 
-func (r *parseResult) putOneOfNode(o *dpb.OneofDescriptorProto, n *oneOfNode) ***REMOVED***
+func (r *parseResult) putOneOfNode(o *dpb.OneofDescriptorProto, n *ast.OneOfNode) ***REMOVED***
 	r.nodes[o] = n
 ***REMOVED***
 
-func (r *parseResult) putExtensionRangeNode(e *dpb.DescriptorProto_ExtensionRange, n *rangeNode) ***REMOVED***
+func (r *parseResult) putExtensionRangeNode(e *dpb.DescriptorProto_ExtensionRange, n *ast.RangeNode) ***REMOVED***
 	r.nodes[e] = n
 ***REMOVED***
 
-func (r *parseResult) putMessageReservedRangeNode(rr *dpb.DescriptorProto_ReservedRange, n *rangeNode) ***REMOVED***
+func (r *parseResult) putMessageReservedRangeNode(rr *dpb.DescriptorProto_ReservedRange, n *ast.RangeNode) ***REMOVED***
 	r.nodes[rr] = n
 ***REMOVED***
 
-func (r *parseResult) putEnumNode(e *dpb.EnumDescriptorProto, n *enumNode) ***REMOVED***
+func (r *parseResult) putEnumNode(e *dpb.EnumDescriptorProto, n *ast.EnumNode) ***REMOVED***
 	r.nodes[e] = n
 ***REMOVED***
 
-func (r *parseResult) putEnumValueNode(e *dpb.EnumValueDescriptorProto, n *enumValueNode) ***REMOVED***
+func (r *parseResult) putEnumValueNode(e *dpb.EnumValueDescriptorProto, n *ast.EnumValueNode) ***REMOVED***
 	r.nodes[e] = n
 ***REMOVED***
 
-func (r *parseResult) putEnumReservedRangeNode(rr *dpb.EnumDescriptorProto_EnumReservedRange, n *rangeNode) ***REMOVED***
+func (r *parseResult) putEnumReservedRangeNode(rr *dpb.EnumDescriptorProto_EnumReservedRange, n *ast.RangeNode) ***REMOVED***
 	r.nodes[rr] = n
 ***REMOVED***
 
-func (r *parseResult) putServiceNode(s *dpb.ServiceDescriptorProto, n *serviceNode) ***REMOVED***
+func (r *parseResult) putServiceNode(s *dpb.ServiceDescriptorProto, n *ast.ServiceNode) ***REMOVED***
 	r.nodes[s] = n
 ***REMOVED***
 
-func (r *parseResult) putMethodNode(m *dpb.MethodDescriptorProto, n *methodNode) ***REMOVED***
+func (r *parseResult) putMethodNode(m *dpb.MethodDescriptorProto, n *ast.RPCNode) ***REMOVED***
 	r.nodes[m] = n
 ***REMOVED***
 
-func parseProto(filename string, r io.Reader, errs *errorHandler, validate bool) *parseResult ***REMOVED***
+func parseProto(filename string, r io.Reader, errs *errorHandler, validate, createProtos bool) *parseResult ***REMOVED***
 	beforeErrs := errs.errsReported
 	lx := newLexer(r, filename, errs)
 	protoParse(lx)
-
-	res := createParseResult(filename, lx.res, errs)
+	if lx.res == nil || len(lx.res.Children()) == 0 ***REMOVED***
+		// nil AST means there was an error that prevented any parsing
+		// or the file was empty; synthesize empty non-nil AST
+		lx.res = ast.NewEmptyFileNode(filename)
+	***REMOVED***
+	if lx.eof != nil ***REMOVED***
+		lx.res.FinalComments = lx.eof.LeadingComments()
+		lx.res.FinalWhitespace = lx.eof.LeadingWhitespace()
+	***REMOVED***
+	res := createParseResult(filename, lx.res, errs, createProtos)
 	if validate && errs.err == nil ***REMOVED***
 		validateBasic(res, errs.errsReported > beforeErrs)
 	***REMOVED***
@@ -674,33 +774,17 @@ func parseProto(filename string, r io.Reader, errs *errorHandler, validate bool)
 	return res
 ***REMOVED***
 
-func createParseResult(filename string, file *fileNode, errs *errorHandler) *parseResult ***REMOVED***
+func createParseResult(filename string, file *ast.FileNode, errs *errorHandler, createProtos bool) *parseResult ***REMOVED***
 	res := &parseResult***REMOVED***
 		errs:               errs,
-		nodes:              map[proto.Message]node***REMOVED******REMOVED***,
-		interpretedOptions: map[*optionNode][]int32***REMOVED******REMOVED***,
+		root:               file,
+		nodes:              map[proto.Message]ast.Node***REMOVED******REMOVED***,
+		interpretedOptions: map[*ast.OptionNode][]int32***REMOVED******REMOVED***,
 	***REMOVED***
-	if file == nil ***REMOVED***
-		// nil AST means there was an error that prevented any parsing
-		// or the file was empty; synthesize empty non-nil AST
-		file = &fileNode***REMOVED******REMOVED***
-		n := noSourceNode***REMOVED***pos: unknownPos(filename)***REMOVED***
-		file.setRange(&n, &n)
+	if createProtos ***REMOVED***
+		res.createFileDescriptor(filename, file)
 	***REMOVED***
-	res.createFileDescriptor(filename, file)
 	return res
-***REMOVED***
-
-func toNameParts(ident *compoundIdentNode) []*optionNamePartNode ***REMOVED***
-	parts := strings.Split(ident.val, ".")
-	ret := make([]*optionNamePartNode, len(parts))
-	offset := 0
-	for i, p := range parts ***REMOVED***
-		ret[i] = &optionNamePartNode***REMOVED***text: ident, offset: offset, length: len(p)***REMOVED***
-		ret[i].setRange(ident, ident)
-		offset += len(p) + 1
-	***REMOVED***
-	return ret
 ***REMOVED***
 
 func checkTag(pos *SourcePos, v uint64, maxTag int32) error ***REMOVED***
@@ -714,59 +798,68 @@ func checkTag(pos *SourcePos, v uint64, maxTag int32) error ***REMOVED***
 	return nil
 ***REMOVED***
 
-func checkExtensionTagsInFile(fd *desc.FileDescriptor, res *parseResult) error ***REMOVED***
+func checkExtensionsInFile(fd *desc.FileDescriptor, res *parseResult) error ***REMOVED***
 	for _, fld := range fd.GetExtensions() ***REMOVED***
-		if err := checkExtensionTag(fld, res); err != nil ***REMOVED***
+		if err := checkExtension(fld, res); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, md := range fd.GetMessageTypes() ***REMOVED***
-		if err := checkExtensionTagsInMessage(md, res); err != nil ***REMOVED***
+		if err := checkExtensionsInMessage(md, res); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
 
-func checkExtensionTagsInMessage(md *desc.MessageDescriptor, res *parseResult) error ***REMOVED***
+func checkExtensionsInMessage(md *desc.MessageDescriptor, res *parseResult) error ***REMOVED***
 	for _, fld := range md.GetNestedExtensions() ***REMOVED***
-		if err := checkExtensionTag(fld, res); err != nil ***REMOVED***
+		if err := checkExtension(fld, res); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, nmd := range md.GetNestedMessageTypes() ***REMOVED***
-		if err := checkExtensionTagsInMessage(nmd, res); err != nil ***REMOVED***
+		if err := checkExtensionsInMessage(nmd, res); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
 
-func checkExtensionTag(fld *desc.FieldDescriptor, res *parseResult) error ***REMOVED***
-	// NB: This is kind of gross that we don't enforce this in validateBasic(). But it would
-	// require doing some minimal linking there (to identify the extendee and locate its
-	// descriptor). To keep the code simpler, we just wait until things are fully linked.
-
-	// In validateBasic() we just made sure these were within bounds for any message. But
-	// now that things are linked, we can check if the extendee is messageset wire format
-	// and, if not, enforce tighter limit.
-	if !fld.GetOwner().GetMessageOptions().GetMessageSetWireFormat() && fld.GetNumber() > internal.MaxNormalTag ***REMOVED***
-		pos := res.nodes[fld.AsFieldDescriptorProto()].(fieldDecl).fieldTag().start()
-		return errorWithPos(pos, "tag number %d is higher than max allowed tag number (%d)", fld.GetNumber(), internal.MaxNormalTag)
+func checkExtension(fld *desc.FieldDescriptor, res *parseResult) error ***REMOVED***
+	// NB: It's a little gross that we don't enforce these in validateBasic().
+	// But requires some minimal linking to resolve the extendee, so we can
+	// interrogate its descriptor.
+	if fld.GetOwner().GetMessageOptions().GetMessageSetWireFormat() ***REMOVED***
+		// Message set wire format requires that all extensions be messages
+		// themselves (no scalar extensions)
+		if fld.GetType() != dpb.FieldDescriptorProto_TYPE_MESSAGE ***REMOVED***
+			pos := res.getFieldNode(fld.AsFieldDescriptorProto()).FieldType().Start()
+			return errorWithPos(pos, "messages with message-set wire format cannot contain scalar extensions, only messages")
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		// In validateBasic() we just made sure these were within bounds for any message. But
+		// now that things are linked, we can check if the extendee is messageset wire format
+		// and, if not, enforce tighter limit.
+		if fld.GetNumber() > internal.MaxNormalTag ***REMOVED***
+			pos := res.getFieldNode(fld.AsFieldDescriptorProto()).FieldTag().Start()
+			return errorWithPos(pos, "tag number %d is higher than max allowed tag number (%d)", fld.GetNumber(), internal.MaxNormalTag)
+		***REMOVED***
 	***REMOVED***
+
 	return nil
 ***REMOVED***
 
-func aggToString(agg []*aggregateEntryNode, buf *bytes.Buffer) ***REMOVED***
+func aggToString(agg []*ast.MessageFieldNode, buf *bytes.Buffer) ***REMOVED***
 	buf.WriteString("***REMOVED***")
 	for _, a := range agg ***REMOVED***
 		buf.WriteString(" ")
-		buf.WriteString(a.name.value())
-		if v, ok := a.val.(*aggregateLiteralNode); ok ***REMOVED***
-			aggToString(v.elements, buf)
+		buf.WriteString(a.Name.Value())
+		if v, ok := a.Val.(*ast.MessageLiteralNode); ok ***REMOVED***
+			aggToString(v.Elements, buf)
 		***REMOVED*** else ***REMOVED***
 			buf.WriteString(": ")
-			elementToString(a.val.value(), buf)
+			elementToString(a.Val.Value(), buf)
 		***REMOVED***
 	***REMOVED***
 	buf.WriteString(" ***REMOVED***")
@@ -774,7 +867,7 @@ func aggToString(agg []*aggregateEntryNode, buf *bytes.Buffer) ***REMOVED***
 
 func elementToString(v interface***REMOVED******REMOVED***, buf *bytes.Buffer) ***REMOVED***
 	switch v := v.(type) ***REMOVED***
-	case bool, int64, uint64, identifier:
+	case bool, int64, uint64, ast.Identifier:
 		_, _ = fmt.Fprintf(buf, "%v", v)
 	case float64:
 		if math.IsInf(v, 1) ***REMOVED***
@@ -790,7 +883,7 @@ func elementToString(v interface***REMOVED******REMOVED***, buf *bytes.Buffer) *
 		buf.WriteRune('"')
 		writeEscapedBytes(buf, []byte(v))
 		buf.WriteRune('"')
-	case []valueNode:
+	case []ast.ValueNode:
 		buf.WriteString(": [")
 		first := true
 		for _, e := range v ***REMOVED***
@@ -799,10 +892,10 @@ func elementToString(v interface***REMOVED******REMOVED***, buf *bytes.Buffer) *
 			***REMOVED*** else ***REMOVED***
 				buf.WriteString(", ")
 			***REMOVED***
-			elementToString(e.value(), buf)
+			elementToString(e.Value(), buf)
 		***REMOVED***
 		buf.WriteString("]")
-	case []*aggregateEntryNode:
+	case []*ast.MessageFieldNode:
 		aggToString(v, buf)
 	***REMOVED***
 ***REMOVED***

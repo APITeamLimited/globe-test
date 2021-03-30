@@ -6,7 +6,6 @@ package prototext
 
 import (
 	"fmt"
-	"strings"
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/internal/encoding/messageset"
@@ -158,21 +157,11 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 		switch tok.NameKind() ***REMOVED***
 		case text.IdentName:
 			name = pref.Name(tok.IdentName())
-			fd = fieldDescs.ByName(name)
-			if fd == nil ***REMOVED***
-				// The proto name of a group field is in all lowercase,
-				// while the textproto field name is the group message name.
-				gd := fieldDescs.ByName(pref.Name(strings.ToLower(string(name))))
-				if gd != nil && gd.Kind() == pref.GroupKind && gd.Message().Name() == name ***REMOVED***
-					fd = gd
-				***REMOVED***
-			***REMOVED*** else if fd.Kind() == pref.GroupKind && fd.Message().Name() != name ***REMOVED***
-				fd = nil // reset since field name is actually the message name
-			***REMOVED***
+			fd = fieldDescs.ByTextName(string(name))
 
 		case text.TypeName:
 			// Handle extensions only. This code path is not for Any.
-			xt, xtErr = d.findExtension(pref.FullName(tok.TypeName()))
+			xt, xtErr = d.opts.Resolver.FindExtensionByName(pref.FullName(tok.TypeName()))
 
 		case text.FieldNumber:
 			isFieldNumberName = true
@@ -267,15 +256,6 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 	***REMOVED***
 
 	return nil
-***REMOVED***
-
-// findExtension returns protoreflect.ExtensionType from the Resolver if found.
-func (d decoder) findExtension(xtName pref.FullName) (pref.ExtensionType, error) ***REMOVED***
-	xt, err := d.opts.Resolver.FindExtensionByName(xtName)
-	if err == nil ***REMOVED***
-		return xt, nil
-	***REMOVED***
-	return messageset.FindMessageSetExtension(d.opts.Resolver, xtName)
 ***REMOVED***
 
 // unmarshalSingular unmarshals a non-repeated field value specified by the

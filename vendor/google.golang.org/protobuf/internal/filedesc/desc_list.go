@@ -6,8 +6,11 @@ package filedesc
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"sync"
+
+	"google.golang.org/protobuf/internal/genid"
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/descfmt"
@@ -245,6 +248,7 @@ type OneofFields struct ***REMOVED***
 	once   sync.Once
 	byName map[pref.Name]pref.FieldDescriptor        // protected by once
 	byJSON map[string]pref.FieldDescriptor           // protected by once
+	byText map[string]pref.FieldDescriptor           // protected by once
 	byNum  map[pref.FieldNumber]pref.FieldDescriptor // protected by once
 ***REMOVED***
 
@@ -252,6 +256,7 @@ func (p *OneofFields) Len() int                                         ***REMOV
 func (p *OneofFields) Get(i int) pref.FieldDescriptor                   ***REMOVED*** return p.List[i] ***REMOVED***
 func (p *OneofFields) ByName(s pref.Name) pref.FieldDescriptor          ***REMOVED*** return p.lazyInit().byName[s] ***REMOVED***
 func (p *OneofFields) ByJSONName(s string) pref.FieldDescriptor         ***REMOVED*** return p.lazyInit().byJSON[s] ***REMOVED***
+func (p *OneofFields) ByTextName(s string) pref.FieldDescriptor         ***REMOVED*** return p.lazyInit().byText[s] ***REMOVED***
 func (p *OneofFields) ByNumber(n pref.FieldNumber) pref.FieldDescriptor ***REMOVED*** return p.lazyInit().byNum[n] ***REMOVED***
 func (p *OneofFields) Format(s fmt.State, r rune)                       ***REMOVED*** descfmt.FormatList(s, r, p) ***REMOVED***
 func (p *OneofFields) ProtoInternal(pragma.DoNotImplement)              ***REMOVED******REMOVED***
@@ -261,11 +266,13 @@ func (p *OneofFields) lazyInit() *OneofFields ***REMOVED***
 		if len(p.List) > 0 ***REMOVED***
 			p.byName = make(map[pref.Name]pref.FieldDescriptor, len(p.List))
 			p.byJSON = make(map[string]pref.FieldDescriptor, len(p.List))
+			p.byText = make(map[string]pref.FieldDescriptor, len(p.List))
 			p.byNum = make(map[pref.FieldNumber]pref.FieldDescriptor, len(p.List))
 			for _, f := range p.List ***REMOVED***
 				// Field names and numbers are guaranteed to be unique.
 				p.byName[f.Name()] = f
 				p.byJSON[f.JSONName()] = f
+				p.byText[f.TextName()] = f
 				p.byNum[f.Number()] = f
 			***REMOVED***
 		***REMOVED***
@@ -274,9 +281,170 @@ func (p *OneofFields) lazyInit() *OneofFields ***REMOVED***
 ***REMOVED***
 
 type SourceLocations struct ***REMOVED***
+	// List is a list of SourceLocations.
+	// The SourceLocation.Next field does not need to be populated
+	// as it will be lazily populated upon first need.
 	List []pref.SourceLocation
+
+	// File is the parent file descriptor that these locations are relative to.
+	// If non-nil, ByDescriptor verifies that the provided descriptor
+	// is a child of this file descriptor.
+	File pref.FileDescriptor
+
+	once   sync.Once
+	byPath map[pathKey]int
 ***REMOVED***
 
-func (p *SourceLocations) Len() int                            ***REMOVED*** return len(p.List) ***REMOVED***
-func (p *SourceLocations) Get(i int) pref.SourceLocation       ***REMOVED*** return p.List[i] ***REMOVED***
+func (p *SourceLocations) Len() int                      ***REMOVED*** return len(p.List) ***REMOVED***
+func (p *SourceLocations) Get(i int) pref.SourceLocation ***REMOVED*** return p.lazyInit().List[i] ***REMOVED***
+func (p *SourceLocations) byKey(k pathKey) pref.SourceLocation ***REMOVED***
+	if i, ok := p.lazyInit().byPath[k]; ok ***REMOVED***
+		return p.List[i]
+	***REMOVED***
+	return pref.SourceLocation***REMOVED******REMOVED***
+***REMOVED***
+func (p *SourceLocations) ByPath(path pref.SourcePath) pref.SourceLocation ***REMOVED***
+	return p.byKey(newPathKey(path))
+***REMOVED***
+func (p *SourceLocations) ByDescriptor(desc pref.Descriptor) pref.SourceLocation ***REMOVED***
+	if p.File != nil && desc != nil && p.File != desc.ParentFile() ***REMOVED***
+		return pref.SourceLocation***REMOVED******REMOVED*** // mismatching parent files
+	***REMOVED***
+	var pathArr [16]int32
+	path := pathArr[:0]
+	for ***REMOVED***
+		switch desc.(type) ***REMOVED***
+		case pref.FileDescriptor:
+			// Reverse the path since it was constructed in reverse.
+			for i, j := 0, len(path)-1; i < j; i, j = i+1, j-1 ***REMOVED***
+				path[i], path[j] = path[j], path[i]
+			***REMOVED***
+			return p.byKey(newPathKey(path))
+		case pref.MessageDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.FileDescriptor:
+				path = append(path, int32(genid.FileDescriptorProto_MessageType_field_number))
+			case pref.MessageDescriptor:
+				path = append(path, int32(genid.DescriptorProto_NestedType_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		case pref.FieldDescriptor:
+			isExtension := desc.(pref.FieldDescriptor).IsExtension()
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			if isExtension ***REMOVED***
+				switch desc.(type) ***REMOVED***
+				case pref.FileDescriptor:
+					path = append(path, int32(genid.FileDescriptorProto_Extension_field_number))
+				case pref.MessageDescriptor:
+					path = append(path, int32(genid.DescriptorProto_Extension_field_number))
+				default:
+					return pref.SourceLocation***REMOVED******REMOVED***
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				switch desc.(type) ***REMOVED***
+				case pref.MessageDescriptor:
+					path = append(path, int32(genid.DescriptorProto_Field_field_number))
+				default:
+					return pref.SourceLocation***REMOVED******REMOVED***
+				***REMOVED***
+			***REMOVED***
+		case pref.OneofDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.MessageDescriptor:
+				path = append(path, int32(genid.DescriptorProto_OneofDecl_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		case pref.EnumDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.FileDescriptor:
+				path = append(path, int32(genid.FileDescriptorProto_EnumType_field_number))
+			case pref.MessageDescriptor:
+				path = append(path, int32(genid.DescriptorProto_EnumType_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		case pref.EnumValueDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.EnumDescriptor:
+				path = append(path, int32(genid.EnumDescriptorProto_Value_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		case pref.ServiceDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.FileDescriptor:
+				path = append(path, int32(genid.FileDescriptorProto_Service_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		case pref.MethodDescriptor:
+			path = append(path, int32(desc.Index()))
+			desc = desc.Parent()
+			switch desc.(type) ***REMOVED***
+			case pref.ServiceDescriptor:
+				path = append(path, int32(genid.ServiceDescriptorProto_Method_field_number))
+			default:
+				return pref.SourceLocation***REMOVED******REMOVED***
+			***REMOVED***
+		default:
+			return pref.SourceLocation***REMOVED******REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+func (p *SourceLocations) lazyInit() *SourceLocations ***REMOVED***
+	p.once.Do(func() ***REMOVED***
+		if len(p.List) > 0 ***REMOVED***
+			// Collect all the indexes for a given path.
+			pathIdxs := make(map[pathKey][]int, len(p.List))
+			for i, l := range p.List ***REMOVED***
+				k := newPathKey(l.Path)
+				pathIdxs[k] = append(pathIdxs[k], i)
+			***REMOVED***
+
+			// Update the next index for all locations.
+			p.byPath = make(map[pathKey]int, len(p.List))
+			for k, idxs := range pathIdxs ***REMOVED***
+				for i := 0; i < len(idxs)-1; i++ ***REMOVED***
+					p.List[idxs[i]].Next = idxs[i+1]
+				***REMOVED***
+				p.List[idxs[len(idxs)-1]].Next = 0
+				p.byPath[k] = idxs[0] // record the first location for this path
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***)
+	return p
+***REMOVED***
 func (p *SourceLocations) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
+
+// pathKey is a comparable representation of protoreflect.SourcePath.
+type pathKey struct ***REMOVED***
+	arr [16]uint8 // first n-1 path segments; last element is the length
+	str string    // used if the path does not fit in arr
+***REMOVED***
+
+func newPathKey(p pref.SourcePath) (k pathKey) ***REMOVED***
+	if len(p) < len(k.arr) ***REMOVED***
+		for i, ps := range p ***REMOVED***
+			if ps < 0 || math.MaxUint8 <= ps ***REMOVED***
+				return pathKey***REMOVED***str: p.String()***REMOVED***
+			***REMOVED***
+			k.arr[i] = uint8(ps)
+		***REMOVED***
+		k.arr[len(k.arr)-1] = uint8(len(p))
+		return k
+	***REMOVED***
+	return pathKey***REMOVED***str: p.String()***REMOVED***
+***REMOVED***

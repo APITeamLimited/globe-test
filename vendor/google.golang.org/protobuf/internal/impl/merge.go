@@ -77,9 +77,9 @@ func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) ***REMO
 		***REMOVED***
 	***REMOVED***
 	if mi.unknownOffset.IsValid() ***REMOVED***
-		du := dst.Apply(mi.unknownOffset).Bytes()
-		su := src.Apply(mi.unknownOffset).Bytes()
-		if len(*su) > 0 ***REMOVED***
+		su := mi.getUnknownBytes(src)
+		if su != nil && len(*su) > 0 ***REMOVED***
+			du := mi.mutableUnknownBytes(dst)
 			*du = append(*du, *su...)
 		***REMOVED***
 	***REMOVED***

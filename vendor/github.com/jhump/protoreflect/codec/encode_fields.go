@@ -34,6 +34,7 @@ func (cb *Buffer) EncodeFieldValue(fd *desc.FieldDescriptor, val interface***REM
 		valType := entryType.FindFieldByNumber(2)
 		var entryBuffer Buffer
 		if cb.IsDeterministic() ***REMOVED***
+			entryBuffer.SetDeterministic(true)
 			keys := make([]interface***REMOVED******REMOVED***, 0, len(mp))
 			for k := range mp ***REMOVED***
 				keys = append(keys, k)

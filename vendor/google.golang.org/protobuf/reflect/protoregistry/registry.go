@@ -21,7 +21,9 @@ import (
 	"strings"
 	"sync"
 
+	"google.golang.org/protobuf/internal/encoding/messageset"
 	"google.golang.org/protobuf/internal/errors"
+	"google.golang.org/protobuf/internal/flags"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -560,13 +562,25 @@ func (r *Types) FindEnumByName(enum protoreflect.FullName) (protoreflect.EnumTyp
 	return nil, NotFound
 ***REMOVED***
 
-// FindMessageByName looks up a message by its full name.
-// E.g., "google.protobuf.Any"
+// FindMessageByName looks up a message by its full name,
+// e.g. "google.protobuf.Any".
 //
-// This return (nil, NotFound) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindMessageByName(message protoreflect.FullName) (protoreflect.MessageType, error) ***REMOVED***
-	// The full name by itself is a valid URL.
-	return r.FindMessageByURL(string(message))
+	if r == nil ***REMOVED***
+		return nil, NotFound
+	***REMOVED***
+	if r == GlobalTypes ***REMOVED***
+		globalMutex.RLock()
+		defer globalMutex.RUnlock()
+	***REMOVED***
+	if v := r.typesByName[message]; v != nil ***REMOVED***
+		if mt, _ := v.(protoreflect.MessageType); mt != nil ***REMOVED***
+			return mt, nil
+		***REMOVED***
+		return nil, errors.New("found wrong type: got %v, want message", typeName(v))
+	***REMOVED***
+	return nil, NotFound
 ***REMOVED***
 
 // FindMessageByURL looks up a message by a URL identifier.
@@ -574,6 +588,8 @@ func (r *Types) FindMessageByName(message protoreflect.FullName) (protoreflect.M
 //
 // This returns (nil, NotFound) if not found.
 func (r *Types) FindMessageByURL(url string) (protoreflect.MessageType, error) ***REMOVED***
+	// This function is similar to FindMessageByName but
+	// truncates anything before and including '/' in the URL.
 	if r == nil ***REMOVED***
 		return nil, NotFound
 	***REMOVED***
@@ -613,6 +629,26 @@ func (r *Types) FindExtensionByName(field protoreflect.FullName) (protoreflect.E
 		if xt, _ := v.(protoreflect.ExtensionType); xt != nil ***REMOVED***
 			return xt, nil
 		***REMOVED***
+
+		// MessageSet extensions are special in that the name of the extension
+		// is the name of the message type used to extend the MessageSet.
+		// This naming scheme is used by text and JSON serialization.
+		//
+		// This feature is protected by the ProtoLegacy flag since MessageSets
+		// are a proto1 feature that is long deprecated.
+		if flags.ProtoLegacy ***REMOVED***
+			if _, ok := v.(protoreflect.MessageType); ok ***REMOVED***
+				field := field.Append(messageset.ExtensionName)
+				if v := r.typesByName[field]; v != nil ***REMOVED***
+					if xt, _ := v.(protoreflect.ExtensionType); xt != nil ***REMOVED***
+						if messageset.IsMessageSetExtension(xt.TypeDescriptor()) ***REMOVED***
+							return xt, nil
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+
 		return nil, errors.New("found wrong type: got %v, want extension", typeName(v))
 	***REMOVED***
 	return nil, NotFound

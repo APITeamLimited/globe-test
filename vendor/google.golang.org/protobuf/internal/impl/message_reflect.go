@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"google.golang.org/protobuf/internal/detrand"
 	"google.golang.org/protobuf/internal/pragma"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -15,6 +16,11 @@ import (
 type reflectMessageInfo struct ***REMOVED***
 	fields map[pref.FieldNumber]*fieldInfo
 	oneofs map[pref.Name]*oneofInfo
+
+	// fieldTypes contains the zero value of an enum or message field.
+	// For lists, it contains the element type.
+	// For maps, it contains the entry value type.
+	fieldTypes map[pref.FieldNumber]interface***REMOVED******REMOVED***
 
 	// denseFields is a subset of fields where:
 	//	0 < fieldDesc.Number() < len(denseFields)
@@ -36,6 +42,7 @@ func (mi *MessageInfo) makeReflectFuncs(t reflect.Type, si structInfo) ***REMOVE
 	mi.makeKnownFieldsFunc(si)
 	mi.makeUnknownFieldsFunc(t, si)
 	mi.makeExtensionFieldsFunc(t, si)
+	mi.makeFieldTypes(si)
 ***REMOVED***
 
 // makeKnownFieldsFunc generates functions for operations that can be performed
@@ -61,7 +68,7 @@ func (mi *MessageInfo) makeKnownFieldsFunc(si structInfo) ***REMOVED***
 			fi = fieldInfoForList(fd, fs, mi.Exporter)
 		case fd.IsWeak():
 			fi = fieldInfoForWeakMessage(fd, si.weakOffset)
-		case fd.Kind() == pref.MessageKind || fd.Kind() == pref.GroupKind:
+		case fd.Message() != nil:
 			fi = fieldInfoForMessage(fd, fs, mi.Exporter)
 		default:
 			fi = fieldInfoForScalar(fd, fs, mi.Exporter)
@@ -92,27 +99,53 @@ func (mi *MessageInfo) makeKnownFieldsFunc(si structInfo) ***REMOVED***
 			i++
 		***REMOVED***
 	***REMOVED***
+
+	// Introduce instability to iteration order, but keep it deterministic.
+	if len(mi.rangeInfos) > 1 && detrand.Bool() ***REMOVED***
+		i := detrand.Intn(len(mi.rangeInfos) - 1)
+		mi.rangeInfos[i], mi.rangeInfos[i+1] = mi.rangeInfos[i+1], mi.rangeInfos[i]
+	***REMOVED***
 ***REMOVED***
 
 func (mi *MessageInfo) makeUnknownFieldsFunc(t reflect.Type, si structInfo) ***REMOVED***
-	mi.getUnknown = func(pointer) pref.RawFields ***REMOVED*** return nil ***REMOVED***
-	mi.setUnknown = func(pointer, pref.RawFields) ***REMOVED*** return ***REMOVED***
-	if si.unknownOffset.IsValid() ***REMOVED***
+	switch ***REMOVED***
+	case si.unknownOffset.IsValid() && si.unknownType == unknownFieldsAType:
+		// Handle as []byte.
 		mi.getUnknown = func(p pointer) pref.RawFields ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				return nil
 			***REMOVED***
-			rv := p.Apply(si.unknownOffset).AsValueOf(unknownFieldsType)
-			return pref.RawFields(*rv.Interface().(*[]byte))
+			return *p.Apply(mi.unknownOffset).Bytes()
 		***REMOVED***
 		mi.setUnknown = func(p pointer, b pref.RawFields) ***REMOVED***
 			if p.IsNil() ***REMOVED***
 				panic("invalid SetUnknown on nil Message")
 			***REMOVED***
-			rv := p.Apply(si.unknownOffset).AsValueOf(unknownFieldsType)
-			*rv.Interface().(*[]byte) = []byte(b)
+			*p.Apply(mi.unknownOffset).Bytes() = b
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
+	case si.unknownOffset.IsValid() && si.unknownType == unknownFieldsBType:
+		// Handle as *[]byte.
+		mi.getUnknown = func(p pointer) pref.RawFields ***REMOVED***
+			if p.IsNil() ***REMOVED***
+				return nil
+			***REMOVED***
+			bp := p.Apply(mi.unknownOffset).BytesPtr()
+			if *bp == nil ***REMOVED***
+				return nil
+			***REMOVED***
+			return **bp
+		***REMOVED***
+		mi.setUnknown = func(p pointer, b pref.RawFields) ***REMOVED***
+			if p.IsNil() ***REMOVED***
+				panic("invalid SetUnknown on nil Message")
+			***REMOVED***
+			bp := p.Apply(mi.unknownOffset).BytesPtr()
+			if *bp == nil ***REMOVED***
+				*bp = new([]byte)
+			***REMOVED***
+			**bp = b
+		***REMOVED***
+	default:
 		mi.getUnknown = func(pointer) pref.RawFields ***REMOVED***
 			return nil
 		***REMOVED***
@@ -136,6 +169,45 @@ func (mi *MessageInfo) makeExtensionFieldsFunc(t reflect.Type, si structInfo) **
 	***REMOVED*** else ***REMOVED***
 		mi.extensionMap = func(pointer) *extensionMap ***REMOVED***
 			return (*extensionMap)(nil)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+func (mi *MessageInfo) makeFieldTypes(si structInfo) ***REMOVED***
+	md := mi.Desc
+	fds := md.Fields()
+	for i := 0; i < fds.Len(); i++ ***REMOVED***
+		var ft reflect.Type
+		fd := fds.Get(i)
+		fs := si.fieldsByNumber[fd.Number()]
+		switch ***REMOVED***
+		case fd.ContainingOneof() != nil && !fd.ContainingOneof().IsSynthetic():
+			if fd.Enum() != nil || fd.Message() != nil ***REMOVED***
+				ft = si.oneofWrappersByNumber[fd.Number()].Field(0).Type
+			***REMOVED***
+		case fd.IsMap():
+			if fd.MapValue().Enum() != nil || fd.MapValue().Message() != nil ***REMOVED***
+				ft = fs.Type.Elem()
+			***REMOVED***
+		case fd.IsList():
+			if fd.Enum() != nil || fd.Message() != nil ***REMOVED***
+				ft = fs.Type.Elem()
+			***REMOVED***
+		case fd.Enum() != nil:
+			ft = fs.Type
+			if fd.HasPresence() ***REMOVED***
+				ft = ft.Elem()
+			***REMOVED***
+		case fd.Message() != nil:
+			ft = fs.Type
+			if fd.IsWeak() ***REMOVED***
+				ft = nil
+			***REMOVED***
+		***REMOVED***
+		if ft != nil ***REMOVED***
+			if mi.fieldTypes == nil ***REMOVED***
+				mi.fieldTypes = make(map[pref.FieldNumber]interface***REMOVED******REMOVED***)
+			***REMOVED***
+			mi.fieldTypes[fd.Number()] = reflect.Zero(ft).Interface()
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -306,7 +378,6 @@ var (
 // pointer to a named Go struct. If the provided type has a ProtoReflect method,
 // it must be implemented by calling this method.
 func (mi *MessageInfo) MessageOf(m interface***REMOVED******REMOVED***) pref.Message ***REMOVED***
-	// TODO: Switch the input to be an opaque Pointer.
 	if reflect.TypeOf(m) != mi.GoReflectType ***REMOVED***
 		panic(fmt.Sprintf("type mismatch: got %T, want %v", m, mi.GoReflectType))
 	***REMOVED***

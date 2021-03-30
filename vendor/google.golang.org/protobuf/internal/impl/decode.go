@@ -17,6 +17,8 @@ import (
 	piface "google.golang.org/protobuf/runtime/protoiface"
 )
 
+var errDecode = errors.New("cannot parse invalid wire-format data")
+
 type unmarshalOptions struct ***REMOVED***
 	flags    protoiface.UnmarshalInputFlags
 	resolver interface ***REMOVED***
@@ -100,13 +102,13 @@ func (mi *MessageInfo) unmarshalPointer(b []byte, p pointer, groupTag protowire.
 			var n int
 			tag, n = protowire.ConsumeVarint(b)
 			if n < 0 ***REMOVED***
-				return out, protowire.ParseError(n)
+				return out, errDecode
 			***REMOVED***
 			b = b[n:]
 		***REMOVED***
 		var num protowire.Number
 		if n := tag >> 3; n < uint64(protowire.MinValidNumber) || n > uint64(protowire.MaxValidNumber) ***REMOVED***
-			return out, errors.New("invalid field number")
+			return out, errDecode
 		***REMOVED*** else ***REMOVED***
 			num = protowire.Number(n)
 		***REMOVED***
@@ -114,7 +116,7 @@ func (mi *MessageInfo) unmarshalPointer(b []byte, p pointer, groupTag protowire.
 
 		if wtyp == protowire.EndGroupType ***REMOVED***
 			if num != groupTag ***REMOVED***
-				return out, errors.New("mismatching end group marker")
+				return out, errDecode
 			***REMOVED***
 			groupTag = 0
 			break
@@ -170,10 +172,10 @@ func (mi *MessageInfo) unmarshalPointer(b []byte, p pointer, groupTag protowire.
 			***REMOVED***
 			n = protowire.ConsumeFieldValue(num, wtyp, b)
 			if n < 0 ***REMOVED***
-				return out, protowire.ParseError(n)
+				return out, errDecode
 			***REMOVED***
 			if !opts.DiscardUnknown() && mi.unknownOffset.IsValid() ***REMOVED***
-				u := p.Apply(mi.unknownOffset).Bytes()
+				u := mi.mutableUnknownBytes(p)
 				*u = protowire.AppendTag(*u, num, wtyp)
 				*u = append(*u, b[:n]...)
 			***REMOVED***
@@ -181,7 +183,7 @@ func (mi *MessageInfo) unmarshalPointer(b []byte, p pointer, groupTag protowire.
 		b = b[n:]
 	***REMOVED***
 	if groupTag != 0 ***REMOVED***
-		return out, errors.New("missing end group marker")
+		return out, errDecode
 	***REMOVED***
 	if mi.numRequiredFields > 0 && bits.OnesCount64(requiredMask) != int(mi.numRequiredFields) ***REMOVED***
 		initialized = false
@@ -221,7 +223,7 @@ func (mi *MessageInfo) unmarshalExtension(b []byte, num protowire.Number, wtyp p
 					return out, nil
 				***REMOVED***
 			case ValidationInvalid:
-				return out, errors.New("invalid wire format")
+				return out, errDecode
 			case ValidationUnknown:
 			***REMOVED***
 		***REMOVED***

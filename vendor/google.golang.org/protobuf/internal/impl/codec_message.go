@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/encoding/messageset"
-	"google.golang.org/protobuf/internal/fieldsort"
+	"google.golang.org/protobuf/internal/order"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 	piface "google.golang.org/protobuf/runtime/protoiface"
 )
@@ -27,6 +27,7 @@ type coderMessageInfo struct ***REMOVED***
 	coderFields        map[protowire.Number]*coderFieldInfo
 	sizecacheOffset    offset
 	unknownOffset      offset
+	unknownPtrKind     bool
 	extensionOffset    offset
 	needsInitCheck     bool
 	isMessageSet       bool
@@ -47,9 +48,20 @@ type coderFieldInfo struct ***REMOVED***
 ***REMOVED***
 
 func (mi *MessageInfo) makeCoderMethods(t reflect.Type, si structInfo) ***REMOVED***
-	mi.sizecacheOffset = si.sizecacheOffset
-	mi.unknownOffset = si.unknownOffset
-	mi.extensionOffset = si.extensionOffset
+	mi.sizecacheOffset = invalidOffset
+	mi.unknownOffset = invalidOffset
+	mi.extensionOffset = invalidOffset
+
+	if si.sizecacheOffset.IsValid() && si.sizecacheType == sizecacheType ***REMOVED***
+		mi.sizecacheOffset = si.sizecacheOffset
+	***REMOVED***
+	if si.unknownOffset.IsValid() && (si.unknownType == unknownFieldsAType || si.unknownType == unknownFieldsBType) ***REMOVED***
+		mi.unknownOffset = si.unknownOffset
+		mi.unknownPtrKind = si.unknownType.Kind() == reflect.Ptr
+	***REMOVED***
+	if si.extensionOffset.IsValid() && si.extensionType == extensionFieldsType ***REMOVED***
+		mi.extensionOffset = si.extensionOffset
+	***REMOVED***
 
 	mi.coderFields = make(map[protowire.Number]*coderFieldInfo)
 	fields := mi.Desc.Fields()
@@ -136,7 +148,7 @@ func (mi *MessageInfo) makeCoderMethods(t reflect.Type, si structInfo) ***REMOVE
 		sort.Slice(mi.orderedCoderFields, func(i, j int) bool ***REMOVED***
 			fi := fields.ByNumber(mi.orderedCoderFields[i].num)
 			fj := fields.ByNumber(mi.orderedCoderFields[j].num)
-			return fieldsort.Less(fi, fj)
+			return order.LegacyFieldOrder(fi, fj)
 		***REMOVED***)
 	***REMOVED***
 
@@ -155,5 +167,30 @@ func (mi *MessageInfo) makeCoderMethods(t reflect.Type, si structInfo) ***REMOVE
 	***REMOVED***
 	if mi.methods.Merge == nil ***REMOVED***
 		mi.methods.Merge = mi.merge
+	***REMOVED***
+***REMOVED***
+
+// getUnknownBytes returns a *[]byte for the unknown fields.
+// It is the caller's responsibility to check whether the pointer is nil.
+// This function is specially designed to be inlineable.
+func (mi *MessageInfo) getUnknownBytes(p pointer) *[]byte ***REMOVED***
+	if mi.unknownPtrKind ***REMOVED***
+		return *p.Apply(mi.unknownOffset).BytesPtr()
+	***REMOVED*** else ***REMOVED***
+		return p.Apply(mi.unknownOffset).Bytes()
+	***REMOVED***
+***REMOVED***
+
+// mutableUnknownBytes returns a *[]byte for the unknown fields.
+// The returned pointer is guaranteed to not be nil.
+func (mi *MessageInfo) mutableUnknownBytes(p pointer) *[]byte ***REMOVED***
+	if mi.unknownPtrKind ***REMOVED***
+		bp := p.Apply(mi.unknownOffset).BytesPtr()
+		if *bp == nil ***REMOVED***
+			*bp = new([]byte)
+		***REMOVED***
+		return *bp
+	***REMOVED*** else ***REMOVED***
+		return p.Apply(mi.unknownOffset).Bytes()
 	***REMOVED***
 ***REMOVED***

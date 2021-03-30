@@ -32,6 +32,16 @@ func legacyWrapMessage(v reflect.Value) pref.Message ***REMOVED***
 	return mt.MessageOf(v.Interface())
 ***REMOVED***
 
+// legacyLoadMessageType dynamically loads a protoreflect.Type for t,
+// where t must be not implement the v2 API already.
+// The provided name is used if it cannot be determined from the message.
+func legacyLoadMessageType(t reflect.Type, name pref.FullName) protoreflect.MessageType ***REMOVED***
+	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct ***REMOVED***
+		return aberrantMessageType***REMOVED***t***REMOVED***
+	***REMOVED***
+	return legacyLoadMessageInfo(t, name)
+***REMOVED***
+
 var legacyMessageTypeCache sync.Map // map[reflect.Type]*MessageInfo
 
 // legacyLoadMessageInfo dynamically loads a *MessageInfo for t,
@@ -370,7 +380,7 @@ type legacyMerger interface ***REMOVED***
 	Merge(protoiface.MessageV1)
 ***REMOVED***
 
-var legacyProtoMethods = &piface.Methods***REMOVED***
+var aberrantProtoMethods = &piface.Methods***REMOVED***
 	Marshal:   legacyMarshal,
 	Unmarshal: legacyUnmarshal,
 	Merge:     legacyMerge,
@@ -495,7 +505,7 @@ func (m aberrantMessage) IsValid() bool ***REMOVED***
 	return true
 ***REMOVED***
 func (m aberrantMessage) ProtoMethods() *piface.Methods ***REMOVED***
-	return legacyProtoMethods
+	return aberrantProtoMethods
 ***REMOVED***
 func (m aberrantMessage) protoUnwrap() interface***REMOVED******REMOVED*** ***REMOVED***
 	return m.v.Interface()

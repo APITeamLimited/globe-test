@@ -121,6 +121,7 @@ func (p pointer) String() *string          ***REMOVED*** return p.v.Interface().
 func (p pointer) StringPtr() **string      ***REMOVED*** return p.v.Interface().(**string) ***REMOVED***
 func (p pointer) StringSlice() *[]string   ***REMOVED*** return p.v.Interface().(*[]string) ***REMOVED***
 func (p pointer) Bytes() *[]byte           ***REMOVED*** return p.v.Interface().(*[]byte) ***REMOVED***
+func (p pointer) BytesPtr() **[]byte       ***REMOVED*** return p.v.Interface().(**[]byte) ***REMOVED***
 func (p pointer) BytesSlice() *[][]byte    ***REMOVED*** return p.v.Interface().(*[][]byte) ***REMOVED***
 func (p pointer) WeakFields() *weakFields  ***REMOVED*** return (*weakFields)(p.v.Interface().(*WeakFields)) ***REMOVED***
 func (p pointer) Extensions() *map[int32]ExtensionField ***REMOVED***

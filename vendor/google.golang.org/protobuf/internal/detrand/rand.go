@@ -26,6 +26,14 @@ func Bool() bool ***REMOVED***
 	return randSeed%2 == 1
 ***REMOVED***
 
+// Intn returns a deterministically random integer between 0 and n-1, inclusive.
+func Intn(n int) int ***REMOVED***
+	if n <= 0 ***REMOVED***
+		panic("must be positive")
+	***REMOVED***
+	return int(randSeed % uint64(n))
+***REMOVED***
+
 // randSeed is a best-effort at an approximate hash of the Go binary.
 var randSeed = binaryHash()
 

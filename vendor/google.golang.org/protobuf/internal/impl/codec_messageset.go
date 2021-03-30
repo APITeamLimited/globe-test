@@ -29,8 +29,9 @@ func sizeMessageSet(mi *MessageInfo, p pointer, opts marshalOptions) (size int) 
 		size += xi.funcs.size(x.Value(), protowire.SizeTag(messageset.FieldMessage), opts)
 	***REMOVED***
 
-	unknown := *p.Apply(mi.unknownOffset).Bytes()
-	size += messageset.SizeUnknown(unknown)
+	if u := mi.getUnknownBytes(p); u != nil ***REMOVED***
+		size += messageset.SizeUnknown(*u)
+	***REMOVED***
 
 	return size
 ***REMOVED***
@@ -69,10 +70,12 @@ func marshalMessageSet(mi *MessageInfo, b []byte, p pointer, opts marshalOptions
 		***REMOVED***
 	***REMOVED***
 
-	unknown := *p.Apply(mi.unknownOffset).Bytes()
-	b, err := messageset.AppendUnknown(b, unknown)
-	if err != nil ***REMOVED***
-		return b, err
+	if u := mi.getUnknownBytes(p); u != nil ***REMOVED***
+		var err error
+		b, err = messageset.AppendUnknown(b, *u)
+		if err != nil ***REMOVED***
+			return b, err
+		***REMOVED***
 	***REMOVED***
 
 	return b, nil
@@ -100,13 +103,13 @@ func unmarshalMessageSet(mi *MessageInfo, b []byte, p pointer, opts unmarshalOpt
 		*ep = make(map[int32]ExtensionField)
 	***REMOVED***
 	ext := *ep
-	unknown := p.Apply(mi.unknownOffset).Bytes()
 	initialized := true
 	err = messageset.Unmarshal(b, true, func(num protowire.Number, v []byte) error ***REMOVED***
 		o, err := mi.unmarshalExtension(v, num, protowire.BytesType, ext, opts)
 		if err == errUnknown ***REMOVED***
-			*unknown = protowire.AppendTag(*unknown, num, protowire.BytesType)
-			*unknown = append(*unknown, v...)
+			u := mi.mutableUnknownBytes(p)
+			*u = protowire.AppendTag(*u, num, protowire.BytesType)
+			*u = append(*u, v...)
 			return nil
 		***REMOVED***
 		if !o.initialized ***REMOVED***

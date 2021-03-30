@@ -124,15 +124,6 @@ func (d decoder) unmarshalMessage(m pref.Message, skipTypeURL bool) error ***REM
 		return d.unexpectedTokenError(tok)
 	***REMOVED***
 
-	if err := d.unmarshalFields(m, skipTypeURL); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
-	return nil
-***REMOVED***
-
-// unmarshalFields unmarshals the fields into the given protoreflect.Message.
-func (d decoder) unmarshalFields(m pref.Message, skipTypeURL bool) error ***REMOVED***
 	messageDesc := m.Descriptor()
 	if !flags.ProtoLegacy && messageset.IsMessageSet(messageDesc) ***REMOVED***
 		return errors.New("no support for proto1 MessageSets")
@@ -170,7 +161,7 @@ func (d decoder) unmarshalFields(m pref.Message, skipTypeURL bool) error ***REMO
 		if strings.HasPrefix(name, "[") && strings.HasSuffix(name, "]") ***REMOVED***
 			// Only extension names are in [name] format.
 			extName := pref.FullName(name[1 : len(name)-1])
-			extType, err := d.findExtension(extName)
+			extType, err := d.opts.Resolver.FindExtensionByName(extName)
 			if err != nil && err != protoregistry.NotFound ***REMOVED***
 				return d.newError(tok.Pos(), "unable to resolve %s: %v", tok.RawString(), err)
 			***REMOVED***
@@ -184,17 +175,7 @@ func (d decoder) unmarshalFields(m pref.Message, skipTypeURL bool) error ***REMO
 			// The name can either be the JSON name or the proto field name.
 			fd = fieldDescs.ByJSONName(name)
 			if fd == nil ***REMOVED***
-				fd = fieldDescs.ByName(pref.Name(name))
-				if fd == nil ***REMOVED***
-					// The proto name of a group field is in all lowercase,
-					// while the textual field name is the group message name.
-					gd := fieldDescs.ByName(pref.Name(strings.ToLower(name)))
-					if gd != nil && gd.Kind() == pref.GroupKind && gd.Message().Name() == pref.Name(name) ***REMOVED***
-						fd = gd
-					***REMOVED***
-				***REMOVED*** else if fd.Kind() == pref.GroupKind && fd.Message().Name() != pref.Name(name) ***REMOVED***
-					fd = nil // reset since field name is actually the message name
-				***REMOVED***
+				fd = fieldDescs.ByTextName(name)
 			***REMOVED***
 		***REMOVED***
 		if flags.ProtoLegacy ***REMOVED***
@@ -255,15 +236,6 @@ func (d decoder) unmarshalFields(m pref.Message, skipTypeURL bool) error ***REMO
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-***REMOVED***
-
-// findExtension returns protoreflect.ExtensionType from the resolver if found.
-func (d decoder) findExtension(xtName pref.FullName) (pref.ExtensionType, error) ***REMOVED***
-	xt, err := d.opts.Resolver.FindExtensionByName(xtName)
-	if err == nil ***REMOVED***
-		return xt, nil
-	***REMOVED***
-	return messageset.FindMessageSetExtension(d.opts.Resolver, xtName)
 ***REMOVED***
 
 func isKnownValue(fd pref.FieldDescriptor) bool ***REMOVED***

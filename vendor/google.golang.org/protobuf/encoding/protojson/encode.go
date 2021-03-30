@@ -7,15 +7,17 @@ package protojson
 import (
 	"encoding/base64"
 	"fmt"
-	"sort"
 
 	"google.golang.org/protobuf/internal/encoding/json"
 	"google.golang.org/protobuf/internal/encoding/messageset"
 	"google.golang.org/protobuf/internal/errors"
+	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/flags"
 	"google.golang.org/protobuf/internal/genid"
+	"google.golang.org/protobuf/internal/order"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
@@ -131,7 +133,7 @@ func (o MarshalOptions) marshal(m proto.Message) ([]byte, error) ***REMOVED***
 	***REMOVED***
 
 	enc := encoder***REMOVED***internalEnc, o***REMOVED***
-	if err := enc.marshalMessage(m.ProtoReflect()); err != nil ***REMOVED***
+	if err := enc.marshalMessage(m.ProtoReflect(), ""); err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 	if o.AllowPartial ***REMOVED***
@@ -145,76 +147,94 @@ type encoder struct ***REMOVED***
 	opts MarshalOptions
 ***REMOVED***
 
-// marshalMessage marshals the given protoreflect.Message.
-func (e encoder) marshalMessage(m pref.Message) error ***REMOVED***
+// typeFieldDesc is a synthetic field descriptor used for the "@type" field.
+var typeFieldDesc = func() protoreflect.FieldDescriptor ***REMOVED***
+	var fd filedesc.Field
+	fd.L0.FullName = "@type"
+	fd.L0.Index = -1
+	fd.L1.Cardinality = protoreflect.Optional
+	fd.L1.Kind = protoreflect.StringKind
+	return &fd
+***REMOVED***()
+
+// typeURLFieldRanger wraps a protoreflect.Message and modifies its Range method
+// to additionally iterate over a synthetic field for the type URL.
+type typeURLFieldRanger struct ***REMOVED***
+	order.FieldRanger
+	typeURL string
+***REMOVED***
+
+func (m typeURLFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
+	if !f(typeFieldDesc, pref.ValueOfString(m.typeURL)) ***REMOVED***
+		return
+	***REMOVED***
+	m.FieldRanger.Range(f)
+***REMOVED***
+
+// unpopulatedFieldRanger wraps a protoreflect.Message and modifies its Range
+// method to additionally iterate over unpopulated fields.
+type unpopulatedFieldRanger struct***REMOVED*** pref.Message ***REMOVED***
+
+func (m unpopulatedFieldRanger) Range(f func(pref.FieldDescriptor, pref.Value) bool) ***REMOVED***
+	fds := m.Descriptor().Fields()
+	for i := 0; i < fds.Len(); i++ ***REMOVED***
+		fd := fds.Get(i)
+		if m.Has(fd) || fd.ContainingOneof() != nil ***REMOVED***
+			continue // ignore populated fields and fields within a oneofs
+		***REMOVED***
+
+		v := m.Get(fd)
+		isProto2Scalar := fd.Syntax() == pref.Proto2 && fd.Default().IsValid()
+		isSingularMessage := fd.Cardinality() != pref.Repeated && fd.Message() != nil
+		if isProto2Scalar || isSingularMessage ***REMOVED***
+			v = pref.Value***REMOVED******REMOVED*** // use invalid value to emit null
+		***REMOVED***
+		if !f(fd, v) ***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED***
+	m.Message.Range(f)
+***REMOVED***
+
+// marshalMessage marshals the fields in the given protoreflect.Message.
+// If the typeURL is non-empty, then a synthetic "@type" field is injected
+// containing the URL as the value.
+func (e encoder) marshalMessage(m pref.Message, typeURL string) error ***REMOVED***
+	if !flags.ProtoLegacy && messageset.IsMessageSet(m.Descriptor()) ***REMOVED***
+		return errors.New("no support for proto1 MessageSets")
+	***REMOVED***
+
 	if marshal := wellKnownTypeMarshaler(m.Descriptor().FullName()); marshal != nil ***REMOVED***
 		return marshal(e, m)
 	***REMOVED***
 
 	e.StartObject()
 	defer e.EndObject()
-	if err := e.marshalFields(m); err != nil ***REMOVED***
-		return err
+
+	var fields order.FieldRanger = m
+	if e.opts.EmitUnpopulated ***REMOVED***
+		fields = unpopulatedFieldRanger***REMOVED***m***REMOVED***
+	***REMOVED***
+	if typeURL != "" ***REMOVED***
+		fields = typeURLFieldRanger***REMOVED***fields, typeURL***REMOVED***
 	***REMOVED***
 
-	return nil
-***REMOVED***
-
-// marshalFields marshals the fields in the given protoreflect.Message.
-func (e encoder) marshalFields(m pref.Message) error ***REMOVED***
-	messageDesc := m.Descriptor()
-	if !flags.ProtoLegacy && messageset.IsMessageSet(messageDesc) ***REMOVED***
-		return errors.New("no support for proto1 MessageSets")
-	***REMOVED***
-
-	// Marshal out known fields.
-	fieldDescs := messageDesc.Fields()
-	for i := 0; i < fieldDescs.Len(); ***REMOVED***
-		fd := fieldDescs.Get(i)
-		if od := fd.ContainingOneof(); od != nil ***REMOVED***
-			fd = m.WhichOneof(od)
-			i += od.Fields().Len()
-			if fd == nil ***REMOVED***
-				continue // unpopulated oneofs are not affected by EmitUnpopulated
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			i++
-		***REMOVED***
-
-		val := m.Get(fd)
-		if !m.Has(fd) ***REMOVED***
-			if !e.opts.EmitUnpopulated ***REMOVED***
-				continue
-			***REMOVED***
-			isProto2Scalar := fd.Syntax() == pref.Proto2 && fd.Default().IsValid()
-			isSingularMessage := fd.Cardinality() != pref.Repeated && fd.Message() != nil
-			if isProto2Scalar || isSingularMessage ***REMOVED***
-				// Use invalid value to emit null.
-				val = pref.Value***REMOVED******REMOVED***
-			***REMOVED***
-		***REMOVED***
-
+	var err error
+	order.RangeFields(fields, order.IndexNameFieldOrder, func(fd pref.FieldDescriptor, v pref.Value) bool ***REMOVED***
 		name := fd.JSONName()
 		if e.opts.UseProtoNames ***REMOVED***
-			name = string(fd.Name())
-			// Use type name for group field name.
-			if fd.Kind() == pref.GroupKind ***REMOVED***
-				name = string(fd.Message().Name())
-			***REMOVED***
+			name = fd.TextName()
 		***REMOVED***
-		if err := e.WriteName(name); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := e.marshalValue(val, fd); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
 
-	// Marshal out extensions.
-	if err := e.marshalExtensions(m); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	return nil
+		if err = e.WriteName(name); err != nil ***REMOVED***
+			return false
+		***REMOVED***
+		if err = e.marshalValue(v, fd); err != nil ***REMOVED***
+			return false
+		***REMOVED***
+		return true
+	***REMOVED***)
+	return err
 ***REMOVED***
 
 // marshalValue marshals the given protoreflect.Value.
@@ -281,7 +301,7 @@ func (e encoder) marshalSingular(val pref.Value, fd pref.FieldDescriptor) error 
 		***REMOVED***
 
 	case pref.MessageKind, pref.GroupKind:
-		if err := e.marshalMessage(val.Message()); err != nil ***REMOVED***
+		if err := e.marshalMessage(val.Message(), ""); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
@@ -305,98 +325,20 @@ func (e encoder) marshalList(list pref.List, fd pref.FieldDescriptor) error ***R
 	return nil
 ***REMOVED***
 
-type mapEntry struct ***REMOVED***
-	key   pref.MapKey
-	value pref.Value
-***REMOVED***
-
 // marshalMap marshals given protoreflect.Map.
 func (e encoder) marshalMap(mmap pref.Map, fd pref.FieldDescriptor) error ***REMOVED***
 	e.StartObject()
 	defer e.EndObject()
 
-	// Get a sorted list based on keyType first.
-	entries := make([]mapEntry, 0, mmap.Len())
-	mmap.Range(func(key pref.MapKey, val pref.Value) bool ***REMOVED***
-		entries = append(entries, mapEntry***REMOVED***key: key, value: val***REMOVED***)
+	var err error
+	order.RangeEntries(mmap, order.GenericKeyOrder, func(k pref.MapKey, v pref.Value) bool ***REMOVED***
+		if err = e.WriteName(k.String()); err != nil ***REMOVED***
+			return false
+		***REMOVED***
+		if err = e.marshalSingular(v, fd.MapValue()); err != nil ***REMOVED***
+			return false
+		***REMOVED***
 		return true
 	***REMOVED***)
-	sortMap(fd.MapKey().Kind(), entries)
-
-	// Write out sorted list.
-	for _, entry := range entries ***REMOVED***
-		if err := e.WriteName(entry.key.String()); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := e.marshalSingular(entry.value, fd.MapValue()); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-// sortMap orders list based on value of key field for deterministic ordering.
-func sortMap(keyKind pref.Kind, values []mapEntry) ***REMOVED***
-	sort.Slice(values, func(i, j int) bool ***REMOVED***
-		switch keyKind ***REMOVED***
-		case pref.Int32Kind, pref.Sint32Kind, pref.Sfixed32Kind,
-			pref.Int64Kind, pref.Sint64Kind, pref.Sfixed64Kind:
-			return values[i].key.Int() < values[j].key.Int()
-
-		case pref.Uint32Kind, pref.Fixed32Kind,
-			pref.Uint64Kind, pref.Fixed64Kind:
-			return values[i].key.Uint() < values[j].key.Uint()
-		***REMOVED***
-		return values[i].key.String() < values[j].key.String()
-	***REMOVED***)
-***REMOVED***
-
-// marshalExtensions marshals extension fields.
-func (e encoder) marshalExtensions(m pref.Message) error ***REMOVED***
-	type entry struct ***REMOVED***
-		key   string
-		value pref.Value
-		desc  pref.FieldDescriptor
-	***REMOVED***
-
-	// Get a sorted list based on field key first.
-	var entries []entry
-	m.Range(func(fd pref.FieldDescriptor, v pref.Value) bool ***REMOVED***
-		if !fd.IsExtension() ***REMOVED***
-			return true
-		***REMOVED***
-
-		// For MessageSet extensions, the name used is the parent message.
-		name := fd.FullName()
-		if messageset.IsMessageSetExtension(fd) ***REMOVED***
-			name = name.Parent()
-		***REMOVED***
-
-		// Use [name] format for JSON field name.
-		entries = append(entries, entry***REMOVED***
-			key:   string(name),
-			value: v,
-			desc:  fd,
-		***REMOVED***)
-		return true
-	***REMOVED***)
-
-	// Sort extensions lexicographically.
-	sort.Slice(entries, func(i, j int) bool ***REMOVED***
-		return entries[i].key < entries[j].key
-	***REMOVED***)
-
-	// Write out sorted list.
-	for _, entry := range entries ***REMOVED***
-		// JSON field name is the proto field name enclosed in [], similar to
-		// textproto. This is consistent with Go v1 lib. C++ lib v3.7.0 does not
-		// marshal out extension fields.
-		if err := e.WriteName("[" + entry.key + "]"); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-		if err := e.marshalValue(entry.value, entry.desc); err != nil ***REMOVED***
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
+	return err
 ***REMOVED***
