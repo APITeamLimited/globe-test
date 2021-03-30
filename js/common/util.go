@@ -65,3 +65,17 @@ func ToBytes(data interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVE
 		return nil, fmt.Errorf("invalid type %T, expected string, []byte or ArrayBuffer", data)
 	***REMOVED***
 ***REMOVED***
+
+// ToString tries to return a string from compatible types.
+func ToString(data interface***REMOVED******REMOVED***) (string, error) ***REMOVED***
+	switch dt := data.(type) ***REMOVED***
+	case []byte:
+		return string(dt), nil
+	case string:
+		return dt, nil
+	case goja.ArrayBuffer:
+		return string(dt.Bytes()), nil
+	default:
+		return "", fmt.Errorf("invalid type %T, expected string, []byte or ArrayBuffer", data)
+	***REMOVED***
+***REMOVED***
