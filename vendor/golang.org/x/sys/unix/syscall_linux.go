@@ -106,15 +106,24 @@ func IoctlGetRTCTime(fd int) (*RTCTime, error) ***REMOVED***
 	return &value, err
 ***REMOVED***
 
+// IoctlGetWatchdogInfo fetches information about a watchdog device from the
+// Linux watchdog API. For more information, see:
+// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
+func IoctlGetWatchdogInfo(fd int) (*WatchdogInfo, error) ***REMOVED***
+	var value WatchdogInfo
+	err := ioctl(fd, WDIOC_GETSUPPORT, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+***REMOVED***
+
 func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) ***REMOVED***
 	var value RTCWkAlrm
 	err := ioctl(fd, RTC_WKALM_RD, uintptr(unsafe.Pointer(&value)))
 	return &value, err
 ***REMOVED***
 
-// IoctlFileClone performs an FICLONERANGE ioctl operation to clone the range of
-// data conveyed in value to the file associated with the file descriptor
-// destFd. See the ioctl_ficlonerange(2) man page for details.
+// IoctlFileCloneRange performs an FICLONERANGE ioctl operation to clone the
+// range of data conveyed in value to the file associated with the file
+// descriptor destFd. See the ioctl_ficlonerange(2) man page for details.
 func IoctlFileCloneRange(destFd int, value *FileCloneRange) error ***REMOVED***
 	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
 	runtime.KeepAlive(value)
@@ -128,13 +137,20 @@ func IoctlFileClone(destFd, srcFd int) error ***REMOVED***
 	return ioctl(destFd, FICLONE, uintptr(srcFd))
 ***REMOVED***
 
-// IoctlFileClone performs an FIDEDUPERANGE ioctl operation to share the range of
-// data conveyed in value with the file associated with the file descriptor
-// destFd. See the ioctl_fideduperange(2) man page for details.
+// IoctlFileDedupeRange performs an FIDEDUPERANGE ioctl operation to share the
+// range of data conveyed in value with the file associated with the file
+// descriptor destFd. See the ioctl_fideduperange(2) man page for details.
 func IoctlFileDedupeRange(destFd int, value *FileDedupeRange) error ***REMOVED***
 	err := ioctl(destFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(value)))
 	runtime.KeepAlive(value)
 	return err
+***REMOVED***
+
+// IoctlWatchdogKeepalive issues a keepalive ioctl to a watchdog device. For
+// more information, see:
+// https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
+func IoctlWatchdogKeepalive(fd int) error ***REMOVED***
+	return ioctl(fd, WDIOC_KEEPALIVE, 0)
 ***REMOVED***
 
 //sys	Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
@@ -625,6 +641,36 @@ func (sa *SockaddrCAN) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED**
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrCAN, nil
 ***REMOVED***
 
+// SockaddrCANJ1939 implements the Sockaddr interface for AF_CAN using J1939
+// protocol (https://en.wikipedia.org/wiki/SAE_J1939). For more information
+// on the purposes of the fields, check the official linux kernel documentation
+// available here: https://www.kernel.org/doc/Documentation/networking/j1939.rst
+type SockaddrCANJ1939 struct ***REMOVED***
+	Ifindex int
+	Name    uint64
+	PGN     uint32
+	Addr    uint8
+	raw     RawSockaddrCAN
+***REMOVED***
+
+func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED***
+	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff ***REMOVED***
+		return nil, 0, EINVAL
+	***REMOVED***
+	sa.raw.Family = AF_CAN
+	sa.raw.Ifindex = int32(sa.Ifindex)
+	n := (*[8]byte)(unsafe.Pointer(&sa.Name))
+	for i := 0; i < 8; i++ ***REMOVED***
+		sa.raw.Addr[i] = n[i]
+	***REMOVED***
+	p := (*[4]byte)(unsafe.Pointer(&sa.PGN))
+	for i := 0; i < 4; i++ ***REMOVED***
+		sa.raw.Addr[i+8] = p[i]
+	***REMOVED***
+	sa.raw.Addr[12] = sa.Addr
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrCAN, nil
+***REMOVED***
+
 // SockaddrALG implements the Sockaddr interface for AF_ALG type sockets.
 // SockaddrALG enables userspace access to the Linux kernel's cryptography
 // subsystem. The Type and Name fields specify which type of hash or cipher
@@ -936,6 +982,10 @@ func (sa *SockaddrIUCV) sockaddr() (unsafe.Pointer, _Socklen, error) ***REMOVED*
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrIUCV, nil
 ***REMOVED***
 
+var socketProtocol = func(fd int) (int, error) ***REMOVED***
+	return GetsockoptInt(fd, SOL_SOCKET, SO_PROTOCOL)
+***REMOVED***
+
 func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 	switch rsa.Addr.Family ***REMOVED***
 	case AF_NETLINK:
@@ -986,7 +1036,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		return sa, nil
 
 	case AF_INET:
-		proto, err := GetsockoptInt(fd, SOL_SOCKET, SO_PROTOCOL)
+		proto, err := socketProtocol(fd)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -1012,7 +1062,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		***REMOVED***
 
 	case AF_INET6:
-		proto, err := GetsockoptInt(fd, SOL_SOCKET, SO_PROTOCOL)
+		proto, err := socketProtocol(fd)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -1047,7 +1097,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		***REMOVED***
 		return sa, nil
 	case AF_BLUETOOTH:
-		proto, err := GetsockoptInt(fd, SOL_SOCKET, SO_PROTOCOL)
+		proto, err := socketProtocol(fd)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
@@ -1134,20 +1184,43 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
 		return sa, nil
 
 	case AF_CAN:
-		pp := (*RawSockaddrCAN)(unsafe.Pointer(rsa))
-		sa := &SockaddrCAN***REMOVED***
-			Ifindex: int(pp.Ifindex),
+		proto, err := socketProtocol(fd)
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
-		rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
-		for i := 0; i < 4; i++ ***REMOVED***
-			rx[i] = pp.Addr[i]
-		***REMOVED***
-		tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
-		for i := 0; i < 4; i++ ***REMOVED***
-			tx[i] = pp.Addr[i+4]
-		***REMOVED***
-		return sa, nil
 
+		pp := (*RawSockaddrCAN)(unsafe.Pointer(rsa))
+
+		switch proto ***REMOVED***
+		case CAN_J1939:
+			sa := &SockaddrCANJ1939***REMOVED***
+				Ifindex: int(pp.Ifindex),
+			***REMOVED***
+			name := (*[8]byte)(unsafe.Pointer(&sa.Name))
+			for i := 0; i < 8; i++ ***REMOVED***
+				name[i] = pp.Addr[i]
+			***REMOVED***
+			pgn := (*[4]byte)(unsafe.Pointer(&sa.PGN))
+			for i := 0; i < 4; i++ ***REMOVED***
+				pgn[i] = pp.Addr[i+8]
+			***REMOVED***
+			addr := (*[1]byte)(unsafe.Pointer(&sa.Addr))
+			addr[0] = pp.Addr[12]
+			return sa, nil
+		default:
+			sa := &SockaddrCAN***REMOVED***
+				Ifindex: int(pp.Ifindex),
+			***REMOVED***
+			rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
+			for i := 0; i < 4; i++ ***REMOVED***
+				rx[i] = pp.Addr[i]
+			***REMOVED***
+			tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
+			for i := 0; i < 4; i++ ***REMOVED***
+				tx[i] = pp.Addr[i+4]
+			***REMOVED***
+			return sa, nil
+		***REMOVED***
 	***REMOVED***
 	return nil, EAFNOSUPPORT
 ***REMOVED***

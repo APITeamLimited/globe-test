@@ -47,6 +47,10 @@ type SockaddrDatalink struct ***REMOVED***
 	raw    RawSockaddrDatalink
 ***REMOVED***
 
+func anyToSockaddrGOOS(fd int, rsa *RawSockaddrAny) (Sockaddr, error) ***REMOVED***
+	return nil, EAFNOSUPPORT
+***REMOVED***
+
 // Translate "kern.hostname" to []_C_int***REMOVED***0,1,2,3***REMOVED***.
 func nametomib(name string) (mib []_C_int, err error) ***REMOVED***
 	const siz = unsafe.Sizeof(mib[0])
@@ -99,6 +103,19 @@ func Pipe(p []int) (err error) ***REMOVED***
 	***REMOVED***
 	p[0], p[1], err = pipe()
 	return
+***REMOVED***
+
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
+
+func Pipe2(p []int, flags int) error ***REMOVED***
+	if len(p) != 2 ***REMOVED***
+		return EINVAL
+	***REMOVED***
+	var pp [2]_C_int
+	err := pipe2(&pp, flags)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return err
 ***REMOVED***
 
 //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)

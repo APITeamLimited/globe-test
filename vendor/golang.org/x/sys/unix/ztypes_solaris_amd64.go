@@ -88,7 +88,6 @@ type Stat_t struct ***REMOVED***
 	Mtim    Timespec
 	Ctim    Timespec
 	Blksize int32
-	_       [4]byte
 	Blocks  int64
 	Fstype  [16]int8
 ***REMOVED***
@@ -96,7 +95,6 @@ type Stat_t struct ***REMOVED***
 type Flock_t struct ***REMOVED***
 	Type   int16
 	Whence int16
-	_      [4]byte
 	Start  int64
 	Len    int64
 	Sysid  int32
@@ -138,12 +136,12 @@ type RawSockaddrInet4 struct ***REMOVED***
 ***REMOVED***
 
 type RawSockaddrInet6 struct ***REMOVED***
-	Family         uint16
-	Port           uint16
-	Flowinfo       uint32
-	Addr           [16]byte /* in6_addr */
-	Scope_id       uint32
-	X__sin6_src_id uint32
+	Family   uint16
+	Port     uint16
+	Flowinfo uint32
+	Addr     [16]byte /* in6_addr */
+	Scope_id uint32
+	_        uint32
 ***REMOVED***
 
 type RawSockaddrUnix struct ***REMOVED***
@@ -196,10 +194,8 @@ type IPv6Mreq struct ***REMOVED***
 type Msghdr struct ***REMOVED***
 	Name         *byte
 	Namelen      uint32
-	_            [4]byte
 	Iov          *Iovec
 	Iovlen       int32
-	_            [4]byte
 	Accrights    *int8
 	Accrightslen int32
 	_            [4]byte
@@ -228,7 +224,7 @@ type IPv6MTUInfo struct ***REMOVED***
 ***REMOVED***
 
 type ICMPv6Filter struct ***REMOVED***
-	X__icmp6_filt [8]uint32
+	Filt [8]uint32
 ***REMOVED***
 
 const (
@@ -291,7 +287,6 @@ type IfMsghdr struct ***REMOVED***
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
 	Data    IfData
 ***REMOVED***
 
@@ -299,7 +294,6 @@ type IfData struct ***REMOVED***
 	Type       uint8
 	Addrlen    uint8
 	Hdrlen     uint8
-	_          [1]byte
 	Mtu        uint32
 	Metric     uint32
 	Baudrate   uint32
@@ -324,7 +318,6 @@ type IfaMsghdr struct ***REMOVED***
 	Addrs   int32
 	Flags   int32
 	Index   uint16
-	_       [2]byte
 	Metric  int32
 ***REMOVED***
 
@@ -333,7 +326,6 @@ type RtMsghdr struct ***REMOVED***
 	Version uint8
 	Type    uint8
 	Index   uint16
-	_       [2]byte
 	Flags   int32
 	Addrs   int32
 	Pid     int32
@@ -371,15 +363,14 @@ type BpfVersion struct ***REMOVED***
 ***REMOVED***
 
 type BpfStat struct ***REMOVED***
-	Recv    uint64
-	Drop    uint64
-	Capt    uint64
-	Padding [13]uint64
+	Recv uint64
+	Drop uint64
+	Capt uint64
+	_    [13]uint64
 ***REMOVED***
 
 type BpfProgram struct ***REMOVED***
 	Len   uint32
-	_     [4]byte
 	Insns *BpfInsn
 ***REMOVED***
 

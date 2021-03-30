@@ -32,6 +32,8 @@ type DLLError struct ***REMOVED***
 
 func (e *DLLError) Error() string ***REMOVED*** return e.Msg ***REMOVED***
 
+func (e *DLLError) Unwrap() error ***REMOVED*** return e.Err ***REMOVED***
+
 // A DLL implements access to a single DLL.
 type DLL struct ***REMOVED***
 	Name   string
@@ -389,7 +391,6 @@ func loadLibraryEx(name string, system bool) (*DLL, error) ***REMOVED***
 	var flags uintptr
 	if system ***REMOVED***
 		if canDoSearchSystem32() ***REMOVED***
-			const LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 			flags = LOAD_LIBRARY_SEARCH_SYSTEM32
 		***REMOVED*** else if isBaseName(name) ***REMOVED***
 			// WindowsXP or unpatched Windows machine
