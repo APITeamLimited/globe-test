@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -123,6 +125,59 @@ func ProcessChallenge(challengeMessageData []byte, user, password string) ([]byt
 		am.LmChallengeResponse = computeLmV2Response(ntlmV2Hash,
 			cm.ServerChallenge[:], clientChallenge)
 	***REMOVED***
+	return am.MarshalBinary()
+***REMOVED***
 
+func ProcessChallengeWithHash(challengeMessageData []byte, user, hash string) ([]byte, error) ***REMOVED***
+	if user == "" && hash == "" ***REMOVED***
+		return nil, errors.New("Anonymous authentication not supported")
+	***REMOVED***
+
+	var cm challengeMessage
+	if err := cm.UnmarshalBinary(challengeMessageData); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	if cm.NegotiateFlags.Has(negotiateFlagNTLMSSPNEGOTIATELMKEY) ***REMOVED***
+		return nil, errors.New("Only NTLM v2 is supported, but server requested v1 (NTLMSSP_NEGOTIATE_LM_KEY)")
+	***REMOVED***
+	if cm.NegotiateFlags.Has(negotiateFlagNTLMSSPNEGOTIATEKEYEXCH) ***REMOVED***
+		return nil, errors.New("Key exchange requested but not supported (NTLMSSP_NEGOTIATE_KEY_EXCH)")
+	***REMOVED***
+
+	am := authenicateMessage***REMOVED***
+		UserName:       user,
+		TargetName:     cm.TargetName,
+		NegotiateFlags: cm.NegotiateFlags,
+	***REMOVED***
+
+	timestamp := cm.TargetInfo[avIDMsvAvTimestamp]
+	if timestamp == nil ***REMOVED*** // no time sent, take current time
+		ft := uint64(time.Now().UnixNano()) / 100
+		ft += 116444736000000000 // add time between unix & windows offset
+		timestamp = make([]byte, 8)
+		binary.LittleEndian.PutUint64(timestamp, ft)
+	***REMOVED***
+
+	clientChallenge := make([]byte, 8)
+	rand.Reader.Read(clientChallenge)
+
+	hashParts := strings.Split(hash, ":")
+	if len(hashParts) > 1 ***REMOVED***
+		hash = hashParts[1]
+	***REMOVED***
+	hashBytes, err := hex.DecodeString(hash)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	ntlmV2Hash := hmacMd5(hashBytes, toUnicode(strings.ToUpper(user)+cm.TargetName))
+
+	am.NtChallengeResponse = computeNtlmV2Response(ntlmV2Hash,
+		cm.ServerChallenge[:], clientChallenge, timestamp, cm.TargetInfoRaw)
+
+	if cm.TargetInfoRaw == nil ***REMOVED***
+		am.LmChallengeResponse = computeLmV2Response(ntlmV2Hash,
+			cm.ServerChallenge[:], clientChallenge)
+	***REMOVED***
 	return am.MarshalBinary()
 ***REMOVED***
