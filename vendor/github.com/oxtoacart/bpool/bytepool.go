@@ -5,6 +5,7 @@ package bpool
 type BytePool struct ***REMOVED***
 	c chan []byte
 	w int
+	h int
 ***REMOVED***
 
 // NewBytePool creates a new BytePool bounded to the given maxSize, with new
@@ -31,12 +32,22 @@ func (bp *BytePool) Get() (b []byte) ***REMOVED***
 
 // Put returns the given Buffer to the BytePool.
 func (bp *BytePool) Put(b []byte) ***REMOVED***
+	if cap(b) < bp.w ***REMOVED***
+		// someone tried to put back a too small buffer, discard it
+		return
+	***REMOVED***
+
 	select ***REMOVED***
-	case bp.c <- b:
+	case bp.c <- b[:bp.w]:
 		// buffer went back into pool
 	default:
 		// buffer didn't go back into pool, just discard
 	***REMOVED***
+***REMOVED***
+
+// NumPooled returns the number of items currently pooled.
+func (bp *BytePool) NumPooled() int ***REMOVED***
+	return len(bp.c)
 ***REMOVED***
 
 // Width returns the width of the byte arrays in this pool.
