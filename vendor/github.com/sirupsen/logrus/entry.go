@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	bufferPool *sync.Pool
 
 	// qualified package name, cached at first use
 	logrusPackage string
@@ -31,12 +30,6 @@ const (
 )
 
 func init() ***REMOVED***
-	bufferPool = &sync.Pool***REMOVED***
-		New: func() interface***REMOVED******REMOVED*** ***REMOVED***
-			return new(bytes.Buffer)
-		***REMOVED***,
-	***REMOVED***
-
 	// start at the bottom of the stack before the package-name cache is primed
 	minimumCallerDepth = 1
 ***REMOVED***
@@ -85,6 +78,14 @@ func NewEntry(logger *Logger) *Entry ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (entry *Entry) Dup() *Entry ***REMOVED***
+	data := make(Fields, len(entry.Data))
+	for k, v := range entry.Data ***REMOVED***
+		data[k] = v
+	***REMOVED***
+	return &Entry***REMOVED***Logger: entry.Logger, Data: data, Time: entry.Time, Context: entry.Context, err: entry.err***REMOVED***
+***REMOVED***
+
 // Returns the bytes representation of this entry from the formatter.
 func (entry *Entry) Bytes() ([]byte, error) ***REMOVED***
 	return entry.Logger.Formatter.Format(entry)
@@ -130,11 +131,9 @@ func (entry *Entry) WithFields(fields Fields) *Entry ***REMOVED***
 	for k, v := range fields ***REMOVED***
 		isErrField := false
 		if t := reflect.TypeOf(v); t != nil ***REMOVED***
-			switch t.Kind() ***REMOVED***
-			case reflect.Func:
+			switch ***REMOVED***
+			case t.Kind() == reflect.Func, t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Func:
 				isErrField = true
-			case reflect.Ptr:
-				isErrField = t.Elem().Kind() == reflect.Func
 			***REMOVED***
 		***REMOVED***
 		if isErrField ***REMOVED***
@@ -219,65 +218,72 @@ func (entry Entry) HasCaller() (has bool) ***REMOVED***
 		entry.Caller != nil
 ***REMOVED***
 
-// This function is not declared with a pointer value because otherwise
-// race conditions will occur when using multiple goroutines
-func (entry Entry) log(level Level, msg string) ***REMOVED***
+func (entry *Entry) log(level Level, msg string) ***REMOVED***
 	var buffer *bytes.Buffer
 
-	// Default to now, but allow users to override if they want.
-	//
-	// We don't have to worry about polluting future calls to Entry#log()
-	// with this assignment because this function is declared with a
-	// non-pointer receiver.
-	if entry.Time.IsZero() ***REMOVED***
-		entry.Time = time.Now()
+	newEntry := entry.Dup()
+
+	if newEntry.Time.IsZero() ***REMOVED***
+		newEntry.Time = time.Now()
 	***REMOVED***
 
-	entry.Level = level
-	entry.Message = msg
-	entry.Logger.mu.Lock()
-	if entry.Logger.ReportCaller ***REMOVED***
-		entry.Caller = getCaller()
+	newEntry.Level = level
+	newEntry.Message = msg
+
+	newEntry.Logger.mu.Lock()
+	reportCaller := newEntry.Logger.ReportCaller
+	newEntry.Logger.mu.Unlock()
+
+	if reportCaller ***REMOVED***
+		newEntry.Caller = getCaller()
 	***REMOVED***
-	entry.Logger.mu.Unlock()
 
-	entry.fireHooks()
+	newEntry.fireHooks()
 
-	buffer = bufferPool.Get().(*bytes.Buffer)
+	buffer = getBuffer()
+	defer func() ***REMOVED***
+		newEntry.Buffer = nil
+		putBuffer(buffer)
+	***REMOVED***()
 	buffer.Reset()
-	defer bufferPool.Put(buffer)
-	entry.Buffer = buffer
+	newEntry.Buffer = buffer
 
-	entry.write()
+	newEntry.write()
 
-	entry.Buffer = nil
+	newEntry.Buffer = nil
 
 	// To avoid Entry#log() returning a value that only would make sense for
 	// panic() to use in Entry#Panic(), we avoid the allocation by checking
 	// directly here.
 	if level <= PanicLevel ***REMOVED***
-		panic(&entry)
+		panic(newEntry)
 	***REMOVED***
 ***REMOVED***
 
 func (entry *Entry) fireHooks() ***REMOVED***
+	var tmpHooks LevelHooks
 	entry.Logger.mu.Lock()
-	defer entry.Logger.mu.Unlock()
-	err := entry.Logger.Hooks.Fire(entry.Level, entry)
+	tmpHooks = make(LevelHooks, len(entry.Logger.Hooks))
+	for k, v := range entry.Logger.Hooks ***REMOVED***
+		tmpHooks[k] = v
+	***REMOVED***
+	entry.Logger.mu.Unlock()
+
+	err := tmpHooks.Fire(entry.Level, entry)
 	if err != nil ***REMOVED***
 		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
 	***REMOVED***
 ***REMOVED***
 
 func (entry *Entry) write() ***REMOVED***
-	entry.Logger.mu.Lock()
-	defer entry.Logger.mu.Unlock()
 	serialized, err := entry.Logger.Formatter.Format(entry)
 	if err != nil ***REMOVED***
 		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
 		return
 	***REMOVED***
-	if _, err = entry.Logger.Out.Write(serialized); err != nil ***REMOVED***
+	entry.Logger.mu.Lock()
+	defer entry.Logger.mu.Unlock()
+	if _, err := entry.Logger.Out.Write(serialized); err != nil ***REMOVED***
 		fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
 	***REMOVED***
 ***REMOVED***
@@ -323,7 +329,6 @@ func (entry *Entry) Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVE
 
 func (entry *Entry) Panic(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	entry.Log(PanicLevel, args...)
-	panic(fmt.Sprint(args...))
 ***REMOVED***
 
 // Entry Printf family functions

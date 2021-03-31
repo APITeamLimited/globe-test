@@ -134,6 +134,51 @@ func Fatal(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Fatal(args...)
 ***REMOVED***
 
+// TraceFn logs a message from a func at level Trace on the standard logger.
+func TraceFn(fn LogFunction) ***REMOVED***
+	std.TraceFn(fn)
+***REMOVED***
+
+// DebugFn logs a message from a func at level Debug on the standard logger.
+func DebugFn(fn LogFunction) ***REMOVED***
+	std.DebugFn(fn)
+***REMOVED***
+
+// PrintFn logs a message from a func at level Info on the standard logger.
+func PrintFn(fn LogFunction) ***REMOVED***
+	std.PrintFn(fn)
+***REMOVED***
+
+// InfoFn logs a message from a func at level Info on the standard logger.
+func InfoFn(fn LogFunction) ***REMOVED***
+	std.InfoFn(fn)
+***REMOVED***
+
+// WarnFn logs a message from a func at level Warn on the standard logger.
+func WarnFn(fn LogFunction) ***REMOVED***
+	std.WarnFn(fn)
+***REMOVED***
+
+// WarningFn logs a message from a func at level Warn on the standard logger.
+func WarningFn(fn LogFunction) ***REMOVED***
+	std.WarningFn(fn)
+***REMOVED***
+
+// ErrorFn logs a message from a func at level Error on the standard logger.
+func ErrorFn(fn LogFunction) ***REMOVED***
+	std.ErrorFn(fn)
+***REMOVED***
+
+// PanicFn logs a message from a func at level Panic on the standard logger.
+func PanicFn(fn LogFunction) ***REMOVED***
+	std.PanicFn(fn)
+***REMOVED***
+
+// FatalFn logs a message from a func at level Fatal on the standard logger then the process will exit with status set to 1.
+func FatalFn(fn LogFunction) ***REMOVED***
+	std.FatalFn(fn)
+***REMOVED***
+
 // Tracef logs a message at level Trace on the standard logger.
 func Tracef(format string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	std.Tracef(format, args...)
