@@ -138,7 +138,7 @@ export default function() ***REMOVED***
 						***REMOVED***,
 						"id": "$***REMOVED***json.preview_payment_methods[0].id***REMOVED***",
 						"type": "$***REMOVED***json.preview_payment_methods[0].type***REMOVED***"
-					***REMOVED***, 
+					***REMOVED***,
 					***REMOVED***
 						"data": ***REMOVED***
 							"allow_saved_card": "$***REMOVED***json.preview_payment_methods[1].data.allow_saved_card***REMOVED***",
@@ -234,7 +234,7 @@ export default function() ***REMOVED***
 						***REMOVED***,
 						"id": "$***REMOVED***json.preview_payment_methods[0].id***REMOVED***",
 						"type": "$***REMOVED***json.preview_payment_methods[0].type***REMOVED***"
-					***REMOVED***, 
+					***REMOVED***,
 					***REMOVED***
 						"data": ***REMOVED***
 							"allow_saved_card": "$***REMOVED***json.preview_payment_methods[1].data.allow_saved_card***REMOVED***",

@@ -3,7 +3,6 @@ package gjson
 
 import (
 	"encoding/json"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -106,7 +105,8 @@ func (t Result) Bool() bool ***REMOVED***
 	case True:
 		return true
 	case String:
-		return t.Str != "" && t.Str != "0" && t.Str != "false"
+		b, _ := strconv.ParseBool(strings.ToLower(t.Str))
+		return b
 	case Number:
 		return t.Num != 0
 	***REMOVED***
@@ -124,16 +124,17 @@ func (t Result) Int() int64 ***REMOVED***
 		return n
 	case Number:
 		// try to directly convert the float64 to int64
-		n, ok := floatToInt(t.Num)
-		if !ok ***REMOVED***
-			// now try to parse the raw string
-			n, ok = parseInt(t.Raw)
-			if !ok ***REMOVED***
-				// fallback to a standard conversion
-				return int64(t.Num)
-			***REMOVED***
+		i, ok := safeInt(t.Num)
+		if ok ***REMOVED***
+			return i
 		***REMOVED***
-		return n
+		// now try to parse the raw string
+		i, ok = parseInt(t.Raw)
+		if ok ***REMOVED***
+			return i
+		***REMOVED***
+		// fallback to a standard conversion
+		return int64(t.Num)
 	***REMOVED***
 ***REMOVED***
 
@@ -149,16 +150,17 @@ func (t Result) Uint() uint64 ***REMOVED***
 		return n
 	case Number:
 		// try to directly convert the float64 to uint64
-		n, ok := floatToUint(t.Num)
-		if !ok ***REMOVED***
-			// now try to parse the raw string
-			n, ok = parseUint(t.Raw)
-			if !ok ***REMOVED***
-				// fallback to a standard conversion
-				return uint64(t.Num)
-			***REMOVED***
+		i, ok := safeInt(t.Num)
+		if ok && i >= 0 ***REMOVED***
+			return uint64(i)
 		***REMOVED***
-		return n
+		// now try to parse the raw string
+		u, ok := parseUint(t.Raw)
+		if ok ***REMOVED***
+			return u
+		***REMOVED***
+		// fallback to a standard conversion
+		return uint64(t.Num)
 	***REMOVED***
 ***REMOVED***
 
@@ -495,6 +497,9 @@ func squash(json string) string ***REMOVED***
 					***REMOVED***
 				***REMOVED***
 				if depth == 0 ***REMOVED***
+					if i >= len(json) ***REMOVED***
+						return json
+					***REMOVED***
 					return json[:i+1]
 				***REMOVED***
 			case '***REMOVED***', '[', '(':
@@ -726,8 +731,13 @@ func parseArrayPath(path string) (r arrayPathResult) ***REMOVED***
 		***REMOVED***
 		if path[i] == '.' ***REMOVED***
 			r.part = path[:i]
-			r.path = path[i+1:]
-			r.more = true
+			if !r.arrch && i < len(path)-1 && isDotPiperChar(path[i+1]) ***REMOVED***
+				r.pipe = path[i+1:]
+				r.piped = true
+			***REMOVED*** else ***REMOVED***
+				r.path = path[i+1:]
+				r.more = true
+			***REMOVED***
 			return
 		***REMOVED***
 		if path[i] == '#' ***REMOVED***
@@ -973,6 +983,11 @@ right:
 	return s
 ***REMOVED***
 
+// peek at the next byte and see if it's a '@', '[', or '***REMOVED***'.
+func isDotPiperChar(c byte) bool ***REMOVED***
+	return !DisableModifiers && (c == '@' || c == '[' || c == '***REMOVED***')
+***REMOVED***
+
 type objectPathResult struct ***REMOVED***
 	part  string
 	path  string
@@ -991,12 +1006,8 @@ func parseObjectPath(path string) (r objectPathResult) ***REMOVED***
 			return
 		***REMOVED***
 		if path[i] == '.' ***REMOVED***
-			// peek at the next byte and see if it's a '@', '[', or '***REMOVED***'.
 			r.part = path[:i]
-			if !DisableModifiers &&
-				i < len(path)-1 &&
-				(path[i+1] == '@' ||
-					path[i+1] == '[' || path[i+1] == '***REMOVED***') ***REMOVED***
+			if i < len(path)-1 && isDotPiperChar(path[i+1]) ***REMOVED***
 				r.pipe = path[i+1:]
 				r.piped = true
 			***REMOVED*** else ***REMOVED***
@@ -1026,14 +1037,11 @@ func parseObjectPath(path string) (r objectPathResult) ***REMOVED***
 						continue
 					***REMOVED*** else if path[i] == '.' ***REMOVED***
 						r.part = string(epart)
-						// peek at the next byte and see if it's a '@' modifier
-						if !DisableModifiers &&
-							i < len(path)-1 && path[i+1] == '@' ***REMOVED***
+						if i < len(path)-1 && isDotPiperChar(path[i+1]) ***REMOVED***
 							r.pipe = path[i+1:]
 							r.piped = true
 						***REMOVED*** else ***REMOVED***
 							r.path = path[i+1:]
-							r.more = true
 						***REMOVED***
 						r.more = true
 						return
@@ -1398,7 +1406,6 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 		***REMOVED***
 		return false
 	***REMOVED***
-
 	for i < len(c.json)+1 ***REMOVED***
 		if !rp.arrch ***REMOVED***
 			pmatch = partidx == h
@@ -1600,10 +1607,17 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 					c.calcd = true
 					return i + 1, true
 				***REMOVED***
-				if len(multires) > 0 && !c.value.Exists() ***REMOVED***
-					c.value = Result***REMOVED***
-						Raw:  string(append(multires, ']')),
-						Type: JSON,
+				if !c.value.Exists() ***REMOVED***
+					if len(multires) > 0 ***REMOVED***
+						c.value = Result***REMOVED***
+							Raw:  string(append(multires, ']')),
+							Type: JSON,
+						***REMOVED***
+					***REMOVED*** else if rp.query.all ***REMOVED***
+						c.value = Result***REMOVED***
+							Raw:  "[]",
+							Type: JSON,
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***
 				return i + 1, false
@@ -1835,7 +1849,7 @@ type parseContext struct ***REMOVED***
 // A path is in dot syntax, such as "name.last" or "age".
 // When the value is found it's returned immediately.
 //
-// A path is a series of keys searated by a dot.
+// A path is a series of keys separated by a dot.
 // A key may contain special wildcard characters '*' and '?'.
 // To access an array value use the index as the key.
 // To get the number of elements in an array or to access a child path, use
@@ -1944,7 +1958,6 @@ func Get(json, path string) Result ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-
 	var i int
 	var c = &parseContext***REMOVED***json: json***REMOVED***
 	if len(path) >= 2 && path[0] == '.' && path[1] == '.' ***REMOVED***
@@ -2169,11 +2182,6 @@ func parseAny(json string, i int, hit bool) (int, Result, bool) ***REMOVED***
 	return i, res, false
 ***REMOVED***
 
-var ( // used for testing
-	testWatchForFallback bool
-	testLastWasFallback  bool
-)
-
 // GetMany searches json for the multiple paths.
 // The return value is a Result array where the number of items
 // will be equal to the number of input paths.
@@ -2374,6 +2382,12 @@ func validnumber(data []byte, i int) (outi int, ok bool) ***REMOVED***
 	// sign
 	if data[i] == '-' ***REMOVED***
 		i++
+		if i == len(data) ***REMOVED***
+			return i, false
+		***REMOVED***
+		if data[i] < '0' || data[i] > '9' ***REMOVED***
+			return i, false
+		***REMOVED***
 	***REMOVED***
 	// int
 	if i == len(data) ***REMOVED***
@@ -2524,25 +2538,14 @@ func parseInt(s string) (n int64, ok bool) ***REMOVED***
 	return n, true
 ***REMOVED***
 
-const minUint53 = 0
-const maxUint53 = 4503599627370495
-const minInt53 = -2251799813685248
-const maxInt53 = 2251799813685247
-
-func floatToUint(f float64) (n uint64, ok bool) ***REMOVED***
-	n = uint64(f)
-	if float64(n) == f && n >= minUint53 && n <= maxUint53 ***REMOVED***
-		return n, true
+// safeInt validates a given JSON number
+// ensures it lies within the minimum and maximum representable JSON numbers
+func safeInt(f float64) (n int64, ok bool) ***REMOVED***
+	//  https://tc39.es/ecma262/#sec-number.min_safe_integer || https://tc39.es/ecma262/#sec-number.max_safe_integer
+	if f < -9007199254740991 || f > 9007199254740991 ***REMOVED***
+		return 0, false
 	***REMOVED***
-	return 0, false
-***REMOVED***
-
-func floatToInt(f float64) (n int64, ok bool) ***REMOVED***
-	n = int64(f)
-	if float64(n) == f && n >= minInt53 && n <= maxInt53 ***REMOVED***
-		return n, true
-	***REMOVED***
-	return 0, false
+	return int64(f), true
 ***REMOVED***
 
 // execModifier parses the path to find a matching modifier function.
@@ -2600,7 +2603,7 @@ func execModifier(json, path string) (pathOut, res string, ok bool) ***REMOVED**
 // unwrap removes the '[]' or '***REMOVED******REMOVED***' characters around json
 func unwrap(json string) string ***REMOVED***
 	json = trim(json)
-	if len(json) >= 2 && json[0] == '[' || json[0] == '***REMOVED***' ***REMOVED***
+	if len(json) >= 2 && (json[0] == '[' || json[0] == '***REMOVED***') ***REMOVED***
 		json = json[1 : len(json)-1]
 	***REMOVED***
 	return json
@@ -2632,6 +2635,26 @@ func ModifierExists(name string, fn func(json, arg string) string) bool ***REMOV
 	return ok
 ***REMOVED***
 
+// cleanWS remove any non-whitespace from string
+func cleanWS(s string) string ***REMOVED***
+	for i := 0; i < len(s); i++ ***REMOVED***
+		switch s[i] ***REMOVED***
+		case ' ', '\t', '\n', '\r':
+			continue
+		default:
+			var s2 []byte
+			for i := 0; i < len(s); i++ ***REMOVED***
+				switch s[i] ***REMOVED***
+				case ' ', '\t', '\n', '\r':
+					s2 = append(s2, s[i])
+				***REMOVED***
+			***REMOVED***
+			return string(s2)
+		***REMOVED***
+	***REMOVED***
+	return s
+***REMOVED***
+
 // @pretty modifier makes the json look nice.
 func modPretty(json, arg string) string ***REMOVED***
 	if len(arg) > 0 ***REMOVED***
@@ -2641,9 +2664,9 @@ func modPretty(json, arg string) string ***REMOVED***
 			case "sortKeys":
 				opts.SortKeys = value.Bool()
 			case "indent":
-				opts.Indent = value.String()
+				opts.Indent = cleanWS(value.String())
 			case "prefix":
-				opts.Prefix = value.String()
+				opts.Prefix = cleanWS(value.String())
 			case "width":
 				opts.Width = int(value.Int())
 			***REMOVED***
@@ -2729,19 +2752,24 @@ func modFlatten(json, arg string) string ***REMOVED***
 	out = append(out, '[')
 	var idx int
 	res.ForEach(func(_, value Result) bool ***REMOVED***
-		if idx > 0 ***REMOVED***
-			out = append(out, ',')
-		***REMOVED***
+		var raw string
 		if value.IsArray() ***REMOVED***
 			if deep ***REMOVED***
-				out = append(out, unwrap(modFlatten(value.Raw, arg))...)
+				raw = unwrap(modFlatten(value.Raw, arg))
 			***REMOVED*** else ***REMOVED***
-				out = append(out, unwrap(value.Raw)...)
+				raw = unwrap(value.Raw)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			out = append(out, value.Raw...)
+			raw = value.Raw
 		***REMOVED***
-		idx++
+		raw = strings.TrimSpace(raw)
+		if len(raw) > 0 ***REMOVED***
+			if idx > 0 ***REMOVED***
+				out = append(out, ',')
+			***REMOVED***
+			out = append(out, raw...)
+			idx++
+		***REMOVED***
 		return true
 	***REMOVED***)
 	out = append(out, ']')
@@ -2825,6 +2853,19 @@ func modValid(json, arg string) string ***REMOVED***
 	return json
 ***REMOVED***
 
+// stringHeader instead of reflect.StringHeader
+type stringHeader struct ***REMOVED***
+	data unsafe.Pointer
+	len  int
+***REMOVED***
+
+// sliceHeader instead of reflect.SliceHeader
+type sliceHeader struct ***REMOVED***
+	data unsafe.Pointer
+	len  int
+	cap  int
+***REMOVED***
+
 // getBytes casts the input json bytes to a string and safely returns the
 // results as uniquely allocated data. This operation is intended to minimize
 // copies and allocations for the large json string->[]byte.
@@ -2834,14 +2875,14 @@ func getBytes(json []byte, path string) Result ***REMOVED***
 		// unsafe cast to string
 		result = Get(*(*string)(unsafe.Pointer(&json)), path)
 		// safely get the string headers
-		rawhi := *(*reflect.StringHeader)(unsafe.Pointer(&result.Raw))
-		strhi := *(*reflect.StringHeader)(unsafe.Pointer(&result.Str))
+		rawhi := *(*stringHeader)(unsafe.Pointer(&result.Raw))
+		strhi := *(*stringHeader)(unsafe.Pointer(&result.Str))
 		// create byte slice headers
-		rawh := reflect.SliceHeader***REMOVED***Data: rawhi.Data, Len: rawhi.Len***REMOVED***
-		strh := reflect.SliceHeader***REMOVED***Data: strhi.Data, Len: strhi.Len***REMOVED***
-		if strh.Data == 0 ***REMOVED***
+		rawh := sliceHeader***REMOVED***data: rawhi.data, len: rawhi.len, cap: rawhi.len***REMOVED***
+		strh := sliceHeader***REMOVED***data: strhi.data, len: strhi.len, cap: rawhi.len***REMOVED***
+		if strh.data == nil ***REMOVED***
 			// str is nil
-			if rawh.Data == 0 ***REMOVED***
+			if rawh.data == nil ***REMOVED***
 				// raw is nil
 				result.Raw = ""
 			***REMOVED*** else ***REMOVED***
@@ -2849,19 +2890,20 @@ func getBytes(json []byte, path string) Result ***REMOVED***
 				result.Raw = string(*(*[]byte)(unsafe.Pointer(&rawh)))
 			***REMOVED***
 			result.Str = ""
-		***REMOVED*** else if rawh.Data == 0 ***REMOVED***
+		***REMOVED*** else if rawh.data == nil ***REMOVED***
 			// raw is nil
 			result.Raw = ""
 			// str has data, safely copy the slice header to a string
 			result.Str = string(*(*[]byte)(unsafe.Pointer(&strh)))
-		***REMOVED*** else if strh.Data >= rawh.Data &&
-			int(strh.Data)+strh.Len <= int(rawh.Data)+rawh.Len ***REMOVED***
+		***REMOVED*** else if uintptr(strh.data) >= uintptr(rawh.data) &&
+			uintptr(strh.data)+uintptr(strh.len) <=
+				uintptr(rawh.data)+uintptr(rawh.len) ***REMOVED***
 			// Str is a substring of Raw.
-			start := int(strh.Data - rawh.Data)
+			start := uintptr(strh.data) - uintptr(rawh.data)
 			// safely copy the raw slice header
 			result.Raw = string(*(*[]byte)(unsafe.Pointer(&rawh)))
 			// substring the raw
-			result.Str = result.Raw[start : start+strh.Len]
+			result.Str = result.Raw[start : start+uintptr(strh.len)]
 		***REMOVED*** else ***REMOVED***
 			// safely copy both the raw and str slice headers to strings
 			result.Raw = string(*(*[]byte)(unsafe.Pointer(&rawh)))
@@ -2876,9 +2918,9 @@ func getBytes(json []byte, path string) Result ***REMOVED***
 // used instead.
 func fillIndex(json string, c *parseContext) ***REMOVED***
 	if len(c.value.Raw) > 0 && !c.calcd ***REMOVED***
-		jhdr := *(*reflect.StringHeader)(unsafe.Pointer(&json))
-		rhdr := *(*reflect.StringHeader)(unsafe.Pointer(&(c.value.Raw)))
-		c.value.Index = int(rhdr.Data - jhdr.Data)
+		jhdr := *(*stringHeader)(unsafe.Pointer(&json))
+		rhdr := *(*stringHeader)(unsafe.Pointer(&(c.value.Raw)))
+		c.value.Index = int(uintptr(rhdr.data) - uintptr(jhdr.data))
 		if c.value.Index < 0 || c.value.Index >= len(json) ***REMOVED***
 			c.value.Index = 0
 		***REMOVED***
@@ -2886,10 +2928,10 @@ func fillIndex(json string, c *parseContext) ***REMOVED***
 ***REMOVED***
 
 func stringBytes(s string) []byte ***REMOVED***
-	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader***REMOVED***
-		Data: (*reflect.StringHeader)(unsafe.Pointer(&s)).Data,
-		Len:  len(s),
-		Cap:  len(s),
+	return *(*[]byte)(unsafe.Pointer(&sliceHeader***REMOVED***
+		data: (*stringHeader)(unsafe.Pointer(&s)).data,
+		len:  len(s),
+		cap:  len(s),
 	***REMOVED***))
 ***REMOVED***
 

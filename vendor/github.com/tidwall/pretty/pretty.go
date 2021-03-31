@@ -118,21 +118,27 @@ type pair struct ***REMOVED***
 	vstart, vend int
 ***REMOVED***
 
-type byKey struct ***REMOVED***
+type byKeyVal struct ***REMOVED***
 	sorted bool
 	json   []byte
 	pairs  []pair
 ***REMOVED***
 
-func (arr *byKey) Len() int ***REMOVED***
+func (arr *byKeyVal) Len() int ***REMOVED***
 	return len(arr.pairs)
 ***REMOVED***
-func (arr *byKey) Less(i, j int) bool ***REMOVED***
+func (arr *byKeyVal) Less(i, j int) bool ***REMOVED***
 	key1 := arr.json[arr.pairs[i].kstart+1 : arr.pairs[i].kend-1]
 	key2 := arr.json[arr.pairs[j].kstart+1 : arr.pairs[j].kend-1]
-	return string(key1) < string(key2)
+	if string(key1) < string(key2) ***REMOVED***
+		return true
+	***REMOVED***
+	if string(key1) > string(key2) ***REMOVED***
+		return false
+	***REMOVED***
+	return arr.pairs[i].vstart < arr.pairs[j].vstart
 ***REMOVED***
-func (arr *byKey) Swap(i, j int) ***REMOVED***
+func (arr *byKeyVal) Swap(i, j int) ***REMOVED***
 	arr.pairs[i], arr.pairs[j] = arr.pairs[j], arr.pairs[i]
 	arr.sorted = true
 ***REMOVED***
@@ -174,7 +180,11 @@ func appendPrettyObject(buf, json []byte, i int, open, close byte, pretty bool, 
 				***REMOVED***
 				if n > 0 ***REMOVED***
 					nl = len(buf)
-					buf = append(buf, '\n')
+					if buf[nl-1] == ' ' ***REMOVED***
+						buf[nl-1] = '\n'
+					***REMOVED*** else ***REMOVED***
+						buf = append(buf, '\n')
+					***REMOVED***
 				***REMOVED***
 				if buf[len(buf)-1] != open ***REMOVED***
 					buf = appendTabs(buf, prefix, indent, tabs)
@@ -193,7 +203,11 @@ func appendPrettyObject(buf, json []byte, i int, open, close byte, pretty bool, 
 			var p pair
 			if pretty ***REMOVED***
 				nl = len(buf)
-				buf = append(buf, '\n')
+				if buf[nl-1] == ' ' ***REMOVED***
+					buf[nl-1] = '\n'
+				***REMOVED*** else ***REMOVED***
+					buf = append(buf, '\n')
+				***REMOVED***
 				if open == '***REMOVED***' && sortkeys ***REMOVED***
 					p.kstart = i
 					p.vstart = len(buf)
@@ -235,8 +249,8 @@ func sortPairs(json, buf []byte, pairs []pair) []byte ***REMOVED***
 	***REMOVED***
 	vstart := pairs[0].vstart
 	vend := pairs[len(pairs)-1].vend
-	arr := byKey***REMOVED***false, json, pairs***REMOVED***
-	sort.Sort(&arr)
+	arr := byKeyVal***REMOVED***false, json, pairs***REMOVED***
+	sort.Stable(&arr)
 	if !arr.sorted ***REMOVED***
 		return buf
 	***REMOVED***
@@ -305,6 +319,7 @@ func appendTabs(buf []byte, prefix, indent string, tabs int) []byte ***REMOVED**
 type Style struct ***REMOVED***
 	Key, String, Number [2]string
 	True, False, Null   [2]string
+	Escape              [2]string
 	Append              func(dst []byte, c byte) []byte
 ***REMOVED***
 
@@ -328,6 +343,7 @@ func init() ***REMOVED***
 		True:   [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
 		False:  [2]string***REMOVED***"\x1B[96m", "\x1B[0m"***REMOVED***,
 		Null:   [2]string***REMOVED***"\x1B[91m", "\x1B[0m"***REMOVED***,
+		Escape: [2]string***REMOVED***"\x1B[35m", "\x1B[0m"***REMOVED***,
 		Append: func(dst []byte, c byte) []byte ***REMOVED***
 			if c < ' ' && (c != '\r' && c != '\n' && c != '\t' && c != '\v') ***REMOVED***
 				dst = append(dst, "\\u00"...)
@@ -367,8 +383,39 @@ func Color(src []byte, style *Style) []byte ***REMOVED***
 				dst = append(dst, style.String[0]...)
 			***REMOVED***
 			dst = apnd(dst, '"')
+			esc := false
+			uesc := 0
 			for i = i + 1; i < len(src); i++ ***REMOVED***
-				dst = apnd(dst, src[i])
+				if src[i] == '\\' ***REMOVED***
+					if key ***REMOVED***
+						dst = append(dst, style.Key[1]...)
+					***REMOVED*** else ***REMOVED***
+						dst = append(dst, style.String[1]...)
+					***REMOVED***
+					dst = append(dst, style.Escape[0]...)
+					dst = apnd(dst, src[i])
+					esc = true
+					if i+1 < len(src) && src[i+1] == 'u' ***REMOVED***
+						uesc = 5
+					***REMOVED*** else ***REMOVED***
+						uesc = 1
+					***REMOVED***
+				***REMOVED*** else if esc ***REMOVED***
+					dst = apnd(dst, src[i])
+					if uesc == 1 ***REMOVED***
+						esc = false
+						dst = append(dst, style.Escape[1]...)
+						if key ***REMOVED***
+							dst = append(dst, style.Key[0]...)
+						***REMOVED*** else ***REMOVED***
+							dst = append(dst, style.String[0]...)
+						***REMOVED***
+					***REMOVED*** else ***REMOVED***
+						uesc--
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					dst = apnd(dst, src[i])
+				***REMOVED***
 				if src[i] == '"' ***REMOVED***
 					j := i - 1
 					for ; ; j-- ***REMOVED***
@@ -381,7 +428,9 @@ func Color(src []byte, style *Style) []byte ***REMOVED***
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
-			if key ***REMOVED***
+			if esc ***REMOVED***
+				dst = append(dst, style.Escape[1]...)
+			***REMOVED*** else if key ***REMOVED***
 				dst = append(dst, style.Key[1]...)
 			***REMOVED*** else ***REMOVED***
 				dst = append(dst, style.String[1]...)
@@ -429,6 +478,93 @@ func Color(src []byte, style *Style) []byte ***REMOVED***
 				***REMOVED*** else if kind == 'n' ***REMOVED***
 					dst = append(dst, style.Null[1]...)
 				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return dst
+***REMOVED***
+
+// Spec strips out comments and trailing commas and convert the input to a
+// valid JSON per the official spec: https://tools.ietf.org/html/rfc8259
+//
+// The resulting JSON will always be the same length as the input and it will
+// include all of the same line breaks at matching offsets. This is to ensure
+// the result can be later processed by a external parser and that that
+// parser will report messages or errors with the correct offsets.
+func Spec(src []byte) []byte ***REMOVED***
+	return spec(src, nil)
+***REMOVED***
+
+// SpecInPlace is the same as Spec, but this method reuses the input json
+// buffer to avoid allocations. Do not use the original bytes slice upon return.
+func SpecInPlace(src []byte) []byte ***REMOVED***
+	return spec(src, src)
+***REMOVED***
+
+func spec(src, dst []byte) []byte ***REMOVED***
+	dst = dst[:0]
+	for i := 0; i < len(src); i++ ***REMOVED***
+		if src[i] == '/' ***REMOVED***
+			if i < len(src)-1 ***REMOVED***
+				if src[i+1] == '/' ***REMOVED***
+					dst = append(dst, ' ', ' ')
+					i += 2
+					for ; i < len(src); i++ ***REMOVED***
+						if src[i] == '\n' ***REMOVED***
+							dst = append(dst, '\n')
+							break
+						***REMOVED*** else if src[i] == '\t' || src[i] == '\r' ***REMOVED***
+							dst = append(dst, src[i])
+						***REMOVED*** else ***REMOVED***
+							dst = append(dst, ' ')
+						***REMOVED***
+					***REMOVED***
+					continue
+				***REMOVED***
+				if src[i+1] == '*' ***REMOVED***
+					dst = append(dst, ' ', ' ')
+					i += 2
+					for ; i < len(src)-1; i++ ***REMOVED***
+						if src[i] == '*' && src[i+1] == '/' ***REMOVED***
+							dst = append(dst, ' ', ' ')
+							i++
+							break
+						***REMOVED*** else if src[i] == '\n' || src[i] == '\t' ||
+							src[i] == '\r' ***REMOVED***
+							dst = append(dst, src[i])
+						***REMOVED*** else ***REMOVED***
+							dst = append(dst, ' ')
+						***REMOVED***
+					***REMOVED***
+					continue
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		dst = append(dst, src[i])
+		if src[i] == '"' ***REMOVED***
+			for i = i + 1; i < len(src); i++ ***REMOVED***
+				dst = append(dst, src[i])
+				if src[i] == '"' ***REMOVED***
+					j := i - 1
+					for ; ; j-- ***REMOVED***
+						if src[j] != '\\' ***REMOVED***
+							break
+						***REMOVED***
+					***REMOVED***
+					if (j-i)%2 != 0 ***REMOVED***
+						break
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED*** else if src[i] == '***REMOVED***' || src[i] == ']' ***REMOVED***
+			for j := len(dst) - 2; j >= 0; j-- ***REMOVED***
+				if dst[j] <= ' ' ***REMOVED***
+					continue
+				***REMOVED***
+				if dst[j] == ',' ***REMOVED***
+					dst[j] = ' '
+				***REMOVED***
+				break
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
