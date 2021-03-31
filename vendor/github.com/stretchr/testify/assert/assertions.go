@@ -19,7 +19,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pmezard/go-difflib/difflib"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 //go:generate sh -c "cd ../_codegen && go build && cd - && ../_codegen/_codegen -output-package=assert -template=assertion_format.go.tmpl"
@@ -45,7 +45,7 @@ type BoolAssertionFunc func(TestingT, bool, ...interface***REMOVED******REMOVED*
 // for table driven tests.
 type ErrorAssertionFunc func(TestingT, error, ...interface***REMOVED******REMOVED***) bool
 
-// Comparison a custom function that returns true on success and false on failure
+// Comparison is a custom function that returns true on success and false on failure
 type Comparison func() (success bool)
 
 /*
@@ -104,11 +104,11 @@ the problem actually occurred in calling code.*/
 // failed.
 func CallerInfo() []string ***REMOVED***
 
-	pc := uintptr(0)
-	file := ""
-	line := 0
-	ok := false
-	name := ""
+	var pc uintptr
+	var ok bool
+	var file string
+	var line int
+	var name string
 
 	callers := []string***REMOVED******REMOVED***
 	for i := 0; ; i++ ***REMOVED***
@@ -172,8 +172,8 @@ func isTest(name, prefix string) bool ***REMOVED***
 	if len(name) == len(prefix) ***REMOVED*** // "Test" is ok
 		return true
 	***REMOVED***
-	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
-	return !unicode.IsLower(rune)
+	r, _ := utf8.DecodeRuneInString(name[len(prefix):])
+	return !unicode.IsLower(r)
 ***REMOVED***
 
 func messageFromMsgAndArgs(msgAndArgs ...interface***REMOVED******REMOVED***) string ***REMOVED***
@@ -429,14 +429,27 @@ func samePointers(first, second interface***REMOVED******REMOVED***) bool ***REM
 // to a type conversion in the Go grammar.
 func formatUnequalValues(expected, actual interface***REMOVED******REMOVED***) (e string, a string) ***REMOVED***
 	if reflect.TypeOf(expected) != reflect.TypeOf(actual) ***REMOVED***
-		return fmt.Sprintf("%T(%#v)", expected, expected),
-			fmt.Sprintf("%T(%#v)", actual, actual)
+		return fmt.Sprintf("%T(%s)", expected, truncatingFormat(expected)),
+			fmt.Sprintf("%T(%s)", actual, truncatingFormat(actual))
 	***REMOVED***
 	switch expected.(type) ***REMOVED***
 	case time.Duration:
 		return fmt.Sprintf("%v", expected), fmt.Sprintf("%v", actual)
 	***REMOVED***
-	return fmt.Sprintf("%#v", expected), fmt.Sprintf("%#v", actual)
+	return truncatingFormat(expected), truncatingFormat(actual)
+***REMOVED***
+
+// truncatingFormat formats the data and truncates it if it's too long.
+//
+// This helps keep formatted error messages lines from exceeding the
+// bufio.MaxScanTokenSize max line length that the go testing framework imposes.
+func truncatingFormat(data interface***REMOVED******REMOVED***) string ***REMOVED***
+	value := fmt.Sprintf("%#v", data)
+	max := bufio.MaxScanTokenSize - 100 // Give us some space the type info too if needed.
+	if len(value) > max ***REMOVED***
+		value = value[0:max] + "<... truncated>"
+	***REMOVED***
+	return value
 ***REMOVED***
 
 // EqualValues asserts that two objects are equal or convertable to the same types
@@ -483,11 +496,11 @@ func Exactly(t TestingT, expected, actual interface***REMOVED******REMOVED***, m
 //
 //    assert.NotNil(t, err)
 func NotNil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
 	if !isNil(object) ***REMOVED***
 		return true
+	***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
 	***REMOVED***
 	return Fail(t, "Expected value not to be nil.", msgAndArgs...)
 ***REMOVED***
@@ -529,11 +542,11 @@ func isNil(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 //
 //    assert.Nil(t, err)
 func Nil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
 	if isNil(object) ***REMOVED***
 		return true
+	***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
 	***REMOVED***
 	return Fail(t, fmt.Sprintf("Expected nil, but got: %#v", object), msgAndArgs...)
 ***REMOVED***
@@ -571,12 +584,11 @@ func isEmpty(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 //
 //  assert.Empty(t, obj)
 func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-
 	pass := isEmpty(object)
 	if !pass ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		Fail(t, fmt.Sprintf("Should be empty, but was %v", object), msgAndArgs...)
 	***REMOVED***
 
@@ -591,12 +603,11 @@ func Empty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ..
 //    assert.Equal(t, "two", obj[1])
 //  ***REMOVED***
 func NotEmpty(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-
 	pass := !isEmpty(object)
 	if !pass ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		Fail(t, fmt.Sprintf("Should NOT be empty, but was %v", object), msgAndArgs...)
 	***REMOVED***
 
@@ -639,16 +650,10 @@ func Len(t TestingT, object interface***REMOVED******REMOVED***, length int, msg
 //
 //    assert.True(t, myBool)
 func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-	if h, ok := t.(interface ***REMOVED***
-		Helper()
-	***REMOVED***); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-
-	if value != true ***REMOVED***
+	if !value ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		return Fail(t, "Should be true", msgAndArgs...)
 	***REMOVED***
 
@@ -660,11 +665,10 @@ func True(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED
 //
 //    assert.False(t, myBool)
 func False(t TestingT, value bool, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-
-	if value != false ***REMOVED***
+	if value ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		return Fail(t, "Should be false", msgAndArgs...)
 	***REMOVED***
 
@@ -693,6 +697,21 @@ func NotEqual(t TestingT, expected, actual interface***REMOVED******REMOVED***, 
 
 	return true
 
+***REMOVED***
+
+// NotEqualValues asserts that two objects are not equal even when converted to the same type
+//
+//    assert.NotEqualValues(t, obj1, obj2)
+func NotEqualValues(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	if ObjectsAreEqualValues(expected, actual) ***REMOVED***
+		return Fail(t, fmt.Sprintf("Should not be: %#v\n", actual), msgAndArgs...)
+	***REMOVED***
+
+	return true
 ***REMOVED***
 
 // containsElement try loop over the list check if the list includes the element.
@@ -747,10 +766,10 @@ func Contains(t TestingT, s, contains interface***REMOVED******REMOVED***, msgAn
 
 	ok, found := includeElement(s, contains)
 	if !ok ***REMOVED***
-		return Fail(t, fmt.Sprintf("\"%s\" could not be applied builtin len()", s), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("%#v could not be applied builtin len()", s), msgAndArgs...)
 	***REMOVED***
 	if !found ***REMOVED***
-		return Fail(t, fmt.Sprintf("\"%s\" does not contain \"%s\"", s, contains), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("%#v does not contain %#v", s, contains), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -881,26 +900,38 @@ func ElementsMatch(t TestingT, listA, listB interface***REMOVED******REMOVED***,
 		return true
 	***REMOVED***
 
-	aKind := reflect.TypeOf(listA).Kind()
-	bKind := reflect.TypeOf(listB).Kind()
-
-	if aKind != reflect.Array && aKind != reflect.Slice ***REMOVED***
-		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", listA, aKind), msgAndArgs...)
+	if !isList(t, listA, msgAndArgs...) || !isList(t, listB, msgAndArgs...) ***REMOVED***
+		return false
 	***REMOVED***
 
-	if bKind != reflect.Array && bKind != reflect.Slice ***REMOVED***
-		return Fail(t, fmt.Sprintf("%q has an unsupported type %s", listB, bKind), msgAndArgs...)
+	extraA, extraB := diffLists(listA, listB)
+
+	if len(extraA) == 0 && len(extraB) == 0 ***REMOVED***
+		return true
 	***REMOVED***
 
+	return Fail(t, formatListDiff(listA, listB, extraA, extraB), msgAndArgs...)
+***REMOVED***
+
+// isList checks that the provided value is array or slice.
+func isList(t TestingT, list interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) (ok bool) ***REMOVED***
+	kind := reflect.TypeOf(list).Kind()
+	if kind != reflect.Array && kind != reflect.Slice ***REMOVED***
+		return Fail(t, fmt.Sprintf("%q has an unsupported type %s, expecting array or slice", list, kind),
+			msgAndArgs...)
+	***REMOVED***
+	return true
+***REMOVED***
+
+// diffLists diffs two arrays/slices and returns slices of elements that are only in A and only in B.
+// If some element is present multiple times, each instance is counted separately (e.g. if something is 2x in A and
+// 5x in B, it will be 0x in extraA and 3x in extraB). The order of items in both lists is ignored.
+func diffLists(listA, listB interface***REMOVED******REMOVED***) (extraA, extraB []interface***REMOVED******REMOVED***) ***REMOVED***
 	aValue := reflect.ValueOf(listA)
 	bValue := reflect.ValueOf(listB)
 
 	aLen := aValue.Len()
 	bLen := bValue.Len()
-
-	if aLen != bLen ***REMOVED***
-		return Fail(t, fmt.Sprintf("lengths don't match: %d != %d", aLen, bLen), msgAndArgs...)
-	***REMOVED***
 
 	// Mark indexes in bValue that we already used
 	visited := make([]bool, bLen)
@@ -918,11 +949,38 @@ func ElementsMatch(t TestingT, listA, listB interface***REMOVED******REMOVED***,
 			***REMOVED***
 		***REMOVED***
 		if !found ***REMOVED***
-			return Fail(t, fmt.Sprintf("element %s appears more times in %s than in %s", element, aValue, bValue), msgAndArgs...)
+			extraA = append(extraA, element)
 		***REMOVED***
 	***REMOVED***
 
-	return true
+	for j := 0; j < bLen; j++ ***REMOVED***
+		if visited[j] ***REMOVED***
+			continue
+		***REMOVED***
+		extraB = append(extraB, bValue.Index(j).Interface())
+	***REMOVED***
+
+	return
+***REMOVED***
+
+func formatListDiff(listA, listB interface***REMOVED******REMOVED***, extraA, extraB []interface***REMOVED******REMOVED***) string ***REMOVED***
+	var msg bytes.Buffer
+
+	msg.WriteString("elements differ")
+	if len(extraA) > 0 ***REMOVED***
+		msg.WriteString("\n\nextra elements in list A:\n")
+		msg.WriteString(spewConfig.Sdump(extraA))
+	***REMOVED***
+	if len(extraB) > 0 ***REMOVED***
+		msg.WriteString("\n\nextra elements in list B:\n")
+		msg.WriteString(spewConfig.Sdump(extraB))
+	***REMOVED***
+	msg.WriteString("\n\nlistA:\n")
+	msg.WriteString(spewConfig.Sdump(listA))
+	msg.WriteString("\n\nlistB:\n")
+	msg.WriteString(spewConfig.Sdump(listB))
+
+	return msg.String()
 ***REMOVED***
 
 // Condition uses a Comparison to assert a complex condition.
@@ -1058,6 +1116,8 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 	xok := true
 
 	switch xn := x.(type) ***REMOVED***
+	case uint:
+		xf = float64(xn)
 	case uint8:
 		xf = float64(xn)
 	case uint16:
@@ -1079,7 +1139,7 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 	case float32:
 		xf = float64(xn)
 	case float64:
-		xf = float64(xn)
+		xf = xn
 	case time.Duration:
 		xf = float64(xn)
 	default:
@@ -1193,12 +1253,18 @@ func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (fl
 	if !aok ***REMOVED***
 		return 0, fmt.Errorf("expected value %q cannot be converted to float", expected)
 	***REMOVED***
+	if math.IsNaN(af) ***REMOVED***
+		return 0, errors.New("expected value must not be NaN")
+	***REMOVED***
 	if af == 0 ***REMOVED***
 		return 0, fmt.Errorf("expected value must have a value other than zero to calculate the relative error")
 	***REMOVED***
 	bf, bok := toFloat(actual)
 	if !bok ***REMOVED***
 		return 0, fmt.Errorf("actual value %q cannot be converted to float", actual)
+	***REMOVED***
+	if math.IsNaN(bf) ***REMOVED***
+		return 0, errors.New("actual value must not be NaN")
 	***REMOVED***
 
 	return math.Abs(af-bf) / math.Abs(af), nil
@@ -1208,6 +1274,9 @@ func calcRelativeError(expected, actual interface***REMOVED******REMOVED***) (fl
 func InEpsilon(t TestingT, expected, actual interface***REMOVED******REMOVED***, epsilon float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
+	***REMOVED***
+	if math.IsNaN(epsilon) ***REMOVED***
+		return Fail(t, "epsilon must not be NaN")
 	***REMOVED***
 	actualEpsilon, err := calcRelativeError(expected, actual)
 	if err != nil ***REMOVED***
@@ -1256,10 +1325,10 @@ func InEpsilonSlice(t TestingT, expected, actual interface***REMOVED******REMOVE
 //	   assert.Equal(t, expectedObj, actualObj)
 //   ***REMOVED***
 func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
 	if err != nil ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		return Fail(t, fmt.Sprintf("Received unexpected error:\n%+v", err), msgAndArgs...)
 	***REMOVED***
 
@@ -1273,11 +1342,10 @@ func NoError(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOV
 //	   assert.Equal(t, expectedError, err)
 //   ***REMOVED***
 func Error(t TestingT, err error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
-	if h, ok := t.(tHelper); ok ***REMOVED***
-		h.Helper()
-	***REMOVED***
-
 	if err == nil ***REMOVED***
+		if h, ok := t.(tHelper); ok ***REMOVED***
+			h.Helper()
+		***REMOVED***
 		return Fail(t, "An error is expected but got nil.", msgAndArgs...)
 	***REMOVED***
 
@@ -1553,6 +1621,8 @@ var spewConfig = spew.ConfigState***REMOVED***
 	DisablePointerAddresses: true,
 	DisableCapacities:       true,
 	SortKeys:                true,
+	DisableMethods:          true,
+	MaxDepth:                10,
 ***REMOVED***
 
 type tHelper interface ***REMOVED***
@@ -1623,4 +1693,82 @@ func Never(t TestingT, condition func() bool, waitFor time.Duration, tick time.D
 			tick = ticker.C
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+// ErrorIs asserts that at least one of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func ErrorIs(t TestingT, err, target error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if errors.Is(err, target) ***REMOVED***
+		return true
+	***REMOVED***
+
+	var expectedText string
+	if target != nil ***REMOVED***
+		expectedText = target.Error()
+	***REMOVED***
+
+	chain := buildErrorChainString(err)
+
+	return Fail(t, fmt.Sprintf("Target error should be in err chain:\n"+
+		"expected: %q\n"+
+		"in chain: %s", expectedText, chain,
+	), msgAndArgs...)
+***REMOVED***
+
+// NotErrorIs asserts that at none of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func NotErrorIs(t TestingT, err, target error, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if !errors.Is(err, target) ***REMOVED***
+		return true
+	***REMOVED***
+
+	var expectedText string
+	if target != nil ***REMOVED***
+		expectedText = target.Error()
+	***REMOVED***
+
+	chain := buildErrorChainString(err)
+
+	return Fail(t, fmt.Sprintf("Target error should not be in err chain:\n"+
+		"found: %q\n"+
+		"in chain: %s", expectedText, chain,
+	), msgAndArgs...)
+***REMOVED***
+
+// ErrorAs asserts that at least one of the errors in err's chain matches target, and if so, sets target to that error value.
+// This is a wrapper for errors.As.
+func ErrorAs(t TestingT, err error, target interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	if errors.As(err, target) ***REMOVED***
+		return true
+	***REMOVED***
+
+	chain := buildErrorChainString(err)
+
+	return Fail(t, fmt.Sprintf("Should be in error chain:\n"+
+		"expected: %q\n"+
+		"in chain: %s", target, chain,
+	), msgAndArgs...)
+***REMOVED***
+
+func buildErrorChainString(err error) string ***REMOVED***
+	if err == nil ***REMOVED***
+		return ""
+	***REMOVED***
+
+	e := errors.Unwrap(err)
+	chain := fmt.Sprintf("%q", err.Error())
+	for e != nil ***REMOVED***
+		chain += fmt.Sprintf("\n\t%q", e.Error())
+		e = errors.Unwrap(e)
+	***REMOVED***
+	return chain
 ***REMOVED***
