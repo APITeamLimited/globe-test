@@ -31,6 +31,10 @@ func NewDocumentFromNode(root *html.Node) *Document ***REMOVED***
 // NewDocument is a Document constructor that takes a string URL as argument.
 // It loads the specified document, parses it, and stores the root Document
 // node, ready to be manipulated.
+//
+// Deprecated: Use the net/http standard library package to make the request
+// and validate the response before calling goquery.NewDocumentFromReader
+// with the response's body.
 func NewDocument(url string) (*Document, error) ***REMOVED***
 	// Load the URL
 	res, e := http.Get(url)
@@ -40,10 +44,10 @@ func NewDocument(url string) (*Document, error) ***REMOVED***
 	return NewDocumentFromResponse(res)
 ***REMOVED***
 
-// NewDocumentFromReader returns a Document from a generic reader.
+// NewDocumentFromReader returns a Document from an io.Reader.
 // It returns an error as second value if the reader's data cannot be parsed
-// as html. It does *not* check if the reader is also an io.Closer, so the
-// provided reader is never closed by this call, it is the responsibility
+// as html. It does not check if the reader is also an io.Closer, the
+// provided reader is never closed by this call. It is the responsibility
 // of the caller to close it if required.
 func NewDocumentFromReader(r io.Reader) (*Document, error) ***REMOVED***
 	root, e := html.Parse(r)
@@ -56,6 +60,8 @@ func NewDocumentFromReader(r io.Reader) (*Document, error) ***REMOVED***
 // NewDocumentFromResponse is another Document constructor that takes an http response as argument.
 // It loads the specified response's document, parses it, and stores the root Document
 // node, ready to be manipulated. The response's body is closed on return.
+//
+// Deprecated: Use goquery.NewDocumentFromReader with the response's body.
 func NewDocumentFromResponse(res *http.Response) (*Document, error) ***REMOVED***
 	if res == nil ***REMOVED***
 		return nil, errors.New("Response is nil")

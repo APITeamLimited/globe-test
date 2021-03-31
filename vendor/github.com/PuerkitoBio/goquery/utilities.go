@@ -36,12 +36,22 @@ func NodeName(s *Selection) string ***REMOVED***
 	if s.Length() == 0 ***REMOVED***
 		return ""
 	***REMOVED***
-	switch n := s.Get(0); n.Type ***REMOVED***
+	return nodeName(s.Get(0))
+***REMOVED***
+
+// nodeName returns the node name of the given html node.
+// See NodeName for additional details on behaviour.
+func nodeName(node *html.Node) string ***REMOVED***
+	if node == nil ***REMOVED***
+		return ""
+	***REMOVED***
+
+	switch node.Type ***REMOVED***
 	case html.ElementNode, html.DoctypeNode:
-		return n.Data
+		return node.Data
 	default:
-		if n.Type >= 0 && int(n.Type) < len(nodeNames) ***REMOVED***
-			return nodeNames[n.Type]
+		if node.Type >= 0 && int(node.Type) < len(nodeNames) ***REMOVED***
+			return nodeNames[node.Type]
 		***REMOVED***
 		return ""
 	***REMOVED***
