@@ -16,16 +16,11 @@ import (
 )
 
 type frameDec struct ***REMOVED***
-	o         decoderOptions
-	crc       hash.Hash64
-	frameDone sync.WaitGroup
-	offset    int64
+	o      decoderOptions
+	crc    hash.Hash64
+	offset int64
 
-	WindowSize       uint64
-	DictionaryID     uint32
-	FrameContentSize uint64
-	HasCheckSum      bool
-	SingleSegment    bool
+	WindowSize uint64
 
 	// maxWindowSize is the maximum windows size to support.
 	// should never be bigger than max-int.
@@ -39,14 +34,25 @@ type frameDec struct ***REMOVED***
 
 	rawInput byteBuffer
 
+	// Byte buffer that can be reused for small input blocks.
+	bBuf byteBuf
+
+	FrameContentSize uint64
+	frameDone        sync.WaitGroup
+
+	DictionaryID  *uint32
+	HasCheckSum   bool
+	SingleSegment bool
+
 	// asyncRunning indicates whether the async routine processes input on 'decoding'.
-	asyncRunning   bool
 	asyncRunningMu sync.Mutex
+	asyncRunning   bool
 ***REMOVED***
 
 const (
 	// The minimum Window_Size is 1 KB.
-	minWindowSize = 1 << 10
+	MinWindowSize = 1 << 10
+	MaxWindowSize = 1 << 29
 )
 
 var (
@@ -57,7 +63,10 @@ var (
 func newFrameDec(o decoderOptions) *frameDec ***REMOVED***
 	d := frameDec***REMOVED***
 		o:             o,
-		maxWindowSize: 1 << 30,
+		maxWindowSize: MaxWindowSize,
+	***REMOVED***
+	if d.maxWindowSize > o.maxDecodedSize ***REMOVED***
+		d.maxWindowSize = o.maxDecodedSize
 	***REMOVED***
 	return &d
 ***REMOVED***
@@ -133,7 +142,7 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 
 	// Read Dictionary_ID
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary_id
-	d.DictionaryID = 0
+	d.DictionaryID = nil
 	if size := fhd & 3; size != 0 ***REMOVED***
 		if size == 3 ***REMOVED***
 			size = 4
@@ -145,19 +154,22 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 			***REMOVED***
 			return io.ErrUnexpectedEOF
 		***REMOVED***
+		var id uint32
 		switch size ***REMOVED***
 		case 1:
-			d.DictionaryID = uint32(b[0])
+			id = uint32(b[0])
 		case 2:
-			d.DictionaryID = uint32(b[0]) | (uint32(b[1]) << 8)
+			id = uint32(b[0]) | (uint32(b[1]) << 8)
 		case 4:
-			d.DictionaryID = uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
+			id = uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 		***REMOVED***
 		if debug ***REMOVED***
-			println("Dict size", size, "ID:", d.DictionaryID)
+			println("Dict size", size, "ID:", id)
 		***REMOVED***
-		if d.DictionaryID != 0 ***REMOVED***
-			return ErrUnknownDictionary
+		if id > 0 ***REMOVED***
+			// ID 0 means "sorry, no dictionary anyway".
+			// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
+			d.DictionaryID = &id
 		***REMOVED***
 	***REMOVED***
 
@@ -187,14 +199,14 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 			// When FCS_Field_Size is 2, the offset of 256 is added.
 			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) + 256
 		case 4:
-			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) | (uint64(b[2]) << 16) | (uint64(b[3] << 24))
+			d.FrameContentSize = uint64(b[0]) | (uint64(b[1]) << 8) | (uint64(b[2]) << 16) | (uint64(b[3]) << 24)
 		case 8:
 			d1 := uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 			d2 := uint32(b[4]) | (uint32(b[5]) << 8) | (uint32(b[6]) << 16) | (uint32(b[7]) << 24)
 			d.FrameContentSize = uint64(d1) | (uint64(d2) << 32)
 		***REMOVED***
 		if debug ***REMOVED***
-			println("field size bits:", v, "fcsSize:", fcsSize, "FrameContentSize:", d.FrameContentSize, hex.EncodeToString(b[:fcsSize]))
+			println("field size bits:", v, "fcsSize:", fcsSize, "FrameContentSize:", d.FrameContentSize, hex.EncodeToString(b[:fcsSize]), "singleseg:", d.SingleSegment, "window:", d.WindowSize)
 		***REMOVED***
 	***REMOVED***
 	// Move this to shared.
@@ -209,8 +221,8 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 	if d.WindowSize == 0 && d.SingleSegment ***REMOVED***
 		// We may not need window in this case.
 		d.WindowSize = d.FrameContentSize
-		if d.WindowSize < minWindowSize ***REMOVED***
-			d.WindowSize = minWindowSize
+		if d.WindowSize < MinWindowSize ***REMOVED***
+			d.WindowSize = MinWindowSize
 		***REMOVED***
 	***REMOVED***
 
@@ -219,12 +231,16 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 		return ErrWindowSizeExceeded
 	***REMOVED***
 	// The minimum Window_Size is 1 KB.
-	if d.WindowSize < minWindowSize ***REMOVED***
+	if d.WindowSize < MinWindowSize ***REMOVED***
 		println("got window size: ", d.WindowSize)
 		return ErrWindowSizeTooSmall
 	***REMOVED***
 	d.history.windowSize = int(d.WindowSize)
-	d.history.maxSize = d.history.windowSize + maxBlockSize
+	if d.o.lowMem && d.history.windowSize < maxBlockSize ***REMOVED***
+		d.history.maxSize = d.history.windowSize * 2
+	***REMOVED*** else ***REMOVED***
+		d.history.maxSize = d.history.windowSize + maxBlockSize
+	***REMOVED***
 	// history contains input - maybe we do something
 	d.rawInput = br
 	return nil
@@ -232,7 +248,9 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 
 // next will start decoding the next block from stream.
 func (d *frameDec) next(block *blockDec) error ***REMOVED***
-	println("decoding new block")
+	if debug ***REMOVED***
+		printf("decoding new block %p:%p", block, block.data)
+	***REMOVED***
 	err := block.reset(d.rawInput, d.WindowSize)
 	if err != nil ***REMOVED***
 		println("block error:", err)
@@ -280,13 +298,13 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 	if !d.HasCheckSum ***REMOVED***
 		return nil
 	***REMOVED***
-	var tmp [8]byte
-	gotB := d.crc.Sum(tmp[:0])
+	var tmp [4]byte
+	got := d.crc.Sum64()
 	// Flip to match file order.
-	gotB[0] = gotB[7]
-	gotB[1] = gotB[6]
-	gotB[2] = gotB[5]
-	gotB[3] = gotB[4]
+	tmp[0] = byte(got >> 0)
+	tmp[1] = byte(got >> 8)
+	tmp[2] = byte(got >> 16)
+	tmp[3] = byte(got >> 24)
 
 	// We can overwrite upper tmp now
 	want := d.rawInput.readSmall(4)
@@ -295,18 +313,22 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 		return io.ErrUnexpectedEOF
 	***REMOVED***
 
-	if !bytes.Equal(gotB[:4], want) ***REMOVED***
-		println("CRC Check Failed:", gotB[:4], "!=", want)
+	if !bytes.Equal(tmp[:], want) ***REMOVED***
+		if debug ***REMOVED***
+			println("CRC Check Failed:", tmp[:], "!=", want)
+		***REMOVED***
 		return ErrCRCMismatch
 	***REMOVED***
-	println("CRC ok")
+	if debug ***REMOVED***
+		println("CRC ok", tmp[:])
+	***REMOVED***
 	return nil
 ***REMOVED***
 
 func (d *frameDec) initAsync() ***REMOVED***
 	if !d.o.lowMem && !d.SingleSegment ***REMOVED***
-		// set max extra size history to 20MB.
-		d.history.maxSize = d.history.windowSize + maxBlockSize*10
+		// set max extra size history to 10MB.
+		d.history.maxSize = d.history.windowSize + maxBlockSize*5
 	***REMOVED***
 	// re-alloc if more than one extra block size.
 	if d.o.lowMem && cap(d.history.b) > d.history.maxSize+maxBlockSize ***REMOVED***
@@ -332,8 +354,6 @@ func (d *frameDec) initAsync() ***REMOVED***
 // When the frame has finished decoding the *bufio.Reader
 // containing the remaining input will be sent on frameDec.frameDone.
 func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
-	// TODO: Init to dictionary
-	d.history.reset()
 	written := int64(0)
 
 	defer func() ***REMOVED***
@@ -401,6 +421,7 @@ func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
 		***REMOVED***
 		written += int64(len(r.b))
 		if d.SingleSegment && uint64(written) > d.FrameContentSize ***REMOVED***
+			println("runDecoder: single segment and", uint64(written), ">", d.FrameContentSize)
 			r.err = ErrFrameSizeExceeded
 			output <- r
 			return
@@ -423,10 +444,8 @@ func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// runDecoder will create a sync decoder that will decodeAsync a block of data.
+// runDecoder will create a sync decoder that will decode a block of data.
 func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMOVED***
-	// TODO: Init to dictionary
-	d.history.reset()
 	saved := d.history.b
 
 	// We use the history for output to avoid copying it.
@@ -451,6 +470,7 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMO
 			break
 		***REMOVED***
 		if d.SingleSegment && uint64(len(d.history.b)) > d.o.maxDecodedSize ***REMOVED***
+			println("runDecoder: single segment and", uint64(len(d.history.b)), ">", d.o.maxDecodedSize)
 			err = ErrFrameSizeExceeded
 			break
 		***REMOVED***
@@ -463,9 +483,10 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMO
 			if err == nil ***REMOVED***
 				if n != len(dst)-crcStart ***REMOVED***
 					err = io.ErrShortWrite
+				***REMOVED*** else ***REMOVED***
+					err = d.checkCRC()
 				***REMOVED***
 			***REMOVED***
-			err = d.checkCRC()
 		***REMOVED***
 	***REMOVED***
 	d.history.b = saved

@@ -17,6 +17,7 @@ type history struct ***REMOVED***
 	windowSize    int
 	maxSize       int
 	error         bool
+	dict          *dict
 ***REMOVED***
 
 // reset will reset the history to initial state of a frame.
@@ -36,10 +37,25 @@ func (h *history) reset() ***REMOVED***
 	***REMOVED***
 	h.decoders = sequenceDecs***REMOVED******REMOVED***
 	if h.huffTree != nil ***REMOVED***
-		huffDecoderPool.Put(h.huffTree)
+		if h.dict == nil || h.dict.litEnc != h.huffTree ***REMOVED***
+			huffDecoderPool.Put(h.huffTree)
+		***REMOVED***
 	***REMOVED***
 	h.huffTree = nil
+	h.dict = nil
 	//printf("history created: %+v (l: %d, c: %d)", *h, len(h.b), cap(h.b))
+***REMOVED***
+
+func (h *history) setDict(dict *dict) ***REMOVED***
+	if dict == nil ***REMOVED***
+		return
+	***REMOVED***
+	h.dict = dict
+	h.decoders.litLengths = dict.llDec
+	h.decoders.offsets = dict.ofDec
+	h.decoders.matchLengths = dict.mlDec
+	h.recentOffsets = dict.offsets
+	h.huffTree = dict.litEnc
 ***REMOVED***
 
 // append bytes to history.

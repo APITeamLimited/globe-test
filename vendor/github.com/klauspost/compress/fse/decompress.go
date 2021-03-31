@@ -172,7 +172,7 @@ type decSymbol struct ***REMOVED***
 // allocDtable will allocate decoding tables if they are not big enough.
 func (s *Scratch) allocDtable() ***REMOVED***
 	tableSize := 1 << s.actualTableLog
-	if cap(s.decTable) < int(tableSize) ***REMOVED***
+	if cap(s.decTable) < tableSize ***REMOVED***
 		s.decTable = make([]decSymbol, tableSize)
 	***REMOVED***
 	s.decTable = s.decTable[:tableSize]
@@ -243,7 +243,7 @@ func (s *Scratch) buildDtable() error ***REMOVED***
 			nBits := s.actualTableLog - byte(highBits(uint32(nextState)))
 			s.decTable[u].nbBits = nBits
 			newState := (nextState << nBits) - tableSize
-			if newState > tableSize ***REMOVED***
+			if newState >= tableSize ***REMOVED***
 				return fmt.Errorf("newState (%d) outside table size (%d)", newState, tableSize)
 			***REMOVED***
 			if newState == uint16(u) && nBits == 0 ***REMOVED***
@@ -281,8 +281,12 @@ func (s *Scratch) decompress() error ***REMOVED***
 			tmp[off+2] = s1.nextFast()
 			tmp[off+3] = s2.nextFast()
 			off += 4
+			// When off is 0, we have overflowed and should write.
 			if off == 0 ***REMOVED***
 				s.Out = append(s.Out, tmp...)
+				if len(s.Out) >= s.DecompressLimit ***REMOVED***
+					return fmt.Errorf("output size (%d) > DecompressLimit (%d)", len(s.Out), s.DecompressLimit)
+				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -296,7 +300,7 @@ func (s *Scratch) decompress() error ***REMOVED***
 			off += 4
 			if off == 0 ***REMOVED***
 				s.Out = append(s.Out, tmp...)
-				off = 0
+				// When off is 0, we have overflowed and should write.
 				if len(s.Out) >= s.DecompressLimit ***REMOVED***
 					return fmt.Errorf("output size (%d) > DecompressLimit (%d)", len(s.Out), s.DecompressLimit)
 				***REMOVED***
@@ -336,7 +340,7 @@ type decoder struct ***REMOVED***
 func (d *decoder) init(in *bitReader, dt []decSymbol, tableLog uint8) ***REMOVED***
 	d.dt = dt
 	d.br = in
-	d.state = uint16(in.getBits(tableLog))
+	d.state = in.getBits(tableLog)
 ***REMOVED***
 
 // next returns the next symbol and sets the next state.

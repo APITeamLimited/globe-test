@@ -5,7 +5,7 @@
 package zstd
 
 import (
-	"errors"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -17,7 +17,7 @@ type frameHeader struct ***REMOVED***
 	WindowSize    uint32
 	SingleSegment bool
 	Checksum      bool
-	DictID        uint32 // Not stored.
+	DictID        uint32
 ***REMOVED***
 
 const maxHeaderSize = 14
@@ -31,6 +31,24 @@ func (f frameHeader) appendTo(dst []byte) ([]byte, error) ***REMOVED***
 	if f.SingleSegment ***REMOVED***
 		fhd |= 1 << 5
 	***REMOVED***
+
+	var dictIDContent []byte
+	if f.DictID > 0 ***REMOVED***
+		var tmp [4]byte
+		if f.DictID < 256 ***REMOVED***
+			fhd |= 1
+			tmp[0] = uint8(f.DictID)
+			dictIDContent = tmp[:1]
+		***REMOVED*** else if f.DictID < 1<<16 ***REMOVED***
+			fhd |= 2
+			binary.LittleEndian.PutUint16(tmp[:2], uint16(f.DictID))
+			dictIDContent = tmp[:2]
+		***REMOVED*** else ***REMOVED***
+			fhd |= 3
+			binary.LittleEndian.PutUint32(tmp[:4], f.DictID)
+			dictIDContent = tmp[:4]
+		***REMOVED***
+	***REMOVED***
 	var fcs uint8
 	if f.ContentSize >= 256 ***REMOVED***
 		fcs++
@@ -41,6 +59,7 @@ func (f frameHeader) appendTo(dst []byte) ([]byte, error) ***REMOVED***
 	if f.ContentSize >= 0xffffffff ***REMOVED***
 		fcs++
 	***REMOVED***
+
 	fhd |= fcs << 6
 
 	dst = append(dst, fhd)
@@ -49,8 +68,8 @@ func (f frameHeader) appendTo(dst []byte) ([]byte, error) ***REMOVED***
 		windowLog := (bits.Len32(f.WindowSize-1) - winLogMin) << 3
 		dst = append(dst, uint8(windowLog))
 	***REMOVED***
-	if f.SingleSegment && f.ContentSize == 0 ***REMOVED***
-		return nil, errors.New("single segment, but no size set")
+	if f.DictID > 0 ***REMOVED***
+		dst = append(dst, dictIDContent...)
 	***REMOVED***
 	switch fcs ***REMOVED***
 	case 0:
