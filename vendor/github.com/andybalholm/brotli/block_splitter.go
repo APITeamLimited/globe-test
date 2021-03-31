@@ -33,23 +33,21 @@ const (
 	kMinItersForRefining         uint    = 100
 )
 
-func countLiterals(cmds []command, num_commands uint) uint ***REMOVED***
+func countLiterals(cmds []command) uint ***REMOVED***
 	var total_length uint = 0
 	/* Count how many we have. */
 
-	var i uint
-	for i = 0; i < num_commands; i++ ***REMOVED***
+	for i := range cmds ***REMOVED***
 		total_length += uint(cmds[i].insert_len_)
 	***REMOVED***
 
 	return total_length
 ***REMOVED***
 
-func copyLiteralsToByteArray(cmds []command, num_commands uint, data []byte, offset uint, mask uint, literals []byte) ***REMOVED***
+func copyLiteralsToByteArray(cmds []command, data []byte, offset uint, mask uint, literals []byte) ***REMOVED***
 	var pos uint = 0
 	var from_pos uint = offset & mask
-	var i uint
-	for i = 0; i < num_commands; i++ ***REMOVED***
+	for i := range cmds ***REMOVED***
 		var insert_len uint = uint(cmds[i].insert_len_)
 		if from_pos+insert_len > mask ***REMOVED***
 			var head_size uint = mask + 1 - from_pos
@@ -90,24 +88,19 @@ const clustersPerBatch = 16
 func initBlockSplit(self *blockSplit) ***REMOVED***
 	self.num_types = 0
 	self.num_blocks = 0
-	self.types = nil
-	self.lengths = nil
+	self.types = self.types[:0]
+	self.lengths = self.lengths[:0]
 	self.types_alloc_size = 0
 	self.lengths_alloc_size = 0
 ***REMOVED***
 
-func destroyBlockSplit(self *blockSplit) ***REMOVED***
-	self.types = nil
-	self.lengths = nil
-***REMOVED***
-
-func splitBlock(cmds []command, num_commands uint, data []byte, pos uint, mask uint, params *encoderParams, literal_split *blockSplit, insert_and_copy_split *blockSplit, dist_split *blockSplit) ***REMOVED***
+func splitBlock(cmds []command, data []byte, pos uint, mask uint, params *encoderParams, literal_split *blockSplit, insert_and_copy_split *blockSplit, dist_split *blockSplit) ***REMOVED***
 	***REMOVED***
-		var literals_count uint = countLiterals(cmds, num_commands)
+		var literals_count uint = countLiterals(cmds)
 		var literals []byte = make([]byte, literals_count)
 
 		/* Create a continuous array of literals. */
-		copyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals)
+		copyLiteralsToByteArray(cmds, data, pos, mask, literals)
 
 		/* Create the block split on the array of literals.
 		   Literal histograms have alphabet size 256. */
@@ -116,28 +109,26 @@ func splitBlock(cmds []command, num_commands uint, data []byte, pos uint, mask u
 		literals = nil
 	***REMOVED***
 	***REMOVED***
-		var insert_and_copy_codes []uint16 = make([]uint16, num_commands)
+		var insert_and_copy_codes []uint16 = make([]uint16, len(cmds))
 		/* Compute prefix codes for commands. */
 
-		var i uint
-		for i = 0; i < num_commands; i++ ***REMOVED***
+		for i := range cmds ***REMOVED***
 			insert_and_copy_codes[i] = cmds[i].cmd_prefix_
 		***REMOVED***
 
 		/* Create the block split on the array of command prefixes. */
-		splitByteVectorCommand(insert_and_copy_codes, num_commands, kSymbolsPerCommandHistogram, kMaxCommandHistograms, kCommandStrideLength, kCommandBlockSwitchCost, params, insert_and_copy_split)
+		splitByteVectorCommand(insert_and_copy_codes, kSymbolsPerCommandHistogram, kMaxCommandHistograms, kCommandStrideLength, kCommandBlockSwitchCost, params, insert_and_copy_split)
 
 		/* TODO: reuse for distances? */
 
 		insert_and_copy_codes = nil
 	***REMOVED***
 	***REMOVED***
-		var distance_prefixes []uint16 = make([]uint16, num_commands)
+		var distance_prefixes []uint16 = make([]uint16, len(cmds))
 		var j uint = 0
 		/* Create a continuous array of distance prefixes. */
 
-		var i uint
-		for i = 0; i < num_commands; i++ ***REMOVED***
+		for i := range cmds ***REMOVED***
 			var cmd *command = &cmds[i]
 			if commandCopyLen(cmd) != 0 && cmd.cmd_prefix_ >= 128 ***REMOVED***
 				distance_prefixes[j] = cmd.dist_prefix_ & 0x3FF

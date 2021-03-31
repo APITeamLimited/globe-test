@@ -1,12 +1,8 @@
 package brotli
 
 import (
-	"compress/gzip"
 	"errors"
 	"io"
-	"net/http"
-
-	"github.com/golang/gddo/httputil"
 )
 
 const (
@@ -71,6 +67,9 @@ func (w *Writer) writeChunk(p []byte, op int) (n int, err error) ***REMOVED***
 	if w.dst == nil ***REMOVED***
 		return 0, errWriterClosed
 	***REMOVED***
+	if w.err != nil ***REMOVED***
+		return 0, w.err
+	***REMOVED***
 
 	for ***REMOVED***
 		availableIn := uint(len(p))
@@ -83,16 +82,8 @@ func (w *Writer) writeChunk(p []byte, op int) (n int, err error) ***REMOVED***
 			return n, errEncode
 		***REMOVED***
 
-		outputData := encoderTakeOutput(w)
-
-		if len(outputData) > 0 ***REMOVED***
-			_, err = w.dst.Write(outputData)
-			if err != nil ***REMOVED***
-				return n, err
-			***REMOVED***
-		***REMOVED***
-		if len(p) == 0 ***REMOVED***
-			return n, nil
+		if len(p) == 0 || w.err != nil ***REMOVED***
+			return n, w.err
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -125,32 +116,3 @@ type nopCloser struct ***REMOVED***
 ***REMOVED***
 
 func (nopCloser) Close() error ***REMOVED*** return nil ***REMOVED***
-
-// HTTPCompressor chooses a compression method (brotli, gzip, or none) based on
-// the Accept-Encoding header, sets the Content-Encoding header, and returns a
-// WriteCloser that implements that compression. The Close method must be called
-// before the current HTTP handler returns.
-//
-// Due to https://github.com/golang/go/issues/31753, the response will not be
-// compressed unless you set a Content-Type header before you call
-// HTTPCompressor.
-func HTTPCompressor(w http.ResponseWriter, r *http.Request) io.WriteCloser ***REMOVED***
-	if w.Header().Get("Content-Type") == "" ***REMOVED***
-		return nopCloser***REMOVED***w***REMOVED***
-	***REMOVED***
-
-	if w.Header().Get("Vary") == "" ***REMOVED***
-		w.Header().Set("Vary", "Accept-Encoding")
-	***REMOVED***
-
-	encoding := httputil.NegotiateContentEncoding(r, []string***REMOVED***"br", "gzip"***REMOVED***)
-	switch encoding ***REMOVED***
-	case "br":
-		w.Header().Set("Content-Encoding", "br")
-		return NewWriter(w)
-	case "gzip":
-		w.Header().Set("Content-Encoding", "gzip")
-		return gzip.NewWriter(w)
-	***REMOVED***
-	return nopCloser***REMOVED***w***REMOVED***
-***REMOVED***
