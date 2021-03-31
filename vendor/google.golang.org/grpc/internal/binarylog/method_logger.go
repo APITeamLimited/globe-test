@@ -65,7 +65,7 @@ func newMethodLogger(h, m uint64) *MethodLogger ***REMOVED***
 		callID:          idGen.next(),
 		idWithinCallGen: &callIDGenerator***REMOVED******REMOVED***,
 
-		sink: defaultSink, // TODO(blog): make it plugable.
+		sink: DefaultSink, // TODO(blog): make it plugable.
 	***REMOVED***
 ***REMOVED***
 

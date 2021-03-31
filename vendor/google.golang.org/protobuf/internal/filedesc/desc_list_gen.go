@@ -142,6 +142,7 @@ type Fields struct ***REMOVED***
 	once   sync.Once
 	byName map[protoreflect.Name]*Field        // protected by once
 	byJSON map[string]*Field                   // protected by once
+	byText map[string]*Field                   // protected by once
 	byNum  map[protoreflect.FieldNumber]*Field // protected by once
 ***REMOVED***
 
@@ -163,6 +164,12 @@ func (p *Fields) ByJSONName(s string) protoreflect.FieldDescriptor ***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
+func (p *Fields) ByTextName(s string) protoreflect.FieldDescriptor ***REMOVED***
+	if d := p.lazyInit().byText[s]; d != nil ***REMOVED***
+		return d
+	***REMOVED***
+	return nil
+***REMOVED***
 func (p *Fields) ByNumber(n protoreflect.FieldNumber) protoreflect.FieldDescriptor ***REMOVED***
 	if d := p.lazyInit().byNum[n]; d != nil ***REMOVED***
 		return d
@@ -178,6 +185,7 @@ func (p *Fields) lazyInit() *Fields ***REMOVED***
 		if len(p.List) > 0 ***REMOVED***
 			p.byName = make(map[protoreflect.Name]*Field, len(p.List))
 			p.byJSON = make(map[string]*Field, len(p.List))
+			p.byText = make(map[string]*Field, len(p.List))
 			p.byNum = make(map[protoreflect.FieldNumber]*Field, len(p.List))
 			for i := range p.List ***REMOVED***
 				d := &p.List[i]
@@ -186,6 +194,9 @@ func (p *Fields) lazyInit() *Fields ***REMOVED***
 				***REMOVED***
 				if _, ok := p.byJSON[d.JSONName()]; !ok ***REMOVED***
 					p.byJSON[d.JSONName()] = d
+				***REMOVED***
+				if _, ok := p.byText[d.TextName()]; !ok ***REMOVED***
+					p.byText[d.TextName()] = d
 				***REMOVED***
 				if _, ok := p.byNum[d.Number()]; !ok ***REMOVED***
 					p.byNum[d.Number()] = d

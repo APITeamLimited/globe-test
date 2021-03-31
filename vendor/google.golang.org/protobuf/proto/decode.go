@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/internal/encoding/messageset"
 	"google.golang.org/protobuf/internal/errors"
 	"google.golang.org/protobuf/internal/flags"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -115,10 +116,10 @@ func (o UnmarshalOptions) unmarshalMessageSlow(b []byte, m protoreflect.Message)
 		// Parse the tag (field number and wire type).
 		num, wtyp, tagLen := protowire.ConsumeTag(b)
 		if tagLen < 0 ***REMOVED***
-			return protowire.ParseError(tagLen)
+			return errDecode
 		***REMOVED***
 		if num > protowire.MaxValidNumber ***REMOVED***
-			return errors.New("invalid field number")
+			return errDecode
 		***REMOVED***
 
 		// Find the field descriptor for this field number.
@@ -158,7 +159,7 @@ func (o UnmarshalOptions) unmarshalMessageSlow(b []byte, m protoreflect.Message)
 			***REMOVED***
 			valLen = protowire.ConsumeFieldValue(num, wtyp, b[tagLen:])
 			if valLen < 0 ***REMOVED***
-				return protowire.ParseError(valLen)
+				return errDecode
 			***REMOVED***
 			if !o.DiscardUnknown ***REMOVED***
 				m.SetUnknown(append(m.GetUnknown(), b[:tagLen+valLen]...))
@@ -193,7 +194,7 @@ func (o UnmarshalOptions) unmarshalMap(b []byte, wtyp protowire.Type, mapv proto
 	***REMOVED***
 	b, n = protowire.ConsumeBytes(b)
 	if n < 0 ***REMOVED***
-		return 0, protowire.ParseError(n)
+		return 0, errDecode
 	***REMOVED***
 	var (
 		keyField = fd.MapKey()
@@ -212,21 +213,21 @@ func (o UnmarshalOptions) unmarshalMap(b []byte, wtyp protowire.Type, mapv proto
 	for len(b) > 0 ***REMOVED***
 		num, wtyp, n := protowire.ConsumeTag(b)
 		if n < 0 ***REMOVED***
-			return 0, protowire.ParseError(n)
+			return 0, errDecode
 		***REMOVED***
 		if num > protowire.MaxValidNumber ***REMOVED***
-			return 0, errors.New("invalid field number")
+			return 0, errDecode
 		***REMOVED***
 		b = b[n:]
 		err = errUnknown
 		switch num ***REMOVED***
-		case 1:
+		case genid.MapEntry_Key_field_number:
 			key, n, err = o.unmarshalScalar(b, wtyp, keyField)
 			if err != nil ***REMOVED***
 				break
 			***REMOVED***
 			haveKey = true
-		case 2:
+		case genid.MapEntry_Value_field_number:
 			var v protoreflect.Value
 			v, n, err = o.unmarshalScalar(b, wtyp, valField)
 			if err != nil ***REMOVED***
@@ -245,7 +246,7 @@ func (o UnmarshalOptions) unmarshalMap(b []byte, wtyp protowire.Type, mapv proto
 		if err == errUnknown ***REMOVED***
 			n = protowire.ConsumeFieldValue(num, wtyp, b)
 			if n < 0 ***REMOVED***
-				return 0, protowire.ParseError(n)
+				return 0, errDecode
 			***REMOVED***
 		***REMOVED*** else if err != nil ***REMOVED***
 			return 0, err
@@ -271,3 +272,5 @@ func (o UnmarshalOptions) unmarshalMap(b []byte, wtyp protowire.Type, mapv proto
 // to the unknown field set of a message. It is never returned from an exported
 // function.
 var errUnknown = errors.New("BUG: internal error (unknown)")
+
+var errDecode = errors.New("cannot parse invalid wire-format data")

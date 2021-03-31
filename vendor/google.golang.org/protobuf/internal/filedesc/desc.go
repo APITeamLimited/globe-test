@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/internal/descfmt"
 	"google.golang.org/protobuf/internal/descopts"
 	"google.golang.org/protobuf/internal/encoding/defval"
+	"google.golang.org/protobuf/internal/encoding/messageset"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/internal/strs"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
@@ -206,7 +208,7 @@ type (
 		Number           pref.FieldNumber
 		Cardinality      pref.Cardinality // must be consistent with Message.RequiredNumbers
 		Kind             pref.Kind
-		JSONName         jsonName
+		StringName       stringName
 		IsProto3Optional bool // promoted from google.protobuf.FieldDescriptorProto
 		IsWeak           bool // promoted from google.protobuf.FieldOptions
 		HasPacked        bool // promoted from google.protobuf.FieldOptions
@@ -276,8 +278,9 @@ func (fd *Field) Options() pref.ProtoMessage ***REMOVED***
 func (fd *Field) Number() pref.FieldNumber      ***REMOVED*** return fd.L1.Number ***REMOVED***
 func (fd *Field) Cardinality() pref.Cardinality ***REMOVED*** return fd.L1.Cardinality ***REMOVED***
 func (fd *Field) Kind() pref.Kind               ***REMOVED*** return fd.L1.Kind ***REMOVED***
-func (fd *Field) HasJSONName() bool             ***REMOVED*** return fd.L1.JSONName.has ***REMOVED***
-func (fd *Field) JSONName() string              ***REMOVED*** return fd.L1.JSONName.get(fd) ***REMOVED***
+func (fd *Field) HasJSONName() bool             ***REMOVED*** return fd.L1.StringName.hasJSON ***REMOVED***
+func (fd *Field) JSONName() string              ***REMOVED*** return fd.L1.StringName.getJSON(fd) ***REMOVED***
+func (fd *Field) TextName() string              ***REMOVED*** return fd.L1.StringName.getText(fd) ***REMOVED***
 func (fd *Field) HasPresence() bool ***REMOVED***
 	return fd.L1.Cardinality != pref.Repeated && (fd.L0.ParentFile.L1.Syntax == pref.Proto2 || fd.L1.Message != nil || fd.L1.ContainingOneof != nil)
 ***REMOVED***
@@ -302,13 +305,13 @@ func (fd *Field) MapKey() pref.FieldDescriptor ***REMOVED***
 	if !fd.IsMap() ***REMOVED***
 		return nil
 	***REMOVED***
-	return fd.Message().Fields().ByNumber(1)
+	return fd.Message().Fields().ByNumber(genid.MapEntry_Key_field_number)
 ***REMOVED***
 func (fd *Field) MapValue() pref.FieldDescriptor ***REMOVED***
 	if !fd.IsMap() ***REMOVED***
 		return nil
 	***REMOVED***
-	return fd.Message().Fields().ByNumber(2)
+	return fd.Message().Fields().ByNumber(genid.MapEntry_Value_field_number)
 ***REMOVED***
 func (fd *Field) HasDefault() bool                           ***REMOVED*** return fd.L1.Default.has ***REMOVED***
 func (fd *Field) Default() pref.Value                        ***REMOVED*** return fd.L1.Default.get(fd) ***REMOVED***
@@ -372,7 +375,7 @@ type (
 	***REMOVED***
 	ExtensionL2 struct ***REMOVED***
 		Options          func() pref.ProtoMessage
-		JSONName         jsonName
+		StringName       stringName
 		IsProto3Optional bool // promoted from google.protobuf.FieldDescriptorProto
 		IsPacked         bool // promoted from google.protobuf.FieldOptions
 		Default          defaultValue
@@ -390,8 +393,9 @@ func (xd *Extension) Options() pref.ProtoMessage ***REMOVED***
 func (xd *Extension) Number() pref.FieldNumber      ***REMOVED*** return xd.L1.Number ***REMOVED***
 func (xd *Extension) Cardinality() pref.Cardinality ***REMOVED*** return xd.L1.Cardinality ***REMOVED***
 func (xd *Extension) Kind() pref.Kind               ***REMOVED*** return xd.L1.Kind ***REMOVED***
-func (xd *Extension) HasJSONName() bool             ***REMOVED*** return xd.lazyInit().JSONName.has ***REMOVED***
-func (xd *Extension) JSONName() string              ***REMOVED*** return xd.lazyInit().JSONName.get(xd) ***REMOVED***
+func (xd *Extension) HasJSONName() bool             ***REMOVED*** return xd.lazyInit().StringName.hasJSON ***REMOVED***
+func (xd *Extension) JSONName() string              ***REMOVED*** return xd.lazyInit().StringName.getJSON(xd) ***REMOVED***
+func (xd *Extension) TextName() string              ***REMOVED*** return xd.lazyInit().StringName.getText(xd) ***REMOVED***
 func (xd *Extension) HasPresence() bool             ***REMOVED*** return xd.L1.Cardinality != pref.Repeated ***REMOVED***
 func (xd *Extension) HasOptionalKeyword() bool ***REMOVED***
 	return (xd.L0.ParentFile.L1.Syntax == pref.Proto2 && xd.L1.Cardinality == pref.Optional) || xd.lazyInit().IsProto3Optional
@@ -505,26 +509,49 @@ func (d *Base) Syntax() pref.Syntax                 ***REMOVED*** return d.L0.Pa
 func (d *Base) IsPlaceholder() bool                 ***REMOVED*** return false ***REMOVED***
 func (d *Base) ProtoInternal(pragma.DoNotImplement) ***REMOVED******REMOVED***
 
-type jsonName struct ***REMOVED***
-	has  bool
-	once sync.Once
-	name string
+type stringName struct ***REMOVED***
+	hasJSON  bool
+	once     sync.Once
+	nameJSON string
+	nameText string
 ***REMOVED***
 
-// Init initializes the name. It is exported for use by other internal packages.
-func (js *jsonName) Init(s string) ***REMOVED***
-	js.has = true
-	js.name = s
+// InitJSON initializes the name. It is exported for use by other internal packages.
+func (s *stringName) InitJSON(name string) ***REMOVED***
+	s.hasJSON = true
+	s.nameJSON = name
 ***REMOVED***
 
-func (js *jsonName) get(fd pref.FieldDescriptor) string ***REMOVED***
-	if !js.has ***REMOVED***
-		js.once.Do(func() ***REMOVED***
-			js.name = strs.JSONCamelCase(string(fd.Name()))
-		***REMOVED***)
-	***REMOVED***
-	return js.name
+func (s *stringName) lazyInit(fd pref.FieldDescriptor) *stringName ***REMOVED***
+	s.once.Do(func() ***REMOVED***
+		if fd.IsExtension() ***REMOVED***
+			// For extensions, JSON and text are formatted the same way.
+			var name string
+			if messageset.IsMessageSetExtension(fd) ***REMOVED***
+				name = string("[" + fd.FullName().Parent() + "]")
+			***REMOVED*** else ***REMOVED***
+				name = string("[" + fd.FullName() + "]")
+			***REMOVED***
+			s.nameJSON = name
+			s.nameText = name
+		***REMOVED*** else ***REMOVED***
+			// Format the JSON name.
+			if !s.hasJSON ***REMOVED***
+				s.nameJSON = strs.JSONCamelCase(string(fd.Name()))
+			***REMOVED***
+
+			// Format the text name.
+			s.nameText = string(fd.Name())
+			if fd.Kind() == pref.GroupKind ***REMOVED***
+				s.nameText = string(fd.Message().Name())
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***)
+	return s
 ***REMOVED***
+
+func (s *stringName) getJSON(fd pref.FieldDescriptor) string ***REMOVED*** return s.lazyInit(fd).nameJSON ***REMOVED***
+func (s *stringName) getText(fd pref.FieldDescriptor) string ***REMOVED*** return s.lazyInit(fd).nameText ***REMOVED***
 
 func DefaultValue(v pref.Value, ev pref.EnumValueDescriptor) defaultValue ***REMOVED***
 	dv := defaultValue***REMOVED***has: v.IsValid(), val: v, enum: ev***REMOVED***

@@ -32,3 +32,12 @@ var Error error
 func init() ***REMOVED***
 	Error = errors.Error
 ***REMOVED***
+
+// MessageName returns the full name of m.
+// If m is nil, it returns an empty string.
+func MessageName(m Message) protoreflect.FullName ***REMOVED***
+	if m == nil ***REMOVED***
+		return ""
+	***REMOVED***
+	return m.ProtoReflect().Descriptor().FullName()
+***REMOVED***

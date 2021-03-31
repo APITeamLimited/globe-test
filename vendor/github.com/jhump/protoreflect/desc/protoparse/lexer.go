@@ -9,10 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/jhump/protoreflect/desc/protoparse/ast"
 )
 
 type runeReader struct ***REMOVED***
 	rr     *bufio.Reader
+	marked []rune
 	unread []rune
 	err    error
 ***REMOVED***
@@ -24,17 +27,38 @@ func (rr *runeReader) readRune() (r rune, size int, err error) ***REMOVED***
 	if len(rr.unread) > 0 ***REMOVED***
 		r := rr.unread[len(rr.unread)-1]
 		rr.unread = rr.unread[:len(rr.unread)-1]
+		if rr.marked != nil ***REMOVED***
+			rr.marked = append(rr.marked, r)
+		***REMOVED***
 		return r, utf8.RuneLen(r), nil
 	***REMOVED***
 	r, sz, err := rr.rr.ReadRune()
 	if err != nil ***REMOVED***
 		rr.err = err
+	***REMOVED*** else if rr.marked != nil ***REMOVED***
+		rr.marked = append(rr.marked, r)
 	***REMOVED***
 	return r, sz, err
 ***REMOVED***
 
 func (rr *runeReader) unreadRune(r rune) ***REMOVED***
+	if rr.marked != nil ***REMOVED***
+		if rr.marked[len(rr.marked)-1] != r ***REMOVED***
+			panic("unread rune is not the same as last marked rune!")
+		***REMOVED***
+		rr.marked = rr.marked[:len(rr.marked)-1]
+	***REMOVED***
 	rr.unread = append(rr.unread, r)
+***REMOVED***
+
+func (rr *runeReader) startMark(initial rune) ***REMOVED***
+	rr.marked = []rune***REMOVED***initial***REMOVED***
+***REMOVED***
+
+func (rr *runeReader) endMark() string ***REMOVED***
+	m := string(rr.marked)
+	rr.marked = rr.marked[:0]
+	return m
 ***REMOVED***
 
 func lexError(l protoLexer, pos *SourcePos, err string) ***REMOVED***
@@ -46,23 +70,35 @@ type protoLex struct ***REMOVED***
 	filename string
 	input    *runeReader
 	errs     *errorHandler
-	res      *fileNode
+	res      *ast.FileNode
 
 	lineNo int
 	colNo  int
 	offset int
 
-	prevSym terminalNode
+	prevSym ast.TerminalNode
+	eof     ast.TerminalNode
 
 	prevLineNo int
 	prevColNo  int
 	prevOffset int
-	comments   []comment
+	comments   []ast.Comment
+	ws         []rune
 ***REMOVED***
 
+var utf8Bom = []byte***REMOVED***0xEF, 0xBB, 0xBF***REMOVED***
+
 func newLexer(in io.Reader, filename string, errs *errorHandler) *protoLex ***REMOVED***
+	br := bufio.NewReader(in)
+
+	// if file has UTF8 byte order marker preface, consume it
+	marker, err := br.Peek(3)
+	if err == nil && bytes.Equal(marker, utf8Bom) ***REMOVED***
+		_, _ = br.Discard(3)
+	***REMOVED***
+
 	return &protoLex***REMOVED***
-		input:    &runeReader***REMOVED***rr: bufio.NewReader(in)***REMOVED***,
+		input:    &runeReader***REMOVED***rr: br***REMOVED***,
 		filename: filename,
 		errs:     errs,
 	***REMOVED***
@@ -150,7 +186,7 @@ func (l *protoLex) prev() *SourcePos ***REMOVED***
 			Col:      1,
 		***REMOVED***
 	***REMOVED***
-	return l.prevSym.start()
+	return l.prevSym.Start()
 ***REMOVED***
 
 func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
@@ -164,6 +200,8 @@ func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
 	l.prevColNo = l.colNo
 	l.prevOffset = l.offset
 	l.comments = nil
+	l.ws = nil
+	l.input.endMark() // reset, just in case
 
 	for ***REMOVED***
 		c, n, err := l.input.readRune()
@@ -171,7 +209,8 @@ func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
 			// we're not actually returning a rune, but this will associate
 			// accumulated comments as a trailing comment on last symbol
 			// (if appropriate)
-			l.setRune(lval)
+			l.setRune(lval, 0)
+			l.eof = lval.b
 			return 0
 		***REMOVED*** else if err != nil ***REMOVED***
 			// we don't call setError because we don't want it wrapped
@@ -188,14 +227,16 @@ func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
 		l.offset += n
 		l.adjustPos(c)
 		if strings.ContainsRune("\n\r\t ", c) ***REMOVED***
+			l.ws = append(l.ws, c)
 			continue
 		***REMOVED***
 
+		l.input.startMark(c)
 		if c == '.' ***REMOVED***
 			// decimal literals could start with a dot
 			cn, _, err := l.input.readRune()
 			if err != nil ***REMOVED***
-				l.setDot(lval)
+				l.setRune(lval, c)
 				return int(c)
 			***REMOVED***
 			if cn >= '0' && cn <= '9' ***REMOVED***
@@ -211,7 +252,7 @@ func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
 				return _FLOAT_LIT
 			***REMOVED***
 			l.input.unreadRune(cn)
-			l.setDot(lval)
+			l.setRune(lval, c)
 			return int(c)
 		***REMOVED***
 
@@ -311,63 +352,77 @@ func (l *protoLex) Lex(lval *protoSymType) int ***REMOVED***
 			// comment
 			cn, _, err := l.input.readRune()
 			if err != nil ***REMOVED***
-				l.setRune(lval)
+				l.setRune(lval, '/')
 				return int(c)
 			***REMOVED***
 			if cn == '/' ***REMOVED***
 				l.adjustPos(cn)
-				hitNewline, txt := l.skipToEndOfLineComment()
-				commentPos := l.posRange()
-				commentPos.end.Col++
+				hitNewline := l.skipToEndOfLineComment()
+				comment := l.newComment()
+				comment.PosRange.End.Col++
 				if hitNewline ***REMOVED***
 					// we don't do this inside of skipToEndOfLineComment
 					// because we want to know the length of previous
 					// line for calculation above
 					l.adjustPos('\n')
 				***REMOVED***
-				l.comments = append(l.comments, comment***REMOVED***posRange: commentPos, text: txt***REMOVED***)
+				l.comments = append(l.comments, comment)
 				continue
 			***REMOVED***
 			if cn == '*' ***REMOVED***
 				l.adjustPos(cn)
-				if txt, ok := l.skipToEndOfBlockComment(); !ok ***REMOVED***
+				if ok := l.skipToEndOfBlockComment(); !ok ***REMOVED***
 					l.setError(lval, errors.New("block comment never terminates, unexpected EOF"))
 					return _ERROR
 				***REMOVED*** else ***REMOVED***
-					l.comments = append(l.comments, comment***REMOVED***posRange: l.posRange(), text: txt***REMOVED***)
+					l.comments = append(l.comments, l.newComment())
 				***REMOVED***
 				continue
 			***REMOVED***
 			l.input.unreadRune(cn)
 		***REMOVED***
 
-		l.setRune(lval)
+		l.setRune(lval, c)
 		return int(c)
 	***REMOVED***
 ***REMOVED***
 
-func (l *protoLex) posRange() posRange ***REMOVED***
-	return posRange***REMOVED***
-		start: SourcePos***REMOVED***
+func (l *protoLex) posRange() ast.PosRange ***REMOVED***
+	return ast.PosRange***REMOVED***
+		Start: SourcePos***REMOVED***
 			Filename: l.filename,
 			Offset:   l.prevOffset,
 			Line:     l.prevLineNo + 1,
 			Col:      l.prevColNo + 1,
 		***REMOVED***,
-		end: l.cur(),
+		End: l.cur(),
 	***REMOVED***
 ***REMOVED***
 
-func (l *protoLex) newBasicNode() basicNode ***REMOVED***
-	return basicNode***REMOVED***
-		posRange: l.posRange(),
-		leading:  l.comments,
+func (l *protoLex) newComment() ast.Comment ***REMOVED***
+	ws := string(l.ws)
+	l.ws = l.ws[:0]
+	return ast.Comment***REMOVED***
+		PosRange:          l.posRange(),
+		LeadingWhitespace: ws,
+		Text:              l.input.endMark(),
 	***REMOVED***
 ***REMOVED***
 
-func (l *protoLex) setPrev(n terminalNode, isDot bool) ***REMOVED***
-	nStart := n.start().Line
-	if _, ok := n.(*basicNode); ok ***REMOVED***
+func (l *protoLex) newTokenInfo() ast.TokenInfo ***REMOVED***
+	ws := string(l.ws)
+	l.ws = nil
+	return ast.TokenInfo***REMOVED***
+		PosRange:          l.posRange(),
+		LeadingComments:   l.comments,
+		LeadingWhitespace: ws,
+		RawText:           l.input.endMark(),
+	***REMOVED***
+***REMOVED***
+
+func (l *protoLex) setPrev(n ast.TerminalNode, isDot bool) ***REMOVED***
+	nStart := n.Start().Line
+	if _, ok := n.(*ast.RuneNode); ok ***REMOVED***
 		// This is really gross, but there are many cases where we don't want
 		// to attribute comments to punctuation (like commas, equals, semicolons)
 		// and would instead prefer to attribute comments to a more meaningful
@@ -382,33 +437,33 @@ func (l *protoLex) setPrev(n terminalNode, isDot bool) ***REMOVED***
 			nStart += 2
 		***REMOVED***
 	***REMOVED***
-	if l.prevSym != nil && len(n.leadingComments()) > 0 && l.prevSym.end().Line < nStart ***REMOVED***
+	if l.prevSym != nil && len(n.LeadingComments()) > 0 && l.prevSym.End().Line < nStart ***REMOVED***
 		// we may need to re-attribute the first comment to
 		// instead be previous node's trailing comment
-		prevEnd := l.prevSym.end().Line
-		comments := n.leadingComments()
+		prevEnd := l.prevSym.End().Line
+		comments := n.LeadingComments()
 		c := comments[0]
-		commentStart := c.start.Line
+		commentStart := c.Start.Line
 		if commentStart == prevEnd ***REMOVED***
 			// comment is on same line as previous symbol
-			n.popLeadingComment()
-			l.prevSym.pushTrailingComment(c)
+			n.PopLeadingComment()
+			l.prevSym.PushTrailingComment(c)
 		***REMOVED*** else if commentStart == prevEnd+1 ***REMOVED***
 			// comment is right after previous symbol; see if it is detached
 			// and if so re-attribute
-			singleLineStyle := strings.HasPrefix(c.text, "//")
-			line := c.end.Line
+			singleLineStyle := strings.HasPrefix(c.Text, "//")
+			line := c.End.Line
 			groupEnd := -1
 			for i := 1; i < len(comments); i++ ***REMOVED***
 				c := comments[i]
 				newGroup := false
-				if !singleLineStyle || c.start.Line > line+1 ***REMOVED***
+				if !singleLineStyle || c.Start.Line > line+1 ***REMOVED***
 					// we've found a gap between comments, which means the
 					// previous comments were detached
 					newGroup = true
 				***REMOVED*** else ***REMOVED***
-					line = c.end.Line
-					singleLineStyle = strings.HasPrefix(comments[i].text, "//")
+					line = c.End.Line
+					singleLineStyle = strings.HasPrefix(comments[i].Text, "//")
 					if !singleLineStyle ***REMOVED***
 						// we've found a switch from // comments to /*
 						// consider that a new group which means the
@@ -428,13 +483,13 @@ func (l *protoLex) setPrev(n terminalNode, isDot bool) ***REMOVED***
 				// detached from current symbol
 				c1 := comments[0]
 				c2 := comments[len(comments)-1]
-				if c1.start.Line <= prevEnd+1 && c2.end.Line < nStart-1 ***REMOVED***
+				if c1.Start.Line <= prevEnd+1 && c2.End.Line < nStart-1 ***REMOVED***
 					groupEnd = len(comments)
 				***REMOVED***
 			***REMOVED***
 
 			for i := 0; i < groupEnd; i++ ***REMOVED***
-				l.prevSym.pushTrailingComment(n.popLeadingComment())
+				l.prevSym.PushTrailingComment(n.PopLeadingComment())
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -443,35 +498,28 @@ func (l *protoLex) setPrev(n terminalNode, isDot bool) ***REMOVED***
 ***REMOVED***
 
 func (l *protoLex) setString(lval *protoSymType, val string) ***REMOVED***
-	lval.s = &stringLiteralNode***REMOVED***basicNode: l.newBasicNode(), val: val***REMOVED***
+	lval.s = ast.NewStringLiteralNode(val, l.newTokenInfo())
 	l.setPrev(lval.s, false)
 ***REMOVED***
 
 func (l *protoLex) setIdent(lval *protoSymType, val string) ***REMOVED***
-	lval.id = &identNode***REMOVED***basicNode: l.newBasicNode(), val: val***REMOVED***
+	lval.id = ast.NewIdentNode(val, l.newTokenInfo())
 	l.setPrev(lval.id, false)
 ***REMOVED***
 
 func (l *protoLex) setInt(lval *protoSymType, val uint64) ***REMOVED***
-	lval.i = &intLiteralNode***REMOVED***basicNode: l.newBasicNode(), val: val***REMOVED***
+	lval.i = ast.NewUintLiteralNode(val, l.newTokenInfo())
 	l.setPrev(lval.i, false)
 ***REMOVED***
 
 func (l *protoLex) setFloat(lval *protoSymType, val float64) ***REMOVED***
-	lval.f = &floatLiteralNode***REMOVED***basicNode: l.newBasicNode(), val: val***REMOVED***
+	lval.f = ast.NewFloatLiteralNode(val, l.newTokenInfo())
 	l.setPrev(lval.f, false)
 ***REMOVED***
 
-func (l *protoLex) setRune(lval *protoSymType) ***REMOVED***
-	b := l.newBasicNode()
-	lval.b = &b
-	l.setPrev(lval.b, false)
-***REMOVED***
-
-func (l *protoLex) setDot(lval *protoSymType) ***REMOVED***
-	b := l.newBasicNode()
-	lval.b = &b
-	l.setPrev(lval.b, true)
+func (l *protoLex) setRune(lval *protoSymType, val rune) ***REMOVED***
+	lval.b = ast.NewRuneNode(val, l.newTokenInfo())
+	l.setPrev(lval.b, val == '.')
 ***REMOVED***
 
 func (l *protoLex) setError(lval *protoSymType, err error) ***REMOVED***
@@ -724,39 +772,34 @@ func (l *protoLex) readStringLiteral(quote rune) (string, error) ***REMOVED***
 	return buf.String(), nil
 ***REMOVED***
 
-func (l *protoLex) skipToEndOfLineComment() (bool, string) ***REMOVED***
-	txt := []rune***REMOVED***'/', '/'***REMOVED***
+func (l *protoLex) skipToEndOfLineComment() bool ***REMOVED***
 	for ***REMOVED***
 		c, _, err := l.input.readRune()
 		if err != nil ***REMOVED***
-			return false, string(txt)
+			return false
 		***REMOVED***
 		if c == '\n' ***REMOVED***
-			return true, string(append(txt, '\n'))
+			return true
 		***REMOVED***
 		l.adjustPos(c)
-		txt = append(txt, c)
 	***REMOVED***
 ***REMOVED***
 
-func (l *protoLex) skipToEndOfBlockComment() (string, bool) ***REMOVED***
-	txt := []rune***REMOVED***'/', '*'***REMOVED***
+func (l *protoLex) skipToEndOfBlockComment() bool ***REMOVED***
 	for ***REMOVED***
 		c, _, err := l.input.readRune()
 		if err != nil ***REMOVED***
-			return "", false
+			return false
 		***REMOVED***
 		l.adjustPos(c)
-		txt = append(txt, c)
 		if c == '*' ***REMOVED***
 			c, _, err := l.input.readRune()
 			if err != nil ***REMOVED***
-				return "", false
+				return false
 			***REMOVED***
 			if c == '/' ***REMOVED***
 				l.adjustPos(c)
-				txt = append(txt, c)
-				return string(txt), true
+				return true
 			***REMOVED***
 			l.input.unreadRune(c)
 		***REMOVED***

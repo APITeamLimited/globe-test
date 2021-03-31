@@ -6,14 +6,13 @@ package prototext
 
 import (
 	"fmt"
-	"strings"
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/internal/encoding/messageset"
 	"google.golang.org/protobuf/internal/encoding/text"
 	"google.golang.org/protobuf/internal/errors"
-	"google.golang.org/protobuf/internal/fieldnum"
 	"google.golang.org/protobuf/internal/flags"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/internal/set"
 	"google.golang.org/protobuf/internal/strs"
@@ -108,7 +107,7 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 		return errors.New("no support for proto1 MessageSets")
 	***REMOVED***
 
-	if messageDesc.FullName() == "google.protobuf.Any" ***REMOVED***
+	if messageDesc.FullName() == genid.Any_message_fullname ***REMOVED***
 		return d.unmarshalAny(m, checkDelims)
 	***REMOVED***
 
@@ -158,21 +157,11 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 		switch tok.NameKind() ***REMOVED***
 		case text.IdentName:
 			name = pref.Name(tok.IdentName())
-			fd = fieldDescs.ByName(name)
-			if fd == nil ***REMOVED***
-				// The proto name of a group field is in all lowercase,
-				// while the textproto field name is the group message name.
-				gd := fieldDescs.ByName(pref.Name(strings.ToLower(string(name))))
-				if gd != nil && gd.Kind() == pref.GroupKind && gd.Message().Name() == name ***REMOVED***
-					fd = gd
-				***REMOVED***
-			***REMOVED*** else if fd.Kind() == pref.GroupKind && fd.Message().Name() != name ***REMOVED***
-				fd = nil // reset since field name is actually the message name
-			***REMOVED***
+			fd = fieldDescs.ByTextName(string(name))
 
 		case text.TypeName:
 			// Handle extensions only. This code path is not for Any.
-			xt, xtErr = d.findExtension(pref.FullName(tok.TypeName()))
+			xt, xtErr = d.opts.Resolver.FindExtensionByName(pref.FullName(tok.TypeName()))
 
 		case text.FieldNumber:
 			isFieldNumberName = true
@@ -267,15 +256,6 @@ func (d decoder) unmarshalMessage(m pref.Message, checkDelims bool) error ***REM
 	***REMOVED***
 
 	return nil
-***REMOVED***
-
-// findExtension returns protoreflect.ExtensionType from the Resolver if found.
-func (d decoder) findExtension(xtName pref.FullName) (pref.ExtensionType, error) ***REMOVED***
-	xt, err := d.opts.Resolver.FindExtensionByName(xtName)
-	if err == nil ***REMOVED***
-		return xt, nil
-	***REMOVED***
-	return messageset.FindMessageSetExtension(d.opts.Resolver, xtName)
 ***REMOVED***
 
 // unmarshalSingular unmarshals a non-repeated field value specified by the
@@ -538,14 +518,13 @@ Loop:
 			return d.unexpectedTokenError(tok)
 		***REMOVED***
 
-		name := tok.IdentName()
-		switch name ***REMOVED***
-		case "key":
+		switch name := pref.Name(tok.IdentName()); name ***REMOVED***
+		case genid.MapEntry_Key_field_name:
 			if !tok.HasSeparator() ***REMOVED***
 				return d.syntaxError(tok.Pos(), "missing field separator :")
 			***REMOVED***
 			if key.IsValid() ***REMOVED***
-				return d.newError(tok.Pos(), `map entry "key" cannot be repeated`)
+				return d.newError(tok.Pos(), "map entry %q cannot be repeated", name)
 			***REMOVED***
 			val, err := d.unmarshalScalar(fd.MapKey())
 			if err != nil ***REMOVED***
@@ -553,14 +532,14 @@ Loop:
 			***REMOVED***
 			key = val.MapKey()
 
-		case "value":
+		case genid.MapEntry_Value_field_name:
 			if kind := fd.MapValue().Kind(); (kind != pref.MessageKind) && (kind != pref.GroupKind) ***REMOVED***
 				if !tok.HasSeparator() ***REMOVED***
 					return d.syntaxError(tok.Pos(), "missing field separator :")
 				***REMOVED***
 			***REMOVED***
 			if pval.IsValid() ***REMOVED***
-				return d.newError(tok.Pos(), `map entry "value" cannot be repeated`)
+				return d.newError(tok.Pos(), "map entry %q cannot be repeated", name)
 			***REMOVED***
 			pval, err = unmarshalMapValue()
 			if err != nil ***REMOVED***
@@ -597,13 +576,9 @@ Loop:
 func (d decoder) unmarshalAny(m pref.Message, checkDelims bool) error ***REMOVED***
 	var typeURL string
 	var bValue []byte
-
-	// hasFields tracks which valid fields have been seen in the loop below in
-	// order to flag an error if there are duplicates or conflicts. It may
-	// contain the strings "type_url", "value" and "expanded".  The literal
-	// "expanded" is used to indicate that the expanded form has been
-	// encountered already.
-	hasFields := map[string]bool***REMOVED******REMOVED***
+	var seenTypeUrl bool
+	var seenValue bool
+	var isExpanded bool
 
 	if checkDelims ***REMOVED***
 		tok, err := d.Read()
@@ -642,12 +617,12 @@ Loop:
 				return d.syntaxError(tok.Pos(), "missing field separator :")
 			***REMOVED***
 
-			switch tok.IdentName() ***REMOVED***
-			case "type_url":
-				if hasFields["type_url"] ***REMOVED***
-					return d.newError(tok.Pos(), "duplicate Any type_url field")
+			switch name := pref.Name(tok.IdentName()); name ***REMOVED***
+			case genid.Any_TypeUrl_field_name:
+				if seenTypeUrl ***REMOVED***
+					return d.newError(tok.Pos(), "duplicate %v field", genid.Any_TypeUrl_field_fullname)
 				***REMOVED***
-				if hasFields["expanded"] ***REMOVED***
+				if isExpanded ***REMOVED***
 					return d.newError(tok.Pos(), "conflict with [%s] field", typeURL)
 				***REMOVED***
 				tok, err := d.Read()
@@ -657,15 +632,15 @@ Loop:
 				var ok bool
 				typeURL, ok = tok.String()
 				if !ok ***REMOVED***
-					return d.newError(tok.Pos(), "invalid Any type_url: %v", tok.RawString())
+					return d.newError(tok.Pos(), "invalid %v field value: %v", genid.Any_TypeUrl_field_fullname, tok.RawString())
 				***REMOVED***
-				hasFields["type_url"] = true
+				seenTypeUrl = true
 
-			case "value":
-				if hasFields["value"] ***REMOVED***
-					return d.newError(tok.Pos(), "duplicate Any value field")
+			case genid.Any_Value_field_name:
+				if seenValue ***REMOVED***
+					return d.newError(tok.Pos(), "duplicate %v field", genid.Any_Value_field_fullname)
 				***REMOVED***
-				if hasFields["expanded"] ***REMOVED***
+				if isExpanded ***REMOVED***
 					return d.newError(tok.Pos(), "conflict with [%s] field", typeURL)
 				***REMOVED***
 				tok, err := d.Read()
@@ -674,22 +649,22 @@ Loop:
 				***REMOVED***
 				s, ok := tok.String()
 				if !ok ***REMOVED***
-					return d.newError(tok.Pos(), "invalid Any value: %v", tok.RawString())
+					return d.newError(tok.Pos(), "invalid %v field value: %v", genid.Any_Value_field_fullname, tok.RawString())
 				***REMOVED***
 				bValue = []byte(s)
-				hasFields["value"] = true
+				seenValue = true
 
 			default:
 				if !d.opts.DiscardUnknown ***REMOVED***
-					return d.newError(tok.Pos(), "invalid field name %q in google.protobuf.Any message", tok.RawString())
+					return d.newError(tok.Pos(), "invalid field name %q in %v message", tok.RawString(), genid.Any_message_fullname)
 				***REMOVED***
 			***REMOVED***
 
 		case text.TypeName:
-			if hasFields["expanded"] ***REMOVED***
+			if isExpanded ***REMOVED***
 				return d.newError(tok.Pos(), "cannot have more than one type")
 			***REMOVED***
-			if hasFields["type_url"] ***REMOVED***
+			if seenTypeUrl ***REMOVED***
 				return d.newError(tok.Pos(), "conflict with type_url field")
 			***REMOVED***
 			typeURL = tok.TypeName()
@@ -698,21 +673,21 @@ Loop:
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			hasFields["expanded"] = true
+			isExpanded = true
 
 		default:
 			if !d.opts.DiscardUnknown ***REMOVED***
-				return d.newError(tok.Pos(), "invalid field name %q in google.protobuf.Any message", tok.RawString())
+				return d.newError(tok.Pos(), "invalid field name %q in %v message", tok.RawString(), genid.Any_message_fullname)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
 	fds := m.Descriptor().Fields()
 	if len(typeURL) > 0 ***REMOVED***
-		m.Set(fds.ByNumber(fieldnum.Any_TypeUrl), pref.ValueOfString(typeURL))
+		m.Set(fds.ByNumber(genid.Any_TypeUrl_field_number), pref.ValueOfString(typeURL))
 	***REMOVED***
 	if len(bValue) > 0 ***REMOVED***
-		m.Set(fds.ByNumber(fieldnum.Any_Value), pref.ValueOfBytes(bValue))
+		m.Set(fds.ByNumber(genid.Any_Value_field_number), pref.ValueOfBytes(bValue))
 	***REMOVED***
 	return nil
 ***REMOVED***

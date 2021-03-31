@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -39,6 +38,7 @@ import (
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/grpcsync"
 	"google.golang.org/grpc/internal/grpcutil"
+	iresolver "google.golang.org/grpc/internal/resolver"
 	"google.golang.org/grpc/internal/transport"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/resolver"
@@ -48,6 +48,7 @@ import (
 	_ "google.golang.org/grpc/balancer/roundrobin"           // To register roundrobin.
 	_ "google.golang.org/grpc/internal/resolver/dns"         // To register dns resolver.
 	_ "google.golang.org/grpc/internal/resolver/passthrough" // To register passthrough resolver.
+	_ "google.golang.org/grpc/internal/resolver/unix"        // To register unix resolver.
 )
 
 const (
@@ -104,6 +105,17 @@ func Dial(target string, opts ...DialOption) (*ClientConn, error) ***REMOVED***
 	return DialContext(context.Background(), target, opts...)
 ***REMOVED***
 
+type defaultConfigSelector struct ***REMOVED***
+	sc *ServiceConfig
+***REMOVED***
+
+func (dcs *defaultConfigSelector) SelectConfig(rpcInfo iresolver.RPCInfo) (*iresolver.RPCConfig, error) ***REMOVED***
+	return &iresolver.RPCConfig***REMOVED***
+		Context:      rpcInfo.Context,
+		MethodConfig: getMethodConfig(dcs.sc, rpcInfo.Method),
+	***REMOVED***, nil
+***REMOVED***
+
 // DialContext creates a client connection to the given target. By default, it's
 // a non-blocking dial (the function won't wait for connections to be
 // established, and connecting happens in the background). To make it a blocking
@@ -151,10 +163,10 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 			cc.channelzID = channelz.RegisterChannel(&channelzChannel***REMOVED***cc***REMOVED***, cc.dopts.channelzParentID, target)
 			channelz.AddTraceEvent(logger, cc.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
 				Desc:     "Channel Created",
-				Severity: channelz.CtINFO,
+				Severity: channelz.CtInfo,
 				Parent: &channelz.TraceEventDesc***REMOVED***
 					Desc:     fmt.Sprintf("Nested Channel(id:%d) created", cc.channelzID),
-					Severity: channelz.CtINFO,
+					Severity: channelz.CtInfo,
 				***REMOVED***,
 			***REMOVED***)
 		***REMOVED*** else ***REMOVED***
@@ -191,16 +203,6 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	***REMOVED***
 	cc.mkp = cc.dopts.copts.KeepaliveParams
 
-	if cc.dopts.copts.Dialer == nil ***REMOVED***
-		cc.dopts.copts.Dialer = func(ctx context.Context, addr string) (net.Conn, error) ***REMOVED***
-			network, addr := parseDialTarget(addr)
-			return (&net.Dialer***REMOVED******REMOVED***).DialContext(ctx, network, addr)
-		***REMOVED***
-		if cc.dopts.withProxy ***REMOVED***
-			cc.dopts.copts.Dialer = newProxyDialer(cc.dopts.copts.Dialer)
-		***REMOVED***
-	***REMOVED***
-
 	if cc.dopts.copts.UserAgent != "" ***REMOVED***
 		cc.dopts.copts.UserAgent += " " + grpcUA
 	***REMOVED*** else ***REMOVED***
@@ -234,6 +236,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		case sc, ok := <-cc.dopts.scChan:
 			if ok ***REMOVED***
 				cc.sc = &sc
+				cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***&sc***REMOVED***)
 				scSet = true
 			***REMOVED***
 		default:
@@ -244,8 +247,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	***REMOVED***
 
 	// Determine the resolver to use.
-	cc.parsedTarget = grpcutil.ParseTarget(cc.target)
-	unixScheme := strings.HasPrefix(cc.target, "unix:")
+	cc.parsedTarget = grpcutil.ParseTarget(cc.target, cc.dopts.copts.Dialer != nil)
 	channelz.Infof(logger, cc.channelzID, "parsed scheme: %q", cc.parsedTarget.Scheme)
 	resolverBuilder := cc.getResolver(cc.parsedTarget.Scheme)
 	if resolverBuilder == nil ***REMOVED***
@@ -268,8 +270,10 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		cc.authority = creds.Info().ServerName
 	***REMOVED*** else if cc.dopts.insecure && cc.dopts.authority != "" ***REMOVED***
 		cc.authority = cc.dopts.authority
-	***REMOVED*** else if unixScheme ***REMOVED***
+	***REMOVED*** else if strings.HasPrefix(cc.target, "unix:") || strings.HasPrefix(cc.target, "unix-abstract:") ***REMOVED***
 		cc.authority = "localhost"
+	***REMOVED*** else if strings.HasPrefix(cc.parsedTarget.Endpoint, ":") ***REMOVED***
+		cc.authority = "localhost" + cc.parsedTarget.Endpoint
 	***REMOVED*** else ***REMOVED***
 		// Use endpoint from "scheme://authority/endpoint" as the default
 		// authority for ClientConn.
@@ -282,6 +286,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		case sc, ok := <-cc.dopts.scChan:
 			if ok ***REMOVED***
 				cc.sc = &sc
+				cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***&sc***REMOVED***)
 			***REMOVED***
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -299,6 +304,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		DialCreds:        credsClone,
 		CredsBundle:      cc.dopts.copts.CredsBundle,
 		Dialer:           cc.dopts.copts.Dialer,
+		CustomUserAgent:  cc.dopts.copts.UserAgent,
 		ChannelzParentID: cc.channelzID,
 		Target:           cc.parsedTarget,
 	***REMOVED***
@@ -487,6 +493,8 @@ type ClientConn struct ***REMOVED***
 	balancerBuildOpts balancer.BuildOptions
 	blockingpicker    *pickerWrapper
 
+	safeConfigSelector iresolver.SafeConfigSelector
+
 	mu              sync.RWMutex
 	resolverWrapper *ccResolverWrapper
 	sc              *ServiceConfig
@@ -508,7 +516,11 @@ type ClientConn struct ***REMOVED***
 
 // WaitForStateChange waits until the connectivity.State of ClientConn changes from sourceState or
 // ctx expires. A true value is returned in former case and false in latter.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func (cc *ClientConn) WaitForStateChange(ctx context.Context, sourceState connectivity.State) bool ***REMOVED***
 	ch := cc.csMgr.getNotifyChan()
 	if cc.csMgr.getState() != sourceState ***REMOVED***
@@ -523,7 +535,11 @@ func (cc *ClientConn) WaitForStateChange(ctx context.Context, sourceState connec
 ***REMOVED***
 
 // GetState returns the connectivity.State of ClientConn.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func (cc *ClientConn) GetState() connectivity.State ***REMOVED***
 	return cc.csMgr.getState()
 ***REMOVED***
@@ -539,6 +555,7 @@ func (cc *ClientConn) scWatcher() ***REMOVED***
 			// TODO: load balance policy runtime change is ignored.
 			// We may revisit this decision in the future.
 			cc.sc = &sc
+			cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***&sc***REMOVED***)
 			cc.mu.Unlock()
 		case <-cc.ctx.Done():
 			return
@@ -577,13 +594,13 @@ func init() ***REMOVED***
 
 func (cc *ClientConn) maybeApplyDefaultServiceConfig(addrs []resolver.Address) ***REMOVED***
 	if cc.sc != nil ***REMOVED***
-		cc.applyServiceConfigAndBalancer(cc.sc, addrs)
+		cc.applyServiceConfigAndBalancer(cc.sc, nil, addrs)
 		return
 	***REMOVED***
 	if cc.dopts.defaultServiceConfig != nil ***REMOVED***
-		cc.applyServiceConfigAndBalancer(cc.dopts.defaultServiceConfig, addrs)
+		cc.applyServiceConfigAndBalancer(cc.dopts.defaultServiceConfig, &defaultConfigSelector***REMOVED***cc.dopts.defaultServiceConfig***REMOVED***, addrs)
 	***REMOVED*** else ***REMOVED***
-		cc.applyServiceConfigAndBalancer(emptyServiceConfig, addrs)
+		cc.applyServiceConfigAndBalancer(emptyServiceConfig, &defaultConfigSelector***REMOVED***emptyServiceConfig***REMOVED***, addrs)
 	***REMOVED***
 ***REMOVED***
 
@@ -620,7 +637,15 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 		// default, per the error handling design?
 	***REMOVED*** else ***REMOVED***
 		if sc, ok := s.ServiceConfig.Config.(*ServiceConfig); s.ServiceConfig.Err == nil && ok ***REMOVED***
-			cc.applyServiceConfigAndBalancer(sc, s.Addresses)
+			configSelector := iresolver.GetConfigSelector(s)
+			if configSelector != nil ***REMOVED***
+				if len(s.ServiceConfig.Config.(*ServiceConfig).Methods) != 0 ***REMOVED***
+					channelz.Infof(logger, cc.channelzID, "method configs in service config will be ignored due to presence of config selector")
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				configSelector = &defaultConfigSelector***REMOVED***sc***REMOVED***
+			***REMOVED***
+			cc.applyServiceConfigAndBalancer(sc, configSelector, s.Addresses)
 		***REMOVED*** else ***REMOVED***
 			ret = balancer.ErrBadResolverState
 			if cc.balancerWrapper == nil ***REMOVED***
@@ -630,6 +655,7 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error ***
 				***REMOVED*** else ***REMOVED***
 					err = status.Errorf(codes.Unavailable, "illegal service config type: %T", s.ServiceConfig.Config)
 				***REMOVED***
+				cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***cc.sc***REMOVED***)
 				cc.blockingpicker.updatePicker(base.NewErrPicker(err))
 				cc.csMgr.updateState(connectivity.TransientFailure)
 				cc.mu.Unlock()
@@ -736,10 +762,10 @@ func (cc *ClientConn) newAddrConn(addrs []resolver.Address, opts balancer.NewSub
 		ac.channelzID = channelz.RegisterSubChannel(ac, cc.channelzID, "")
 		channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
 			Desc:     "Subchannel Created",
-			Severity: channelz.CtINFO,
+			Severity: channelz.CtInfo,
 			Parent: &channelz.TraceEventDesc***REMOVED***
 				Desc:     fmt.Sprintf("Subchannel(id:%d) created", ac.channelzID),
-				Severity: channelz.CtINFO,
+				Severity: channelz.CtInfo,
 			***REMOVED***,
 		***REMOVED***)
 	***REMOVED***
@@ -773,7 +799,11 @@ func (cc *ClientConn) channelzMetric() *channelz.ChannelInternalMetric ***REMOVE
 ***REMOVED***
 
 // Target returns the target string of the ClientConn.
-// This is an EXPERIMENTAL API.
+//
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func (cc *ClientConn) Target() string ***REMOVED***
 	return cc.target
 ***REMOVED***
@@ -860,6 +890,20 @@ func (ac *addrConn) tryUpdateAddrs(addrs []resolver.Address) bool ***REMOVED***
 	return curAddrFound
 ***REMOVED***
 
+func getMethodConfig(sc *ServiceConfig, method string) MethodConfig ***REMOVED***
+	if sc == nil ***REMOVED***
+		return MethodConfig***REMOVED******REMOVED***
+	***REMOVED***
+	if m, ok := sc.Methods[method]; ok ***REMOVED***
+		return m
+	***REMOVED***
+	i := strings.LastIndex(method, "/")
+	if m, ok := sc.Methods[method[:i+1]]; ok ***REMOVED***
+		return m
+	***REMOVED***
+	return sc.Methods[""]
+***REMOVED***
+
 // GetMethodConfig gets the method config of the input method.
 // If there's an exact match for input method (i.e. /service/method), we return
 // the corresponding MethodConfig.
@@ -872,17 +916,7 @@ func (cc *ClientConn) GetMethodConfig(method string) MethodConfig ***REMOVED***
 	// TODO: Avoid the locking here.
 	cc.mu.RLock()
 	defer cc.mu.RUnlock()
-	if cc.sc == nil ***REMOVED***
-		return MethodConfig***REMOVED******REMOVED***
-	***REMOVED***
-	if m, ok := cc.sc.Methods[method]; ok ***REMOVED***
-		return m
-	***REMOVED***
-	i := strings.LastIndex(method, "/")
-	if m, ok := cc.sc.Methods[method[:i+1]]; ok ***REMOVED***
-		return m
-	***REMOVED***
-	return cc.sc.Methods[""]
+	return getMethodConfig(cc.sc, method)
 ***REMOVED***
 
 func (cc *ClientConn) healthCheckConfig() *healthCheckConfig ***REMOVED***
@@ -905,12 +939,15 @@ func (cc *ClientConn) getTransport(ctx context.Context, failfast bool, method st
 	return t, done, nil
 ***REMOVED***
 
-func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, addrs []resolver.Address) ***REMOVED***
+func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSelector iresolver.ConfigSelector, addrs []resolver.Address) ***REMOVED***
 	if sc == nil ***REMOVED***
 		// should never reach here.
 		return
 	***REMOVED***
 	cc.sc = sc
+	if configSelector != nil ***REMOVED***
+		cc.safeConfigSelector.UpdateConfigSelector(configSelector)
+	***REMOVED***
 
 	if cc.sc.retryThrottling != nil ***REMOVED***
 		newThrottler := &retryThrottler***REMOVED***
@@ -974,7 +1011,10 @@ func (cc *ClientConn) resolveNow(o resolver.ResolveNowOptions) ***REMOVED***
 // However, if a previously unavailable network becomes available, this may be
 // used to trigger an immediate reconnect.
 //
-// This API is EXPERIMENTAL.
+// Experimental
+//
+// Notice: This API is EXPERIMENTAL and may be changed or removed in a
+// later release.
 func (cc *ClientConn) ResetConnectBackoff() ***REMOVED***
 	cc.mu.Lock()
 	conns := cc.conns
@@ -1018,12 +1058,12 @@ func (cc *ClientConn) Close() error ***REMOVED***
 	if channelz.IsOn() ***REMOVED***
 		ted := &channelz.TraceEventDesc***REMOVED***
 			Desc:     "Channel Deleted",
-			Severity: channelz.CtINFO,
+			Severity: channelz.CtInfo,
 		***REMOVED***
 		if cc.dopts.channelzParentID != 0 ***REMOVED***
 			ted.Parent = &channelz.TraceEventDesc***REMOVED***
 				Desc:     fmt.Sprintf("Nested channel(id:%d) deleted", cc.channelzID),
-				Severity: channelz.CtINFO,
+				Severity: channelz.CtInfo,
 			***REMOVED***
 		***REMOVED***
 		channelz.AddTraceEvent(logger, cc.channelzID, 0, ted)
@@ -1436,10 +1476,10 @@ func (ac *addrConn) tearDown(err error) ***REMOVED***
 	if channelz.IsOn() ***REMOVED***
 		channelz.AddTraceEvent(logger, ac.channelzID, 0, &channelz.TraceEventDesc***REMOVED***
 			Desc:     "Subchannel Deleted",
-			Severity: channelz.CtINFO,
+			Severity: channelz.CtInfo,
 			Parent: &channelz.TraceEventDesc***REMOVED***
 				Desc:     fmt.Sprintf("Subchanel(id:%d) deleted", ac.channelzID),
-				Severity: channelz.CtINFO,
+				Severity: channelz.CtInfo,
 			***REMOVED***,
 		***REMOVED***)
 		// TraceEvent needs to be called before RemoveEntry, as TraceEvent may add trace reference to

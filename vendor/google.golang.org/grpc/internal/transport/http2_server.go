@@ -306,12 +306,12 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 	state := &decodeState***REMOVED***
 		serverSide: true,
 	***REMOVED***
-	if err := state.decodeHeader(frame); err != nil ***REMOVED***
-		if se, ok := status.FromError(err); ok ***REMOVED***
+	if h2code, err := state.decodeHeader(frame); err != nil ***REMOVED***
+		if _, ok := status.FromError(err); ok ***REMOVED***
 			t.controlBuf.put(&cleanupStream***REMOVED***
 				streamID: streamID,
 				rst:      true,
-				rstCode:  statusCodeConvTab[se.Code()],
+				rstCode:  h2code,
 				onWrite:  func() ***REMOVED******REMOVED***,
 			***REMOVED***)
 		***REMOVED***
@@ -609,6 +609,10 @@ func (t *http2Server) handleData(f *http2.DataFrame) ***REMOVED***
 	// Select the right stream to dispatch.
 	s, ok := t.getStream(f)
 	if !ok ***REMOVED***
+		return
+	***REMOVED***
+	if s.getState() == streamReadDone ***REMOVED***
+		t.closeStream(s, true, http2.ErrCodeStreamClosed, false)
 		return
 	***REMOVED***
 	if size > 0 ***REMOVED***

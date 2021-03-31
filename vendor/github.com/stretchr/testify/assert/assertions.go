@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 	"unicode"
@@ -18,9 +19,10 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pmezard/go-difflib/difflib"
+	yaml "gopkg.in/yaml.v2"
 )
 
-//go:generate go run ../_codegen/main.go -output-package=assert -template=assertion_format.go.tmpl
+//go:generate sh -c "cd ../_codegen && go build && cd - && ../_codegen/_codegen -output-package=assert -template=assertion_format.go.tmpl"
 
 // TestingT is an interface wrapper around *testing.T
 type TestingT interface ***REMOVED***
@@ -39,7 +41,7 @@ type ValueAssertionFunc func(TestingT, interface***REMOVED******REMOVED***, ...i
 // for table driven tests.
 type BoolAssertionFunc func(TestingT, bool, ...interface***REMOVED******REMOVED***) bool
 
-// ValuesAssertionFunc is a common function prototype when validating an error value.  Can be useful
+// ErrorAssertionFunc is a common function prototype when validating an error value.  Can be useful
 // for table driven tests.
 type ErrorAssertionFunc func(TestingT, error, ...interface***REMOVED******REMOVED***) bool
 
@@ -179,7 +181,11 @@ func messageFromMsgAndArgs(msgAndArgs ...interface***REMOVED******REMOVED***) st
 		return ""
 	***REMOVED***
 	if len(msgAndArgs) == 1 ***REMOVED***
-		return msgAndArgs[0].(string)
+		msg := msgAndArgs[0]
+		if msgAsStr, ok := msg.(string); ok ***REMOVED***
+			return msgAsStr
+		***REMOVED***
+		return fmt.Sprintf("%+v", msg)
 	***REMOVED***
 	if len(msgAndArgs) > 1 ***REMOVED***
 		return fmt.Sprintf(msgAndArgs[0].(string), msgAndArgs[1:]...)
@@ -346,6 +352,75 @@ func Equal(t TestingT, expected, actual interface***REMOVED******REMOVED***, msg
 
 ***REMOVED***
 
+// validateEqualArgs checks whether provided arguments can be safely used in the
+// Equal/NotEqual functions.
+func validateEqualArgs(expected, actual interface***REMOVED******REMOVED***) error ***REMOVED***
+	if expected == nil && actual == nil ***REMOVED***
+		return nil
+	***REMOVED***
+
+	if isFunction(expected) || isFunction(actual) ***REMOVED***
+		return errors.New("cannot take func type as argument")
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// Same asserts that two pointers reference the same object.
+//
+//    assert.Same(t, ptr1, ptr2)
+//
+// Both arguments must be pointer variables. Pointer variable sameness is
+// determined based on the equality of both type and value.
+func Same(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	if !samePointers(expected, actual) ***REMOVED***
+		return Fail(t, fmt.Sprintf("Not same: \n"+
+			"expected: %p %#v\n"+
+			"actual  : %p %#v", expected, expected, actual, actual), msgAndArgs...)
+	***REMOVED***
+
+	return true
+***REMOVED***
+
+// NotSame asserts that two pointers do not reference the same object.
+//
+//    assert.NotSame(t, ptr1, ptr2)
+//
+// Both arguments must be pointer variables. Pointer variable sameness is
+// determined based on the equality of both type and value.
+func NotSame(t TestingT, expected, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	if samePointers(expected, actual) ***REMOVED***
+		return Fail(t, fmt.Sprintf(
+			"Expected and actual point to the same object: %p %#v",
+			expected, expected), msgAndArgs...)
+	***REMOVED***
+	return true
+***REMOVED***
+
+// samePointers compares two generic interface objects and returns whether
+// they point to the same object
+func samePointers(first, second interface***REMOVED******REMOVED***) bool ***REMOVED***
+	firstPtr, secondPtr := reflect.ValueOf(first), reflect.ValueOf(second)
+	if firstPtr.Kind() != reflect.Ptr || secondPtr.Kind() != reflect.Ptr ***REMOVED***
+		return false
+	***REMOVED***
+
+	firstType, secondType := reflect.TypeOf(first), reflect.TypeOf(second)
+	if firstType != secondType ***REMOVED***
+		return false
+	***REMOVED***
+
+	// compare pointer addresses
+	return first == second
+***REMOVED***
+
 // formatUnequalValues takes two values of arbitrary types and returns string
 // representations appropriate to be presented to the user.
 //
@@ -357,9 +432,11 @@ func formatUnequalValues(expected, actual interface***REMOVED******REMOVED***) (
 		return fmt.Sprintf("%T(%#v)", expected, expected),
 			fmt.Sprintf("%T(%#v)", actual, actual)
 	***REMOVED***
-
-	return fmt.Sprintf("%#v", expected),
-		fmt.Sprintf("%#v", actual)
+	switch expected.(type) ***REMOVED***
+	case time.Duration:
+		return fmt.Sprintf("%v", expected), fmt.Sprintf("%v", actual)
+	***REMOVED***
+	return fmt.Sprintf("%#v", expected), fmt.Sprintf("%#v", actual)
 ***REMOVED***
 
 // EqualValues asserts that two objects are equal or convertable to the same types
@@ -415,6 +492,17 @@ func NotNil(t TestingT, object interface***REMOVED******REMOVED***, msgAndArgs .
 	return Fail(t, "Expected value not to be nil.", msgAndArgs...)
 ***REMOVED***
 
+// containsKind checks if a specified kind in the slice of kinds.
+func containsKind(kinds []reflect.Kind, kind reflect.Kind) bool ***REMOVED***
+	for i := 0; i < len(kinds); i++ ***REMOVED***
+		if kind == kinds[i] ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+
+	return false
+***REMOVED***
+
 // isNil checks if a specified object is nil or not, without Failing.
 func isNil(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if object == nil ***REMOVED***
@@ -423,7 +511,14 @@ func isNil(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 
 	value := reflect.ValueOf(object)
 	kind := value.Kind()
-	if kind >= reflect.Chan && kind <= reflect.Slice && value.IsNil() ***REMOVED***
+	isNilableKind := containsKind(
+		[]reflect.Kind***REMOVED***
+			reflect.Chan, reflect.Func,
+			reflect.Interface, reflect.Map,
+			reflect.Ptr, reflect.Slice***REMOVED***,
+		kind)
+
+	if isNilableKind && value.IsNil() ***REMOVED***
 		return true
 	***REMOVED***
 
@@ -457,14 +552,14 @@ func isEmpty(object interface***REMOVED******REMOVED***) bool ***REMOVED***
 	// collection types are empty when they have no element
 	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice:
 		return objValue.Len() == 0
-	// pointers are empty if nil or if the value they point to is empty
+		// pointers are empty if nil or if the value they point to is empty
 	case reflect.Ptr:
 		if objValue.IsNil() ***REMOVED***
 			return true
 		***REMOVED***
 		deref := objValue.Elem().Interface()
 		return isEmpty(deref)
-	// for all other types, compare against the zero value
+		// for all other types, compare against the zero value
 	default:
 		zero := reflect.Zero(objValue.Type())
 		return reflect.DeepEqual(object, zero.Interface())
@@ -607,7 +702,7 @@ func NotEqual(t TestingT, expected, actual interface***REMOVED******REMOVED***, 
 func includeElement(list interface***REMOVED******REMOVED***, element interface***REMOVED******REMOVED***) (ok, found bool) ***REMOVED***
 
 	listValue := reflect.ValueOf(list)
-	elementValue := reflect.ValueOf(element)
+	listKind := reflect.TypeOf(list).Kind()
 	defer func() ***REMOVED***
 		if e := recover(); e != nil ***REMOVED***
 			ok = false
@@ -615,11 +710,12 @@ func includeElement(list interface***REMOVED******REMOVED***, element interface*
 		***REMOVED***
 	***REMOVED***()
 
-	if reflect.TypeOf(list).Kind() == reflect.String ***REMOVED***
+	if listKind == reflect.String ***REMOVED***
+		elementValue := reflect.ValueOf(element)
 		return true, strings.Contains(listValue.String(), elementValue.String())
 	***REMOVED***
 
-	if reflect.TypeOf(list).Kind() == reflect.Map ***REMOVED***
+	if listKind == reflect.Map ***REMOVED***
 		mapKeys := listValue.MapKeys()
 		for i := 0; i < len(mapKeys); i++ ***REMOVED***
 			if ObjectsAreEqual(mapKeys[i].Interface(), element) ***REMOVED***
@@ -846,15 +942,17 @@ func Condition(t TestingT, comp Comparison, msgAndArgs ...interface***REMOVED***
 type PanicTestFunc func()
 
 // didPanic returns true if the function passed to it panics. Otherwise, it returns false.
-func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***) ***REMOVED***
+func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***, string) ***REMOVED***
 
 	didPanic := false
 	var message interface***REMOVED******REMOVED***
+	var stack string
 	func() ***REMOVED***
 
 		defer func() ***REMOVED***
 			if message = recover(); message != nil ***REMOVED***
 				didPanic = true
+				stack = string(debug.Stack())
 			***REMOVED***
 		***REMOVED***()
 
@@ -863,7 +961,7 @@ func didPanic(f PanicTestFunc) (bool, interface***REMOVED******REMOVED***) ***RE
 
 	***REMOVED***()
 
-	return didPanic, message
+	return didPanic, message, stack
 
 ***REMOVED***
 
@@ -875,7 +973,7 @@ func Panics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED******
 		h.Helper()
 	***REMOVED***
 
-	if funcDidPanic, panicValue := didPanic(f); !funcDidPanic ***REMOVED***
+	if funcDidPanic, panicValue, _ := didPanic(f); !funcDidPanic ***REMOVED***
 		return Fail(t, fmt.Sprintf("func %#v should panic\n\tPanic value:\t%#v", f, panicValue), msgAndArgs...)
 	***REMOVED***
 
@@ -891,12 +989,34 @@ func PanicsWithValue(t TestingT, expected interface***REMOVED******REMOVED***, f
 		h.Helper()
 	***REMOVED***
 
-	funcDidPanic, panicValue := didPanic(f)
+	funcDidPanic, panicValue, panickedStack := didPanic(f)
 	if !funcDidPanic ***REMOVED***
 		return Fail(t, fmt.Sprintf("func %#v should panic\n\tPanic value:\t%#v", f, panicValue), msgAndArgs...)
 	***REMOVED***
 	if panicValue != expected ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should panic with value:\t%#v\n\tPanic value:\t%#v", f, expected, panicValue), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("func %#v should panic with value:\t%#v\n\tPanic value:\t%#v\n\tPanic stack:\t%s", f, expected, panicValue, panickedStack), msgAndArgs...)
+	***REMOVED***
+
+	return true
+***REMOVED***
+
+// PanicsWithError asserts that the code inside the specified PanicTestFunc
+// panics, and that the recovered panic value is an error that satisfies the
+// EqualError comparison.
+//
+//   assert.PanicsWithError(t, "crazy error", func()***REMOVED*** GoCrazy() ***REMOVED***)
+func PanicsWithError(t TestingT, errString string, f PanicTestFunc, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	funcDidPanic, panicValue, panickedStack := didPanic(f)
+	if !funcDidPanic ***REMOVED***
+		return Fail(t, fmt.Sprintf("func %#v should panic\n\tPanic value:\t%#v", f, panicValue), msgAndArgs...)
+	***REMOVED***
+	panicErr, ok := panicValue.(error)
+	if !ok || panicErr.Error() != errString ***REMOVED***
+		return Fail(t, fmt.Sprintf("func %#v should panic with error message:\t%#v\n\tPanic value:\t%#v\n\tPanic stack:\t%s", f, errString, panicValue, panickedStack), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -910,8 +1030,8 @@ func NotPanics(t TestingT, f PanicTestFunc, msgAndArgs ...interface***REMOVED***
 		h.Helper()
 	***REMOVED***
 
-	if funcDidPanic, panicValue := didPanic(f); funcDidPanic ***REMOVED***
-		return Fail(t, fmt.Sprintf("func %#v should not panic\n\tPanic value:\t%v", f, panicValue), msgAndArgs...)
+	if funcDidPanic, panicValue, panickedStack := didPanic(f); funcDidPanic ***REMOVED***
+		return Fail(t, fmt.Sprintf("func %#v should not panic\n\tPanic value:\t%v\n\tPanic stack:\t%s", f, panicValue, panickedStack), msgAndArgs...)
 	***REMOVED***
 
 	return true
@@ -971,7 +1091,7 @@ func toFloat(x interface***REMOVED******REMOVED***) (float64, bool) ***REMOVED**
 
 // InDelta asserts that the two numerals are within delta of each other.
 //
-// 	 assert.InDelta(t, math.Pi, (22 / 7.0), 0.01)
+// 	 assert.InDelta(t, math.Pi, 22/7.0, 0.01)
 func InDelta(t TestingT, expected, actual interface***REMOVED******REMOVED***, delta float64, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -1259,7 +1379,8 @@ func NotZero(t TestingT, i interface***REMOVED******REMOVED***, msgAndArgs ...in
 	return true
 ***REMOVED***
 
-// FileExists checks whether a file exists in the given path. It also fails if the path points to a directory or there is an error when trying to check the file.
+// FileExists checks whether a file exists in the given path. It also fails if
+// the path points to a directory or there is an error when trying to check the file.
 func FileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -1277,7 +1398,24 @@ func FileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******
 	return true
 ***REMOVED***
 
-// DirExists checks whether a directory exists in the given path. It also fails if the path is a file rather a directory or there is an error checking whether it exists.
+// NoFileExists checks whether a file does not exist in a given path. It fails
+// if the path points to an existing _file_ only.
+func NoFileExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	info, err := os.Lstat(path)
+	if err != nil ***REMOVED***
+		return true
+	***REMOVED***
+	if info.IsDir() ***REMOVED***
+		return true
+	***REMOVED***
+	return Fail(t, fmt.Sprintf("file %q exists", path), msgAndArgs...)
+***REMOVED***
+
+// DirExists checks whether a directory exists in the given path. It also fails
+// if the path is a file rather a directory or there is an error checking whether it exists.
 func DirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -1293,6 +1431,25 @@ func DirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******R
 		return Fail(t, fmt.Sprintf("%q is a file", path), msgAndArgs...)
 	***REMOVED***
 	return true
+***REMOVED***
+
+// NoDirExists checks whether a directory does not exist in the given path.
+// It fails if the path points to an existing _directory_ only.
+func NoDirExists(t TestingT, path string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	info, err := os.Lstat(path)
+	if err != nil ***REMOVED***
+		if os.IsNotExist(err) ***REMOVED***
+			return true
+		***REMOVED***
+		return true
+	***REMOVED***
+	if !info.IsDir() ***REMOVED***
+		return true
+	***REMOVED***
+	return Fail(t, fmt.Sprintf("directory %q exists", path), msgAndArgs...)
 ***REMOVED***
 
 // JSONEq asserts that two JSON strings are equivalent.
@@ -1315,6 +1472,24 @@ func JSONEq(t TestingT, expected string, actual string, msgAndArgs ...interface*
 	return Equal(t, expectedJSONAsInterface, actualJSONAsInterface, msgAndArgs...)
 ***REMOVED***
 
+// YAMLEq asserts that two YAML strings are equivalent.
+func YAMLEq(t TestingT, expected string, actual string, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	var expectedYAMLAsInterface, actualYAMLAsInterface interface***REMOVED******REMOVED***
+
+	if err := yaml.Unmarshal([]byte(expected), &expectedYAMLAsInterface); err != nil ***REMOVED***
+		return Fail(t, fmt.Sprintf("Expected value ('%s') is not valid yaml.\nYAML parsing error: '%s'", expected, err.Error()), msgAndArgs...)
+	***REMOVED***
+
+	if err := yaml.Unmarshal([]byte(actual), &actualYAMLAsInterface); err != nil ***REMOVED***
+		return Fail(t, fmt.Sprintf("Input ('%s') needs to be valid yaml.\nYAML error: '%s'", actual, err.Error()), msgAndArgs...)
+	***REMOVED***
+
+	return Equal(t, expectedYAMLAsInterface, actualYAMLAsInterface, msgAndArgs...)
+***REMOVED***
+
 func typeAndKind(v interface***REMOVED******REMOVED***) (reflect.Type, reflect.Kind) ***REMOVED***
 	t := reflect.TypeOf(v)
 	k := t.Kind()
@@ -1327,7 +1502,7 @@ func typeAndKind(v interface***REMOVED******REMOVED***) (reflect.Type, reflect.K
 ***REMOVED***
 
 // diff returns a diff of both values as long as both are of the same type and
-// are a struct, map, slice or array. Otherwise it returns an empty string.
+// are a struct, map, slice, array or string. Otherwise it returns an empty string.
 func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***) string ***REMOVED***
 	if expected == nil || actual == nil ***REMOVED***
 		return ""
@@ -1345,12 +1520,12 @@ func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOV
 	***REMOVED***
 
 	var e, a string
-	if ek != reflect.String ***REMOVED***
+	if et != reflect.TypeOf("") ***REMOVED***
 		e = spewConfig.Sdump(expected)
 		a = spewConfig.Sdump(actual)
 	***REMOVED*** else ***REMOVED***
-		e = expected.(string)
-		a = actual.(string)
+		e = reflect.ValueOf(expected).String()
+		a = reflect.ValueOf(actual).String()
 	***REMOVED***
 
 	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff***REMOVED***
@@ -1364,15 +1539,6 @@ func diff(expected interface***REMOVED******REMOVED***, actual interface***REMOV
 	***REMOVED***)
 
 	return "\n\nDiff:\n" + diff
-***REMOVED***
-
-// validateEqualArgs checks whether provided arguments can be safely used in the
-// Equal/NotEqual functions.
-func validateEqualArgs(expected, actual interface***REMOVED******REMOVED***) error ***REMOVED***
-	if isFunction(expected) || isFunction(actual) ***REMOVED***
-		return errors.New("cannot take func type as argument")
-	***REMOVED***
-	return nil
 ***REMOVED***
 
 func isFunction(arg interface***REMOVED******REMOVED***) bool ***REMOVED***
@@ -1391,4 +1557,70 @@ var spewConfig = spew.ConfigState***REMOVED***
 
 type tHelper interface ***REMOVED***
 	Helper()
+***REMOVED***
+
+// Eventually asserts that given condition will be met in waitFor time,
+// periodically checking target function each tick.
+//
+//    assert.Eventually(t, func() bool ***REMOVED*** return true; ***REMOVED***, time.Second, 10*time.Millisecond)
+func Eventually(t TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	ch := make(chan bool, 1)
+
+	timer := time.NewTimer(waitFor)
+	defer timer.Stop()
+
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for tick := ticker.C; ; ***REMOVED***
+		select ***REMOVED***
+		case <-timer.C:
+			return Fail(t, "Condition never satisfied", msgAndArgs...)
+		case <-tick:
+			tick = nil
+			go func() ***REMOVED*** ch <- condition() ***REMOVED***()
+		case v := <-ch:
+			if v ***REMOVED***
+				return true
+			***REMOVED***
+			tick = ticker.C
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// Never asserts that the given condition doesn't satisfy in waitFor time,
+// periodically checking the target function each tick.
+//
+//    assert.Never(t, func() bool ***REMOVED*** return false; ***REMOVED***, time.Second, 10*time.Millisecond)
+func Never(t TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+
+	ch := make(chan bool, 1)
+
+	timer := time.NewTimer(waitFor)
+	defer timer.Stop()
+
+	ticker := time.NewTicker(tick)
+	defer ticker.Stop()
+
+	for tick := ticker.C; ; ***REMOVED***
+		select ***REMOVED***
+		case <-timer.C:
+			return true
+		case <-tick:
+			tick = nil
+			go func() ***REMOVED*** ch <- condition() ***REMOVED***()
+		case v := <-ch:
+			if v ***REMOVED***
+				return Fail(t, "Condition satisfied", msgAndArgs...)
+			***REMOVED***
+			tick = ticker.C
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***

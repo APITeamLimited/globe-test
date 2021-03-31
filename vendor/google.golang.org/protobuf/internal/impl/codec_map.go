@@ -5,11 +5,11 @@
 package impl
 
 import (
-	"errors"
 	"reflect"
 	"sort"
 
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/internal/genid"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -117,7 +117,7 @@ func consumeMap(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi *mapInfo
 	***REMOVED***
 	b, n := protowire.ConsumeBytes(b)
 	if n < 0 ***REMOVED***
-		return out, protowire.ParseError(n)
+		return out, errDecode
 	***REMOVED***
 	var (
 		key = mapi.keyZero
@@ -126,15 +126,15 @@ func consumeMap(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi *mapInfo
 	for len(b) > 0 ***REMOVED***
 		num, wtyp, n := protowire.ConsumeTag(b)
 		if n < 0 ***REMOVED***
-			return out, protowire.ParseError(n)
+			return out, errDecode
 		***REMOVED***
 		if num > protowire.MaxValidNumber ***REMOVED***
-			return out, errors.New("invalid field number")
+			return out, errDecode
 		***REMOVED***
 		b = b[n:]
 		err := errUnknown
 		switch num ***REMOVED***
-		case 1:
+		case genid.MapEntry_Key_field_number:
 			var v pref.Value
 			var o unmarshalOutput
 			v, o, err = mapi.keyFuncs.unmarshal(b, key, num, wtyp, opts)
@@ -143,7 +143,7 @@ func consumeMap(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi *mapInfo
 			***REMOVED***
 			key = v
 			n = o.n
-		case 2:
+		case genid.MapEntry_Value_field_number:
 			var v pref.Value
 			var o unmarshalOutput
 			v, o, err = mapi.valFuncs.unmarshal(b, val, num, wtyp, opts)
@@ -156,7 +156,7 @@ func consumeMap(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi *mapInfo
 		if err == errUnknown ***REMOVED***
 			n = protowire.ConsumeFieldValue(num, wtyp, b)
 			if n < 0 ***REMOVED***
-				return out, protowire.ParseError(n)
+				return out, errDecode
 			***REMOVED***
 		***REMOVED*** else if err != nil ***REMOVED***
 			return out, err
@@ -174,7 +174,7 @@ func consumeMapOfMessage(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi
 	***REMOVED***
 	b, n := protowire.ConsumeBytes(b)
 	if n < 0 ***REMOVED***
-		return out, protowire.ParseError(n)
+		return out, errDecode
 	***REMOVED***
 	var (
 		key = mapi.keyZero
@@ -183,10 +183,10 @@ func consumeMapOfMessage(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi
 	for len(b) > 0 ***REMOVED***
 		num, wtyp, n := protowire.ConsumeTag(b)
 		if n < 0 ***REMOVED***
-			return out, protowire.ParseError(n)
+			return out, errDecode
 		***REMOVED***
 		if num > protowire.MaxValidNumber ***REMOVED***
-			return out, errors.New("invalid field number")
+			return out, errDecode
 		***REMOVED***
 		b = b[n:]
 		err := errUnknown
@@ -207,7 +207,7 @@ func consumeMapOfMessage(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi
 			var v []byte
 			v, n = protowire.ConsumeBytes(b)
 			if n < 0 ***REMOVED***
-				return out, protowire.ParseError(n)
+				return out, errDecode
 			***REMOVED***
 			var o unmarshalOutput
 			o, err = f.mi.unmarshalPointer(v, pointerOfValue(val), 0, opts)
@@ -220,7 +220,7 @@ func consumeMapOfMessage(b []byte, mapv reflect.Value, wtyp protowire.Type, mapi
 		if err == errUnknown ***REMOVED***
 			n = protowire.ConsumeFieldValue(num, wtyp, b)
 			if n < 0 ***REMOVED***
-				return out, protowire.ParseError(n)
+				return out, errDecode
 			***REMOVED***
 		***REMOVED*** else if err != nil ***REMOVED***
 			return out, err

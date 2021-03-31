@@ -11,6 +11,7 @@ import (
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/internal"
+	"github.com/jhump/protoreflect/desc/protoparse/ast"
 )
 
 type linker struct ***REMOVED***
@@ -68,7 +69,7 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) ***REMOVED
 		***REMOVED***
 		// we should now have any message_set_wire_format options parsed
 		// and can do further validation on tag ranges
-		if err := checkExtensionTagsInFile(fd, r); err != nil ***REMOVED***
+		if err := checkExtensionsInFile(fd, r); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
@@ -141,7 +142,7 @@ func (l *linker) createDescriptorPool() error ***REMOVED***
 					desc1, desc2 = desc2, desc1
 				***REMOVED***
 				node := l.files[file2].nodes[desc2]
-				if err := l.errs.handleErrorWithPos(node.start(), "duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1); err != nil ***REMOVED***
+				if err := l.errs.handleErrorWithPos(node.Start(), "duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1); err != nil ***REMOVED***
 					return err
 				***REMOVED***
 			***REMOVED***
@@ -217,7 +218,7 @@ func addServiceToPool(r *parseResult, pool map[string]proto.Message, errs *error
 func addToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, fqn string, dsc proto.Message) error ***REMOVED***
 	if d, ok := pool[fqn]; ok ***REMOVED***
 		node := r.nodes[dsc]
-		if err := errs.handleErrorWithPos(node.start(), "duplicate symbol %s: already defined as %s", fqn, descriptorType(d)); err != nil ***REMOVED***
+		if err := errs.handleErrorWithPos(node.Start(), "duplicate symbol %s: already defined as %s", fqn, descriptorType(d)); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
@@ -362,12 +363,12 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 		elemType = "extension"
 		fqn, dsc, _ := l.resolve(fd, fld.GetExtendee(), isMessage, scopes)
 		if dsc == nil ***REMOVED***
-			return l.errs.handleErrorWithPos(node.fieldExtendee().start(), "unknown extendee type %s", fld.GetExtendee())
+			return l.errs.handleErrorWithPos(node.FieldExtendee().Start(), "unknown extendee type %s", fld.GetExtendee())
 		***REMOVED***
 		extd, ok := dsc.(*dpb.DescriptorProto)
 		if !ok ***REMOVED***
 			otherType := descriptorType(dsc)
-			return l.errs.handleErrorWithPos(node.fieldExtendee().start(), "extendee is invalid: %s is a %s, not a message", fqn, otherType)
+			return l.errs.handleErrorWithPos(node.FieldExtendee().Start(), "extendee is invalid: %s is a %s, not a message", fqn, otherType)
 		***REMOVED***
 		fld.Extendee = proto.String("." + fqn)
 		// make sure the tag number is in range
@@ -380,7 +381,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 			***REMOVED***
 		***REMOVED***
 		if !found ***REMOVED***
-			if err := l.errs.handleErrorWithPos(node.fieldTag().start(), "%s: tag %d is not in valid range for extended type %s", scope, tag, fqn); err != nil ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.FieldTag().Start(), "%s: tag %d is not in valid range for extended type %s", scope, tag, fqn); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
@@ -391,7 +392,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 				l.extensions[fqn] = usedExtTags
 			***REMOVED***
 			if other := usedExtTags[fld.GetNumber()]; other != "" ***REMOVED***
-				if err := l.errs.handleErrorWithPos(node.fieldTag().start(), "%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber()); err != nil ***REMOVED***
+				if err := l.errs.handleErrorWithPos(node.FieldTag().Start(), "%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber()); err != nil ***REMOVED***
 					return err
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
@@ -413,7 +414,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 
 	fqn, dsc, proto3 := l.resolve(fd, fld.GetTypeName(), isType, scopes)
 	if dsc == nil ***REMOVED***
-		return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: unknown type %s", scope, fld.GetTypeName())
+		return l.errs.handleErrorWithPos(node.FieldType().Start(), "%s: unknown type %s", scope, fld.GetTypeName())
 	***REMOVED***
 	switch dsc := dsc.(type) ***REMOVED***
 	case *dpb.DescriptorProto:
@@ -425,14 +426,14 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 	case *dpb.EnumDescriptorProto:
 		if fld.GetExtendee() == "" && isProto3(fd) && !proto3 ***REMOVED***
 			// fields in a proto3 message cannot refer to proto2 enums
-			return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: cannot use proto2 enum %s in a proto3 message", scope, fld.GetTypeName())
+			return l.errs.handleErrorWithPos(node.FieldType().Start(), "%s: cannot use proto2 enum %s in a proto3 message", scope, fld.GetTypeName())
 		***REMOVED***
 		fld.TypeName = proto.String("." + fqn)
 		// the type was tentatively unset, but now we know it's actually an enum
 		fld.Type = dpb.FieldDescriptorProto_TYPE_ENUM.Enum()
 	default:
 		otherType := descriptorType(dsc)
-		return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: invalid type: %s is a %s, not a message or enum", scope, fqn, otherType)
+		return l.errs.handleErrorWithPos(node.FieldType().Start(), "%s: invalid type: %s is a %s, not a message or enum", scope, fqn, otherType)
 	***REMOVED***
 	return nil
 ***REMOVED***
@@ -455,12 +456,12 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 		node := r.getMethodNode(mtd)
 		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), isMessage, scopes)
 		if dsc == nil ***REMOVED***
-			if err := l.errs.handleErrorWithPos(node.getInputType().start(), "%s: unknown request type %s", scope, mtd.GetInputType()); err != nil ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetInputType().Start(), "%s: unknown request type %s", scope, mtd.GetInputType()); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else if _, ok := dsc.(*dpb.DescriptorProto); !ok ***REMOVED***
 			otherType := descriptorType(dsc)
-			if err := l.errs.handleErrorWithPos(node.getInputType().start(), "%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType); err != nil ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetInputType().Start(), "%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
@@ -469,12 +470,12 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 
 		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), isMessage, scopes)
 		if dsc == nil ***REMOVED***
-			if err := l.errs.handleErrorWithPos(node.getOutputType().start(), "%s: unknown response type %s", scope, mtd.GetOutputType()); err != nil ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetOutputType().Start(), "%s: unknown response type %s", scope, mtd.GetOutputType()); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else if _, ok := dsc.(*dpb.DescriptorProto); !ok ***REMOVED***
 			otherType := descriptorType(dsc)
-			if err := l.errs.handleErrorWithPos(node.getOutputType().start(), "%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType); err != nil ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetOutputType().Start(), "%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
@@ -496,19 +497,19 @@ opts:
 				node := r.getOptionNamePartNode(nm)
 				fqn, dsc, _ := l.resolve(fd, nm.GetNamePart(), isField, scopes)
 				if dsc == nil ***REMOVED***
-					if err := l.errs.handleErrorWithPos(node.start(), "%sunknown extension %s", scope, nm.GetNamePart()); err != nil ***REMOVED***
+					if err := l.errs.handleErrorWithPos(node.Start(), "%sunknown extension %s", scope, nm.GetNamePart()); err != nil ***REMOVED***
 						return err
 					***REMOVED***
 					continue opts
 				***REMOVED***
 				if ext, ok := dsc.(*dpb.FieldDescriptorProto); !ok ***REMOVED***
 					otherType := descriptorType(dsc)
-					if err := l.errs.handleErrorWithPos(node.start(), "%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType); err != nil ***REMOVED***
+					if err := l.errs.handleErrorWithPos(node.Start(), "%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType); err != nil ***REMOVED***
 						return err
 					***REMOVED***
 					continue opts
 				***REMOVED*** else if ext.GetExtendee() == "" ***REMOVED***
-					if err := l.errs.handleErrorWithPos(node.start(), "%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart()); err != nil ***REMOVED***
+					if err := l.errs.handleErrorWithPos(node.Start(), "%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart()); err != nil ***REMOVED***
 						return err
 					***REMOVED***
 					continue opts
@@ -703,19 +704,21 @@ func (l *linker) linkFile(name string, rootImportLoc *SourcePos, seen []string, 
 	if rootImportLoc == nil ***REMOVED***
 		// try to find a source location for this "root" import
 		decl := r.getFileNode(r.fd)
-		fnode, ok := decl.(*fileNode)
+		fnode, ok := decl.(*ast.FileNode)
 		if ok ***REMOVED***
-			for _, dep := range fnode.imports ***REMOVED***
-				ldep, err := l.linkFile(dep.name.val, dep.name.start(), seen, linked)
-				if err != nil ***REMOVED***
-					return nil, err
+			for _, decl := range fnode.Decls ***REMOVED***
+				if dep, ok := decl.(*ast.ImportNode); ok ***REMOVED***
+					ldep, err := l.linkFile(dep.Name.AsString(), dep.Name.Start(), seen, linked)
+					if err != nil ***REMOVED***
+						return nil, err
+					***REMOVED***
+					deps = append(deps, ldep)
 				***REMOVED***
-				deps = append(deps, ldep)
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			// no AST? just use the descriptor
 			for _, dep := range r.fd.Dependency ***REMOVED***
-				ldep, err := l.linkFile(dep, decl.start(), seen, linked)
+				ldep, err := l.linkFile(dep, decl.Start(), seen, linked)
 				if err != nil ***REMOVED***
 					return nil, err
 				***REMOVED***

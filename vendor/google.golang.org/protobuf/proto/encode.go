@@ -5,12 +5,9 @@
 package proto
 
 import (
-	"sort"
-
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/internal/encoding/messageset"
-	"google.golang.org/protobuf/internal/fieldsort"
-	"google.golang.org/protobuf/internal/mapsort"
+	"google.golang.org/protobuf/internal/order"
 	"google.golang.org/protobuf/internal/pragma"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -211,14 +208,15 @@ func (o MarshalOptions) marshalMessageSlow(b []byte, m protoreflect.Message) ([]
 	if messageset.IsMessageSet(m.Descriptor()) ***REMOVED***
 		return o.marshalMessageSet(b, m)
 	***REMOVED***
-	// There are many choices for what order we visit fields in. The default one here
-	// is chosen for reasonable efficiency and simplicity given the protoreflect API.
-	// It is not deterministic, since Message.Range does not return fields in any
-	// defined order.
-	//
-	// When using deterministic serialization, we sort the known fields.
+	fieldOrder := order.AnyFieldOrder
+	if o.Deterministic ***REMOVED***
+		// TODO: This should use a more natural ordering like NumberFieldOrder,
+		// but doing so breaks golden tests that make invalid assumption about
+		// output stability of this implementation.
+		fieldOrder = order.LegacyFieldOrder
+	***REMOVED***
 	var err error
-	o.rangeFields(m, func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool ***REMOVED***
+	order.RangeFields(m, fieldOrder, func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool ***REMOVED***
 		b, err = o.marshalField(b, fd, v)
 		return err == nil
 	***REMOVED***)
@@ -227,27 +225,6 @@ func (o MarshalOptions) marshalMessageSlow(b []byte, m protoreflect.Message) ([]
 	***REMOVED***
 	b = append(b, m.GetUnknown()...)
 	return b, nil
-***REMOVED***
-
-// rangeFields visits fields in a defined order when deterministic serialization is enabled.
-func (o MarshalOptions) rangeFields(m protoreflect.Message, f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) ***REMOVED***
-	if !o.Deterministic ***REMOVED***
-		m.Range(f)
-		return
-	***REMOVED***
-	var fds []protoreflect.FieldDescriptor
-	m.Range(func(fd protoreflect.FieldDescriptor, _ protoreflect.Value) bool ***REMOVED***
-		fds = append(fds, fd)
-		return true
-	***REMOVED***)
-	sort.Slice(fds, func(a, b int) bool ***REMOVED***
-		return fieldsort.Less(fds[a], fds[b])
-	***REMOVED***)
-	for _, fd := range fds ***REMOVED***
-		if !f(fd, m.Get(fd)) ***REMOVED***
-			break
-		***REMOVED***
-	***REMOVED***
 ***REMOVED***
 
 func (o MarshalOptions) marshalField(b []byte, fd protoreflect.FieldDescriptor, value protoreflect.Value) ([]byte, error) ***REMOVED***
@@ -292,8 +269,12 @@ func (o MarshalOptions) marshalList(b []byte, fd protoreflect.FieldDescriptor, l
 func (o MarshalOptions) marshalMap(b []byte, fd protoreflect.FieldDescriptor, mapv protoreflect.Map) ([]byte, error) ***REMOVED***
 	keyf := fd.MapKey()
 	valf := fd.MapValue()
+	keyOrder := order.AnyKeyOrder
+	if o.Deterministic ***REMOVED***
+		keyOrder = order.GenericKeyOrder
+	***REMOVED***
 	var err error
-	o.rangeMap(mapv, keyf.Kind(), func(key protoreflect.MapKey, value protoreflect.Value) bool ***REMOVED***
+	order.RangeEntries(mapv, keyOrder, func(key protoreflect.MapKey, value protoreflect.Value) bool ***REMOVED***
 		b = protowire.AppendTag(b, fd.Number(), protowire.BytesType)
 		var pos int
 		b, pos = appendSpeculativeLength(b)
@@ -310,14 +291,6 @@ func (o MarshalOptions) marshalMap(b []byte, fd protoreflect.FieldDescriptor, ma
 		return true
 	***REMOVED***)
 	return b, err
-***REMOVED***
-
-func (o MarshalOptions) rangeMap(mapv protoreflect.Map, kind protoreflect.Kind, f func(protoreflect.MapKey, protoreflect.Value) bool) ***REMOVED***
-	if !o.Deterministic ***REMOVED***
-		mapv.Range(f)
-		return
-	***REMOVED***
-	mapsort.Range(mapv, kind, f)
 ***REMOVED***
 
 // When encoding length-prefixed fields, we speculatively set aside some number of bytes

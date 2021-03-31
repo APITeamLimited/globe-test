@@ -297,9 +297,7 @@ type TraceEventDesc struct ***REMOVED***
 func AddTraceEvent(l grpclog.DepthLoggerV2, id int64, depth int, desc *TraceEventDesc) ***REMOVED***
 	for d := desc; d != nil; d = d.Parent ***REMOVED***
 		switch d.Severity ***REMOVED***
-		case CtUNKNOWN:
-			l.InfoDepth(depth+1, d.Desc)
-		case CtINFO:
+		case CtUnknown, CtInfo:
 			l.InfoDepth(depth+1, d.Desc)
 		case CtWarning:
 			l.WarningDepth(depth+1, d.Desc)

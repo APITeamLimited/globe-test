@@ -109,6 +109,7 @@ func (p pointer) String() *string                       ***REMOVED*** return (*s
 func (p pointer) StringPtr() **string                   ***REMOVED*** return (**string)(p.p) ***REMOVED***
 func (p pointer) StringSlice() *[]string                ***REMOVED*** return (*[]string)(p.p) ***REMOVED***
 func (p pointer) Bytes() *[]byte                        ***REMOVED*** return (*[]byte)(p.p) ***REMOVED***
+func (p pointer) BytesPtr() **[]byte                    ***REMOVED*** return (**[]byte)(p.p) ***REMOVED***
 func (p pointer) BytesSlice() *[][]byte                 ***REMOVED*** return (*[][]byte)(p.p) ***REMOVED***
 func (p pointer) WeakFields() *weakFields               ***REMOVED*** return (*weakFields)(p.p) ***REMOVED***
 func (p pointer) Extensions() *map[int32]ExtensionField ***REMOVED*** return (*map[int32]ExtensionField)(p.p) ***REMOVED***

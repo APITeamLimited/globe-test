@@ -128,7 +128,6 @@ package protoreflect
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/protowire"
@@ -408,19 +407,14 @@ type EnumRanges interface ***REMOVED***
 	doNotImplement
 ***REMOVED***
 
-var (
-	regexName     = regexp.MustCompile(`^[_a-zA-Z][_a-zA-Z0-9]*$`)
-	regexFullName = regexp.MustCompile(`^[_a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z][_a-zA-Z0-9]*)*$`)
-)
-
 // Name is the short name for a proto declaration. This is not the name
 // as used in Go source code, which might not be identical to the proto name.
 type Name string // e.g., "Kind"
 
-// IsValid reports whether n is a syntactically valid name.
+// IsValid reports whether s is a syntactically valid name.
 // An empty name is invalid.
-func (n Name) IsValid() bool ***REMOVED***
-	return regexName.MatchString(string(n))
+func (s Name) IsValid() bool ***REMOVED***
+	return consumeIdent(string(s)) == len(s)
 ***REMOVED***
 
 // Names represent a list of names.
@@ -443,10 +437,42 @@ type Names interface ***REMOVED***
 // This should not have any leading or trailing dots.
 type FullName string // e.g., "google.protobuf.Field.Kind"
 
-// IsValid reports whether n is a syntactically valid full name.
+// IsValid reports whether s is a syntactically valid full name.
 // An empty full name is invalid.
-func (n FullName) IsValid() bool ***REMOVED***
-	return regexFullName.MatchString(string(n))
+func (s FullName) IsValid() bool ***REMOVED***
+	i := consumeIdent(string(s))
+	if i < 0 ***REMOVED***
+		return false
+	***REMOVED***
+	for len(s) > i ***REMOVED***
+		if s[i] != '.' ***REMOVED***
+			return false
+		***REMOVED***
+		i++
+		n := consumeIdent(string(s[i:]))
+		if n < 0 ***REMOVED***
+			return false
+		***REMOVED***
+		i += n
+	***REMOVED***
+	return true
+***REMOVED***
+
+func consumeIdent(s string) (i int) ***REMOVED***
+	if len(s) == 0 || !isLetter(s[i]) ***REMOVED***
+		return -1
+	***REMOVED***
+	i++
+	for len(s) > i && isLetterDigit(s[i]) ***REMOVED***
+		i++
+	***REMOVED***
+	return i
+***REMOVED***
+func isLetter(c byte) bool ***REMOVED***
+	return c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+***REMOVED***
+func isLetterDigit(c byte) bool ***REMOVED***
+	return isLetter(c) || ('0' <= c && c <= '9')
 ***REMOVED***
 
 // Name returns the short name, which is the last identifier segment.

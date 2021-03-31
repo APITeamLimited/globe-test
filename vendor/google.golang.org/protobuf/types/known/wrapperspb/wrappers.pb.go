@@ -62,6 +62,11 @@ type DoubleValue struct ***REMOVED***
 	Value float64 `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
 ***REMOVED***
 
+// Double stores v in a new DoubleValue and returns a pointer to it.
+func Double(v float64) *DoubleValue ***REMOVED***
+	return &DoubleValue***REMOVED***Value: v***REMOVED***
+***REMOVED***
+
 func (x *DoubleValue) Reset() ***REMOVED***
 	*x = DoubleValue***REMOVED******REMOVED***
 	if protoimpl.UnsafeEnabled ***REMOVED***
@@ -111,6 +116,11 @@ type FloatValue struct ***REMOVED***
 
 	// The float value.
 	Value float32 `protobuf:"fixed32,1,opt,name=value,proto3" json:"value,omitempty"`
+***REMOVED***
+
+// Float stores v in a new FloatValue and returns a pointer to it.
+func Float(v float32) *FloatValue ***REMOVED***
+	return &FloatValue***REMOVED***Value: v***REMOVED***
 ***REMOVED***
 
 func (x *FloatValue) Reset() ***REMOVED***
@@ -164,6 +174,11 @@ type Int64Value struct ***REMOVED***
 	Value int64 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 ***REMOVED***
 
+// Int64 stores v in a new Int64Value and returns a pointer to it.
+func Int64(v int64) *Int64Value ***REMOVED***
+	return &Int64Value***REMOVED***Value: v***REMOVED***
+***REMOVED***
+
 func (x *Int64Value) Reset() ***REMOVED***
 	*x = Int64Value***REMOVED******REMOVED***
 	if protoimpl.UnsafeEnabled ***REMOVED***
@@ -213,6 +228,11 @@ type UInt64Value struct ***REMOVED***
 
 	// The uint64 value.
 	Value uint64 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+***REMOVED***
+
+// UInt64 stores v in a new UInt64Value and returns a pointer to it.
+func UInt64(v uint64) *UInt64Value ***REMOVED***
+	return &UInt64Value***REMOVED***Value: v***REMOVED***
 ***REMOVED***
 
 func (x *UInt64Value) Reset() ***REMOVED***
@@ -266,6 +286,11 @@ type Int32Value struct ***REMOVED***
 	Value int32 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 ***REMOVED***
 
+// Int32 stores v in a new Int32Value and returns a pointer to it.
+func Int32(v int32) *Int32Value ***REMOVED***
+	return &Int32Value***REMOVED***Value: v***REMOVED***
+***REMOVED***
+
 func (x *Int32Value) Reset() ***REMOVED***
 	*x = Int32Value***REMOVED******REMOVED***
 	if protoimpl.UnsafeEnabled ***REMOVED***
@@ -315,6 +340,11 @@ type UInt32Value struct ***REMOVED***
 
 	// The uint32 value.
 	Value uint32 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+***REMOVED***
+
+// UInt32 stores v in a new UInt32Value and returns a pointer to it.
+func UInt32(v uint32) *UInt32Value ***REMOVED***
+	return &UInt32Value***REMOVED***Value: v***REMOVED***
 ***REMOVED***
 
 func (x *UInt32Value) Reset() ***REMOVED***
@@ -368,6 +398,11 @@ type BoolValue struct ***REMOVED***
 	Value bool `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 ***REMOVED***
 
+// Bool stores v in a new BoolValue and returns a pointer to it.
+func Bool(v bool) *BoolValue ***REMOVED***
+	return &BoolValue***REMOVED***Value: v***REMOVED***
+***REMOVED***
+
 func (x *BoolValue) Reset() ***REMOVED***
 	*x = BoolValue***REMOVED******REMOVED***
 	if protoimpl.UnsafeEnabled ***REMOVED***
@@ -419,6 +454,11 @@ type StringValue struct ***REMOVED***
 	Value string `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
 ***REMOVED***
 
+// String stores v in a new StringValue and returns a pointer to it.
+func String(v string) *StringValue ***REMOVED***
+	return &StringValue***REMOVED***Value: v***REMOVED***
+***REMOVED***
+
 func (x *StringValue) Reset() ***REMOVED***
 	*x = StringValue***REMOVED******REMOVED***
 	if protoimpl.UnsafeEnabled ***REMOVED***
@@ -468,6 +508,11 @@ type BytesValue struct ***REMOVED***
 
 	// The bytes value.
 	Value []byte `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+***REMOVED***
+
+// Bytes stores v in a new BytesValue and returns a pointer to it.
+func Bytes(v []byte) *BytesValue ***REMOVED***
+	return &BytesValue***REMOVED***Value: v***REMOVED***
 ***REMOVED***
 
 func (x *BytesValue) Reset() ***REMOVED***

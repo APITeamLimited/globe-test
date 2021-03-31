@@ -32,7 +32,8 @@ func Containsf(t TestingT, s interface***REMOVED******REMOVED***, contains inter
 	return Contains(t, s, contains, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
-// DirExistsf checks whether a directory exists in the given path. It also fails if the path is a file rather a directory or there is an error checking whether it exists.
+// DirExistsf checks whether a directory exists in the given path. It also fails
+// if the path is a file rather a directory or there is an error checking whether it exists.
 func DirExistsf(t TestingT, path string, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -113,6 +114,17 @@ func Errorf(t TestingT, err error, msg string, args ...interface***REMOVED******
 	return Error(t, err, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// Eventuallyf asserts that given condition will be met in waitFor time,
+// periodically checking target function each tick.
+//
+//    assert.Eventuallyf(t, func() bool ***REMOVED*** return true; ***REMOVED***, time.Second, 10*time.Millisecond, "error message %s", "formatted")
+func Eventuallyf(t TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Eventually(t, condition, waitFor, tick, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // Exactlyf asserts that two objects are equal in value and type.
 //
 //    assert.Exactlyf(t, int32(123, "error message %s", "formatted"), int64(123))
@@ -149,12 +161,38 @@ func Falsef(t TestingT, value bool, msg string, args ...interface***REMOVED*****
 	return False(t, value, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
-// FileExistsf checks whether a file exists in the given path. It also fails if the path points to a directory or there is an error when trying to check the file.
+// FileExistsf checks whether a file exists in the given path. It also fails if
+// the path points to a directory or there is an error when trying to check the file.
 func FileExistsf(t TestingT, path string, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
 	***REMOVED***
 	return FileExists(t, path, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// Greaterf asserts that the first element is greater than the second
+//
+//    assert.Greaterf(t, 2, 1, "error message %s", "formatted")
+//    assert.Greaterf(t, float64(2, "error message %s", "formatted"), float64(1))
+//    assert.Greaterf(t, "b", "a", "error message %s", "formatted")
+func Greaterf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Greater(t, e1, e2, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// GreaterOrEqualf asserts that the first element is greater than or equal to the second
+//
+//    assert.GreaterOrEqualf(t, 2, 1, "error message %s", "formatted")
+//    assert.GreaterOrEqualf(t, 2, 2, "error message %s", "formatted")
+//    assert.GreaterOrEqualf(t, "b", "a", "error message %s", "formatted")
+//    assert.GreaterOrEqualf(t, "b", "b", "error message %s", "formatted")
+func GreaterOrEqualf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return GreaterOrEqual(t, e1, e2, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // HTTPBodyContainsf asserts that a specified handler returns a
@@ -231,7 +269,7 @@ func Implementsf(t TestingT, interfaceObject interface***REMOVED******REMOVED***
 
 // InDeltaf asserts that the two numerals are within delta of each other.
 //
-// 	 assert.InDeltaf(t, math.Pi, (22 / 7.0, "error message %s", "formatted"), 0.01)
+// 	 assert.InDeltaf(t, math.Pi, 22/7.0, 0.01, "error message %s", "formatted")
 func InDeltaf(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, delta float64, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -300,6 +338,42 @@ func Lenf(t TestingT, object interface***REMOVED******REMOVED***, length int, ms
 	return Len(t, object, length, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// Lessf asserts that the first element is less than the second
+//
+//    assert.Lessf(t, 1, 2, "error message %s", "formatted")
+//    assert.Lessf(t, float64(1, "error message %s", "formatted"), float64(2))
+//    assert.Lessf(t, "a", "b", "error message %s", "formatted")
+func Lessf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Less(t, e1, e2, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// LessOrEqualf asserts that the first element is less than or equal to the second
+//
+//    assert.LessOrEqualf(t, 1, 2, "error message %s", "formatted")
+//    assert.LessOrEqualf(t, 2, 2, "error message %s", "formatted")
+//    assert.LessOrEqualf(t, "a", "b", "error message %s", "formatted")
+//    assert.LessOrEqualf(t, "b", "b", "error message %s", "formatted")
+func LessOrEqualf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return LessOrEqual(t, e1, e2, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// Neverf asserts that the given condition doesn't satisfy in waitFor time,
+// periodically checking the target function each tick.
+//
+//    assert.Neverf(t, func() bool ***REMOVED*** return false; ***REMOVED***, time.Second, 10*time.Millisecond, "error message %s", "formatted")
+func Neverf(t TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Never(t, condition, waitFor, tick, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // Nilf asserts that the specified object is nil.
 //
 //    assert.Nilf(t, err, "error message %s", "formatted")
@@ -308,6 +382,15 @@ func Nilf(t TestingT, object interface***REMOVED******REMOVED***, msg string, ar
 		h.Helper()
 	***REMOVED***
 	return Nil(t, object, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// NoDirExistsf checks whether a directory does not exist in the given path.
+// It fails if the path points to an existing _directory_ only.
+func NoDirExistsf(t TestingT, path string, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return NoDirExists(t, path, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // NoErrorf asserts that a function returned no error (i.e. `nil`).
@@ -321,6 +404,15 @@ func NoErrorf(t TestingT, err error, msg string, args ...interface***REMOVED****
 		h.Helper()
 	***REMOVED***
 	return NoError(t, err, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// NoFileExistsf checks whether a file does not exist in a given path. It fails
+// if the path points to an existing _file_ only.
+func NoFileExistsf(t TestingT, path string, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return NoFileExists(t, path, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // NotContainsf asserts that the specified string, list(array, slice...) or map does NOT contain the
@@ -393,6 +485,19 @@ func NotRegexpf(t TestingT, rx interface***REMOVED******REMOVED***, str interfac
 	return NotRegexp(t, rx, str, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// NotSamef asserts that two pointers do not reference the same object.
+//
+//    assert.NotSamef(t, ptr1, ptr2, "error message %s", "formatted")
+//
+// Both arguments must be pointer variables. Pointer variable sameness is
+// determined based on the equality of both type and value.
+func NotSamef(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return NotSame(t, expected, actual, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // NotSubsetf asserts that the specified list(array, slice...) contains not all
 // elements given in the specified subset(array, slice...).
 //
@@ -422,6 +527,18 @@ func Panicsf(t TestingT, f PanicTestFunc, msg string, args ...interface***REMOVE
 	return Panics(t, f, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// PanicsWithErrorf asserts that the code inside the specified PanicTestFunc
+// panics, and that the recovered panic value is an error that satisfies the
+// EqualError comparison.
+//
+//   assert.PanicsWithErrorf(t, "crazy error", func()***REMOVED*** GoCrazy() ***REMOVED***, "error message %s", "formatted")
+func PanicsWithErrorf(t TestingT, errString string, f PanicTestFunc, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return PanicsWithError(t, errString, f, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // PanicsWithValuef asserts that the code inside the specified PanicTestFunc panics, and that
 // the recovered panic value equals the expected panic value.
 //
@@ -442,6 +559,19 @@ func Regexpf(t TestingT, rx interface***REMOVED******REMOVED***, str interface**
 		h.Helper()
 	***REMOVED***
 	return Regexp(t, rx, str, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// Samef asserts that two pointers reference the same object.
+//
+//    assert.Samef(t, ptr1, ptr2, "error message %s", "formatted")
+//
+// Both arguments must be pointer variables. Pointer variable sameness is
+// determined based on the equality of both type and value.
+func Samef(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Same(t, expected, actual, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // Subsetf asserts that the specified list(array, slice...) contains all
@@ -473,6 +603,14 @@ func WithinDurationf(t TestingT, expected time.Time, actual time.Time, delta tim
 		h.Helper()
 	***REMOVED***
 	return WithinDuration(t, expected, actual, delta, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// YAMLEqf asserts that two YAML strings are equivalent.
+func YAMLEqf(t TestingT, expected string, actual string, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return YAMLEq(t, expected, actual, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // Zerof asserts that i is the zero value for its type.

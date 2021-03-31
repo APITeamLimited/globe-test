@@ -154,7 +154,8 @@ func (x placeholderExtension) Number() pref.FieldNumber                   ***REM
 func (x placeholderExtension) Cardinality() pref.Cardinality              ***REMOVED*** return 0 ***REMOVED***
 func (x placeholderExtension) Kind() pref.Kind                            ***REMOVED*** return 0 ***REMOVED***
 func (x placeholderExtension) HasJSONName() bool                          ***REMOVED*** return false ***REMOVED***
-func (x placeholderExtension) JSONName() string                           ***REMOVED*** return "" ***REMOVED***
+func (x placeholderExtension) JSONName() string                           ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
+func (x placeholderExtension) TextName() string                           ***REMOVED*** return "[" + string(x.name) + "]" ***REMOVED***
 func (x placeholderExtension) HasPresence() bool                          ***REMOVED*** return false ***REMOVED***
 func (x placeholderExtension) HasOptionalKeyword() bool                   ***REMOVED*** return false ***REMOVED***
 func (x placeholderExtension) IsExtension() bool                          ***REMOVED*** return true ***REMOVED***

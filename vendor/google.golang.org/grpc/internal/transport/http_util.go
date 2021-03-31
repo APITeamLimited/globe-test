@@ -27,6 +27,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -72,13 +73,6 @@ var (
 		http2.ErrCodeEnhanceYourCalm:    codes.ResourceExhausted,
 		http2.ErrCodeInadequateSecurity: codes.PermissionDenied,
 		http2.ErrCodeHTTP11Required:     codes.Internal,
-	***REMOVED***
-	statusCodeConvTab = map[codes.Code]http2.ErrCode***REMOVED***
-		codes.Internal:          http2.ErrCodeInternal,
-		codes.Canceled:          http2.ErrCodeCancel,
-		codes.Unavailable:       http2.ErrCodeRefusedStream,
-		codes.ResourceExhausted: http2.ErrCodeEnhanceYourCalm,
-		codes.PermissionDenied:  http2.ErrCodeInadequateSecurity,
 	***REMOVED***
 	// HTTPStatusConvTab is the HTTP status code to gRPC error code conversion table.
 	HTTPStatusConvTab = map[int]codes.Code***REMOVED***
@@ -222,11 +216,11 @@ func decodeMetadataHeader(k, v string) (string, error) ***REMOVED***
 	return v, nil
 ***REMOVED***
 
-func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) error ***REMOVED***
+func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) (http2.ErrCode, error) ***REMOVED***
 	// frame.Truncated is set to true when framer detects that the current header
 	// list size hits MaxHeaderListSize limit.
 	if frame.Truncated ***REMOVED***
-		return status.Error(codes.Internal, "peer header list size exceeded limit")
+		return http2.ErrCodeFrameSize, status.Error(codes.Internal, "peer header list size exceeded limit")
 	***REMOVED***
 
 	for _, hf := range frame.Fields ***REMOVED***
@@ -235,10 +229,10 @@ func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) error ***REMOV
 
 	if d.data.isGRPC ***REMOVED***
 		if d.data.grpcErr != nil ***REMOVED***
-			return d.data.grpcErr
+			return http2.ErrCodeProtocol, d.data.grpcErr
 		***REMOVED***
 		if d.serverSide ***REMOVED***
-			return nil
+			return http2.ErrCodeNo, nil
 		***REMOVED***
 		if d.data.rawStatusCode == nil && d.data.statusGen == nil ***REMOVED***
 			// gRPC status doesn't exist.
@@ -250,12 +244,12 @@ func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) error ***REMOV
 			code := int(codes.Unknown)
 			d.data.rawStatusCode = &code
 		***REMOVED***
-		return nil
+		return http2.ErrCodeNo, nil
 	***REMOVED***
 
 	// HTTP fallback mode
 	if d.data.httpErr != nil ***REMOVED***
-		return d.data.httpErr
+		return http2.ErrCodeProtocol, d.data.httpErr
 	***REMOVED***
 
 	var (
@@ -270,7 +264,7 @@ func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) error ***REMOV
 		***REMOVED***
 	***REMOVED***
 
-	return status.Error(code, d.constructHTTPErrMsg())
+	return http2.ErrCodeProtocol, status.Error(code, d.constructHTTPErrMsg())
 ***REMOVED***
 
 // constructErrMsg constructs error message to be returned in HTTP fallback mode.
@@ -604,4 +598,32 @@ func newFramer(conn net.Conn, writeBufferSize, readBufferSize int, maxHeaderList
 	f.fr.MaxHeaderListSize = maxHeaderListSize
 	f.fr.ReadMetaHeaders = hpack.NewDecoder(http2InitHeaderTableSize, nil)
 	return f
+***REMOVED***
+
+// parseDialTarget returns the network and address to pass to dialer.
+func parseDialTarget(target string) (string, string) ***REMOVED***
+	net := "tcp"
+	m1 := strings.Index(target, ":")
+	m2 := strings.Index(target, ":/")
+	// handle unix:addr which will fail with url.Parse
+	if m1 >= 0 && m2 < 0 ***REMOVED***
+		if n := target[0:m1]; n == "unix" ***REMOVED***
+			return n, target[m1+1:]
+		***REMOVED***
+	***REMOVED***
+	if m2 >= 0 ***REMOVED***
+		t, err := url.Parse(target)
+		if err != nil ***REMOVED***
+			return net, target
+		***REMOVED***
+		scheme := t.Scheme
+		addr := t.Path
+		if scheme == "unix" ***REMOVED***
+			if addr == "" ***REMOVED***
+				addr = t.Host
+			***REMOVED***
+			return scheme, addr
+		***REMOVED***
+	***REMOVED***
+	return net, target
 ***REMOVED***

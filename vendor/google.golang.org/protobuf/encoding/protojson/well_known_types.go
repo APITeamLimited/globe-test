@@ -11,81 +11,88 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/internal/detectknown"
 	"google.golang.org/protobuf/internal/encoding/json"
 	"google.golang.org/protobuf/internal/errors"
-	"google.golang.org/protobuf/internal/fieldnum"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// isCustomType returns true if type name has special JSON conversion rules.
-// The list of custom types here has to match the ones in marshalCustomType and
-// unmarshalCustomType.
-func isCustomType(name pref.FullName) bool ***REMOVED***
-	switch detectknown.Which(name) ***REMOVED***
-	case detectknown.AnyProto:
-	case detectknown.TimestampProto:
-	case detectknown.DurationProto:
-	case detectknown.WrappersProto:
-	case detectknown.StructProto:
-	case detectknown.FieldMaskProto:
-	case detectknown.EmptyProto:
-	default:
-		return false
+type marshalFunc func(encoder, pref.Message) error
+
+// wellKnownTypeMarshaler returns a marshal function if the message type
+// has specialized serialization behavior. It returns nil otherwise.
+func wellKnownTypeMarshaler(name pref.FullName) marshalFunc ***REMOVED***
+	if name.Parent() == genid.GoogleProtobuf_package ***REMOVED***
+		switch name.Name() ***REMOVED***
+		case genid.Any_message_name:
+			return encoder.marshalAny
+		case genid.Timestamp_message_name:
+			return encoder.marshalTimestamp
+		case genid.Duration_message_name:
+			return encoder.marshalDuration
+		case genid.BoolValue_message_name,
+			genid.Int32Value_message_name,
+			genid.Int64Value_message_name,
+			genid.UInt32Value_message_name,
+			genid.UInt64Value_message_name,
+			genid.FloatValue_message_name,
+			genid.DoubleValue_message_name,
+			genid.StringValue_message_name,
+			genid.BytesValue_message_name:
+			return encoder.marshalWrapperType
+		case genid.Struct_message_name:
+			return encoder.marshalStruct
+		case genid.ListValue_message_name:
+			return encoder.marshalListValue
+		case genid.Value_message_name:
+			return encoder.marshalKnownValue
+		case genid.FieldMask_message_name:
+			return encoder.marshalFieldMask
+		case genid.Empty_message_name:
+			return encoder.marshalEmpty
+		***REMOVED***
 	***REMOVED***
-	return true
+	return nil
 ***REMOVED***
 
-// marshalCustomType marshals given well-known type message that have special
-// JSON conversion rules. It needs to be a message type where isCustomType
-// returns true, else it will panic.
-func (e encoder) marshalCustomType(m pref.Message) error ***REMOVED***
-	name := m.Descriptor().FullName()
-	switch detectknown.Which(name) ***REMOVED***
-	case detectknown.AnyProto:
-		return e.marshalAny(m)
-	case detectknown.TimestampProto:
-		return e.marshalTimestamp(m)
-	case detectknown.DurationProto:
-		return e.marshalDuration(m)
-	case detectknown.WrappersProto:
-		return e.marshalWrapperType(m)
-	case detectknown.StructProto:
-		return e.marshalStructType(m)
-	case detectknown.FieldMaskProto:
-		return e.marshalFieldMask(m)
-	case detectknown.EmptyProto:
-		return e.marshalEmpty(m)
-	default:
-		panic(fmt.Sprintf("%s does not have a custom marshaler", name))
-	***REMOVED***
-***REMOVED***
+type unmarshalFunc func(decoder, pref.Message) error
 
-// unmarshalCustomType unmarshals given well-known type message that have
-// special JSON conversion rules. It needs to be a message type where
-// isCustomType returns true, else it will panic.
-func (d decoder) unmarshalCustomType(m pref.Message) error ***REMOVED***
-	name := m.Descriptor().FullName()
-	switch detectknown.Which(name) ***REMOVED***
-	case detectknown.AnyProto:
-		return d.unmarshalAny(m)
-	case detectknown.TimestampProto:
-		return d.unmarshalTimestamp(m)
-	case detectknown.DurationProto:
-		return d.unmarshalDuration(m)
-	case detectknown.WrappersProto:
-		return d.unmarshalWrapperType(m)
-	case detectknown.StructProto:
-		return d.unmarshalStructType(m)
-	case detectknown.FieldMaskProto:
-		return d.unmarshalFieldMask(m)
-	case detectknown.EmptyProto:
-		return d.unmarshalEmpty(m)
-	default:
-		panic(fmt.Sprintf("%s does not have a custom unmarshaler", name))
+// wellKnownTypeUnmarshaler returns a unmarshal function if the message type
+// has specialized serialization behavior. It returns nil otherwise.
+func wellKnownTypeUnmarshaler(name pref.FullName) unmarshalFunc ***REMOVED***
+	if name.Parent() == genid.GoogleProtobuf_package ***REMOVED***
+		switch name.Name() ***REMOVED***
+		case genid.Any_message_name:
+			return decoder.unmarshalAny
+		case genid.Timestamp_message_name:
+			return decoder.unmarshalTimestamp
+		case genid.Duration_message_name:
+			return decoder.unmarshalDuration
+		case genid.BoolValue_message_name,
+			genid.Int32Value_message_name,
+			genid.Int64Value_message_name,
+			genid.UInt32Value_message_name,
+			genid.UInt64Value_message_name,
+			genid.FloatValue_message_name,
+			genid.DoubleValue_message_name,
+			genid.StringValue_message_name,
+			genid.BytesValue_message_name:
+			return decoder.unmarshalWrapperType
+		case genid.Struct_message_name:
+			return decoder.unmarshalStruct
+		case genid.ListValue_message_name:
+			return decoder.unmarshalListValue
+		case genid.Value_message_name:
+			return decoder.unmarshalKnownValue
+		case genid.FieldMask_message_name:
+			return decoder.unmarshalFieldMask
+		case genid.Empty_message_name:
+			return decoder.unmarshalEmpty
+		***REMOVED***
 	***REMOVED***
+	return nil
 ***REMOVED***
 
 // The JSON representation of an Any message uses the regular representation of
@@ -96,37 +103,29 @@ func (d decoder) unmarshalCustomType(m pref.Message) error ***REMOVED***
 
 func (e encoder) marshalAny(m pref.Message) error ***REMOVED***
 	fds := m.Descriptor().Fields()
-	fdType := fds.ByNumber(fieldnum.Any_TypeUrl)
-	fdValue := fds.ByNumber(fieldnum.Any_Value)
-
-	// Start writing the JSON object.
-	e.StartObject()
-	defer e.EndObject()
+	fdType := fds.ByNumber(genid.Any_TypeUrl_field_number)
+	fdValue := fds.ByNumber(genid.Any_Value_field_number)
 
 	if !m.Has(fdType) ***REMOVED***
 		if !m.Has(fdValue) ***REMOVED***
 			// If message is empty, marshal out empty JSON object.
+			e.StartObject()
+			e.EndObject()
 			return nil
 		***REMOVED*** else ***REMOVED***
 			// Return error if type_url field is not set, but value is set.
-			return errors.New("%s: type_url is not set", m.Descriptor().FullName())
+			return errors.New("%s: %v is not set", genid.Any_message_fullname, genid.Any_TypeUrl_field_name)
 		***REMOVED***
 	***REMOVED***
 
 	typeVal := m.Get(fdType)
 	valueVal := m.Get(fdValue)
 
-	// Marshal out @type field.
-	typeURL := typeVal.String()
-	e.WriteName("@type")
-	if err := e.WriteString(typeURL); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-
 	// Resolve the type in order to unmarshal value field.
+	typeURL := typeVal.String()
 	emt, err := e.opts.Resolver.FindMessageByURL(typeURL)
 	if err != nil ***REMOVED***
-		return errors.New("%s: unable to resolve %q: %v", m.Descriptor().FullName(), typeURL, err)
+		return errors.New("%s: unable to resolve %q: %v", genid.Any_message_fullname, typeURL, err)
 	***REMOVED***
 
 	em := emt.New()
@@ -135,19 +134,28 @@ func (e encoder) marshalAny(m pref.Message) error ***REMOVED***
 		Resolver:     e.opts.Resolver,
 	***REMOVED***.Unmarshal(valueVal.Bytes(), em.Interface())
 	if err != nil ***REMOVED***
-		return errors.New("%s: unable to unmarshal %q: %v", m.Descriptor().FullName(), typeURL, err)
+		return errors.New("%s: unable to unmarshal %q: %v", genid.Any_message_fullname, typeURL, err)
 	***REMOVED***
 
 	// If type of value has custom JSON encoding, marshal out a field "value"
 	// with corresponding custom JSON encoding of the embedded message as a
 	// field.
-	if isCustomType(emt.Descriptor().FullName()) ***REMOVED***
+	if marshal := wellKnownTypeMarshaler(emt.Descriptor().FullName()); marshal != nil ***REMOVED***
+		e.StartObject()
+		defer e.EndObject()
+
+		// Marshal out @type field.
+		e.WriteName("@type")
+		if err := e.WriteString(typeURL); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
 		e.WriteName("value")
-		return e.marshalCustomType(em)
+		return marshal(e, em)
 	***REMOVED***
 
 	// Else, marshal out the embedded message's fields in this Any object.
-	if err := e.marshalFields(em); err != nil ***REMOVED***
+	if err := e.marshalMessage(em, typeURL); err != nil ***REMOVED***
 		return err
 	***REMOVED***
 
@@ -198,10 +206,10 @@ func (d decoder) unmarshalAny(m pref.Message) error ***REMOVED***
 
 	// Create new message for the embedded message type and unmarshal into it.
 	em := emt.New()
-	if isCustomType(emt.Descriptor().FullName()) ***REMOVED***
+	if unmarshal := wellKnownTypeUnmarshaler(emt.Descriptor().FullName()); unmarshal != nil ***REMOVED***
 		// If embedded message is a custom type,
 		// unmarshal the JSON "value" field into it.
-		if err := d.unmarshalAnyValue(em); err != nil ***REMOVED***
+		if err := d.unmarshalAnyValue(unmarshal, em); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -221,8 +229,8 @@ func (d decoder) unmarshalAny(m pref.Message) error ***REMOVED***
 	***REMOVED***
 
 	fds := m.Descriptor().Fields()
-	fdType := fds.ByNumber(fieldnum.Any_TypeUrl)
-	fdValue := fds.ByNumber(fieldnum.Any_Value)
+	fdType := fds.ByNumber(genid.Any_TypeUrl_field_number)
+	fdValue := fds.ByNumber(genid.Any_Value_field_number)
 
 	m.Set(fdType, pref.ValueOfString(typeURL))
 	m.Set(fdValue, pref.ValueOfBytes(b))
@@ -345,7 +353,7 @@ func (d decoder) skipJSONValue() error ***REMOVED***
 
 // unmarshalAnyValue unmarshals the given custom-type message from the JSON
 // object's "value" field.
-func (d decoder) unmarshalAnyValue(m pref.Message) error ***REMOVED***
+func (d decoder) unmarshalAnyValue(unmarshal unmarshalFunc, m pref.Message) error ***REMOVED***
 	// Skip ObjectOpen, and start reading the fields.
 	d.Read()
 
@@ -373,7 +381,7 @@ func (d decoder) unmarshalAnyValue(m pref.Message) error ***REMOVED***
 					return d.newError(tok.Pos(), `duplicate "value" field`)
 				***REMOVED***
 				// Unmarshal the field value into the given message.
-				if err := d.unmarshalCustomType(m); err != nil ***REMOVED***
+				if err := unmarshal(d, m); err != nil ***REMOVED***
 					return err
 				***REMOVED***
 				found = true
@@ -393,17 +401,14 @@ func (d decoder) unmarshalAnyValue(m pref.Message) error ***REMOVED***
 
 // Wrapper types are encoded as JSON primitives like string, number or boolean.
 
-// The "value" field has the same field number for all wrapper types.
-const wrapperFieldNumber = fieldnum.BoolValue_Value
-
 func (e encoder) marshalWrapperType(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(wrapperFieldNumber)
+	fd := m.Descriptor().Fields().ByNumber(genid.WrapperValue_Value_field_number)
 	val := m.Get(fd)
 	return e.marshalSingular(val, fd)
 ***REMOVED***
 
 func (d decoder) unmarshalWrapperType(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(wrapperFieldNumber)
+	fd := m.Descriptor().Fields().ByNumber(genid.WrapperValue_Value_field_number)
 	val, err := d.unmarshalScalar(fd)
 	if err != nil ***REMOVED***
 		return err
@@ -453,42 +458,16 @@ func (d decoder) unmarshalEmpty(pref.Message) error ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (e encoder) marshalStructType(m pref.Message) error ***REMOVED***
-	switch m.Descriptor().Name() ***REMOVED***
-	case "Struct":
-		return e.marshalStruct(m)
-	case "ListValue":
-		return e.marshalListValue(m)
-	case "Value":
-		return e.marshalKnownValue(m)
-	default:
-		panic(fmt.Sprintf("invalid struct type: %v", m.Descriptor().FullName()))
-	***REMOVED***
-***REMOVED***
-
-func (d decoder) unmarshalStructType(m pref.Message) error ***REMOVED***
-	switch m.Descriptor().Name() ***REMOVED***
-	case "Struct":
-		return d.unmarshalStruct(m)
-	case "ListValue":
-		return d.unmarshalListValue(m)
-	case "Value":
-		return d.unmarshalKnownValue(m)
-	default:
-		panic(fmt.Sprintf("invalid struct type: %v", m.Descriptor().FullName()))
-	***REMOVED***
-***REMOVED***
-
 // The JSON representation for Struct is a JSON object that contains the encoded
 // Struct.fields map and follows the serialization rules for a map.
 
 func (e encoder) marshalStruct(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.Struct_Fields)
+	fd := m.Descriptor().Fields().ByNumber(genid.Struct_Fields_field_number)
 	return e.marshalMap(m.Get(fd).Map(), fd)
 ***REMOVED***
 
 func (d decoder) unmarshalStruct(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.Struct_Fields)
+	fd := m.Descriptor().Fields().ByNumber(genid.Struct_Fields_field_number)
 	return d.unmarshalMap(m.Mutable(fd).Map(), fd)
 ***REMOVED***
 
@@ -497,12 +476,12 @@ func (d decoder) unmarshalStruct(m pref.Message) error ***REMOVED***
 // repeated field.
 
 func (e encoder) marshalListValue(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.ListValue_Values)
+	fd := m.Descriptor().Fields().ByNumber(genid.ListValue_Values_field_number)
 	return e.marshalList(m.Get(fd).List(), fd)
 ***REMOVED***
 
 func (d decoder) unmarshalListValue(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.ListValue_Values)
+	fd := m.Descriptor().Fields().ByNumber(genid.ListValue_Values_field_number)
 	return d.unmarshalList(m.Mutable(fd).List(), fd)
 ***REMOVED***
 
@@ -511,10 +490,10 @@ func (d decoder) unmarshalListValue(m pref.Message) error ***REMOVED***
 // Value message needs to be a oneof field set, else it is an error.
 
 func (e encoder) marshalKnownValue(m pref.Message) error ***REMOVED***
-	od := m.Descriptor().Oneofs().ByName("kind")
+	od := m.Descriptor().Oneofs().ByName(genid.Value_Kind_oneof_name)
 	fd := m.WhichOneof(od)
 	if fd == nil ***REMOVED***
-		return errors.New("%s: none of the oneof fields is set", m.Descriptor().FullName())
+		return errors.New("%s: none of the oneof fields is set", genid.Value_message_fullname)
 	***REMOVED***
 	return e.marshalSingular(m.Get(fd), fd)
 ***REMOVED***
@@ -530,7 +509,7 @@ func (d decoder) unmarshalKnownValue(m pref.Message) error ***REMOVED***
 	switch tok.Kind() ***REMOVED***
 	case json.Null:
 		d.Read()
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_NullValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_NullValue_field_number)
 		val = pref.ValueOfEnum(0)
 
 	case json.Bool:
@@ -538,7 +517,7 @@ func (d decoder) unmarshalKnownValue(m pref.Message) error ***REMOVED***
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_BoolValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_BoolValue_field_number)
 		val = pref.ValueOfBool(tok.Bool())
 
 	case json.Number:
@@ -546,11 +525,11 @@ func (d decoder) unmarshalKnownValue(m pref.Message) error ***REMOVED***
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_NumberValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_NumberValue_field_number)
 		var ok bool
 		val, ok = unmarshalFloat(tok, 64)
 		if !ok ***REMOVED***
-			return d.newError(tok.Pos(), "invalid google.protobuf.Value: %v", tok.RawString())
+			return d.newError(tok.Pos(), "invalid %v: %v", genid.Value_message_fullname, tok.RawString())
 		***REMOVED***
 
 	case json.String:
@@ -564,25 +543,25 @@ func (d decoder) unmarshalKnownValue(m pref.Message) error ***REMOVED***
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_StringValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_StringValue_field_number)
 		val = pref.ValueOfString(tok.ParsedString())
 
 	case json.ObjectOpen:
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_StructValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_StructValue_field_number)
 		val = m.NewField(fd)
 		if err := d.unmarshalStruct(val.Message()); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
 	case json.ArrayOpen:
-		fd = m.Descriptor().Fields().ByNumber(fieldnum.Value_ListValue)
+		fd = m.Descriptor().Fields().ByNumber(genid.Value_ListValue_field_number)
 		val = m.NewField(fd)
 		if err := d.unmarshalListValue(val.Message()); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 
 	default:
-		return d.newError(tok.Pos(), "invalid google.protobuf.Value: %v", tok.RawString())
+		return d.newError(tok.Pos(), "invalid %v: %v", genid.Value_message_fullname, tok.RawString())
 	***REMOVED***
 
 	m.Set(fd, val)
@@ -608,21 +587,21 @@ const (
 
 func (e encoder) marshalDuration(m pref.Message) error ***REMOVED***
 	fds := m.Descriptor().Fields()
-	fdSeconds := fds.ByNumber(fieldnum.Duration_Seconds)
-	fdNanos := fds.ByNumber(fieldnum.Duration_Nanos)
+	fdSeconds := fds.ByNumber(genid.Duration_Seconds_field_number)
+	fdNanos := fds.ByNumber(genid.Duration_Nanos_field_number)
 
 	secsVal := m.Get(fdSeconds)
 	nanosVal := m.Get(fdNanos)
 	secs := secsVal.Int()
 	nanos := nanosVal.Int()
 	if secs < -maxSecondsInDuration || secs > maxSecondsInDuration ***REMOVED***
-		return errors.New("%s: seconds out of range %v", m.Descriptor().FullName(), secs)
+		return errors.New("%s: seconds out of range %v", genid.Duration_message_fullname, secs)
 	***REMOVED***
 	if nanos < -secondsInNanos || nanos > secondsInNanos ***REMOVED***
-		return errors.New("%s: nanos out of range %v", m.Descriptor().FullName(), nanos)
+		return errors.New("%s: nanos out of range %v", genid.Duration_message_fullname, nanos)
 	***REMOVED***
 	if (secs > 0 && nanos < 0) || (secs < 0 && nanos > 0) ***REMOVED***
-		return errors.New("%s: signs of seconds and nanos do not match", m.Descriptor().FullName())
+		return errors.New("%s: signs of seconds and nanos do not match", genid.Duration_message_fullname)
 	***REMOVED***
 	// Generated output always contains 0, 3, 6, or 9 fractional digits,
 	// depending on required precision, followed by the suffix "s".
@@ -652,17 +631,17 @@ func (d decoder) unmarshalDuration(m pref.Message) error ***REMOVED***
 
 	secs, nanos, ok := parseDuration(tok.ParsedString())
 	if !ok ***REMOVED***
-		return d.newError(tok.Pos(), "invalid google.protobuf.Duration value %v", tok.RawString())
+		return d.newError(tok.Pos(), "invalid %v value %v", genid.Duration_message_fullname, tok.RawString())
 	***REMOVED***
 	// Validate seconds. No need to validate nanos because parseDuration would
 	// have covered that already.
 	if secs < -maxSecondsInDuration || secs > maxSecondsInDuration ***REMOVED***
-		return d.newError(tok.Pos(), "google.protobuf.Duration value out of range: %v", tok.RawString())
+		return d.newError(tok.Pos(), "%v value out of range: %v", genid.Duration_message_fullname, tok.RawString())
 	***REMOVED***
 
 	fds := m.Descriptor().Fields()
-	fdSeconds := fds.ByNumber(fieldnum.Duration_Seconds)
-	fdNanos := fds.ByNumber(fieldnum.Duration_Nanos)
+	fdSeconds := fds.ByNumber(genid.Duration_Seconds_field_number)
+	fdNanos := fds.ByNumber(genid.Duration_Nanos_field_number)
 
 	m.Set(fdSeconds, pref.ValueOfInt64(secs))
 	m.Set(fdNanos, pref.ValueOfInt32(nanos))
@@ -799,18 +778,18 @@ const (
 
 func (e encoder) marshalTimestamp(m pref.Message) error ***REMOVED***
 	fds := m.Descriptor().Fields()
-	fdSeconds := fds.ByNumber(fieldnum.Timestamp_Seconds)
-	fdNanos := fds.ByNumber(fieldnum.Timestamp_Nanos)
+	fdSeconds := fds.ByNumber(genid.Timestamp_Seconds_field_number)
+	fdNanos := fds.ByNumber(genid.Timestamp_Nanos_field_number)
 
 	secsVal := m.Get(fdSeconds)
 	nanosVal := m.Get(fdNanos)
 	secs := secsVal.Int()
 	nanos := nanosVal.Int()
 	if secs < minTimestampSeconds || secs > maxTimestampSeconds ***REMOVED***
-		return errors.New("%s: seconds out of range %v", m.Descriptor().FullName(), secs)
+		return errors.New("%s: seconds out of range %v", genid.Timestamp_message_fullname, secs)
 	***REMOVED***
 	if nanos < 0 || nanos > secondsInNanos ***REMOVED***
-		return errors.New("%s: nanos out of range %v", m.Descriptor().FullName(), nanos)
+		return errors.New("%s: nanos out of range %v", genid.Timestamp_message_fullname, nanos)
 	***REMOVED***
 	// Uses RFC 3339, where generated output will be Z-normalized and uses 0, 3,
 	// 6 or 9 fractional digits.
@@ -834,18 +813,18 @@ func (d decoder) unmarshalTimestamp(m pref.Message) error ***REMOVED***
 
 	t, err := time.Parse(time.RFC3339Nano, tok.ParsedString())
 	if err != nil ***REMOVED***
-		return d.newError(tok.Pos(), "invalid google.protobuf.Timestamp value %v", tok.RawString())
+		return d.newError(tok.Pos(), "invalid %v value %v", genid.Timestamp_message_fullname, tok.RawString())
 	***REMOVED***
 	// Validate seconds. No need to validate nanos because time.Parse would have
 	// covered that already.
 	secs := t.Unix()
 	if secs < minTimestampSeconds || secs > maxTimestampSeconds ***REMOVED***
-		return d.newError(tok.Pos(), "google.protobuf.Timestamp value out of range: %v", tok.RawString())
+		return d.newError(tok.Pos(), "%v value out of range: %v", genid.Timestamp_message_fullname, tok.RawString())
 	***REMOVED***
 
 	fds := m.Descriptor().Fields()
-	fdSeconds := fds.ByNumber(fieldnum.Timestamp_Seconds)
-	fdNanos := fds.ByNumber(fieldnum.Timestamp_Nanos)
+	fdSeconds := fds.ByNumber(genid.Timestamp_Seconds_field_number)
+	fdNanos := fds.ByNumber(genid.Timestamp_Nanos_field_number)
 
 	m.Set(fdSeconds, pref.ValueOfInt64(secs))
 	m.Set(fdNanos, pref.ValueOfInt32(int32(t.Nanosecond())))
@@ -858,16 +837,19 @@ func (d decoder) unmarshalTimestamp(m pref.Message) error ***REMOVED***
 // end up differently after a round-trip.
 
 func (e encoder) marshalFieldMask(m pref.Message) error ***REMOVED***
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.FieldMask_Paths)
+	fd := m.Descriptor().Fields().ByNumber(genid.FieldMask_Paths_field_number)
 	list := m.Get(fd).List()
 	paths := make([]string, 0, list.Len())
 
 	for i := 0; i < list.Len(); i++ ***REMOVED***
 		s := list.Get(i).String()
+		if !pref.FullName(s).IsValid() ***REMOVED***
+			return errors.New("%s contains invalid path: %q", genid.FieldMask_Paths_field_fullname, s)
+		***REMOVED***
 		// Return error if conversion to camelCase is not reversible.
 		cc := strs.JSONCamelCase(s)
 		if s != strs.JSONSnakeCase(cc) ***REMOVED***
-			return errors.New("%s.paths contains irreversible value %q", m.Descriptor().FullName(), s)
+			return errors.New("%s contains irreversible value %q", genid.FieldMask_Paths_field_fullname, s)
 		***REMOVED***
 		paths = append(paths, cc)
 	***REMOVED***
@@ -890,14 +872,15 @@ func (d decoder) unmarshalFieldMask(m pref.Message) error ***REMOVED***
 	***REMOVED***
 	paths := strings.Split(str, ",")
 
-	fd := m.Descriptor().Fields().ByNumber(fieldnum.FieldMask_Paths)
+	fd := m.Descriptor().Fields().ByNumber(genid.FieldMask_Paths_field_number)
 	list := m.Mutable(fd).List()
 
-	for _, s := range paths ***REMOVED***
-		s = strings.TrimSpace(s)
-		// Convert to snake_case. Unlike encoding, no validation is done because
-		// it is not possible to know the original path names.
-		list.Append(pref.ValueOfString(strs.JSONSnakeCase(s)))
+	for _, s0 := range paths ***REMOVED***
+		s := strs.JSONSnakeCase(s0)
+		if strings.Contains(s0, "_") || !pref.FullName(s).IsValid() ***REMOVED***
+			return d.newError(tok.Pos(), "%v contains invalid path: %q", genid.FieldMask_Paths_field_fullname, s0)
+		***REMOVED***
+		list.Append(pref.ValueOfString(s))
 	***REMOVED***
 	return nil
 ***REMOVED***

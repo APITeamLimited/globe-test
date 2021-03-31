@@ -12,9 +12,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"google.golang.org/protobuf/internal/genname"
+	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	pref "google.golang.org/protobuf/reflect/protoreflect"
+	preg "google.golang.org/protobuf/reflect/protoregistry"
 )
 
 // MessageInfo provides protobuf related functionality for a given Go type
@@ -109,22 +110,29 @@ func (mi *MessageInfo) getPointer(m pref.Message) (p pointer, ok bool) ***REMOVE
 type (
 	SizeCache       = int32
 	WeakFields      = map[int32]protoreflect.ProtoMessage
-	UnknownFields   = []byte
+	UnknownFields   = unknownFieldsA // TODO: switch to unknownFieldsB
+	unknownFieldsA  = []byte
+	unknownFieldsB  = *[]byte
 	ExtensionFields = map[int32]ExtensionField
 )
 
 var (
 	sizecacheType       = reflect.TypeOf(SizeCache(0))
 	weakFieldsType      = reflect.TypeOf(WeakFields(nil))
-	unknownFieldsType   = reflect.TypeOf(UnknownFields(nil))
+	unknownFieldsAType  = reflect.TypeOf(unknownFieldsA(nil))
+	unknownFieldsBType  = reflect.TypeOf(unknownFieldsB(nil))
 	extensionFieldsType = reflect.TypeOf(ExtensionFields(nil))
 )
 
 type structInfo struct ***REMOVED***
 	sizecacheOffset offset
+	sizecacheType   reflect.Type
 	weakOffset      offset
+	weakType        reflect.Type
 	unknownOffset   offset
+	unknownType     reflect.Type
 	extensionOffset offset
+	extensionType   reflect.Type
 
 	fieldsByNumber        map[pref.FieldNumber]reflect.StructField
 	oneofsByName          map[pref.Name]reflect.StructField
@@ -148,21 +156,25 @@ func (mi *MessageInfo) makeStructInfo(t reflect.Type) structInfo ***REMOVED***
 fieldLoop:
 	for i := 0; i < t.NumField(); i++ ***REMOVED***
 		switch f := t.Field(i); f.Name ***REMOVED***
-		case genname.SizeCache, genname.SizeCacheA:
+		case genid.SizeCache_goname, genid.SizeCacheA_goname:
 			if f.Type == sizecacheType ***REMOVED***
 				si.sizecacheOffset = offsetOf(f, mi.Exporter)
+				si.sizecacheType = f.Type
 			***REMOVED***
-		case genname.WeakFields, genname.WeakFieldsA:
+		case genid.WeakFields_goname, genid.WeakFieldsA_goname:
 			if f.Type == weakFieldsType ***REMOVED***
 				si.weakOffset = offsetOf(f, mi.Exporter)
+				si.weakType = f.Type
 			***REMOVED***
-		case genname.UnknownFields, genname.UnknownFieldsA:
-			if f.Type == unknownFieldsType ***REMOVED***
+		case genid.UnknownFields_goname, genid.UnknownFieldsA_goname:
+			if f.Type == unknownFieldsAType || f.Type == unknownFieldsBType ***REMOVED***
 				si.unknownOffset = offsetOf(f, mi.Exporter)
+				si.unknownType = f.Type
 			***REMOVED***
-		case genname.ExtensionFields, genname.ExtensionFieldsA, genname.ExtensionFieldsB:
+		case genid.ExtensionFields_goname, genid.ExtensionFieldsA_goname, genid.ExtensionFieldsB_goname:
 			if f.Type == extensionFieldsType ***REMOVED***
 				si.extensionOffset = offsetOf(f, mi.Exporter)
+				si.extensionType = f.Type
 			***REMOVED***
 		default:
 			for _, s := range strings.Split(f.Tag.Get("protobuf"), ",") ***REMOVED***
@@ -212,4 +224,53 @@ func (mi *MessageInfo) New() protoreflect.Message ***REMOVED***
 func (mi *MessageInfo) Zero() protoreflect.Message ***REMOVED***
 	return mi.MessageOf(reflect.Zero(mi.GoReflectType).Interface())
 ***REMOVED***
-func (mi *MessageInfo) Descriptor() protoreflect.MessageDescriptor ***REMOVED*** return mi.Desc ***REMOVED***
+func (mi *MessageInfo) Descriptor() protoreflect.MessageDescriptor ***REMOVED***
+	return mi.Desc
+***REMOVED***
+func (mi *MessageInfo) Enum(i int) protoreflect.EnumType ***REMOVED***
+	mi.init()
+	fd := mi.Desc.Fields().Get(i)
+	return Export***REMOVED******REMOVED***.EnumTypeOf(mi.fieldTypes[fd.Number()])
+***REMOVED***
+func (mi *MessageInfo) Message(i int) protoreflect.MessageType ***REMOVED***
+	mi.init()
+	fd := mi.Desc.Fields().Get(i)
+	switch ***REMOVED***
+	case fd.IsWeak():
+		mt, _ := preg.GlobalTypes.FindMessageByName(fd.Message().FullName())
+		return mt
+	case fd.IsMap():
+		return mapEntryType***REMOVED***fd.Message(), mi.fieldTypes[fd.Number()]***REMOVED***
+	default:
+		return Export***REMOVED******REMOVED***.MessageTypeOf(mi.fieldTypes[fd.Number()])
+	***REMOVED***
+***REMOVED***
+
+type mapEntryType struct ***REMOVED***
+	desc    protoreflect.MessageDescriptor
+	valType interface***REMOVED******REMOVED*** // zero value of enum or message type
+***REMOVED***
+
+func (mt mapEntryType) New() protoreflect.Message ***REMOVED***
+	return nil
+***REMOVED***
+func (mt mapEntryType) Zero() protoreflect.Message ***REMOVED***
+	return nil
+***REMOVED***
+func (mt mapEntryType) Descriptor() protoreflect.MessageDescriptor ***REMOVED***
+	return mt.desc
+***REMOVED***
+func (mt mapEntryType) Enum(i int) protoreflect.EnumType ***REMOVED***
+	fd := mt.desc.Fields().Get(i)
+	if fd.Enum() == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	return Export***REMOVED******REMOVED***.EnumTypeOf(mt.valType)
+***REMOVED***
+func (mt mapEntryType) Message(i int) protoreflect.MessageType ***REMOVED***
+	fd := mt.desc.Fields().Get(i)
+	if fd.Message() == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	return Export***REMOVED******REMOVED***.MessageTypeOf(mt.valType)
+***REMOVED***

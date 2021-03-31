@@ -100,7 +100,7 @@ func (c *componentData) Fatalln(args ...interface***REMOVED******REMOVED***) ***
 ***REMOVED***
 
 func (c *componentData) V(l int) bool ***REMOVED***
-	return grpclog.Logger.V(l)
+	return V(l)
 ***REMOVED***
 
 // Component creates a new component and returns it for logging. If a component

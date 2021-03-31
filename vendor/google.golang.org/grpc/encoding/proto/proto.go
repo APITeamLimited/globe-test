@@ -21,8 +21,7 @@
 package proto
 
 import (
-	"math"
-	"sync"
+	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/encoding"
@@ -38,73 +37,22 @@ func init() ***REMOVED***
 // codec is a Codec implementation with protobuf. It is the default codec for gRPC.
 type codec struct***REMOVED******REMOVED***
 
-type cachedProtoBuffer struct ***REMOVED***
-	lastMarshaledSize uint32
-	proto.Buffer
-***REMOVED***
-
-func capToMaxInt32(val int) uint32 ***REMOVED***
-	if val > math.MaxInt32 ***REMOVED***
-		return uint32(math.MaxInt32)
-	***REMOVED***
-	return uint32(val)
-***REMOVED***
-
-func marshal(v interface***REMOVED******REMOVED***, cb *cachedProtoBuffer) ([]byte, error) ***REMOVED***
-	protoMsg := v.(proto.Message)
-	newSlice := make([]byte, 0, cb.lastMarshaledSize)
-
-	cb.SetBuf(newSlice)
-	cb.Reset()
-	if err := cb.Marshal(protoMsg); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	out := cb.Bytes()
-	cb.lastMarshaledSize = capToMaxInt32(len(out))
-	return out, nil
-***REMOVED***
-
 func (codec) Marshal(v interface***REMOVED******REMOVED***) ([]byte, error) ***REMOVED***
-	if pm, ok := v.(proto.Marshaler); ok ***REMOVED***
-		// object can marshal itself, no need for buffer
-		return pm.Marshal()
+	vv, ok := v.(proto.Message)
+	if !ok ***REMOVED***
+		return nil, fmt.Errorf("failed to marshal, message is %T, want proto.Message", v)
 	***REMOVED***
-
-	cb := protoBufferPool.Get().(*cachedProtoBuffer)
-	out, err := marshal(v, cb)
-
-	// put back buffer and lose the ref to the slice
-	cb.SetBuf(nil)
-	protoBufferPool.Put(cb)
-	return out, err
+	return proto.Marshal(vv)
 ***REMOVED***
 
 func (codec) Unmarshal(data []byte, v interface***REMOVED******REMOVED***) error ***REMOVED***
-	protoMsg := v.(proto.Message)
-	protoMsg.Reset()
-
-	if pu, ok := protoMsg.(proto.Unmarshaler); ok ***REMOVED***
-		// object can unmarshal itself, no need for buffer
-		return pu.Unmarshal(data)
+	vv, ok := v.(proto.Message)
+	if !ok ***REMOVED***
+		return fmt.Errorf("failed to unmarshal, message is %T, want proto.Message", v)
 	***REMOVED***
-
-	cb := protoBufferPool.Get().(*cachedProtoBuffer)
-	cb.SetBuf(data)
-	err := cb.Unmarshal(protoMsg)
-	cb.SetBuf(nil)
-	protoBufferPool.Put(cb)
-	return err
+	return proto.Unmarshal(data, vv)
 ***REMOVED***
 
 func (codec) Name() string ***REMOVED***
 	return Name
-***REMOVED***
-
-var protoBufferPool = &sync.Pool***REMOVED***
-	New: func() interface***REMOVED******REMOVED*** ***REMOVED***
-		return &cachedProtoBuffer***REMOVED***
-			Buffer:            proto.Buffer***REMOVED******REMOVED***,
-			lastMarshaledSize: 16,
-		***REMOVED***
-	***REMOVED***,
 ***REMOVED***

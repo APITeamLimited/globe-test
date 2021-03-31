@@ -30,7 +30,7 @@ func (Export) LegacyMessageTypeOf(m piface.MessageV1, name pref.FullName) pref.M
 	if mv := (Export***REMOVED******REMOVED***).protoMessageV2Of(m); mv != nil ***REMOVED***
 		return mv.ProtoReflect().Type()
 	***REMOVED***
-	return legacyLoadMessageInfo(reflect.TypeOf(m), name)
+	return legacyLoadMessageType(reflect.TypeOf(m), name)
 ***REMOVED***
 
 // UnmarshalJSONEnum unmarshals an enum from a JSON-encoded input.

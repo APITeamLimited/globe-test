@@ -31,7 +31,7 @@ func Info(l grpclog.DepthLoggerV2, id int64, args ...interface***REMOVED******RE
 	if IsOn() ***REMOVED***
 		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
 			Desc:     fmt.Sprint(args...),
-			Severity: CtINFO,
+			Severity: CtInfo,
 		***REMOVED***)
 	***REMOVED*** else ***REMOVED***
 		l.InfoDepth(1, args...)
@@ -44,7 +44,7 @@ func Infof(l grpclog.DepthLoggerV2, id int64, format string, args ...interface**
 	if IsOn() ***REMOVED***
 		AddTraceEvent(l, id, 1, &TraceEventDesc***REMOVED***
 			Desc:     msg,
-			Severity: CtINFO,
+			Severity: CtInfo,
 		***REMOVED***)
 	***REMOVED*** else ***REMOVED***
 		l.InfoDepth(1, msg)
