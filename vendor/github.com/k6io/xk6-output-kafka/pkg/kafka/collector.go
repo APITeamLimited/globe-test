@@ -21,7 +21,6 @@
 package kafka
 
 import (
-	"context"
 	"encoding/json"
 	"sync"
 	"time"
@@ -29,9 +28,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/sirupsen/logrus"
 
-	jsono "github.com/loadimpact/k6/output/json"
+	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/stats"
-	"github.com/loadimpact/k6/stats/influxdb"
 )
 
 // Collector implements the lib.Collector interface and should be used only for testing
@@ -40,12 +38,19 @@ type Collector struct ***REMOVED***
 	Config   Config
 
 	Samples []stats.Sample
+	done    chan struct***REMOVED******REMOVED***
 	logger  logrus.FieldLogger
 	lock    sync.Mutex
 ***REMOVED***
 
+var _ output.Output = new(Collector)
+
 // New creates an instance of the collector
-func New(logger logrus.FieldLogger, conf Config) (*Collector, error) ***REMOVED***
+func New(p output.Params) (*Collector, error) ***REMOVED***
+	conf, err := GetConsolidatedConfig(p.JSONConfig, p.Environment, p.ConfigArgument)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 	producer, err := sarama.NewSyncProducer(conf.Brokers, nil)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -54,40 +59,51 @@ func New(logger logrus.FieldLogger, conf Config) (*Collector, error) ***REMOVED*
 	return &Collector***REMOVED***
 		Producer: producer,
 		Config:   conf,
-		logger:   logger,
+		logger:   p.Logger,
+		done:     make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***, nil
 ***REMOVED***
 
-// Init does nothing, it's only included to satisfy the lib.Collector interface
-func (c *Collector) Init() error ***REMOVED*** return nil ***REMOVED***
-
-// Run just blocks until the context is done
-func (c *Collector) Run(ctx context.Context) ***REMOVED***
-	c.logger.Debug("Kafka: Running!")
-	ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
-	for ***REMOVED***
-		select ***REMOVED***
-		case <-ticker.C:
-			c.pushMetrics()
-		case <-ctx.Done():
-			c.pushMetrics()
-
-			err := c.Producer.Close()
-			if err != nil ***REMOVED***
-				c.logger.WithError(err).Error("Kafka: Failed to close producer.")
-			***REMOVED***
-			return
-		***REMOVED***
-	***REMOVED***
+func (c *Collector) Description() string ***REMOVED***
+	return "kafka: TODO"
 ***REMOVED***
 
-// Collect just appends all of the samples passed to it to the internal sample slice.
+func (c *Collector) Stop() error ***REMOVED***
+	c.done <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	<-c.done
+	return nil
+***REMOVED***
+
+func (c *Collector) Start() error ***REMOVED***
+	c.logger.Debug("Kafka: starting!")
+	go func() ***REMOVED***
+		ticker := time.NewTicker(time.Duration(c.Config.PushInterval.Duration))
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-ticker.C:
+				c.pushMetrics()
+			case <-c.done:
+				c.pushMetrics()
+
+				err := c.Producer.Close()
+				if err != nil ***REMOVED***
+					c.logger.WithError(err).Error("Kafka: Failed to close producer.")
+				***REMOVED***
+				close(c.done)
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***()
+	return nil
+***REMOVED***
+
+// AddMetricSamples just appends all of the samples passed to it to the internal sample slice.
 // According to the the lib.Collector interface, it should never be called concurrently,
 // so there's no locking on purpose - that way Go's race condition detector can actually
 // detect incorrect usage.
 // Also, theoretically the collector doesn't have to actually Run() before samples start
 // being collected, it only has to be initialized.
-func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
+func (c *Collector) AddMetricSamples(scs []stats.SampleContainer) ***REMOVED***
 	c.lock.Lock()
 	for _, sc := range scs ***REMOVED***
 		c.Samples = append(c.Samples, sc.GetSamples()...)
@@ -95,29 +111,23 @@ func (c *Collector) Collect(scs []stats.SampleContainer) ***REMOVED***
 	c.lock.Unlock()
 ***REMOVED***
 
-// Link returns a dummy string, it's only included to satisfy the lib.Collector interface
-func (c *Collector) Link() string ***REMOVED***
-	return ""
-***REMOVED***
-
 func (c *Collector) formatSamples(samples stats.Samples) ([]string, error) ***REMOVED***
 	var metrics []string
 
 	switch c.Config.Format.String ***REMOVED***
 	case "influxdb":
-		i, err := influxdb.New(c.logger, c.Config.InfluxDBConfig)
+		var err error
+		fieldKinds, err := makeInfluxdbFieldKinds(c.Config.InfluxDBConfig.TagsAsFields)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-
-		metrics, err = i.Format(samples)
+		metrics, err = formatAsInfluxdbV1(c.logger, samples, newExtractTagsFields(fieldKinds))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 	default:
 		for _, sample := range samples ***REMOVED***
-			env := jsono.WrapSample(sample)
-			metric, err := json.Marshal(env)
+			metric, err := json.Marshal(wrapSample(sample))
 			if err != nil ***REMOVED***
 				return nil, err
 			***REMOVED***

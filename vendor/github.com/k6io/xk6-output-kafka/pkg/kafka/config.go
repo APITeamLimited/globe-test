@@ -30,7 +30,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats/influxdb"
 )
 
 // Config is the config for the kafka collector
@@ -43,7 +42,7 @@ type Config struct ***REMOVED***
 	Format       null.String        `json:"format" envconfig:"K6_KAFKA_FORMAT"`
 	PushInterval types.NullDuration `json:"push_interval" envconfig:"K6_KAFKA_PUSH_INTERVAL"`
 
-	InfluxDBConfig influxdb.Config `json:"influxdb"`
+	InfluxDBConfig influxdbConfig `json:"influxdb"`
 ***REMOVED***
 
 // config is a duplicate of ConfigFields as we can not mapstructure.Decode into
@@ -54,7 +53,7 @@ type config struct ***REMOVED***
 	Format       string   `json:"format" mapstructure:"format" envconfig:"K6_KAFKA_FORMAT"`
 	PushInterval string   `json:"push_interval" mapstructure:"push_interval" envconfig:"K6_KAFKA_PUSH_INTERVAL"`
 
-	InfluxDBConfig influxdb.Config `json:"influxdb" mapstructure:"influxdb"`
+	InfluxDBConfig influxdbConfig `json:"influxdb" mapstructure:"influxdb"`
 ***REMOVED***
 
 // NewConfig creates a new Config instance with default values for some fields.
@@ -62,7 +61,7 @@ func NewConfig() Config ***REMOVED***
 	return Config***REMOVED***
 		Format:         null.StringFrom("json"),
 		PushInterval:   types.NullDurationFrom(1 * time.Second),
-		InfluxDBConfig: influxdb.NewConfig(),
+		InfluxDBConfig: newInfluxdbConfig(),
 	***REMOVED***
 ***REMOVED***
 
@@ -96,7 +95,7 @@ func ParseArg(arg string) (Config, error) ***REMOVED***
 	***REMOVED***
 
 	if v, ok := params["influxdb"].(map[string]interface***REMOVED******REMOVED***); ok ***REMOVED***
-		influxConfig, err := influxdb.ParseMap(v)
+		influxConfig, err := influxdbParseMap(v)
 		if err != nil ***REMOVED***
 			return c, err
 		***REMOVED***
