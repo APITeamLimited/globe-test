@@ -175,18 +175,6 @@ func TestSession(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 
-	t.Run("send_err", func(t *testing.T) ***REMOVED***
-		_, err := rt.RunString(sr(`
-		var res = ws.connect("WSBIN_URL/ws-echo", function(socket)***REMOVED***
-			socket.on("open", function() ***REMOVED***
-				socket.send(1);
-			***REMOVED***)
-		***REMOVED***);
-		`))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unsupported message type: int64, expected string or ArrayBuffer")
-	***REMOVED***)
-
 	samplesBuf := stats.GetBufferedSamples(samples)
 	assertSessionMetricsEmitted(t, samplesBuf, "", sr("WSBIN_URL/ws-echo"), 101, "")
 	assertMetricEmitted(t, metrics.WSMessagesSent, samplesBuf, sr("WSBIN_URL/ws-echo"))
@@ -397,7 +385,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
 			var data = new Uint8Array([104, 101, 108, 108, 111]); // 'hello'
 			socket.on('open', function() ***REMOVED***
-				socket.send(data.buffer);
+				socket.sendBinary(data.buffer);
 			***REMOVED***)
 			socket.on('message', function (msg, msgBin)***REMOVED***
 				if (msg !== 'hello') ***REMOVED***
