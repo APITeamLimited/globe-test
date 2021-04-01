@@ -382,15 +382,21 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	_, err = rt.RunString(sr(`
+		var gotMsg = false, gotBinMsg = false;
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
 			var data = new Uint8Array([104, 101, 108, 108, 111]); // 'hello'
+
 			socket.on('open', function() ***REMOVED***
 				socket.sendBinary(data.buffer);
 			***REMOVED***)
-			socket.on('message', function (msg, msgBin)***REMOVED***
+			socket.on('message', function(msg) ***REMOVED***
+				gotMsg = true;
 				if (msg !== 'hello') ***REMOVED***
 					throw new Error('received unexpected message: ' + msg);
 				***REMOVED***
+			***REMOVED***);
+			socket.on('binaryMessage', function(msgBin) ***REMOVED***
+				gotBinMsg = true;
 				let decText = String.fromCharCode.apply(null, new Uint8Array(msgBin));
 				decText = decodeURIComponent(escape(decText));
 				if (decText !== 'hello') ***REMOVED***
@@ -399,6 +405,12 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 				socket.close()
 			***REMOVED***);
 		***REMOVED***);
+		if (!gotMsg) ***REMOVED***
+			throw new Error("the 'message' handler wasn't called")
+		***REMOVED***
+		if (!gotBinMsg) ***REMOVED***
+			throw new Error("the 'binaryMessage' handler wasn't called")
+		***REMOVED***
 		`))
 	assert.NoError(t, err)
 ***REMOVED***
