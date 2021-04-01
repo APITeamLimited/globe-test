@@ -38,6 +38,26 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 )
 
+func TestRampingVUsConfigValidation(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	errs := NewRampingVUsConfig("default").Validate()
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0].Error(), "one stage has to be specified")
+
+	c := NewRampingVUsConfig("stage")
+	c.Stages = []Stage***REMOVED***
+		***REMOVED***Target: null.IntFrom(0), Duration: types.NullDurationFrom(12 * time.Second)***REMOVED***,
+	***REMOVED***
+	errs = c.Validate()
+	require.Empty(t, errs) // by default StartVUs is 1
+
+	c.StartVUs = null.IntFrom(0)
+	errs = c.Validate()
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0].Error(), "greater than 0")
+***REMOVED***
+
 func TestRampingVUsRun(t *testing.T) ***REMOVED***
 	t.Parallel()
 

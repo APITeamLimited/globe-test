@@ -201,7 +201,7 @@ var configMapTestCases = []configMapTestCase***REMOVED***
 			assert.Equal(t, uint64(11), lib.GetMaxPossibleVUs(schedReqs))
 		***REMOVED******REMOVED***,
 	***REMOVED***,
-	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 0, "stages": [***REMOVED***"duration": "60s", "target": 0***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED******REMOVED******REMOVED***,
+	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 0, "stages": [***REMOVED***"duration": "60s", "target": 0***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": -1, "stages": [***REMOVED***"duration": "60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 2, "stages": [***REMOVED***"duration": "-60s", "target": 30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
 	***REMOVED***`***REMOVED***"varloops": ***REMOVED***"executor": "ramping-vus", "startVUs": 2, "stages": [***REMOVED***"duration": "60s", "target": -30***REMOVED***]***REMOVED******REMOVED***`, exp***REMOVED***validationError: true***REMOVED******REMOVED***,
