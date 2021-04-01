@@ -4,19 +4,33 @@
 package zstd
 
 import (
+	"bytes"
 	"errors"
 	"log"
+	"math"
 	"math/bits"
 )
 
+// enable debug printing
 const debug = false
+
+// Enable extra assertions.
+const debugAsserts = debug || false
+
+// print sequence details
 const debugSequences = false
+
+// print detailed matching information
+const debugMatches = false
 
 // force encoder to use predefined tables.
 const forcePreDef = false
 
 // zstdMinMatch is the minimum zstd match length.
 const zstdMinMatch = 3
+
+// Reset the buffer offset when reaching this.
+const bufferReset = math.MaxInt32 - MaxWindowSize
 
 var (
 	// ErrReservedBlockType is returned when a reserved block type is found.
@@ -60,6 +74,10 @@ var (
 	// ErrDecoderClosed will be returned if the Decoder was used after
 	// Close has been called.
 	ErrDecoderClosed = errors.New("decoder used after Close")
+
+	// ErrDecoderNilInput is returned when a nil Reader was provided
+	// and an operation other than Reset/DecodeAll/Close was attempted.
+	ErrDecoderNilInput = errors.New("nil input provided as reader")
 )
 
 func println(a ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -74,6 +92,17 @@ func printf(format string, a ...interface***REMOVED******REMOVED***) ***REMOVED*
 	***REMOVED***
 ***REMOVED***
 
+// matchLenFast does matching, but will not match the last up to 7 bytes.
+func matchLenFast(a, b []byte) int ***REMOVED***
+	endI := len(a) & (math.MaxInt32 - 7)
+	for i := 0; i < endI; i += 8 ***REMOVED***
+		if diff := load64(a, i) ^ load64(b, i); diff != 0 ***REMOVED***
+			return i + bits.TrailingZeros64(diff)>>3
+		***REMOVED***
+	***REMOVED***
+	return endI
+***REMOVED***
+
 // matchLen returns the maximum length.
 // a must be the shortest of the two.
 // The function also returns whether all bytes matched.
@@ -84,31 +113,16 @@ func matchLen(a, b []byte) int ***REMOVED***
 			return i + (bits.TrailingZeros64(diff) >> 3)
 		***REMOVED***
 	***REMOVED***
+
 	checked := (len(a) >> 3) << 3
 	a = a[checked:]
 	b = b[checked:]
-	// TODO: We could do a 4 check.
 	for i := range a ***REMOVED***
 		if a[i] != b[i] ***REMOVED***
-			return int(i) + checked
+			return i + checked
 		***REMOVED***
 	***REMOVED***
 	return len(a) + checked
-***REMOVED***
-
-// matchLen returns a match length in src between index s and t
-func matchLenIn(src []byte, s, t int32) int32 ***REMOVED***
-	s1 := len(src)
-	b := src[t:]
-	a := src[s:s1]
-	b = b[:len(a)]
-	// Extend the match to be as long as possible.
-	for i := range a ***REMOVED***
-		if a[i] != b[i] ***REMOVED***
-			return int32(i)
-		***REMOVED***
-	***REMOVED***
-	return int32(len(a))
 ***REMOVED***
 
 func load3232(b []byte, i int32) uint32 ***REMOVED***
@@ -133,3 +147,10 @@ func load64(b []byte, i int) uint64 ***REMOVED***
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 ***REMOVED***
+
+type byter interface ***REMOVED***
+	Bytes() []byte
+	Len() int
+***REMOVED***
+
+var _ byter = &bytes.Buffer***REMOVED******REMOVED***

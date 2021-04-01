@@ -5,6 +5,7 @@
 package zstd
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"math/bits"
@@ -34,8 +35,12 @@ func (b *bitReader) init(in []byte) error ***REMOVED***
 	***REMOVED***
 	b.bitsRead = 64
 	b.value = 0
-	b.fill()
-	b.fill()
+	if len(in) >= 8 ***REMOVED***
+		b.fillFastStart()
+	***REMOVED*** else ***REMOVED***
+		b.fill()
+		b.fill()
+	***REMOVED***
 	b.bitsRead += 8 - uint8(highBits(uint32(v)))
 	return nil
 ***REMOVED***
@@ -63,12 +68,21 @@ func (b *bitReader) fillFast() ***REMOVED***
 	if b.bitsRead < 32 ***REMOVED***
 		return
 	***REMOVED***
-	// Do single re-slice to avoid bounds checks.
-	v := b.in[b.off-4 : b.off]
+	// 2 bounds checks.
+	v := b.in[b.off-4:]
+	v = v[:4]
 	low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
 	b.value = (b.value << 32) | uint64(low)
 	b.bitsRead -= 32
 	b.off -= 4
+***REMOVED***
+
+// fillFastStart() assumes the bitreader is empty and there is at least 8 bytes to read.
+func (b *bitReader) fillFastStart() ***REMOVED***
+	// Do single re-slice to avoid bounds checks.
+	b.value = binary.LittleEndian.Uint64(b.in[b.off-8:])
+	b.bitsRead = 0
+	b.off -= 8
 ***REMOVED***
 
 // fill() will make sure at least 32 bits are available.
@@ -77,7 +91,8 @@ func (b *bitReader) fill() ***REMOVED***
 		return
 	***REMOVED***
 	if b.off >= 4 ***REMOVED***
-		v := b.in[b.off-4 : b.off]
+		v := b.in[b.off-4:]
+		v = v[:4]
 		low := (uint32(v[0])) | (uint32(v[1]) << 8) | (uint32(v[2]) << 16) | (uint32(v[3]) << 24)
 		b.value = (b.value << 32) | uint64(low)
 		b.bitsRead -= 32

@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// LogFunction For big messages, it can be more efficient to pass a function
+// and only call it if the log level is actually enables rather than
+// generating the log message and then checking if the level is enabled
+type LogFunction func() []interface***REMOVED******REMOVED***
+
 type Logger struct ***REMOVED***
 	// The logs are `io.Copy`'d to this in a mutex. It's common to set this to a
 	// file, or leave it default which is `os.Stderr`. You can also set this to
@@ -70,7 +75,7 @@ func (mw *MutexWrap) Disable() ***REMOVED***
 //
 //    var log = &logrus.Logger***REMOVED***
 //      Out: os.Stderr,
-//      Formatter: new(logrus.JSONFormatter),
+//      Formatter: new(logrus.TextFormatter),
 //      Hooks: make(logrus.LevelHooks),
 //      Level: logrus.DebugLevel,
 //    ***REMOVED***
@@ -195,6 +200,14 @@ func (logger *Logger) Log(level Level, args ...interface***REMOVED******REMOVED*
 	***REMOVED***
 ***REMOVED***
 
+func (logger *Logger) LogFn(level Level, fn LogFunction) ***REMOVED***
+	if logger.IsLevelEnabled(level) ***REMOVED***
+		entry := logger.newEntry()
+		entry.Log(level, fn()...)
+		logger.releaseEntry(entry)
+	***REMOVED***
+***REMOVED***
+
 func (logger *Logger) Trace(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	logger.Log(TraceLevel, args...)
 ***REMOVED***
@@ -232,6 +245,45 @@ func (logger *Logger) Fatal(args ...interface***REMOVED******REMOVED***) ***REMO
 
 func (logger *Logger) Panic(args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	logger.Log(PanicLevel, args...)
+***REMOVED***
+
+func (logger *Logger) TraceFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(TraceLevel, fn)
+***REMOVED***
+
+func (logger *Logger) DebugFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(DebugLevel, fn)
+***REMOVED***
+
+func (logger *Logger) InfoFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(InfoLevel, fn)
+***REMOVED***
+
+func (logger *Logger) PrintFn(fn LogFunction) ***REMOVED***
+	entry := logger.newEntry()
+	entry.Print(fn()...)
+	logger.releaseEntry(entry)
+***REMOVED***
+
+func (logger *Logger) WarnFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(WarnLevel, fn)
+***REMOVED***
+
+func (logger *Logger) WarningFn(fn LogFunction) ***REMOVED***
+	logger.WarnFn(fn)
+***REMOVED***
+
+func (logger *Logger) ErrorFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(ErrorLevel, fn)
+***REMOVED***
+
+func (logger *Logger) FatalFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(FatalLevel, fn)
+	logger.Exit(1)
+***REMOVED***
+
+func (logger *Logger) PanicFn(fn LogFunction) ***REMOVED***
+	logger.LogFn(PanicLevel, fn)
 ***REMOVED***
 
 func (logger *Logger) Logln(level Level, args ...interface***REMOVED******REMOVED***) ***REMOVED***

@@ -170,7 +170,7 @@ func (a *Assertions) EqualValues(expected interface***REMOVED******REMOVED***, a
 // EqualValuesf asserts that two objects are equal or convertable to the same types
 // and equal.
 //
-//    a.EqualValuesf(uint32(123, "error message %s", "formatted"), int32(123))
+//    a.EqualValuesf(uint32(123), int32(123), "error message %s", "formatted")
 func (a *Assertions) EqualValuesf(expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -203,6 +203,42 @@ func (a *Assertions) Error(err error, msgAndArgs ...interface***REMOVED******REM
 		h.Helper()
 	***REMOVED***
 	Error(a.t, err, msgAndArgs...)
+***REMOVED***
+
+// ErrorAs asserts that at least one of the errors in err's chain matches target, and if so, sets target to that error value.
+// This is a wrapper for errors.As.
+func (a *Assertions) ErrorAs(err error, target interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	ErrorAs(a.t, err, target, msgAndArgs...)
+***REMOVED***
+
+// ErrorAsf asserts that at least one of the errors in err's chain matches target, and if so, sets target to that error value.
+// This is a wrapper for errors.As.
+func (a *Assertions) ErrorAsf(err error, target interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	ErrorAsf(a.t, err, target, msg, args...)
+***REMOVED***
+
+// ErrorIs asserts that at least one of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func (a *Assertions) ErrorIs(err error, target error, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	ErrorIs(a.t, err, target, msgAndArgs...)
+***REMOVED***
+
+// ErrorIsf asserts that at least one of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func (a *Assertions) ErrorIsf(err error, target error, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	ErrorIsf(a.t, err, target, msg, args...)
 ***REMOVED***
 
 // Errorf asserts that a function returned an error (i.e. not `nil`).
@@ -252,7 +288,7 @@ func (a *Assertions) Exactly(expected interface***REMOVED******REMOVED***, actua
 
 // Exactlyf asserts that two objects are equal in value and type.
 //
-//    a.Exactlyf(int32(123, "error message %s", "formatted"), int64(123))
+//    a.Exactlyf(int32(123), int64(123), "error message %s", "formatted")
 func (a *Assertions) Exactlyf(expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -371,7 +407,7 @@ func (a *Assertions) GreaterOrEqualf(e1 interface***REMOVED******REMOVED***, e2 
 // Greaterf asserts that the first element is greater than the second
 //
 //    a.Greaterf(2, 1, "error message %s", "formatted")
-//    a.Greaterf(float64(2, "error message %s", "formatted"), float64(1))
+//    a.Greaterf(float64(2), float64(1), "error message %s", "formatted")
 //    a.Greaterf("b", "a", "error message %s", "formatted")
 func (a *Assertions) Greaterf(e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
@@ -448,7 +484,7 @@ func (a *Assertions) HTTPError(handler http.HandlerFunc, method string, url stri
 //
 //  a.HTTPErrorf(myHandler, "POST", "/a/b/c", url.Values***REMOVED***"a": []string***REMOVED***"b", "c"***REMOVED******REMOVED***
 //
-// Returns whether the assertion was successful (true, "error message %s", "formatted") or not (false).
+// Returns whether the assertion was successful (true) or not (false).
 func (a *Assertions) HTTPErrorf(handler http.HandlerFunc, method string, url string, values url.Values, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -472,12 +508,36 @@ func (a *Assertions) HTTPRedirect(handler http.HandlerFunc, method string, url s
 //
 //  a.HTTPRedirectf(myHandler, "GET", "/a/b/c", url.Values***REMOVED***"a": []string***REMOVED***"b", "c"***REMOVED******REMOVED***
 //
-// Returns whether the assertion was successful (true, "error message %s", "formatted") or not (false).
+// Returns whether the assertion was successful (true) or not (false).
 func (a *Assertions) HTTPRedirectf(handler http.HandlerFunc, method string, url string, values url.Values, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
 	***REMOVED***
 	HTTPRedirectf(a.t, handler, method, url, values, msg, args...)
+***REMOVED***
+
+// HTTPStatusCode asserts that a specified handler returns a specified status code.
+//
+//  a.HTTPStatusCode(myHandler, "GET", "/notImplemented", nil, 501)
+//
+// Returns whether the assertion was successful (true) or not (false).
+func (a *Assertions) HTTPStatusCode(handler http.HandlerFunc, method string, url string, values url.Values, statuscode int, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	HTTPStatusCode(a.t, handler, method, url, values, statuscode, msgAndArgs...)
+***REMOVED***
+
+// HTTPStatusCodef asserts that a specified handler returns a specified status code.
+//
+//  a.HTTPStatusCodef(myHandler, "GET", "/notImplemented", nil, 501, "error message %s", "formatted")
+//
+// Returns whether the assertion was successful (true) or not (false).
+func (a *Assertions) HTTPStatusCodef(handler http.HandlerFunc, method string, url string, values url.Values, statuscode int, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	HTTPStatusCodef(a.t, handler, method, url, values, statuscode, msg, args...)
 ***REMOVED***
 
 // HTTPSuccess asserts that a specified handler returns a success status code.
@@ -516,7 +576,7 @@ func (a *Assertions) Implements(interfaceObject interface***REMOVED******REMOVED
 
 // Implementsf asserts that an object is implemented by the specified interface.
 //
-//    a.Implementsf((*MyInterface, "error message %s", "formatted")(nil), new(MyObject))
+//    a.Implementsf((*MyInterface)(nil), new(MyObject), "error message %s", "formatted")
 func (a *Assertions) Implementsf(interfaceObject interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -606,6 +666,102 @@ func (a *Assertions) InEpsilonf(expected interface***REMOVED******REMOVED***, ac
 		h.Helper()
 	***REMOVED***
 	InEpsilonf(a.t, expected, actual, epsilon, msg, args...)
+***REMOVED***
+
+// IsDecreasing asserts that the collection is decreasing
+//
+//    a.IsDecreasing([]int***REMOVED***2, 1, 0***REMOVED***)
+//    a.IsDecreasing([]float***REMOVED***2, 1***REMOVED***)
+//    a.IsDecreasing([]string***REMOVED***"b", "a"***REMOVED***)
+func (a *Assertions) IsDecreasing(object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsDecreasing(a.t, object, msgAndArgs...)
+***REMOVED***
+
+// IsDecreasingf asserts that the collection is decreasing
+//
+//    a.IsDecreasingf([]int***REMOVED***2, 1, 0***REMOVED***, "error message %s", "formatted")
+//    a.IsDecreasingf([]float***REMOVED***2, 1***REMOVED***, "error message %s", "formatted")
+//    a.IsDecreasingf([]string***REMOVED***"b", "a"***REMOVED***, "error message %s", "formatted")
+func (a *Assertions) IsDecreasingf(object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsDecreasingf(a.t, object, msg, args...)
+***REMOVED***
+
+// IsIncreasing asserts that the collection is increasing
+//
+//    a.IsIncreasing([]int***REMOVED***1, 2, 3***REMOVED***)
+//    a.IsIncreasing([]float***REMOVED***1, 2***REMOVED***)
+//    a.IsIncreasing([]string***REMOVED***"a", "b"***REMOVED***)
+func (a *Assertions) IsIncreasing(object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsIncreasing(a.t, object, msgAndArgs...)
+***REMOVED***
+
+// IsIncreasingf asserts that the collection is increasing
+//
+//    a.IsIncreasingf([]int***REMOVED***1, 2, 3***REMOVED***, "error message %s", "formatted")
+//    a.IsIncreasingf([]float***REMOVED***1, 2***REMOVED***, "error message %s", "formatted")
+//    a.IsIncreasingf([]string***REMOVED***"a", "b"***REMOVED***, "error message %s", "formatted")
+func (a *Assertions) IsIncreasingf(object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsIncreasingf(a.t, object, msg, args...)
+***REMOVED***
+
+// IsNonDecreasing asserts that the collection is not decreasing
+//
+//    a.IsNonDecreasing([]int***REMOVED***1, 1, 2***REMOVED***)
+//    a.IsNonDecreasing([]float***REMOVED***1, 2***REMOVED***)
+//    a.IsNonDecreasing([]string***REMOVED***"a", "b"***REMOVED***)
+func (a *Assertions) IsNonDecreasing(object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsNonDecreasing(a.t, object, msgAndArgs...)
+***REMOVED***
+
+// IsNonDecreasingf asserts that the collection is not decreasing
+//
+//    a.IsNonDecreasingf([]int***REMOVED***1, 1, 2***REMOVED***, "error message %s", "formatted")
+//    a.IsNonDecreasingf([]float***REMOVED***1, 2***REMOVED***, "error message %s", "formatted")
+//    a.IsNonDecreasingf([]string***REMOVED***"a", "b"***REMOVED***, "error message %s", "formatted")
+func (a *Assertions) IsNonDecreasingf(object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsNonDecreasingf(a.t, object, msg, args...)
+***REMOVED***
+
+// IsNonIncreasing asserts that the collection is not increasing
+//
+//    a.IsNonIncreasing([]int***REMOVED***2, 1, 1***REMOVED***)
+//    a.IsNonIncreasing([]float***REMOVED***2, 1***REMOVED***)
+//    a.IsNonIncreasing([]string***REMOVED***"b", "a"***REMOVED***)
+func (a *Assertions) IsNonIncreasing(object interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsNonIncreasing(a.t, object, msgAndArgs...)
+***REMOVED***
+
+// IsNonIncreasingf asserts that the collection is not increasing
+//
+//    a.IsNonIncreasingf([]int***REMOVED***2, 1, 1***REMOVED***, "error message %s", "formatted")
+//    a.IsNonIncreasingf([]float***REMOVED***2, 1***REMOVED***, "error message %s", "formatted")
+//    a.IsNonIncreasingf([]string***REMOVED***"b", "a"***REMOVED***, "error message %s", "formatted")
+func (a *Assertions) IsNonIncreasingf(object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	IsNonIncreasingf(a.t, object, msg, args...)
 ***REMOVED***
 
 // IsType asserts that the specified objects are of the same type.
@@ -707,13 +863,35 @@ func (a *Assertions) LessOrEqualf(e1 interface***REMOVED******REMOVED***, e2 int
 // Lessf asserts that the first element is less than the second
 //
 //    a.Lessf(1, 2, "error message %s", "formatted")
-//    a.Lessf(float64(1, "error message %s", "formatted"), float64(2))
+//    a.Lessf(float64(1), float64(2), "error message %s", "formatted")
 //    a.Lessf("a", "b", "error message %s", "formatted")
 func (a *Assertions) Lessf(e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
 		h.Helper()
 	***REMOVED***
 	Lessf(a.t, e1, e2, msg, args...)
+***REMOVED***
+
+// Negative asserts that the specified element is negative
+//
+//    a.Negative(-1)
+//    a.Negative(-1.23)
+func (a *Assertions) Negative(e interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	Negative(a.t, e, msgAndArgs...)
+***REMOVED***
+
+// Negativef asserts that the specified element is negative
+//
+//    a.Negativef(-1, "error message %s", "formatted")
+//    a.Negativef(-1.23, "error message %s", "formatted")
+func (a *Assertions) Negativef(e interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	Negativef(a.t, e, msg, args...)
 ***REMOVED***
 
 // Never asserts that the given condition doesn't satisfy in waitFor time,
@@ -885,6 +1063,26 @@ func (a *Assertions) NotEqual(expected interface***REMOVED******REMOVED***, actu
 	NotEqual(a.t, expected, actual, msgAndArgs...)
 ***REMOVED***
 
+// NotEqualValues asserts that two objects are not equal even when converted to the same type
+//
+//    a.NotEqualValues(obj1, obj2)
+func (a *Assertions) NotEqualValues(expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	NotEqualValues(a.t, expected, actual, msgAndArgs...)
+***REMOVED***
+
+// NotEqualValuesf asserts that two objects are not equal even when converted to the same type
+//
+//    a.NotEqualValuesf(obj1, obj2, "error message %s", "formatted")
+func (a *Assertions) NotEqualValuesf(expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	NotEqualValuesf(a.t, expected, actual, msg, args...)
+***REMOVED***
+
 // NotEqualf asserts that the specified values are NOT equal.
 //
 //    a.NotEqualf(obj1, obj2, "error message %s", "formatted")
@@ -896,6 +1094,24 @@ func (a *Assertions) NotEqualf(expected interface***REMOVED******REMOVED***, act
 		h.Helper()
 	***REMOVED***
 	NotEqualf(a.t, expected, actual, msg, args...)
+***REMOVED***
+
+// NotErrorIs asserts that at none of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func (a *Assertions) NotErrorIs(err error, target error, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	NotErrorIs(a.t, err, target, msgAndArgs...)
+***REMOVED***
+
+// NotErrorIsf asserts that at none of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func (a *Assertions) NotErrorIsf(err error, target error, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	NotErrorIsf(a.t, err, target, msg, args...)
 ***REMOVED***
 
 // NotNil asserts that the specified object is not nil.
@@ -951,7 +1167,7 @@ func (a *Assertions) NotRegexp(rx interface***REMOVED******REMOVED***, str inter
 
 // NotRegexpf asserts that a specified regexp does not match a string.
 //
-//  a.NotRegexpf(regexp.MustCompile("starts", "error message %s", "formatted"), "it's starting")
+//  a.NotRegexpf(regexp.MustCompile("starts"), "it's starting", "error message %s", "formatted")
 //  a.NotRegexpf("^start", "it's not starting", "error message %s", "formatted")
 func (a *Assertions) NotRegexpf(rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***
@@ -1090,6 +1306,28 @@ func (a *Assertions) Panicsf(f assert.PanicTestFunc, msg string, args ...interfa
 	Panicsf(a.t, f, msg, args...)
 ***REMOVED***
 
+// Positive asserts that the specified element is positive
+//
+//    a.Positive(1)
+//    a.Positive(1.23)
+func (a *Assertions) Positive(e interface***REMOVED******REMOVED***, msgAndArgs ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	Positive(a.t, e, msgAndArgs...)
+***REMOVED***
+
+// Positivef asserts that the specified element is positive
+//
+//    a.Positivef(1, "error message %s", "formatted")
+//    a.Positivef(1.23, "error message %s", "formatted")
+func (a *Assertions) Positivef(e interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
+	if h, ok := a.t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	Positivef(a.t, e, msg, args...)
+***REMOVED***
+
 // Regexp asserts that a specified regexp matches a string.
 //
 //  a.Regexp(regexp.MustCompile("start"), "it's starting")
@@ -1103,7 +1341,7 @@ func (a *Assertions) Regexp(rx interface***REMOVED******REMOVED***, str interfac
 
 // Regexpf asserts that a specified regexp matches a string.
 //
-//  a.Regexpf(regexp.MustCompile("start", "error message %s", "formatted"), "it's starting")
+//  a.Regexpf(regexp.MustCompile("start"), "it's starting", "error message %s", "formatted")
 //  a.Regexpf("start...$", "it's not starting", "error message %s", "formatted")
 func (a *Assertions) Regexpf(rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) ***REMOVED***
 	if h, ok := a.t.(tHelper); ok ***REMOVED***

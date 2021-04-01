@@ -19,7 +19,7 @@ const (
 	 *  Increasing memory usage improves compression ratio
 	 *  Reduced memory usage can improve speed, due to cache effect
 	 *  Recommended max value is 14, for 16KB, which nicely fits into Intel x86 L1 cache */
-	maxMemoryUsage = 11
+	maxMemoryUsage = tablelogAbsoluteMax + 2
 
 	maxTableLog    = maxMemoryUsage - 2
 	maxTablesize   = 1 << maxTableLog
@@ -55,7 +55,7 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 	if b.remain() < 4 ***REMOVED***
 		return errors.New("input too small")
 	***REMOVED***
-	bitStream := b.Uint32()
+	bitStream := b.Uint32NC()
 	nbBits := uint((bitStream & 0xF) + minTablelog) // extract tableLog
 	if nbBits > tablelogAbsoluteMax ***REMOVED***
 		println("Invalid tablelog:", nbBits)
@@ -79,7 +79,8 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 				n0 += 24
 				if r := b.remain(); r > 5 ***REMOVED***
 					b.advance(2)
-					bitStream = b.Uint32() >> bitCount
+					// The check above should make sure we can read 32 bits
+					bitStream = b.Uint32NC() >> bitCount
 				***REMOVED*** else ***REMOVED***
 					// end of bit stream
 					bitStream >>= 16
@@ -104,10 +105,11 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 				charnum++
 			***REMOVED***
 
-			if r := b.remain(); r >= 7 || r+int(bitCount>>3) >= 4 ***REMOVED***
+			if r := b.remain(); r >= 7 || r-int(bitCount>>3) >= 4 ***REMOVED***
 				b.advance(bitCount >> 3)
 				bitCount &= 7
-				bitStream = b.Uint32() >> bitCount
+				// The check above should make sure we can read 32 bits
+				bitStream = b.Uint32NC() >> bitCount
 			***REMOVED*** else ***REMOVED***
 				bitStream >>= 2
 			***REMOVED***
@@ -118,7 +120,7 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 
 		if int32(bitStream)&(threshold-1) < max ***REMOVED***
 			count = int32(bitStream) & (threshold - 1)
-			if debug && nbBits < 1 ***REMOVED***
+			if debugAsserts && nbBits < 1 ***REMOVED***
 				panic("nbBits underflow")
 			***REMOVED***
 			bitCount += nbBits - 1
@@ -148,17 +150,16 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 			threshold >>= 1
 		***REMOVED***
 
-		//println("b.off:", b.off, "len:", len(b.b), "bc:", bitCount, "remain:", b.remain())
-		if r := b.remain(); r >= 7 || r+int(bitCount>>3) >= 4 ***REMOVED***
+		if r := b.remain(); r >= 7 || r-int(bitCount>>3) >= 4 ***REMOVED***
 			b.advance(bitCount >> 3)
 			bitCount &= 7
+			// The check above should make sure we can read 32 bits
+			bitStream = b.Uint32NC() >> (bitCount & 31)
 		***REMOVED*** else ***REMOVED***
 			bitCount -= (uint)(8 * (len(b.b) - 4 - b.off))
 			b.off = len(b.b) - 4
-			//println("b.off:", b.off, "len:", len(b.b), "bc:", bitCount, "iend", iend)
+			bitStream = b.Uint32() >> (bitCount & 31)
 		***REMOVED***
-		bitStream = b.Uint32() >> (bitCount & 31)
-		//printf("bitstream is now: 0b%b", bitStream)
 	***REMOVED***
 	s.symbolLen = charnum
 	if s.symbolLen <= 1 ***REMOVED***
@@ -184,29 +185,75 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error ***REMOVE
 // decSymbol contains information about a state entry,
 // Including the state offset base, the output symbol and
 // the number of bits to read for the low part of the destination state.
-type decSymbol struct ***REMOVED***
-	newState uint16
-	addBits  uint8 // Used for symbols until transformed.
-	nbBits   uint8
-	baseline uint32
+// Using a composite uint64 is faster than a struct with separate members.
+type decSymbol uint64
+
+func newDecSymbol(nbits, addBits uint8, newState uint16, baseline uint32) decSymbol ***REMOVED***
+	return decSymbol(nbits) | (decSymbol(addBits) << 8) | (decSymbol(newState) << 16) | (decSymbol(baseline) << 32)
+***REMOVED***
+
+func (d decSymbol) nbBits() uint8 ***REMOVED***
+	return uint8(d)
+***REMOVED***
+
+func (d decSymbol) addBits() uint8 ***REMOVED***
+	return uint8(d >> 8)
+***REMOVED***
+
+func (d decSymbol) newState() uint16 ***REMOVED***
+	return uint16(d >> 16)
+***REMOVED***
+
+func (d decSymbol) baseline() uint32 ***REMOVED***
+	return uint32(d >> 32)
+***REMOVED***
+
+func (d decSymbol) baselineInt() int ***REMOVED***
+	return int(d >> 32)
+***REMOVED***
+
+func (d *decSymbol) set(nbits, addBits uint8, newState uint16, baseline uint32) ***REMOVED***
+	*d = decSymbol(nbits) | (decSymbol(addBits) << 8) | (decSymbol(newState) << 16) | (decSymbol(baseline) << 32)
+***REMOVED***
+
+func (d *decSymbol) setNBits(nBits uint8) ***REMOVED***
+	const mask = 0xffffffffffffff00
+	*d = (*d & mask) | decSymbol(nBits)
+***REMOVED***
+
+func (d *decSymbol) setAddBits(addBits uint8) ***REMOVED***
+	const mask = 0xffffffffffff00ff
+	*d = (*d & mask) | (decSymbol(addBits) << 8)
+***REMOVED***
+
+func (d *decSymbol) setNewState(state uint16) ***REMOVED***
+	const mask = 0xffffffff0000ffff
+	*d = (*d & mask) | decSymbol(state)<<16
+***REMOVED***
+
+func (d *decSymbol) setBaseline(baseline uint32) ***REMOVED***
+	const mask = 0xffffffff
+	*d = (*d & mask) | decSymbol(baseline)<<32
+***REMOVED***
+
+func (d *decSymbol) setExt(addBits uint8, baseline uint32) ***REMOVED***
+	const mask = 0xffff00ff
+	*d = (*d & mask) | (decSymbol(addBits) << 8) | (decSymbol(baseline) << 32)
 ***REMOVED***
 
 // decSymbolValue returns the transformed decSymbol for the given symbol.
 func decSymbolValue(symb uint8, t []baseOffset) (decSymbol, error) ***REMOVED***
 	if int(symb) >= len(t) ***REMOVED***
-		return decSymbol***REMOVED******REMOVED***, fmt.Errorf("rle symbol %d >= max %d", symb, len(t))
+		return 0, fmt.Errorf("rle symbol %d >= max %d", symb, len(t))
 	***REMOVED***
 	lu := t[symb]
-	return decSymbol***REMOVED***
-		addBits:  lu.addBits,
-		baseline: lu.baseLine,
-	***REMOVED***, nil
+	return newDecSymbol(0, lu.addBits, 0, lu.baseLine), nil
 ***REMOVED***
 
 // setRLE will set the decoder til RLE mode.
 func (s *fseDecoder) setRLE(symbol decSymbol) ***REMOVED***
 	s.actualTableLog = 0
-	s.maxBits = symbol.addBits
+	s.maxBits = symbol.addBits()
 	s.dt[0] = symbol
 ***REMOVED***
 
@@ -220,7 +267,7 @@ func (s *fseDecoder) buildDtable() error ***REMOVED***
 	***REMOVED***
 		for i, v := range s.norm[:s.symbolLen] ***REMOVED***
 			if v == -1 ***REMOVED***
-				s.dt[highThreshold].addBits = uint8(i)
+				s.dt[highThreshold].setAddBits(uint8(i))
 				highThreshold--
 				symbolNext[i] = 1
 			***REMOVED*** else ***REMOVED***
@@ -235,7 +282,7 @@ func (s *fseDecoder) buildDtable() error ***REMOVED***
 		position := uint32(0)
 		for ss, v := range s.norm[:s.symbolLen] ***REMOVED***
 			for i := 0; i < int(v); i++ ***REMOVED***
-				s.dt[position].addBits = uint8(ss)
+				s.dt[position].setAddBits(uint8(ss))
 				position = (position + step) & tableMask
 				for position > highThreshold ***REMOVED***
 					// lowprob area
@@ -253,11 +300,11 @@ func (s *fseDecoder) buildDtable() error ***REMOVED***
 	***REMOVED***
 		tableSize := uint16(1 << s.actualTableLog)
 		for u, v := range s.dt[:tableSize] ***REMOVED***
-			symbol := v.addBits
+			symbol := v.addBits()
 			nextState := symbolNext[symbol]
 			symbolNext[symbol] = nextState + 1
 			nBits := s.actualTableLog - byte(highBits(uint32(nextState)))
-			s.dt[u&maxTableMask].nbBits = nBits
+			s.dt[u&maxTableMask].setNBits(nBits)
 			newState := (nextState << nBits) - tableSize
 			if newState > tableSize ***REMOVED***
 				return fmt.Errorf("newState (%d) outside table size (%d)", newState, tableSize)
@@ -266,7 +313,7 @@ func (s *fseDecoder) buildDtable() error ***REMOVED***
 				// Seems weird that this is possible with nbits > 0.
 				return fmt.Errorf("newState (%d) == oldState (%d) and no bits", newState, u)
 			***REMOVED***
-			s.dt[u&maxTableMask].newState = newState
+			s.dt[u&maxTableMask].setNewState(newState)
 		***REMOVED***
 	***REMOVED***
 	return nil
@@ -279,25 +326,21 @@ func (s *fseDecoder) transform(t []baseOffset) error ***REMOVED***
 	tableSize := uint16(1 << s.actualTableLog)
 	s.maxBits = 0
 	for i, v := range s.dt[:tableSize] ***REMOVED***
-		if int(v.addBits) >= len(t) ***REMOVED***
-			return fmt.Errorf("invalid decoding table entry %d, symbol %d >= max (%d)", i, v.addBits, len(t))
+		add := v.addBits()
+		if int(add) >= len(t) ***REMOVED***
+			return fmt.Errorf("invalid decoding table entry %d, symbol %d >= max (%d)", i, v.addBits(), len(t))
 		***REMOVED***
-		lu := t[v.addBits]
+		lu := t[add]
 		if lu.addBits > s.maxBits ***REMOVED***
 			s.maxBits = lu.addBits
 		***REMOVED***
-		s.dt[i&maxTableMask] = decSymbol***REMOVED***
-			newState: v.newState,
-			nbBits:   v.nbBits,
-			addBits:  lu.addBits,
-			baseline: lu.baseLine,
-		***REMOVED***
+		v.setExt(lu.addBits, lu.baseLine)
+		s.dt[i] = v
 	***REMOVED***
 	return nil
 ***REMOVED***
 
 type fseState struct ***REMOVED***
-	// TODO: Check if *[1 << maxTablelog]decSymbol is faster.
 	dt    []decSymbol
 	state decSymbol
 ***REMOVED***
@@ -312,26 +355,31 @@ func (s *fseState) init(br *bitReader, tableLog uint8, dt []decSymbol) ***REMOVE
 // next returns the current symbol and sets the next state.
 // At least tablelog bits must be available in the bit reader.
 func (s *fseState) next(br *bitReader) ***REMOVED***
-	lowBits := uint16(br.getBits(s.state.nbBits))
-	s.state = s.dt[s.state.newState+lowBits]
+	lowBits := uint16(br.getBits(s.state.nbBits()))
+	s.state = s.dt[s.state.newState()+lowBits]
 ***REMOVED***
 
 // finished returns true if all bits have been read from the bitstream
 // and the next state would require reading bits from the input.
 func (s *fseState) finished(br *bitReader) bool ***REMOVED***
-	return br.finished() && s.state.nbBits > 0
+	return br.finished() && s.state.nbBits() > 0
 ***REMOVED***
 
 // final returns the current state symbol without decoding the next.
 func (s *fseState) final() (int, uint8) ***REMOVED***
-	return int(s.state.baseline), s.state.addBits
+	return s.state.baselineInt(), s.state.addBits()
+***REMOVED***
+
+// final returns the current state symbol without decoding the next.
+func (s decSymbol) final() (int, uint8) ***REMOVED***
+	return s.baselineInt(), s.addBits()
 ***REMOVED***
 
 // nextFast returns the next symbol and sets the next state.
 // This can only be used if no symbols are 0 bits.
 // At least tablelog bits must be available in the bit reader.
 func (s *fseState) nextFast(br *bitReader) (uint32, uint8) ***REMOVED***
-	lowBits := uint16(br.getBitsFast(s.state.nbBits))
-	s.state = s.dt[s.state.newState+lowBits]
-	return s.state.baseline, s.state.addBits
+	lowBits := uint16(br.getBitsFast(s.state.nbBits()))
+	s.state = s.dt[s.state.newState()+lowBits]
+	return s.state.baseline(), s.state.addBits()
 ***REMOVED***

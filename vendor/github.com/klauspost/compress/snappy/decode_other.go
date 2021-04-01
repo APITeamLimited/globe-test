@@ -85,14 +85,28 @@ func decode(dst, src []byte) int ***REMOVED***
 		if offset <= 0 || d < offset || length > len(dst)-d ***REMOVED***
 			return decodeErrCodeCorrupt
 		***REMOVED***
-		// Copy from an earlier sub-slice of dst to a later sub-slice. Unlike
-		// the built-in copy function, this byte-by-byte copy always runs
+		// Copy from an earlier sub-slice of dst to a later sub-slice.
+		// If no overlap, use the built-in copy:
+		if offset > length ***REMOVED***
+			copy(dst[d:d+length], dst[d-offset:])
+			d += length
+			continue
+		***REMOVED***
+
+		// Unlike the built-in copy function, this byte-by-byte copy always runs
 		// forwards, even if the slices overlap. Conceptually, this is:
 		//
 		// d += forwardCopy(dst[d:d+length], dst[d-offset:])
-		for end := d + length; d != end; d++ ***REMOVED***
-			dst[d] = dst[d-offset]
+		//
+		// We align the slices into a and b and show the compiler they are the same size.
+		// This allows the loop to run without bounds checks.
+		a := dst[d : d+length]
+		b := dst[d-offset:]
+		b = b[:len(a)]
+		for i := range a ***REMOVED***
+			a[i] = b[i]
 		***REMOVED***
+		d += length
 	***REMOVED***
 	if d != len(dst) ***REMOVED***
 		return decodeErrCodeCorrupt

@@ -30,19 +30,18 @@ func hashBytesAtOffset(v uint64, offset uint, shift uint, length uint) uint32 **
 ***REMOVED***
 
 func isMatch1(p1 []byte, p2 []byte, length uint) bool ***REMOVED***
-	var i uint
-	for i = 0; i < length && i < 6; i++ ***REMOVED***
-		if p1[i] != p2[i] ***REMOVED***
-			return false
-		***REMOVED***
+	if binary.LittleEndian.Uint32(p1) != binary.LittleEndian.Uint32(p2) ***REMOVED***
+		return false
 	***REMOVED***
-
-	return true
+	if length == 4 ***REMOVED***
+		return true
+	***REMOVED***
+	return p1[4] == p2[4] && p1[5] == p2[5]
 ***REMOVED***
 
 /* Builds a command and distance prefix code (each 64 symbols) into "depth" and
    "bits" based on "histogram" and stores it into the bit stream. */
-func buildAndStoreCommandPrefixCode(histogram []uint32, depth []byte, bits []uint16, storage_ix *uint, storage []byte) ***REMOVED***
+func buildAndStoreCommandPrefixCode(histogram []uint32, depth []byte, bits []uint16, bw *bitWriter) ***REMOVED***
 	var tree [129]huffmanTree
 	var cmd_depth = [numCommandSymbols]byte***REMOVED***0***REMOVED***
 	/* Tree size for building a tree over 64 symbols is 2 * 64 + 1. */
@@ -88,10 +87,10 @@ func buildAndStoreCommandPrefixCode(histogram []uint32, depth []byte, bits []uin
 			cmd_depth[448+8*i] = depth[16+i]
 		***REMOVED***
 
-		storeHuffmanTree(cmd_depth[:], numCommandSymbols, tree[:], storage_ix, storage)
+		storeHuffmanTree(cmd_depth[:], numCommandSymbols, tree[:], bw)
 	***REMOVED***
 
-	storeHuffmanTree(depth[64:], 64, tree[:], storage_ix, storage)
+	storeHuffmanTree(depth[64:], 64, tree[:], bw)
 ***REMOVED***
 
 func emitInsertLen(insertlen uint32, commands *[]uint32) ***REMOVED***
@@ -198,11 +197,11 @@ func emitDistance(distance uint32, commands *[]uint32) ***REMOVED***
 ***REMOVED***
 
 /* REQUIRES: len <= 1 << 24. */
-func storeMetaBlockHeader(len uint, is_uncompressed bool, storage_ix *uint, storage []byte) ***REMOVED***
+func storeMetaBlockHeader(len uint, is_uncompressed bool, bw *bitWriter) ***REMOVED***
 	var nibbles uint = 6
 
 	/* ISLAST */
-	writeBits(1, 0, storage_ix, storage)
+	bw.writeBits(1, 0)
 
 	if len <= 1<<16 ***REMOVED***
 		nibbles = 4
@@ -210,11 +209,11 @@ func storeMetaBlockHeader(len uint, is_uncompressed bool, storage_ix *uint, stor
 		nibbles = 5
 	***REMOVED***
 
-	writeBits(2, uint64(nibbles)-4, storage_ix, storage)
-	writeBits(nibbles*4, uint64(len)-1, storage_ix, storage)
+	bw.writeBits(2, uint64(nibbles)-4)
+	bw.writeBits(nibbles*4, uint64(len)-1)
 
 	/* ISUNCOMPRESSED */
-	writeSingleBit(is_uncompressed, storage_ix, storage)
+	bw.writeSingleBit(is_uncompressed)
 ***REMOVED***
 
 func createCommands(input []byte, block_size uint, input_size uint, base_ip_ptr []byte, table []int, table_bits uint, min_match uint, literals *[]byte, commands *[]uint32) ***REMOVED***
@@ -441,163 +440,20 @@ emit_remainder:
 ***REMOVED***
 
 var storeCommands_kNumExtraBits = [128]uint32***REMOVED***
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	2,
-	2,
-	3,
-	3,
-	4,
-	4,
-	5,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	12,
-	14,
-	24,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	2,
-	2,
-	3,
-	3,
-	4,
-	4,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	2,
-	2,
-	3,
-	3,
-	4,
-	4,
-	5,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	24,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	1,
-	1,
-	2,
-	2,
-	3,
-	3,
-	4,
-	4,
-	5,
-	5,
-	6,
-	6,
-	7,
-	7,
-	8,
-	8,
-	9,
-	9,
-	10,
-	10,
-	11,
-	11,
-	12,
-	12,
-	13,
-	13,
-	14,
-	14,
-	15,
-	15,
-	16,
-	16,
-	17,
-	17,
-	18,
-	18,
-	19,
-	19,
-	20,
-	20,
-	21,
-	21,
-	22,
-	22,
-	23,
-	23,
-	24,
-	24,
+	0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 12, 14, 24,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4,
+	0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 24,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
+	9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16,
+	17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24,
 ***REMOVED***
 var storeCommands_kInsertOffset = [24]uint32***REMOVED***
-	0,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	8,
-	10,
-	14,
-	18,
-	26,
-	34,
-	50,
-	66,
-	98,
-	130,
-	194,
-	322,
-	578,
-	1090,
-	2114,
-	6210,
-	22594,
+	0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50, 66, 98, 130, 194, 322, 578,
+	1090, 2114, 6210, 22594,
 ***REMOVED***
 
-func storeCommands(literals []byte, num_literals uint, commands []uint32, num_commands uint, storage_ix *uint, storage []byte) ***REMOVED***
+func storeCommands(literals []byte, num_literals uint, commands []uint32, num_commands uint, bw *bitWriter) ***REMOVED***
 	var lit_depths [256]byte
 	var lit_bits [256]uint16
 	var lit_histo = [256]uint32***REMOVED***0***REMOVED***
@@ -610,7 +466,7 @@ func storeCommands(literals []byte, num_literals uint, commands []uint32, num_co
 	***REMOVED***
 
 	buildAndStoreHuffmanTreeFast(lit_histo[:], num_literals, /* max_bits = */
-		8, lit_depths[:], lit_bits[:], storage_ix, storage)
+		8, lit_depths[:], lit_bits[:], bw)
 
 	for i = 0; i < num_commands; i++ ***REMOVED***
 		var code uint32 = commands[i] & 0xFF
@@ -622,21 +478,21 @@ func storeCommands(literals []byte, num_literals uint, commands []uint32, num_co
 	cmd_histo[2] += 1
 	cmd_histo[64] += 1
 	cmd_histo[84] += 1
-	buildAndStoreCommandPrefixCode(cmd_histo[:], cmd_depths[:], cmd_bits[:], storage_ix, storage)
+	buildAndStoreCommandPrefixCode(cmd_histo[:], cmd_depths[:], cmd_bits[:], bw)
 
 	for i = 0; i < num_commands; i++ ***REMOVED***
 		var cmd uint32 = commands[i]
 		var code uint32 = cmd & 0xFF
 		var extra uint32 = cmd >> 8
 		assert(code < 128)
-		writeBits(uint(cmd_depths[code]), uint64(cmd_bits[code]), storage_ix, storage)
-		writeBits(uint(storeCommands_kNumExtraBits[code]), uint64(extra), storage_ix, storage)
+		bw.writeBits(uint(cmd_depths[code]), uint64(cmd_bits[code]))
+		bw.writeBits(uint(storeCommands_kNumExtraBits[code]), uint64(extra))
 		if code < 24 ***REMOVED***
 			var insert uint32 = storeCommands_kInsertOffset[code] + extra
 			var j uint32
 			for j = 0; j < insert; j++ ***REMOVED***
 				var lit byte = literals[0]
-				writeBits(uint(lit_depths[lit]), uint64(lit_bits[lit]), storage_ix, storage)
+				bw.writeBits(uint(lit_depths[lit]), uint64(lit_bits[lit]))
 				literals = literals[1:]
 			***REMOVED***
 		***REMOVED***
@@ -664,22 +520,13 @@ func shouldCompress(input []byte, input_size uint, num_literals uint) bool ***RE
 	***REMOVED***
 ***REMOVED***
 
-func rewindBitPosition(new_storage_ix uint, storage_ix *uint, storage []byte) ***REMOVED***
-	var bitpos uint = new_storage_ix & 7
-	var mask uint = (1 << bitpos) - 1
-	storage[new_storage_ix>>3] &= byte(mask)
-	*storage_ix = new_storage_ix
+func emitUncompressedMetaBlock(input []byte, input_size uint, bw *bitWriter) ***REMOVED***
+	storeMetaBlockHeader(input_size, true, bw)
+	bw.jumpToByteBoundary()
+	bw.writeBytes(input[:input_size])
 ***REMOVED***
 
-func emitUncompressedMetaBlock(input []byte, input_size uint, storage_ix *uint, storage []byte) ***REMOVED***
-	storeMetaBlockHeader(input_size, true, storage_ix, storage)
-	*storage_ix = (*storage_ix + 7) &^ 7
-	copy(storage[*storage_ix>>3:], input[:input_size])
-	*storage_ix += input_size << 3
-	storage[*storage_ix>>3] = 0
-***REMOVED***
-
-func compressFragmentTwoPassImpl(input []byte, input_size uint, is_last bool, command_buf []uint32, literal_buf []byte, table []int, table_bits uint, min_match uint, storage_ix *uint, storage []byte) ***REMOVED***
+func compressFragmentTwoPassImpl(input []byte, input_size uint, is_last bool, command_buf []uint32, literal_buf []byte, table []int, table_bits uint, min_match uint, bw *bitWriter) ***REMOVED***
 	/* Save the start of the first block for position and distance computations.
 	 */
 	var base_ip []byte = input
@@ -693,17 +540,17 @@ func compressFragmentTwoPassImpl(input []byte, input_size uint, is_last bool, co
 		num_literals = uint(-cap(literals) + cap(literal_buf))
 		if shouldCompress(input, block_size, num_literals) ***REMOVED***
 			var num_commands uint = uint(-cap(commands) + cap(command_buf))
-			storeMetaBlockHeader(block_size, false, storage_ix, storage)
+			storeMetaBlockHeader(block_size, false, bw)
 
 			/* No block splits, no contexts. */
-			writeBits(13, 0, storage_ix, storage)
+			bw.writeBits(13, 0)
 
-			storeCommands(literal_buf, num_literals, command_buf, num_commands, storage_ix, storage)
+			storeCommands(literal_buf, num_literals, command_buf, num_commands, bw)
 		***REMOVED*** else ***REMOVED***
 			/* Since we did not find many backward references and the entropy of
 			   the data is close to 8 bits, we can simply emit an uncompressed block.
 			   This makes compression speed of uncompressible data about 3x faster. */
-			emitUncompressedMetaBlock(input, block_size, storage_ix, storage)
+			emitUncompressedMetaBlock(input, block_size, bw)
 		***REMOVED***
 
 		input = input[block_size:]
@@ -711,8 +558,7 @@ func compressFragmentTwoPassImpl(input []byte, input_size uint, is_last bool, co
 	***REMOVED***
 ***REMOVED***
 
-/* Compresses "input" string to the "*storage" buffer as one or more complete
-   meta-blocks, and updates the "*storage_ix" bit position.
+/* Compresses "input" string to bw as one or more complete meta-blocks.
 
    If "is_last" is 1, emits an additional empty last meta-block.
 
@@ -724,8 +570,8 @@ func compressFragmentTwoPassImpl(input []byte, input_size uint, is_last bool, co
    REQUIRES: "table_size" is a power of two
    OUTPUT: maximal copy distance <= |input_size|
    OUTPUT: maximal copy distance <= BROTLI_MAX_BACKWARD_LIMIT(18) */
-func compressFragmentTwoPass(input []byte, input_size uint, is_last bool, command_buf []uint32, literal_buf []byte, table []int, table_size uint, storage_ix *uint, storage []byte) ***REMOVED***
-	var initial_storage_ix uint = *storage_ix
+func compressFragmentTwoPass(input []byte, input_size uint, is_last bool, command_buf []uint32, literal_buf []byte, table []int, table_size uint, bw *bitWriter) ***REMOVED***
+	var initial_storage_ix uint = bw.getPos()
 	var table_bits uint = uint(log2FloorNonZero(table_size))
 	var min_match uint
 	if table_bits <= 15 ***REMOVED***
@@ -733,17 +579,17 @@ func compressFragmentTwoPass(input []byte, input_size uint, is_last bool, comman
 	***REMOVED*** else ***REMOVED***
 		min_match = 6
 	***REMOVED***
-	compressFragmentTwoPassImpl(input, input_size, is_last, command_buf, literal_buf, table, table_bits, min_match, storage_ix, storage)
+	compressFragmentTwoPassImpl(input, input_size, is_last, command_buf, literal_buf, table, table_bits, min_match, bw)
 
 	/* If output is larger than single uncompressed block, rewrite it. */
-	if *storage_ix-initial_storage_ix > 31+(input_size<<3) ***REMOVED***
-		rewindBitPosition(initial_storage_ix, storage_ix, storage)
-		emitUncompressedMetaBlock(input, input_size, storage_ix, storage)
+	if bw.getPos()-initial_storage_ix > 31+(input_size<<3) ***REMOVED***
+		bw.rewind(initial_storage_ix)
+		emitUncompressedMetaBlock(input, input_size, bw)
 	***REMOVED***
 
 	if is_last ***REMOVED***
-		writeBits(1, 1, storage_ix, storage) /* islast */
-		writeBits(1, 1, storage_ix, storage) /* isempty */
-		*storage_ix = (*storage_ix + 7) &^ 7
+		bw.writeBits(1, 1) /* islast */
+		bw.writeBits(1, 1) /* isempty */
+		bw.jumpToByteBoundary()
 	***REMOVED***
 ***REMOVED***

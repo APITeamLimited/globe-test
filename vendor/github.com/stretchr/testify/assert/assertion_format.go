@@ -93,7 +93,7 @@ func EqualErrorf(t TestingT, theError error, errString string, msg string, args 
 // EqualValuesf asserts that two objects are equal or convertable to the same types
 // and equal.
 //
-//    assert.EqualValuesf(t, uint32(123, "error message %s", "formatted"), int32(123))
+//    assert.EqualValuesf(t, uint32(123), int32(123), "error message %s", "formatted")
 func EqualValuesf(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -114,6 +114,24 @@ func Errorf(t TestingT, err error, msg string, args ...interface***REMOVED******
 	return Error(t, err, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// ErrorAsf asserts that at least one of the errors in err's chain matches target, and if so, sets target to that error value.
+// This is a wrapper for errors.As.
+func ErrorAsf(t TestingT, err error, target interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return ErrorAs(t, err, target, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// ErrorIsf asserts that at least one of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func ErrorIsf(t TestingT, err error, target error, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return ErrorIs(t, err, target, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // Eventuallyf asserts that given condition will be met in waitFor time,
 // periodically checking target function each tick.
 //
@@ -127,7 +145,7 @@ func Eventuallyf(t TestingT, condition func() bool, waitFor time.Duration, tick 
 
 // Exactlyf asserts that two objects are equal in value and type.
 //
-//    assert.Exactlyf(t, int32(123, "error message %s", "formatted"), int64(123))
+//    assert.Exactlyf(t, int32(123), int64(123), "error message %s", "formatted")
 func Exactlyf(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -173,7 +191,7 @@ func FileExistsf(t TestingT, path string, msg string, args ...interface***REMOVE
 // Greaterf asserts that the first element is greater than the second
 //
 //    assert.Greaterf(t, 2, 1, "error message %s", "formatted")
-//    assert.Greaterf(t, float64(2, "error message %s", "formatted"), float64(1))
+//    assert.Greaterf(t, float64(2), float64(1), "error message %s", "formatted")
 //    assert.Greaterf(t, "b", "a", "error message %s", "formatted")
 func Greaterf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
@@ -225,7 +243,7 @@ func HTTPBodyNotContainsf(t TestingT, handler http.HandlerFunc, method string, u
 //
 //  assert.HTTPErrorf(t, myHandler, "POST", "/a/b/c", url.Values***REMOVED***"a": []string***REMOVED***"b", "c"***REMOVED******REMOVED***
 //
-// Returns whether the assertion was successful (true, "error message %s", "formatted") or not (false).
+// Returns whether the assertion was successful (true) or not (false).
 func HTTPErrorf(t TestingT, handler http.HandlerFunc, method string, url string, values url.Values, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -237,12 +255,24 @@ func HTTPErrorf(t TestingT, handler http.HandlerFunc, method string, url string,
 //
 //  assert.HTTPRedirectf(t, myHandler, "GET", "/a/b/c", url.Values***REMOVED***"a": []string***REMOVED***"b", "c"***REMOVED******REMOVED***
 //
-// Returns whether the assertion was successful (true, "error message %s", "formatted") or not (false).
+// Returns whether the assertion was successful (true) or not (false).
 func HTTPRedirectf(t TestingT, handler http.HandlerFunc, method string, url string, values url.Values, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
 	***REMOVED***
 	return HTTPRedirect(t, handler, method, url, values, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// HTTPStatusCodef asserts that a specified handler returns a specified status code.
+//
+//  assert.HTTPStatusCodef(t, myHandler, "GET", "/notImplemented", nil, 501, "error message %s", "formatted")
+//
+// Returns whether the assertion was successful (true) or not (false).
+func HTTPStatusCodef(t TestingT, handler http.HandlerFunc, method string, url string, values url.Values, statuscode int, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return HTTPStatusCode(t, handler, method, url, values, statuscode, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // HTTPSuccessf asserts that a specified handler returns a success status code.
@@ -259,7 +289,7 @@ func HTTPSuccessf(t TestingT, handler http.HandlerFunc, method string, url strin
 
 // Implementsf asserts that an object is implemented by the specified interface.
 //
-//    assert.Implementsf(t, (*MyInterface, "error message %s", "formatted")(nil), new(MyObject))
+//    assert.Implementsf(t, (*MyInterface)(nil), new(MyObject), "error message %s", "formatted")
 func Implementsf(t TestingT, interfaceObject interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
 		h.Helper()
@@ -309,6 +339,54 @@ func InEpsilonSlicef(t TestingT, expected interface***REMOVED******REMOVED***, a
 	return InEpsilonSlice(t, expected, actual, epsilon, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// IsDecreasingf asserts that the collection is decreasing
+//
+//    assert.IsDecreasingf(t, []int***REMOVED***2, 1, 0***REMOVED***, "error message %s", "formatted")
+//    assert.IsDecreasingf(t, []float***REMOVED***2, 1***REMOVED***, "error message %s", "formatted")
+//    assert.IsDecreasingf(t, []string***REMOVED***"b", "a"***REMOVED***, "error message %s", "formatted")
+func IsDecreasingf(t TestingT, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return IsDecreasing(t, object, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// IsIncreasingf asserts that the collection is increasing
+//
+//    assert.IsIncreasingf(t, []int***REMOVED***1, 2, 3***REMOVED***, "error message %s", "formatted")
+//    assert.IsIncreasingf(t, []float***REMOVED***1, 2***REMOVED***, "error message %s", "formatted")
+//    assert.IsIncreasingf(t, []string***REMOVED***"a", "b"***REMOVED***, "error message %s", "formatted")
+func IsIncreasingf(t TestingT, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return IsIncreasing(t, object, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// IsNonDecreasingf asserts that the collection is not decreasing
+//
+//    assert.IsNonDecreasingf(t, []int***REMOVED***1, 1, 2***REMOVED***, "error message %s", "formatted")
+//    assert.IsNonDecreasingf(t, []float***REMOVED***1, 2***REMOVED***, "error message %s", "formatted")
+//    assert.IsNonDecreasingf(t, []string***REMOVED***"a", "b"***REMOVED***, "error message %s", "formatted")
+func IsNonDecreasingf(t TestingT, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return IsNonDecreasing(t, object, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// IsNonIncreasingf asserts that the collection is not increasing
+//
+//    assert.IsNonIncreasingf(t, []int***REMOVED***2, 1, 1***REMOVED***, "error message %s", "formatted")
+//    assert.IsNonIncreasingf(t, []float***REMOVED***2, 1***REMOVED***, "error message %s", "formatted")
+//    assert.IsNonIncreasingf(t, []string***REMOVED***"b", "a"***REMOVED***, "error message %s", "formatted")
+func IsNonIncreasingf(t TestingT, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return IsNonIncreasing(t, object, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // IsTypef asserts that the specified objects are of the same type.
 func IsTypef(t TestingT, expectedType interface***REMOVED******REMOVED***, object interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
@@ -341,7 +419,7 @@ func Lenf(t TestingT, object interface***REMOVED******REMOVED***, length int, ms
 // Lessf asserts that the first element is less than the second
 //
 //    assert.Lessf(t, 1, 2, "error message %s", "formatted")
-//    assert.Lessf(t, float64(1, "error message %s", "formatted"), float64(2))
+//    assert.Lessf(t, float64(1), float64(2), "error message %s", "formatted")
 //    assert.Lessf(t, "a", "b", "error message %s", "formatted")
 func Lessf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
@@ -361,6 +439,17 @@ func LessOrEqualf(t TestingT, e1 interface***REMOVED******REMOVED***, e2 interfa
 		h.Helper()
 	***REMOVED***
 	return LessOrEqual(t, e1, e2, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// Negativef asserts that the specified element is negative
+//
+//    assert.Negativef(t, -1, "error message %s", "formatted")
+//    assert.Negativef(t, -1.23, "error message %s", "formatted")
+func Negativef(t TestingT, e interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Negative(t, e, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
 // Neverf asserts that the given condition doesn't satisfy in waitFor time,
@@ -454,6 +543,25 @@ func NotEqualf(t TestingT, expected interface***REMOVED******REMOVED***, actual 
 	return NotEqual(t, expected, actual, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// NotEqualValuesf asserts that two objects are not equal even when converted to the same type
+//
+//    assert.NotEqualValuesf(t, obj1, obj2, "error message %s", "formatted")
+func NotEqualValuesf(t TestingT, expected interface***REMOVED******REMOVED***, actual interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return NotEqualValues(t, expected, actual, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
+// NotErrorIsf asserts that at none of the errors in err's chain matches target.
+// This is a wrapper for errors.Is.
+func NotErrorIsf(t TestingT, err error, target error, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return NotErrorIs(t, err, target, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // NotNilf asserts that the specified object is not nil.
 //
 //    assert.NotNilf(t, err, "error message %s", "formatted")
@@ -476,7 +584,7 @@ func NotPanicsf(t TestingT, f PanicTestFunc, msg string, args ...interface***REM
 
 // NotRegexpf asserts that a specified regexp does not match a string.
 //
-//  assert.NotRegexpf(t, regexp.MustCompile("starts", "error message %s", "formatted"), "it's starting")
+//  assert.NotRegexpf(t, regexp.MustCompile("starts"), "it's starting", "error message %s", "formatted")
 //  assert.NotRegexpf(t, "^start", "it's not starting", "error message %s", "formatted")
 func NotRegexpf(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***
@@ -550,9 +658,20 @@ func PanicsWithValuef(t TestingT, expected interface***REMOVED******REMOVED***, 
 	return PanicsWithValue(t, expected, f, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
 ***REMOVED***
 
+// Positivef asserts that the specified element is positive
+//
+//    assert.Positivef(t, 1, "error message %s", "formatted")
+//    assert.Positivef(t, 1.23, "error message %s", "formatted")
+func Positivef(t TestingT, e interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
+	if h, ok := t.(tHelper); ok ***REMOVED***
+		h.Helper()
+	***REMOVED***
+	return Positive(t, e, append([]interface***REMOVED******REMOVED******REMOVED***msg***REMOVED***, args...)...)
+***REMOVED***
+
 // Regexpf asserts that a specified regexp matches a string.
 //
-//  assert.Regexpf(t, regexp.MustCompile("start", "error message %s", "formatted"), "it's starting")
+//  assert.Regexpf(t, regexp.MustCompile("start"), "it's starting", "error message %s", "formatted")
 //  assert.Regexpf(t, "start...$", "it's not starting", "error message %s", "formatted")
 func Regexpf(t TestingT, rx interface***REMOVED******REMOVED***, str interface***REMOVED******REMOVED***, msg string, args ...interface***REMOVED******REMOVED***) bool ***REMOVED***
 	if h, ok := t.(tHelper); ok ***REMOVED***

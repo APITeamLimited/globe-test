@@ -30,7 +30,7 @@ type byteBuffer interface ***REMOVED***
 type byteBuf []byte
 
 func (b *byteBuf) readSmall(n int) []byte ***REMOVED***
-	if debug && n > 8 ***REMOVED***
+	if debugAsserts && n > 8 ***REMOVED***
 		panic(fmt.Errorf("small read > 8 (%d). use readBig", n))
 	***REMOVED***
 	bb := *b
@@ -82,7 +82,7 @@ type readerWrapper struct ***REMOVED***
 ***REMOVED***
 
 func (r *readerWrapper) readSmall(n int) []byte ***REMOVED***
-	if debug && n > 8 ***REMOVED***
+	if debugAsserts && n > 8 ***REMOVED***
 		panic(fmt.Errorf("small read > 8 (%d). use readBig", n))
 	***REMOVED***
 	n2, err := io.ReadFull(r.r, r.tmp[:n])
@@ -101,6 +101,9 @@ func (r *readerWrapper) readBig(n int, dst []byte) ([]byte, error) ***REMOVED***
 		dst = make([]byte, n)
 	***REMOVED***
 	n2, err := io.ReadFull(r.r, dst[:n])
+	if err == io.EOF && n > 0 ***REMOVED***
+		err = io.ErrUnexpectedEOF
+	***REMOVED***
 	return dst[:n2], err
 ***REMOVED***
 
@@ -116,6 +119,9 @@ func (r *readerWrapper) readByte() (byte, error) ***REMOVED***
 ***REMOVED***
 
 func (r *readerWrapper) skipN(n int) error ***REMOVED***
-	_, err := io.CopyN(ioutil.Discard, r.r, int64(n))
+	n2, err := io.CopyN(ioutil.Discard, r.r, int64(n))
+	if n2 != int64(n) ***REMOVED***
+		err = io.ErrUnexpectedEOF
+	***REMOVED***
 	return err
 ***REMOVED***

@@ -7,6 +7,7 @@ package zstd
 import (
 	"fmt"
 	"math"
+	"sync"
 )
 
 var (
@@ -69,85 +70,89 @@ func fillBase(dst []baseOffset, base uint32, bits ...uint8) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func init() ***REMOVED***
-	// Literals length codes
-	tmp := make([]baseOffset, 36)
-	for i := range tmp[:16] ***REMOVED***
-		tmp[i] = baseOffset***REMOVED***
-			baseLine: uint32(i),
-			addBits:  0,
-		***REMOVED***
-	***REMOVED***
-	fillBase(tmp[16:], 16, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
-	symbolTableX[tableLiteralLengths] = tmp
+var predef sync.Once
 
-	// Match length codes
-	tmp = make([]baseOffset, 53)
-	for i := range tmp[:32] ***REMOVED***
-		tmp[i] = baseOffset***REMOVED***
-			// The transformation adds the 3 length.
-			baseLine: uint32(i) + 3,
-			addBits:  0,
+func initPredefined() ***REMOVED***
+	predef.Do(func() ***REMOVED***
+		// Literals length codes
+		tmp := make([]baseOffset, 36)
+		for i := range tmp[:16] ***REMOVED***
+			tmp[i] = baseOffset***REMOVED***
+				baseLine: uint32(i),
+				addBits:  0,
+			***REMOVED***
 		***REMOVED***
-	***REMOVED***
-	fillBase(tmp[32:], 35, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
-	symbolTableX[tableMatchLengths] = tmp
+		fillBase(tmp[16:], 16, 1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+		symbolTableX[tableLiteralLengths] = tmp
 
-	// Offset codes
-	tmp = make([]baseOffset, maxOffsetBits+1)
-	tmp[1] = baseOffset***REMOVED***
-		baseLine: 1,
-		addBits:  1,
-	***REMOVED***
-	fillBase(tmp[2:], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30)
-	symbolTableX[tableOffsets] = tmp
+		// Match length codes
+		tmp = make([]baseOffset, 53)
+		for i := range tmp[:32] ***REMOVED***
+			tmp[i] = baseOffset***REMOVED***
+				// The transformation adds the 3 length.
+				baseLine: uint32(i) + 3,
+				addBits:  0,
+			***REMOVED***
+		***REMOVED***
+		fillBase(tmp[32:], 35, 1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+		symbolTableX[tableMatchLengths] = tmp
 
-	// Fill predefined tables and transform them.
-	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#default-distributions
-	for i := range fsePredef[:] ***REMOVED***
-		f := &fsePredef[i]
-		switch tableIndex(i) ***REMOVED***
-		case tableLiteralLengths:
-			// https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L243
-			f.actualTableLog = 6
-			copy(f.norm[:], []int16***REMOVED***4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
-				2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
-				-1, -1, -1, -1***REMOVED***)
-			f.symbolLen = 36
-		case tableOffsets:
-			// https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L281
-			f.actualTableLog = 5
-			copy(f.norm[:], []int16***REMOVED***
-				1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-				1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1***REMOVED***)
-			f.symbolLen = 29
-		case tableMatchLengths:
-			//https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L304
-			f.actualTableLog = 6
-			copy(f.norm[:], []int16***REMOVED***
-				1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1,
-				-1, -1, -1, -1, -1***REMOVED***)
-			f.symbolLen = 53
+		// Offset codes
+		tmp = make([]baseOffset, maxOffsetBits+1)
+		tmp[1] = baseOffset***REMOVED***
+			baseLine: 1,
+			addBits:  1,
 		***REMOVED***
-		if err := f.buildDtable(); err != nil ***REMOVED***
-			panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
-		***REMOVED***
-		if err := f.transform(symbolTableX[i]); err != nil ***REMOVED***
-			panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
-		***REMOVED***
-		f.preDefined = true
+		fillBase(tmp[2:], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30)
+		symbolTableX[tableOffsets] = tmp
 
-		// Create encoder as well
-		enc := &fsePredefEnc[i]
-		copy(enc.norm[:], f.norm[:])
-		enc.symbolLen = f.symbolLen
-		enc.actualTableLog = f.actualTableLog
-		if err := enc.buildCTable(); err != nil ***REMOVED***
-			panic(fmt.Errorf("building encoding table %v: %v", tableIndex(i), err))
+		// Fill predefined tables and transform them.
+		// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#default-distributions
+		for i := range fsePredef[:] ***REMOVED***
+			f := &fsePredef[i]
+			switch tableIndex(i) ***REMOVED***
+			case tableLiteralLengths:
+				// https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L243
+				f.actualTableLog = 6
+				copy(f.norm[:], []int16***REMOVED***4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1,
+					2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 1, 1, 1, 1, 1,
+					-1, -1, -1, -1***REMOVED***)
+				f.symbolLen = 36
+			case tableOffsets:
+				// https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L281
+				f.actualTableLog = 5
+				copy(f.norm[:], []int16***REMOVED***
+					1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1***REMOVED***)
+				f.symbolLen = 29
+			case tableMatchLengths:
+				//https://github.com/facebook/zstd/blob/ededcfca57366461021c922720878c81a5854a0a/lib/decompress/zstd_decompress_block.c#L304
+				f.actualTableLog = 6
+				copy(f.norm[:], []int16***REMOVED***
+					1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1,
+					-1, -1, -1, -1, -1***REMOVED***)
+				f.symbolLen = 53
+			***REMOVED***
+			if err := f.buildDtable(); err != nil ***REMOVED***
+				panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
+			***REMOVED***
+			if err := f.transform(symbolTableX[i]); err != nil ***REMOVED***
+				panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
+			***REMOVED***
+			f.preDefined = true
+
+			// Create encoder as well
+			enc := &fsePredefEnc[i]
+			copy(enc.norm[:], f.norm[:])
+			enc.symbolLen = f.symbolLen
+			enc.actualTableLog = f.actualTableLog
+			if err := enc.buildCTable(); err != nil ***REMOVED***
+				panic(fmt.Errorf("building encoding table %v: %v", tableIndex(i), err))
+			***REMOVED***
+			enc.setBits(bitTables[i])
+			enc.preDefined = true
 		***REMOVED***
-		enc.setBits(bitTables[i])
-		enc.preDefined = true
-	***REMOVED***
+	***REMOVED***)
 ***REMOVED***

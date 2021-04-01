@@ -80,6 +80,7 @@ type SnappyConverter struct ***REMOVED***
 // If any error is detected on the Snappy stream it is returned.
 // The number of bytes written is returned.
 func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***REMOVED***
+	initPredefined()
 	r.err = nil
 	r.r = in
 	if r.block == nil ***REMOVED***
@@ -110,7 +111,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 			// Add empty last block
 			r.block.reset(nil)
 			r.block.last = true
-			err := r.block.encodeLits()
+			err := r.block.encodeLits(r.block.literals, false)
 			if err != nil ***REMOVED***
 				return written, err
 			***REMOVED***
@@ -177,7 +178,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 				r.err = ErrSnappyCorrupt
 				return written, r.err
 			***REMOVED***
-			err = r.block.encode()
+			err = r.block.encode(nil, false, false)
 			switch err ***REMOVED***
 			case errIncompressible:
 				r.block.popOffsets()
@@ -187,7 +188,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 					println("snappy.Decode:", err)
 					return written, err
 				***REMOVED***
-				err = r.block.encodeLits()
+				err = r.block.encodeLits(r.block.literals, false)
 				if err != nil ***REMOVED***
 					return written, err
 				***REMOVED***
@@ -234,7 +235,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 				r.err = ErrSnappyCorrupt
 				return written, r.err
 			***REMOVED***
-			err := r.block.encodeLits()
+			err := r.block.encodeLits(r.block.literals, false)
 			if err != nil ***REMOVED***
 				return written, err
 			***REMOVED***
@@ -416,7 +417,7 @@ var crcTable = crc32.MakeTable(crc32.Castagnoli)
 // https://github.com/google/snappy/blob/master/framing_format.txt
 func snappyCRC(b []byte) uint32 ***REMOVED***
 	c := crc32.Update(0, crcTable, b)
-	return uint32(c>>15|c<<17) + 0xa282ead8
+	return c>>15 | c<<17 + 0xa282ead8
 ***REMOVED***
 
 // snappyDecodedLen returns the length of the decoded block and the number of bytes
