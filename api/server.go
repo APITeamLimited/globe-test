@@ -25,7 +25,6 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/negroni"
 
 	"github.com/loadimpact/k6/api/common"
 	v1 "github.com/loadimpact/k6/api/v1"
@@ -44,29 +43,33 @@ func newHandler(logger logrus.FieldLogger) http.Handler ***REMOVED***
 func ListenAndServe(addr string, engine *core.Engine, logger logrus.FieldLogger) error ***REMOVED***
 	mux := newHandler(logger)
 
-	n := negroni.New()
-	n.Use(negroni.NewRecovery())
-	n.UseFunc(withEngine(engine))
-	n.UseFunc(newLogger(logger))
-	n.UseHandler(mux)
+	return http.ListenAndServe(addr, withEngine(engine, newLogger(logger, mux)))
+***REMOVED***
 
-	return http.ListenAndServe(addr, n)
+type wrappedResponseWriter struct ***REMOVED***
+	http.ResponseWriter
+	status int
+***REMOVED***
+
+func (w wrappedResponseWriter) WriteHeader(status int) ***REMOVED***
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
 ***REMOVED***
 
 // newLogger returns the middleware which logs response status for request.
-func newLogger(l logrus.FieldLogger) negroni.HandlerFunc ***REMOVED***
-	return func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
-		next(rw, r)
+func newLogger(l logrus.FieldLogger, next http.Handler) http.HandlerFunc ***REMOVED***
+	return func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		wrapped := wrappedResponseWriter***REMOVED***ResponseWriter: rw, status: 200***REMOVED*** // The default status code is 200 if it's not set
+		next.ServeHTTP(wrapped, r)
 
-		res := rw.(negroni.ResponseWriter)
-		l.WithField("status", res.Status()).Debugf("%s %s", r.Method, r.URL.Path)
+		l.WithField("status", wrapped.status).Debugf("%s %s", r.Method, r.URL.Path)
 	***REMOVED***
 ***REMOVED***
 
-func withEngine(engine *core.Engine) negroni.HandlerFunc ***REMOVED***
-	return negroni.HandlerFunc(func(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) ***REMOVED***
+func withEngine(engine *core.Engine, next http.Handler) http.HandlerFunc ***REMOVED***
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		r = r.WithContext(common.WithEngine(r.Context(), engine))
-		next(rw, r)
+		next.ServeHTTP(rw, r)
 	***REMOVED***)
 ***REMOVED***
 
