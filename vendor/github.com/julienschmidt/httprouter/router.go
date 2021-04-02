@@ -366,13 +366,11 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) ***REMOVED*
 		***REMOVED***
 	***REMOVED***
 
-	if req.Method == "OPTIONS" ***REMOVED***
+	if req.Method == "OPTIONS" && r.HandleOPTIONS ***REMOVED***
 		// Handle OPTIONS requests
-		if r.HandleOPTIONS ***REMOVED***
-			if allow := r.allowed(path, req.Method); len(allow) > 0 ***REMOVED***
-				w.Header().Set("Allow", allow)
-				return
-			***REMOVED***
+		if allow := r.allowed(path, req.Method); len(allow) > 0 ***REMOVED***
+			w.Header().Set("Allow", allow)
+			return
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		// Handle 405

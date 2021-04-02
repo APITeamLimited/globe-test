@@ -72,9 +72,47 @@ func (s *ipSliceValue) String() string ***REMOVED***
 	return "[" + out + "]"
 ***REMOVED***
 
+func (s *ipSliceValue) fromString(val string) (net.IP, error) ***REMOVED***
+	return net.ParseIP(strings.TrimSpace(val)), nil
+***REMOVED***
+
+func (s *ipSliceValue) toString(val net.IP) string ***REMOVED***
+	return val.String()
+***REMOVED***
+
+func (s *ipSliceValue) Append(val string) error ***REMOVED***
+	i, err := s.fromString(val)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*s.value = append(*s.value, i)
+	return nil
+***REMOVED***
+
+func (s *ipSliceValue) Replace(val []string) error ***REMOVED***
+	out := make([]net.IP, len(val))
+	for i, d := range val ***REMOVED***
+		var err error
+		out[i], err = s.fromString(d)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	*s.value = out
+	return nil
+***REMOVED***
+
+func (s *ipSliceValue) GetSlice() []string ***REMOVED***
+	out := make([]string, len(*s.value))
+	for i, d := range *s.value ***REMOVED***
+		out[i] = s.toString(d)
+	***REMOVED***
+	return out
+***REMOVED***
+
 func ipSliceConv(val string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	val = strings.Trim(val, "[]")
-	// Emtpy string would cause a slice with one (empty) entry
+	// Empty string would cause a slice with one (empty) entry
 	if len(val) == 0 ***REMOVED***
 		return []net.IP***REMOVED******REMOVED***, nil
 	***REMOVED***

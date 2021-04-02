@@ -224,6 +224,17 @@ func (d *Decoder) Decode(input interface***REMOVED******REMOVED***) error ***REM
 
 // Decodes an unknown data type into a specific reflection value.
 func (d *Decoder) decode(name string, input interface***REMOVED******REMOVED***, outVal reflect.Value) error ***REMOVED***
+	var inputVal reflect.Value
+	if input != nil ***REMOVED***
+		inputVal = reflect.ValueOf(input)
+
+		// We need to check here if input is a typed nil. Typed nils won't
+		// match the "input == nil" below so we check that here.
+		if inputVal.Kind() == reflect.Ptr && inputVal.IsNil() ***REMOVED***
+			input = nil
+		***REMOVED***
+	***REMOVED***
+
 	if input == nil ***REMOVED***
 		// If the data is nil, then we don't set anything, unless ZeroFields is set
 		// to true.
@@ -237,7 +248,6 @@ func (d *Decoder) decode(name string, input interface***REMOVED******REMOVED***,
 		return nil
 	***REMOVED***
 
-	inputVal := reflect.ValueOf(input)
 	if !inputVal.IsValid() ***REMOVED***
 		// If the input value is invalid, then we just set the value
 		// to be the zero value.
@@ -260,8 +270,8 @@ func (d *Decoder) decode(name string, input interface***REMOVED******REMOVED***,
 	***REMOVED***
 
 	var err error
-	inputKind := getKind(outVal)
-	switch inputKind ***REMOVED***
+	outputKind := getKind(outVal)
+	switch outputKind ***REMOVED***
 	case reflect.Bool:
 		err = d.decodeBool(name, input, outVal)
 	case reflect.Interface:
@@ -288,7 +298,7 @@ func (d *Decoder) decode(name string, input interface***REMOVED******REMOVED***,
 		err = d.decodeFunc(name, input, outVal)
 	default:
 		// If we reached this point then we weren't able to decode it
-		return fmt.Errorf("%s: unsupported type: %s", name, inputKind)
+		return fmt.Errorf("%s: unsupported type: %s", name, outputKind)
 	***REMOVED***
 
 	// If we reached here, then we successfully decoded SOMETHING, so
@@ -306,7 +316,16 @@ func (d *Decoder) decodeBasic(name string, data interface***REMOVED******REMOVED
 	if val.IsValid() && val.Elem().IsValid() ***REMOVED***
 		return d.decode(name, data, val.Elem())
 	***REMOVED***
+
 	dataVal := reflect.ValueOf(data)
+
+	// If the input data is a pointer, and the assigned type is the dereference
+	// of that exact pointer, then indirect it so that we can assign it.
+	// Example: *string to string
+	if dataVal.Kind() == reflect.Ptr && dataVal.Type().Elem() == val.Type() ***REMOVED***
+		dataVal = reflect.Indirect(dataVal)
+	***REMOVED***
+
 	if !dataVal.IsValid() ***REMOVED***
 		dataVal = reflect.Zero(val.Type())
 	***REMOVED***
@@ -323,7 +342,7 @@ func (d *Decoder) decodeBasic(name string, data interface***REMOVED******REMOVED
 ***REMOVED***
 
 func (d *Decoder) decodeString(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
-	dataVal := reflect.ValueOf(data)
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 
 	converted := true
@@ -375,7 +394,7 @@ func (d *Decoder) decodeString(name string, data interface***REMOVED******REMOVE
 ***REMOVED***
 
 func (d *Decoder) decodeInt(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
-	dataVal := reflect.ValueOf(data)
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 	dataType := dataVal.Type()
 
@@ -417,7 +436,7 @@ func (d *Decoder) decodeInt(name string, data interface***REMOVED******REMOVED**
 ***REMOVED***
 
 func (d *Decoder) decodeUint(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
-	dataVal := reflect.ValueOf(data)
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 
 	switch ***REMOVED***
@@ -460,7 +479,7 @@ func (d *Decoder) decodeUint(name string, data interface***REMOVED******REMOVED*
 ***REMOVED***
 
 func (d *Decoder) decodeBool(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
-	dataVal := reflect.ValueOf(data)
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 
 	switch ***REMOVED***
@@ -491,7 +510,7 @@ func (d *Decoder) decodeBool(name string, data interface***REMOVED******REMOVED*
 ***REMOVED***
 
 func (d *Decoder) decodeFloat(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
-	dataVal := reflect.ValueOf(data)
+	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 	dataType := dataVal.Type()
 
@@ -595,6 +614,20 @@ func (d *Decoder) decodeMapFromMap(name string, dataVal reflect.Value, val refle
 	// Accumulate errors
 	errors := make([]string, 0)
 
+	// If the input data is empty, then we just match what the input data is.
+	if dataVal.Len() == 0 ***REMOVED***
+		if dataVal.IsNil() ***REMOVED***
+			if !val.IsNil() ***REMOVED***
+				val.Set(dataVal)
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			// Set to empty allocated value
+			val.Set(valMap)
+		***REMOVED***
+
+		return nil
+	***REMOVED***
+
 	for _, k := range dataVal.MapKeys() ***REMOVED***
 		fieldName := fmt.Sprintf("%s[%s]", name, k)
 
@@ -644,16 +677,28 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 			return fmt.Errorf("cannot assign type '%s' to map value field of type '%s'", v.Type(), valMap.Type().Elem())
 		***REMOVED***
 
+		tagValue := f.Tag.Get(d.config.TagName)
+		tagParts := strings.Split(tagValue, ",")
+
 		// Determine the name of the key in the map
 		keyName := f.Name
-		tagValue := f.Tag.Get(d.config.TagName)
-		tagValue = strings.SplitN(tagValue, ",", 2)[0]
-		if tagValue != "" ***REMOVED***
-			if tagValue == "-" ***REMOVED***
+		if tagParts[0] != "" ***REMOVED***
+			if tagParts[0] == "-" ***REMOVED***
 				continue
 			***REMOVED***
+			keyName = tagParts[0]
+		***REMOVED***
 
-			keyName = tagValue
+		// If "squash" is specified in the tag, we squash the field down.
+		squash := false
+		for _, tag := range tagParts[1:] ***REMOVED***
+			if tag == "squash" ***REMOVED***
+				squash = true
+				break
+			***REMOVED***
+		***REMOVED***
+		if squash && v.Kind() != reflect.Struct ***REMOVED***
+			return fmt.Errorf("cannot squash non-struct type '%s'", v.Type())
 		***REMOVED***
 
 		switch v.Kind() ***REMOVED***
@@ -673,7 +718,13 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 				return err
 			***REMOVED***
 
-			valMap.SetMapIndex(reflect.ValueOf(keyName), vMap)
+			if squash ***REMOVED***
+				for _, k := range vMap.MapKeys() ***REMOVED***
+					valMap.SetMapIndex(k, vMap.MapIndex(k))
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				valMap.SetMapIndex(reflect.ValueOf(keyName), vMap)
+			***REMOVED***
 
 		default:
 			valMap.SetMapIndex(reflect.ValueOf(keyName), v)
@@ -688,11 +739,33 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 ***REMOVED***
 
 func (d *Decoder) decodePtr(name string, data interface***REMOVED******REMOVED***, val reflect.Value) error ***REMOVED***
+	// If the input data is nil, then we want to just set the output
+	// pointer to be nil as well.
+	isNil := data == nil
+	if !isNil ***REMOVED***
+		switch v := reflect.Indirect(reflect.ValueOf(data)); v.Kind() ***REMOVED***
+		case reflect.Chan,
+			reflect.Func,
+			reflect.Interface,
+			reflect.Map,
+			reflect.Ptr,
+			reflect.Slice:
+			isNil = v.IsNil()
+		***REMOVED***
+	***REMOVED***
+	if isNil ***REMOVED***
+		if !val.IsNil() && val.CanSet() ***REMOVED***
+			nilValue := reflect.New(val.Type()).Elem()
+			val.Set(nilValue)
+		***REMOVED***
+
+		return nil
+	***REMOVED***
+
 	// Create an element of the concrete (non pointer) type and decode
 	// into that. Then set the value of the pointer to this type.
 	valType := val.Type()
 	valElemType := valType.Elem()
-
 	if val.CanSet() ***REMOVED***
 		realVal := val
 		if realVal.IsNil() || d.config.ZeroFields ***REMOVED***
@@ -734,28 +807,42 @@ func (d *Decoder) decodeSlice(name string, data interface***REMOVED******REMOVED
 
 	valSlice := val
 	if valSlice.IsNil() || d.config.ZeroFields ***REMOVED***
+		if d.config.WeaklyTypedInput ***REMOVED***
+			switch ***REMOVED***
+			// Slice and array we use the normal logic
+			case dataValKind == reflect.Slice, dataValKind == reflect.Array:
+				break
+
+			// Empty maps turn into empty slices
+			case dataValKind == reflect.Map:
+				if dataVal.Len() == 0 ***REMOVED***
+					val.Set(reflect.MakeSlice(sliceType, 0, 0))
+					return nil
+				***REMOVED***
+				// Create slice of maps of other sizes
+				return d.decodeSlice(name, []interface***REMOVED******REMOVED******REMOVED***data***REMOVED***, val)
+
+			case dataValKind == reflect.String && valElemType.Kind() == reflect.Uint8:
+				return d.decodeSlice(name, []byte(dataVal.String()), val)
+
+			// All other types we try to convert to the slice type
+			// and "lift" it into it. i.e. a string becomes a string slice.
+			default:
+				// Just re-try this function with data as a slice.
+				return d.decodeSlice(name, []interface***REMOVED******REMOVED******REMOVED***data***REMOVED***, val)
+			***REMOVED***
+		***REMOVED***
+
 		// Check input type
 		if dataValKind != reflect.Array && dataValKind != reflect.Slice ***REMOVED***
-			if d.config.WeaklyTypedInput ***REMOVED***
-				switch ***REMOVED***
-				// Empty maps turn into empty slices
-				case dataValKind == reflect.Map:
-					if dataVal.Len() == 0 ***REMOVED***
-						val.Set(reflect.MakeSlice(sliceType, 0, 0))
-						return nil
-					***REMOVED***
-				case dataValKind == reflect.String && valElemType.Kind() == reflect.Uint8:
-					return d.decodeSlice(name, []byte(dataVal.String()), val)
-				// All other types we try to convert to the slice type
-				// and "lift" it into it. i.e. a string becomes a string slice.
-				default:
-					// Just re-try this function with data as a slice.
-					return d.decodeSlice(name, []interface***REMOVED******REMOVED******REMOVED***data***REMOVED***, val)
-				***REMOVED***
-			***REMOVED***
 			return fmt.Errorf(
 				"'%s': source data must be an array or slice, got %s", name, dataValKind)
 
+		***REMOVED***
+
+		// If the input value is empty, then don't allocate since non-nil != nil
+		if dataVal.Len() == 0 ***REMOVED***
+			return nil
 		***REMOVED***
 
 		// Make a new slice to hold our result, same size as the original data.
@@ -867,10 +954,29 @@ func (d *Decoder) decodeStruct(name string, data interface***REMOVED******REMOVE
 	***REMOVED***
 
 	dataValKind := dataVal.Kind()
-	if dataValKind != reflect.Map ***REMOVED***
-		return fmt.Errorf("'%s' expected a map, got '%s'", name, dataValKind)
-	***REMOVED***
+	switch dataValKind ***REMOVED***
+	case reflect.Map:
+		return d.decodeStructFromMap(name, dataVal, val)
 
+	case reflect.Struct:
+		// Not the most efficient way to do this but we can optimize later if
+		// we want to. To convert from struct to struct we go to map first
+		// as an intermediary.
+		m := make(map[string]interface***REMOVED******REMOVED***)
+		mval := reflect.Indirect(reflect.ValueOf(&m))
+		if err := d.decodeMapFromStruct(name, dataVal, mval, mval); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		result := d.decodeStructFromMap(name, mval, val)
+		return result
+
+	default:
+		return fmt.Errorf("'%s' expected a map, got '%s'", name, dataVal.Kind())
+	***REMOVED***
+***REMOVED***
+
+func (d *Decoder) decodeStructFromMap(name string, dataVal, val reflect.Value) error ***REMOVED***
 	dataValType := dataVal.Type()
 	if kind := dataValType.Key().Kind(); kind != reflect.String && kind != reflect.Interface ***REMOVED***
 		return fmt.Errorf(

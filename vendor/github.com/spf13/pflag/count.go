@@ -46,7 +46,7 @@ func (f *FlagSet) GetCount(name string) (int, error) ***REMOVED***
 
 // CountVar defines a count flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
-// A count flag will add 1 to its value evey time it is found on the command line
+// A count flag will add 1 to its value every time it is found on the command line
 func (f *FlagSet) CountVar(p *int, name string, usage string) ***REMOVED***
 	f.CountVarP(p, name, "", usage)
 ***REMOVED***
@@ -69,7 +69,7 @@ func CountVarP(p *int, name, shorthand string, usage string) ***REMOVED***
 
 // Count defines a count flag with specified name, default value, and usage string.
 // The return value is the address of an int variable that stores the value of the flag.
-// A count flag will add 1 to its value evey time it is found on the command line
+// A count flag will add 1 to its value every time it is found on the command line
 func (f *FlagSet) Count(name string, usage string) *int ***REMOVED***
 	p := new(int)
 	f.CountVarP(p, name, "", usage)

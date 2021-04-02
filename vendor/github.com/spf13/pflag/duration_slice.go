@@ -51,6 +51,44 @@ func (s *durationSliceValue) String() string ***REMOVED***
 	return "[" + strings.Join(out, ",") + "]"
 ***REMOVED***
 
+func (s *durationSliceValue) fromString(val string) (time.Duration, error) ***REMOVED***
+	return time.ParseDuration(val)
+***REMOVED***
+
+func (s *durationSliceValue) toString(val time.Duration) string ***REMOVED***
+	return fmt.Sprintf("%s", val)
+***REMOVED***
+
+func (s *durationSliceValue) Append(val string) error ***REMOVED***
+	i, err := s.fromString(val)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*s.value = append(*s.value, i)
+	return nil
+***REMOVED***
+
+func (s *durationSliceValue) Replace(val []string) error ***REMOVED***
+	out := make([]time.Duration, len(val))
+	for i, d := range val ***REMOVED***
+		var err error
+		out[i], err = s.fromString(d)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	*s.value = out
+	return nil
+***REMOVED***
+
+func (s *durationSliceValue) GetSlice() []string ***REMOVED***
+	out := make([]string, len(*s.value))
+	for i, d := range *s.value ***REMOVED***
+		out[i] = s.toString(d)
+	***REMOVED***
+	return out
+***REMOVED***
+
 func durationSliceConv(val string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	val = strings.Trim(val, "[]")
 	// Empty string would cause a slice with one (empty) entry
