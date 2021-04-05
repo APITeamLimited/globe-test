@@ -23,13 +23,12 @@ package v1
 import (
 	"net/http"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go/jsonapi"
 
 	"github.com/loadimpact/k6/api/common"
 )
 
-func HandleGetGroups(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
+func handleGetGroups(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 	engine := common.GetEngine(r.Context())
 
 	root := NewGroup(engine.ExecutionScheduler.GetRunner().GetDefaultGroup(), nil)
@@ -43,9 +42,7 @@ func HandleGetGroups(rw http.ResponseWriter, r *http.Request, p httprouter.Param
 	_, _ = rw.Write(data)
 ***REMOVED***
 
-func HandleGetGroup(rw http.ResponseWriter, r *http.Request, p httprouter.Params) ***REMOVED***
-	id := p.ByName("id")
-
+func handleGetGroup(rw http.ResponseWriter, r *http.Request, id string) ***REMOVED***
 	engine := common.GetEngine(r.Context())
 
 	root := NewGroup(engine.ExecutionScheduler.GetRunner().GetDefaultGroup(), nil)

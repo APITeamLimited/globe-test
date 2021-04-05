@@ -22,27 +22,80 @@ package v1
 
 import (
 	"net/http"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 func NewHandler() http.Handler ***REMOVED***
-	router := httprouter.New()
+	mux := http.NewServeMux()
 
-	router.GET("/v1/status", HandleGetStatus)
-	router.PATCH("/v1/status", HandlePatchStatus)
+	mux.HandleFunc("/v1/status", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		switch r.Method ***REMOVED***
+		case http.MethodGet:
+			handleGetStatus(rw, r)
+		case http.MethodPatch:
+			handlePatchStatus(rw, r)
+		default:
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+		***REMOVED***
+	***REMOVED***)
 
-	router.GET("/v1/metrics", HandleGetMetrics)
-	router.GET("/v1/metrics/:id", HandleGetMetric)
+	mux.HandleFunc("/v1/metrics", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.Method != http.MethodGet ***REMOVED***
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		***REMOVED***
+		handleGetMetrics(rw, r)
+	***REMOVED***)
 
-	router.GET("/v1/groups", HandleGetGroups)
-	router.GET("/v1/groups/:id", HandleGetGroup)
+	mux.HandleFunc("/v1/metrics/", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.Method != http.MethodGet ***REMOVED***
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		***REMOVED***
 
-	router.POST("/v1/setup", HandleRunSetup)
-	router.PUT("/v1/setup", HandleSetSetupData)
-	router.GET("/v1/setup", HandleGetSetupData)
+		id := r.URL.Path[len("/v1/metrics/"):]
+		handleGetMetric(rw, r, id)
+	***REMOVED***)
 
-	router.POST("/v1/teardown", HandleRunTeardown)
+	mux.HandleFunc("/v1/groups", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.Method != http.MethodGet ***REMOVED***
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		***REMOVED***
 
-	return router
+		handleGetGroups(rw, r)
+	***REMOVED***)
+
+	mux.HandleFunc("/v1/groups/", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.Method != http.MethodGet ***REMOVED***
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		***REMOVED***
+
+		id := r.URL.Path[len("/v1/groups/"):]
+		handleGetGroup(rw, r, id)
+	***REMOVED***)
+
+	mux.HandleFunc("/v1/setup", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		switch r.Method ***REMOVED***
+		case http.MethodPost:
+			handleRunSetup(rw, r)
+		case http.MethodPut:
+			handleSetSetupData(rw, r)
+		case http.MethodGet:
+			handleGetSetupData(rw, r)
+		default:
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+		***REMOVED***
+	***REMOVED***)
+
+	mux.HandleFunc("/v1/teardown", func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		if r.Method != http.MethodPost ***REMOVED***
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		***REMOVED***
+
+		handleRunTeardown(rw, r)
+	***REMOVED***)
+
+	return mux
 ***REMOVED***
