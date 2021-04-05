@@ -4,7 +4,10 @@
 
 package bidi
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // This implementation is a port based on the reference implementation found at:
 // https://www.unicode.org/Public/PROGRAMS/BidiReferenceJava/
@@ -97,13 +100,20 @@ type paragraph struct ***REMOVED***
 // rune (suggested is the rune of the open bracket for opening and matching
 // close brackets, after normalization). The embedding levels are optional, but
 // may be supplied to encode embedding levels of styled text.
-//
-// TODO: return an error.
-func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, levels level) *paragraph ***REMOVED***
-	validateTypes(types)
-	validatePbTypes(pairTypes)
-	validatePbValues(pairValues, pairTypes)
-	validateParagraphEmbeddingLevel(levels)
+func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, levels level) (*paragraph, error) ***REMOVED***
+	var err error
+	if err = validateTypes(types); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if err = validatePbTypes(pairTypes); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if err = validatePbValues(pairValues, pairTypes); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if err = validateParagraphEmbeddingLevel(levels); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
 	p := &paragraph***REMOVED***
 		initialTypes:   append([]Class(nil), types...),
@@ -115,7 +125,7 @@ func newParagraph(types []Class, pairTypes []bracketType, pairValues []rune, lev
 		resultTypes: append([]Class(nil), types...),
 	***REMOVED***
 	p.run()
-	return p
+	return p, nil
 ***REMOVED***
 
 func (p *paragraph) Len() int ***REMOVED*** return len(p.initialTypes) ***REMOVED***
@@ -1001,58 +1011,61 @@ func typeForLevel(level level) Class ***REMOVED***
 	return R
 ***REMOVED***
 
-// TODO: change validation to not panic
-
-func validateTypes(types []Class) ***REMOVED***
+func validateTypes(types []Class) error ***REMOVED***
 	if len(types) == 0 ***REMOVED***
-		log.Panic("types is null")
+		return fmt.Errorf("types is null")
 	***REMOVED***
 	for i, t := range types[:len(types)-1] ***REMOVED***
 		if t == B ***REMOVED***
-			log.Panicf("B type before end of paragraph at index: %d", i)
+			return fmt.Errorf("B type before end of paragraph at index: %d", i)
 		***REMOVED***
 	***REMOVED***
+	return nil
 ***REMOVED***
 
-func validateParagraphEmbeddingLevel(embeddingLevel level) ***REMOVED***
+func validateParagraphEmbeddingLevel(embeddingLevel level) error ***REMOVED***
 	if embeddingLevel != implicitLevel &&
 		embeddingLevel != 0 &&
 		embeddingLevel != 1 ***REMOVED***
-		log.Panicf("illegal paragraph embedding level: %d", embeddingLevel)
+		return fmt.Errorf("illegal paragraph embedding level: %d", embeddingLevel)
 	***REMOVED***
+	return nil
 ***REMOVED***
 
-func validateLineBreaks(linebreaks []int, textLength int) ***REMOVED***
+func validateLineBreaks(linebreaks []int, textLength int) error ***REMOVED***
 	prev := 0
 	for i, next := range linebreaks ***REMOVED***
 		if next <= prev ***REMOVED***
-			log.Panicf("bad linebreak: %d at index: %d", next, i)
+			return fmt.Errorf("bad linebreak: %d at index: %d", next, i)
 		***REMOVED***
 		prev = next
 	***REMOVED***
 	if prev != textLength ***REMOVED***
-		log.Panicf("last linebreak was %d, want %d", prev, textLength)
+		return fmt.Errorf("last linebreak was %d, want %d", prev, textLength)
 	***REMOVED***
+	return nil
 ***REMOVED***
 
-func validatePbTypes(pairTypes []bracketType) ***REMOVED***
+func validatePbTypes(pairTypes []bracketType) error ***REMOVED***
 	if len(pairTypes) == 0 ***REMOVED***
-		log.Panic("pairTypes is null")
+		return fmt.Errorf("pairTypes is null")
 	***REMOVED***
 	for i, pt := range pairTypes ***REMOVED***
 		switch pt ***REMOVED***
 		case bpNone, bpOpen, bpClose:
 		default:
-			log.Panicf("illegal pairType value at %d: %v", i, pairTypes[i])
+			return fmt.Errorf("illegal pairType value at %d: %v", i, pairTypes[i])
 		***REMOVED***
 	***REMOVED***
+	return nil
 ***REMOVED***
 
-func validatePbValues(pairValues []rune, pairTypes []bracketType) ***REMOVED***
+func validatePbValues(pairValues []rune, pairTypes []bracketType) error ***REMOVED***
 	if pairValues == nil ***REMOVED***
-		log.Panic("pairValues is null")
+		return fmt.Errorf("pairValues is null")
 	***REMOVED***
 	if len(pairTypes) != len(pairValues) ***REMOVED***
-		log.Panic("pairTypes is different length from pairValues")
+		return fmt.Errorf("pairTypes is different length from pairValues")
 	***REMOVED***
+	return nil
 ***REMOVED***

@@ -486,9 +486,18 @@ func (a *arrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMO
 	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
 	ctx.put(a, arr)
-	for i, v := range a.values ***REMOVED***
-		if v != nil ***REMOVED***
-			arr[i] = exportValue(v, ctx)
+	if a.propValueCount == 0 && a.length == uint32(len(a.values)) && uint32(a.objCount) == a.length ***REMOVED***
+		for i, v := range a.values ***REMOVED***
+			if v != nil ***REMOVED***
+				arr[i] = exportValue(v, ctx)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		for i := uint32(0); i < a.length; i++ ***REMOVED***
+			v := a.getIdx(valueInt(i), nil)
+			if v != nil ***REMOVED***
+				arr[i] = exportValue(v, ctx)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return arr

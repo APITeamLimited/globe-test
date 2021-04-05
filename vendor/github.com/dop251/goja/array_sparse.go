@@ -433,9 +433,30 @@ func (a *sparseArrayObject) export(ctx *objectExportCtx) interface***REMOVED****
 	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
 	ctx.put(a, arr)
+	var prevIdx uint32
 	for _, item := range a.items ***REMOVED***
-		if item.value != nil ***REMOVED***
-			arr[item.idx] = exportValue(item.value, ctx)
+		idx := item.idx
+		for i := prevIdx; i < idx; i++ ***REMOVED***
+			if a.prototype != nil ***REMOVED***
+				if v := a.prototype.self.getIdx(valueInt(i), nil); v != nil ***REMOVED***
+					arr[i] = exportValue(v, ctx)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		v := item.value
+		if v != nil ***REMOVED***
+			if prop, ok := v.(*valueProperty); ok ***REMOVED***
+				v = prop.get(a.val)
+			***REMOVED***
+			arr[idx] = exportValue(v, ctx)
+		***REMOVED***
+		prevIdx = idx + 1
+	***REMOVED***
+	for i := prevIdx; i < a.length; i++ ***REMOVED***
+		if a.prototype != nil ***REMOVED***
+			if v := a.prototype.self.getIdx(valueInt(i), nil); v != nil ***REMOVED***
+				arr[i] = exportValue(v, ctx)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	return arr
