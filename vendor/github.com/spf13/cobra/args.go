@@ -2,6 +2,7 @@ package cobra
 
 import (
 	"fmt"
+	"strings"
 )
 
 type PositionalArgs func(cmd *Command, args []string) error
@@ -34,8 +35,15 @@ func NoArgs(cmd *Command, args []string) error ***REMOVED***
 // OnlyValidArgs returns an error if any args are not in the list of ValidArgs.
 func OnlyValidArgs(cmd *Command, args []string) error ***REMOVED***
 	if len(cmd.ValidArgs) > 0 ***REMOVED***
+		// Remove any description that may be included in ValidArgs.
+		// A description is following a tab character.
+		var validArgs []string
+		for _, v := range cmd.ValidArgs ***REMOVED***
+			validArgs = append(validArgs, strings.Split(v, "\t")[0])
+		***REMOVED***
+
 		for _, v := range args ***REMOVED***
-			if !stringInSlice(v, cmd.ValidArgs) ***REMOVED***
+			if !stringInSlice(v, validArgs) ***REMOVED***
 				return fmt.Errorf("invalid argument %q for %q%s", v, cmd.CommandPath(), cmd.findSuggestions(args[0]))
 			***REMOVED***
 		***REMOVED***
@@ -75,6 +83,18 @@ func ExactArgs(n int) PositionalArgs ***REMOVED***
 			return fmt.Errorf("accepts %d arg(s), received %d", n, len(args))
 		***REMOVED***
 		return nil
+	***REMOVED***
+***REMOVED***
+
+// ExactValidArgs returns an error if
+// there are not exactly N positional args OR
+// there are any positional args that are not in the `ValidArgs` field of `Command`
+func ExactValidArgs(n int) PositionalArgs ***REMOVED***
+	return func(cmd *Command, args []string) error ***REMOVED***
+		if err := ExactArgs(n)(cmd, args); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		return OnlyValidArgs(cmd, args)
 	***REMOVED***
 ***REMOVED***
 

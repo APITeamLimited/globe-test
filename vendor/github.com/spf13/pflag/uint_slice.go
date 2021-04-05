@@ -50,6 +50,48 @@ func (s *uintSliceValue) String() string ***REMOVED***
 	return "[" + strings.Join(out, ",") + "]"
 ***REMOVED***
 
+func (s *uintSliceValue) fromString(val string) (uint, error) ***REMOVED***
+	t, err := strconv.ParseUint(val, 10, 0)
+	if err != nil ***REMOVED***
+		return 0, err
+	***REMOVED***
+	return uint(t), nil
+***REMOVED***
+
+func (s *uintSliceValue) toString(val uint) string ***REMOVED***
+	return fmt.Sprintf("%d", val)
+***REMOVED***
+
+func (s *uintSliceValue) Append(val string) error ***REMOVED***
+	i, err := s.fromString(val)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	*s.value = append(*s.value, i)
+	return nil
+***REMOVED***
+
+func (s *uintSliceValue) Replace(val []string) error ***REMOVED***
+	out := make([]uint, len(val))
+	for i, d := range val ***REMOVED***
+		var err error
+		out[i], err = s.fromString(d)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	*s.value = out
+	return nil
+***REMOVED***
+
+func (s *uintSliceValue) GetSlice() []string ***REMOVED***
+	out := make([]string, len(*s.value))
+	for i, d := range *s.value ***REMOVED***
+		out[i] = s.toString(d)
+	***REMOVED***
+	return out
+***REMOVED***
+
 func uintSliceConv(val string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	val = strings.Trim(val, "[]")
 	// Empty string would cause a slice with one (empty) entry

@@ -17,6 +17,7 @@ package cobra
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,14 @@ type FParseErrWhitelist flag.ParseErrorsWhitelist
 // definition to ensure usability.
 type Command struct ***REMOVED***
 	// Use is the one-line usage message.
+	// Recommended syntax is as follow:
+	//   [ ] identifies an optional argument. Arguments that are not enclosed in brackets are required.
+	//   ... indicates that you can specify multiple values for the previous argument.
+	//   |   indicates mutually exclusive information. You can use the argument to the left of the separator or the
+	//       argument to the right of the separator. You cannot use both arguments in a single use of the command.
+	//   ***REMOVED*** ***REMOVED*** delimits a set of mutually exclusive arguments when one of the arguments is required. If the arguments are
+	//       optional, they are enclosed in brackets ([ ]).
+	// Example: add [-F file | -D dir]... [-f format] profile
 	Use string
 
 	// Aliases is an array of aliases that can be used instead of the first word in Use.
@@ -56,6 +65,10 @@ type Command struct ***REMOVED***
 
 	// ValidArgs is list of all valid non-flag arguments that are accepted in bash completions
 	ValidArgs []string
+	// ValidArgsFunction is an optional function that provides valid non-flag arguments for bash completion.
+	// It is a dynamic version of using ValidArgs.
+	// Only one of ValidArgs and ValidArgsFunction can be used for a command.
+	ValidArgsFunction func(cmd *Command, args []string, toComplete string) ([]string, ShellCompDirective)
 
 	// Expected arguments
 	Args PositionalArgs
@@ -71,16 +84,14 @@ type Command struct ***REMOVED***
 	// Deprecated defines, if this command is deprecated and should print this string when used.
 	Deprecated string
 
-	// Hidden defines, if this command is hidden and should NOT show up in the list of available commands.
-	Hidden bool
-
 	// Annotations are key/value pairs that can be used by applications to identify or
 	// group commands.
 	Annotations map[string]string
 
 	// Version defines the version for this command. If this value is non-empty and the command does not
 	// define a "version" flag, a "version" boolean flag will be added to the command and, if specified,
-	// will print content of the "Version" variable.
+	// will print content of the "Version" variable. A shorthand "v" flag will also be added if the
+	// command does not define one.
 	Version string
 
 	// The *Run functions are executed in the following order:
@@ -112,6 +123,76 @@ type Command struct ***REMOVED***
 	// PersistentPostRunE: PersistentPostRun but returns an error.
 	PersistentPostRunE func(cmd *Command, args []string) error
 
+	// args is actual args parsed from flags.
+	args []string
+	// flagErrorBuf contains all error messages from pflag.
+	flagErrorBuf *bytes.Buffer
+	// flags is full set of flags.
+	flags *flag.FlagSet
+	// pflags contains persistent flags.
+	pflags *flag.FlagSet
+	// lflags contains local flags.
+	lflags *flag.FlagSet
+	// iflags contains inherited flags.
+	iflags *flag.FlagSet
+	// parentsPflags is all persistent flags of cmd's parents.
+	parentsPflags *flag.FlagSet
+	// globNormFunc is the global normalization function
+	// that we can use on every pflag set and children commands
+	globNormFunc func(f *flag.FlagSet, name string) flag.NormalizedName
+
+	// usageFunc is usage func defined by user.
+	usageFunc func(*Command) error
+	// usageTemplate is usage template defined by user.
+	usageTemplate string
+	// flagErrorFunc is func defined by user and it's called when the parsing of
+	// flags returns an error.
+	flagErrorFunc func(*Command, error) error
+	// helpTemplate is help template defined by user.
+	helpTemplate string
+	// helpFunc is help func defined by user.
+	helpFunc func(*Command, []string)
+	// helpCommand is command with usage 'help'. If it's not defined by user,
+	// cobra uses default help command.
+	helpCommand *Command
+	// versionTemplate is the version template defined by user.
+	versionTemplate string
+
+	// inReader is a reader defined by the user that replaces stdin
+	inReader io.Reader
+	// outWriter is a writer defined by the user that replaces stdout
+	outWriter io.Writer
+	// errWriter is a writer defined by the user that replaces stderr
+	errWriter io.Writer
+
+	//FParseErrWhitelist flag parse errors to be ignored
+	FParseErrWhitelist FParseErrWhitelist
+
+	// commandsAreSorted defines, if command slice are sorted or not.
+	commandsAreSorted bool
+	// commandCalledAs is the name or alias value used to call this command.
+	commandCalledAs struct ***REMOVED***
+		name   string
+		called bool
+	***REMOVED***
+
+	ctx context.Context
+
+	// commands is the list of commands supported by this program.
+	commands []*Command
+	// parent is a parent command for this command.
+	parent *Command
+	// Max lengths of commands' string lengths for use in padding.
+	commandsMaxUseLen         int
+	commandsMaxCommandPathLen int
+	commandsMaxNameLen        int
+
+	// TraverseChildren parses flags on all parents before executing child command.
+	TraverseChildren bool
+
+	// Hidden defines, if this command is hidden and should NOT show up in the list of available commands.
+	Hidden bool
+
 	// SilenceErrors is an option to quiet errors down stream.
 	SilenceErrors bool
 
@@ -133,68 +214,16 @@ type Command struct ***REMOVED***
 	// DisableSuggestions disables the suggestions based on Levenshtein distance
 	// that go along with 'unknown command' messages.
 	DisableSuggestions bool
+
 	// SuggestionsMinimumDistance defines minimum levenshtein distance to display suggestions.
 	// Must be > 0.
 	SuggestionsMinimumDistance int
+***REMOVED***
 
-	// TraverseChildren parses flags on all parents before executing child command.
-	TraverseChildren bool
-
-	//FParseErrWhitelist flag parse errors to be ignored
-	FParseErrWhitelist FParseErrWhitelist
-
-	// commands is the list of commands supported by this program.
-	commands []*Command
-	// parent is a parent command for this command.
-	parent *Command
-	// Max lengths of commands' string lengths for use in padding.
-	commandsMaxUseLen         int
-	commandsMaxCommandPathLen int
-	commandsMaxNameLen        int
-	// commandsAreSorted defines, if command slice are sorted or not.
-	commandsAreSorted bool
-	// commandCalledAs is the name or alias value used to call this command.
-	commandCalledAs struct ***REMOVED***
-		name   string
-		called bool
-	***REMOVED***
-
-	// args is actual args parsed from flags.
-	args []string
-	// flagErrorBuf contains all error messages from pflag.
-	flagErrorBuf *bytes.Buffer
-	// flags is full set of flags.
-	flags *flag.FlagSet
-	// pflags contains persistent flags.
-	pflags *flag.FlagSet
-	// lflags contains local flags.
-	lflags *flag.FlagSet
-	// iflags contains inherited flags.
-	iflags *flag.FlagSet
-	// parentsPflags is all persistent flags of cmd's parents.
-	parentsPflags *flag.FlagSet
-	// globNormFunc is the global normalization function
-	// that we can use on every pflag set and children commands
-	globNormFunc func(f *flag.FlagSet, name string) flag.NormalizedName
-
-	// output is an output writer defined by user.
-	output io.Writer
-	// usageFunc is usage func defined by user.
-	usageFunc func(*Command) error
-	// usageTemplate is usage template defined by user.
-	usageTemplate string
-	// flagErrorFunc is func defined by user and it's called when the parsing of
-	// flags returns an error.
-	flagErrorFunc func(*Command, error) error
-	// helpTemplate is help template defined by user.
-	helpTemplate string
-	// helpFunc is help func defined by user.
-	helpFunc func(*Command, []string)
-	// helpCommand is command with usage 'help'. If it's not defined by user,
-	// cobra uses default help command.
-	helpCommand *Command
-	// versionTemplate is the version template defined by user.
-	versionTemplate string
+// Context returns underlying command context. If command wasn't
+// executed with ExecuteContext Context returns Background context.
+func (c *Command) Context() context.Context ***REMOVED***
+	return c.ctx
 ***REMOVED***
 
 // SetArgs sets arguments for the command. It is set to os.Args[1:] by default, if desired, can be overridden
@@ -205,8 +234,28 @@ func (c *Command) SetArgs(a []string) ***REMOVED***
 
 // SetOutput sets the destination for usage and error messages.
 // If output is nil, os.Stderr is used.
+// Deprecated: Use SetOut and/or SetErr instead
 func (c *Command) SetOutput(output io.Writer) ***REMOVED***
-	c.output = output
+	c.outWriter = output
+	c.errWriter = output
+***REMOVED***
+
+// SetOut sets the destination for usage messages.
+// If newOut is nil, os.Stdout is used.
+func (c *Command) SetOut(newOut io.Writer) ***REMOVED***
+	c.outWriter = newOut
+***REMOVED***
+
+// SetErr sets the destination for error messages.
+// If newErr is nil, os.Stderr is used.
+func (c *Command) SetErr(newErr io.Writer) ***REMOVED***
+	c.errWriter = newErr
+***REMOVED***
+
+// SetIn sets the source for input data
+// If newIn is nil, os.Stdin is used.
+func (c *Command) SetIn(newIn io.Reader) ***REMOVED***
+	c.inReader = newIn
 ***REMOVED***
 
 // SetUsageFunc sets usage function. Usage can be defined by application.
@@ -267,12 +316,42 @@ func (c *Command) OutOrStderr() io.Writer ***REMOVED***
 	return c.getOut(os.Stderr)
 ***REMOVED***
 
+// ErrOrStderr returns output to stderr
+func (c *Command) ErrOrStderr() io.Writer ***REMOVED***
+	return c.getErr(os.Stderr)
+***REMOVED***
+
+// InOrStdin returns input to stdin
+func (c *Command) InOrStdin() io.Reader ***REMOVED***
+	return c.getIn(os.Stdin)
+***REMOVED***
+
 func (c *Command) getOut(def io.Writer) io.Writer ***REMOVED***
-	if c.output != nil ***REMOVED***
-		return c.output
+	if c.outWriter != nil ***REMOVED***
+		return c.outWriter
 	***REMOVED***
 	if c.HasParent() ***REMOVED***
 		return c.parent.getOut(def)
+	***REMOVED***
+	return def
+***REMOVED***
+
+func (c *Command) getErr(def io.Writer) io.Writer ***REMOVED***
+	if c.errWriter != nil ***REMOVED***
+		return c.errWriter
+	***REMOVED***
+	if c.HasParent() ***REMOVED***
+		return c.parent.getErr(def)
+	***REMOVED***
+	return def
+***REMOVED***
+
+func (c *Command) getIn(def io.Reader) io.Reader ***REMOVED***
+	if c.inReader != nil ***REMOVED***
+		return c.inReader
+	***REMOVED***
+	if c.HasParent() ***REMOVED***
+		return c.parent.getIn(def)
 	***REMOVED***
 	return def
 ***REMOVED***
@@ -290,7 +369,7 @@ func (c *Command) UsageFunc() (f func(*Command) error) ***REMOVED***
 		c.mergePersistentFlags()
 		err := tmpl(c.OutOrStderr(), c.UsageTemplate(), c)
 		if err != nil ***REMOVED***
-			c.Println(err)
+			c.PrintErrln(err)
 		***REMOVED***
 		return err
 	***REMOVED***
@@ -314,9 +393,11 @@ func (c *Command) HelpFunc() func(*Command, []string) ***REMOVED***
 	***REMOVED***
 	return func(c *Command, a []string) ***REMOVED***
 		c.mergePersistentFlags()
+		// The help should be sent to stdout
+		// See https://github.com/spf13/cobra/issues/1002
 		err := tmpl(c.OutOrStdout(), c.HelpTemplate(), c)
 		if err != nil ***REMOVED***
-			c.Println(err)
+			c.PrintErrln(err)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -329,13 +410,22 @@ func (c *Command) Help() error ***REMOVED***
 	return nil
 ***REMOVED***
 
-// UsageString return usage string.
+// UsageString returns usage string.
 func (c *Command) UsageString() string ***REMOVED***
-	tmpOutput := c.output
+	// Storing normal writers
+	tmpOutput := c.outWriter
+	tmpErr := c.errWriter
+
 	bb := new(bytes.Buffer)
-	c.SetOutput(bb)
-	c.Usage()
-	c.output = tmpOutput
+	c.outWriter = bb
+	c.errWriter = bb
+
+	CheckErr(c.Usage())
+
+	// Setting things back to normal
+	c.outWriter = tmpOutput
+	c.errWriter = tmpErr
+
 	return bb.String()
 ***REMOVED***
 
@@ -793,6 +883,13 @@ func (c *Command) preRun() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// ExecuteContext is the same as Execute(), but sets the ctx on the command.
+// Retrieve ctx by calling cmd.Context() inside your *Run lifecycle functions.
+func (c *Command) ExecuteContext(ctx context.Context) error ***REMOVED***
+	c.ctx = ctx
+	return c.Execute()
+***REMOVED***
+
 // Execute uses the args (os.Args[1:] by default)
 // and run through the command tree finding appropriate matches
 // for commands and then corresponding flags.
@@ -803,6 +900,10 @@ func (c *Command) Execute() error ***REMOVED***
 
 // ExecuteC executes the command.
 func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
+	if c.ctx == nil ***REMOVED***
+		c.ctx = context.Background()
+	***REMOVED***
+
 	// Regardless of what command execute is called on, run on Root only
 	if c.HasParent() ***REMOVED***
 		return c.Root().ExecuteC()
@@ -817,14 +918,15 @@ func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
 	// overriding
 	c.InitDefaultHelpCmd()
 
-	var args []string
+	args := c.args
 
 	// Workaround FAIL with "go test -v" or "cobra.test -test.v", see #155
 	if c.args == nil && filepath.Base(os.Args[0]) != "cobra.test" ***REMOVED***
 		args = os.Args[1:]
-	***REMOVED*** else ***REMOVED***
-		args = c.args
 	***REMOVED***
+
+	// initialize the hidden command to be used for bash completion
+	c.initCompleteCmd(args)
 
 	var flags []string
 	if c.TraverseChildren ***REMOVED***
@@ -838,8 +940,8 @@ func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
 			c = cmd
 		***REMOVED***
 		if !c.SilenceErrors ***REMOVED***
-			c.Println("Error:", err.Error())
-			c.Printf("Run '%v --help' for usage.\n", c.CommandPath())
+			c.PrintErrln("Error:", err.Error())
+			c.PrintErrf("Run '%v --help' for usage.\n", c.CommandPath())
 		***REMOVED***
 		return c, err
 	***REMOVED***
@@ -847,6 +949,12 @@ func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
 	cmd.commandCalledAs.called = true
 	if cmd.commandCalledAs.name == "" ***REMOVED***
 		cmd.commandCalledAs.name = cmd.Name()
+	***REMOVED***
+
+	// We have to pass global context to children command
+	// if context is present on the parent command.
+	if cmd.ctx == nil ***REMOVED***
+		cmd.ctx = c.ctx
 	***REMOVED***
 
 	err = cmd.execute(flags)
@@ -858,13 +966,13 @@ func (c *Command) ExecuteC() (cmd *Command, err error) ***REMOVED***
 			return cmd, nil
 		***REMOVED***
 
-		// If root command has SilentErrors flagged,
+		// If root command has SilenceErrors flagged,
 		// all subcommands should respect it
 		if !cmd.SilenceErrors && !c.SilenceErrors ***REMOVED***
-			c.Println("Error:", err.Error())
+			c.PrintErrln("Error:", err.Error())
 		***REMOVED***
 
-		// If root command has SilentUsage flagged,
+		// If root command has SilenceUsage flagged,
 		// all subcommands should respect it
 		if !cmd.SilenceUsage && !c.SilenceUsage ***REMOVED***
 			c.Println(cmd.UsageString())
@@ -881,6 +989,10 @@ func (c *Command) ValidateArgs(args []string) error ***REMOVED***
 ***REMOVED***
 
 func (c *Command) validateRequiredFlags() error ***REMOVED***
+	if c.DisableFlagParsing ***REMOVED***
+		return nil
+	***REMOVED***
+
 	flags := c.Flags()
 	missingFlagNames := []string***REMOVED******REMOVED***
 	flags.VisitAll(func(pflag *flag.Flag) ***REMOVED***
@@ -932,7 +1044,11 @@ func (c *Command) InitDefaultVersionFlag() ***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			usage += c.Name()
 		***REMOVED***
-		c.Flags().Bool("version", false, usage)
+		if c.Flags().ShorthandLookup("v") == nil ***REMOVED***
+			c.Flags().BoolP("version", "v", false, usage)
+		***REMOVED*** else ***REMOVED***
+			c.Flags().Bool("version", false, usage)
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -950,15 +1066,33 @@ func (c *Command) InitDefaultHelpCmd() ***REMOVED***
 			Short: "Help about any command",
 			Long: `Help provides help for any command in the application.
 Simply type ` + c.Name() + ` help [path to command] for full details.`,
-
+			ValidArgsFunction: func(c *Command, args []string, toComplete string) ([]string, ShellCompDirective) ***REMOVED***
+				var completions []string
+				cmd, _, e := c.Root().Find(args)
+				if e != nil ***REMOVED***
+					return nil, ShellCompDirectiveNoFileComp
+				***REMOVED***
+				if cmd == nil ***REMOVED***
+					// Root help command.
+					cmd = c.Root()
+				***REMOVED***
+				for _, subCmd := range cmd.Commands() ***REMOVED***
+					if subCmd.IsAvailableCommand() || subCmd == cmd.helpCommand ***REMOVED***
+						if strings.HasPrefix(subCmd.Name(), toComplete) ***REMOVED***
+							completions = append(completions, fmt.Sprintf("%s\t%s", subCmd.Name(), subCmd.Short))
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+				return completions, ShellCompDirectiveNoFileComp
+			***REMOVED***,
 			Run: func(c *Command, args []string) ***REMOVED***
 				cmd, _, e := c.Root().Find(args)
 				if cmd == nil || e != nil ***REMOVED***
 					c.Printf("Unknown help topic %#q\n", args)
-					c.Root().Usage()
+					CheckErr(c.Root().Usage())
 				***REMOVED*** else ***REMOVED***
 					cmd.InitDefaultHelpFlag() // make possible 'help' flag to be shown
-					cmd.Help()
+					CheckErr(cmd.Help())
 				***REMOVED***
 			***REMOVED***,
 		***REMOVED***
@@ -1068,6 +1202,21 @@ func (c *Command) Println(i ...interface***REMOVED******REMOVED***) ***REMOVED**
 // Printf is a convenience method to Printf to the defined output, fallback to Stderr if not set.
 func (c *Command) Printf(format string, i ...interface***REMOVED******REMOVED***) ***REMOVED***
 	c.Print(fmt.Sprintf(format, i...))
+***REMOVED***
+
+// PrintErr is a convenience method to Print to the defined Err output, fallback to Stderr if not set.
+func (c *Command) PrintErr(i ...interface***REMOVED******REMOVED***) ***REMOVED***
+	fmt.Fprint(c.ErrOrStderr(), i...)
+***REMOVED***
+
+// PrintErrln is a convenience method to Println to the defined Err output, fallback to Stderr if not set.
+func (c *Command) PrintErrln(i ...interface***REMOVED******REMOVED***) ***REMOVED***
+	c.PrintErr(fmt.Sprintln(i...))
+***REMOVED***
+
+// PrintErrf is a convenience method to Printf to the defined Err output, fallback to Stderr if not set.
+func (c *Command) PrintErrf(format string, i ...interface***REMOVED******REMOVED***) ***REMOVED***
+	c.PrintErr(fmt.Sprintf(format, i...))
 ***REMOVED***
 
 // CommandPath returns the full path to this command.
@@ -1335,7 +1484,7 @@ func (c *Command) LocalFlags() *flag.FlagSet ***REMOVED***
 	return c.lflags
 ***REMOVED***
 
-// InheritedFlags returns all flags which were inherited from parents commands.
+// InheritedFlags returns all flags which were inherited from parent commands.
 func (c *Command) InheritedFlags() *flag.FlagSet ***REMOVED***
 	c.mergePersistentFlags()
 
@@ -1470,7 +1619,7 @@ func (c *Command) ParseFlags(args []string) error ***REMOVED***
 	beforeErrorBufLen := c.flagErrorBuf.Len()
 	c.mergePersistentFlags()
 
-	//do it here after merging all flags and just before parse
+	// do it here after merging all flags and just before parse
 	c.Flags().ParseErrorsWhitelist = flag.ParseErrorsWhitelist(c.FParseErrWhitelist)
 
 	err := c.Flags().Parse(args)
