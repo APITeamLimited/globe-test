@@ -381,7 +381,8 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 	err = rt.Set("ws", common.Bind(rt, New(), &ctx))
 	assert.NoError(t, err)
 
-	_, err = rt.RunString(sr(`
+	t.Run("ok", func(t *testing.T) ***REMOVED***
+		_, err = rt.RunString(sr(`
 		var gotMsg = false;
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
 			var data = new Uint8Array([104, 101, 108, 108, 111]); // 'hello'
@@ -403,7 +404,20 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 			throw new Error("the 'binaryMessage' handler wasn't called")
 		***REMOVED***
 		`))
-	assert.NoError(t, err)
+		assert.NoError(t, err)
+	***REMOVED***)
+
+	t.Run("err", func(t *testing.T) ***REMOVED***
+		_, err = rt.RunString(sr(`
+		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
+			socket.on('open', function() ***REMOVED***
+				socket.sendBinary([104, 101, 108, 108, 111]);
+			***REMOVED***)
+		***REMOVED***);
+		`))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "expected ArrayBuffer as argument, received: []interface ***REMOVED******REMOVED***")
+	***REMOVED***)
 ***REMOVED***
 
 func TestErrors(t *testing.T) ***REMOVED***
