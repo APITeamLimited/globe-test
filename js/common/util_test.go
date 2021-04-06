@@ -86,7 +86,7 @@ func TestToString(t *testing.T) ***REMOVED***
 		***REMOVED***struct***REMOVED******REMOVED******REMOVED******REMOVED***, "", "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"***REMOVED***,
 	***REMOVED***
 
-	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest // false positive?
+	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest // false positive: https://github.com/kunwardeep/paralleltest/issues/8
 		tc := tc
 		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) ***REMOVED***
 			t.Parallel()

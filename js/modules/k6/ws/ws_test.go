@@ -381,7 +381,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 	err = rt.Set("ws", common.Bind(rt, New(), &ctx))
 	assert.NoError(t, err)
 
-	t.Run("ok", func(t *testing.T) ***REMOVED*** //nolint: paralleltest // can't be run in parallel
+	t.Run("ok", func(t *testing.T) ***REMOVED***
 		_, err = rt.RunString(sr(`
 		var gotMsg = false;
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
@@ -407,17 +407,40 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 		assert.NoError(t, err)
 	***REMOVED***)
 
-	t.Run("err", func(t *testing.T) ***REMOVED*** //nolint: paralleltest // can't be run in parallel
-		_, err = rt.RunString(sr(`
-		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
-			socket.on('open', function() ***REMOVED***
-				socket.sendBinary([104, 101, 108, 108, 111]);
-			***REMOVED***)
-		***REMOVED***);
-		`))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected ArrayBuffer as argument, received: []interface ***REMOVED******REMOVED***")
-	***REMOVED***)
+	errTestCases := []struct ***REMOVED***
+		in, expErrType string
+	***REMOVED******REMOVED***
+		***REMOVED***"", ""***REMOVED***,
+		***REMOVED***"undefined", "undefined"***REMOVED***,
+		***REMOVED***"null", "null"***REMOVED***,
+		***REMOVED***"true", "Boolean"***REMOVED***,
+		***REMOVED***"1", "Number"***REMOVED***,
+		***REMOVED***"3.14", "Number"***REMOVED***,
+		***REMOVED***"'str'", "String"***REMOVED***,
+		***REMOVED***"[1, 2, 3]", "Array"***REMOVED***,
+		***REMOVED***"new Uint8Array([1, 2, 3])", "Object"***REMOVED***,
+		***REMOVED***"Symbol('a')", "Symbol"***REMOVED***,
+		***REMOVED***"function() ***REMOVED******REMOVED***", "Function"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range errTestCases ***REMOVED*** //nolint: paralleltest
+		tc := tc
+		t.Run(fmt.Sprintf("err_%s", tc.expErrType), func(t *testing.T) ***REMOVED***
+			_, err = rt.RunString(fmt.Sprintf(sr(`
+			var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
+				socket.on('open', function() ***REMOVED***
+					socket.sendBinary(%s);
+				***REMOVED***)
+			***REMOVED***);
+		`), tc.in))
+			require.Error(t, err)
+			if tc.in == "" ***REMOVED***
+				assert.Contains(t, err.Error(), "missing argument, expected ArrayBuffer")
+			***REMOVED*** else ***REMOVED***
+				assert.Contains(t, err.Error(), fmt.Sprintf("expected ArrayBuffer as argument, received: %s", tc.expErrType))
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func TestErrors(t *testing.T) ***REMOVED***
