@@ -45,6 +45,7 @@ func TestThrow(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestToBytes(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rt := goja.New()
 	b := []byte("hello")
 	testCases := []struct ***REMOVED***
@@ -72,6 +73,7 @@ func TestToBytes(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestToString(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rt := goja.New()
 	s := "hello"
 	testCases := []struct ***REMOVED***
@@ -84,9 +86,10 @@ func TestToString(t *testing.T) ***REMOVED***
 		***REMOVED***struct***REMOVED******REMOVED******REMOVED******REMOVED***, "", "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"***REMOVED***,
 	***REMOVED***
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest // false positive?
 		tc := tc
 		t.Run(fmt.Sprintf("%T", tc.in), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			out, err := ToString(tc.in)
 			if tc.expErr != "" ***REMOVED***
 				assert.EqualError(t, err, tc.expErr)

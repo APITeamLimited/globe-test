@@ -347,10 +347,10 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestSocketSendBinary(t *testing.T) ***REMOVED***
+func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
+	t.Cleanup(tb.Cleanup)
 	sr := tb.Replacer.Replace
 
 	root, err := lib.NewGroup("", nil)
@@ -359,10 +359,10 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	samples := make(chan stats.SampleContainer, 1000)
-	state := &lib.State***REMOVED***
+	state := &lib.State***REMOVED*** //nolint: exhaustivestruct
 		Group:  root,
 		Dialer: tb.Dialer,
-		Options: lib.Options***REMOVED***
+		Options: lib.Options***REMOVED*** //nolint: exhaustivestruct
 			SystemTags: stats.NewSystemTagSet(
 				stats.TagURL,
 				stats.TagProto,
@@ -381,7 +381,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 	err = rt.Set("ws", common.Bind(rt, New(), &ctx))
 	assert.NoError(t, err)
 
-	t.Run("ok", func(t *testing.T) ***REMOVED***
+	t.Run("ok", func(t *testing.T) ***REMOVED*** //nolint: paralleltest // can't be run in parallel
 		_, err = rt.RunString(sr(`
 		var gotMsg = false;
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
@@ -407,7 +407,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 	***REMOVED***)
 
-	t.Run("err", func(t *testing.T) ***REMOVED***
+	t.Run("err", func(t *testing.T) ***REMOVED*** //nolint: paralleltest // can't be run in parallel
 		_, err = rt.RunString(sr(`
 		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
 			socket.on('open', function() ***REMOVED***

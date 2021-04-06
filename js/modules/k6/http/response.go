@@ -23,6 +23,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -66,7 +67,7 @@ func processResponse(ctx context.Context, resp *httpext.Response, respType httpe
 ***REMOVED***
 
 func (h *HTTP) responseFromHttpext(resp *httpext.Response) *Response ***REMOVED***
-	return &Response***REMOVED***Response: resp, h: h***REMOVED***
+	return &Response***REMOVED***Response: resp, h: h, cachedJSON: nil, validatedJSON: false***REMOVED***
 ***REMOVED***
 
 // HTML returns the body as an html.Selection
@@ -116,7 +117,8 @@ func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
 		***REMOVED***
 
 		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
-			if syntaxError, ok := err.(*json.SyntaxError); ok ***REMOVED***
+			var syntaxError *json.SyntaxError
+			if errors.As(err, &syntaxError) ***REMOVED***
 				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
 			***REMOVED***
 			common.Throw(rt, err)

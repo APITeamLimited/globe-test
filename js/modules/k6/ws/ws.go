@@ -513,7 +513,7 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 ***REMOVED***
 
 // Wraps conn.ReadMessage in a channel
-func (s *Socket) readPump(readChan chan *message, errorChan chan error, closeChan chan int) ***REMOVED***
+func (s *Socket) readPump(readChan chan *message, errorChan chan error, closeChan chan int) ***REMOVED*** //nolint: cyclop
 	for ***REMOVED***
 		messageType, data, err := s.conn.ReadMessage()
 		if err != nil ***REMOVED***
