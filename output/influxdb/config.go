@@ -111,7 +111,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 func ParseArg(arg string) (Config, error) ***REMOVED***
 	c := Config***REMOVED******REMOVED***
 	params, err := strvals.Parse(arg)
-
 	if err != nil ***REMOVED***
 		return c, err
 	***REMOVED***

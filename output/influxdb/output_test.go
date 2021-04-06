@@ -26,42 +26,50 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib/testutils"
+	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/stats"
 )
 
 func TestBadConcurrentWrites(t *testing.T) ***REMOVED***
-	c := NewConfig()
+	t.Parallel()
 	logger := testutils.NewLogger(t)
 	t.Run("0", func(t *testing.T) ***REMOVED***
-		c.ConcurrentWrites = null.IntFrom(0)
-		_, err := New(logger, c)
+		t.Parallel()
+		_, err := New(output.Params***REMOVED***
+			Logger:         logger,
+			ConfigArgument: "?concurrentWrites=0",
+		***REMOVED***)
 		require.Error(t, err)
 		require.Equal(t, err.Error(), "influxdb's ConcurrentWrites must be a positive number")
 	***REMOVED***)
 
 	t.Run("-2", func(t *testing.T) ***REMOVED***
-		c.ConcurrentWrites = null.IntFrom(-2)
-		_, err := New(logger, c)
+		t.Parallel()
+		_, err := New(output.Params***REMOVED***
+			Logger:         logger,
+			ConfigArgument: "?concurrentWrites=-2",
+		***REMOVED***)
 		require.Error(t, err)
 		require.Equal(t, err.Error(), "influxdb's ConcurrentWrites must be a positive number")
 	***REMOVED***)
 
 	t.Run("2", func(t *testing.T) ***REMOVED***
-		c.ConcurrentWrites = null.IntFrom(2)
-		_, err := New(logger, c)
+		t.Parallel()
+		_, err := New(output.Params***REMOVED***
+			Logger:         logger,
+			ConfigArgument: "?concurrentWrites=2",
+		***REMOVED***)
 		require.NoError(t, err)
 	***REMOVED***)
 ***REMOVED***
 
-func testCollectorCycle(t testing.TB, handler http.HandlerFunc, body func(testing.TB, *Collector)) ***REMOVED***
+func testOutputCycle(t testing.TB, handler http.HandlerFunc, body func(testing.TB, *Output)) ***REMOVED***
 	s := &http.Server***REMOVED***
 		Addr:           ":",
 		Handler:        handler,
@@ -81,33 +89,25 @@ func testCollectorCycle(t testing.TB, handler http.HandlerFunc, body func(testin
 		require.Equal(t, http.ErrServerClosed, s.Serve(l))
 	***REMOVED***()
 
-	config := NewConfig()
-	config.Addr = null.StringFrom("http://" + l.Addr().String())
-	c, err := New(testutils.NewLogger(t), config)
+	c, err := newOutput(output.Params***REMOVED***
+		Logger:         testutils.NewLogger(t),
+		ConfigArgument: "http://" + l.Addr().String(),
+	***REMOVED***)
 	require.NoError(t, err)
 
-	require.NoError(t, c.Init())
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	defer cancel()
-	wg.Add(1)
-	go func() ***REMOVED***
-		defer wg.Done()
-		c.Run(ctx)
-	***REMOVED***()
-
+	require.NoError(t, c.Start())
 	body(t, c)
 
-	cancel()
-	wg.Wait()
+	require.NoError(t, c.Stop())
 ***REMOVED***
 
-func TestCollector(t *testing.T) ***REMOVED***
+func TestOutput(t *testing.T) ***REMOVED***
+	t.Parallel()
 	var samplesRead int
 	defer func() ***REMOVED***
 		require.Equal(t, samplesRead, 20)
 	***REMOVED***()
-	testCollectorCycle(t, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+	testOutputCycle(t, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		b := bytes.NewBuffer(nil)
 		_, _ = io.Copy(b, r.Body)
 		for ***REMOVED***
@@ -121,7 +121,7 @@ func TestCollector(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		rw.WriteHeader(204)
-	***REMOVED***, func(tb testing.TB, c *Collector) ***REMOVED***
+	***REMOVED***, func(tb testing.TB, c *Output) ***REMOVED***
 		samples := make(stats.Samples, 10)
 		for i := 0; i < len(samples); i++ ***REMOVED***
 			samples[i] = stats.Sample***REMOVED***
@@ -135,21 +135,17 @@ func TestCollector(t *testing.T) ***REMOVED***
 				Value: 2.0,
 			***REMOVED***
 		***REMOVED***
-		c.Collect([]stats.SampleContainer***REMOVED***samples***REMOVED***)
-		c.Collect([]stats.SampleContainer***REMOVED***samples***REMOVED***)
+		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
+		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
 
 func TestExtractTagsToValues(t *testing.T) ***REMOVED***
-	c := NewConfig()
-	c.TagsAsFields = []string***REMOVED***
-		"stringField",
-		"stringField2:string",
-		"boolField:bool",
-		"floatField:float",
-		"intField:int",
-	***REMOVED***
-	collector, err := New(testutils.NewLogger(t), c)
+	t.Parallel()
+	o, err := newOutput(output.Params***REMOVED***
+		Logger:         testutils.NewLogger(t),
+		ConfigArgument: "?tagsAsFields=stringField&tagsAsFields=stringField2:string&tagsAsFields=boolField:bool&tagsAsFields=floatField:float&tagsAsFields=intField:int",
+	***REMOVED***)
 	require.NoError(t, err)
 	tags := map[string]string***REMOVED***
 		"stringField":  "string",
@@ -158,7 +154,7 @@ func TestExtractTagsToValues(t *testing.T) ***REMOVED***
 		"floatField":   "3.14",
 		"intField":     "12345",
 	***REMOVED***
-	values := collector.extractTagsToValues(tags, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
+	values := o.extractTagsToValues(tags, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
 
 	require.Equal(t, "string", values["stringField"])
 	require.Equal(t, "string2", values["stringField2"])

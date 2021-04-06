@@ -48,6 +48,7 @@ func TestParseArg(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestParseURL(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]Config***REMOVED***
 		"":                             ***REMOVED******REMOVED***,
 		"dbname":                       ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
@@ -68,6 +69,7 @@ func TestParseURL(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for str, data := range testdata ***REMOVED***
 		t.Run(str, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			config, err := ParseURL(str)
 			assert.NoError(t, err)
 			assert.Equal(t, data, config)
