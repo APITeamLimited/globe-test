@@ -21,11 +21,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
 
@@ -140,7 +140,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 		for i, s := range stageStrings ***REMOVED***
 			var stage lib.Stage
 			if err := stage.UnmarshalText([]byte(s)); err != nil ***REMOVED***
-				return opts, errors.Wrapf(err, "stage %d", i)
+				return opts, fmt.Errorf("error for stage %d: %w", i, err)
 			***REMOVED***
 			if !stage.Duration.Valid ***REMOVED***
 				return opts, fmt.Errorf("stage %d doesn't have a specified duration", i)
@@ -190,7 +190,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	for _, s := range blacklistIPStrings ***REMOVED***
 		net, parseErr := lib.ParseCIDR(s)
 		if parseErr != nil ***REMOVED***
-			return opts, errors.Wrap(parseErr, "blacklist-ip")
+			return opts, fmt.Errorf("error parsing blacklist-ip '%s': %w", s, parseErr)
 		***REMOVED***
 		opts.BlacklistIPs = append(opts.BlacklistIPs, net)
 	***REMOVED***
@@ -234,7 +234,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 	***REMOVED***
 	if summaryTimeUnit != "" ***REMOVED***
 		if summaryTimeUnit != "s" && summaryTimeUnit != "ms" && summaryTimeUnit != "us" ***REMOVED***
-			return opts, errors.New("invalid summary time unit. Use: 's', 'ms' or 'us'")
+			return opts, fmt.Errorf("invalid summary time unit '%s', use 's', 'ms' or 'us'", summaryTimeUnit)
 		***REMOVED***
 		opts.SummaryTimeUnit = null.StringFrom(summaryTimeUnit)
 	***REMOVED***
@@ -246,10 +246,10 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) ***REMOVED***
 
 	if len(runTags) > 0 ***REMOVED***
 		parsedRunTags := make(map[string]string, len(runTags))
-		for i, s := range runTags ***REMOVED***
+		for _, s := range runTags ***REMOVED***
 			name, value, err := parseTagNameValue(s)
 			if err != nil ***REMOVED***
-				return opts, errors.Wrapf(err, "tag %d", i)
+				return opts, fmt.Errorf("error parsing tag '%s': %w", s, err)
 			***REMOVED***
 			parsedRunTags[name] = value
 		***REMOVED***

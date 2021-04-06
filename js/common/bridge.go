@@ -22,11 +22,11 @@ package common
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 	"github.com/serenize/snaker"
 )
 
@@ -172,7 +172,7 @@ func Bind(rt *goja.Runtime, v interface***REMOVED******REMOVED***, ctxPtr *conte
 				reservedArgs := 0
 				if wantsContext ***REMOVED***
 					if ctxPtr == nil || *ctxPtr == nil ***REMOVED***
-						Throw(rt, errors.Errorf("%s() can only be called from within default()", name))
+						Throw(rt, fmt.Errorf("%s() can only be called from within default()", name))
 					***REMOVED***
 					args[0] = reflect.ValueOf(*ctxPtr)
 					reservedArgs++

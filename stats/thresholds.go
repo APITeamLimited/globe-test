@@ -22,10 +22,10 @@ package stats
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 
 	"github.com/loadimpact/k6/lib/types"
 )
@@ -137,14 +137,14 @@ func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 func newThresholdsWithConfig(configs []thresholdConfig) (Thresholds, error) ***REMOVED***
 	rt := goja.New()
 	if _, err := rt.RunProgram(jsEnv); err != nil ***REMOVED***
-		return Thresholds***REMOVED******REMOVED***, errors.Wrap(err, "builtin")
+		return Thresholds***REMOVED******REMOVED***, fmt.Errorf("threshold builtin error: %w", err)
 	***REMOVED***
 
 	ts := make([]*Threshold, len(configs))
 	for i, config := range configs ***REMOVED***
 		t, err := newThreshold(config.Threshold, rt, config.AbortOnFail, config.AbortGracePeriod)
 		if err != nil ***REMOVED***
-			return Thresholds***REMOVED******REMOVED***, errors.Wrapf(err, "%d", i)
+			return Thresholds***REMOVED******REMOVED***, fmt.Errorf("threshold %d error: %w", i, err)
 		***REMOVED***
 		ts[i] = t
 	***REMOVED***
@@ -166,7 +166,7 @@ func (ts *Thresholds) runAll(t time.Duration) (bool, error) ***REMOVED***
 	for i, th := range ts.Thresholds ***REMOVED***
 		b, err := th.run()
 		if err != nil ***REMOVED***
-			return false, errors.Wrapf(err, "%d", i)
+			return false, fmt.Errorf("threshold %d run error: %w", i, err)
 		***REMOVED***
 		if !b ***REMOVED***
 			succ = false

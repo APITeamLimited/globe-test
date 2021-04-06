@@ -25,6 +25,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,7 +36,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -335,20 +335,19 @@ a commandline interface for interacting with it.`,
 ***REMOVED***
 
 func getExitCodeFromEngine(err error) ExitCode ***REMOVED***
-	switch e := errors.Cause(err).(type) ***REMOVED***
-	case lib.TimeoutError:
-		switch e.Place() ***REMOVED***
+	var terr lib.TimeoutError
+	if errors.As(err, &terr) ***REMOVED***
+		switch terr.Place() ***REMOVED***
 		case consts.SetupFn:
-			return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+			return ExitCode***REMOVED***error: err, Code: setupTimeoutErrorCode, Hint: terr.Hint()***REMOVED***
 		case consts.TeardownFn:
-			return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: e.Hint()***REMOVED***
+			return ExitCode***REMOVED***error: err, Code: teardownTimeoutErrorCode, Hint: terr.Hint()***REMOVED***
 		default:
 			return ExitCode***REMOVED***error: err, Code: genericTimeoutErrorCode***REMOVED***
 		***REMOVED***
-	default:
-		//nolint:golint
-		return ExitCode***REMOVED***error: errors.New("Engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
 	***REMOVED***
+
+	return ExitCode***REMOVED***error: errors.New("engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
 ***REMOVED***
 
 func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
@@ -419,10 +418,10 @@ func newRunner(
 		case typeJS:
 			return js.NewFromArchive(logger, arc, rtOpts)
 		default:
-			return nil, errors.Errorf("archive requests unsupported runner: %s", arc.Type)
+			return nil, fmt.Errorf("archive requests unsupported runner: %s", arc.Type)
 		***REMOVED***
 	default:
-		return nil, errors.Errorf("unknown -t/--type: %s", typ)
+		return nil, fmt.Errorf("unknown -t/--type: %s", typ)
 	***REMOVED***
 ***REMOVED***
 

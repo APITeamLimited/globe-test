@@ -21,6 +21,7 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +33,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
@@ -133,11 +133,11 @@ func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED*
 		***REMOVED***
 		if u.Scheme != "file" && u.Scheme != "https" ***REMOVED***
 			return nil,
-				errors.Errorf("only supported schemes for imports are file and https, %s has `%s`",
+				fmt.Errorf("only supported schemes for imports are file and https, %s has `%s`",
 					moduleSpecifier, u.Scheme)
 		***REMOVED***
 		if u.Scheme == "file" && pwd.Scheme == "https" ***REMOVED***
-			return nil, errors.Errorf("origin (%s) not allowed to load local file: %s", pwd, moduleSpecifier)
+			return nil, fmt.Errorf("origin (%s) not allowed to load local file: %s", pwd, moduleSpecifier)
 		***REMOVED***
 		return u, err
 	***REMOVED***
@@ -235,10 +235,10 @@ func Load(
 			// let's write the coolest error message to try to help the lost soul who got to here
 			return nil, noSchemeRemoteModuleResolutionError***REMOVED***err: err, moduleSpecifier: originalModuleSpecifier***REMOVED***
 		***REMOVED***
-		return nil, errors.Errorf(httpsSchemeCouldntBeLoadedMsg, originalModuleSpecifier, finalModuleSpecifierURL, err)
+		return nil, fmt.Errorf(httpsSchemeCouldntBeLoadedMsg, originalModuleSpecifier, finalModuleSpecifierURL, err)
 	***REMOVED***
 
-	return nil, errors.Errorf(fileSchemeCouldntBeLoadedMsg, originalModuleSpecifier)
+	return nil, fmt.Errorf(fileSchemeCouldntBeLoadedMsg, originalModuleSpecifier)
 ***REMOVED***
 
 func resolveUsingLoaders(logger logrus.FieldLogger, name string) (*url.URL, error) ***REMOVED***
@@ -301,9 +301,9 @@ func fetch(logger logrus.FieldLogger, u string) ([]byte, error) ***REMOVED***
 	if res.StatusCode != 200 ***REMOVED***
 		switch res.StatusCode ***REMOVED***
 		case 404:
-			return nil, errors.Errorf("not found: %s", u)
+			return nil, fmt.Errorf("not found: %s", u)
 		default:
-			return nil, errors.Errorf("wrong status code (%d) for: %s", res.StatusCode, u)
+			return nil, fmt.Errorf("wrong status code (%d) for: %s", res.StatusCode, u)
 		***REMOVED***
 	***REMOVED***
 

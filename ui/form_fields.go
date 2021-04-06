@@ -22,11 +22,12 @@ package ui
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -71,7 +72,7 @@ func (f StringField) GetContents(r io.Reader) (string, error) ***REMOVED***
 			return string(result), err
 		***REMOVED*** else if n != 1 ***REMOVED***
 			// Shouldn't happen, but just in case
-			return string(result), errors.New("Unexpected input when reading string field")
+			return string(result), errors.New("unexpected input when reading string field")
 		***REMOVED*** else if buf[0] == '\n' ***REMOVED***
 			return string(result), nil
 		***REMOVED***
@@ -83,10 +84,10 @@ func (f StringField) GetContents(r io.Reader) (string, error) ***REMOVED***
 func (f StringField) Clean(s string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	s = strings.TrimSpace(s)
 	if f.Min != 0 && len(s) < f.Min ***REMOVED***
-		return nil, errors.Errorf("invalid input, min length is %d", f.Min)
+		return nil, fmt.Errorf("invalid input, min length is %d", f.Min)
 	***REMOVED***
 	if f.Max != 0 && len(s) > f.Max ***REMOVED***
-		return nil, errors.Errorf("invalid input, max length is %d", f.Max)
+		return nil, fmt.Errorf("invalid input, max length is %d", f.Max)
 	***REMOVED***
 	if s == "" ***REMOVED***
 		s = f.Default
@@ -120,7 +121,7 @@ func (f PasswordField) GetLabelExtra() string ***REMOVED***
 func (f PasswordField) GetContents(r io.Reader) (string, error) ***REMOVED***
 	stdin, ok := r.(*os.File)
 	if !ok ***REMOVED***
-		return "", errors.New("Cannot read password from the supplied terminal")
+		return "", errors.New("cannot read password from the supplied terminal")
 	***REMOVED***
 	password, err := terminal.ReadPassword(int(stdin.Fd()))
 	if err != nil ***REMOVED***
@@ -139,7 +140,7 @@ func (f PasswordField) GetContents(r io.Reader) (string, error) ***REMOVED***
 // Clean just checks if the minimum length is exceeded, it doesn't trim the string!
 func (f PasswordField) Clean(s string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	if f.Min != 0 && len(s) < f.Min ***REMOVED***
-		return nil, errors.Errorf("invalid input, min length is %d", f.Min)
+		return nil, fmt.Errorf("invalid input, min length is %d", f.Min)
 	***REMOVED***
 	return s, nil
 ***REMOVED***

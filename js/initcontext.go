@@ -22,13 +22,13 @@ package js
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
@@ -142,7 +142,7 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED***
 	mod := modules.Get(name)
 	if mod == nil ***REMOVED***
-		return nil, errors.Errorf("unknown module: %s", name)
+		return nil, fmt.Errorf("unknown module: %s", name)
 	***REMOVED***
 	return i.runtime.ToValue(common.Bind(i.runtime, mod, i.ctxPtr)), nil
 ***REMOVED***

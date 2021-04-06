@@ -23,6 +23,7 @@ package httpext
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -30,7 +31,6 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"golang.org/x/net/http2"
 
 	"github.com/loadimpact/k6/lib/netext"
@@ -80,15 +80,15 @@ const (
 	// errors till 1651 + 13 are other HTTP2 Connection errors with a specific errCode
 
 	// Custom k6 content errors, i.e. when the magic fails
-	//defaultContentError errCode = 1700 // reserved for future use
+	// defaultContentError errCode = 1700 // reserved for future use
 	responseDecompressionErrorCode errCode = 1701
 )
 
 const (
-	tcpResetByPeerErrorCodeMsg  = "write: connection reset by peer"
+	tcpResetByPeerErrorCodeMsg  = "%s: connection reset by peer"
 	tcpDialTimeoutErrorCodeMsg  = "dial: i/o timeout"
 	tcpDialRefusedErrorCodeMsg  = "dial: connection refused"
-	tcpBrokenPipeErrorCodeMsg   = "write: broken pipe"
+	tcpBrokenPipeErrorCodeMsg   = "%s: broken pipe"
 	netUnknownErrnoErrorCodeMsg = "%s: unknown errno `%d` on %s with message `%s`"
 	dnsNoSuchHostErrorCodeMsg   = "lookup: no such host"
 	blackListedIPErrorCodeMsg   = "ip is blacklisted"
@@ -107,9 +107,77 @@ func http2ErrCodeOffset(code http2.ErrCode) errCode ***REMOVED***
 	return 1 + errCode(code)
 ***REMOVED***
 
+//nolint: errorlint,cyclop
+func errorCodeForNetOpError(err *net.OpError) (errCode, string) ***REMOVED***
+	// TODO: refactor this further - a big switch would be more readable, maybe
+	// we should even check for *os.SyscallError in the main switch body in the
+	// parent errorCodeForError() function?
+
+	if err.Net != "tcp" && err.Net != "tcp6" ***REMOVED***
+		// TODO: figure out how this happens
+		return defaultNetNonTCPErrorCode, err.Error()
+	***REMOVED***
+	if sErr, ok := err.Err.(*os.SyscallError); ok ***REMOVED***
+		switch sErr.Unwrap() ***REMOVED***
+		case syscall.ECONNRESET:
+			return tcpResetByPeerErrorCode, fmt.Sprintf(tcpResetByPeerErrorCodeMsg, err.Op)
+		case syscall.EPIPE:
+			return tcpBrokenPipeErrorCode, fmt.Sprintf(tcpBrokenPipeErrorCodeMsg, err.Op)
+		***REMOVED***
+		code, msg := getOSSyscallErrorCode(err, sErr)
+		if code != 0 ***REMOVED***
+			return code, msg
+		***REMOVED***
+	***REMOVED***
+	if err.Op != "dial" ***REMOVED***
+		switch inErr := err.Err.(type) ***REMOVED***
+		case syscall.Errno:
+			return netUnknownErrnoErrorCode,
+				fmt.Sprintf(netUnknownErrnoErrorCodeMsg,
+					err.Op, (int)(inErr), runtime.GOOS, inErr.Error())
+		default:
+			return defaultTCPErrorCode, err.Error()
+		***REMOVED***
+	***REMOVED***
+
+	// err.Op is "dial"
+	if err.Timeout() ***REMOVED***
+		return tcpDialTimeoutErrorCode, tcpDialTimeoutErrorCodeMsg
+	***REMOVED***
+	if iErr, ok := err.Err.(*os.SyscallError); ok ***REMOVED***
+		if errno, ok := iErr.Err.(syscall.Errno); ok ***REMOVED***
+			if errno == syscall.ECONNREFUSED ||
+				// 10061 is some connection refused like thing on windows
+				// TODO: fix by moving to x/sys instead of syscall after
+				// https://github.com/golang/go/issues/31360 gets resolved
+				(errno == 10061 && runtime.GOOS == "windows") ***REMOVED***
+				return tcpDialRefusedErrorCode, tcpDialRefusedErrorCodeMsg
+			***REMOVED***
+			return tcpDialUnknownErrnoCode,
+				fmt.Sprintf("dial: unknown errno %d error with msg `%s`", errno, iErr.Err)
+		***REMOVED***
+	***REMOVED***
+
+	// Check if the wrapped error isn't something we recognize, e.g. a DNS error
+	if wrappedErr := errors.Unwrap(err); wrappedErr != nil ***REMOVED***
+		errCodeForWrapped, errForWrapped := errorCodeForError(wrappedErr)
+		if errCodeForWrapped != defaultErrorCode ***REMOVED***
+			return errCodeForWrapped, errForWrapped
+		***REMOVED***
+	***REMOVED***
+
+	// If it's not, return a generic TCP dial error
+	return tcpDialErrorCode, err.Error()
+***REMOVED***
+
 // errorCodeForError returns the errorCode and a specific error message for given error.
+//nolint: errorlint, cyclop
 func errorCodeForError(err error) (errCode, string) ***REMOVED***
-	switch e := errors.Cause(err).(type) ***REMOVED***
+	// We explicitly check for `Unwrap()` in the default switch branch, but
+	// checking for the concrete error types first gives us the opportunity to
+	// also directly detect high-level errors, if we need to, even if they wrap
+	// a low level error inside.
+	switch e := err.(type) ***REMOVED***
 	case K6Error:
 		return e.Code, e.Message
 	case *net.DNSError:
@@ -133,48 +201,7 @@ func errorCodeForError(err error) (errCode, string) ***REMOVED***
 		return unknownHTTP2ConnectionErrorCode + http2ErrCodeOffset(http2.ErrCode(*e)),
 			fmt.Sprintf(http2ConnectionErrorCodeMsg, http2.ErrCode(*e))
 	case *net.OpError:
-		if e.Net != "tcp" && e.Net != "tcp6" ***REMOVED***
-			// TODO: figure out how this happens
-			return defaultNetNonTCPErrorCode, err.Error()
-		***REMOVED***
-		if e.Op == "write" ***REMOVED***
-			if sErr, ok := e.Err.(*os.SyscallError); ok ***REMOVED***
-				switch sErr.Err ***REMOVED***
-				case syscall.ECONNRESET:
-					return tcpResetByPeerErrorCode, tcpResetByPeerErrorCodeMsg
-				case syscall.EPIPE:
-					return tcpBrokenPipeErrorCode, tcpBrokenPipeErrorCodeMsg
-				***REMOVED***
-			***REMOVED***
-		***REMOVED***
-		if e.Op == "dial" ***REMOVED***
-			if e.Timeout() ***REMOVED***
-				return tcpDialTimeoutErrorCode, tcpDialTimeoutErrorCodeMsg
-			***REMOVED***
-			if iErr, ok := e.Err.(*os.SyscallError); ok ***REMOVED***
-				if errno, ok := iErr.Err.(syscall.Errno); ok ***REMOVED***
-					if errno == syscall.ECONNREFUSED ||
-						// 10061 is some connection refused like thing on windows
-						// TODO: fix by moving to x/sys instead of syscall after
-						// https://github.com/golang/go/issues/31360 gets resolved
-						(errno == 10061 && runtime.GOOS == "windows") ***REMOVED***
-						return tcpDialRefusedErrorCode, tcpDialRefusedErrorCodeMsg
-					***REMOVED***
-					return tcpDialUnknownErrnoCode,
-						fmt.Sprintf("dial: unknown errno %d error with msg `%s`", errno, iErr.Err)
-				***REMOVED***
-			***REMOVED***
-			return tcpDialErrorCode, err.Error()
-		***REMOVED***
-		switch inErr := e.Err.(type) ***REMOVED***
-		case syscall.Errno:
-			return netUnknownErrnoErrorCode,
-				fmt.Sprintf(netUnknownErrnoErrorCodeMsg,
-					e.Op, (int)(inErr), runtime.GOOS, inErr.Error())
-		default:
-			return defaultTCPErrorCode, err.Error()
-		***REMOVED***
-
+		return errorCodeForNetOpError(e)
 	case *x509.UnknownAuthorityError:
 		return x509UnknownAuthorityErrorCode, x509UnknownAuthority
 	case *x509.HostnameError:
@@ -184,6 +211,10 @@ func errorCodeForError(err error) (errCode, string) ***REMOVED***
 	case *url.Error:
 		return errorCodeForError(e.Err)
 	default:
+		if wrappedErr := errors.Unwrap(err); wrappedErr != nil ***REMOVED***
+			return errorCodeForError(wrappedErr)
+		***REMOVED***
+
 		return defaultErrorCode, err.Error()
 	***REMOVED***
 ***REMOVED***

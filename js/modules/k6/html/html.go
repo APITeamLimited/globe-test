@@ -22,12 +22,12 @@ package html
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 	gohtml "golang.org/x/net/html"
 
 	"github.com/loadimpact/k6/js/common"
@@ -93,8 +93,8 @@ func (s Selection) varargFnCall(arg interface***REMOVED******REMOVED***,
 		return s.varargFnCall(v.Export(), strFilter, selFilter, nodeFilter)
 
 	default:
-		errmsg := fmt.Sprintf("Invalid argument: Cannot use a %T as a selector", arg)
-		panic(s.rt.NewGoError(errors.New(errmsg)))
+		err := fmt.Errorf("invalid argument, cannot use a '%T' as a selector", arg)
+		panic(s.rt.NewGoError(err))
 	***REMOVED***
 ***REMOVED***
 
@@ -143,8 +143,8 @@ func (s Selection) adjacentUntil(until func(string) *goquery.Selection,
 		***REMOVED***
 	***REMOVED***
 
-	errmsg := fmt.Sprintf("Invalid argument: Cannot use a %T as a selector", def[0].Export())
-	panic(s.rt.NewGoError(errors.New(errmsg)))
+	err := fmt.Errorf("invalid argument, cannot use a '%T' as a selector", def[0].Export())
+	panic(s.rt.NewGoError(err))
 ***REMOVED***
 
 func (s Selection) Add(arg interface***REMOVED******REMOVED***) Selection ***REMOVED***
@@ -332,12 +332,12 @@ func (s Selection) Children(def ...string) Selection ***REMOVED***
 func (s Selection) Each(v goja.Value) Selection ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
-		common.Throw(s.rt, errors.New("Argument to each() must be a function."))
+		common.Throw(s.rt, errors.New("the argument to each() must be a function"))
 	***REMOVED***
 
 	fn := func(idx int, sel *goquery.Selection) ***REMOVED***
 		if _, err := gojaFn(v, s.rt.ToValue(idx), selToElement(Selection***REMOVED***s.rt, s.sel.Eq(idx), s.URL***REMOVED***)); err != nil ***REMOVED***
-			common.Throw(s.rt, errors.Wrap(err, "Function passed to each() failed."))
+			common.Throw(s.rt, fmt.Errorf("the function passed to each() failed: %w", err))
 		***REMOVED***
 	***REMOVED***
 
@@ -355,7 +355,7 @@ func (s Selection) Filter(v goja.Value) Selection ***REMOVED***
 
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
-		common.Throw(s.rt, errors.New("Argument to filter() must be a function, a selector or a selection"))
+		common.Throw(s.rt, errors.New("the argument to filter() must be a function, a selector or a selection"))
 	***REMOVED***
 
 	return Selection***REMOVED***s.rt, s.sel.FilterFunction(s.buildMatcher(v, gojaFn)), s.URL***REMOVED***
@@ -372,7 +372,7 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 	default:
 		gojaFn, isFn := goja.AssertFunction(v)
 		if !isFn ***REMOVED***
-			common.Throw(s.rt, errors.New("Argument to is() must be a function, a selector or a selection"))
+			common.Throw(s.rt, errors.New("the argument to is() must be a function, a selector or a selection"))
 		***REMOVED***
 
 		return s.sel.IsFunction(s.buildMatcher(v, gojaFn))
@@ -383,7 +383,7 @@ func (s Selection) Is(v goja.Value) bool ***REMOVED***
 func (s Selection) Map(v goja.Value) []string ***REMOVED***
 	gojaFn, isFn := goja.AssertFunction(v)
 	if !isFn ***REMOVED***
-		common.Throw(s.rt, errors.New("Argument to map() must be a function"))
+		common.Throw(s.rt, errors.New("the argument to map() must be a function"))
 	***REMOVED***
 
 	fn := func(idx int, sel *goquery.Selection) string ***REMOVED***

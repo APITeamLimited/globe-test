@@ -22,6 +22,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	neturl "net/url"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 
 	"github.com/loadimpact/k6/js/common"
 )
@@ -88,7 +88,7 @@ func (j HTTPCookieJar) Set(url, name, value string, opts goja.Value) (bool, erro
 				if expires != "" ***REMOVED***
 					t, err = time.Parse(time.RFC1123, expires)
 					if err != nil ***REMOVED***
-						return false, errors.Errorf("unable to parse \"expires\" date string \"%s\" with: %s", expires, err.Error())
+						return false, fmt.Errorf(`unable to parse "expires" date string "%s": %w`, expires, err)
 					***REMOVED***
 				***REMOVED***
 				c.Expires = t

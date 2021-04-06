@@ -21,8 +21,9 @@
 package v1
 
 import (
+	"fmt"
+
 	"github.com/manyminds/api2go/jsonapi"
-	"github.com/pkg/errors"
 
 	"github.com/loadimpact/k6/lib"
 )
@@ -135,7 +136,7 @@ func (g *Group) SetToManyReferenceIDs(name string, ids []string) error ***REMOVE
 		g.GroupIDs = ids
 		return nil
 	default:
-		return errors.New("Unknown to many relation: " + name)
+		return fmt.Errorf("unknown to many relation: %s", name)
 	***REMOVED***
 ***REMOVED***
 
@@ -146,7 +147,7 @@ func (g *Group) SetToOneReferenceID(name, id string) error ***REMOVED***
 		g.ParentID = id
 		return nil
 	default:
-		return errors.New("Unknown to one relation: " + name)
+		return fmt.Errorf("unknown to one relation: %s", name)
 	***REMOVED***
 ***REMOVED***
 

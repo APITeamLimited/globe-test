@@ -29,10 +29,9 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/js/internal/modules"
@@ -145,7 +144,7 @@ func parseCertificate(encoded []byte) (*x509.Certificate, error) ***REMOVED***
 	***REMOVED***
 	parsed, err := x509.ParseCertificate(decoded.Bytes)
 	if err != nil ***REMOVED***
-		err = errors.Wrap(err, "failed to parse certificate")
+		err = fmt.Errorf("failed to parse certificate: %w", err)
 		return nil, err
 	***REMOVED***
 	return parsed, nil
