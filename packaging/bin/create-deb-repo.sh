@@ -19,15 +19,16 @@ _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED
 PKGDIR="$***REMOVED***1?$***REMOVED***_usage***REMOVED******REMOVED***"  # The directory where .deb files are located
 REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The package repository working directory
 S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/deb"
-# Number of packages to keep for each architecture, older packages will be deleted.
-RETAIN_PKG_COUNT=25
+# Remove packages older than N number of days (730 is roughly ~2 years).
+REMOVE_PKG_DAYS=730
 
 log() ***REMOVED***
-    echo "$(date -Iseconds) $*"
+  echo "$(date -Iseconds) $*"
 ***REMOVED***
 
 delete_old_pkgs() ***REMOVED***
-  find "$1" -name '*.deb' -type f | sort -r | tail -n "+$((RETAIN_PKG_COUNT+1))" | xargs -r rm -v
+  find "$1" -name '*.deb' -type f -daystart -mtime "+$***REMOVED***REMOVE_PKG_DAYS***REMOVED***" -print0 | xargs -r0 rm -v
+
   # Remove any dangling .asc files
   find "$1" -name '*.asc' -type f -print0 | while read -r -d $'\0' f; do
     if ! [ -r "$***REMOVED***f%.****REMOVED***" ]; then

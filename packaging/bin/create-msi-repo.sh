@@ -14,15 +14,15 @@ _usage="Usage: $0 <pkgdir> <repodir> [s3bucket=$***REMOVED***_s3bucket***REMOVED
 PKGDIR="$***REMOVED***1?$***REMOVED***_usage***REMOVED******REMOVED***"  # The directory where .msi files are located
 REPODIR="$***REMOVED***2?$***REMOVED***_usage***REMOVED******REMOVED***" # The package repository working directory
 S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/msi"
-# Number of packages to keep, older packages will be deleted.
-RETAIN_PKG_COUNT=25
+# Remove packages older than N number of days (730 is roughly ~2 years).
+REMOVE_PKG_DAYS=730
 
 log() ***REMOVED***
-    echo "$(date -Iseconds) $*"
+  echo "$(date -Iseconds) $*"
 ***REMOVED***
 
 delete_old_pkgs() ***REMOVED***
-  find "$1" -name '*.msi' -type f | sort -r | tail -n "+$((RETAIN_PKG_COUNT+1))" | xargs -r rm -v
+  find "$1" -name '*.msi' -type f -daystart -mtime "+$***REMOVED***REMOVE_PKG_DAYS***REMOVED***" -print0 | xargs -r0 rm -v
 ***REMOVED***
 
 sync_to_s3() ***REMOVED***
