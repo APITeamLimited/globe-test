@@ -3,8 +3,8 @@ set -eEuo pipefail
 
 # External dependencies:
 # - https://salsa.debian.org/apt-team/apt (apt-ftparchive, packaged in apt-utils)
-# - https://github.com/s3tools/s3cmd
-#   s3cmd expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
+# - https://aws.amazon.com/cli/
+#   awscli expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
 #   environment.
 # - https://gnupg.org/
 #   For signing the script expects the private signing key to already be
@@ -37,20 +37,6 @@ delete_old_pkgs() ***REMOVED***
   done
 ***REMOVED***
 
-sync_to_s3() ***REMOVED***
-  log "Syncing to S3 ..."
-  s3cmd sync --delete-removed "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
-
-  # Disable cache for repo metadata and index files, so that new releases will be
-  # available immediately.
-  s3cmd modify --add-header="Cache-Control:no-cache, max-age=0" \
-    "s3://$***REMOVED***S3PATH***REMOVED***/dists/stable/"***REMOVED***Release,Release.gpg,InRelease***REMOVED***
-  s3cmd modify --add-header="Cache-Control:no-cache, max-age=0" \
-    "s3://$***REMOVED***S3PATH***REMOVED***/dists/stable/main/binary-amd64"/Packages***REMOVED***,.gz,.bz2***REMOVED***
-  s3cmd modify --recursive --exclude='*' --include='index.html' \
-    --add-header='Cache-Control:no-cache, max-age=0' "s3://$***REMOVED***S3PATH***REMOVED***/"
-***REMOVED***
-
 # We don't publish i386 packages, but the repo structure is needed for
 # compatibility on some systems. See https://unix.stackexchange.com/a/272916 .
 architectures="amd64 i386"
@@ -62,7 +48,7 @@ for arch in $architectures; do
   bindir="dists/stable/main/binary-$arch"
   mkdir -p "$bindir"
   # Download existing files
-  s3cmd sync --exclude='*' --include='*.deb' --include='*.asc' \
+  aws s3 sync --exclude='*' --include='*.deb' --include='*.asc' \
     "s3://$***REMOVED***S3PATH***REMOVED***/$***REMOVED***bindir***REMOVED***/" "$bindir/"
 
   # Copy the new packages in
@@ -107,4 +93,6 @@ log "Generating index.html ..."
 generate_index.py -r
 
 popd > /dev/null
-sync_to_s3
+
+log "Syncing to S3 ..."
+aws s3 sync --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"

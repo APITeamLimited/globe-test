@@ -35,7 +35,16 @@ done
 
 # Generate and sync the main index.html
 (cd "$pkgdir" && generate_index.py)
-s3cmd put --add-header='Cache-Control:no-cache, max-age=0' \
-  "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
+aws s3 cp "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
+
+# Invalidate CloudFront cache for index files, repo metadata and the latest MSI
+# package redirect.
+IFS=' ' read -ra indexes <<< \
+  "$(find "$***REMOVED***pkgdir***REMOVED***" -name 'index.html' -type f | sed "s:^$***REMOVED***pkgdir***REMOVED***::" | sort | paste -sd' ')"
+aws cloudfront create-invalidation --distribution-id "$AWS_CF_DISTRIBUTION" \
+  --paths "$***REMOVED***indexes[@]***REMOVED***" "/msi/k6-latest-amd64.msi" \
+  "/deb/dists/stable/"***REMOVED***Release,Release.gpg,InRelease***REMOVED*** \
+  "/deb/dists/stable/main/binary-amd64"/Packages***REMOVED***,.gz,.bz2***REMOVED*** \
+  "/rpm/x86_64/repodata/*"
 
 exec "$@"
