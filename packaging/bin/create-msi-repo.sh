@@ -32,12 +32,6 @@ sync_to_s3() ***REMOVED***
   # Disable cache for index files.
   s3cmd modify --recursive --exclude='*' --include='index.html' \
     --add-header='Cache-Control:no-cache, max-age=0' "s3://$***REMOVED***S3PATH***REMOVED***/"
-
-  # Update latest redirect
-  latest="$(find "$REPODIR" -name '*.msi' -printf '%P\n' | sort | tail -1)"
-  s3cmd --force --add-header="x-amz-website-redirect-location:/msi/$***REMOVED***latest***REMOVED***" \
-     --add-header='Cache-Control:no-cache, max-age=0' \
-     put "$(mktemp)" "s3://$***REMOVED***S3PATH***REMOVED***/k6-latest-amd64.msi"
 ***REMOVED***
 
 mkdir -p "$REPODIR"
@@ -49,6 +43,11 @@ s3cmd sync --exclude='*' --include='*.msi' "s3://$***REMOVED***S3PATH***REMOVED*
 
 # Copy the new packages in
 find "$PKGDIR" -name "*.msi" -type f -print0 | xargs -r0 cp -t "$REPODIR"
+
+# Update the latest package. This could be done with S3 redirects, but
+# CloudFront caches redirects aggressively and I wasn't able to invalidate it.
+latest="$(find "$REPODIR" -name '*.msi' -printf '%P\n' | sort | tail -1)"
+cp -p "$***REMOVED***REPODIR***REMOVED***/$***REMOVED***latest***REMOVED***" "$***REMOVED***REPODIR***REMOVED***/k6-latest-amd64.msi"
 
 delete_old_pkgs "$REPODIR"
 
