@@ -2,7 +2,7 @@
 set -eEuo pipefail
 
 log() ***REMOVED***
-    echo "$(date -Iseconds) $*"
+  echo "$(date -Iseconds) $*"
 ***REMOVED***
 
 signkeypath="$PWD/sign-key.gpg"
@@ -36,6 +36,8 @@ done
 # Generate and sync the main index.html
 (cd "$pkgdir" && generate_index.py)
 aws s3 cp "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
+# Also sync the GPG key
+aws s3 cp "$***REMOVED***pkgdir***REMOVED***/key.gpg" "s3://$***REMOVED***s3bucket***REMOVED***/key.gpg"
 
 # Invalidate CloudFront cache for index files, repo metadata and the latest MSI
 # package redirect.
