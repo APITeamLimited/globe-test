@@ -381,6 +381,17 @@ func getMetricCount(mo *mockoutput.MockOutput, name string) (result uint) ***REM
 	return
 ***REMOVED***
 
+func getMetricMax(mo *mockoutput.MockOutput, name string) (result float64) ***REMOVED***
+	for _, sc := range mo.SampleContainers ***REMOVED***
+		for _, s := range sc.GetSamples() ***REMOVED***
+			if s.Metric.Name == name && s.Value > result ***REMOVED***
+				result = s.Value
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return
+***REMOVED***
+
 const expectedHeaderMaxLength = 500
 
 // FIXME: This test is too brittle, consider simplifying.
@@ -974,4 +985,100 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	assert.Equal(t, 1.0, count)
+***REMOVED***
+
+func TestActiveVUsCount(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	script := []byte(`
+		var sleep = require('k6').sleep;
+
+		exports.options = ***REMOVED***
+			scenarios: ***REMOVED***
+				carr1: ***REMOVED***
+					executor: 'constant-arrival-rate',
+					rate: 10,
+					preAllocatedVUs: 1,
+					maxVUs: 10,
+					startTime: '0s',
+					duration: '3s',
+					gracefulStop: '0s',
+				***REMOVED***,
+				carr2: ***REMOVED***
+					executor: 'constant-arrival-rate',
+					rate: 10,
+					preAllocatedVUs: 1,
+					maxVUs: 10,
+					duration: '3s',
+					startTime: '3s',
+					gracefulStop: '0s',
+				***REMOVED***,
+				rarr: ***REMOVED***
+					executor: 'ramping-arrival-rate',
+					startRate: 5,
+					stages: [
+						***REMOVED*** target: 10, duration: '2s' ***REMOVED***,
+						***REMOVED*** target: 0, duration: '2s' ***REMOVED***,
+					],
+					preAllocatedVUs: 1,
+					maxVUs: 10,
+					startTime: '6s',
+					gracefulStop: '0s',
+				***REMOVED***,
+			***REMOVED***
+		***REMOVED***
+
+		exports.default = function () ***REMOVED***
+			sleep(5);
+		***REMOVED***
+	`)
+
+	logger := testutils.NewLogger(t)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
+	logger.AddHook(&logHook)
+
+	rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
+
+	runner, err := js.New(logger, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, rtOpts)
+	require.NoError(t, err)
+
+	mockOutput := mockoutput.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	opts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
+		MetricSamplesBufferSize: null.NewInt(200, false),
+	***REMOVED***.Apply(runner.GetOptions()))
+	require.NoError(t, err)
+	require.Empty(t, opts.Validate())
+	require.NoError(t, runner.SetOptions(opts))
+	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	require.NoError(t, err)
+	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger)
+	require.NoError(t, err)
+	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
+	require.NoError(t, err)
+
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(15 * time.Second):
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		require.NoError(t, err)
+		cancel()
+		waitFn()
+		require.False(t, engine.IsTainted())
+	***REMOVED***
+
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUs.Name))
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsMax.Name))
+
+	logEntries := logHook.Drain()
+	assert.Len(t, logEntries, 3)
+	for _, logEntry := range logEntries ***REMOVED***
+		assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+		assert.Equal(t, "Insufficient VUs, reached 10 active VUs and cannot initialize more", logEntry.Message)
+	***REMOVED***
 ***REMOVED***
