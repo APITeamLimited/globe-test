@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/kubernetes/helm/pkg/strvals"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/guregu/null.v3"
 
@@ -105,19 +104,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 		c.ConcurrentWrites = cfg.ConcurrentWrites
 	***REMOVED***
 	return c
-***REMOVED***
-
-// ParseArg parses an argument string into a Config
-func ParseArg(arg string) (Config, error) ***REMOVED***
-	c := Config***REMOVED******REMOVED***
-	params, err := strvals.Parse(arg)
-
-	if err != nil ***REMOVED***
-		return c, err
-	***REMOVED***
-
-	c, err = ParseMap(params)
-	return c, err
 ***REMOVED***
 
 // ParseMap parses a map[string]interface***REMOVED******REMOVED*** into a Config

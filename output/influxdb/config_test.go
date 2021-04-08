@@ -27,27 +27,8 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-func TestParseArg(t *testing.T) ***REMOVED***
-	testdata := map[string]Config***REMOVED***
-		"":                                     ***REMOVED******REMOVED***,
-		"db=dbname":                            ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
-		"addr=http://localhost:8086":           ***REMOVED***Addr: null.StringFrom("http://localhost:8086")***REMOVED***,
-		"addr=http://localhost:8086,db=dbname": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname")***REMOVED***,
-		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,":                    ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69)***REMOVED***,
-		"addr=http://localhost:8086,db=dbname,insecure=false,payloadSize=69,tagsAsFields=***REMOVED***fake***REMOVED***": ***REMOVED***Addr: null.StringFrom("http://localhost:8086"), DB: null.StringFrom("dbname"), Insecure: null.BoolFrom(false), PayloadSize: null.IntFrom(69), TagsAsFields: []string***REMOVED***"fake"***REMOVED******REMOVED***,
-	***REMOVED***
-
-	for str, expConfig := range testdata ***REMOVED***
-		t.Run(str, func(t *testing.T) ***REMOVED***
-			config, err := ParseArg(str)
-
-			assert.NoError(t, err)
-			assert.Equal(t, expConfig, config)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestParseURL(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]Config***REMOVED***
 		"":                             ***REMOVED******REMOVED***,
 		"dbname":                       ***REMOVED***DB: null.StringFrom("dbname")***REMOVED***,
@@ -68,6 +49,7 @@ func TestParseURL(t *testing.T) ***REMOVED***
 	***REMOVED***
 	for str, data := range testdata ***REMOVED***
 		t.Run(str, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			config, err := ParseURL(str)
 			assert.NoError(t, err)
 			assert.Equal(t, data, config)

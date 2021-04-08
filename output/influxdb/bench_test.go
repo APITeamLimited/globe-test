@@ -31,7 +31,7 @@ import (
 )
 
 func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
-	testCollectorCycle(b, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+	testOutputCycle(b, func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		for ***REMOVED***
 			time.Sleep(t)
 			m, _ := io.CopyN(ioutil.Discard, r.Body, 1<<18) // read 1/4 mb a time
@@ -40,11 +40,11 @@ func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		rw.WriteHeader(204)
-	***REMOVED***, func(tb testing.TB, c *Collector) ***REMOVED***
+	***REMOVED***, func(tb testing.TB, c *Output) ***REMOVED***
 		b = tb.(*testing.B)
 		b.ResetTimer()
 
-		var samples = make(stats.Samples, 10)
+		samples := make(stats.Samples, 10)
 		for i := 0; i < len(samples); i++ ***REMOVED***
 			samples[i] = stats.Sample***REMOVED***
 				Metric: stats.New("testGauge", stats.Gauge),
@@ -60,7 +60,7 @@ func benchmarkInfluxdb(b *testing.B, t time.Duration) ***REMOVED***
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ ***REMOVED***
-			c.Collect([]stats.SampleContainer***REMOVED***samples***REMOVED***)
+			c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
 			time.Sleep(time.Nanosecond * 20)
 		***REMOVED***
 	***REMOVED***)

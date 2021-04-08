@@ -33,11 +33,11 @@ import (
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/output/cloud"
+	"github.com/loadimpact/k6/output/influxdb"
 	"github.com/loadimpact/k6/output/json"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/csv"
 	"github.com/loadimpact/k6/stats/datadog"
-	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/stats/statsd"
 
 	"github.com/k6io/xk6-output-kafka/pkg/kafka"
@@ -51,24 +51,14 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 		"json":  json.New,
 		"cloud": cloud.New,
 
-		// TODO: remove all of these
-		"influxdb": func(params output.Params) (output.Output, error) ***REMOVED***
-			conf, err := influxdb.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			influxc, err := influxdb.New(params.Logger, conf)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return newCollectorAdapter(params, influxc), nil
-		***REMOVED***,
+		"influxdb": influxdb.New,
 		"kafka": func(params output.Params) (output.Output, error) ***REMOVED***
 			params.Logger.Warn("The kafka output is deprecated, and will be removed in a future k6 version. " +
 				"Please use the new xk6 kafka output extension instead. " +
 				"It can be found at https://github.com/k6io/xk6-output-kafka.")
 			return kafka.New(params)
 		***REMOVED***,
+		// TODO: remove all of these
 		"statsd": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := statsd.GetConsolidatedConfig(params.JSONConfig, params.Environment)
 			if err != nil ***REMOVED***
