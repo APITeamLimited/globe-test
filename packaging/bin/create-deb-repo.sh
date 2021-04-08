@@ -48,7 +48,7 @@ for arch in $architectures; do
   bindir="dists/stable/main/binary-$arch"
   mkdir -p "$bindir"
   # Download existing files
-  aws s3 sync --exclude='*' --include='*.deb' --include='*.asc' \
+  aws s3 sync --no-progress --exclude='*' --include='*.deb' --include='*.asc' \
     "s3://$***REMOVED***S3PATH***REMOVED***/$***REMOVED***bindir***REMOVED***/" "$bindir/"
 
   # Copy the new packages in
@@ -95,4 +95,4 @@ generate_index.py -r
 popd > /dev/null
 
 log "Syncing to S3 ..."
-aws s3 sync --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
+aws s3 sync --no-progress --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
