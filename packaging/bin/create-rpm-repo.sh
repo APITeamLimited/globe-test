@@ -30,6 +30,24 @@ delete_old_pkgs() ***REMOVED***
   find "$1" -name '*.rpm' -type f -daystart -mtime "+$***REMOVED***REMOVE_PKG_DAYS***REMOVED***" -print0 | xargs -r0 rm -v
 ***REMOVED***
 
+sync_to_s3() ***REMOVED***
+  log "Syncing to S3 ..."
+  aws s3 sync --no-progress --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
+
+  # Set a short cache expiration for index and repo metadata files.
+  aws s3 cp --no-progress --recursive --exclude='*.rpm' \
+    --cache-control='max-age=60,must-revalidate' \
+    --metadata-directive=REPLACE \
+    "s3://$***REMOVED***S3PATH***REMOVED***" "s3://$***REMOVED***S3PATH***REMOVED***"
+  # Set it separately for HTML files to set the correct Content-Type.
+  aws s3 cp --no-progress --recursive \
+    --exclude='*' --include='*.html' \
+    --content-type='text/html' \
+    --cache-control='max-age=60,must-revalidate' \
+    --metadata-directive=REPLACE \
+    "s3://$***REMOVED***S3PATH***REMOVED***" "s3://$***REMOVED***S3PATH***REMOVED***"
+***REMOVED***
+
 architectures="x86_64"
 
 pushd . > /dev/null
@@ -60,5 +78,4 @@ generate_index.py -r
 
 popd > /dev/null
 
-log "Syncing to S3 ..."
-aws s3 sync --no-progress --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
+sync_to_s3

@@ -35,12 +35,15 @@ done
 
 # Generate and sync the main index.html
 (cd "$pkgdir" && generate_index.py)
-aws s3 cp --no-progress "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
+aws s3 cp --no-progress --cache-control='max-age=60,must-revalidate' \
+  "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
 # Also sync the GPG key
 aws s3 cp --no-progress "$***REMOVED***pkgdir***REMOVED***/key.gpg" "s3://$***REMOVED***s3bucket***REMOVED***/key.gpg"
 
 # Invalidate CloudFront cache for index files, repo metadata and the latest MSI
 # package redirect.
+# TODO: Maybe just invalidate the entire bucket (/*), since CF charges per
+# invalidation path.
 IFS=' ' read -ra indexes <<< \
   "$(find "$***REMOVED***pkgdir***REMOVED***" -name 'index.html' -type f | sed "s:^$***REMOVED***pkgdir***REMOVED***::" | sort | paste -sd' ')"
 aws cloudfront create-invalidation --distribution-id "$AWS_CF_DISTRIBUTION" \
