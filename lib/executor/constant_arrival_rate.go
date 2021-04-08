@@ -241,14 +241,13 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	activeVUs := make(chan lib.ActiveVU, maxVUs)
 	activeVUsCount := uint64(0)
 
-	activationParams := getVUActivationParams(maxDurationCtx, car.config.BaseConfig,
-		func(u lib.InitializedVU) ***REMOVED***
-			car.executionState.ReturnVU(u, true)
-			activeVUsWg.Done()
-		***REMOVED***)
+	returnVU := func(u lib.InitializedVU) ***REMOVED***
+		car.executionState.ReturnVU(u, true)
+		activeVUsWg.Done()
+	***REMOVED***
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
-		activeVU := initVU.Activate(activationParams)
+		activeVU := initVU.Activate(getVUActivationParams(maxDurationCtx, car.config.BaseConfig, returnVU))
 		car.executionState.ModCurrentlyActiveVUsCount(+1)
 		atomic.AddUint64(&activeVUsCount, 1)
 		return activeVU
