@@ -31,12 +31,7 @@ import (
 	gohtml "golang.org/x/net/html"
 
 	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/js/internal/modules"
 )
-
-func init() ***REMOVED***
-	modules.Register("k6/html", New())
-***REMOVED***
 
 type HTML struct***REMOVED******REMOVED***
 
@@ -78,7 +73,6 @@ func (s Selection) varargFnCall(arg interface***REMOVED******REMOVED***,
 	strFilter func(string) *goquery.Selection,
 	selFilter func(*goquery.Selection) *goquery.Selection,
 	nodeFilter func(...*gohtml.Node) *goquery.Selection) Selection ***REMOVED***
-
 	switch v := arg.(type) ***REMOVED***
 	case Selection:
 		return Selection***REMOVED***s.rt, selFilter(v.sel), s.URL***REMOVED***
@@ -113,7 +107,6 @@ func (s Selection) adjacentUntil(until func(string) *goquery.Selection,
 	filteredUntil func(string, string) *goquery.Selection,
 	filteredUntilSelection func(string, *goquery.Selection) *goquery.Selection,
 	def ...goja.Value) Selection ***REMOVED***
-
 	switch len(def) ***REMOVED***
 	case 0:
 		return Selection***REMOVED***s.rt, until(""), s.URL***REMOVED***

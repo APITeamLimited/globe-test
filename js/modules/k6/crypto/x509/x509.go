@@ -34,12 +34,7 @@ import (
 	"time"
 
 	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/js/internal/modules"
 )
-
-func init() ***REMOVED***
-	modules.Register("k6/crypto/x509", New())
-***REMOVED***
 
 // X509 certificate functionality
 type X509 struct***REMOVED******REMOVED***
@@ -223,7 +218,7 @@ func iso8601(value time.Time) string ***REMOVED***
 ***REMOVED***
 
 func makeRdns(names []pkix.AttributeTypeAndValue) []RDN ***REMOVED***
-	var result = make([]RDN, len(names))
+	result := make([]RDN, len(names))
 	for i, name := range names ***REMOVED***
 		result[i] = makeRdn(name)
 	***REMOVED***

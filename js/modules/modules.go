@@ -23,16 +23,27 @@ package modules
 import (
 	"fmt"
 	"strings"
+	"sync"
 
-	"github.com/loadimpact/k6/js/internal/modules"
+	"github.com/loadimpact/k6/js/modules/k6"
+	"github.com/loadimpact/k6/js/modules/k6/crypto"
+	"github.com/loadimpact/k6/js/modules/k6/crypto/x509"
+	"github.com/loadimpact/k6/js/modules/k6/data"
+	"github.com/loadimpact/k6/js/modules/k6/encoding"
+	"github.com/loadimpact/k6/js/modules/k6/grpc"
+	"github.com/loadimpact/k6/js/modules/k6/html"
+	"github.com/loadimpact/k6/js/modules/k6/http"
+	"github.com/loadimpact/k6/js/modules/k6/metrics"
+	"github.com/loadimpact/k6/js/modules/k6/ws"
 )
 
 const extPrefix string = "k6/x/"
 
-// Get returns the module registered with name.
-func Get(name string) interface***REMOVED******REMOVED*** ***REMOVED***
-	return modules.Get(name)
-***REMOVED***
+//nolint:gochecknoglobals
+var (
+	modules = make(map[string]interface***REMOVED******REMOVED***)
+	mx      sync.RWMutex
+)
 
 // Register the given mod as an external JavaScript module that can be imported
 // by name. The name must be unique across all registered modules and must be
@@ -42,5 +53,44 @@ func Register(name string, mod interface***REMOVED******REMOVED***) ***REMOVED**
 		panic(fmt.Errorf("external module names must be prefixed with '%s', tried to register: %s", extPrefix, name))
 	***REMOVED***
 
-	modules.Register(name, mod)
+	mx.Lock()
+	defer mx.Unlock()
+
+	if _, ok := modules[name]; ok ***REMOVED***
+		panic(fmt.Sprintf("module already registered: %s", name))
+	***REMOVED***
+	modules[name] = mod
+***REMOVED***
+
+// HasModuleInstancePerVU should be implemented by all native Golang modules that
+// would require per-VU state. k6 will call their NewModuleInstancePerVU() methods
+// every time a VU imports the module and use its result as the returned object.
+type HasModuleInstancePerVU interface ***REMOVED***
+	NewModuleInstancePerVU() interface***REMOVED******REMOVED***
+***REMOVED***
+
+// checks that modules implement HasModuleInstancePerVU
+// this is done here as otherwise there will be a loop if the module imports this package
+var _ HasModuleInstancePerVU = http.New()
+
+// GetJSModules returns a map of all js modules
+func GetJSModules() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
+	result := map[string]interface***REMOVED******REMOVED******REMOVED***
+		"k6":             k6.New(),
+		"k6/crypto":      crypto.New(),
+		"k6/crypto/x509": x509.New(),
+		"k6/data":        data.New(),
+		"k6/encoding":    encoding.New(),
+		"k6/net/grpc":    grpc.New(),
+		"k6/html":        html.New(),
+		"k6/http":        http.New(),
+		"k6/metrics":     metrics.New(),
+		"k6/ws":          ws.New(),
+	***REMOVED***
+
+	for name, module := range modules ***REMOVED***
+		result[name] = module
+	***REMOVED***
+
+	return result
 ***REMOVED***
