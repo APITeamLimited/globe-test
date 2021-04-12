@@ -162,9 +162,10 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 		***REMOVED***"0,1/4,3/4,1", "3/4:1", []uint64***REMOVED***0, 4, 9, 14, 19, 24, 29, 34, 39, 44***REMOVED******REMOVED***,
 	***REMOVED***
 
-	for _, tc := range testCases ***REMOVED***
+	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest // false positive: https://github.com/kunwardeep/paralleltest/issues/8
 		tc := tc
 		t.Run(fmt.Sprintf("%s_%s", tc.seq, tc.seg), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ess, err := lib.NewExecutionSegmentSequenceFromString(tc.seq)
 			require.NoError(t, err)
 			seg, err := lib.NewExecutionSegmentFromString(tc.seg)
