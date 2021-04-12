@@ -88,6 +88,9 @@ func GetJSModules() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 		"k6/ws":          ws.New(),
 	***REMOVED***
 
+	mx.Lock()
+	defer mx.Unlock()
+
 	for name, module := range modules ***REMOVED***
 		result[name] = module
 	***REMOVED***
