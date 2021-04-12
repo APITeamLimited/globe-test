@@ -12,18 +12,19 @@ defaults:
 jobs:
   publish-packager:
     runs-on: ubuntu-latest
-    env:
-      VERSION: 0.0.1
-      AWSCLI_VERSION: 2.1.36
-      DOCKER_IMAGE_ID: k6io/k6packager
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Build
+        env:
+          AWSCLI_VERSION: 2.1.36
         run: |
           cd packaging
           docker-compose build packager
       - name: Publish
+        env:
+          VERSION: 0.0.1
+          DOCKER_IMAGE_ID: k6io/k6packager
         run: |
           echo "$***REMOVED******REMOVED*** secrets.CR_PAT ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
           docker tag "$DOCKER_IMAGE_ID" "ghcr.io/$***REMOVED***DOCKER_IMAGE_ID***REMOVED***:$***REMOVED***VERSION***REMOVED***"
