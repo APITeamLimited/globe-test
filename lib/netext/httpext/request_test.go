@@ -230,6 +230,11 @@ func TestURL(t *testing.T) ***REMOVED***
 
 func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		w.Header().Add("Content-Length", "100000")
+		w.WriteHeader(200)
+		if f, ok := w.(http.Flusher); ok ***REMOVED***
+			f.Flush()
+		***REMOVED***
 		time.Sleep(100 * time.Millisecond)
 	***REMOVED***))
 	defer srv.Close()
@@ -246,14 +251,16 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 		Transport: srv.Client().Transport,
 		Samples:   samples,
 		Logger:    logger,
+		BPool:     bpool.NewBufferPool(100),
 	***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	req, _ := http.NewRequest("GET", srv.URL, nil)
 	preq := &ParsedHTTPRequest***REMOVED***
-		Req:     req,
-		URL:     &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
-		Body:    new(bytes.Buffer),
-		Timeout: 10 * time.Millisecond,
+		Req:              req,
+		URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+		Body:             new(bytes.Buffer),
+		Timeout:          50 * time.Millisecond,
+		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
 	***REMOVED***
 
 	res, err := MakeRequest(ctx, preq)
@@ -262,14 +269,15 @@ func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
 	assert.Len(t, samples, 1)
 	sampleCont := <-samples
 	allSamples := sampleCont.GetSamples()
-	require.Len(t, allSamples, 8)
+	require.Len(t, allSamples, 9)
 	expTags := map[string]string***REMOVED***
-		"error":      "context deadline exceeded",
-		"error_code": "1000",
-		"status":     "0",
-		"method":     "GET",
-		"url":        srv.URL,
-		"name":       srv.URL,
+		"error":             "context deadline exceeded",
+		"error_code":        "1000",
+		"status":            "0",
+		"expected_response": "true", // we wait for status code 0
+		"method":            "GET",
+		"url":               srv.URL,
+		"name":              srv.URL,
 	***REMOVED***
 	for _, s := range allSamples ***REMOVED***
 		assert.Equal(t, expTags, s.Tags.CloneTags())

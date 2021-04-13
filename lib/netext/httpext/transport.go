@@ -171,7 +171,7 @@ func (t *transport) measureAndEmitMetrics(unfReq *unfinishedRequest) *finishedRe
 	var failed float64
 	if t.responseCallback != nil ***REMOVED***
 		var statusCode int
-		if unfReq.response != nil ***REMOVED***
+		if unfReq.err == nil ***REMOVED***
 			statusCode = unfReq.response.StatusCode
 		***REMOVED***
 		expected := t.responseCallback(statusCode)
