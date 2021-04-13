@@ -3,8 +3,8 @@ set -eEuo pipefail
 
 # External dependencies:
 # - https://github.com/rpm-software-management/createrepo
-# - https://aws.amazon.com/cli/
-#   awscli expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
+# - https://github.com/s3tools/s3cmd
+#   s3cmd expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
 #   environment.
 # - https://gnupg.org/
 #   For signing the script expects the private signing key to already be
@@ -23,7 +23,7 @@ S3PATH="$***REMOVED***3-$***REMOVED***_s3bucket***REMOVED******REMOVED***/rpm"
 REMOVE_PKG_DAYS=730
 
 log() ***REMOVED***
-    echo "$(date -Iseconds) $*"
+  echo "$(date -Iseconds) $*"
 ***REMOVED***
 
 delete_old_pkgs() ***REMOVED***
@@ -32,20 +32,12 @@ delete_old_pkgs() ***REMOVED***
 
 sync_to_s3() ***REMOVED***
   log "Syncing to S3 ..."
-  aws s3 sync --no-progress --delete "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
+  s3cmd sync --delete-removed "$***REMOVED***REPODIR***REMOVED***/" "s3://$***REMOVED***S3PATH***REMOVED***/"
 
   # Set a short cache expiration for index and repo metadata files.
-  aws s3 cp --no-progress --recursive --exclude='*.rpm' \
-    --cache-control='max-age=60,must-revalidate' \
-    --metadata-directive=REPLACE \
-    "s3://$***REMOVED***S3PATH***REMOVED***" "s3://$***REMOVED***S3PATH***REMOVED***"
-  # Set it separately for HTML files to set the correct Content-Type.
-  aws s3 cp --no-progress --recursive \
-    --exclude='*' --include='*.html' \
-    --content-type='text/html' \
-    --cache-control='max-age=60,must-revalidate' \
-    --metadata-directive=REPLACE \
-    "s3://$***REMOVED***S3PATH***REMOVED***" "s3://$***REMOVED***S3PATH***REMOVED***"
+  s3cmd modify --recursive --exclude='*' \
+    --include='index.html' --include='/repodata/*' \
+    --add-header='Cache-Control: max-age=60,must-revalidate' "s3://$***REMOVED***S3PATH***REMOVED***/"
 ***REMOVED***
 
 architectures="x86_64"
@@ -57,7 +49,10 @@ for arch in $architectures; do
   mkdir -p "$arch" && cd "$_"
 
   # Download existing packages
-  aws s3 sync --no-progress --exclude='*' --include='*.rpm' "s3://$***REMOVED***S3PATH***REMOVED***/$***REMOVED***arch***REMOVED***/" ./
+  # TODO: Consider doing this over the CDN with curl to avoid S3 egress costs,
+  # but that would involve parsing the index.html, checking the checksum
+  # manually, etc.
+  s3cmd sync --exclude='*' --include='*.rpm' "s3://$***REMOVED***S3PATH***REMOVED***/$***REMOVED***arch***REMOVED***/" ./
 
   # Copy the new packages in and generate signatures
   # FIXME: The architecture naming used by yum docs and in public RPM repos is
