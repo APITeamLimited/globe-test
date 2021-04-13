@@ -16,8 +16,12 @@ fi
 
 gpg2 --import --batch --passphrase="$PGP_SIGN_KEY_PASSPHRASE" "$signkeypath"
 export PGPKEYID="$(gpg2 --list-secret-keys --with-colons | grep '^sec' | cut -d: -f5)"
+# Export and sync the GPG pub key if it doesn't exist in S3 already.
 mkdir -p "$pkgdir"
-gpg2 --export --armor --output "$***REMOVED***pkgdir***REMOVED***/key.gpg" "$PGPKEYID"
+aws s3 cp --no-progress "s3://$***REMOVED***s3bucket***REMOVED***/key.gpg" "$***REMOVED***pkgdir***REMOVED***/key.gpg" || ***REMOVED***
+  gpg2 --export --armor --output "$***REMOVED***pkgdir***REMOVED***/key.gpg" "$PGPKEYID"
+  aws s3 cp --no-progress "$***REMOVED***pkgdir***REMOVED***/key.gpg" "s3://$***REMOVED***s3bucket***REMOVED***/key.gpg"
+***REMOVED***
 
 # Setup RPM signing
 cat > "$HOME/.rpmmacros" <<EOF
@@ -37,8 +41,6 @@ done
 (cd "$pkgdir" && generate_index.py)
 aws s3 cp --no-progress --cache-control='max-age=60,must-revalidate' \
   "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
-# Also sync the GPG key
-aws s3 cp --no-progress "$***REMOVED***pkgdir***REMOVED***/key.gpg" "s3://$***REMOVED***s3bucket***REMOVED***/key.gpg"
 
 # Invalidate CloudFront cache for index files, repo metadata and the latest MSI
 # package redirect.
