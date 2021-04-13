@@ -42,10 +42,7 @@ done
 aws s3 cp --no-progress --cache-control='max-age=60,must-revalidate' \
   "$***REMOVED***pkgdir***REMOVED***/index.html" "s3://$***REMOVED***s3bucket***REMOVED***/index.html"
 
-# Invalidate CloudFront cache for index files, repo metadata and the latest MSI
-# package redirect.
-# TODO: Maybe just invalidate the entire bucket (/*), since CF charges per
-# invalidation path.
+# Invalidate CloudFront cache for index files, repo metadata and the latest MSI package.
 IFS=' ' read -ra indexes <<< \
   "$(find "$***REMOVED***pkgdir***REMOVED***" -name 'index.html' -type f | sed "s:^$***REMOVED***pkgdir***REMOVED***::" | sort | paste -sd' ')"
 aws cloudfront create-invalidation --distribution-id "$AWS_CF_DISTRIBUTION" \
