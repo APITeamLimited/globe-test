@@ -6,6 +6,7 @@ services:
       context: .
       args:
         - AWSCLI_VERSION=$***REMOVED***AWSCLI_VERSION:-2.1.36***REMOVED***
+        - S3CMD_VERSION=$***REMOVED***S3CMD_VERSION:-2.1.0***REMOVED***
     image: ghcr.io/k6io/k6packager:latest
     environment:
       - AWS_ACCESS_KEY_ID

@@ -7,7 +7,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y && \
     apt-get install -y apt-utils createrepo curl git gnupg2 python3-pip unzip
 
-RUN pip3 install s3cmd
+ARG S3CMD_VERSION
+RUN pip3 install "s3cmd$***REMOVED***S3CMD_VERSION:+==$S3CMD_VERSION***REMOVED***"
 
 COPY ./awscli-key.gpg .
 
