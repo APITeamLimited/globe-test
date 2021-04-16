@@ -328,8 +328,13 @@ const expectedHandleSummaryRawData = `
             "p(99)",
             "count"
         ],
-        "summaryTimeUnit": ""
+        "summaryTimeUnit": "",
+		"noColor": false
     ***REMOVED***,
+	"state": ***REMOVED***
+		"isStdErrTTY": false,
+		"isStdOutTTY": false
+	***REMOVED***,
     "metrics": ***REMOVED***
         "checks": ***REMOVED***
             "contains": "default",
