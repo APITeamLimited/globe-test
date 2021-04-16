@@ -48,6 +48,16 @@ for repo in deb rpm msi; do
   "create-$***REMOVED***repo***REMOVED***-repo.sh" "$PWD/dist" "$***REMOVED***pkgdir***REMOVED***/$***REMOVED***repo***REMOVED***"
 done
 
+# Create and sync the RPM repository package if it doesn't exist already.
+# NOTE: `s3cmd info` requires GetPolicy AWS permissions, and `s3cmd ls`
+# exits with 0 for missing objects, so use awscli for this check.
+aws s3 ls "s3://$***REMOVED***s3bucket***REMOVED***/rpm/repo.rpm" >/dev/null || ***REMOVED***
+  mkdir -p "$HOME/rpmbuild/SOURCES"
+  cp -av "$***REMOVED***pkgdir***REMOVED***/key.gpg" "$HOME/rpmbuild/SOURCES/RPM-GPG-KEY-k6-io"
+  rpmbuild -ba "$HOME/rpmbuild/SPECS/k6-rpm-repo.spec"
+  s3cmd put "$(find "$HOME/rpmbuild/RPMS/" -type f -name '*.rpm')" "s3://$***REMOVED***s3bucket***REMOVED***/rpm/repo.rpm"
+***REMOVED***
+
 # Generate and sync the main index.html
 (cd "$pkgdir" && generate_index.py)
 s3cmd put --add-header='Cache-Control: max-age=60,must-revalidate' \
