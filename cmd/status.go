@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"go.k6.io/k6/api/v1/client"
-	"go.k6.io/k6/ui"
 )
 
 func getStatusCmd(ctx context.Context) *cobra.Command ***REMOVED***
@@ -46,8 +45,8 @@ func getStatusCmd(ctx context.Context) *cobra.Command ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			ui.Dump(stdout, status)
-			return nil
+
+			return yamlPrint(stdout, status)
 		***REMOVED***,
 	***REMOVED***
 	return statusCmd
