@@ -80,12 +80,14 @@ type Output struct ***REMOVED***
 	aggregationDone    *sync.WaitGroup
 	stopOutput         chan struct***REMOVED******REMOVED***
 	outputDone         *sync.WaitGroup
+	engineStopFunc     func(error)
 ***REMOVED***
 
 // Verify that Output implements the wanted interfaces
 var _ interface ***REMOVED***
 	output.WithRunStatusUpdates
 	output.WithThresholds
+	output.WithTestRunStop
 ***REMOVED*** = &Output***REMOVED******REMOVED***
 
 // New creates a new cloud output.
@@ -320,6 +322,11 @@ func (out *Output) SetThresholds(scriptThresholds map[string]stats.Thresholds) *
 		thresholds[name] = append(thresholds[name], t.Thresholds...)
 	***REMOVED***
 	out.thresholds = thresholds
+***REMOVED***
+
+// SetTestRunStopCallback receives the function that stops the engine on error
+func (out *Output) SetTestRunStopCallback(stopFunc func(error)) ***REMOVED***
+	out.engineStopFunc = stopFunc
 ***REMOVED***
 
 func useCloudTags(source *httpext.Trail) *httpext.Trail ***REMOVED***
@@ -660,6 +667,9 @@ func (out *Output) pushMetrics() ***REMOVED***
 		if err != nil ***REMOVED***
 			if out.shouldStopSendingMetrics(err) ***REMOVED***
 				out.logger.WithError(err).Warn("Stopped sending metrics to cloud due to an error")
+				if out.config.StopOnError.Bool ***REMOVED***
+					out.engineStopFunc(err)
+				***REMOVED***
 				close(out.stopSendingMetrics)
 				break
 			***REMOVED***

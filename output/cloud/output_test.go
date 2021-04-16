@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -387,6 +388,18 @@ func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 
 func TestCloudOutputStopSendingMetric(t *testing.T) ***REMOVED***
 	t.Parallel()
+	t.Run("stop engine on error", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		testCloudOutputStopSendingMetric(t, true)
+	***REMOVED***)
+
+	t.Run("don't stop engine on error", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		testCloudOutputStopSendingMetric(t, false)
+	***REMOVED***)
+***REMOVED***
+
+func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
 	tb.Mux.HandleFunc("/v1/tests", http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) ***REMOVED***
 		body, err := ioutil.ReadAll(req.Body)
@@ -416,8 +429,9 @@ func TestCloudOutputStopSendingMetric(t *testing.T) ***REMOVED***
 		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***
 			"host": "%s", "noCompress": true,
 			"maxMetricSamplesPerPackage": 50,
-			"name": "something-that-should-be-overwritten"
-		***REMOVED***`, tb.ServerHTTP.URL)),
+			"name": "something-that-should-be-overwritten",
+			"stopOnError": %t
+		***REMOVED***`, tb.ServerHTTP.URL, stopOnError)),
 		ScriptOptions: lib.Options***REMOVED***
 			Duration:   types.NullDurationFrom(1 * time.Second),
 			SystemTags: &stats.DefaultSystemTagSet,
@@ -427,6 +441,14 @@ func TestCloudOutputStopSendingMetric(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		ScriptPath: &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
 	***REMOVED***)
+	var expectedEngineStopFuncCalled int64
+	if stopOnError ***REMOVED***
+		expectedEngineStopFuncCalled = 1
+	***REMOVED***
+	var engineStopFuncCalled int64
+	out.engineStopFunc = func(error) ***REMOVED***
+		atomic.AddInt64(&engineStopFuncCalled, 1)
+	***REMOVED***
 	require.NoError(t, err)
 	now := time.Now()
 	tags := stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest", "a": "b"***REMOVED***)
@@ -495,6 +517,7 @@ func TestCloudOutputStopSendingMetric(t *testing.T) ***REMOVED***
 		t.Fatal("sending metrics wasn't stopped")
 	***REMOVED***
 	require.Equal(t, max, count)
+	require.Equal(t, expectedEngineStopFuncCalled, engineStopFuncCalled)
 
 	nBufferSamples := len(out.bufferSamples)
 	nBufferHTTPTrails := len(out.bufferHTTPTrails)
