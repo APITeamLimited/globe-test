@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/mailru/easyjson/jwriter"
 	"gopkg.in/guregu/null.v3"
 )
@@ -472,41 +471,6 @@ var unitMap = map[string][]interface***REMOVED******REMOVED******REMOVED***
 	"s":  ***REMOVED***"s", time.Second***REMOVED***,
 	"ms": ***REMOVED***"ms", time.Millisecond***REMOVED***,
 	"us": ***REMOVED***"µs", time.Microsecond***REMOVED***,
-***REMOVED***
-
-// HumanizeValue makes the value human-readable
-// TODO: get rid of this after we remove the Go-based summary
-func (m *Metric) HumanizeValue(v float64, timeUnit string) string ***REMOVED***
-	switch m.Type ***REMOVED***
-	case Rate:
-		// Truncate instead of round when decreasing precision to 2 decimal places
-		return strconv.FormatFloat(float64(int(v*100*100))/100, 'f', 2, 64) + "%"
-	default:
-		switch m.Contains ***REMOVED***
-		case Time:
-			d := ToD(v)
-
-			if v, ok := unitMap[timeUnit]; ok ***REMOVED***
-				return fmt.Sprintf("%.2f%s", float64(d.Nanoseconds())/float64(v[1].(time.Duration)), v[0])
-			***REMOVED***
-
-			switch ***REMOVED***
-			case d > time.Minute:
-				d -= d % (1 * time.Second)
-			case d > time.Second:
-				d -= d % (10 * time.Millisecond)
-			case d > time.Millisecond:
-				d -= d % (10 * time.Microsecond)
-			case d > time.Microsecond:
-				d -= d % (10 * time.Nanosecond)
-			***REMOVED***
-			return d.String()
-		case Data:
-			return humanize.Bytes(uint64(v))
-		default:
-			return humanize.Ftoa(v)
-		***REMOVED***
-	***REMOVED***
 ***REMOVED***
 
 // A Submetric represents a filtered dataset based on a parent metric.
