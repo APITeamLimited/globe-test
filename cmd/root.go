@@ -277,10 +277,14 @@ func (c *rootCommand) setupLoggers() (<-chan struct***REMOVED******REMOVED***, e
 	if c.verbose ***REMOVED***
 		c.logger.SetLevel(logrus.DebugLevel)
 	***REMOVED***
+
+	loggerForceColors := false // disable color by default
 	switch c.logOutput ***REMOVED***
 	case "stderr":
+		loggerForceColors = !noColor && stderrTTY
 		c.logger.SetOutput(stderr)
 	case "stdout":
+		loggerForceColors = !noColor && stdoutTTY
 		c.logger.SetOutput(stdout)
 	case "none":
 		c.logger.SetOutput(ioutil.Discard)
@@ -296,7 +300,6 @@ func (c *rootCommand) setupLoggers() (<-chan struct***REMOVED******REMOVED***, e
 		c.logger.AddHook(hook)
 		c.logger.SetOutput(ioutil.Discard) // don't output to anywhere else
 		c.logFmt = "raw"
-		noColor = true // disable color
 	***REMOVED***
 
 	switch c.logFmt ***REMOVED***
@@ -307,7 +310,7 @@ func (c *rootCommand) setupLoggers() (<-chan struct***REMOVED******REMOVED***, e
 		c.logger.SetFormatter(&logrus.JSONFormatter***REMOVED******REMOVED***)
 		c.logger.Debug("Logger format: JSON")
 	default:
-		c.logger.SetFormatter(&logrus.TextFormatter***REMOVED***ForceColors: stderrTTY, DisableColors: noColor***REMOVED***)
+		c.logger.SetFormatter(&logrus.TextFormatter***REMOVED***ForceColors: loggerForceColors, DisableColors: noColor***REMOVED***)
 		c.logger.Debug("Logger format: TEXT")
 	***REMOVED***
 	return ch, nil
