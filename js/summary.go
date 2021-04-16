@@ -21,21 +21,31 @@
 package js
 
 import (
-	"bytes"
+	_ "embed" // this is used to embed the contents of summary.js
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/dop251/goja"
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/stats"
-	"go.k6.io/k6/ui"
 )
 
-// TODO: move this to a separate JS file and use go.rice to embed it
-const summaryWrapperLambdaCode = `
+// Copied from https://github.com/k6io/jslib.k6.io/tree/master/lib/k6-summary
+//go:embed summary.js
+var jslibSummaryCode string //nolint:gochecknoglobals
+
+// TODO: move this or parts of it to a separate JS file and embed it like above
+//nolint:gochecknoglobals
+var summaryWrapperLambdaCode = strings.Replace(`
 (function() ***REMOVED***
+	var jslib = ***REMOVED******REMOVED***;
+	(function(module, exports) ***REMOVED***
+		JSLIB_SUMMARY_CODE;
+	***REMOVED***)(***REMOVED***exports: jslib***REMOVED***, jslib);
+
 	var forEach = function (obj, callback) ***REMOVED***
 		for (var key in obj) ***REMOVED***
 			if (obj.hasOwnProperty(key)) ***REMOVED***
@@ -91,19 +101,24 @@ const summaryWrapperLambdaCode = `
 		return JSON.stringify(results, null, 4);
 	***REMOVED***;
 
-	// TODO: bundle the text summary generation from jslib and get rid of oldCallback
+	return function(exportedSummaryCallback, jsonSummaryPath, data) ***REMOVED***
+		var getDefaultSummary = function() ***REMOVED***
+			var enableColors = (!data.options.noColor && data.state.isStdOutTTY);
+			return ***REMOVED***
+				'stdout': '\n' + jslib.textSummary(data, ***REMOVED*** indent: ' ', enableColors: enableColors ***REMOVED***) + '\n\n',
+			***REMOVED***;
+		***REMOVED***;
 
-	return function(exportedSummaryCallback, jsonSummaryPath, data, oldCallback) ***REMOVED***
 		var result = ***REMOVED******REMOVED***;
 		if (exportedSummaryCallback) ***REMOVED***
 			try ***REMOVED***
-				result = exportedSummaryCallback(data, oldCallback);
+				result = exportedSummaryCallback(data);
 			***REMOVED*** catch (e) ***REMOVED***
 				console.error('handleSummary() failed with error "' + e + '", falling back to the default summary');
-				result["stdout"] = oldCallback(); // TODO: replace with JS function
+				result = getDefaultSummary();
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			result["stdout"] = oldCallback(); // TODO: replace with JS function
+			result = getDefaultSummary();
 		***REMOVED***
 
 		// TODO: ensure we're returning a map of strings or null/undefined...
@@ -116,7 +131,7 @@ const summaryWrapperLambdaCode = `
 		return result;
 	***REMOVED***;
 ***REMOVED***)();
-`
+`, "JSLIB_SUMMARY_CODE", jslibSummaryCode, 1)
 
 // TODO: figure out something saner... refactor the sinks and how we deal with
 // metrics in general... so much pain and misery... :sob:
@@ -245,26 +260,4 @@ func getSummaryResult(rawResult goja.Value) (map[string]io.Reader, error) ***REM
 	***REMOVED***
 
 	return results, nil
-***REMOVED***
-
-// TODO: remove this after the JS alternative is written
-func getOldTextSummaryFunc(summary *lib.Summary, options lib.Options) func() string ***REMOVED***
-	data := ui.SummaryData***REMOVED***
-		Metrics:   summary.Metrics,
-		RootGroup: summary.RootGroup,
-		Time:      summary.TestRunDuration,
-		TimeUnit:  options.SummaryTimeUnit.String,
-	***REMOVED***
-
-	return func() string ***REMOVED***
-		buffer := bytes.NewBuffer(nil)
-		_ = buffer.WriteByte('\n')
-
-		s := ui.NewSummary(options.SummaryTrendStats)
-		s.SummarizeMetrics(buffer, " ", data)
-
-		_ = buffer.WriteByte('\n')
-
-		return buffer.String()
-	***REMOVED***
 ***REMOVED***
