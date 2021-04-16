@@ -67,6 +67,11 @@ func ReadSource(
 	pwdURL := &url.URL***REMOVED***Scheme: "file", Path: filepath.ToSlash(filepath.Clean(pwd)) + "/"***REMOVED***
 	srcURL, err := Resolve(pwdURL, filepath.ToSlash(src))
 	if err != nil ***REMOVED***
+		var noSchemeError noSchemeRemoteModuleResolutionError
+		if errors.As(err, &noSchemeError) ***REMOVED***
+			// TODO maybe try to wrap the original error here as well, without butchering the message
+			return nil, fmt.Errorf(nothingWorkedLoadedMsg, noSchemeError.moduleSpecifier, noSchemeError.err)
+		***REMOVED***
 		return nil, err
 	***REMOVED***
 	result, err := Load(logger, filesystems, srcURL, src)
