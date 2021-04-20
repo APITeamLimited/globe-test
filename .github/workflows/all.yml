@@ -411,7 +411,7 @@ jobs:
           cat > packaging/.env <<EOF
           AWS_ACCESS_KEY_ID=$***REMOVED******REMOVED*** secrets.AWS_ACCESS_KEY_ID ***REMOVED******REMOVED***
           AWS_SECRET_ACCESS_KEY=$***REMOVED******REMOVED*** secrets.AWS_SECRET_ACCESS_KEY ***REMOVED******REMOVED***
-          AWS_DEFAULT_REGION=eu-west-1
+          AWS_DEFAULT_REGION=us-east-1
           AWS_CF_DISTRIBUTION="$***REMOVED******REMOVED*** secrets.AWS_CF_DISTRIBUTION ***REMOVED******REMOVED***"
           PGP_SIGN_KEY_PASSPHRASE=$***REMOVED******REMOVED*** secrets.PGP_SIGN_KEY_PASSPHRASE ***REMOVED******REMOVED***
           EOF
