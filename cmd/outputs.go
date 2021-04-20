@@ -35,10 +35,9 @@ import (
 	"github.com/loadimpact/k6/output/cloud"
 	"github.com/loadimpact/k6/output/influxdb"
 	"github.com/loadimpact/k6/output/json"
+	"github.com/loadimpact/k6/output/statsd"
 	"github.com/loadimpact/k6/stats"
 	"github.com/loadimpact/k6/stats/csv"
-	"github.com/loadimpact/k6/stats/datadog"
-	"github.com/loadimpact/k6/stats/statsd"
 
 	"github.com/k6io/xk6-output-kafka/pkg/kafka"
 )
@@ -58,28 +57,11 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 				"It can be found at https://github.com/k6io/xk6-output-kafka.")
 			return kafka.New(params)
 		***REMOVED***,
-		// TODO: remove all of these
-		"statsd": func(params output.Params) (output.Output, error) ***REMOVED***
-			conf, err := statsd.GetConsolidatedConfig(params.JSONConfig, params.Environment)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			statsdc, err := statsd.New(params.Logger, conf)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return newCollectorAdapter(params, statsdc), nil
-		***REMOVED***,
+		"statsd": statsd.New,
 		"datadog": func(params output.Params) (output.Output, error) ***REMOVED***
-			conf, err := datadog.GetConsolidatedConfig(params.JSONConfig, params.Environment)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			datadogc, err := datadog.New(params.Logger, conf)
-			if err != nil ***REMOVED***
-				return nil, err
-			***REMOVED***
-			return newCollectorAdapter(params, datadogc), nil
+			params.Logger.Warn("The datadog output is deprecated, and will be removed in a future k6 version. " +
+				"Please use the statsd output with env variable K6_STATSD_ENABLE_TAGS=true instead.")
+			return statsd.NewDatadog(params)
 		***REMOVED***,
 		"csv": func(params output.Params) (output.Output, error) ***REMOVED***
 			conf, err := csv.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)

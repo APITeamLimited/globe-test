@@ -18,10 +18,9 @@
  *
  */
 
-package testutil
+package statsd
 
 import (
-	"context"
 	"net"
 	"testing"
 	"time"
@@ -33,19 +32,18 @@ import (
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
-	"github.com/loadimpact/k6/stats/statsd/common"
 )
 
-type getCollectorFn func(
+type getOutputFn func(
 	logger logrus.FieldLogger,
 	addr, namespace null.String,
 	bufferSize null.Int,
 	pushInterval types.NullDuration,
-) (*common.Collector, error)
+) (*Output, error)
 
-// BaseTest is a helper function to test statsd/datadog collector
-func BaseTest(t *testing.T,
-	getCollector getCollectorFn,
+//nolint:funlen
+func baseTest(t *testing.T,
+	getOutput getOutputFn,
 	checkResult func(t *testing.T, samples []stats.SampleContainer, expectedOutput, output string),
 ) ***REMOVED***
 	t.Helper()
@@ -75,7 +73,7 @@ func BaseTest(t *testing.T,
 	***REMOVED***()
 
 	pushInterval := types.NullDurationFrom(time.Millisecond * 10)
-	collector, err := getCollector(
+	collector, err := getOutput(
 		testutils.NewLogger(t),
 		null.StringFrom(listener.LocalAddr().String()),
 		null.StringFrom(testNamespace),
@@ -83,10 +81,10 @@ func BaseTest(t *testing.T,
 		pushInterval,
 	)
 	require.NoError(t, err)
-	require.NoError(t, collector.Init())
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go collector.Run(ctx)
+	require.NoError(t, collector.Start())
+	defer func() ***REMOVED***
+		require.NoError(t, collector.Stop())
+	***REMOVED***()
 	newSample := func(m *stats.Metric, value float64, tags map[string]string) stats.Sample ***REMOVED***
 		return stats.Sample***REMOVED***
 			Time:   time.Now(),
@@ -156,7 +154,7 @@ func BaseTest(t *testing.T,
 		***REMOVED***,
 	***REMOVED***
 	for _, test := range testMatrix ***REMOVED***
-		collector.Collect(test.input)
+		collector.AddMetricSamples(test.input)
 		time.Sleep((time.Duration)(pushInterval.Duration))
 		output := <-ch
 		checkResult(t, test.input, test.output, output)

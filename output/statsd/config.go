@@ -25,45 +25,34 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats/statsd/common"
+	"github.com/loadimpact/k6/stats"
 )
 
-// Config defines the StatsD configuration.
-type Config struct ***REMOVED***
+// config defines the StatsD configuration.
+type config struct ***REMOVED***
 	Addr         null.String        `json:"addr,omitempty" envconfig:"K6_STATSD_ADDR"`
 	BufferSize   null.Int           `json:"bufferSize,omitempty" envconfig:"K6_STATSD_BUFFER_SIZE"`
 	Namespace    null.String        `json:"namespace,omitempty" envconfig:"K6_STATSD_NAMESPACE"`
 	PushInterval types.NullDuration `json:"pushInterval,omitempty" envconfig:"K6_STATSD_PUSH_INTERVAL"`
+	TagBlocklist stats.TagSet       `json:"tagBlocklist,omitempty" envconfig:"K6_STATSD_TAG_BLOCKLIST"`
+	EnableTags   null.Bool          `json:"enableTags,omitempty" envconfig:"K6_STATSD_ENABLE_TAGS"`
 ***REMOVED***
 
-// GetAddr returns the address of the StatsD service.
-func (c Config) GetAddr() null.String ***REMOVED***
-	return c.Addr
+func processTags(t stats.TagSet, tags map[string]string) []string ***REMOVED***
+	var res []string
+	for key, value := range tags ***REMOVED***
+		if value != "" && !t[key] ***REMOVED***
+			res = append(res, key+":"+value)
+		***REMOVED***
+	***REMOVED***
+	return res
 ***REMOVED***
-
-// GetBufferSize returns the size of the commands buffer.
-func (c Config) GetBufferSize() null.Int ***REMOVED***
-	return c.BufferSize
-***REMOVED***
-
-// GetNamespace returns the namespace prepended to all statsd calls.
-func (c Config) GetNamespace() null.String ***REMOVED***
-	return c.Namespace
-***REMOVED***
-
-// GetPushInterval returns the time interval between outgoing data batches.
-func (c Config) GetPushInterval() types.NullDuration ***REMOVED***
-	return c.PushInterval
-***REMOVED***
-
-var _ common.Config = &Config***REMOVED******REMOVED***
 
 // Apply saves config non-zero config values from the passed config in the receiver.
-func (c Config) Apply(cfg Config) Config ***REMOVED***
+func (c config) Apply(cfg config) config ***REMOVED***
 	if cfg.Addr.Valid ***REMOVED***
 		c.Addr = cfg.Addr
 	***REMOVED***
@@ -76,44 +65,43 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	if cfg.PushInterval.Valid ***REMOVED***
 		c.PushInterval = cfg.PushInterval
 	***REMOVED***
+	if cfg.TagBlocklist != nil ***REMOVED***
+		c.TagBlocklist = cfg.TagBlocklist
+	***REMOVED***
+	if cfg.EnableTags.Valid ***REMOVED***
+		c.EnableTags = cfg.EnableTags
+	***REMOVED***
 
 	return c
 ***REMOVED***
 
-// NewConfig creates a new Config instance with default values for some fields.
-func NewConfig() Config ***REMOVED***
-	return Config***REMOVED***
+// newConfig creates a new Config instance with default values for some fields.
+func newConfig() config ***REMOVED***
+	return config***REMOVED***
 		Addr:         null.NewString("localhost:8125", false),
 		BufferSize:   null.NewInt(20, false),
 		Namespace:    null.NewString("k6.", false),
 		PushInterval: types.NewNullDuration(1*time.Second, false),
+		TagBlocklist: stats.TagSet***REMOVED******REMOVED***,
+		EnableTags:   null.NewBool(false, false),
 	***REMOVED***
 ***REMOVED***
 
-// New creates a new statsd connector client
-func New(logger logrus.FieldLogger, conf common.Config) (*common.Collector, error) ***REMOVED***
-	return &common.Collector***REMOVED***
-		Config: conf,
-		Type:   "statsd",
-		Logger: logger,
-	***REMOVED***, nil
-***REMOVED***
-
-// GetConsolidatedConfig combines ***REMOVED***default config values + JSON config +
+// getConsolidatedConfig combines ***REMOVED***default config values + JSON config +
 // environment vars***REMOVED***, and returns the final result.
-func GetConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string) (Config, error) ***REMOVED***
-	result := NewConfig()
+func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, _ string) (config, error) ***REMOVED***
+	result := newConfig()
 	if jsonRawConf != nil ***REMOVED***
-		jsonConf := Config***REMOVED******REMOVED***
+		jsonConf := config***REMOVED******REMOVED***
 		if err := json.Unmarshal(jsonRawConf, &jsonConf); err != nil ***REMOVED***
 			return result, err
 		***REMOVED***
 		result = result.Apply(jsonConf)
 	***REMOVED***
 
-	envConfig := Config***REMOVED******REMOVED***
+	envConfig := config***REMOVED******REMOVED***
+	_ = env // TODO: get rid of envconfig and actually use the env parameter...
 	if err := envconfig.Process("", &envConfig); err != nil ***REMOVED***
-		// TODO: get rid of envconfig and actually use the env parameter...
 		return result, err
 	***REMOVED***
 	result = result.Apply(envConfig)
