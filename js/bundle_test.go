@@ -88,7 +88,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("Error", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
-		assert.EqualError(t, err, "Error: aaaa at file:///script.js:1:7(3)")
+		exception := new(scriptException)
+		assert.ErrorAs(t, err, &exception)
+		assert.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:1:7(3)\n")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
 		_, err := getSimpleBundle(t, "/script.js", `exports = null`)
@@ -164,7 +166,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 					"Promise", "base",
 					`module.exports.default = function() ***REMOVED******REMOVED***; new Promise(function(resolve, reject)***REMOVED******REMOVED***);`,
-					"ReferenceError: Promise is not defined at file:///script.js:1:45(4)",
+					"ReferenceError: Promise is not defined\n\tat file:///script.js:1:45(4)\n",
 				***REMOVED***,
 			***REMOVED***
 

@@ -710,6 +710,10 @@ func (u *VU) runFn(
 	startTime := time.Now()
 	v, err = fn(goja.Undefined(), args...) // Actually run the JS script
 	endTime := time.Now()
+	var exception *goja.Exception
+	if errors.As(err, &exception) ***REMOVED***
+		err = &scriptException***REMOVED***inner: exception***REMOVED***
+	***REMOVED***
 
 	select ***REMOVED***
 	case <-ctx.Done():
@@ -725,4 +729,23 @@ func (u *VU) runFn(
 	u.state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, isDefault, stats.NewSampleTags(u.state.Tags))
 
 	return v, isFullIteration, endTime.Sub(startTime), err
+***REMOVED***
+
+type scriptException struct ***REMOVED***
+	inner *goja.Exception
+***REMOVED***
+
+var _ types.ScriptException = &scriptException***REMOVED******REMOVED***
+
+func (s *scriptException) Error() string ***REMOVED***
+	// this calls String instead of error so that by default if it's printed to print the stacktrace
+	return s.inner.String()
+***REMOVED***
+
+func (s *scriptException) StackTrace() string ***REMOVED***
+	return s.inner.String()
+***REMOVED***
+
+func (s *scriptException) Unwrap() error ***REMOVED***
+	return s.inner
 ***REMOVED***

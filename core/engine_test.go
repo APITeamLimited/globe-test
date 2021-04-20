@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
@@ -700,6 +701,59 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	case err := <-errC:
 		require.NoError(t, err)
 		require.False(t, engine.IsTainted())
+	***REMOVED***
+***REMOVED***
+
+func TestSetupException(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	script := []byte(`
+	import bar from "./bar.js";
+	export function setup() ***REMOVED***
+		bar();
+	***REMOVED***;
+	export default function() ***REMOVED***
+	***REMOVED***;
+	`)
+
+	memfs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(memfs, "/bar.js", []byte(`
+	export default function () ***REMOVED***
+        baz();
+	***REMOVED***
+	function baz() ***REMOVED***
+		        throw new Error("baz");
+			***REMOVED***
+	`), 0x666))
+	runner, err := js.New(
+		testutils.NewLogger(t),
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	_, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***
+		SystemTags:      &stats.DefaultSystemTagSet,
+		SetupTimeout:    types.NullDurationFrom(3 * time.Second),
+		TeardownTimeout: types.NullDurationFrom(3 * time.Second),
+		VUs:             null.IntFrom(3),
+	***REMOVED***)
+	defer wait()
+
+	errC := make(chan error)
+	go func() ***REMOVED*** errC <- run() ***REMOVED***()
+
+	select ***REMOVED***
+	case <-time.After(10 * time.Second):
+		t.Fatal("Test timed out")
+	case err := <-errC:
+		require.Error(t, err)
+		var exception types.ScriptException
+		require.ErrorAs(t, err, &exception)
+		require.Equal(t, "Error: baz\n\tat baz (file:///bar.js:7:8(4))\n"+
+			"\tat file:///bar.js:4:5(3)\n\tat setup (file:///script.js:7:204(4))\n",
+			err.Error())
 	***REMOVED***
 ***REMOVED***
 

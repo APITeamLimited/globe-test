@@ -47,6 +47,7 @@ import (
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/ui/pb"
 )
@@ -63,6 +64,7 @@ const (
 	invalidConfigErrorCode       = 104
 	externalAbortErrorCode       = 105
 	cannotStartRESTAPIErrorCode  = 106
+	scriptExceptionErrorCode     = 107
 )
 
 // TODO: fix this, global variables are not very testable...
@@ -347,6 +349,11 @@ func getExitCodeFromEngine(err error) ExitCode ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
+	var serr types.ScriptException
+	if errors.As(err, &serr) ***REMOVED***
+		return ExitCode***REMOVED***error: serr, Code: scriptExceptionErrorCode, Hint: "script exception"***REMOVED***
+	***REMOVED***
+
 	return ExitCode***REMOVED***error: errors.New("engine error"), Code: genericEngineErrorCode, Hint: err.Error()***REMOVED***
 ***REMOVED***
 
@@ -403,26 +410,36 @@ func runCmdFlagSet() *pflag.FlagSet ***REMOVED***
 // Creates a new runner.
 func newRunner(
 	logger *logrus.Logger, src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
-) (lib.Runner, error) ***REMOVED***
+) (runner lib.Runner, err error) ***REMOVED***
 	switch typ ***REMOVED***
 	case "":
-		return newRunner(logger, src, detectType(src.Data), filesystems, rtOpts)
+		runner, err = newRunner(logger, src, detectType(src.Data), filesystems, rtOpts)
 	case typeJS:
-		return js.New(logger, src, filesystems, rtOpts)
+		runner, err = js.New(logger, src, filesystems, rtOpts)
 	case typeArchive:
-		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
+		var arc *lib.Archive
+		arc, err = lib.ReadArchive(bytes.NewReader(src.Data))
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		switch arc.Type ***REMOVED***
 		case typeJS:
-			return js.NewFromArchive(logger, arc, rtOpts)
+			runner, err = js.NewFromArchive(logger, arc, rtOpts)
 		default:
 			return nil, fmt.Errorf("archive requests unsupported runner: %s", arc.Type)
 		***REMOVED***
 	default:
 		return nil, fmt.Errorf("unknown -t/--type: %s", typ)
 	***REMOVED***
+
+	if err != nil ***REMOVED***
+		var serr types.ScriptException
+		if errors.As(err, &serr) ***REMOVED***
+			err = ExitCode***REMOVED***error: serr, Code: scriptExceptionErrorCode, Hint: "script exception"***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return runner, err
 ***REMOVED***
 
 func detectType(data []byte) string ***REMOVED***
