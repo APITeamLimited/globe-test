@@ -21,7 +21,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -37,13 +36,11 @@ import (
 	"github.com/loadimpact/k6/output/influxdb"
 	"github.com/loadimpact/k6/output/json"
 	"github.com/loadimpact/k6/output/statsd"
-	"github.com/loadimpact/k6/stats"
 
 	"github.com/k6io/xk6-output-kafka/pkg/kafka"
 )
 
 // TODO: move this to an output sub-module after we get rid of the old collectors?
-//nolint: funlen
 func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, error), error) ***REMOVED***
 	// Start with the built-in outputs
 	result := map[string]func(output.Params) (output.Output, error)***REMOVED***
@@ -141,55 +138,4 @@ func parseOutputArgument(s string) (t, arg string) ***REMOVED***
 	default:
 		return parts[0], parts[1]
 	***REMOVED***
-***REMOVED***
-
-// TODO: remove this after we transition every collector to the output interface
-
-func newCollectorAdapter(params output.Params, collector lib.Collector) output.Output ***REMOVED***
-	return &collectorAdapter***REMOVED***
-		outputType: params.OutputType,
-		collector:  collector,
-		stopCh:     make(chan struct***REMOVED******REMOVED***),
-	***REMOVED***
-***REMOVED***
-
-// collectorAdapter is a _temporary_ fix until we move all of the old
-// "collectors" to the new output interface
-type collectorAdapter struct ***REMOVED***
-	collector    lib.Collector
-	outputType   string
-	runCtx       context.Context
-	runCtxCancel func()
-	stopCh       chan struct***REMOVED******REMOVED***
-***REMOVED***
-
-func (ca *collectorAdapter) Description() string ***REMOVED***
-	link := ca.collector.Link()
-	if link != "" ***REMOVED***
-		return fmt.Sprintf("%s (%s)", ca.outputType, link)
-	***REMOVED***
-	return ca.outputType
-***REMOVED***
-
-func (ca *collectorAdapter) Start() error ***REMOVED***
-	if err := ca.collector.Init(); err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	ca.runCtx, ca.runCtxCancel = context.WithCancel(context.Background())
-	go func() ***REMOVED***
-		ca.collector.Run(ca.runCtx)
-		close(ca.stopCh)
-	***REMOVED***()
-	return nil
-***REMOVED***
-
-func (ca *collectorAdapter) AddMetricSamples(samples []stats.SampleContainer) ***REMOVED***
-	ca.collector.Collect(samples)
-***REMOVED***
-
-// Stop implements the new output interface.
-func (ca *collectorAdapter) Stop() error ***REMOVED***
-	ca.runCtxCancel()
-	<-ca.stopCh
-	return nil
 ***REMOVED***
