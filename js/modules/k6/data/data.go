@@ -46,13 +46,11 @@ func (s *sharedArrays) get(rt *goja.Runtime, name string, call goja.Callable) sh
 	s.mu.RUnlock()
 	if !ok ***REMOVED***
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		array, ok = s.data[name]
 		if !ok ***REMOVED***
-			func() ***REMOVED*** // this is done for the defer below
-				defer s.mu.Unlock()
-				array = getShareArrayFromCall(rt, call)
-				s.data[name] = array
-			***REMOVED***()
+			array = getShareArrayFromCall(rt, call)
+			s.data[name] = array
 		***REMOVED***
 	***REMOVED***
 
