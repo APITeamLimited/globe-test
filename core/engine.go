@@ -32,6 +32,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/output"
 	"github.com/loadimpact/k6/stats"
 )
@@ -254,7 +255,12 @@ func (e *Engine) startBackgroundProcesses(
 		case err := <-runResult:
 			if err != nil ***REMOVED***
 				e.logger.WithError(err).Debug("run: execution scheduler returned an error")
-				e.setRunStatus(lib.RunStatusAbortedSystem)
+				var serr types.ScriptException
+				if errors.As(err, &serr) ***REMOVED***
+					e.setRunStatus(lib.RunStatusAbortedScriptError)
+				***REMOVED*** else ***REMOVED***
+					e.setRunStatus(lib.RunStatusAbortedSystem)
+				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				e.logger.Debug("run: execution scheduler terminated")
 				e.setRunStatus(lib.RunStatusFinished)
