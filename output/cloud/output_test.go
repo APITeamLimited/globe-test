@@ -177,7 +177,6 @@ func runCloudOutputTestCase(t *testing.T, minSamples int) ***REMOVED***
 		***REMOVED***`, minSamples)
 		require.NoError(t, err)
 	***REMOVED***))
-	defer tb.Cleanup()
 
 	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(t),
@@ -322,7 +321,6 @@ func TestCloudOutputMaxPerPacket(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***))
 	tb.Mux.HandleFunc("/v1/tests/12", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
-	defer tb.Cleanup()
 
 	out, err := newOutput(output.Params***REMOVED***
 		Logger:     testutils.NewLogger(t),
@@ -422,7 +420,6 @@ func testCloudOutputStopSendingMetric(t *testing.T, stopOnError bool) ***REMOVED
 		require.NoError(t, err)
 	***REMOVED***))
 	tb.Mux.HandleFunc("/v1/tests/12", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
-	defer tb.Cleanup()
 
 	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
@@ -562,7 +559,6 @@ func TestCloudOutputAggregationPeriodZeroNoBlock(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***))
 	tb.Mux.HandleFunc("/v1/tests/123", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
-	defer tb.Cleanup()
 
 	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),
@@ -609,7 +605,6 @@ func TestCloudOutputPushRefID(t *testing.T) ***REMOVED***
 	defer close(expSamples)
 
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	failHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		t.Errorf("%s should not have been called at all", r.RequestURI)
 	***REMOVED***)
@@ -681,7 +676,6 @@ func TestCloudOutputRecvIterLIAllIterations(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 	***REMOVED***))
 	tb.Mux.HandleFunc("/v1/tests/123", func(rw http.ResponseWriter, _ *http.Request) ***REMOVED*** rw.WriteHeader(http.StatusOK) ***REMOVED***)
-	defer tb.Cleanup()
 
 	out, err := newOutput(output.Params***REMOVED***
 		Logger: testutils.NewLogger(t),

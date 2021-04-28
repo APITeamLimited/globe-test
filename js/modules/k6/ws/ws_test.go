@@ -91,7 +91,6 @@ func TestSession(t *testing.T) ***REMOVED***
 	// TODO: split and paralelize tests
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
 	root, err := lib.NewGroup("", nil)
@@ -350,7 +349,6 @@ func TestSession(t *testing.T) ***REMOVED***
 func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	t.Cleanup(tb.Cleanup)
 	sr := tb.Replacer.Replace
 
 	root, err := lib.NewGroup("", nil)
@@ -446,7 +444,6 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 func TestErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
 	root, err := lib.NewGroup("", nil)
@@ -553,7 +550,6 @@ func TestErrors(t *testing.T) ***REMOVED***
 
 func TestSystemTags(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	sr := tb.Replacer.Replace
 
@@ -617,7 +613,6 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	sr := tb.Replacer.Replace
 

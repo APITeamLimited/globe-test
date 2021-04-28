@@ -274,7 +274,6 @@ func TestExecutionSchedulerRunEnv(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
 	script := sr(`
@@ -376,7 +375,6 @@ func TestExecutionSchedulerSystemTags(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 
 	scriptTemplate := sr(`
@@ -495,7 +493,6 @@ func TestExecutionSchedulerRunCustomTags(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerRunCustomConfigNoCrossover(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	script := tb.Replacer.Replace(`
 	import http from "k6/http";
@@ -980,7 +977,6 @@ func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 // TestDNSResolver checks the DNS resolution behavior at the ExecutionScheduler level.
 func TestDNSResolver(t *testing.T) ***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 	script := sr(`
 		import http from "k6/http";

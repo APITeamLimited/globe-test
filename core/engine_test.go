@@ -399,7 +399,6 @@ const expectedHeaderMaxLength = 500
 func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 	tr := tb.Replacer.Replace
 
 	type testScript struct ***REMOVED***
@@ -528,7 +527,6 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 func TestRunTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	runTagsMap := map[string]string***REMOVED***"foo": "bar", "test": "mest", "over": "written"***REMOVED***
 	runTags := stats.NewSampleTags(runTagsMap)
@@ -644,7 +642,6 @@ func TestRunTags(t *testing.T) ***REMOVED***
 func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
@@ -760,7 +757,6 @@ func TestSetupException(t *testing.T) ***REMOVED***
 func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	script := []byte(tb.Replacer.Replace(`
 		import http from "k6/http";
