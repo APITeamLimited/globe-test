@@ -565,7 +565,15 @@ func (o *baseObject) setForeignStr(name unistring.String, val, receiver Value, t
 ***REMOVED***
 
 func (o *baseObject) setForeignIdx(name valueInt, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
-	return o.val.self.setForeignStr(name.string(), val, receiver, throw)
+	if idx := toIdx(name); idx != math.MaxUint32 ***REMOVED***
+		if o.lastSortedPropLen != len(o.propNames) ***REMOVED***
+			o.fixPropOrder()
+		***REMOVED***
+		if o.idxPropCount == 0 ***REMOVED***
+			return o._setForeignIdx(name, name, nil, receiver, throw)
+		***REMOVED***
+	***REMOVED***
+	return o.setForeignStr(name.string(), val, receiver, throw)
 ***REMOVED***
 
 func (o *baseObject) setForeignSym(name *Symbol, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
