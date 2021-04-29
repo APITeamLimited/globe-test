@@ -54,9 +54,9 @@ func TestCryptoAlgorithms(t *testing.T) ***REMOVED***
 
 	t.Run("RandomBytesSuccess", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(`
-		var bytes = crypto.randomBytes(5);
-		if (bytes.length !== 5) ***REMOVED***
-			throw new Error("Incorrect size: " + bytes.length);
+		var buf = crypto.randomBytes(5);
+		if (buf.byteLength !== 5) ***REMOVED***
+			throw new Error("Incorrect size: " + buf.byteLength);
 		***REMOVED***`)
 
 		assert.NoError(t, err)
@@ -303,7 +303,7 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		  return true;
 		***REMOVED***
 
-		var resultBinary = hasher.digest("binary");
+		var resultBinary = new Uint8Array(hasher.digest("binary"));
 		if (!arraysEqual(resultBinary,  correctBinary)) ***REMOVED***
 			throw new Error("Binary encoding mismatch: " + JSON.stringify(resultBinary));
 		***REMOVED***

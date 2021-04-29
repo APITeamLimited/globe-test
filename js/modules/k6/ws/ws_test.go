@@ -347,6 +347,102 @@ func TestSession(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
+	t.Parallel()
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	t.Cleanup(tb.Cleanup)
+	sr := tb.Replacer.Replace
+
+	root, err := lib.NewGroup("", nil)
+	assert.NoError(t, err)
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+	samples := make(chan stats.SampleContainer, 1000)
+	state := &lib.State***REMOVED*** //nolint: exhaustivestruct
+		Group:  root,
+		Dialer: tb.Dialer,
+		Options: lib.Options***REMOVED*** //nolint: exhaustivestruct
+			SystemTags: stats.NewSystemTagSet(
+				stats.TagURL,
+				stats.TagProto,
+				stats.TagStatus,
+				stats.TagSubproto,
+			),
+		***REMOVED***,
+		Samples:   samples,
+		TLSConfig: tb.TLSClientConfig,
+	***REMOVED***
+
+	ctx := context.Background()
+	ctx = lib.WithState(ctx, state)
+	ctx = common.WithRuntime(ctx, rt)
+
+	err = rt.Set("ws", common.Bind(rt, New(), &ctx))
+	assert.NoError(t, err)
+
+	t.Run("ok", func(t *testing.T) ***REMOVED***
+		_, err = rt.RunString(sr(`
+		var gotMsg = false;
+		var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
+			var data = new Uint8Array([104, 101, 108, 108, 111]); // 'hello'
+
+			socket.on('open', function() ***REMOVED***
+				socket.sendBinary(data.buffer);
+			***REMOVED***)
+			socket.on('binaryMessage', function(msg) ***REMOVED***
+				gotMsg = true;
+				let decText = String.fromCharCode.apply(null, new Uint8Array(msg));
+				decText = decodeURIComponent(escape(decText));
+				if (decText !== 'hello') ***REMOVED***
+					throw new Error('received unexpected binary message: ' + decText);
+				***REMOVED***
+				socket.close()
+			***REMOVED***);
+		***REMOVED***);
+		if (!gotMsg) ***REMOVED***
+			throw new Error("the 'binaryMessage' handler wasn't called")
+		***REMOVED***
+		`))
+		assert.NoError(t, err)
+	***REMOVED***)
+
+	errTestCases := []struct ***REMOVED***
+		in, expErrType string
+	***REMOVED******REMOVED***
+		***REMOVED***"", ""***REMOVED***,
+		***REMOVED***"undefined", "undefined"***REMOVED***,
+		***REMOVED***"null", "null"***REMOVED***,
+		***REMOVED***"true", "Boolean"***REMOVED***,
+		***REMOVED***"1", "Number"***REMOVED***,
+		***REMOVED***"3.14", "Number"***REMOVED***,
+		***REMOVED***"'str'", "String"***REMOVED***,
+		***REMOVED***"[1, 2, 3]", "Array"***REMOVED***,
+		***REMOVED***"new Uint8Array([1, 2, 3])", "Object"***REMOVED***,
+		***REMOVED***"Symbol('a')", "Symbol"***REMOVED***,
+		***REMOVED***"function() ***REMOVED******REMOVED***", "Function"***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range errTestCases ***REMOVED*** //nolint: paralleltest
+		tc := tc
+		t.Run(fmt.Sprintf("err_%s", tc.expErrType), func(t *testing.T) ***REMOVED***
+			_, err = rt.RunString(fmt.Sprintf(sr(`
+			var res = ws.connect('WSBIN_URL/ws-echo', function(socket)***REMOVED***
+				socket.on('open', function() ***REMOVED***
+					socket.sendBinary(%s);
+				***REMOVED***)
+			***REMOVED***);
+		`), tc.in))
+			require.Error(t, err)
+			if tc.in == "" ***REMOVED***
+				assert.Contains(t, err.Error(), "missing argument, expected ArrayBuffer")
+			***REMOVED*** else ***REMOVED***
+				assert.Contains(t, err.Error(), fmt.Sprintf("expected ArrayBuffer as argument, received: %s", tc.expErrType))
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
@@ -607,7 +703,7 @@ func TestReadPump(t *testing.T) ***REMOVED***
 				_ = conn.Close()
 			***REMOVED***()
 
-			msgChan := make(chan []byte)
+			msgChan := make(chan *message)
 			errChan := make(chan error)
 			closeChan := make(chan int)
 			s := &Socket***REMOVED***conn: conn***REMOVED***

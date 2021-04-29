@@ -1429,8 +1429,19 @@ func TestRequestArrayBufferBody(t *testing.T) ***REMOVED***
 			var res = http.post("HTTPBIN_URL/post-arraybuffer", arr.buffer, ***REMOVED*** responseType: 'binary' ***REMOVED***);
 
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status) ***REMOVED***
-			if (res.body != "%[2]s") ***REMOVED*** throw new Error(
-				"incorrect data: expected '%[2]s', received '" + res.body + "'") ***REMOVED***
+
+			var resTyped = new Uint8Array(res.body);
+			var exp = new %[1]s([%[2]s]);
+			if (exp.length !== resTyped.length) ***REMOVED***
+				throw new Error(
+					"incorrect data length: expected " + exp.length + ", received " + resTypedLength)
+			***REMOVED***
+			for (var i = 0; i < exp.length; i++) ***REMOVED***
+				if (exp[i] !== resTyped[i])	***REMOVED***
+					throw new Error(
+						"incorrect data at index " + i + ": expected " + exp[i] + ", received " + resTyped[i])
+				***REMOVED***
+			***REMOVED***
 			`, tc.arr, tc.expected)))
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -1687,31 +1698,51 @@ func TestResponseTypes(t *testing.T) ***REMOVED***
 		***REMOVED***
 
 		// Check binary transmission of the text response as well
-		var respTextInBin = http.get("HTTPBIN_URL/get-text", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
+		var respBin = http.get("HTTPBIN_URL/get-text", ***REMOVED*** responseType: "binary" ***REMOVED***);
 
-		// Hack to convert a utf-8 array to a JS string
-		var strConv = "";
-		function pad(n) ***REMOVED*** return n.length < 2 ? "0" + n : n; ***REMOVED***
-		for( var i = 0; i < respTextInBin.length; i++ ) ***REMOVED***
-			strConv += ( "%" + pad(respTextInBin[i].toString(16)));
-		***REMOVED***
-		strConv = decodeURIComponent(strConv);
+		// Convert a UTF-8 ArrayBuffer to a JS string
+		var respBinText = String.fromCharCode.apply(null, new Uint8Array(respBin.body));
+		var strConv = decodeURIComponent(escape(respBinText));
 		if (strConv !== expText) ***REMOVED***
 			throw new Error("converted response body should be '" + expText + "' but was '" + strConv + "'");
 		***REMOVED***
-		http.post("HTTPBIN_URL/compare-text", respTextInBin);
+		http.post("HTTPBIN_URL/compare-text", respBin.body);
 
 		// Check binary response
-		var respBin = http.get("HTTPBIN_URL/get-bin", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
-		if (respBin.length !== expBinLength) ***REMOVED***
-			throw new Error("response body length should be '" + expBinLength + "' but was '" + respBin.length + "'");
+		var respBin = http.get("HTTPBIN_URL/get-bin", ***REMOVED*** responseType: "binary" ***REMOVED***);
+		var respBinTyped = new Uint8Array(respBin.body);
+		if (expBinLength !== respBinTyped.length) ***REMOVED***
+			throw new Error("response body length should be '" + expBinLength
+							+ "' but was '" + respBinTyped.length + "'");
 		***REMOVED***
-		for( var i = 0; i < respBin.length; i++ ) ***REMOVED***
-			if ( respBin[i] !== i%256 ) ***REMOVED***
-				throw new Error("expected value " + (i%256) + " to be at position " + i + " but it was " + respBin[i]);
+		for(var i = 0; i < respBinTyped.length; i++) ***REMOVED***
+			if (respBinTyped[i] !== i%256) ***REMOVED***
+				throw new Error("expected value " + (i%256) + " to be at position "
+								+ i + " but it was " + respBinTyped[i]);
 			***REMOVED***
 		***REMOVED***
-		http.post("HTTPBIN_URL/compare-bin", respBin);
+		http.post("HTTPBIN_URL/compare-bin", respBin.body);
+
+		// Check ArrayBuffer response
+		var respBin = http.get("HTTPBIN_URL/get-bin", ***REMOVED*** responseType: "binary" ***REMOVED***).body;
+		if (respBin.byteLength !== expBinLength) ***REMOVED***
+			throw new Error("response body length should be '" + expBinLength + "' but was '" + respBin.byteLength + "'");
+		***REMOVED***
+
+		// Check ArrayBuffer responses with http.batch()
+		var responses = http.batch([
+			["GET", "HTTPBIN_URL/get-bin", null, ***REMOVED*** responseType: "binary" ***REMOVED***],
+			["GET", "HTTPBIN_URL/get-bin", null, ***REMOVED*** responseType: "binary" ***REMOVED***],
+		]);
+		if (responses.length != 2) ***REMOVED***
+			throw new Error("expected 2 responses, received " + responses.length);
+		***REMOVED***
+		for (var i = 0; i < responses.length; i++) ***REMOVED***
+			if (responses[i].body.byteLength !== expBinLength) ***REMOVED***
+				throw new Error("response body length should be '"
+					+ expBinLength + "' but was '" + responses[i].body.byteLength + "'");
+			***REMOVED***
+		***REMOVED***
 	`))
 	assert.NoError(t, err)
 

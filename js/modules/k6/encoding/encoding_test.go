@@ -31,6 +31,7 @@ import (
 )
 
 func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
+	t.Parallel()
 	if testing.Short() ***REMOVED***
 		return
 	***REMOVED***
@@ -54,9 +55,12 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("DefaultDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "hello world";
-			var decoded = encoding.b64decode("aGVsbG8gd29ybGQ=");
-			if (decoded !== correct) ***REMOVED***
-				throw new Error("Decoding mismatch: " + decoded);
+			var decBin = encoding.b64decode("aGVsbG8gd29ybGQ=");
+
+			var decText = String.fromCharCode.apply(null, new Uint8Array(decBin));
+			decText = decodeURIComponent(escape(decText));
+			if (decText !== correct) ***REMOVED***
+				throw new Error("Decoding mismatch: " + decText);
 			***REMOVED***`)
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -67,6 +71,17 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 			var encoded = encoding.b64encode(input.buffer);
 			if (encoded !== exp) ***REMOVED***
 				throw new Error("Encoding mismatch: " + encoded);
+			***REMOVED***`)
+			assert.NoError(t, err)
+		***REMOVED***)
+		t.Run("DefaultArrayBufferDec", func(t *testing.T) ***REMOVED*** //nolint: paralleltest // weird that it triggers here, and these tests can't be parallel
+			_, err := rt.RunString(`
+			var exp = "hello";
+			var decBin = encoding.b64decode("aGVsbG8=");
+			var decText = String.fromCharCode.apply(null, new Uint8Array(decBin));
+			decText = decodeURIComponent(escape(decText));
+			if (decText !== exp) ***REMOVED***
+				throw new Error("Decoding mismatch: " + decText);
 			***REMOVED***`)
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -82,9 +97,11 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("DefaultUnicodeDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "こんにちは世界";
-			var decoded = encoding.b64decode("44GT44KT44Gr44Gh44Gv5LiW55WM");
-			if (decoded !== correct) ***REMOVED***
-				throw new Error("Decoding mismatch: " + decoded);
+			var decBin = encoding.b64decode("44GT44KT44Gr44Gh44Gv5LiW55WM");
+			var decText = String.fromCharCode.apply(null, new Uint8Array(decBin));
+			decText = decodeURIComponent(escape(decText));
+			if (decText !== correct) ***REMOVED***
+				throw new Error("Decoding mismatch: " + decText);
 			***REMOVED***`)
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -100,7 +117,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("StdDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "hello world";
-			var decoded = encoding.b64decode("aGVsbG8gd29ybGQ=", "std");
+			var decoded = encoding.b64decode("aGVsbG8gd29ybGQ=", "std", "s");
 			if (decoded !== correct) ***REMOVED***
 				throw new Error("Decoding mismatch: " + decoded);
 			***REMOVED***`)
@@ -118,7 +135,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("RawStdDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "hello world";
-			var decoded = encoding.b64decode("aGVsbG8gd29ybGQ", "rawstd");
+			var decoded = encoding.b64decode("aGVsbG8gd29ybGQ", "rawstd", "s");
 			if (decoded !== correct) ***REMOVED***
 				throw new Error("Decoding mismatch: " + decoded);
 			***REMOVED***`)
@@ -136,7 +153,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("URLDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "小飼弾..";
-			var decoded = encoding.b64decode("5bCP6aO85by-Li4=", "url");
+			var decoded = encoding.b64decode("5bCP6aO85by-Li4=", "url", "s");
 			if (decoded !== correct) ***REMOVED***
 				throw new Error("Decoding mismatch: " + decoded);
 			***REMOVED***`)
@@ -154,7 +171,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 		t.Run("RawURLDec", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(`
 			var correct = "小飼弾..";
-			var decoded = encoding.b64decode("5bCP6aO85by-Li4", "rawurl");
+			var decoded = encoding.b64decode("5bCP6aO85by-Li4", "rawurl", "s");
 			if (decoded !== correct) ***REMOVED***
 				throw new Error("Decoding mismatch: " + decoded);
 			***REMOVED***`)

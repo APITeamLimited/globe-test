@@ -23,11 +23,6 @@ package httpext
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
-	"errors"
-	"fmt"
-
-	"github.com/tidwall/gjson"
 
 	"github.com/loadimpact/k6/lib/netext"
 )
@@ -56,17 +51,6 @@ const (
 	// default value for all requests if the global discardResponseBodies is enablled.
 	ResponseTypeNone
 )
-
-type jsonError struct ***REMOVED***
-	line      int
-	character int
-	err       error
-***REMOVED***
-
-func (j jsonError) Error() string ***REMOVED***
-	errMessage := "cannot parse json due to an error at line"
-	return fmt.Sprintf("%s %d, character %d , error: %v", errMessage, j.line, j.character, j.err)
-***REMOVED***
 
 // ResponseTimings is a struct to put all timings for a given HTTP response/request
 type ResponseTimings struct ***REMOVED***
@@ -108,9 +92,6 @@ type Response struct ***REMOVED***
 	Error          string                   `json:"error"`
 	ErrorCode      int                      `json:"error_code"`
 	Request        Request                  `json:"request"`
-
-	cachedJSON    interface***REMOVED******REMOVED***
-	validatedJSON bool
 ***REMOVED***
 
 func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
@@ -123,69 +104,4 @@ func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 // GetCtx return the response context
 func (res *Response) GetCtx() context.Context ***REMOVED***
 	return res.ctx
-***REMOVED***
-
-// JSON parses the body of a response as json and returns it to the goja VM
-func (res *Response) JSON(selector ...string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	hasSelector := len(selector) > 0
-	if res.cachedJSON == nil || hasSelector ***REMOVED***
-		var v interface***REMOVED******REMOVED***
-		var body []byte
-		switch b := res.Body.(type) ***REMOVED***
-		case []byte:
-			body = b
-		case string:
-			body = []byte(b)
-		default:
-			return nil, errors.New("invalid response type")
-		***REMOVED***
-
-		if hasSelector ***REMOVED***
-			if !res.validatedJSON ***REMOVED***
-				if !gjson.ValidBytes(body) ***REMOVED***
-					return nil, nil
-				***REMOVED***
-				res.validatedJSON = true
-			***REMOVED***
-
-			result := gjson.GetBytes(body, selector[0])
-
-			if !result.Exists() ***REMOVED***
-				return nil, nil
-			***REMOVED***
-			return result.Value(), nil
-		***REMOVED***
-
-		if err := json.Unmarshal(body, &v); err != nil ***REMOVED***
-			if syntaxError, ok := err.(*json.SyntaxError); ok ***REMOVED***
-				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
-			***REMOVED***
-			return nil, err
-		***REMOVED***
-		res.validatedJSON = true
-		res.cachedJSON = v
-	***REMOVED***
-	return res.cachedJSON, nil
-***REMOVED***
-
-func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
-	lf := '\n'
-	str := string(input)
-
-	// Humans tend to count from 1.
-	line := 1
-	character := 0
-
-	for i, b := range str ***REMOVED***
-		if b == lf ***REMOVED***
-			line++
-			character = 0
-		***REMOVED***
-		character++
-		if i == offset ***REMOVED***
-			break
-		***REMOVED***
-	***REMOVED***
-
-	return jsonError***REMOVED***line: line, character: character, err: err***REMOVED***
 ***REMOVED***

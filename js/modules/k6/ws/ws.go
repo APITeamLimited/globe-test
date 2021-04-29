@@ -70,6 +70,11 @@ type WSHTTPResponse struct ***REMOVED***
 	Error   string            `json:"error"`
 ***REMOVED***
 
+type message struct ***REMOVED***
+	mtype int // message type consts as defined in gorilla/websocket/conn.go
+	data  []byte
+***REMOVED***
+
 const writeWait = 10 * time.Second
 
 func New() *WS ***REMOVED***
@@ -240,7 +245,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	conn.SetPingHandler(func(msg string) error ***REMOVED*** pingChan <- msg; return nil ***REMOVED***)
 	conn.SetPongHandler(func(pingID string) error ***REMOVED*** pongChan <- pingID; return nil ***REMOVED***)
 
-	readDataChan := make(chan []byte)
+	readDataChan := make(chan *message)
 	readCloseChan := make(chan int)
 	readErrChan := make(chan error)
 
@@ -280,14 +285,20 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 			socket.trackPong(pingID)
 			socket.handleEvent("pong")
 
-		case readData := <-readDataChan:
+		case msg := <-readDataChan:
 			stats.PushIfNotDone(ctx, socket.samplesOutput, stats.Sample***REMOVED***
 				Metric: metrics.WSMessagesReceived,
 				Time:   time.Now(),
 				Tags:   socket.sampleTags,
 				Value:  1,
 			***REMOVED***)
-			socket.handleEvent("message", rt.ToValue(string(readData)))
+
+			if msg.mtype == websocket.BinaryMessage ***REMOVED***
+				ab := rt.NewArrayBuffer(msg.data)
+				socket.handleEvent("binaryMessage", rt.ToValue(&ab))
+			***REMOVED*** else ***REMOVED***
+				socket.handleEvent("message", rt.ToValue(string(msg.data)))
+			***REMOVED***
 
 		case readErr := <-readErrChan:
 			socket.handleEvent("error", rt.ToValue(readErr))
@@ -329,14 +340,41 @@ func (s *Socket) handleEvent(event string, args ...goja.Value) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// Send writes the given string message to the connection.
 func (s *Socket) Send(message string) ***REMOVED***
-	// NOTE: No binary message support for the time being since goja doesn't
-	// support typed arrays.
-	rt := common.GetRuntime(s.ctx)
+	if err := s.conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil ***REMOVED***
+		s.handleEvent("error", common.GetRuntime(s.ctx).ToValue(err))
+	***REMOVED***
 
-	writeData := []byte(message)
-	if err := s.conn.WriteMessage(websocket.TextMessage, writeData); err != nil ***REMOVED***
-		s.handleEvent("error", rt.ToValue(err))
+	stats.PushIfNotDone(s.ctx, s.samplesOutput, stats.Sample***REMOVED***
+		Metric: metrics.WSMessagesSent,
+		Time:   time.Now(),
+		Tags:   s.sampleTags,
+		Value:  1,
+	***REMOVED***)
+***REMOVED***
+
+// SendBinary writes the given ArrayBuffer message to the connection.
+func (s *Socket) SendBinary(message goja.Value) ***REMOVED***
+	if message == nil ***REMOVED***
+		common.Throw(common.GetRuntime(s.ctx), errors.New("missing argument, expected ArrayBuffer"))
+	***REMOVED***
+
+	msg := message.Export()
+	if ab, ok := msg.(goja.ArrayBuffer); ok ***REMOVED***
+		if err := s.conn.WriteMessage(websocket.BinaryMessage, ab.Bytes()); err != nil ***REMOVED***
+			s.handleEvent("error", common.GetRuntime(s.ctx).ToValue(err))
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		rt := common.GetRuntime(s.ctx)
+		var jsType string
+		switch ***REMOVED***
+		case goja.IsNull(message), goja.IsUndefined(message):
+			jsType = message.String()
+		default:
+			jsType = message.ToObject(rt).ClassName()
+		***REMOVED***
+		common.Throw(rt, fmt.Errorf("expected ArrayBuffer as argument, received: %s", jsType))
 	***REMOVED***
 
 	stats.PushIfNotDone(s.ctx, s.samplesOutput, stats.Sample***REMOVED***
@@ -486,9 +524,9 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 ***REMOVED***
 
 // Wraps conn.ReadMessage in a channel
-func (s *Socket) readPump(readChan chan []byte, errorChan chan error, closeChan chan int) ***REMOVED***
+func (s *Socket) readPump(readChan chan *message, errorChan chan error, closeChan chan int) ***REMOVED*** //nolint: cyclop
 	for ***REMOVED***
-		_, message, err := s.conn.ReadMessage()
+		messageType, data, err := s.conn.ReadMessage()
 		if err != nil ***REMOVED***
 			if websocket.IsUnexpectedCloseError(
 				err, websocket.CloseNormalClosure, websocket.CloseGoingAway) ***REMOVED***
@@ -511,7 +549,7 @@ func (s *Socket) readPump(readChan chan []byte, errorChan chan error, closeChan 
 		***REMOVED***
 
 		select ***REMOVED***
-		case readChan <- message:
+		case readChan <- &message***REMOVED***messageType, data***REMOVED***:
 		case <-s.done:
 			return
 		***REMOVED***

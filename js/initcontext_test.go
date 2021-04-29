@@ -239,24 +239,22 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func createAndReadFile(t *testing.T, file string, content []byte, expectedLength int, binary bool) (*BundleInstance, error) ***REMOVED***
+func createAndReadFile(t *testing.T, file string, content []byte, expectedLength int, binary string) (*BundleInstance, error) ***REMOVED***
+	t.Helper()
 	fs := afero.NewMemMapFs()
 	assert.NoError(t, fs.MkdirAll("/path/to", 0o755))
 	assert.NoError(t, afero.WriteFile(fs, "/path/to/"+file, content, 0o644))
 
-	binaryArg := ""
-	if binary ***REMOVED***
-		binaryArg = ",\"b\""
-	***REMOVED***
-
 	data := fmt.Sprintf(`
-		export let data = open("/path/to/%s"%s);
+		let binArg = "%s";
+		export let data = open("/path/to/%s", binArg);
 		var expectedLength = %d;
-		if (data.length != expectedLength) ***REMOVED***
-			throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data.length);
+		var len = binArg === "b" ? "byteLength" : "length";
+		if (data[len] != expectedLength) ***REMOVED***
+			throw new Error("Length not equal, expected: " + expectedLength + ", actual: " + data[len]);
 		***REMOVED***
 		export default function() ***REMOVED******REMOVED***
-	`, file, binaryArg, expectedLength)
+	`, binary, file, expectedLength)
 	b, err := getSimpleBundle(t, "/path/to/script.js", data, fs)
 
 	if !assert.NoError(t, err) ***REMOVED***
@@ -282,8 +280,9 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		//***REMOVED***[]byte***REMOVED***00, 36, 32, 127***REMOVED***, "utf-16", 2***REMOVED***,   // $€
 	***REMOVED***
 	for _, tc := range testCases ***REMOVED***
+		tc := tc
 		t.Run(tc.file, func(t *testing.T) ***REMOVED***
-			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, false)
+			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, "")
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -292,12 +291,12 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Binary", func(t *testing.T) ***REMOVED***
-		bi, err := createAndReadFile(t, "/path/to/file.bin", []byte("hi!\x0f\xff\x01"), 6, true)
+		bi, err := createAndReadFile(t, "/path/to/file.bin", []byte("hi!\x0f\xff\x01"), 6, "b")
 		if !assert.NoError(t, err) ***REMOVED***
 			return
 		***REMOVED***
-		bytes := []byte***REMOVED***104, 105, 33, 15, 255, 1***REMOVED***
-		assert.Equal(t, bytes, bi.Runtime.Get("data").Export())
+		buf := bi.Runtime.NewArrayBuffer([]byte***REMOVED***104, 105, 33, 15, 255, 1***REMOVED***)
+		assert.Equal(t, buf, bi.Runtime.Get("data").Export())
 	***REMOVED***)
 
 	testdata := map[string]string***REMOVED***
@@ -306,8 +305,9 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for name, loadPath := range testdata ***REMOVED***
+		loadPath := loadPath
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, false)
+			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, "")
 			if !assert.NoError(t, err) ***REMOVED***
 				return
 			***REMOVED***
@@ -409,7 +409,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	assert.NoError(t, err)
-	assert.NotNil(t, v)
+	require.NotNil(t, v)
 	assert.Equal(t, true, v.Export())
 
 	<-ch
