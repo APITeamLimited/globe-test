@@ -241,6 +241,13 @@ func TestThresholdsJSON(t *testing.T) ***REMOVED***
 			"",
 		***REMOVED***,
 		***REMOVED***
+			`["rate<0.01"]`,
+			[]string***REMOVED***"rate<0.01"***REMOVED***,
+			false,
+			types.NullDuration***REMOVED******REMOVED***,
+			`["rate<0.01"]`,
+		***REMOVED***,
+		***REMOVED***
 			`["1+1==2","1+1==3"]`,
 			[]string***REMOVED***"1+1==2", "1+1==3"***REMOVED***,
 			false,
@@ -296,7 +303,7 @@ func TestThresholdsJSON(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			t.Run("marshal", func(t *testing.T) ***REMOVED***
-				data2, err := json.Marshal(ts)
+				data2, err := MarshalJSONWithoutHTMLEscape(ts)
 				assert.NoError(t, err)
 				output := data.JSON
 				if data.outputJSON != "" ***REMOVED***
