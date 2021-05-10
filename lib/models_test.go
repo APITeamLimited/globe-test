@@ -44,7 +44,7 @@ func TestStageJSON(t *testing.T) ***REMOVED***
 	assert.Equal(t, s, s2)
 ***REMOVED***
 
-// Suggested by @nkovacs in https://github.com/loadimpact/k6/issues/207#issuecomment-330545467
+// Suggested by @nkovacs in https://github.com/k6io/k6/issues/207#issuecomment-330545467
 func TestDataRaces(t *testing.T) ***REMOVED***
 	t.Run("Check race", func(t *testing.T) ***REMOVED***
 		group, err := NewGroup("test", nil)
