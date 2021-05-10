@@ -228,9 +228,12 @@ func MarshalJSONWithoutHTMLEscape(t interface***REMOVED******REMOVED***) ([]byte
 	encoder.SetEscapeHTML(false)
 	err := encoder.Encode(t)
 	bytes := buffer.Bytes()
-	// Remove the newline appended by Encode() :-/
-	// See https://github.com/golang/go/issues/37083
-	return bytes[:len(bytes)-1], err
+	if err == nil && len(bytes) > 0 ***REMOVED***
+		// Remove the newline appended by Encode() :-/
+		// See https://github.com/golang/go/issues/37083
+		bytes = bytes[:len(bytes)-1]
+	***REMOVED***
+	return bytes, err
 ***REMOVED***
 
 var _ json.Unmarshaler = &Thresholds***REMOVED******REMOVED***
