@@ -264,7 +264,7 @@ func (varc RampingArrivalRateConfig) cal(et *lib.ExecutionTuple, ch chan<- time.
 			for ; i <= endCount; i += float64(next()) ***REMOVED***
 				// TODO: try to twist this in a way to be able to get i (the only changing part)
 				// somewhere where it is less in the middle of the equation
-				x := (from*dur - math.Sqrt(dur*(from*from*dur+2*(i-doneSoFar)*(to-from)))) / (from - to)
+				x := (from*dur - noNegativeSqrt(dur*(from*from*dur+2*(i-doneSoFar)*(to-from)))) / (from - to)
 
 				ch <- time.Duration(x) + stageStart
 			***REMOVED***
@@ -278,6 +278,23 @@ func (varc RampingArrivalRateConfig) cal(et *lib.ExecutionTuple, ch chan<- time.
 		from = to
 		stageStart += time.Duration(stage.Duration.Duration)
 	***REMOVED***
+***REMOVED***
+
+// This is needed because, on some platforms (arm64), sometimes, even though we
+// in *reality* don't get negative results due to the nature of how float64 is
+// implemented, we get negative values (very close to the 0). This would get an
+// sqrt which is *even* smaller and likely will have negligible effects on the
+// final result.
+//
+// TODO: this is probably going to be less necessary if we do some kind of of
+// optimization above and the operations with the float64 are more "accurate"
+// even on arm platforms.
+func noNegativeSqrt(f float64) float64 ***REMOVED***
+	if !math.Signbit(f) ***REMOVED***
+		return math.Sqrt(f)
+	***REMOVED***
+
+	return 0
 ***REMOVED***
 
 // Run executes a variable number of iterations per second.

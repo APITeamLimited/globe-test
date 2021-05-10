@@ -324,7 +324,7 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 		// TODO: extend more
 	***REMOVED***
 
-	for _, testCase := range testCases ***REMOVED***
+	for testNum, testCase := range testCases ***REMOVED*** //nolint:paralleltest
 		et := testCase.et
 		expectedTimes := testCase.expectedTimes
 		config.TimeUnit = types.NewNullDuration(testCase.timeUnit, true)
@@ -332,7 +332,7 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 			config.TimeUnit = types.NewNullDuration(defaultTimeUnit, true)
 		***REMOVED***
 
-		t.Run(fmt.Sprintf("%s timeunit %s", et, config.TimeUnit), func(t *testing.T) ***REMOVED***
+		t.Run(fmt.Sprintf("testNum %d - %s timeunit %s", testNum, et, config.TimeUnit), func(t *testing.T) ***REMOVED***
 			ch := make(chan time.Duration)
 			go config.cal(et, ch)
 			changes := make([]time.Duration, 0, len(expectedTimes))
@@ -343,7 +343,7 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 			for i, expectedTime := range expectedTimes ***REMOVED***
 				require.True(t, i < len(changes))
 				change := changes[i]
-				assert.InEpsilon(t, expectedTime, change, 0.001, "%s %s", expectedTime, change)
+				assert.InEpsilon(t, expectedTime, change, 0.001, "Expected around %s, got %s", expectedTime, change)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
