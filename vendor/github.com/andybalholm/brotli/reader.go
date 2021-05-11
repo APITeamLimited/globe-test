@@ -33,7 +33,9 @@ func NewReader(src io.Reader) *Reader ***REMOVED***
 func (r *Reader) Reset(src io.Reader) error ***REMOVED***
 	decoderStateInit(r)
 	r.src = src
-	r.buf = make([]byte, readBufSize)
+	if r.buf == nil ***REMOVED***
+		r.buf = make([]byte, readBufSize)
+	***REMOVED***
 	return nil
 ***REMOVED***
 

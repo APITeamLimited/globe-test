@@ -1,5 +1,7 @@
 package brotli
 
+import "encoding/binary"
+
 /* Copyright 2010 Google Inc. All Rights Reserved.
 
    Distributed under MIT license.
@@ -8,87 +10,43 @@ package brotli
 
 /* Write bits into a byte array. */
 
-type bitWriter struct ***REMOVED***
-	dst []byte
+/* This function writes bits into bytes in increasing addresses, and within
+   a byte least-significant-bit first.
 
-	// Data waiting to be written is the low nbits of bits.
-	bits  uint64
-	nbits uint
+   The function can write up to 56 bits in one go with WriteBits
+   Example: let's assume that 3 bits (Rs below) have been written already:
+
+   BYTE-0     BYTE+1       BYTE+2
+
+   0000 0RRR    0000 0000    0000 0000
+
+   Now, we could write 5 or less bits in MSB by just sifting by 3
+   and OR'ing to BYTE-0.
+
+   For n bits, we take the last 5 bits, OR that with high bits in BYTE-0,
+   and locate the rest in BYTE+1, BYTE+2, etc. */
+func writeBits(n_bits uint, bits uint64, pos *uint, array []byte) ***REMOVED***
+	/* This branch of the code can write up to 56 bits at a time,
+	   7 bits are lost by being perhaps already in *p and at least
+	   1 bit is needed to initialize the bit-stream ahead (i.e. if 7
+	   bits are in *p and we write 57 bits, then the next write will
+	   access a byte that was never initialized). */
+	p := array[*pos>>3:]
+	v := uint64(p[0])
+	v |= bits << (*pos & 7)
+	binary.LittleEndian.PutUint64(p, v)
+	*pos += n_bits
 ***REMOVED***
 
-func (w *bitWriter) writeBits(nb uint, b uint64) ***REMOVED***
-	w.bits |= b << w.nbits
-	w.nbits += nb
-	if w.nbits >= 32 ***REMOVED***
-		bits := w.bits
-		w.bits >>= 32
-		w.nbits -= 32
-		w.dst = append(w.dst,
-			byte(bits),
-			byte(bits>>8),
-			byte(bits>>16),
-			byte(bits>>24),
-		)
-	***REMOVED***
-***REMOVED***
-
-func (w *bitWriter) writeSingleBit(bit bool) ***REMOVED***
+func writeSingleBit(bit bool, pos *uint, array []byte) ***REMOVED***
 	if bit ***REMOVED***
-		w.writeBits(1, 1)
+		writeBits(1, 1, pos, array)
 	***REMOVED*** else ***REMOVED***
-		w.writeBits(1, 0)
+		writeBits(1, 0, pos, array)
 	***REMOVED***
 ***REMOVED***
 
-func (w *bitWriter) jumpToByteBoundary() ***REMOVED***
-	dst := w.dst
-	for w.nbits != 0 ***REMOVED***
-		dst = append(dst, byte(w.bits))
-		w.bits >>= 8
-		if w.nbits > 8 ***REMOVED*** // Avoid underflow
-			w.nbits -= 8
-		***REMOVED*** else ***REMOVED***
-			w.nbits = 0
-		***REMOVED***
-	***REMOVED***
-	w.bits = 0
-	w.dst = dst
-***REMOVED***
-
-func (w *bitWriter) writeBytes(b []byte) ***REMOVED***
-	if w.nbits&7 != 0 ***REMOVED***
-		panic("writeBytes with unfinished bits")
-	***REMOVED***
-	for w.nbits != 0 ***REMOVED***
-		w.dst = append(w.dst, byte(w.bits))
-		w.bits >>= 8
-		w.nbits -= 8
-	***REMOVED***
-	w.dst = append(w.dst, b...)
-***REMOVED***
-
-func (w *bitWriter) getPos() uint ***REMOVED***
-	return uint(len(w.dst)<<3) + w.nbits
-***REMOVED***
-
-func (w *bitWriter) rewind(p uint) ***REMOVED***
-	w.bits = uint64(w.dst[p>>3] & byte((1<<(p&7))-1))
-	w.nbits = p & 7
-	w.dst = w.dst[:p>>3]
-***REMOVED***
-
-func (w *bitWriter) updateBits(n_bits uint, bits uint32, pos uint) ***REMOVED***
-	for n_bits > 0 ***REMOVED***
-		var byte_pos uint = pos >> 3
-		var n_unchanged_bits uint = pos & 7
-		var n_changed_bits uint = brotli_min_size_t(n_bits, 8-n_unchanged_bits)
-		var total_bits uint = n_unchanged_bits + n_changed_bits
-		var mask uint32 = (^((1 << total_bits) - 1)) | ((1 << n_unchanged_bits) - 1)
-		var unchanged_bits uint32 = uint32(w.dst[byte_pos]) & mask
-		var changed_bits uint32 = bits & ((1 << n_changed_bits) - 1)
-		w.dst[byte_pos] = byte(changed_bits<<n_unchanged_bits | unchanged_bits)
-		n_bits -= n_changed_bits
-		bits >>= n_changed_bits
-		pos += n_changed_bits
-	***REMOVED***
+func writeBitsPrepareStorage(pos uint, array []byte) ***REMOVED***
+	assert(pos&7 == 0)
+	array[pos>>3] = 0
 ***REMOVED***
