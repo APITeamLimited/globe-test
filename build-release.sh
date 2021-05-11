@@ -19,7 +19,7 @@ build() ***REMOVED***
     local BUILD_ARGS=(-o "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***/k6$***REMOVED***SUFFIX***REMOVED***" -trimpath)
 
     if [ -n "$VERSION_DETAILS" ]; then
-        BUILD_ARGS+=(-ldflags "-X github.com/loadimpact/k6/lib/consts.VersionDetails=$VERSION_DETAILS")
+        BUILD_ARGS+=(-ldflags "-X go.k6.io/k6/lib/consts.VersionDetails=$VERSION_DETAILS")
     fi
 
     echo "- Building platform: $***REMOVED***ALIAS***REMOVED*** (" "$***REMOVED***BUILD_ENV[@]***REMOVED***" "go build" "$***REMOVED***BUILD_ARGS[@]***REMOVED***" ")"

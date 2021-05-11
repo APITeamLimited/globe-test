@@ -32,7 +32,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
-	"github.com/loadimpact/k6/lib/fsext"
+	"go.k6.io/k6/lib/fsext"
 )
 
 func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
@@ -82,10 +82,10 @@ func dumpMemMapFsToBuf(fs afero.Fs) (*bytes.Buffer, error) ***REMOVED***
 func TestOldArchive(t *testing.T) ***REMOVED***
 	var testCases = map[string]string***REMOVED***
 		// map of filename to data for each main file tested
-		"github.com/loadimpact/k6/samples/example.js": `github file`,
-		"cdnjs.com/packages/Faker":                    `faker file`,
-		"C:/something/path2":                          `windows script`,
-		"/absolulte/path2":                            `unix script`,
+		"github.com/k6io/k6/samples/example.js": `github file`,
+		"cdnjs.com/packages/Faker":              `faker file`,
+		"C:/something/path2":                    `windows script`,
+		"/absolulte/path2":                      `unix script`,
 	***REMOVED***
 	for filename, data := range testCases ***REMOVED***
 		filename, data := filename, data
@@ -93,20 +93,20 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 			metadata := `***REMOVED***"filename": "` + filename + `", "options": ***REMOVED******REMOVED******REMOVED***`
 			fs := makeMemMapFs(t, map[string][]byte***REMOVED***
 				// files
-				"/files/github.com/loadimpact/k6/samples/example.js": []byte(`github file`),
-				"/files/cdnjs.com/packages/Faker":                    []byte(`faker file`),
-				"/files/example.com/path/to.js":                      []byte(`example.com file`),
-				"/files/_/C/something/path":                          []byte(`windows file`),
-				"/files/_/absolulte/path":                            []byte(`unix file`),
+				"/files/github.com/k6io/k6/samples/example.js": []byte(`github file`),
+				"/files/cdnjs.com/packages/Faker":              []byte(`faker file`),
+				"/files/example.com/path/to.js":                []byte(`example.com file`),
+				"/files/_/C/something/path":                    []byte(`windows file`),
+				"/files/_/absolulte/path":                      []byte(`unix file`),
 
 				// scripts
-				"/scripts/github.com/loadimpact/k6/samples/example.js2": []byte(`github script`),
-				"/scripts/cdnjs.com/packages/Faker2":                    []byte(`faker script`),
-				"/scripts/example.com/path/too.js":                      []byte(`example.com script`),
-				"/scripts/_/C/something/path2":                          []byte(`windows script`),
-				"/scripts/_/absolulte/path2":                            []byte(`unix script`),
-				"/data":                                                 []byte(data),
-				"/metadata.json":                                        []byte(metadata),
+				"/scripts/github.com/k6io/k6/samples/example.js2": []byte(`github script`),
+				"/scripts/cdnjs.com/packages/Faker2":              []byte(`faker script`),
+				"/scripts/example.com/path/too.js":                []byte(`example.com script`),
+				"/scripts/_/C/something/path2":                    []byte(`windows script`),
+				"/scripts/_/absolulte/path2":                      []byte(`unix script`),
+				"/data":                                           []byte(data),
+				"/metadata.json":                                  []byte(metadata),
 			***REMOVED***)
 
 			buf, err := dumpMemMapFsToBuf(fs)
@@ -121,12 +121,12 @@ func TestOldArchive(t *testing.T) ***REMOVED***
 						"/absolulte/path2":    []byte(`unix script`),
 					***REMOVED***),
 					"https": makeMemMapFs(t, map[string][]byte***REMOVED***
-						"/example.com/path/to.js":                       []byte(`example.com file`),
-						"/example.com/path/too.js":                      []byte(`example.com script`),
-						"/github.com/loadimpact/k6/samples/example.js":  []byte(`github file`),
-						"/cdnjs.com/packages/Faker":                     []byte(`faker file`),
-						"/github.com/loadimpact/k6/samples/example.js2": []byte(`github script`),
-						"/cdnjs.com/packages/Faker2":                    []byte(`faker script`),
+						"/example.com/path/to.js":                 []byte(`example.com file`),
+						"/example.com/path/too.js":                []byte(`example.com script`),
+						"/github.com/k6io/k6/samples/example.js":  []byte(`github file`),
+						"/cdnjs.com/packages/Faker":               []byte(`faker file`),
+						"/github.com/k6io/k6/samples/example.js2": []byte(`github script`),
+						"/cdnjs.com/packages/Faker2":              []byte(`faker script`),
 					***REMOVED***),
 				***REMOVED***
 			)
@@ -165,10 +165,10 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 			expectedPwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/home/nobody"***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
-			Filename:            "github.com/loadimpact/k6/samples/http2.js",
-			Pwd:                 "github.com/loadimpact/k6/samples",
-			expectedFilenameURL: &url.URL***REMOVED***Opaque: "github.com/loadimpact/k6/samples/http2.js"***REMOVED***,
-			expectedPwdURL:      &url.URL***REMOVED***Opaque: "github.com/loadimpact/k6/samples"***REMOVED***,
+			Filename:            "github.com/k6io/k6/samples/http2.js",
+			Pwd:                 "github.com/k6io/k6/samples",
+			expectedFilenameURL: &url.URL***REMOVED***Opaque: "github.com/k6io/k6/samples/http2.js"***REMOVED***,
+			expectedPwdURL:      &url.URL***REMOVED***Opaque: "github.com/k6io/k6/samples"***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
 			Filename:            "cdnjs.com/libraries/Faker",
@@ -195,7 +195,6 @@ func TestFilenamePwdResolve(t *testing.T) ***REMOVED***
 			expectedError: "only supported schemes for imports are file and https",
 			version:       "0.25.0",
 		***REMOVED***,
-
 		***REMOVED***
 			Filename:      "https://example.com/something/dot.js",
 			Pwd:           "ftps://example.com/something",
