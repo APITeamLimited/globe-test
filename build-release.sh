@@ -43,7 +43,7 @@ package() ***REMOVED***
         # The go-bin-* tools expect the binary in /tmp/
         [ ! -r /tmp/k6 ] && cp "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***/k6" /tmp/k6
         "go-bin-$***REMOVED***FMT***REMOVED***" generate --file "packaging/$***REMOVED***FMT***REMOVED***.json" -a amd64 \
-            --version "$***REMOVED***VERSION#v***REMOVED***" -o "$***REMOVED***OUT_DIR***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-amd64.$***REMOVED***FMT***REMOVED***"
+            --version "$***REMOVED***VERSION#v***REMOVED***" -o "$***REMOVED***OUT_DIR***REMOVED***/k6-$***REMOVED***VERSION***REMOVED***-linux-amd64.$***REMOVED***FMT***REMOVED***"
         ;;
     tgz)
         tar -C "$***REMOVED***OUT_DIR***REMOVED***" -zcf "$***REMOVED***OUT_DIR***REMOVED***/$***REMOVED***NAME***REMOVED***.tar.gz" "$NAME"
