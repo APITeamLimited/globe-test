@@ -168,8 +168,9 @@ func summarizeMetricsToObject(data *lib.Summary, options lib.Options) map[string
 		"noColor":           data.NoColor, // TODO: move to the (runtime) options
 	***REMOVED***
 	m["state"] = map[string]interface***REMOVED******REMOVED******REMOVED***
-		"isStdOutTTY": data.UIState.IsStdOutTTY,
-		"isStdErrTTY": data.UIState.IsStdErrTTY,
+		"isStdOutTTY":       data.UIState.IsStdOutTTY,
+		"isStdErrTTY":       data.UIState.IsStdErrTTY,
+		"testRunDurationMs": float64(data.TestRunDuration) / float64(time.Millisecond),
 	***REMOVED***
 
 	getMetricValues := metricValueGetter(options.SummaryTrendStats)

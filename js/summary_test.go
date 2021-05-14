@@ -333,7 +333,8 @@ const expectedHandleSummaryRawData = `
     ***REMOVED***,
 	"state": ***REMOVED***
 		"isStdErrTTY": false,
-		"isStdOutTTY": false
+		"isStdOutTTY": false,
+		"testRunDurationMs": 1000
 	***REMOVED***,
     "metrics": ***REMOVED***
         "checks": ***REMOVED***
