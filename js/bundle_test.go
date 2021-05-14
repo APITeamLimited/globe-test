@@ -77,42 +77,52 @@ func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***R
 ***REMOVED***
 
 func TestNewBundle(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "")
 		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", "\x00")
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "SyntaxError: file:///script.js: Unexpected character '\x00' (1:0)\n> 1 | \x00\n")
 	***REMOVED***)
 	t.Run("Error", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `throw new Error("aaaa");`)
 		exception := new(scriptException)
 		assert.ErrorAs(t, err, &exception)
 		assert.EqualError(t, err, "Error: aaaa\n\tat file:///script.js:1:7(3)\n")
 	***REMOVED***)
 	t.Run("InvalidExports", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `exports = null`)
 		assert.EqualError(t, err, "exports must be an object")
 	***REMOVED***)
 	t.Run("DefaultUndefined", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default undefined;`)
 		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultNull", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default null;`)
 		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("DefaultWrongType", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default 12345;`)
 		assert.EqualError(t, err, "no exported functions in script")
 	***REMOVED***)
 	t.Run("Minimal", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleBundle(t, "/script.js", `export default function() ***REMOVED******REMOVED***;`)
 		assert.NoError(t, err)
 	***REMOVED***)
 	t.Run("stdin", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		b, err := getSimpleBundle(t, "-", `export default function() ***REMOVED******REMOVED***;`)
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "file://-", b.Filename.String())
@@ -120,7 +130,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("CompatibilityMode", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		t.Run("Extended/ok/global", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			rtOpts := lib.RuntimeOptions***REMOVED***
 				CompatibilityMode: null.StringFrom(lib.CompatibilityModeExtended.String()),
 			***REMOVED***
@@ -133,6 +145,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/ok/Minimal", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			rtOpts := lib.RuntimeOptions***REMOVED***
 				CompatibilityMode: null.StringFrom(lib.CompatibilityModeBase.String()),
 			***REMOVED***
@@ -141,6 +154,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Base/err", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			testCases := []struct ***REMOVED***
 				name       string
 				compatMode string
@@ -173,6 +187,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			for _, tc := range testCases ***REMOVED***
 				tc := tc
 				t.Run(tc.name, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom(tc.compatMode)***REMOVED***
 					_, err := getSimpleBundle(t, "/script.js", tc.code, rtOpts)
 					assert.EqualError(t, err, tc.expErr)
@@ -181,7 +196,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("Options", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		t.Run("Empty", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			_, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED******REMOVED***;
 				export default function() ***REMOVED******REMOVED***;
@@ -189,6 +206,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 		***REMOVED***)
 		t.Run("Invalid", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			invalidOptions := map[string]struct ***REMOVED***
 				Expr, Error string
 			***REMOVED******REMOVED***
@@ -207,6 +225,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Paused", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					paused: true,
@@ -218,6 +237,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("VUs", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					vus: 100,
@@ -229,6 +249,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Duration", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					duration: "10s",
@@ -240,6 +261,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Iterations", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					iterations: 100,
@@ -251,6 +273,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Stages", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					stages: [],
@@ -262,6 +285,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			t.Run("Empty", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
@@ -277,6 +301,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("Target", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
@@ -292,6 +317,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("Duration", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
@@ -307,6 +333,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("DurationAndTarget", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
@@ -322,6 +349,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("RampUpAndPlateau", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						stages: [
@@ -340,6 +368,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("MaxRedirects", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					maxRedirects: 10,
@@ -351,6 +380,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("InsecureSkipTLSVerify", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					insecureSkipTLSVerify: true,
@@ -362,8 +392,10 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("TLSCipherSuites", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for suiteName, suiteID := range lib.SupportedTLSCipherSuites ***REMOVED***
 				t.Run(suiteName, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					script := `
 					export let options = ***REMOVED***
 						tlsCipherSuites: ["%s"]
@@ -382,7 +414,9 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("TLSVersion", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			t.Run("Object", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						tlsVersion: ***REMOVED***
@@ -398,6 +432,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***)
 			t.Run("String", func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				b, err := getSimpleBundle(t, "/script.js", `
 					export let options = ***REMOVED***
 						tlsVersion: "tls1.0"
@@ -411,6 +446,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 			***REMOVED***)
 		***REMOVED***)
 		t.Run("Thresholds", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			b, err := getSimpleBundle(t, "/script.js", `
 				export let options = ***REMOVED***
 					thresholds: ***REMOVED***
@@ -427,6 +463,7 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("Unknown field", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			logger := logrus.New()
 			logger.SetLevel(logrus.InfoLevel)
 			logger.Out = ioutil.Discard
@@ -669,14 +706,16 @@ func TestOpen(t *testing.T) ***REMOVED***
 	logger := testutils.NewLogger(t)
 
 	for name, fsInit := range fss ***REMOVED***
-		fs, prefix, cleanUp := fsInit()
-		defer cleanUp()
-		fs = afero.NewReadOnlyFs(fs)
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for _, tCase := range testCases ***REMOVED***
 				tCase := tCase
 
 				testFunc := func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					fs, prefix, cleanUp := fsInit()
+					defer cleanUp()
+					fs = afero.NewReadOnlyFs(fs)
 					openPath := tCase.openPath
 					// if fullpath prepend prefix
 					if openPath != "" && (openPath[0] == '/' || openPath[0] == '\\') ***REMOVED***
@@ -729,7 +768,10 @@ func TestOpen(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleInstantiate(t *testing.T) ***REMOVED***
-	b, err := getSimpleBundle(t, "/script.js", `
+	t.Parallel()
+	t.Run("Run", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		b, err := getSimpleBundle(t, "/script.js", `
 		export let options = ***REMOVED***
 			vus: 5,
 			teardownTimeout: '1s',
@@ -737,17 +779,15 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 		let val = true;
 		export default function() ***REMOVED*** return val; ***REMOVED***
 	`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-	logger := testutils.NewLogger(t)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		logger := testutils.NewLogger(t)
 
-	bi, err := b.Instantiate(logger, 0)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-
-	t.Run("Run", func(t *testing.T) ***REMOVED***
+		bi, err := b.Instantiate(logger, 0)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, true, v.Export())
@@ -755,6 +795,24 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("SetAndRun", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		b, err := getSimpleBundle(t, "/script.js", `
+		export let options = ***REMOVED***
+			vus: 5,
+			teardownTimeout: '1s',
+		***REMOVED***;
+		let val = true;
+		export default function() ***REMOVED*** return val; ***REMOVED***
+	`)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		logger := testutils.NewLogger(t)
+
+		bi, err := b.Instantiate(logger, 0)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
 		bi.Runtime.Set("val", false)
 		v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 		if assert.NoError(t, err) ***REMOVED***
@@ -763,6 +821,24 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Options", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		b, err := getSimpleBundle(t, "/script.js", `
+			export let options = ***REMOVED***
+				vus: 5,
+				teardownTimeout: '1s',
+			***REMOVED***;
+			let val = true;
+			export default function() ***REMOVED*** return val; ***REMOVED***
+		`)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
+		logger := testutils.NewLogger(t)
+
+		bi, err := b.Instantiate(logger, 0)
+		if !assert.NoError(t, err) ***REMOVED***
+			return
+		***REMOVED***
 		// Ensure `options` properties are correctly marshalled
 		jsOptions := bi.Runtime.Get("options").ToObject(bi.Runtime)
 		vus := jsOptions.Get("vus").Export()
@@ -783,6 +859,7 @@ func TestBundleInstantiate(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleEnv(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rtOpts := lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***
 		"TEST_A": "1",
 		"TEST_B": "",
@@ -808,6 +885,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	for name, b := range bundles ***REMOVED***
 		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			assert.Equal(t, "1", b.RuntimeOptions.Env["TEST_A"])
 			assert.Equal(t, "", b.RuntimeOptions.Env["TEST_B"])
 
@@ -821,6 +899,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleNotSharable(t *testing.T) ***REMOVED***
+	t.Parallel()
 	data := `
 		export default function() ***REMOVED***
 			if (__ITER == 0) ***REMOVED***
@@ -849,6 +928,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	for name, b := range bundles ***REMOVED***
 		b := b
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for i := 0; i < vus; i++ ***REMOVED***
 				bi, err := b.Instantiate(logger, int64(i))
 				require.NoError(t, err)
@@ -863,6 +943,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestBundleMakeArchive(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		cm      lib.CompatibilityMode
 		script  string
@@ -889,6 +970,7 @@ func TestBundleMakeArchive(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.cm.String(), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			fs := afero.NewMemMapFs()
 			_ = fs.MkdirAll("/path/to", 0o755)
 			_ = afero.WriteFile(fs, "/path/to/file.txt", []byte(`hi`), 0o644)
