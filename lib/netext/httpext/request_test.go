@@ -26,9 +26,11 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"testing"
 	"time"
 
@@ -355,5 +357,121 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			***REMOVED***
 			require.Equal(t, failed, httpReqFailedSampleValue)
 		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
+	if runtime.GOOS == "windows" ***REMOVED***
+		t.Skipf("dial timeout doesn't get returned on windows") // or we don't match it correctly
+	***REMOVED***
+	t.Parallel()
+	ln, err := net.Listen("tcp", "localhost:0")
+	if err != nil ***REMOVED***
+		t.Fatal(err)
+	***REMOVED***
+	addr := ln.Addr()
+	defer func() ***REMOVED***
+		require.NoError(t, ln.Close())
+	***REMOVED***()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	samples := make(chan stats.SampleContainer, 10)
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	state := &lib.State***REMOVED***
+		Options: lib.Options***REMOVED***
+			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		Transport: &http.Transport***REMOVED***
+			DialContext: (&net.Dialer***REMOVED***
+				Timeout: 1 * time.Microsecond,
+			***REMOVED***).DialContext,
+		***REMOVED***,
+		Samples: samples,
+		Logger:  logger,
+		BPool:   bpool.NewBufferPool(100),
+	***REMOVED***
+
+	ctx = lib.WithState(ctx, state)
+	req, _ := http.NewRequest("GET", "http://"+addr.String(), nil)
+	preq := &ParsedHTTPRequest***REMOVED***
+		Req:              req,
+		URL:              &URL***REMOVED***u: req.URL, URL: req.URL.String()***REMOVED***,
+		Body:             new(bytes.Buffer),
+		Timeout:          500 * time.Millisecond,
+		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
+	***REMOVED***
+
+	res, err := MakeRequest(ctx, preq)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Len(t, samples, 1)
+	sampleCont := <-samples
+	allSamples := sampleCont.GetSamples()
+	require.Len(t, allSamples, 9)
+	expTags := map[string]string***REMOVED***
+		"error":             "dial: i/o timeout",
+		"error_code":        "1211",
+		"status":            "0",
+		"expected_response": "true", // we wait for status code 0
+		"method":            "GET",
+		"url":               req.URL.String(),
+		"name":              req.URL.String(),
+	***REMOVED***
+	for _, s := range allSamples ***REMOVED***
+		assert.Equal(t, expTags, s.Tags.CloneTags())
+	***REMOVED***
+***REMOVED***
+
+func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
+		time.Sleep(100 * time.Millisecond)
+	***REMOVED***))
+	defer srv.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	samples := make(chan stats.SampleContainer, 10)
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	state := &lib.State***REMOVED***
+		Options: lib.Options***REMOVED***
+			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		Transport: srv.Client().Transport,
+		Samples:   samples,
+		Logger:    logger,
+		BPool:     bpool.NewBufferPool(100),
+	***REMOVED***
+	ctx = lib.WithState(ctx, state)
+	req, _ := http.NewRequest("GET", srv.URL, nil)
+	preq := &ParsedHTTPRequest***REMOVED***
+		Req:              req,
+		URL:              &URL***REMOVED***u: req.URL, URL: srv.URL***REMOVED***,
+		Body:             new(bytes.Buffer),
+		Timeout:          50 * time.Millisecond,
+		ResponseCallback: func(i int) bool ***REMOVED*** return i == 0 ***REMOVED***,
+	***REMOVED***
+
+	res, err := MakeRequest(ctx, preq)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Len(t, samples, 1)
+	sampleCont := <-samples
+	allSamples := sampleCont.GetSamples()
+	require.Len(t, allSamples, 9)
+	expTags := map[string]string***REMOVED***
+		"error":             "request timeout",
+		"error_code":        "1050",
+		"status":            "0",
+		"expected_response": "true", // we wait for status code 0
+		"method":            "GET",
+		"url":               srv.URL,
+		"name":              srv.URL,
+	***REMOVED***
+	for _, s := range allSamples ***REMOVED***
+		assert.Equal(t, expTags, s.Tags.CloneTags())
 	***REMOVED***
 ***REMOVED***
