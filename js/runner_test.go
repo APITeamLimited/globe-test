@@ -117,14 +117,10 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 func TestRunnerOptions(t *testing.T) ***REMOVED***
 	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -532,9 +528,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
@@ -542,9 +536,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			vu, err := r.newVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			fnCalled := false
 			vu.Runtime.Set("fn", func() ***REMOVED***
@@ -682,9 +674,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			vu, err := r.newVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			fnOuterCalled := false
 			fnInnerCalled := false
@@ -739,9 +729,7 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 			samples := make(chan stats.SampleContainer, 100)
 			defer close(samples)
 			vu, err := r.newVU(1, samples)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -816,9 +804,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 					r.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-					if !assert.NoError(t, err) ***REMOVED***
-						return
-					***REMOVED***
+					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -846,18 +832,14 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 
 	cidr, err := lib.ParseCIDR("10.0.0.0/8")
 
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -865,9 +847,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -890,14 +870,10 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 
 					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
@@ -906,9 +882,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -935,9 +909,7 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
@@ -967,14 +939,10 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 
 					exports.default = function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
 				`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
@@ -983,9 +951,7 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVu, err := r.NewVU(0, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
 			err = vu.RunOnce()
 			require.Error(t, err)
@@ -1011,9 +977,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 						***REMOVED***) || fail("failed to override dns");
 					***REMOVED***
 				`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw: null.BoolFrom(true),
@@ -1023,9 +987,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -1033,17 +995,13 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -1094,15 +1052,11 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
 			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
@@ -1112,9 +1066,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 					r.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-					if !assert.NoError(t, err) ***REMOVED***
-						return
-					***REMOVED***
+					require.NoError(t, err)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -1187,9 +1139,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		MaxRedirects: null.IntFrom(10),
@@ -1197,9 +1147,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -1207,9 +1155,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -1246,9 +1192,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:          null.BoolFrom(true),
 		MaxRedirects:   null.IntFrom(10),
@@ -1257,9 +1201,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -1267,9 +1209,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1290,15 +1230,11 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
 	)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -1306,9 +1242,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1234, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1363,18 +1297,14 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			"wm689RyXiDzNSzjrqwLQBVQ2mTbVdsD9Bg==\n"+
 			"-----END EC PRIVATE KEY-----"),
 	)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config***REMOVED***
 		Certificates: []tls.Certificate***REMOVED***serverCert***REMOVED***,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    clientCAPool,
 	***REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	t.Cleanup(func() ***REMOVED*** _ = listener.Close() ***REMOVED***)
 	srv := &http.Server***REMOVED***
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
@@ -1391,17 +1321,13 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String()))
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 			Throw:                 null.BoolFrom(true),
 			InsecureSkipTLSVerify: null.BoolFrom(true),
 		***REMOVED***))
 		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 
 		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 		for name, r := range runners ***REMOVED***
@@ -1428,9 +1354,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String()))
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 			Throw:                 null.BoolFrom(true),
 			InsecureSkipTLSVerify: null.BoolFrom(true),
@@ -1462,9 +1386,7 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			***REMOVED***,
 		***REMOVED***))
 		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 
 		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 		for name, r := range runners ***REMOVED***
@@ -1848,9 +1770,7 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
@@ -1858,9 +1778,7 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVU, err := r.NewVU(1234, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			logger := logrus.New()
 			logger.SetLevel(logrus.InfoLevel)

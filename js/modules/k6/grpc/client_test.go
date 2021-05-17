@@ -141,9 +141,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		respV, err := rt.RunString(`
 			client.load([], "../../../../vendor/google.golang.org/grpc/test/grpc_testing/test.proto");
 		`)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		resp := respV.Export()
 		assert.IsType(t, []MethodInfo***REMOVED******REMOVED***, resp)
 		assert.Len(t, resp, 6)

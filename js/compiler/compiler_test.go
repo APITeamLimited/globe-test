@@ -27,6 +27,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/testutils"
@@ -77,9 +78,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 	t.Run("ES5", func(t *testing.T) ***REMOVED***
 		src := `1+(function() ***REMOVED*** return 2; ***REMOVED***)()`
 		pgm, code, err := c.Compile(src, "script.js", "", "", true, lib.CompatibilityModeBase)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		assert.Equal(t, src, code)
 		v, err := goja.New().RunProgram(pgm)
 		if assert.NoError(t, err) ***REMOVED***
@@ -89,9 +88,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 		t.Run("Wrap", func(t *testing.T) ***REMOVED***
 			pgm, code, err := c.Compile(src, "script.js",
 				"(function()***REMOVED***return ", "***REMOVED***)", true, lib.CompatibilityModeBase)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			assert.Equal(t, `(function()***REMOVED***return 1+(function() ***REMOVED*** return 2; ***REMOVED***)()***REMOVED***)`, code)
 			v, err := goja.New().RunProgram(pgm)
 			if assert.NoError(t, err) ***REMOVED***
@@ -115,9 +112,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("ES6", func(t *testing.T) ***REMOVED***
 		pgm, code, err := c.Compile(`1+(()=>2)()`, "script.js", "", "", true, lib.CompatibilityModeExtended)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		assert.Equal(t, `"use strict";1 + function () ***REMOVED***return 2;***REMOVED***();`, code)
 		v, err := goja.New().RunProgram(pgm)
 		if assert.NoError(t, err) ***REMOVED***
@@ -126,9 +121,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 
 		t.Run("Wrap", func(t *testing.T) ***REMOVED***
 			pgm, code, err := c.Compile(`fn(1+(()=>2)())`, "script.js", "(function(fn)***REMOVED***", "***REMOVED***)", true, lib.CompatibilityModeExtended)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			assert.Equal(t, `(function(fn)***REMOVED***"use strict";fn(1 + function () ***REMOVED***return 2;***REMOVED***());***REMOVED***)`, code)
 			rt := goja.New()
 			v, err := rt.RunProgram(pgm)

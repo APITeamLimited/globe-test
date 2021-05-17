@@ -97,14 +97,10 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 						export let dummy = "abc123";
 						export default function() ***REMOVED******REMOVED***
 				`)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			bi, err := b.Instantiate(logger, 0)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			exports := bi.Runtime.Get("exports").ToObject(bi.Runtime)
 			if assert.NotNil(t, exports) ***REMOVED***
@@ -208,17 +204,13 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 								export default function() ***REMOVED******REMOVED***;`,
 							libName)
 						b, err := getSimpleBundle(t, "/path/to/script.js", data, fs)
-						if !assert.NoError(t, err) ***REMOVED***
-							return
-						***REMOVED***
+						require.NoError(t, err)
 						if constPath != "" ***REMOVED***
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
 						_, err = b.Instantiate(logger, 0)
-						if !assert.NoError(t, err) ***REMOVED***
-							return
-						***REMOVED***
+						require.NoError(t, err)
 					***REMOVED***)
 				***REMOVED***
 			***REMOVED***)
@@ -239,14 +231,10 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 					***REMOVED***
 				***REMOVED***;`
 			b, err := getSimpleBundle(t, "/script.js", data, fs)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			bi, err := b.Instantiate(logger, 0)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			assert.NoError(t, err)
 		***REMOVED***)
@@ -299,9 +287,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		t.Run(tc.file, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			bi, err := createAndReadFile(t, tc.file, tc.content, tc.length, "")
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			assert.Equal(t, string(tc.content), bi.Runtime.Get("data").Export())
 		***REMOVED***)
 	***REMOVED***
@@ -309,9 +295,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 	t.Run("Binary", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		bi, err := createAndReadFile(t, "/path/to/file.bin", []byte("hi!\x0f\xff\x01"), 6, "b")
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 		buf := bi.Runtime.NewArrayBuffer([]byte***REMOVED***104, 105, 33, 15, 255, 1***REMOVED***)
 		assert.Equal(t, buf, bi.Runtime.Get("data").Export())
 	***REMOVED***)
@@ -326,9 +310,7 @@ func TestInitContextOpen(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			_, err := createAndReadFile(t, loadPath, []byte("content"), 7, "")
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 

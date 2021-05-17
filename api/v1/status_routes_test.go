@@ -113,9 +113,7 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			time.Sleep(100 * time.Millisecond)
 
 			body, err := jsonapi.Marshal(indata.Status)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			rw := httptest.NewRecorder()
 			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v1/status", bytes.NewReader(body)))
