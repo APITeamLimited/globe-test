@@ -332,7 +332,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		if _, ok := goja.AssertFunction(fn); ok ***REMOVED***
 			handleSummaryFn = fn
 		***REMOVED*** else if fn != nil ***REMOVED***
-			return nil, fmt.Errorf("exported identfier %s must be a function", consts.HandleSummaryFn)
+			return nil, fmt.Errorf("exported identifier %s must be a function", consts.HandleSummaryFn)
 		***REMOVED***
 	***REMOVED***
 	ctx = common.WithRuntime(ctx, vu.Runtime)
