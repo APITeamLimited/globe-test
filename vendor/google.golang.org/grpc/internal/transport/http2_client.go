@@ -414,6 +414,7 @@ func (t *http2Client) newStream(ctx context.Context, callHdr *CallHdr) *Stream *
 		buf:            newRecvBuffer(),
 		headerChan:     make(chan struct***REMOVED******REMOVED***),
 		contentSubtype: callHdr.ContentSubtype,
+		doneFunc:       callHdr.DoneFunc,
 	***REMOVED***
 	s.wq = newWriteQuota(defaultWriteQuota, s.done)
 	s.requestRead = func(n int) ***REMOVED***
@@ -832,6 +833,9 @@ func (t *http2Client) closeStream(s *Stream, err error, rst bool, rstCode http2.
 	t.controlBuf.executeAndPut(addBackStreamQuota, cleanup)
 	// This will unblock write.
 	close(s.done)
+	if s.doneFunc != nil ***REMOVED***
+		s.doneFunc()
+	***REMOVED***
 ***REMOVED***
 
 // Close kicks off the shutdown process of the transport. This should be called

@@ -536,7 +536,6 @@ func (s *Scratch) huffSort() ***REMOVED***
 		***REMOVED***
 		nodes[pos&huffNodesMask] = nodeElt***REMOVED***count: c, symbol: byte(n)***REMOVED***
 	***REMOVED***
-	return
 ***REMOVED***
 
 func (s *Scratch) setMaxHeight(lastNonNull int) uint8 ***REMOVED***

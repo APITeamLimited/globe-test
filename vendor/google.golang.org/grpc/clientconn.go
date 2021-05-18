@@ -143,6 +143,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		firstResolveEvent: grpcsync.NewEvent(),
 	***REMOVED***
 	cc.retryThrottler.Store((*retryThrottler)(nil))
+	cc.safeConfigSelector.UpdateConfigSelector(&defaultConfigSelector***REMOVED***nil***REMOVED***)
 	cc.ctx, cc.cancel = context.WithCancel(context.Background())
 
 	for _, opt := range opts ***REMOVED***
@@ -1446,10 +1447,9 @@ func (ac *addrConn) getReadyTransport() (transport.ClientTransport, bool) ***REM
 ***REMOVED***
 
 // tearDown starts to tear down the addrConn.
-// TODO(zhaoq): Make this synchronous to avoid unbounded memory consumption in
-// some edge cases (e.g., the caller opens and closes many addrConn's in a
-// tight loop.
-// tearDown doesn't remove ac from ac.cc.conns.
+//
+// Note that tearDown doesn't remove ac from ac.cc.conns, so the addrConn struct
+// will leak. In most cases, call cc.removeAddrConn() instead.
 func (ac *addrConn) tearDown(err error) ***REMOVED***
 	ac.mu.Lock()
 	if ac.state == connectivity.Shutdown ***REMOVED***

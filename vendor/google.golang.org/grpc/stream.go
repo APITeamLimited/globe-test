@@ -166,7 +166,6 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 			***REMOVED***
 		***REMOVED***()
 	***REMOVED***
-	c := defaultCallInfo()
 	// Provide an opportunity for the first RPC to see the first service config
 	// provided by the resolver.
 	if err := cc.waitForResolvedAddrs(ctx); err != nil ***REMOVED***
@@ -175,18 +174,40 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 
 	var mc serviceconfig.MethodConfig
 	var onCommit func()
-	rpcConfig, err := cc.safeConfigSelector.SelectConfig(iresolver.RPCInfo***REMOVED***Context: ctx, Method: method***REMOVED***)
-	if err != nil ***REMOVED***
-		return nil, status.Convert(err).Err()
+	var newStream = func(ctx context.Context, done func()) (iresolver.ClientStream, error) ***REMOVED***
+		return newClientStreamWithParams(ctx, desc, cc, method, mc, onCommit, done, opts...)
 	***REMOVED***
+
+	rpcInfo := iresolver.RPCInfo***REMOVED***Context: ctx, Method: method***REMOVED***
+	rpcConfig, err := cc.safeConfigSelector.SelectConfig(rpcInfo)
+	if err != nil ***REMOVED***
+		return nil, toRPCErr(err)
+	***REMOVED***
+
 	if rpcConfig != nil ***REMOVED***
 		if rpcConfig.Context != nil ***REMOVED***
 			ctx = rpcConfig.Context
 		***REMOVED***
 		mc = rpcConfig.MethodConfig
 		onCommit = rpcConfig.OnCommitted
+		if rpcConfig.Interceptor != nil ***REMOVED***
+			rpcInfo.Context = nil
+			ns := newStream
+			newStream = func(ctx context.Context, done func()) (iresolver.ClientStream, error) ***REMOVED***
+				cs, err := rpcConfig.Interceptor.NewStream(ctx, rpcInfo, done, ns)
+				if err != nil ***REMOVED***
+					return nil, toRPCErr(err)
+				***REMOVED***
+				return cs, nil
+			***REMOVED***
+		***REMOVED***
 	***REMOVED***
 
+	return newStream(ctx, func() ***REMOVED******REMOVED***)
+***REMOVED***
+
+func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, mc serviceconfig.MethodConfig, onCommit, doneFunc func(), opts ...CallOption) (_ iresolver.ClientStream, err error) ***REMOVED***
+	c := defaultCallInfo()
 	if mc.WaitForReady != nil ***REMOVED***
 		c.failFast = !*mc.WaitForReady
 	***REMOVED***
@@ -223,6 +244,7 @@ func newClientStream(ctx context.Context, desc *StreamDesc, cc *ClientConn, meth
 		Host:           cc.authority,
 		Method:         method,
 		ContentSubtype: c.contentSubtype,
+		DoneFunc:       doneFunc,
 	***REMOVED***
 
 	// Set our outgoing compression according to the UseCompressor CallOption, if

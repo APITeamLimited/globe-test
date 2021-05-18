@@ -59,7 +59,7 @@ func fillBase(dst []baseOffset, base uint32, bits ...uint8) ***REMOVED***
 	***REMOVED***
 	for i, bit := range bits ***REMOVED***
 		if base > math.MaxInt32 ***REMOVED***
-			panic(fmt.Sprintf("invalid decoding table, base overflows int32"))
+			panic("invalid decoding table, base overflows int32")
 		***REMOVED***
 
 		dst[i] = baseOffset***REMOVED***

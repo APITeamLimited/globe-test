@@ -714,10 +714,10 @@ type arrayPathResult struct ***REMOVED***
 	alogkey string
 	query   struct ***REMOVED***
 		on    bool
+		all   bool
 		path  string
 		op    string
 		value string
-		all   bool
 	***REMOVED***
 ***REMOVED***
 
@@ -750,119 +750,26 @@ func parseArrayPath(path string) (r arrayPathResult) ***REMOVED***
 				***REMOVED*** else if path[1] == '[' || path[1] == '(' ***REMOVED***
 					// query
 					r.query.on = true
-					if true ***REMOVED***
-						qpath, op, value, _, fi, ok := parseQuery(path[i:])
-						if !ok ***REMOVED***
-							// bad query, end now
-							break
+					qpath, op, value, _, fi, vesc, ok :=
+						parseQuery(path[i:])
+					if !ok ***REMOVED***
+						// bad query, end now
+						break
+					***REMOVED***
+					if len(value) > 2 && value[0] == '"' &&
+						value[len(value)-1] == '"' ***REMOVED***
+						value = value[1 : len(value)-1]
+						if vesc ***REMOVED***
+							value = unescape(value)
 						***REMOVED***
-						r.query.path = qpath
-						r.query.op = op
-						r.query.value = value
-						i = fi - 1
-						if i+1 < len(path) && path[i+1] == '#' ***REMOVED***
-							r.query.all = true
-						***REMOVED***
-					***REMOVED*** else ***REMOVED***
-						var end byte
-						if path[1] == '[' ***REMOVED***
-							end = ']'
-						***REMOVED*** else ***REMOVED***
-							end = ')'
-						***REMOVED***
-						i += 2
-						// whitespace
-						for ; i < len(path); i++ ***REMOVED***
-							if path[i] > ' ' ***REMOVED***
-								break
-							***REMOVED***
-						***REMOVED***
-						s := i
-						for ; i < len(path); i++ ***REMOVED***
-							if path[i] <= ' ' ||
-								path[i] == '!' ||
-								path[i] == '=' ||
-								path[i] == '<' ||
-								path[i] == '>' ||
-								path[i] == '%' ||
-								path[i] == end ***REMOVED***
-								break
-							***REMOVED***
-						***REMOVED***
-						r.query.path = path[s:i]
-						// whitespace
-						for ; i < len(path); i++ ***REMOVED***
-							if path[i] > ' ' ***REMOVED***
-								break
-							***REMOVED***
-						***REMOVED***
-						if i < len(path) ***REMOVED***
-							s = i
-							if path[i] == '!' ***REMOVED***
-								if i < len(path)-1 && (path[i+1] == '=' ||
-									path[i+1] == '%') ***REMOVED***
-									i++
-								***REMOVED***
-							***REMOVED*** else if path[i] == '<' || path[i] == '>' ***REMOVED***
-								if i < len(path)-1 && path[i+1] == '=' ***REMOVED***
-									i++
-								***REMOVED***
-							***REMOVED*** else if path[i] == '=' ***REMOVED***
-								if i < len(path)-1 && path[i+1] == '=' ***REMOVED***
-									s++
-									i++
-								***REMOVED***
-							***REMOVED***
-							i++
-							r.query.op = path[s:i]
-							// whitespace
-							for ; i < len(path); i++ ***REMOVED***
-								if path[i] > ' ' ***REMOVED***
-									break
-								***REMOVED***
-							***REMOVED***
-							s = i
-							for ; i < len(path); i++ ***REMOVED***
-								if path[i] == '"' ***REMOVED***
-									i++
-									s2 := i
-									for ; i < len(path); i++ ***REMOVED***
-										if path[i] > '\\' ***REMOVED***
-											continue
-										***REMOVED***
-										if path[i] == '"' ***REMOVED***
-											// look for an escaped slash
-											if path[i-1] == '\\' ***REMOVED***
-												n := 0
-												for j := i - 2; j > s2-1; j-- ***REMOVED***
-													if path[j] != '\\' ***REMOVED***
-														break
-													***REMOVED***
-													n++
-												***REMOVED***
-												if n%2 == 0 ***REMOVED***
-													continue
-												***REMOVED***
-											***REMOVED***
-											break
-										***REMOVED***
-									***REMOVED***
-								***REMOVED*** else if path[i] == end ***REMOVED***
-									if i+1 < len(path) && path[i+1] == '#' ***REMOVED***
-										r.query.all = true
-									***REMOVED***
-									break
-								***REMOVED***
-							***REMOVED***
-							if i > len(path) ***REMOVED***
-								i = len(path)
-							***REMOVED***
-							v := path[s:i]
-							for len(v) > 0 && v[len(v)-1] <= ' ' ***REMOVED***
-								v = v[:len(v)-1]
-							***REMOVED***
-							r.query.value = v
-						***REMOVED***
+					***REMOVED***
+					r.query.path = qpath
+					r.query.op = op
+					r.query.value = value
+
+					i = fi - 1
+					if i+1 < len(path) && path[i+1] == '#' ***REMOVED***
+						r.query.all = true
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
@@ -889,11 +796,11 @@ func parseArrayPath(path string) (r arrayPathResult) ***REMOVED***
 //                              # middle
 //   .cap                       # right
 func parseQuery(query string) (
-	path, op, value, remain string, i int, ok bool,
+	path, op, value, remain string, i int, vesc, ok bool,
 ) ***REMOVED***
 	if len(query) < 2 || query[0] != '#' ||
 		(query[1] != '(' && query[1] != '[') ***REMOVED***
-		return "", "", "", "", i, false
+		return "", "", "", "", i, false, false
 	***REMOVED***
 	i = 2
 	j := 0 // start of value part
@@ -921,6 +828,7 @@ func parseQuery(query string) (
 			i++
 			for ; i < len(query); i++ ***REMOVED***
 				if query[i] == '\\' ***REMOVED***
+					vesc = true
 					i++
 				***REMOVED*** else if query[i] == '"' ***REMOVED***
 					break
@@ -929,7 +837,7 @@ func parseQuery(query string) (
 		***REMOVED***
 	***REMOVED***
 	if depth > 0 ***REMOVED***
-		return "", "", "", "", i, false
+		return "", "", "", "", i, false, false
 	***REMOVED***
 	if j > 0 ***REMOVED***
 		path = trim(query[2:j])
@@ -966,7 +874,7 @@ func parseQuery(query string) (
 		path = trim(query[2:i])
 		remain = query[i+1:]
 	***REMOVED***
-	return path, op, value, remain, i + 1, true
+	return path, op, value, remain, i + 1, vesc, true
 ***REMOVED***
 
 func trim(s string) string ***REMOVED***
@@ -1266,8 +1174,14 @@ func parseObject(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 ***REMOVED***
 func queryMatches(rp *arrayPathResult, value Result) bool ***REMOVED***
 	rpv := rp.query.value
-	if len(rpv) > 2 && rpv[0] == '"' && rpv[len(rpv)-1] == '"' ***REMOVED***
-		rpv = rpv[1 : len(rpv)-1]
+	if len(rpv) > 0 && rpv[0] == '~' ***REMOVED***
+		// convert to bool
+		rpv = rpv[1:]
+		if value.Bool() ***REMOVED***
+			value = Result***REMOVED***Type: True***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			value = Result***REMOVED***Type: False***REMOVED***
+		***REMOVED***
 	***REMOVED***
 	if !value.Exists() ***REMOVED***
 		return false

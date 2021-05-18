@@ -26,6 +26,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -402,6 +403,20 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 		return true
 	***REMOVED***
 	t.maxStreamID = streamID
+	if state.data.httpMethod != http.MethodPost ***REMOVED***
+		t.mu.Unlock()
+		if logger.V(logLevel) ***REMOVED***
+			logger.Warningf("transport: http2Server.operateHeaders parsed a :method field: %v which should be POST", state.data.httpMethod)
+		***REMOVED***
+		t.controlBuf.put(&cleanupStream***REMOVED***
+			streamID: streamID,
+			rst:      true,
+			rstCode:  http2.ErrCodeProtocol,
+			onWrite:  func() ***REMOVED******REMOVED***,
+		***REMOVED***)
+		s.cancel()
+		return false
+	***REMOVED***
 	t.activeStreams[streamID] = s
 	if len(t.activeStreams) == 1 ***REMOVED***
 		t.idle = time.Time***REMOVED******REMOVED***

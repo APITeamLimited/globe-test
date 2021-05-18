@@ -84,7 +84,7 @@ func (b *pickfirstBalancer) UpdateClientConnState(cs balancer.ClientConnState) e
 		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.Idle, Picker: &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: b.sc***REMOVED******REMOVED******REMOVED***)
 		b.sc.Connect()
 	***REMOVED*** else ***REMOVED***
-		b.sc.UpdateAddresses(cs.ResolverState.Addresses)
+		b.cc.UpdateAddresses(b.sc, cs.ResolverState.Addresses)
 		b.sc.Connect()
 	***REMOVED***
 	return nil

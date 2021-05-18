@@ -28,7 +28,8 @@ cleanup() ***REMOVED***
 ***REMOVED***
 trap cleanup EXIT
 
-PATH="$***REMOVED***GOPATH***REMOVED***/bin:$***REMOVED***GOROOT***REMOVED***/bin:$***REMOVED***PATH***REMOVED***"
+PATH="$***REMOVED***HOME***REMOVED***/go/bin:$***REMOVED***GOROOT***REMOVED***/bin:$***REMOVED***PATH***REMOVED***"
+go version
 
 if [[ "$1" = "-install" ]]; then
   # Check for module support
@@ -107,7 +108,7 @@ go list -f ***REMOVED******REMOVED***.Dir***REMOVED******REMOVED*** ./... | xarg
 # - gofmt, goimports, golint (with exceptions for generated code), go vet.
 gofmt -s -d -l . 2>&1 | fail_on_output
 goimports -l . 2>&1 | not grep -vE "\.pb\.go"
-golint ./... 2>&1 | not grep -vE "\.pb\.go:"
+golint ./... 2>&1 | not grep -vE "/testv3\.pb\.go:"
 go vet -all ./...
 
 misspell -error .
@@ -141,8 +142,11 @@ not grep -Fv '.CredsBundle
 .NewAddress
 .NewServiceConfig
 .Type is deprecated: use Attributes
+BuildVersion is deprecated
 balancer.ErrTransientFailure
 balancer.Picker
+extDesc.Filename is deprecated
+github.com/golang/protobuf/jsonpb is deprecated
 grpc.CallCustomCodec
 grpc.Code
 grpc.Compressor
@@ -164,13 +168,7 @@ grpc.WithServiceConfig
 grpc.WithTimeout
 http.CloseNotifier
 info.SecurityVersion
-resolver.Backend
-resolver.GRPCLB
-extDesc.Filename is deprecated
-BuildVersion is deprecated
-github.com/golang/protobuf/jsonpb is deprecated
 proto is deprecated
-xxx_messageInfo_
 proto.InternalMessageInfo is deprecated
 proto.EnumName is deprecated
 proto.ErrInternalBadWireType is deprecated
@@ -184,7 +182,12 @@ proto.RegisterExtension is deprecated
 proto.RegisteredExtension is deprecated
 proto.RegisteredExtensions is deprecated
 proto.RegisterMapType is deprecated
-proto.Unmarshaler is deprecated' "$***REMOVED***SC_OUT***REMOVED***"
+proto.Unmarshaler is deprecated
+resolver.Backend
+resolver.GRPCLB
+Target is deprecated: Use the Target field in the BuildOptions instead.
+xxx_messageInfo_
+' "$***REMOVED***SC_OUT***REMOVED***"
 
 # - special golint on package comments.
 lint_package_comment_per_package() ***REMOVED***

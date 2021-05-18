@@ -412,8 +412,41 @@ encodeLoop:
 			cv = load6432(src, s)
 		***REMOVED***
 
-		// A 4-byte match has been found. Update recent offsets.
-		// We'll later see if more than 4 bytes.
+		// Try to find a better match by searching for a long match at the end of the current best match
+		if true && s+matched < sLimit ***REMOVED***
+			nextHashL := hash8(load6432(src, s+matched), betterLongTableBits)
+			cv := load3232(src, s)
+			candidateL := e.longTable[nextHashL]
+			coffsetL := candidateL.offset - e.cur - matched
+			if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) ***REMOVED***
+				// Found a long match, at least 4 bytes.
+				matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+				if matchedNext > matched ***REMOVED***
+					t = coffsetL
+					matched = matchedNext
+					if debugMatches ***REMOVED***
+						println("long match at end-of-match")
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+
+			// Check prev long...
+			if true ***REMOVED***
+				coffsetL = candidateL.prev - e.cur - matched
+				if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) ***REMOVED***
+					// Found a long match, at least 4 bytes.
+					matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+					if matchedNext > matched ***REMOVED***
+						t = coffsetL
+						matched = matchedNext
+						if debugMatches ***REMOVED***
+							println("prev long match at end-of-match")
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		// A match has been found. Update recent offsets.
 		offset2 = offset1
 		offset1 = s - t
 
@@ -905,9 +938,41 @@ encodeLoop:
 			***REMOVED***
 			cv = load6432(src, s)
 		***REMOVED***
+		// Try to find a better match by searching for a long match at the end of the current best match
+		if s+matched < sLimit ***REMOVED***
+			nextHashL := hash8(load6432(src, s+matched), betterLongTableBits)
+			cv := load3232(src, s)
+			candidateL := e.longTable[nextHashL]
+			coffsetL := candidateL.offset - e.cur - matched
+			if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) ***REMOVED***
+				// Found a long match, at least 4 bytes.
+				matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+				if matchedNext > matched ***REMOVED***
+					t = coffsetL
+					matched = matchedNext
+					if debugMatches ***REMOVED***
+						println("long match at end-of-match")
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
 
-		// A 4-byte match has been found. Update recent offsets.
-		// We'll later see if more than 4 bytes.
+			// Check prev long...
+			if true ***REMOVED***
+				coffsetL = candidateL.prev - e.cur - matched
+				if coffsetL >= 0 && coffsetL < s && s-coffsetL < e.maxMatchOff && cv == load3232(src, coffsetL) ***REMOVED***
+					// Found a long match, at least 4 bytes.
+					matchedNext := e.matchlen(s+4, coffsetL+4, src) + 4
+					if matchedNext > matched ***REMOVED***
+						t = coffsetL
+						matched = matchedNext
+						if debugMatches ***REMOVED***
+							println("prev long match at end-of-match")
+						***REMOVED***
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+		// A match has been found. Update recent offsets.
 		offset2 = offset1
 		offset1 = s - t
 

@@ -163,6 +163,14 @@ func (ccb *ccBalancerWrapper) RemoveSubConn(sc balancer.SubConn) ***REMOVED***
 	ccb.cc.removeAddrConn(acbw.getAddrConn(), errConnDrain)
 ***REMOVED***
 
+func (ccb *ccBalancerWrapper) UpdateAddresses(sc balancer.SubConn, addrs []resolver.Address) ***REMOVED***
+	acbw, ok := sc.(*acBalancerWrapper)
+	if !ok ***REMOVED***
+		return
+	***REMOVED***
+	acbw.UpdateAddresses(addrs)
+***REMOVED***
+
 func (ccb *ccBalancerWrapper) UpdateState(s balancer.State) ***REMOVED***
 	ccb.mu.Lock()
 	defer ccb.mu.Unlock()
@@ -197,7 +205,7 @@ func (acbw *acBalancerWrapper) UpdateAddresses(addrs []resolver.Address) ***REMO
 	acbw.mu.Lock()
 	defer acbw.mu.Unlock()
 	if len(addrs) <= 0 ***REMOVED***
-		acbw.ac.tearDown(errConnDrain)
+		acbw.ac.cc.removeAddrConn(acbw.ac, errConnDrain)
 		return
 	***REMOVED***
 	if !acbw.ac.tryUpdateAddrs(addrs) ***REMOVED***
@@ -212,7 +220,7 @@ func (acbw *acBalancerWrapper) UpdateAddresses(addrs []resolver.Address) ***REMO
 		acbw.ac.acbw = nil
 		acbw.ac.mu.Unlock()
 		acState := acbw.ac.getState()
-		acbw.ac.tearDown(errConnDrain)
+		acbw.ac.cc.removeAddrConn(acbw.ac, errConnDrain)
 
 		if acState == connectivity.Shutdown ***REMOVED***
 			return

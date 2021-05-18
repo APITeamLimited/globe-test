@@ -387,7 +387,7 @@ func (c *Color) EnableColor() ***REMOVED***
 ***REMOVED***
 
 func (c *Color) isNoColorSet() bool ***REMOVED***
-	// check first if we have user setted action
+	// check first if we have user set action
 	if c.noColor != nil ***REMOVED***
 		return *c.noColor
 	***REMOVED***

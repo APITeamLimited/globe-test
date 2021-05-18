@@ -150,14 +150,15 @@ func (e *fastBase) resetBase(d *dict, singleBlock bool) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		e.crc.Reset()
 	***REMOVED***
-	if (!singleBlock || d.DictContentSize() > 0) && cap(e.hist) < int(e.maxMatchOff*2)+d.DictContentSize() ***REMOVED***
-		l := e.maxMatchOff*2 + int32(d.DictContentSize())
-		// Make it at least 1MB.
-		if l < 1<<20 ***REMOVED***
-			l = 1 << 20
+	if d != nil ***REMOVED***
+		low := e.lowMem
+		if singleBlock ***REMOVED***
+			e.lowMem = true
 		***REMOVED***
-		e.hist = make([]byte, 0, l)
+		e.ensureHist(d.DictContentSize() + maxCompressedBlockSize)
+		e.lowMem = low
 	***REMOVED***
+
 	// We offset current position so everything will be out of reach.
 	// If above reset line, history will be purged.
 	if e.cur < bufferReset ***REMOVED***

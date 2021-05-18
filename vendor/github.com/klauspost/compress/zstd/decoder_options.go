@@ -6,7 +6,6 @@ package zstd
 
 import (
 	"errors"
-	"fmt"
 	"runtime"
 )
 
@@ -43,7 +42,7 @@ func WithDecoderLowmem(b bool) DOption ***REMOVED***
 func WithDecoderConcurrency(n int) DOption ***REMOVED***
 	return func(o *decoderOptions) error ***REMOVED***
 		if n <= 0 ***REMOVED***
-			return fmt.Errorf("Concurrency must be at least 1")
+			return errors.New("concurrency must be at least 1")
 		***REMOVED***
 		o.concurrent = n
 		return nil
@@ -61,7 +60,7 @@ func WithDecoderMaxMemory(n uint64) DOption ***REMOVED***
 			return errors.New("WithDecoderMaxMemory must be at least 1")
 		***REMOVED***
 		if n > 1<<63 ***REMOVED***
-			return fmt.Errorf("WithDecoderMaxmemory must be less than 1 << 63")
+			return errors.New("WithDecoderMaxmemory must be less than 1 << 63")
 		***REMOVED***
 		o.maxDecodedSize = n
 		return nil
