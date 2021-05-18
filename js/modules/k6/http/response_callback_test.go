@@ -109,7 +109,6 @@ type expectedSample struct ***REMOVED***
 func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb, _, samples, rt, ctx := newRuntime(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 	httpModule := new(GlobalHTTP).NewModuleInstancePerVU().(*HTTP)
 	rt.Set("http", common.Bind(rt, httpModule, ctx))
@@ -310,7 +309,6 @@ func TestResponseCallbackInAction(t *testing.T) ***REMOVED***
 func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb, _, samples, rt, ctx := newRuntime(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 	httpModule := new(GlobalHTTP).NewModuleInstancePerVU().(*HTTP)
 	rt.Set("http", common.Bind(rt, httpModule, ctx))
@@ -427,7 +425,6 @@ func TestResponseCallbackBatch(t *testing.T) ***REMOVED***
 func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb, state, samples, rt, ctx := newRuntime(t)
-	defer tb.Cleanup()
 	sr := tb.Replacer.Replace
 	allHTTPMetrics := []*stats.Metric***REMOVED***
 		metrics.HTTPReqs,
@@ -485,7 +482,6 @@ func TestResponseCallbackInActionWithoutPassedTag(t *testing.T) ***REMOVED***
 func TestDigestWithResponseCallback(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb, _, samples, rt, ctx := newRuntime(t)
-	defer tb.Cleanup()
 
 	httpModule := new(GlobalHTTP).NewModuleInstancePerVU().(*HTTP)
 	rt.Set("http", common.Bind(rt, httpModule, ctx))

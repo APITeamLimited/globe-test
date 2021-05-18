@@ -66,7 +66,9 @@ import (
 )
 
 func TestRunnerNew(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		r, err := getSimpleRunner(t, "/script.js", `
 			var counter = 0;
 			exports.default = function() ***REMOVED*** counter++; ***REMOVED***
@@ -74,6 +76,7 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		t.Run("NewVU", func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
 			assert.NoError(t, err)
 			vuc, ok := initVU.(*VU)
@@ -92,12 +95,14 @@ func TestRunnerNew(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, err := getSimpleRunner(t, "/script.js", `blarg`)
 		assert.EqualError(t, err, "ReferenceError: blarg is not defined\n\tat file:///script.js:1:1(0)\n")
 	***REMOVED***)
 ***REMOVED***
 
 func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
 	if assert.NoError(t, err) ***REMOVED***
 		assert.NotNil(t, r1.GetDefaultGroup())
@@ -110,19 +115,18 @@ func TestRunnerGetDefaultGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerOptions(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `exports.default = function() ***REMOVED******REMOVED***;`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
+		name, r := name, r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			assert.Equal(t, r.Bundle.Options, r.GetOptions())
 			assert.Equal(t, null.NewBool(false, false), r.Bundle.Options.Paused)
 			r.SetOptions(lib.Options***REMOVED***Paused: null.BoolFrom(true)***REMOVED***)
@@ -216,6 +220,7 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
 
 			initVU, err := r.NewVU(1, samples)
@@ -231,10 +236,9 @@ func TestOptionsPropagationToScript(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestMetricName(t *testing.T) ***REMOVED***
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
+	t.Parallel()
 
-	script := tb.Replacer.Replace(`
+	script := `
 		var Counter = require("k6/metrics").Counter;
 
 		var myCounter = new Counter("not ok name @");
@@ -242,17 +246,16 @@ func TestMetricName(t *testing.T) ***REMOVED***
 		exports.default = function(data) ***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
-	`)
+	`
 
 	_, err := getSimpleRunner(t, "/script.js", script)
 	require.Error(t, err)
 ***REMOVED***
 
 func TestSetupDataIsolation(t *testing.T) ***REMOVED***
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
+	t.Parallel()
 
-	script := tb.Replacer.Replace(`
+	script := `
 		var Counter = require("k6/metrics").Counter;
 
 		exports.options = ***REMOVED***
@@ -286,7 +289,7 @@ func TestSetupDataIsolation(t *testing.T) ***REMOVED***
 			***REMOVED***
 			myCounter.add(1);
 		***REMOVED***
-	`)
+	`
 
 	runner, err := getSimpleRunner(t, "/script.js", script)
 	require.NoError(t, err)
@@ -347,6 +350,7 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
 
 			if !assert.NoError(t, r.Setup(context.Background(), samples)) ***REMOVED***
@@ -365,6 +369,7 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testSetupDataHelper(t, `
 	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 	exports.setup = function() ***REMOVED***
@@ -384,6 +389,7 @@ func TestSetupDataReturnValue(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testSetupDataHelper(t, `
 	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 	exports.default = function(data) ***REMOVED***
@@ -401,6 +407,7 @@ func TestSetupDataNoSetup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestConsoleInInitContext(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 			console.log("1");
 			exports.default = function(data) ***REMOVED***
@@ -412,6 +419,7 @@ func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
 			initVU, err := r.NewVU(1, samples)
 			if assert.NoError(t, err) ***REMOVED***
@@ -426,6 +434,7 @@ func TestConsoleInInitContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testSetupDataHelper(t, `
 	exports.options = ***REMOVED*** setupTimeout: "1s", teardownTimeout: "1s" ***REMOVED***;
 	exports.setup = function() ***REMOVED*** ***REMOVED***
@@ -443,7 +452,9 @@ func TestSetupDataNoReturn(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Modules", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		modules := []string***REMOVED***
 			"k6",
 			"k6/http",
@@ -463,9 +474,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("Files", func(t *testing.T) ***REMOVED***
-		fs := afero.NewMemMapFs()
-		require.NoError(t, fs.MkdirAll("/path/to", 0o755))
-		require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`exports.default = "hi!";`), 0o644))
+		t.Parallel()
 
 		testdata := map[string]struct***REMOVED*** filename, path string ***REMOVED******REMOVED***
 			"Absolute":       ***REMOVED***"/path/script.js", "/path/to/lib.js"***REMOVED***,
@@ -477,6 +486,10 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 		for name, data := range testdata ***REMOVED***
 			name, data := name, data
 			t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+				fs := afero.NewMemMapFs()
+				require.NoError(t, fs.MkdirAll("/path/to", 0o755))
+				require.NoError(t, afero.WriteFile(fs, "/path/to/lib.js", []byte(`exports.default = "hi!";`), 0o644))
 				r1, err := getSimpleRunner(t, data.filename, fmt.Sprintf(`
 					var hi = require("%s").default;
 					exports.default = function() ***REMOVED***
@@ -506,6 +519,7 @@ func TestRunnerIntegrationImports(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunContext(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.options = ***REMOVED*** vus: 10 ***REMOVED***;
 		exports.default = function() ***REMOVED*** fn(); ***REMOVED***
@@ -514,18 +528,15 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 	r1.SetOptions(r1.GetOptions().Apply(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			vu, err := r.newVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			fnCalled := false
 			vu.Runtime.Set("fn", func() ***REMOVED***
@@ -554,6 +565,7 @@ func TestVURunContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterrupt(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
@@ -566,6 +578,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		name, r := name, r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
 			defer close(samples)
 			go func() ***REMOVED***
@@ -587,6 +600,7 @@ func TestVURunInterrupt(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		exports.default = function() ***REMOVED*** while(true) ***REMOVED******REMOVED*** ***REMOVED***
 		`)
@@ -597,11 +611,13 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	testdata := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range testdata ***REMOVED***
-		name, r := name, r
+		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			samples := make(chan stats.SampleContainer, 100)
+			defer close(samples)
 			go func() ***REMOVED***
 				for range samples ***REMOVED***
 				***REMOVED***
@@ -634,6 +650,7 @@ func TestVURunInterruptDoesntPanic(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
 		exports.default = function() ***REMOVED***
@@ -655,10 +672,9 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			vu, err := r.newVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			fnOuterCalled := false
 			fnInnerCalled := false
@@ -693,6 +709,7 @@ func TestVUIntegrationGroups(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 		var group = require("k6").group;
 		var Trend = require("k6/metrics").Trend;
@@ -708,11 +725,11 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 	for name, r := range testdata ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
+			defer close(samples)
 			vu, err := r.newVU(1, samples)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -748,6 +765,7 @@ func TestVUIntegrationMetrics(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
 		opts   lib.Options
 		errMsg string
@@ -768,6 +786,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("https://expired.badssl.com/"); ***REMOVED***
@@ -781,12 +800,11 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 			for name, r := range runners ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					r.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-					if !assert.NoError(t, err) ***REMOVED***
-						return
-					***REMOVED***
+					require.NoError(t, err)
 
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
@@ -805,6 +823,7 @@ func TestVUIntegrationInsecureRequests(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
@@ -813,27 +832,22 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 
 	cidr, err := lib.ParseCIDR("10.0.0.0/8")
 
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		BlacklistIPs: []*lib.IPNet***REMOVED***cidr***REMOVED***,
 	***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -845,6 +859,7 @@ func TestVUIntegrationBlacklistOption(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 
@@ -855,24 +870,19 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 
 					exports.default = function() ***REMOVED*** http.get("http://10.1.2.3/"); ***REMOVED***
 				`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -884,6 +894,7 @@ func TestVUIntegrationBlacklistScript(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");
 					exports.default = function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
@@ -898,15 +909,14 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 	***REMOVED***))
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVu, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
 			require.NoError(t, err)
 			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
@@ -918,6 +928,7 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");
 
@@ -928,24 +939,19 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 
 					exports.default = function() ***REMOVED*** http.get("https://k6.io/"); ***REMOVED***
 				`)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVu, err := r.NewVU(0, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
 			err = vu.RunOnce()
 			require.Error(t, err)
@@ -955,8 +961,8 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner(t, "/script.js",
 		tb.Replacer.Replace(`
@@ -971,9 +977,7 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 						***REMOVED***) || fail("failed to override dns");
 					***REMOVED***
 				`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw: null.BoolFrom(true),
@@ -983,31 +987,27 @@ func TestVUIntegrationHosts(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
+	t.Parallel()
 	unsupportedVersionErrorMsg := "remote error: tls: handshake failure"
 	for _, tag := range build.Default.ReleaseTags ***REMOVED***
 		if tag == "go1.12" ***REMOVED***
@@ -1047,30 +1047,26 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		data := data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			r1, err := getSimpleRunner(t, "/script.js", `
 					var http = require("k6/http");;
 					exports.default = function() ***REMOVED*** http.get("https://sha256.badssl.com/"); ***REMOVED***
 				`)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			require.NoError(t, r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***.Apply(data.opts)))
 
 			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 			for name, r := range runners ***REMOVED***
 				r := r
 				t.Run(name, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					r.Logger, _ = logtest.NewNullLogger()
 
 					initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-					if !assert.NoError(t, err) ***REMOVED***
-						return
-					***REMOVED***
+					require.NoError(t, err)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -1088,6 +1084,7 @@ func TestVUIntegrationTLSConfig(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r, err := getSimpleRunner(t, "/script.js", `
 			exports.default = function() ***REMOVED*** open("/tmp/foo") ***REMOVED***
 		`)
@@ -1104,6 +1101,7 @@ func TestVUIntegrationOpenFunctionError(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r, err := getSimpleRunner(t, "/script.js", `
 			var sneaky = open;
 			exports.default = function() ***REMOVED*** sneaky("/tmp/foo") ***REMOVED***
@@ -1121,8 +1119,8 @@ func TestVUIntegrationOpenFunctionErrorWhenSneaky(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
@@ -1141,9 +1139,7 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:        null.BoolFrom(true),
 		MaxRedirects: null.IntFrom(10),
@@ -1151,18 +1147,15 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
@@ -1175,8 +1168,8 @@ func TestVUIntegrationCookiesReset(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");;
@@ -1199,9 +1192,7 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 		`))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***
 		Throw:          null.BoolFrom(true),
 		MaxRedirects:   null.IntFrom(10),
@@ -1210,18 +1201,15 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1236,29 +1224,25 @@ func TestVUIntegrationCookiesNoReset(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 			exports.default = function() ***REMOVED***
 				if (__VU != 1234) ***REMOVED*** throw new Error("wrong __VU: " + __VU); ***REMOVED***
 			***REMOVED***`,
 	)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 	r1.SetOptions(lib.Options***REMOVED***Throw: null.BoolFrom(true)***REMOVED***)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1234, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -1270,6 +1254,7 @@ func TestVUIntegrationVUID(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
+	t.Parallel()
 	clientCAPool := x509.NewCertPool()
 	assert.True(t, clientCAPool.AppendCertsFromPEM(
 		[]byte("-----BEGIN CERTIFICATE-----\n"+
@@ -1312,19 +1297,15 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 			"wm689RyXiDzNSzjrqwLQBVQ2mTbVdsD9Bg==\n"+
 			"-----END EC PRIVATE KEY-----"),
 	)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config***REMOVED***
 		Certificates: []tls.Certificate***REMOVED***serverCert***REMOVED***,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    clientCAPool,
 	***REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-	defer func() ***REMOVED*** _ = listener.Close() ***REMOVED***()
+	require.NoError(t, err)
+	t.Cleanup(func() ***REMOVED*** _ = listener.Close() ***REMOVED***)
 	srv := &http.Server***REMOVED***
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
 			_, _ = fmt.Fprintf(w, "ok")
@@ -1333,28 +1314,26 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 	***REMOVED***
 	go func() ***REMOVED*** _ = srv.Serve(listener) ***REMOVED***()
 
-	r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
+	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
+		r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
 			var http = require("k6/http");;
 			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
 		`, listener.Addr().String()))
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
-	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-		Throw:                 null.BoolFrom(true),
-		InsecureSkipTLSVerify: null.BoolFrom(true),
-	***REMOVED***))
-
-	t.Run("Unauthenticated", func(t *testing.T) ***REMOVED***
+		require.NoError(t, err)
+		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
+			Throw:                 null.BoolFrom(true),
+			InsecureSkipTLSVerify: null.BoolFrom(true),
+		***REMOVED***))
 		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 
 		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 		for name, r := range runners ***REMOVED***
 			r := r
 			t.Run(name, func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				r.Logger, _ = logtest.NewNullLogger()
 				initVU, err := r.NewVU(1, make(chan stats.SampleContainer, 100))
 				if assert.NoError(t, err) ***REMOVED***
@@ -1369,37 +1348,45 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 
-	require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
-		TLSAuth: []*lib.TLSAuth***REMOVED***
-			***REMOVED***
-				TLSAuthFields: lib.TLSAuthFields***REMOVED***
-					Domains: []string***REMOVED***"127.0.0.1"***REMOVED***,
-					Cert: "-----BEGIN CERTIFICATE-----\n" +
-						"MIIBoTCCAUigAwIBAgIUd6XedDxP+rGo+kq0APqHElGZzs4wCgYIKoZIzj0EAwIw\n" +
-						"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE3MTUwNjAwWhcNMTgwODE3MTUwNjAw\n" +
-						"WjARMQ8wDQYDVQQDEwZjbGllbnQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATL\n" +
-						"mi/a1RVvk05FyrYmartbo/9cW+53DrQLW1twurII2q5ZfimdMX05A32uB3Ycoy/J\n" +
-						"x+w7Ifyd/YRw0zEc3NHQo38wfTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYI\n" +
-						"KwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFN2SR/TD\n" +
-						"yNW5DQWxZSkoXHQWsLY+MB8GA1UdIwQYMBaAFN6hIXKUYKbKqPVfixZ7PWvqGSGM\n" +
-						"MAoGCCqGSM49BAMCA0cAMEQCICtETmyOmupmg4w3tw59VYJyOBqRTxg6SK+rOQmq\n" +
-						"kE1VAiAUvsflDfmWBZ8EMPu46OhX6RX6MbvJ9NNvRco2G5ek1w==\n" +
-						"-----END CERTIFICATE-----",
-					Key: "-----BEGIN EC PRIVATE KEY-----\n" +
-						"MHcCAQEEIOrnhT05alCeQEX66HgnSHah/m5LazjJHLDawYRnhUtZoAoGCCqGSM49\n" +
-						"AwEHoUQDQgAEy5ov2tUVb5NORcq2Jmq7W6P/XFvudw60C1tbcLqyCNquWX4pnTF9\n" +
-						"OQN9rgd2HKMvycfsOyH8nf2EcNMxHNzR0A==\n" +
-						"-----END EC PRIVATE KEY-----",
+	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		r1, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(`
+			var http = require("k6/http");;
+			exports.default = function() ***REMOVED*** http.get("https://%s")***REMOVED***
+		`, listener.Addr().String()))
+		require.NoError(t, err)
+		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
+			Throw:                 null.BoolFrom(true),
+			InsecureSkipTLSVerify: null.BoolFrom(true),
+		***REMOVED***))
+
+		require.NoError(t, r1.SetOptions(lib.Options***REMOVED***
+			TLSAuth: []*lib.TLSAuth***REMOVED***
+				***REMOVED***
+					TLSAuthFields: lib.TLSAuthFields***REMOVED***
+						Domains: []string***REMOVED***"127.0.0.1"***REMOVED***,
+						Cert: "-----BEGIN CERTIFICATE-----\n" +
+							"MIIBoTCCAUigAwIBAgIUd6XedDxP+rGo+kq0APqHElGZzs4wCgYIKoZIzj0EAwIw\n" +
+							"EDEOMAwGA1UEAxMFTXkgQ0EwHhcNMTcwODE3MTUwNjAwWhcNMTgwODE3MTUwNjAw\n" +
+							"WjARMQ8wDQYDVQQDEwZjbGllbnQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATL\n" +
+							"mi/a1RVvk05FyrYmartbo/9cW+53DrQLW1twurII2q5ZfimdMX05A32uB3Ycoy/J\n" +
+							"x+w7Ifyd/YRw0zEc3NHQo38wfTAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYI\n" +
+							"KwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFN2SR/TD\n" +
+							"yNW5DQWxZSkoXHQWsLY+MB8GA1UdIwQYMBaAFN6hIXKUYKbKqPVfixZ7PWvqGSGM\n" +
+							"MAoGCCqGSM49BAMCA0cAMEQCICtETmyOmupmg4w3tw59VYJyOBqRTxg6SK+rOQmq\n" +
+							"kE1VAiAUvsflDfmWBZ8EMPu46OhX6RX6MbvJ9NNvRco2G5ek1w==\n" +
+							"-----END CERTIFICATE-----",
+						Key: "-----BEGIN EC PRIVATE KEY-----\n" +
+							"MHcCAQEEIOrnhT05alCeQEX66HgnSHah/m5LazjJHLDawYRnhUtZoAoGCCqGSM49\n" +
+							"AwEHoUQDQgAEy5ov2tUVb5NORcq2Jmq7W6P/XFvudw60C1tbcLqyCNquWX4pnTF9\n" +
+							"OQN9rgd2HKMvycfsOyH8nf2EcNMxHNzR0A==\n" +
+							"-----END EC PRIVATE KEY-----",
+					***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***))
-
-	t.Run("Authenticated", func(t *testing.T) ***REMOVED***
+		***REMOVED***))
 		r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 
 		runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 		for name, r := range runners ***REMOVED***
@@ -1419,8 +1406,8 @@ func TestVUIntegrationClientCerts(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 					var k6 = require("k6");
@@ -1441,6 +1428,7 @@ func TestHTTPRequestInInitContext(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestInitContextForbidden(t *testing.T) ***REMOVED***
+	t.Parallel()
 	table := [...][3]string***REMOVED***
 		***REMOVED***
 			"http.request",
@@ -1501,11 +1489,11 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	for _, test := range table ***REMOVED***
 		test := test
 		t.Run(test[0], func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			_, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(test[1]))
 			if assert.Error(t, err) ***REMOVED***
 				assert.Contains(
@@ -1518,11 +1506,10 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
+	t.Parallel()
 
 	fs := afero.NewMemMapFs()
-	data := tb.Replacer.Replace(`
+	data := `
 			var fput = open("/home/somebody/test.json");
 			exports.options = ***REMOVED*** setupTimeout: "10s", teardownTimeout: "10s" ***REMOVED***;
 			exports.setup = function () ***REMOVED***
@@ -1533,7 +1520,7 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 					throw new Error("incorrect answer " + data);
 				***REMOVED***
 			***REMOVED***
-		`)
+		`
 	require.NoError(t, afero.WriteFile(fs, "/home/somebody/test.json", []byte(`42`), os.ModePerm))
 	require.NoError(t, afero.WriteFile(fs, "/script.js", []byte(data), os.ModePerm))
 	r1, err := getSimpleRunner(t, "/script.js", data, fs)
@@ -1551,6 +1538,8 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			var err error
 			ch := make(chan stats.SampleContainer, 100)
 			err = r.Setup(context.Background(), ch)
 			require.NoError(t, err)
@@ -1566,15 +1555,13 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
-
+	t.Parallel()
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/non/existent", []byte(`42`), os.ModePerm))
-	r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
+	r1, err := getSimpleRunner(t, "/script.js", `
 			var fput = open("/non/existent");
 			exports.default = function(data) ***REMOVED******REMOVED***
-		`), fs)
+		`, fs)
 	require.NoError(t, err)
 
 	arc := r1.MakeArchive()
@@ -1587,8 +1574,8 @@ func TestArchiveNotPanicking(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestStuffNotPanicking(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 			var http = require("k6/http");
@@ -1651,10 +1638,9 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
+	t.Parallel()
 
-	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
+	r, err := getSimpleRunner(t, "/script.js", `
 			var parseHTML = require("k6/html").parseHTML;
 
 			exports.options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
@@ -1663,7 +1649,7 @@ func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
 				var doc = parseHTML("<html>");
 				var o = doc.find(".something").slice(0, 4).toArray()
 			***REMOVED***;
-		`))
+		`)
 	require.NoError(t, err)
 
 	ch := make(chan stats.SampleContainer, 1000)
@@ -1688,29 +1674,12 @@ func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
 func TestSystemTags(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	// Handle paths with custom logic
 	tb.Mux.HandleFunc("/wrong-redirect", func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		w.Header().Add("Location", "%")
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	***REMOVED***)
-
-	r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
-		var http = require("k6/http");
-
-		exports.http_get = function() ***REMOVED***
-			http.get("HTTPBIN_IP_URL");
-		***REMOVED***;
-		exports.https_get = function() ***REMOVED***
-			http.get("HTTPSBIN_IP_URL");
-		***REMOVED***;
-		exports.bad_url_get = function() ***REMOVED***
-			http.get("http://127.0.0.1:1");
-		***REMOVED***;
-		exports.noop = function() ***REMOVED******REMOVED***;
-	`), lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***)
-	require.NoError(t, err)
 
 	httpURL, err := url.Parse(tb.ServerHTTP.URL)
 	require.NoError(t, err)
@@ -1736,10 +1705,26 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		// TODO: add more tests
 	***REMOVED***
 
-	samples := make(chan stats.SampleContainer, 100)
 	for num, tc := range testedSystemTags ***REMOVED***
 		num, tc := num, tc
 		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			samples := make(chan stats.SampleContainer, 100)
+			r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
+				var http = require("k6/http");
+
+				exports.http_get = function() ***REMOVED***
+					http.get("HTTPBIN_IP_URL");
+				***REMOVED***;
+				exports.https_get = function() ***REMOVED***
+					http.get("HTTPSBIN_IP_URL");
+				***REMOVED***;
+				exports.bad_url_get = function() ***REMOVED***
+					http.get("http://127.0.0.1:1");
+				***REMOVED***;
+				exports.noop = function() ***REMOVED******REMOVED***;
+			`), lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***)
+			require.NoError(t, err)
 			require.NoError(t, r.SetOptions(r.GetOptions().Apply(lib.Options***REMOVED***
 				Throw:                 null.BoolFrom(false),
 				TLSVersion:            &lib.TLSVersions***REMOVED***Max: tls.VersionTLS13***REMOVED***,
@@ -1757,7 +1742,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			require.NoError(t, activeVU.RunOnce())
 
 			bufSamples := stats.GetBufferedSamples(samples)
-			assert.NotEmpty(t, bufSamples)
+			require.NotEmpty(t, bufSamples)
 			for _, sample := range bufSamples[0].GetSamples() ***REMOVED***
 				assert.NotEmpty(t, sample.Tags)
 				for emittedTag, emittedVal := range sample.Tags.CloneTags() ***REMOVED***
@@ -1770,6 +1755,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestVUPanic(t *testing.T) ***REMOVED***
+	t.Parallel()
 	r1, err := getSimpleRunner(t, "/script.js", `
 			var group = require("k6").group;
 			exports.default = function() ***REMOVED***
@@ -1784,18 +1770,15 @@ func TestVUPanic(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
-	if !assert.NoError(t, err) ***REMOVED***
-		return
-	***REMOVED***
+	require.NoError(t, err)
 
 	runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
 	for name, r := range runners ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			initVU, err := r.NewVU(1234, make(chan stats.SampleContainer, 100))
-			if !assert.NoError(t, err) ***REMOVED***
-				return
-			***REMOVED***
+			require.NoError(t, err)
 
 			logger := logrus.New()
 			logger.SetLevel(logrus.InfoLevel)
@@ -1845,6 +1828,7 @@ type multiFileTestCase struct ***REMOVED***
 ***REMOVED***
 
 func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.HTTPMultiBin) ***REMOVED***
+	t.Helper()
 	logger := testutils.NewLogger(t)
 	runner, err := New(
 		logger,
@@ -1904,7 +1888,6 @@ func runMultiFileTestCase(t *testing.T, tc multiFileTestCase, tb *httpmultibin.H
 func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
 
 	tb.GRPCStub.UnaryCallFunc = func(ctx context.Context, sreq *grpc_testing.SimpleRequest) (
 		*grpc_testing.SimpleResponse, error,
@@ -1998,6 +1981,7 @@ func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
 	for i, tc := range testCases ***REMOVED***
 		i, tc := i, tc
 		t.Run(fmt.Sprintf("TestCase_%d", i), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			t.Logf(
 				"CWD: %s, expInitErr: %t, expVUErr: %t, script injected with: `%s`",
 				tc.cwd, tc.expInitErr, tc.expVUErr, tc.script,

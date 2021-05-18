@@ -41,7 +41,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/klauspost/compress/zstd"
 	"github.com/mccutchen/go-httpbin/httpbin"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
@@ -101,7 +100,6 @@ type HTTPMultiBin struct ***REMOVED***
 	Dialer          *netext.Dialer
 	HTTPTransport   *http.Transport
 	Context         context.Context
-	Cleanup         func()
 ***REMOVED***
 
 type jsonBody struct ***REMOVED***
@@ -183,9 +181,7 @@ func getEncodedHandler(t testing.TB, compressionType httpext.CompressionType) ht
 		if encw != nil ***REMOVED***
 			_ = encw.Close()
 		***REMOVED***
-		if !assert.NoError(t, err) ***REMOVED***
-			return
-		***REMOVED***
+		require.NoError(t, err)
 	***REMOVED***)
 ***REMOVED***
 
@@ -335,7 +331,7 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
-	return &HTTPMultiBin***REMOVED***
+	result := &HTTPMultiBin***REMOVED***
 		Mux:         mux,
 		ServerHTTP:  httpSrv,
 		ServerHTTPS: httpsSrv,
@@ -368,12 +364,14 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin ***REMOVED***
 		Dialer:          dialer,
 		HTTPTransport:   transport,
 		Context:         ctx,
-		Cleanup: func() ***REMOVED***
-			grpcSrv.Stop()
-			http2Srv.Close()
-			httpsSrv.Close()
-			httpSrv.Close()
-			ctxCancel()
-		***REMOVED***,
 	***REMOVED***
+
+	t.Cleanup(func() ***REMOVED***
+		grpcSrv.Stop()
+		http2Srv.Close()
+		httpsSrv.Close()
+		httpSrv.Close()
+		ctxCancel()
+	***REMOVED***)
+	return result
 ***REMOVED***

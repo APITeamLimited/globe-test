@@ -43,6 +43,7 @@ import (
 )
 
 func TestConsoleContext(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
@@ -110,6 +111,7 @@ func extractLogger(fl logrus.FieldLogger) *logrus.Logger ***REMOVED***
 ***REMOVED***
 
 func TestConsole(t *testing.T) ***REMOVED***
+	t.Parallel()
 	levels := map[string]logrus.Level***REMOVED***
 		"log":   logrus.InfoLevel,
 		"debug": logrus.DebugLevel,
@@ -129,9 +131,11 @@ func TestConsole(t *testing.T) ***REMOVED***
 	for name, level := range levels ***REMOVED***
 		name, level := name, level
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for args, result := range argsets ***REMOVED***
 				args, result := args, result
 				t.Run(args, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					r, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(
 						`exports.default = function() ***REMOVED*** console.%s(%s); ***REMOVED***`,
 						name, args,
@@ -173,6 +177,7 @@ func TestConsole(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestFileConsole(t *testing.T) ***REMOVED***
+	t.Parallel()
 	var (
 		levels = map[string]logrus.Level***REMOVED***
 			"log":   logrus.InfoLevel,
@@ -198,11 +203,14 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 	)
 	for name, level := range levels ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for args, result := range argsets ***REMOVED***
 				t.Run(args, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					// whether the file is existed before logging
 					for msg, deleteFile := range preExisting ***REMOVED***
 						t.Run(msg, func(t *testing.T) ***REMOVED***
+							t.Parallel()
 							f, err := ioutil.TempFile("", "")
 							if err != nil ***REMOVED***
 								t.Fatalf("Couldn't create temporary file for testing: %s", err)
