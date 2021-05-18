@@ -102,10 +102,11 @@ func createTestMetrics(t *testing.T) (map[string]*stats.Metric, *lib.Group) ***R
 
 	countMetric := stats.New("http_reqs", stats.Counter)
 	countMetric.Tainted = null.BoolFrom(true)
-	countMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate<100"***REMOVED******REMOVED******REMOVED***
+	countMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate<100", LastFailed: true***REMOVED******REMOVED******REMOVED***
 
 	checksMetric := stats.New("checks", stats.Rate)
 	checksMetric.Tainted = null.BoolFrom(false)
+	checksMetric.Thresholds = stats.Thresholds***REMOVED***Thresholds: []*stats.Threshold***REMOVED******REMOVED***Source: "rate>70", LastFailed: false***REMOVED******REMOVED******REMOVED***
 	sink := &stats.TrendSink***REMOVED******REMOVED***
 
 	samples := []float64***REMOVED***10.0, 15.0, 20.0***REMOVED***
@@ -212,13 +213,16 @@ const expectedOldJSONExportResult = `***REMOVED***
         "checks": ***REMOVED***
             "value": 0.75,
             "passes": 45,
-            "fails": 15
+            "fails": 15,
+            "thresholds": ***REMOVED***
+                "rate>70": false
+            ***REMOVED***
         ***REMOVED***,
         "http_reqs": ***REMOVED***
             "count": 3,
             "rate": 3,
             "thresholds": ***REMOVED***
-                "rate<100": false
+                "rate<100": true
             ***REMOVED***
         ***REMOVED***,
         "my_trend": ***REMOVED***
@@ -324,8 +328,14 @@ const expectedHandleSummaryRawData = `
             "p(99)",
             "count"
         ],
-        "summaryTimeUnit": ""
+        "summaryTimeUnit": "",
+		"noColor": false
     ***REMOVED***,
+	"state": ***REMOVED***
+		"isStdErrTTY": false,
+		"isStdOutTTY": false,
+		"testRunDurationMs": 1000
+	***REMOVED***,
     "metrics": ***REMOVED***
         "checks": ***REMOVED***
             "contains": "default",
@@ -334,7 +344,12 @@ const expectedHandleSummaryRawData = `
                 "fails": 15,
                 "rate": 0.75
             ***REMOVED***,
-            "type": "rate"
+            "type": "rate",
+            "thresholds": ***REMOVED***
+                "rate>70": ***REMOVED***
+                    "ok": true
+                ***REMOVED***
+            ***REMOVED***
         ***REMOVED***,
         "my_trend": ***REMOVED***
             "thresholds": ***REMOVED***
@@ -373,7 +388,7 @@ const expectedHandleSummaryRawData = `
             ***REMOVED***,
             "thresholds": ***REMOVED***
                 "rate<100": ***REMOVED***
-                    "ok": true
+                    "ok": false
                 ***REMOVED***
             ***REMOVED***
         ***REMOVED***

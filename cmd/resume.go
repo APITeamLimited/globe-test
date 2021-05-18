@@ -28,7 +28,6 @@ import (
 
 	v1 "go.k6.io/k6/api/v1"
 	"go.k6.io/k6/api/v1/client"
-	"go.k6.io/k6/ui"
 )
 
 func getResumeCmd(ctx context.Context) *cobra.Command ***REMOVED***
@@ -50,8 +49,8 @@ func getResumeCmd(ctx context.Context) *cobra.Command ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			ui.Dump(stdout, status)
-			return nil
+
+			return yamlPrint(stdout, status)
 		***REMOVED***,
 	***REMOVED***
 	return resumeCmd

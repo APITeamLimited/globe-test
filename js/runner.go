@@ -33,6 +33,7 @@ import (
 	"net/http/cookiejar"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dop251/goja"
@@ -331,7 +332,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		if _, ok := goja.AssertFunction(fn); ok ***REMOVED***
 			handleSummaryFn = fn
 		***REMOVED*** else if fn != nil ***REMOVED***
-			return nil, fmt.Errorf("exported identfier %s must be a function", consts.HandleSummaryFn)
+			return nil, fmt.Errorf("exported identifier %s must be a function", consts.HandleSummaryFn)
 		***REMOVED***
 	***REMOVED***
 	ctx = common.WithRuntime(ctx, vu.Runtime)
@@ -344,7 +345,8 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 	***REMOVED***()
 	*vu.Context = ctx
 
-	handleSummaryWrapperRaw, err := vu.Runtime.RunString(summaryWrapperLambdaCode)
+	wrapper := strings.Replace(summaryWrapperLambdaCode, "/*JSLIB_SUMMARY_CODE*/", jslibSummaryCode, 1)
+	handleSummaryWrapperRaw, err := vu.Runtime.RunString(wrapper)
 	if err != nil ***REMOVED***
 		return nil, fmt.Errorf("unexpected error while getting the summary wrapper: %w", err)
 	***REMOVED***
@@ -357,7 +359,6 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		handleSummaryFn,
 		vu.Runtime.ToValue(r.Bundle.RuntimeOptions.SummaryExport.String),
 		vu.Runtime.ToValue(summaryDataForJS),
-		vu.Runtime.ToValue(getOldTextSummaryFunc(summary, r.Bundle.Options)), // TODO: remove
 	***REMOVED***
 	rawResult, _, _, err := vu.runFn(ctx, false, handleSummaryWrapper, wrapperArgs...)
 
