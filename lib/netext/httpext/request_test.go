@@ -230,7 +230,8 @@ func TestURL(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func TestMakeRequestTimeout(t *testing.T) ***REMOVED***
+func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		w.Header().Add("Content-Length", "100000")
 		w.WriteHeader(200)
