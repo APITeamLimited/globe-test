@@ -1026,7 +1026,7 @@ func TestDNSResolver(t *testing.T) ***REMOVED***
 
 		expErr := sr(`dial tcp 127.0.0.254:HTTPBIN_PORT: connect: connection refused`)
 		if runtime.GOOS == "windows" ***REMOVED***
-			expErr = "context deadline exceeded"
+			expErr = "Request timeout"
 		***REMOVED***
 		for name, tc := range testCases ***REMOVED***
 			tc := tc
