@@ -94,12 +94,15 @@ func newTestEngine( //nolint:golint
 ***REMOVED***
 
 func TestNewEngine(t *testing.T) ***REMOVED***
+	t.Parallel()
 	newTestEngine(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***)
 ***REMOVED***
 
 func TestEngineRun(t *testing.T) ***REMOVED***
+	t.Parallel()
 	logrus.SetLevel(logrus.DebugLevel)
 	t.Run("exits with context", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		done := make(chan struct***REMOVED******REMOVED***)
 		runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
@@ -120,6 +123,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 		<-done
 	***REMOVED***)
 	t.Run("exits with executor", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		e, run, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
 			VUs:        null.IntFrom(10),
 			Iterations: null.IntFrom(100),
@@ -130,6 +134,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	// Make sure samples are discarded after context close (using "cutoff" timestamp in local.go)
 	t.Run("collects samples", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		testMetric := stats.New("test_metric", stats.Trend)
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
@@ -169,6 +174,7 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineAtTime(t *testing.T) ***REMOVED***
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	_, run, wait := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
@@ -181,6 +187,7 @@ func TestEngineAtTime(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineStopped(t *testing.T) ***REMOVED***
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	e, run, wait := newTestEngine(t, ctx, nil, nil, lib.Options***REMOVED***
@@ -197,6 +204,7 @@ func TestEngineStopped(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineOutput(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testMetric := stats.New("test_metric", stats.Trend)
 
 	runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
@@ -231,9 +239,11 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngine_processSamples(t *testing.T) ***REMOVED***
+	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
 	t.Run("metric", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***)
 		defer wait()
 
@@ -244,6 +254,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		ths, err := stats.NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
 		assert.NoError(t, err)
 
@@ -269,6 +280,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
+	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
 	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
@@ -287,6 +299,7 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
+	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
 	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
@@ -319,6 +332,7 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngine_processThresholds(t *testing.T) ***REMOVED***
+	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
 	testdata := map[string]struct ***REMOVED***
@@ -339,6 +353,7 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 	for name, data := range testdata ***REMOVED***
 		name, data := name, data
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			thresholds := make(map[string]stats.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
 				ths, err := stats.NewThresholds(srcs)
@@ -513,6 +528,7 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 
 	// This Run will not return until the parallel subtests complete.
 	t.Run("group", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		for tsNum, ts := range testScripts ***REMOVED***
 			for tcNum, tc := range testCases ***REMOVED***
 				t.Run(
@@ -980,6 +996,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 	for _, tc := range tests ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			runner, err := js.New(
 				testutils.NewLogger(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
@@ -1005,6 +1022,7 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testMetric := stats.New("teardown_metric", stats.Counter)
 
 	ctx, cancel := context.WithCancel(context.Background())
