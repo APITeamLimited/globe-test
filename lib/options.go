@@ -391,9 +391,9 @@ type Options struct ***REMOVED***
 // Returns the result of overwriting any fields with any that are set on the argument.
 //
 // Example:
-//   a := Options***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED***
+//   a := Options***REMOVED***VUs: null.IntFrom(10)***REMOVED***
 //   b := Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***
-//   a.Apply(b) // Options***REMOVED***VUs: null.IntFrom(5), VUsMax: null.IntFrom(10)***REMOVED***
+//   a.Apply(b) // Options***REMOVED***VUs: null.IntFrom(5)***REMOVED***
 func (o Options) Apply(opts Options) Options ***REMOVED***
 	if opts.Paused.Valid ***REMOVED***
 		o.Paused = opts.Paused

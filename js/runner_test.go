@@ -1583,7 +1583,7 @@ func TestStuffNotPanicking(t *testing.T) ***REMOVED***
 			var group = require("k6").group;
 			var parseHTML = require("k6/html").parseHTML;
 
-			exports.options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
+			exports.options = ***REMOVED*** iterations: 1, vus: 1 ***REMOVED***;
 
 			exports.default = function() ***REMOVED***
 				var doc = parseHTML(http.get("HTTPBIN_URL/html").body);
@@ -1643,7 +1643,7 @@ func TestPanicOnSimpleHTML(t *testing.T) ***REMOVED***
 	r, err := getSimpleRunner(t, "/script.js", `
 			var parseHTML = require("k6/html").parseHTML;
 
-			exports.options = ***REMOVED*** iterations: 1, vus: 1, vusMax: 1 ***REMOVED***;
+			exports.options = ***REMOVED*** iterations: 1, vus: 1 ***REMOVED***;
 
 			exports.default = function() ***REMOVED***
 				var doc = parseHTML("<html>");
