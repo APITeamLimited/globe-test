@@ -84,14 +84,17 @@ func badCloseBody() io.ReadCloser ***REMOVED***
 ***REMOVED***
 
 func TestCompressionBodyError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	algos := []CompressionType***REMOVED***CompressionTypeGzip***REMOVED***
 	t.Run("bad read body", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, _, err := compressBody(algos, ioutil.NopCloser(badReadBody()))
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badReadMsg)
 	***REMOVED***)
 
 	t.Run("bad close body", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		_, _, err := compressBody(algos, badCloseBody())
 		require.Error(t, err)
 		require.Equal(t, err.Error(), badCloseMsg)
@@ -99,10 +102,12 @@ func TestCompressionBodyError(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestMakeRequestError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	t.Run("bad compression algorithm body", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		req, err := http.NewRequest("GET", "https://wont.be.used", nil)
 
 		require.NoError(t, err)
@@ -119,6 +124,7 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("invalid upgrade response", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 			w.Header().Add("Connection", "Upgrade")
 			w.Header().Add("Upgrade", "h2c")
@@ -151,7 +157,9 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestResponseStatus(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("response status", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		testCases := []struct ***REMOVED***
 			name                     string
 			statusCode               int
@@ -169,6 +177,7 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 		for _, tc := range testCases ***REMOVED***
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 					w.WriteHeader(tc.statusCode)
 				***REMOVED***))
@@ -203,7 +212,9 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestURL(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Clean", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		testCases := []struct ***REMOVED***
 			url      string
 			expected string
@@ -221,6 +232,7 @@ func TestURL(t *testing.T) ***REMOVED***
 		for _, tc := range testCases ***REMOVED***
 			tc := tc
 			t.Run(tc.url, func(t *testing.T) ***REMOVED***
+				t.Parallel()
 				u, err := url.Parse(tc.url)
 				require.NoError(t, err)
 				ut := URL***REMOVED***u: u, URL: tc.url***REMOVED***
@@ -299,23 +311,7 @@ func BenchmarkWrapDecompressionError(b *testing.B) ***REMOVED***
 func TestTrailFailed(t *testing.T) ***REMOVED***
 	t.Parallel()
 	srv := httptest.NewTLSServer(httpbin.New().Handler())
-	defer srv.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	samples := make(chan stats.SampleContainer, 10)
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	state := &lib.State***REMOVED***
-		Options: lib.Options***REMOVED***
-			RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
-			SystemTags: &stats.DefaultSystemTagSet,
-		***REMOVED***,
-		Transport: srv.Client().Transport,
-		Samples:   samples,
-		Logger:    logger,
-		BPool:     bpool.NewBufferPool(2),
-	***REMOVED***
-	ctx = lib.WithState(ctx, state)
+	t.Cleanup(srv.Close)
 
 	testCases := map[string]struct ***REMOVED***
 		responseCallback func(int) bool
@@ -330,6 +326,24 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 		failed := testCase.failed
 
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			ctx, cancel := context.WithCancel(context.Background())
+			t.Cleanup(cancel)
+
+			samples := make(chan stats.SampleContainer, 10)
+			logger := logrus.New()
+			logger.Level = logrus.DebugLevel
+			state := &lib.State***REMOVED***
+				Options: lib.Options***REMOVED***
+					RunTags:    &stats.SampleTags***REMOVED******REMOVED***,
+					SystemTags: &stats.DefaultSystemTagSet,
+				***REMOVED***,
+				Transport: srv.Client().Transport,
+				Samples:   samples,
+				Logger:    logger,
+				BPool:     bpool.NewBufferPool(2),
+			***REMOVED***
+			ctx = lib.WithState(ctx, state)
 			req, _ := http.NewRequest("GET", srv.URL, nil)
 			preq := &ParsedHTTPRequest***REMOVED***
 				Req:              req,
@@ -341,8 +355,8 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 			res, err := MakeRequest(ctx, preq)
 
 			require.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.Len(t, samples, 1)
+			require.NotNil(t, res)
+			require.Len(t, samples, 1)
 			sample := <-samples
 			trail := sample.(*Trail)
 			require.Equal(t, failed, trail.Failed)
