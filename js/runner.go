@@ -664,7 +664,10 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 	if isFullIteration && u.Runner.Bundle.Options.MinIterationDuration.Valid ***REMOVED***
 		durationDiff := time.Duration(u.Runner.Bundle.Options.MinIterationDuration.Duration) - totalTime
 		if durationDiff > 0 ***REMOVED***
-			time.Sleep(durationDiff)
+			select ***REMOVED***
+			case <-time.After(durationDiff):
+			case <-u.RunContext.Done():
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
