@@ -518,15 +518,18 @@ func (p *activeVUPool) Running() uint64 ***REMOVED***
 // When a new request is accepted the runfn function is executed.
 func (p *activeVUPool) AddVU(ctx context.Context, avu lib.ActiveVU, runfn func(context.Context, lib.ActiveVU) bool) ***REMOVED***
 	p.wg.Add(1)
+	ch := make(chan struct***REMOVED******REMOVED***)
 	go func() ***REMOVED***
 		defer p.wg.Done()
 
+		close(ch)
 		for range p.iterations ***REMOVED***
 			atomic.AddUint64(&p.running, uint64(1))
 			runfn(ctx, avu)
 			atomic.AddUint64(&p.running, ^uint64(0))
 		***REMOVED***
 	***REMOVED***()
+	<-ch
 ***REMOVED***
 
 // Close stops the pool from accepting requests
