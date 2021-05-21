@@ -359,22 +359,24 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 
 	var (
 		defaultTimeUnit = time.Second
-		config          = RampingArrivalRateConfig***REMOVED***
-			StartRate: null.IntFrom(0),
-			Stages: []Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
-				***REMOVED***
-					Duration: types.NullDurationFrom(time.Second * 5),
-					Target:   null.IntFrom(1),
+		getConfig       = func() RampingArrivalRateConfig ***REMOVED***
+			return RampingArrivalRateConfig***REMOVED***
+				StartRate: null.IntFrom(0),
+				Stages: []Stage***REMOVED*** // TODO make this even bigger and longer .. will need more time
+					***REMOVED***
+						Duration: types.NullDurationFrom(time.Second * 5),
+						Target:   null.IntFrom(1),
+					***REMOVED***,
+					***REMOVED***
+						Duration: types.NullDurationFrom(time.Second * 1),
+						Target:   null.IntFrom(1),
+					***REMOVED***,
+					***REMOVED***
+						Duration: types.NullDurationFrom(time.Second * 5),
+						Target:   null.IntFrom(0),
+					***REMOVED***,
 				***REMOVED***,
-				***REMOVED***
-					Duration: types.NullDurationFrom(time.Second * 1),
-					Target:   null.IntFrom(1),
-				***REMOVED***,
-				***REMOVED***
-					Duration: types.NullDurationFrom(time.Second * 5),
-					Target:   null.IntFrom(0),
-				***REMOVED***,
-			***REMOVED***,
+			***REMOVED***
 		***REMOVED***
 	)
 
@@ -427,15 +429,17 @@ func TestRampingArrivalRateCal(t *testing.T) ***REMOVED***
 		// TODO: extend more
 	***REMOVED***
 
-	for testNum, testCase := range testCases ***REMOVED*** //nolint:paralleltest
+	for testNum, testCase := range testCases ***REMOVED***
 		et := testCase.et
 		expectedTimes := testCase.expectedTimes
+		config := getConfig()
 		config.TimeUnit = types.NewNullDuration(testCase.timeUnit, true)
 		if testCase.timeUnit == 0 ***REMOVED***
 			config.TimeUnit = types.NewNullDuration(defaultTimeUnit, true)
 		***REMOVED***
 
 		t.Run(fmt.Sprintf("testNum %d - %s timeunit %s", testNum, et, config.TimeUnit), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ch := make(chan time.Duration)
 			go config.cal(et, ch)
 			changes := make([]time.Duration, 0, len(expectedTimes))

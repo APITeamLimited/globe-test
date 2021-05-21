@@ -318,7 +318,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 		3000 * time.Millisecond,
 	***REMOVED***
 	const rampDownSampleTime = 50 * time.Millisecond
-	var rampDownSamples = int(time.Duration(
+	rampDownSamples := int(time.Duration(
 		config.Stages[len(config.Stages)-1].Duration.Duration+config.GracefulRampDown.Duration,
 	) / rampDownSampleTime)
 
@@ -750,6 +750,7 @@ func TestRampingVUsExecutionTupleTests(t *testing.T) ***REMOVED***
 		expectedSteps := testCase.expectedSteps
 
 		t.Run(et.String(), func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
 		***REMOVED***)
@@ -919,6 +920,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for _, testCase := range testCases ***REMOVED***
+		testCase := testCase
 		conf := NewRampingVUsConfig("test")
 		conf.StartVUs = null.IntFrom(testCase.start)
 		conf.Stages = testCase.stages
@@ -929,6 +931,7 @@ func TestRampingVUsGetRawExecutionStepsCornerCases(t *testing.T) ***REMOVED***
 		expectedSteps := testCase.expectedSteps
 
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			rawStepsNoZeroEnd := conf.getRawExecutionSteps(et, false)
 			assert.Equal(t, expectedSteps, rawStepsNoZeroEnd)
 		***REMOVED***)
@@ -999,8 +1002,10 @@ func BenchmarkRampingVUsGetRawExecutionSteps(b *testing.B) ***REMOVED***
 ***REMOVED***
 
 func TestSegmentedIndex(t *testing.T) ***REMOVED***
+	t.Parallel()
 	// TODO ... more structure ?
 	t.Run("full", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		s := segmentedIndex***REMOVED***start: 0, lcd: 1, offsets: []int64***REMOVED***1***REMOVED******REMOVED***
 
 		s.next()
@@ -1037,6 +1042,7 @@ func TestSegmentedIndex(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("half", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		s := segmentedIndex***REMOVED***start: 0, lcd: 2, offsets: []int64***REMOVED***2***REMOVED******REMOVED***
 
 		s.next()
@@ -1077,6 +1083,7 @@ func TestSegmentedIndex(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("the other half", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		s := segmentedIndex***REMOVED***start: 1, lcd: 2, offsets: []int64***REMOVED***2***REMOVED******REMOVED***
 
 		s.next()
@@ -1117,6 +1124,7 @@ func TestSegmentedIndex(t *testing.T) ***REMOVED***
 	***REMOVED***)
 
 	t.Run("strange", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		s := segmentedIndex***REMOVED***start: 1, lcd: 7, offsets: []int64***REMOVED***4, 3***REMOVED******REMOVED***
 
 		s.next()
@@ -1215,10 +1223,6 @@ func generateRandomSequence(t testing.TB, n, m int64, r *rand.Rand) lib.Executio
 func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	seed := time.Now().UnixNano()
-	r := rand.New(rand.NewSource(seed))
-	t.Logf("Random source seeded with %d\n", seed)
-
 	const (
 		numTests         = 10
 		maxStages        = 10
@@ -1228,7 +1232,7 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 		segmentSeqMaxLen = 15
 		maxNumerator     = 300
 	)
-	getTestConfig := func(name string) RampingVUsConfig ***REMOVED***
+	getTestConfig := func(r *rand.Rand, name string) RampingVUsConfig ***REMOVED***
 		stagesCount := 1 + r.Int31n(maxStages)
 		stages := make([]Stage, stagesCount)
 		for s := int32(0); s < stagesCount; s++ ***REMOVED***
@@ -1274,7 +1278,11 @@ func TestSumRandomSegmentSequenceMatchesNoSegment(t *testing.T) ***REMOVED***
 	for i := 0; i < numTests; i++ ***REMOVED***
 		name := fmt.Sprintf("random%02d", i)
 		t.Run(name, func(t *testing.T) ***REMOVED***
-			c := getTestConfig(name)
+			t.Parallel()
+			seed := time.Now().UnixNano()
+			r := rand.New(rand.NewSource(seed)) //nolint:gosec
+			t.Logf("Random source seeded with %d\n", seed)
+			c := getTestConfig(r, name)
 			ranSeqLen := 2 + r.Int63n(segmentSeqMaxLen-1)
 			t.Logf("Config: %#v, ranSeqLen: %d", c, ranSeqLen)
 			randomSequence := generateRandomSequence(t, ranSeqLen, maxNumerator, r)
