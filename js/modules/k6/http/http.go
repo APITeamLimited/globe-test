@@ -26,6 +26,7 @@ import (
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/netext"
+	"go.k6.io/k6/lib/netext/httpext"
 )
 
 const (
@@ -99,14 +100,30 @@ type HTTP struct ***REMOVED***
 	responseCallback func(int) bool
 ***REMOVED***
 
+// XCookieJar creates a new cookie jar object.
 func (*HTTP) XCookieJar(ctx *context.Context) *HTTPCookieJar ***REMOVED***
 	return newCookieJar(ctx)
 ***REMOVED***
 
+// CookieJar returns the active cookie jar for the current VU.
 func (*HTTP) CookieJar(ctx context.Context) (*HTTPCookieJar, error) ***REMOVED***
 	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***
 		return nil, ErrJarForbiddenInInitContext
 	***REMOVED***
 	return &HTTPCookieJar***REMOVED***state.CookieJar, &ctx***REMOVED***, nil
+***REMOVED***
+
+// URL creates a new URL from the provided parts
+func (*HTTP) URL(parts []string, pieces ...string) (httpext.URL, error) ***REMOVED***
+	var name, urlstr string
+	for i, part := range parts ***REMOVED***
+		name += part
+		urlstr += part
+		if i < len(pieces) ***REMOVED***
+			name += "$***REMOVED******REMOVED***"
+			urlstr += pieces[i]
+		***REMOVED***
+	***REMOVED***
+	return httpext.NewURL(urlstr, name)
 ***REMOVED***

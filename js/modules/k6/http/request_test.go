@@ -572,13 +572,14 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
-	t.Run("MalformedURL", func(t *testing.T) ***REMOVED***
-		js := `
-			http.request("GET", "https:// test.k6.io");
-		`
+	t.Run("InvalidURL", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		js := `http.request("GET", "https:// test.k6.io");`
 		t.Run("throw=true", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(js)
 			require.Error(t, err)
+			assert.Contains(t, err.Error(),
+				`invalid URL: parse "https:// test.k6.io": invalid character " " in host name`)
 		***REMOVED***)
 
 		t.Run("throw=false", func(t *testing.T) ***REMOVED***
@@ -593,11 +594,11 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 
 			logEntry := hook.LastEntry()
-			if assert.NotNil(t, logEntry) ***REMOVED***
-				assert.Equal(t, logrus.WarnLevel, logEntry.Level)
-				assert.Contains(t, logEntry.Data["error"].(error).Error(), `invalid character " "`)
-				assert.Equal(t, "Request Failed", logEntry.Message)
-			***REMOVED***
+			require.NotNil(t, logEntry)
+			assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+			assert.Contains(t, logEntry.Data["error"].(error).Error(),
+				`invalid URL: parse "https:// test.k6.io": invalid character " " in host name`)
+			assert.Equal(t, "Request Failed", logEntry.Message)
 		***REMOVED***)
 	***REMOVED***)
 
@@ -1207,8 +1208,68 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("Batch", func(t *testing.T) ***REMOVED***
 		t.Run("error", func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(`var res = http.batch("https://somevalidurl.com");`)
-			require.Error(t, err)
+			invalidURLerr := `invalid URL: parse "https:// invalidurl.com": invalid character " " in host name`
+			testCases := []struct ***REMOVED***
+				name, code, expErr string
+				throw              bool
+			***REMOVED******REMOVED***
+				***REMOVED***
+					name: "invalid arg", code: `"https://somevalidurl.com"`,
+					expErr: `invalid http.batch() argument type string`, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL short", code: `["https:// invalidurl.com"]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL short no throw", code: `["https:// invalidurl.com"]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL array", code: `[ ["GET", "https:// invalidurl.com"] ]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL array no throw", code: `[ ["GET", "https:// invalidurl.com"] ]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL object", code: `[ ***REMOVED***method: "GET", url: "https:// invalidurl.com"***REMOVED*** ]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid object no throw", code: `[ ***REMOVED***method: "GET", url: "https:// invalidurl.com"***REMOVED*** ]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "object no url key", code: `[ ***REMOVED***method: "GET"***REMOVED*** ]`,
+					expErr: `batch request 0 doesn't have a url key`, throw: true,
+				***REMOVED***,
+			***REMOVED***
+
+			for _, tc := range testCases ***REMOVED***
+				tc := tc
+				t.Run(tc.name, func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+					oldThrow := state.Options.Throw.Bool
+					state.Options.Throw.Bool = tc.throw
+					defer func() ***REMOVED*** state.Options.Throw.Bool = oldThrow ***REMOVED***()
+
+					hook := logtest.NewLocal(state.Logger)
+					defer hook.Reset()
+
+					_, err := rt.RunString(fmt.Sprintf(`http.batch(%s);`, tc.code))
+					if tc.throw ***REMOVED***
+						require.Error(t, err)
+						assert.Contains(t, err.Error(), tc.expErr)
+					***REMOVED*** else ***REMOVED***
+						logEntry := hook.LastEntry()
+						require.NotNil(t, logEntry)
+						assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+						assert.Contains(t, logEntry.Data["error"].(error).Error(), tc.expErr)
+						assert.Equal(t, "Request Failed", logEntry.Message)
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
 		***REMOVED***)
 		t.Run("GET", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`
