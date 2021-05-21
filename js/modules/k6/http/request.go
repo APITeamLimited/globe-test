@@ -177,7 +177,7 @@ func (h *HTTP) parseRequest(
 		if !requestContainsFile(data) ***REMOVED***
 			bodyQuery := make(url.Values, len(data))
 			for k, v := range data ***REMOVED***
-				switch reflect.TypeOf(v).Kind() ***REMOVED***
+				switch reflect.TypeOf(v).Kind() ***REMOVED*** //nolint:exhaustive
 				// handle json arrays in params
 				case reflect.Slice, reflect.Array:
 					s := reflect.ValueOf(v)
