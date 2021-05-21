@@ -136,8 +136,8 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 1, 3)
 	var count int64
-	var ch = make(chan struct***REMOVED******REMOVED***)  // closed when new unplannedVU is started and signal to get to next iterations
-	var ch2 = make(chan struct***REMOVED******REMOVED***) // closed when a second iteration was started on an old VU in order to test it won't start a second unplanned VU in parallel or at all
+	ch := make(chan struct***REMOVED******REMOVED***)  // closed when new unplannedVU is started and signal to get to next iterations
+	ch2 := make(chan struct***REMOVED******REMOVED***) // closed when a second iteration was started on an old VU in order to test it won't start a second unplanned VU in parallel or at all
 	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
 		cur := atomic.AddInt64(&count, 1)
 		if cur == 1 ***REMOVED***
@@ -148,7 +148,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 
 		return nil
 	***REMOVED***)
-	var ctx, cancel, executor, logHook = setupExecutor(
+	ctx, cancel, executor, logHook := setupExecutor(
 		t, &RampingArrivalRateConfig***REMOVED***
 			TimeUnit: types.NullDurationFrom(time.Second),
 			Stages: []Stage***REMOVED***
@@ -200,7 +200,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 1, 3)
 	var count int64
-	var ch = make(chan struct***REMOVED******REMOVED***) // closed when new unplannedVU is started and signal to get to next iterations
+	ch := make(chan struct***REMOVED******REMOVED***) // closed when new unplannedVU is started and signal to get to next iterations
 	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
 		cur := atomic.AddInt64(&count, 1)
 		if cur == 1 ***REMOVED***
@@ -209,7 +209,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 
 		return nil
 	***REMOVED***)
-	var ctx, cancel, executor, logHook = setupExecutor(
+	ctx, cancel, executor, logHook := setupExecutor(
 		t, &RampingArrivalRateConfig***REMOVED***
 			TimeUnit: types.NullDurationFrom(time.Second),
 			Stages: []Stage***REMOVED***
@@ -223,7 +223,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 		***REMOVED***,
 		es, runner)
 	defer cancel()
-	var engineOut = make(chan stats.SampleContainer, 1000)
+	engineOut := make(chan stats.SampleContainer, 1000)
 	es.SetInitVUFunc(func(_ context.Context, logger *logrus.Entry) (lib.InitializedVU, error) ***REMOVED***
 		t.Log("init")
 		cur := atomic.LoadInt64(&count)
@@ -241,6 +241,109 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 	assert.Empty(t, logHook.Drain())
 	assert.Equal(t, int64(0), es.GetCurrentlyActiveVUsCount())
 	assert.Equal(t, int64(2), es.GetInitializedVUsCount())
+***REMOVED***
+
+func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
+	t.Parallel()
+	et, err := lib.NewExecutionTuple(nil, nil)
+	require.NoError(t, err)
+	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 10)
+
+	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+		time.Sleep(5 * time.Second)
+		return nil
+	***REMOVED***)
+	ctx, cancel, executor, _ := setupExecutor(
+		t, &RampingArrivalRateConfig***REMOVED***
+			TimeUnit: types.NullDurationFrom(1 * time.Second),
+			Stages: []Stage***REMOVED***
+				***REMOVED***
+					Duration: types.NullDurationFrom(2 * time.Second),
+					Target:   null.IntFrom(10),
+				***REMOVED***,
+			***REMOVED***,
+			StartRate:       null.IntFrom(10),
+			PreAllocatedVUs: null.IntFrom(10),
+			MaxVUs:          null.IntFrom(10),
+			BaseConfig: BaseConfig***REMOVED***
+				GracefulStop: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
+		***REMOVED***,
+		es, runner)
+	defer cancel()
+
+	engineOut := make(chan stats.SampleContainer, 1000)
+	defer close(engineOut)
+
+	err = executor.Run(ctx, engineOut)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), es.GetCurrentlyActiveVUsCount())
+	assert.Equal(t, int64(10), es.GetInitializedVUsCount())
+	assert.Equal(t, uint64(10), es.GetFullIterationCount())
+***REMOVED***
+
+func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
+	tests := []struct ***REMOVED***
+		prealloc null.Int
+	***REMOVED******REMOVED***
+		***REMOVED***prealloc: null.IntFrom(10)***REMOVED***,
+		***REMOVED***prealloc: null.IntFrom(100)***REMOVED***,
+		***REMOVED***prealloc: null.IntFrom(1e3)***REMOVED***,
+		***REMOVED***prealloc: null.IntFrom(10e3)***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range tests ***REMOVED***
+		b.Run(fmt.Sprintf("VUs%d", tc.prealloc.ValueOrZero()), func(b *testing.B) ***REMOVED***
+			engineOut := make(chan stats.SampleContainer, 1000)
+			defer close(engineOut)
+			go func() ***REMOVED***
+				for range engineOut ***REMOVED***
+					// discard
+				***REMOVED***
+			***REMOVED***()
+
+			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, mustNewExecutionTuple(nil, nil), uint64(tc.prealloc.Int64), uint64(tc.prealloc.Int64))
+
+			var count int64
+			runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+				atomic.AddInt64(&count, 1)
+				return nil
+			***REMOVED***)
+
+			// an high target to get the highest rate
+			target := int64(1e9)
+
+			ctx, cancel, executor, _ := setupExecutor(
+				b, &RampingArrivalRateConfig***REMOVED***
+					TimeUnit: types.NullDurationFrom(1 * time.Second),
+					Stages: []Stage***REMOVED***
+						***REMOVED***
+							Duration: types.NullDurationFrom(0),
+							Target:   null.IntFrom(target),
+						***REMOVED***,
+						***REMOVED***
+							Duration: types.NullDurationFrom(5 * time.Second),
+							Target:   null.IntFrom(target),
+						***REMOVED***,
+					***REMOVED***,
+					PreAllocatedVUs: tc.prealloc,
+					MaxVUs:          tc.prealloc,
+				***REMOVED***,
+				es, runner)
+			defer cancel()
+
+			b.ResetTimer()
+			start := time.Now()
+
+			err := executor.Run(ctx, engineOut)
+			took := time.Since(start)
+			assert.NoError(b, err)
+
+			iterations := float64(atomic.LoadInt64(&count))
+			b.ReportMetric(0, "ns/op")
+			b.ReportMetric(iterations/took.Seconds(), "iterations/s")
+		***REMOVED***)
+	***REMOVED***
 ***REMOVED***
 
 func mustNewExecutionTuple(seg *lib.ExecutionSegment, seq *lib.ExecutionSegmentSequence) *lib.ExecutionTuple ***REMOVED***
