@@ -231,25 +231,29 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	returnedVUs := make(chan struct***REMOVED******REMOVED***)
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)
 
+	vusPool := newActiveVUPool()
 	defer func() ***REMOVED***
 		// Make sure all VUs aren't executing iterations anymore, for the cancel()
 		// below to deactivate them.
 		<-returnedVUs
+		// first close the vusPool so we wait for the gracefulShutdown
+		vusPool.Close()
 		cancel()
 		activeVUsWg.Wait()
 	***REMOVED***()
-	activeVUs := make(chan lib.ActiveVU, maxVUs)
 	activeVUsCount := uint64(0)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		car.executionState.ReturnVU(u, true)
 		activeVUsWg.Done()
 	***REMOVED***
+	runIterationBasic := getIterationRunner(car.executionState, car.logger)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(getVUActivationParams(maxDurationCtx, car.config.BaseConfig, returnVU))
 		car.executionState.ModCurrentlyActiveVUsCount(+1)
 		atomic.AddUint64(&activeVUsCount, 1)
+		vusPool.AddVU(maxDurationCtx, activeVU, runIterationBasic)
 		return activeVU
 	***REMOVED***
 
@@ -258,13 +262,6 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	defer close(makeUnplannedVUCh)
 	go func() ***REMOVED***
 		defer close(returnedVUs)
-		defer func() ***REMOVED***
-			// this is done here as to not have an unplannedVU in the middle of initialization when
-			// starting to return activeVUs
-			for i := uint64(0); i < atomic.LoadUint64(&activeVUsCount); i++ ***REMOVED***
-				<-activeVUs
-			***REMOVED***
-		***REMOVED***()
 		for range makeUnplannedVUCh ***REMOVED***
 			car.logger.Debug("Starting initialization of an unplanned VU...")
 			initVU, err := car.executionState.GetUnplannedVU(maxDurationCtx, car.logger)
@@ -273,7 +270,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 				car.logger.WithError(err).Error("Error while allocating unplanned VU")
 			***REMOVED*** else ***REMOVED***
 				car.logger.Debug("The unplanned VU finished initializing successfully!")
-				activeVUs <- activateVU(initVU)
+				activateVU(initVU)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
@@ -284,7 +281,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		if err != nil ***REMOVED***
 			return err
 		***REMOVED***
-		activeVUs <- activateVU(initVU)
+		activateVU(initVU)
 	***REMOVED***
 
 	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
@@ -293,9 +290,8 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	progressFn := func() (float64, []string) ***REMOVED***
 		spent := time.Since(startTime)
 		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
-		vusInBuffer := uint64(len(activeVUs))
 		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			currActiveVUs-vusInBuffer, currActiveVUs)
+			vusPool.Running(), currActiveVUs)
 
 		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
 
@@ -311,12 +307,6 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	***REMOVED***
 	car.progress.Modify(pb.WithProgress(progressFn))
 	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
-
-	runIterationBasic := getIterationRunner(car.executionState, car.logger)
-	runIteration := func(vu lib.ActiveVU) ***REMOVED***
-		runIterationBasic(maxDurationCtx, vu)
-		activeVUs <- vu
-	***REMOVED***
 
 	start, offsets, _ := car.et.GetStripedOffsets()
 	timer := time.NewTimer(time.Hour * 24)
@@ -335,11 +325,8 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		timer.Reset(t)
 		select ***REMOVED***
 		case <-timer.C:
-			select ***REMOVED***
-			case vu := <-activeVUs: // ideally, we get the VU from the buffer without any issues
-				go runIteration(vu) //TODO: refactor so we dont spin up a goroutine for each iteration
+			if vusPool.TryRunIteration() ***REMOVED***
 				continue
-			default: // no free VUs currently available
 			***REMOVED***
 
 			// Since there aren't any free VUs available, consider this iteration
