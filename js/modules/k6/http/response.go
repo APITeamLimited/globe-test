@@ -60,7 +60,7 @@ func (j jsonError) Error() string ***REMOVED***
 // respType. This is done here instead of in httpext.readResponseBody to avoid
 // a reverse dependency on js/common or goja.
 func processResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) ***REMOVED***
-	if respType == httpext.ResponseTypeBinary ***REMOVED***
+	if respType == httpext.ResponseTypeBinary && resp.Body != nil ***REMOVED***
 		rt := common.GetRuntime(ctx)
 		resp.Body = rt.NewArrayBuffer(resp.Body.([]byte))
 	***REMOVED***
