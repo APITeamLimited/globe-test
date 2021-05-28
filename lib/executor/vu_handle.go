@@ -149,7 +149,7 @@ func (vh *vuHandle) start() (err error) ***REMOVED***
 			return err
 		***REMOVED***
 
-		vh.activeVU = vh.initVU.Activate(getVUActivationParams(vh.ctx, *vh.config, vh.returnVU, vh.getScenarioVUID))
+		vh.activeVU = vh.initVU.Activate(getVUActivationParams(vh.ctx, *vh.config, vh.returnVU, vh.getScenarioVUID, nil, nil))
 		close(vh.canStartIter)
 		vh.changeState(starting)
 	***REMOVED***

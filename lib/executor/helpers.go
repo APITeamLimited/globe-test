@@ -82,7 +82,7 @@ func validateStages(stages []Stage) []error ***REMOVED***
 //
 // TODO: emit the end-of-test iteration metrics here (https://github.com/k6io/k6/issues/1250)
 func getIterationRunner(
-	executionState *lib.ExecutionState, incrIter func(), logger *logrus.Entry,
+	executionState *lib.ExecutionState, logger *logrus.Entry,
 ) func(context.Context, lib.ActiveVU) bool ***REMOVED***
 	return func(ctx context.Context, vu lib.ActiveVU) bool ***REMOVED***
 		err := vu.RunOnce()
@@ -110,7 +110,6 @@ func getIterationRunner(
 
 			// TODO: move emission of end-of-iteration metrics here?
 			executionState.AddFullIterations(1)
-			incrIter()
 			return true
 		***REMOVED***
 	***REMOVED***
@@ -223,8 +222,10 @@ func getArrivalRatePerSec(scaledArrivalRate *big.Rat) *big.Rat ***REMOVED***
 	return perSecRate.Mul(perSecRate, scaledArrivalRate)
 ***REMOVED***
 
+// TODO: Refactor this, maybe move all scenario things to an embedded struct?
 func getVUActivationParams(
-	ctx context.Context, conf BaseConfig, deactivateCallback func(lib.InitializedVU), getScenarioVUID func() uint64,
+	ctx context.Context, conf BaseConfig, deactivateCallback func(lib.InitializedVU),
+	getScenarioVUID func() uint64, incrScIter func() int64, incrScIterGlobal func() int64,
 ) *lib.VUActivationParams ***REMOVED***
 	return &lib.VUActivationParams***REMOVED***
 		RunContext:         ctx,
@@ -234,5 +235,7 @@ func getVUActivationParams(
 		Tags:               conf.GetTags(),
 		DeactivateCallback: deactivateCallback,
 		GetScenarioVUID:    getScenarioVUID,
+		IncrScIter:         incrScIter,
+		IncrScIterGlobal:   incrScIterGlobal,
 	***REMOVED***
 ***REMOVED***

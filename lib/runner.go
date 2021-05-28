@@ -56,6 +56,8 @@ type VUActivationParams struct ***REMOVED***
 	Env, Tags          map[string]string
 	Exec, Scenario     string
 	GetScenarioVUID    func() uint64
+	IncrScIter         func() int64
+	IncrScIterGlobal   func() int64
 ***REMOVED***
 
 // A Runner is a factory for VUs. It should precompute as much as possible upon

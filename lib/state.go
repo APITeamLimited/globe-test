@@ -68,18 +68,23 @@ type State struct ***REMOVED***
 	// TODO: maybe use https://golang.org/pkg/sync/#Pool ?
 	BPool *bpool.BufferPool
 
-	Vu, Iteration  uint64
-	Tags           map[string]string
-	ScenarioName   string
-	scenarioVUID   map[string]uint64
-	scIterMx       sync.RWMutex
-	scenarioVUIter map[string]uint64
+	Vu                   uint64
+	iteration            int64
+	Tags                 map[string]string
+	ScenarioName         string
+	scenarioVUID         map[string]uint64
+	IncrScIter           func() int64
+	IncrScIterGlobal     func() int64
+	scIterMx             sync.RWMutex
+	scenarioVUIter       map[string]int64
+	scIter, scIterGlobal int64
 ***REMOVED***
 
 // Init initializes some private state fields.
 func (s *State) Init() ***REMOVED***
 	s.scenarioVUID = make(map[string]uint64)
-	s.scenarioVUIter = make(map[string]uint64)
+	s.scenarioVUIter = make(map[string]int64)
+	s.iteration, s.scIter, s.scIterGlobal = -1, -1, -1
 ***REMOVED***
 
 // CloneTags makes a copy of the tags map and returns it.
@@ -104,16 +109,53 @@ func (s *State) SetScenarioVUID(id uint64) ***REMOVED***
 
 // GetScenarioVUIter returns the scenario-specific count of completed iterations
 // for this VU.
-func (s *State) GetScenarioVUIter() uint64 ***REMOVED***
+func (s *State) GetScenarioVUIter() int64 ***REMOVED***
 	s.scIterMx.RLock()
 	defer s.scIterMx.RUnlock()
 	return s.scenarioVUIter[s.ScenarioName]
 ***REMOVED***
 
-// IncrScenarioVUIter increments the scenario-specific count of completed
-// iterations for this VU.
-func (s *State) IncrScenarioVUIter() ***REMOVED***
+// IncrIteration increments all iteration counters for the specific VU with this
+// State.
+func (s *State) IncrIteration() ***REMOVED***
 	s.scIterMx.Lock()
-	s.scenarioVUIter[s.ScenarioName]++
-	s.scIterMx.Unlock()
+	defer s.scIterMx.Unlock()
+
+	s.iteration++
+	if _, ok := s.scenarioVUIter[s.ScenarioName]; ok ***REMOVED***
+		s.scenarioVUIter[s.ScenarioName]++
+	***REMOVED*** else ***REMOVED***
+		s.scenarioVUIter[s.ScenarioName] = 0
+	***REMOVED***
+	if s.IncrScIter != nil ***REMOVED***
+		s.scIter = s.IncrScIter()
+	***REMOVED***
+	if s.IncrScIterGlobal != nil ***REMOVED***
+		s.scIterGlobal = s.IncrScIterGlobal()
+	***REMOVED***
+***REMOVED***
+
+// GetScenarioLocalVUIter returns the iteration local to the scenario currently
+// executing the VU with this State.
+func (s *State) GetScenarioLocalVUIter() int64 ***REMOVED***
+	s.scIterMx.RLock()
+	defer s.scIterMx.RUnlock()
+	return s.scIter
+***REMOVED***
+
+// GetScenarioGlobalVUIter returns the global iteration of the scenario
+// currently executing the VU with this State, or -1 if the executor doesn't
+// keep track of global iterations.
+func (s *State) GetScenarioGlobalVUIter() int64 ***REMOVED***
+	s.scIterMx.RLock()
+	defer s.scIterMx.RUnlock()
+	if s.IncrScIterGlobal == nil ***REMOVED***
+		return -1
+	***REMOVED***
+	return s.scIterGlobal
+***REMOVED***
+
+// GetIteration returns the iteration local to the VU with this State.
+func (s *State) GetIteration() int64 ***REMOVED***
+	return s.iteration
 ***REMOVED***

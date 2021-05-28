@@ -30,18 +30,15 @@ func TestVUHandleRace(t *testing.T) ***REMOVED***
 	// testLog.Level = logrus.DebugLevel
 	logEntry := logrus.NewEntry(testLog)
 
+	runner := &minirunner.MiniRunner***REMOVED******REMOVED***
+	runner.Fn = func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		return nil
+	***REMOVED***
+
 	var getVUCount int64
 	var returnVUCount int64
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
-		atomic.AddInt64(&getVUCount, 1)
-		return &minirunner.VU***REMOVED***
-			R: &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-					// TODO: do something
-					return nil
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***, nil
+		return runner.NewVU(uint64(atomic.AddInt64(&getVUCount, 1)), nil)
 	***REMOVED***
 
 	returnVU := func(_ lib.InitializedVU) ***REMOVED***
@@ -122,21 +119,18 @@ func TestVUHandleStartStopRace(t *testing.T) ***REMOVED***
 	// testLog.Level = logrus.DebugLevel
 	logEntry := logrus.NewEntry(testLog)
 
-	var vuID uint64
+	runner := &minirunner.MiniRunner***REMOVED******REMOVED***
+	runner.Fn = func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		return nil
+	***REMOVED***
 
+	var vuID uint64
 	testIterations := 10000
 	returned := make(chan struct***REMOVED******REMOVED***)
+
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
 		returned = make(chan struct***REMOVED******REMOVED***)
-		return &minirunner.VU***REMOVED***
-			ID: atomic.AddUint64(&vuID, 1),
-			R: &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-					// TODO: do something
-					return nil
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***, nil
+		return runner.NewVU(atomic.AddUint64(&vuID, 1), nil)
 	***REMOVED***
 
 	returnVU := func(v lib.InitializedVU) ***REMOVED***
@@ -190,6 +184,7 @@ func TestVUHandleStartStopRace(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 type handleVUTest struct ***REMOVED***
+	runner          *minirunner.MiniRunner
 	getVUCount      uint32
 	returnVUCount   uint32
 	interruptedIter int64
@@ -197,16 +192,7 @@ type handleVUTest struct ***REMOVED***
 ***REMOVED***
 
 func (h *handleVUTest) getVU() (lib.InitializedVU, error) ***REMOVED***
-	atomic.AddUint32(&h.getVUCount, 1)
-
-	return &minirunner.VU***REMOVED***
-		R: &minirunner.MiniRunner***REMOVED***
-			Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-				// TODO: do something
-				return nil
-			***REMOVED***,
-		***REMOVED***,
-	***REMOVED***, nil
+	return h.runner.NewVU(uint64(atomic.AddUint32(&h.getVUCount, 1)), nil)
 ***REMOVED***
 
 func (h *handleVUTest) returnVU(_ lib.InitializedVU) ***REMOVED***
@@ -241,7 +227,7 @@ func TestVUHandleSimple(t *testing.T) ***REMOVED***
 		testLog.SetOutput(testutils.NewTestOutput(t))
 		// testLog.Level = logrus.DebugLevel
 		logEntry := logrus.NewEntry(testLog)
-		test := new(handleVUTest)
+		test := &handleVUTest***REMOVED***runner: &minirunner.MiniRunner***REMOVED******REMOVED******REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		vuHandle := newStoppedVUHandle(ctx, test.getVU, test.returnVU, nil, &BaseConfig***REMOVED******REMOVED***, logEntry)
@@ -280,7 +266,7 @@ func TestVUHandleSimple(t *testing.T) ***REMOVED***
 		testLog.SetOutput(testutils.NewTestOutput(t))
 		// testLog.Level = logrus.DebugLevel
 		logEntry := logrus.NewEntry(testLog)
-		test := new(handleVUTest)
+		test := &handleVUTest***REMOVED***runner: &minirunner.MiniRunner***REMOVED******REMOVED******REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -321,7 +307,7 @@ func TestVUHandleSimple(t *testing.T) ***REMOVED***
 		testLog.SetOutput(testutils.NewTestOutput(t))
 		// testLog.Level = logrus.DebugLevel
 		logEntry := logrus.NewEntry(testLog)
-		test := new(handleVUTest)
+		test := &handleVUTest***REMOVED***runner: &minirunner.MiniRunner***REMOVED******REMOVED******REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -375,17 +361,12 @@ func BenchmarkVUHandleIterations(b *testing.B) ***REMOVED***
 		fullIterations = 0
 	***REMOVED***
 
+	runner := &minirunner.MiniRunner***REMOVED******REMOVED***
+	runner.Fn = func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		return nil
+	***REMOVED***
 	getVU := func() (lib.InitializedVU, error) ***REMOVED***
-		atomic.AddUint32(&getVUCount, 1)
-
-		return &minirunner.VU***REMOVED***
-			R: &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-					// TODO: do something
-					return nil
-				***REMOVED***,
-			***REMOVED***,
-		***REMOVED***, nil
+		return runner.NewVU(uint64(atomic.AddUint32(&getVUCount, 1)), nil)
 	***REMOVED***
 
 	returnVU := func(_ lib.InitializedVU) ***REMOVED***

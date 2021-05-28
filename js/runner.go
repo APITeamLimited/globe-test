@@ -230,7 +230,6 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 		BPool:     vu.BPool,
 		Vu:        vu.ID,
 		Samples:   vu.Samples,
-		Iteration: vu.Iteration,
 		Tags:      vu.Runner.Bundle.Options.RunTags.CloneTags(),
 		Group:     r.defaultGroup,
 	***REMOVED***
@@ -527,12 +526,12 @@ func (r *Runner) getTimeoutFor(stage string) time.Duration ***REMOVED***
 type VU struct ***REMOVED***
 	BundleInstance
 
-	Runner        *Runner
-	Transport     *http.Transport
-	Dialer        *netext.Dialer
-	CookieJar     *cookiejar.Jar
-	TLSConfig     *tls.Config
-	ID, Iteration uint64
+	Runner    *Runner
+	Transport *http.Transport
+	Dialer    *netext.Dialer
+	CookieJar *cookiejar.Jar
+	TLSConfig *tls.Config
+	ID        uint64
 
 	Console *console
 	BPool   *bpool.BufferPool
@@ -590,7 +589,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.state.Tags["vu"] = strconv.FormatUint(u.ID, 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatUint(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatInt(u.state.GetIteration(), 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		u.state.Tags["group"] = u.state.Group.Path
@@ -609,6 +608,9 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 			u.state.SetScenarioVUID(params.GetScenarioVUID())
 		***REMOVED***
 	***REMOVED***
+
+	u.state.IncrScIter = params.IncrScIter
+	u.state.IncrScIterGlobal = params.IncrScIterGlobal
 
 	avu := &ActiveVU***REMOVED***
 		VU:                 u,
@@ -665,6 +667,11 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
 	***REMOVED***
 
+	u.state.IncrIteration()
+	if err := u.Runtime.Set("__ITER", u.state.GetIteration()); err != nil ***REMOVED***
+		panic(fmt.Errorf("error setting __ITER in goja runtime: %w", err))
+	***REMOVED***
+
 	// Call the exported function.
 	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, true, fn, u.setupData)
 
@@ -695,16 +702,8 @@ func (u *VU) runFn(
 
 	opts := &u.Runner.Bundle.Options
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatUint(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatInt(u.state.GetIteration(), 10)
 	***REMOVED***
-
-	// TODO: this seems like the wrong place for the iteration incrementation
-	// also this means that teardown and setup have __ITER defined
-	// maybe move it to RunOnce ?
-	u.Runtime.Set("__ITER", u.Iteration)
-	u.Iteration++
-	u.state.Iteration = u.Iteration
-	u.state.IncrScenarioVUIter()
 
 	defer func() ***REMOVED***
 		if r := recover(); r != nil ***REMOVED***
