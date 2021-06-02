@@ -88,12 +88,14 @@ short names for input:
 // - it's not required but preferable, if where possible to not reactivate VUs and to reuse context
 // as this speed ups the execution
 type vuHandle struct ***REMOVED***
-	mutex           *sync.Mutex
-	parentCtx       context.Context
-	getVU           func() (lib.InitializedVU, error)
-	returnVU        func(lib.InitializedVU)
-	getScenarioVUID func() uint64
-	config          *BaseConfig
+	mutex                *sync.Mutex
+	parentCtx            context.Context
+	getVU                func() (lib.InitializedVU, error)
+	returnVU             func(lib.InitializedVU)
+	getScenarioVUID      func() uint64
+	getScenarioLocalIter func() int64
+	iterSync             chan struct***REMOVED******REMOVED***
+	config               *BaseConfig
 
 	initVU       lib.InitializedVU
 	activeVU     lib.ActiveVU
@@ -110,19 +112,22 @@ type vuHandle struct ***REMOVED***
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
 	returnVU func(lib.InitializedVU), getScenarioVUID func() uint64,
+	getScenarioLocalIter func() int64, iterSync chan struct***REMOVED******REMOVED***,
 	config *BaseConfig, logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &vuHandle***REMOVED***
-		mutex:           &sync.Mutex***REMOVED******REMOVED***,
-		parentCtx:       parentCtx,
-		getVU:           getVU,
-		getScenarioVUID: getScenarioVUID,
-		config:          config,
+		mutex:                &sync.Mutex***REMOVED******REMOVED***,
+		parentCtx:            parentCtx,
+		getVU:                getVU,
+		getScenarioVUID:      getScenarioVUID,
+		getScenarioLocalIter: getScenarioLocalIter,
+		config:               config,
 
 		canStartIter: make(chan struct***REMOVED******REMOVED***),
 		state:        stopped,
+		iterSync:     iterSync,
 
 		ctx:      ctx,
 		cancel:   cancel,
@@ -149,7 +154,9 @@ func (vh *vuHandle) start() (err error) ***REMOVED***
 			return err
 		***REMOVED***
 
-		vh.activeVU = vh.initVU.Activate(getVUActivationParams(vh.ctx, *vh.config, vh.returnVU, vh.getScenarioVUID, nil, nil))
+		vh.activeVU = vh.initVU.Activate(getVUActivationParams(
+			vh.ctx, *vh.config, vh.returnVU, vh.getScenarioVUID,
+			vh.getScenarioLocalIter, nil, vh.iterSync))
 		close(vh.canStartIter)
 		vh.changeState(starting)
 	***REMOVED***

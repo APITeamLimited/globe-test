@@ -159,9 +159,6 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 	***REMOVED******REMOVED***
 		***REMOVED***"0,1/4,3/4,1", "0:1/4", []int64***REMOVED***1, 6, 11, 16, 21, 26, 31, 36, 41, 46***REMOVED******REMOVED***,
 		***REMOVED***"0,1/4,3/4,1", "1/4:3/4", []int64***REMOVED***0, 2, 4, 5, 7, 9, 10, 12, 14, 15, 17, 19, 20, 22, 24, 25, 27, 29, 30, 32, 34, 35, 37, 39, 40, 42, 44, 45, 47, 49***REMOVED******REMOVED***,
-		// FIXME: The skewed values are because of the time.Sleep() in the
-		// VU function below.
-		// ***REMOVED***"0,1/4,3/4,1", "1/4:3/4", []int64***REMOVED***4, 5, 7, 9, 10, 12, 14, 15, 17, 19, 20, 22, 24, 25, 27, 29, 30, 32, 34, 35, 37, 39, 40, 42, 44, 45, 47, 49, 49, 49***REMOVED******REMOVED***,
 		***REMOVED***"0,1/4,3/4,1", "3/4:1", []int64***REMOVED***3, 8, 13, 18, 23, 28, 33, 38, 43, 48***REMOVED******REMOVED***,
 	***REMOVED***
 
@@ -184,11 +181,9 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 			gotIters := []int64***REMOVED******REMOVED***
 			var mx sync.Mutex
 			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
+				state := lib.GetState(ctx)
 				mx.Lock()
-				gotIters = append(gotIters, executor.(*SharedIterations).getGlobalIter())
-				// FIXME: This delay minimizes chances of flakiness, but
-				// produces skewed values. :-/
-				// time.Sleep(10 * time.Millisecond)
+				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()
 				return nil
 			***REMOVED***

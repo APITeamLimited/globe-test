@@ -377,8 +377,9 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 			gotIters := []int64***REMOVED******REMOVED***
 			var mx sync.Mutex
 			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
+				state := lib.GetState(ctx)
 				mx.Lock()
-				gotIters = append(gotIters, executor.(*ConstantArrivalRate).getGlobalIter())
+				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()
 				return nil
 			***REMOVED***
