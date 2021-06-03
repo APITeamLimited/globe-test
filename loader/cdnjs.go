@@ -73,6 +73,11 @@ func cdnjs(logger logrus.FieldLogger, path string, parts []string) (string, erro
 			if ver.Version != version ***REMOVED***
 				continue
 			***REMOVED***
+			if len(ver.Files) == 0 ***REMOVED***
+				return "",
+					fmt.Errorf("cdnjs: no files for version %s of %s, this is a problem with the library or cdnjs not k6",
+						version, path)
+			***REMOVED***
 			backupFilename = ver.Files[0]
 			for _, file := range ver.Files ***REMOVED***
 				if file == filename ***REMOVED***
