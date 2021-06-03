@@ -93,7 +93,7 @@ type vuHandle struct ***REMOVED***
 	getVU                func() (lib.InitializedVU, error)
 	returnVU             func(lib.InitializedVU)
 	getScenarioVUID      func() uint64
-	getScenarioLocalIter func() int64
+	getScenarioLocalIter func() uint64
 	iterSync             chan struct***REMOVED******REMOVED***
 	config               *BaseConfig
 
@@ -112,7 +112,7 @@ type vuHandle struct ***REMOVED***
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
 	returnVU func(lib.InitializedVU), getScenarioVUID func() uint64,
-	getScenarioLocalIter func() int64, iterSync chan struct***REMOVED******REMOVED***,
+	getScenarioLocalIter func() uint64, iterSync chan struct***REMOVED******REMOVED***,
 	config *BaseConfig, logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)

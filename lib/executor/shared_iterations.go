@@ -189,12 +189,12 @@ func (si *SharedIterations) Init(ctx context.Context) error ***REMOVED***
 // this executor, taking into account the configured execution segment.
 // Unlike the local iteration number returned by getNextLocalIter(), this
 // iteration number will be unique across k6 instances.
-func (si *SharedIterations) getNextGlobalIter() int64 ***REMOVED***
+func (si *SharedIterations) getNextGlobalIter() uint64 ***REMOVED***
 	si.iterMx.Lock()
 	defer si.iterMx.Unlock()
 	si.segIdx.Next()
 	// iterations are 0-based
-	return si.segIdx.GetUnscaled() - 1
+	return uint64(si.segIdx.GetUnscaled() - 1)
 ***REMOVED***
 
 // Run executes a specific total number of iterations, which are all shared by

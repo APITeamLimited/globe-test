@@ -219,7 +219,7 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
 		scenarioID:     make(map[string]uint64),
-		scenarioIter:   make(map[string]int64),
+		scenarioIter:   make(map[string]uint64),
 	***REMOVED***
 
 	vu.state = &lib.State***REMOVED***
@@ -547,7 +547,7 @@ type VU struct ***REMOVED***
 	// ID of this VU in each scenario
 	scenarioID map[string]uint64
 	// count of iterations executed by this VU in each scenario
-	scenarioIter map[string]int64
+	scenarioIter map[string]uint64
 ***REMOVED***
 
 // Verify that interfaces are implemented
@@ -628,7 +628,7 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	u.state.GetScenarioVUIter = func() int64 ***REMOVED***
+	u.state.GetScenarioVUIter = func() uint64 ***REMOVED***
 		return u.scenarioIter[params.Scenario]
 	***REMOVED***
 
@@ -638,17 +638,19 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		busy:                make(chan struct***REMOVED******REMOVED***, 1),
 		scenarioName:        params.Scenario,
 		iterSync:            params.IterSync,
-		scIterLocal:         int64(-1),
-		scIterGlobal:        int64(-1),
+		scIterLocal:         ^uint64(0),
+		scIterGlobal:        ^uint64(0),
 		getNextScLocalIter:  params.GetNextScLocalIter,
 		getNextScGlobalIter: params.GetNextScGlobalIter,
 	***REMOVED***
 
-	u.state.GetScenarioLocalVUIter = func() int64 ***REMOVED***
+	u.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
 		return avu.scIterLocal
 	***REMOVED***
-	u.state.GetScenarioGlobalVUIter = func() int64 ***REMOVED***
-		return avu.scIterGlobal
+	if params.GetNextScGlobalIter != nil ***REMOVED***
+		u.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
+			return avu.scIterGlobal
+		***REMOVED***
 	***REMOVED***
 
 	go func() ***REMOVED***

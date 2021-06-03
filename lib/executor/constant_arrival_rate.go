@@ -209,12 +209,12 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 // this executor, taking into account the configured execution segment.
 // Unlike the local iteration number returned by getNextLocalIter(), this
 // iteration number will be unique across k6 instances.
-func (car *ConstantArrivalRate) getNextGlobalIter() int64 ***REMOVED***
+func (car *ConstantArrivalRate) getNextGlobalIter() uint64 ***REMOVED***
 	car.iterMx.Lock()
 	defer car.iterMx.Unlock()
 	car.segIdx.Next()
 	// iterations are 0-based
-	return car.segIdx.GetUnscaled() - 1
+	return uint64(car.segIdx.GetUnscaled() - 1)
 ***REMOVED***
 
 // Run executes a constant number of iterations per second.
