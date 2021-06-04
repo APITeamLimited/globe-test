@@ -38,7 +38,8 @@ type URL struct ***REMOVED***
 func NewURL(urlString, name string) (URL, error) ***REMOVED***
 	u, err := url.Parse(urlString)
 	if err != nil ***REMOVED***
-		return URL***REMOVED******REMOVED***, NewK6Error(invalidURLErrorCode, invalidURLErrorCodeMsg, err)
+		return URL***REMOVED******REMOVED***, NewK6Error(invalidURLErrorCode,
+			fmt.Sprintf("%s: %s", invalidURLErrorCodeMsg, err), err)
 	***REMOVED***
 	newURL := URL***REMOVED***u: u, Name: name, URL: urlString***REMOVED***
 	newURL.CleanURL = newURL.Clean()

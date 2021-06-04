@@ -235,10 +235,7 @@ func NewK6Error(code errCode, msg string, originalErr error) K6Error ***REMOVED*
 
 // Error implements the `error` interface, so K6Errors are normal Go errors.
 func (k6Err K6Error) Error() string ***REMOVED***
-	if k6Err.OriginalError == nil ***REMOVED***
-		return k6Err.Message
-	***REMOVED***
-	return fmt.Sprintf("%s: %s", k6Err.Message, k6Err.OriginalError)
+	return k6Err.Message
 ***REMOVED***
 
 // Unwrap implements the `xerrors.Wrapper` interface, so K6Errors are a bit
