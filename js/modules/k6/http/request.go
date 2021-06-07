@@ -434,8 +434,7 @@ func (h *HTTP) prepareBatchObject(
 
 // Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
 // objects. Batch returns an array of responses and/or error
-func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
+func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***
 		return nil, ErrBatchForbiddenInInitContext
@@ -461,7 +460,7 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 			return nil, err
 		***REMOVED***
 		state.Logger.WithField("error", err).Warn("A batch request failed")
-		return rt.ToValue(results), nil
+		return results, nil
 	***REMOVED***
 
 	reqCount := len(batchReqs)
@@ -476,7 +475,7 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 			err = e
 		***REMOVED***
 	***REMOVED***
-	return rt.ToValue(results), err
+	return results, err
 ***REMOVED***
 
 func (h *HTTP) parseBatchRequest(
