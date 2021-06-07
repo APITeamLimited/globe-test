@@ -771,6 +771,55 @@ func TestSetupException(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func TestVuInitException(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	script := []byte(`
+		export let options = ***REMOVED***
+			vus: 3,
+			iterations: 5,
+		***REMOVED***;
+
+		export default function() ***REMOVED******REMOVED***;
+
+		if (__VU == 2) ***REMOVED***
+			throw new Error('oops in ' + __VU);
+		***REMOVED***
+	`)
+
+	logger := testutils.NewLogger(t)
+	runner, err := js.New(
+		logger,
+		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
+		nil, lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	opts, err := executor.DeriveScenariosFromShortcuts(runner.GetOptions())
+	require.NoError(t, err)
+	require.Empty(t, opts.Validate())
+	require.NoError(t, runner.SetOptions(opts))
+
+	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	require.NoError(t, err)
+	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, _, err = engine.Init(ctx, ctx) // no need for 2 different contexts
+
+	require.Error(t, err)
+
+	var exception errext.Exception
+	require.ErrorAs(t, err, &exception)
+	assert.Equal(t, "Error: oops in 2\n\tat file:///script.js:10:8(32)\n", err.Error())
+
+	var errWithHint errext.HasHint
+	require.ErrorAs(t, err, &errWithHint)
+	assert.Equal(t, "error while initializing VU #2 (script exception)", errWithHint.Hint())
+***REMOVED***
+
 func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
