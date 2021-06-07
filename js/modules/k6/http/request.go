@@ -124,7 +124,7 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 //TODO break this function up
 //nolint: gocyclo
 func (h *HTTP) parseRequest(
-	ctx context.Context, method string, reqURL goja.Value, body interface***REMOVED******REMOVED***, params goja.Value,
+	ctx context.Context, method string, reqURL, body interface***REMOVED******REMOVED***, params goja.Value,
 ) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
 	rt := common.GetRuntime(ctx)
 	state := lib.GetState(ctx)
@@ -132,7 +132,10 @@ func (h *HTTP) parseRequest(
 		return nil, ErrHTTPForbiddenInInitContext
 	***REMOVED***
 
-	u, err := httpext.ToURL(reqURL.Export())
+	if urlJSValue, ok := reqURL.(goja.Value); ok ***REMOVED***
+		reqURL = urlJSValue.Export()
+	***REMOVED***
+	u, err := httpext.ToURL(reqURL)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -480,11 +483,11 @@ func (h *HTTP) parseBatchRequest(
 	ctx context.Context, key interface***REMOVED******REMOVED***, val interface***REMOVED******REMOVED***,
 ) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
 	var (
-		method         = HTTP_METHOD_GET
-		ok             bool
-		body           interface***REMOVED******REMOVED***
-		reqURL, params goja.Value
-		rt             = common.GetRuntime(ctx)
+		method       = HTTP_METHOD_GET
+		ok           bool
+		body, reqURL interface***REMOVED******REMOVED***
+		params       goja.Value
+		rt           = common.GetRuntime(ctx)
 	)
 
 	switch data := val.(type) ***REMOVED***
@@ -498,7 +501,7 @@ func (h *HTTP) parseBatchRequest(
 		if !ok ***REMOVED***
 			return nil, fmt.Errorf("invalid method type '%#v'", data[0])
 		***REMOVED***
-		reqURL = rt.ToValue(data[1])
+		reqURL = data[1]
 		if dataLen > 2 ***REMOVED***
 			body = data[2]
 		***REMOVED***
@@ -512,7 +515,7 @@ func (h *HTTP) parseBatchRequest(
 			return nil, fmt.Errorf("batch request %v doesn't have a url key", key)
 		***REMOVED***
 
-		reqURL = rt.ToValue(data["url"])
+		reqURL = data["url"]
 		body = data["body"] // It's fine if it's missing, the map lookup will return
 
 		if newMethod, ok := data["method"]; ok ***REMOVED***
@@ -528,8 +531,8 @@ func (h *HTTP) parseBatchRequest(
 		if p, ok := data["params"]; ok ***REMOVED***
 			params = rt.ToValue(p)
 		***REMOVED***
-	case string, httpext.URL:
-		reqURL = rt.ToValue(data)
+	default:
+		reqURL = val
 	***REMOVED***
 
 	return h.parseRequest(ctx, method, reqURL, body, params)
