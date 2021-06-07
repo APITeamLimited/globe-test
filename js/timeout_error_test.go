@@ -18,7 +18,7 @@
  *
  */
 
-package lib
+package js
 
 import (
 	"strings"
@@ -29,6 +29,7 @@ import (
 )
 
 func TestTimeoutError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tests := []struct ***REMOVED***
 		stage, expectedStrContain string
 		d                         time.Duration
@@ -39,14 +40,15 @@ func TestTimeoutError(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
-		te := NewTimeoutError(tc.stage, tc.d)
-		if !strings.Contains(te.String(), tc.expectedStrContain) ***REMOVED***
-			t.Errorf("Expected error contains %s, but got: %s", tc.expectedStrContain, te.String())
+		te := newTimeoutError(tc.stage, tc.d)
+		if !strings.Contains(te.Error(), tc.expectedStrContain) ***REMOVED***
+			t.Errorf("Expected error contains %s, but got: %s", tc.expectedStrContain, te.Error())
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
 func TestTimeoutErrorHint(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tests := []struct ***REMOVED***
 		stage string
 		empty bool
@@ -57,7 +59,7 @@ func TestTimeoutErrorHint(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	for _, tc := range tests ***REMOVED***
-		te := NewTimeoutError(tc.stage, time.Second)
+		te := newTimeoutError(tc.stage, time.Second)
 		if tc.empty && te.Hint() != "" ***REMOVED***
 			t.Errorf("Expected empty hint, got: %s", te.Hint())
 		***REMOVED***

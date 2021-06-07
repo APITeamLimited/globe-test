@@ -43,6 +43,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 
+	"go.k6.io/k6/errext"
+	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/consts"
@@ -371,7 +373,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 			return nil, err
 		***REMOVED***
 		// otherwise we have timeouted
-		return nil, lib.NewTimeoutError(consts.HandleSummaryFn, r.getTimeoutFor(consts.HandleSummaryFn))
+		return nil, newTimeoutError(consts.HandleSummaryFn, r.getTimeoutFor(consts.HandleSummaryFn))
 	***REMOVED***
 
 	if err != nil ***REMOVED***
@@ -502,7 +504,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 			return v, err
 		***REMOVED***
 		// otherwise we have timeouted
-		return v, lib.NewTimeoutError(name, r.getTimeoutFor(name))
+		return v, newTimeoutError(name, r.getTimeoutFor(name))
 	***REMOVED***
 	return v, err
 ***REMOVED***
@@ -739,7 +741,7 @@ type scriptException struct ***REMOVED***
 	inner *goja.Exception
 ***REMOVED***
 
-var _ types.ScriptException = &scriptException***REMOVED******REMOVED***
+var _ errext.Exception = &scriptException***REMOVED******REMOVED***
 
 func (s *scriptException) Error() string ***REMOVED***
 	// this calls String instead of error so that by default if it's printed to print the stacktrace
@@ -752,4 +754,12 @@ func (s *scriptException) StackTrace() string ***REMOVED***
 
 func (s *scriptException) Unwrap() error ***REMOVED***
 	return s.inner
+***REMOVED***
+
+func (s *scriptException) Hint() string ***REMOVED***
+	return "script exception"
+***REMOVED***
+
+func (s *scriptException) ExitCode() errext.ExitCode ***REMOVED***
+	return exitcodes.ScriptException
 ***REMOVED***

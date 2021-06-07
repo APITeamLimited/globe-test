@@ -22,6 +22,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,6 +39,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"go.k6.io/k6/errext"
 	"go.k6.io/k6/lib/consts"
 	"go.k6.io/k6/log"
 )
@@ -178,23 +180,37 @@ func Execute() ***REMOVED***
 	)
 
 	if err := c.cmd.Execute(); err != nil ***REMOVED***
-		fields := logrus.Fields***REMOVED******REMOVED***
-		code := -1
-		if e, ok := err.(ExitCode); ok ***REMOVED***
-			code = e.Code
-			if e.Hint != "" ***REMOVED***
-				fields["hint"] = e.Hint
-			***REMOVED***
+		exitCode := -1
+		var ecerr errext.HasExitCode
+		if errors.As(err, &ecerr) ***REMOVED***
+			exitCode = int(ecerr.ExitCode())
 		***REMOVED***
 
-		logger.WithFields(fields).Error(err)
+		hint := ""
+		var herr errext.HasHint
+		if errors.As(err, &herr) ***REMOVED***
+			hint = herr.Hint()
+		***REMOVED***
+
+		errText := err.Error()
+		var xerr errext.Exception
+		if errors.As(err, &xerr) ***REMOVED***
+			errText = xerr.StackTrace()
+		***REMOVED***
+
+		fields := logrus.Fields***REMOVED******REMOVED***
+		if hint != "" ***REMOVED***
+			fields["hint"] = hint
+		***REMOVED***
+
+		logger.WithFields(fields).Error(errText)
 		if c.loggerIsRemote ***REMOVED***
-			fallbackLogger.WithFields(fields).Error(err)
+			fallbackLogger.WithFields(fields).Error(errText)
 			cancel()
 			c.waitRemoteLogger()
 		***REMOVED***
 
-		os.Exit(code)
+		os.Exit(exitCode) //nolint:gocritic
 	***REMOVED***
 
 	cancel()

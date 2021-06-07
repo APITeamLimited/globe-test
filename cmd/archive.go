@@ -80,8 +80,9 @@ An archive is a fully self-contained test run, and can be executed identically e
 				return err
 			***REMOVED***
 
-			if _, cerr := deriveAndValidateConfig(conf, r.IsExecutable); cerr != nil ***REMOVED***
-				return ExitCode***REMOVED***error: cerr, Code: invalidConfigErrorCode***REMOVED***
+			_, err = deriveAndValidateConfig(conf, r.IsExecutable)
+			if err != nil ***REMOVED***
+				return err
 			***REMOVED***
 
 			err = r.SetOptions(conf.Options)

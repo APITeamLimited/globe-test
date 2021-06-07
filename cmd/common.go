@@ -44,14 +44,6 @@ func must(err error) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// ExitCode wraps the error with an exit code.
-// Hint is used to show details information about underlying error.
-type ExitCode struct ***REMOVED***
-	error
-	Code int
-	Hint string
-***REMOVED***
-
 //TODO: refactor the CLI config so these functions aren't needed - they
 // can mask errors by failing only at runtime, not at compile time
 func getNullBool(flags *pflag.FlagSet, key string) null.Bool ***REMOVED***
