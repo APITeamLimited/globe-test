@@ -741,7 +741,11 @@ type scriptException struct ***REMOVED***
 	inner *goja.Exception
 ***REMOVED***
 
-var _ errext.Exception = &scriptException***REMOVED******REMOVED***
+var (
+	_ errext.Exception   = &scriptException***REMOVED******REMOVED***
+	_ errext.HasExitCode = &scriptException***REMOVED******REMOVED***
+	_ errext.HasHint     = &scriptException***REMOVED******REMOVED***
+)
 
 func (s *scriptException) Error() string ***REMOVED***
 	// this calls String instead of error so that by default if it's printed to print the stacktrace

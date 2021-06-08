@@ -248,7 +248,7 @@ a commandline interface for interacting with it.`,
 			engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
 			if err != nil ***REMOVED***
 				// Add a generic engine exit code if we don't have a more specific one
-				return errext.WithExitCode(err, exitcodes.GenericEngine)
+				return errext.WithExitCodeIfNone(err, exitcodes.GenericEngine)
 			***REMOVED***
 
 			// Init has passed successfully, so unless disabled, make sure we send a
@@ -271,7 +271,7 @@ a commandline interface for interacting with it.`,
 			// Start the test run
 			initBar.Modify(pb.WithConstProgress(0, "Starting test..."))
 			if err := engineRun(); err != nil ***REMOVED***
-				return errext.WithExitCode(err, exitcodes.GenericEngine)
+				return errext.WithExitCodeIfNone(err, exitcodes.GenericEngine)
 			***REMOVED***
 			runCancel()
 			logger.Debug("Engine run terminated cleanly")
@@ -321,7 +321,7 @@ a commandline interface for interacting with it.`,
 			engineWait()
 			logger.Debug("Everything has finished, exiting k6!")
 			if engine.IsTainted() ***REMOVED***
-				return errext.WithExitCode(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed)
+				return errext.WithExitCodeIfNone(errors.New("some thresholds have failed"), exitcodes.ThresholdsHaveFailed)
 			***REMOVED***
 			return nil
 		***REMOVED***,
