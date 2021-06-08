@@ -572,6 +572,79 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
+	t.Run("InvalidURL", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
+		expErr := `invalid URL: parse "https:// test.k6.io": invalid character " " in host name`
+		t.Run("throw=true", func(t *testing.T) ***REMOVED***
+			js := `
+				http.request("GET", "https:// test.k6.io");
+				throw new Error("whoops!"); // shouldn't be reached
+			`
+			_, err := rt.RunString(js)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), expErr)
+		***REMOVED***)
+
+		t.Run("throw=false", func(t *testing.T) ***REMOVED***
+			state.Options.Throw.Bool = false
+			defer func() ***REMOVED*** state.Options.Throw.Bool = true ***REMOVED***()
+
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			js := `
+				(function()***REMOVED***
+					var r = http.request("GET", "https:// test.k6.io");
+	                return ***REMOVED***error: r.error, error_code: r.error_code***REMOVED***;
+				***REMOVED***)()
+			`
+			ret, err := rt.RunString(js)
+			require.NoError(t, err)
+			require.NotNil(t, ret)
+			var retobj map[string]interface***REMOVED******REMOVED***
+			var ok bool
+			if retobj, ok = ret.Export().(map[string]interface***REMOVED******REMOVED***); !ok ***REMOVED***
+				require.Fail(t, "got wrong return object: %#+v", retobj)
+			***REMOVED***
+			require.Equal(t, int64(1020), retobj["error_code"])
+			require.Equal(t, expErr, retobj["error"])
+
+			logEntry := hook.LastEntry()
+			require.NotNil(t, logEntry)
+			assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+			assert.Contains(t, logEntry.Data["error"].(error).Error(), expErr)
+			assert.Equal(t, "Request Failed", logEntry.Message)
+		***REMOVED***)
+
+		t.Run("throw=false,nopanic", func(t *testing.T) ***REMOVED***
+			state.Options.Throw.Bool = false
+			defer func() ***REMOVED*** state.Options.Throw.Bool = true ***REMOVED***()
+
+			hook := logtest.NewLocal(state.Logger)
+			defer hook.Reset()
+
+			js := `
+				(function()***REMOVED***
+					var r = http.request("GET", "https:// test.k6.io");
+					r.html();
+					r.json();
+	                return r.error_code; // not reached because of json()
+				***REMOVED***)()
+			`
+			ret, err := rt.RunString(js)
+			require.Error(t, err)
+			assert.Nil(t, ret)
+			assert.Contains(t, err.Error(), "unexpected end of JSON input")
+
+			logEntry := hook.LastEntry()
+			require.NotNil(t, logEntry)
+			assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+			assert.Contains(t, logEntry.Data["error"].(error).Error(), expErr)
+			assert.Equal(t, "Request Failed", logEntry.Message)
+		***REMOVED***)
+	***REMOVED***)
+
 	t.Run("Unroutable", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(`http.request("GET", "http://sdafsgdhfjg/");`)
 		assert.Error(t, err)
@@ -1178,8 +1251,132 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("Batch", func(t *testing.T) ***REMOVED***
 		t.Run("error", func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(`var res = http.batch("https://somevalidurl.com");`)
-			require.Error(t, err)
+			invalidURLerr := `invalid URL: parse "https:// invalidurl.com": invalid character " " in host name`
+			testCases := []struct ***REMOVED***
+				name, code, expErr string
+				throw              bool
+			***REMOVED******REMOVED***
+				***REMOVED***
+					name: "invalid arg", code: `"https://somevalidurl.com"`,
+					expErr: `invalid http.batch() argument type string`, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL short", code: `["https:// invalidurl.com"]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL short no throw", code: `["https:// invalidurl.com"]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL array", code: `[ ["GET", "https:// invalidurl.com"] ]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL array no throw", code: `[ ["GET", "https:// invalidurl.com"] ]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid URL object", code: `[ ***REMOVED***method: "GET", url: "https:// invalidurl.com"***REMOVED*** ]`,
+					expErr: invalidURLerr, throw: true,
+				***REMOVED***,
+				***REMOVED***
+					name: "invalid object no throw", code: `[ ***REMOVED***method: "GET", url: "https:// invalidurl.com"***REMOVED*** ]`,
+					expErr: invalidURLerr, throw: false,
+				***REMOVED***,
+				***REMOVED***
+					name: "object no url key", code: `[ ***REMOVED***method: "GET"***REMOVED*** ]`,
+					expErr: `batch request 0 doesn't have a url key`, throw: true,
+				***REMOVED***,
+			***REMOVED***
+
+			for _, tc := range testCases ***REMOVED***
+				tc := tc
+				t.Run(tc.name, func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+					oldThrow := state.Options.Throw.Bool
+					state.Options.Throw.Bool = tc.throw
+					defer func() ***REMOVED*** state.Options.Throw.Bool = oldThrow ***REMOVED***()
+
+					hook := logtest.NewLocal(state.Logger)
+					defer hook.Reset()
+
+					ret, err := rt.RunString(fmt.Sprintf(`
+						(function()***REMOVED***
+							var r = http.batch(%s);
+							if (r.length !== 1) throw new Error('unexpected responses length: '+r.length);
+							return ***REMOVED***error: r[0].error, error_code: r[0].error_code***REMOVED***;
+						***REMOVED***)()`, tc.code))
+					if tc.throw ***REMOVED***
+						require.Error(t, err)
+						assert.Contains(t, err.Error(), tc.expErr)
+						require.Nil(t, ret)
+					***REMOVED*** else ***REMOVED***
+						require.NoError(t, err)
+						require.NotNil(t, ret)
+						var retobj map[string]interface***REMOVED******REMOVED***
+						var ok bool
+						if retobj, ok = ret.Export().(map[string]interface***REMOVED******REMOVED***); !ok ***REMOVED***
+							require.Fail(t, "got wrong return object: %#+v", retobj)
+						***REMOVED***
+						require.Equal(t, int64(1020), retobj["error_code"])
+						require.Equal(t, invalidURLerr, retobj["error"])
+
+						logEntry := hook.LastEntry()
+						require.NotNil(t, logEntry)
+						assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+						assert.Contains(t, logEntry.Data["error"].(error).Error(), tc.expErr)
+						assert.Equal(t, "A batch request failed", logEntry.Message)
+					***REMOVED***
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+		t.Run("error,nopanic", func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+			invalidURLerr := `invalid URL: parse "https:// invalidurl.com": invalid character " " in host name`
+			testCases := []struct***REMOVED*** name, code string ***REMOVED******REMOVED***
+				***REMOVED***
+					name: "array", code: `[
+						["GET", "https:// invalidurl.com"],
+						["GET", "https://somevalidurl.com"],
+					]`,
+				***REMOVED***,
+				***REMOVED***
+					name: "object", code: `[
+						***REMOVED***method: "GET", url: "https:// invalidurl.com"***REMOVED***,
+						***REMOVED***method: "GET", url: "https://somevalidurl.com"***REMOVED***,
+					]`,
+				***REMOVED***,
+			***REMOVED***
+
+			for _, tc := range testCases ***REMOVED***
+				tc := tc
+				t.Run(tc.name, func(t *testing.T) ***REMOVED*** //nolint:paralleltest
+					oldThrow := state.Options.Throw.Bool
+					state.Options.Throw.Bool = false
+					defer func() ***REMOVED*** state.Options.Throw.Bool = oldThrow ***REMOVED***()
+
+					hook := logtest.NewLocal(state.Logger)
+					defer hook.Reset()
+
+					ret, err := rt.RunString(fmt.Sprintf(`
+						(function()***REMOVED***
+							var r = http.batch(%s);
+							if (r.length !== 2) throw new Error('unexpected responses length: '+r.length);
+							if (r[1] !== null) throw new Error('expected response at index 1 to be null');
+							r[0].html();
+							r[0].json();
+	            		    return r[0].error_code; // not reached because of json()
+						***REMOVED***)()
+					`, tc.code))
+					require.Error(t, err)
+					assert.Nil(t, ret)
+					assert.Contains(t, err.Error(), "unexpected end of JSON input")
+					logEntry := hook.LastEntry()
+					require.NotNil(t, logEntry)
+					assert.Equal(t, logrus.WarnLevel, logEntry.Level)
+					assert.Contains(t, logEntry.Data["error"].(error).Error(), invalidURLerr)
+					assert.Equal(t, "A batch request failed", logEntry.Message)
+				***REMOVED***)
+			***REMOVED***
 		***REMOVED***)
 		t.Run("GET", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`

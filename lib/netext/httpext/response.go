@@ -94,6 +94,14 @@ type Response struct ***REMOVED***
 	Request        Request                  `json:"request"`
 ***REMOVED***
 
+// NewResponse returns an empty Response instance.
+func NewResponse(ctx context.Context) *Response ***REMOVED***
+	return &Response***REMOVED***
+		ctx:  ctx,
+		Body: []byte***REMOVED******REMOVED***,
+	***REMOVED***
+***REMOVED***
+
 func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 	tlsInfo, oscp := netext.ParseTLSConnState(tlsState)
 	res.TLSVersion = tlsInfo.Version
