@@ -186,12 +186,6 @@ func Execute() ***REMOVED***
 			exitCode = int(ecerr.ExitCode())
 		***REMOVED***
 
-		hint := ""
-		var herr errext.HasHint
-		if errors.As(err, &herr) ***REMOVED***
-			hint = herr.Hint()
-		***REMOVED***
-
 		errText := err.Error()
 		var xerr errext.Exception
 		if errors.As(err, &xerr) ***REMOVED***
@@ -199,8 +193,9 @@ func Execute() ***REMOVED***
 		***REMOVED***
 
 		fields := logrus.Fields***REMOVED******REMOVED***
-		if hint != "" ***REMOVED***
-			fields["hint"] = hint
+		var herr errext.HasHint
+		if errors.As(err, &herr) ***REMOVED***
+			fields["hint"] = herr.Hint()
 		***REMOVED***
 
 		logger.WithFields(fields).Error(errText)
