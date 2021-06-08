@@ -23,6 +23,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -110,7 +111,13 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 			return nil, err
 		***REMOVED***
 		state.Logger.WithField("error", err).Warn("Request Failed")
-		return &Response***REMOVED***Response: httpext.NewResponse(ctx)***REMOVED***, nil
+		r := httpext.NewResponse(ctx)
+		r.Error = err.Error()
+		var k6e httpext.K6Error
+		if errors.As(err, &k6e) ***REMOVED***
+			r.ErrorCode = int(k6e.Code)
+		***REMOVED***
+		return &Response***REMOVED***Response: r***REMOVED***, nil
 	***REMOVED***
 
 	resp, err := httpext.MakeRequest(ctx, req)
@@ -392,16 +399,22 @@ func (h *HTTP) prepareBatchArray(
 	results := make([]*Response, reqCount)
 
 	for i, req := range requests ***REMOVED***
+		resp := httpext.NewResponse(ctx)
 		parsedReq, err := h.parseBatchRequest(ctx, i, req)
 		if err != nil ***REMOVED***
-			return nil, nil, err
+			resp.Error = err.Error()
+			var k6e httpext.K6Error
+			if errors.As(err, &k6e) ***REMOVED***
+				resp.ErrorCode = int(k6e.Code)
+			***REMOVED***
+			results[i] = h.responseFromHttpext(resp)
+			return batchReqs, results, err
 		***REMOVED***
-		response := new(httpext.Response)
 		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
 			ParsedHTTPRequest: parsedReq,
-			Response:          response,
+			Response:          resp,
 		***REMOVED***
-		results[i] = h.responseFromHttpext(response)
+		results[i] = h.responseFromHttpext(resp)
 	***REMOVED***
 
 	return batchReqs, results, nil
@@ -416,16 +429,22 @@ func (h *HTTP) prepareBatchObject(
 
 	i := 0
 	for key, req := range requests ***REMOVED***
+		resp := httpext.NewResponse(ctx)
 		parsedReq, err := h.parseBatchRequest(ctx, key, req)
 		if err != nil ***REMOVED***
-			return nil, nil, err
+			resp.Error = err.Error()
+			var k6e httpext.K6Error
+			if errors.As(err, &k6e) ***REMOVED***
+				resp.ErrorCode = int(k6e.Code)
+			***REMOVED***
+			results[key] = h.responseFromHttpext(resp)
+			return batchReqs, results, err
 		***REMOVED***
-		response := new(httpext.Response)
 		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
 			ParsedHTTPRequest: parsedReq,
-			Response:          response,
+			Response:          resp,
 		***REMOVED***
-		results[key] = h.responseFromHttpext(response)
+		results[key] = h.responseFromHttpext(resp)
 		i++
 	***REMOVED***
 
