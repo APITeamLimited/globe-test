@@ -171,7 +171,6 @@ func (carc ConstantArrivalRateConfig) NewExecutor(
 	return &ConstantArrivalRate***REMOVED***
 		BaseExecutor: NewBaseExecutor(&carc, es, logger),
 		config:       carc,
-		iterMx:       &sync.Mutex***REMOVED******REMOVED***,
 	***REMOVED***, nil
 ***REMOVED***
 
@@ -186,7 +185,6 @@ type ConstantArrivalRate struct ***REMOVED***
 	*BaseExecutor
 	config ConstantArrivalRateConfig
 	et     *lib.ExecutionTuple
-	iterMx *sync.Mutex
 	segIdx *lib.SegmentedIndex
 ***REMOVED***
 
@@ -210,11 +208,9 @@ func (car *ConstantArrivalRate) Init(ctx context.Context) error ***REMOVED***
 // Unlike the local iteration number returned by getNextLocalIter(), this
 // iteration number will be unique across k6 instances.
 func (car *ConstantArrivalRate) getNextGlobalIter() uint64 ***REMOVED***
-	car.iterMx.Lock()
-	defer car.iterMx.Unlock()
-	car.segIdx.Next()
+	res := car.segIdx.Next()
 	// iterations are 0-based
-	return uint64(car.segIdx.GetUnscaled() - 1)
+	return uint64(res.Unscaled - 1)
 ***REMOVED***
 
 // Run executes a constant number of iterations per second.
