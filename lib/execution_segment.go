@@ -741,8 +741,9 @@ type SegmentedIndex struct ***REMOVED***
 ***REMOVED***
 
 // NewSegmentedIndex returns a pointer to a new SegmentedIndex instance,
-// given a starting index, LCD and offsets as returned by GetStripedOffsets().
-func NewSegmentedIndex(start, lcd int64, offsets []int64) *SegmentedIndex ***REMOVED***
+// given an ExecutionTuple.
+func NewSegmentedIndex(et *ExecutionTuple) *SegmentedIndex ***REMOVED***
+	start, offsets, lcd := et.GetStripedOffsets()
 	return &SegmentedIndex***REMOVED***start: start, lcd: lcd, offsets: offsets***REMOVED***
 ***REMOVED***
 
