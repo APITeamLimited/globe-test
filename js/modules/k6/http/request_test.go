@@ -1226,10 +1226,14 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 			t.Run("object", func(t *testing.T) ***REMOVED***
 				_, err := rt.RunString(fmt.Sprintf(sr(`
-				var res = http.%s("HTTPBIN_URL/%s", ***REMOVED***a: "a", b: 2***REMOVED***);
+				var equalArray = function(a, b) ***REMOVED***
+					return a.length === b.length && a.every(function(v, i) ***REMOVED*** return v === b[i]***REMOVED***);
+				***REMOVED***
+				var res = http.%s("HTTPBIN_URL/%s", ***REMOVED***a: "a", b: 2, c: ["one", "two"]***REMOVED***);
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				if (res.json().form.a != "a") ***REMOVED*** throw new Error("wrong a=: " + res.json().form.a); ***REMOVED***
 				if (res.json().form.b != "2") ***REMOVED*** throw new Error("wrong b=: " + res.json().form.b); ***REMOVED***
+				if (!equalArray(res.json().form.c, ["one", "two"])) ***REMOVED*** throw new Error("wrong c: " + res.json().form.c); ***REMOVED***
 				if (res.json().headers["Content-Type"] != "application/x-www-form-urlencoded") ***REMOVED*** throw new Error("wrong content type: " + res.json().headers["Content-Type"]); ***REMOVED***
 				`), fn, strings.ToLower(method)))
 				assert.NoError(t, err)
