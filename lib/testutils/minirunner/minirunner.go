@@ -150,9 +150,7 @@ type ActiveVU struct ***REMOVED***
 	busy chan struct***REMOVED******REMOVED***
 
 	scenarioName              string
-	iterSync                  chan struct***REMOVED******REMOVED***
-	getNextScLocalIter        func() uint64
-	getNextScGlobalIter       func() uint64
+	getNextIterations         func() (uint64, uint64)
 	scIterLocal, scIterGlobal uint64
 ***REMOVED***
 
@@ -177,15 +175,13 @@ func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED**
 	***REMOVED***
 
 	avu := &ActiveVU***REMOVED***
-		VU:                  vu,
-		VUActivationParams:  params,
-		busy:                make(chan struct***REMOVED******REMOVED***, 1),
-		scenarioName:        params.Scenario,
-		iterSync:            params.IterSync,
-		scIterLocal:         ^uint64(0),
-		scIterGlobal:        ^uint64(0),
-		getNextScLocalIter:  params.GetNextScLocalIter,
-		getNextScGlobalIter: params.GetNextScGlobalIter,
+		VU:                 vu,
+		VUActivationParams: params,
+		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+		scenarioName:       params.Scenario,
+		scIterLocal:        ^uint64(0),
+		scIterGlobal:       ^uint64(0),
+		getNextIterations:  params.GetNextIterationCounters,
 	***REMOVED***
 
 	vu.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
@@ -214,25 +210,12 @@ func (vu *ActiveVU) incrIteration() ***REMOVED***
 	vu.Iteration++
 	vu.state.Iteration = vu.Iteration
 
-	if vu.iterSync != nil ***REMOVED***
-		// block other VUs from incrementing scenario iterations
-		vu.iterSync <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-		defer func() ***REMOVED***
-			<-vu.iterSync // unlock
-		***REMOVED***()
-	***REMOVED***
-
 	if _, ok := vu.scenarioIter[vu.scenarioName]; ok ***REMOVED***
 		vu.scenarioIter[vu.scenarioName]++
 	***REMOVED*** else ***REMOVED***
 		vu.scenarioIter[vu.scenarioName] = 0
 	***REMOVED***
-	if vu.getNextScLocalIter != nil ***REMOVED***
-		vu.scIterLocal = vu.getNextScLocalIter()
-	***REMOVED***
-	if vu.getNextScGlobalIter != nil ***REMOVED***
-		vu.scIterGlobal = vu.getNextScGlobalIter()
-	***REMOVED***
+	vu.scIterLocal, vu.scIterGlobal = vu.getNextIterations()
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.

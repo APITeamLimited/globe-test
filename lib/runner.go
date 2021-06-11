@@ -51,14 +51,12 @@ type InitializedVU interface ***REMOVED***
 // VUActivationParams are supplied by each executor when it retrieves a VU from
 // the buffer pool and activates it for use.
 type VUActivationParams struct ***REMOVED***
-	RunContext          context.Context
-	DeactivateCallback  func(InitializedVU)
-	Env, Tags           map[string]string
-	Exec, Scenario      string
-	GetNextScVUID       func() uint64
-	IterSync            chan struct***REMOVED******REMOVED***
-	GetNextScLocalIter  func() uint64
-	GetNextScGlobalIter func() uint64
+	RunContext               context.Context
+	DeactivateCallback       func(InitializedVU)
+	Env, Tags                map[string]string
+	Exec, Scenario           string
+	GetNextScVUID            func() uint64
+	GetNextIterationCounters func() (uint64, uint64)
 ***REMOVED***
 
 // A Runner is a factory for VUs. It should precompute as much as possible upon

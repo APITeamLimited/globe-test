@@ -562,16 +562,8 @@ type ActiveVU struct ***REMOVED***
 	*lib.VUActivationParams
 	busy chan struct***REMOVED******REMOVED***
 
-	scenarioName string
-	// Used to synchronize iteration increments for scenarios between VUs.
-	iterSync chan struct***REMOVED******REMOVED***
-	// Returns the iteration number across all VUs in the current scenario
-	// unique to this single k6 instance.
-	getNextScLocalIter func() uint64
-	// Returns the iteration number across all VUs in the current scenario
-	// unique globally across k6 instances (taking into account execution
-	// segments).
-	getNextScGlobalIter       func() uint64
+	scenarioName              string
+	getNextIterationCounters  func() (uint64, uint64)
 	scIterLocal, scIterGlobal uint64
 ***REMOVED***
 
@@ -633,24 +625,20 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	***REMOVED***
 
 	avu := &ActiveVU***REMOVED***
-		VU:                  u,
-		VUActivationParams:  params,
-		busy:                make(chan struct***REMOVED******REMOVED***, 1),
-		scenarioName:        params.Scenario,
-		iterSync:            params.IterSync,
-		scIterLocal:         ^uint64(0),
-		scIterGlobal:        ^uint64(0),
-		getNextScLocalIter:  params.GetNextScLocalIter,
-		getNextScGlobalIter: params.GetNextScGlobalIter,
+		VU:                       u,
+		VUActivationParams:       params,
+		busy:                     make(chan struct***REMOVED******REMOVED***, 1),
+		scenarioName:             params.Scenario,
+		scIterLocal:              ^uint64(0),
+		scIterGlobal:             ^uint64(0),
+		getNextIterationCounters: params.GetNextIterationCounters,
 	***REMOVED***
 
 	u.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
 		return avu.scIterLocal
 	***REMOVED***
-	if params.GetNextScGlobalIter != nil ***REMOVED***
-		u.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
-			return avu.scIterGlobal
-		***REMOVED***
+	u.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
+		return avu.scIterGlobal
 	***REMOVED***
 
 	go func() ***REMOVED***
@@ -784,24 +772,14 @@ func (u *ActiveVU) incrIteration() ***REMOVED***
 	u.iteration++
 	u.state.Iteration = u.iteration
 
-	if u.iterSync != nil ***REMOVED***
-		// block other VUs from incrementing scenario iterations
-		u.iterSync <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-		defer func() ***REMOVED***
-			<-u.iterSync // unlock
-		***REMOVED***()
-	***REMOVED***
-
 	if _, ok := u.scenarioIter[u.scenarioName]; ok ***REMOVED***
 		u.scenarioIter[u.scenarioName]++
 	***REMOVED*** else ***REMOVED***
 		u.scenarioIter[u.scenarioName] = 0
 	***REMOVED***
-	if u.getNextScLocalIter != nil ***REMOVED***
-		u.scIterLocal = u.getNextScLocalIter()
-	***REMOVED***
-	if u.getNextScGlobalIter != nil ***REMOVED***
-		u.scIterGlobal = u.getNextScGlobalIter()
+	// TODO remove this
+	if u.getNextIterationCounters != nil ***REMOVED***
+		u.scIterLocal, u.scIterGlobal = u.getNextIterationCounters()
 	***REMOVED***
 ***REMOVED***
 

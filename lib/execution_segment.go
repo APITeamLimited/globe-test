@@ -26,7 +26,6 @@ import (
 	"math/big"
 	"sort"
 	"strings"
-	"sync"
 )
 
 // ExecutionSegment represents a (start, end] partition of the total execution
@@ -738,14 +737,7 @@ func (et *ExecutionTuple) GetNewExecutionTupleFromValue(value int64) (*Execution
 type SegmentedIndex struct ***REMOVED***
 	start, lcd       int64
 	offsets          []int64
-	mx               sync.Mutex
 	scaled, unscaled int64 // for both the first element(vu) is 1 not 0
-***REMOVED***
-
-// SegmentedIndexResult holds the new index values after being changed by
-// Next(), Prev() or GoTo().
-type SegmentedIndexResult struct ***REMOVED***
-	Scaled, Unscaled int64
 ***REMOVED***
 
 // NewSegmentedIndex returns a pointer to a new SegmentedIndex instance,
@@ -755,9 +747,7 @@ func NewSegmentedIndex(start, lcd int64, offsets []int64) *SegmentedIndex ***REM
 ***REMOVED***
 
 // Next goes to the next scaled index and moves the unscaled one accordingly.
-func (s *SegmentedIndex) Next() SegmentedIndexResult ***REMOVED***
-	s.mx.Lock()
-	defer s.mx.Unlock()
+func (s *SegmentedIndex) Next() (int64, int64) ***REMOVED***
 	if s.scaled == 0 ***REMOVED*** // the 1 element(VU) is at the start
 		s.unscaled += s.start + 1 // the first element of the start 0, but the here we need it to be 1 so we add 1
 	***REMOVED*** else ***REMOVED*** // if we are not at the first element we need to go through the offsets, looping over them
@@ -765,14 +755,12 @@ func (s *SegmentedIndex) Next() SegmentedIndexResult ***REMOVED***
 	***REMOVED***
 	s.scaled++
 
-	return SegmentedIndexResult***REMOVED***Scaled: s.scaled, Unscaled: s.unscaled***REMOVED***
+	return s.scaled, s.unscaled
 ***REMOVED***
 
 // Prev goes to the previous scaled value and sets the unscaled one accordingly.
 // Calling Prev when s.scaled == 0 is undefined.
-func (s *SegmentedIndex) Prev() SegmentedIndexResult ***REMOVED***
-	s.mx.Lock()
-	defer s.mx.Unlock()
+func (s *SegmentedIndex) Prev() (int64, int64) ***REMOVED***
 	if s.scaled == 1 ***REMOVED*** // we are the first need to go to the 0th element which means we need to remove the start
 		s.unscaled -= s.start + 1 // this could've been just settign to 0
 	***REMOVED*** else ***REMOVED*** // not at the first element - need to get the previously added offset so
@@ -780,14 +768,12 @@ func (s *SegmentedIndex) Prev() SegmentedIndexResult ***REMOVED***
 	***REMOVED***
 	s.scaled--
 
-	return SegmentedIndexResult***REMOVED***Scaled: s.scaled, Unscaled: s.unscaled***REMOVED***
+	return s.scaled, s.unscaled
 ***REMOVED***
 
 // GoTo sets the scaled index to its biggest value for which the corresponding
 // unscaled index is smaller or equal to value.
-func (s *SegmentedIndex) GoTo(value int64) SegmentedIndexResult ***REMOVED*** // TODO optimize
-	s.mx.Lock()
-	defer s.mx.Unlock()
+func (s *SegmentedIndex) GoTo(value int64) (int64, int64) ***REMOVED*** // TODO optimize
 	var gi int64
 	// Because of the cyclical nature of the striping algorithm (with a cycle
 	// length of LCD, the least common denominator), when scaling large values
@@ -820,5 +806,5 @@ func (s *SegmentedIndex) GoTo(value int64) SegmentedIndexResult ***REMOVED*** //
 		s.unscaled = 0 // we would've added the start and 1
 	***REMOVED***
 
-	return SegmentedIndexResult***REMOVED***Scaled: s.scaled, Unscaled: s.unscaled***REMOVED***
+	return s.scaled, s.unscaled
 ***REMOVED***
