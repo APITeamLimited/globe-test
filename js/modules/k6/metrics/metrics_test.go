@@ -169,3 +169,9 @@ func TestMetricNames(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
+
+func TestMetricGetName(t *testing.T) ***REMOVED***
+	t.Parallel()
+	metric := Metric***REMOVED***metric: &stats.Metric***REMOVED***Name: "myMetricName"***REMOVED******REMOVED***
+	assert.Equal(t, "myMetricName", metric.GetName())
+***REMOVED***

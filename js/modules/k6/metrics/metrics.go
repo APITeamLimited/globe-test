@@ -91,6 +91,11 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 	return true, nil
 ***REMOVED***
 
+// GetName returns the metric name
+func (m Metric) GetName() string ***REMOVED***
+	return m.metric.Name
+***REMOVED***
+
 type Metrics struct***REMOVED******REMOVED***
 
 func New() *Metrics ***REMOVED***
