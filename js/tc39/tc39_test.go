@@ -268,7 +268,7 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 	if strict ***REMOVED***
 		src = "'use strict';\n" + src
 	***REMOVED***
-	early, err := ctx.runTC39Script(name, src, meta.Includes, vm)
+	early, origErr, err := ctx.runTC39Script(name, src, meta.Includes, vm)
 
 	if err == nil ***REMOVED***
 		if meta.Negative.Type != "" ***REMOVED***
@@ -295,37 +295,12 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 		failf("%s: error %v happened at the wrong phase (expected %s)", name, err, meta.Negative.Phase)
 		return
 	***REMOVED***
-	var errType string
+	errType := getErrType(name, err, failf)
 
-	switch err := err.(type) ***REMOVED***
-	case *goja.Exception:
-		if o, ok := err.Value().(*goja.Object); ok ***REMOVED*** //nolint:nestif
-			if c := o.Get("constructor"); c != nil ***REMOVED***
-				if c, ok := c.(*goja.Object); ok ***REMOVED***
-					errType = c.Get("name").String()
-				***REMOVED*** else ***REMOVED***
-					failf("%s: error constructor is not an object (%v)", name, o)
-					return
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				failf("%s: error does not have a constructor (%v)", name, o)
-				return
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			failf("%s: error is not an object (%v)", name, err.Value())
+	if errType != "" && errType != meta.Negative.Type ***REMOVED***
+		if meta.Negative.Type == "SyntaxError" && origErr != nil && getErrType(name, origErr, failf) == meta.Negative.Type ***REMOVED***
 			return
 		***REMOVED***
-	case *goja.CompilerSyntaxError, *parser.Error, parser.ErrorList:
-		errType = "SyntaxError"
-	case *goja.CompilerReferenceError:
-		errType = "ReferenceError"
-	default:
-		failf("%s: error is not a JS error: %v", name, err)
-		return
-	***REMOVED***
-
-	_ = errType
-	if errType != meta.Negative.Type ***REMOVED***
 		// vm.vm.prg.dumpCode(t.Logf)
 		failf("%s: unexpected error type (%s), expected (%s)", name, errType, meta.Negative.Type)
 		return
@@ -340,6 +315,35 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 			t.Fatalf("iter stack is not empty: %d", l)
 		***REMOVED***
 	*/
+***REMOVED***
+
+func getErrType(name string, err error, failf func(str string, args ...interface***REMOVED******REMOVED***)) string ***REMOVED***
+	switch err := err.(type) ***REMOVED***
+	case *goja.Exception:
+		if o, ok := err.Value().(*goja.Object); ok ***REMOVED*** //nolint:nestif
+			if c := o.Get("constructor"); c != nil ***REMOVED***
+				if c, ok := c.(*goja.Object); ok ***REMOVED***
+					return c.Get("name").String()
+				***REMOVED*** else ***REMOVED***
+					failf("%s: error constructor is not an object (%v)", name, o)
+					return ""
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				failf("%s: error does not have a constructor (%v)", name, o)
+				return ""
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			failf("%s: error is not an object (%v)", name, err.Value())
+			return ""
+		***REMOVED***
+	case *goja.CompilerSyntaxError, *parser.Error, parser.ErrorList:
+		return "SyntaxError"
+	case *goja.CompilerReferenceError:
+		return "ReferenceError"
+	default:
+		failf("%s: error is not a JS error: %v", name, err)
+		return ""
+	***REMOVED***
 ***REMOVED***
 
 func shouldBeSkipped(t testing.TB, meta *tc39Meta) ***REMOVED***
@@ -455,7 +459,7 @@ func (ctx *tc39TestCtx) runFile(base, name string, vm *goja.Runtime) error ***RE
 	return err
 ***REMOVED***
 
-func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *goja.Runtime) (early bool, err error) ***REMOVED***
+func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *goja.Runtime) (early bool, origErr, err error) ***REMOVED***
 	early = true
 	err = ctx.runFile(ctx.base, path.Join("harness", "assert.js"), vm)
 	if err != nil ***REMOVED***
@@ -475,7 +479,15 @@ func (ctx *tc39TestCtx) runTC39Script(name, src string, includes []string, vm *g
 	***REMOVED***
 
 	var p *goja.Program
-	p, _, err = ctx.compiler.Compile(src, name, "", "", false, lib.CompatibilityModeExtended)
+	p, _, origErr = ctx.compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
+	if origErr != nil ***REMOVED***
+		src, _, err = ctx.compiler.Transform(src, name)
+		if err == nil ***REMOVED***
+			p, _, err = ctx.compiler.Compile(src, name, "", "", false, lib.CompatibilityModeBase)
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		err = origErr
+	***REMOVED***
 
 	if err != nil ***REMOVED***
 		return
