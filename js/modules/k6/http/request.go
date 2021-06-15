@@ -177,6 +177,12 @@ func (h *HTTP) parseRequest(
 		if !requestContainsFile(data) ***REMOVED***
 			bodyQuery := make(url.Values, len(data))
 			for k, v := range data ***REMOVED***
+				if arr, ok := v.([]interface***REMOVED******REMOVED***); ok ***REMOVED***
+					for _, el := range arr ***REMOVED***
+						bodyQuery.Add(k, formatFormVal(el))
+					***REMOVED***
+					continue
+				***REMOVED***
 				bodyQuery.Set(k, formatFormVal(v))
 			***REMOVED***
 			result.Body = bytes.NewBufferString(bodyQuery.Encode())
