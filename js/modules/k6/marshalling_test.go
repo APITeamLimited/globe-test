@@ -136,7 +136,7 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 	if !assert.NoError(t, runner.Setup(context.Background(), samples)) ***REMOVED***
 		return
 	***REMOVED***
-	initVU, err := runner.NewVU(1, samples)
+	initVU, err := runner.NewVU(1, 1, samples)
 	if assert.NoError(t, err) ***REMOVED***
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

@@ -62,7 +62,7 @@ func BenchmarkHTTPRequests(b *testing.B) ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
-	initVU, err := r.NewVU(1, ch)
+	initVU, err := r.NewVU(1, 1, ch)
 	if !assert.NoError(b, err) ***REMOVED***
 		return
 	***REMOVED***
@@ -105,7 +105,7 @@ func BenchmarkHTTPRequestsBase(b *testing.B) ***REMOVED***
 		for range ch ***REMOVED***
 		***REMOVED***
 	***REMOVED***()
-	initVU, err := r.NewVU(1, ch)
+	initVU, err := r.NewVU(1, 1, ch)
 	if !assert.NoError(b, err) ***REMOVED***
 		return
 	***REMOVED***

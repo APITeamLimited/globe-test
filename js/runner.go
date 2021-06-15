@@ -126,8 +126,8 @@ func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(id uint64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
-	vu, err := r.newVU(id, samplesOut)
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
+	vu, err := r.newVU(idLocal, idGlobal, samplesOut)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -135,9 +135,9 @@ func (r *Runner) NewVU(id uint64, samplesOut chan<- stats.SampleContainer) (lib.
 ***REMOVED***
 
 // nolint:funlen
-func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	bi, err := r.Bundle.Instantiate(r.Logger, id)
+	bi, err := r.Bundle.Instantiate(r.Logger, idLocal)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -175,8 +175,8 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 	***REMOVED***
 	if r.Bundle.Options.LocalIPs.Valid ***REMOVED***
 		var ipIndex uint64
-		if id > 0 ***REMOVED***
-			ipIndex = uint64(id - 1)
+		if idLocal > 0 ***REMOVED***
+			ipIndex = idLocal - 1
 		***REMOVED***
 		dialer.Dialer.LocalAddr = &net.TCPAddr***REMOVED***IP: r.Bundle.Options.LocalIPs.Pool.GetIP(ipIndex)***REMOVED***
 	***REMOVED***
@@ -207,7 +207,8 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 	***REMOVED***
 
 	vu := &VU***REMOVED***
-		ID:             id,
+		ID:             idLocal,
+		IDGlobal:       idGlobal,
 		iteration:      int64(-1),
 		BundleInstance: *bi,
 		Runner:         r,
@@ -223,18 +224,19 @@ func (r *Runner) newVU(id uint64, samplesOut chan<- stats.SampleContainer) (*VU,
 	***REMOVED***
 
 	vu.state = &lib.State***REMOVED***
-		Logger:    vu.Runner.Logger,
-		Options:   vu.Runner.Bundle.Options,
-		Transport: vu.Transport,
-		Dialer:    vu.Dialer,
-		TLSConfig: vu.TLSConfig,
-		CookieJar: cookieJar,
-		RPSLimit:  vu.Runner.RPSLimit,
-		BPool:     vu.BPool,
-		Vu:        vu.ID,
-		Samples:   vu.Samples,
-		Tags:      vu.Runner.Bundle.Options.RunTags.CloneTags(),
-		Group:     r.defaultGroup,
+		Logger:     vu.Runner.Logger,
+		Options:    vu.Runner.Bundle.Options,
+		Transport:  vu.Transport,
+		Dialer:     vu.Dialer,
+		TLSConfig:  vu.TLSConfig,
+		CookieJar:  cookieJar,
+		RPSLimit:   vu.Runner.RPSLimit,
+		BPool:      vu.BPool,
+		VUID:       vu.ID,
+		VUIDGlobal: vu.IDGlobal,
+		Samples:    vu.Samples,
+		Tags:       vu.Runner.Bundle.Options.RunTags.CloneTags(),
+		Group:      r.defaultGroup,
 	***REMOVED***
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
@@ -325,7 +327,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		***REMOVED***
 	***REMOVED***()
 
-	vu, err := r.newVU(0, out)
+	vu, err := r.newVU(0, 0, out)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -463,7 +465,7 @@ func parseTTL(ttlS string) (time.Duration, error) ***REMOVED***
 // Runs an exported function in its own temporary VU, optionally with an argument. Execution is
 // interrupted if the context expires. No error is returned if the part does not exist.
 func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, name string, arg interface***REMOVED******REMOVED***) (goja.Value, error) ***REMOVED***
-	vu, err := r.newVU(0, out)
+	vu, err := r.newVU(0, 0, out)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
@@ -533,7 +535,8 @@ type VU struct ***REMOVED***
 	Dialer    *netext.Dialer
 	CookieJar *cookiejar.Jar
 	TLSConfig *tls.Config
-	ID        uint64
+	ID        uint64 // local to the current instance
+	IDGlobal  uint64 // global across all instances
 	iteration int64
 
 	Console *console
