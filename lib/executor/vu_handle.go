@@ -92,7 +92,6 @@ type vuHandle struct ***REMOVED***
 	parentCtx             context.Context
 	getVU                 func() (lib.InitializedVU, error)
 	returnVU              func(lib.InitializedVU)
-	getScenarioVUID       func() uint64
 	nextIterationCounters func() (uint64, uint64)
 	config                *BaseConfig
 
@@ -110,7 +109,7 @@ type vuHandle struct ***REMOVED***
 
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
-	returnVU func(lib.InitializedVU), getScenarioVUID func() uint64,
+	returnVU func(lib.InitializedVU),
 	nextIterationCounters func() (uint64, uint64),
 	config *BaseConfig, logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
@@ -120,7 +119,6 @@ func newStoppedVUHandle(
 		mutex:                 &sync.Mutex***REMOVED******REMOVED***,
 		parentCtx:             parentCtx,
 		getVU:                 getVU,
-		getScenarioVUID:       getScenarioVUID,
 		nextIterationCounters: nextIterationCounters,
 		config:                config,
 
@@ -153,8 +151,7 @@ func (vh *vuHandle) start() (err error) ***REMOVED***
 		***REMOVED***
 
 		vh.activeVU = vh.initVU.Activate(getVUActivationParams(
-			vh.ctx, *vh.config, vh.returnVU, vh.getScenarioVUID,
-			vh.nextIterationCounters))
+			vh.ctx, *vh.config, vh.returnVU, vh.nextIterationCounters))
 		close(vh.canStartIter)
 		vh.changeState(starting)
 	***REMOVED***

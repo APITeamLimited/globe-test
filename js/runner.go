@@ -219,7 +219,6 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 		Console:        r.console,
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
-		scenarioID:     make(map[string]uint64),
 		scenarioIter:   make(map[string]uint64),
 	***REMOVED***
 
@@ -547,8 +546,6 @@ type VU struct ***REMOVED***
 	setupData goja.Value
 
 	state *lib.State
-	// ID of this VU in each scenario
-	scenarioID map[string]uint64
 	// count of iterations executed by this VU in each scenario
 	scenarioIter map[string]uint64
 ***REMOVED***
@@ -616,12 +613,6 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 	ctx = lib.WithState(ctx, u.state)
 	params.RunContext = ctx
 	*u.Context = ctx
-	if params.GetNextScVUID != nil ***REMOVED***
-		if _, ok := u.scenarioID[params.Scenario]; !ok ***REMOVED***
-			u.state.VUIDScenario = params.GetNextScVUID()
-			u.scenarioID[params.Scenario] = u.state.VUIDScenario
-		***REMOVED***
-	***REMOVED***
 
 	u.state.GetScenarioVUIter = func() uint64 ***REMOVED***
 		return u.scenarioIter[params.Scenario]
