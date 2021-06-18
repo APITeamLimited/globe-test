@@ -26,19 +26,36 @@ type ctxKey int
 
 const (
 	ctxKeyState ctxKey = iota
+	ctxKeyExecState
 	ctxKeyScenario
 )
 
+// WithState embeds a State in ctx.
 func WithState(ctx context.Context, state *State) context.Context ***REMOVED***
 	return context.WithValue(ctx, ctxKeyState, state)
 ***REMOVED***
 
+// GetState returns a State from ctx.
 func GetState(ctx context.Context) *State ***REMOVED***
 	v := ctx.Value(ctxKeyState)
 	if v == nil ***REMOVED***
 		return nil
 	***REMOVED***
 	return v.(*State)
+***REMOVED***
+
+// WithExecutionState embeds an ExecutionState in ctx.
+func WithExecutionState(ctx context.Context, s *ExecutionState) context.Context ***REMOVED***
+	return context.WithValue(ctx, ctxKeyExecState, s)
+***REMOVED***
+
+// GetExecutionState returns an ExecutionState from ctx.
+func GetExecutionState(ctx context.Context) *ExecutionState ***REMOVED***
+	v := ctx.Value(ctxKeyExecState)
+	if v == nil ***REMOVED***
+		return nil
+	***REMOVED***
+	return v.(*ExecutionState)
 ***REMOVED***
 
 // WithScenarioState embeds a ScenarioState in ctx.
