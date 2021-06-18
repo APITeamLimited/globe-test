@@ -346,6 +346,45 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	***REMOVED***()
 
 	activeVUsCount := uint64(0)
+	tickerPeriod := int64(startTickerPeriod.Duration)
+	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
+	itersFmt := pb.GetFixedLengthFloatFormat(maxArrivalRatePerSec, 0) + " iters/s"
+
+	progressFn := func() (float64, []string) ***REMOVED***
+		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
+		currentTickerPeriod := atomic.LoadInt64(&tickerPeriod)
+		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
+			vusPool.Running(), currActiveVUs)
+
+		itersPerSec := 0.0
+		if currentTickerPeriod > 0 ***REMOVED***
+			itersPerSec = float64(time.Second) / float64(currentTickerPeriod)
+		***REMOVED***
+		progIters := fmt.Sprintf(itersFmt, itersPerSec)
+
+		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
+
+		spent := time.Since(startTime)
+		if spent > duration ***REMOVED***
+			return 1, right
+		***REMOVED***
+
+		spentDuration := pb.GetFixedLengthDuration(spent, duration)
+		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
+		right[1] = progDur
+
+		return math.Min(1, float64(spent)/float64(duration)), right
+	***REMOVED***
+
+	varr.progress.Modify(pb.WithProgress(progressFn))
+	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, varr, progressFn)
+
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       varr.config.Name,
+		Executor:   varr.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		varr.executionState.ReturnVU(u, true)
@@ -390,40 +429,6 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		***REMOVED***
 		activateVU(initVU)
 	***REMOVED***
-
-	tickerPeriod := int64(startTickerPeriod.Duration)
-
-	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
-	itersFmt := pb.GetFixedLengthFloatFormat(maxArrivalRatePerSec, 0) + " iters/s"
-
-	progressFn := func() (float64, []string) ***REMOVED***
-		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
-		currentTickerPeriod := atomic.LoadInt64(&tickerPeriod)
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			vusPool.Running(), currActiveVUs)
-
-		itersPerSec := 0.0
-		if currentTickerPeriod > 0 ***REMOVED***
-			itersPerSec = float64(time.Second) / float64(currentTickerPeriod)
-		***REMOVED***
-		progIters := fmt.Sprintf(itersFmt, itersPerSec)
-
-		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
-
-		spent := time.Since(startTime)
-		if spent > duration ***REMOVED***
-			return 1, right
-		***REMOVED***
-
-		spentDuration := pb.GetFixedLengthDuration(spent, duration)
-		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
-		right[1] = progDur
-
-		return math.Min(1, float64(spent)/float64(duration)), right
-	***REMOVED***
-
-	varr.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, varr, progressFn)
 
 	regDurationDone := regDurationCtx.Done()
 	timer := time.NewTimer(time.Hour)

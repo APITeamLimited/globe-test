@@ -243,11 +243,41 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	***REMOVED***()
 	activeVUsCount := uint64(0)
 
+	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
+	progIters := fmt.Sprintf(
+		pb.GetFixedLengthFloatFormat(arrivalRatePerSec, 0)+" iters/s", arrivalRatePerSec)
+	progressFn := func() (float64, []string) ***REMOVED***
+		spent := time.Since(startTime)
+		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
+		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
+			vusPool.Running(), currActiveVUs)
+
+		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
+
+		if spent > duration ***REMOVED***
+			return 1, right
+		***REMOVED***
+
+		spentDuration := pb.GetFixedLengthDuration(spent, duration)
+		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
+		right[1] = progDur
+
+		return math.Min(1, float64(spent)/float64(duration)), right
+	***REMOVED***
+	car.progress.Modify(pb.WithProgress(progressFn))
+	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
+
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       car.config.Name,
+		Executor:   car.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
+
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		car.executionState.ReturnVU(u, true)
 		activeVUsWg.Done()
 	***REMOVED***
-	runIterationBasic := getIterationRunner(car.executionState, car.logger)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(getVUActivationParams(maxDurationCtx, car.config.BaseConfig, returnVU))
@@ -283,30 +313,6 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		***REMOVED***
 		activateVU(initVU)
 	***REMOVED***
-
-	vusFmt := pb.GetFixedLengthIntFormat(maxVUs)
-	progIters := fmt.Sprintf(
-		pb.GetFixedLengthFloatFormat(arrivalRatePerSec, 0)+" iters/s", arrivalRatePerSec)
-	progressFn := func() (float64, []string) ***REMOVED***
-		spent := time.Since(startTime)
-		currActiveVUs := atomic.LoadUint64(&activeVUsCount)
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs",
-			vusPool.Running(), currActiveVUs)
-
-		right := []string***REMOVED***progVUs, duration.String(), progIters***REMOVED***
-
-		if spent > duration ***REMOVED***
-			return 1, right
-		***REMOVED***
-
-		spentDuration := pb.GetFixedLengthDuration(spent, duration)
-		progDur := fmt.Sprintf("%s/%s", spentDuration, duration)
-		right[1] = progDur
-
-		return math.Min(1, float64(spent)/float64(duration)), right
-	***REMOVED***
-	car.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
 
 	start, offsets, _ := car.et.GetStripedOffsets()
 	timer := time.NewTimer(time.Hour * 24)

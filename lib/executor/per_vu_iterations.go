@@ -200,10 +200,18 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 	regDurationDone := regDurationCtx.Done()
 	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
 
+	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
+		Name:       pvi.config.Name,
+		Executor:   pvi.config.Type,
+		StartTime:  startTime,
+		ProgressFn: progressFn,
+	***REMOVED***)
+
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		pvi.executionState.ReturnVU(u, true)
 		activeVUs.Done()
 	***REMOVED***
+
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		defer handleVUsWG.Done()
 		ctx, cancel := context.WithCancel(maxDurationCtx)
