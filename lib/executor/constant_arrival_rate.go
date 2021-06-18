@@ -272,12 +272,15 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		Executor:   car.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
+		GetIter:    car.getScenarioIter,
 	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
 		car.executionState.ReturnVU(u, true)
 		activeVUsWg.Done()
 	***REMOVED***
+
+	runIterationBasic := getIterationRunner(car.executionState, car.incrScenarioIter, car.logger)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU ***REMOVED***
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(getVUActivationParams(

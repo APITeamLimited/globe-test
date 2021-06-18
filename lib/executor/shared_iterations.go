@@ -230,13 +230,14 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 	***REMOVED***()
 
 	regDurationDone := regDurationCtx.Done()
-	runIteration := getIterationRunner(si.executionState, si.logger)
+	runIteration := getIterationRunner(si.executionState, si.incrScenarioIter, si.logger)
 
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
 		Name:       si.config.Name,
 		Executor:   si.config.Type,
 		StartTime:  startTime,
 		ProgressFn: progressFn,
+		GetIter:    si.getScenarioIter,
 	***REMOVED***)
 
 	returnVU := func(u lib.InitializedVU) ***REMOVED***
