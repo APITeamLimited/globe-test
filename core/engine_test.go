@@ -79,7 +79,9 @@ func newTestEngine( //nolint:golint
 	execScheduler, err := local.NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
 
-	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, builtinMetrics)
 	require.NoError(t, err)
 
 	run, waitFn, err := engine.Init(globalCtx, runCtx)
@@ -465,11 +467,15 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	runTest := func(t *testing.T, ts testScript, tc testCase, noConnReuse bool) (float64, float64) ***REMOVED***
+		registry := metrics.NewRegistry()
+		builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 		r, err := js.New(
 			testutils.NewLogger(t),
 			&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(ts.Code)***REMOVED***,
 			nil,
 			lib.RuntimeOptions***REMOVED******REMOVED***,
+			builtinMetrics,
+			registry,
 		)
 		require.NoError(t, err)
 
@@ -508,8 +514,8 @@ func TestSentReceivedMetrics(t *testing.T) ***REMOVED***
 			return data
 		***REMOVED***
 
-		return checkData(metrics.DataSent.Name, ts.ExpectedDataSent),
-			checkData(metrics.DataReceived.Name, ts.ExpectedDataReceived)
+		return checkData(metrics.DataSentName, ts.ExpectedDataSent),
+			checkData(metrics.DataReceivedName, ts.ExpectedDataReceived)
 	***REMOVED***
 
 	getTestCase := func(t *testing.T, ts testScript, tc testCase) func(t *testing.T) ***REMOVED***
@@ -599,11 +605,15 @@ func TestRunTags(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`))
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	r, err := js.New(
 		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -628,14 +638,14 @@ func TestRunTags(t *testing.T) ***REMOVED***
 	***REMOVED***
 	wait()
 
-	systemMetrics := []*stats.Metric***REMOVED***
-		metrics.VUs, metrics.VUsMax, metrics.Iterations, metrics.IterationDuration,
-		metrics.GroupDuration, metrics.DataSent, metrics.DataReceived,
+	systemMetrics := []string***REMOVED***
+		metrics.VUsName, metrics.VUsMaxName, metrics.IterationsName, metrics.IterationDurationName,
+		metrics.GroupDurationName, metrics.DataSentName, metrics.DataReceivedName,
 	***REMOVED***
 
 	getExpectedOverVal := func(metricName string) string ***REMOVED***
 		for _, sysMetric := range systemMetrics ***REMOVED***
-			if sysMetric.Name == metricName ***REMOVED***
+			if sysMetric == metricName ***REMOVED***
 				return runTagsMap["over"]
 			***REMOVED***
 		***REMOVED***
@@ -690,11 +700,15 @@ func TestSetupTeardownThresholds(t *testing.T) ***REMOVED***
 		***REMOVED***;
 	`))
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -739,11 +753,15 @@ func TestSetupException(t *testing.T) ***REMOVED***
 		        throw new Error("baz");
 			***REMOVED***
 	`), 0x666))
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": memfs***REMOVED***,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -788,10 +806,14 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 	`)
 
 	logger := testutils.NewLogger(t)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		logger,
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Scheme: "file", Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil, lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -802,7 +824,7 @@ func TestVuInitException(t *testing.T) ***REMOVED***
 
 	execScheduler, err := local.NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger)
+	engine, err := NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -855,11 +877,15 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 		***REMOVED***;
 	`))
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -881,11 +907,11 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	// The 3.1 sleep in the default function would cause the first VU to complete 2 full iterations
 	// and stat executing its third one, while the second VU will only fully complete 1 iteration
 	// and will be canceled in the middle of its second one.
-	assert.Equal(t, 3.0, getMetricSum(mockOutput, metrics.Iterations.Name))
+	assert.Equal(t, 3.0, getMetricSum(mockOutput, metrics.IterationsName))
 
 	// That means that we expect to see 8 HTTP requests in total, 3*2=6 from the complete iterations
 	// and one each from the two iterations that would be canceled in the middle of their execution
-	assert.Equal(t, 8.0, getMetricSum(mockOutput, metrics.HTTPReqs.Name))
+	assert.Equal(t, 8.0, getMetricSum(mockOutput, metrics.HTTPReqsName))
 
 	// And we expect to see the data_received for all 8 of those requests. Previously, the data for
 	// the 8th request (the 3rd one in the first VU before the test ends) was cut off by the engine
@@ -894,7 +920,7 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 	// it was interrupted.
 	dataReceivedExpectedMin := 15000.0 * 8
 	dataReceivedExpectedMax := (15000.0 + expectedHeaderMaxLength) * 8
-	dataReceivedActual := getMetricSum(mockOutput, metrics.DataReceived.Name)
+	dataReceivedActual := getMetricSum(mockOutput, metrics.DataReceivedName)
 	if dataReceivedActual < dataReceivedExpectedMin || dataReceivedActual > dataReceivedExpectedMax ***REMOVED***
 		t.Errorf(
 			"The data_received sum should be in the interval [%f, %f] but was %f",
@@ -904,9 +930,9 @@ func TestEmittedMetricsWhenScalingDown(t *testing.T) ***REMOVED***
 
 	// Also, the interrupted iterations shouldn't affect the average iteration_duration in any way, only
 	// complete iterations should be taken into account
-	durationCount := float64(getMetricCount(mockOutput, metrics.IterationDuration.Name))
+	durationCount := float64(getMetricCount(mockOutput, metrics.IterationDurationName))
 	assert.Equal(t, 3.0, durationCount)
-	durationSum := getMetricSum(mockOutput, metrics.IterationDuration.Name)
+	durationSum := getMetricSum(mockOutput, metrics.IterationDurationName)
 	assert.InDelta(t, 3.35, durationSum/(1000*durationCount), 0.25)
 ***REMOVED***
 
@@ -939,6 +965,8 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 			if !isWindows ***REMOVED***
 				t.Parallel()
 			***REMOVED***
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
 				testutils.NewLogger(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(fmt.Sprintf(`
@@ -965,6 +993,8 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 				`, tc.minIterDuration, tc.defaultBody))***REMOVED***,
 				nil,
 				lib.RuntimeOptions***REMOVED******REMOVED***,
+				builtinMetrics,
+				registry,
 			)
 			require.NoError(t, err)
 
@@ -983,7 +1013,7 @@ func TestMetricsEmission(t *testing.T) ***REMOVED***
 				require.False(t, engine.IsTainted())
 			***REMOVED***
 
-			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, metrics.Iterations.Name))
+			assert.Equal(t, tc.expIters, getMetricSum(mockOutput, metrics.IterationsName))
 			assert.Equal(t, tc.expCount, getMetricSum(mockOutput, "testcounter"))
 		***REMOVED***)
 	***REMOVED***
@@ -1047,11 +1077,15 @@ func TestMinIterationDurationInSetupTeardownStage(t *testing.T) ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			runner, err := js.New(
 				testutils.NewLogger(t),
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: []byte(tc.script)***REMOVED***,
 				nil,
 				lib.RuntimeOptions***REMOVED******REMOVED***,
+				builtinMetrics,
+				registry,
 			)
 			require.NoError(t, err)
 
@@ -1157,7 +1191,10 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 
 	rtOpts := lib.RuntimeOptions***REMOVED***CompatibilityMode: null.StringFrom("base")***REMOVED***
 
-	runner, err := js.New(logger, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, rtOpts)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	runner, err := js.New(logger, &loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***, nil, rtOpts,
+		builtinMetrics, registry)
 	require.NoError(t, err)
 
 	mockOutput := mockoutput.New()
@@ -1172,7 +1209,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 	require.NoError(t, runner.SetOptions(opts))
 	execScheduler, err := local.NewExecutionScheduler(runner, logger)
 	require.NoError(t, err)
-	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger)
+	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger, builtinMetrics)
 	require.NoError(t, err)
 	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
 	require.NoError(t, err)
@@ -1190,8 +1227,8 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		require.False(t, engine.IsTainted())
 	***REMOVED***
 
-	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUs.Name))
-	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsMax.Name))
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsName))
+	assert.Equal(t, 10.0, getMetricMax(mockOutput, metrics.VUsMaxName))
 
 	logEntries := logHook.Drain()
 	assert.Len(t, logEntries, 3)

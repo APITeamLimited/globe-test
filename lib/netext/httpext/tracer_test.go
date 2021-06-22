@@ -131,6 +131,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 		***REMOVED***
 		prev = val
 	***REMOVED***
+	builtinMetrics := metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
 
 	for tnum, isReuse := range []bool***REMOVED***false, true, true***REMOVED*** ***REMOVED***
 		t.Run(fmt.Sprintf("Test #%d", tnum), func(t *testing.T) ***REMOVED***
@@ -149,7 +150,7 @@ func TestTracer(t *testing.T) ***REMOVED***
 				time.Sleep(traceDelay)
 			***REMOVED***
 			trail := tracer.Done()
-			trail.SaveSamples(stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
+			trail.SaveSamples(builtinMetrics, stats.IntoSampleTags(&map[string]string***REMOVED***"tag": "value"***REMOVED***))
 			samples := trail.GetSamples()
 
 			assertLaterOrZero(t, tracer.getConn, isReuse)
@@ -174,16 +175,16 @@ func TestTracer(t *testing.T) ***REMOVED***
 				assert.Equal(t, map[string]string***REMOVED***"tag": "value"***REMOVED***, s.Tags.CloneTags())
 
 				switch s.Metric ***REMOVED***
-				case metrics.HTTPReqs:
+				case builtinMetrics.HTTPReqs:
 					assert.Equal(t, 1.0, s.Value)
-					assert.Equal(t, 0, i, "`HTTPReqs` is reported before the other HTTP metrics")
-				case metrics.HTTPReqConnecting, metrics.HTTPReqTLSHandshaking:
+					assert.Equal(t, 0, i, "`HTTPReqs` is reported before the other HTTP builtinMetrics")
+				case builtinMetrics.HTTPReqConnecting, builtinMetrics.HTTPReqTLSHandshaking:
 					if isReuse ***REMOVED***
 						assert.Equal(t, 0.0, s.Value)
 						break
 					***REMOVED***
 					fallthrough
-				case metrics.HTTPReqDuration, metrics.HTTPReqBlocked, metrics.HTTPReqSending, metrics.HTTPReqWaiting, metrics.HTTPReqReceiving:
+				case builtinMetrics.HTTPReqDuration, builtinMetrics.HTTPReqBlocked, builtinMetrics.HTTPReqSending, builtinMetrics.HTTPReqWaiting, builtinMetrics.HTTPReqReceiving:
 					assert.True(t, s.Value > 0.0, "%s is <= 0", s.Metric.Name)
 				default:
 					t.Errorf("unexpected metric: %s", s.Metric.Name)
@@ -246,7 +247,8 @@ func TestTracerNegativeHttpSendingValues(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 		assert.NoError(t, res.Body.Close())
 		trail := tracer.Done()
-		trail.SaveSamples(nil)
+		builtinMetrics := metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+		trail.SaveSamples(builtinMetrics, nil)
 
 		require.True(t, trail.Sending > 0)
 	***REMOVED***

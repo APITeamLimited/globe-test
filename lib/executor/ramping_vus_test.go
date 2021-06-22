@@ -105,7 +105,7 @@ func TestRampingVUsRun(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
 
 	result := make([]int64, len(sampleTimes))
 	for i, d := range sampleTimes ***REMOVED***
@@ -157,7 +157,7 @@ func TestRampingVUsGracefulStopWaits(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the duration and 500 less then the gracefulStop
@@ -206,7 +206,7 @@ func TestRampingVUsGracefulStopStops(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the gracefulStop + duration
@@ -264,7 +264,7 @@ func TestRampingVUsGracefulRampDown(t *testing.T) ***REMOVED***
 	)
 	defer cancel()
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
 
 	<-started
 	// 500 milliseconds more then the gracefulRampDown + duration
@@ -323,7 +323,7 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 	) / rampDownSampleTime)
 
 	errCh := make(chan error)
-	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()
 
 	result := make([]int64, len(sampleTimes)+rampDownSamples)
 	for i, d := range sampleTimes ***REMOVED***

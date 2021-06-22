@@ -40,6 +40,7 @@ import (
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
@@ -135,14 +136,19 @@ func TestSetupData(t *testing.T) ***REMOVED***
 	***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	for _, testCase := range testCases ***REMOVED***
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			runner, err := js.New(
 				logger,
 				&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: testCase.script***REMOVED***,
 				nil,
 				lib.RuntimeOptions***REMOVED******REMOVED***,
+				builtinMetrics,
+				registry,
 			)
 			require.NoError(t, err)
 			runner.SetOptions(lib.Options***REMOVED***
@@ -155,7 +161,7 @@ func TestSetupData(t *testing.T) ***REMOVED***
 			***REMOVED***)
 			execScheduler, err := local.NewExecutionScheduler(runner, logger)
 			require.NoError(t, err)
-			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger)
+			engine, err := core.NewEngine(execScheduler, runner.GetOptions(), lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
 			require.NoError(t, err)
 
 			globalCtx, globalCancel := context.WithCancel(context.Background())

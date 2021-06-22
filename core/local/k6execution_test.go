@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/loader"
 )
@@ -83,6 +84,8 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		logger,
 		&loader.SourceData***REMOVED***
@@ -91,6 +94,8 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -111,7 +116,7 @@ func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
 
 	select ***REMOVED***
 	case err := <-errCh:
@@ -191,6 +196,8 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		logger,
 		&loader.SourceData***REMOVED***
@@ -199,6 +206,8 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -206,7 +215,7 @@ func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
 
 	scStats := map[string]uint64***REMOVED******REMOVED***
 
@@ -268,6 +277,8 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
 	logger.AddHook(&logHook)
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		logger,
 		&loader.SourceData***REMOVED***
@@ -276,6 +287,8 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 	require.NoError(t, err)
 
@@ -283,7 +296,7 @@ func TestSharedIterationsStable(t *testing.T) ***REMOVED***
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples, builtinMetrics) ***REMOVED***()
 
 	expIters := [50]int64***REMOVED******REMOVED***
 	for i := 0; i < 50; i++ ***REMOVED***

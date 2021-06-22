@@ -98,20 +98,20 @@ func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 		for _, sample := range sampleContainer.GetSamples() ***REMOVED***
 			tags := sample.Tags.CloneTags()
 			if tags["url"] == url ***REMOVED***
-				switch sample.Metric ***REMOVED***
-				case metrics.HTTPReqDuration:
+				switch sample.Metric.Name ***REMOVED***
+				case metrics.HTTPReqDurationName:
 					seenDuration = true
-				case metrics.HTTPReqBlocked:
+				case metrics.HTTPReqBlockedName:
 					seenBlocked = true
-				case metrics.HTTPReqConnecting:
+				case metrics.HTTPReqConnectingName:
 					seenConnecting = true
-				case metrics.HTTPReqTLSHandshaking:
+				case metrics.HTTPReqTLSHandshakingName:
 					seenTLSHandshaking = true
-				case metrics.HTTPReqSending:
+				case metrics.HTTPReqSendingName:
 					seenSending = true
-				case metrics.HTTPReqWaiting:
+				case metrics.HTTPReqWaitingName:
 					seenWaiting = true
-				case metrics.HTTPReqReceiving:
+				case metrics.HTTPReqReceivingName:
 					seenReceiving = true
 				***REMOVED***
 
@@ -131,12 +131,12 @@ func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleCo
 	assert.True(t, seenReceiving, "url %s didn't emit Receiving", url)
 ***REMOVED***
 
-func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer stats.SampleContainer, expectedTags map[string]string, metrics []*stats.Metric, callback func(sample stats.Sample)) ***REMOVED***
+func assertRequestMetricsEmittedSingle(t *testing.T, sampleContainer stats.SampleContainer, expectedTags map[string]string, metrics []string, callback func(sample stats.Sample)) ***REMOVED***
 	t.Helper()
 
 	metricMap := make(map[string]bool, len(metrics))
 	for _, m := range metrics ***REMOVED***
-		metricMap[m.Name] = false
+		metricMap[m] = false
 	***REMOVED***
 	for _, sample := range sampleContainer.GetSamples() ***REMOVED***
 		tags := sample.Tags.CloneTags()
@@ -161,6 +161,7 @@ func newRuntime(
 
 	root, err := lib.NewGroup("", nil)
 	require.NoError(t, err)
+	registry := metrics.NewRegistry()
 
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
@@ -180,14 +181,15 @@ func newRuntime(
 	samples := make(chan stats.SampleContainer, 1000)
 
 	state := &lib.State***REMOVED***
-		Options:   options,
-		Logger:    logger,
-		Group:     root,
-		TLSConfig: tb.TLSClientConfig,
-		Transport: tb.HTTPTransport,
-		BPool:     bpool.NewBufferPool(1),
-		Samples:   samples,
-		Tags:      map[string]string***REMOVED***"group": root.Path***REMOVED***,
+		Options:        options,
+		Logger:         logger,
+		Group:          root,
+		TLSConfig:      tb.TLSClientConfig,
+		Transport:      tb.HTTPTransport,
+		BPool:          bpool.NewBufferPool(1),
+		Samples:        samples,
+		Tags:           map[string]string***REMOVED***"group": root.Path***REMOVED***,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	***REMOVED***
 
 	ctx := new(context.Context)

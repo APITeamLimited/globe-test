@@ -31,6 +31,7 @@ import (
 
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/lib/types"
@@ -116,11 +117,15 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 		***REMOVED***
 	`))
 
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 	runner, err := js.New(
 		testutils.NewLogger(t),
 		&loader.SourceData***REMOVED***URL: &url.URL***REMOVED***Path: "/script.js"***REMOVED***, Data: script***REMOVED***,
 		nil,
 		lib.RuntimeOptions***REMOVED******REMOVED***,
+		builtinMetrics,
+		registry,
 	)
 
 	require.NoError(t, err)
@@ -134,13 +139,13 @@ func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
 
 	samples := make(chan<- stats.SampleContainer, 100)
 
-	if !assert.NoError(t, runner.Setup(context.Background(), samples)) ***REMOVED***
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if !assert.NoError(t, runner.Setup(ctx, samples)) ***REMOVED***
 		return
 	***REMOVED***
 	initVU, err := runner.NewVU(1, 1, samples)
 	if assert.NoError(t, err) ***REMOVED***
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 		err := vu.RunOnce()
 		assert.NoError(t, err)

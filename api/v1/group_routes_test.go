@@ -34,6 +34,7 @@ import (
 	"go.k6.io/k6/core"
 	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/minirunner"
 )
@@ -51,7 +52,9 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 
 	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Group: g0***REMOVED***, logger)
 	require.NoError(t, err)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger)
+	registry := metrics.NewRegistry()
+	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
 	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***

@@ -61,18 +61,18 @@ type Trail struct ***REMOVED***
 ***REMOVED***
 
 // SaveSamples populates the Trail's sample slice so they're accesible via GetSamples()
-func (tr *Trail) SaveSamples(tags *stats.SampleTags) ***REMOVED***
+func (tr *Trail) SaveSamples(builtinMetrics *metrics.BuiltinMetrics, tags *stats.SampleTags) ***REMOVED***
 	tr.Tags = tags
 	tr.Samples = make([]stats.Sample, 0, 9) // this is with 1 more for a possible HTTPReqFailed
 	tr.Samples = append(tr.Samples, []stats.Sample***REMOVED***
-		***REMOVED***Metric: metrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
-		***REMOVED***Metric: metrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqs, Time: tr.EndTime, Tags: tags, Value: 1***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqDuration, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Duration)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqBlocked, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Blocked)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqConnecting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Connecting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqTLSHandshaking, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.TLSHandshaking)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqSending, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Sending)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqWaiting, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Waiting)***REMOVED***,
+		***REMOVED***Metric: builtinMetrics.HTTPReqReceiving, Time: tr.EndTime, Tags: tags, Value: stats.D(tr.Receiving)***REMOVED***,
 	***REMOVED***...)
 ***REMOVED***
 

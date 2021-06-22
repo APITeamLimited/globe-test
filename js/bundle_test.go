@@ -42,6 +42,7 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/consts"
 	"go.k6.io/k6/lib/fsext"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/loader"
@@ -73,6 +74,7 @@ func getSimpleBundle(tb testing.TB, filename, data string, opts ...interface***R
 		***REMOVED***,
 		map[string]afero.Fs***REMOVED***"file": fs, "https": afero.NewMemMapFs()***REMOVED***,
 		rtOpts,
+		metrics.NewRegistry(),
 	)
 ***REMOVED***
 
@@ -511,7 +513,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	checkArchive := func(t *testing.T, arc *lib.Archive, rtOpts lib.RuntimeOptions, expError string) ***REMOVED***
-		b, err := NewBundleFromArchive(logger, arc, rtOpts)
+		b, err := NewBundleFromArchive(logger, arc, rtOpts, metrics.NewRegistry())
 		if expError != "" ***REMOVED***
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), expError)
@@ -594,7 +596,7 @@ func TestNewBundleFromArchive(t *testing.T) ***REMOVED***
 			PwdURL:      &url.URL***REMOVED***Scheme: "file", Path: "/"***REMOVED***,
 			Filesystems: nil,
 		***REMOVED***
-		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***)
+		b, err := NewBundleFromArchive(logger, arc, lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
 		require.NoError(t, err)
 		bi, err := b.Instantiate(logger, 0)
 		require.NoError(t, err)
@@ -733,7 +735,7 @@ func TestOpen(t *testing.T) ***REMOVED***
 					***REMOVED***
 					require.NoError(t, err)
 
-					arcBundle, err := NewBundleFromArchive(logger, sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+					arcBundle, err := NewBundleFromArchive(logger, sourceBundle.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
 
 					require.NoError(t, err)
 
@@ -856,7 +858,7 @@ func TestBundleEnv(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 
 	logger := testutils.NewLogger(t)
-	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***
@@ -894,7 +896,7 @@ func TestBundleNotSharable(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	logger := testutils.NewLogger(t)
 
-	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***)
+	b2, err := NewBundleFromArchive(logger, b1.makeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, metrics.NewRegistry())
 	require.NoError(t, err)
 
 	bundles := map[string]*Bundle***REMOVED***"Source": b1, "Archive": b2***REMOVED***

@@ -39,6 +39,7 @@ import (
 func TestSampleMarshaling(t *testing.T) ***REMOVED***
 	t.Parallel()
 
+	builtinMetrics := metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
 	now := time.Now()
 	exptoMicroSecond := now.UnixNano() / 1000
 
@@ -49,9 +50,9 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 		***REMOVED***
 			&Sample***REMOVED***
 				Type:   DataTypeSingle,
-				Metric: metrics.VUs.Name,
+				Metric: metrics.VUsName,
 				Data: &SampleDataSingle***REMOVED***
-					Type:  metrics.VUs.Type,
+					Type:  builtinMetrics.VUs.Type,
 					Time:  toMicroSecond(now),
 					Tags:  stats.IntoSampleTags(&map[string]string***REMOVED***"aaa": "bbb", "ccc": "123"***REMOVED***),
 					Value: 999,
@@ -67,9 +68,9 @@ func TestSampleMarshaling(t *testing.T) ***REMOVED***
 					Time: toMicroSecond(now),
 					Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"test": "mest"***REMOVED***),
 					Values: map[string]float64***REMOVED***
-						metrics.DataSent.Name:          1234.5,
-						metrics.DataReceived.Name:      6789.1,
-						metrics.IterationDuration.Name: stats.D(10 * time.Second),
+						metrics.DataSentName:          1234.5,
+						metrics.DataReceivedName:      6789.1,
+						metrics.IterationDurationName: stats.D(10 * time.Second),
 					***REMOVED***,
 				***REMOVED***,
 			***REMOVED***,

@@ -96,19 +96,20 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 // https://github.com/k6io/k6/pull/1203#discussion_r337938370
 func (d *Dialer) GetTrail(
 	startTime, endTime time.Time, fullIteration bool, emitIterations bool, tags *stats.SampleTags,
+	builtinMetrics *metrics.BuiltinMetrics,
 ) *NetTrail ***REMOVED***
 	bytesWritten := atomic.SwapInt64(&d.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&d.BytesRead, 0)
 	samples := []stats.Sample***REMOVED***
 		***REMOVED***
 			Time:   endTime,
-			Metric: metrics.DataSent,
+			Metric: builtinMetrics.DataSent,
 			Value:  float64(bytesWritten),
 			Tags:   tags,
 		***REMOVED***,
 		***REMOVED***
 			Time:   endTime,
-			Metric: metrics.DataReceived,
+			Metric: builtinMetrics.DataReceived,
 			Value:  float64(bytesRead),
 			Tags:   tags,
 		***REMOVED***,
@@ -116,14 +117,14 @@ func (d *Dialer) GetTrail(
 	if fullIteration ***REMOVED***
 		samples = append(samples, stats.Sample***REMOVED***
 			Time:   endTime,
-			Metric: metrics.IterationDuration,
+			Metric: builtinMetrics.IterationDuration,
 			Value:  stats.D(endTime.Sub(startTime)),
 			Tags:   tags,
 		***REMOVED***)
 		if emitIterations ***REMOVED***
 			samples = append(samples, stats.Sample***REMOVED***
 				Time:   endTime,
-				Metric: metrics.Iterations,
+				Metric: builtinMetrics.Iterations,
 				Value:  1,
 				Tags:   tags,
 			***REMOVED***)

@@ -50,7 +50,8 @@ type Metric struct ***REMOVED***
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
 func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricType) (*goja.Object, error) ***REMOVED***
-	if mi.GetInitEnv() == nil ***REMOVED***
+	initEnv := mi.GetInitEnv()
+	if initEnv == nil ***REMOVED***
 		return nil, errors.New("metrics must be declared in the init context")
 	***REMOVED***
 	rt := mi.GetRuntime()
@@ -64,11 +65,13 @@ func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricTyp
 		if len(isTime) > 0 && isTime[0] ***REMOVED***
 			valueType = stats.Time
 		***REMOVED***
-		m := stats.New(name, t, valueType)
-
+		m, err := initEnv.Registry.NewMetric(name, t, valueType)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
 		metric := &Metric***REMOVED***metric: m, core: mi.InstanceCore***REMOVED***
 		o := rt.NewObject()
-		err := o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		err = o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
