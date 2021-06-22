@@ -210,7 +210,7 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 	var transport http.RoundTripper = tracerTransport
 
 	// Combine tags with common log fields
-	combinedLogFields := map[string]interface***REMOVED******REMOVED******REMOVED***"source": "http-debug", "vu": state.Vu, "iter": state.Iteration***REMOVED***
+	combinedLogFields := map[string]interface***REMOVED******REMOVED******REMOVED***"source": "http-debug", "vu": state.VUID, "iter": state.Iteration***REMOVED***
 	for k, v := range tags ***REMOVED***
 		if _, present := combinedLogFields[k]; !present ***REMOVED***
 			combinedLogFields[k] = v

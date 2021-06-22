@@ -126,8 +126,8 @@ func (r *Runner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new initialized VU.
-func (r *Runner) NewVU(id int64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
-	vu, err := r.newVU(id, samplesOut)
+func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
+	vu, err := r.newVU(idLocal, idGlobal, samplesOut)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -135,9 +135,9 @@ func (r *Runner) NewVU(id int64, samplesOut chan<- stats.SampleContainer) (lib.I
 ***REMOVED***
 
 // nolint:funlen
-func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
+func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	bi, err := r.Bundle.Instantiate(r.Logger, id)
+	bi, err := r.Bundle.Instantiate(r.Logger, idLocal)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -175,8 +175,8 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 	***REMOVED***
 	if r.Bundle.Options.LocalIPs.Valid ***REMOVED***
 		var ipIndex uint64
-		if id > 0 ***REMOVED***
-			ipIndex = uint64(id - 1)
+		if idLocal > 0 ***REMOVED***
+			ipIndex = idLocal - 1
 		***REMOVED***
 		dialer.Dialer.LocalAddr = &net.TCPAddr***REMOVED***IP: r.Bundle.Options.LocalIPs.Pool.GetIP(ipIndex)***REMOVED***
 	***REMOVED***
@@ -207,7 +207,9 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 	***REMOVED***
 
 	vu := &VU***REMOVED***
-		ID:             id,
+		ID:             idLocal,
+		IDGlobal:       idGlobal,
+		iteration:      int64(-1),
 		BundleInstance: *bi,
 		Runner:         r,
 		Transport:      transport,
@@ -217,22 +219,23 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 		Console:        r.console,
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
+		scenarioIter:   make(map[string]uint64),
 	***REMOVED***
 
 	vu.state = &lib.State***REMOVED***
-		Logger:    vu.Runner.Logger,
-		Options:   vu.Runner.Bundle.Options,
-		Transport: vu.Transport,
-		Dialer:    vu.Dialer,
-		TLSConfig: vu.TLSConfig,
-		CookieJar: cookieJar,
-		RPSLimit:  vu.Runner.RPSLimit,
-		BPool:     vu.BPool,
-		Vu:        vu.ID,
-		Samples:   vu.Samples,
-		Iteration: vu.Iteration,
-		Tags:      vu.Runner.Bundle.Options.RunTags.CloneTags(),
-		Group:     r.defaultGroup,
+		Logger:     vu.Runner.Logger,
+		Options:    vu.Runner.Bundle.Options,
+		Transport:  vu.Transport,
+		Dialer:     vu.Dialer,
+		TLSConfig:  vu.TLSConfig,
+		CookieJar:  cookieJar,
+		RPSLimit:   vu.Runner.RPSLimit,
+		BPool:      vu.BPool,
+		VUID:       vu.ID,
+		VUIDGlobal: vu.IDGlobal,
+		Samples:    vu.Samples,
+		Tags:       vu.Runner.Bundle.Options.RunTags.CloneTags(),
+		Group:      r.defaultGroup,
 	***REMOVED***
 	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
 
@@ -323,7 +326,7 @@ func (r *Runner) HandleSummary(ctx context.Context, summary *lib.Summary) (map[s
 		***REMOVED***
 	***REMOVED***()
 
-	vu, err := r.newVU(0, out)
+	vu, err := r.newVU(0, 0, out)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -461,7 +464,7 @@ func parseTTL(ttlS string) (time.Duration, error) ***REMOVED***
 // Runs an exported function in its own temporary VU, optionally with an argument. Execution is
 // interrupted if the context expires. No error is returned if the part does not exist.
 func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, name string, arg interface***REMOVED******REMOVED***) (goja.Value, error) ***REMOVED***
-	vu, err := r.newVU(0, out)
+	vu, err := r.newVU(0, 0, out)
 	if err != nil ***REMOVED***
 		return goja.Undefined(), err
 	***REMOVED***
@@ -531,8 +534,9 @@ type VU struct ***REMOVED***
 	Dialer    *netext.Dialer
 	CookieJar *cookiejar.Jar
 	TLSConfig *tls.Config
-	ID        int64
-	Iteration int64
+	ID        uint64 // local to the current instance
+	IDGlobal  uint64 // global across all instances
+	iteration int64
 
 	Console *console
 	BPool   *bpool.BufferPool
@@ -542,6 +546,8 @@ type VU struct ***REMOVED***
 	setupData goja.Value
 
 	state *lib.State
+	// count of iterations executed by this VU in each scenario
+	scenarioIter map[string]uint64
 ***REMOVED***
 
 // Verify that interfaces are implemented
@@ -555,10 +561,14 @@ type ActiveVU struct ***REMOVED***
 	*VU
 	*lib.VUActivationParams
 	busy chan struct***REMOVED******REMOVED***
+
+	scenarioName              string
+	getNextIterationCounters  func() (uint64, uint64)
+	scIterLocal, scIterGlobal uint64
 ***REMOVED***
 
 // GetID returns the unique VU ID.
-func (u *VU) GetID() int64 ***REMOVED***
+func (u *VU) GetID() uint64 ***REMOVED***
 	return u.ID
 ***REMOVED***
 
@@ -587,10 +597,10 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.state.Tags[k] = v
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
-		u.state.Tags["vu"] = strconv.FormatInt(u.ID, 10)
+		u.state.Tags["vu"] = strconv.FormatUint(u.ID, 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatInt(u.iteration, 10)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
 		u.state.Tags["group"] = u.state.Group.Path
@@ -599,19 +609,35 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 		u.state.Tags["scenario"] = params.Scenario
 	***REMOVED***
 
-	params.RunContext = common.WithRuntime(params.RunContext, u.Runtime)
-	params.RunContext = lib.WithState(params.RunContext, u.state)
-	*u.Context = params.RunContext
+	ctx := common.WithRuntime(params.RunContext, u.Runtime)
+	ctx = lib.WithState(ctx, u.state)
+	params.RunContext = ctx
+	*u.Context = ctx
+
+	u.state.GetScenarioVUIter = func() uint64 ***REMOVED***
+		return u.scenarioIter[params.Scenario]
+	***REMOVED***
 
 	avu := &ActiveVU***REMOVED***
-		VU:                 u,
-		VUActivationParams: params,
-		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+		VU:                       u,
+		VUActivationParams:       params,
+		busy:                     make(chan struct***REMOVED******REMOVED***, 1),
+		scenarioName:             params.Scenario,
+		scIterLocal:              ^uint64(0),
+		scIterGlobal:             ^uint64(0),
+		getNextIterationCounters: params.GetNextIterationCounters,
+	***REMOVED***
+
+	u.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
+		return avu.scIterLocal
+	***REMOVED***
+	u.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
+		return avu.scIterGlobal
 	***REMOVED***
 
 	go func() ***REMOVED***
 		// Wait for the run context to be over
-		<-params.RunContext.Done()
+		<-ctx.Done()
 		// Interrupt the JS runtime
 		u.Runtime.Interrupt(context.Canceled)
 		// Wait for the VU to stop running, if it was, and prevent it from
@@ -658,6 +684,11 @@ func (u *ActiveVU) RunOnce() error ***REMOVED***
 		panic(fmt.Sprintf("function '%s' not found in exports", u.Exec))
 	***REMOVED***
 
+	u.incrIteration()
+	if err := u.Runtime.Set("__ITER", u.iteration); err != nil ***REMOVED***
+		panic(fmt.Errorf("error setting __ITER in goja runtime: %w", err))
+	***REMOVED***
+
 	// Call the exported function.
 	_, isFullIteration, totalTime, err := u.runFn(u.RunContext, true, fn, u.setupData)
 
@@ -688,14 +719,8 @@ func (u *VU) runFn(
 
 	opts := &u.Runner.Bundle.Options
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.Iteration, 10)
+		u.state.Tags["iter"] = strconv.FormatInt(u.state.Iteration, 10)
 	***REMOVED***
-
-	// TODO: this seems like the wrong place for the iteration incrementation
-	// also this means that teardown and setup have __ITER defined
-	// maybe move it to RunOnce ?
-	u.Runtime.Set("__ITER", u.Iteration)
-	u.Iteration++
 
 	defer func() ***REMOVED***
 		if r := recover(); r != nil ***REMOVED***
@@ -735,6 +760,21 @@ func (u *VU) runFn(
 	u.state.Samples <- u.Dialer.GetTrail(startTime, endTime, isFullIteration, isDefault, stats.NewSampleTags(u.state.Tags))
 
 	return v, isFullIteration, endTime.Sub(startTime), err
+***REMOVED***
+
+func (u *ActiveVU) incrIteration() ***REMOVED***
+	u.iteration++
+	u.state.Iteration = u.iteration
+
+	if _, ok := u.scenarioIter[u.scenarioName]; ok ***REMOVED***
+		u.scenarioIter[u.scenarioName]++
+	***REMOVED*** else ***REMOVED***
+		u.scenarioIter[u.scenarioName] = 0
+	***REMOVED***
+	// TODO remove this
+	if u.getNextIterationCounters != nil ***REMOVED***
+		u.scIterLocal, u.scIterGlobal = u.getNextIterationCounters()
+	***REMOVED***
 ***REMOVED***
 
 type scriptException struct ***REMOVED***

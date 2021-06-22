@@ -88,11 +88,12 @@ short names for input:
 // - it's not required but preferable, if where possible to not reactivate VUs and to reuse context
 // as this speed ups the execution
 type vuHandle struct ***REMOVED***
-	mutex     *sync.Mutex
-	parentCtx context.Context
-	getVU     func() (lib.InitializedVU, error)
-	returnVU  func(lib.InitializedVU)
-	config    *BaseConfig
+	mutex                 *sync.Mutex
+	parentCtx             context.Context
+	getVU                 func() (lib.InitializedVU, error)
+	returnVU              func(lib.InitializedVU)
+	nextIterationCounters func() (uint64, uint64)
+	config                *BaseConfig
 
 	initVU       lib.InitializedVU
 	activeVU     lib.ActiveVU
@@ -108,15 +109,18 @@ type vuHandle struct ***REMOVED***
 
 func newStoppedVUHandle(
 	parentCtx context.Context, getVU func() (lib.InitializedVU, error),
-	returnVU func(lib.InitializedVU), config *BaseConfig, logger *logrus.Entry,
+	returnVU func(lib.InitializedVU),
+	nextIterationCounters func() (uint64, uint64),
+	config *BaseConfig, logger *logrus.Entry,
 ) *vuHandle ***REMOVED***
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &vuHandle***REMOVED***
-		mutex:     &sync.Mutex***REMOVED******REMOVED***,
-		parentCtx: parentCtx,
-		getVU:     getVU,
-		config:    config,
+		mutex:                 &sync.Mutex***REMOVED******REMOVED***,
+		parentCtx:             parentCtx,
+		getVU:                 getVU,
+		nextIterationCounters: nextIterationCounters,
+		config:                config,
 
 		canStartIter: make(chan struct***REMOVED******REMOVED***),
 		state:        stopped,
@@ -146,7 +150,8 @@ func (vh *vuHandle) start() (err error) ***REMOVED***
 			return err
 		***REMOVED***
 
-		vh.activeVU = vh.initVU.Activate(getVUActivationParams(vh.ctx, *vh.config, vh.returnVU))
+		vh.activeVU = vh.initVU.Activate(getVUActivationParams(
+			vh.ctx, *vh.config, vh.returnVU, vh.nextIterationCounters))
 		close(vh.canStartIter)
 		vh.changeState(starting)
 	***REMOVED***

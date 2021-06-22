@@ -361,7 +361,9 @@ func (rs *externallyControlledRunState) newManualVUHandle(
 	***REMOVED***
 	ctx, cancel := context.WithCancel(rs.ctx)
 	return &manualVUHandle***REMOVED***
-		vuHandle: newStoppedVUHandle(ctx, getVU, returnVU, &rs.executor.config.BaseConfig, logger),
+		vuHandle: newStoppedVUHandle(ctx, getVU, returnVU,
+			rs.executor.nextIterationCounters,
+			&rs.executor.config.BaseConfig, logger),
 		initVU:   initVU,
 		wg:       &wg,
 		cancelVU: cancel,
@@ -535,6 +537,13 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 	if err = runState.retrieveStartMaxVUs(); err != nil ***REMOVED***
 		return err
 	***REMOVED***
+
+	ctx = lib.WithScenarioState(ctx, &lib.ScenarioState***REMOVED***
+		Name:       mex.config.Name,
+		Executor:   mex.config.Type,
+		StartTime:  time.Now(),
+		ProgressFn: runState.progressFn,
+	***REMOVED***)
 
 	mex.progress.Modify(pb.WithProgress(runState.progressFn)) // Keep track of the progress
 	go trackProgress(parentCtx, ctx, ctx, mex, runState.progressFn)

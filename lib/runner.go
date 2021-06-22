@@ -45,16 +45,17 @@ type InitializedVU interface ***REMOVED***
 	Activate(*VUActivationParams) ActiveVU
 
 	// GetID returns the unique VU ID
-	GetID() int64
+	GetID() uint64
 ***REMOVED***
 
 // VUActivationParams are supplied by each executor when it retrieves a VU from
 // the buffer pool and activates it for use.
 type VUActivationParams struct ***REMOVED***
-	RunContext         context.Context
-	DeactivateCallback func(InitializedVU)
-	Env, Tags          map[string]string
-	Exec, Scenario     string
+	RunContext               context.Context
+	DeactivateCallback       func(InitializedVU)
+	Env, Tags                map[string]string
+	Exec, Scenario           string
+	GetNextIterationCounters func() (uint64, uint64)
 ***REMOVED***
 
 // A Runner is a factory for VUs. It should precompute as much as possible upon
@@ -73,7 +74,7 @@ type Runner interface ***REMOVED***
 	// Spawns a new VU. It's fine to make this function rather heavy, if it means a performance
 	// improvement at runtime. Remember, this is called once per VU and normally only at the start
 	// of a test - RunOnce() may be called hundreds of thousands of times, and must be fast.
-	NewVU(id int64, out chan<- stats.SampleContainer) (InitializedVU, error)
+	NewVU(idLocal, idGlobal uint64, out chan<- stats.SampleContainer) (InitializedVU, error)
 
 	// Runs pre-test setup, if applicable.
 	Setup(ctx context.Context, out chan<- stats.SampleContainer) error

@@ -109,6 +109,14 @@ type ExecutorConfig interface ***REMOVED***
 	HasWork(*ExecutionTuple) bool
 ***REMOVED***
 
+// ScenarioState holds runtime scenario information returned by the k6/execution
+// JS module.
+type ScenarioState struct ***REMOVED***
+	Name, Executor string
+	StartTime      time.Time
+	ProgressFn     func() (float64, []string)
+***REMOVED***
+
 // InitVUFunc is just a shorthand so we don't have to type the function
 // signature every time.
 type InitVUFunc func(context.Context, *logrus.Entry) (InitializedVU, error)

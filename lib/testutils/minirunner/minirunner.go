@@ -46,9 +46,8 @@ type MiniRunner struct ***REMOVED***
 
 	SetupData []byte
 
-	NextVUID int64
-	Group    *lib.Group
-	Options  lib.Options
+	Group   *lib.Group
+	Options lib.Options
 ***REMOVED***
 
 // MakeArchive isn't implemented, it always returns nil and is just here to
@@ -58,8 +57,16 @@ func (r MiniRunner) MakeArchive() *lib.Archive ***REMOVED***
 ***REMOVED***
 
 // NewVU returns a new VU with an incremental ID.
-func (r *MiniRunner) NewVU(id int64, out chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
-	return &VU***REMOVED***R: r, Out: out, ID: id***REMOVED***, nil
+func (r *MiniRunner) NewVU(idLocal, idGlobal uint64, out chan<- stats.SampleContainer) (lib.InitializedVU, error) ***REMOVED***
+	state := &lib.State***REMOVED***VUID: idLocal, VUIDGlobal: idGlobal, Iteration: int64(-1)***REMOVED***
+	return &VU***REMOVED***
+		R:            r,
+		Out:          out,
+		ID:           idLocal,
+		IDGlobal:     idGlobal,
+		state:        state,
+		scenarioIter: make(map[string]uint64),
+	***REMOVED***, nil
 ***REMOVED***
 
 // Setup calls the supplied mock setup() function, if present.
@@ -124,10 +131,13 @@ func (r *MiniRunner) HandleSummary(ctx context.Context, s *lib.Summary) (map[str
 
 // VU is a mock VU, spawned by a MiniRunner.
 type VU struct ***REMOVED***
-	R         *MiniRunner
-	Out       chan<- stats.SampleContainer
-	ID        int64
-	Iteration int64
+	R            *MiniRunner
+	Out          chan<- stats.SampleContainer
+	ID, IDGlobal uint64
+	Iteration    int64
+	state        *lib.State
+	// count of iterations executed by this VU in each scenario
+	scenarioIter map[string]uint64
 ***REMOVED***
 
 // ActiveVU holds a VU and its activation parameters
@@ -135,23 +145,44 @@ type ActiveVU struct ***REMOVED***
 	*VU
 	*lib.VUActivationParams
 	busy chan struct***REMOVED******REMOVED***
+
+	scenarioName              string
+	getNextIterations         func() (uint64, uint64)
+	scIterLocal, scIterGlobal uint64
 ***REMOVED***
 
 // GetID returns the unique VU ID.
-func (vu *VU) GetID() int64 ***REMOVED***
+func (vu *VU) GetID() uint64 ***REMOVED***
 	return vu.ID
 ***REMOVED***
 
 // Activate the VU so it will be able to run code.
 func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
+	ctx := lib.WithState(params.RunContext, vu.state)
+
+	vu.state.GetScenarioVUIter = func() uint64 ***REMOVED***
+		return vu.scenarioIter[params.Scenario]
+	***REMOVED***
+
 	avu := &ActiveVU***REMOVED***
 		VU:                 vu,
 		VUActivationParams: params,
 		busy:               make(chan struct***REMOVED******REMOVED***, 1),
+		scenarioName:       params.Scenario,
+		scIterLocal:        ^uint64(0),
+		scIterGlobal:       ^uint64(0),
+		getNextIterations:  params.GetNextIterationCounters,
+	***REMOVED***
+
+	vu.state.GetScenarioLocalVUIter = func() uint64 ***REMOVED***
+		return avu.scIterLocal
+	***REMOVED***
+	vu.state.GetScenarioGlobalVUIter = func() uint64 ***REMOVED***
+		return avu.scIterGlobal
 	***REMOVED***
 
 	go func() ***REMOVED***
-		<-params.RunContext.Done()
+		<-ctx.Done()
 
 		// Wait for the VU to stop running, if it was, and prevent it from
 		// running again for this activation
@@ -163,6 +194,18 @@ func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED**
 	***REMOVED***()
 
 	return avu
+***REMOVED***
+
+func (vu *ActiveVU) incrIteration() ***REMOVED***
+	vu.Iteration++
+	vu.state.Iteration = vu.Iteration
+
+	if _, ok := vu.scenarioIter[vu.scenarioName]; ok ***REMOVED***
+		vu.scenarioIter[vu.scenarioName]++
+	***REMOVED*** else ***REMOVED***
+		vu.scenarioIter[vu.scenarioName] = 0
+	***REMOVED***
+	vu.scIterLocal, vu.scIterGlobal = vu.getNextIterations()
 ***REMOVED***
 
 // RunOnce runs the mock default function once, incrementing its iteration.
@@ -181,13 +224,8 @@ func (vu *ActiveVU) RunOnce() error ***REMOVED***
 		<-vu.busy // unlock deactivation again
 	***REMOVED***()
 
-	state := &lib.State***REMOVED***
-		Vu:        vu.ID,
-		Iteration: vu.Iteration,
-	***REMOVED***
-	newctx := lib.WithState(vu.RunContext, state)
+	ctx := lib.WithState(vu.RunContext, vu.state)
+	vu.incrIteration()
 
-	vu.Iteration++
-
-	return vu.R.Fn(newctx, vu.Out)
+	return vu.R.Fn(ctx, vu.Out)
 ***REMOVED***
