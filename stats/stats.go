@@ -450,6 +450,16 @@ type Metric struct ***REMOVED***
 	Sink       Sink         `json:"-"`
 ***REMOVED***
 
+// Sample samples the metric at the given time, with the provided tags and value
+func (m *Metric) Sample(t time.Time, tags *SampleTags, value float64) Sample ***REMOVED***
+	return Sample***REMOVED***
+		Time:   t,
+		Tags:   tags,
+		Value:  value,
+		Metric: m,
+	***REMOVED***
+***REMOVED***
+
 func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 	vt := Default
 	if len(t) > 0 ***REMOVED***
