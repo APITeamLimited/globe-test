@@ -65,7 +65,16 @@ func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime 
 	***REMOVED***
 
 	rt := common.GetRuntime(*ctxPtr)
-	return common.Bind(rt, Metric***REMOVED***stats.New(name, t, valueType)***REMOVED***, ctxPtr), nil
+	bound := common.Bind(rt, Metric***REMOVED***stats.New(name, t, valueType)***REMOVED***, ctxPtr)
+	o := rt.NewObject()
+	err := o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	if err = o.Set("add", rt.ToValue(bound["add"])); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return o, nil
 ***REMOVED***
 
 func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]string) (bool, error) ***REMOVED***
@@ -89,11 +98,6 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: stats.IntoSampleTags(&tags)***REMOVED***
 	stats.PushIfNotDone(ctx, state.Samples, sample)
 	return true, nil
-***REMOVED***
-
-// GetName returns the metric name
-func (m Metric) GetName() string ***REMOVED***
-	return m.metric.Name
 ***REMOVED***
 
 type Metrics struct***REMOVED******REMOVED***

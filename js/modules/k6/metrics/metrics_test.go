@@ -172,6 +172,23 @@ func TestMetricNames(t *testing.T) ***REMOVED***
 
 func TestMetricGetName(t *testing.T) ***REMOVED***
 	t.Parallel()
-	metric := Metric***REMOVED***metric: &stats.Metric***REMOVED***Name: "myMetricName"***REMOVED******REMOVED***
-	assert.Equal(t, "myMetricName", metric.GetName())
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	ctxPtr := new(context.Context)
+	*ctxPtr = common.WithRuntime(context.Background(), rt)
+	require.NoError(t, rt.Set("metrics", common.Bind(rt, New(), ctxPtr)))
+	v, err := rt.RunString(`
+		var m = new metrics.Counter("my_metric")
+		m.name
+	`)
+	require.NoError(t, err)
+	require.Equal(t, "my_metric", v.String())
+
+	_, err = rt.RunString(`
+		"use strict";
+		m.name = "something"
+	`)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "TypeError: Cannot assign to read only property 'name'")
 ***REMOVED***
