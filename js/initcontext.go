@@ -271,8 +271,7 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 ***REMOVED***
 
 func (i *InitContext) compileImport(src, filename string) (*goja.Program, error) ***REMOVED***
-	pgm, _, err := i.compiler.Compile(src, filename,
-		"(function(module, exports)***REMOVED***\n", "\n***REMOVED***)\n", true, i.compatibilityMode)
+	pgm, _, err := i.compiler.Compile(src, filename, false)
 	return pgm, err
 ***REMOVED***
 
