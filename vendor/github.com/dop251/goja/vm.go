@@ -3323,11 +3323,12 @@ var enumPopClose _enumPopClose
 
 func (_enumPopClose) exec(vm *vm) ***REMOVED***
 	l := len(vm.iterStack) - 1
-	if iter := vm.iterStack[l].iter; iter != nil ***REMOVED***
-		returnIter(iter)
-	***REMOVED***
+	item := vm.iterStack[l]
 	vm.iterStack[l] = iterStackItem***REMOVED******REMOVED***
 	vm.iterStack = vm.iterStack[:l]
+	if iter := item.iter; iter != nil ***REMOVED***
+		returnIter(iter)
+	***REMOVED***
 	vm.pc++
 ***REMOVED***
 

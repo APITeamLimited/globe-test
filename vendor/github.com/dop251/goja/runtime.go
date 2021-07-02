@@ -1804,13 +1804,23 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 			dst.Set(reflect.Zero(typ))
 			return nil
 		***REMOVED***
-		if et.AssignableTo(typ) ***REMOVED***
-			dst.Set(reflect.ValueOf(exportValue(v, ctx)))
-			return nil
-		***REMOVED*** else if et.ConvertibleTo(typ) ***REMOVED***
-			dst.Set(reflect.ValueOf(exportValue(v, ctx)).Convert(typ))
-			return nil
+
+		for i := 0; ; i++ ***REMOVED***
+			if et.ConvertibleTo(typ) ***REMOVED***
+				ev := reflect.ValueOf(exportValue(v, ctx))
+				for ; i > 0; i-- ***REMOVED***
+					ev = ev.Elem()
+				***REMOVED***
+				dst.Set(ev.Convert(typ))
+				return nil
+			***REMOVED***
+			if et.Kind() == reflect.Ptr ***REMOVED***
+				et = et.Elem()
+			***REMOVED*** else ***REMOVED***
+				break
+			***REMOVED***
 		***REMOVED***
+
 		if typ == typeTime ***REMOVED***
 			if obj, ok := v.(*Object); ok ***REMOVED***
 				if d, ok := obj.self.(*dateObject); ok ***REMOVED***
