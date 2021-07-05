@@ -307,15 +307,28 @@ func TestOptions(t *testing.T) ***REMOVED***
 		opts := Options***REMOVED******REMOVED***.Apply(Options***REMOVED***
 			BlacklistIPs: []*IPNet***REMOVED******REMOVED***
 				IPNet: net.IPNet***REMOVED***
-					IP:   net.IPv4zero,
-					Mask: net.CIDRMask(1, 1),
+					IP:   net.IPv4bcast,
+					Mask: net.CIDRMask(31, 32),
 				***REMOVED***,
 			***REMOVED******REMOVED***,
 		***REMOVED***)
 		assert.NotNil(t, opts.BlacklistIPs)
 		assert.NotEmpty(t, opts.BlacklistIPs)
-		assert.Equal(t, net.IPv4zero, opts.BlacklistIPs[0].IP)
-		assert.Equal(t, net.CIDRMask(1, 1), opts.BlacklistIPs[0].Mask)
+		assert.Equal(t, net.IPv4bcast, opts.BlacklistIPs[0].IP)
+		assert.Equal(t, net.CIDRMask(31, 32), opts.BlacklistIPs[0].Mask)
+
+		t.Run("JSON", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			b, err := json.Marshal(opts)
+			require.NoError(t, err)
+
+			var uopts Options
+			err = json.Unmarshal(b, &uopts)
+			require.NoError(t, err)
+			require.Len(t, uopts.BlacklistIPs, 1)
+			require.Equal(t, "255.255.255.254/31", uopts.BlacklistIPs[0].String())
+		***REMOVED***)
 	***REMOVED***)
 	t.Run("BlockedHostnames", func(t *testing.T) ***REMOVED***
 		blockedHostnames, err := types.NewNullHostnameTrie([]string***REMOVED***"test.k6.io", "*valid.pattern"***REMOVED***)
