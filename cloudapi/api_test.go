@@ -122,7 +122,9 @@ func TestDetailsError(t *testing.T) ***REMOVED***
 	assert.EqualError(t, err, "(403) Validation failed\n name: Shorter than minimum length 2.")
 ***REMOVED***
 
-func TestRetry(t *testing.T) ***REMOVED***
+func TestClientRetry(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	called := 0
 	idempotencyKey := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
@@ -146,7 +148,9 @@ func TestRetry(t *testing.T) ***REMOVED***
 	assert.NotNil(t, err)
 ***REMOVED***
 
-func TestRetrySuccessOnSecond(t *testing.T) ***REMOVED***
+func TestClientRetrySuccessOnSecond(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	called := 1
 	idempotencyKey := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
