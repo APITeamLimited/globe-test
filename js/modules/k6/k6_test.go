@@ -474,35 +474,3 @@ func TestCheckTags(t *testing.T) ***REMOVED***
 		***REMOVED***, sample.Tags.CloneTags())
 	***REMOVED***
 ***REMOVED***
-
-func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
-	t.Parallel()
-
-	rt := goja.New()
-	baseCtx := common.WithRuntime(context.Background(), rt)
-
-	ctx := new(context.Context)
-	*ctx = baseCtx
-	err := rt.Set("k6", common.Bind(rt, New(), ctx))
-	require.Nil(t, err)
-	prove := func(t *testing.T, script, reason string) ***REMOVED***
-		_, err := rt.RunString(script)
-		require.NotNil(t, err)
-		var x *goja.InterruptedError
-		assert.ErrorAs(t, err, &x)
-		v, ok := x.Value().(*common.InterruptError)
-		require.True(t, ok)
-		require.Equal(t, v.Reason, reason)
-	***REMOVED***
-	t.Run("Without state", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
-		prove(t, "k6.abortTest()", common.AbortTest)
-	***REMOVED***)
-	t.Run("With state and default reason", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
-		*ctx = lib.WithState(baseCtx, &lib.State***REMOVED******REMOVED***)
-		prove(t, "k6.abortTest()", common.AbortTest)
-	***REMOVED***)
-	t.Run("With state and custom reason", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
-		*ctx = lib.WithState(baseCtx, &lib.State***REMOVED******REMOVED***)
-		prove(t, `k6.abortTest("mayday")`, "mayday")
-	***REMOVED***)
-***REMOVED***

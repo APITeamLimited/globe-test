@@ -1,5 +1,5 @@
-import ***REMOVED*** abortTest ***REMOVED*** from 'k6';
+import exec from 'k6/execution';
 
 export default function () ***REMOVED***
-    abortTest();
+    exec.test.abort();
 ***REMOVED***

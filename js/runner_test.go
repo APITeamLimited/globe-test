@@ -1507,8 +1507,8 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		***REMOVED***
 			"abortTest",
-			`var abortTest = require("k6").abortTest;
-			 abortTest();
+			`var test = require("k6/execution").test;
+			 test.abort();
 			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
 			common.AbortTest,
 		***REMOVED***,
