@@ -679,11 +679,11 @@ func (er extRangeDescriptorish) GetExtensionRangeOptions() *dpb.ExtensionRangeOp
 	return er.er.GetOptions()
 ***REMOVED***
 
-func interpretFileOptions(r *parseResult, fd fileDescriptorish) error ***REMOVED***
+func interpretFileOptions(l *linker, r *parseResult, fd fileDescriptorish) error ***REMOVED***
 	opts := fd.GetFileOptions()
 	if opts != nil ***REMOVED***
 		if len(opts.UninterpretedOption) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, fd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, fd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -691,24 +691,24 @@ func interpretFileOptions(r *parseResult, fd fileDescriptorish) error ***REMOVED
 		***REMOVED***
 	***REMOVED***
 	for _, md := range fd.GetMessageTypes() ***REMOVED***
-		if err := interpretMessageOptions(r, md); err != nil ***REMOVED***
+		if err := interpretMessageOptions(l, r, md); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, fld := range fd.GetExtensions() ***REMOVED***
-		if err := interpretFieldOptions(r, fld); err != nil ***REMOVED***
+		if err := interpretFieldOptions(l, r, fld); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, ed := range fd.GetEnumTypes() ***REMOVED***
-		if err := interpretEnumOptions(r, ed); err != nil ***REMOVED***
+		if err := interpretEnumOptions(l, r, ed); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, sd := range fd.GetServices() ***REMOVED***
 		opts := sd.GetServiceOptions()
 		if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, sd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, sd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -717,7 +717,7 @@ func interpretFileOptions(r *parseResult, fd fileDescriptorish) error ***REMOVED
 		for _, mtd := range sd.GetMethods() ***REMOVED***
 			opts := mtd.GetMethodOptions()
 			if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
-				if remain, err := interpretOptions(r, mtd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+				if remain, err := interpretOptions(l, r, mtd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 					return err
 				***REMOVED*** else ***REMOVED***
 					opts.UninterpretedOption = remain
@@ -728,11 +728,11 @@ func interpretFileOptions(r *parseResult, fd fileDescriptorish) error ***REMOVED
 	return nil
 ***REMOVED***
 
-func interpretMessageOptions(r *parseResult, md msgDescriptorish) error ***REMOVED***
+func interpretMessageOptions(l *linker, r *parseResult, md msgDescriptorish) error ***REMOVED***
 	opts := md.GetMessageOptions()
 	if opts != nil ***REMOVED***
 		if len(opts.UninterpretedOption) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, md, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, md, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -740,14 +740,14 @@ func interpretMessageOptions(r *parseResult, md msgDescriptorish) error ***REMOV
 		***REMOVED***
 	***REMOVED***
 	for _, fld := range md.GetFields() ***REMOVED***
-		if err := interpretFieldOptions(r, fld); err != nil ***REMOVED***
+		if err := interpretFieldOptions(l, r, fld); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, ood := range md.GetOneOfs() ***REMOVED***
 		opts := ood.GetOneOfOptions()
 		if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, ood, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, ood, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -755,14 +755,14 @@ func interpretMessageOptions(r *parseResult, md msgDescriptorish) error ***REMOV
 		***REMOVED***
 	***REMOVED***
 	for _, fld := range md.GetNestedExtensions() ***REMOVED***
-		if err := interpretFieldOptions(r, fld); err != nil ***REMOVED***
+		if err := interpretFieldOptions(l, r, fld); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, er := range md.GetExtensionRanges() ***REMOVED***
 		opts := er.GetExtensionRangeOptions()
 		if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, er, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, er, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -770,19 +770,19 @@ func interpretMessageOptions(r *parseResult, md msgDescriptorish) error ***REMOV
 		***REMOVED***
 	***REMOVED***
 	for _, nmd := range md.GetNestedMessageTypes() ***REMOVED***
-		if err := interpretMessageOptions(r, nmd); err != nil ***REMOVED***
+		if err := interpretMessageOptions(l, r, nmd); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	for _, ed := range md.GetNestedEnumTypes() ***REMOVED***
-		if err := interpretEnumOptions(r, ed); err != nil ***REMOVED***
+		if err := interpretEnumOptions(l, r, ed); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 	return nil
 ***REMOVED***
 
-func interpretFieldOptions(r *parseResult, fld fldDescriptorish) error ***REMOVED***
+func interpretFieldOptions(l *linker, r *parseResult, fld fldDescriptorish) error ***REMOVED***
 	opts := fld.GetFieldOptions()
 	if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
 		uo := opts.UninterpretedOption
@@ -824,7 +824,7 @@ func interpretFieldOptions(r *parseResult, fld fldDescriptorish) error ***REMOVE
 		if len(uo) == 0 ***REMOVED***
 			// no real options, only pseudo-options above? clear out options
 			fld.AsFieldDescriptorProto().Options = nil
-		***REMOVED*** else if remain, err := interpretOptions(r, fld, opts, uo); err != nil ***REMOVED***
+		***REMOVED*** else if remain, err := interpretOptions(l, r, fld, opts, uo); err != nil ***REMOVED***
 			return err
 		***REMOVED*** else ***REMOVED***
 			opts.UninterpretedOption = remain
@@ -898,11 +898,11 @@ func encodeDefaultBytes(b []byte) string ***REMOVED***
 	return buf.String()
 ***REMOVED***
 
-func interpretEnumOptions(r *parseResult, ed enumDescriptorish) error ***REMOVED***
+func interpretEnumOptions(l *linker, r *parseResult, ed enumDescriptorish) error ***REMOVED***
 	opts := ed.GetEnumOptions()
 	if opts != nil ***REMOVED***
 		if len(opts.UninterpretedOption) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, ed, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, ed, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -912,7 +912,7 @@ func interpretEnumOptions(r *parseResult, ed enumDescriptorish) error ***REMOVED
 	for _, evd := range ed.GetValues() ***REMOVED***
 		opts := evd.GetEnumValueOptions()
 		if len(opts.GetUninterpretedOption()) > 0 ***REMOVED***
-			if remain, err := interpretOptions(r, evd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
+			if remain, err := interpretOptions(l, r, evd, opts, opts.UninterpretedOption); err != nil ***REMOVED***
 				return err
 			***REMOVED*** else ***REMOVED***
 				opts.UninterpretedOption = remain
@@ -922,8 +922,8 @@ func interpretEnumOptions(r *parseResult, ed enumDescriptorish) error ***REMOVED
 	return nil
 ***REMOVED***
 
-func interpretOptions(res *parseResult, element descriptorish, opts proto.Message, uninterpreted []*dpb.UninterpretedOption) ([]*dpb.UninterpretedOption, error) ***REMOVED***
-	optsd, err := desc.LoadMessageDescriptorForMessage(opts)
+func interpretOptions(l *linker, res *parseResult, element descriptorish, opts proto.Message, uninterpreted []*dpb.UninterpretedOption) ([]*dpb.UninterpretedOption, error) ***REMOVED***
+	optsd, err := loadMessageDescriptorForOptions(l, element.GetFile(), opts)
 	if err != nil ***REMOVED***
 		if res.lenient ***REMOVED***
 			return uninterpreted, nil
@@ -993,13 +993,46 @@ func interpretOptions(res *parseResult, element descriptorish, opts proto.Messag
 		***REMOVED***
 	***REMOVED***
 
-	// nw try to convert into the passed in message and fail if not successful
+	// now try to convert into the passed in message and fail if not successful
 	if err := dm.ConvertToDeterministic(opts); err != nil ***REMOVED***
 		node := res.nodes[element.AsProto()]
 		return nil, res.errs.handleError(ErrorWithSourcePos***REMOVED***Pos: node.Start(), Underlying: err***REMOVED***)
 	***REMOVED***
 
 	return nil, nil
+***REMOVED***
+
+func loadMessageDescriptorForOptions(l *linker, fd fileDescriptorish, opts proto.Message) (*desc.MessageDescriptor, error) ***REMOVED***
+	// see if the file imports a custom version of descriptor.proto
+	fqn := proto.MessageName(opts)
+	d := findMessageDescriptorForOptions(l, fd, fqn)
+	if d != nil ***REMOVED***
+		return d, nil
+	***REMOVED***
+	// fall back to built-in options descriptors
+	return desc.LoadMessageDescriptorForMessage(opts)
+***REMOVED***
+
+func findMessageDescriptorForOptions(l *linker, fd fileDescriptorish, messageName string) *desc.MessageDescriptor ***REMOVED***
+	d := fd.FindSymbol(messageName)
+	if d != nil ***REMOVED***
+		md, _ := d.(*desc.MessageDescriptor)
+		return md
+	***REMOVED***
+
+	// TODO: should this support public imports and be recursive?
+	for _, dep := range fd.GetDependencies() ***REMOVED***
+		d := dep.FindSymbol(messageName)
+		if d != nil ***REMOVED***
+			if l != nil ***REMOVED***
+				l.markUsed(fd.AsProto().(*dpb.FileDescriptorProto), d.GetFile().AsFileDescriptorProto())
+			***REMOVED***
+			md, _ := d.(*desc.MessageDescriptor)
+			return md
+		***REMOVED***
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 func interpretField(res *parseResult, mc *messageContext, element descriptorish, dm *dynamic.Message, opt *dpb.UninterpretedOption, nameIndex int, pathPrefix []int32) (path []int32, err error) ***REMOVED***

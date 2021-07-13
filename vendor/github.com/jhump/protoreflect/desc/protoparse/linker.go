@@ -15,11 +15,13 @@ import (
 )
 
 type linker struct ***REMOVED***
-	files          map[string]*parseResult
-	filenames      []string
-	errs           *errorHandler
-	descriptorPool map[*dpb.FileDescriptorProto]map[string]proto.Message
-	extensions     map[string]map[int32]string
+	files             map[string]*parseResult
+	filenames         []string
+	errs              *errorHandler
+	descriptorPool    map[*dpb.FileDescriptorProto]map[string]proto.Message
+	packageNamespaces map[*dpb.FileDescriptorProto]map[string]struct***REMOVED******REMOVED***
+	extensions        map[string]map[int32]string
+	usedImports       map[*dpb.FileDescriptorProto]map[string]struct***REMOVED******REMOVED***
 ***REMOVED***
 
 func newLinker(files *parseResults, errs *errorHandler) *linker ***REMOVED***
@@ -64,7 +66,7 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) ***REMOVED
 	// options that remain.
 	for _, r := range l.files ***REMOVED***
 		fd := linked[r.fd.GetName()]
-		if err := interpretFileOptions(r, richFileDescriptorish***REMOVED***FileDescriptor: fd***REMOVED***); err != nil ***REMOVED***
+		if err := interpretFileOptions(l, r, richFileDescriptorish***REMOVED***FileDescriptor: fd***REMOVED***); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		// we should now have any message_set_wire_format options parsed
@@ -85,12 +87,14 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) ***REMOVED
 
 func (l *linker) createDescriptorPool() error ***REMOVED***
 	l.descriptorPool = map[*dpb.FileDescriptorProto]map[string]proto.Message***REMOVED******REMOVED***
+	l.packageNamespaces = map[*dpb.FileDescriptorProto]map[string]struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	for _, filename := range l.filenames ***REMOVED***
 		r := l.files[filename]
 		fd := r.fd
 		pool := map[string]proto.Message***REMOVED******REMOVED***
 		l.descriptorPool[fd] = pool
 		prefix := fd.GetPackage()
+		l.packageNamespaces[fd] = namespacesFromPackage(prefix)
 		if prefix != "" ***REMOVED***
 			prefix += "."
 		***REMOVED***
@@ -153,6 +157,23 @@ func (l *linker) createDescriptorPool() error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func namespacesFromPackage(pkg string) map[string]struct***REMOVED******REMOVED*** ***REMOVED***
+	if pkg == "" ***REMOVED***
+		return nil
+	***REMOVED***
+	offs := 0
+	pkgs := map[string]struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	pkgs[pkg] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	for ***REMOVED***
+		pos := strings.IndexByte(pkg[offs:], '.')
+		if pos == -1 ***REMOVED***
+			return pkgs
+		***REMOVED***
+		pkgs[pkg[:offs+pos]] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		offs = offs + pos + 1
+	***REMOVED***
+***REMOVED***
+
 func addMessageToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, prefix string, md *dpb.DescriptorProto) error ***REMOVED***
 	fqn := prefix + md.GetName()
 	if err := addToPool(r, pool, errs, fqn, md); err != nil ***REMOVED***
@@ -193,7 +214,10 @@ func addEnumToPool(r *parseResult, pool map[string]proto.Message, errs *errorHan
 		return err
 	***REMOVED***
 	for _, evd := range ed.Value ***REMOVED***
-		vfqn := fqn + "." + evd.GetName()
+		// protobuf name-scoping rules for enum values follow C++ scoping rules:
+		// the enum value name is a symbol in the *parent* scope (the one
+		// enclosing the enum).
+		vfqn := prefix + evd.GetName()
 		if err := addToPool(r, pool, errs, vfqn, evd); err != nil ***REMOVED***
 			return err
 		***REMOVED***
@@ -218,7 +242,16 @@ func addServiceToPool(r *parseResult, pool map[string]proto.Message, errs *error
 func addToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, fqn string, dsc proto.Message) error ***REMOVED***
 	if d, ok := pool[fqn]; ok ***REMOVED***
 		node := r.nodes[dsc]
-		if err := errs.handleErrorWithPos(node.Start(), "duplicate symbol %s: already defined as %s", fqn, descriptorType(d)); err != nil ***REMOVED***
+		_, additionIsEnumVal := dsc.(*dpb.EnumValueDescriptorProto)
+		_, existingIsEnumVal := d.(*dpb.EnumValueDescriptorProto)
+		// because of weird scoping for enum values, provide more context in error message
+		// if this conflict is with an enum value
+		var suffix string
+		if additionIsEnumVal || existingIsEnumVal ***REMOVED***
+			suffix = "; protobuf uses C++ scoping rules for enum values, so they exist in the scope enclosing the enum"
+		***REMOVED***
+		// TODO: also include the source location for the conflicting symbol
+		if err := errs.handleErrorWithPos(node.Start(), "duplicate symbol %s: already defined as %s%s", fqn, descriptorType(d), suffix); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
@@ -256,6 +289,7 @@ func descriptorType(m proto.Message) string ***REMOVED***
 
 func (l *linker) resolveReferences() error ***REMOVED***
 	l.extensions = map[string]map[int32]string***REMOVED******REMOVED***
+	l.usedImports = map[*dpb.FileDescriptorProto]map[string]struct***REMOVED******REMOVED******REMOVED******REMOVED***
 	for _, filename := range l.filenames ***REMOVED***
 		r := l.files[filename]
 		fd := r.fd
@@ -313,7 +347,7 @@ func (l *linker) resolveEnumTypes(r *parseResult, fd *dpb.FileDescriptorProto, p
 
 func (l *linker) resolveMessageTypes(r *parseResult, fd *dpb.FileDescriptorProto, prefix string, md *dpb.DescriptorProto, scopes []scope) error ***REMOVED***
 	fqn := prefix + md.GetName()
-	scope := messageScope(fqn, isProto3(fd), l.descriptorPool[fd])
+	scope := messageScope(fqn, isProto3(fd), l, fd)
 	scopes = append(scopes, scope)
 	prefix = fqn + "."
 
@@ -336,6 +370,14 @@ func (l *linker) resolveMessageTypes(r *parseResult, fd *dpb.FileDescriptorProto
 	for _, fld := range md.Field ***REMOVED***
 		if err := l.resolveFieldTypes(r, fd, prefix, fld, scopes); err != nil ***REMOVED***
 			return err
+		***REMOVED***
+	***REMOVED***
+	for _, ood := range md.OneofDecl ***REMOVED***
+		if ood.Options != nil ***REMOVED***
+			ooName := fmt.Sprintf("%s.%s", fqn, ood.GetName())
+			if err := l.resolveOptions(r, fd, "oneof", ooName, proto.MessageName(ood.Options), ood.Options.UninterpretedOption, scopes); err != nil ***REMOVED***
+				return err
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	for _, fld := range md.Extension ***REMOVED***
@@ -361,9 +403,12 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 	elemType := "field"
 	if fld.GetExtendee() != "" ***REMOVED***
 		elemType = "extension"
-		fqn, dsc, _ := l.resolve(fd, fld.GetExtendee(), isMessage, scopes)
+		fqn, dsc, _ := l.resolve(fd, fld.GetExtendee(), true, scopes)
 		if dsc == nil ***REMOVED***
 			return l.errs.handleErrorWithPos(node.FieldExtendee().Start(), "unknown extendee type %s", fld.GetExtendee())
+		***REMOVED***
+		if dsc == sentinelMissingSymbol ***REMOVED***
+			return l.errs.handleErrorWithPos(node.FieldExtendee().Start(), "unknown extendee type %s; resolved to %s which is not defined; consider using a leading dot", fld.GetExtendee(), fqn)
 		***REMOVED***
 		extd, ok := dsc.(*dpb.DescriptorProto)
 		if !ok ***REMOVED***
@@ -412,9 +457,12 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 		return nil
 	***REMOVED***
 
-	fqn, dsc, proto3 := l.resolve(fd, fld.GetTypeName(), isType, scopes)
+	fqn, dsc, proto3 := l.resolve(fd, fld.GetTypeName(), true, scopes)
 	if dsc == nil ***REMOVED***
 		return l.errs.handleErrorWithPos(node.FieldType().Start(), "%s: unknown type %s", scope, fld.GetTypeName())
+	***REMOVED***
+	if dsc == sentinelMissingSymbol ***REMOVED***
+		return l.errs.handleErrorWithPos(node.FieldType().Start(), "%s: unknown type %s; resolved to %s which is not defined; consider using a leading dot", scope, fld.GetTypeName(), fqn)
 	***REMOVED***
 	switch dsc := dsc.(type) ***REMOVED***
 	case *dpb.DescriptorProto:
@@ -454,9 +502,13 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 		***REMOVED***
 		scope := fmt.Sprintf("method %s.%s", thisName, mtd.GetName())
 		node := r.getMethodNode(mtd)
-		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), isMessage, scopes)
+		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), true, scopes)
 		if dsc == nil ***REMOVED***
 			if err := l.errs.handleErrorWithPos(node.GetInputType().Start(), "%s: unknown request type %s", scope, mtd.GetInputType()); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED*** else if dsc == sentinelMissingSymbol ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetInputType().Start(), "%s: unknown request type %s; resolved to %s which is not defined; consider using a leading dot", scope, mtd.GetInputType(), fqn); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else if _, ok := dsc.(*dpb.DescriptorProto); !ok ***REMOVED***
@@ -468,9 +520,14 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 			mtd.InputType = proto.String("." + fqn)
 		***REMOVED***
 
-		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), isMessage, scopes)
+		// TODO: make input and output type resolution more DRY
+		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), true, scopes)
 		if dsc == nil ***REMOVED***
 			if err := l.errs.handleErrorWithPos(node.GetOutputType().Start(), "%s: unknown response type %s", scope, mtd.GetOutputType()); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+		***REMOVED*** else if dsc == sentinelMissingSymbol ***REMOVED***
+			if err := l.errs.handleErrorWithPos(node.GetOutputType().Start(), "%s: unknown response type %s; resolved to %s which is not defined; consider using a leading dot", scope, mtd.GetOutputType(), fqn); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED*** else if _, ok := dsc.(*dpb.DescriptorProto); !ok ***REMOVED***
@@ -495,9 +552,15 @@ opts:
 		for _, nm := range opt.Name ***REMOVED***
 			if nm.GetIsExtension() ***REMOVED***
 				node := r.getOptionNamePartNode(nm)
-				fqn, dsc, _ := l.resolve(fd, nm.GetNamePart(), isField, scopes)
+				fqn, dsc, _ := l.resolve(fd, nm.GetNamePart(), false, scopes)
 				if dsc == nil ***REMOVED***
 					if err := l.errs.handleErrorWithPos(node.Start(), "%sunknown extension %s", scope, nm.GetNamePart()); err != nil ***REMOVED***
+						return err
+					***REMOVED***
+					continue opts
+				***REMOVED***
+				if dsc == sentinelMissingSymbol ***REMOVED***
+					if err := l.errs.handleErrorWithPos(node.Start(), "%sunknown extension %s; resolved to %s which is not defined; consider using a leading dot", scope, nm.GetNamePart(), fqn); err != nil ***REMOVED***
 						return err
 					***REMOVED***
 					continue opts
@@ -521,47 +584,41 @@ opts:
 	return nil
 ***REMOVED***
 
-func (l *linker) resolve(fd *dpb.FileDescriptorProto, name string, allowed func(proto.Message) bool, scopes []scope) (fqn string, element proto.Message, proto3 bool) ***REMOVED***
+func (l *linker) resolve(fd *dpb.FileDescriptorProto, name string, onlyTypes bool, scopes []scope) (fqn string, element proto.Message, proto3 bool) ***REMOVED***
 	if strings.HasPrefix(name, ".") ***REMOVED***
 		// already fully-qualified
-		d, proto3 := l.findSymbol(fd, name[1:], false, map[*dpb.FileDescriptorProto]struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+		d, proto3 := l.findSymbol(fd, name[1:])
 		if d != nil ***REMOVED***
 			return name[1:], d, proto3
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		// unqualified, so we look in the enclosing (last) scope first and move
-		// towards outermost (first) scope, trying to resolve the symbol
-		var bestGuess proto.Message
-		var bestGuessFqn string
-		var bestGuessProto3 bool
-		for i := len(scopes) - 1; i >= 0; i-- ***REMOVED***
-			fqn, d, proto3 := scopes[i](name)
-			if d != nil ***REMOVED***
-				if allowed(d) ***REMOVED***
-					return fqn, d, proto3
-				***REMOVED*** else if bestGuess == nil ***REMOVED***
-					bestGuess = d
-					bestGuessFqn = fqn
-					bestGuessProto3 = proto3
-				***REMOVED***
+		return "", nil, false
+	***REMOVED***
+	// unqualified, so we look in the enclosing (last) scope first and move
+	// towards outermost (first) scope, trying to resolve the symbol
+	pos := strings.IndexByte(name, '.')
+	firstName := name
+	if pos > 0 ***REMOVED***
+		firstName = name[:pos]
+	***REMOVED***
+	var bestGuess proto.Message
+	var bestGuessFqn string
+	var bestGuessProto3 bool
+	for i := len(scopes) - 1; i >= 0; i-- ***REMOVED***
+		fqn, d, proto3 := scopes[i](firstName, name)
+		if d != nil ***REMOVED***
+			if !onlyTypes || isType(d) ***REMOVED***
+				return fqn, d, proto3
+			***REMOVED*** else if bestGuess == nil ***REMOVED***
+				bestGuess = d
+				bestGuessFqn = fqn
+				bestGuessProto3 = proto3
 			***REMOVED***
 		***REMOVED***
-		// we return best guess, even though it was not an allowed kind of
-		// descriptor, so caller can print a better error message (e.g.
-		// indicating that the name was found but that it's the wrong type)
-		return bestGuessFqn, bestGuess, bestGuessProto3
 	***REMOVED***
-	return "", nil, false
-***REMOVED***
-
-func isField(m proto.Message) bool ***REMOVED***
-	_, ok := m.(*dpb.FieldDescriptorProto)
-	return ok
-***REMOVED***
-
-func isMessage(m proto.Message) bool ***REMOVED***
-	_, ok := m.(*dpb.DescriptorProto)
-	return ok
+	// we return best guess, even though it was not an allowed kind of
+	// descriptor, so caller can print a better error message (e.g.
+	// indicating that the name was found but that it's the wrong type)
+	return bestGuessFqn, bestGuess, bestGuessProto3
 ***REMOVED***
 
 func isType(m proto.Message) bool ***REMOVED***
@@ -574,22 +631,27 @@ func isType(m proto.Message) bool ***REMOVED***
 
 // scope represents a lexical scope in a proto file in which messages and enums
 // can be declared.
-type scope func(symbol string) (fqn string, element proto.Message, proto3 bool)
+type scope func(firstName, fullName string) (fqn string, element proto.Message, proto3 bool)
 
 func fileScope(fd *dpb.FileDescriptorProto, l *linker) scope ***REMOVED***
 	// we search symbols in this file, but also symbols in other files that have
 	// the same package as this file or a "parent" package (in protobuf,
 	// packages are a hierarchy like C++ namespaces)
 	prefixes := internal.CreatePrefixList(fd.GetPackage())
-	return func(name string) (string, proto.Message, bool) ***REMOVED***
+	querySymbol := func(n string) (d proto.Message, isProto3 bool) ***REMOVED***
+		return l.findSymbol(fd, n)
+	***REMOVED***
+	return func(firstName, fullName string) (string, proto.Message, bool) ***REMOVED***
 		for _, prefix := range prefixes ***REMOVED***
-			var n string
+			var n1, n string
 			if prefix == "" ***REMOVED***
-				n = name
+				// exhausted all prefixes, so it must be in this one
+				n1, n = fullName, fullName
 			***REMOVED*** else ***REMOVED***
-				n = prefix + "." + name
+				n = prefix + "." + fullName
+				n1 = prefix + "." + firstName
 			***REMOVED***
-			d, proto3 := l.findSymbol(fd, n, false, map[*dpb.FileDescriptorProto]struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+			d, proto3 := findSymbolRelative(n1, n, querySymbol)
 			if d != nil ***REMOVED***
 				return n, d, proto3
 			***REMOVED***
@@ -598,23 +660,96 @@ func fileScope(fd *dpb.FileDescriptorProto, l *linker) scope ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func messageScope(messageName string, proto3 bool, filePool map[string]proto.Message) scope ***REMOVED***
-	return func(name string) (string, proto.Message, bool) ***REMOVED***
-		n := messageName + "." + name
-		if d, ok := filePool[n]; ok ***REMOVED***
+func messageScope(messageName string, proto3 bool, l *linker, fd *dpb.FileDescriptorProto) scope ***REMOVED***
+	querySymbol := func(n string) (d proto.Message, isProto3 bool) ***REMOVED***
+		return l.findSymbolInFile(n, fd), false
+	***REMOVED***
+	return func(firstName, fullName string) (string, proto.Message, bool) ***REMOVED***
+		n1 := messageName + "." + firstName
+		n := messageName + "." + fullName
+		d, _ := findSymbolRelative(n1, n, querySymbol)
+		if d != nil ***REMOVED***
 			return n, d, proto3
 		***REMOVED***
 		return "", nil, false
 	***REMOVED***
 ***REMOVED***
 
-func (l *linker) findSymbol(fd *dpb.FileDescriptorProto, name string, public bool, checked map[*dpb.FileDescriptorProto]struct***REMOVED******REMOVED***) (element proto.Message, proto3 bool) ***REMOVED***
+func findSymbolRelative(firstName, fullName string, query func(name string) (d proto.Message, isProto3 bool)) (d proto.Message, isProto3 bool) ***REMOVED***
+	d, proto3 := query(firstName)
+	if d == nil ***REMOVED***
+		return nil, false
+	***REMOVED***
+	if firstName == fullName ***REMOVED***
+		return d, proto3
+	***REMOVED***
+	if !isAggregateDescriptor(d) ***REMOVED***
+		// can't possibly find the rest of full name if
+		// the first name indicated a leaf descriptor
+		return nil, false
+	***REMOVED***
+	d, proto3 = query(fullName)
+	if d == nil ***REMOVED***
+		return sentinelMissingSymbol, false
+	***REMOVED***
+	return d, proto3
+***REMOVED***
+
+func (l *linker) findSymbolInFile(name string, fd *dpb.FileDescriptorProto) proto.Message ***REMOVED***
+	d, ok := l.descriptorPool[fd][name]
+	if ok ***REMOVED***
+		return d
+	***REMOVED***
+	_, ok = l.packageNamespaces[fd][name]
+	if ok ***REMOVED***
+		// this sentinel means the name is a valid namespace but
+		// does not refer to a descriptor
+		return sentinelMissingSymbol
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (l *linker) markUsed(entryPoint, used *dpb.FileDescriptorProto) ***REMOVED***
+	importsForFile := l.usedImports[entryPoint]
+	if importsForFile == nil ***REMOVED***
+		importsForFile = map[string]struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		l.usedImports[entryPoint] = importsForFile
+	***REMOVED***
+	importsForFile[used.GetName()] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+***REMOVED***
+
+func isAggregateDescriptor(m proto.Message) bool ***REMOVED***
+	if m == sentinelMissingSymbol ***REMOVED***
+		// this indicates the name matched a package, not a
+		// descriptor, but a package is an aggregate so
+		// we return true
+		return true
+	***REMOVED***
+	switch m.(type) ***REMOVED***
+	case *dpb.DescriptorProto, *dpb.EnumDescriptorProto, *dpb.ServiceDescriptorProto:
+		return true
+	default:
+		return false
+	***REMOVED***
+***REMOVED***
+
+// This value is a bogus/nil value, but results in a non-nil
+// proto.Message interface value. So we use it as a sentinel
+// to indicate "stop searching for symbol... because it
+// definitively does not exist".
+var sentinelMissingSymbol = (*dpb.DescriptorProto)(nil)
+
+func (l *linker) findSymbol(fd *dpb.FileDescriptorProto, name string) (element proto.Message, proto3 bool) ***REMOVED***
+	return l.findSymbolRecursive(fd, fd, name, false, map[*dpb.FileDescriptorProto]struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+***REMOVED***
+
+func (l *linker) findSymbolRecursive(entryPoint, fd *dpb.FileDescriptorProto, name string, public bool, checked map[*dpb.FileDescriptorProto]struct***REMOVED******REMOVED***) (element proto.Message, proto3 bool) ***REMOVED***
 	if _, ok := checked[fd]; ok ***REMOVED***
 		// already checked this one
 		return nil, false
 	***REMOVED***
 	checked[fd] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	d := l.descriptorPool[fd][name]
+	d := l.findSymbolInFile(name, fd)
 	if d != nil ***REMOVED***
 		return d, isProto3(fd)
 	***REMOVED***
@@ -629,7 +764,8 @@ func (l *linker) findSymbol(fd *dpb.FileDescriptorProto, name string, public boo
 				// we'll catch this error later
 				continue
 			***REMOVED***
-			if d, proto3 := l.findSymbol(depres.fd, name, true, checked); d != nil ***REMOVED***
+			if d, proto3 := l.findSymbolRecursive(entryPoint, depres.fd, name, true, checked); d != nil ***REMOVED***
+				l.markUsed(entryPoint, depres.fd)
 				return d, proto3
 			***REMOVED***
 		***REMOVED***
@@ -640,7 +776,8 @@ func (l *linker) findSymbol(fd *dpb.FileDescriptorProto, name string, public boo
 				// we'll catch this error later
 				continue
 			***REMOVED***
-			if d, proto3 := l.findSymbol(depres.fd, name, true, checked); d != nil ***REMOVED***
+			if d, proto3 := l.findSymbolRecursive(entryPoint, depres.fd, name, true, checked); d != nil ***REMOVED***
+				l.markUsed(entryPoint, depres.fd)
 				return d, proto3
 			***REMOVED***
 		***REMOVED***
@@ -742,4 +879,42 @@ func (l *linker) linkFile(name string, rootImportLoc *SourcePos, seen []string, 
 	***REMOVED***
 	linked[name] = lfd
 	return lfd, nil
+***REMOVED***
+
+func (l *linker) checkForUnusedImports(filename string) ***REMOVED***
+	r := l.files[filename]
+	usedImports := l.usedImports[r.fd]
+	node := r.nodes[r.fd]
+	fileNode, _ := node.(*ast.FileNode)
+	for i, dep := range r.fd.Dependency ***REMOVED***
+		if _, ok := usedImports[dep]; !ok ***REMOVED***
+			isPublic := false
+			// it's fine if it's a public import
+			for _, j := range r.fd.PublicDependency ***REMOVED***
+				if i == int(j) ***REMOVED***
+					isPublic = true
+					break
+				***REMOVED***
+			***REMOVED***
+			if isPublic ***REMOVED***
+				break
+			***REMOVED***
+			var pos *SourcePos
+			if fileNode != nil ***REMOVED***
+				for _, decl := range fileNode.Decls ***REMOVED***
+					imp, ok := decl.(*ast.ImportNode)
+					if !ok ***REMOVED***
+						continue
+					***REMOVED***
+					if imp.Name.AsString() == dep ***REMOVED***
+						pos = imp.Start()
+					***REMOVED***
+				***REMOVED***
+			***REMOVED***
+			if pos == nil ***REMOVED***
+				pos = ast.UnknownPos(r.fd.GetName())
+			***REMOVED***
+			r.errs.warn(pos, errUnusedImport(dep))
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
