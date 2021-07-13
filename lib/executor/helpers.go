@@ -92,7 +92,7 @@ type cancelExec struct ***REMOVED***
 // executors.
 //
 // This allows executors to globally halt any executions that uses this context.
-// Example use case is when a script calls abortTest()
+// Example use case is when a script calls test.abort().
 func Context(ctx context.Context) context.Context ***REMOVED***
 	ctx, cancel := context.WithCancel(ctx)
 	return context.WithValue(ctx, cancelKey***REMOVED******REMOVED***, &cancelExec***REMOVED***cancel: cancel***REMOVED***)
