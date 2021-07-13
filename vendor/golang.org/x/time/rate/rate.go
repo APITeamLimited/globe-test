@@ -145,7 +145,6 @@ func (r *Reservation) DelayFrom(now time.Time) time.Duration ***REMOVED***
 // Cancel is shorthand for CancelAt(time.Now()).
 func (r *Reservation) Cancel() ***REMOVED***
 	r.CancelAt(time.Now())
-	return
 ***REMOVED***
 
 // CancelAt indicates that the reservation holder will not perform the reserved action
@@ -186,8 +185,6 @@ func (r *Reservation) CancelAt(now time.Time) ***REMOVED***
 			r.lim.lastEvent = prevEvent
 		***REMOVED***
 	***REMOVED***
-
-	return
 ***REMOVED***
 
 // Reserve is shorthand for ReserveN(time.Now(), 1).
