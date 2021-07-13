@@ -39,7 +39,6 @@ import (
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/internal/grpcutil"
 	"google.golang.org/grpc/status"
 )
 
@@ -96,53 +95,6 @@ var (
 	logger = grpclog.Component("transport")
 )
 
-type parsedHeaderData struct ***REMOVED***
-	encoding string
-	// statusGen caches the stream status received from the trailer the server
-	// sent.  Client side only.  Do not access directly.  After all trailers are
-	// parsed, use the status method to retrieve the status.
-	statusGen *status.Status
-	// rawStatusCode and rawStatusMsg are set from the raw trailer fields and are not
-	// intended for direct access outside of parsing.
-	rawStatusCode *int
-	rawStatusMsg  string
-	httpStatus    *int
-	// Server side only fields.
-	timeoutSet bool
-	timeout    time.Duration
-	method     string
-	httpMethod string
-	// key-value metadata map from the peer.
-	mdata          map[string][]string
-	statsTags      []byte
-	statsTrace     []byte
-	contentSubtype string
-
-	// isGRPC field indicates whether the peer is speaking gRPC (otherwise HTTP).
-	//
-	// We are in gRPC mode (peer speaking gRPC) if:
-	// 	* We are client side and have already received a HEADER frame that indicates gRPC peer.
-	//  * The header contains valid  a content-type, i.e. a string starts with "application/grpc"
-	// And we should handle error specific to gRPC.
-	//
-	// Otherwise (i.e. a content-type string starts without "application/grpc", or does not exist), we
-	// are in HTTP fallback mode, and should handle error specific to HTTP.
-	isGRPC         bool
-	grpcErr        error
-	httpErr        error
-	contentTypeErr string
-***REMOVED***
-
-// decodeState configures decoding criteria and records the decoded data.
-type decodeState struct ***REMOVED***
-	// whether decoding on server side or not
-	serverSide bool
-
-	// Records the states during HPACK decoding. It will be filled with info parsed from HTTP HEADERS
-	// frame once decodeHeader function has been invoked and returned.
-	data parsedHeaderData
-***REMOVED***
-
 // isReservedHeader checks whether hdr belongs to HTTP2 headers
 // reserved by gRPC protocol. Any other headers are classified as the
 // user-specified metadata.
@@ -180,14 +132,6 @@ func isWhitelistedHeader(hdr string) bool ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (d *decodeState) status() *status.Status ***REMOVED***
-	if d.data.statusGen == nil ***REMOVED***
-		// No status-details were provided; generate status using code/msg.
-		d.data.statusGen = status.New(codes.Code(int32(*(d.data.rawStatusCode))), d.data.rawStatusMsg)
-	***REMOVED***
-	return d.data.statusGen
-***REMOVED***
-
 const binHdrSuffix = "-bin"
 
 func encodeBinHeader(v []byte) string ***REMOVED***
@@ -217,168 +161,36 @@ func decodeMetadataHeader(k, v string) (string, error) ***REMOVED***
 	return v, nil
 ***REMOVED***
 
-func (d *decodeState) decodeHeader(frame *http2.MetaHeadersFrame) (http2.ErrCode, error) ***REMOVED***
-	// frame.Truncated is set to true when framer detects that the current header
-	// list size hits MaxHeaderListSize limit.
-	if frame.Truncated ***REMOVED***
-		return http2.ErrCodeFrameSize, status.Error(codes.Internal, "peer header list size exceeded limit")
+func decodeGRPCStatusDetails(rawDetails string) (*status.Status, error) ***REMOVED***
+	v, err := decodeBinHeader(rawDetails)
+	if err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-
-	for _, hf := range frame.Fields ***REMOVED***
-		d.processHeaderField(hf)
+	st := &spb.Status***REMOVED******REMOVED***
+	if err = proto.Unmarshal(v, st); err != nil ***REMOVED***
+		return nil, err
 	***REMOVED***
-
-	if d.data.isGRPC ***REMOVED***
-		if d.data.grpcErr != nil ***REMOVED***
-			return http2.ErrCodeProtocol, d.data.grpcErr
-		***REMOVED***
-		if d.serverSide ***REMOVED***
-			return http2.ErrCodeNo, nil
-		***REMOVED***
-		if d.data.rawStatusCode == nil && d.data.statusGen == nil ***REMOVED***
-			// gRPC status doesn't exist.
-			// Set rawStatusCode to be unknown and return nil error.
-			// So that, if the stream has ended this Unknown status
-			// will be propagated to the user.
-			// Otherwise, it will be ignored. In which case, status from
-			// a later trailer, that has StreamEnded flag set, is propagated.
-			code := int(codes.Unknown)
-			d.data.rawStatusCode = &code
-		***REMOVED***
-		return http2.ErrCodeNo, nil
-	***REMOVED***
-
-	// HTTP fallback mode
-	if d.data.httpErr != nil ***REMOVED***
-		return http2.ErrCodeProtocol, d.data.httpErr
-	***REMOVED***
-
-	var (
-		code = codes.Internal // when header does not include HTTP status, return INTERNAL
-		ok   bool
-	)
-
-	if d.data.httpStatus != nil ***REMOVED***
-		code, ok = HTTPStatusConvTab[*(d.data.httpStatus)]
-		if !ok ***REMOVED***
-			code = codes.Unknown
-		***REMOVED***
-	***REMOVED***
-
-	return http2.ErrCodeProtocol, status.Error(code, d.constructHTTPErrMsg())
+	return status.FromProto(st), nil
 ***REMOVED***
 
 // constructErrMsg constructs error message to be returned in HTTP fallback mode.
 // Format: HTTP status code and its corresponding message + content-type error message.
-func (d *decodeState) constructHTTPErrMsg() string ***REMOVED***
+func constructHTTPErrMsg(httpStatus *int, contentTypeErr string) string ***REMOVED***
 	var errMsgs []string
 
-	if d.data.httpStatus == nil ***REMOVED***
+	if httpStatus == nil ***REMOVED***
 		errMsgs = append(errMsgs, "malformed header: missing HTTP status")
 	***REMOVED*** else ***REMOVED***
-		errMsgs = append(errMsgs, fmt.Sprintf("%s: HTTP status code %d", http.StatusText(*(d.data.httpStatus)), *d.data.httpStatus))
+		errMsgs = append(errMsgs, fmt.Sprintf("%s: HTTP status code %d", http.StatusText(*(httpStatus)), *httpStatus))
 	***REMOVED***
 
-	if d.data.contentTypeErr == "" ***REMOVED***
+	if contentTypeErr == "" ***REMOVED***
 		errMsgs = append(errMsgs, "transport: missing content-type field")
 	***REMOVED*** else ***REMOVED***
-		errMsgs = append(errMsgs, d.data.contentTypeErr)
+		errMsgs = append(errMsgs, contentTypeErr)
 	***REMOVED***
 
 	return strings.Join(errMsgs, "; ")
-***REMOVED***
-
-func (d *decodeState) addMetadata(k, v string) ***REMOVED***
-	if d.data.mdata == nil ***REMOVED***
-		d.data.mdata = make(map[string][]string)
-	***REMOVED***
-	d.data.mdata[k] = append(d.data.mdata[k], v)
-***REMOVED***
-
-func (d *decodeState) processHeaderField(f hpack.HeaderField) ***REMOVED***
-	switch f.Name ***REMOVED***
-	case "content-type":
-		contentSubtype, validContentType := grpcutil.ContentSubtype(f.Value)
-		if !validContentType ***REMOVED***
-			d.data.contentTypeErr = fmt.Sprintf("transport: received the unexpected content-type %q", f.Value)
-			return
-		***REMOVED***
-		d.data.contentSubtype = contentSubtype
-		// TODO: do we want to propagate the whole content-type in the metadata,
-		// or come up with a way to just propagate the content-subtype if it was set?
-		// ie ***REMOVED***"content-type": "application/grpc+proto"***REMOVED*** or ***REMOVED***"content-subtype": "proto"***REMOVED***
-		// in the metadata?
-		d.addMetadata(f.Name, f.Value)
-		d.data.isGRPC = true
-	case "grpc-encoding":
-		d.data.encoding = f.Value
-	case "grpc-status":
-		code, err := strconv.Atoi(f.Value)
-		if err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed grpc-status: %v", err)
-			return
-		***REMOVED***
-		d.data.rawStatusCode = &code
-	case "grpc-message":
-		d.data.rawStatusMsg = decodeGrpcMessage(f.Value)
-	case "grpc-status-details-bin":
-		v, err := decodeBinHeader(f.Value)
-		if err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed grpc-status-details-bin: %v", err)
-			return
-		***REMOVED***
-		s := &spb.Status***REMOVED******REMOVED***
-		if err := proto.Unmarshal(v, s); err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed grpc-status-details-bin: %v", err)
-			return
-		***REMOVED***
-		d.data.statusGen = status.FromProto(s)
-	case "grpc-timeout":
-		d.data.timeoutSet = true
-		var err error
-		if d.data.timeout, err = decodeTimeout(f.Value); err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed time-out: %v", err)
-		***REMOVED***
-	case ":path":
-		d.data.method = f.Value
-	case ":status":
-		code, err := strconv.Atoi(f.Value)
-		if err != nil ***REMOVED***
-			d.data.httpErr = status.Errorf(codes.Internal, "transport: malformed http-status: %v", err)
-			return
-		***REMOVED***
-		d.data.httpStatus = &code
-	case "grpc-tags-bin":
-		v, err := decodeBinHeader(f.Value)
-		if err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed grpc-tags-bin: %v", err)
-			return
-		***REMOVED***
-		d.data.statsTags = v
-		d.addMetadata(f.Name, string(v))
-	case "grpc-trace-bin":
-		v, err := decodeBinHeader(f.Value)
-		if err != nil ***REMOVED***
-			d.data.grpcErr = status.Errorf(codes.Internal, "transport: malformed grpc-trace-bin: %v", err)
-			return
-		***REMOVED***
-		d.data.statsTrace = v
-		d.addMetadata(f.Name, string(v))
-	case ":method":
-		d.data.httpMethod = f.Value
-	default:
-		if isReservedHeader(f.Name) && !isWhitelistedHeader(f.Name) ***REMOVED***
-			break
-		***REMOVED***
-		v, err := decodeMetadataHeader(f.Name, f.Value)
-		if err != nil ***REMOVED***
-			if logger.V(logLevel) ***REMOVED***
-				logger.Errorf("Failed to decode metadata header (%q, %q): %v", f.Name, f.Value, err)
-			***REMOVED***
-			return
-		***REMOVED***
-		d.addMetadata(f.Name, v)
-	***REMOVED***
 ***REMOVED***
 
 type timeoutUnit uint8

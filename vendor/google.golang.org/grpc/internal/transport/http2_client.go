@@ -32,15 +32,14 @@ import (
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
-	"google.golang.org/grpc/internal/grpcutil"
-	imetadata "google.golang.org/grpc/internal/metadata"
-	"google.golang.org/grpc/internal/transport/networktype"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/internal"
 	"google.golang.org/grpc/internal/channelz"
+	icredentials "google.golang.org/grpc/internal/credentials"
+	"google.golang.org/grpc/internal/grpcutil"
+	imetadata "google.golang.org/grpc/internal/metadata"
 	"google.golang.org/grpc/internal/syscall"
+	"google.golang.org/grpc/internal/transport/networktype"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -116,6 +115,9 @@ type http2Client struct ***REMOVED***
 	// goAwayReason records the http2.ErrCode and debug data received with the
 	// GoAway frame.
 	goAwayReason GoAwayReason
+	// goAwayDebugMessage contains a detailed human readable string about a
+	// GoAway frame, useful for error messages.
+	goAwayDebugMessage string
 	// A condition variable used to signal when the keepalive goroutine should
 	// go dormant. The condition for dormancy is based on the number of active
 	// streams and the `PermitWithoutStream` keepalive client parameter. And
@@ -238,8 +240,7 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		// Attributes field of resolver.Address, which is shoved into connectCtx
 		// and passed to the credential handshaker. This makes it possible for
 		// address specific arbitrary data to reach the credential handshaker.
-		contextWithHandshakeInfo := internal.NewClientHandshakeInfoContext.(func(context.Context, credentials.ClientHandshakeInfo) context.Context)
-		connectCtx = contextWithHandshakeInfo(connectCtx, credentials.ClientHandshakeInfo***REMOVED***Attributes: addr.Attributes***REMOVED***)
+		connectCtx = icredentials.NewClientHandshakeInfoContext(connectCtx, credentials.ClientHandshakeInfo***REMOVED***Attributes: addr.Attributes***REMOVED***)
 		conn, authInfo, err = transportCreds.ClientHandshake(connectCtx, addr.ServerName, conn)
 		if err != nil ***REMOVED***
 			return nil, connectionErrorf(isTemporary(err), err, "transport: authentication handshake failed: %v", err)
@@ -347,12 +348,14 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 	// Send connection preface to server.
 	n, err := t.conn.Write(clientPreface)
 	if err != nil ***REMOVED***
-		t.Close()
-		return nil, connectionErrorf(true, err, "transport: failed to write client preface: %v", err)
+		err = connectionErrorf(true, err, "transport: failed to write client preface: %v", err)
+		t.Close(err)
+		return nil, err
 	***REMOVED***
 	if n != len(clientPreface) ***REMOVED***
-		t.Close()
-		return nil, connectionErrorf(true, err, "transport: preface mismatch, wrote %d bytes; want %d", n, len(clientPreface))
+		err = connectionErrorf(true, nil, "transport: preface mismatch, wrote %d bytes; want %d", n, len(clientPreface))
+		t.Close(err)
+		return nil, err
 	***REMOVED***
 	var ss []http2.Setting
 
@@ -370,14 +373,16 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 	***REMOVED***
 	err = t.framer.fr.WriteSettings(ss...)
 	if err != nil ***REMOVED***
-		t.Close()
-		return nil, connectionErrorf(true, err, "transport: failed to write initial settings frame: %v", err)
+		err = connectionErrorf(true, err, "transport: failed to write initial settings frame: %v", err)
+		t.Close(err)
+		return nil, err
 	***REMOVED***
 	// Adjust the connection flow control window if needed.
 	if delta := uint32(icwz - defaultWindowSize); delta > 0 ***REMOVED***
 		if err := t.framer.fr.WriteWindowUpdate(0, delta); err != nil ***REMOVED***
-			t.Close()
-			return nil, connectionErrorf(true, err, "transport: failed to write window update: %v", err)
+			err = connectionErrorf(true, err, "transport: failed to write window update: %v", err)
+			t.Close(err)
+			return nil, err
 		***REMOVED***
 	***REMOVED***
 
@@ -394,11 +399,10 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 				logger.Errorf("transport: loopyWriter.run returning. Err: %v", err)
 			***REMOVED***
 		***REMOVED***
-		// If it's a connection error, let reader goroutine handle it
-		// since there might be data in the buffers.
-		if _, ok := err.(net.Error); !ok ***REMOVED***
-			t.conn.Close()
-		***REMOVED***
+		// Do not close the transport.  Let reader goroutine handle it since
+		// there might be data in the buffers.
+		t.conn.Close()
+		t.controlBuf.finish()
 		close(t.writerDone)
 	***REMOVED***()
 	return t, nil
@@ -454,7 +458,7 @@ func (t *http2Client) createHeaderFields(ctx context.Context, callHdr *CallHdr) 
 		Method:   callHdr.Method,
 		AuthInfo: t.authInfo,
 	***REMOVED***
-	ctxWithRequestInfo := internal.NewRequestInfoContext.(func(context.Context, credentials.RequestInfo) context.Context)(ctx, ri)
+	ctxWithRequestInfo := icredentials.NewRequestInfoContext(ctx, ri)
 	authData, err := t.getTrAuthData(ctxWithRequestInfo, aud)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -845,12 +849,12 @@ func (t *http2Client) closeStream(s *Stream, err error, rst bool, rstCode http2.
 // This method blocks until the addrConn that initiated this transport is
 // re-connected. This happens because t.onClose() begins reconnect logic at the
 // addrConn level and blocks until the addrConn is successfully connected.
-func (t *http2Client) Close() error ***REMOVED***
+func (t *http2Client) Close(err error) ***REMOVED***
 	t.mu.Lock()
 	// Make sure we only Close once.
 	if t.state == closing ***REMOVED***
 		t.mu.Unlock()
-		return nil
+		return
 	***REMOVED***
 	// Call t.onClose before setting the state to closing to prevent the client
 	// from attempting to create new streams ASAP.
@@ -866,13 +870,25 @@ func (t *http2Client) Close() error ***REMOVED***
 	t.mu.Unlock()
 	t.controlBuf.finish()
 	t.cancel()
-	err := t.conn.Close()
+	t.conn.Close()
 	if channelz.IsOn() ***REMOVED***
 		channelz.RemoveEntry(t.channelzID)
 	***REMOVED***
+	// Append info about previous goaways if there were any, since this may be important
+	// for understanding the root cause for this connection to be closed.
+	_, goAwayDebugMessage := t.GetGoAwayReason()
+
+	var st *status.Status
+	if len(goAwayDebugMessage) > 0 ***REMOVED***
+		st = status.Newf(codes.Unavailable, "closing transport due to: %v, received prior goaway: %v", err, goAwayDebugMessage)
+		err = st.Err()
+	***REMOVED*** else ***REMOVED***
+		st = status.New(codes.Unavailable, err.Error())
+	***REMOVED***
+
 	// Notify all active streams.
 	for _, s := range streams ***REMOVED***
-		t.closeStream(s, ErrConnClosing, false, http2.ErrCodeNo, status.New(codes.Unavailable, ErrConnClosing.Desc), nil, false)
+		t.closeStream(s, err, false, http2.ErrCodeNo, st, nil, false)
 	***REMOVED***
 	if t.statsHandler != nil ***REMOVED***
 		connEnd := &stats.ConnEnd***REMOVED***
@@ -880,7 +896,6 @@ func (t *http2Client) Close() error ***REMOVED***
 		***REMOVED***
 		t.statsHandler.HandleConn(t.ctx, connEnd)
 	***REMOVED***
-	return err
 ***REMOVED***
 
 // GracefulClose sets the state to draining, which prevents new streams from
@@ -899,7 +914,7 @@ func (t *http2Client) GracefulClose() ***REMOVED***
 	active := len(t.activeStreams)
 	t.mu.Unlock()
 	if active == 0 ***REMOVED***
-		t.Close()
+		t.Close(ErrConnClosing)
 		return
 	***REMOVED***
 	t.controlBuf.put(&incomingGoAway***REMOVED******REMOVED***)
@@ -1145,9 +1160,9 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	id := f.LastStreamID
-	if id > 0 && id%2 != 1 ***REMOVED***
+	if id > 0 && id%2 == 0 ***REMOVED***
 		t.mu.Unlock()
-		t.Close()
+		t.Close(connectionErrorf(true, nil, "received goaway with non-zero even-numbered numbered stream id: %v", id))
 		return
 	***REMOVED***
 	// A client can receive multiple GoAways from the server (see
@@ -1165,7 +1180,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) ***REMOVED***
 		// If there are multiple GoAways the first one should always have an ID greater than the following ones.
 		if id > t.prevGoAwayID ***REMOVED***
 			t.mu.Unlock()
-			t.Close()
+			t.Close(connectionErrorf(true, nil, "received goaway with stream id: %v, which exceeds stream id of previous goaway: %v", id, t.prevGoAwayID))
 			return
 		***REMOVED***
 	default:
@@ -1195,7 +1210,7 @@ func (t *http2Client) handleGoAway(f *http2.GoAwayFrame) ***REMOVED***
 	active := len(t.activeStreams)
 	t.mu.Unlock()
 	if active == 0 ***REMOVED***
-		t.Close()
+		t.Close(connectionErrorf(true, nil, "received goaway and there are no active streams"))
 	***REMOVED***
 ***REMOVED***
 
@@ -1211,12 +1226,13 @@ func (t *http2Client) setGoAwayReason(f *http2.GoAwayFrame) ***REMOVED***
 			t.goAwayReason = GoAwayTooManyPings
 		***REMOVED***
 	***REMOVED***
+	t.goAwayDebugMessage = fmt.Sprintf("code: %s, debug data: %v", f.ErrCode, string(f.DebugData()))
 ***REMOVED***
 
-func (t *http2Client) GetGoAwayReason() GoAwayReason ***REMOVED***
+func (t *http2Client) GetGoAwayReason() (GoAwayReason, string) ***REMOVED***
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return t.goAwayReason
+	return t.goAwayReason, t.goAwayDebugMessage
 ***REMOVED***
 
 func (t *http2Client) handleWindowUpdate(f *http2.WindowUpdateFrame) ***REMOVED***
@@ -1243,11 +1259,97 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 		return
 	***REMOVED***
 
-	state := &decodeState***REMOVED******REMOVED***
-	// Initialize isGRPC value to be !initialHeader, since if a gRPC Response-Headers has already been received, then it means that the peer is speaking gRPC and we are in gRPC mode.
-	state.data.isGRPC = !initialHeader
-	if h2code, err := state.decodeHeader(frame); err != nil ***REMOVED***
-		t.closeStream(s, err, true, h2code, status.Convert(err), nil, endStream)
+	// frame.Truncated is set to true when framer detects that the current header
+	// list size hits MaxHeaderListSize limit.
+	if frame.Truncated ***REMOVED***
+		se := status.New(codes.Internal, "peer header list size exceeded limit")
+		t.closeStream(s, se.Err(), true, http2.ErrCodeFrameSize, se, nil, endStream)
+		return
+	***REMOVED***
+
+	var (
+		// If a gRPC Response-Headers has already been received, then it means
+		// that the peer is speaking gRPC and we are in gRPC mode.
+		isGRPC         = !initialHeader
+		mdata          = make(map[string][]string)
+		contentTypeErr string
+		grpcMessage    string
+		statusGen      *status.Status
+
+		httpStatus string
+		rawStatus  string
+		// headerError is set if an error is encountered while parsing the headers
+		headerError string
+	)
+
+	for _, hf := range frame.Fields ***REMOVED***
+		switch hf.Name ***REMOVED***
+		case "content-type":
+			if _, validContentType := grpcutil.ContentSubtype(hf.Value); !validContentType ***REMOVED***
+				contentTypeErr = fmt.Sprintf("transport: received the unexpected content-type %q", hf.Value)
+				break
+			***REMOVED***
+			mdata[hf.Name] = append(mdata[hf.Name], hf.Value)
+			isGRPC = true
+		case "grpc-encoding":
+			s.recvCompress = hf.Value
+		case "grpc-status":
+			rawStatus = hf.Value
+		case "grpc-message":
+			grpcMessage = decodeGrpcMessage(hf.Value)
+		case "grpc-status-details-bin":
+			var err error
+			statusGen, err = decodeGRPCStatusDetails(hf.Value)
+			if err != nil ***REMOVED***
+				headerError = fmt.Sprintf("transport: malformed grpc-status-details-bin: %v", err)
+			***REMOVED***
+		case ":status":
+			httpStatus = hf.Value
+		default:
+			if isReservedHeader(hf.Name) && !isWhitelistedHeader(hf.Name) ***REMOVED***
+				break
+			***REMOVED***
+			v, err := decodeMetadataHeader(hf.Name, hf.Value)
+			if err != nil ***REMOVED***
+				headerError = fmt.Sprintf("transport: malformed %s: %v", hf.Name, err)
+				logger.Warningf("Failed to decode metadata header (%q, %q): %v", hf.Name, hf.Value, err)
+				break
+			***REMOVED***
+			mdata[hf.Name] = append(mdata[hf.Name], v)
+		***REMOVED***
+	***REMOVED***
+
+	if !isGRPC ***REMOVED***
+		var (
+			code           = codes.Internal // when header does not include HTTP status, return INTERNAL
+			httpStatusCode int
+		)
+
+		if httpStatus != "" ***REMOVED***
+			c, err := strconv.ParseInt(httpStatus, 10, 32)
+			if err != nil ***REMOVED***
+				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed http-status: %v", err))
+				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
+				return
+			***REMOVED***
+			httpStatusCode = int(c)
+
+			var ok bool
+			code, ok = HTTPStatusConvTab[httpStatusCode]
+			if !ok ***REMOVED***
+				code = codes.Unknown
+			***REMOVED***
+		***REMOVED***
+
+		// Verify the HTTP response is a 200.
+		se := status.New(code, constructHTTPErrMsg(&httpStatusCode, contentTypeErr))
+		t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
+		return
+	***REMOVED***
+
+	if headerError != "" ***REMOVED***
+		se := status.New(codes.Internal, headerError)
+		t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
 		return
 	***REMOVED***
 
@@ -1282,9 +1384,8 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 			// These values can be set without any synchronization because
 			// stream goroutine will read it only after seeing a closed
 			// headerChan which we'll close after setting this.
-			s.recvCompress = state.data.encoding
-			if len(state.data.mdata) > 0 ***REMOVED***
-				s.header = state.data.mdata
+			if len(mdata) > 0 ***REMOVED***
+				s.header = mdata
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			// HEADERS frame block carries a Trailers-Only.
@@ -1297,9 +1398,23 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 		return
 	***REMOVED***
 
+	if statusGen == nil ***REMOVED***
+		rawStatusCode := codes.Unknown
+		if rawStatus != "" ***REMOVED***
+			code, err := strconv.ParseInt(rawStatus, 10, 32)
+			if err != nil ***REMOVED***
+				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed grpc-status: %v", err))
+				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
+				return
+			***REMOVED***
+			rawStatusCode = codes.Code(uint32(code))
+		***REMOVED***
+		statusGen = status.New(rawStatusCode, grpcMessage)
+	***REMOVED***
+
 	// if client received END_STREAM from server while stream was still active, send RST_STREAM
 	rst := s.getState() == streamActive
-	t.closeStream(s, io.EOF, rst, http2.ErrCodeNo, state.status(), state.data.mdata, true)
+	t.closeStream(s, io.EOF, rst, http2.ErrCodeNo, statusGen, mdata, true)
 ***REMOVED***
 
 // reader runs as a separate goroutine in charge of reading data from network
@@ -1313,7 +1428,8 @@ func (t *http2Client) reader() ***REMOVED***
 	// Check the validity of server preface.
 	frame, err := t.framer.fr.ReadFrame()
 	if err != nil ***REMOVED***
-		t.Close() // this kicks off resetTransport, so must be last before return
+		err = connectionErrorf(true, err, "error reading server preface: %v", err)
+		t.Close(err) // this kicks off resetTransport, so must be last before return
 		return
 	***REMOVED***
 	t.conn.SetReadDeadline(time.Time***REMOVED******REMOVED***) // reset deadline once we get the settings frame (we didn't time out, yay!)
@@ -1322,7 +1438,8 @@ func (t *http2Client) reader() ***REMOVED***
 	***REMOVED***
 	sf, ok := frame.(*http2.SettingsFrame)
 	if !ok ***REMOVED***
-		t.Close() // this kicks off resetTransport, so must be last before return
+		// this kicks off resetTransport, so must be last before return
+		t.Close(connectionErrorf(true, nil, "initial http2 frame from server is not a settings frame: %T", frame))
 		return
 	***REMOVED***
 	t.onPrefaceReceipt()
@@ -1358,7 +1475,7 @@ func (t *http2Client) reader() ***REMOVED***
 				continue
 			***REMOVED*** else ***REMOVED***
 				// Transport error.
-				t.Close()
+				t.Close(connectionErrorf(true, err, "error reading from server: %v", err))
 				return
 			***REMOVED***
 		***REMOVED***
@@ -1417,7 +1534,7 @@ func (t *http2Client) keepalive() ***REMOVED***
 				continue
 			***REMOVED***
 			if outstandingPing && timeoutLeft <= 0 ***REMOVED***
-				t.Close()
+				t.Close(connectionErrorf(true, nil, "keepalive ping failed to receive ACK within timeout"))
 				return
 			***REMOVED***
 			t.mu.Lock()

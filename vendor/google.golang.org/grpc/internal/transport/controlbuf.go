@@ -20,13 +20,17 @@ package transport
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
+	"google.golang.org/grpc/internal/grpcutil"
+	"google.golang.org/grpc/status"
 )
 
 var updateHeaderTblSize = func(e *hpack.Encoder, v uint32) ***REMOVED***
@@ -127,6 +131,14 @@ type cleanupStream struct ***REMOVED***
 ***REMOVED***
 
 func (c *cleanupStream) isTransportResponseFrame() bool ***REMOVED*** return c.rst ***REMOVED*** // Results in a RST_STREAM
+
+type earlyAbortStream struct ***REMOVED***
+	streamID       uint32
+	contentSubtype string
+	status         *status.Status
+***REMOVED***
+
+func (*earlyAbortStream) isTransportResponseFrame() bool ***REMOVED*** return false ***REMOVED***
 
 type dataFrame struct ***REMOVED***
 	streamID  uint32
@@ -284,7 +296,7 @@ type controlBuffer struct ***REMOVED***
 	// closed and nilled when transportResponseFrames drops below the
 	// threshold.  Both fields are protected by mu.
 	transportResponseFrames int
-	trfChan                 atomic.Value // *chan struct***REMOVED******REMOVED***
+	trfChan                 atomic.Value // chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 func newControlBuffer(done <-chan struct***REMOVED******REMOVED***) *controlBuffer ***REMOVED***
@@ -298,10 +310,10 @@ func newControlBuffer(done <-chan struct***REMOVED******REMOVED***) *controlBuff
 // throttle blocks if there are too many incomingSettings/cleanupStreams in the
 // controlbuf.
 func (c *controlBuffer) throttle() ***REMOVED***
-	ch, _ := c.trfChan.Load().(*chan struct***REMOVED******REMOVED***)
+	ch, _ := c.trfChan.Load().(chan struct***REMOVED******REMOVED***)
 	if ch != nil ***REMOVED***
 		select ***REMOVED***
-		case <-*ch:
+		case <-ch:
 		case <-c.done:
 		***REMOVED***
 	***REMOVED***
@@ -335,8 +347,7 @@ func (c *controlBuffer) executeAndPut(f func(it interface***REMOVED******REMOVED
 		if c.transportResponseFrames == maxQueuedTransportResponseFrames ***REMOVED***
 			// We are adding the frame that puts us over the threshold; create
 			// a throttling channel.
-			ch := make(chan struct***REMOVED******REMOVED***)
-			c.trfChan.Store(&ch)
+			c.trfChan.Store(make(chan struct***REMOVED******REMOVED***))
 		***REMOVED***
 	***REMOVED***
 	c.mu.Unlock()
@@ -377,9 +388,9 @@ func (c *controlBuffer) get(block bool) (interface***REMOVED******REMOVED***, er
 				if c.transportResponseFrames == maxQueuedTransportResponseFrames ***REMOVED***
 					// We are removing the frame that put us over the
 					// threshold; close and clear the throttling channel.
-					ch := c.trfChan.Load().(*chan struct***REMOVED******REMOVED***)
-					close(*ch)
-					c.trfChan.Store((*chan struct***REMOVED******REMOVED***)(nil))
+					ch := c.trfChan.Load().(chan struct***REMOVED******REMOVED***)
+					close(ch)
+					c.trfChan.Store((chan struct***REMOVED******REMOVED***)(nil))
 				***REMOVED***
 				c.transportResponseFrames--
 			***REMOVED***
@@ -395,7 +406,6 @@ func (c *controlBuffer) get(block bool) (interface***REMOVED******REMOVED***, er
 		select ***REMOVED***
 		case <-c.ch:
 		case <-c.done:
-			c.finish()
 			return nil, ErrConnClosing
 		***REMOVED***
 	***REMOVED***
@@ -420,6 +430,14 @@ func (c *controlBuffer) finish() ***REMOVED***
 			hdr.onOrphaned(ErrConnClosing)
 		***REMOVED***
 	***REMOVED***
+	// In case throttle() is currently in flight, it needs to be unblocked.
+	// Otherwise, the transport may not close, since the transport is closed by
+	// the reader encountering the connection error.
+	ch, _ := c.trfChan.Load().(chan struct***REMOVED******REMOVED***)
+	if ch != nil ***REMOVED***
+		close(ch)
+	***REMOVED***
+	c.trfChan.Store((chan struct***REMOVED******REMOVED***)(nil))
 	c.mu.Unlock()
 ***REMOVED***
 
@@ -749,6 +767,24 @@ func (l *loopyWriter) cleanupStreamHandler(c *cleanupStream) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (l *loopyWriter) earlyAbortStreamHandler(eas *earlyAbortStream) error ***REMOVED***
+	if l.side == clientSide ***REMOVED***
+		return errors.New("earlyAbortStream not handled on client")
+	***REMOVED***
+
+	headerFields := []hpack.HeaderField***REMOVED***
+		***REMOVED***Name: ":status", Value: "200"***REMOVED***,
+		***REMOVED***Name: "content-type", Value: grpcutil.ContentType(eas.contentSubtype)***REMOVED***,
+		***REMOVED***Name: "grpc-status", Value: strconv.Itoa(int(eas.status.Code()))***REMOVED***,
+		***REMOVED***Name: "grpc-message", Value: encodeGrpcMessage(eas.status.Message())***REMOVED***,
+	***REMOVED***
+
+	if err := l.writeHeader(eas.streamID, true, headerFields, nil); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
+***REMOVED***
+
 func (l *loopyWriter) incomingGoAwayHandler(*incomingGoAway) error ***REMOVED***
 	if l.side == clientSide ***REMOVED***
 		l.draining = true
@@ -787,6 +823,8 @@ func (l *loopyWriter) handle(i interface***REMOVED******REMOVED***) error ***REM
 		return l.registerStreamHandler(i)
 	case *cleanupStream:
 		return l.cleanupStreamHandler(i)
+	case *earlyAbortStream:
+		return l.earlyAbortStreamHandler(i)
 	case *incomingGoAway:
 		return l.incomingGoAwayHandler(i)
 	case *dataFrame:

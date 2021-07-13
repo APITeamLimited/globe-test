@@ -48,11 +48,6 @@ mkdir -p $***REMOVED***WORKDIR***REMOVED***/googleapis/google/rpc
 echo "curl https://raw.githubusercontent.com/googleapis/googleapis/master/google/rpc/code.proto"
 curl --silent https://raw.githubusercontent.com/googleapis/googleapis/master/google/rpc/code.proto > $***REMOVED***WORKDIR***REMOVED***/googleapis/google/rpc/code.proto
 
-# Pull in the MeshCA service proto.
-mkdir -p $***REMOVED***WORKDIR***REMOVED***/istio/istio/google/security/meshca/v1
-echo "curl https://raw.githubusercontent.com/istio/istio/master/security/proto/providers/google/meshca.proto"
-curl --silent https://raw.githubusercontent.com/istio/istio/master/security/proto/providers/google/meshca.proto > $***REMOVED***WORKDIR***REMOVED***/istio/istio/google/security/meshca/v1/meshca.proto
-
 mkdir -p $***REMOVED***WORKDIR***REMOVED***/out
 
 # Generates sources without the embed requirement
@@ -76,7 +71,6 @@ SOURCES=(
   $***REMOVED***WORKDIR***REMOVED***/grpc-proto/grpc/service_config/service_config.proto
   $***REMOVED***WORKDIR***REMOVED***/grpc-proto/grpc/testing/*.proto
   $***REMOVED***WORKDIR***REMOVED***/grpc-proto/grpc/core/*.proto
-  $***REMOVED***WORKDIR***REMOVED***/istio/istio/google/security/meshca/v1/meshca.proto
 )
 
 # These options of the form 'Mfoo.proto=bar' instruct the codegen to use an
@@ -121,9 +115,5 @@ mv $***REMOVED***WORKDIR***REMOVED***/out/grpc/service_config/service_config.pb.
 # grpc/testing does not have a go_package option.
 mv $***REMOVED***WORKDIR***REMOVED***/out/grpc/testing/*.pb.go interop/grpc_testing/
 mv $***REMOVED***WORKDIR***REMOVED***/out/grpc/core/*.pb.go interop/grpc_testing/core/
-
-# istio/google/security/meshca/v1/meshca.proto does not have a go_package option.
-mkdir -p $***REMOVED***WORKDIR***REMOVED***/out/google.golang.org/grpc/credentials/tls/certprovider/meshca/internal/v1/
-mv $***REMOVED***WORKDIR***REMOVED***/out/istio/google/security/meshca/v1/* $***REMOVED***WORKDIR***REMOVED***/out/google.golang.org/grpc/credentials/tls/certprovider/meshca/internal/v1/
 
 cp -R $***REMOVED***WORKDIR***REMOVED***/out/google.golang.org/grpc/* .

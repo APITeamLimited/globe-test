@@ -765,7 +765,7 @@ func unescape(s string) (ch string, tail string, err error) ***REMOVED***
 		if i > utf8.MaxRune ***REMOVED***
 			return "", "", fmt.Errorf(`\%c%s is not a valid Unicode code point`, r, ss)
 		***REMOVED***
-		return string(i), s, nil
+		return string(rune(i)), s, nil
 	***REMOVED***
 	return "", "", fmt.Errorf(`unknown escape \%c`, r)
 ***REMOVED***

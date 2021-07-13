@@ -75,13 +75,9 @@ func Pairs(kv ...string) MD ***REMOVED***
 		panic(fmt.Sprintf("metadata: Pairs got the odd number of input pairs for metadata: %d", len(kv)))
 	***REMOVED***
 	md := MD***REMOVED******REMOVED***
-	var key string
-	for i, s := range kv ***REMOVED***
-		if i%2 == 0 ***REMOVED***
-			key = strings.ToLower(s)
-			continue
-		***REMOVED***
-		md[key] = append(md[key], s)
+	for i := 0; i < len(kv); i += 2 ***REMOVED***
+		key := strings.ToLower(kv[i])
+		md[key] = append(md[key], kv[i+1])
 	***REMOVED***
 	return md
 ***REMOVED***
@@ -97,12 +93,16 @@ func (md MD) Copy() MD ***REMOVED***
 ***REMOVED***
 
 // Get obtains the values for a given key.
+//
+// k is converted to lowercase before searching in md.
 func (md MD) Get(k string) []string ***REMOVED***
 	k = strings.ToLower(k)
 	return md[k]
 ***REMOVED***
 
 // Set sets the value of a given key with a slice of values.
+//
+// k is converted to lowercase before storing in md.
 func (md MD) Set(k string, vals ...string) ***REMOVED***
 	if len(vals) == 0 ***REMOVED***
 		return
@@ -111,7 +111,10 @@ func (md MD) Set(k string, vals ...string) ***REMOVED***
 	md[k] = vals
 ***REMOVED***
 
-// Append adds the values to key k, not overwriting what was already stored at that key.
+// Append adds the values to key k, not overwriting what was already stored at
+// that key.
+//
+// k is converted to lowercase before storing in md.
 func (md MD) Append(k string, vals ...string) ***REMOVED***
 	if len(vals) == 0 ***REMOVED***
 		return
@@ -121,8 +124,9 @@ func (md MD) Append(k string, vals ...string) ***REMOVED***
 ***REMOVED***
 
 // Join joins any number of mds into a single MD.
-// The order of values for each key is determined by the order in which
-// the mds containing those values are presented to Join.
+//
+// The order of values for each key is determined by the order in which the mds
+// containing those values are presented to Join.
 func Join(mds ...MD) MD ***REMOVED***
 	out := MD***REMOVED******REMOVED***
 	for _, md := range mds ***REMOVED***
@@ -149,8 +153,8 @@ func NewOutgoingContext(ctx context.Context, md MD) context.Context ***REMOVED**
 ***REMOVED***
 
 // AppendToOutgoingContext returns a new context with the provided kv merged
-// with any existing metadata in the context. Please refer to the
-// documentation of Pairs for a description of kv.
+// with any existing metadata in the context. Please refer to the documentation
+// of Pairs for a description of kv.
 func AppendToOutgoingContext(ctx context.Context, kv ...string) context.Context ***REMOVED***
 	if len(kv)%2 == 1 ***REMOVED***
 		panic(fmt.Sprintf("metadata: AppendToOutgoingContext got an odd number of input pairs for metadata: %d", len(kv)))
@@ -163,20 +167,34 @@ func AppendToOutgoingContext(ctx context.Context, kv ...string) context.Context 
 	return context.WithValue(ctx, mdOutgoingKey***REMOVED******REMOVED***, rawMD***REMOVED***md: md.md, added: added***REMOVED***)
 ***REMOVED***
 
-// FromIncomingContext returns the incoming metadata in ctx if it exists.  The
-// returned MD should not be modified. Writing to it may cause races.
-// Modification should be made to copies of the returned MD.
-func FromIncomingContext(ctx context.Context) (md MD, ok bool) ***REMOVED***
-	md, ok = ctx.Value(mdIncomingKey***REMOVED******REMOVED***).(MD)
-	return
+// FromIncomingContext returns the incoming metadata in ctx if it exists.
+//
+// All keys in the returned MD are lowercase.
+func FromIncomingContext(ctx context.Context) (MD, bool) ***REMOVED***
+	md, ok := ctx.Value(mdIncomingKey***REMOVED******REMOVED***).(MD)
+	if !ok ***REMOVED***
+		return nil, false
+	***REMOVED***
+	out := MD***REMOVED******REMOVED***
+	for k, v := range md ***REMOVED***
+		// We need to manually convert all keys to lower case, because MD is a
+		// map, and there's no guarantee that the MD attached to the context is
+		// created using our helper functions.
+		key := strings.ToLower(k)
+		out[key] = v
+	***REMOVED***
+	return out, true
 ***REMOVED***
 
-// FromOutgoingContextRaw returns the un-merged, intermediary contents
-// of rawMD. Remember to perform strings.ToLower on the keys. The returned
-// MD should not be modified. Writing to it may cause races. Modification
-// should be made to copies of the returned MD.
+// FromOutgoingContextRaw returns the un-merged, intermediary contents of rawMD.
 //
-// This is intended for gRPC-internal use ONLY.
+// Remember to perform strings.ToLower on the keys, for both the returned MD (MD
+// is a map, there's no guarantee it's created using our helper functions) and
+// the extra kv pairs (AppendToOutgoingContext doesn't turn them into
+// lowercase).
+//
+// This is intended for gRPC-internal use ONLY. Users should use
+// FromOutgoingContext instead.
 func FromOutgoingContextRaw(ctx context.Context) (MD, [][]string, bool) ***REMOVED***
 	raw, ok := ctx.Value(mdOutgoingKey***REMOVED******REMOVED***).(rawMD)
 	if !ok ***REMOVED***
@@ -186,21 +204,34 @@ func FromOutgoingContextRaw(ctx context.Context) (MD, [][]string, bool) ***REMOV
 	return raw.md, raw.added, true
 ***REMOVED***
 
-// FromOutgoingContext returns the outgoing metadata in ctx if it exists.  The
-// returned MD should not be modified. Writing to it may cause races.
-// Modification should be made to copies of the returned MD.
+// FromOutgoingContext returns the outgoing metadata in ctx if it exists.
+//
+// All keys in the returned MD are lowercase.
 func FromOutgoingContext(ctx context.Context) (MD, bool) ***REMOVED***
 	raw, ok := ctx.Value(mdOutgoingKey***REMOVED******REMOVED***).(rawMD)
 	if !ok ***REMOVED***
 		return nil, false
 	***REMOVED***
 
-	mds := make([]MD, 0, len(raw.added)+1)
-	mds = append(mds, raw.md)
-	for _, vv := range raw.added ***REMOVED***
-		mds = append(mds, Pairs(vv...))
+	out := MD***REMOVED******REMOVED***
+	for k, v := range raw.md ***REMOVED***
+		// We need to manually convert all keys to lower case, because MD is a
+		// map, and there's no guarantee that the MD attached to the context is
+		// created using our helper functions.
+		key := strings.ToLower(k)
+		out[key] = v
 	***REMOVED***
-	return Join(mds...), ok
+	for _, added := range raw.added ***REMOVED***
+		if len(added)%2 == 1 ***REMOVED***
+			panic(fmt.Sprintf("metadata: FromOutgoingContext got an odd number of input pairs for metadata: %d", len(added)))
+		***REMOVED***
+
+		for i := 0; i < len(added); i += 2 ***REMOVED***
+			key := strings.ToLower(added[i])
+			out[key] = append(out[key], added[i+1])
+		***REMOVED***
+	***REMOVED***
+	return out, ok
 ***REMOVED***
 
 type rawMD struct ***REMOVED***

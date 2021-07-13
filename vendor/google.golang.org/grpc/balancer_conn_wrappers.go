@@ -43,7 +43,8 @@ type ccBalancerWrapper struct ***REMOVED***
 	cc         *ClientConn
 	balancerMu sync.Mutex // synchronizes calls to the balancer
 	balancer   balancer.Balancer
-	scBuffer   *buffer.Unbounded
+	updateCh   *buffer.Unbounded
+	closed     *grpcsync.Event
 	done       *grpcsync.Event
 
 	mu       sync.Mutex
@@ -53,7 +54,8 @@ type ccBalancerWrapper struct ***REMOVED***
 func newCCBalancerWrapper(cc *ClientConn, b balancer.Builder, bopts balancer.BuildOptions) *ccBalancerWrapper ***REMOVED***
 	ccb := &ccBalancerWrapper***REMOVED***
 		cc:       cc,
-		scBuffer: buffer.NewUnbounded(),
+		updateCh: buffer.NewUnbounded(),
+		closed:   grpcsync.NewEvent(),
 		done:     grpcsync.NewEvent(),
 		subConns: make(map[*acBalancerWrapper]struct***REMOVED******REMOVED***),
 	***REMOVED***
@@ -67,35 +69,53 @@ func newCCBalancerWrapper(cc *ClientConn, b balancer.Builder, bopts balancer.Bui
 func (ccb *ccBalancerWrapper) watcher() ***REMOVED***
 	for ***REMOVED***
 		select ***REMOVED***
-		case t := <-ccb.scBuffer.Get():
-			ccb.scBuffer.Load()
-			if ccb.done.HasFired() ***REMOVED***
+		case t := <-ccb.updateCh.Get():
+			ccb.updateCh.Load()
+			if ccb.closed.HasFired() ***REMOVED***
 				break
 			***REMOVED***
-			ccb.balancerMu.Lock()
-			su := t.(*scStateUpdate)
-			ccb.balancer.UpdateSubConnState(su.sc, balancer.SubConnState***REMOVED***ConnectivityState: su.state, ConnectionError: su.err***REMOVED***)
-			ccb.balancerMu.Unlock()
-		case <-ccb.done.Done():
+			switch u := t.(type) ***REMOVED***
+			case *scStateUpdate:
+				ccb.balancerMu.Lock()
+				ccb.balancer.UpdateSubConnState(u.sc, balancer.SubConnState***REMOVED***ConnectivityState: u.state, ConnectionError: u.err***REMOVED***)
+				ccb.balancerMu.Unlock()
+			case *acBalancerWrapper:
+				ccb.mu.Lock()
+				if ccb.subConns != nil ***REMOVED***
+					delete(ccb.subConns, u)
+					ccb.cc.removeAddrConn(u.getAddrConn(), errConnDrain)
+				***REMOVED***
+				ccb.mu.Unlock()
+			default:
+				logger.Errorf("ccBalancerWrapper.watcher: unknown update %+v, type %T", t, t)
+			***REMOVED***
+		case <-ccb.closed.Done():
 		***REMOVED***
 
-		if ccb.done.HasFired() ***REMOVED***
+		if ccb.closed.HasFired() ***REMOVED***
+			ccb.balancerMu.Lock()
 			ccb.balancer.Close()
+			ccb.balancerMu.Unlock()
 			ccb.mu.Lock()
 			scs := ccb.subConns
 			ccb.subConns = nil
 			ccb.mu.Unlock()
+			ccb.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.Connecting, Picker: nil***REMOVED***)
+			ccb.done.Fire()
+			// Fire done before removing the addr conns.  We can safely unblock
+			// ccb.close and allow the removeAddrConns to happen
+			// asynchronously.
 			for acbw := range scs ***REMOVED***
 				ccb.cc.removeAddrConn(acbw.getAddrConn(), errConnDrain)
 			***REMOVED***
-			ccb.UpdateState(balancer.State***REMOVED***ConnectivityState: connectivity.Connecting, Picker: nil***REMOVED***)
 			return
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
 func (ccb *ccBalancerWrapper) close() ***REMOVED***
-	ccb.done.Fire()
+	ccb.closed.Fire()
+	<-ccb.done.Done()
 ***REMOVED***
 
 func (ccb *ccBalancerWrapper) handleSubConnStateChange(sc balancer.SubConn, s connectivity.State, err error) ***REMOVED***
@@ -109,7 +129,7 @@ func (ccb *ccBalancerWrapper) handleSubConnStateChange(sc balancer.SubConn, s co
 	if sc == nil ***REMOVED***
 		return
 	***REMOVED***
-	ccb.scBuffer.Put(&scStateUpdate***REMOVED***
+	ccb.updateCh.Put(&scStateUpdate***REMOVED***
 		sc:    sc,
 		state: s,
 		err:   err,
@@ -150,17 +170,10 @@ func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer
 ***REMOVED***
 
 func (ccb *ccBalancerWrapper) RemoveSubConn(sc balancer.SubConn) ***REMOVED***
-	acbw, ok := sc.(*acBalancerWrapper)
-	if !ok ***REMOVED***
-		return
-	***REMOVED***
-	ccb.mu.Lock()
-	defer ccb.mu.Unlock()
-	if ccb.subConns == nil ***REMOVED***
-		return
-	***REMOVED***
-	delete(ccb.subConns, acbw)
-	ccb.cc.removeAddrConn(acbw.getAddrConn(), errConnDrain)
+	// The RemoveSubConn() is handled in the run() goroutine, to avoid deadlock
+	// during switchBalancer() if the old balancer calls RemoveSubConn() in its
+	// Close().
+	ccb.updateCh.Put(sc)
 ***REMOVED***
 
 func (ccb *ccBalancerWrapper) UpdateAddresses(sc balancer.SubConn, addrs []resolver.Address) ***REMOVED***

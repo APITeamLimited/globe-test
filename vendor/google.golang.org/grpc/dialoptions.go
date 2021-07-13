@@ -66,11 +66,7 @@ type dialOptions struct ***REMOVED***
 	minConnectTimeout           func() time.Duration
 	defaultServiceConfig        *ServiceConfig // defaultServiceConfig is parsed from defaultServiceConfigRawJSON.
 	defaultServiceConfigRawJSON *string
-	// This is used by ccResolverWrapper to backoff between successive calls to
-	// resolver.ResolveNow(). The user will have no need to configure this, but
-	// we need to be able to configure this in tests.
-	resolveNowBackoff func(int) time.Duration
-	resolvers         []resolver.Builder
+	resolvers                   []resolver.Builder
 ***REMOVED***
 
 // DialOption configures how we set up the connection.
@@ -596,7 +592,6 @@ func defaultDialOptions() dialOptions ***REMOVED***
 			ReadBufferSize:  defaultReadBufSize,
 			UseProxy:        true,
 		***REMOVED***,
-		resolveNowBackoff: internalbackoff.DefaultExponential.Backoff,
 	***REMOVED***
 ***REMOVED***
 
@@ -608,16 +603,6 @@ func defaultDialOptions() dialOptions ***REMOVED***
 func withMinConnectDeadline(f func() time.Duration) DialOption ***REMOVED***
 	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
 		o.minConnectTimeout = f
-	***REMOVED***)
-***REMOVED***
-
-// withResolveNowBackoff specifies the function that clientconn uses to backoff
-// between successive calls to resolver.ResolveNow().
-//
-// For testing purpose only.
-func withResolveNowBackoff(f func(int) time.Duration) DialOption ***REMOVED***
-	return newFuncDialOption(func(o *dialOptions) ***REMOVED***
-		o.resolveNowBackoff = f
 	***REMOVED***)
 ***REMOVED***
 
