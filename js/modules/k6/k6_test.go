@@ -38,16 +38,15 @@ import (
 )
 
 func TestFail(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rt := goja.New()
-	rt.Set("k6", common.Bind(rt, New(), nil))
+	require.NoError(t, rt.Set("k6", common.Bind(rt, New(), nil)))
 	_, err := rt.RunString(`k6.fail("blah")`)
 	assert.Contains(t, err.Error(), "blah")
 ***REMOVED***
 
 func TestSleep(t *testing.T) ***REMOVED***
-	rt := goja.New()
-	ctx, cancel := context.WithCancel(context.Background())
-	rt.Set("k6", common.Bind(rt, New(), &ctx))
+	t.Parallel()
 
 	testdata := map[string]time.Duration***REMOVED***
 		"1":   1 * time.Second,
@@ -55,7 +54,12 @@ func TestSleep(t *testing.T) ***REMOVED***
 		"0.5": 500 * time.Millisecond,
 	***REMOVED***
 	for name, d := range testdata ***REMOVED***
+		d := d
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := goja.New()
+			ctx := context.Background()
+			require.NoError(t, rt.Set("k6", common.Bind(rt, New(), &ctx)))
 			startTime := time.Now()
 			_, err := rt.RunString(`k6.sleep(1)`)
 			endTime := time.Now()
@@ -65,6 +69,10 @@ func TestSleep(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	t.Run("Cancel", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := goja.New()
+		ctx, cancel := context.WithCancel(context.Background())
+		require.NoError(t, rt.Set("k6", common.Bind(rt, New(), &ctx)))
 		dch := make(chan time.Duration)
 		go func() ***REMOVED***
 			startTime := time.Now()
@@ -85,12 +93,13 @@ func TestSleep(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestRandSeed(t *testing.T) ***REMOVED***
+	t.Parallel()
 	rt := goja.New()
 
 	ctx := context.Background()
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("k6", common.Bind(rt, New(), &ctx))
+	require.NoError(t, rt.Set("k6", common.Bind(rt, New(), &ctx)))
 
 	rand := 0.8487305991992138
 	_, err := rt.RunString(fmt.Sprintf(`
@@ -108,278 +117,292 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestGroup(t *testing.T) ***REMOVED***
-	root, err := lib.NewGroup("", nil)
-	assert.NoError(t, err)
+	t.Parallel()
+	setupGroupTest := func() (*goja.Runtime, *lib.State, *lib.Group) ***REMOVED***
+		root, err := lib.NewGroup("", nil)
+		assert.NoError(t, err)
 
-	rt := goja.New()
-	state := &lib.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
+		rt := goja.New()
+		state := &lib.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("k6", common.Bind(rt, New(), &ctx))
+		ctx := context.Background()
+		ctx = lib.WithState(ctx, state)
+		ctx = common.WithRuntime(ctx, rt)
+		require.NoError(t, rt.Set("k6", common.Bind(rt, New(), &ctx)))
+		return rt, state, root
+	***REMOVED***
 
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt, state, root := setupGroupTest()
 		assert.Equal(t, state.Group, root)
-		rt.Set("fn", func() ***REMOVED***
+		require.NoError(t, rt.Set("fn", func() ***REMOVED***
 			assert.Equal(t, state.Group.Name, "my group")
 			assert.Equal(t, state.Group.Parent, root)
-		***REMOVED***)
-		_, err = rt.RunString(`k6.group("my group", fn)`)
+		***REMOVED***))
+		_, err := rt.RunString(`k6.group("my group", fn)`)
 		assert.NoError(t, err)
 		assert.Equal(t, state.Group, root)
 	***REMOVED***)
 
 	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt, _, _ := setupGroupTest()
 		_, err := rt.RunString(`k6.group("::", function() ***REMOVED*** throw new Error("nooo") ***REMOVED***)`)
 		assert.Contains(t, err.Error(), "group and check names may not contain '::'")
 	***REMOVED***)
 ***REMOVED***
 
-func TestCheck(t *testing.T) ***REMOVED***
+func checkTestRuntime(t testing.TB, ctxs ...*context.Context) (
+	*goja.Runtime, chan stats.SampleContainer,
+) ***REMOVED***
 	rt := goja.New()
 
 	root, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
-
-	baseCtx := common.WithRuntime(context.Background(), rt)
-
-	ctx := new(context.Context)
-	*ctx = baseCtx
-	rt.Set("k6", common.Bind(rt, New(), ctx))
-
-	getState := func() (*lib.State, chan stats.SampleContainer) ***REMOVED***
-		samples := make(chan stats.SampleContainer, 1000)
-		return &lib.State***REMOVED***
-			Group: root,
-			Options: lib.Options***REMOVED***
-				SystemTags: &stats.DefaultSystemTagSet,
-			***REMOVED***,
-			Samples: samples,
-			Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
-		***REMOVED***, samples
+	samples := make(chan stats.SampleContainer, 1000)
+	state := &lib.State***REMOVED***
+		Group: root,
+		Options: lib.Options***REMOVED***
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		Samples: samples,
+		Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
 	***REMOVED***
-	t.Run("Object", func(t *testing.T) ***REMOVED***
-		state, samples := getState()
-		*ctx = lib.WithState(baseCtx, state)
+	ctx := context.Background()
+	if len(ctxs) == 1 ***REMOVED*** // hacks
+		ctx = *ctxs[0]
+	***REMOVED***
+	ctx = common.WithRuntime(ctx, rt)
+	ctx = lib.WithState(ctx, state)
+	require.NoError(t, rt.Set("k6", common.Bind(rt, New(), &ctx)))
+	if len(ctxs) == 1 ***REMOVED*** // hacks
+		*ctxs[0] = ctx
+	***REMOVED***
+	return rt, samples
+***REMOVED***
 
-		_, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+func TestCheckObject(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt, samples := checkTestRuntime(t)
+
+	_, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+	assert.NoError(t, err)
+
+	bufSamples := stats.GetBufferedSamples(samples)
+	if assert.Len(t, bufSamples, 1) ***REMOVED***
+		sample, ok := bufSamples[0].(stats.Sample)
+		require.True(t, ok)
+
+		assert.NotZero(t, sample.Time)
+		assert.Equal(t, metrics.Checks, sample.Metric)
+		assert.Equal(t, float64(1), sample.Value)
+		assert.Equal(t, map[string]string***REMOVED***
+			"group": "",
+			"check": "check",
+		***REMOVED***, sample.Tags.CloneTags())
+	***REMOVED***
+
+	t.Run("Multiple", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt, samples := checkTestRuntime(t)
+
+		_, err := rt.RunString(`k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
 		assert.NoError(t, err)
 
 		bufSamples := stats.GetBufferedSamples(samples)
-		if assert.Len(t, bufSamples, 1) ***REMOVED***
-			sample, ok := bufSamples[0].(stats.Sample)
-			require.True(t, ok)
-
-			assert.NotZero(t, sample.Time)
-			assert.Equal(t, metrics.Checks, sample.Metric)
-			assert.Equal(t, float64(1), sample.Value)
-			assert.Equal(t, map[string]string***REMOVED***
-				"group": "",
-				"check": "check",
-			***REMOVED***, sample.Tags.CloneTags())
-		***REMOVED***
-
-		t.Run("Multiple", func(t *testing.T) ***REMOVED***
-			state, samples := getState()
-			*ctx = lib.WithState(baseCtx, state)
-
-			_, err := rt.RunString(`k6.check(null, ***REMOVED*** "a": true, "b": false ***REMOVED***)`)
-			assert.NoError(t, err)
-
-			bufSamples := stats.GetBufferedSamples(samples)
-			assert.Len(t, bufSamples, 2)
-			var foundA, foundB bool
-			for _, sampleC := range bufSamples ***REMOVED***
-				for _, sample := range sampleC.GetSamples() ***REMOVED***
-					name, ok := sample.Tags.Get("check")
-					assert.True(t, ok)
-					switch name ***REMOVED***
-					case "a":
-						assert.False(t, foundA, "duplicate 'a'")
-						foundA = true
-					case "b":
-						assert.False(t, foundB, "duplicate 'b'")
-						foundB = true
-					default:
-						assert.Fail(t, name)
-					***REMOVED***
+		assert.Len(t, bufSamples, 2)
+		var foundA, foundB bool
+		for _, sampleC := range bufSamples ***REMOVED***
+			for _, sample := range sampleC.GetSamples() ***REMOVED***
+				name, ok := sample.Tags.Get("check")
+				assert.True(t, ok)
+				switch name ***REMOVED***
+				case "a":
+					assert.False(t, foundA, "duplicate 'a'")
+					foundA = true
+				case "b":
+					assert.False(t, foundB, "duplicate 'b'")
+					foundB = true
+				default:
+					assert.Fail(t, name)
 				***REMOVED***
 			***REMOVED***
-			assert.True(t, foundA, "missing 'a'")
-			assert.True(t, foundB, "missing 'b'")
-		***REMOVED***)
-
-		t.Run("Invalid", func(t *testing.T) ***REMOVED***
-			_, err := rt.RunString(`k6.check(null, ***REMOVED*** "::": true ***REMOVED***)`)
-			assert.Contains(t, err.Error(), "group and check names may not contain '::'")
-		***REMOVED***)
-	***REMOVED***)
-
-	t.Run("Array", func(t *testing.T) ***REMOVED***
-		state, samples := getState()
-		*ctx = lib.WithState(baseCtx, state)
-
-		_, err := rt.RunString(`k6.check(null, [ true ])`)
-		assert.NoError(t, err)
-
-		bufSamples := stats.GetBufferedSamples(samples)
-		if assert.Len(t, bufSamples, 1) ***REMOVED***
-			sample, ok := bufSamples[0].(stats.Sample)
-			require.True(t, ok)
-
-			assert.NotZero(t, sample.Time)
-			assert.Equal(t, metrics.Checks, sample.Metric)
-			assert.Equal(t, float64(1), sample.Value)
-			assert.Equal(t, map[string]string***REMOVED***
-				"group": "",
-				"check": "0",
-			***REMOVED***, sample.Tags.CloneTags())
 		***REMOVED***
+		assert.True(t, foundA, "missing 'a'")
+		assert.True(t, foundB, "missing 'b'")
 	***REMOVED***)
 
-	t.Run("Literal", func(t *testing.T) ***REMOVED***
-		state, samples := getState()
-		*ctx = lib.WithState(baseCtx, state)
-
-		_, err := rt.RunString(`k6.check(null, 12345)`)
-		assert.NoError(t, err)
-		assert.Len(t, stats.GetBufferedSamples(samples), 0)
+	t.Run("Invalid", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt, _ := checkTestRuntime(t)
+		_, err := rt.RunString(`k6.check(null, ***REMOVED*** "::": true ***REMOVED***)`)
+		assert.Contains(t, err.Error(), "group and check names may not contain '::'")
 	***REMOVED***)
+***REMOVED***
 
-	t.Run("Throws", func(t *testing.T) ***REMOVED***
-		state, samples := getState()
-		*ctx = lib.WithState(baseCtx, state)
+func TestCheckArray(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt, samples := checkTestRuntime(t)
 
-		_, err := rt.RunString(`
+	_, err := rt.RunString(`k6.check(null, [ true ])`)
+	assert.NoError(t, err)
+
+	bufSamples := stats.GetBufferedSamples(samples)
+	if assert.Len(t, bufSamples, 1) ***REMOVED***
+		sample, ok := bufSamples[0].(stats.Sample)
+		require.True(t, ok)
+
+		assert.NotZero(t, sample.Time)
+		assert.Equal(t, metrics.Checks, sample.Metric)
+		assert.Equal(t, float64(1), sample.Value)
+		assert.Equal(t, map[string]string***REMOVED***
+			"group": "",
+			"check": "0",
+		***REMOVED***, sample.Tags.CloneTags())
+	***REMOVED***
+***REMOVED***
+
+func TestCheckLiteral(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt, samples := checkTestRuntime(t)
+
+	_, err := rt.RunString(`k6.check(null, 12345)`)
+	assert.NoError(t, err)
+	assert.Len(t, stats.GetBufferedSamples(samples), 0)
+***REMOVED***
+
+func TestCheckThrows(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt, samples := checkTestRuntime(t)
+	_, err := rt.RunString(`
 		k6.check(null, ***REMOVED***
 			"a": function() ***REMOVED*** throw new Error("error A") ***REMOVED***,
 			"b": function() ***REMOVED*** throw new Error("error B") ***REMOVED***,
 		***REMOVED***)
 		`)
-		assert.EqualError(t, err, "Error: error A at a (<eval>:3:28(4))")
+	assert.EqualError(t, err, "Error: error A at a (<eval>:3:28(4))")
 
-		bufSamples := stats.GetBufferedSamples(samples)
-		if assert.Len(t, bufSamples, 1) ***REMOVED***
-			sample, ok := bufSamples[0].(stats.Sample)
-			require.True(t, ok)
+	bufSamples := stats.GetBufferedSamples(samples)
+	if assert.Len(t, bufSamples, 1) ***REMOVED***
+		sample, ok := bufSamples[0].(stats.Sample)
+		require.True(t, ok)
 
-			assert.NotZero(t, sample.Time)
-			assert.Equal(t, metrics.Checks, sample.Metric)
-			assert.Equal(t, float64(0), sample.Value)
-			assert.Equal(t, map[string]string***REMOVED***
-				"group": "",
-				"check": "a",
-			***REMOVED***, sample.Tags.CloneTags())
-		***REMOVED***
-	***REMOVED***)
+		assert.NotZero(t, sample.Time)
+		assert.Equal(t, metrics.Checks, sample.Metric)
+		assert.Equal(t, float64(0), sample.Value)
+		assert.Equal(t, map[string]string***REMOVED***
+			"group": "",
+			"check": "a",
+		***REMOVED***, sample.Tags.CloneTags())
+	***REMOVED***
+***REMOVED***
 
-	t.Run("Types", func(t *testing.T) ***REMOVED***
-		templates := map[string]string***REMOVED***
-			"Literal":      `k6.check(null,***REMOVED***"check": %s***REMOVED***)`,
-			"Callable":     `k6.check(null,***REMOVED***"check": function() ***REMOVED*** return %s; ***REMOVED******REMOVED***)`,
-			"Callable/Arg": `k6.check(%s,***REMOVED***"check": function(v) ***REMOVED***return v; ***REMOVED******REMOVED***)`,
-		***REMOVED***
-		testdata := map[string]bool***REMOVED***
-			`0`:         false,
-			`1`:         true,
-			`-1`:        true,
-			`""`:        false,
-			`"true"`:    true,
-			`"false"`:   true,
-			`true`:      true,
-			`false`:     false,
-			`null`:      false,
-			`undefined`: false,
-		***REMOVED***
-		for name, tpl := range templates ***REMOVED***
-			name, tpl := name, tpl
-			t.Run(name, func(t *testing.T) ***REMOVED***
-				for value, succ := range testdata ***REMOVED***
-					value, succ := value, succ
-					t.Run(value, func(t *testing.T) ***REMOVED***
-						state, samples := getState()
-						*ctx = lib.WithState(baseCtx, state)
+func TestCheckTypes(t *testing.T) ***REMOVED***
+	t.Parallel()
+	templates := map[string]string***REMOVED***
+		"Literal":      `k6.check(null,***REMOVED***"check": %s***REMOVED***)`,
+		"Callable":     `k6.check(null,***REMOVED***"check": function() ***REMOVED*** return %s; ***REMOVED******REMOVED***)`,
+		"Callable/Arg": `k6.check(%s,***REMOVED***"check": function(v) ***REMOVED***return v; ***REMOVED******REMOVED***)`,
+	***REMOVED***
+	testdata := map[string]bool***REMOVED***
+		`0`:         false,
+		`1`:         true,
+		`-1`:        true,
+		`""`:        false,
+		`"true"`:    true,
+		`"false"`:   true,
+		`true`:      true,
+		`false`:     false,
+		`null`:      false,
+		`undefined`: false,
+	***REMOVED***
+	for name, tpl := range templates ***REMOVED***
+		name, tpl := name, tpl
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			for value, succ := range testdata ***REMOVED***
+				value, succ := value, succ
+				t.Run(value, func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					rt, samples := checkTestRuntime(t)
 
-						v, err := rt.RunString(fmt.Sprintf(tpl, value))
-						if assert.NoError(t, err) ***REMOVED***
-							assert.Equal(t, succ, v.Export())
+					v, err := rt.RunString(fmt.Sprintf(tpl, value))
+					if assert.NoError(t, err) ***REMOVED***
+						assert.Equal(t, succ, v.Export())
+					***REMOVED***
+
+					bufSamples := stats.GetBufferedSamples(samples)
+					if assert.Len(t, bufSamples, 1) ***REMOVED***
+						sample, ok := bufSamples[0].(stats.Sample)
+						require.True(t, ok)
+
+						assert.NotZero(t, sample.Time)
+						assert.Equal(t, metrics.Checks, sample.Metric)
+						if succ ***REMOVED***
+							assert.Equal(t, float64(1), sample.Value)
+						***REMOVED*** else ***REMOVED***
+							assert.Equal(t, float64(0), sample.Value)
 						***REMOVED***
-
-						bufSamples := stats.GetBufferedSamples(samples)
-						if assert.Len(t, bufSamples, 1) ***REMOVED***
-							sample, ok := bufSamples[0].(stats.Sample)
-							require.True(t, ok)
-
-							assert.NotZero(t, sample.Time)
-							assert.Equal(t, metrics.Checks, sample.Metric)
-							if succ ***REMOVED***
-								assert.Equal(t, float64(1), sample.Value)
-							***REMOVED*** else ***REMOVED***
-								assert.Equal(t, float64(0), sample.Value)
-							***REMOVED***
-							assert.Equal(t, map[string]string***REMOVED***
-								"group": "",
-								"check": "check",
-							***REMOVED***, sample.Tags.CloneTags())
-						***REMOVED***
-					***REMOVED***)
-				***REMOVED***
-			***REMOVED***)
-		***REMOVED***
-
-		t.Run("ContextExpiry", func(t *testing.T) ***REMOVED***
-			root, err := lib.NewGroup("", nil)
-			assert.NoError(t, err)
-
-			state := &lib.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
-			ctx2, cancel := context.WithCancel(lib.WithState(baseCtx, state))
-			*ctx = ctx2
-
-			v, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, true, v.Export())
+						assert.Equal(t, map[string]string***REMOVED***
+							"group": "",
+							"check": "check",
+						***REMOVED***, sample.Tags.CloneTags())
+					***REMOVED***
+				***REMOVED***)
 			***REMOVED***
-
-			check, _ := root.Check("check")
-			assert.Equal(t, int64(1), check.Passes)
-			assert.Equal(t, int64(0), check.Fails)
-
-			cancel()
-
-			v, err = rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
-			if assert.NoError(t, err) ***REMOVED***
-				assert.Equal(t, true, v.Export())
-			***REMOVED***
-
-			assert.Equal(t, int64(1), check.Passes)
-			assert.Equal(t, int64(0), check.Fails)
 		***REMOVED***)
-	***REMOVED***)
+	***REMOVED***
+***REMOVED***
 
-	t.Run("Tags", func(t *testing.T) ***REMOVED***
-		state, samples := getState()
-		*ctx = lib.WithState(baseCtx, state)
+func TestCheckContextExpiry(t *testing.T) ***REMOVED***
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	rt, _ := checkTestRuntime(t, &ctx)
+	root := lib.GetState(ctx).Group
 
-		v, err := rt.RunString(`k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
-		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, true, v.Export())
-		***REMOVED***
+	v, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+	if assert.NoError(t, err) ***REMOVED***
+		assert.Equal(t, true, v.Export())
+	***REMOVED***
 
-		bufSamples := stats.GetBufferedSamples(samples)
-		if assert.Len(t, bufSamples, 1) ***REMOVED***
-			sample, ok := bufSamples[0].(stats.Sample)
-			require.True(t, ok)
+	check, _ := root.Check("check")
+	assert.Equal(t, int64(1), check.Passes)
+	assert.Equal(t, int64(0), check.Fails)
 
-			assert.NotZero(t, sample.Time)
-			assert.Equal(t, metrics.Checks, sample.Metric)
-			assert.Equal(t, float64(1), sample.Value)
-			assert.Equal(t, map[string]string***REMOVED***
-				"group": "",
-				"check": "check",
-				"a":     "1",
-				"b":     "2",
-			***REMOVED***, sample.Tags.CloneTags())
-		***REMOVED***
-	***REMOVED***)
+	cancel()
+
+	v, err = rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
+	if assert.NoError(t, err) ***REMOVED***
+		assert.Equal(t, true, v.Export())
+	***REMOVED***
+
+	assert.Equal(t, int64(1), check.Passes)
+	assert.Equal(t, int64(0), check.Fails)
+***REMOVED***
+
+func TestCheckTags(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt, samples := checkTestRuntime(t)
+
+	v, err := rt.RunString(`k6.check(null, ***REMOVED***"check": true***REMOVED***, ***REMOVED***a: 1, b: "2"***REMOVED***)`)
+	if assert.NoError(t, err) ***REMOVED***
+		assert.Equal(t, true, v.Export())
+	***REMOVED***
+
+	bufSamples := stats.GetBufferedSamples(samples)
+	if assert.Len(t, bufSamples, 1) ***REMOVED***
+		sample, ok := bufSamples[0].(stats.Sample)
+		require.True(t, ok)
+
+		assert.NotZero(t, sample.Time)
+		assert.Equal(t, metrics.Checks, sample.Metric)
+		assert.Equal(t, float64(1), sample.Value)
+		assert.Equal(t, map[string]string***REMOVED***
+			"group": "",
+			"check": "check",
+			"a":     "1",
+			"b":     "2",
+		***REMOVED***, sample.Tags.CloneTags())
+	***REMOVED***
 ***REMOVED***

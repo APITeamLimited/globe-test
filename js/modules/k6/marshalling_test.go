@@ -39,6 +39,7 @@ import (
 )
 
 func TestSetupDataMarshalling(t *testing.T) ***REMOVED***
+	t.Parallel()
 	tb := httpmultibin.NewHTTPMultiBin(t)
 
 	script := []byte(tb.Replacer.Replace(`
