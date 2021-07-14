@@ -113,9 +113,6 @@ func NewReader(r io.Reader, opts ...DOption) (*Decoder, error) ***REMOVED***
 // Returns the number of bytes written and any error that occurred.
 // When the stream is done, io.EOF will be returned.
 func (d *Decoder) Read(p []byte) (int, error) ***REMOVED***
-	if d.stream == nil ***REMOVED***
-		return 0, ErrDecoderNilInput
-	***REMOVED***
 	var n int
 	for ***REMOVED***
 		if len(d.current.b) > 0 ***REMOVED***
@@ -138,7 +135,7 @@ func (d *Decoder) Read(p []byte) (int, error) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if len(d.current.b) > 0 ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("returning", n, "still bytes left:", len(d.current.b))
 		***REMOVED***
 		// Only return error at end of block
@@ -147,7 +144,7 @@ func (d *Decoder) Read(p []byte) (int, error) ***REMOVED***
 	if d.current.err != nil ***REMOVED***
 		d.drainOutput()
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		println("returning", n, d.current.err, len(d.decoders))
 	***REMOVED***
 	return n, d.current.err
@@ -167,20 +164,17 @@ func (d *Decoder) Reset(r io.Reader) error ***REMOVED***
 
 	if r == nil ***REMOVED***
 		d.current.err = ErrDecoderNilInput
+		if len(d.current.b) > 0 ***REMOVED***
+			d.current.b = d.current.b[:0]
+		***REMOVED***
 		d.current.flushed = true
 		return nil
 	***REMOVED***
 
-	if d.stream == nil ***REMOVED***
-		d.stream = make(chan decodeStream, 1)
-		d.streamWg.Add(1)
-		go d.startStreamDecoder(d.stream)
-	***REMOVED***
-
-	// If bytes buffer and < 1MB, do sync decoding anyway.
-	if bb, ok := r.(byter); ok && bb.Len() < 1<<20 ***REMOVED***
+	// If bytes buffer and < 5MB, do sync decoding anyway.
+	if bb, ok := r.(byter); ok && bb.Len() < 5<<20 ***REMOVED***
 		bb2 := bb
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("*bytes.Buffer detected, doing sync decode, len:", bb.Len())
 		***REMOVED***
 		b := bb2.Bytes()
@@ -196,10 +190,16 @@ func (d *Decoder) Reset(r io.Reader) error ***REMOVED***
 		d.current.b = dst
 		d.current.err = err
 		d.current.flushed = true
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("sync decode to", len(dst), "bytes, err:", err)
 		***REMOVED***
 		return nil
+	***REMOVED***
+
+	if d.stream == nil ***REMOVED***
+		d.stream = make(chan decodeStream, 1)
+		d.streamWg.Add(1)
+		go d.startStreamDecoder(d.stream)
 	***REMOVED***
 
 	// Remove current block.
@@ -225,7 +225,7 @@ func (d *Decoder) drainOutput() ***REMOVED***
 		d.current.cancel = nil
 	***REMOVED***
 	if d.current.d != nil ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			printf("re-adding current decoder %p, decoders: %d", d.current.d, len(d.decoders))
 		***REMOVED***
 		d.decoders <- d.current.d
@@ -238,7 +238,7 @@ func (d *Decoder) drainOutput() ***REMOVED***
 	***REMOVED***
 	for v := range d.current.output ***REMOVED***
 		if v.d != nil ***REMOVED***
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				printf("re-adding decoder %p", v.d)
 			***REMOVED***
 			d.decoders <- v.d
@@ -255,9 +255,6 @@ func (d *Decoder) drainOutput() ***REMOVED***
 // The return value n is the number of bytes written.
 // Any error encountered during the write is also returned.
 func (d *Decoder) WriteTo(w io.Writer) (int64, error) ***REMOVED***
-	if d.stream == nil ***REMOVED***
-		return 0, ErrDecoderNilInput
-	***REMOVED***
 	var n int64
 	for ***REMOVED***
 		if len(d.current.b) > 0 ***REMOVED***
@@ -297,7 +294,7 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 	block := <-d.decoders
 	frame := block.localFrame
 	defer func() ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			printf("re-adding decoder: %p", block)
 		***REMOVED***
 		frame.rawInput = nil
@@ -310,7 +307,7 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 		frame.history.reset()
 		err := frame.reset(&frame.bBuf)
 		if err == io.EOF ***REMOVED***
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				println("frame reset return EOF")
 			***REMOVED***
 			return dst, nil
@@ -355,7 +352,7 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 			return dst, err
 		***REMOVED***
 		if len(frame.bBuf) == 0 ***REMOVED***
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				println("frame dbuf empty")
 			***REMOVED***
 			break
@@ -371,7 +368,7 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) ***REMOVED***
 // if no data was available without blocking.
 func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
 	if d.current.d != nil ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			printf("re-adding current decoder %p", d.current.d)
 		***REMOVED***
 		d.decoders <- d.current.d
@@ -391,7 +388,7 @@ func (d *Decoder) nextBlock(blocking bool) (ok bool) ***REMOVED***
 			return false
 		***REMOVED***
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		println("got", len(d.current.b), "bytes, error:", d.current.err)
 	***REMOVED***
 	return true
@@ -485,7 +482,7 @@ func (d *Decoder) startStreamDecoder(inStream chan decodeStream) ***REMOVED***
 	defer d.streamWg.Done()
 	frame := newFrameDec(d.o)
 	for stream := range inStream ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("got new stream")
 		***REMOVED***
 		br := readerWrapper***REMOVED***r: stream.r***REMOVED***
@@ -493,7 +490,7 @@ func (d *Decoder) startStreamDecoder(inStream chan decodeStream) ***REMOVED***
 		for ***REMOVED***
 			frame.history.reset()
 			err := frame.reset(&br)
-			if debug && err != nil ***REMOVED***
+			if debugDecoder && err != nil ***REMOVED***
 				println("Frame decoder returned", err)
 			***REMOVED***
 			if err == nil && frame.DictionaryID != nil ***REMOVED***
@@ -510,7 +507,7 @@ func (d *Decoder) startStreamDecoder(inStream chan decodeStream) ***REMOVED***
 				***REMOVED***
 				break
 			***REMOVED***
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				println("starting frame decoder")
 			***REMOVED***
 

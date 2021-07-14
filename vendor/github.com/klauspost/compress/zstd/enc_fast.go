@@ -103,7 +103,7 @@ func (e *fastEncoder) Encode(blk *blockEnc, src []byte) ***REMOVED***
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -178,7 +178,7 @@ encodeLoop:
 				s += length + 2
 				nextEmit = s
 				if s >= sLimit ***REMOVED***
-					if debug ***REMOVED***
+					if debugEncoder ***REMOVED***
 						println("repeat ended", s, length)
 
 					***REMOVED***
@@ -330,7 +330,7 @@ encodeLoop:
 	***REMOVED***
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 ***REMOVED***
@@ -343,7 +343,7 @@ func (e *fastEncoder) EncodeNoHist(blk *blockEnc, src []byte) ***REMOVED***
 		inputMargin            = 8
 		minNonLiteralBlockSize = 1 + 1 + inputMargin
 	)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		if len(src) > maxBlockSize ***REMOVED***
 			panic("src too big")
 		***REMOVED***
@@ -391,7 +391,7 @@ func (e *fastEncoder) EncodeNoHist(blk *blockEnc, src []byte) ***REMOVED***
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -462,7 +462,7 @@ encodeLoop:
 				s += length + 2
 				nextEmit = s
 				if s >= sLimit ***REMOVED***
-					if debug ***REMOVED***
+					if debugEncoder ***REMOVED***
 						println("repeat ended", s, length)
 
 					***REMOVED***
@@ -616,7 +616,7 @@ encodeLoop:
 		blk.literals = append(blk.literals, src[nextEmit:]...)
 		blk.extraLits = len(src) - int(nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 	// We do not store history, so we must offset e.cur to avoid false matches for next user.
@@ -696,7 +696,7 @@ func (e *fastEncoderDict) Encode(blk *blockEnc, src []byte) ***REMOVED***
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -773,7 +773,7 @@ encodeLoop:
 				s += length + 2
 				nextEmit = s
 				if s >= sLimit ***REMOVED***
-					if debug ***REMOVED***
+					if debugEncoder ***REMOVED***
 						println("repeat ended", s, length)
 
 					***REMOVED***
@@ -926,7 +926,7 @@ encodeLoop:
 	***REMOVED***
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 ***REMOVED***

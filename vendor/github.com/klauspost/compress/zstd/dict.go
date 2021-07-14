@@ -82,7 +82,7 @@ func loadDict(b []byte) (*dict, error) ***REMOVED***
 			println("Transform table error:", err)
 			return err
 		***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder || debugEncoder ***REMOVED***
 			println("Read table ok", "symbolLen:", dec.symbolLen)
 		***REMOVED***
 		// Set decoders as predefined so they aren't reused.

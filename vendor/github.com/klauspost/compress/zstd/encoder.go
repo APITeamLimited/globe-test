@@ -245,7 +245,7 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 	s.filling, s.current, s.previous = s.previous[:0], s.filling, s.current
 	s.wg.Add(1)
 	go func(src []byte) ***REMOVED***
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding block,", len(src), "bytes, final:", final)
 		***REMOVED***
 		defer func() ***REMOVED***
@@ -290,7 +290,7 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 			***REMOVED***
 			switch err ***REMOVED***
 			case errIncompressible:
-				if debug ***REMOVED***
+				if debugEncoder ***REMOVED***
 					println("Storing incompressible block as raw")
 				***REMOVED***
 				blk.encodeRaw(src)
@@ -313,7 +313,7 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 //
 // The Copy function uses ReaderFrom if available.
 func (e *Encoder) ReadFrom(r io.Reader) (n int64, err error) ***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("Using ReadFrom")
 	***REMOVED***
 
@@ -336,20 +336,20 @@ func (e *Encoder) ReadFrom(r io.Reader) (n int64, err error) ***REMOVED***
 		switch err ***REMOVED***
 		case io.EOF:
 			e.state.filling = e.state.filling[:len(e.state.filling)-len(src)]
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("ReadFrom: got EOF final block:", len(e.state.filling))
 			***REMOVED***
 			return n, nil
 		case nil:
 		default:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("ReadFrom: got error:", err)
 			***REMOVED***
 			e.state.err = err
 			return n, err
 		***REMOVED***
 		if len(src) > 0 ***REMOVED***
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("ReadFrom: got space left in source:", len(src))
 			***REMOVED***
 			continue
@@ -512,7 +512,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte ***REMOVED***
 
 		switch err ***REMOVED***
 		case errIncompressible:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("Storing incompressible block as raw")
 			***REMOVED***
 			dst = blk.encodeRawTo(dst, src)
@@ -548,7 +548,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte ***REMOVED***
 
 			switch err ***REMOVED***
 			case errIncompressible:
-				if debug ***REMOVED***
+				if debugEncoder ***REMOVED***
 					println("Storing incompressible block as raw")
 				***REMOVED***
 				dst = blk.encodeRawTo(dst, todo)
