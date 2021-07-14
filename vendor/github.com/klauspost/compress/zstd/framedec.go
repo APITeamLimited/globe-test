@@ -22,10 +22,6 @@ type frameDec struct ***REMOVED***
 
 	WindowSize uint64
 
-	// maxWindowSize is the maximum windows size to support.
-	// should never be bigger than max-int.
-	maxWindowSize uint64
-
 	// In order queue of blocks being decoded.
 	decoding chan *blockDec
 
@@ -50,8 +46,11 @@ type frameDec struct ***REMOVED***
 ***REMOVED***
 
 const (
-	// The minimum Window_Size is 1 KB.
+	// MinWindowSize is the minimum Window Size, which is 1 KB.
 	MinWindowSize = 1 << 10
+
+	// MaxWindowSize is the maximum encoder window size
+	// and the default decoder maximum window size.
 	MaxWindowSize = 1 << 29
 )
 
@@ -61,12 +60,11 @@ var (
 )
 
 func newFrameDec(o decoderOptions) *frameDec ***REMOVED***
-	d := frameDec***REMOVED***
-		o:             o,
-		maxWindowSize: MaxWindowSize,
+	if o.maxWindowSize > o.maxDecodedSize ***REMOVED***
+		o.maxWindowSize = o.maxDecodedSize
 	***REMOVED***
-	if d.maxWindowSize > o.maxDecodedSize ***REMOVED***
-		d.maxWindowSize = o.maxDecodedSize
+	d := frameDec***REMOVED***
+		o: o,
 	***REMOVED***
 	return &d
 ***REMOVED***
@@ -78,44 +76,68 @@ func newFrameDec(o decoderOptions) *frameDec ***REMOVED***
 func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 	d.HasCheckSum = false
 	d.WindowSize = 0
-	var b []byte
+	var signature [4]byte
 	for ***REMOVED***
-		b = br.readSmall(4)
-		if b == nil ***REMOVED***
+		var err error
+		// Check if we can read more...
+		b, err := br.readSmall(1)
+		switch err ***REMOVED***
+		case io.EOF, io.ErrUnexpectedEOF:
 			return io.EOF
+		default:
+			return err
+		case nil:
+			signature[0] = b[0]
 		***REMOVED***
-		if !bytes.Equal(b[1:4], skippableFrameMagic) || b[0]&0xf0 != 0x50 ***REMOVED***
-			if debug ***REMOVED***
-				println("Not skippable", hex.EncodeToString(b), hex.EncodeToString(skippableFrameMagic))
+		// Read the rest, don't allow io.ErrUnexpectedEOF
+		b, err = br.readSmall(3)
+		switch err ***REMOVED***
+		case io.EOF:
+			return io.EOF
+		default:
+			return err
+		case nil:
+			copy(signature[1:], b)
+		***REMOVED***
+
+		if !bytes.Equal(signature[1:4], skippableFrameMagic) || signature[0]&0xf0 != 0x50 ***REMOVED***
+			if debugDecoder ***REMOVED***
+				println("Not skippable", hex.EncodeToString(signature[:]), hex.EncodeToString(skippableFrameMagic))
 			***REMOVED***
 			// Break if not skippable frame.
 			break
 		***REMOVED***
 		// Read size to skip
-		b = br.readSmall(4)
-		if b == nil ***REMOVED***
-			println("Reading Frame Size EOF")
-			return io.ErrUnexpectedEOF
+		b, err = br.readSmall(4)
+		if err != nil ***REMOVED***
+			if debugDecoder ***REMOVED***
+				println("Reading Frame Size", err)
+			***REMOVED***
+			return err
 		***REMOVED***
 		n := uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 		println("Skipping frame with", n, "bytes.")
-		err := br.skipN(int(n))
+		err = br.skipN(int(n))
 		if err != nil ***REMOVED***
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				println("Reading discarded frame", err)
 			***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
-	if !bytes.Equal(b, frameMagic) ***REMOVED***
-		println("Got magic numbers: ", b, "want:", frameMagic)
+	if !bytes.Equal(signature[:], frameMagic) ***REMOVED***
+		if debugDecoder ***REMOVED***
+			println("Got magic numbers: ", signature, "want:", frameMagic)
+		***REMOVED***
 		return ErrMagicMismatch
 	***REMOVED***
 
 	// Read Frame_Header_Descriptor
 	fhd, err := br.readByte()
 	if err != nil ***REMOVED***
-		println("Reading Frame_Header_Descriptor", err)
+		if debugDecoder ***REMOVED***
+			println("Reading Frame_Header_Descriptor", err)
+		***REMOVED***
 		return err
 	***REMOVED***
 	d.SingleSegment = fhd&(1<<5) != 0
@@ -130,7 +152,9 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 	if !d.SingleSegment ***REMOVED***
 		wd, err := br.readByte()
 		if err != nil ***REMOVED***
-			println("Reading Window_Descriptor", err)
+			if debugDecoder ***REMOVED***
+				println("Reading Window_Descriptor", err)
+			***REMOVED***
 			return err
 		***REMOVED***
 		printf("raw: %x, mantissa: %d, exponent: %d\n", wd, wd&7, wd>>3)
@@ -147,12 +171,11 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 		if size == 3 ***REMOVED***
 			size = 4
 		***REMOVED***
-		b = br.readSmall(int(size))
-		if b == nil ***REMOVED***
-			if debug ***REMOVED***
-				println("Reading Dictionary_ID", io.ErrUnexpectedEOF)
-			***REMOVED***
-			return io.ErrUnexpectedEOF
+
+		b, err := br.readSmall(int(size))
+		if err != nil ***REMOVED***
+			println("Reading Dictionary_ID", err)
+			return err
 		***REMOVED***
 		var id uint32
 		switch size ***REMOVED***
@@ -163,7 +186,7 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 		case 4:
 			id = uint32(b[0]) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 		***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("Dict size", size, "ID:", id)
 		***REMOVED***
 		if id > 0 ***REMOVED***
@@ -187,10 +210,10 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 	***REMOVED***
 	d.FrameContentSize = 0
 	if fcsSize > 0 ***REMOVED***
-		b := br.readSmall(fcsSize)
-		if b == nil ***REMOVED***
-			println("Reading Frame content", io.ErrUnexpectedEOF)
-			return io.ErrUnexpectedEOF
+		b, err := br.readSmall(fcsSize)
+		if err != nil ***REMOVED***
+			println("Reading Frame content", err)
+			return err
 		***REMOVED***
 		switch fcsSize ***REMOVED***
 		case 1:
@@ -205,7 +228,7 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 			d2 := uint32(b[4]) | (uint32(b[5]) << 8) | (uint32(b[6]) << 16) | (uint32(b[7]) << 24)
 			d.FrameContentSize = uint64(d1) | (uint64(d2) << 32)
 		***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("field size bits:", v, "fcsSize:", fcsSize, "FrameContentSize:", d.FrameContentSize, hex.EncodeToString(b[:fcsSize]), "singleseg:", d.SingleSegment, "window:", d.WindowSize)
 		***REMOVED***
 	***REMOVED***
@@ -226,13 +249,17 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	if d.WindowSize > d.maxWindowSize ***REMOVED***
-		printf("window size %d > max %d\n", d.WindowSize, d.maxWindowSize)
+	if d.WindowSize > uint64(d.o.maxWindowSize) ***REMOVED***
+		if debugDecoder ***REMOVED***
+			printf("window size %d > max %d\n", d.WindowSize, d.o.maxWindowSize)
+		***REMOVED***
 		return ErrWindowSizeExceeded
 	***REMOVED***
 	// The minimum Window_Size is 1 KB.
 	if d.WindowSize < MinWindowSize ***REMOVED***
-		println("got window size: ", d.WindowSize)
+		if debugDecoder ***REMOVED***
+			println("got window size: ", d.WindowSize)
+		***REMOVED***
 		return ErrWindowSizeTooSmall
 	***REMOVED***
 	d.history.windowSize = int(d.WindowSize)
@@ -248,7 +275,7 @@ func (d *frameDec) reset(br byteBuffer) error ***REMOVED***
 
 // next will start decoding the next block from stream.
 func (d *frameDec) next(block *blockDec) error ***REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		printf("decoding new block %p:%p", block, block.data)
 	***REMOVED***
 	err := block.reset(d.rawInput, d.WindowSize)
@@ -259,7 +286,7 @@ func (d *frameDec) next(block *blockDec) error ***REMOVED***
 		return err
 	***REMOVED***
 	block.input <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		println("next block:", block)
 	***REMOVED***
 	d.asyncRunningMu.Lock()
@@ -307,19 +334,19 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 	tmp[3] = byte(got >> 24)
 
 	// We can overwrite upper tmp now
-	want := d.rawInput.readSmall(4)
-	if want == nil ***REMOVED***
-		println("CRC missing?")
-		return io.ErrUnexpectedEOF
+	want, err := d.rawInput.readSmall(4)
+	if err != nil ***REMOVED***
+		println("CRC missing?", err)
+		return err
 	***REMOVED***
 
 	if !bytes.Equal(tmp[:], want) ***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("CRC Check Failed:", tmp[:], "!=", want)
 		***REMOVED***
 		return ErrCRCMismatch
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		println("CRC ok", tmp[:])
 	***REMOVED***
 	return nil
@@ -327,8 +354,8 @@ func (d *frameDec) checkCRC() error ***REMOVED***
 
 func (d *frameDec) initAsync() ***REMOVED***
 	if !d.o.lowMem && !d.SingleSegment ***REMOVED***
-		// set max extra size history to 10MB.
-		d.history.maxSize = d.history.windowSize + maxBlockSize*5
+		// set max extra size history to 2MB.
+		d.history.maxSize = d.history.windowSize + maxBlockSize
 	***REMOVED***
 	// re-alloc if more than one extra block size.
 	if d.o.lowMem && cap(d.history.b) > d.history.maxSize+maxBlockSize ***REMOVED***
@@ -340,7 +367,7 @@ func (d *frameDec) initAsync() ***REMOVED***
 	if cap(d.decoding) < d.o.concurrent ***REMOVED***
 		d.decoding = make(chan *blockDec, d.o.concurrent)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugDecoder ***REMOVED***
 		h := d.history
 		printf("history init. len: %d, cap: %d", len(h.b), cap(h.b))
 	***REMOVED***
@@ -388,7 +415,7 @@ func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
 			output <- r
 			return
 		***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("got result, from ", d.offset, "to", d.offset+int64(len(r.b)))
 			d.offset += int64(len(r.b))
 		***REMOVED***
@@ -396,7 +423,7 @@ func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
 			// Send history to next block
 			select ***REMOVED***
 			case next = <-d.decoding:
-				if debug ***REMOVED***
+				if debugDecoder ***REMOVED***
 					println("Sending ", len(d.history.b), "bytes as history")
 				***REMOVED***
 				next.history <- &d.history
@@ -434,7 +461,7 @@ func (d *frameDec) startDecoder(output chan decodeOutput) ***REMOVED***
 		output <- r
 		if next == nil ***REMOVED***
 			// There was no decoder available, we wait for one now that we have sent to the writer.
-			if debug ***REMOVED***
+			if debugDecoder ***REMOVED***
 				println("Sending ", len(d.history.b), " bytes as history")
 			***REMOVED***
 			next = <-d.decoding
@@ -458,7 +485,7 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) ***REMO
 		if err != nil ***REMOVED***
 			break
 		***REMOVED***
-		if debug ***REMOVED***
+		if debugDecoder ***REMOVED***
 			println("next block:", dec)
 		***REMOVED***
 		err = dec.decodeBuf(&d.history)

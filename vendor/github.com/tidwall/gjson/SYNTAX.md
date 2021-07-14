@@ -135,6 +135,37 @@ changed in v1.3.0 as to avoid confusion with the new [multipath](#multipaths)
 syntax. For backwards compatibility, `#[...]` will continue to work until the
 next major release.*
 
+The `~` (tilde) operator will convert a value to a boolean before comparison.
+
+For example, using the following JSON:
+
+```json
+***REMOVED***
+  "vals": [
+    ***REMOVED*** "a": 1, "b": true ***REMOVED***,
+    ***REMOVED*** "a": 2, "b": true ***REMOVED***,
+    ***REMOVED*** "a": 3, "b": false ***REMOVED***,
+    ***REMOVED*** "a": 4, "b": "0" ***REMOVED***,
+    ***REMOVED*** "a": 5, "b": 0 ***REMOVED***,
+    ***REMOVED*** "a": 6, "b": "1" ***REMOVED***,
+    ***REMOVED*** "a": 7, "b": 1 ***REMOVED***,
+    ***REMOVED*** "a": 8, "b": "true" ***REMOVED***,
+    ***REMOVED*** "a": 9, "b": false ***REMOVED***,
+    ***REMOVED*** "a": 10, "b": null ***REMOVED***,
+    ***REMOVED*** "a": 11 ***REMOVED***
+  ]
+***REMOVED***
+```
+
+You can now query for all true(ish) or false(ish) values:
+
+```
+vals.#(b==~true)#.a    >> [1,2,6,7,8]
+vals.#(b==~false)#.a   >> [3,4,5,9,10,11]
+```
+
+The last value which was non-existent is treated as `false`
+
 ### Dot vs Pipe
 
 The `.` is standard separator, but it's also possible to use a `|`. 

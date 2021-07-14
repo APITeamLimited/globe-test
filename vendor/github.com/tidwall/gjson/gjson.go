@@ -584,7 +584,7 @@ func tostr(json string) (raw string, str string) ***REMOVED***
 							continue
 						***REMOVED***
 					***REMOVED***
-					break
+					return json[:i+1], unescape(json[1:i])
 				***REMOVED***
 			***REMOVED***
 			var ret string

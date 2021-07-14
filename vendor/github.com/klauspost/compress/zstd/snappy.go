@@ -203,7 +203,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 			written += int64(n)
 			continue
 		case chunkTypeUncompressedData:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("Uncompressed, chunklen", chunkLen)
 			***REMOVED***
 			// Section 4.3. Uncompressed data (chunk type 0x01).
@@ -246,7 +246,7 @@ func (r *SnappyConverter) Convert(in io.Reader, w io.Writer) (int64, error) ***R
 			continue
 
 		case chunkTypeStreamIdentifier:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("stream id", chunkLen, len(snappyMagicBody))
 			***REMOVED***
 			// Section 4.1. Stream identifier (chunk type 0xff).

@@ -132,7 +132,7 @@ func (e *bestFastEncoder) Encode(blk *blockEnc, src []byte) ***REMOVED***
 	***REMOVED***
 	_ = addLiterals
 
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -274,7 +274,7 @@ encodeLoop:
 
 			nextEmit = s
 			if s >= sLimit ***REMOVED***
-				if debug ***REMOVED***
+				if debugEncoder ***REMOVED***
 					println("repeat ended", s, best.length)
 
 				***REMOVED***
@@ -412,7 +412,7 @@ encodeLoop:
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
 	blk.recentOffsets[2] = uint32(offset3)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 ***REMOVED***

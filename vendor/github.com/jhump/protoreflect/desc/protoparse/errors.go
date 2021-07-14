@@ -154,3 +154,22 @@ func (e errorWithFilename) Error() string ***REMOVED***
 func (e errorWithFilename) Unwrap() error ***REMOVED***
 	return e.underlying
 ***REMOVED***
+
+// ErrorUnusedImport may be passed to a warning reporter when an unused
+// import is detected. The error the reporter receives will be wrapped
+// with source position that indicates the file and line where the import
+// statement appeared.
+type ErrorUnusedImport interface ***REMOVED***
+	error
+	UnusedImport() string
+***REMOVED***
+
+type errUnusedImport string
+
+func (e errUnusedImport) Error() string ***REMOVED***
+	return fmt.Sprintf("import %q not used", string(e))
+***REMOVED***
+
+func (e errUnusedImport) UnusedImport() string ***REMOVED***
+	return string(e)
+***REMOVED***

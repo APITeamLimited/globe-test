@@ -711,7 +711,12 @@ func (cc *ClientConn) switchBalancer(name string) ***REMOVED***
 		return
 	***REMOVED***
 	if cc.balancerWrapper != nil ***REMOVED***
+		// Don't hold cc.mu while closing the balancers. The balancers may call
+		// methods that require cc.mu (e.g. cc.NewSubConn()). Holding the mutex
+		// would cause a deadlock in that case.
+		cc.mu.Unlock()
 		cc.balancerWrapper.close()
+		cc.mu.Lock()
 	***REMOVED***
 
 	builder := balancer.Get(name)
@@ -1046,11 +1051,11 @@ func (cc *ClientConn) Close() error ***REMOVED***
 
 	cc.blockingpicker.close()
 
-	if rWrapper != nil ***REMOVED***
-		rWrapper.close()
-	***REMOVED***
 	if bWrapper != nil ***REMOVED***
 		bWrapper.close()
+	***REMOVED***
+	if rWrapper != nil ***REMOVED***
+		rWrapper.close()
 	***REMOVED***
 
 	for ac := range conns ***REMOVED***
@@ -1198,7 +1203,7 @@ func (ac *addrConn) resetTransport() ***REMOVED***
 		ac.mu.Lock()
 		if ac.state == connectivity.Shutdown ***REMOVED***
 			ac.mu.Unlock()
-			newTr.Close()
+			newTr.Close(fmt.Errorf("reached connectivity state: SHUTDOWN"))
 			return
 		***REMOVED***
 		ac.curAddr = addr
@@ -1330,7 +1335,7 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 	select ***REMOVED***
 	case <-time.After(time.Until(connectDeadline)):
 		// We didn't get the preface in time.
-		newTr.Close()
+		newTr.Close(fmt.Errorf("failed to receive server preface within timeout"))
 		channelz.Warningf(logger, ac.channelzID, "grpc: addrConn.createTransport failed to connect to %v: didn't receive server preface in time. Reconnecting...", addr)
 		return nil, nil, errors.New("timed out waiting for server handshake")
 	case <-prefaceReceived:

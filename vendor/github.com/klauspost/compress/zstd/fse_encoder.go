@@ -229,7 +229,7 @@ func (s *fseEncoder) setRLE(val byte) ***REMOVED***
 		deltaFindState: 0,
 		deltaNbBits:    0,
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("setRLE: val", val, "symbolTT", s.ct.symbolTT[val])
 	***REMOVED***
 	s.rleVal = val

@@ -156,7 +156,7 @@ func (h *literalsHeader) setSize(regenLen int) ***REMOVED***
 	switch ***REMOVED***
 	case inBits < 5:
 		lh |= (uint64(regenLen) << 3) | (1 << 60)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			got := int(lh>>3) & 0xff
 			if got != regenLen ***REMOVED***
 				panic(fmt.Sprint("litRegenSize = ", regenLen, "(want) != ", got, "(got)"))
@@ -184,7 +184,7 @@ func (h *literalsHeader) setSizes(compLen, inLen int, single bool) ***REMOVED***
 			lh |= 1 << 2
 		***REMOVED***
 		lh |= (uint64(inLen) << 4) | (uint64(compLen) << (10 + 4)) | (3 << 60)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			const mmask = (1 << 24) - 1
 			n := (lh >> 4) & mmask
 			if int(n&1023) != inLen ***REMOVED***
@@ -312,7 +312,7 @@ func (b *blockEnc) encodeRaw(a []byte) ***REMOVED***
 	bh.setType(blockTypeRaw)
 	b.output = bh.appendTo(b.output[:0])
 	b.output = append(b.output, a...)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("Adding RAW block, length", len(a), "last:", b.last)
 	***REMOVED***
 ***REMOVED***
@@ -325,7 +325,7 @@ func (b *blockEnc) encodeRawTo(dst, src []byte) []byte ***REMOVED***
 	bh.setType(blockTypeRaw)
 	dst = bh.appendTo(dst)
 	dst = append(dst, src...)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("Adding RAW block, length", len(src), "last:", b.last)
 	***REMOVED***
 	return dst
@@ -339,7 +339,7 @@ func (b *blockEnc) encodeLits(lits []byte, raw bool) error ***REMOVED***
 
 	// Don't compress extremely small blocks
 	if len(lits) < 8 || (len(lits) < 32 && b.dictLitEnc == nil) || raw ***REMOVED***
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding RAW block, length", len(lits), "last:", b.last)
 		***REMOVED***
 		bh.setType(blockTypeRaw)
@@ -371,7 +371,7 @@ func (b *blockEnc) encodeLits(lits []byte, raw bool) error ***REMOVED***
 
 	switch err ***REMOVED***
 	case huff0.ErrIncompressible:
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding RAW block, length", len(lits), "last:", b.last)
 		***REMOVED***
 		bh.setType(blockTypeRaw)
@@ -379,7 +379,7 @@ func (b *blockEnc) encodeLits(lits []byte, raw bool) error ***REMOVED***
 		b.output = append(b.output, lits...)
 		return nil
 	case huff0.ErrUseRLE:
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding RLE block, length", len(lits))
 		***REMOVED***
 		bh.setType(blockTypeRLE)
@@ -396,12 +396,12 @@ func (b *blockEnc) encodeLits(lits []byte, raw bool) error ***REMOVED***
 	bh.setType(blockTypeCompressed)
 	var lh literalsHeader
 	if reUsed ***REMOVED***
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Reused tree, compressed to", len(out))
 		***REMOVED***
 		lh.setType(literalsBlockTreeless)
 	***REMOVED*** else ***REMOVED***
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("New tree, compressed to", len(out), "tree size:", len(b.litEnc.OutTable))
 		***REMOVED***
 		lh.setType(literalsBlockCompressed)
@@ -517,7 +517,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 		lh.setSize(len(b.literals))
 		b.output = lh.appendTo(b.output)
 		b.output = append(b.output, b.literals...)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding literals RAW, length", len(b.literals))
 		***REMOVED***
 	case huff0.ErrUseRLE:
@@ -525,22 +525,22 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 		lh.setSize(len(b.literals))
 		b.output = lh.appendTo(b.output)
 		b.output = append(b.output, b.literals[0])
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding literals RLE")
 		***REMOVED***
 	case nil:
 		// Compressed litLen...
 		if reUsed ***REMOVED***
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("reused tree")
 			***REMOVED***
 			lh.setType(literalsBlockTreeless)
 		***REMOVED*** else ***REMOVED***
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("new tree, size:", len(b.litEnc.OutTable))
 			***REMOVED***
 			lh.setType(literalsBlockCompressed)
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				_, _, err := huff0.ReadTable(out, nil)
 				if err != nil ***REMOVED***
 					panic(err)
@@ -548,18 +548,18 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		lh.setSizes(len(out), len(b.literals), single)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			printf("Compressed %d literals to %d bytes", len(b.literals), len(out))
 			println("Adding literal header:", lh)
 		***REMOVED***
 		b.output = lh.appendTo(b.output)
 		b.output = append(b.output, out...)
 		b.litEnc.Reuse = huff0.ReusePolicyAllow
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding literals compressed")
 		***REMOVED***
 	default:
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("Adding literals ERROR:", err)
 		***REMOVED***
 		return err
@@ -577,7 +577,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 		n := len(b.sequences) - 0x7f00
 		b.output = append(b.output, 255, uint8(n), uint8(n>>8))
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("Encoding", len(b.sequences), "sequences")
 	***REMOVED***
 	b.genCodes()
@@ -611,17 +611,17 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 		nSize = nSize + (nSize+2*8*16)>>4
 		switch ***REMOVED***
 		case predefSize <= prevSize && predefSize <= nSize || forcePreDef:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("Using predefined", predefSize>>3, "<=", nSize>>3)
 			***REMOVED***
 			return preDef, compModePredefined
 		case prevSize <= nSize:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("Using previous", prevSize>>3, "<=", nSize>>3)
 			***REMOVED***
 			return prev, compModeRepeat
 		default:
-			if debug ***REMOVED***
+			if debugEncoder ***REMOVED***
 				println("Using new, predef", predefSize>>3, ". previous:", prevSize>>3, ">", nSize>>3, "header max:", cur.maxHeaderSize()>>3, "bytes")
 				println("tl:", cur.actualTableLog, "symbolLen:", cur.symbolLen, "norm:", cur.norm[:cur.symbolLen], "hist", cur.count[:cur.symbolLen])
 			***REMOVED***
@@ -634,7 +634,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 	if llEnc.useRLE ***REMOVED***
 		mode |= uint8(compModeRLE) << 6
 		llEnc.setRLE(b.sequences[0].llCode)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("llEnc.useRLE")
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -645,7 +645,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 	if ofEnc.useRLE ***REMOVED***
 		mode |= uint8(compModeRLE) << 4
 		ofEnc.setRLE(b.sequences[0].ofCode)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("ofEnc.useRLE")
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -657,7 +657,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 	if mlEnc.useRLE ***REMOVED***
 		mode |= uint8(compModeRLE) << 2
 		mlEnc.setRLE(b.sequences[0].mlCode)
-		if debug ***REMOVED***
+		if debugEncoder ***REMOVED***
 			println("mlEnc.useRLE, code: ", b.sequences[0].mlCode, "value", b.sequences[0].matchLen)
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
@@ -666,7 +666,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 		mode |= uint8(m) << 2
 	***REMOVED***
 	b.output = append(b.output, mode)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		printf("Compression modes: 0b%b", mode)
 	***REMOVED***
 	b.output, err = llEnc.writeCount(b.output)
@@ -786,7 +786,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error ***REMOVED***
 
 	// Size is output minus block header.
 	bh.setSize(uint32(len(b.output)-bhOffset) - 3)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("Rewriting block header", bh)
 	***REMOVED***
 	_ = bh.appendTo(b.output[bhOffset:bhOffset])

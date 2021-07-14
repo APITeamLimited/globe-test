@@ -30,7 +30,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/attributes"
-	"google.golang.org/grpc/internal"
+	icredentials "google.golang.org/grpc/internal/credentials"
 )
 
 // PerRPCCredentials defines the common interface for the credentials which need to
@@ -188,15 +188,12 @@ type RequestInfo struct ***REMOVED***
 	AuthInfo AuthInfo
 ***REMOVED***
 
-// requestInfoKey is a struct to be used as the key when attaching a RequestInfo to a context object.
-type requestInfoKey struct***REMOVED******REMOVED***
-
 // RequestInfoFromContext extracts the RequestInfo from the context if it exists.
 //
 // This API is experimental.
 func RequestInfoFromContext(ctx context.Context) (ri RequestInfo, ok bool) ***REMOVED***
-	ri, ok = ctx.Value(requestInfoKey***REMOVED******REMOVED***).(RequestInfo)
-	return
+	ri, ok = icredentials.RequestInfoFromContext(ctx).(RequestInfo)
+	return ri, ok
 ***REMOVED***
 
 // ClientHandshakeInfo holds data to be passed to ClientHandshake. This makes
@@ -211,16 +208,12 @@ type ClientHandshakeInfo struct ***REMOVED***
 	Attributes *attributes.Attributes
 ***REMOVED***
 
-// clientHandshakeInfoKey is a struct used as the key to store
-// ClientHandshakeInfo in a context.
-type clientHandshakeInfoKey struct***REMOVED******REMOVED***
-
 // ClientHandshakeInfoFromContext returns the ClientHandshakeInfo struct stored
 // in ctx.
 //
 // This API is experimental.
 func ClientHandshakeInfoFromContext(ctx context.Context) ClientHandshakeInfo ***REMOVED***
-	chi, _ := ctx.Value(clientHandshakeInfoKey***REMOVED******REMOVED***).(ClientHandshakeInfo)
+	chi, _ := icredentials.ClientHandshakeInfoFromContext(ctx).(ClientHandshakeInfo)
 	return chi
 ***REMOVED***
 
@@ -247,15 +240,6 @@ func CheckSecurityLevel(ai AuthInfo, level SecurityLevel) error ***REMOVED***
 	***REMOVED***
 	// The condition is satisfied or AuthInfo struct does not implement GetCommonAuthInfo() method.
 	return nil
-***REMOVED***
-
-func init() ***REMOVED***
-	internal.NewRequestInfoContext = func(ctx context.Context, ri RequestInfo) context.Context ***REMOVED***
-		return context.WithValue(ctx, requestInfoKey***REMOVED******REMOVED***, ri)
-	***REMOVED***
-	internal.NewClientHandshakeInfoContext = func(ctx context.Context, chi ClientHandshakeInfo) context.Context ***REMOVED***
-		return context.WithValue(ctx, clientHandshakeInfoKey***REMOVED******REMOVED***, chi)
-	***REMOVED***
 ***REMOVED***
 
 // ChannelzSecurityInfo defines the interface that security protocols should implement

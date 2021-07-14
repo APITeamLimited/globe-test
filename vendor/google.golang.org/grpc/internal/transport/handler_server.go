@@ -141,9 +141,8 @@ type serverHandlerTransport struct ***REMOVED***
 	stats stats.Handler
 ***REMOVED***
 
-func (ht *serverHandlerTransport) Close() error ***REMOVED***
+func (ht *serverHandlerTransport) Close() ***REMOVED***
 	ht.closeOnce.Do(ht.closeCloseChanOnce)
-	return nil
 ***REMOVED***
 
 func (ht *serverHandlerTransport) closeCloseChanOnce() ***REMOVED*** close(ht.closedCh) ***REMOVED***

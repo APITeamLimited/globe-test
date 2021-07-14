@@ -138,7 +138,7 @@ func (e *betterFastEncoder) Encode(blk *blockEnc, src []byte) ***REMOVED***
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -204,7 +204,7 @@ encodeLoop:
 
 					nextEmit = s
 					if s >= sLimit ***REMOVED***
-						if debug ***REMOVED***
+						if debugEncoder ***REMOVED***
 							println("repeat ended", s, lenght)
 
 						***REMOVED***
@@ -264,7 +264,7 @@ encodeLoop:
 					s += lenght + repOff2
 					nextEmit = s
 					if s >= sLimit ***REMOVED***
-						if debug ***REMOVED***
+						if debugEncoder ***REMOVED***
 							println("repeat ended", s, lenght)
 
 						***REMOVED***
@@ -553,7 +553,7 @@ encodeLoop:
 	***REMOVED***
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 ***REMOVED***
@@ -656,7 +656,7 @@ func (e *betterFastEncoderDict) Encode(blk *blockEnc, src []byte) ***REMOVED***
 		blk.literals = append(blk.literals, src[nextEmit:until]...)
 		s.litLen = uint32(until - nextEmit)
 	***REMOVED***
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("recent offsets:", blk.recentOffsets)
 	***REMOVED***
 
@@ -724,7 +724,7 @@ encodeLoop:
 
 					nextEmit = s
 					if s >= sLimit ***REMOVED***
-						if debug ***REMOVED***
+						if debugEncoder ***REMOVED***
 							println("repeat ended", s, lenght)
 
 						***REMOVED***
@@ -787,7 +787,7 @@ encodeLoop:
 					s += lenght + repOff2
 					nextEmit = s
 					if s >= sLimit ***REMOVED***
-						if debug ***REMOVED***
+						if debugEncoder ***REMOVED***
 							println("repeat ended", s, lenght)
 
 						***REMOVED***
@@ -1084,7 +1084,7 @@ encodeLoop:
 	***REMOVED***
 	blk.recentOffsets[0] = uint32(offset1)
 	blk.recentOffsets[1] = uint32(offset2)
-	if debug ***REMOVED***
+	if debugEncoder ***REMOVED***
 		println("returning, recent offsets:", blk.recentOffsets, "extra literals:", blk.extraLits)
 	***REMOVED***
 ***REMOVED***
