@@ -1,7 +1,10 @@
 package pretty
 
 import (
+	"bytes"
+	"encoding/json"
 	"sort"
+	"strconv"
 )
 
 // Options is Pretty options
@@ -84,6 +87,14 @@ func ugly(dst, src []byte) []byte ***REMOVED***
 	return dst
 ***REMOVED***
 
+func isNaNOrInf(src []byte) bool ***REMOVED***
+	return src[0] == 'i' || //Inf
+		src[0] == 'I' || // inf
+		src[0] == '+' || // +Inf
+		src[0] == 'N' || // Nan
+		(src[0] == 'n' && len(src) > 1 && src[1] != 'u') // nan
+***REMOVED***
+
 func appendPrettyAny(buf, json []byte, i int, pretty bool, width int, prefix, indent string, sortkeys bool, tabs, nl, max int) ([]byte, int, int, bool) ***REMOVED***
 	for ; i < len(json); i++ ***REMOVED***
 		if json[i] <= ' ' ***REMOVED***
@@ -92,7 +103,8 @@ func appendPrettyAny(buf, json []byte, i int, pretty bool, width int, prefix, in
 		if json[i] == '"' ***REMOVED***
 			return appendPrettyString(buf, json, i, nl)
 		***REMOVED***
-		if (json[i] >= '0' && json[i] <= '9') || json[i] == '-' ***REMOVED***
+
+		if (json[i] >= '0' && json[i] <= '9') || json[i] == '-' || isNaNOrInf(json[i:]) ***REMOVED***
 			return appendPrettyNumber(buf, json, i, nl)
 		***REMOVED***
 		if json[i] == '***REMOVED***' ***REMOVED***
@@ -121,6 +133,7 @@ type pair struct ***REMOVED***
 type byKeyVal struct ***REMOVED***
 	sorted bool
 	json   []byte
+	buf    []byte
 	pairs  []pair
 ***REMOVED***
 
@@ -128,19 +141,108 @@ func (arr *byKeyVal) Len() int ***REMOVED***
 	return len(arr.pairs)
 ***REMOVED***
 func (arr *byKeyVal) Less(i, j int) bool ***REMOVED***
-	key1 := arr.json[arr.pairs[i].kstart+1 : arr.pairs[i].kend-1]
-	key2 := arr.json[arr.pairs[j].kstart+1 : arr.pairs[j].kend-1]
-	if string(key1) < string(key2) ***REMOVED***
+	if arr.isLess(i, j, byKey) ***REMOVED***
 		return true
 	***REMOVED***
-	if string(key1) > string(key2) ***REMOVED***
+	if arr.isLess(j, i, byKey) ***REMOVED***
 		return false
 	***REMOVED***
-	return arr.pairs[i].vstart < arr.pairs[j].vstart
+	return arr.isLess(i, j, byVal)
 ***REMOVED***
 func (arr *byKeyVal) Swap(i, j int) ***REMOVED***
 	arr.pairs[i], arr.pairs[j] = arr.pairs[j], arr.pairs[i]
 	arr.sorted = true
+***REMOVED***
+
+type byKind int
+
+const (
+	byKey byKind = 0
+	byVal byKind = 1
+)
+
+type jtype int
+
+const (
+	jnull jtype = iota
+	jfalse
+	jnumber
+	jstring
+	jtrue
+	jjson
+)
+
+func getjtype(v []byte) jtype ***REMOVED***
+	if len(v) == 0 ***REMOVED***
+		return jnull
+	***REMOVED***
+	switch v[0] ***REMOVED***
+	case '"':
+		return jstring
+	case 'f':
+		return jfalse
+	case 't':
+		return jtrue
+	case 'n':
+		return jnull
+	case '[', '***REMOVED***':
+		return jjson
+	default:
+		return jnumber
+	***REMOVED***
+***REMOVED***
+
+func (arr *byKeyVal) isLess(i, j int, kind byKind) bool ***REMOVED***
+	k1 := arr.json[arr.pairs[i].kstart:arr.pairs[i].kend]
+	k2 := arr.json[arr.pairs[j].kstart:arr.pairs[j].kend]
+	var v1, v2 []byte
+	if kind == byKey ***REMOVED***
+		v1 = k1
+		v2 = k2
+	***REMOVED*** else ***REMOVED***
+		v1 = bytes.TrimSpace(arr.buf[arr.pairs[i].vstart:arr.pairs[i].vend])
+		v2 = bytes.TrimSpace(arr.buf[arr.pairs[j].vstart:arr.pairs[j].vend])
+		if len(v1) >= len(k1)+1 ***REMOVED***
+			v1 = bytes.TrimSpace(v1[len(k1)+1:])
+		***REMOVED***
+		if len(v2) >= len(k2)+1 ***REMOVED***
+			v2 = bytes.TrimSpace(v2[len(k2)+1:])
+		***REMOVED***
+	***REMOVED***
+	t1 := getjtype(v1)
+	t2 := getjtype(v2)
+	if t1 < t2 ***REMOVED***
+		return true
+	***REMOVED***
+	if t1 > t2 ***REMOVED***
+		return false
+	***REMOVED***
+	if t1 == jstring ***REMOVED***
+		s1 := parsestr(v1)
+		s2 := parsestr(v2)
+		return string(s1) < string(s2)
+	***REMOVED***
+	if t1 == jnumber ***REMOVED***
+		n1, _ := strconv.ParseFloat(string(v1), 64)
+		n2, _ := strconv.ParseFloat(string(v2), 64)
+		return n1 < n2
+	***REMOVED***
+	return string(v1) < string(v2)
+
+***REMOVED***
+
+func parsestr(s []byte) []byte ***REMOVED***
+	for i := 1; i < len(s); i++ ***REMOVED***
+		if s[i] == '\\' ***REMOVED***
+			var str string
+			json.Unmarshal(s, &str)
+			return []byte(str)
+		***REMOVED***
+		if s[i] == '"' ***REMOVED***
+			return s[1:i]
+		***REMOVED***
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 func appendPrettyObject(buf, json []byte, i int, open, close byte, pretty bool, width int, prefix, indent string, sortkeys bool, tabs, nl, max int) ([]byte, int, int, bool) ***REMOVED***
@@ -249,7 +351,7 @@ func sortPairs(json, buf []byte, pairs []pair) []byte ***REMOVED***
 	***REMOVED***
 	vstart := pairs[0].vstart
 	vend := pairs[len(pairs)-1].vend
-	arr := byKeyVal***REMOVED***false, json, pairs***REMOVED***
+	arr := byKeyVal***REMOVED***false, json, buf, pairs***REMOVED***
 	sort.Stable(&arr)
 	if !arr.sorted ***REMOVED***
 		return buf
@@ -446,7 +548,7 @@ func Color(src []byte, style *Style) []byte ***REMOVED***
 			dst = apnd(dst, src[i])
 		***REMOVED*** else ***REMOVED***
 			var kind byte
-			if (src[i] >= '0' && src[i] <= '9') || src[i] == '-' ***REMOVED***
+			if (src[i] >= '0' && src[i] <= '9') || src[i] == '-' || isNaNOrInf(src[i:]) ***REMOVED***
 				kind = '0'
 				dst = append(dst, style.Number[0]...)
 			***REMOVED*** else if src[i] == 't' ***REMOVED***
