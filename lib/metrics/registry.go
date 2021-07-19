@@ -22,6 +22,7 @@ package metrics
 
 import (
 	"fmt"
+	"regexp"
 	"sync"
 
 	"go.k6.io/k6/stats"
@@ -40,11 +41,23 @@ func NewRegistry() *Registry ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+const nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ !\\?/&#\\(\\)<>%-]***REMOVED***1,128***REMOVED***$"
+
+var compileNameRegex = regexp.MustCompile(nameRegexString)
+
+func checkName(name string) bool ***REMOVED***
+	return compileNameRegex.Match([]byte(name))
+***REMOVED***
+
 // NewMetric returns new metric registered to this registry
 // TODO have multiple versions returning specific metric types when we have such things
 func (r *Registry) NewMetric(name string, typ stats.MetricType, t ...stats.ValueType) (*stats.Metric, error) ***REMOVED***
 	r.l.Lock()
 	defer r.l.Unlock()
+
+	if !checkName(name) ***REMOVED***
+		return nil, fmt.Errorf("Invalid metric name: '%s'", name) //nolint:golint,stylecheck
+	***REMOVED***
 	oldMetric, ok := r.metrics[name]
 
 	if !ok ***REMOVED***
@@ -52,7 +65,6 @@ func (r *Registry) NewMetric(name string, typ stats.MetricType, t ...stats.Value
 		r.metrics[name] = m
 		return m, nil
 	***REMOVED***
-	// Name is checked. TODO check Contains as well
 	if oldMetric.Type != typ ***REMOVED***
 		return nil, fmt.Errorf("metric '%s' already exists but with type %s, instead of %s", name, oldMetric.Type, typ)
 	***REMOVED***

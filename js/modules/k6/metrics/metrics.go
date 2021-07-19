@@ -22,8 +22,6 @@ package metrics
 
 import (
 	"errors"
-	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/dop251/goja"
@@ -32,14 +30,6 @@ import (
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/stats"
 )
-
-var nameRegexString = "^[\\p***REMOVED***L***REMOVED***\\p***REMOVED***N***REMOVED***\\._ !\\?/&#\\(\\)<>%-]***REMOVED***1,128***REMOVED***$"
-
-var compileNameRegex = regexp.MustCompile(nameRegexString)
-
-func checkName(name string) bool ***REMOVED***
-	return compileNameRegex.Match([]byte(name))
-***REMOVED***
 
 type Metric struct ***REMOVED***
 	metric *stats.Metric
@@ -56,11 +46,6 @@ func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricTyp
 	***REMOVED***
 	rt := mi.GetRuntime()
 	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) ***REMOVED***
-		// TODO: move verification outside the JS
-		if !checkName(name) ***REMOVED***
-			return nil, common.NewInitContextError(fmt.Sprintf("Invalid metric name: '%s'", name))
-		***REMOVED***
-
 		valueType := stats.Default
 		if len(isTime) > 0 && isTime[0] ***REMOVED***
 			valueType = stats.Time

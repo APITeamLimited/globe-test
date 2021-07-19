@@ -155,28 +155,6 @@ func TestMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestMetricNames(t *testing.T) ***REMOVED***
-	t.Parallel()
-	testMap := map[string]bool***REMOVED***
-		"simple":       true,
-		"still_simple": true,
-		"":             false,
-		"@":            false,
-		"a":            true,
-		"special\n\t":  false,
-		// this has both hangul and japanese numerals .
-		"hello.World_in_한글一안녕一세상": true,
-		// too long
-		"tooolooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooog": false,
-	***REMOVED***
-
-	for key, value := range testMap ***REMOVED***
-		t.Run(key, func(t *testing.T) ***REMOVED***
-			assert.Equal(t, value, checkName(key), key)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestMetricGetName(t *testing.T) ***REMOVED***
 	t.Parallel()
 	rt := goja.New()
