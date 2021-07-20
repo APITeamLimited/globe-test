@@ -17,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi(in *jlexer.Lexer, out *msgStreams) ***REMOVED***
+func easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi(in *jlexer.Lexer, out *msgStreams) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -100,7 +100,7 @@ func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi(in *jlexer.Lexer, out *
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi(out *jwriter.Writer, in msgStreams) ***REMOVED***
+func easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi(out *jwriter.Writer, in msgStreams) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -153,14 +153,14 @@ func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi(out *jwriter.Writer, in
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v msgStreams) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
-	easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi(w, v)
+	easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi(w, v)
 ***REMOVED***
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *msgStreams) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
-	easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi(l, v)
+	easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi(l, v)
 ***REMOVED***
-func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi1(in *jlexer.Lexer, out *msgDroppedEntries) ***REMOVED***
+func easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi1(in *jlexer.Lexer, out *msgDroppedEntries) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -207,7 +207,7 @@ func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi1(in *jlexer.Lexer, out 
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi1(out *jwriter.Writer, in msgDroppedEntries) ***REMOVED***
+func easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi1(out *jwriter.Writer, in msgDroppedEntries) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -242,14 +242,14 @@ func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi1(out *jwriter.Writer, i
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v msgDroppedEntries) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
-	easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi1(w, v)
+	easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi1(w, v)
 ***REMOVED***
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *msgDroppedEntries) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
-	easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi1(l, v)
+	easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi1(l, v)
 ***REMOVED***
-func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi2(in *jlexer.Lexer, out *msg) ***REMOVED***
+func easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi2(in *jlexer.Lexer, out *msg) ***REMOVED***
 	isTopLevel := in.IsStart()
 	if in.IsNull() ***REMOVED***
 		if isTopLevel ***REMOVED***
@@ -324,7 +324,7 @@ func easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi2(in *jlexer.Lexer, out 
 		in.Consumed()
 	***REMOVED***
 ***REMOVED***
-func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi2(out *jwriter.Writer, in msg) ***REMOVED***
+func easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi2(out *jwriter.Writer, in msg) ***REMOVED***
 	out.RawByte('***REMOVED***')
 	first := true
 	_ = first
@@ -365,10 +365,10 @@ func easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi2(out *jwriter.Writer, i
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v msg) MarshalEasyJSON(w *jwriter.Writer) ***REMOVED***
-	easyjsonC9ac27e5EncodeGithubComLoadimpactK6Cloudapi2(w, v)
+	easyjsonC9ac27e5EncodeGoK6IoK6Cloudapi2(w, v)
 ***REMOVED***
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *msg) UnmarshalEasyJSON(l *jlexer.Lexer) ***REMOVED***
-	easyjsonC9ac27e5DecodeGithubComLoadimpactK6Cloudapi2(l, v)
+	easyjsonC9ac27e5DecodeGoK6IoK6Cloudapi2(l, v)
 ***REMOVED***
