@@ -51,7 +51,8 @@ var (
 		"TypedArray.prototype.item",   // not even standard yet
 		"String.prototype.replaceAll", // not supported at all, Stage 4 since 2020
 	***REMOVED***
-	skipList = map[string]bool***REMOVED***
+	skipWords = []string***REMOVED***"async", "yield", "generator", "Generator"***REMOVED***
+	skipList  = map[string]bool***REMOVED***
 		"test/built-ins/Function/prototype/toString/AsyncFunction.js": true,
 		"test/built-ins/Object/seal/seal-generatorfunction.js":        true,
 
@@ -511,10 +512,18 @@ outer:
 			continue
 		***REMOVED***
 		newName := path.Join(name, file.Name())
+		for _, skipWord := range skipWords ***REMOVED***
+			if strings.Contains(newName, skipWord) ***REMOVED***
+				ctx.t.Run(newName, func(t *testing.T) ***REMOVED***
+					t.Skipf("Skip %s because %s is not supported", newName, skipWord)
+				***REMOVED***)
+				continue outer
+			***REMOVED***
+		***REMOVED***
 		for _, path := range pathBasedBlock ***REMOVED*** // TODO: use trie / binary search?
 			if strings.HasPrefix(newName, path) ***REMOVED***
 				ctx.t.Run(newName, func(t *testing.T) ***REMOVED***
-					t.Skipf("Skip %s beause of path based block", newName)
+					t.Skipf("Skip %s because of path based block", newName)
 				***REMOVED***)
 				continue outer
 			***REMOVED***
