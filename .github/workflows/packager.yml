@@ -26,7 +26,7 @@ jobs:
           docker-compose build packager
       - name: Publish
         run: |
-          echo "$***REMOVED******REMOVED*** secrets.CR_PAT ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
+          echo "$***REMOVED******REMOVED*** secrets.GITHUB_TOKEN ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
           docker push "$***REMOVED***DOCKER_IMAGE_ID***REMOVED***:latest"
           docker tag "$***REMOVED***DOCKER_IMAGE_ID***REMOVED***" "$***REMOVED***DOCKER_IMAGE_ID***REMOVED***:$***REMOVED***VERSION***REMOVED***"
           docker push "$***REMOVED***DOCKER_IMAGE_ID***REMOVED***:$***REMOVED***VERSION***REMOVED***"

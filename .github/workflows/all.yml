@@ -277,7 +277,7 @@ jobs:
           echo "Publish GHCR ($DOCKER_IMAGE_ID:$VERSION)"
 
           # Log into GitHub Container Registry
-          echo "$***REMOVED******REMOVED*** secrets.CR_PAT ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
+          echo "$***REMOVED******REMOVED*** secrets.GITHUB_TOKEN ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
           docker tag "$DOCKER_IMAGE_ID" "ghcr.io/$GHCR_IMAGE_ID:$VERSION"
           docker push "ghcr.io/$GHCR_IMAGE_ID:$VERSION"
           # We also want to tag the latest stable version as latest
@@ -461,7 +461,7 @@ jobs:
           echo "$***REMOVED******REMOVED*** secrets.PGP_SIGN_KEY ***REMOVED******REMOVED***" > packaging/sign-key.gpg
       - name: Publish packages
         run: |
-          echo "$***REMOVED******REMOVED*** secrets.CR_PAT ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
+          echo "$***REMOVED******REMOVED*** secrets.GITHUB_TOKEN ***REMOVED******REMOVED***" | docker login https://ghcr.io -u $***REMOVED******REMOVED*** github.actor ***REMOVED******REMOVED*** --password-stdin
           cd packaging
           docker-compose pull packager
           docker-compose run --rm packager
