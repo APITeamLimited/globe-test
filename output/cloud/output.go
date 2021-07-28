@@ -97,7 +97,8 @@ func New(params output.Params) (output.Output, error) ***REMOVED***
 
 // New creates a new cloud output.
 func newOutput(params output.Params) (*Output, error) ***REMOVED***
-	conf, err := cloudapi.GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
+	conf, err := cloudapi.GetConsolidatedConfig(
+		params.JSONConfig, params.Environment, params.ConfigArgument, params.ScriptOptions.External)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -107,10 +108,6 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 	***REMOVED***
 
 	logger := params.Logger.WithFields(logrus.Fields***REMOVED***"output": "cloud"***REMOVED***)
-
-	if err := cloudapi.MergeFromExternal(params.ScriptOptions.External, &conf); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
 
 	if conf.AggregationPeriod.Duration > 0 &&
 		(params.ScriptOptions.SystemTags.Has(stats.TagVU) || params.ScriptOptions.SystemTags.Has(stats.TagIter)) ***REMOVED***
@@ -133,11 +130,6 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 	duration, testEnds := lib.GetEndOffset(params.ExecutionPlan)
 	if !testEnds ***REMOVED***
 		return nil, errors.New("tests with unspecified duration are not allowed when outputting data to k6 cloud")
-	***REMOVED***
-
-	if !conf.Token.Valid && conf.DeprecatedToken.Valid ***REMOVED***
-		logger.Warn("K6CLOUD_TOKEN is deprecated and will be removed. Use K6_CLOUD_TOKEN instead.")
-		conf.Token = conf.DeprecatedToken
 	***REMOVED***
 
 	if !(conf.MetricPushConcurrency.Int64 > 0) ***REMOVED***

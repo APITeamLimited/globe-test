@@ -20,10 +20,13 @@
 package cloudapi
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib/types"
@@ -41,7 +44,6 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 
 	full := Config***REMOVED***
 		Token:                           null.NewString("Token", true),
-		DeprecatedToken:                 null.NewString("DeprecatedToken", true),
 		ProjectID:                       null.NewInt(1, true),
 		Name:                            null.NewString("Name", true),
 		Host:                            null.NewString("Host", true),
@@ -69,4 +71,21 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 	assert.Equal(t, full, full.Apply(full))
 	assert.Equal(t, full, empty.Apply(full))
 	assert.Equal(t, full, defaults.Apply(full))
+***REMOVED***
+
+func TestGetConsolidatedConfig(t *testing.T) ***REMOVED*** //nolint:paralleltest
+	config, err := GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "", nil)
+	require.NoError(t, err)
+	require.Equal(t, config.Token.String, "jsonraw")
+
+	config, err = GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "",
+		map[string]json.RawMessage***REMOVED***"loadimpact": json.RawMessage(`***REMOVED***"token":"ext"***REMOVED***`)***REMOVED***)
+	require.NoError(t, err)
+	require.Equal(t, config.Token.String, "ext")
+
+	require.NoError(t, os.Setenv("K6_CLOUD_TOKEN", "envvalue")) // TODO drop when we don't use envconfig
+	config, err = GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "",
+		map[string]json.RawMessage***REMOVED***"loadimpact": json.RawMessage(`***REMOVED***"token":"ext"***REMOVED***`)***REMOVED***)
+	require.NoError(t, err)
+	require.Equal(t, config.Token.String, "envvalue")
 ***REMOVED***
