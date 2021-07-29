@@ -79,13 +79,17 @@ var (
 		"highlightCode": false,
 	***REMOVED***
 
-	once        sync.Once // nolint:gochecknoglobals
-	globalBabel *babel    // nolint:gochecknoglobals
+	onceBabelCode      sync.Once     // nolint:gochecknoglobals
+	globalBabelCode    *goja.Program // nolint:gochecknoglobals
+	globalBabelCodeErr error         // nolint:gochecknoglobals
+	onceBabel          sync.Once     // nolint:gochecknoglobals
+	globalBabel        *babel        // nolint:gochecknoglobals
 )
 
 // A Compiler compiles JavaScript source code (ES5.1 or ES6) into a goja.Program
 type Compiler struct ***REMOVED***
 	logger logrus.FieldLogger
+	babel  *babel
 ***REMOVED***
 
 // New returns a new Compiler
@@ -93,14 +97,30 @@ func New(logger logrus.FieldLogger) *Compiler ***REMOVED***
 	return &Compiler***REMOVED***logger: logger***REMOVED***
 ***REMOVED***
 
+// initializeBabel initializes a separate (non-global) instance of babel specifically for this Compiler.
+// An error is returned only if babel itself couldn't be parsed/run which should never be possible.
+func (c *Compiler) initializeBabel() error ***REMOVED***
+	var err error
+	if c.babel == nil ***REMOVED***
+		c.babel, err = newBabel()
+	***REMOVED***
+	return err
+***REMOVED***
+
 // Transform the given code into ES5
 func (c *Compiler) Transform(src, filename string) (code string, srcmap *SourceMap, err error) ***REMOVED***
-	var b *babel
-	if b, err = newBabel(); err != nil ***REMOVED***
+	if c.babel == nil ***REMOVED***
+		onceBabel.Do(func() ***REMOVED***
+			globalBabel, err = newBabel()
+		***REMOVED***)
+		c.babel = globalBabel
+	***REMOVED***
+	if err != nil ***REMOVED***
 		return
 	***REMOVED***
 
-	return b.Transform(c.logger, src, filename)
+	code, srcmap, err = c.babel.Transform(c.logger, src, filename)
+	return
 ***REMOVED***
 
 // Compile the program in the given CompatibilityMode, wrapping it between pre and post code
@@ -148,34 +168,37 @@ type babel struct ***REMOVED***
 	vm        *goja.Runtime
 	this      goja.Value
 	transform goja.Callable
-	mutex     sync.Mutex // TODO: cache goja.CompileAST() in an init() function?
+	m         sync.Mutex
 ***REMOVED***
 
 func newBabel() (*babel, error) ***REMOVED***
-	var err error
-
-	once.Do(func() ***REMOVED***
-		vm := goja.New()
-		if _, err = vm.RunString(babelSrc); err != nil ***REMOVED***
-			return
-		***REMOVED***
-
-		this := vm.Get("Babel")
-		bObj := this.ToObject(vm)
-		globalBabel = &babel***REMOVED***vm: vm, this: this***REMOVED***
-		if err = vm.ExportTo(bObj.Get("transform"), &globalBabel.transform); err != nil ***REMOVED***
-			return
-		***REMOVED***
+	onceBabelCode.Do(func() ***REMOVED***
+		globalBabelCode, globalBabelCodeErr = goja.Compile("<internal/k6/compiler/lib/babel.min.js>", babelSrc, false)
 	***REMOVED***)
+	if globalBabelCodeErr != nil ***REMOVED***
+		return nil, globalBabelCodeErr
+	***REMOVED***
+	vm := goja.New()
+	_, err := vm.RunProgram(globalBabelCode)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
-	return globalBabel, err
+	this := vm.Get("Babel")
+	bObj := this.ToObject(vm)
+	result := &babel***REMOVED***vm: vm, this: this***REMOVED***
+	if err = vm.ExportTo(bObj.Get("transform"), &result.transform); err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+
+	return result, err
 ***REMOVED***
 
 // Transform the given code into ES5, while synchronizing to ensure only a single
 // bundle instance / Goja VM is in use at a time.
 func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (string, *SourceMap, error) ***REMOVED***
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
+	b.m.Lock()
+	defer b.m.Unlock()
 	opts := make(map[string]interface***REMOVED******REMOVED***)
 	for k, v := range DefaultOpts ***REMOVED***
 		opts[k] = v
@@ -203,4 +226,41 @@ func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (stri
 		return code, &srcMap, err
 	***REMOVED***
 	return code, &srcMap, err
+***REMOVED***
+
+// Pool is a pool of compilers so it can be used easier in parallel tests as they have their own babel.
+type Pool struct ***REMOVED***
+	c chan *Compiler
+***REMOVED***
+
+// NewPool creates a Pool that will be using the provided logger and will preallocate (in parallel)
+// the count of compilers each with their own babel.
+func NewPool(logger logrus.FieldLogger, count int) *Pool ***REMOVED***
+	c := &Pool***REMOVED***
+		c: make(chan *Compiler, count),
+	***REMOVED***
+	go func() ***REMOVED***
+		for i := 0; i < count; i++ ***REMOVED***
+			go func() ***REMOVED***
+				co := New(logger)
+				err := co.initializeBabel()
+				if err != nil ***REMOVED***
+					panic(err)
+				***REMOVED***
+				c.Put(co)
+			***REMOVED***()
+		***REMOVED***
+	***REMOVED***()
+
+	return c
+***REMOVED***
+
+// Get a compiler from the pool.
+func (c *Pool) Get() *Compiler ***REMOVED***
+	return <-c.c
+***REMOVED***
+
+// Put a compiler back in the pool.
+func (c *Pool) Put(co *Compiler) ***REMOVED***
+	c.c <- co
 ***REMOVED***
