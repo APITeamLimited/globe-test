@@ -31,7 +31,7 @@ func (ai *arrayIterObject) next() Value ***REMOVED***
 	if ai.kind == iterationKindKey ***REMOVED***
 		return ai.val.runtime.createIterResultObject(idxVal, false)
 	***REMOVED***
-	elementValue := ai.obj.self.getIdx(idxVal, nil)
+	elementValue := nilSafe(ai.obj.self.getIdx(idxVal, nil))
 	var result Value
 	if ai.kind == iterationKindValue ***REMOVED***
 		result = elementValue
@@ -162,7 +162,7 @@ func (a *arrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
 
 func (a *arrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
 	if len(a.values) > 0 ***REMOVED***
-		if i := strToIdx(name); i != math.MaxUint32 ***REMOVED***
+		if i := strToArrayIdx(name); i != math.MaxUint32 ***REMOVED***
 			if i < uint32(len(a.values)) ***REMOVED***
 				return a.values[i]
 			***REMOVED***
@@ -264,7 +264,7 @@ func (a *arrayObject) _setOwnIdx(idx uint32, val Value, throw bool) bool ***REMO
 ***REMOVED***
 
 func (a *arrayObject) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._setOwnIdx(idx, val, throw)
 	***REMOVED*** else ***REMOVED***
 		if name == "length" ***REMOVED***
@@ -325,7 +325,7 @@ func (a *arrayObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
 ***REMOVED***
 
 func (a *arrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return idx < uint32(len(a.values)) && a.values[idx] != nil
 	***REMOVED*** else ***REMOVED***
 		return a.baseObject.hasOwnPropertyStr(name)
@@ -426,14 +426,14 @@ func (a *arrayObject) _defineIdxProperty(idx uint32, desc PropertyDescriptor, th
 				a.propValueCount++
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
-			a.val.self.(*sparseArrayObject).add(uint32(idx), prop)
+			a.val.self.(*sparseArrayObject).add(idx, prop)
 		***REMOVED***
 	***REMOVED***
 	return ok
 ***REMOVED***
 
 func (a *arrayObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._defineIdxProperty(idx, descr, throw)
 	***REMOVED***
 	if name == "length" ***REMOVED***
@@ -467,7 +467,7 @@ func (a *arrayObject) _deleteIdxProp(idx uint32, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (a *arrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._deleteIdxProp(idx, throw)
 	***REMOVED***
 	return a.baseObject.deleteStr(name, throw)
@@ -520,114 +520,4 @@ func toIdx(v valueInt) uint32 ***REMOVED***
 		return uint32(v)
 	***REMOVED***
 	return math.MaxUint32
-***REMOVED***
-
-func strToIdx64(s unistring.String) int64 ***REMOVED***
-	if s == "" ***REMOVED***
-		return -1
-	***REMOVED***
-	l := len(s)
-	if s[0] == '0' ***REMOVED***
-		if l == 1 ***REMOVED***
-			return 0
-		***REMOVED***
-		return -1
-	***REMOVED***
-	var n int64
-	if l < 19 ***REMOVED***
-		// guaranteed not to overflow
-		for i := 0; i < len(s); i++ ***REMOVED***
-			c := s[i]
-			if c < '0' || c > '9' ***REMOVED***
-				return -1
-			***REMOVED***
-			n = n*10 + int64(c-'0')
-		***REMOVED***
-		return n
-	***REMOVED***
-	if l > 19 ***REMOVED***
-		// guaranteed to overflow
-		return -1
-	***REMOVED***
-	c18 := s[18]
-	if c18 < '0' || c18 > '9' ***REMOVED***
-		return -1
-	***REMOVED***
-	for i := 0; i < 18; i++ ***REMOVED***
-		c := s[i]
-		if c < '0' || c > '9' ***REMOVED***
-			return -1
-		***REMOVED***
-		n = n*10 + int64(c-'0')
-	***REMOVED***
-	if n >= math.MaxInt64/10+1 ***REMOVED***
-		return -1
-	***REMOVED***
-	n *= 10
-	n1 := n + int64(c18-'0')
-	if n1 < n ***REMOVED***
-		return -1
-	***REMOVED***
-	return n1
-***REMOVED***
-
-func strToIdx(s unistring.String) uint32 ***REMOVED***
-	if s == "" ***REMOVED***
-		return math.MaxUint32
-	***REMOVED***
-	l := len(s)
-	if s[0] == '0' ***REMOVED***
-		if l == 1 ***REMOVED***
-			return 0
-		***REMOVED***
-		return math.MaxUint32
-	***REMOVED***
-	var n uint32
-	if l < 10 ***REMOVED***
-		// guaranteed not to overflow
-		for i := 0; i < len(s); i++ ***REMOVED***
-			c := s[i]
-			if c < '0' || c > '9' ***REMOVED***
-				return math.MaxUint32
-			***REMOVED***
-			n = n*10 + uint32(c-'0')
-		***REMOVED***
-		return n
-	***REMOVED***
-	if l > 10 ***REMOVED***
-		// guaranteed to overflow
-		return math.MaxUint32
-	***REMOVED***
-	c9 := s[9]
-	if c9 < '0' || c9 > '9' ***REMOVED***
-		return math.MaxUint32
-	***REMOVED***
-	for i := 0; i < 9; i++ ***REMOVED***
-		c := s[i]
-		if c < '0' || c > '9' ***REMOVED***
-			return math.MaxUint32
-		***REMOVED***
-		n = n*10 + uint32(c-'0')
-	***REMOVED***
-	if n >= math.MaxUint32/10+1 ***REMOVED***
-		return math.MaxUint32
-	***REMOVED***
-	n *= 10
-	n1 := n + uint32(c9-'0')
-	if n1 < n ***REMOVED***
-		return math.MaxUint32
-	***REMOVED***
-
-	return n1
-***REMOVED***
-
-func strToGoIdx(s unistring.String) int ***REMOVED***
-	if bits.UintSize == 64 ***REMOVED***
-		return int(strToIdx64(s))
-	***REMOVED***
-	i := strToIdx(s)
-	if i >= math.MaxInt32 ***REMOVED***
-		return -1
-	***REMOVED***
-	return int(i)
 ***REMOVED***

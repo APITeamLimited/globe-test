@@ -996,11 +996,17 @@ func (s *Symbol) ToString() Value ***REMOVED***
 ***REMOVED***
 
 func (s *Symbol) String() string ***REMOVED***
-	return s.desc.String()
+	if s.desc != nil ***REMOVED***
+		return s.desc.String()
+	***REMOVED***
+	return ""
 ***REMOVED***
 
 func (s *Symbol) string() unistring.String ***REMOVED***
-	return s.desc.string()
+	if s.desc != nil ***REMOVED***
+		return s.desc.string()
+	***REMOVED***
+	return ""
 ***REMOVED***
 
 func (s *Symbol) ToFloat() float64 ***REMOVED***
@@ -1078,10 +1084,26 @@ func NewSymbol(s string) *Symbol ***REMOVED***
 ***REMOVED***
 
 func (s *Symbol) descriptiveString() valueString ***REMOVED***
-	if s.desc == nil ***REMOVED***
-		return stringEmpty
+	desc := s.desc
+	if desc == nil ***REMOVED***
+		desc = stringEmpty
 	***REMOVED***
-	return asciiString("Symbol(").concat(s.desc).concat(asciiString(")"))
+	return asciiString("Symbol(").concat(desc).concat(asciiString(")"))
+***REMOVED***
+
+func funcName(prefix string, n Value) valueString ***REMOVED***
+	var b valueStringBuilder
+	b.WriteString(asciiString(prefix))
+	if sym, ok := n.(*Symbol); ok ***REMOVED***
+		if sym.desc != nil ***REMOVED***
+			b.WriteRune('[')
+			b.WriteString(sym.desc)
+			b.WriteRune(']')
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		b.WriteString(n.toString())
+	***REMOVED***
+	return b.String()
 ***REMOVED***
 
 func init() ***REMOVED***

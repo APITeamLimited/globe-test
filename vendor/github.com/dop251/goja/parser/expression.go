@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
@@ -83,10 +85,11 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 	case token.LEFT_BRACKET:
 		return self.parseArrayLiteral()
 	case token.LEFT_PARENTHESIS:
-		self.expect(token.LEFT_PARENTHESIS)
+		/*self.expect(token.LEFT_PARENTHESIS)
 		expression := self.parseExpression()
 		self.expect(token.RIGHT_PARENTHESIS)
-		return expression
+		return expression*/
+		return self.parseParenthesisedExpression()
 	case token.THIS:
 		self.next()
 		return &ast.ThisExpression***REMOVED***
@@ -99,6 +102,76 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 	self.errorUnexpectedToken(self.token)
 	self.nextStatement()
 	return &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretSequenceAsArrowFuncParams(seq *ast.SequenceExpression) *ast.ParameterList ***REMOVED***
+	firstRestIdx := -1
+	params := make([]*ast.Binding, 0, len(seq.Sequence))
+	for i, item := range seq.Sequence ***REMOVED***
+		if _, ok := item.(*ast.SpreadElement); ok ***REMOVED***
+			if firstRestIdx == -1 ***REMOVED***
+				firstRestIdx = i
+				continue
+			***REMOVED***
+		***REMOVED***
+		if firstRestIdx != -1 ***REMOVED***
+			self.error(seq.Sequence[firstRestIdx].Idx0(), "Rest parameter must be last formal parameter")
+			return &ast.ParameterList***REMOVED******REMOVED***
+		***REMOVED***
+		params = append(params, self.reinterpretAsBinding(item))
+	***REMOVED***
+	var rest ast.Expression
+	if firstRestIdx != -1 ***REMOVED***
+		rest = self.reinterpretAsBindingRestElement(seq.Sequence[firstRestIdx])
+	***REMOVED***
+	return &ast.ParameterList***REMOVED***
+		List: params,
+		Rest: rest,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) parseParenthesisedExpression() ast.Expression ***REMOVED***
+	opening := self.idx
+	self.expect(token.LEFT_PARENTHESIS)
+	var list []ast.Expression
+	if self.token != token.RIGHT_PARENTHESIS ***REMOVED***
+		for ***REMOVED***
+			if self.token == token.ELLIPSIS ***REMOVED***
+				start := self.idx
+				self.errorUnexpectedToken(token.ELLIPSIS)
+				self.next()
+				expr := self.parseAssignmentExpression()
+				list = append(list, &ast.BadExpression***REMOVED***
+					From: start,
+					To:   expr.Idx1(),
+				***REMOVED***)
+			***REMOVED*** else ***REMOVED***
+				list = append(list, self.parseAssignmentExpression())
+			***REMOVED***
+			if self.token != token.COMMA ***REMOVED***
+				break
+			***REMOVED***
+			self.next()
+			if self.token == token.RIGHT_PARENTHESIS ***REMOVED***
+				self.errorUnexpectedToken(token.RIGHT_PARENTHESIS)
+				break
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	self.expect(token.RIGHT_PARENTHESIS)
+	if len(list) == 1 && len(self.errors) == 0 ***REMOVED***
+		return list[0]
+	***REMOVED***
+	if len(list) == 0 ***REMOVED***
+		self.errorUnexpectedToken(token.RIGHT_PARENTHESIS)
+		return &ast.BadExpression***REMOVED***
+			From: opening,
+			To:   self.idx,
+		***REMOVED***
+	***REMOVED***
+	return &ast.SequenceExpression***REMOVED***
+		Sequence: list,
+	***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseRegExpLiteral() *ast.RegExpLiteral ***REMOVED***
@@ -140,22 +213,33 @@ func (self *_parser) parseRegExpLiteral() *ast.RegExpLiteral ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.VariableExpression) ast.Expression ***REMOVED***
+func (self *_parser) parseBindingTarget() (target ast.BindingTarget) ***REMOVED***
 	if self.token == token.LET ***REMOVED***
 		self.token = token.IDENTIFIER
 	***REMOVED***
-	if self.token != token.IDENTIFIER ***REMOVED***
+	switch self.token ***REMOVED***
+	case token.IDENTIFIER:
+		target = &ast.Identifier***REMOVED***
+			Name: self.parsedLiteral,
+			Idx:  self.idx,
+		***REMOVED***
+		self.next()
+	case token.LEFT_BRACKET:
+		target = self.parseArrayBindingPattern()
+	case token.LEFT_BRACE:
+		target = self.parseObjectBindingPattern()
+	default:
 		idx := self.expect(token.IDENTIFIER)
 		self.nextStatement()
-		return &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
+		target = &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
 	***REMOVED***
 
-	name := self.parsedLiteral
-	idx := self.idx
-	self.next()
-	node := &ast.VariableExpression***REMOVED***
-		Name: name,
-		Idx:  idx,
+	return
+***REMOVED***
+
+func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.Binding) ast.Expression ***REMOVED***
+	node := &ast.Binding***REMOVED***
+		Target: self.parseBindingTarget(),
 	***REMOVED***
 
 	if declarationList != nil ***REMOVED***
@@ -170,7 +254,7 @@ func (self *_parser) parseVariableDeclaration(declarationList *[]*ast.VariableEx
 	return node
 ***REMOVED***
 
-func (self *_parser) parseVariableDeclarationList() (declarationList []*ast.VariableExpression) ***REMOVED***
+func (self *_parser) parseVariableDeclarationList() (declarationList []*ast.Binding) ***REMOVED***
 	for ***REMOVED***
 		self.parseVariableDeclaration(&declarationList)
 		if self.token != token.COMMA ***REMOVED***
@@ -181,7 +265,7 @@ func (self *_parser) parseVariableDeclarationList() (declarationList []*ast.Vari
 	return
 ***REMOVED***
 
-func (self *_parser) parseVarDeclarationList(var_ file.Idx) []*ast.VariableExpression ***REMOVED***
+func (self *_parser) parseVarDeclarationList(var_ file.Idx) []*ast.Binding ***REMOVED***
 	declarationList := self.parseVariableDeclarationList()
 
 	self.scope.declare(&ast.VariableDeclaration***REMOVED***
@@ -193,6 +277,12 @@ func (self *_parser) parseVarDeclarationList(var_ file.Idx) []*ast.VariableExpre
 ***REMOVED***
 
 func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression, token.Token) ***REMOVED***
+	if self.token == token.LEFT_BRACKET ***REMOVED***
+		self.next()
+		expr := self.parseAssignmentExpression()
+		self.expect(token.RIGHT_BRACKET)
+		return "", expr, token.ILLEGAL
+	***REMOVED***
 	idx, tkn, literal, parsedLiteral := self.idx, self.token, self.literal, self.parsedLiteral
 	var value ast.Expression
 	self.next()
@@ -228,15 +318,21 @@ func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression,
 				Literal: literal,
 				Value:   unistring.String(literal),
 			***REMOVED***
-			tkn = token.STRING
+			tkn = token.KEYWORD
 		***REMOVED***
 	***REMOVED***
 	return parsedLiteral, value, tkn
 ***REMOVED***
 
 func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
+	if self.token == token.ELLIPSIS ***REMOVED***
+		self.next()
+		return &ast.SpreadElement***REMOVED***
+			Expression: self.parseAssignmentExpression(),
+		***REMOVED***
+	***REMOVED***
 	literal, value, tkn := self.parseObjectPropertyKey()
-	if tkn == token.IDENTIFIER || tkn == token.STRING ***REMOVED***
+	if tkn == token.IDENTIFIER || tkn == token.STRING || tkn == token.KEYWORD || tkn == token.ILLEGAL ***REMOVED***
 		switch ***REMOVED***
 		case self.token == token.LEFT_PARENTHESIS:
 			idx := self.idx
@@ -246,35 +342,46 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 				Function:      idx,
 				ParameterList: parameterList,
 			***REMOVED***
-			self.parseFunctionBlock(node)
+			node.Body, node.DeclarationList = self.parseFunctionBlock()
 
-			return ast.Property***REMOVED***
+			return &ast.PropertyKeyed***REMOVED***
 				Key:   value,
-				Kind:  "method",
+				Kind:  ast.PropertyKindMethod,
 				Value: node,
 			***REMOVED***
-		case self.token == token.COMMA || self.token == token.RIGHT_BRACE: // shorthand property
-			return ast.Property***REMOVED***
-				Key:  value,
-				Kind: "value",
-				Value: &ast.Identifier***REMOVED***
-					Name: literal,
-					Idx:  self.idx,
-				***REMOVED***,
+		case self.token == token.COMMA || self.token == token.RIGHT_BRACE || self.token == token.ASSIGN: // shorthand property
+			if tkn == token.IDENTIFIER || tkn == token.KEYWORD && literal == "let" ***REMOVED***
+				var initializer ast.Expression
+				if self.token == token.ASSIGN ***REMOVED***
+					// allow the initializer syntax here in case the object literal
+					// needs to be reinterpreted as an assignment pattern, enforce later if it doesn't.
+					self.next()
+					initializer = self.parseAssignmentExpression()
+				***REMOVED***
+				return &ast.PropertyShort***REMOVED***
+					Name: ast.Identifier***REMOVED***
+						Name: literal,
+						Idx:  value.Idx0(),
+					***REMOVED***,
+					Initializer: initializer,
+				***REMOVED***
 			***REMOVED***
 		case literal == "get" && self.token != token.COLON:
 			idx := self.idx
 			_, value, _ := self.parseObjectPropertyKey()
+			idx1 := self.idx
 			parameterList := self.parseFunctionParameterList()
-
+			if len(parameterList.List) > 0 || parameterList.Rest != nil ***REMOVED***
+				self.error(idx1, "Getter must not have any formal parameters.")
+			***REMOVED***
 			node := &ast.FunctionLiteral***REMOVED***
 				Function:      idx,
 				ParameterList: parameterList,
 			***REMOVED***
-			self.parseFunctionBlock(node)
-			return ast.Property***REMOVED***
+			node.Body, node.DeclarationList = self.parseFunctionBlock()
+			return &ast.PropertyKeyed***REMOVED***
 				Key:   value,
-				Kind:  "get",
+				Kind:  ast.PropertyKindGet,
 				Value: node,
 			***REMOVED***
 		case literal == "set" && self.token != token.COLON:
@@ -287,11 +394,11 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 				ParameterList: parameterList,
 			***REMOVED***
 
-			self.parseFunctionBlock(node)
+			node.Body, node.DeclarationList = self.parseFunctionBlock()
 
-			return ast.Property***REMOVED***
+			return &ast.PropertyKeyed***REMOVED***
 				Key:   value,
-				Kind:  "set",
+				Kind:  ast.PropertyKindSet,
 				Value: node,
 			***REMOVED***
 		***REMOVED***
@@ -299,14 +406,14 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 
 	self.expect(token.COLON)
 
-	return ast.Property***REMOVED***
+	return &ast.PropertyKeyed***REMOVED***
 		Key:   value,
-		Kind:  "value",
+		Kind:  ast.PropertyKindValue,
 		Value: self.parseAssignmentExpression(),
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) parseObjectLiteral() ast.Expression ***REMOVED***
+func (self *_parser) parseObjectLiteral() *ast.ObjectLiteral ***REMOVED***
 	var value []ast.Property
 	idx0 := self.expect(token.LEFT_BRACE)
 	for self.token != token.RIGHT_BRACE && self.token != token.EOF ***REMOVED***
@@ -327,7 +434,7 @@ func (self *_parser) parseObjectLiteral() ast.Expression ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (self *_parser) parseArrayLiteral() ast.Expression ***REMOVED***
+func (self *_parser) parseArrayLiteral() *ast.ArrayLiteral ***REMOVED***
 
 	idx0 := self.expect(token.LEFT_BRACKET)
 	var value []ast.Expression
@@ -337,7 +444,14 @@ func (self *_parser) parseArrayLiteral() ast.Expression ***REMOVED***
 			value = append(value, nil)
 			continue
 		***REMOVED***
-		value = append(value, self.parseAssignmentExpression())
+		if self.token == token.ELLIPSIS ***REMOVED***
+			self.next()
+			value = append(value, &ast.SpreadElement***REMOVED***
+				Expression: self.parseAssignmentExpression(),
+			***REMOVED***)
+		***REMOVED*** else ***REMOVED***
+			value = append(value, self.parseAssignmentExpression())
+		***REMOVED***
 		if self.token != token.RIGHT_BRACKET ***REMOVED***
 			self.expect(token.COMMA)
 		***REMOVED***
@@ -355,7 +469,16 @@ func (self *_parser) parseArgumentList() (argumentList []ast.Expression, idx0, i
 	idx0 = self.expect(token.LEFT_PARENTHESIS)
 	if self.token != token.RIGHT_PARENTHESIS ***REMOVED***
 		for ***REMOVED***
-			argumentList = append(argumentList, self.parseAssignmentExpression())
+			var item ast.Expression
+			if self.token == token.ELLIPSIS ***REMOVED***
+				self.next()
+				item = &ast.SpreadElement***REMOVED***
+					Expression: self.parseAssignmentExpression(),
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				item = self.parseAssignmentExpression()
+			***REMOVED***
+			argumentList = append(argumentList, item)
 			if self.token != token.COMMA ***REMOVED***
 				break
 			***REMOVED***
@@ -763,7 +886,7 @@ func (self *_parser) parseLogicalOrExpression() ast.Expression ***REMOVED***
 	return left
 ***REMOVED***
 
-func (self *_parser) parseConditionlExpression() ast.Expression ***REMOVED***
+func (self *_parser) parseConditionalExpression() ast.Expression ***REMOVED***
 	left := self.parseLogicalOrExpression()
 
 	if self.token == token.QUESTION_MARK ***REMOVED***
@@ -781,10 +904,16 @@ func (self *_parser) parseConditionlExpression() ast.Expression ***REMOVED***
 ***REMOVED***
 
 func (self *_parser) parseAssignmentExpression() ast.Expression ***REMOVED***
+	start := self.idx
+	parenthesis := false
+	var state parserState
 	if self.token == token.LET ***REMOVED***
 		self.token = token.IDENTIFIER
+	***REMOVED*** else if self.token == token.LEFT_PARENTHESIS ***REMOVED***
+		self.mark(&state)
+		parenthesis = true
 	***REMOVED***
-	left := self.parseConditionlExpression()
+	left := self.parseConditionalExpression()
 	var operator token.Token
 	switch self.token ***REMOVED***
 	case token.ASSIGN:
@@ -811,23 +940,65 @@ func (self *_parser) parseAssignmentExpression() ast.Expression ***REMOVED***
 		operator = token.SHIFT_RIGHT
 	case token.UNSIGNED_SHIFT_RIGHT_ASSIGN:
 		operator = token.UNSIGNED_SHIFT_RIGHT
+	case token.ARROW:
+		var paramList *ast.ParameterList
+		if id, ok := left.(*ast.Identifier); ok ***REMOVED***
+			paramList = &ast.ParameterList***REMOVED***
+				Opening: id.Idx,
+				Closing: id.Idx1(),
+				List: []*ast.Binding***REMOVED******REMOVED***
+					Target: id,
+				***REMOVED******REMOVED***,
+			***REMOVED***
+		***REMOVED*** else if parenthesis ***REMOVED***
+			if seq, ok := left.(*ast.SequenceExpression); ok && len(self.errors) == 0 ***REMOVED***
+				paramList = self.reinterpretSequenceAsArrowFuncParams(seq)
+			***REMOVED*** else ***REMOVED***
+				self.restore(&state)
+				paramList = self.parseFunctionParameterList()
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			self.error(left.Idx0(), "Malformed arrow function parameter list")
+			return &ast.BadExpression***REMOVED***From: left.Idx0(), To: left.Idx1()***REMOVED***
+		***REMOVED***
+		self.expect(token.ARROW)
+		node := &ast.ArrowFunctionLiteral***REMOVED***
+			Start:         start,
+			ParameterList: paramList,
+		***REMOVED***
+		node.Body, node.DeclarationList = self.parseArrowFunctionBody()
+		node.Source = self.slice(node.Start, node.Body.Idx1())
+		return node
 	***REMOVED***
 
 	if operator != 0 ***REMOVED***
 		idx := self.idx
 		self.next()
-		switch left.(type) ***REMOVED***
+		ok := false
+		switch l := left.(type) ***REMOVED***
 		case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression:
-		default:
-			self.error(left.Idx0(), "Invalid left-hand side in assignment")
-			self.nextStatement()
-			return &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
+			ok = true
+		case *ast.ArrayLiteral:
+			if !parenthesis && operator == token.ASSIGN ***REMOVED***
+				left = self.reinterpretAsArrayAssignmentPattern(l)
+				ok = true
+			***REMOVED***
+		case *ast.ObjectLiteral:
+			if !parenthesis && operator == token.ASSIGN ***REMOVED***
+				left = self.reinterpretAsObjectAssignmentPattern(l)
+				ok = true
+			***REMOVED***
 		***REMOVED***
-		return &ast.AssignExpression***REMOVED***
-			Left:     left,
-			Operator: operator,
-			Right:    self.parseAssignmentExpression(),
+		if ok ***REMOVED***
+			return &ast.AssignExpression***REMOVED***
+				Left:     left,
+				Operator: operator,
+				Right:    self.parseAssignmentExpression(),
+			***REMOVED***
 		***REMOVED***
+		self.error(left.Idx0(), "Invalid left-hand side in assignment")
+		self.nextStatement()
+		return &ast.BadExpression***REMOVED***From: idx, To: self.idx***REMOVED***
 	***REMOVED***
 
 	return left
@@ -855,4 +1026,253 @@ func (self *_parser) parseExpression() ast.Expression ***REMOVED***
 	***REMOVED***
 
 	return left
+***REMOVED***
+
+func (self *_parser) checkComma(from, to file.Idx) ***REMOVED***
+	if pos := strings.IndexByte(self.str[int(from)-self.base:int(to)-self.base], ','); pos >= 0 ***REMOVED***
+		self.error(from+file.Idx(pos), "Comma is not allowed here")
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsArrayAssignmentPattern(left *ast.ArrayLiteral) ast.Expression ***REMOVED***
+	value := left.Value
+	var rest ast.Expression
+	for i, item := range value ***REMOVED***
+		if spread, ok := item.(*ast.SpreadElement); ok ***REMOVED***
+			if i != len(value)-1 ***REMOVED***
+				self.error(item.Idx0(), "Rest element must be last element")
+				return &ast.BadExpression***REMOVED***From: left.Idx0(), To: left.Idx1()***REMOVED***
+			***REMOVED***
+			self.checkComma(spread.Expression.Idx1(), left.RightBracket)
+			rest = self.reinterpretAsDestructAssignTarget(spread.Expression)
+			value = value[:len(value)-1]
+		***REMOVED*** else ***REMOVED***
+			value[i] = self.reinterpretAsAssignmentElement(item)
+		***REMOVED***
+	***REMOVED***
+	return &ast.ArrayPattern***REMOVED***
+		LeftBracket:  left.LeftBracket,
+		RightBracket: left.RightBracket,
+		Elements:     value,
+		Rest:         rest,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretArrayAssignPatternAsBinding(pattern *ast.ArrayPattern) *ast.ArrayPattern ***REMOVED***
+	for i, item := range pattern.Elements ***REMOVED***
+		pattern.Elements[i] = self.reinterpretAsDestructBindingTarget(item)
+	***REMOVED***
+	if pattern.Rest != nil ***REMOVED***
+		pattern.Rest = self.reinterpretAsDestructBindingTarget(pattern.Rest)
+	***REMOVED***
+	return pattern
+***REMOVED***
+
+func (self *_parser) reinterpretAsArrayBindingPattern(left *ast.ArrayLiteral) ast.BindingTarget ***REMOVED***
+	value := left.Value
+	var rest ast.Expression
+	for i, item := range value ***REMOVED***
+		if spread, ok := item.(*ast.SpreadElement); ok ***REMOVED***
+			if i != len(value)-1 ***REMOVED***
+				self.error(item.Idx0(), "Rest element must be last element")
+				return &ast.BadExpression***REMOVED***From: left.Idx0(), To: left.Idx1()***REMOVED***
+			***REMOVED***
+			self.checkComma(spread.Expression.Idx1(), left.RightBracket)
+			rest = self.reinterpretAsDestructBindingTarget(spread.Expression)
+			value = value[:len(value)-1]
+		***REMOVED*** else ***REMOVED***
+			value[i] = self.reinterpretAsBindingElement(item)
+		***REMOVED***
+	***REMOVED***
+	return &ast.ArrayPattern***REMOVED***
+		LeftBracket:  left.LeftBracket,
+		RightBracket: left.RightBracket,
+		Elements:     value,
+		Rest:         rest,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) parseArrayBindingPattern() ast.BindingTarget ***REMOVED***
+	return self.reinterpretAsArrayBindingPattern(self.parseArrayLiteral())
+***REMOVED***
+
+func (self *_parser) parseObjectBindingPattern() ast.BindingTarget ***REMOVED***
+	return self.reinterpretAsObjectBindingPattern(self.parseObjectLiteral())
+***REMOVED***
+
+func (self *_parser) reinterpretArrayObjectPatternAsBinding(pattern *ast.ObjectPattern) *ast.ObjectPattern ***REMOVED***
+	for _, prop := range pattern.Properties ***REMOVED***
+		if keyed, ok := prop.(*ast.PropertyKeyed); ok ***REMOVED***
+			keyed.Value = self.reinterpretAsBindingElement(keyed.Value)
+		***REMOVED***
+	***REMOVED***
+	if pattern.Rest != nil ***REMOVED***
+		pattern.Rest = self.reinterpretAsBindingRestElement(pattern.Rest)
+	***REMOVED***
+	return pattern
+***REMOVED***
+
+func (self *_parser) reinterpretAsObjectBindingPattern(expr *ast.ObjectLiteral) ast.BindingTarget ***REMOVED***
+	var rest ast.Expression
+	value := expr.Value
+	for i, prop := range value ***REMOVED***
+		ok := false
+		switch prop := prop.(type) ***REMOVED***
+		case *ast.PropertyKeyed:
+			if prop.Kind == ast.PropertyKindValue ***REMOVED***
+				prop.Value = self.reinterpretAsBindingElement(prop.Value)
+				ok = true
+			***REMOVED***
+		case *ast.PropertyShort:
+			ok = true
+		case *ast.SpreadElement:
+			if i != len(expr.Value)-1 ***REMOVED***
+				self.error(prop.Idx0(), "Rest element must be last element")
+				return &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***
+			***REMOVED***
+			// TODO make sure there is no trailing comma
+			rest = self.reinterpretAsBindingRestElement(prop.Expression)
+			value = value[:i]
+			ok = true
+		***REMOVED***
+		if !ok ***REMOVED***
+			self.error(prop.Idx0(), "Invalid destructuring binding target")
+			return &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return &ast.ObjectPattern***REMOVED***
+		LeftBrace:  expr.LeftBrace,
+		RightBrace: expr.RightBrace,
+		Properties: value,
+		Rest:       rest,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsObjectAssignmentPattern(l *ast.ObjectLiteral) ast.Expression ***REMOVED***
+	var rest ast.Expression
+	value := l.Value
+	for i, prop := range value ***REMOVED***
+		ok := false
+		switch prop := prop.(type) ***REMOVED***
+		case *ast.PropertyKeyed:
+			if prop.Kind == ast.PropertyKindValue ***REMOVED***
+				prop.Value = self.reinterpretAsAssignmentElement(prop.Value)
+				ok = true
+			***REMOVED***
+		case *ast.PropertyShort:
+			ok = true
+		case *ast.SpreadElement:
+			if i != len(l.Value)-1 ***REMOVED***
+				self.error(prop.Idx0(), "Rest element must be last element")
+				return &ast.BadExpression***REMOVED***From: l.Idx0(), To: l.Idx1()***REMOVED***
+			***REMOVED***
+			// TODO make sure there is no trailing comma
+			rest = prop.Expression
+			value = value[:i]
+			ok = true
+		***REMOVED***
+		if !ok ***REMOVED***
+			self.error(prop.Idx0(), "Invalid destructuring assignment target")
+			return &ast.BadExpression***REMOVED***From: l.Idx0(), To: l.Idx1()***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	return &ast.ObjectPattern***REMOVED***
+		LeftBrace:  l.LeftBrace,
+		RightBrace: l.RightBrace,
+		Properties: value,
+		Rest:       rest,
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsAssignmentElement(expr ast.Expression) ast.Expression ***REMOVED***
+	switch expr := expr.(type) ***REMOVED***
+	case *ast.AssignExpression:
+		if expr.Operator == token.ASSIGN ***REMOVED***
+			expr.Left = self.reinterpretAsDestructAssignTarget(expr.Left)
+			return expr
+		***REMOVED*** else ***REMOVED***
+			self.error(expr.Idx0(), "Invalid destructuring assignment target")
+			return &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***
+		***REMOVED***
+	default:
+		return self.reinterpretAsDestructAssignTarget(expr)
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsBindingElement(expr ast.Expression) ast.Expression ***REMOVED***
+	switch expr := expr.(type) ***REMOVED***
+	case *ast.AssignExpression:
+		if expr.Operator == token.ASSIGN ***REMOVED***
+			expr.Left = self.reinterpretAsDestructBindingTarget(expr.Left)
+			return expr
+		***REMOVED*** else ***REMOVED***
+			self.error(expr.Idx0(), "Invalid destructuring assignment target")
+			return &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***
+		***REMOVED***
+	default:
+		return self.reinterpretAsDestructBindingTarget(expr)
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsBinding(expr ast.Expression) *ast.Binding ***REMOVED***
+	switch expr := expr.(type) ***REMOVED***
+	case *ast.AssignExpression:
+		if expr.Operator == token.ASSIGN ***REMOVED***
+			return &ast.Binding***REMOVED***
+				Target:      self.reinterpretAsDestructBindingTarget(expr.Left),
+				Initializer: expr.Right,
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			self.error(expr.Idx0(), "Invalid destructuring assignment target")
+			return &ast.Binding***REMOVED***
+				Target: &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***,
+			***REMOVED***
+		***REMOVED***
+	default:
+		return &ast.Binding***REMOVED***
+			Target: self.reinterpretAsDestructBindingTarget(expr),
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsDestructAssignTarget(item ast.Expression) ast.Expression ***REMOVED***
+	switch item := item.(type) ***REMOVED***
+	case nil:
+		return nil
+	case *ast.ArrayLiteral:
+		return self.reinterpretAsArrayAssignmentPattern(item)
+	case *ast.ObjectLiteral:
+		return self.reinterpretAsObjectAssignmentPattern(item)
+	case ast.Pattern, *ast.Identifier, *ast.DotExpression, *ast.BracketExpression:
+		return item
+	***REMOVED***
+	self.error(item.Idx0(), "Invalid destructuring assignment target")
+	return &ast.BadExpression***REMOVED***From: item.Idx0(), To: item.Idx1()***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsDestructBindingTarget(item ast.Expression) ast.BindingTarget ***REMOVED***
+	switch item := item.(type) ***REMOVED***
+	case nil:
+		return nil
+	case *ast.ArrayPattern:
+		return self.reinterpretArrayAssignPatternAsBinding(item)
+	case *ast.ObjectPattern:
+		return self.reinterpretArrayObjectPatternAsBinding(item)
+	case *ast.ArrayLiteral:
+		return self.reinterpretAsArrayBindingPattern(item)
+	case *ast.ObjectLiteral:
+		return self.reinterpretAsObjectBindingPattern(item)
+	case *ast.Identifier:
+		return item
+	***REMOVED***
+	self.error(item.Idx0(), "Invalid destructuring binding target")
+	return &ast.BadExpression***REMOVED***From: item.Idx0(), To: item.Idx1()***REMOVED***
+***REMOVED***
+
+func (self *_parser) reinterpretAsBindingRestElement(expr ast.Expression) ast.Expression ***REMOVED***
+	if _, ok := expr.(*ast.Identifier); ok ***REMOVED***
+		return expr
+	***REMOVED***
+	self.error(expr.Idx0(), "Invalid binding rest")
+	return &ast.BadExpression***REMOVED***From: expr.Idx0(), To: expr.Idx1()***REMOVED***
 ***REMOVED***

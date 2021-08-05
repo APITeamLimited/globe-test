@@ -21,7 +21,7 @@ func (ctx *typedArraySortCtx) Len() int ***REMOVED***
 
 func (ctx *typedArraySortCtx) Less(i, j int) bool ***REMOVED***
 	if ctx.needValidate ***REMOVED***
-		ctx.ta.viewedArrayBuf.ensureNotDetached()
+		ctx.ta.viewedArrayBuf.ensureNotDetached(true)
 		ctx.needValidate = false
 	***REMOVED***
 	offset := ctx.ta.offset
@@ -54,7 +54,7 @@ func (ctx *typedArraySortCtx) Less(i, j int) bool ***REMOVED***
 
 func (ctx *typedArraySortCtx) Swap(i, j int) ***REMOVED***
 	if ctx.needValidate ***REMOVED***
-		ctx.ta.viewedArrayBuf.ensureNotDetached()
+		ctx.ta.viewedArrayBuf.ensureNotDetached(true)
 		ctx.needValidate = false
 	***REMOVED***
 	offset := ctx.ta.offset
@@ -88,8 +88,10 @@ func (r *Runtime) builtin_newArrayBuffer(args []Value, newTarget *Object) *Objec
 func (r *Runtime) arrayBufferProto_getByteLength(call FunctionCall) Value ***REMOVED***
 	o := r.toObject(call.This)
 	if b, ok := o.self.(*arrayBufferObject); ok ***REMOVED***
-		b.ensureNotDetached()
-		return intToValue(int64(len(b.data)))
+		if b.ensureNotDetached(false) ***REMOVED***
+			return intToValue(int64(len(b.data)))
+		***REMOVED***
+		return intToValue(0)
 	***REMOVED***
 	panic(r.NewTypeError("Object is not ArrayBuffer: %s", o))
 ***REMOVED***
@@ -109,16 +111,15 @@ func (r *Runtime) arrayBufferProto_slice(call FunctionCall) Value ***REMOVED***
 		newLen := max(stop-start, 0)
 		ret := r.speciesConstructor(o, r.global.ArrayBuffer)([]Value***REMOVED***intToValue(newLen)***REMOVED***, nil)
 		if ab, ok := ret.self.(*arrayBufferObject); ok ***REMOVED***
-			ab.ensureNotDetached()
-			if ret == o ***REMOVED***
-				panic(r.NewTypeError("Species constructor returned the same ArrayBuffer"))
-			***REMOVED***
-			if int64(len(ab.data)) < newLen ***REMOVED***
-				panic(r.NewTypeError("Species constructor returned an ArrayBuffer that is too small: %d", len(ab.data)))
-			***REMOVED***
-			b.ensureNotDetached()
-
-			if stop > start ***REMOVED***
+			if newLen > 0 ***REMOVED***
+				b.ensureNotDetached(true)
+				if ret == o ***REMOVED***
+					panic(r.NewTypeError("Species constructor returned the same ArrayBuffer"))
+				***REMOVED***
+				if int64(len(ab.data)) < newLen ***REMOVED***
+					panic(r.NewTypeError("Species constructor returned an ArrayBuffer that is too small: %d", len(ab.data)))
+				***REMOVED***
+				ab.ensureNotDetached(true)
 				copy(ab.data, b.data[start:stop])
 			***REMOVED***
 			return ret
@@ -162,7 +163,7 @@ func (r *Runtime) newDataView(args []Value, newTarget *Object) *Object ***REMOVE
 	if len(args) > 1 ***REMOVED***
 		offsetArg := nilSafe(args[1])
 		byteOffset = r.toIndex(offsetArg)
-		buffer.ensureNotDetached()
+		buffer.ensureNotDetached(true)
 		if byteOffset > len(buffer.data) ***REMOVED***
 			panic(r.newError(r.global.RangeError, "Start offset %s is outside the bounds of the buffer", offsetArg.String()))
 		***REMOVED***
@@ -201,7 +202,7 @@ func (r *Runtime) dataViewProto_getBuffer(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) dataViewProto_getByteLen(call FunctionCall) Value ***REMOVED***
 	if dv, ok := r.toObject(call.This).self.(*dataViewObject); ok ***REMOVED***
-		dv.viewedArrayBuf.ensureNotDetached()
+		dv.viewedArrayBuf.ensureNotDetached(true)
 		return intToValue(int64(dv.byteLen))
 	***REMOVED***
 	panic(r.NewTypeError("Method get DataView.prototype.byteLength called on incompatible receiver %s", call.This.String()))
@@ -209,7 +210,7 @@ func (r *Runtime) dataViewProto_getByteLen(call FunctionCall) Value ***REMOVED**
 
 func (r *Runtime) dataViewProto_getByteOffset(call FunctionCall) Value ***REMOVED***
 	if dv, ok := r.toObject(call.This).self.(*dataViewObject); ok ***REMOVED***
-		dv.viewedArrayBuf.ensureNotDetached()
+		dv.viewedArrayBuf.ensureNotDetached(true)
 		return intToValue(int64(dv.byteOffset))
 	***REMOVED***
 	panic(r.NewTypeError("Method get DataView.prototype.byteOffset called on incompatible receiver %s", call.This.String()))
@@ -392,7 +393,7 @@ func (r *Runtime) typedArrayProto_getByteOffset(call FunctionCall) Value ***REMO
 
 func (r *Runtime) typedArrayProto_copyWithin(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		l := int64(ta.length)
 		var relEnd int64
 		to := toIntStrict(relToIdx(call.Argument(0).ToInteger(), l))
@@ -407,7 +408,7 @@ func (r *Runtime) typedArrayProto_copyWithin(call FunctionCall) Value ***REMOVED
 		offset := ta.offset
 		elemSize := ta.elemSize
 		if final > from ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			copy(data[(offset+to)*elemSize:], data[(offset+from)*elemSize:(offset+final)*elemSize])
 		***REMOVED***
 		return call.This
@@ -417,7 +418,7 @@ func (r *Runtime) typedArrayProto_copyWithin(call FunctionCall) Value ***REMOVED
 
 func (r *Runtime) typedArrayProto_entries(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		return r.createArrayIterator(ta.val, iterationKindKeyValue)
 	***REMOVED***
 	panic(r.NewTypeError("Method TypedArray.prototype.entries called on incompatible receiver %s", call.This.String()))
@@ -425,14 +426,14 @@ func (r *Runtime) typedArrayProto_entries(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_every(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
 			Arguments: []Value***REMOVED***nil, nil, call.This***REMOVED***,
 		***REMOVED***
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			fc.Arguments[0] = ta.typedArray.get(ta.offset + k)
 			fc.Arguments[1] = intToValue(int64(k))
 			if !callbackFn(fc).ToBoolean() ***REMOVED***
@@ -447,7 +448,7 @@ func (r *Runtime) typedArrayProto_every(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_fill(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		l := int64(ta.length)
 		k := toIntStrict(relToIdx(call.Argument(1).ToInteger(), l))
 		var relEnd int64
@@ -458,7 +459,7 @@ func (r *Runtime) typedArrayProto_fill(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 		final := toIntStrict(relToIdx(relEnd, l))
 		value := ta.typedArray.toRaw(call.Argument(0))
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		for ; k < final; k++ ***REMOVED***
 			ta.typedArray.setRaw(ta.offset+k, value)
 		***REMOVED***
@@ -470,7 +471,7 @@ func (r *Runtime) typedArrayProto_fill(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) typedArrayProto_filter(call FunctionCall) Value ***REMOVED***
 	o := r.toObject(call.This)
 	if ta, ok := o.self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
@@ -479,7 +480,7 @@ func (r *Runtime) typedArrayProto_filter(call FunctionCall) Value ***REMOVED***
 		buf := make([]byte, 0, ta.length*ta.elemSize)
 		captured := 0
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			fc.Arguments[0] = ta.typedArray.get(k)
 			fc.Arguments[1] = intToValue(int64(k))
 			if callbackFn(fc).ToBoolean() ***REMOVED***
@@ -508,14 +509,14 @@ func (r *Runtime) typedArrayProto_filter(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_find(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
 			Arguments: []Value***REMOVED***nil, nil, call.This***REMOVED***,
 		***REMOVED***
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			val := ta.typedArray.get(ta.offset + k)
 			fc.Arguments[0] = val
 			fc.Arguments[1] = intToValue(int64(k))
@@ -530,14 +531,14 @@ func (r *Runtime) typedArrayProto_find(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_findIndex(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		predicate := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
 			Arguments: []Value***REMOVED***nil, nil, call.This***REMOVED***,
 		***REMOVED***
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			fc.Arguments[0] = ta.typedArray.get(ta.offset + k)
 			fc.Arguments[1] = intToValue(int64(k))
 			if predicate(fc).ToBoolean() ***REMOVED***
@@ -551,14 +552,14 @@ func (r *Runtime) typedArrayProto_findIndex(call FunctionCall) Value ***REMOVED*
 
 func (r *Runtime) typedArrayProto_forEach(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
 			Arguments: []Value***REMOVED***nil, nil, call.This***REMOVED***,
 		***REMOVED***
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			if val := ta.typedArray.get(k); val != nil ***REMOVED***
 				fc.Arguments[0] = val
 				fc.Arguments[1] = intToValue(int64(k))
@@ -572,7 +573,7 @@ func (r *Runtime) typedArrayProto_forEach(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_includes(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		length := int64(ta.length)
 		if length == 0 ***REMOVED***
 			return valueFalse
@@ -587,7 +588,7 @@ func (r *Runtime) typedArrayProto_includes(call FunctionCall) Value ***REMOVED**
 			n = max(length+n, 0)
 		***REMOVED***
 
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		searchElement := call.Argument(0)
 		if searchElement == _negativeZero ***REMOVED***
 			searchElement = _positiveZero
@@ -607,7 +608,7 @@ func (r *Runtime) typedArrayProto_includes(call FunctionCall) Value ***REMOVED**
 
 func (r *Runtime) typedArrayProto_indexOf(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		length := int64(ta.length)
 		if length == 0 ***REMOVED***
 			return intToValue(-1)
@@ -622,7 +623,7 @@ func (r *Runtime) typedArrayProto_indexOf(call FunctionCall) Value ***REMOVED***
 			n = max(length+n, 0)
 		***REMOVED***
 
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		searchElement := call.Argument(0)
 		if searchElement == _negativeZero ***REMOVED***
 			searchElement = _positiveZero
@@ -642,7 +643,7 @@ func (r *Runtime) typedArrayProto_indexOf(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_join(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		s := call.Argument(0)
 		var sep valueString
 		if s != _undefined ***REMOVED***
@@ -657,14 +658,14 @@ func (r *Runtime) typedArrayProto_join(call FunctionCall) Value ***REMOVED***
 
 		var buf valueStringBuilder
 
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		element0 := ta.typedArray.get(0)
 		if element0 != nil && element0 != _undefined && element0 != _null ***REMOVED***
 			buf.WriteString(element0.toString())
 		***REMOVED***
 
 		for i := 1; i < l; i++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			buf.WriteString(sep)
 			element := ta.typedArray.get(i)
 			if element != nil && element != _undefined && element != _null ***REMOVED***
@@ -679,7 +680,7 @@ func (r *Runtime) typedArrayProto_join(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_keys(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		return r.createArrayIterator(ta.val, iterationKindKey)
 	***REMOVED***
 	panic(r.NewTypeError("Method TypedArray.prototype.keys called on incompatible receiver %s", call.This.String()))
@@ -687,7 +688,7 @@ func (r *Runtime) typedArrayProto_keys(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_lastIndexOf(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		length := int64(ta.length)
 		if length == 0 ***REMOVED***
 			return intToValue(-1)
@@ -709,7 +710,7 @@ func (r *Runtime) typedArrayProto_lastIndexOf(call FunctionCall) Value ***REMOVE
 			***REMOVED***
 		***REMOVED***
 
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		searchElement := call.Argument(0)
 		if searchElement == _negativeZero ***REMOVED***
 			searchElement = _positiveZero
@@ -730,7 +731,7 @@ func (r *Runtime) typedArrayProto_lastIndexOf(call FunctionCall) Value ***REMOVE
 
 func (r *Runtime) typedArrayProto_map(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
@@ -738,7 +739,7 @@ func (r *Runtime) typedArrayProto_map(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 		dst := r.typedArraySpeciesCreate(ta, []Value***REMOVED***intToValue(int64(ta.length))***REMOVED***)
 		for i := 0; i < ta.length; i++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			fc.Arguments[0] = ta.typedArray.get(ta.offset + i)
 			fc.Arguments[1] = intToValue(int64(i))
 			dst.typedArray.set(i, callbackFn(fc))
@@ -750,7 +751,7 @@ func (r *Runtime) typedArrayProto_map(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_reduce(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      _undefined,
@@ -769,7 +770,7 @@ func (r *Runtime) typedArrayProto_reduce(call FunctionCall) Value ***REMOVED***
 			panic(r.NewTypeError("Reduce of empty array with no initial value"))
 		***REMOVED***
 		for ; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			idx := valueInt(k)
 			fc.Arguments[1] = ta.typedArray.get(ta.offset + k)
 			fc.Arguments[2] = idx
@@ -782,7 +783,7 @@ func (r *Runtime) typedArrayProto_reduce(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_reduceRight(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      _undefined,
@@ -801,7 +802,7 @@ func (r *Runtime) typedArrayProto_reduceRight(call FunctionCall) Value ***REMOVE
 			panic(r.NewTypeError("Reduce of empty array with no initial value"))
 		***REMOVED***
 		for ; k >= 0; k-- ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			idx := valueInt(k)
 			fc.Arguments[1] = ta.typedArray.get(ta.offset + k)
 			fc.Arguments[2] = idx
@@ -814,7 +815,7 @@ func (r *Runtime) typedArrayProto_reduceRight(call FunctionCall) Value ***REMOVE
 
 func (r *Runtime) typedArrayProto_reverse(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		l := ta.length
 		middle := l / 2
 		for lower := 0; lower != middle; lower++ ***REMOVED***
@@ -834,10 +835,10 @@ func (r *Runtime) typedArrayProto_set(call FunctionCall) Value ***REMOVED***
 		if targetOffset < 0 ***REMOVED***
 			panic(r.newError(r.global.RangeError, "offset should be >= 0"))
 		***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		targetLen := ta.length
 		if src, ok := srcObj.self.(*typedArrayObject); ok ***REMOVED***
-			src.viewedArrayBuf.ensureNotDetached()
+			src.viewedArrayBuf.ensureNotDetached(true)
 			srcLen := src.length
 			if x := srcLen + targetOffset; x < 0 || x > targetLen ***REMOVED***
 				panic(r.newError(r.global.RangeError, "Source is too large"))
@@ -893,7 +894,7 @@ func (r *Runtime) typedArrayProto_set(call FunctionCall) Value ***REMOVED***
 			***REMOVED***
 			for i := 0; i < srcLen; i++ ***REMOVED***
 				val := nilSafe(srcObj.self.getIdx(valueInt(i), nil))
-				ta.viewedArrayBuf.ensureNotDetached()
+				ta.viewedArrayBuf.ensureNotDetached(true)
 				ta.typedArray.set(targetOffset+i, val)
 			***REMOVED***
 		***REMOVED***
@@ -904,7 +905,7 @@ func (r *Runtime) typedArrayProto_set(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_slice(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		length := int64(ta.length)
 		start := toIntStrict(relToIdx(call.Argument(0).ToInteger(), length))
 		var e int64
@@ -922,14 +923,14 @@ func (r *Runtime) typedArrayProto_slice(call FunctionCall) Value ***REMOVED***
 		dst := r.typedArraySpeciesCreate(ta, []Value***REMOVED***intToValue(int64(count))***REMOVED***)
 		if dst.defaultCtor == ta.defaultCtor ***REMOVED***
 			if count > 0 ***REMOVED***
-				ta.viewedArrayBuf.ensureNotDetached()
+				ta.viewedArrayBuf.ensureNotDetached(true)
 				offset := ta.offset
 				elemSize := ta.elemSize
 				copy(dst.viewedArrayBuf.data, ta.viewedArrayBuf.data[(offset+start)*elemSize:(offset+start+count)*elemSize])
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			for i := 0; i < count; i++ ***REMOVED***
-				ta.viewedArrayBuf.ensureNotDetached()
+				ta.viewedArrayBuf.ensureNotDetached(true)
 				dst.typedArray.set(i, ta.typedArray.get(ta.offset+start+i))
 			***REMOVED***
 		***REMOVED***
@@ -940,14 +941,14 @@ func (r *Runtime) typedArrayProto_slice(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_some(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		callbackFn := r.toCallable(call.Argument(0))
 		fc := FunctionCall***REMOVED***
 			This:      call.Argument(1),
 			Arguments: []Value***REMOVED***nil, nil, call.This***REMOVED***,
 		***REMOVED***
 		for k := 0; k < ta.length; k++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			fc.Arguments[0] = ta.typedArray.get(ta.offset + k)
 			fc.Arguments[1] = intToValue(int64(k))
 			if callbackFn(fc).ToBoolean() ***REMOVED***
@@ -961,7 +962,7 @@ func (r *Runtime) typedArrayProto_some(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) typedArrayProto_sort(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		var compareFn func(FunctionCall) Value
 
 		if arg := call.Argument(0); arg != _undefined ***REMOVED***
@@ -1004,7 +1005,7 @@ func (r *Runtime) typedArrayProto_toLocaleString(call FunctionCall) Value ***REM
 		length := ta.length
 		var buf valueStringBuilder
 		for i := 0; i < length; i++ ***REMOVED***
-			ta.viewedArrayBuf.ensureNotDetached()
+			ta.viewedArrayBuf.ensureNotDetached(true)
 			if i > 0 ***REMOVED***
 				buf.WriteRune(',')
 			***REMOVED***
@@ -1018,7 +1019,7 @@ func (r *Runtime) typedArrayProto_toLocaleString(call FunctionCall) Value ***REM
 
 func (r *Runtime) typedArrayProto_values(call FunctionCall) Value ***REMOVED***
 	if ta, ok := r.toObject(call.This).self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		return r.createArrayIterator(ta.val, iterationKindValue)
 	***REMOVED***
 	panic(r.NewTypeError("Method TypedArray.prototype.values called on incompatible receiver %s", call.This.String()))
@@ -1027,7 +1028,7 @@ func (r *Runtime) typedArrayProto_values(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) typedArrayProto_toStringTag(call FunctionCall) Value ***REMOVED***
 	if obj, ok := call.This.(*Object); ok ***REMOVED***
 		if ta, ok := obj.self.(*typedArrayObject); ok ***REMOVED***
-			return ta.defaultCtor.self.getStr("name", nil)
+			return nilSafe(ta.defaultCtor.self.getStr("name", nil))
 		***REMOVED***
 	***REMOVED***
 
@@ -1070,7 +1071,7 @@ func (r *Runtime) typedArraySpeciesCreate(ta *typedArrayObject, args []Value) *t
 func (r *Runtime) typedArrayCreate(ctor *Object, args []Value) *typedArrayObject ***REMOVED***
 	o := r.toConstructor(ctor)(args, ctor)
 	if ta, ok := o.self.(*typedArrayObject); ok ***REMOVED***
-		ta.viewedArrayBuf.ensureNotDetached()
+		ta.viewedArrayBuf.ensureNotDetached(true)
 		if len(args) == 1 ***REMOVED***
 			if l, ok := args[0].(valueInt); ok ***REMOVED***
 				if ta.length < int(l) ***REMOVED***
@@ -1145,7 +1146,7 @@ func (r *Runtime) _newTypedArrayFromArrayBuffer(ab *arrayBufferObject, args []Va
 			panic(r.newError(r.global.RangeError, "Start offset of %s should be a multiple of %d", newTarget.self.getStr("name", nil), ta.elemSize))
 		***REMOVED***
 	***REMOVED***
-	ab.ensureNotDetached()
+	ab.ensureNotDetached(true)
 	var length int
 	if len(args) > 2 && args[2] != nil && args[2] != _undefined ***REMOVED***
 		length = r.toIndex(args[2])
@@ -1165,7 +1166,7 @@ func (r *Runtime) _newTypedArrayFromArrayBuffer(ab *arrayBufferObject, args []Va
 
 func (r *Runtime) _newTypedArrayFromTypedArray(src *typedArrayObject, newTarget *Object) *Object ***REMOVED***
 	dst := r.typedArrayCreate(newTarget, []Value***REMOVED***_positiveZero***REMOVED***)
-	src.viewedArrayBuf.ensureNotDetached()
+	src.viewedArrayBuf.ensureNotDetached(true)
 	l := src.length
 	dst.viewedArrayBuf.prototype = r.getPrototypeFromCtor(r.toObject(src.viewedArrayBuf.getStr("constructor", nil)), r.global.ArrayBuffer, r.global.ArrayBufferPrototype)
 	dst.viewedArrayBuf.data = allocByteSlice(toIntStrict(int64(l) * int64(dst.elemSize)))

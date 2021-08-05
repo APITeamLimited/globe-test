@@ -347,12 +347,36 @@ func (r *Runtime) arrayproto_sort(call FunctionCall) Value ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	ctx := arraySortCtx***REMOVED***
-		obj:     o.self,
-		compare: compareFn,
-	***REMOVED***
+	if r.checkStdArrayObj(o) != nil ***REMOVED***
+		ctx := arraySortCtx***REMOVED***
+			obj:     o.self,
+			compare: compareFn,
+		***REMOVED***
 
-	sort.Stable(&ctx)
+		sort.Stable(&ctx)
+	***REMOVED*** else ***REMOVED***
+		length := toLength(o.self.getStr("length", nil))
+		a := make([]Value, 0, length)
+		for i := int64(0); i < length; i++ ***REMOVED***
+			idx := valueInt(i)
+			if o.self.hasPropertyIdx(idx) ***REMOVED***
+				a = append(a, nilSafe(o.self.getIdx(idx, nil)))
+			***REMOVED***
+		***REMOVED***
+		ar := r.newArrayValues(a)
+		ctx := arraySortCtx***REMOVED***
+			obj:     ar.self,
+			compare: compareFn,
+		***REMOVED***
+
+		sort.Stable(&ctx)
+		for i := 0; i < len(a); i++ ***REMOVED***
+			o.self.setOwnIdx(valueInt(i), a[i], true)
+		***REMOVED***
+		for i := int64(len(a)); i < length; i++ ***REMOVED***
+			o.self.deleteIdx(valueInt(i), true)
+		***REMOVED***
+	***REMOVED***
 	return o
 ***REMOVED***
 
@@ -380,6 +404,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value ***REMOVED***
 			for k := int64(0); k < actualDeleteCount; k++ ***REMOVED***
 				createDataPropertyOrThrow(a, intToValue(k), src.values[k+actualStart])
 			***REMOVED***
+			a.self.setOwnStr("length", intToValue(actualDeleteCount), true)
 		***REMOVED***
 		var values []Value
 		if itemCount < actualDeleteCount ***REMOVED***
@@ -411,7 +436,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value ***REMOVED***
 		for k := int64(0); k < actualDeleteCount; k++ ***REMOVED***
 			from := valueInt(k + actualStart)
 			if o.self.hasPropertyIdx(from) ***REMOVED***
-				createDataPropertyOrThrow(a, valueInt(k), o.self.getIdx(from, nil))
+				createDataPropertyOrThrow(a, valueInt(k), nilSafe(o.self.getIdx(from, nil)))
 			***REMOVED***
 		***REMOVED***
 
@@ -420,7 +445,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value ***REMOVED***
 				from := valueInt(k + actualDeleteCount)
 				to := valueInt(k + itemCount)
 				if o.self.hasPropertyIdx(from) ***REMOVED***
-					o.self.setOwnIdx(to, o.self.getIdx(from, nil), true)
+					o.self.setOwnIdx(to, nilSafe(o.self.getIdx(from, nil)), true)
 				***REMOVED*** else ***REMOVED***
 					o.self.deleteIdx(to, true)
 				***REMOVED***
@@ -434,7 +459,7 @@ func (r *Runtime) arrayproto_splice(call FunctionCall) Value ***REMOVED***
 				from := valueInt(k + actualDeleteCount - 1)
 				to := valueInt(k + itemCount - 1)
 				if o.self.hasPropertyIdx(from) ***REMOVED***
-					o.self.setOwnIdx(to, o.self.getIdx(from, nil), true)
+					o.self.setOwnIdx(to, nilSafe(o.self.getIdx(from, nil)), true)
 				***REMOVED*** else ***REMOVED***
 					o.self.deleteIdx(to, true)
 				***REMOVED***
@@ -475,7 +500,7 @@ func (r *Runtime) arrayproto_unshift(call FunctionCall) Value ***REMOVED***
 			from := valueInt(k)
 			to := valueInt(k + argCount)
 			if o.self.hasPropertyIdx(from) ***REMOVED***
-				o.self.setOwnIdx(to, o.self.getIdx(from, nil), true)
+				o.self.setOwnIdx(to, nilSafe(o.self.getIdx(from, nil)), true)
 			***REMOVED*** else ***REMOVED***
 				o.self.deleteIdx(to, true)
 			***REMOVED***
@@ -962,7 +987,7 @@ func (r *Runtime) arrayproto_copyWithin(call FunctionCall) Value ***REMOVED***
 	***REMOVED***
 	for count > 0 ***REMOVED***
 		if o.self.hasPropertyIdx(valueInt(from)) ***REMOVED***
-			o.self.setOwnIdx(valueInt(to), o.self.getIdx(valueInt(from), nil), true)
+			o.self.setOwnIdx(valueInt(to), nilSafe(o.self.getIdx(valueInt(from), nil)), true)
 		***REMOVED*** else ***REMOVED***
 			o.self.deleteIdx(valueInt(to), true)
 		***REMOVED***
@@ -1059,7 +1084,7 @@ func (r *Runtime) flattenIntoArray(target, source *Object, sourceLen, start, dep
 	for sourceIndex < sourceLen ***REMOVED***
 		p := intToValue(sourceIndex)
 		if source.hasProperty(p.toString()) ***REMOVED***
-			element := source.get(p, source)
+			element := nilSafe(source.get(p, source))
 			if mapperFunction != nil ***REMOVED***
 				element = mapperFunction(FunctionCall***REMOVED***
 					This:      thisArg,

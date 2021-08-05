@@ -531,7 +531,7 @@ func (a *dynamicArray) getStr(p unistring.String, receiver Value) Value ***REMOV
 	if p == "length" ***REMOVED***
 		return intToValue(int64(a.a.Len()))
 	***REMOVED***
-	if idx, ok := strPropToInt(p); ok ***REMOVED***
+	if idx, ok := strToInt(p); ok ***REMOVED***
 		return a.a.Get(idx)
 	***REMOVED***
 	return a.getParentStr(p, receiver)
@@ -551,7 +551,7 @@ func (a *dynamicArray) getOwnPropStr(u unistring.String) Value ***REMOVED***
 			writable: true,
 		***REMOVED***
 	***REMOVED***
-	if idx, ok := strPropToInt(u); ok ***REMOVED***
+	if idx, ok := strToInt(u); ok ***REMOVED***
 		return a.a.Get(idx)
 	***REMOVED***
 	return nil
@@ -573,7 +573,7 @@ func (a *dynamicArray) setOwnStr(p unistring.String, v Value, throw bool) bool *
 	if p == "length" ***REMOVED***
 		return a._setLen(v, throw)
 	***REMOVED***
-	if idx, ok := strPropToInt(p); ok ***REMOVED***
+	if idx, ok := strToInt(p); ok ***REMOVED***
 		return a._setIdx(idx, v, throw)
 	***REMOVED***
 	a.val.runtime.typeErrorResult(throw, "Cannot set property %q on a dynamic array", p.String())
@@ -628,7 +628,7 @@ func (a *dynamicArray) hasOwnPropertyStr(u unistring.String) bool ***REMOVED***
 	if u == "length" ***REMOVED***
 		return true
 	***REMOVED***
-	if idx, ok := strPropToInt(u); ok ***REMOVED***
+	if idx, ok := strToInt(u); ok ***REMOVED***
 		return a._has(idx)
 	***REMOVED***
 	return false
@@ -640,7 +640,7 @@ func (a *dynamicArray) hasOwnPropertyIdx(v valueInt) bool ***REMOVED***
 
 func (a *dynamicArray) defineOwnPropertyStr(name unistring.String, desc PropertyDescriptor, throw bool) bool ***REMOVED***
 	if a.checkDynamicObjectPropertyDescr(name, desc, throw) ***REMOVED***
-		if idx, ok := strPropToInt(name); ok ***REMOVED***
+		if idx, ok := strToInt(name); ok ***REMOVED***
 			return a._setIdx(idx, desc.Value, throw)
 		***REMOVED***
 		a.val.runtime.typeErrorResult(throw, "Cannot define property %q on a dynamic array", name.String())
@@ -663,7 +663,7 @@ func (a *dynamicArray) _delete(idx int, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (a *dynamicArray) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
-	if idx, ok := strPropToInt(name); ok ***REMOVED***
+	if idx, ok := strToInt(name); ok ***REMOVED***
 		return a._delete(idx, throw)
 	***REMOVED***
 	if a.hasOwnPropertyStr(name) ***REMOVED***

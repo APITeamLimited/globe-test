@@ -377,7 +377,7 @@ func (r *Runtime) object_entries(call FunctionCall) Value ***REMOVED***
 	***REMOVED***
 
 	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
-		v := obj.self.getStr(item.name, nil)
+		v := nilSafe(obj.self.getStr(item.name, nil))
 		values = append(values, r.newArrayValues([]Value***REMOVED***stringValueFromRaw(item.name), v***REMOVED***))
 	***REMOVED***
 
@@ -393,7 +393,7 @@ func (r *Runtime) object_values(call FunctionCall) Value ***REMOVED***
 	***REMOVED***
 
 	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
-		values = append(values, obj.self.getStr(item.name, nil))
+		values = append(values, nilSafe(obj.self.getStr(item.name, nil)))
 	***REMOVED***
 
 	return r.newArrayValues(values)

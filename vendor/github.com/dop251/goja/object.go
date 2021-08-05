@@ -65,6 +65,18 @@ func (p *PropertyDescriptor) Empty() bool ***REMOVED***
 	return *p == empty
 ***REMOVED***
 
+func (p *PropertyDescriptor) IsAccessor() bool ***REMOVED***
+	return p.Setter != nil || p.Getter != nil
+***REMOVED***
+
+func (p *PropertyDescriptor) IsData() bool ***REMOVED***
+	return p.Value != nil || p.Writable != FLAG_NOT_SET
+***REMOVED***
+
+func (p *PropertyDescriptor) IsGeneric() bool ***REMOVED***
+	return !p.IsAccessor() && !p.IsData()
+***REMOVED***
+
 func (p *PropertyDescriptor) toValue(r *Runtime) Value ***REMOVED***
 	if p.jsDescriptor != nil ***REMOVED***
 		return p.jsDescriptor
@@ -399,7 +411,7 @@ func (o *baseObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 func (o *baseObject) deleteSym(s *Symbol, throw bool) bool ***REMOVED***
 	if o.symValues != nil ***REMOVED***
 		if val := o.symValues.get(s); val != nil ***REMOVED***
-			if !o.checkDelete(s.desc.string(), val, throw) ***REMOVED***
+			if !o.checkDelete(s.descriptiveString().string(), val, throw) ***REMOVED***
 				return false
 			***REMOVED***
 			o.symValues.remove(s)
@@ -744,7 +756,7 @@ func (o *baseObject) defineOwnPropertySym(s *Symbol, descr PropertyDescriptor, t
 	if o.symValues != nil ***REMOVED***
 		existingVal = o.symValues.get(s)
 	***REMOVED***
-	if v, ok := o._defineOwnProperty(s.desc.string(), existingVal, descr, throw); ok ***REMOVED***
+	if v, ok := o._defineOwnProperty(s.descriptiveString().string(), existingVal, descr, throw); ok ***REMOVED***
 		if o.symValues == nil ***REMOVED***
 			o.symValues = newOrderedMap(nil)
 		***REMOVED***
@@ -1121,9 +1133,9 @@ func (o *baseObject) fixPropOrder() ***REMOVED***
 	names := o.propNames
 	for i := o.lastSortedPropLen; i < len(names); i++ ***REMOVED***
 		name := names[i]
-		if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+		if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 			k := sort.Search(o.idxPropCount, func(j int) bool ***REMOVED***
-				return strToIdx(names[j]) >= idx
+				return strToArrayIdx(names[j]) >= idx
 			***REMOVED***)
 			if k < i ***REMOVED***
 				if namesMarkedForCopy(names) ***REMOVED***

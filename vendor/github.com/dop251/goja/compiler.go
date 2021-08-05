@@ -2,6 +2,7 @@ package goja
 
 import (
 	"fmt"
+	"github.com/dop251/goja/token"
 	"sort"
 
 	"github.com/dop251/goja/ast"
@@ -25,9 +26,10 @@ const (
 const (
 	maskConst     = 1 << 31
 	maskVar       = 1 << 30
-	maskDeletable = maskConst
+	maskDeletable = 1 << 29
+	maskStrict    = maskDeletable
 
-	maskTyp = maskConst | maskVar
+	maskTyp = maskConst | maskVar | maskDeletable
 )
 
 type varType byte
@@ -35,6 +37,7 @@ type varType byte
 const (
 	varTypeVar varType = iota
 	varTypeLet
+	varTypeStrictConst
 	varTypeConst
 )
 
@@ -81,6 +84,7 @@ type binding struct ***REMOVED***
 	name         unistring.String
 	accessPoints map[*scope]*[]int
 	isConst      bool
+	isStrict     bool
 	isArg        bool
 	isVar        bool
 	inStash      bool
@@ -99,6 +103,17 @@ func (b *binding) getAccessPointsForScope(s *scope) *[]int ***REMOVED***
 	return m
 ***REMOVED***
 
+func (b *binding) markAccessPointAt(pos int) ***REMOVED***
+	scope := b.scope.c.scope
+	m := b.getAccessPointsForScope(scope)
+	*m = append(*m, pos-scope.base)
+***REMOVED***
+
+func (b *binding) markAccessPointAtScope(scope *scope, pos int) ***REMOVED***
+	m := b.getAccessPointsForScope(scope)
+	*m = append(*m, pos-scope.base)
+***REMOVED***
+
 func (b *binding) markAccessPoint() ***REMOVED***
 	scope := b.scope.c.scope
 	m := b.getAccessPointsForScope(scope)
@@ -114,6 +129,15 @@ func (b *binding) emitGet() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (b *binding) emitGetAt(pos int) ***REMOVED***
+	b.markAccessPointAt(pos)
+	if b.isVar && !b.isArg ***REMOVED***
+		b.scope.c.p.code[pos] = loadStash(0)
+	***REMOVED*** else ***REMOVED***
+		b.scope.c.p.code[pos] = loadStashLex(0)
+	***REMOVED***
+***REMOVED***
+
 func (b *binding) emitGetP() ***REMOVED***
 	if b.isVar && !b.isArg ***REMOVED***
 		// no-op
@@ -126,7 +150,9 @@ func (b *binding) emitGetP() ***REMOVED***
 
 func (b *binding) emitSet() ***REMOVED***
 	if b.isConst ***REMOVED***
-		b.scope.c.emit(throwAssignToConst)
+		if b.isStrict || b.scope.c.scope.strict ***REMOVED***
+			b.scope.c.emit(throwAssignToConst)
+		***REMOVED***
 		return
 	***REMOVED***
 	b.markAccessPoint()
@@ -139,7 +165,9 @@ func (b *binding) emitSet() ***REMOVED***
 
 func (b *binding) emitSetP() ***REMOVED***
 	if b.isConst ***REMOVED***
-		b.scope.c.emit(throwAssignToConst)
+		if b.isStrict || b.scope.c.scope.strict ***REMOVED***
+			b.scope.c.emit(throwAssignToConst)
+		***REMOVED***
 		return
 	***REMOVED***
 	b.markAccessPoint()
@@ -171,7 +199,11 @@ func (b *binding) emitResolveVar(strict bool) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		var typ varType
 		if b.isConst ***REMOVED***
-			typ = varTypeConst
+			if b.isStrict ***REMOVED***
+				typ = varTypeStrictConst
+			***REMOVED*** else ***REMOVED***
+				typ = varTypeConst
+			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			typ = varTypeLet
 		***REMOVED***
@@ -216,6 +248,10 @@ type scope struct ***REMOVED***
 
 	// is a function or a top-level lexical environment
 	function bool
+	// is an arrow function's top-level lexical environment (functions only)
+	arrow bool
+	// is a variable environment, i.e. the target for dynamically created var bindings
+	variable bool
 	// a function scope that has at least one direct eval() and non-strict, so the variables can be added dynamically
 	dynamic bool
 	// arguments have been marked for placement in stash (functions only)
@@ -331,6 +367,8 @@ func (p *Program) _dumpCode(indent string, logger func(format string, args ...in
 		logger("%s %d: %T(%v)", indent, pc, ins, ins)
 		if f, ok := ins.(*newFunc); ok ***REMOVED***
 			f.prg._dumpCode(indent+">", logger)
+		***REMOVED*** else if f, ok := ins.(*newArrowFunc); ok ***REMOVED***
+			f.prg._dumpCode(indent+">", logger)
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -361,7 +399,7 @@ func (s *scope) lookupName(name unistring.String) (binding *binding, noDynamics 
 				return
 			***REMOVED***
 		***REMOVED***
-		if name == "arguments" && curScope.function ***REMOVED***
+		if name == "arguments" && curScope.function && !curScope.arrow ***REMOVED***
 			curScope.argsNeeded = true
 			binding, _ = curScope.bindName(name)
 			return
@@ -379,6 +417,17 @@ func (s *scope) ensureBoundNamesCreated() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (s *scope) addBinding(offset int) *binding ***REMOVED***
+	if len(s.bindings) >= (1<<24)-1 ***REMOVED***
+		s.c.throwSyntaxError(offset, "Too many variables")
+	***REMOVED***
+	b := &binding***REMOVED***
+		scope: s,
+	***REMOVED***
+	s.bindings = append(s.bindings, b)
+	return b
+***REMOVED***
+
 func (s *scope) bindNameLexical(name unistring.String, unique bool, offset int) (*binding, bool) ***REMOVED***
 	if b := s.boundNames[name]; b != nil ***REMOVED***
 		if unique ***REMOVED***
@@ -386,21 +435,15 @@ func (s *scope) bindNameLexical(name unistring.String, unique bool, offset int) 
 		***REMOVED***
 		return b, false
 	***REMOVED***
-	if len(s.bindings) >= (1<<24)-1 ***REMOVED***
-		s.c.throwSyntaxError(offset, "Too many variables")
-	***REMOVED***
-	b := &binding***REMOVED***
-		scope: s,
-		name:  name,
-	***REMOVED***
-	s.bindings = append(s.bindings, b)
+	b := s.addBinding(offset)
+	b.name = name
 	s.ensureBoundNamesCreated()
 	s.boundNames[name] = b
 	return b, true
 ***REMOVED***
 
 func (s *scope) bindName(name unistring.String) (*binding, bool) ***REMOVED***
-	if !s.function && s.outer != nil ***REMOVED***
+	if !s.function && !s.variable && s.outer != nil ***REMOVED***
 		return s.outer.bindName(name)
 	***REMOVED***
 	b, created := s.bindNameLexical(name, false, 0)
@@ -594,6 +637,9 @@ func (s *scope) makeNamesMap() map[unistring.String]uint32 ***REMOVED***
 		idx := uint32(i)
 		if b.isConst ***REMOVED***
 			idx |= maskConst
+			if b.isStrict ***REMOVED***
+				idx |= maskStrict
+			***REMOVED***
 		***REMOVED***
 		if b.isVar ***REMOVED***
 			idx |= maskVar
@@ -631,7 +677,7 @@ func (c *compiler) compile(in *ast.Program, strict, eval, inGlobal bool) ***REMO
 	scope.dynamic = true
 	scope.eval = eval
 	if !strict && len(in.Body) > 0 ***REMOVED***
-		strict = c.isStrict(in.Body)
+		strict = c.isStrict(in.Body) != nil
 	***REMOVED***
 	scope.strict = strict
 	ownVarScope := eval && strict
@@ -712,7 +758,7 @@ func (c *compiler) compile(in *ast.Program, strict, eval, inGlobal bool) ***REMO
 
 func (c *compiler) compileDeclList(v []*ast.VariableDeclaration, inFunc bool) ***REMOVED***
 	for _, value := range v ***REMOVED***
-		c.compileVarDecl(value, inFunc)
+		c.createVarBindings(value, inFunc)
 	***REMOVED***
 ***REMOVED***
 
@@ -746,7 +792,7 @@ func (c *compiler) extractFunctions(list []ast.Statement) (funcs []*ast.Function
 func (c *compiler) createFunctionBindings(funcs []*ast.FunctionDeclaration) ***REMOVED***
 	s := c.scope
 	if s.outer != nil ***REMOVED***
-		unique := !s.function && s.strict
+		unique := !s.function && !s.variable && s.strict
 		for _, decl := range funcs ***REMOVED***
 			s.bindNameLexical(decl.Function.Name.Name, unique, int(decl.Function.Name.Idx1())-1)
 		***REMOVED***
@@ -788,14 +834,133 @@ func (c *compiler) compileFunctionsGlobal(list []*ast.FunctionDeclaration) ***RE
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) compileVarDecl(v *ast.VariableDeclaration, inFunc bool) ***REMOVED***
-	for _, item := range v.List ***REMOVED***
-		if c.scope.strict ***REMOVED***
-			c.checkIdentifierLName(item.Name, int(item.Idx)-1)
-			c.checkIdentifierName(item.Name, int(item.Idx)-1)
+func (c *compiler) createVarIdBinding(name unistring.String, offset int, inFunc bool) ***REMOVED***
+	if c.scope.strict ***REMOVED***
+		c.checkIdentifierLName(name, offset)
+		c.checkIdentifierName(name, offset)
+	***REMOVED***
+	if !inFunc || name != "arguments" ***REMOVED***
+		c.scope.bindName(name)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) createBindings(target ast.Expression, createIdBinding func(name unistring.String, offset int)) ***REMOVED***
+	switch target := target.(type) ***REMOVED***
+	case *ast.Identifier:
+		createIdBinding(target.Name, int(target.Idx)-1)
+	case *ast.ObjectPattern:
+		for _, prop := range target.Properties ***REMOVED***
+			switch prop := prop.(type) ***REMOVED***
+			case *ast.PropertyShort:
+				createIdBinding(prop.Name.Name, int(prop.Name.Idx)-1)
+			case *ast.PropertyKeyed:
+				c.createBindings(prop.Value, createIdBinding)
+			default:
+				c.throwSyntaxError(int(target.Idx0()-1), "unsupported property type in ObjectPattern: %T", prop)
+			***REMOVED***
 		***REMOVED***
-		if !inFunc || item.Name != "arguments" ***REMOVED***
-			c.scope.bindName(item.Name)
+		if target.Rest != nil ***REMOVED***
+			c.createBindings(target.Rest, createIdBinding)
+		***REMOVED***
+	case *ast.ArrayPattern:
+		for _, elt := range target.Elements ***REMOVED***
+			if elt != nil ***REMOVED***
+				c.createBindings(elt, createIdBinding)
+			***REMOVED***
+		***REMOVED***
+		if target.Rest != nil ***REMOVED***
+			c.createBindings(target.Rest, createIdBinding)
+		***REMOVED***
+	case *ast.AssignExpression:
+		c.createBindings(target.Left, createIdBinding)
+	default:
+		c.throwSyntaxError(int(target.Idx0()-1), "unsupported binding target: %T", target)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) createVarBinding(target ast.Expression, inFunc bool) ***REMOVED***
+	c.createBindings(target, func(name unistring.String, offset int) ***REMOVED***
+		c.createVarIdBinding(name, offset, inFunc)
+	***REMOVED***)
+***REMOVED***
+
+func (c *compiler) createVarBindings(v *ast.VariableDeclaration, inFunc bool) ***REMOVED***
+	for _, item := range v.List ***REMOVED***
+		c.createVarBinding(item.Target, inFunc)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) createLexicalIdBinding(name unistring.String, isConst bool, offset int) *binding ***REMOVED***
+	if name == "let" ***REMOVED***
+		c.throwSyntaxError(offset, "let is disallowed as a lexically bound name")
+	***REMOVED***
+	if c.scope.strict ***REMOVED***
+		c.checkIdentifierLName(name, offset)
+		c.checkIdentifierName(name, offset)
+	***REMOVED***
+	b, _ := c.scope.bindNameLexical(name, true, offset)
+	if isConst ***REMOVED***
+		b.isConst, b.isStrict = true, true
+	***REMOVED***
+	return b
+***REMOVED***
+
+func (c *compiler) createLexicalIdBindingFuncBody(name unistring.String, isConst bool, offset int, calleeBinding *binding) *binding ***REMOVED***
+	if name == "let" ***REMOVED***
+		c.throwSyntaxError(offset, "let is disallowed as a lexically bound name")
+	***REMOVED***
+	if c.scope.strict ***REMOVED***
+		c.checkIdentifierLName(name, offset)
+		c.checkIdentifierName(name, offset)
+	***REMOVED***
+	paramScope := c.scope.outer
+	parentBinding := paramScope.boundNames[name]
+	if parentBinding != nil ***REMOVED***
+		if parentBinding != calleeBinding && (name != "arguments" || !paramScope.argsNeeded) ***REMOVED***
+			c.throwSyntaxError(offset, "Identifier '%s' has already been declared", name)
+		***REMOVED***
+	***REMOVED***
+	b, _ := c.scope.bindNameLexical(name, true, offset)
+	if isConst ***REMOVED***
+		b.isConst, b.isStrict = true, true
+	***REMOVED***
+	return b
+***REMOVED***
+
+func (c *compiler) createLexicalBinding(target ast.Expression, isConst bool) ***REMOVED***
+	c.createBindings(target, func(name unistring.String, offset int) ***REMOVED***
+		c.createLexicalIdBinding(name, isConst, offset)
+	***REMOVED***)
+***REMOVED***
+
+func (c *compiler) createLexicalBindings(lex *ast.LexicalDeclaration) ***REMOVED***
+	for _, d := range lex.List ***REMOVED***
+		c.createLexicalBinding(d.Target, lex.Token == token.CONST)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compileLexicalDeclarations(list []ast.Statement, scopeDeclared bool) bool ***REMOVED***
+	for _, st := range list ***REMOVED***
+		if lex, ok := st.(*ast.LexicalDeclaration); ok ***REMOVED***
+			if !scopeDeclared ***REMOVED***
+				c.newBlockScope()
+				scopeDeclared = true
+			***REMOVED***
+			c.createLexicalBindings(lex)
+		***REMOVED***
+	***REMOVED***
+	return scopeDeclared
+***REMOVED***
+
+func (c *compiler) compileLexicalDeclarationsFuncBody(list []ast.Statement, calleeBinding *binding) ***REMOVED***
+	for _, st := range list ***REMOVED***
+		if lex, ok := st.(*ast.LexicalDeclaration); ok ***REMOVED***
+			isConst := lex.Token == token.CONST
+			for _, d := range lex.List ***REMOVED***
+				c.createBindings(d.Target, func(name unistring.String, offset int) ***REMOVED***
+					c.createLexicalIdBindingFuncBody(name, isConst, offset, calleeBinding)
+				***REMOVED***)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -836,12 +1001,12 @@ func (c *compiler) throwSyntaxError(offset int, format string, args ...interface
 	***REMOVED***)
 ***REMOVED***
 
-func (c *compiler) isStrict(list []ast.Statement) bool ***REMOVED***
+func (c *compiler) isStrict(list []ast.Statement) *ast.StringLiteral ***REMOVED***
 	for _, st := range list ***REMOVED***
 		if st, ok := st.(*ast.ExpressionStatement); ok ***REMOVED***
 			if e, ok := st.Expression.(*ast.StringLiteral); ok ***REMOVED***
 				if e.Literal == `"use strict"` || e.Literal == `'use strict'` ***REMOVED***
-					return true
+					return e
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				break
@@ -850,14 +1015,14 @@ func (c *compiler) isStrict(list []ast.Statement) bool ***REMOVED***
 			break
 		***REMOVED***
 	***REMOVED***
-	return false
+	return nil
 ***REMOVED***
 
-func (c *compiler) isStrictStatement(s ast.Statement) bool ***REMOVED***
+func (c *compiler) isStrictStatement(s ast.Statement) *ast.StringLiteral ***REMOVED***
 	if s, ok := s.(*ast.BlockStatement); ok ***REMOVED***
 		return c.isStrict(s.List)
 	***REMOVED***
-	return false
+	return nil
 ***REMOVED***
 
 func (c *compiler) checkIdentifierName(name unistring.String, offset int) ***REMOVED***

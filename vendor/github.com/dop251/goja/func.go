@@ -9,15 +9,26 @@ import (
 type baseFuncObject struct ***REMOVED***
 	baseObject
 
-	nameProp, lenProp valueProperty
+	lenProp valueProperty
+***REMOVED***
+
+type baseJsFuncObject struct ***REMOVED***
+	baseFuncObject
+
+	stash  *stash
+	prg    *Program
+	src    string
+	strict bool
 ***REMOVED***
 
 type funcObject struct ***REMOVED***
-	baseFuncObject
+	baseJsFuncObject
+***REMOVED***
 
-	stash *stash
-	prg   *Program
-	src   string
+type arrowFuncObject struct ***REMOVED***
+	baseJsFuncObject
+	this      Value
+	newTarget Value
 ***REMOVED***
 
 type nativeFuncObject struct ***REMOVED***
@@ -129,18 +140,18 @@ func (f *funcObject) Call(call FunctionCall) Value ***REMOVED***
 	return f.call(call, nil)
 ***REMOVED***
 
-func (f *funcObject) call(call FunctionCall, newTarget Value) Value ***REMOVED***
+func (f *arrowFuncObject) Call(call FunctionCall) Value ***REMOVED***
+	return f._call(call, f.newTarget, f.this)
+***REMOVED***
+
+func (f *baseJsFuncObject) _call(call FunctionCall, newTarget, this Value) Value ***REMOVED***
 	vm := f.val.runtime.vm
 	pc := vm.pc
 
 	vm.stack.expand(vm.sp + len(call.Arguments) + 1)
 	vm.stack[vm.sp] = f.val
 	vm.sp++
-	if call.This != nil ***REMOVED***
-		vm.stack[vm.sp] = call.This
-	***REMOVED*** else ***REMOVED***
-		vm.stack[vm.sp] = _undefined
-	***REMOVED***
+	vm.stack[vm.sp] = this
 	vm.sp++
 	for _, arg := range call.Arguments ***REMOVED***
 		if arg != nil ***REMOVED***
@@ -162,6 +173,11 @@ func (f *funcObject) call(call FunctionCall, newTarget Value) Value ***REMOVED**
 	vm.pc = pc
 	vm.halt = false
 	return vm.pop()
+
+***REMOVED***
+
+func (f *funcObject) call(call FunctionCall, newTarget Value) Value ***REMOVED***
+	return f._call(call, newTarget, nilSafe(call.This))
 ***REMOVED***
 
 func (f *funcObject) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
@@ -180,14 +196,18 @@ func (f *funcObject) assertConstructor() func(args []Value, newTarget *Object) *
 	return f.construct
 ***REMOVED***
 
+func (f *arrowFuncObject) exportType() reflect.Type ***REMOVED***
+	return reflect.TypeOf(f.Call)
+***REMOVED***
+
+func (f *arrowFuncObject) assertCallable() (func(FunctionCall) Value, bool) ***REMOVED***
+	return f.Call, true
+***REMOVED***
+
 func (f *baseFuncObject) init(name unistring.String, length int) ***REMOVED***
 	f.baseObject.init()
 
-	if name != "" ***REMOVED***
-		f.nameProp.configurable = true
-		f.nameProp.value = stringValueFromRaw(name)
-		f._put("name", &f.nameProp)
-	***REMOVED***
+	f._putProp("name", stringValueFromRaw(name), false, false, true)
 
 	f.lenProp.configurable = true
 	f.lenProp.value = valueInt(length)

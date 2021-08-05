@@ -102,12 +102,6 @@ func (c *compiler) updateEnterBlock(enter *enterBlock) ***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compileTryStatement(v *ast.TryStatement, needResult bool) ***REMOVED***
-	if c.scope.strict && v.Catch != nil && v.Catch.Parameter != nil ***REMOVED***
-		switch v.Catch.Parameter.Name ***REMOVED***
-		case "arguments", "eval":
-			c.throwSyntaxError(int(v.Catch.Parameter.Idx)-1, "Catch variable may not be eval or arguments in strict mode")
-		***REMOVED***
-	***REMOVED***
 	c.block = &block***REMOVED***
 		typ:   blockTry,
 		outer: c.block,
@@ -146,16 +140,31 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement, needResult bool) ***
 			c.newBlockScope()
 			list := v.Catch.Body.List
 			funcs := c.extractFunctions(list)
-			c.createFunctionBindings(funcs)
-			c.scope.bindNameLexical(v.Catch.Parameter.Name, true, int(v.Catch.Parameter.Idx)-1)
-			bindings := c.scope.bindings
-			if l := len(bindings); l > 1 ***REMOVED***
-				// make sure the catch variable always goes first
-				bindings[0], bindings[l-1] = bindings[l-1], bindings[0]
+			if _, ok := v.Catch.Parameter.(ast.Pattern); ok ***REMOVED***
+				// add anonymous binding for the catch parameter, note it must be first
+				c.scope.addBinding(int(v.Catch.Idx0()) - 1)
 			***REMOVED***
-			c.compileLexicalDeclarations(list, true)
+			c.createBindings(v.Catch.Parameter, func(name unistring.String, offset int) ***REMOVED***
+				if c.scope.strict ***REMOVED***
+					switch name ***REMOVED***
+					case "arguments", "eval":
+						c.throwSyntaxError(offset, "Catch variable may not be eval or arguments in strict mode")
+					***REMOVED***
+				***REMOVED***
+				c.scope.bindNameLexical(name, true, offset)
+			***REMOVED***)
 			enter := &enterBlock***REMOVED******REMOVED***
 			c.emit(enter)
+			if pattern, ok := v.Catch.Parameter.(ast.Pattern); ok ***REMOVED***
+				c.scope.bindings[0].emitGet()
+				c.emitPattern(pattern, func(target, init compiledExpr) ***REMOVED***
+					c.emitPatternLexicalAssign(target, init, false)
+				***REMOVED***, false)
+			***REMOVED***
+			for _, decl := range funcs ***REMOVED***
+				c.scope.bindNameLexical(decl.Function.Name.Name, true, int(decl.Function.Name.Idx1())-1)
+			***REMOVED***
+			c.compileLexicalDeclarations(list, true)
 			c.compileFunctions(funcs)
 			c.compileStatements(list, bodyNeedResult)
 			c.leaveScopeBlock(enter)
@@ -252,7 +261,7 @@ func (c *compiler) compileLabeledForStatement(v *ast.ForStatement, needResult bo
 		enterIterBlock = c.compileForHeadLexDecl(&init.LexicalDeclaration, needResult)
 	case *ast.ForLoopInitializerVarDeclList:
 		for _, expr := range init.List ***REMOVED***
-			c.compileVariableExpression(expr).emitGetter(false)
+			c.compileVarBinding(expr)
 		***REMOVED***
 	case *ast.ForLoopInitializerExpression:
 		c.compileExpression(init.Expression).emitGetter(false)
@@ -347,10 +356,15 @@ func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *ent
 		if c.scope.strict && into.Binding.Initializer != nil ***REMOVED***
 			c.throwSyntaxError(int(into.Binding.Initializer.Idx0())-1, "for-in loop variable declaration may not have an initializer.")
 		***REMOVED***
-		c.compileIdentifierExpression(&ast.Identifier***REMOVED***
-			Name: into.Binding.Name,
-			Idx:  into.Binding.Idx0(),
-		***REMOVED***).emitSetter(&c.enumGetExpr, false)
+		switch target := into.Binding.Target.(type) ***REMOVED***
+		case *ast.Identifier:
+			c.compileIdentifierExpression(target).emitSetter(&c.enumGetExpr, false)
+		case ast.Pattern:
+			c.emit(enumGet)
+			c.emitPattern(target, c.emitPatternVarAssign, false)
+		default:
+			c.throwSyntaxError(int(target.Idx0()-1), "unsupported for-in var target: %T", target)
+		***REMOVED***
 	case *ast.ForDeclaration:
 
 		c.block = &block***REMOVED***
@@ -362,12 +376,19 @@ func (c *compiler) compileForInto(into ast.ForInto, needResult bool) (enter *ent
 		c.newBlockScope()
 		enter = &enterBlock***REMOVED******REMOVED***
 		c.emit(enter)
-		if binding, ok := into.Binding.(*ast.BindingIdentifier); ok ***REMOVED***
-			b := c.createLexicalBinding(binding.Name, into.IsConst, int(into.Idx)-1)
-			c.enumGetExpr.emitGetter(true)
+		switch target := into.Target.(type) ***REMOVED***
+		case *ast.Identifier:
+			b := c.createLexicalIdBinding(target.Name, into.IsConst, int(into.Idx)-1)
+			c.emit(enumGet)
 			b.emitInit()
-		***REMOVED*** else ***REMOVED***
-			c.throwSyntaxError(int(into.Idx)-1, "Unsupported ForBinding: %T", into.Binding)
+		case ast.Pattern:
+			c.createLexicalBinding(target, into.IsConst)
+			c.emit(enumGet)
+			c.emitPattern(target, func(target, init compiledExpr) ***REMOVED***
+				c.emitPatternLexicalAssign(target, init, into.IsConst)
+			***REMOVED***, false)
+		default:
+			c.throwSyntaxError(int(into.Idx)-1, "Unsupported ForBinding: %T", into.Target)
 		***REMOVED***
 	default:
 		panic(fmt.Sprintf("Unsupported for-into: %T", into))
@@ -385,24 +406,20 @@ func (c *compiler) compileLabeledForInOfStatement(into ast.ForInto, source ast.E
 	***REMOVED***
 	enterPos := -1
 	if forDecl, ok := into.(*ast.ForDeclaration); ok ***REMOVED***
-		if binding, ok := forDecl.Binding.(*ast.BindingIdentifier); ok ***REMOVED***
-			c.block = &block***REMOVED***
-				typ:        blockScope,
-				outer:      c.block,
-				needResult: false,
-			***REMOVED***
-			c.newBlockScope()
-			enterPos = len(c.p.code)
-			c.emit(jump(1))
-			c.createLexicalBinding(binding.Name, forDecl.IsConst, int(forDecl.Idx)-1)
-		***REMOVED*** else ***REMOVED***
-			c.throwSyntaxError(int(forDecl.Idx)-1, "Unsupported ForBinding: %T", forDecl.Binding)
+		c.block = &block***REMOVED***
+			typ:        blockScope,
+			outer:      c.block,
+			needResult: false,
 		***REMOVED***
+		c.newBlockScope()
+		enterPos = len(c.p.code)
+		c.emit(jump(1))
+		c.createLexicalBinding(forDecl.Target, forDecl.IsConst)
 	***REMOVED***
 	c.compileExpression(source).emitGetter(true)
 	if enterPos != -1 ***REMOVED***
 		s := c.scope
-		used := len(c.block.breaks) > 0
+		used := len(c.block.breaks) > 0 || s.isDynamic()
 		if !used ***REMOVED***
 			for _, b := range s.bindings ***REMOVED***
 				if b.useCount() > 0 ***REMOVED***
@@ -412,6 +429,11 @@ func (c *compiler) compileLabeledForInOfStatement(into ast.ForInto, source ast.E
 			***REMOVED***
 		***REMOVED***
 		if used ***REMOVED***
+			// We need the stack untouched because it contains the source.
+			// This is not the most optimal way, but it's an edge case, hopefully quite rare.
+			for _, b := range s.bindings ***REMOVED***
+				b.moveToStash()
+			***REMOVED***
 			enter := &enterBlock***REMOVED******REMOVED***
 			c.p.code[enterPos] = enter
 			c.leaveScopeBlock(enter)
@@ -421,7 +443,7 @@ func (c *compiler) compileLabeledForInOfStatement(into ast.ForInto, source ast.E
 		c.popScope()
 	***REMOVED***
 	if iter ***REMOVED***
-		c.emit(iterate)
+		c.emit(iterateP)
 	***REMOVED*** else ***REMOVED***
 		c.emit(enumerate)
 	***REMOVED***
@@ -711,43 +733,102 @@ func (c *compiler) compileReturnStatement(v *ast.ReturnStatement) ***REMOVED***
 	c.emit(ret)
 ***REMOVED***
 
+func (c *compiler) checkVarConflict(name unistring.String, offset int) ***REMOVED***
+	for sc := c.scope; sc != nil; sc = sc.outer ***REMOVED***
+		if b, exists := sc.boundNames[name]; exists && !b.isVar && !(b.isArg && sc != c.scope) ***REMOVED***
+			c.throwSyntaxError(offset, "Identifier '%s' has already been declared", name)
+		***REMOVED***
+		if sc.function ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) emitVarAssign(name unistring.String, offset int, init compiledExpr) ***REMOVED***
+	c.checkVarConflict(name, offset)
+	if init != nil ***REMOVED***
+		c.emitVarRef(name, offset)
+		c.emitNamed(init, name)
+		c.emit(putValueP)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) compileVarBinding(expr *ast.Binding) ***REMOVED***
+	switch target := expr.Target.(type) ***REMOVED***
+	case *ast.Identifier:
+		c.emitVarAssign(target.Name, int(target.Idx)-1, c.compileExpression(expr.Initializer))
+	case ast.Pattern:
+		c.compileExpression(expr.Initializer).emitGetter(true)
+		c.emitPattern(target, c.emitPatternVarAssign, false)
+	default:
+		c.throwSyntaxError(int(target.Idx0()-1), "unsupported variable binding target: %T", target)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init compiledExpr, isConst bool) ***REMOVED***
+	b := c.scope.boundNames[name]
+	if b == nil ***REMOVED***
+		panic("Lexical declaration for an unbound name")
+	***REMOVED***
+	if init != nil ***REMOVED***
+		c.emitNamed(init, name)
+	***REMOVED*** else ***REMOVED***
+		if isConst ***REMOVED***
+			c.throwSyntaxError(offset, "Missing initializer in const declaration")
+		***REMOVED***
+		c.emit(loadUndef)
+	***REMOVED***
+	if c.scope.outer != nil ***REMOVED***
+		b.emitInit()
+	***REMOVED*** else ***REMOVED***
+		c.emit(initGlobal(name))
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) emitPatternVarAssign(target, init compiledExpr) ***REMOVED***
+	id := target.(*compiledIdentifierExpr)
+	c.emitVarAssign(id.name, id.offset, init)
+***REMOVED***
+
+func (c *compiler) emitPatternLexicalAssign(target, init compiledExpr, isConst bool) ***REMOVED***
+	id := target.(*compiledIdentifierExpr)
+	c.emitLexicalAssign(id.name, id.offset, init, isConst)
+***REMOVED***
+
+func (c *compiler) emitPatternAssign(target, init compiledExpr) ***REMOVED***
+	target.emitRef()
+	if id, ok := target.(*compiledIdentifierExpr); ok ***REMOVED***
+		c.emitNamed(init, id.name)
+	***REMOVED*** else ***REMOVED***
+		init.emitGetter(true)
+	***REMOVED***
+	c.emit(putValueP)
+***REMOVED***
+
+func (c *compiler) compileLexicalBinding(expr *ast.Binding, isConst bool) ***REMOVED***
+	switch target := expr.Target.(type) ***REMOVED***
+	case *ast.Identifier:
+		c.emitLexicalAssign(target.Name, int(target.Idx)-1, c.compileExpression(expr.Initializer), isConst)
+	case ast.Pattern:
+		c.compileExpression(expr.Initializer).emitGetter(true)
+		c.emitPattern(target, func(target, init compiledExpr) ***REMOVED***
+			c.emitPatternLexicalAssign(target, init, isConst)
+		***REMOVED***, false)
+	default:
+		c.throwSyntaxError(int(target.Idx0()-1), "unsupported lexical binding target: %T", target)
+	***REMOVED***
+***REMOVED***
+
 func (c *compiler) compileVariableStatement(v *ast.VariableStatement) ***REMOVED***
 	for _, expr := range v.List ***REMOVED***
-		for sc := c.scope; sc != nil; sc = sc.outer ***REMOVED***
-			if b, exists := sc.boundNames[expr.Name]; exists && !b.isVar ***REMOVED***
-				c.throwSyntaxError(int(expr.Idx)-1, "Identifier '%s' has already been declared", expr.Name)
-			***REMOVED***
-			if sc.function ***REMOVED***
-				break
-			***REMOVED***
-		***REMOVED***
-		c.compileExpression(expr).emitGetter(false)
+		c.compileVarBinding(expr)
 	***REMOVED***
 ***REMOVED***
 
 func (c *compiler) compileLexicalDeclaration(v *ast.LexicalDeclaration) ***REMOVED***
+	isConst := v.Token == token.CONST
 	for _, e := range v.List ***REMOVED***
-		b := c.scope.boundNames[e.Name]
-		if b == nil ***REMOVED***
-			panic("Lexical declaration for an unbound name")
-		***REMOVED***
-		if e.Initializer != nil ***REMOVED***
-			initializer := c.compileExpression(e.Initializer)
-			if fn, ok := initializer.(*compiledFunctionLiteral); ok ***REMOVED***
-				fn.lhsName = e.Name
-			***REMOVED***
-			initializer.emitGetter(true)
-		***REMOVED*** else ***REMOVED***
-			if v.Token == token.CONST ***REMOVED***
-				c.throwSyntaxError(int(e.Idx1())-1, "Missing initializer in const declaration")
-			***REMOVED***
-			c.emit(loadUndef)
-		***REMOVED***
-		if c.scope.outer != nil ***REMOVED***
-			b.emitInit()
-		***REMOVED*** else ***REMOVED***
-			c.emit(initGlobal(e.Name))
-		***REMOVED***
+		c.compileLexicalBinding(e, isConst)
 	***REMOVED***
 ***REMOVED***
 
@@ -843,34 +924,6 @@ func (c *compiler) compileGenericLabeledStatement(v ast.Statement, needResult bo
 	***REMOVED***
 	c.compileStatement(v, needResult)
 	c.leaveBlock()
-***REMOVED***
-
-func (c *compiler) createLexicalBinding(name unistring.String, isConst bool, offset int) *binding ***REMOVED***
-	if name == "let" ***REMOVED***
-		c.throwSyntaxError(offset, "let is disallowed as a lexically bound name")
-	***REMOVED***
-	b, _ := c.scope.bindNameLexical(name, true, offset)
-	b.isConst = isConst
-	return b
-***REMOVED***
-
-func (c *compiler) createLexicalBindings(lex *ast.LexicalDeclaration) ***REMOVED***
-	for _, d := range lex.List ***REMOVED***
-		c.createLexicalBinding(d.Name, lex.Token == token.CONST, int(d.Idx)-1)
-	***REMOVED***
-***REMOVED***
-
-func (c *compiler) compileLexicalDeclarations(list []ast.Statement, scopeDeclared bool) bool ***REMOVED***
-	for _, st := range list ***REMOVED***
-		if lex, ok := st.(*ast.LexicalDeclaration); ok ***REMOVED***
-			if !scopeDeclared ***REMOVED***
-				c.newBlockScope()
-				scopeDeclared = true
-			***REMOVED***
-			c.createLexicalBindings(lex)
-		***REMOVED***
-	***REMOVED***
-	return scopeDeclared
 ***REMOVED***
 
 func (c *compiler) compileBlockStatement(v *ast.BlockStatement, needResult bool) ***REMOVED***
@@ -978,8 +1031,9 @@ func (c *compiler) compileSwitchStatement(v *ast.SwitchStatement, needResult boo
 		***REMOVED***
 		copy(bb[1:], bindings)
 		db = &binding***REMOVED***
-			scope:   c.scope,
-			isConst: true,
+			scope:    c.scope,
+			isConst:  true,
+			isStrict: true,
 		***REMOVED***
 		bb[0] = db
 		c.scope.bindings = bb

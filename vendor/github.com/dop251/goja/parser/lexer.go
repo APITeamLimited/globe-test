@@ -184,6 +184,33 @@ func isId(tkn token.Token) bool ***REMOVED***
 	return false
 ***REMOVED***
 
+type parserState struct ***REMOVED***
+	tok                                token.Token
+	literal                            string
+	parsedLiteral                      unistring.String
+	implicitSemicolon, insertSemicolon bool
+	chr                                rune
+	chrOffset, offset                  int
+	errorCount                         int
+***REMOVED***
+
+func (self *_parser) mark(state *parserState) *parserState ***REMOVED***
+	if state == nil ***REMOVED***
+		state = &parserState***REMOVED******REMOVED***
+	***REMOVED***
+	state.tok, state.literal, state.parsedLiteral, state.implicitSemicolon, state.insertSemicolon, state.chr, state.chrOffset, state.offset =
+		self.token, self.literal, self.parsedLiteral, self.implicitSemicolon, self.insertSemicolon, self.chr, self.chrOffset, self.offset
+
+	state.errorCount = len(self.errors)
+	return state
+***REMOVED***
+
+func (self *_parser) restore(state *parserState) ***REMOVED***
+	self.token, self.literal, self.parsedLiteral, self.implicitSemicolon, self.insertSemicolon, self.chr, self.chrOffset, self.offset =
+		state.tok, state.literal, state.parsedLiteral, state.implicitSemicolon, state.insertSemicolon, state.chr, state.chrOffset, state.offset
+	self.errors = self.errors[:state.errorCount]
+***REMOVED***
+
 func (self *_parser) peek() token.Token ***REMOVED***
 	implicitSemicolon, insertSemicolon, chr, chrOffset, offset := self.implicitSemicolon, self.insertSemicolon, self.chr, self.chrOffset, self.offset
 	tok, _, _, _ := self.scan()
@@ -297,7 +324,17 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 					insertSemicolon = true
 					tkn, literal = self.scanNumericLiteral(true)
 				***REMOVED*** else ***REMOVED***
-					tkn = token.PERIOD
+					if self.chr == '.' ***REMOVED***
+						self.read()
+						if self.chr == '.' ***REMOVED***
+							self.read()
+							tkn = token.ELLIPSIS
+						***REMOVED*** else ***REMOVED***
+							tkn = token.ILLEGAL
+						***REMOVED***
+					***REMOVED*** else ***REMOVED***
+						tkn = token.PERIOD
+					***REMOVED***
 				***REMOVED***
 			case ',':
 				tkn = token.COMMA
@@ -351,10 +388,19 @@ func (self *_parser) scan() (tkn token.Token, literal string, parsedLiteral unis
 			case '>':
 				tkn = self.switch6(token.GREATER, token.GREATER_OR_EQUAL, '>', token.SHIFT_RIGHT, token.SHIFT_RIGHT_ASSIGN, '>', token.UNSIGNED_SHIFT_RIGHT, token.UNSIGNED_SHIFT_RIGHT_ASSIGN)
 			case '=':
-				tkn = self.switch2(token.ASSIGN, token.EQUAL)
-				if tkn == token.EQUAL && self.chr == '=' ***REMOVED***
+				if self.chr == '>' ***REMOVED***
 					self.read()
-					tkn = token.STRICT_EQUAL
+					if self.implicitSemicolon ***REMOVED***
+						tkn = token.ILLEGAL
+					***REMOVED*** else ***REMOVED***
+						tkn = token.ARROW
+					***REMOVED***
+				***REMOVED*** else ***REMOVED***
+					tkn = self.switch2(token.ASSIGN, token.EQUAL)
+					if tkn == token.EQUAL && self.chr == '=' ***REMOVED***
+						self.read()
+						tkn = token.STRICT_EQUAL
+					***REMOVED***
 				***REMOVED***
 			case '!':
 				tkn = self.switch2(token.NOT, token.NOT_EQUAL)

@@ -352,9 +352,11 @@ func (r *Runtime) init() ***REMOVED***
 	***REMOVED***
 	r.vm.init()
 
-	r.global.FunctionPrototype = r.newNativeFunc(func(FunctionCall) Value ***REMOVED***
+	funcProto := r.newNativeFunc(func(FunctionCall) Value ***REMOVED***
 		return _undefined
 	***REMOVED***, nil, " ", nil, 0)
+	r.global.FunctionPrototype = funcProto
+	funcProtoObj := funcProto.self.(*nativeFuncObject)
 
 	r.global.IteratorPrototype = r.newLazyObject(r.createIterProto)
 
@@ -391,6 +393,9 @@ func (r *Runtime) init() ***REMOVED***
 		setterFunc: r.global.thrower,
 		accessor:   true,
 	***REMOVED***
+
+	funcProtoObj._put("caller", r.global.throwerProperty)
+	funcProtoObj._put("arguments", r.global.throwerProperty)
 ***REMOVED***
 
 func (r *Runtime) typeErrorResult(throw bool, args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -487,13 +492,35 @@ func (r *Runtime) newFunc(name unistring.String, len int, strict bool) (f *funcO
 	f.class = classFunction
 	f.val = v
 	f.extensible = true
+	f.strict = strict
 	v.self = f
 	f.prototype = r.global.FunctionPrototype
 	f.init(name, len)
-	if strict ***REMOVED***
-		f._put("caller", r.global.throwerProperty)
-		f._put("arguments", r.global.throwerProperty)
+	return
+***REMOVED***
+
+func (r *Runtime) newArrowFunc(name unistring.String, len int, strict bool) (f *arrowFuncObject) ***REMOVED***
+	v := &Object***REMOVED***runtime: r***REMOVED***
+
+	f = &arrowFuncObject***REMOVED******REMOVED***
+	f.class = classFunction
+	f.val = v
+	f.extensible = true
+	f.strict = strict
+
+	vm := r.vm
+	var this Value
+	if vm.sb >= 0 ***REMOVED***
+		this = vm.stack[vm.sb]
+	***REMOVED*** else ***REMOVED***
+		this = vm.r.globalObject
 	***REMOVED***
+
+	f.this = this
+	f.newTarget = vm.newTarget
+	v.self = f
+	f.prototype = r.global.FunctionPrototype
+	f.init(name, len)
 	return
 ***REMOVED***
 
@@ -764,15 +791,30 @@ func (r *Runtime) throw(e Value) ***REMOVED***
 	panic(e)
 ***REMOVED***
 
-func (r *Runtime) builtin_thrower(FunctionCall) Value ***REMOVED***
-	r.typeErrorResult(true, "'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them")
+func (r *Runtime) builtin_thrower(call FunctionCall) Value ***REMOVED***
+	obj := r.toObject(call.This)
+	strict := true
+	switch fn := obj.self.(type) ***REMOVED***
+	case *funcObject:
+		strict = fn.strict
+	***REMOVED***
+	r.typeErrorResult(strict, "'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them")
 	return nil
 ***REMOVED***
 
 func (r *Runtime) eval(srcVal valueString, direct, strict bool, this Value) Value ***REMOVED***
 	src := escapeInvalidUtf16(srcVal)
 	vm := r.vm
-	p, err := r.compile("<eval>", src, strict, true, !direct || vm.stash == &r.global.stash)
+	inGlobal := true
+	if direct ***REMOVED***
+		for s := vm.stash; s != nil; s = s.outer ***REMOVED***
+			if s.variable ***REMOVED***
+				inGlobal = false
+				break
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	p, err := r.compile("<eval>", src, strict, true, inGlobal)
 	if err != nil ***REMOVED***
 		panic(err)
 	***REMOVED***
@@ -1055,6 +1097,18 @@ func toIntStrict(i int64) int ***REMOVED***
 	if bits.UintSize == 32 ***REMOVED***
 		if i > math.MaxInt32 || i < math.MinInt32 ***REMOVED***
 			panic(rangeError("Integer value overflows 32-bit int"))
+		***REMOVED***
+	***REMOVED***
+	return int(i)
+***REMOVED***
+
+func toIntClamp(i int64) int ***REMOVED***
+	if bits.UintSize == 32 ***REMOVED***
+		if i > math.MaxInt32 ***REMOVED***
+			return math.MaxInt32
+		***REMOVED***
+		if i < math.MinInt32 ***REMOVED***
+			return math.MinInt32
 		***REMOVED***
 	***REMOVED***
 	return int(i)
@@ -2444,9 +2498,214 @@ func (r *Runtime) setGlobal(name unistring.String, v Value, strict bool) ***REMO
 	***REMOVED***
 ***REMOVED***
 
-func strPropToInt(s unistring.String) (int, bool) ***REMOVED***
-	if res, err := strconv.Atoi(string(s)); err == nil ***REMOVED***
-		return res, true
+func strToArrayIdx(s unistring.String) uint32 ***REMOVED***
+	if s == "" ***REMOVED***
+		return math.MaxUint32
 	***REMOVED***
-	return 0, false
+	l := len(s)
+	if s[0] == '0' ***REMOVED***
+		if l == 1 ***REMOVED***
+			return 0
+		***REMOVED***
+		return math.MaxUint32
+	***REMOVED***
+	var n uint32
+	if l < 10 ***REMOVED***
+		// guaranteed not to overflow
+		for i := 0; i < len(s); i++ ***REMOVED***
+			c := s[i]
+			if c < '0' || c > '9' ***REMOVED***
+				return math.MaxUint32
+			***REMOVED***
+			n = n*10 + uint32(c-'0')
+		***REMOVED***
+		return n
+	***REMOVED***
+	if l > 10 ***REMOVED***
+		// guaranteed to overflow
+		return math.MaxUint32
+	***REMOVED***
+	c9 := s[9]
+	if c9 < '0' || c9 > '9' ***REMOVED***
+		return math.MaxUint32
+	***REMOVED***
+	for i := 0; i < 9; i++ ***REMOVED***
+		c := s[i]
+		if c < '0' || c > '9' ***REMOVED***
+			return math.MaxUint32
+		***REMOVED***
+		n = n*10 + uint32(c-'0')
+	***REMOVED***
+	if n >= math.MaxUint32/10+1 ***REMOVED***
+		return math.MaxUint32
+	***REMOVED***
+	n *= 10
+	n1 := n + uint32(c9-'0')
+	if n1 < n ***REMOVED***
+		return math.MaxUint32
+	***REMOVED***
+
+	return n1
+***REMOVED***
+
+func strToInt32(s unistring.String) (int32, bool) ***REMOVED***
+	if s == "" ***REMOVED***
+		return -1, false
+	***REMOVED***
+	neg := s[0] == '-'
+	if neg ***REMOVED***
+		s = s[1:]
+	***REMOVED***
+	l := len(s)
+	if s[0] == '0' ***REMOVED***
+		if l == 1 ***REMOVED***
+			return 0, !neg
+		***REMOVED***
+		return -1, false
+	***REMOVED***
+	var n uint32
+	if l < 10 ***REMOVED***
+		// guaranteed not to overflow
+		for i := 0; i < len(s); i++ ***REMOVED***
+			c := s[i]
+			if c < '0' || c > '9' ***REMOVED***
+				return -1, false
+			***REMOVED***
+			n = n*10 + uint32(c-'0')
+		***REMOVED***
+	***REMOVED*** else if l > 10 ***REMOVED***
+		// guaranteed to overflow
+		return -1, false
+	***REMOVED*** else ***REMOVED***
+		c9 := s[9]
+		if c9 >= '0' ***REMOVED***
+			if !neg && c9 > '7' || c9 > '8' ***REMOVED***
+				// guaranteed to overflow
+				return -1, false
+			***REMOVED***
+			for i := 0; i < 9; i++ ***REMOVED***
+				c := s[i]
+				if c < '0' || c > '9' ***REMOVED***
+					return -1, false
+				***REMOVED***
+				n = n*10 + uint32(c-'0')
+			***REMOVED***
+			if n >= math.MaxInt32/10+1 ***REMOVED***
+				// valid number, but it overflows integer
+				return 0, false
+			***REMOVED***
+			n = n*10 + uint32(c9-'0')
+		***REMOVED*** else ***REMOVED***
+			return -1, false
+		***REMOVED***
+	***REMOVED***
+	if neg ***REMOVED***
+		return int32(-n), true
+	***REMOVED***
+	return int32(n), true
+***REMOVED***
+
+func strToInt64(s unistring.String) (int64, bool) ***REMOVED***
+	if s == "" ***REMOVED***
+		return -1, false
+	***REMOVED***
+	neg := s[0] == '-'
+	if neg ***REMOVED***
+		s = s[1:]
+	***REMOVED***
+	l := len(s)
+	if s[0] == '0' ***REMOVED***
+		if l == 1 ***REMOVED***
+			return 0, !neg
+		***REMOVED***
+		return -1, false
+	***REMOVED***
+	var n uint64
+	if l < 19 ***REMOVED***
+		// guaranteed not to overflow
+		for i := 0; i < len(s); i++ ***REMOVED***
+			c := s[i]
+			if c < '0' || c > '9' ***REMOVED***
+				return -1, false
+			***REMOVED***
+			n = n*10 + uint64(c-'0')
+		***REMOVED***
+	***REMOVED*** else if l > 19 ***REMOVED***
+		// guaranteed to overflow
+		return -1, false
+	***REMOVED*** else ***REMOVED***
+		c18 := s[18]
+		if c18 >= '0' ***REMOVED***
+			if !neg && c18 > '7' || c18 > '8' ***REMOVED***
+				// guaranteed to overflow
+				return -1, false
+			***REMOVED***
+			for i := 0; i < 18; i++ ***REMOVED***
+				c := s[i]
+				if c < '0' || c > '9' ***REMOVED***
+					return -1, false
+				***REMOVED***
+				n = n*10 + uint64(c-'0')
+			***REMOVED***
+			if n >= math.MaxInt64/10+1 ***REMOVED***
+				// valid number, but it overflows integer
+				return 0, false
+			***REMOVED***
+			n = n*10 + uint64(c18-'0')
+		***REMOVED*** else ***REMOVED***
+			return -1, false
+		***REMOVED***
+	***REMOVED***
+	if neg ***REMOVED***
+		return int64(-n), true
+	***REMOVED***
+	return int64(n), true
+***REMOVED***
+
+func strToInt(s unistring.String) (int, bool) ***REMOVED***
+	if bits.UintSize == 32 ***REMOVED***
+		n, ok := strToInt32(s)
+		return int(n), ok
+	***REMOVED***
+	n, ok := strToInt64(s)
+	return int(n), ok
+***REMOVED***
+
+// Attempts to convert a string into a canonical integer.
+// On success returns (number, true).
+// If it was a canonical number, but not an integer returns (0, false). This includes -0 and overflows.
+// In all other cases returns (-1, false).
+// See https://262.ecma-international.org/#sec-canonicalnumericindexstring
+func strToIntNum(s unistring.String) (int, bool) ***REMOVED***
+	n, ok := strToInt64(s)
+	if n == 0 ***REMOVED***
+		return 0, ok
+	***REMOVED***
+	if ok && n >= -maxInt && n <= maxInt ***REMOVED***
+		if bits.UintSize == 32 ***REMOVED***
+			if n > math.MaxInt32 || n < math.MinInt32 ***REMOVED***
+				return 0, false
+			***REMOVED***
+		***REMOVED***
+		return int(n), true
+	***REMOVED***
+	str := stringValueFromRaw(s)
+	if str.ToNumber().toString().SameAs(str) ***REMOVED***
+		return 0, false
+	***REMOVED***
+	return -1, false
+***REMOVED***
+
+func strToGoIdx(s unistring.String) int ***REMOVED***
+	if n, ok := strToInt(s); ok ***REMOVED***
+		return n
+	***REMOVED***
+	return -1
+***REMOVED***
+
+func strToIdx64(s unistring.String) int64 ***REMOVED***
+	if n, ok := strToInt64(s); ok ***REMOVED***
+		return n
+	***REMOVED***
+	return -1
 ***REMOVED***
