@@ -43,21 +43,21 @@ var (
 			// es2015 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2015/src/index.js
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-template-literals", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false, "spec": false***REMOVED******REMOVED***,
 			"transform-es2015-literals",
-			"transform-es2015-function-name",
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***,
+			// "transform-es2015-function-name", // in goja
+			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***, // in goja
 			// "transform-es2015-block-scoped-functions", // in goja
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-classes", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
 			"transform-es2015-object-super",
 			// "transform-es2015-shorthand-properties", // in goja
-			"transform-es2015-duplicate-keys",
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			// "transform-es2015-duplicate-keys", // in goja
+			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-computed-properties", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
 			// "transform-es2015-for-of", // in goja
 			// "transform-es2015-sticky-regex", // in goja
 			// "transform-es2015-unicode-regex", // in goja
 			// "check-es2015-constants", // in goja
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-spread", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
-			"transform-es2015-parameters",
-			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-destructuring", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***,
+			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-spread", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
+			// "transform-es2015-parameters", // in goja
+			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-destructuring", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false***REMOVED******REMOVED***, // in goja
 			// "transform-es2015-block-scoping", // in goja
 			// "transform-es2015-typeof-symbol", // in goja
 			// all the other module plugins are just dropped
