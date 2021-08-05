@@ -29,6 +29,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -56,6 +57,7 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/stats"
+	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 )
 
 //nolint: lll
@@ -66,8 +68,9 @@ var (
 
 // Client represents a gRPC client that can be used to make RPC requests
 type Client struct ***REMOVED***
-	mds  map[string]protoreflect.MethodDescriptor
-	conn *grpc.ClientConn
+	mds         map[string]protoreflect.MethodDescriptor
+	conn        *grpc.ClientConn
+	reflectOnce sync.Once
 ***REMOVED***
 
 // XClient represents the Client constructor (e.g. `new grpc.Client()`) and
@@ -149,7 +152,10 @@ func (c *Client) Load(ctxPtr *context.Context, importPaths []string, filenames .
 	for _, fd := range fds ***REMOVED***
 		fdset.File = append(fdset.File, walkFileDescriptors(seen, fd)...)
 	***REMOVED***
+	return c.convertToMethodInfo(fdset)
+***REMOVED***
 
+func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) ***REMOVED***
 	files, err := protodesc.NewFiles(fdset)
 	if err != nil ***REMOVED***
 		return nil, err
@@ -211,8 +217,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 	if state == nil ***REMOVED***
 		return false, errConnectInInitContext
 	***REMOVED***
-
-	isPlaintext, timeout := false, 60*time.Second
+	isPlaintext, reflect, timeout := false, false, 60*time.Second
 
 	for k, v := range params ***REMOVED***
 		switch k ***REMOVED***
@@ -224,6 +229,13 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			if err != nil ***REMOVED***
 				return false, fmt.Errorf("invalid timeout value: %w", err)
 			***REMOVED***
+		case "reflect":
+			var ok bool
+			reflect, ok = v.(bool)
+			if !ok ***REMOVED***
+				return false, fmt.Errorf(`invalid value for 'reflect': '%#v', it needs to be boolean`, v)
+			***REMOVED***
+
 		default:
 			return false, fmt.Errorf("unknown connect param: %q", k)
 		***REMOVED***
@@ -282,12 +294,66 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 		***REMOVED***
 		close(errc)
 	***REMOVED***()
-
 	if err := <-errc; err != nil ***REMOVED***
 		return false, err
 	***REMOVED***
-
+	if reflect ***REMOVED***
+		var err error
+		c.reflectOnce.Do(func() ***REMOVED***
+			err = c.reflect(ctxPtr)
+		***REMOVED***)
+		if err != nil ***REMOVED***
+			return false, fmt.Errorf("error invoking reflect API: %w", err)
+		***REMOVED***
+	***REMOVED***
 	return true, nil
+***REMOVED***
+
+// reflect will use the grpc reflection api to make the file descriptors available to request.
+// It is called in the connect function the first time the Client.Connect function is called.
+func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
+	client := reflectpb.NewServerReflectionClient(c.conn)
+	methodClient, err := client.ServerReflectionInfo(*ctxPtr)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	req := &reflectpb.ServerReflectionRequest***REMOVED***MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED******REMOVED***
+	if err = methodClient.Send(req); err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	resp, err := methodClient.Recv()
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+	listResp := resp.GetListServicesResponse()
+	if listResp == nil ***REMOVED***
+		return fmt.Errorf("can't list services")
+	***REMOVED***
+	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
+	for _, service := range listResp.GetService() ***REMOVED***
+		req = &reflectpb.ServerReflectionRequest***REMOVED***
+			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
+				FileContainingSymbol: service.GetName(),
+			***REMOVED***,
+		***REMOVED***
+		if err = methodClient.Send(req); err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		resp, err = methodClient.Recv()
+		if err != nil ***REMOVED***
+			return fmt.Errorf("error listing methods on '%s': %w", service, err)
+		***REMOVED***
+		fdResp := resp.GetFileDescriptorResponse()
+		for _, f := range fdResp.GetFileDescriptorProto() ***REMOVED***
+			a := &descriptorpb.FileDescriptorProto***REMOVED******REMOVED***
+			if err = proto.Unmarshal(f, a); err != nil ***REMOVED***
+				return err
+			***REMOVED***
+			fdset.File = append(fdset.File, a)
+		***REMOVED***
+	***REMOVED***
+	_, err = c.convertToMethodInfo(fdset)
+	return err
 ***REMOVED***
 
 // Invoke creates and calls a unary RPC by fully qualified method name
@@ -474,7 +540,6 @@ func (*Client) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Cont
 func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
 	state := lib.GetState(ctx)
 	tags := getTags(ctx)
-
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
 		if state.Options.SystemTags.Has(stats.TagIP) && s.RemoteAddr != nil ***REMOVED***
