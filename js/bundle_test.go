@@ -170,12 +170,6 @@ func TestNewBundle(t *testing.T) ***REMOVED***
 					"Modules", "base", `export default function() ***REMOVED******REMOVED***;`,
 					"file:///script.js: Line 1:1 Unexpected reserved word",
 				***REMOVED***,
-				// Arrow functions are not supported
-				***REMOVED***
-					"ArrowFuncs", "base",
-					`module.exports.default = function() ***REMOVED******REMOVED***; () => ***REMOVED******REMOVED***;`,
-					"file:///script.js: Line 1:42 Unexpected token ) (and 1 more errors)",
-				***REMOVED***,
 				// Promises are not supported
 				***REMOVED***
 					"Promise", "base",

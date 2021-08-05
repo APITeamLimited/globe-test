@@ -46,7 +46,7 @@ func TestTransform(t *testing.T) ***REMOVED***
 	t.Run("double-arrow", func(t *testing.T) ***REMOVED***
 		src, _, err := c.Transform("()=> true", "test.js")
 		assert.NoError(t, err)
-		assert.Equal(t, `"use strict";(function () ***REMOVED***return true;***REMOVED***);`, src)
+		assert.Equal(t, `"use strict";() => true;`, src)
 		// assert.Equal(t, 3, srcmap.Version)
 		// assert.Equal(t, "test.js", srcmap.File)
 		// assert.Equal(t, "aAAA,qBAAK,IAAL", srcmap.Mappings)
@@ -111,18 +111,18 @@ func TestCompile(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("ES6", func(t *testing.T) ***REMOVED***
-		pgm, code, err := c.Compile(`1+(()=>2)()`, "script.js", "", "", true, lib.CompatibilityModeExtended)
+		pgm, code, err := c.Compile(`3**2`, "script.js", "", "", true, lib.CompatibilityModeExtended)
 		require.NoError(t, err)
-		assert.Equal(t, `"use strict";1 + function () ***REMOVED***return 2;***REMOVED***();`, code)
+		assert.Equal(t, `"use strict";Math.pow(3, 2);`, code)
 		v, err := goja.New().RunProgram(pgm)
 		if assert.NoError(t, err) ***REMOVED***
-			assert.Equal(t, int64(3), v.Export())
+			assert.Equal(t, int64(9), v.Export())
 		***REMOVED***
 
 		t.Run("Wrap", func(t *testing.T) ***REMOVED***
-			pgm, code, err := c.Compile(`fn(1+(()=>2)())`, "script.js", "(function(fn)***REMOVED***", "***REMOVED***)", true, lib.CompatibilityModeExtended)
+			pgm, code, err := c.Compile(`fn(3**2)`, "script.js", "(function(fn)***REMOVED***", "***REMOVED***)", true, lib.CompatibilityModeExtended)
 			require.NoError(t, err)
-			assert.Equal(t, `(function(fn)***REMOVED***"use strict";fn(1 + function () ***REMOVED***return 2;***REMOVED***());***REMOVED***)`, code)
+			assert.Equal(t, `(function(fn)***REMOVED***"use strict";fn(Math.pow(3, 2));***REMOVED***)`, code)
 			rt := goja.New()
 			v, err := rt.RunProgram(pgm)
 			if assert.NoError(t, err) ***REMOVED***
@@ -133,7 +133,7 @@ func TestCompile(t *testing.T) ***REMOVED***
 						out = v.Export()
 					***REMOVED***))
 					assert.NoError(t, err)
-					assert.Equal(t, int64(3), out)
+					assert.Equal(t, int64(9), out)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***)
