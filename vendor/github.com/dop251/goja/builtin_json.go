@@ -132,14 +132,11 @@ func (r *Runtime) builtinJSON_decodeArray(d *json.Decoder) (*Object, error) ***R
 ***REMOVED***
 
 func (r *Runtime) builtinJSON_reviveWalk(reviver func(FunctionCall) Value, holder *Object, name Value) Value ***REMOVED***
-	value := holder.get(name, nil)
-	if value == nil ***REMOVED***
-		value = _undefined
-	***REMOVED***
+	value := nilSafe(holder.get(name, nil))
 
 	if object, ok := value.(*Object); ok ***REMOVED***
 		if isArray(object) ***REMOVED***
-			length := object.self.getStr("length", nil).ToInteger()
+			length := toLength(object.self.getStr("length", nil))
 			for index := int64(0); index < length; index++ ***REMOVED***
 				name := intToValue(index)
 				value := r.builtinJSON_reviveWalk(reviver, object, name)
@@ -186,7 +183,7 @@ func (r *Runtime) builtinJSON_stringify(call FunctionCall) Value ***REMOVED***
 	replacer, _ := call.Argument(1).(*Object)
 	if replacer != nil ***REMOVED***
 		if isArray(replacer) ***REMOVED***
-			length := replacer.self.getStr("length", nil).ToInteger()
+			length := toLength(replacer.self.getStr("length", nil))
 			seen := map[string]bool***REMOVED******REMOVED***
 			propertyList := make([]Value, length)
 			length = 0
@@ -264,10 +261,7 @@ func (ctx *_builtinJSON_stringifyContext) do(v Value) bool ***REMOVED***
 ***REMOVED***
 
 func (ctx *_builtinJSON_stringifyContext) str(key Value, holder *Object) bool ***REMOVED***
-	value := holder.get(key, nil)
-	if value == nil ***REMOVED***
-		value = _undefined
-	***REMOVED***
+	value := nilSafe(holder.get(key, nil))
 
 	if object, ok := value.(*Object); ok ***REMOVED***
 		if toJSON, ok := object.self.getStr("toJSON", nil).(*Object); ok ***REMOVED***
@@ -368,7 +362,7 @@ func (ctx *_builtinJSON_stringifyContext) ja(array *Object) ***REMOVED***
 		stepback = ctx.indent
 		ctx.indent += ctx.gap
 	***REMOVED***
-	length := array.self.getStr("length", nil).ToInteger()
+	length := toLength(array.self.getStr("length", nil))
 	if length == 0 ***REMOVED***
 		ctx.buf.WriteString("[]")
 		return

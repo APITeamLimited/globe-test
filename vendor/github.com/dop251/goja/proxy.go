@@ -774,6 +774,23 @@ func (p *proxyObject) deleteSym(s *Symbol, throw bool) bool ***REMOVED***
 
 func (p *proxyObject) ownPropertyKeys(all bool, _ []Value) []Value ***REMOVED***
 	if v, ok := p.proxyOwnKeys(); ok ***REMOVED***
+		if !all ***REMOVED***
+			k := 0
+			for i, key := range v ***REMOVED***
+				prop := p.val.getOwnProp(key)
+				if prop == nil ***REMOVED***
+					continue
+				***REMOVED***
+				if prop, ok := prop.(*valueProperty); ok && !prop.enumerable ***REMOVED***
+					continue
+				***REMOVED***
+				if k != i ***REMOVED***
+					v[k] = v[i]
+				***REMOVED***
+				k++
+			***REMOVED***
+			v = v[:k]
+		***REMOVED***
 		return v
 	***REMOVED***
 	return p.target.self.ownPropertyKeys(all, nil)
@@ -848,7 +865,7 @@ func (p *proxyObject) assertConstructor() func(args []Value, newTarget *Object) 
 
 func (p *proxyObject) apply(call FunctionCall) Value ***REMOVED***
 	if p.call == nil ***REMOVED***
-		p.val.runtime.NewTypeError("proxy target is not a function")
+		panic(p.val.runtime.NewTypeError("proxy target is not a function"))
 	***REMOVED***
 	if v, ok := p.checkHandler().apply(p.target, nilSafe(call.This), call.Arguments); ok ***REMOVED***
 		return v
@@ -891,15 +908,15 @@ func (p *proxyObject) __isCompatibleDescriptor(extensible bool, desc *PropertyDe
 			return false
 		***REMOVED***
 
-		if p.__isGenericDescriptor(desc) ***REMOVED***
+		if desc.IsGeneric() ***REMOVED***
 			return true
 		***REMOVED***
 
-		if p.__isDataDescriptor(desc) != !current.accessor ***REMOVED***
+		if desc.IsData() != !current.accessor ***REMOVED***
 			return desc.Configurable != FLAG_FALSE
 		***REMOVED***
 
-		if p.__isDataDescriptor(desc) && !current.accessor ***REMOVED***
+		if desc.IsData() && !current.accessor ***REMOVED***
 			if !current.configurable ***REMOVED***
 				if desc.Writable == FLAG_TRUE && !current.writable ***REMOVED***
 					return false
@@ -912,7 +929,7 @@ func (p *proxyObject) __isCompatibleDescriptor(extensible bool, desc *PropertyDe
 			***REMOVED***
 			return true
 		***REMOVED***
-		if p.__isAccessorDescriptor(desc) && current.accessor ***REMOVED***
+		if desc.IsAccessor() && current.accessor ***REMOVED***
 			if !current.configurable ***REMOVED***
 				if desc.Setter != nil && desc.Setter.SameAs(current.setterFunc) ***REMOVED***
 					return false
@@ -924,18 +941,6 @@ func (p *proxyObject) __isCompatibleDescriptor(extensible bool, desc *PropertyDe
 		***REMOVED***
 	***REMOVED***
 	return true
-***REMOVED***
-
-func (p *proxyObject) __isAccessorDescriptor(desc *PropertyDescriptor) bool ***REMOVED***
-	return desc.Setter != nil || desc.Getter != nil
-***REMOVED***
-
-func (p *proxyObject) __isDataDescriptor(desc *PropertyDescriptor) bool ***REMOVED***
-	return desc.Value != nil || desc.Writable != FLAG_NOT_SET
-***REMOVED***
-
-func (p *proxyObject) __isGenericDescriptor(desc *PropertyDescriptor) bool ***REMOVED***
-	return !p.__isAccessorDescriptor(desc) && !p.__isDataDescriptor(desc)
 ***REMOVED***
 
 func (p *proxyObject) __sameValue(val1, val2 Value) bool ***REMOVED***
@@ -1004,7 +1009,7 @@ func (p *proxyObject) ownKeys(all bool, _ []Value) []Value ***REMOVED*** // we c
 
 func (p *proxyObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
 	if vals, ok := p.proxyOwnKeys(); ok ***REMOVED***
-		res := p.filterKeys(vals, true, true)
+		res := p.filterKeys(vals, all, true)
 		if accum == nil ***REMOVED***
 			return res
 		***REMOVED***

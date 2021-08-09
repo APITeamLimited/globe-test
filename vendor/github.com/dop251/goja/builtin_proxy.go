@@ -38,7 +38,7 @@ func (h *nativeProxyHandler) preventExtensions(target *Object) (bool, bool) ***R
 
 func (h *nativeProxyHandler) getOwnPropertyDescriptorStr(target *Object, prop unistring.String) (Value, bool) ***REMOVED***
 	if trap := h.handler.GetOwnPropertyDescriptorIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			desc := trap(target, idx)
 			return desc.toValue(target.runtime), true
 		***REMOVED***
@@ -72,7 +72,7 @@ func (h *nativeProxyHandler) getOwnPropertyDescriptorSym(target *Object, prop *S
 
 func (h *nativeProxyHandler) definePropertyStr(target *Object, prop unistring.String, desc PropertyDescriptor) (bool, bool) ***REMOVED***
 	if trap := h.handler.DefinePropertyIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			return trap(target, idx, desc), true
 		***REMOVED***
 	***REMOVED***
@@ -101,7 +101,7 @@ func (h *nativeProxyHandler) definePropertySym(target *Object, prop *Symbol, des
 
 func (h *nativeProxyHandler) hasStr(target *Object, prop unistring.String) (bool, bool) ***REMOVED***
 	if trap := h.handler.HasIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			return trap(target, idx), true
 		***REMOVED***
 	***REMOVED***
@@ -130,7 +130,7 @@ func (h *nativeProxyHandler) hasSym(target *Object, prop *Symbol) (bool, bool) *
 
 func (h *nativeProxyHandler) getStr(target *Object, prop unistring.String, receiver Value) (Value, bool) ***REMOVED***
 	if trap := h.handler.GetIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			return trap(target, idx, receiver), true
 		***REMOVED***
 	***REMOVED***
@@ -159,7 +159,7 @@ func (h *nativeProxyHandler) getSym(target *Object, prop *Symbol, receiver Value
 
 func (h *nativeProxyHandler) setStr(target *Object, prop unistring.String, value Value, receiver Value) (bool, bool) ***REMOVED***
 	if trap := h.handler.SetIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			return trap(target, idx, value, receiver), true
 		***REMOVED***
 	***REMOVED***
@@ -188,7 +188,7 @@ func (h *nativeProxyHandler) setSym(target *Object, prop *Symbol, value Value, r
 
 func (h *nativeProxyHandler) deleteStr(target *Object, prop unistring.String) (bool, bool) ***REMOVED***
 	if trap := h.handler.DeletePropertyIdx; trap != nil ***REMOVED***
-		if idx, ok := strPropToInt(prop); ok ***REMOVED***
+		if idx, ok := strToInt(prop); ok ***REMOVED***
 			return trap(target, idx), true
 		***REMOVED***
 	***REMOVED***
@@ -246,8 +246,12 @@ func (r *Runtime) newNativeProxyHandler(nativeHandler *ProxyTrapConfig) proxyHan
 
 // ProxyTrapConfig provides a simplified Go-friendly API for implementing Proxy traps.
 // If an *Idx trap is defined it gets called for integer property keys, including negative ones. Note that
-// this also includes string property keys that can be parsed into an integer. This allows more efficient
-// array operations.
+// this only includes string property keys that represent a canonical integer
+// (i.e. "0", "123", but not "00", "01", " 1" or "-0").
+// For efficiency strings representing integers exceeding 2^53 are not checked to see if they are canonical,
+// i.e. the *Idx traps will receive "9007199254740993" as well as "9007199254740994", even though the former is not
+// a canonical representation in ECMAScript (Number("9007199254740993") === 9007199254740992).
+// See https://262.ecma-international.org/#sec-canonicalnumericindexstring
 // If an *Idx trap is not set, the corresponding string one is used.
 type ProxyTrapConfig struct ***REMOVED***
 	// A trap for Object.getPrototypeOf, Reflect.getPrototypeOf, __proto__, Object.prototype.isPrototypeOf, instanceof

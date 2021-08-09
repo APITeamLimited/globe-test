@@ -25,7 +25,9 @@ type stash struct ***REMOVED***
 
 	outer *stash
 
-	function bool
+	// true if this stash is a VariableEnvironment, i.e. dynamic var declarations created
+	// by direct eval go here.
+	variable bool
 ***REMOVED***
 
 type context struct ***REMOVED***
@@ -90,10 +92,13 @@ func (r *stashRefLex) set(v Value) ***REMOVED***
 
 type stashRefConst struct ***REMOVED***
 	stashRefLex
+	strictConst bool
 ***REMOVED***
 
 func (r *stashRefConst) set(v Value) ***REMOVED***
-	panic(errAssignToConst)
+	if r.strictConst ***REMOVED***
+		panic(errAssignToConst)
+	***REMOVED***
 ***REMOVED***
 
 type objRef struct ***REMOVED***
@@ -325,6 +330,7 @@ func (s *stash) getRefByName(name unistring.String, strict bool) ref ***REMOVED*
 								idx: int(idx &^ maskTyp),
 							***REMOVED***,
 						***REMOVED***,
+						strictConst: strict || (idx&maskStrict != 0),
 					***REMOVED***
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
@@ -360,7 +366,7 @@ func (s *stash) createLexBinding(name unistring.String, isConst bool) ***REMOVED
 	if _, exists := s.names[name]; !exists ***REMOVED***
 		idx := uint32(len(s.names))
 		if isConst ***REMOVED***
-			idx |= maskConst
+			idx |= maskConst | maskStrict
 		***REMOVED***
 		s.names[name] = idx
 		s.values = append(s.values, nil)
@@ -771,9 +777,10 @@ func (vm *vm) storeStack1Lex(s int) ***REMOVED***
 
 func (vm *vm) initStack(s int) ***REMOVED***
 	if s <= 0 ***REMOVED***
-		panic("Illegal stack var index")
+		vm.stack[vm.sb-s] = vm.stack[vm.sp-1]
+	***REMOVED*** else ***REMOVED***
+		vm.stack[vm.sb+vm.args+s] = vm.stack[vm.sp-1]
 	***REMOVED***
-	vm.stack[vm.sb+vm.args+s] = vm.stack[vm.sp-1]
 	vm.pc++
 ***REMOVED***
 
@@ -1227,6 +1234,45 @@ func (j jump) exec(vm *vm) ***REMOVED***
 	vm.pc += int(j)
 ***REMOVED***
 
+type _toPropertyKey struct***REMOVED******REMOVED***
+
+func (_toPropertyKey) exec(vm *vm) ***REMOVED***
+	p := vm.sp - 1
+	vm.stack[p] = toPropertyKey(vm.stack[p])
+	vm.pc++
+***REMOVED***
+
+type _getElemRef struct***REMOVED******REMOVED***
+
+var getElemRef _getElemRef
+
+func (_getElemRef) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-2].ToObject(vm.r)
+	propName := toPropertyKey(vm.stack[vm.sp-1])
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base: obj.self,
+		name: propName.string(),
+	***REMOVED***)
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type _getElemRefStrict struct***REMOVED******REMOVED***
+
+var getElemRefStrict _getElemRefStrict
+
+func (_getElemRefStrict) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-2].ToObject(vm.r)
+	propName := toPropertyKey(vm.stack[vm.sp-1])
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base:   obj.self,
+		name:   propName.string(),
+		strict: true,
+	***REMOVED***)
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
 type _setElem struct***REMOVED******REMOVED***
 
 var setElem _setElem
@@ -1240,6 +1286,39 @@ func (_setElem) exec(vm *vm) ***REMOVED***
 
 	vm.sp -= 2
 	vm.stack[vm.sp-1] = val
+	vm.pc++
+***REMOVED***
+
+type _setElem1 struct***REMOVED******REMOVED***
+
+var setElem1 _setElem1
+
+func (_setElem1) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-3].ToObject(vm.r)
+	propName := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+
+	obj.setOwn(propName, val, true)
+
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type _setElem1Named struct***REMOVED******REMOVED***
+
+var setElem1Named _setElem1Named
+
+func (_setElem1Named) exec(vm *vm) ***REMOVED***
+	obj := vm.stack[vm.sp-3].ToObject(vm.r)
+	propName := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        funcName("", propName),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
+	obj.setOwn(propName, val, true)
+
+	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
@@ -1339,6 +1418,29 @@ func (d deletePropStrict) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type getPropRef unistring.String
+
+func (p getPropRef) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base: vm.stack[vm.sp-1].ToObject(vm.r).self,
+		name: unistring.String(p),
+	***REMOVED***)
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type getPropRefStrict unistring.String
+
+func (p getPropRefStrict) exec(vm *vm) ***REMOVED***
+	vm.refStack = append(vm.refStack, &objRef***REMOVED***
+		base:   vm.stack[vm.sp-1].ToObject(vm.r).self,
+		name:   unistring.String(p),
+		strict: true,
+	***REMOVED***)
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
 type setProp unistring.String
 
 func (p setProp) exec(vm *vm) ***REMOVED***
@@ -1407,6 +1509,10 @@ type setPropGetter unistring.String
 func (s setPropGetter) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-2])
 	val := vm.stack[vm.sp-1]
+	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        asciiString("get ").concat(stringValueFromRaw(unistring.String(s))),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
 
 	descr := PropertyDescriptor***REMOVED***
 		Getter:       val,
@@ -1426,6 +1532,11 @@ func (s setPropSetter) exec(vm *vm) ***REMOVED***
 	obj := vm.r.toObject(vm.stack[vm.sp-2])
 	val := vm.stack[vm.sp-1]
 
+	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        asciiString("set ").concat(stringValueFromRaw(unistring.String(s))),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
+
 	descr := PropertyDescriptor***REMOVED***
 		Setter:       val,
 		Configurable: FLAG_TRUE,
@@ -1435,6 +1546,57 @@ func (s setPropSetter) exec(vm *vm) ***REMOVED***
 	obj.self.defineOwnPropertyStr(unistring.String(s), descr, false)
 
 	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type _setPropGetter1 struct***REMOVED******REMOVED***
+
+var setPropGetter1 _setPropGetter1
+
+func (s _setPropGetter1) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-3])
+	propName := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        funcName("get ", propName),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
+
+	descr := PropertyDescriptor***REMOVED***
+		Getter:       val,
+		Configurable: FLAG_TRUE,
+		Enumerable:   FLAG_TRUE,
+	***REMOVED***
+
+	obj.defineOwnProperty(propName, descr, false)
+
+	vm.sp -= 2
+	vm.pc++
+***REMOVED***
+
+type _setPropSetter1 struct***REMOVED******REMOVED***
+
+var setPropSetter1 _setPropSetter1
+
+func (s _setPropSetter1) exec(vm *vm) ***REMOVED***
+	obj := vm.r.toObject(vm.stack[vm.sp-3])
+	propName := vm.stack[vm.sp-2]
+	val := vm.stack[vm.sp-1]
+
+	vm.r.toObject(val).self.defineOwnPropertyStr("name", PropertyDescriptor***REMOVED***
+		Value:        funcName("set ", propName),
+		Configurable: FLAG_TRUE,
+	***REMOVED***, true)
+
+	descr := PropertyDescriptor***REMOVED***
+		Setter:       val,
+		Configurable: FLAG_TRUE,
+		Enumerable:   FLAG_TRUE,
+	***REMOVED***
+
+	obj.defineOwnProperty(propName, descr, false)
+
+	vm.sp -= 2
 	vm.pc++
 ***REMOVED***
 
@@ -1477,6 +1639,24 @@ func (_getElem) exec(vm *vm) ***REMOVED***
 	v := vm.stack[vm.sp-2]
 	obj := v.baseObject(vm.r)
 	propName := toPropertyKey(vm.stack[vm.sp-1])
+	if obj == nil ***REMOVED***
+		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
+	***REMOVED***
+
+	vm.stack[vm.sp-2] = nilSafe(obj.get(propName, v))
+
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type _getKey struct***REMOVED******REMOVED***
+
+var getKey _getKey
+
+func (_getKey) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-2]
+	obj := v.baseObject(vm.r)
+	propName := vm.stack[vm.sp-1]
 	if obj == nil ***REMOVED***
 		panic(vm.r.NewTypeError("Cannot read property '%s' of undefined", propName.String()))
 	***REMOVED***
@@ -1544,32 +1724,77 @@ func (_newObject) exec(vm *vm) ***REMOVED***
 type newArray uint32
 
 func (l newArray) exec(vm *vm) ***REMOVED***
-	values := make([]Value, l)
-	if l > 0 ***REMOVED***
-		copy(values, vm.stack[vm.sp-int(l):vm.sp])
-	***REMOVED***
-	obj := vm.r.newArrayValues(values)
-	if l > 0 ***REMOVED***
-		vm.sp -= int(l) - 1
-		vm.stack[vm.sp-1] = obj
-	***REMOVED*** else ***REMOVED***
-		vm.push(obj)
-	***REMOVED***
+	values := make([]Value, 0, l)
+	vm.push(vm.r.newArrayValues(values))
 	vm.pc++
 ***REMOVED***
 
-type newArraySparse struct ***REMOVED***
-	l, objCount int
+type _pushArrayItem struct***REMOVED******REMOVED***
+
+var pushArrayItem _pushArrayItem
+
+func (_pushArrayItem) exec(vm *vm) ***REMOVED***
+	arr := vm.stack[vm.sp-2].(*Object).self.(*arrayObject)
+	if arr.length < math.MaxUint32 ***REMOVED***
+		arr.length++
+	***REMOVED*** else ***REMOVED***
+		panic(vm.r.newError(vm.r.global.RangeError, "Invalid array length"))
+	***REMOVED***
+	val := vm.stack[vm.sp-1]
+	arr.values = append(arr.values, val)
+	if val != nil ***REMOVED***
+		arr.objCount++
+	***REMOVED***
+	vm.sp--
+	vm.pc++
 ***REMOVED***
 
-func (n *newArraySparse) exec(vm *vm) ***REMOVED***
-	values := make([]Value, n.l)
-	copy(values, vm.stack[vm.sp-int(n.l):vm.sp])
-	arr := vm.r.newArrayObject()
-	setArrayValues(arr, values)
-	arr.objCount = n.objCount
-	vm.sp -= int(n.l) - 1
-	vm.stack[vm.sp-1] = arr.val
+type _pushArraySpread struct***REMOVED******REMOVED***
+
+var pushArraySpread _pushArraySpread
+
+func (_pushArraySpread) exec(vm *vm) ***REMOVED***
+	arr := vm.stack[vm.sp-2].(*Object).self.(*arrayObject)
+	vm.r.iterate(vm.r.getIterator(vm.stack[vm.sp-1], nil), func(val Value) ***REMOVED***
+		if arr.length < math.MaxUint32 ***REMOVED***
+			arr.length++
+		***REMOVED*** else ***REMOVED***
+			panic(vm.r.newError(vm.r.global.RangeError, "Invalid array length"))
+		***REMOVED***
+		arr.values = append(arr.values, val)
+		arr.objCount++
+	***REMOVED***)
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type _pushSpread struct***REMOVED******REMOVED***
+
+var pushSpread _pushSpread
+
+func (_pushSpread) exec(vm *vm) ***REMOVED***
+	vm.sp--
+	obj := vm.stack[vm.sp]
+	vm.r.iterate(vm.r.getIterator(obj, nil), func(val Value) ***REMOVED***
+		vm.push(val)
+	***REMOVED***)
+	vm.pc++
+***REMOVED***
+
+type _newArrayFromIter struct***REMOVED******REMOVED***
+
+var newArrayFromIter _newArrayFromIter
+
+func (_newArrayFromIter) exec(vm *vm) ***REMOVED***
+	var values []Value
+	l := len(vm.iterStack) - 1
+	iter := vm.iterStack[l].iter
+	vm.iterStack[l] = iterStackItem***REMOVED******REMOVED***
+	vm.iterStack = vm.iterStack[:l]
+	vm.r.iterate(iter, func(val Value) ***REMOVED***
+		values = append(values, val)
+	***REMOVED***)
+	vm.push(vm.r.newArrayValues(values))
 	vm.pc++
 ***REMOVED***
 
@@ -2032,7 +2257,7 @@ func newStashRef(typ varType, name unistring.String, v *[]Value, idx int) ref **
 				idx: idx,
 			***REMOVED***,
 		***REMOVED***
-	case varTypeConst:
+	case varTypeConst, varTypeStrictConst:
 		return &stashRefConst***REMOVED***
 			stashRefLex: stashRefLex***REMOVED***
 				stashRef: stashRef***REMOVED***
@@ -2041,6 +2266,7 @@ func newStashRef(typ varType, name unistring.String, v *[]Value, idx int) ref **
 					idx: idx,
 				***REMOVED***,
 			***REMOVED***,
+			strictConst: typ == varTypeStrictConst,
 		***REMOVED***
 	***REMOVED***
 	panic("unsupported var type")
@@ -2289,6 +2515,22 @@ func (numargs callEvalStrict) exec(vm *vm) ***REMOVED***
 	vm.callEval(int(numargs), true)
 ***REMOVED***
 
+type _callEvalVariadic struct***REMOVED******REMOVED***
+
+var callEvalVariadic _callEvalVariadic
+
+func (_callEvalVariadic) exec(vm *vm) ***REMOVED***
+	vm.callEval(vm.countVariadicArgs()-2, false)
+***REMOVED***
+
+type _callEvalVariadicStrict struct***REMOVED******REMOVED***
+
+var callEvalVariadicStrict _callEvalVariadicStrict
+
+func (_callEvalVariadicStrict) exec(vm *vm) ***REMOVED***
+	vm.callEval(vm.countVariadicArgs()-2, true)
+***REMOVED***
+
 type _boxThis struct***REMOVED******REMOVED***
 
 var boxThis _boxThis
@@ -2300,6 +2542,46 @@ func (_boxThis) exec(vm *vm) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		vm.stack[vm.sb] = v.ToObject(vm.r)
 	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+var variadicMarker Value = newSymbol(asciiString("[variadic marker]"))
+
+type _startVariadic struct***REMOVED******REMOVED***
+
+var startVariadic _startVariadic
+
+func (_startVariadic) exec(vm *vm) ***REMOVED***
+	vm.push(variadicMarker)
+	vm.pc++
+***REMOVED***
+
+type _callVariadic struct***REMOVED******REMOVED***
+
+var callVariadic _callVariadic
+
+func (vm *vm) countVariadicArgs() int ***REMOVED***
+	count := 0
+	for i := vm.sp - 1; i >= 0; i-- ***REMOVED***
+		if vm.stack[i] == variadicMarker ***REMOVED***
+			return count
+		***REMOVED***
+		count++
+	***REMOVED***
+	panic("Variadic marker was not found. Compiler bug.")
+***REMOVED***
+
+func (_callVariadic) exec(vm *vm) ***REMOVED***
+	call(vm.countVariadicArgs() - 2).exec(vm)
+***REMOVED***
+
+type _endVariadic struct***REMOVED******REMOVED***
+
+var endVariadic _endVariadic
+
+func (_endVariadic) exec(vm *vm) ***REMOVED***
+	vm.sp--
+	vm.stack[vm.sp-1] = vm.stack[vm.sp]
 	vm.pc++
 ***REMOVED***
 
@@ -2324,6 +2606,16 @@ repeat:
 		vm.stash = f.stash
 		vm.pc = 0
 		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = vm.stack[vm.sp-n-2], vm.stack[vm.sp-n-1]
+		return
+	case *arrowFuncObject:
+		vm.pc++
+		vm.pushCtx()
+		vm.args = n
+		vm.prg = f.prg
+		vm.stash = f.stash
+		vm.pc = 0
+		vm.stack[vm.sp-n-1], vm.stack[vm.sp-n-2] = f.this, vm.stack[vm.sp-n-1]
+		vm.newTarget = f.newTarget
 		return
 	case *nativeFuncObject:
 		vm._nativeCall(f, n)
@@ -2353,7 +2645,7 @@ func (vm *vm) _nativeCall(f *nativeFuncObject, n int) ***REMOVED***
 	if f.f != nil ***REMOVED***
 		vm.pushCtx()
 		vm.prg = nil
-		vm.funcName = f.nameProp.get(nil).string()
+		vm.funcName = nilSafe(f.getStr("name", nil)).string()
 		ret := f.f(FunctionCall***REMOVED***
 			Arguments: vm.stack[vm.sp-n : vm.sp],
 			This:      vm.stack[vm.sp-n-2],
@@ -2470,7 +2762,7 @@ func (e *enterFunc) exec(vm *vm) ***REMOVED***
 	vm.sb = sp - vm.args - 1
 	vm.newStash()
 	stash := vm.stash
-	stash.function = true
+	stash.variable = true
 	stash.values = make([]Value, e.stashSize)
 	if len(e.names) > 0 ***REMOVED***
 		if e.extensible ***REMOVED***
@@ -2519,6 +2811,98 @@ func (e *enterFunc) exec(vm *vm) ***REMOVED***
 		vv[i] = nil
 	***REMOVED***
 	vm.sp = sp + ss
+	vm.pc++
+***REMOVED***
+
+// Similar to enterFunc, but for when arguments may be accessed before they are initialised,
+// e.g. by an eval() code or from a closure, or from an earlier initialiser code.
+// In this case the arguments remain on stack, first argsToCopy of them are copied to the stash.
+type enterFunc1 struct ***REMOVED***
+	names      map[unistring.String]uint32
+	stashSize  uint32
+	numArgs    uint32
+	argsToCopy uint32
+	extensible bool
+***REMOVED***
+
+func (e *enterFunc1) exec(vm *vm) ***REMOVED***
+	sp := vm.sp
+	vm.sb = sp - vm.args - 1
+	vm.newStash()
+	stash := vm.stash
+	stash.variable = true
+	stash.values = make([]Value, e.stashSize)
+	if len(e.names) > 0 ***REMOVED***
+		if e.extensible ***REMOVED***
+			m := make(map[unistring.String]uint32, len(e.names))
+			for name, idx := range e.names ***REMOVED***
+				m[name] = idx
+			***REMOVED***
+			stash.names = m
+		***REMOVED*** else ***REMOVED***
+			stash.names = e.names
+		***REMOVED***
+	***REMOVED***
+	offset := vm.args - int(e.argsToCopy)
+	if offset > 0 ***REMOVED***
+		copy(stash.values, vm.stack[sp-vm.args:sp-offset])
+		if offset := vm.args - int(e.numArgs); offset > 0 ***REMOVED***
+			vm.stash.extraArgs = make([]Value, offset)
+			copy(stash.extraArgs, vm.stack[sp-offset:])
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		copy(stash.values, vm.stack[sp-vm.args:sp])
+		if int(e.argsToCopy) > vm.args ***REMOVED***
+			vv := stash.values[vm.args:e.argsToCopy]
+			for i := range vv ***REMOVED***
+				vv[i] = _undefined
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	vm.pc++
+***REMOVED***
+
+// Finalises the initialisers section and starts the function body which has its own
+// scope. When used in conjunction with enterFunc1 adjustStack is set to true which
+// causes the arguments to be removed from the stack.
+type enterFuncBody struct ***REMOVED***
+	enterBlock
+	extensible  bool
+	adjustStack bool
+***REMOVED***
+
+func (e *enterFuncBody) exec(vm *vm) ***REMOVED***
+	if e.stashSize > 0 || e.extensible ***REMOVED***
+		vm.newStash()
+		stash := vm.stash
+		stash.variable = true
+		stash.values = make([]Value, e.stashSize)
+		if len(e.names) > 0 ***REMOVED***
+			if e.extensible ***REMOVED***
+				m := make(map[unistring.String]uint32, len(e.names))
+				for name, idx := range e.names ***REMOVED***
+					m[name] = idx
+				***REMOVED***
+				stash.names = m
+			***REMOVED*** else ***REMOVED***
+				stash.names = e.names
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	sp := vm.sp
+	if e.adjustStack ***REMOVED***
+		sp -= vm.args
+	***REMOVED***
+	nsp := sp + int(e.stackSize)
+	if e.stackSize > 0 ***REMOVED***
+		vm.stack.expand(nsp - 1)
+		vv := vm.stack[sp:nsp]
+		for i := range vv ***REMOVED***
+			vv[i] = nil
+		***REMOVED***
+	***REMOVED***
+	vm.sp = nsp
 	vm.pc++
 ***REMOVED***
 
@@ -2578,17 +2962,30 @@ func (e *enterFuncStashless) exec(vm *vm) ***REMOVED***
 type newFunc struct ***REMOVED***
 	prg    *Program
 	name   unistring.String
+	source string
+
 	length uint32
 	strict bool
-
-	srcStart, srcEnd uint32
 ***REMOVED***
 
 func (n *newFunc) exec(vm *vm) ***REMOVED***
 	obj := vm.r.newFunc(n.name, int(n.length), n.strict)
 	obj.prg = n.prg
 	obj.stash = vm.stash
-	obj.src = n.prg.src.Source()[n.srcStart:n.srcEnd]
+	obj.src = n.source
+	vm.push(obj.val)
+	vm.pc++
+***REMOVED***
+
+type newArrowFunc struct ***REMOVED***
+	newFunc
+***REMOVED***
+
+func (n *newArrowFunc) exec(vm *vm) ***REMOVED***
+	obj := vm.r.newArrowFunc(n.name, int(n.length), n.strict)
+	obj.prg = n.prg
+	obj.stash = vm.stash
+	obj.src = n.source
 	vm.push(obj.val)
 	vm.pc++
 ***REMOVED***
@@ -2752,7 +3149,7 @@ func (d *bindVars) exec(vm *vm) ***REMOVED***
 			if idx, exists := s.names[name]; exists && idx&maskVar == 0 ***REMOVED***
 				panic(vm.alreadyDeclared(name))
 			***REMOVED***
-			if s.function ***REMOVED***
+			if s.variable ***REMOVED***
 				target = s
 				break
 			***REMOVED***
@@ -2832,6 +3229,28 @@ func (j jneq1) exec(vm *vm) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		vm.pc++
 	***REMOVED***
+***REMOVED***
+
+type jdef int32
+
+func (j jdef) exec(vm *vm) ***REMOVED***
+	if vm.stack[vm.sp-1] != _undefined ***REMOVED***
+		vm.pc += int(j)
+	***REMOVED*** else ***REMOVED***
+		vm.sp--
+		vm.pc++
+	***REMOVED***
+***REMOVED***
+
+type jdefP int32
+
+func (j jdefP) exec(vm *vm) ***REMOVED***
+	if vm.stack[vm.sp-1] != _undefined ***REMOVED***
+		vm.pc += int(j)
+	***REMOVED*** else ***REMOVED***
+		vm.pc++
+	***REMOVED***
+	vm.sp--
 ***REMOVED***
 
 type _not struct***REMOVED******REMOVED***
@@ -3116,6 +3535,14 @@ func (_throw) exec(vm *vm) ***REMOVED***
 	panic(vm.stack[vm.sp-1])
 ***REMOVED***
 
+type _newVariadic struct***REMOVED******REMOVED***
+
+var newVariadic _newVariadic
+
+func (_newVariadic) exec(vm *vm) ***REMOVED***
+	_new(vm.countVariadicArgs() - 1).exec(vm)
+***REMOVED***
+
 type _new uint32
 
 func (n _new) exec(vm *vm) ***REMOVED***
@@ -3154,7 +3581,7 @@ func (_typeof) exec(vm *vm) ***REMOVED***
 	case *Object:
 	repeat:
 		switch s := v.self.(type) ***REMOVED***
-		case *funcObject, *nativeFuncObject, *boundFuncObject:
+		case *funcObject, *nativeFuncObject, *boundFuncObject, *arrowFuncObject:
 			r = stringFunction
 		case *lazyObject:
 			v.self = s.create(v)
@@ -3177,9 +3604,9 @@ func (_typeof) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
-type createArgs uint32
+type createArgsMapped uint32
 
-func (formalArgs createArgs) exec(vm *vm) ***REMOVED***
+func (formalArgs createArgsMapped) exec(vm *vm) ***REMOVED***
 	v := &Object***REMOVED***runtime: vm.r***REMOVED***
 	args := &argumentsObject***REMOVED******REMOVED***
 	args.extensible = true
@@ -3216,9 +3643,9 @@ func (formalArgs createArgs) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
-type createArgsStrict uint32
+type createArgsUnmapped uint32
 
-func (formalArgs createArgsStrict) exec(vm *vm) ***REMOVED***
+func (formalArgs createArgsUnmapped) exec(vm *vm) ***REMOVED***
 	args := vm.r.newBaseObject(vm.r.global.ObjectPrototype, "Arguments")
 	i := 0
 	c := int(formalArgs)
@@ -3332,6 +3759,17 @@ func (_enumPopClose) exec(vm *vm) ***REMOVED***
 	vm.pc++
 ***REMOVED***
 
+type _iterateP struct***REMOVED******REMOVED***
+
+var iterateP _iterateP
+
+func (_iterateP) exec(vm *vm) ***REMOVED***
+	iter := vm.r.getIterator(vm.stack[vm.sp-1], nil)
+	vm.iterStack = append(vm.iterStack, iterStackItem***REMOVED***iter: iter***REMOVED***)
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
 type _iterate struct***REMOVED******REMOVED***
 
 var iterate _iterate
@@ -3339,7 +3777,6 @@ var iterate _iterate
 func (_iterate) exec(vm *vm) ***REMOVED***
 	iter := vm.r.getIterator(vm.stack[vm.sp-1], nil)
 	vm.iterStack = append(vm.iterStack, iterStackItem***REMOVED***iter: iter***REMOVED***)
-	vm.sp--
 	vm.pc++
 ***REMOVED***
 
@@ -3393,4 +3830,79 @@ var throwAssignToConst _throwAssignToConst
 
 func (_throwAssignToConst) exec(vm *vm) ***REMOVED***
 	panic(errAssignToConst)
+***REMOVED***
+
+func (r *Runtime) copyDataProperties(target, source Value) ***REMOVED***
+	targetObj := r.toObject(target)
+	if source == _null || source == _undefined ***REMOVED***
+		return
+	***REMOVED***
+	sourceObj := source.ToObject(r)
+	for _, key := range sourceObj.self.ownPropertyKeys(false, nil) ***REMOVED***
+		v := nilSafe(sourceObj.get(key, nil))
+		createDataPropertyOrThrow(targetObj, key, v)
+	***REMOVED***
+***REMOVED***
+
+type _copySpread struct***REMOVED******REMOVED***
+
+var copySpread _copySpread
+
+func (_copySpread) exec(vm *vm) ***REMOVED***
+	vm.r.copyDataProperties(vm.stack[vm.sp-2], vm.stack[vm.sp-1])
+	vm.sp--
+	vm.pc++
+***REMOVED***
+
+type _copyRest struct***REMOVED******REMOVED***
+
+var copyRest _copyRest
+
+func (_copyRest) exec(vm *vm) ***REMOVED***
+	vm.push(vm.r.NewObject())
+	vm.r.copyDataProperties(vm.stack[vm.sp-1], vm.stack[vm.sp-2])
+	vm.pc++
+***REMOVED***
+
+type _createDestructSrc struct***REMOVED******REMOVED***
+
+var createDestructSrc _createDestructSrc
+
+func (_createDestructSrc) exec(vm *vm) ***REMOVED***
+	v := vm.stack[vm.sp-1]
+	vm.r.checkObjectCoercible(v)
+	vm.push(vm.r.newDestructKeyedSource(v))
+	vm.pc++
+***REMOVED***
+
+type _checkObjectCoercible struct***REMOVED******REMOVED***
+
+var checkObjectCoercible _checkObjectCoercible
+
+func (_checkObjectCoercible) exec(vm *vm) ***REMOVED***
+	vm.r.checkObjectCoercible(vm.stack[vm.sp-1])
+	vm.pc++
+***REMOVED***
+
+type createArgsRestStack int
+
+func (n createArgsRestStack) exec(vm *vm) ***REMOVED***
+	var values []Value
+	delta := vm.args - int(n)
+	if delta > 0 ***REMOVED***
+		values = make([]Value, delta)
+		copy(values, vm.stack[vm.sb+int(n)+1:])
+	***REMOVED***
+	vm.push(vm.r.newArrayValues(values))
+	vm.pc++
+***REMOVED***
+
+type _createArgsRestStash struct***REMOVED******REMOVED***
+
+var createArgsRestStash _createArgsRestStash
+
+func (_createArgsRestStash) exec(vm *vm) ***REMOVED***
+	vm.push(vm.r.newArrayValues(vm.stash.extraArgs))
+	vm.stash.extraArgs = nil
+	vm.pc++
 ***REMOVED***

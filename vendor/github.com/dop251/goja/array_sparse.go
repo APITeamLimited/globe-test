@@ -133,7 +133,7 @@ func (a *sparseArrayObject) getLengthProp() Value ***REMOVED***
 ***REMOVED***
 
 func (a *sparseArrayObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._getIdx(idx)
 	***REMOVED***
 	if name == "length" ***REMOVED***
@@ -214,7 +214,7 @@ func (a *sparseArrayObject) _setOwnIdx(idx uint32, val Value, throw bool) bool *
 ***REMOVED***
 
 func (a *sparseArrayObject) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._setOwnIdx(idx, val, throw)
 	***REMOVED*** else ***REMOVED***
 		if name == "length" ***REMOVED***
@@ -295,7 +295,7 @@ func (a *sparseArrayObject) setValues(values []Value, objCount int) ***REMOVED**
 ***REMOVED***
 
 func (a *sparseArrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		i := a.findIdx(idx)
 		return i < len(a.items) && a.items[i].idx == idx
 	***REMOVED*** else ***REMOVED***
@@ -372,7 +372,7 @@ func (a *sparseArrayObject) _defineIdxProperty(idx uint32, desc PropertyDescript
 ***REMOVED***
 
 func (a *sparseArrayObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._defineIdxProperty(idx, descr, throw)
 	***REMOVED***
 	if name == "length" ***REMOVED***
@@ -406,7 +406,7 @@ func (a *sparseArrayObject) _deleteIdxProp(idx uint32, throw bool) bool ***REMOV
 ***REMOVED***
 
 func (a *sparseArrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
-	if idx := strToIdx(name); idx != math.MaxUint32 ***REMOVED***
+	if idx := strToArrayIdx(name); idx != math.MaxUint32 ***REMOVED***
 		return a._deleteIdxProp(idx, throw)
 	***REMOVED***
 	return a.baseObject.deleteStr(name, throw)

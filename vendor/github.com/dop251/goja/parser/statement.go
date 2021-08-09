@@ -128,17 +128,11 @@ func (self *_parser) parseTryStatement() ast.Statement ***REMOVED***
 	if self.token == token.CATCH ***REMOVED***
 		catch := self.idx
 		self.next()
-		var parameter *ast.Identifier
+		var parameter ast.BindingTarget
 		if self.token == token.LEFT_PARENTHESIS ***REMOVED***
 			self.next()
-			if self.token != token.IDENTIFIER ***REMOVED***
-				self.expect(token.IDENTIFIER)
-				self.nextStatement()
-				return &ast.BadStatement***REMOVED***From: catch, To: self.idx***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				parameter = self.parseIdentifier()
-				self.expect(token.RIGHT_PARENTHESIS)
-			***REMOVED***
+			parameter = self.parseBindingTarget()
+			self.expect(token.RIGHT_PARENTHESIS)
 		***REMOVED***
 		node.Catch = &ast.CatchStatement***REMOVED***
 			Catch:     catch,
@@ -162,13 +156,15 @@ func (self *_parser) parseTryStatement() ast.Statement ***REMOVED***
 
 func (self *_parser) parseFunctionParameterList() *ast.ParameterList ***REMOVED***
 	opening := self.expect(token.LEFT_PARENTHESIS)
-	var list []*ast.Identifier
+	var list []*ast.Binding
+	var rest ast.Expression
 	for self.token != token.RIGHT_PARENTHESIS && self.token != token.EOF ***REMOVED***
-		if self.token != token.IDENTIFIER ***REMOVED***
-			self.expect(token.IDENTIFIER)
-		***REMOVED*** else ***REMOVED***
-			list = append(list, self.parseIdentifier())
+		if self.token == token.ELLIPSIS ***REMOVED***
+			self.next()
+			rest = self.reinterpretAsDestructBindingTarget(self.parseAssignmentExpression())
+			break
 		***REMOVED***
+		self.parseVariableDeclaration(&list)
 		if self.token != token.RIGHT_PARENTHESIS ***REMOVED***
 			self.expect(token.COMMA)
 		***REMOVED***
@@ -178,22 +174,9 @@ func (self *_parser) parseFunctionParameterList() *ast.ParameterList ***REMOVED*
 	return &ast.ParameterList***REMOVED***
 		Opening: opening,
 		List:    list,
+		Rest:    rest,
 		Closing: closing,
 	***REMOVED***
-***REMOVED***
-
-func (self *_parser) parseParameterList() (list []string) ***REMOVED***
-	for self.token != token.EOF ***REMOVED***
-		if self.token != token.IDENTIFIER ***REMOVED***
-			self.expect(token.IDENTIFIER)
-		***REMOVED***
-		list = append(list, self.literal)
-		self.next()
-		if self.token != token.EOF ***REMOVED***
-			self.expect(token.COMMA)
-		***REMOVED***
-	***REMOVED***
-	return
 ***REMOVED***
 
 func (self *_parser) parseFunction(declaration bool) *ast.FunctionLiteral ***REMOVED***
@@ -211,24 +194,32 @@ func (self *_parser) parseFunction(declaration bool) *ast.FunctionLiteral ***REM
 	***REMOVED***
 	node.Name = name
 	node.ParameterList = self.parseFunctionParameterList()
-	self.parseFunctionBlock(node)
+	node.Body, node.DeclarationList = self.parseFunctionBlock()
 	node.Source = self.slice(node.Idx0(), node.Idx1())
 
 	return node
 ***REMOVED***
 
-func (self *_parser) parseFunctionBlock(node *ast.FunctionLiteral) ***REMOVED***
+func (self *_parser) parseFunctionBlock() (body *ast.BlockStatement, declarationList []*ast.VariableDeclaration) ***REMOVED***
+	self.openScope()
+	inFunction := self.scope.inFunction
+	self.scope.inFunction = true
+	defer func() ***REMOVED***
+		self.scope.inFunction = inFunction
+		self.closeScope()
+	***REMOVED***()
+	body = self.parseBlockStatement()
+	declarationList = self.scope.declarationList
+	return
+***REMOVED***
+
+func (self *_parser) parseArrowFunctionBody() (ast.ConciseBody, []*ast.VariableDeclaration) ***REMOVED***
+	if self.token == token.LEFT_BRACE ***REMOVED***
+		return self.parseFunctionBlock()
 	***REMOVED***
-		self.openScope()
-		inFunction := self.scope.inFunction
-		self.scope.inFunction = true
-		defer func() ***REMOVED***
-			self.scope.inFunction = inFunction
-			self.closeScope()
-		***REMOVED***()
-		node.Body = self.parseBlockStatement()
-		node.DeclarationList = self.scope.declarationList
-	***REMOVED***
+	return &ast.ExpressionBody***REMOVED***
+		Expression: self.parseAssignmentExpression(),
+	***REMOVED***, nil
 ***REMOVED***
 
 func (self *_parser) parseDebuggerStatement() ast.Statement ***REMOVED***
@@ -452,7 +443,7 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 		if tok == token.VAR || tok == token.LET || tok == token.CONST ***REMOVED***
 			idx := self.idx
 			self.next()
-			var list []*ast.VariableExpression
+			var list []*ast.Binding
 			if tok == token.VAR ***REMOVED***
 				list = self.parseVarDeclarationList(idx)
 			***REMOVED*** else ***REMOVED***
@@ -479,13 +470,11 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 					into = &ast.ForDeclaration***REMOVED***
 						Idx:     idx,
 						IsConst: tok == token.CONST,
-						Binding: &ast.BindingIdentifier***REMOVED***
-							Name: list[0].Name,
-							Idx:  list[0].Idx,
-						***REMOVED***,
+						Target:  list[0].Target,
 					***REMOVED***
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
+				self.ensurePatternInit(list)
 				if tok == token.VAR ***REMOVED***
 					initializer = &ast.ForLoopInitializerVarDeclList***REMOVED***
 						List: list,
@@ -510,9 +499,13 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 				forOf = true
 			***REMOVED***
 			if forIn || forOf ***REMOVED***
-				switch expr.(type) ***REMOVED***
-				case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.VariableExpression:
+				switch e := expr.(type) ***REMOVED***
+				case *ast.Identifier, *ast.DotExpression, *ast.BracketExpression, *ast.Binding:
 					// These are all acceptable
+				case *ast.ObjectLiteral:
+					expr = self.reinterpretAsObjectAssignmentPattern(e)
+				case *ast.ArrayLiteral:
+					expr = self.reinterpretAsArrayAssignmentPattern(e)
 				default:
 					self.error(idx, "Invalid left-hand side in for-in or for-of")
 					self.nextStatement()
@@ -541,11 +534,23 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 	return self.parseFor(idx, initializer)
 ***REMOVED***
 
+func (self *_parser) ensurePatternInit(list []*ast.Binding) ***REMOVED***
+	for _, item := range list ***REMOVED***
+		if _, ok := item.Target.(ast.Pattern); ok ***REMOVED***
+			if item.Initializer == nil ***REMOVED***
+				self.error(item.Idx1(), "Missing initializer in destructuring declaration")
+				break
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func (self *_parser) parseVariableStatement() *ast.VariableStatement ***REMOVED***
 
 	idx := self.expect(token.VAR)
 
 	list := self.parseVarDeclarationList(idx)
+	self.ensurePatternInit(list)
 	self.semicolon()
 
 	return &ast.VariableStatement***REMOVED***
@@ -561,6 +566,7 @@ func (self *_parser) parseLexicalDeclaration(tok token.Token) *ast.LexicalDeclar
 	***REMOVED***
 
 	list := self.parseVariableDeclarationList()
+	self.ensurePatternInit(list)
 	self.semicolon()
 
 	return &ast.LexicalDeclaration***REMOVED***

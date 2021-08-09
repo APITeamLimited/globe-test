@@ -15,6 +15,15 @@ import (
 	"github.com/dop251/goja/unistring"
 )
 
+type PropertyKind string
+
+const (
+	PropertyKindValue  PropertyKind = "value"
+	PropertyKindGet    PropertyKind = "get"
+	PropertyKindSet    PropertyKind = "set"
+	PropertyKindMethod PropertyKind = "method"
+)
+
 // All nodes implement the Node interface.
 type Node interface ***REMOVED***
 	Idx0() file.Idx // The index of the first character belonging to the node
@@ -32,10 +41,32 @@ type (
 		_expressionNode()
 	***REMOVED***
 
+	BindingTarget interface ***REMOVED***
+		Expression
+		_bindingTarget()
+	***REMOVED***
+
+	Binding struct ***REMOVED***
+		Target      BindingTarget
+		Initializer Expression
+	***REMOVED***
+
+	Pattern interface ***REMOVED***
+		BindingTarget
+		_pattern()
+	***REMOVED***
+
 	ArrayLiteral struct ***REMOVED***
 		LeftBracket  file.Idx
 		RightBracket file.Idx
 		Value        []Expression
+	***REMOVED***
+
+	ArrayPattern struct ***REMOVED***
+		LeftBracket  file.Idx
+		RightBracket file.Idx
+		Elements     []Expression
+		Rest         Expression
 	***REMOVED***
 
 	AssignExpression struct ***REMOVED***
@@ -97,6 +128,23 @@ type (
 		DeclarationList []*VariableDeclaration
 	***REMOVED***
 
+	ConciseBody interface ***REMOVED***
+		Node
+		_conciseBody()
+	***REMOVED***
+
+	ExpressionBody struct ***REMOVED***
+		Expression Expression
+	***REMOVED***
+
+	ArrowFunctionLiteral struct ***REMOVED***
+		Start           file.Idx
+		ParameterList   *ParameterList
+		Body            ConciseBody
+		Source          string
+		DeclarationList []*VariableDeclaration
+	***REMOVED***
+
 	Identifier struct ***REMOVED***
 		Name unistring.String
 		Idx  file.Idx
@@ -127,16 +175,38 @@ type (
 		Value      []Property
 	***REMOVED***
 
+	ObjectPattern struct ***REMOVED***
+		LeftBrace  file.Idx
+		RightBrace file.Idx
+		Properties []Property
+		Rest       Expression
+	***REMOVED***
+
 	ParameterList struct ***REMOVED***
 		Opening file.Idx
-		List    []*Identifier
+		List    []*Binding
+		Rest    Expression
 		Closing file.Idx
 	***REMOVED***
 
-	Property struct ***REMOVED***
+	Property interface ***REMOVED***
+		Expression
+		_property()
+	***REMOVED***
+
+	PropertyShort struct ***REMOVED***
+		Name        Identifier
+		Initializer Expression
+	***REMOVED***
+
+	PropertyKeyed struct ***REMOVED***
 		Key   Expression
-		Kind  string
+		Kind  PropertyKind
 		Value Expression
+	***REMOVED***
+
+	SpreadElement struct ***REMOVED***
+		Expression
 	***REMOVED***
 
 	RegExpLiteral struct ***REMOVED***
@@ -167,12 +237,6 @@ type (
 		Postfix  bool
 	***REMOVED***
 
-	VariableExpression struct ***REMOVED***
-		Name        unistring.String
-		Idx         file.Idx
-		Initializer Expression
-	***REMOVED***
-
 	MetaProperty struct ***REMOVED***
 		Meta, Property *Identifier
 		Idx            file.Idx
@@ -191,6 +255,7 @@ func (*CallExpression) _expressionNode()        ***REMOVED******REMOVED***
 func (*ConditionalExpression) _expressionNode() ***REMOVED******REMOVED***
 func (*DotExpression) _expressionNode()         ***REMOVED******REMOVED***
 func (*FunctionLiteral) _expressionNode()       ***REMOVED******REMOVED***
+func (*ArrowFunctionLiteral) _expressionNode()  ***REMOVED******REMOVED***
 func (*Identifier) _expressionNode()            ***REMOVED******REMOVED***
 func (*NewExpression) _expressionNode()         ***REMOVED******REMOVED***
 func (*NullLiteral) _expressionNode()           ***REMOVED******REMOVED***
@@ -201,8 +266,13 @@ func (*SequenceExpression) _expressionNode()    ***REMOVED******REMOVED***
 func (*StringLiteral) _expressionNode()         ***REMOVED******REMOVED***
 func (*ThisExpression) _expressionNode()        ***REMOVED******REMOVED***
 func (*UnaryExpression) _expressionNode()       ***REMOVED******REMOVED***
-func (*VariableExpression) _expressionNode()    ***REMOVED******REMOVED***
 func (*MetaProperty) _expressionNode()          ***REMOVED******REMOVED***
+func (*ObjectPattern) _expressionNode()         ***REMOVED******REMOVED***
+func (*ArrayPattern) _expressionNode()          ***REMOVED******REMOVED***
+func (*Binding) _expressionNode()               ***REMOVED******REMOVED***
+
+func (*PropertyShort) _expressionNode() ***REMOVED******REMOVED***
+func (*PropertyKeyed) _expressionNode() ***REMOVED******REMOVED***
 
 // ========= //
 // Statement //
@@ -240,7 +310,7 @@ type (
 
 	CatchStatement struct ***REMOVED***
 		Catch     file.Idx
-		Parameter *Identifier
+		Parameter BindingTarget
 		Body      *BlockStatement
 	***REMOVED***
 
@@ -323,13 +393,13 @@ type (
 
 	VariableStatement struct ***REMOVED***
 		Var  file.Idx
-		List []*VariableExpression
+		List []*Binding
 	***REMOVED***
 
 	LexicalDeclaration struct ***REMOVED***
 		Idx   file.Idx
 		Token token.Token
-		List  []*VariableExpression
+		List  []*Binding
 	***REMOVED***
 
 	WhileStatement struct ***REMOVED***
@@ -382,7 +452,7 @@ func (*FunctionDeclaration) _statementNode() ***REMOVED******REMOVED***
 type (
 	VariableDeclaration struct ***REMOVED***
 		Var  file.Idx
-		List []*VariableExpression
+		List []*Binding
 	***REMOVED***
 )
 
@@ -397,7 +467,7 @@ type (
 
 	ForLoopInitializerVarDeclList struct ***REMOVED***
 		Var  file.Idx
-		List []*VariableExpression
+		List []*Binding
 	***REMOVED***
 
 	ForLoopInitializerLexicalDecl struct ***REMOVED***
@@ -409,22 +479,13 @@ type (
 	***REMOVED***
 
 	ForIntoVar struct ***REMOVED***
-		Binding *VariableExpression
-	***REMOVED***
-
-	ForBinding interface ***REMOVED***
-		_forBinding()
-	***REMOVED***
-
-	BindingIdentifier struct ***REMOVED***
-		Idx  file.Idx
-		Name unistring.String
+		Binding *Binding
 	***REMOVED***
 
 	ForDeclaration struct ***REMOVED***
 		Idx     file.Idx
 		IsConst bool
-		Binding ForBinding
+		Target  BindingTarget
 	***REMOVED***
 
 	ForIntoExpression struct ***REMOVED***
@@ -440,7 +501,22 @@ func (*ForIntoVar) _forInto()        ***REMOVED******REMOVED***
 func (*ForDeclaration) _forInto()    ***REMOVED******REMOVED***
 func (*ForIntoExpression) _forInto() ***REMOVED******REMOVED***
 
-func (*BindingIdentifier) _forBinding() ***REMOVED******REMOVED***
+func (*ArrayPattern) _pattern()       ***REMOVED******REMOVED***
+func (*ArrayPattern) _bindingTarget() ***REMOVED******REMOVED***
+
+func (*ObjectPattern) _pattern()       ***REMOVED******REMOVED***
+func (*ObjectPattern) _bindingTarget() ***REMOVED******REMOVED***
+
+func (*BadExpression) _bindingTarget() ***REMOVED******REMOVED***
+
+func (*PropertyShort) _property() ***REMOVED******REMOVED***
+func (*PropertyKeyed) _property() ***REMOVED******REMOVED***
+func (*SpreadElement) _property() ***REMOVED******REMOVED***
+
+func (*Identifier) _bindingTarget() ***REMOVED******REMOVED***
+
+func (*BlockStatement) _conciseBody() ***REMOVED******REMOVED***
+func (*ExpressionBody) _conciseBody() ***REMOVED******REMOVED***
 
 // ==== //
 // Node //
@@ -459,6 +535,8 @@ type Program struct ***REMOVED***
 // ==== //
 
 func (self *ArrayLiteral) Idx0() file.Idx          ***REMOVED*** return self.LeftBracket ***REMOVED***
+func (self *ArrayPattern) Idx0() file.Idx          ***REMOVED*** return self.LeftBracket ***REMOVED***
+func (self *ObjectPattern) Idx0() file.Idx         ***REMOVED*** return self.LeftBrace ***REMOVED***
 func (self *AssignExpression) Idx0() file.Idx      ***REMOVED*** return self.Left.Idx0() ***REMOVED***
 func (self *BadExpression) Idx0() file.Idx         ***REMOVED*** return self.From ***REMOVED***
 func (self *BinaryExpression) Idx0() file.Idx      ***REMOVED*** return self.Left.Idx0() ***REMOVED***
@@ -468,6 +546,7 @@ func (self *CallExpression) Idx0() file.Idx        ***REMOVED*** return self.Cal
 func (self *ConditionalExpression) Idx0() file.Idx ***REMOVED*** return self.Test.Idx0() ***REMOVED***
 func (self *DotExpression) Idx0() file.Idx         ***REMOVED*** return self.Left.Idx0() ***REMOVED***
 func (self *FunctionLiteral) Idx0() file.Idx       ***REMOVED*** return self.Function ***REMOVED***
+func (self *ArrowFunctionLiteral) Idx0() file.Idx  ***REMOVED*** return self.Start ***REMOVED***
 func (self *Identifier) Idx0() file.Idx            ***REMOVED*** return self.Idx ***REMOVED***
 func (self *NewExpression) Idx0() file.Idx         ***REMOVED*** return self.New ***REMOVED***
 func (self *NullLiteral) Idx0() file.Idx           ***REMOVED*** return self.Idx ***REMOVED***
@@ -478,7 +557,6 @@ func (self *SequenceExpression) Idx0() file.Idx    ***REMOVED*** return self.Seq
 func (self *StringLiteral) Idx0() file.Idx         ***REMOVED*** return self.Idx ***REMOVED***
 func (self *ThisExpression) Idx0() file.Idx        ***REMOVED*** return self.Idx ***REMOVED***
 func (self *UnaryExpression) Idx0() file.Idx       ***REMOVED*** return self.Idx ***REMOVED***
-func (self *VariableExpression) Idx0() file.Idx    ***REMOVED*** return self.Idx ***REMOVED***
 func (self *MetaProperty) Idx0() file.Idx          ***REMOVED*** return self.Idx ***REMOVED***
 
 func (self *BadStatement) Idx0() file.Idx        ***REMOVED*** return self.From ***REMOVED***
@@ -505,14 +583,19 @@ func (self *WhileStatement) Idx0() file.Idx      ***REMOVED*** return self.While
 func (self *WithStatement) Idx0() file.Idx       ***REMOVED*** return self.With ***REMOVED***
 func (self *LexicalDeclaration) Idx0() file.Idx  ***REMOVED*** return self.Idx ***REMOVED***
 func (self *FunctionDeclaration) Idx0() file.Idx ***REMOVED*** return self.Function.Idx0() ***REMOVED***
+func (self *Binding) Idx0() file.Idx             ***REMOVED*** return self.Target.Idx0() ***REMOVED***
 
 func (self *ForLoopInitializerVarDeclList) Idx0() file.Idx ***REMOVED*** return self.List[0].Idx0() ***REMOVED***
+func (self *PropertyShort) Idx0() file.Idx                 ***REMOVED*** return self.Name.Idx ***REMOVED***
+func (self *PropertyKeyed) Idx0() file.Idx                 ***REMOVED*** return self.Key.Idx0() ***REMOVED***
+func (self *ExpressionBody) Idx0() file.Idx                ***REMOVED*** return self.Expression.Idx0() ***REMOVED***
 
 // ==== //
 // Idx1 //
 // ==== //
 
-func (self *ArrayLiteral) Idx1() file.Idx          ***REMOVED*** return self.RightBracket ***REMOVED***
+func (self *ArrayLiteral) Idx1() file.Idx          ***REMOVED*** return self.RightBracket + 1 ***REMOVED***
+func (self *ArrayPattern) Idx1() file.Idx          ***REMOVED*** return self.RightBracket + 1 ***REMOVED***
 func (self *AssignExpression) Idx1() file.Idx      ***REMOVED*** return self.Right.Idx1() ***REMOVED***
 func (self *BadExpression) Idx1() file.Idx         ***REMOVED*** return self.To ***REMOVED***
 func (self *BinaryExpression) Idx1() file.Idx      ***REMOVED*** return self.Right.Idx1() ***REMOVED***
@@ -522,26 +605,22 @@ func (self *CallExpression) Idx1() file.Idx        ***REMOVED*** return self.Rig
 func (self *ConditionalExpression) Idx1() file.Idx ***REMOVED*** return self.Test.Idx1() ***REMOVED***
 func (self *DotExpression) Idx1() file.Idx         ***REMOVED*** return self.Identifier.Idx1() ***REMOVED***
 func (self *FunctionLiteral) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
+func (self *ArrowFunctionLiteral) Idx1() file.Idx  ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *Identifier) Idx1() file.Idx            ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Name)) ***REMOVED***
 func (self *NewExpression) Idx1() file.Idx         ***REMOVED*** return self.RightParenthesis + 1 ***REMOVED***
 func (self *NullLiteral) Idx1() file.Idx           ***REMOVED*** return file.Idx(int(self.Idx) + 4) ***REMOVED*** // "null"
 func (self *NumberLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *ObjectLiteral) Idx1() file.Idx         ***REMOVED*** return self.RightBrace ***REMOVED***
+func (self *ObjectLiteral) Idx1() file.Idx         ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
+func (self *ObjectPattern) Idx1() file.Idx         ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
 func (self *RegExpLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *SequenceExpression) Idx1() file.Idx    ***REMOVED*** return self.Sequence[0].Idx1() ***REMOVED***
+func (self *SequenceExpression) Idx1() file.Idx    ***REMOVED*** return self.Sequence[len(self.Sequence)-1].Idx1() ***REMOVED***
 func (self *StringLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *ThisExpression) Idx1() file.Idx        ***REMOVED*** return self.Idx ***REMOVED***
+func (self *ThisExpression) Idx1() file.Idx        ***REMOVED*** return self.Idx + 4 ***REMOVED***
 func (self *UnaryExpression) Idx1() file.Idx ***REMOVED***
 	if self.Postfix ***REMOVED***
 		return self.Operand.Idx1() + 2 // ++ --
 	***REMOVED***
 	return self.Operand.Idx1()
-***REMOVED***
-func (self *VariableExpression) Idx1() file.Idx ***REMOVED***
-	if self.Initializer == nil ***REMOVED***
-		return file.Idx(int(self.Idx) + len(self.Name) + 1)
-	***REMOVED***
-	return self.Initializer.Idx1()
 ***REMOVED***
 func (self *MetaProperty) Idx1() file.Idx ***REMOVED***
 	return self.Property.Idx1()
@@ -565,16 +644,41 @@ func (self *IfStatement) Idx1() file.Idx ***REMOVED***
 	***REMOVED***
 	return self.Consequent.Idx1()
 ***REMOVED***
-func (self *LabelledStatement) Idx1() file.Idx   ***REMOVED*** return self.Colon + 1 ***REMOVED***
-func (self *Program) Idx1() file.Idx             ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
-func (self *ReturnStatement) Idx1() file.Idx     ***REMOVED*** return self.Return ***REMOVED***
-func (self *SwitchStatement) Idx1() file.Idx     ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
-func (self *ThrowStatement) Idx1() file.Idx      ***REMOVED*** return self.Throw ***REMOVED***
-func (self *TryStatement) Idx1() file.Idx        ***REMOVED*** return self.Try ***REMOVED***
+func (self *LabelledStatement) Idx1() file.Idx ***REMOVED*** return self.Colon + 1 ***REMOVED***
+func (self *Program) Idx1() file.Idx           ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
+func (self *ReturnStatement) Idx1() file.Idx   ***REMOVED*** return self.Return + 6 ***REMOVED***
+func (self *SwitchStatement) Idx1() file.Idx   ***REMOVED*** return self.Body[len(self.Body)-1].Idx1() ***REMOVED***
+func (self *ThrowStatement) Idx1() file.Idx    ***REMOVED*** return self.Argument.Idx1() ***REMOVED***
+func (self *TryStatement) Idx1() file.Idx ***REMOVED***
+	if self.Finally != nil ***REMOVED***
+		return self.Finally.Idx1()
+	***REMOVED***
+	if self.Catch != nil ***REMOVED***
+		return self.Catch.Idx1()
+	***REMOVED***
+	return self.Body.Idx1()
+***REMOVED***
 func (self *VariableStatement) Idx1() file.Idx   ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
 func (self *WhileStatement) Idx1() file.Idx      ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *WithStatement) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *LexicalDeclaration) Idx1() file.Idx  ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
 func (self *FunctionDeclaration) Idx1() file.Idx ***REMOVED*** return self.Function.Idx1() ***REMOVED***
+func (self *Binding) Idx1() file.Idx ***REMOVED***
+	if self.Initializer != nil ***REMOVED***
+		return self.Initializer.Idx1()
+	***REMOVED***
+	return self.Target.Idx1()
+***REMOVED***
 
 func (self *ForLoopInitializerVarDeclList) Idx1() file.Idx ***REMOVED*** return self.List[len(self.List)-1].Idx1() ***REMOVED***
+
+func (self *PropertyShort) Idx1() file.Idx ***REMOVED***
+	if self.Initializer != nil ***REMOVED***
+		return self.Initializer.Idx1()
+	***REMOVED***
+	return self.Name.Idx1()
+***REMOVED***
+
+func (self *PropertyKeyed) Idx1() file.Idx ***REMOVED*** return self.Value.Idx1() ***REMOVED***
+
+func (self *ExpressionBody) Idx1() file.Idx ***REMOVED*** return self.Expression.Idx1() ***REMOVED***

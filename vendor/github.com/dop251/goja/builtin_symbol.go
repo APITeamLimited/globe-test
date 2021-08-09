@@ -21,8 +21,6 @@ func (r *Runtime) builtin_symbol(call FunctionCall) Value ***REMOVED***
 	var desc valueString
 	if arg := call.Argument(0); !IsUndefined(arg) ***REMOVED***
 		desc = arg.toString()
-	***REMOVED*** else ***REMOVED***
-		desc = stringEmpty
 	***REMOVED***
 	return newSymbol(desc)
 ***REMOVED***
