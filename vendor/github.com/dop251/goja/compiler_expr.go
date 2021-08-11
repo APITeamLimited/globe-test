@@ -830,12 +830,7 @@ func (c *compiler) compileParameterBindingIdentifier(name unistring.String, offs
 		c.checkIdentifierName(name, offset)
 		c.checkIdentifierLName(name, offset)
 	***REMOVED***
-	b, unique := c.scope.bindNameShadow(name)
-	if !unique && c.scope.strict ***REMOVED***
-		c.throwSyntaxError(offset, "Strict mode function may not have duplicate parameter names (%s)", name)
-		return nil, false
-	***REMOVED***
-	return b, unique
+	return c.scope.bindNameShadow(name)
 ***REMOVED***
 
 func (c *compiler) compileParameterPatternIdBinding(name unistring.String, offset int) ***REMOVED***
@@ -911,16 +906,17 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 		if item.Initializer != nil ***REMOVED***
 			hasInits = true
 		***REMOVED***
-		if hasPatterns || hasInits || e.isArrow ***REMOVED***
-			if firstDupIdx >= 0 ***REMOVED***
-				e.c.throwSyntaxError(firstDupIdx, "Duplicate parameter name not allowed in this context")
-				return
-			***REMOVED***
-			if e.strict != nil ***REMOVED***
-				e.c.throwSyntaxError(int(e.strict.Idx)-1, "Illegal 'use strict' directive in function with non-simple parameter list")
-				return
-			***REMOVED***
+
+		if firstDupIdx >= 0 && (hasPatterns || hasInits || s.strict || e.isArrow) ***REMOVED***
+			e.c.throwSyntaxError(firstDupIdx, "Duplicate parameter name not allowed in this context")
+			return
 		***REMOVED***
+
+		if (hasPatterns || hasInits) && e.strict != nil ***REMOVED***
+			e.c.throwSyntaxError(int(e.strict.Idx)-1, "Illegal 'use strict' directive in function with non-simple parameter list")
+			return
+		***REMOVED***
+
 		if !hasInits ***REMOVED***
 			length++
 		***REMOVED***
