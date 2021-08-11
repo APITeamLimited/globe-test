@@ -72,6 +72,9 @@ func getAllOutputConstructors() (map[string]func(output.Params) (output.Output, 
 func getPossibleIDList(constrs map[string]func(output.Params) (output.Output, error)) string ***REMOVED***
 	res := make([]string, 0, len(constrs))
 	for k := range constrs ***REMOVED***
+		if k == "kafka" || k == "datadog" ***REMOVED***
+			continue
+		***REMOVED***
 		res = append(res, k)
 	***REMOVED***
 	sort.Strings(res)
