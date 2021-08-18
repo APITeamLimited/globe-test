@@ -2326,7 +2326,7 @@ func (r *resolveMixedStack) exec(vm *vm) ***REMOVED***
 	if r.idx > 0 ***REMOVED***
 		idx = vm.sb + vm.args + r.idx
 	***REMOVED*** else ***REMOVED***
-		idx = vm.sb + r.idx
+		idx = vm.sb - r.idx
 	***REMOVED***
 
 	ref = newStashRef(r.typ, r.name, (*[]Value)(&vm.stack), idx)
