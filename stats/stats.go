@@ -467,12 +467,6 @@ func New(name string, typ MetricType, t ...ValueType) *Metric ***REMOVED***
 	return &Metric***REMOVED***Name: name, Type: typ, Contains: vt, Sink: sink***REMOVED***
 ***REMOVED***
 
-var unitMap = map[string][]interface***REMOVED******REMOVED******REMOVED***
-	"s":  ***REMOVED***"s", time.Second***REMOVED***,
-	"ms": ***REMOVED***"ms", time.Millisecond***REMOVED***,
-	"us": ***REMOVED***"µs", time.Microsecond***REMOVED***,
-***REMOVED***
-
 // A Submetric represents a filtered dataset based on a parent metric.
 type Submetric struct ***REMOVED***
 	Name   string      `json:"name"`
