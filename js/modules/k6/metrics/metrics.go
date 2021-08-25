@@ -21,7 +21,6 @@
 package metrics
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -30,7 +29,7 @@ import (
 	"github.com/dop251/goja"
 
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
+	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/stats"
 )
 
@@ -44,41 +43,50 @@ func checkName(name string) bool ***REMOVED***
 
 type Metric struct ***REMOVED***
 	metric *stats.Metric
+	core   modules.InstanceCore
 ***REMOVED***
 
 // ErrMetricsAddInInitContext is error returned when adding to metric is done in the init context
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
-func newMetric(ctxPtr *context.Context, name string, t stats.MetricType, isTime []bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	if lib.GetState(*ctxPtr) != nil ***REMOVED***
+func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricType) (*goja.Object, error) ***REMOVED***
+	if mi.GetInitEnv() == nil ***REMOVED***
 		return nil, errors.New("metrics must be declared in the init context")
 	***REMOVED***
+	rt := mi.GetRuntime()
+	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) ***REMOVED***
+		// TODO: move verification outside the JS
+		if !checkName(name) ***REMOVED***
+			return nil, common.NewInitContextError(fmt.Sprintf("Invalid metric name: '%s'", name))
+		***REMOVED***
 
-	// TODO: move verification outside the JS
-	if !checkName(name) ***REMOVED***
-		return nil, common.NewInitContextError(fmt.Sprintf("Invalid metric name: '%s'", name))
-	***REMOVED***
+		valueType := stats.Default
+		if len(isTime) > 0 && isTime[0] ***REMOVED***
+			valueType = stats.Time
+		***REMOVED***
+		m := stats.New(name, t, valueType)
 
-	valueType := stats.Default
-	if len(isTime) > 0 && isTime[0] ***REMOVED***
-		valueType = stats.Time
-	***REMOVED***
-
-	rt := common.GetRuntime(*ctxPtr)
-	bound := common.Bind(rt, Metric***REMOVED***stats.New(name, t, valueType)***REMOVED***, ctxPtr)
-	o := rt.NewObject()
-	err := o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		metric := &Metric***REMOVED***metric: m, core: mi.InstanceCore***REMOVED***
+		o := rt.NewObject()
+		err := o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if err = o.Set("add", rt.ToValue(metric.add)); err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		return o, nil
+	***REMOVED***))
+	v, err := c(call.This, call.Arguments...)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	if err = o.Set("add", rt.ToValue(bound["add"])); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	return o, nil
+
+	return v.ToObject(rt), nil
 ***REMOVED***
 
-func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]string) (bool, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (m Metric) add(v goja.Value, addTags ...map[string]string) (bool, error) ***REMOVED***
+	state := m.core.GetState()
 	if state == nil ***REMOVED***
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***
@@ -96,28 +104,71 @@ func (m Metric) Add(ctx context.Context, v goja.Value, addTags ...map[string]str
 	***REMOVED***
 
 	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: stats.IntoSampleTags(&tags)***REMOVED***
-	stats.PushIfNotDone(ctx, state.Samples, sample)
+	stats.PushIfNotDone(m.core.GetContext(), state.Samples, sample)
 	return true, nil
 ***REMOVED***
 
-type Metrics struct***REMOVED******REMOVED***
+type (
+	// RootModule is the root metrics module
+	RootModule struct***REMOVED******REMOVED***
+	// ModuleInstance represents an instance of the metrics module
+	ModuleInstance struct ***REMOVED***
+		modules.InstanceCore
+	***REMOVED***
+)
 
-func New() *Metrics ***REMOVED***
-	return &Metrics***REMOVED******REMOVED***
+var (
+	_ modules.IsModuleV2 = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance   = &ModuleInstance***REMOVED******REMOVED***
+)
+
+// NewModuleInstance implements modules.IsModuleV2 interface
+func (*RootModule) NewModuleInstance(m modules.InstanceCore) modules.Instance ***REMOVED***
+	return &ModuleInstance***REMOVED***InstanceCore: m***REMOVED***
 ***REMOVED***
 
-func (*Metrics) XCounter(ctx *context.Context, name string, isTime ...bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	return newMetric(ctx, name, stats.Counter, isTime)
+// New returns a new RootModule.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED******REMOVED***
 ***REMOVED***
 
-func (*Metrics) XGauge(ctx *context.Context, name string, isTime ...bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	return newMetric(ctx, name, stats.Gauge, isTime)
+// GetExports returns the exports of the metrics module
+func (mi *ModuleInstance) GetExports() modules.Exports ***REMOVED***
+	return modules.GenerateExports(mi)
 ***REMOVED***
 
-func (*Metrics) XTrend(ctx *context.Context, name string, isTime ...bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	return newMetric(ctx, name, stats.Trend, isTime)
+// XCounter is a counter constructor
+func (mi *ModuleInstance) XCounter(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+	v, err := mi.newMetric(call, stats.Counter)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+	return v
 ***REMOVED***
 
-func (*Metrics) XRate(ctx *context.Context, name string, isTime ...bool) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	return newMetric(ctx, name, stats.Rate, isTime)
+// XGauge is a gauge constructor
+func (mi *ModuleInstance) XGauge(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+	v, err := mi.newMetric(call, stats.Gauge)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+	return v
+***REMOVED***
+
+// XTrend is a trend constructor
+func (mi *ModuleInstance) XTrend(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+	v, err := mi.newMetric(call, stats.Trend)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+	return v
+***REMOVED***
+
+// XRate is a rate constructor
+func (mi *ModuleInstance) XRate(call goja.ConstructorCall, rt *goja.Runtime) *goja.Object ***REMOVED***
+	v, err := mi.newMetric(call, stats.Rate)
+	if err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+	return v
 ***REMOVED***

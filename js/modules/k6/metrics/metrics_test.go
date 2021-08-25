@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/stats"
 )
@@ -61,11 +62,14 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					t.Parallel()
 					rt := goja.New()
 					rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-
-					ctxPtr := new(context.Context)
-					*ctxPtr = common.WithRuntime(context.Background(), rt)
-					rt.Set("metrics", common.Bind(rt, New(), ctxPtr))
-
+					mii := &modulestest.InstanceCore***REMOVED***
+						Runtime: rt,
+						InitEnv: &common.InitEnvironment***REMOVED******REMOVED***,
+						Ctx:     context.Background(),
+					***REMOVED***
+					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
+					require.True(t, ok)
+					require.NoError(t, rt.Set("metrics", m.GetExports().Named))
 					root, _ := lib.NewGroup("", nil)
 					child, _ := root.Group("child")
 					samples := make(chan stats.SampleContainer, 1000)
@@ -84,9 +88,10 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					require.NoError(t, err)
 
 					t.Run("ExitInit", func(t *testing.T) ***REMOVED***
-						*ctxPtr = lib.WithState(*ctxPtr, state)
+						mii.State = state
+						mii.InitEnv = nil
 						_, err := rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
-						assert.EqualError(t, err, "metrics must be declared in the init context at apply (native)")
+						assert.Contains(t, err.Error(), "metrics must be declared in the init context")
 					***REMOVED***)
 
 					groups := map[string]*lib.Group***REMOVED***
@@ -175,9 +180,14 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
-	ctxPtr := new(context.Context)
-	*ctxPtr = common.WithRuntime(context.Background(), rt)
-	require.NoError(t, rt.Set("metrics", common.Bind(rt, New(), ctxPtr)))
+	mii := &modulestest.InstanceCore***REMOVED***
+		Runtime: rt,
+		InitEnv: &common.InitEnvironment***REMOVED******REMOVED***,
+		Ctx:     context.Background(),
+	***REMOVED***
+	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("metrics", m.GetExports().Named))
 	v, err := rt.RunString(`
 		var m = new metrics.Counter("my_metric")
 		m.name
