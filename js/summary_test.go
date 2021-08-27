@@ -395,6 +395,124 @@ const expectedHandleSummaryRawData = `
     ***REMOVED***
 ***REMOVED***`
 
+const expectedHandleSummaryDataWithSetup = `
+***REMOVED***
+    "root_group": ***REMOVED***
+        "groups": [
+            ***REMOVED***
+                "name": "child",
+                "path": "::child",
+                "id": "f41cbb53a398ec1c9fb3d33e20c9b040",
+                "groups": [],
+                "checks": [
+                        ***REMOVED***
+                            "id": "6289a7a06253a1c3f6137dfb25695563",
+                            "passes": 30,
+                            "fails": 0,
+                            "name": "check1",
+                            "path": "::child::check1"
+                        ***REMOVED***,
+                        ***REMOVED***
+                            "fails": 5,
+                            "name": "check3",
+                            "path": "::child::check3",
+                            "id": "c7553eca92d3e034b5808332296d304a",
+                            "passes": 10
+                        ***REMOVED***,
+                        ***REMOVED***
+                            "name": "check2",
+                            "path": "::child::check2",
+                            "id": "06f5922794bef0d4584ba76a49893e1f",
+                            "passes": 5,
+                            "fails": 10
+                        ***REMOVED***
+                    ]
+            ***REMOVED***
+        ],
+        "checks": [],
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e"
+    ***REMOVED***,
+    "options": ***REMOVED***
+        "summaryTrendStats": [
+            "avg",
+            "min",
+            "med",
+            "max",
+            "p(90)",
+            "p(95)",
+            "p(99)",
+            "count"
+        ],
+        "summaryTimeUnit": "",
+		"noColor": false
+    ***REMOVED***,
+	"state": ***REMOVED***
+		"isStdErrTTY": false,
+		"isStdOutTTY": false,
+		"testRunDurationMs": 1000
+	***REMOVED***,
+	"setup_data": 5,
+    "metrics": ***REMOVED***
+        "checks": ***REMOVED***
+            "contains": "default",
+            "values": ***REMOVED***
+                "passes": 45,
+                "fails": 15,
+                "rate": 0.75
+            ***REMOVED***,
+            "type": "rate",
+            "thresholds": ***REMOVED***
+                "rate>70": ***REMOVED***
+                    "ok": true
+                ***REMOVED***
+            ***REMOVED***
+        ***REMOVED***,
+        "my_trend": ***REMOVED***
+            "thresholds": ***REMOVED***
+                "my_trend<1000": ***REMOVED***
+                    "ok": false
+                ***REMOVED***
+            ***REMOVED***,
+            "type": "trend",
+            "contains": "time",
+            "values": ***REMOVED***
+                "max": 20,
+                "p(90)": 19,
+                "p(95)": 19.5,
+                "p(99)": 19.9,
+                "count": 3,
+                "avg": 15,
+                "min": 10,
+                "med": 15
+            ***REMOVED***
+        ***REMOVED***,
+        "vus": ***REMOVED***
+            "contains": "default",
+            "values": ***REMOVED***
+                "value": 1,
+                "min": 1,
+                "max": 1
+            ***REMOVED***,
+            "type": "gauge"
+        ***REMOVED***,
+        "http_reqs": ***REMOVED***
+            "type": "counter",
+            "contains": "default",
+            "values": ***REMOVED***
+                "count": 3,
+                "rate": 3
+            ***REMOVED***,
+            "thresholds": ***REMOVED***
+                "rate<100": ***REMOVED***
+                    "ok": false
+                ***REMOVED***
+            ***REMOVED***
+        ***REMOVED***
+    ***REMOVED***
+***REMOVED***`
+
 func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner, err := getSimpleRunner(
@@ -430,6 +548,32 @@ func TestRawHandleSummaryData(t *testing.T) ***REMOVED***
 	newRawData, err := ioutil.ReadAll(result["rawdata.json"])
 	require.NoError(t, err)
 	assert.JSONEq(t, expectedHandleSummaryRawData, string(newRawData))
+***REMOVED***
+
+func TestRawHandleSummaryDataWithSetupData(t *testing.T) ***REMOVED***
+	t.Parallel()
+	runner, err := getSimpleRunner(
+		t, "/script.js",
+		`
+		exports.options = ***REMOVED***summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)", "count"]***REMOVED***;
+		exports.default = function() ***REMOVED*** /* we don't run this, metrics are mocked */ ***REMOVED***;
+		exports.handleSummary = function(data) ***REMOVED***
+			if(data.setup_data != 5) ***REMOVED***
+				throw new Error("handleSummary: wrong data: " + JSON.stringify(data))
+			***REMOVED***
+			return ***REMOVED***'dataWithSetup.json': JSON.stringify(data)***REMOVED***;
+		***REMOVED***;
+		`,
+	)
+	require.NoError(t, err)
+	runner.SetSetupData([]byte("5"))
+
+	summary := createTestSummary(t)
+	result, err := runner.HandleSummary(context.Background(), summary)
+	require.NoError(t, err)
+	dataWithSetup, err := ioutil.ReadAll(result["dataWithSetup.json"])
+	require.NoError(t, err)
+	assert.JSONEq(t, expectedHandleSummaryDataWithSetup, string(dataWithSetup))
 ***REMOVED***
 
 func TestWrongSummaryHandlerExportTypes(t *testing.T) ***REMOVED***
