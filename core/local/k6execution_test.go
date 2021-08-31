@@ -1,0 +1,315 @@
+/*
+ *
+ * k6 - a next-generation load testing tool
+ * Copyright (C) 2021 Load Impact
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+package local
+
+import (
+	"encoding/json"
+	"io/ioutil"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.k6.io/k6/js"
+	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/testutils"
+	"go.k6.io/k6/loader"
+)
+
+func TestExecutionInfoVUSharing(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := []byte(`
+		import exec from 'k6/execution';
+		import ***REMOVED*** sleep ***REMOVED*** from 'k6';
+
+		// The cvus scenario should reuse the two VUs created for the carr scenario.
+		export let options = ***REMOVED***
+			scenarios: ***REMOVED***
+				carr: ***REMOVED***
+					executor: 'constant-arrival-rate',
+					exec: 'carr',
+					rate: 9,
+					timeUnit: '0.95s',
+					duration: '1s',
+					preAllocatedVUs: 2,
+					maxVUs: 10,
+					gracefulStop: '100ms',
+				***REMOVED***,
+			    cvus: ***REMOVED***
+					executor: 'constant-vus',
+					exec: 'cvus',
+					vus: 2,
+					duration: '1s',
+					startTime: '2s',
+					gracefulStop: '0s',
+			    ***REMOVED***,
+		    ***REMOVED***,
+		***REMOVED***;
+
+		export function cvus() ***REMOVED***
+			const info = Object.assign(***REMOVED***scenario: 'cvus'***REMOVED***, exec.vu);
+			console.log(JSON.stringify(info));
+			sleep(0.2);
+		***REMOVED***;
+
+		export function carr() ***REMOVED***
+			const info = Object.assign(***REMOVED***scenario: 'carr'***REMOVED***, exec.vu);
+			console.log(JSON.stringify(info));
+		***REMOVED***;
+`)
+
+	logger := logrus.New()
+	logger.SetOutput(ioutil.Discard)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
+	logger.AddHook(&logHook)
+
+	runner, err := js.New(
+		logger,
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+			Data: script,
+		***REMOVED***,
+		nil,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	defer cancel()
+
+	type vuStat struct ***REMOVED***
+		iteration uint64
+		scIter    map[string]uint64
+	***REMOVED***
+	vuStats := map[uint64]*vuStat***REMOVED******REMOVED***
+
+	type logEntry struct ***REMOVED***
+		IDInInstance        uint64
+		Scenario            string
+		IterationInInstance uint64
+		IterationInScenario uint64
+	***REMOVED***
+
+	errCh := make(chan error, 1)
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+
+	select ***REMOVED***
+	case err := <-errCh:
+		require.NoError(t, err)
+		entries := logHook.Drain()
+		assert.InDelta(t, 20, len(entries), 2)
+		le := &logEntry***REMOVED******REMOVED***
+		for _, entry := range entries ***REMOVED***
+			err = json.Unmarshal([]byte(entry.Message), le)
+			require.NoError(t, err)
+			assert.Contains(t, []uint64***REMOVED***1, 2***REMOVED***, le.IDInInstance)
+			if _, ok := vuStats[le.IDInInstance]; !ok ***REMOVED***
+				vuStats[le.IDInInstance] = &vuStat***REMOVED***0, make(map[string]uint64)***REMOVED***
+			***REMOVED***
+			if le.IterationInInstance > vuStats[le.IDInInstance].iteration ***REMOVED***
+				vuStats[le.IDInInstance].iteration = le.IterationInInstance
+			***REMOVED***
+			if le.IterationInScenario > vuStats[le.IDInInstance].scIter[le.Scenario] ***REMOVED***
+				vuStats[le.IDInInstance].scIter[le.Scenario] = le.IterationInScenario
+			***REMOVED***
+		***REMOVED***
+		require.Len(t, vuStats, 2)
+		// Both VUs should complete 10 iterations each globally, but 5
+		// iterations each per scenario (iterations are 0-based)
+		for _, v := range vuStats ***REMOVED***
+			assert.Equal(t, uint64(9), v.iteration)
+			assert.Equal(t, uint64(4), v.scIter["cvus"])
+			assert.Equal(t, uint64(4), v.scIter["carr"])
+		***REMOVED***
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out")
+	***REMOVED***
+***REMOVED***
+
+func TestExecutionInfoScenarioIter(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := []byte(`
+		import exec from 'k6/execution';
+
+		// The pvu scenario should reuse the two VUs created for the carr scenario.
+		export let options = ***REMOVED***
+			scenarios: ***REMOVED***
+				carr: ***REMOVED***
+					executor: 'constant-arrival-rate',
+					exec: 'carr',
+					rate: 9,
+					timeUnit: '0.95s',
+					duration: '1s',
+					preAllocatedVUs: 2,
+					maxVUs: 10,
+					gracefulStop: '100ms',
+				***REMOVED***,
+				pvu: ***REMOVED***
+					executor: 'per-vu-iterations',
+					exec: 'pvu',
+					vus: 2,
+					iterations: 5,
+					startTime: '2s',
+					gracefulStop: '100ms',
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***;
+
+		export function pvu() ***REMOVED***
+			const info = Object.assign(***REMOVED***VUID: __VU***REMOVED***, exec.scenario);
+			console.log(JSON.stringify(info));
+		***REMOVED***
+
+		export function carr() ***REMOVED***
+			const info = Object.assign(***REMOVED***VUID: __VU***REMOVED***, exec.scenario);
+			console.log(JSON.stringify(info));
+		***REMOVED***;
+`)
+
+	logger := logrus.New()
+	logger.SetOutput(ioutil.Discard)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
+	logger.AddHook(&logHook)
+
+	runner, err := js.New(
+		logger,
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+			Data: script,
+		***REMOVED***,
+		nil,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+
+	scStats := map[string]uint64***REMOVED******REMOVED***
+
+	type logEntry struct ***REMOVED***
+		Name                      string
+		IterationInInstance, VUID uint64
+	***REMOVED***
+
+	select ***REMOVED***
+	case err := <-errCh:
+		require.NoError(t, err)
+		entries := logHook.Drain()
+		require.Len(t, entries, 20)
+		le := &logEntry***REMOVED******REMOVED***
+		for _, entry := range entries ***REMOVED***
+			err = json.Unmarshal([]byte(entry.Message), le)
+			require.NoError(t, err)
+			assert.Contains(t, []uint64***REMOVED***1, 2***REMOVED***, le.VUID)
+			if le.IterationInInstance > scStats[le.Name] ***REMOVED***
+				scStats[le.Name] = le.IterationInInstance
+			***REMOVED***
+		***REMOVED***
+		require.Len(t, scStats, 2)
+		// The global per scenario iteration count should be 9 (iterations
+		// start at 0), despite VUs being shared or more than 1 being used.
+		for _, v := range scStats ***REMOVED***
+			assert.Equal(t, uint64(9), v)
+		***REMOVED***
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out")
+	***REMOVED***
+***REMOVED***
+
+// Ensure that scenario iterations returned from k6/execution are
+// stable during the execution of an iteration.
+func TestSharedIterationsStable(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := []byte(`
+		import ***REMOVED*** sleep ***REMOVED*** from 'k6';
+		import exec from 'k6/execution';
+
+		export let options = ***REMOVED***
+			scenarios: ***REMOVED***
+				test: ***REMOVED***
+					executor: 'shared-iterations',
+					vus: 50,
+					iterations: 50,
+				***REMOVED***,
+			***REMOVED***,
+		***REMOVED***;
+		export default function () ***REMOVED***
+			sleep(1);
+			console.log(JSON.stringify(Object.assign(***REMOVED***VUID: __VU***REMOVED***, exec.scenario)));
+		***REMOVED***
+`)
+
+	logger := logrus.New()
+	logger.SetOutput(ioutil.Discard)
+	logHook := testutils.SimpleLogrusHook***REMOVED***HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED******REMOVED***
+	logger.AddHook(&logHook)
+
+	runner, err := js.New(
+		logger,
+		&loader.SourceData***REMOVED***
+			URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
+			Data: script,
+		***REMOVED***,
+		nil,
+		lib.RuntimeOptions***REMOVED******REMOVED***,
+	)
+	require.NoError(t, err)
+
+	ctx, cancel, execScheduler, samples := newTestExecutionScheduler(t, runner, logger, lib.Options***REMOVED******REMOVED***)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() ***REMOVED*** errCh <- execScheduler.Run(ctx, ctx, samples) ***REMOVED***()
+
+	expIters := [50]int64***REMOVED******REMOVED***
+	for i := 0; i < 50; i++ ***REMOVED***
+		expIters[i] = int64(i)
+	***REMOVED***
+	gotLocalIters, gotGlobalIters := []int64***REMOVED******REMOVED***, []int64***REMOVED******REMOVED***
+
+	type logEntry struct***REMOVED*** IterationInInstance, IterationInTest int64 ***REMOVED***
+
+	select ***REMOVED***
+	case err := <-errCh:
+		require.NoError(t, err)
+		entries := logHook.Drain()
+		require.Len(t, entries, 50)
+		le := &logEntry***REMOVED******REMOVED***
+		for _, entry := range entries ***REMOVED***
+			err = json.Unmarshal([]byte(entry.Message), le)
+			require.NoError(t, err)
+			require.Equal(t, le.IterationInInstance, le.IterationInTest)
+			gotLocalIters = append(gotLocalIters, le.IterationInInstance)
+			gotGlobalIters = append(gotGlobalIters, le.IterationInTest)
+		***REMOVED***
+
+		assert.ElementsMatch(t, expIters, gotLocalIters)
+		assert.ElementsMatch(t, expIters, gotGlobalIters)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out")
+	***REMOVED***
+***REMOVED***
