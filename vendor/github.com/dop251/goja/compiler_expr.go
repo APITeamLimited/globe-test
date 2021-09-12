@@ -1150,7 +1150,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 				e.c.p.code[enterFunc2Mark] = ef2
 			***REMOVED***
 		***REMOVED***
-		if emitArgsRestMark != -1 ***REMOVED***
+		if emitArgsRestMark != -1 && s.argsInStash ***REMOVED***
 			e.c.p.code[emitArgsRestMark] = createArgsRestStash
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***

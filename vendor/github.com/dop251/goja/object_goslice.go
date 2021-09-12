@@ -187,7 +187,7 @@ func (o *objectGoSlice) hasOwnPropertyStr(name unistring.String) bool ***REMOVED
 	if idx := strToIdx64(name); idx >= 0 ***REMOVED***
 		return idx < int64(len(*o.data))
 	***REMOVED***
-	return false
+	return name == "length"
 ***REMOVED***
 
 func (o *objectGoSlice) defineOwnPropertyIdx(idx valueInt, descr PropertyDescriptor, throw bool) bool ***REMOVED***

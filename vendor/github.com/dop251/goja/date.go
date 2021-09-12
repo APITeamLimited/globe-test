@@ -24,51 +24,80 @@ type dateObject struct ***REMOVED***
 	msec int64
 ***REMOVED***
 
+type dateLayoutDesc struct ***REMOVED***
+	layout   string
+	dateOnly bool
+***REMOVED***
+
 var (
-	dateLayoutList = []string***REMOVED***
-		"2006-01-02T15:04:05Z0700",
-		"2006-01-02T15:04:05",
-		"2006-01-02",
-		"2006-01-02 15:04:05",
-		time.RFC1123,
-		time.RFC1123Z,
-		dateTimeLayout,
-		time.UnixDate,
-		time.ANSIC,
-		time.RubyDate,
-		"Mon, 02 Jan 2006 15:04:05 GMT-0700 (MST)",
-		"Mon, 02 Jan 2006 15:04:05 -0700 (MST)",
+	dateLayoutsNumeric = []dateLayoutDesc***REMOVED***
+		***REMOVED***layout: "2006-01-02T15:04:05Z0700"***REMOVED***,
+		***REMOVED***layout: "2006-01-02T15:04:05"***REMOVED***,
+		***REMOVED***layout: "2006-01-02", dateOnly: true***REMOVED***,
+		***REMOVED***layout: "2006-01-02 15:04:05"***REMOVED***,
 
-		"2006",
-		"2006-01",
+		***REMOVED***layout: "2006", dateOnly: true***REMOVED***,
+		***REMOVED***layout: "2006-01", dateOnly: true***REMOVED***,
 
-		"2006T15:04",
-		"2006-01T15:04",
-		"2006-01-02T15:04",
+		***REMOVED***layout: "2006T15:04"***REMOVED***,
+		***REMOVED***layout: "2006-01T15:04"***REMOVED***,
+		***REMOVED***layout: "2006-01-02T15:04"***REMOVED***,
 
-		"2006T15:04:05",
-		"2006-01T15:04:05",
+		***REMOVED***layout: "2006T15:04:05"***REMOVED***,
+		***REMOVED***layout: "2006-01T15:04:05"***REMOVED***,
 
-		"2006T15:04Z0700",
-		"2006-01T15:04Z0700",
-		"2006-01-02T15:04Z0700",
+		***REMOVED***layout: "2006T15:04Z0700"***REMOVED***,
+		***REMOVED***layout: "2006-01T15:04Z0700"***REMOVED***,
+		***REMOVED***layout: "2006-01-02T15:04Z0700"***REMOVED***,
 
-		"2006T15:04:05Z0700",
-		"2006-01T15:04:05Z0700",
+		***REMOVED***layout: "2006T15:04:05Z0700"***REMOVED***,
+		***REMOVED***layout: "2006-01T15:04:05Z0700"***REMOVED***,
+	***REMOVED***
+
+	dateLayoutsAlpha = []dateLayoutDesc***REMOVED***
+		***REMOVED***layout: time.RFC1123***REMOVED***,
+		***REMOVED***layout: time.RFC1123Z***REMOVED***,
+		***REMOVED***layout: dateTimeLayout***REMOVED***,
+		***REMOVED***layout: time.UnixDate***REMOVED***,
+		***REMOVED***layout: time.ANSIC***REMOVED***,
+		***REMOVED***layout: time.RubyDate***REMOVED***,
+		***REMOVED***layout: "Mon, _2 Jan 2006 15:04:05 GMT-0700 (MST)"***REMOVED***,
+		***REMOVED***layout: "Mon, _2 Jan 2006 15:04:05 -0700 (MST)"***REMOVED***,
+		***REMOVED***layout: "Jan _2, 2006", dateOnly: true***REMOVED***,
 	***REMOVED***
 )
 
 func dateParse(date string) (time.Time, bool) ***REMOVED***
 	var t time.Time
 	var err error
-	for _, layout := range dateLayoutList ***REMOVED***
-		t, err = parseDate(layout, date, time.UTC)
+	var layouts []dateLayoutDesc
+	if len(date) > 0 ***REMOVED***
+		first := date[0]
+		if first <= '9' && (first >= '0' || first == '-' || first == '+') ***REMOVED***
+			layouts = dateLayoutsNumeric
+		***REMOVED*** else ***REMOVED***
+			layouts = dateLayoutsAlpha
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		return time.Time***REMOVED******REMOVED***, false
+	***REMOVED***
+	for _, desc := range layouts ***REMOVED***
+		var defLoc *time.Location
+		if desc.dateOnly ***REMOVED***
+			defLoc = time.UTC
+		***REMOVED*** else ***REMOVED***
+			defLoc = time.Local
+		***REMOVED***
+		t, err = parseDate(desc.layout, date, defLoc)
 		if err == nil ***REMOVED***
 			break
 		***REMOVED***
 	***REMOVED***
+	if err != nil ***REMOVED***
+		return time.Time***REMOVED******REMOVED***, false
+	***REMOVED***
 	unix := timeToMsec(t)
-	return t, err == nil && unix >= -maxTime && unix <= maxTime
+	return t, unix >= -maxTime && unix <= maxTime
 ***REMOVED***
 
 func (r *Runtime) newDateObject(t time.Time, isSet bool, proto *Object) *Object ***REMOVED***
