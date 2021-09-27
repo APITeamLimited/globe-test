@@ -28,10 +28,12 @@ import (
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/stats"
 )
 
@@ -64,7 +66,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 					mii := &modulestest.InstanceCore***REMOVED***
 						Runtime: rt,
-						InitEnv: &common.InitEnvironment***REMOVED******REMOVED***,
+						InitEnv: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
 						Ctx:     context.Background(),
 					***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
@@ -74,7 +76,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					child, _ := root.Group("child")
 					samples := make(chan stats.SampleContainer, 1000)
 					state := &lib.State***REMOVED***
-						Options: lib.Options***REMOVED***SystemTags: stats.NewSystemTagSet(stats.TagGroup)***REMOVED***,
+						Options: lib.Options***REMOVED***SystemTags: stats.NewSystemTagSet(stats.TagGroup), Throw: null.BoolFrom(true)***REMOVED***,
 						Group:   root,
 						Samples: samples,
 						Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
@@ -153,28 +155,6 @@ func TestMetrics(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestMetricNames(t *testing.T) ***REMOVED***
-	t.Parallel()
-	testMap := map[string]bool***REMOVED***
-		"simple":       true,
-		"still_simple": true,
-		"":             false,
-		"@":            false,
-		"a":            true,
-		"special\n\t":  false,
-		// this has both hangul and japanese numerals .
-		"hello.World_in_한글一안녕一세상": true,
-		// too long
-		"tooolooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooog": false,
-	***REMOVED***
-
-	for key, value := range testMap ***REMOVED***
-		t.Run(key, func(t *testing.T) ***REMOVED***
-			assert.Equal(t, value, checkName(key), key)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
-
 func TestMetricGetName(t *testing.T) ***REMOVED***
 	t.Parallel()
 	rt := goja.New()
@@ -182,7 +162,7 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 
 	mii := &modulestest.InstanceCore***REMOVED***
 		Runtime: rt,
-		InitEnv: &common.InitEnvironment***REMOVED******REMOVED***,
+		InitEnv: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
 		Ctx:     context.Background(),
 	***REMOVED***
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
@@ -201,4 +181,45 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 	`)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "TypeError: Cannot assign to read only property 'name'")
+***REMOVED***
+
+func TestMetricDuplicates(t *testing.T) ***REMOVED***
+	t.Parallel()
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	mii := &modulestest.InstanceCore***REMOVED***
+		Runtime: rt,
+		InitEnv: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
+		Ctx:     context.Background(),
+	***REMOVED***
+	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("metrics", m.GetExports().Named))
+	_, err := rt.RunString(`
+		var m = new metrics.Counter("my_metric")
+	`)
+	require.NoError(t, err)
+
+	_, err = rt.RunString(`
+		var m2 = new metrics.Counter("my_metric")
+	`)
+	require.NoError(t, err)
+
+	_, err = rt.RunString(`
+		var m3 = new metrics.Gauge("my_metric")
+	`)
+	require.Error(t, err)
+
+	_, err = rt.RunString(`
+		var m4 = new metrics.Counter("my_metric", true)
+	`)
+	require.Error(t, err)
+
+	v, err := rt.RunString(`
+		m.name == m2.name && m.name == "my_metric" && m3 === undefined && m4 === undefined
+	`)
+	require.NoError(t, err)
+
+	require.True(t, v.ToBoolean())
 ***REMOVED***

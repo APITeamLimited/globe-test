@@ -52,7 +52,7 @@ import (
 
 const isWindows = runtime.GOOS == "windows"
 
-func assertMetricEmitted(t *testing.T, metric *stats.Metric, sampleContainers []stats.SampleContainer, url string) ***REMOVED***
+func assertMetricEmitted(t *testing.T, metricName string, sampleContainers []stats.SampleContainer, url string) ***REMOVED***
 	seenMetric := false
 
 	for _, sampleContainer := range sampleContainers ***REMOVED***
@@ -60,13 +60,13 @@ func assertMetricEmitted(t *testing.T, metric *stats.Metric, sampleContainers []
 			surl, ok := sample.Tags.Get("url")
 			assert.True(t, ok)
 			if surl == url ***REMOVED***
-				if sample.Metric == metric ***REMOVED***
+				if sample.Metric.Name == metricName ***REMOVED***
 					seenMetric = true
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	assert.True(t, seenMetric, "url %s didn't emit %s", url, metric.Name)
+	assert.True(t, seenMetric, "url %s didn't emit %s", url, metricName)
 ***REMOVED***
 
 func TestClient(t *testing.T) ***REMOVED***
@@ -92,6 +92,7 @@ func TestClient(t *testing.T) ***REMOVED***
 			),
 			UserAgent: null.StringFrom("k6-test"),
 		***REMOVED***,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
 	***REMOVED***
 
 	cwd, err := os.Getwd()
@@ -301,7 +302,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		`)
 		assert.NoError(t, err)
 		samplesBuf := stats.GetBufferedSamples(samples)
-		assertMetricEmitted(t, metrics.GRPCReqDuration, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+		assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 	***REMOVED***)
 
 	t.Run("RequestMessage", func(t *testing.T) ***REMOVED***
@@ -353,7 +354,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		`)
 		assert.NoError(t, err)
 		samplesBuf := stats.GetBufferedSamples(samples)
-		assertMetricEmitted(t, metrics.GRPCReqDuration, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/UnaryCall"))
+		assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/UnaryCall"))
 	***REMOVED***)
 
 	t.Run("ResponseError", func(t *testing.T) ***REMOVED***
@@ -371,7 +372,7 @@ func TestClient(t *testing.T) ***REMOVED***
 		`)
 		assert.NoError(t, err)
 		samplesBuf := stats.GetBufferedSamples(samples)
-		assertMetricEmitted(t, metrics.GRPCReqDuration, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
+		assertMetricEmitted(t, metrics.GRPCReqDurationName, samplesBuf, sr("GRPCBIN_ADDR/grpc.testing.TestService/EmptyCall"))
 	***REMOVED***)
 
 	t.Run("ResponseHeaders", func(t *testing.T) ***REMOVED***

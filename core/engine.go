@@ -67,7 +67,8 @@ type Engine struct ***REMOVED***
 	Metrics     map[string]*stats.Metric
 	MetricsLock sync.Mutex
 
-	Samples chan stats.SampleContainer
+	builtinMetrics *metrics.BuiltinMetrics
+	Samples        chan stats.SampleContainer
 
 	// Assigned to metrics upon first received sample.
 	thresholds map[string]stats.Thresholds
@@ -80,6 +81,7 @@ type Engine struct ***REMOVED***
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
 func NewEngine(
 	ex lib.ExecutionScheduler, opts lib.Options, rtOpts lib.RuntimeOptions, outputs []output.Output, logger *logrus.Logger,
+	builtinMetrics *metrics.BuiltinMetrics,
 ) (*Engine, error) ***REMOVED***
 	if ex == nil ***REMOVED***
 		return nil, errors.New("missing ExecutionScheduler instance")
@@ -96,6 +98,7 @@ func NewEngine(
 		Samples:        make(chan stats.SampleContainer, opts.MetricSamplesBufferSize.Int64),
 		stopChan:       make(chan struct***REMOVED******REMOVED***),
 		logger:         logger.WithField("component", "engine"),
+		builtinMetrics: builtinMetrics,
 	***REMOVED***
 
 	e.thresholds = opts.Thresholds
@@ -145,6 +148,10 @@ func (e *Engine) StartOutputs() error ***REMOVED***
 					e.logger.WithError(err).Error("Received error to stop from output")
 					e.Stop()
 				***REMOVED***)
+		***REMOVED***
+
+		if builtinMetricOut, ok := out.(output.WithBuiltinMetrics); ok ***REMOVED***
+			builtinMetricOut.SetBuiltinMetrics(e.builtinMetrics)
 		***REMOVED***
 
 		if err := out.Start(); err != nil ***REMOVED***
@@ -198,7 +205,7 @@ func (e *Engine) Init(globalCtx, runCtx context.Context) (run func() error, wait
 	processMetricsAfterRun := make(chan struct***REMOVED******REMOVED***)
 	runFn := func() error ***REMOVED***
 		e.logger.Debug("Execution scheduler starting...")
-		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples)
+		err := e.ExecutionScheduler.Run(globalCtx, runSubCtx, e.Samples, e.builtinMetrics)
 		e.logger.WithError(err).Debug("Execution scheduler terminated")
 
 		select ***REMOVED***
@@ -416,12 +423,12 @@ func (e *Engine) emitMetrics() ***REMOVED***
 		Samples: []stats.Sample***REMOVED***
 			***REMOVED***
 				Time:   t,
-				Metric: metrics.VUs,
+				Metric: e.builtinMetrics.VUs,
 				Value:  float64(executionState.GetCurrentlyActiveVUsCount()),
 				Tags:   e.Options.RunTags,
 			***REMOVED***, ***REMOVED***
 				Time:   t,
-				Metric: metrics.VUsMax,
+				Metric: e.builtinMetrics.VUsMax,
 				Value:  float64(executionState.GetInitializedVUsCount()),
 				Tags:   e.Options.RunTags,
 			***REMOVED***,

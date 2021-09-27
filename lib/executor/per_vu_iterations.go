@@ -152,7 +152,9 @@ var _ lib.Executor = &PerVUIterations***REMOVED******REMOVED***
 
 // Run executes a specific number of iterations with each configured VU.
 // nolint:funlen
-func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.SampleContainer) (err error) ***REMOVED***
+func (pvi PerVUIterations) Run(
+	parentCtx context.Context, out chan<- stats.SampleContainer, builtinMetrics *metrics.BuiltinMetrics,
+) (err error) ***REMOVED***
 	numVUs := pvi.config.GetVUs(pvi.executionState.ExecutionTuple)
 	iterations := pvi.config.GetIterations()
 	duration := time.Duration(pvi.config.MaxDuration.Duration)
@@ -212,6 +214,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 		activeVUs.Done()
 	***REMOVED***
 
+	droppedIterationMetric := builtinMetrics.DroppedIterations
 	handleVU := func(initVU lib.InitializedVU) ***REMOVED***
 		defer handleVUsWG.Done()
 		ctx, cancel := context.WithCancel(maxDurationCtx)
@@ -226,7 +229,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 			select ***REMOVED***
 			case <-regDurationDone:
 				stats.PushIfNotDone(parentCtx, out, stats.Sample***REMOVED***
-					Value: float64(iterations - i), Metric: metrics.DroppedIterations,
+					Value: float64(iterations - i), Metric: droppedIterationMetric,
 					Tags: pvi.getMetricTags(&vuID), Time: time.Now(),
 				***REMOVED***)
 				return // don't make more iterations
