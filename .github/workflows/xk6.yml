@@ -50,7 +50,7 @@ jobs:
           cd .github/workflows/xk6-tests
           # Temporary hack to ignore the v0.33.0 tag change
           export GONOSUMDB="go.k6.io/k6"
-          go install go.k6.io/xk6/cmd/xk6@latest
+          go install go.k6.io/xk6/cmd/xk6@master
           if [ "$***REMOVED******REMOVED*** github.event_name ***REMOVED******REMOVED***" == "pull_request" -a \
                "$***REMOVED******REMOVED*** github.event.pull_request.head.repo.full_name ***REMOVED******REMOVED***" != "$***REMOVED******REMOVED*** github.repository ***REMOVED******REMOVED***" ]; then
             export XK6_K6_REPO="github.com/$***REMOVED******REMOVED*** github.event.pull_request.head.repo.full_name ***REMOVED******REMOVED***"
