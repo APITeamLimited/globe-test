@@ -80,6 +80,19 @@ func verifyConstLoopingVUs(vus null.Int, duration time.Duration) func(t *testing
 	***REMOVED***
 ***REMOVED***
 
+func verifyExternallyExecuted(scenarioName string, vus null.Int, duration time.Duration) func(t *testing.T, c Config) ***REMOVED***
+	return func(t *testing.T, c Config) ***REMOVED***
+		exec := c.Scenarios[scenarioName]
+		require.NotEmpty(t, exec)
+		require.IsType(t, executor.ExternallyControlledConfig***REMOVED******REMOVED***, exec)
+		ecc, ok := exec.(executor.ExternallyControlledConfig)
+		require.True(t, ok)
+		assert.Equal(t, vus, ecc.VUs)
+		assert.Equal(t, types.NullDurationFrom(duration), ecc.Duration)
+		assert.Equal(t, vus, ecc.MaxVUs) // MaxVUs defaults to VUs unless specified
+	***REMOVED***
+***REMOVED***
+
 func verifyRampingVUs(startVus null.Int, stages []executor.Stage) func(t *testing.T, c Config) ***REMOVED***
 	return func(t *testing.T, c Config) ***REMOVED***
 		exec := c.Scenarios[lib.DefaultScenarioName]
@@ -181,7 +194,7 @@ func resetStickyGlobalVars() ***REMOVED***
 type exp struct ***REMOVED***
 	cliParseError      bool
 	cliReadError       bool
-	consolidationError bool
+	consolidationError bool // Note: consolidationError includes validation errors from envconfig.Process()
 	derivationError    bool
 	validationErrors   bool
 	logWarning         bool
@@ -234,7 +247,7 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"--vus", "10", "-i", "6"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, verifySharedIters(I(10), I(6))***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-s", "10s:5", "-s", "10s:"***REMOVED******REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***fs: defaultConfig(`***REMOVED***"stages": [***REMOVED***"duration": "20s"***REMOVED***], "vus": 10***REMOVED***`)***REMOVED***, exp***REMOVED***validationErrors: true***REMOVED***, nil***REMOVED***,
-		// These should emit a consolidation error
+		// These should emit a derivation error
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "2", "-d", "10s", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-i", "5", "-s", "10s:20"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "3", "-d", "0"***REMOVED******REMOVED***, exp***REMOVED***derivationError: true***REMOVED***, nil***REMOVED***,
@@ -360,7 +373,15 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				assert.Equal(t, types.NullDurationFrom(10*time.Second), clvc.GracefulStop)
 			***REMOVED***,
 		***REMOVED***,
-		// TODO: test the externally controlled executor
+		***REMOVED***
+			opts***REMOVED***
+				fs: defaultConfig(`***REMOVED***"scenarios": ***REMOVED*** "def": ***REMOVED***
+					"executor": "externally-controlled", "vus": 15, "duration": "2h"
+				***REMOVED******REMOVED******REMOVED***`),
+			***REMOVED***,
+			exp***REMOVED******REMOVED***,
+			verifyExternallyExecuted("def", I(15), 2*time.Hour),
+		***REMOVED***,
 		// TODO: test execution-segment
 
 		// Just in case, verify that no options will result in the same 1 vu 1 iter config
@@ -488,7 +509,21 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 				***REMOVED***, c.Options.DNS)
 			***REMOVED***,
 		***REMOVED***,
-
+		***REMOVED***
+			opts***REMOVED***env: []string***REMOVED***"K6_NO_SETUP=true", "K6_NO_TEARDOWN=false"***REMOVED******REMOVED***,
+			exp***REMOVED******REMOVED***,
+			func(t *testing.T, c Config) ***REMOVED***
+				assert.Equal(t, null.BoolFrom(true), c.Options.NoSetup)
+				assert.Equal(t, null.BoolFrom(false), c.Options.NoTeardown)
+			***REMOVED***,
+		***REMOVED***,
+		***REMOVED***
+			opts***REMOVED***env: []string***REMOVED***"K6_NO_SETUP=false", "K6_NO_TEARDOWN=bool"***REMOVED******REMOVED***,
+			exp***REMOVED***
+				consolidationError: true,
+			***REMOVED***,
+			nil,
+		***REMOVED***,
 		// TODO: test for differences between flagsets
 		// TODO: more tests in general, especially ones not related to execution parameters...
 	***REMOVED***
