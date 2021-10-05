@@ -6,6 +6,11 @@
 
 package windows
 
+import (
+	errorspkg "errors"
+	"unsafe"
+)
+
 // EscapeArg rewrites command line argument s as prescribed
 // in http://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
@@ -94,4 +99,34 @@ func FullPath(name string) (path string, err error) ***REMOVED***
 			return UTF16ToString(buf[:n]), nil
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+// NewProcThreadAttributeList allocates a new ProcThreadAttributeList, with the requested maximum number of attributes.
+func NewProcThreadAttributeList(maxAttrCount uint32) (*ProcThreadAttributeList, error) ***REMOVED***
+	var size uintptr
+	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
+	if err != ERROR_INSUFFICIENT_BUFFER ***REMOVED***
+		if err == nil ***REMOVED***
+			return nil, errorspkg.New("unable to query buffer size from InitializeProcThreadAttributeList")
+		***REMOVED***
+		return nil, err
+	***REMOVED***
+	const psize = unsafe.Sizeof(uintptr(0))
+	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
+	al := (*ProcThreadAttributeList)(unsafe.Pointer(&make([]unsafe.Pointer, (size+psize-1)/psize)[0]))
+	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return al, err
+***REMOVED***
+
+// Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
+func (al *ProcThreadAttributeList) Update(attribute uintptr, flags uint32, value unsafe.Pointer, size uintptr, prevValue unsafe.Pointer, returnedSize *uintptr) error ***REMOVED***
+	return updateProcThreadAttribute(al, flags, attribute, value, size, prevValue, returnedSize)
+***REMOVED***
+
+// Delete frees ProcThreadAttributeList's resources.
+func (al *ProcThreadAttributeList) Delete() ***REMOVED***
+	deleteProcThreadAttributeList(al)
 ***REMOVED***

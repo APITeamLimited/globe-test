@@ -92,7 +92,7 @@ func Pipe2(p []int, flags int) error ***REMOVED***
 	return err
 ***REMOVED***
 
-//sys Getdents(fd int, buf []byte) (n int, err error)
+//sys	Getdents(fd int, buf []byte) (n int, err error)
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) ***REMOVED***
 	n, err = Getdents(fd, buf)
 	if err != nil || basep == nil ***REMOVED***
@@ -154,7 +154,7 @@ func setattrlistTimes(path string, times []Timespec, flags int) error ***REMOVED
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
 
-//sys   sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
 //sys	ppoll(fds *PollFd, nfds int, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 

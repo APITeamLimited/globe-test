@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build s390x && linux
 // +build s390x,linux
 
 package unix
@@ -76,7 +77,7 @@ func setTimeval(sec, usec int64) Timeval ***REMOVED***
 	return Timeval***REMOVED***Sec: sec, Usec: usec***REMOVED***
 ***REMOVED***
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
 
 func Pipe(p []int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
@@ -249,7 +250,7 @@ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen
 ***REMOVED***
 
 func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) error ***REMOVED***
-	args := [4]uintptr***REMOVED***uintptr(s), uintptr(level), uintptr(name), uintptr(val)***REMOVED***
+	args := [5]uintptr***REMOVED***uintptr(s), uintptr(level), uintptr(name), uintptr(val), vallen***REMOVED***
 	_, _, err := Syscall(SYS_SOCKETCALL, netSetSockOpt, uintptr(unsafe.Pointer(&args)), 0)
 	if err != 0 ***REMOVED***
 		return err

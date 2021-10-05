@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (mips || mipsle)
 // +build linux
 // +build mips mipsle
 
@@ -112,7 +113,7 @@ func setTimeval(sec, usec int64) Timeval ***REMOVED***
 	return Timeval***REMOVED***Sec: int32(sec), Usec: int32(usec)***REMOVED***
 ***REMOVED***
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
 
 func Pipe2(p []int, flags int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
@@ -125,7 +126,7 @@ func Pipe2(p []int, flags int) (err error) ***REMOVED***
 	return
 ***REMOVED***
 
-//sysnb pipe() (p1 int, p2 int, err error)
+//sysnb	pipe() (p1 int, p2 int, err error)
 
 func Pipe(p []int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
@@ -153,7 +154,7 @@ type rlimit32 struct ***REMOVED***
 	Max uint32
 ***REMOVED***
 
-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+//sysnb	getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
 
 func Getrlimit(resource int, rlim *Rlimit) (err error) ***REMOVED***
 	err = prlimit(0, resource, nil, rlim)
@@ -181,7 +182,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) ***REMOVED***
 	return
 ***REMOVED***
 
-//sysnb setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+//sysnb	setrlimit(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
 
 func Setrlimit(resource int, rlim *Rlimit) (err error) ***REMOVED***
 	err = prlimit(0, resource, rlim, nil)
