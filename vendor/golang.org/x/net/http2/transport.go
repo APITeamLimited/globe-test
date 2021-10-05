@@ -564,12 +564,12 @@ func canRetryError(err error) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (t *Transport) dialClientConn(addr string, singleUse bool) (*ClientConn, error) ***REMOVED***
+func (t *Transport) dialClientConn(ctx context.Context, addr string, singleUse bool) (*ClientConn, error) ***REMOVED***
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	tconn, err := t.dialTLS()("tcp", addr, t.newTLSConfig(host))
+	tconn, err := t.dialTLS(ctx)("tcp", addr, t.newTLSConfig(host))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -590,34 +590,24 @@ func (t *Transport) newTLSConfig(host string) *tls.Config ***REMOVED***
 	return cfg
 ***REMOVED***
 
-func (t *Transport) dialTLS() func(string, string, *tls.Config) (net.Conn, error) ***REMOVED***
+func (t *Transport) dialTLS(ctx context.Context) func(string, string, *tls.Config) (net.Conn, error) ***REMOVED***
 	if t.DialTLS != nil ***REMOVED***
 		return t.DialTLS
 	***REMOVED***
-	return t.dialTLSDefault
-***REMOVED***
-
-func (t *Transport) dialTLSDefault(network, addr string, cfg *tls.Config) (net.Conn, error) ***REMOVED***
-	cn, err := tls.Dial(network, addr, cfg)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	if err := cn.Handshake(); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	if !cfg.InsecureSkipVerify ***REMOVED***
-		if err := cn.VerifyHostname(cfg.ServerName); err != nil ***REMOVED***
+	return func(network, addr string, cfg *tls.Config) (net.Conn, error) ***REMOVED***
+		tlsCn, err := t.dialTLSWithContext(ctx, network, addr, cfg)
+		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
+		state := tlsCn.ConnectionState()
+		if p := state.NegotiatedProtocol; p != NextProtoTLS ***REMOVED***
+			return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
+		***REMOVED***
+		if !state.NegotiatedProtocolIsMutual ***REMOVED***
+			return nil, errors.New("http2: could not negotiate protocol mutually")
+		***REMOVED***
+		return tlsCn, nil
 	***REMOVED***
-	state := cn.ConnectionState()
-	if p := state.NegotiatedProtocol; p != NextProtoTLS ***REMOVED***
-		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
-	***REMOVED***
-	if !state.NegotiatedProtocolIsMutual ***REMOVED***
-		return nil, errors.New("http2: could not negotiate protocol mutually")
-	***REMOVED***
-	return cn, nil
 ***REMOVED***
 
 // disableKeepAlives reports whether connections should be closed as
@@ -1005,7 +995,7 @@ func checkConnHeaders(req *http.Request) error ***REMOVED***
 	if vv := req.Header["Transfer-Encoding"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && vv[0] != "chunked") ***REMOVED***
 		return fmt.Errorf("http2: invalid Transfer-Encoding request header: %q", vv)
 	***REMOVED***
-	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !strings.EqualFold(vv[0], "close") && !strings.EqualFold(vv[0], "keep-alive")) ***REMOVED***
+	if vv := req.Header["Connection"]; len(vv) > 0 && (len(vv) > 1 || vv[0] != "" && !asciiEqualFold(vv[0], "close") && !asciiEqualFold(vv[0], "keep-alive")) ***REMOVED***
 		return fmt.Errorf("http2: invalid Connection request header: %q", vv)
 	***REMOVED***
 	return nil
@@ -1531,19 +1521,21 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 
 		var didUA bool
 		for k, vv := range req.Header ***REMOVED***
-			if strings.EqualFold(k, "host") || strings.EqualFold(k, "content-length") ***REMOVED***
+			if asciiEqualFold(k, "host") || asciiEqualFold(k, "content-length") ***REMOVED***
 				// Host is :authority, already sent.
 				// Content-Length is automatic, set below.
 				continue
-			***REMOVED*** else if strings.EqualFold(k, "connection") || strings.EqualFold(k, "proxy-connection") ||
-				strings.EqualFold(k, "transfer-encoding") || strings.EqualFold(k, "upgrade") ||
-				strings.EqualFold(k, "keep-alive") ***REMOVED***
+			***REMOVED*** else if asciiEqualFold(k, "connection") ||
+				asciiEqualFold(k, "proxy-connection") ||
+				asciiEqualFold(k, "transfer-encoding") ||
+				asciiEqualFold(k, "upgrade") ||
+				asciiEqualFold(k, "keep-alive") ***REMOVED***
 				// Per 8.1.2.2 Connection-Specific Header
 				// Fields, don't send connection-specific
 				// fields. We have already checked if any
 				// are error-worthy so just ignore the rest.
 				continue
-			***REMOVED*** else if strings.EqualFold(k, "user-agent") ***REMOVED***
+			***REMOVED*** else if asciiEqualFold(k, "user-agent") ***REMOVED***
 				// Match Go's http1 behavior: at most one
 				// User-Agent. If set to nil or empty string,
 				// then omit it. Otherwise if not mentioned,
@@ -1556,7 +1548,7 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 				if vv[0] == "" ***REMOVED***
 					continue
 				***REMOVED***
-			***REMOVED*** else if strings.EqualFold(k, "cookie") ***REMOVED***
+			***REMOVED*** else if asciiEqualFold(k, "cookie") ***REMOVED***
 				// Per 8.1.2.5 To allow for better compression efficiency, the
 				// Cookie header field MAY be split into separate header fields,
 				// each with one or more cookie-pairs.
@@ -1615,7 +1607,12 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 
 	// Header list size is ok. Write the headers.
 	enumerateHeaders(func(name, value string) ***REMOVED***
-		name = strings.ToLower(name)
+		name, ascii := asciiToLower(name)
+		if !ascii ***REMOVED***
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			return
+		***REMOVED***
 		cc.writeHeader(name, value)
 		if traceHeaders ***REMOVED***
 			traceWroteHeaderField(trace, name, value)
@@ -1663,9 +1660,14 @@ func (cc *ClientConn) encodeTrailers(req *http.Request) ([]byte, error) ***REMOV
 	***REMOVED***
 
 	for k, vv := range req.Trailer ***REMOVED***
+		lowKey, ascii := asciiToLower(k)
+		if !ascii ***REMOVED***
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			continue
+		***REMOVED***
 		// Transfer-Encoding, etc.. have already been filtered at the
 		// start of RoundTrip
-		lowKey := strings.ToLower(k)
 		for _, v := range vv ***REMOVED***
 			cc.writeHeader(lowKey, v)
 		***REMOVED***

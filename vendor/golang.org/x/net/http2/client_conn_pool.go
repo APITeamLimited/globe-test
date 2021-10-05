@@ -7,7 +7,9 @@
 package http2
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"sync"
 )
@@ -78,61 +80,69 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 		// It gets its own connection.
 		traceGetConn(req, addr)
 		const singleUse = true
-		cc, err := p.t.dialClientConn(addr, singleUse)
+		cc, err := p.t.dialClientConn(req.Context(), addr, singleUse)
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 		return cc, nil
 	***REMOVED***
-	p.mu.Lock()
-	for _, cc := range p.conns[addr] ***REMOVED***
-		if st := cc.idleState(); st.canTakeNewRequest ***REMOVED***
-			if p.shouldTraceGetConn(st) ***REMOVED***
-				traceGetConn(req, addr)
+	for ***REMOVED***
+		p.mu.Lock()
+		for _, cc := range p.conns[addr] ***REMOVED***
+			if st := cc.idleState(); st.canTakeNewRequest ***REMOVED***
+				if p.shouldTraceGetConn(st) ***REMOVED***
+					traceGetConn(req, addr)
+				***REMOVED***
+				p.mu.Unlock()
+				return cc, nil
 			***REMOVED***
-			p.mu.Unlock()
-			return cc, nil
 		***REMOVED***
-	***REMOVED***
-	if !dialOnMiss ***REMOVED***
+		if !dialOnMiss ***REMOVED***
+			p.mu.Unlock()
+			return nil, ErrNoCachedConn
+		***REMOVED***
+		traceGetConn(req, addr)
+		call := p.getStartDialLocked(req.Context(), addr)
 		p.mu.Unlock()
-		return nil, ErrNoCachedConn
+		<-call.done
+		if shouldRetryDial(call, req) ***REMOVED***
+			continue
+		***REMOVED***
+		return call.res, call.err
 	***REMOVED***
-	traceGetConn(req, addr)
-	call := p.getStartDialLocked(addr)
-	p.mu.Unlock()
-	<-call.done
-	return call.res, call.err
 ***REMOVED***
 
 // dialCall is an in-flight Transport dial call to a host.
 type dialCall struct ***REMOVED***
-	_    incomparable
-	p    *clientConnPool
+	_ incomparable
+	p *clientConnPool
+	// the context associated with the request
+	// that created this dialCall
+	ctx  context.Context
 	done chan struct***REMOVED******REMOVED*** // closed when done
 	res  *ClientConn   // valid after done is closed
 	err  error         // valid after done is closed
 ***REMOVED***
 
 // requires p.mu is held.
-func (p *clientConnPool) getStartDialLocked(addr string) *dialCall ***REMOVED***
+func (p *clientConnPool) getStartDialLocked(ctx context.Context, addr string) *dialCall ***REMOVED***
 	if call, ok := p.dialing[addr]; ok ***REMOVED***
 		// A dial is already in-flight. Don't start another.
 		return call
 	***REMOVED***
-	call := &dialCall***REMOVED***p: p, done: make(chan struct***REMOVED******REMOVED***)***REMOVED***
+	call := &dialCall***REMOVED***p: p, done: make(chan struct***REMOVED******REMOVED***), ctx: ctx***REMOVED***
 	if p.dialing == nil ***REMOVED***
 		p.dialing = make(map[string]*dialCall)
 	***REMOVED***
 	p.dialing[addr] = call
-	go call.dial(addr)
+	go call.dial(call.ctx, addr)
 	return call
 ***REMOVED***
 
 // run in its own goroutine.
-func (c *dialCall) dial(addr string) ***REMOVED***
+func (c *dialCall) dial(ctx context.Context, addr string) ***REMOVED***
 	const singleUse = false // shared conn
-	c.res, c.err = c.p.t.dialClientConn(addr, singleUse)
+	c.res, c.err = c.p.t.dialClientConn(ctx, addr, singleUse)
 	close(c.done)
 
 	c.p.mu.Lock()
@@ -275,4 +285,29 @@ type noDialClientConnPool struct***REMOVED*** *clientConnPool ***REMOVED***
 
 func (p noDialClientConnPool) GetClientConn(req *http.Request, addr string) (*ClientConn, error) ***REMOVED***
 	return p.getClientConn(req, addr, noDialOnMiss)
+***REMOVED***
+
+// shouldRetryDial reports whether the current request should
+// retry dialing after the call finished unsuccessfully, for example
+// if the dial was canceled because of a context cancellation or
+// deadline expiry.
+func shouldRetryDial(call *dialCall, req *http.Request) bool ***REMOVED***
+	if call.err == nil ***REMOVED***
+		// No error, no need to retry
+		return false
+	***REMOVED***
+	if call.ctx == req.Context() ***REMOVED***
+		// If the call has the same context as the request, the dial
+		// should not be retried, since any cancellation will have come
+		// from this request.
+		return false
+	***REMOVED***
+	if !errors.Is(call.err, context.Canceled) && !errors.Is(call.err, context.DeadlineExceeded) ***REMOVED***
+		// If the call error is not because of a context cancellation or a deadline expiry,
+		// the dial should not be retried.
+		return false
+	***REMOVED***
+	// Only retry if the error is a context cancellation error or deadline expiry
+	// and the context associated with the call was canceled or expired.
+	return call.ctx.Err() != nil
 ***REMOVED***

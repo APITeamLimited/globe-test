@@ -341,7 +341,12 @@ func encodeHeaders(enc *hpack.Encoder, h http.Header, keys []string) ***REMOVED*
 	***REMOVED***
 	for _, k := range keys ***REMOVED***
 		vv := h[k]
-		k = lowerHeader(k)
+		k, ascii := lowerHeader(k)
+		if !ascii ***REMOVED***
+			// Skip writing invalid headers. Per RFC 7540, Section 8.1.2, header
+			// field names have to be ASCII characters (just as in HTTP/1.x).
+			continue
+		***REMOVED***
 		if !validWireHeaderFieldName(k) ***REMOVED***
 			// Skip it as backup paranoia. Per
 			// golang.org/issue/14048, these should
