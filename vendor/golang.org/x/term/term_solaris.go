@@ -1,32 +1,27 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build solaris
-
-package terminal // import "golang.org/x/crypto/ssh/terminal"
+package term
 
 import (
-	"golang.org/x/sys/unix"
 	"io"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // State contains the state of a terminal.
-type State struct ***REMOVED***
+type state struct ***REMOVED***
 	termios unix.Termios
 ***REMOVED***
 
-// IsTerminal returns whether the given file descriptor is a terminal.
-func IsTerminal(fd int) bool ***REMOVED***
+func isTerminal(fd int) bool ***REMOVED***
 	_, err := unix.IoctlGetTermio(fd, unix.TCGETA)
 	return err == nil
 ***REMOVED***
 
-// ReadPassword reads a line of input from a terminal without local echo.  This
-// is commonly used for inputting passwords and other sensitive data. The slice
-// returned does not include the \n.
-func ReadPassword(fd int) ([]byte, error) ***REMOVED***
+func readPassword(fd int) ([]byte, error) ***REMOVED***
 	// see also: http://src.illumos.org/source/xref/illumos-gate/usr/src/lib/libast/common/uwin/getpass.c
 	val, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	if err != nil ***REMOVED***
@@ -70,17 +65,14 @@ func ReadPassword(fd int) ([]byte, error) ***REMOVED***
 	return ret, nil
 ***REMOVED***
 
-// MakeRaw puts the terminal connected to the given file descriptor into raw
-// mode and returns the previous state of the terminal so that it can be
-// restored.
-// see http://cr.illumos.org/~webrev/andy_js/1060/
-func MakeRaw(fd int) (*State, error) ***REMOVED***
+func makeRaw(fd int) (*State, error) ***REMOVED***
+	// see http://cr.illumos.org/~webrev/andy_js/1060/
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	oldState := State***REMOVED***termios: *termios***REMOVED***
+	oldState := State***REMOVED***state***REMOVED***termios: *termios***REMOVED******REMOVED***
 
 	termios.Iflag &^= unix.IGNBRK | unix.BRKINT | unix.PARMRK | unix.ISTRIP | unix.INLCR | unix.IGNCR | unix.ICRNL | unix.IXON
 	termios.Oflag &^= unix.OPOST
@@ -97,25 +89,20 @@ func MakeRaw(fd int) (*State, error) ***REMOVED***
 	return &oldState, nil
 ***REMOVED***
 
-// Restore restores the terminal connected to the given file descriptor to a
-// previous state.
-func Restore(fd int, oldState *State) error ***REMOVED***
+func restore(fd int, oldState *State) error ***REMOVED***
 	return unix.IoctlSetTermios(fd, unix.TCSETS, &oldState.termios)
 ***REMOVED***
 
-// GetState returns the current state of a terminal which may be useful to
-// restore the terminal after a signal.
-func GetState(fd int) (*State, error) ***REMOVED***
+func getState(fd int) (*State, error) ***REMOVED***
 	termios, err := unix.IoctlGetTermios(fd, unix.TCGETS)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return &State***REMOVED***termios: *termios***REMOVED***, nil
+	return &State***REMOVED***state***REMOVED***termios: *termios***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-// GetSize returns the dimensions of the given terminal.
-func GetSize(fd int) (width, height int, err error) ***REMOVED***
+func getSize(fd int) (width, height int, err error) ***REMOVED***
 	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
 	if err != nil ***REMOVED***
 		return 0, 0, err

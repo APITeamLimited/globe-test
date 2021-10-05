@@ -1,46 +1,31 @@
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux,!appengine netbsd openbsd
+// +build aix darwin dragonfly freebsd linux netbsd openbsd zos
 
-// Package terminal provides support functions for dealing with terminals, as
-// commonly found on UNIX systems.
-//
-// Putting a terminal into raw mode is the most common requirement:
-//
-// 	oldState, err := terminal.MakeRaw(0)
-// 	if err != nil ***REMOVED***
-// 	        panic(err)
-// 	***REMOVED***
-// 	defer terminal.Restore(0, oldState)
-package terminal // import "golang.org/x/crypto/ssh/terminal"
+package term
 
 import (
 	"golang.org/x/sys/unix"
 )
 
-// State contains the state of a terminal.
-type State struct ***REMOVED***
+type state struct ***REMOVED***
 	termios unix.Termios
 ***REMOVED***
 
-// IsTerminal returns whether the given file descriptor is a terminal.
-func IsTerminal(fd int) bool ***REMOVED***
+func isTerminal(fd int) bool ***REMOVED***
 	_, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	return err == nil
 ***REMOVED***
 
-// MakeRaw put the terminal connected to the given file descriptor into raw
-// mode and returns the previous state of the terminal so that it can be
-// restored.
-func MakeRaw(fd int) (*State, error) ***REMOVED***
+func makeRaw(fd int) (*State, error) ***REMOVED***
 	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	oldState := State***REMOVED***termios: *termios***REMOVED***
+	oldState := State***REMOVED***state***REMOVED***termios: *termios***REMOVED******REMOVED***
 
 	// This attempts to replicate the behaviour documented for cfmakeraw in
 	// the termios(3) manpage.
@@ -58,25 +43,20 @@ func MakeRaw(fd int) (*State, error) ***REMOVED***
 	return &oldState, nil
 ***REMOVED***
 
-// GetState returns the current state of a terminal which may be useful to
-// restore the terminal after a signal.
-func GetState(fd int) (*State, error) ***REMOVED***
+func getState(fd int) (*State, error) ***REMOVED***
 	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	return &State***REMOVED***termios: *termios***REMOVED***, nil
+	return &State***REMOVED***state***REMOVED***termios: *termios***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-// Restore restores the terminal connected to the given file descriptor to a
-// previous state.
-func Restore(fd int, state *State) error ***REMOVED***
+func restore(fd int, state *State) error ***REMOVED***
 	return unix.IoctlSetTermios(fd, ioctlWriteTermios, &state.termios)
 ***REMOVED***
 
-// GetSize returns the dimensions of the given terminal.
-func GetSize(fd int) (width, height int, err error) ***REMOVED***
+func getSize(fd int) (width, height int, err error) ***REMOVED***
 	ws, err := unix.IoctlGetWinsize(fd, unix.TIOCGWINSZ)
 	if err != nil ***REMOVED***
 		return -1, -1, err
@@ -91,10 +71,7 @@ func (r passwordReader) Read(buf []byte) (int, error) ***REMOVED***
 	return unix.Read(int(r), buf)
 ***REMOVED***
 
-// ReadPassword reads a line of input from a terminal without local echo.  This
-// is commonly used for inputting passwords and other sensitive data. The slice
-// returned does not include the \n.
-func ReadPassword(fd int) ([]byte, error) ***REMOVED***
+func readPassword(fd int) ([]byte, error) ***REMOVED***
 	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil ***REMOVED***
 		return nil, err
