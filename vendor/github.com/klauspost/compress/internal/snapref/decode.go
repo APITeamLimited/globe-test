@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package snappy
+package snapref
 
 import (
 	"encoding/binary"
@@ -118,32 +118,23 @@ func (r *Reader) readFull(p []byte, allowEOF bool) (ok bool) ***REMOVED***
 	return true
 ***REMOVED***
 
-// Read satisfies the io.Reader interface.
-func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
-	if r.err != nil ***REMOVED***
-		return 0, r.err
-	***REMOVED***
-	for ***REMOVED***
-		if r.i < r.j ***REMOVED***
-			n := copy(p, r.decoded[r.i:r.j])
-			r.i += n
-			return n, nil
-		***REMOVED***
+func (r *Reader) fill() error ***REMOVED***
+	for r.i >= r.j ***REMOVED***
 		if !r.readFull(r.buf[:4], true) ***REMOVED***
-			return 0, r.err
+			return r.err
 		***REMOVED***
 		chunkType := r.buf[0]
 		if !r.readHeader ***REMOVED***
 			if chunkType != chunkTypeStreamIdentifier ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			r.readHeader = true
 		***REMOVED***
 		chunkLen := int(r.buf[1]) | int(r.buf[2])<<8 | int(r.buf[3])<<16
 		if chunkLen > len(r.buf) ***REMOVED***
 			r.err = ErrUnsupported
-			return 0, r.err
+			return r.err
 		***REMOVED***
 
 		// The chunk types are specified at
@@ -153,11 +144,11 @@ func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
 			// Section 4.2. Compressed data (chunk type 0x00).
 			if chunkLen < checksumSize ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			buf := r.buf[:chunkLen]
 			if !r.readFull(buf, false) ***REMOVED***
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			checksum := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
 			buf = buf[checksumSize:]
@@ -165,19 +156,19 @@ func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
 			n, err := DecodedLen(buf)
 			if err != nil ***REMOVED***
 				r.err = err
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if n > len(r.decoded) ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if _, err := Decode(r.decoded, buf); err != nil ***REMOVED***
 				r.err = err
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if crc(r.decoded[:n]) != checksum ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			r.i, r.j = 0, n
 			continue
@@ -186,25 +177,25 @@ func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
 			// Section 4.3. Uncompressed data (chunk type 0x01).
 			if chunkLen < checksumSize ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			buf := r.buf[:checksumSize]
 			if !r.readFull(buf, false) ***REMOVED***
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			checksum := uint32(buf[0]) | uint32(buf[1])<<8 | uint32(buf[2])<<16 | uint32(buf[3])<<24
 			// Read directly into r.decoded instead of via r.buf.
 			n := chunkLen - checksumSize
 			if n > len(r.decoded) ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if !r.readFull(r.decoded[:n], false) ***REMOVED***
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if crc(r.decoded[:n]) != checksum ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			r.i, r.j = 0, n
 			continue
@@ -213,15 +204,15 @@ func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
 			// Section 4.1. Stream identifier (chunk type 0xff).
 			if chunkLen != len(magicBody) ***REMOVED***
 				r.err = ErrCorrupt
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			if !r.readFull(r.buf[:len(magicBody)], false) ***REMOVED***
-				return 0, r.err
+				return r.err
 			***REMOVED***
 			for i := 0; i < len(magicBody); i++ ***REMOVED***
 				if r.buf[i] != magicBody[i] ***REMOVED***
 					r.err = ErrCorrupt
-					return 0, r.err
+					return r.err
 				***REMOVED***
 			***REMOVED***
 			continue
@@ -230,12 +221,44 @@ func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
 		if chunkType <= 0x7f ***REMOVED***
 			// Section 4.5. Reserved unskippable chunks (chunk types 0x02-0x7f).
 			r.err = ErrUnsupported
-			return 0, r.err
+			return r.err
 		***REMOVED***
 		// Section 4.4 Padding (chunk type 0xfe).
 		// Section 4.6. Reserved skippable chunks (chunk types 0x80-0xfd).
 		if !r.readFull(r.buf[:chunkLen], false) ***REMOVED***
-			return 0, r.err
+			return r.err
 		***REMOVED***
 	***REMOVED***
+
+	return nil
+***REMOVED***
+
+// Read satisfies the io.Reader interface.
+func (r *Reader) Read(p []byte) (int, error) ***REMOVED***
+	if r.err != nil ***REMOVED***
+		return 0, r.err
+	***REMOVED***
+
+	if err := r.fill(); err != nil ***REMOVED***
+		return 0, err
+	***REMOVED***
+
+	n := copy(p, r.decoded[r.i:r.j])
+	r.i += n
+	return n, nil
+***REMOVED***
+
+// ReadByte satisfies the io.ByteReader interface.
+func (r *Reader) ReadByte() (byte, error) ***REMOVED***
+	if r.err != nil ***REMOVED***
+		return 0, r.err
+	***REMOVED***
+
+	if err := r.fill(); err != nil ***REMOVED***
+		return 0, err
+	***REMOVED***
+
+	c := r.decoded[r.i]
+	r.i++
+	return c, nil
 ***REMOVED***

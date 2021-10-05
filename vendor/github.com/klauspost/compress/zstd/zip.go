@@ -64,8 +64,9 @@ func (r *pooledZipReader) Close() error ***REMOVED***
 ***REMOVED***
 
 type pooledZipWriter struct ***REMOVED***
-	mu  sync.Mutex // guards Close and Read
-	enc *Encoder
+	mu   sync.Mutex // guards Close and Read
+	enc  *Encoder
+	pool *sync.Pool
 ***REMOVED***
 
 func (w *pooledZipWriter) Write(p []byte) (n int, err error) ***REMOVED***
@@ -83,7 +84,7 @@ func (w *pooledZipWriter) Close() error ***REMOVED***
 	var err error
 	if w.enc != nil ***REMOVED***
 		err = w.enc.Close()
-		zipReaderPool.Put(w.enc)
+		w.pool.Put(w.enc)
 		w.enc = nil
 	***REMOVED***
 	return err
@@ -104,7 +105,7 @@ func ZipCompressor(opts ...EOption) func(w io.Writer) (io.WriteCloser, error) **
 				return nil, err
 			***REMOVED***
 		***REMOVED***
-		return &pooledZipWriter***REMOVED***enc: enc***REMOVED***, nil
+		return &pooledZipWriter***REMOVED***enc: enc, pool: &pool***REMOVED***, nil
 	***REMOVED***
 ***REMOVED***
 

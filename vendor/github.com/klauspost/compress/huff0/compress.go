@@ -161,6 +161,70 @@ func compress(in []byte, s *Scratch, compressor func(src []byte) ([]byte, error)
 	return s.Out, false, nil
 ***REMOVED***
 
+// EstimateSizes will estimate the data sizes
+func EstimateSizes(in []byte, s *Scratch) (tableSz, dataSz, reuseSz int, err error) ***REMOVED***
+	s, err = s.prepare(in)
+	if err != nil ***REMOVED***
+		return 0, 0, 0, err
+	***REMOVED***
+
+	// Create histogram, if none was provided.
+	tableSz, dataSz, reuseSz = -1, -1, -1
+	maxCount := s.maxCount
+	var canReuse = false
+	if maxCount == 0 ***REMOVED***
+		maxCount, canReuse = s.countSimple(in)
+	***REMOVED*** else ***REMOVED***
+		canReuse = s.canUseTable(s.prevTable)
+	***REMOVED***
+
+	// We want the output size to be less than this:
+	wantSize := len(in)
+	if s.WantLogLess > 0 ***REMOVED***
+		wantSize -= wantSize >> s.WantLogLess
+	***REMOVED***
+
+	// Reset for next run.
+	s.clearCount = true
+	s.maxCount = 0
+	if maxCount >= len(in) ***REMOVED***
+		if maxCount > len(in) ***REMOVED***
+			return 0, 0, 0, fmt.Errorf("maxCount (%d) > length (%d)", maxCount, len(in))
+		***REMOVED***
+		if len(in) == 1 ***REMOVED***
+			return 0, 0, 0, ErrIncompressible
+		***REMOVED***
+		// One symbol, use RLE
+		return 0, 0, 0, ErrUseRLE
+	***REMOVED***
+	if maxCount == 1 || maxCount < (len(in)>>7) ***REMOVED***
+		// Each symbol present maximum once or too well distributed.
+		return 0, 0, 0, ErrIncompressible
+	***REMOVED***
+
+	// Calculate new table.
+	err = s.buildCTable()
+	if err != nil ***REMOVED***
+		return 0, 0, 0, err
+	***REMOVED***
+
+	if false && !s.canUseTable(s.cTable) ***REMOVED***
+		panic("invalid table generated")
+	***REMOVED***
+
+	tableSz, err = s.cTable.estTableSize(s)
+	if err != nil ***REMOVED***
+		return 0, 0, 0, err
+	***REMOVED***
+	if canReuse ***REMOVED***
+		reuseSz = s.prevTable.estimateSize(s.count[:s.symbolLen])
+	***REMOVED***
+	dataSz = s.cTable.estimateSize(s.count[:s.symbolLen])
+
+	// Restore
+	return tableSz, dataSz, reuseSz, nil
+***REMOVED***
+
 func (s *Scratch) compress1X(src []byte) ([]byte, error) ***REMOVED***
 	return s.compress1xDo(s.Out, src)
 ***REMOVED***

@@ -245,6 +245,68 @@ func (c cTable) write(s *Scratch) error ***REMOVED***
 	return nil
 ***REMOVED***
 
+func (c cTable) estTableSize(s *Scratch) (sz int, err error) ***REMOVED***
+	var (
+		// precomputed conversion table
+		bitsToWeight [tableLogMax + 1]byte
+		huffLog      = s.actualTableLog
+		// last weight is not saved.
+		maxSymbolValue = uint8(s.symbolLen - 1)
+		huffWeight     = s.huffWeight[:256]
+	)
+	const (
+		maxFSETableLog = 6
+	)
+	// convert to weight
+	bitsToWeight[0] = 0
+	for n := uint8(1); n < huffLog+1; n++ ***REMOVED***
+		bitsToWeight[n] = huffLog + 1 - n
+	***REMOVED***
+
+	// Acquire histogram for FSE.
+	hist := s.fse.Histogram()
+	hist = hist[:256]
+	for i := range hist[:16] ***REMOVED***
+		hist[i] = 0
+	***REMOVED***
+	for n := uint8(0); n < maxSymbolValue; n++ ***REMOVED***
+		v := bitsToWeight[c[n].nBits] & 15
+		huffWeight[n] = v
+		hist[v]++
+	***REMOVED***
+
+	// FSE compress if feasible.
+	if maxSymbolValue >= 2 ***REMOVED***
+		huffMaxCnt := uint32(0)
+		huffMax := uint8(0)
+		for i, v := range hist[:16] ***REMOVED***
+			if v == 0 ***REMOVED***
+				continue
+			***REMOVED***
+			huffMax = byte(i)
+			if v > huffMaxCnt ***REMOVED***
+				huffMaxCnt = v
+			***REMOVED***
+		***REMOVED***
+		s.fse.HistogramFinished(huffMax, int(huffMaxCnt))
+		s.fse.TableLog = maxFSETableLog
+		b, err := fse.Compress(huffWeight[:maxSymbolValue], s.fse)
+		if err == nil && len(b) < int(s.symbolLen>>1) ***REMOVED***
+			sz += 1 + len(b)
+			return sz, nil
+		***REMOVED***
+		// Unable to compress (RLE/uncompressible)
+	***REMOVED***
+	// write raw values as 4-bits (max : 15)
+	if maxSymbolValue > (256 - 128) ***REMOVED***
+		// should not happen : likely means source cannot be compressed
+		return 0, ErrIncompressible
+	***REMOVED***
+	// special case, pack weights 4 bits/weight.
+	sz += 1 + int(maxSymbolValue/2)
+	return sz, nil
+***REMOVED***
+
 // estimateSize returns the estimated size in bytes of the input represented in the
 // histogram supplied.
 func (c cTable) estimateSize(hist []uint32) int ***REMOVED***
