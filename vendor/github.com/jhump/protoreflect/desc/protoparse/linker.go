@@ -487,22 +487,26 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 ***REMOVED***
 
 func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto, prefix string, sd *dpb.ServiceDescriptorProto, scopes []scope) error ***REMOVED***
-	thisName := prefix + sd.GetName()
+	svcFqn := prefix + sd.GetName()
 	if sd.Options != nil ***REMOVED***
-		if err := l.resolveOptions(r, fd, "service", thisName, proto.MessageName(sd.Options), sd.Options.UninterpretedOption, scopes); err != nil ***REMOVED***
+		if err := l.resolveOptions(r, fd, "service", svcFqn, proto.MessageName(sd.Options), sd.Options.UninterpretedOption, scopes); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 	***REMOVED***
 
+	// not a message, but same scoping rules for nested elements as if it were
+	scope := messageScope(svcFqn, isProto3(fd), l, fd)
+	scopes = append(scopes, scope)
+
 	for _, mtd := range sd.Method ***REMOVED***
 		if mtd.Options != nil ***REMOVED***
-			if err := l.resolveOptions(r, fd, "method", thisName+"."+mtd.GetName(), proto.MessageName(mtd.Options), mtd.Options.UninterpretedOption, scopes); err != nil ***REMOVED***
+			if err := l.resolveOptions(r, fd, "method", svcFqn+"."+mtd.GetName(), proto.MessageName(mtd.Options), mtd.Options.UninterpretedOption, scopes); err != nil ***REMOVED***
 				return err
 			***REMOVED***
 		***REMOVED***
-		scope := fmt.Sprintf("method %s.%s", thisName, mtd.GetName())
+		scope := fmt.Sprintf("method %s.%s", svcFqn, mtd.GetName())
 		node := r.getMethodNode(mtd)
-		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), true, scopes)
+		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), false, scopes)
 		if dsc == nil ***REMOVED***
 			if err := l.errs.handleErrorWithPos(node.GetInputType().Start(), "%s: unknown request type %s", scope, mtd.GetInputType()); err != nil ***REMOVED***
 				return err
@@ -521,7 +525,7 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 		***REMOVED***
 
 		// TODO: make input and output type resolution more DRY
-		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), true, scopes)
+		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), false, scopes)
 		if dsc == nil ***REMOVED***
 			if err := l.errs.handleErrorWithPos(node.GetOutputType().Start(), "%s: unknown response type %s", scope, mtd.GetOutputType()); err != nil ***REMOVED***
 				return err

@@ -4,6 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build go1.10
 // +build go1.10
 
 // Package idna implements IDNA2008 using the compatibility processing
@@ -66,15 +67,14 @@ func Transitional(transitional bool) Option ***REMOVED***
 
 // VerifyDNSLength sets whether a Profile should fail if any of the IDN parts
 // are longer than allowed by the RFC.
+//
+// This option corresponds to the VerifyDnsLength flag in UTS #46.
 func VerifyDNSLength(verify bool) Option ***REMOVED***
 	return func(o *options) ***REMOVED*** o.verifyDNSLength = verify ***REMOVED***
 ***REMOVED***
 
 // RemoveLeadingDots removes leading label separators. Leading runes that map to
 // dots, such as U+3002 IDEOGRAPHIC FULL STOP, are removed as well.
-//
-// This is the behavior suggested by the UTS #46 and is adopted by some
-// browsers.
 func RemoveLeadingDots(remove bool) Option ***REMOVED***
 	return func(o *options) ***REMOVED*** o.removeLeadingDots = remove ***REMOVED***
 ***REMOVED***
@@ -82,6 +82,8 @@ func RemoveLeadingDots(remove bool) Option ***REMOVED***
 // ValidateLabels sets whether to check the mandatory label validation criteria
 // as defined in Section 5.4 of RFC 5891. This includes testing for correct use
 // of hyphens ('-'), normalization, validity of runes, and the context rules.
+// In particular, ValidateLabels also sets the CheckHyphens and CheckJoiners flags
+// in UTS #46.
 func ValidateLabels(enable bool) Option ***REMOVED***
 	return func(o *options) ***REMOVED***
 		// Don't override existing mappings, but set one that at least checks
@@ -90,25 +92,48 @@ func ValidateLabels(enable bool) Option ***REMOVED***
 			o.mapping = normalize
 		***REMOVED***
 		o.trie = trie
-		o.validateLabels = enable
-		o.fromPuny = validateFromPunycode
+		o.checkJoiners = enable
+		o.checkHyphens = enable
+		if enable ***REMOVED***
+			o.fromPuny = validateFromPunycode
+		***REMOVED*** else ***REMOVED***
+			o.fromPuny = nil
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// CheckHyphens sets whether to check for correct use of hyphens ('-') in
+// labels. Most web browsers do not have this option set, since labels such as
+// "r3---sn-apo3qvuoxuxbt-j5pe" are in common use.
+//
+// This option corresponds to the CheckHyphens flag in UTS #46.
+func CheckHyphens(enable bool) Option ***REMOVED***
+	return func(o *options) ***REMOVED*** o.checkHyphens = enable ***REMOVED***
+***REMOVED***
+
+// CheckJoiners sets whether to check the ContextJ rules as defined in Appendix
+// A of RFC 5892, concerning the use of joiner runes.
+//
+// This option corresponds to the CheckJoiners flag in UTS #46.
+func CheckJoiners(enable bool) Option ***REMOVED***
+	return func(o *options) ***REMOVED***
+		o.trie = trie
+		o.checkJoiners = enable
 	***REMOVED***
 ***REMOVED***
 
 // StrictDomainName limits the set of permissible ASCII characters to those
 // allowed in domain names as defined in RFC 1034 (A-Z, a-z, 0-9 and the
-// hyphen). This is set by default for MapForLookup and ValidateForRegistration.
+// hyphen). This is set by default for MapForLookup and ValidateForRegistration,
+// but is only useful if ValidateLabels is set.
 //
 // This option is useful, for instance, for browsers that allow characters
 // outside this range, for example a '_' (U+005F LOW LINE). See
-// http://www.rfc-editor.org/std/std3.txt for more details This option
-// corresponds to the UseSTD3ASCIIRules option in UTS #46.
+// http://www.rfc-editor.org/std/std3.txt for more details.
+//
+// This option corresponds to the UseSTD3ASCIIRules flag in UTS #46.
 func StrictDomainName(use bool) Option ***REMOVED***
-	return func(o *options) ***REMOVED***
-		o.trie = trie
-		o.useSTD3Rules = use
-		o.fromPuny = validateFromPunycode
-	***REMOVED***
+	return func(o *options) ***REMOVED*** o.useSTD3Rules = use ***REMOVED***
 ***REMOVED***
 
 // NOTE: the following options pull in tables. The tables should not be linked
@@ -116,6 +141,8 @@ func StrictDomainName(use bool) Option ***REMOVED***
 
 // BidiRule enables the Bidi rule as defined in RFC 5893. Any application
 // that relies on proper validation of labels should include this rule.
+//
+// This option corresponds to the CheckBidi flag in UTS #46.
 func BidiRule() Option ***REMOVED***
 	return func(o *options) ***REMOVED*** o.bidirule = bidirule.ValidString ***REMOVED***
 ***REMOVED***
@@ -151,7 +178,8 @@ func MapForLookup() Option ***REMOVED***
 type options struct ***REMOVED***
 	transitional      bool
 	useSTD3Rules      bool
-	validateLabels    bool
+	checkHyphens      bool
+	checkJoiners      bool
 	verifyDNSLength   bool
 	removeLeadingDots bool
 
@@ -224,8 +252,11 @@ func (p *Profile) String() string ***REMOVED***
 	if p.useSTD3Rules ***REMOVED***
 		s += ":UseSTD3Rules"
 	***REMOVED***
-	if p.validateLabels ***REMOVED***
-		s += ":ValidateLabels"
+	if p.checkHyphens ***REMOVED***
+		s += ":CheckHyphens"
+	***REMOVED***
+	if p.checkJoiners ***REMOVED***
+		s += ":CheckJoiners"
 	***REMOVED***
 	if p.verifyDNSLength ***REMOVED***
 		s += ":VerifyDNSLength"
@@ -253,26 +284,29 @@ var (
 
 	punycode = &Profile***REMOVED******REMOVED***
 	lookup   = &Profile***REMOVED***options***REMOVED***
-		transitional:   true,
-		useSTD3Rules:   true,
-		validateLabels: true,
-		trie:           trie,
-		fromPuny:       validateFromPunycode,
-		mapping:        validateAndMap,
-		bidirule:       bidirule.ValidString,
+		transitional: true,
+		useSTD3Rules: true,
+		checkHyphens: true,
+		checkJoiners: true,
+		trie:         trie,
+		fromPuny:     validateFromPunycode,
+		mapping:      validateAndMap,
+		bidirule:     bidirule.ValidString,
 	***REMOVED******REMOVED***
 	display = &Profile***REMOVED***options***REMOVED***
-		useSTD3Rules:   true,
-		validateLabels: true,
-		trie:           trie,
-		fromPuny:       validateFromPunycode,
-		mapping:        validateAndMap,
-		bidirule:       bidirule.ValidString,
+		useSTD3Rules: true,
+		checkHyphens: true,
+		checkJoiners: true,
+		trie:         trie,
+		fromPuny:     validateFromPunycode,
+		mapping:      validateAndMap,
+		bidirule:     bidirule.ValidString,
 	***REMOVED******REMOVED***
 	registration = &Profile***REMOVED***options***REMOVED***
 		useSTD3Rules:    true,
-		validateLabels:  true,
 		verifyDNSLength: true,
+		checkHyphens:    true,
+		checkJoiners:    true,
 		trie:            trie,
 		fromPuny:        validateFromPunycode,
 		mapping:         validateRegistration,
@@ -339,7 +373,7 @@ func (p *Profile) process(s string, toASCII bool) (string, error) ***REMOVED***
 			***REMOVED***
 			isBidi = isBidi || bidirule.DirectionString(u) != bidi.LeftToRight
 			labels.set(u)
-			if err == nil && p.validateLabels ***REMOVED***
+			if err == nil && p.fromPuny != nil ***REMOVED***
 				err = p.fromPuny(p, u)
 			***REMOVED***
 			if err == nil ***REMOVED***
@@ -680,16 +714,18 @@ func (p *Profile) validateLabel(s string) (err error) ***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***
-	if !p.validateLabels ***REMOVED***
+	if p.checkHyphens ***REMOVED***
+		if len(s) > 4 && s[2] == '-' && s[3] == '-' ***REMOVED***
+			return &labelError***REMOVED***s, "V2"***REMOVED***
+		***REMOVED***
+		if s[0] == '-' || s[len(s)-1] == '-' ***REMOVED***
+			return &labelError***REMOVED***s, "V3"***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	if !p.checkJoiners ***REMOVED***
 		return nil
 	***REMOVED***
-	trie := p.trie // p.validateLabels is only set if trie is set.
-	if len(s) > 4 && s[2] == '-' && s[3] == '-' ***REMOVED***
-		return &labelError***REMOVED***s, "V2"***REMOVED***
-	***REMOVED***
-	if s[0] == '-' || s[len(s)-1] == '-' ***REMOVED***
-		return &labelError***REMOVED***s, "V3"***REMOVED***
-	***REMOVED***
+	trie := p.trie // p.checkJoiners is only set if trie is set.
 	// TODO: merge the use of this in the trie.
 	v, sz := trie.lookupString(s)
 	x := info(v)

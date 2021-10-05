@@ -33,7 +33,7 @@ type encoder interface ***REMOVED***
 	Block() *blockEnc
 	CRC() *xxhash.Digest
 	AppendCRC([]byte) []byte
-	WindowSize(size int) int32
+	WindowSize(size int64) int32
 	UseBlock(*blockEnc)
 	Reset(d *dict, singleBlock bool)
 ***REMOVED***
@@ -48,6 +48,8 @@ type encoderState struct ***REMOVED***
 	err              error
 	writeErr         error
 	nWritten         int64
+	nInput           int64
+	frameContentSize int64
 	headerWritten    bool
 	eofWritten       bool
 	fullFrameWritten bool
@@ -120,7 +122,21 @@ func (e *Encoder) Reset(w io.Writer) ***REMOVED***
 	s.w = w
 	s.err = nil
 	s.nWritten = 0
+	s.nInput = 0
 	s.writeErr = nil
+	s.frameContentSize = 0
+***REMOVED***
+
+// ResetContentSize will reset and set a content size for the next stream.
+// If the bytes written does not match the size given an error will be returned
+// when calling Close().
+// This is removed when Reset is called.
+// Sizes <= 0 results in no content size set.
+func (e *Encoder) ResetContentSize(w io.Writer, size int64) ***REMOVED***
+	e.Reset(w)
+	if size >= 0 ***REMOVED***
+		e.state.frameContentSize = size
+	***REMOVED***
 ***REMOVED***
 
 // Write data to the encoder.
@@ -190,6 +206,7 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 				return s.err
 			***REMOVED***
 			s.nWritten += int64(n2)
+			s.nInput += int64(len(s.filling))
 			s.current = s.current[:0]
 			s.filling = s.filling[:0]
 			s.headerWritten = true
@@ -200,8 +217,8 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 
 		var tmp [maxHeaderSize]byte
 		fh := frameHeader***REMOVED***
-			ContentSize:   0,
-			WindowSize:    uint32(s.encoder.WindowSize(0)),
+			ContentSize:   uint64(s.frameContentSize),
+			WindowSize:    uint32(s.encoder.WindowSize(s.frameContentSize)),
 			SingleSegment: false,
 			Checksum:      e.o.crc,
 			DictID:        e.o.dict.ID(),
@@ -243,6 +260,7 @@ func (e *Encoder) nextBlock(final bool) error ***REMOVED***
 
 	// Move blocks forward.
 	s.filling, s.current, s.previous = s.previous[:0], s.filling, s.current
+	s.nInput += int64(len(s.current))
 	s.wg.Add(1)
 	go func(src []byte) ***REMOVED***
 		if debugEncoder ***REMOVED***
@@ -394,6 +412,11 @@ func (e *Encoder) Close() error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
+	if s.frameContentSize > 0 ***REMOVED***
+		if s.nInput != s.frameContentSize ***REMOVED***
+			return fmt.Errorf("frame content size %d given, but %d bytes was written", s.frameContentSize, s.nInput)
+		***REMOVED***
+	***REMOVED***
 	if e.state.fullFrameWritten ***REMOVED***
 		return s.err
 	***REMOVED***
@@ -470,7 +493,7 @@ func (e *Encoder) EncodeAll(src, dst []byte) []byte ***REMOVED***
 	***REMOVED***
 	fh := frameHeader***REMOVED***
 		ContentSize:   uint64(len(src)),
-		WindowSize:    uint32(enc.WindowSize(len(src))),
+		WindowSize:    uint32(enc.WindowSize(int64(len(src)))),
 		SingleSegment: single,
 		Checksum:      e.o.crc,
 		DictID:        e.o.dict.ID(),

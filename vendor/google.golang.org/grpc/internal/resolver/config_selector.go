@@ -117,9 +117,12 @@ type ClientInterceptor interface ***REMOVED***
 	NewStream(ctx context.Context, ri RPCInfo, done func(), newStream func(ctx context.Context, done func()) (ClientStream, error)) (ClientStream, error)
 ***REMOVED***
 
-// ServerInterceptor is unimplementable; do not use.
+// ServerInterceptor is an interceptor for incoming RPC's on gRPC server side.
 type ServerInterceptor interface ***REMOVED***
-	notDefined()
+	// AllowRPC checks if an incoming RPC is allowed to proceed based on
+	// information about connection RPC was received on, and HTTP Headers. This
+	// information will be piped into context.
+	AllowRPC(ctx context.Context) error // TODO: Make this a real interceptor for filters such as rate limiting.
 ***REMOVED***
 
 type csKeyType string

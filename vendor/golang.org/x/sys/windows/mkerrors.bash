@@ -9,6 +9,8 @@ shopt -s nullglob
 
 winerror="$(printf '%s\n' "/mnt/c/Program Files (x86)/Windows Kits/"/*/Include/*/shared/winerror.h | sort -Vr | head -n 1)"
 [[ -n $winerror ]] || ***REMOVED*** echo "Unable to find winerror.h" >&2; exit 1; ***REMOVED***
+ntstatus="$(printf '%s\n' "/mnt/c/Program Files (x86)/Windows Kits/"/*/Include/*/shared/ntstatus.h | sort -Vr | head -n 1)"
+[[ -n $ntstatus ]] || ***REMOVED*** echo "Unable to find ntstatus.h" >&2; exit 1; ***REMOVED***
 
 declare -A errors
 
@@ -58,6 +60,11 @@ declare -A errors
 
 		echo "$key $vtype = $value"
 	done < "$winerror"
+
+	while read -r line; do
+		[[ $line =~ ^#define\ (STATUS_[^\s]+)\ +\(\(NTSTATUS\)((0x)?[0-9a-fA-F]+)L?\) ]] || continue
+		echo "$***REMOVED***BASH_REMATCH[1]***REMOVED*** NTStatus = $***REMOVED***BASH_REMATCH[2]***REMOVED***"
+	done < "$ntstatus"
 
 	echo ")"
 ***REMOVED*** | gofmt > "zerrors_windows.go"

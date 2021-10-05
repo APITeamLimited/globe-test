@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux && (ppc64 || ppc64le)
 // +build linux
 // +build ppc64 ppc64le
 
@@ -99,7 +100,7 @@ func (cmsg *Cmsghdr) SetLen(length int) ***REMOVED***
 	cmsg.Len = uint64(length)
 ***REMOVED***
 
-//sysnb pipe(p *[2]_C_int) (err error)
+//sysnb	pipe(p *[2]_C_int) (err error)
 
 func Pipe(p []int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***
@@ -112,7 +113,7 @@ func Pipe(p []int) (err error) ***REMOVED***
 	return
 ***REMOVED***
 
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
+//sysnb	pipe2(p *[2]_C_int, flags int) (err error)
 
 func Pipe2(p []int, flags int) (err error) ***REMOVED***
 	if len(p) != 2 ***REMOVED***

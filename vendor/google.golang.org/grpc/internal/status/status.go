@@ -97,7 +97,7 @@ func (s *Status) Err() error ***REMOVED***
 	if s.Code() == codes.OK ***REMOVED***
 		return nil
 	***REMOVED***
-	return &Error***REMOVED***e: s.Proto()***REMOVED***
+	return &Error***REMOVED***s: s***REMOVED***
 ***REMOVED***
 
 // WithDetails returns a new status with the provided details messages appended to the status.
@@ -136,19 +136,23 @@ func (s *Status) Details() []interface***REMOVED******REMOVED*** ***REMOVED***
 	return details
 ***REMOVED***
 
+func (s *Status) String() string ***REMOVED***
+	return fmt.Sprintf("rpc error: code = %s desc = %s", s.Code(), s.Message())
+***REMOVED***
+
 // Error wraps a pointer of a status proto. It implements error and Status,
 // and a nil *Error should never be returned by this package.
 type Error struct ***REMOVED***
-	e *spb.Status
+	s *Status
 ***REMOVED***
 
 func (e *Error) Error() string ***REMOVED***
-	return fmt.Sprintf("rpc error: code = %s desc = %s", codes.Code(e.e.GetCode()), e.e.GetMessage())
+	return e.s.String()
 ***REMOVED***
 
 // GRPCStatus returns the Status represented by se.
 func (e *Error) GRPCStatus() *Status ***REMOVED***
-	return FromProto(e.e)
+	return e.s
 ***REMOVED***
 
 // Is implements future error.Is functionality.
@@ -158,5 +162,5 @@ func (e *Error) Is(target error) bool ***REMOVED***
 	if !ok ***REMOVED***
 		return false
 	***REMOVED***
-	return proto.Equal(e.e, tse.e)
+	return proto.Equal(e.s.s, tse.s.s)
 ***REMOVED***

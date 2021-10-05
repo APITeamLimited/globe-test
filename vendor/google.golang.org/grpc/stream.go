@@ -274,33 +274,6 @@ func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *Client
 	if c.creds != nil ***REMOVED***
 		callHdr.Creds = c.creds
 	***REMOVED***
-	var trInfo *traceInfo
-	if EnableTracing ***REMOVED***
-		trInfo = &traceInfo***REMOVED***
-			tr: trace.New("grpc.Sent."+methodFamily(method), method),
-			firstLine: firstLine***REMOVED***
-				client: true,
-			***REMOVED***,
-		***REMOVED***
-		if deadline, ok := ctx.Deadline(); ok ***REMOVED***
-			trInfo.firstLine.deadline = time.Until(deadline)
-		***REMOVED***
-		trInfo.tr.LazyLog(&trInfo.firstLine, false)
-		ctx = trace.NewContext(ctx, trInfo.tr)
-	***REMOVED***
-	ctx = newContextWithRPCInfo(ctx, c.failFast, c.codec, cp, comp)
-	sh := cc.dopts.copts.StatsHandler
-	var beginTime time.Time
-	if sh != nil ***REMOVED***
-		ctx = sh.TagRPC(ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: method, FailFast: c.failFast***REMOVED***)
-		beginTime = time.Now()
-		begin := &stats.Begin***REMOVED***
-			Client:    true,
-			BeginTime: beginTime,
-			FailFast:  c.failFast,
-		***REMOVED***
-		sh.HandleRPC(ctx, begin)
-	***REMOVED***
 
 	cs := &clientStream***REMOVED***
 		callHdr:      callHdr,
@@ -314,7 +287,6 @@ func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *Client
 		cp:           cp,
 		comp:         comp,
 		cancel:       cancel,
-		beginTime:    beginTime,
 		firstAttempt: true,
 		onCommit:     onCommit,
 	***REMOVED***
@@ -323,9 +295,7 @@ func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *Client
 	***REMOVED***
 	cs.binlog = binarylog.GetMethodLogger(method)
 
-	// Only this initial attempt has stats/tracing.
-	// TODO(dfawley): move to newAttempt when per-attempt stats are implemented.
-	if err := cs.newAttemptLocked(sh, trInfo); err != nil ***REMOVED***
+	if err := cs.newAttemptLocked(false /* isTransparent */); err != nil ***REMOVED***
 		cs.finish(err)
 		return nil, err
 	***REMOVED***
@@ -373,8 +343,43 @@ func newClientStreamWithParams(ctx context.Context, desc *StreamDesc, cc *Client
 
 // newAttemptLocked creates a new attempt with a transport.
 // If it succeeds, then it replaces clientStream's attempt with this new attempt.
-func (cs *clientStream) newAttemptLocked(sh stats.Handler, trInfo *traceInfo) (retErr error) ***REMOVED***
+func (cs *clientStream) newAttemptLocked(isTransparent bool) (retErr error) ***REMOVED***
+	ctx := newContextWithRPCInfo(cs.ctx, cs.callInfo.failFast, cs.callInfo.codec, cs.cp, cs.comp)
+	method := cs.callHdr.Method
+	sh := cs.cc.dopts.copts.StatsHandler
+	var beginTime time.Time
+	if sh != nil ***REMOVED***
+		ctx = sh.TagRPC(ctx, &stats.RPCTagInfo***REMOVED***FullMethodName: method, FailFast: cs.callInfo.failFast***REMOVED***)
+		beginTime = time.Now()
+		begin := &stats.Begin***REMOVED***
+			Client:                    true,
+			BeginTime:                 beginTime,
+			FailFast:                  cs.callInfo.failFast,
+			IsClientStream:            cs.desc.ClientStreams,
+			IsServerStream:            cs.desc.ServerStreams,
+			IsTransparentRetryAttempt: isTransparent,
+		***REMOVED***
+		sh.HandleRPC(ctx, begin)
+	***REMOVED***
+
+	var trInfo *traceInfo
+	if EnableTracing ***REMOVED***
+		trInfo = &traceInfo***REMOVED***
+			tr: trace.New("grpc.Sent."+methodFamily(method), method),
+			firstLine: firstLine***REMOVED***
+				client: true,
+			***REMOVED***,
+		***REMOVED***
+		if deadline, ok := ctx.Deadline(); ok ***REMOVED***
+			trInfo.firstLine.deadline = time.Until(deadline)
+		***REMOVED***
+		trInfo.tr.LazyLog(&trInfo.firstLine, false)
+		ctx = trace.NewContext(ctx, trInfo.tr)
+	***REMOVED***
+
 	newAttempt := &csAttempt***REMOVED***
+		ctx:          ctx,
+		beginTime:    beginTime,
 		cs:           cs,
 		dc:           cs.cc.dopts.dc,
 		statsHandler: sh,
@@ -389,15 +394,14 @@ func (cs *clientStream) newAttemptLocked(sh stats.Handler, trInfo *traceInfo) (r
 		***REMOVED***
 	***REMOVED***()
 
-	if err := cs.ctx.Err(); err != nil ***REMOVED***
+	if err := ctx.Err(); err != nil ***REMOVED***
 		return toRPCErr(err)
 	***REMOVED***
 
-	ctx := cs.ctx
 	if cs.cc.parsedTarget.Scheme == "xds" ***REMOVED***
 		// Add extra metadata (metadata that will be added by transport) to context
 		// so the balancer can see them.
-		ctx = grpcutil.WithExtraMetadata(cs.ctx, metadata.Pairs(
+		ctx = grpcutil.WithExtraMetadata(ctx, metadata.Pairs(
 			"content-type", grpcutil.ContentType(cs.callHdr.ContentSubtype),
 		))
 	***REMOVED***
@@ -417,14 +421,11 @@ func (cs *clientStream) newAttemptLocked(sh stats.Handler, trInfo *traceInfo) (r
 func (a *csAttempt) newStream() error ***REMOVED***
 	cs := a.cs
 	cs.callHdr.PreviousAttempts = cs.numRetries
-	s, err := a.t.NewStream(cs.ctx, cs.callHdr)
+	s, err := a.t.NewStream(a.ctx, cs.callHdr)
 	if err != nil ***REMOVED***
-		if _, ok := err.(transport.PerformedIOError); ok ***REMOVED***
-			// Return without converting to an RPC error so retry code can
-			// inspect.
-			return err
-		***REMOVED***
-		return toRPCErr(err)
+		// Return without converting to an RPC error so retry code can
+		// inspect.
+		return err
 	***REMOVED***
 	cs.attempt.s = s
 	cs.attempt.p = &parser***REMOVED***r: s***REMOVED***
@@ -445,8 +446,7 @@ type clientStream struct ***REMOVED***
 
 	cancel context.CancelFunc // cancels all attempts
 
-	sentLast  bool // sent an end stream
-	beginTime time.Time
+	sentLast bool // sent an end stream
 
 	methodConfig *MethodConfig
 
@@ -486,6 +486,7 @@ type clientStream struct ***REMOVED***
 // csAttempt implements a single transport stream attempt within a
 // clientStream.
 type csAttempt struct ***REMOVED***
+	ctx  context.Context
 	cs   *clientStream
 	t    transport.ClientTransport
 	s    *transport.Stream
@@ -504,6 +505,7 @@ type csAttempt struct ***REMOVED***
 	trInfo *traceInfo
 
 	statsHandler stats.Handler
+	beginTime    time.Time
 ***REMOVED***
 
 func (cs *clientStream) commitAttemptLocked() ***REMOVED***
@@ -521,46 +523,57 @@ func (cs *clientStream) commitAttempt() ***REMOVED***
 ***REMOVED***
 
 // shouldRetry returns nil if the RPC should be retried; otherwise it returns
-// the error that should be returned by the operation.
-func (cs *clientStream) shouldRetry(err error) error ***REMOVED***
-	unprocessed := false
+// the error that should be returned by the operation.  If the RPC should be
+// retried, the bool indicates whether it is being retried transparently.
+func (cs *clientStream) shouldRetry(err error) (bool, error) ***REMOVED***
 	if cs.attempt.s == nil ***REMOVED***
-		pioErr, ok := err.(transport.PerformedIOError)
-		if ok ***REMOVED***
-			// Unwrap error.
-			err = toRPCErr(pioErr.Err)
-		***REMOVED*** else ***REMOVED***
-			unprocessed = true
+		// Error from NewClientStream.
+		nse, ok := err.(*transport.NewStreamError)
+		if !ok ***REMOVED***
+			// Unexpected, but assume no I/O was performed and the RPC is not
+			// fatal, so retry indefinitely.
+			return true, nil
 		***REMOVED***
-		if !ok && !cs.callInfo.failFast ***REMOVED***
-			// In the event of a non-IO operation error from NewStream, we
-			// never attempted to write anything to the wire, so we can retry
-			// indefinitely for non-fail-fast RPCs.
-			return nil
+
+		// Unwrap and convert error.
+		err = toRPCErr(nse.Err)
+
+		// Never retry DoNotRetry errors, which indicate the RPC should not be
+		// retried due to max header list size violation, etc.
+		if nse.DoNotRetry ***REMOVED***
+			return false, err
+		***REMOVED***
+
+		// In the event of a non-IO operation error from NewStream, we never
+		// attempted to write anything to the wire, so we can retry
+		// indefinitely.
+		if !nse.DoNotTransparentRetry ***REMOVED***
+			return true, nil
 		***REMOVED***
 	***REMOVED***
 	if cs.finished || cs.committed ***REMOVED***
 		// RPC is finished or committed; cannot retry.
-		return err
+		return false, err
 	***REMOVED***
 	// Wait for the trailers.
+	unprocessed := false
 	if cs.attempt.s != nil ***REMOVED***
 		<-cs.attempt.s.Done()
 		unprocessed = cs.attempt.s.Unprocessed()
 	***REMOVED***
 	if cs.firstAttempt && unprocessed ***REMOVED***
 		// First attempt, stream unprocessed: transparently retry.
-		return nil
+		return true, nil
 	***REMOVED***
 	if cs.cc.dopts.disableRetry ***REMOVED***
-		return err
+		return false, err
 	***REMOVED***
 
 	pushback := 0
 	hasPushback := false
 	if cs.attempt.s != nil ***REMOVED***
 		if !cs.attempt.s.TrailersOnly() ***REMOVED***
-			return err
+			return false, err
 		***REMOVED***
 
 		// TODO(retry): Move down if the spec changes to not check server pushback
@@ -571,13 +584,13 @@ func (cs *clientStream) shouldRetry(err error) error ***REMOVED***
 			if pushback, e = strconv.Atoi(sps[0]); e != nil || pushback < 0 ***REMOVED***
 				channelz.Infof(logger, cs.cc.channelzID, "Server retry pushback specified to abort (%q).", sps[0])
 				cs.retryThrottler.throttle() // This counts as a failure for throttling.
-				return err
+				return false, err
 			***REMOVED***
 			hasPushback = true
 		***REMOVED*** else if len(sps) > 1 ***REMOVED***
 			channelz.Warningf(logger, cs.cc.channelzID, "Server retry pushback specified multiple values (%q); not retrying.", sps)
 			cs.retryThrottler.throttle() // This counts as a failure for throttling.
-			return err
+			return false, err
 		***REMOVED***
 	***REMOVED***
 
@@ -590,16 +603,16 @@ func (cs *clientStream) shouldRetry(err error) error ***REMOVED***
 
 	rp := cs.methodConfig.RetryPolicy
 	if rp == nil || !rp.RetryableStatusCodes[code] ***REMOVED***
-		return err
+		return false, err
 	***REMOVED***
 
 	// Note: the ordering here is important; we count this as a failure
 	// only if the code matched a retryable code.
 	if cs.retryThrottler.throttle() ***REMOVED***
-		return err
+		return false, err
 	***REMOVED***
 	if cs.numRetries+1 >= rp.MaxAttempts ***REMOVED***
-		return err
+		return false, err
 	***REMOVED***
 
 	var dur time.Duration
@@ -622,23 +635,24 @@ func (cs *clientStream) shouldRetry(err error) error ***REMOVED***
 	select ***REMOVED***
 	case <-t.C:
 		cs.numRetries++
-		return nil
+		return false, nil
 	case <-cs.ctx.Done():
 		t.Stop()
-		return status.FromContextError(cs.ctx.Err()).Err()
+		return false, status.FromContextError(cs.ctx.Err()).Err()
 	***REMOVED***
 ***REMOVED***
 
 // Returns nil if a retry was performed and succeeded; error otherwise.
 func (cs *clientStream) retryLocked(lastErr error) error ***REMOVED***
 	for ***REMOVED***
-		cs.attempt.finish(lastErr)
-		if err := cs.shouldRetry(lastErr); err != nil ***REMOVED***
+		cs.attempt.finish(toRPCErr(lastErr))
+		isTransparent, err := cs.shouldRetry(lastErr)
+		if err != nil ***REMOVED***
 			cs.commitAttemptLocked()
 			return err
 		***REMOVED***
 		cs.firstAttempt = false
-		if err := cs.newAttemptLocked(nil, nil); err != nil ***REMOVED***
+		if err := cs.newAttemptLocked(isTransparent); err != nil ***REMOVED***
 			return err
 		***REMOVED***
 		if lastErr = cs.replayBufferLocked(); lastErr == nil ***REMOVED***
@@ -659,7 +673,11 @@ func (cs *clientStream) withRetry(op func(a *csAttempt) error, onSuccess func())
 	for ***REMOVED***
 		if cs.committed ***REMOVED***
 			cs.mu.Unlock()
-			return op(cs.attempt)
+			// toRPCErr is used in case the error from the attempt comes from
+			// NewClientStream, which intentionally doesn't return a status
+			// error to allow for further inspection; all other errors should
+			// already be status errors.
+			return toRPCErr(op(cs.attempt))
 		***REMOVED***
 		a := cs.attempt
 		cs.mu.Unlock()
@@ -924,7 +942,7 @@ func (a *csAttempt) sendMsg(m interface***REMOVED******REMOVED***, hdr, payld, d
 		return io.EOF
 	***REMOVED***
 	if a.statsHandler != nil ***REMOVED***
-		a.statsHandler.HandleRPC(cs.ctx, outPayload(true, m, data, payld, time.Now()))
+		a.statsHandler.HandleRPC(a.ctx, outPayload(true, m, data, payld, time.Now()))
 	***REMOVED***
 	if channelz.IsOn() ***REMOVED***
 		a.t.IncrMsgSent()
@@ -972,7 +990,7 @@ func (a *csAttempt) recvMsg(m interface***REMOVED******REMOVED***, payInfo *payl
 		a.mu.Unlock()
 	***REMOVED***
 	if a.statsHandler != nil ***REMOVED***
-		a.statsHandler.HandleRPC(cs.ctx, &stats.InPayload***REMOVED***
+		a.statsHandler.HandleRPC(a.ctx, &stats.InPayload***REMOVED***
 			Client:   true,
 			RecvTime: time.Now(),
 			Payload:  m,
@@ -1034,12 +1052,12 @@ func (a *csAttempt) finish(err error) ***REMOVED***
 	if a.statsHandler != nil ***REMOVED***
 		end := &stats.End***REMOVED***
 			Client:    true,
-			BeginTime: a.cs.beginTime,
+			BeginTime: a.beginTime,
 			EndTime:   time.Now(),
 			Trailer:   tr,
 			Error:     err,
 		***REMOVED***
-		a.statsHandler.HandleRPC(a.cs.ctx, end)
+		a.statsHandler.HandleRPC(a.ctx, end)
 	***REMOVED***
 	if a.trInfo != nil && a.trInfo.tr != nil ***REMOVED***
 		if err == nil ***REMOVED***

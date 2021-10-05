@@ -1,7 +1,9 @@
 // Package match provides a simple pattern matcher with unicode support.
 package match
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+)
 
 // Match returns true if str matches pattern. This is a very
 // simple wildcard match where '*' matches on any number characters
@@ -16,127 +18,124 @@ import "unicode/utf8"
 // 	'\\' c      matches character c
 //
 func Match(str, pattern string) bool ***REMOVED***
-	return deepMatch(str, pattern)
-***REMOVED***
-
-func deepMatch(str, pattern string) bool ***REMOVED***
 	if pattern == "*" ***REMOVED***
 		return true
 	***REMOVED***
-	for len(pattern) > 1 && pattern[0] == '*' && pattern[1] == '*' ***REMOVED***
-		pattern = pattern[1:]
-	***REMOVED***
-	for len(pattern) > 0 ***REMOVED***
-		if pattern[0] > 0x7f ***REMOVED***
-			return deepMatchRune(str, pattern)
-		***REMOVED***
-		switch pattern[0] ***REMOVED***
-		default:
-			if len(str) == 0 ***REMOVED***
-				return false
-			***REMOVED***
-			if str[0] > 0x7f ***REMOVED***
-				return deepMatchRune(str, pattern)
-			***REMOVED***
-			if str[0] != pattern[0] ***REMOVED***
-				return false
-			***REMOVED***
-		case '?':
-			if len(str) == 0 ***REMOVED***
-				return false
-			***REMOVED***
-		case '*':
-			return deepMatch(str, pattern[1:]) ||
-				(len(str) > 0 && deepMatch(str[1:], pattern))
-		***REMOVED***
-		str = str[1:]
-		pattern = pattern[1:]
-	***REMOVED***
-	return len(str) == 0 && len(pattern) == 0
+	return match(str, pattern)
 ***REMOVED***
 
-func deepMatchRune(str, pattern string) bool ***REMOVED***
-	if pattern == "*" ***REMOVED***
-		return true
-	***REMOVED***
-	for len(pattern) > 1 && pattern[0] == '*' && pattern[1] == '*' ***REMOVED***
-		pattern = pattern[1:]
-	***REMOVED***
-
-	var sr, pr rune
-	var srsz, prsz int
-
-	// read the first rune ahead of time
-	if len(str) > 0 ***REMOVED***
-		if str[0] > 0x7f ***REMOVED***
-			sr, srsz = utf8.DecodeRuneInString(str)
-		***REMOVED*** else ***REMOVED***
-			sr, srsz = rune(str[0]), 1
+func match(str, pat string) bool ***REMOVED***
+	for len(pat) > 0 ***REMOVED***
+		var wild bool
+		pc, ps := rune(pat[0]), 1
+		if pc > 0x7f ***REMOVED***
+			pc, ps = utf8.DecodeRuneInString(pat)
 		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		sr, srsz = utf8.RuneError, 0
-	***REMOVED***
-	if len(pattern) > 0 ***REMOVED***
-		if pattern[0] > 0x7f ***REMOVED***
-			pr, prsz = utf8.DecodeRuneInString(pattern)
-		***REMOVED*** else ***REMOVED***
-			pr, prsz = rune(pattern[0]), 1
-		***REMOVED***
-	***REMOVED*** else ***REMOVED***
-		pr, prsz = utf8.RuneError, 0
-	***REMOVED***
-	// done reading
-	for pr != utf8.RuneError ***REMOVED***
-		switch pr ***REMOVED***
-		default:
-			if srsz == utf8.RuneError ***REMOVED***
-				return false
-			***REMOVED***
-			if sr != pr ***REMOVED***
-				return false
-			***REMOVED***
-		case '?':
-			if srsz == utf8.RuneError ***REMOVED***
-				return false
-			***REMOVED***
-		case '*':
-			return deepMatchRune(str, pattern[prsz:]) ||
-				(srsz > 0 && deepMatchRune(str[srsz:], pattern))
-		***REMOVED***
-		str = str[srsz:]
-		pattern = pattern[prsz:]
-		// read the next runes
+		var sc rune
+		var ss int
 		if len(str) > 0 ***REMOVED***
-			if str[0] > 0x7f ***REMOVED***
-				sr, srsz = utf8.DecodeRuneInString(str)
-			***REMOVED*** else ***REMOVED***
-				sr, srsz = rune(str[0]), 1
+			sc, ss = rune(str[0]), 1
+			if sc > 0x7f ***REMOVED***
+				sc, ss = utf8.DecodeRuneInString(str)
 			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			sr, srsz = utf8.RuneError, 0
 		***REMOVED***
-		if len(pattern) > 0 ***REMOVED***
-			if pattern[0] > 0x7f ***REMOVED***
-				pr, prsz = utf8.DecodeRuneInString(pattern)
-			***REMOVED*** else ***REMOVED***
-				pr, prsz = rune(pattern[0]), 1
+		switch pc ***REMOVED***
+		case '?':
+			if ss == 0 ***REMOVED***
+				return false
 			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			pr, prsz = utf8.RuneError, 0
-		***REMOVED***
-		// done reading
-	***REMOVED***
+		case '*':
+			// Ignore repeating stars.
+			for len(pat) > 1 && pat[1] == '*' ***REMOVED***
+				pat = pat[1:]
+			***REMOVED***
 
-	return srsz == 0 && prsz == 0
+			// If this is the last character then it must be a match.
+			if len(pat) == 1 ***REMOVED***
+				return true
+			***REMOVED***
+
+			// Match and trim any non-wildcard suffix characters.
+			var ok bool
+			str, pat, ok = matchTrimSuffix(str, pat)
+			if !ok ***REMOVED***
+				return false
+			***REMOVED***
+
+			// perform recursive wildcard search
+			if match(str, pat[1:]) ***REMOVED***
+				return true
+			***REMOVED***
+			if len(str) == 0 ***REMOVED***
+				return false
+			***REMOVED***
+			wild = true
+		default:
+			if ss == 0 ***REMOVED***
+				return false
+			***REMOVED***
+			if pc == '\\' ***REMOVED***
+				pat = pat[ps:]
+				pc, ps = utf8.DecodeRuneInString(pat)
+				if ps == 0 ***REMOVED***
+					return false
+				***REMOVED***
+			***REMOVED***
+			if sc != pc ***REMOVED***
+				return false
+			***REMOVED***
+		***REMOVED***
+		str = str[ss:]
+		if !wild ***REMOVED***
+			pat = pat[ps:]
+		***REMOVED***
+	***REMOVED***
+	return len(str) == 0
 ***REMOVED***
 
-var maxRuneBytes = func() []byte ***REMOVED***
-	b := make([]byte, 4)
-	if utf8.EncodeRune(b, '\U0010FFFF') != 4 ***REMOVED***
-		panic("invalid rune encoding")
+// matchTrimSuffix matches and trims any non-wildcard suffix characters.
+// Returns the trimed string and pattern.
+//
+// This is called because the pattern contains extra data after the wildcard
+// star. Here we compare any suffix characters in the pattern to the suffix of
+// the target string. Basically a reverse match that stops when a wildcard
+// character is reached. This is a little trickier than a forward match because
+// we need to evaluate an escaped character in reverse.
+//
+// Any matched characters will be trimmed from both the target
+// string and the pattern.
+func matchTrimSuffix(str, pat string) (string, string, bool) ***REMOVED***
+	// It's expected that the pattern has at least two bytes and the first byte
+	// is a wildcard star '*'
+	match := true
+	for len(str) > 0 && len(pat) > 1 ***REMOVED***
+		pc, ps := utf8.DecodeLastRuneInString(pat)
+		var esc bool
+		for i := 0; ; i++ ***REMOVED***
+			if pat[len(pat)-ps-i-1] != '\\' ***REMOVED***
+				if i&1 == 1 ***REMOVED***
+					esc = true
+					ps++
+				***REMOVED***
+				break
+			***REMOVED***
+		***REMOVED***
+		if pc == '*' && !esc ***REMOVED***
+			match = true
+			break
+		***REMOVED***
+		sc, ss := utf8.DecodeLastRuneInString(str)
+		if !((pc == '?' && !esc) || pc == sc) ***REMOVED***
+			match = false
+			break
+		***REMOVED***
+		str = str[:len(str)-ss]
+		pat = pat[:len(pat)-ps]
 	***REMOVED***
-	return b
-***REMOVED***()
+	return str, pat, match
+***REMOVED***
+
+var maxRuneBytes = [...]byte***REMOVED***244, 143, 191, 191***REMOVED***
 
 // Allowable parses the pattern and determines the minimum and maximum allowable
 // values that the pattern can represent.
@@ -157,7 +156,7 @@ func Allowable(pattern string) (min, max string) ***REMOVED***
 		***REMOVED***
 		if pattern[i] == '?' ***REMOVED***
 			minb = append(minb, 0)
-			maxb = append(maxb, maxRuneBytes...)
+			maxb = append(maxb, maxRuneBytes[:]...)
 		***REMOVED*** else ***REMOVED***
 			minb = append(minb, pattern[i])
 			maxb = append(maxb, pattern[i])

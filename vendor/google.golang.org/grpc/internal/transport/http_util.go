@@ -173,26 +173,6 @@ func decodeGRPCStatusDetails(rawDetails string) (*status.Status, error) ***REMOV
 	return status.FromProto(st), nil
 ***REMOVED***
 
-// constructErrMsg constructs error message to be returned in HTTP fallback mode.
-// Format: HTTP status code and its corresponding message + content-type error message.
-func constructHTTPErrMsg(httpStatus *int, contentTypeErr string) string ***REMOVED***
-	var errMsgs []string
-
-	if httpStatus == nil ***REMOVED***
-		errMsgs = append(errMsgs, "malformed header: missing HTTP status")
-	***REMOVED*** else ***REMOVED***
-		errMsgs = append(errMsgs, fmt.Sprintf("%s: HTTP status code %d", http.StatusText(*(httpStatus)), *httpStatus))
-	***REMOVED***
-
-	if contentTypeErr == "" ***REMOVED***
-		errMsgs = append(errMsgs, "transport: missing content-type field")
-	***REMOVED*** else ***REMOVED***
-		errMsgs = append(errMsgs, contentTypeErr)
-	***REMOVED***
-
-	return strings.Join(errMsgs, "; ")
-***REMOVED***
-
 type timeoutUnit uint8
 
 const (

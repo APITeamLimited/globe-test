@@ -1,4 +1,5 @@
-// +build !linux appengine
+//go:build !linux
+// +build !linux
 
 /*
  *
@@ -37,6 +38,6 @@ type SocketOptionData struct ***REMOVED***
 // Windows OS doesn't support Socket Option
 func (s *SocketOptionData) Getsockopt(fd uintptr) ***REMOVED***
 	once.Do(func() ***REMOVED***
-		logger.Warning("Channelz: socket options are not supported on non-linux os and appengine.")
+		logger.Warning("Channelz: socket options are not supported on non-linux environments")
 	***REMOVED***)
 ***REMOVED***

@@ -189,7 +189,7 @@ func EncoderLevelFromZstd(level int) EncoderLevel ***REMOVED***
 	case level >= 6 && level < 10:
 		return SpeedBetterCompression
 	case level >= 10:
-		return SpeedBetterCompression
+		return SpeedBestCompression
 	***REMOVED***
 	return SpeedDefault
 ***REMOVED***
