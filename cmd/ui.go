@@ -34,7 +34,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
+
 	"gopkg.in/yaml.v3"
 
 	"go.k6.io/k6/lib"
@@ -282,7 +283,7 @@ func showProgress(
 	var errTermGetSize bool
 	termWidth := defaultTermWidth
 	if stdoutTTY ***REMOVED***
-		tw, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+		tw, _, err := term.GetSize(int(os.Stdout.Fd()))
 		if !(tw > 0) || err != nil ***REMOVED***
 			errTermGetSize = true
 			logger.WithError(err).Warn("error getting terminal size")
@@ -370,7 +371,7 @@ func showProgress(
 		case <-winch:
 			if stdoutTTY && !errTermGetSize ***REMOVED***
 				// More responsive progress bar resizing on platforms with SIGWINCH (*nix)
-				tw, _, err := terminal.GetSize(fd)
+				tw, _, err := term.GetSize(fd)
 				if tw > 0 && err == nil ***REMOVED***
 					termWidth = tw
 				***REMOVED***
@@ -378,7 +379,7 @@ func showProgress(
 		case <-ticker.C:
 			// Default ticker-based progress bar resizing
 			if stdoutTTY && !errTermGetSize && winch == nil ***REMOVED***
-				tw, _, err := terminal.GetSize(fd)
+				tw, _, err := term.GetSize(fd)
 				if tw > 0 && err == nil ***REMOVED***
 					termWidth = tw
 				***REMOVED***
