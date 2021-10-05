@@ -829,26 +829,28 @@ func Errorf(c codes.Code, format string, a ...interface***REMOVED******REMOVED**
 
 // toRPCErr converts an error into an error from the status package.
 func toRPCErr(err error) error ***REMOVED***
-	if err == nil || err == io.EOF ***REMOVED***
+	switch err ***REMOVED***
+	case nil, io.EOF:
 		return err
-	***REMOVED***
-	if err == io.ErrUnexpectedEOF ***REMOVED***
+	case context.DeadlineExceeded:
+		return status.Error(codes.DeadlineExceeded, err.Error())
+	case context.Canceled:
+		return status.Error(codes.Canceled, err.Error())
+	case io.ErrUnexpectedEOF:
 		return status.Error(codes.Internal, err.Error())
 	***REMOVED***
-	if _, ok := status.FromError(err); ok ***REMOVED***
-		return err
-	***REMOVED***
+
 	switch e := err.(type) ***REMOVED***
 	case transport.ConnectionError:
 		return status.Error(codes.Unavailable, e.Desc)
-	default:
-		switch err ***REMOVED***
-		case context.DeadlineExceeded:
-			return status.Error(codes.DeadlineExceeded, err.Error())
-		case context.Canceled:
-			return status.Error(codes.Canceled, err.Error())
-		***REMOVED***
+	case *transport.NewStreamError:
+		return toRPCErr(e.Err)
 	***REMOVED***
+
+	if _, ok := status.FromError(err); ok ***REMOVED***
+		return err
+	***REMOVED***
+
 	return status.Error(codes.Unknown, err.Error())
 ***REMOVED***
 

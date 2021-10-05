@@ -69,7 +69,8 @@ type writerSink struct ***REMOVED***
 func (ws *writerSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
 	b, err := proto.Marshal(e)
 	if err != nil ***REMOVED***
-		grpclogLogger.Infof("binary logging: failed to marshal proto message: %v", err)
+		grpclogLogger.Errorf("binary logging: failed to marshal proto message: %v", err)
+		return err
 	***REMOVED***
 	hdr := make([]byte, 4)
 	binary.BigEndian.PutUint32(hdr, uint32(len(b)))
@@ -85,24 +86,27 @@ func (ws *writerSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
 func (ws *writerSink) Close() error ***REMOVED*** return nil ***REMOVED***
 
 type bufferedSink struct ***REMOVED***
-	mu     sync.Mutex
-	closer io.Closer
-	out    Sink          // out is built on buf.
-	buf    *bufio.Writer // buf is kept for flush.
+	mu             sync.Mutex
+	closer         io.Closer
+	out            Sink          // out is built on buf.
+	buf            *bufio.Writer // buf is kept for flush.
+	flusherStarted bool
 
-	writeStartOnce sync.Once
-	writeTicker    *time.Ticker
+	writeTicker *time.Ticker
+	done        chan struct***REMOVED******REMOVED***
 ***REMOVED***
 
 func (fs *bufferedSink) Write(e *pb.GrpcLogEntry) error ***REMOVED***
-	// Start the write loop when Write is called.
-	fs.writeStartOnce.Do(fs.startFlushGoroutine)
 	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	if !fs.flusherStarted ***REMOVED***
+		// Start the write loop when Write is called.
+		fs.startFlushGoroutine()
+		fs.flusherStarted = true
+	***REMOVED***
 	if err := fs.out.Write(e); err != nil ***REMOVED***
-		fs.mu.Unlock()
 		return err
 	***REMOVED***
-	fs.mu.Unlock()
 	return nil
 ***REMOVED***
 
@@ -113,7 +117,12 @@ const (
 func (fs *bufferedSink) startFlushGoroutine() ***REMOVED***
 	fs.writeTicker = time.NewTicker(bufFlushDuration)
 	go func() ***REMOVED***
-		for range fs.writeTicker.C ***REMOVED***
+		for ***REMOVED***
+			select ***REMOVED***
+			case <-fs.done:
+				return
+			case <-fs.writeTicker.C:
+			***REMOVED***
 			fs.mu.Lock()
 			if err := fs.buf.Flush(); err != nil ***REMOVED***
 				grpclogLogger.Warningf("failed to flush to Sink: %v", err)
@@ -124,10 +133,12 @@ func (fs *bufferedSink) startFlushGoroutine() ***REMOVED***
 ***REMOVED***
 
 func (fs *bufferedSink) Close() error ***REMOVED***
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	if fs.writeTicker != nil ***REMOVED***
 		fs.writeTicker.Stop()
 	***REMOVED***
-	fs.mu.Lock()
+	close(fs.done)
 	if err := fs.buf.Flush(); err != nil ***REMOVED***
 		grpclogLogger.Warningf("failed to flush to Sink: %v", err)
 	***REMOVED***
@@ -137,7 +148,6 @@ func (fs *bufferedSink) Close() error ***REMOVED***
 	if err := fs.out.Close(); err != nil ***REMOVED***
 		grpclogLogger.Warningf("failed to close the Sink: %v", err)
 	***REMOVED***
-	fs.mu.Unlock()
 	return nil
 ***REMOVED***
 
@@ -155,5 +165,6 @@ func NewBufferedSink(o io.WriteCloser) Sink ***REMOVED***
 		closer: o,
 		out:    newWriterSink(bufW),
 		buf:    bufW,
+		done:   make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***
 ***REMOVED***

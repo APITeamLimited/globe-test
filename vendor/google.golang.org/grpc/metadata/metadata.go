@@ -123,6 +123,13 @@ func (md MD) Append(k string, vals ...string) ***REMOVED***
 	md[k] = append(md[k], vals...)
 ***REMOVED***
 
+// Delete removes the values for a given key k which is converted to lowercase
+// before removing it from md.
+func (md MD) Delete(k string) ***REMOVED***
+	k = strings.ToLower(k)
+	delete(md, k)
+***REMOVED***
+
 // Join joins any number of mds into a single MD.
 //
 // The order of values for each key is determined by the order in which the mds

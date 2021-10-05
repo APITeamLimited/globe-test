@@ -710,13 +710,6 @@ func (s *Server) GetServiceInfo() map[string]ServiceInfo ***REMOVED***
 // the server being stopped.
 var ErrServerStopped = errors.New("grpc: the server has been stopped")
 
-func (s *Server) useTransportAuthenticator(rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) ***REMOVED***
-	if s.opts.creds == nil ***REMOVED***
-		return rawConn, nil, nil
-	***REMOVED***
-	return s.opts.creds.ServerHandshake(rawConn)
-***REMOVED***
-
 type listenSocket struct ***REMOVED***
 	net.Listener
 	channelzID int64
@@ -839,34 +832,14 @@ func (s *Server) handleRawConn(lisAddr string, rawConn net.Conn) ***REMOVED***
 		return
 	***REMOVED***
 	rawConn.SetDeadline(time.Now().Add(s.opts.connectionTimeout))
-	conn, authInfo, err := s.useTransportAuthenticator(rawConn)
-	if err != nil ***REMOVED***
-		// ErrConnDispatched means that the connection was dispatched away from
-		// gRPC; those connections should be left open.
-		if err != credentials.ErrConnDispatched ***REMOVED***
-			// In deployments where a gRPC server runs behind a cloud load
-			// balancer which performs regular TCP level health checks, the
-			// connection is closed immediately by the latter. Skipping the
-			// error here will help reduce log clutter.
-			if err != io.EOF ***REMOVED***
-				s.mu.Lock()
-				s.errorf("ServerHandshake(%q) failed: %v", rawConn.RemoteAddr(), err)
-				s.mu.Unlock()
-				channelz.Warningf(logger, s.channelzID, "grpc: Server.Serve failed to complete security handshake from %q: %v", rawConn.RemoteAddr(), err)
-			***REMOVED***
-			rawConn.Close()
-		***REMOVED***
-		rawConn.SetDeadline(time.Time***REMOVED******REMOVED***)
-		return
-	***REMOVED***
 
 	// Finish handshaking (HTTP2)
-	st := s.newHTTP2Transport(conn, authInfo)
+	st := s.newHTTP2Transport(rawConn)
+	rawConn.SetDeadline(time.Time***REMOVED******REMOVED***)
 	if st == nil ***REMOVED***
 		return
 	***REMOVED***
 
-	rawConn.SetDeadline(time.Time***REMOVED******REMOVED***)
 	if !s.addConn(lisAddr, st) ***REMOVED***
 		return
 	***REMOVED***
@@ -887,10 +860,11 @@ func (s *Server) drainServerTransports(addr string) ***REMOVED***
 
 // newHTTP2Transport sets up a http/2 transport (using the
 // gRPC http2 server transport in transport/http2_server.go).
-func (s *Server) newHTTP2Transport(c net.Conn, authInfo credentials.AuthInfo) transport.ServerTransport ***REMOVED***
+func (s *Server) newHTTP2Transport(c net.Conn) transport.ServerTransport ***REMOVED***
 	config := &transport.ServerConfig***REMOVED***
 		MaxStreams:            s.opts.maxConcurrentStreams,
-		AuthInfo:              authInfo,
+		ConnectionTimeout:     s.opts.connectionTimeout,
+		Credentials:           s.opts.creds,
 		InTapHandle:           s.opts.inTapHandle,
 		StatsHandler:          s.opts.statsHandler,
 		KeepaliveParams:       s.opts.keepaliveParams,
@@ -908,8 +882,17 @@ func (s *Server) newHTTP2Transport(c net.Conn, authInfo credentials.AuthInfo) tr
 		s.mu.Lock()
 		s.errorf("NewServerTransport(%q) failed: %v", c.RemoteAddr(), err)
 		s.mu.Unlock()
-		c.Close()
-		channelz.Warning(logger, s.channelzID, "grpc: Server.Serve failed to create ServerTransport: ", err)
+		// ErrConnDispatched means that the connection was dispatched away from
+		// gRPC; those connections should be left open.
+		if err != credentials.ErrConnDispatched ***REMOVED***
+			c.Close()
+		***REMOVED***
+		// Don't log on ErrConnDispatched and io.EOF to prevent log spam.
+		if err != credentials.ErrConnDispatched ***REMOVED***
+			if err != io.EOF ***REMOVED***
+				channelz.Warning(logger, s.channelzID, "grpc: Server.Serve failed to create ServerTransport: ", err)
+			***REMOVED***
+		***REMOVED***
 		return nil
 	***REMOVED***
 
@@ -1115,22 +1098,24 @@ func chainUnaryServerInterceptors(s *Server) ***REMOVED***
 	***REMOVED*** else if len(interceptors) == 1 ***REMOVED***
 		chainedInt = interceptors[0]
 	***REMOVED*** else ***REMOVED***
-		chainedInt = func(ctx context.Context, req interface***REMOVED******REMOVED***, info *UnaryServerInfo, handler UnaryHandler) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-			return interceptors[0](ctx, req, info, getChainUnaryHandler(interceptors, 0, info, handler))
-		***REMOVED***
+		chainedInt = chainUnaryInterceptors(interceptors)
 	***REMOVED***
 
 	s.opts.unaryInt = chainedInt
 ***REMOVED***
 
-// getChainUnaryHandler recursively generate the chained UnaryHandler
-func getChainUnaryHandler(interceptors []UnaryServerInterceptor, curr int, info *UnaryServerInfo, finalHandler UnaryHandler) UnaryHandler ***REMOVED***
-	if curr == len(interceptors)-1 ***REMOVED***
-		return finalHandler
-	***REMOVED***
-
-	return func(ctx context.Context, req interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-		return interceptors[curr+1](ctx, req, info, getChainUnaryHandler(interceptors, curr+1, info, finalHandler))
+func chainUnaryInterceptors(interceptors []UnaryServerInterceptor) UnaryServerInterceptor ***REMOVED***
+	return func(ctx context.Context, req interface***REMOVED******REMOVED***, info *UnaryServerInfo, handler UnaryHandler) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+		var i int
+		var next UnaryHandler
+		next = func(ctx context.Context, req interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+			if i == len(interceptors)-1 ***REMOVED***
+				return interceptors[i](ctx, req, info, handler)
+			***REMOVED***
+			i++
+			return interceptors[i-1](ctx, req, info, next)
+		***REMOVED***
+		return next(ctx, req)
 	***REMOVED***
 ***REMOVED***
 
@@ -1144,7 +1129,9 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		if sh != nil ***REMOVED***
 			beginTime := time.Now()
 			statsBegin = &stats.Begin***REMOVED***
-				BeginTime: beginTime,
+				BeginTime:      beginTime,
+				IsClientStream: false,
+				IsServerStream: false,
 			***REMOVED***
 			sh.HandleRPC(stream.Context(), statsBegin)
 		***REMOVED***
@@ -1396,22 +1383,24 @@ func chainStreamServerInterceptors(s *Server) ***REMOVED***
 	***REMOVED*** else if len(interceptors) == 1 ***REMOVED***
 		chainedInt = interceptors[0]
 	***REMOVED*** else ***REMOVED***
-		chainedInt = func(srv interface***REMOVED******REMOVED***, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error ***REMOVED***
-			return interceptors[0](srv, ss, info, getChainStreamHandler(interceptors, 0, info, handler))
-		***REMOVED***
+		chainedInt = chainStreamInterceptors(interceptors)
 	***REMOVED***
 
 	s.opts.streamInt = chainedInt
 ***REMOVED***
 
-// getChainStreamHandler recursively generate the chained StreamHandler
-func getChainStreamHandler(interceptors []StreamServerInterceptor, curr int, info *StreamServerInfo, finalHandler StreamHandler) StreamHandler ***REMOVED***
-	if curr == len(interceptors)-1 ***REMOVED***
-		return finalHandler
-	***REMOVED***
-
-	return func(srv interface***REMOVED******REMOVED***, ss ServerStream) error ***REMOVED***
-		return interceptors[curr+1](srv, ss, info, getChainStreamHandler(interceptors, curr+1, info, finalHandler))
+func chainStreamInterceptors(interceptors []StreamServerInterceptor) StreamServerInterceptor ***REMOVED***
+	return func(srv interface***REMOVED******REMOVED***, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error ***REMOVED***
+		var i int
+		var next StreamHandler
+		next = func(srv interface***REMOVED******REMOVED***, ss ServerStream) error ***REMOVED***
+			if i == len(interceptors)-1 ***REMOVED***
+				return interceptors[i](srv, ss, info, handler)
+			***REMOVED***
+			i++
+			return interceptors[i-1](srv, ss, info, next)
+		***REMOVED***
+		return next(srv, ss)
 	***REMOVED***
 ***REMOVED***
 
@@ -1424,7 +1413,9 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 	if sh != nil ***REMOVED***
 		beginTime := time.Now()
 		statsBegin = &stats.Begin***REMOVED***
-			BeginTime: beginTime,
+			BeginTime:      beginTime,
+			IsClientStream: sd.ClientStreams,
+			IsServerStream: sd.ServerStreams,
 		***REMOVED***
 		sh.HandleRPC(stream.Context(), statsBegin)
 	***REMOVED***

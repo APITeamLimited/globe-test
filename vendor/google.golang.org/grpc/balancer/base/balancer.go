@@ -133,6 +133,7 @@ func (b *baseBalancer) UpdateClientConnState(s balancer.ClientConnState) error *
 			***REMOVED***
 			b.subConns[aNoAttrs] = subConnInfo***REMOVED***subConn: sc, attrs: a.Attributes***REMOVED***
 			b.scStates[sc] = connectivity.Idle
+			b.csEvltr.RecordTransition(connectivity.Shutdown, connectivity.Idle)
 			sc.Connect()
 		***REMOVED*** else ***REMOVED***
 			// Always update the subconn's address in case the attributes
@@ -213,10 +214,14 @@ func (b *baseBalancer) UpdateSubConnState(sc balancer.SubConn, state balancer.Su
 		***REMOVED***
 		return
 	***REMOVED***
-	if oldS == connectivity.TransientFailure && s == connectivity.Connecting ***REMOVED***
-		// Once a subconn enters TRANSIENT_FAILURE, ignore subsequent
+	if oldS == connectivity.TransientFailure &&
+		(s == connectivity.Connecting || s == connectivity.Idle) ***REMOVED***
+		// Once a subconn enters TRANSIENT_FAILURE, ignore subsequent IDLE or
 		// CONNECTING transitions to prevent the aggregated state from being
 		// always CONNECTING when many backends exist but are all down.
+		if s == connectivity.Idle ***REMOVED***
+			sc.Connect()
+		***REMOVED***
 		return
 	***REMOVED***
 	b.scStates[sc] = s
@@ -242,13 +247,17 @@ func (b *baseBalancer) UpdateSubConnState(sc balancer.SubConn, state balancer.Su
 		b.state == connectivity.TransientFailure ***REMOVED***
 		b.regeneratePicker()
 	***REMOVED***
-
 	b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: b.state, Picker: b.picker***REMOVED***)
 ***REMOVED***
 
 // Close is a nop because base balancer doesn't have internal state to clean up,
 // and it doesn't need to call RemoveSubConn for the SubConns.
 func (b *baseBalancer) Close() ***REMOVED***
+***REMOVED***
+
+// ExitIdle is a nop because the base balancer attempts to stay connected to
+// all SubConns at all times.
+func (b *baseBalancer) ExitIdle() ***REMOVED***
 ***REMOVED***
 
 // NewErrPicker returns a Picker that always returns err on Pick().

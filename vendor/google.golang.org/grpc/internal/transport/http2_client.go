@@ -24,6 +24,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -241,7 +242,15 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		// and passed to the credential handshaker. This makes it possible for
 		// address specific arbitrary data to reach the credential handshaker.
 		connectCtx = icredentials.NewClientHandshakeInfoContext(connectCtx, credentials.ClientHandshakeInfo***REMOVED***Attributes: addr.Attributes***REMOVED***)
-		conn, authInfo, err = transportCreds.ClientHandshake(connectCtx, addr.ServerName, conn)
+		rawConn := conn
+		// Pull the deadline from the connectCtx, which will be used for
+		// timeouts in the authentication protocol handshake. Can ignore the
+		// boolean as the deadline will return the zero value, which will make
+		// the conn not timeout on I/O operations.
+		deadline, _ := connectCtx.Deadline()
+		rawConn.SetDeadline(deadline)
+		conn, authInfo, err = transportCreds.ClientHandshake(connectCtx, addr.ServerName, rawConn)
+		rawConn.SetDeadline(time.Time***REMOVED******REMOVED***)
 		if err != nil ***REMOVED***
 			return nil, connectionErrorf(isTemporary(err), err, "transport: authentication handshake failed: %v", err)
 		***REMOVED***
@@ -607,26 +616,35 @@ func (t *http2Client) getCallAuthData(ctx context.Context, audience string, call
 	return callAuthData, nil
 ***REMOVED***
 
-// PerformedIOError wraps an error to indicate IO may have been performed
-// before the error occurred.
-type PerformedIOError struct ***REMOVED***
+// NewStreamError wraps an error and reports additional information.  Typically
+// NewStream errors result in transparent retry, as they mean nothing went onto
+// the wire.  However, there are two notable exceptions:
+//
+// 1. If the stream headers violate the max header list size allowed by the
+//    server.  In this case there is no reason to retry at all, as it is
+//    assumed the RPC would continue to fail on subsequent attempts.
+// 2. If the credentials errored when requesting their headers.  In this case,
+//    it's possible a retry can fix the problem, but indefinitely transparently
+//    retrying is not appropriate as it is likely the credentials, if they can
+//    eventually succeed, would need I/O to do so.
+type NewStreamError struct ***REMOVED***
 	Err error
+
+	DoNotRetry            bool
+	DoNotTransparentRetry bool
 ***REMOVED***
 
-// Error implements error.
-func (p PerformedIOError) Error() string ***REMOVED***
-	return p.Err.Error()
+func (e NewStreamError) Error() string ***REMOVED***
+	return e.Err.Error()
 ***REMOVED***
 
 // NewStream creates a stream and registers it into the transport as "active"
-// streams.
+// streams.  All non-nil errors returned will be *NewStreamError.
 func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Stream, err error) ***REMOVED***
 	ctx = peer.NewContext(ctx, t.getPeer())
 	headerFields, err := t.createHeaderFields(ctx, callHdr)
 	if err != nil ***REMOVED***
-		// We may have performed I/O in the per-RPC creds callback, so do not
-		// allow transparent retry.
-		return nil, PerformedIOError***REMOVED***err***REMOVED***
+		return nil, &NewStreamError***REMOVED***Err: err, DoNotTransparentRetry: true***REMOVED***
 	***REMOVED***
 	s := t.newStream(ctx, callHdr)
 	cleanup := func(err error) ***REMOVED***
@@ -726,23 +744,23 @@ func (t *http2Client) NewStream(ctx context.Context, callHdr *CallHdr) (_ *Strea
 			return true
 		***REMOVED***, hdr)
 		if err != nil ***REMOVED***
-			return nil, err
+			return nil, &NewStreamError***REMOVED***Err: err***REMOVED***
 		***REMOVED***
 		if success ***REMOVED***
 			break
 		***REMOVED***
 		if hdrListSizeErr != nil ***REMOVED***
-			return nil, hdrListSizeErr
+			return nil, &NewStreamError***REMOVED***Err: hdrListSizeErr, DoNotRetry: true***REMOVED***
 		***REMOVED***
 		firstTry = false
 		select ***REMOVED***
 		case <-ch:
-		case <-s.ctx.Done():
-			return nil, ContextErr(s.ctx.Err())
+		case <-ctx.Done():
+			return nil, &NewStreamError***REMOVED***Err: ContextErr(ctx.Err())***REMOVED***
 		case <-t.goAway:
-			return nil, errStreamDrain
+			return nil, &NewStreamError***REMOVED***Err: errStreamDrain***REMOVED***
 		case <-t.ctx.Done():
-			return nil, ErrConnClosing
+			return nil, &NewStreamError***REMOVED***Err: ErrConnClosing***REMOVED***
 		***REMOVED***
 	***REMOVED***
 	if t.statsHandler != nil ***REMOVED***
@@ -1226,7 +1244,11 @@ func (t *http2Client) setGoAwayReason(f *http2.GoAwayFrame) ***REMOVED***
 			t.goAwayReason = GoAwayTooManyPings
 		***REMOVED***
 	***REMOVED***
-	t.goAwayDebugMessage = fmt.Sprintf("code: %s, debug data: %v", f.ErrCode, string(f.DebugData()))
+	if len(f.DebugData()) == 0 ***REMOVED***
+		t.goAwayDebugMessage = fmt.Sprintf("code: %s", f.ErrCode)
+	***REMOVED*** else ***REMOVED***
+		t.goAwayDebugMessage = fmt.Sprintf("code: %s, debug data: %q", f.ErrCode, string(f.DebugData()))
+	***REMOVED***
 ***REMOVED***
 
 func (t *http2Client) GetGoAwayReason() (GoAwayReason, string) ***REMOVED***
@@ -1272,29 +1294,41 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 		// that the peer is speaking gRPC and we are in gRPC mode.
 		isGRPC         = !initialHeader
 		mdata          = make(map[string][]string)
-		contentTypeErr string
+		contentTypeErr = "malformed header: missing HTTP content-type"
 		grpcMessage    string
 		statusGen      *status.Status
-
-		httpStatus string
-		rawStatus  string
+		recvCompress   string
+		httpStatusCode *int
+		httpStatusErr  string
+		rawStatusCode  = codes.Unknown
 		// headerError is set if an error is encountered while parsing the headers
 		headerError string
 	)
+
+	if initialHeader ***REMOVED***
+		httpStatusErr = "malformed header: missing HTTP status"
+	***REMOVED***
 
 	for _, hf := range frame.Fields ***REMOVED***
 		switch hf.Name ***REMOVED***
 		case "content-type":
 			if _, validContentType := grpcutil.ContentSubtype(hf.Value); !validContentType ***REMOVED***
-				contentTypeErr = fmt.Sprintf("transport: received the unexpected content-type %q", hf.Value)
+				contentTypeErr = fmt.Sprintf("transport: received unexpected content-type %q", hf.Value)
 				break
 			***REMOVED***
+			contentTypeErr = ""
 			mdata[hf.Name] = append(mdata[hf.Name], hf.Value)
 			isGRPC = true
 		case "grpc-encoding":
-			s.recvCompress = hf.Value
+			recvCompress = hf.Value
 		case "grpc-status":
-			rawStatus = hf.Value
+			code, err := strconv.ParseInt(hf.Value, 10, 32)
+			if err != nil ***REMOVED***
+				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed grpc-status: %v", err))
+				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
+				return
+			***REMOVED***
+			rawStatusCode = codes.Code(uint32(code))
 		case "grpc-message":
 			grpcMessage = decodeGrpcMessage(hf.Value)
 		case "grpc-status-details-bin":
@@ -1304,7 +1338,27 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 				headerError = fmt.Sprintf("transport: malformed grpc-status-details-bin: %v", err)
 			***REMOVED***
 		case ":status":
-			httpStatus = hf.Value
+			if hf.Value == "200" ***REMOVED***
+				httpStatusErr = ""
+				statusCode := 200
+				httpStatusCode = &statusCode
+				break
+			***REMOVED***
+
+			c, err := strconv.ParseInt(hf.Value, 10, 32)
+			if err != nil ***REMOVED***
+				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed http-status: %v", err))
+				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
+				return
+			***REMOVED***
+			statusCode := int(c)
+			httpStatusCode = &statusCode
+
+			httpStatusErr = fmt.Sprintf(
+				"unexpected HTTP status code received from server: %d (%s)",
+				statusCode,
+				http.StatusText(statusCode),
+			)
 		default:
 			if isReservedHeader(hf.Name) && !isWhitelistedHeader(hf.Name) ***REMOVED***
 				break
@@ -1319,30 +1373,25 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 		***REMOVED***
 	***REMOVED***
 
-	if !isGRPC ***REMOVED***
-		var (
-			code           = codes.Internal // when header does not include HTTP status, return INTERNAL
-			httpStatusCode int
-		)
+	if !isGRPC || httpStatusErr != "" ***REMOVED***
+		var code = codes.Internal // when header does not include HTTP status, return INTERNAL
 
-		if httpStatus != "" ***REMOVED***
-			c, err := strconv.ParseInt(httpStatus, 10, 32)
-			if err != nil ***REMOVED***
-				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed http-status: %v", err))
-				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
-				return
-			***REMOVED***
-			httpStatusCode = int(c)
-
+		if httpStatusCode != nil ***REMOVED***
 			var ok bool
-			code, ok = HTTPStatusConvTab[httpStatusCode]
+			code, ok = HTTPStatusConvTab[*httpStatusCode]
 			if !ok ***REMOVED***
 				code = codes.Unknown
 			***REMOVED***
 		***REMOVED***
-
+		var errs []string
+		if httpStatusErr != "" ***REMOVED***
+			errs = append(errs, httpStatusErr)
+		***REMOVED***
+		if contentTypeErr != "" ***REMOVED***
+			errs = append(errs, contentTypeErr)
+		***REMOVED***
 		// Verify the HTTP response is a 200.
-		se := status.New(code, constructHTTPErrMsg(&httpStatusCode, contentTypeErr))
+		se := status.New(code, strings.Join(errs, "; "))
 		t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
 		return
 	***REMOVED***
@@ -1384,6 +1433,7 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 			// These values can be set without any synchronization because
 			// stream goroutine will read it only after seeing a closed
 			// headerChan which we'll close after setting this.
+			s.recvCompress = recvCompress
 			if len(mdata) > 0 ***REMOVED***
 				s.header = mdata
 			***REMOVED***
@@ -1399,16 +1449,6 @@ func (t *http2Client) operateHeaders(frame *http2.MetaHeadersFrame) ***REMOVED**
 	***REMOVED***
 
 	if statusGen == nil ***REMOVED***
-		rawStatusCode := codes.Unknown
-		if rawStatus != "" ***REMOVED***
-			code, err := strconv.ParseInt(rawStatus, 10, 32)
-			if err != nil ***REMOVED***
-				se := status.New(codes.Internal, fmt.Sprintf("transport: malformed grpc-status: %v", err))
-				t.closeStream(s, se.Err(), true, http2.ErrCodeProtocol, se, nil, endStream)
-				return
-			***REMOVED***
-			rawStatusCode = codes.Code(uint32(code))
-		***REMOVED***
 		statusGen = status.New(rawStatusCode, grpcMessage)
 	***REMOVED***
 

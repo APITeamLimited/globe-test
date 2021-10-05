@@ -277,18 +277,13 @@ func (d *dnsResolver) lookupSRV() ([]resolver.Address, error) ***REMOVED***
 	return newAddrs, nil
 ***REMOVED***
 
-var filterError = func(err error) error ***REMOVED***
+func handleDNSError(err error, lookupType string) error ***REMOVED***
 	if dnsErr, ok := err.(*net.DNSError); ok && !dnsErr.IsTimeout && !dnsErr.IsTemporary ***REMOVED***
 		// Timeouts and temporary errors should be communicated to gRPC to
 		// attempt another DNS query (with backoff).  Other errors should be
 		// suppressed (they may represent the absence of a TXT record).
 		return nil
 	***REMOVED***
-	return err
-***REMOVED***
-
-func handleDNSError(err error, lookupType string) error ***REMOVED***
-	err = filterError(err)
 	if err != nil ***REMOVED***
 		err = fmt.Errorf("dns: %v record lookup error: %v", lookupType, err)
 		logger.Info(err)
@@ -323,12 +318,12 @@ func (d *dnsResolver) lookupTXT() *serviceconfig.ParseResult ***REMOVED***
 ***REMOVED***
 
 func (d *dnsResolver) lookupHost() ([]resolver.Address, error) ***REMOVED***
-	var newAddrs []resolver.Address
 	addrs, err := d.resolver.LookupHost(d.ctx, d.host)
 	if err != nil ***REMOVED***
 		err = handleDNSError(err, "A")
 		return nil, err
 	***REMOVED***
+	newAddrs := make([]resolver.Address, 0, len(addrs))
 	for _, a := range addrs ***REMOVED***
 		ip, ok := formatIP(a)
 		if !ok ***REMOVED***

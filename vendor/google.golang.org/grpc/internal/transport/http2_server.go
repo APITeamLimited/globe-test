@@ -133,6 +133,22 @@ type http2Server struct ***REMOVED***
 // underlying conn gets closed before the client preface could be read, it
 // returns a nil transport and a nil error.
 func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport, err error) ***REMOVED***
+	var authInfo credentials.AuthInfo
+	rawConn := conn
+	if config.Credentials != nil ***REMOVED***
+		var err error
+		conn, authInfo, err = config.Credentials.ServerHandshake(rawConn)
+		if err != nil ***REMOVED***
+			// ErrConnDispatched means that the connection was dispatched away
+			// from gRPC; those connections should be left open. io.EOF means
+			// the connection was closed before handshaking completed, which can
+			// happen naturally from probers. Return these errors directly.
+			if err == credentials.ErrConnDispatched || err == io.EOF ***REMOVED***
+				return nil, err
+			***REMOVED***
+			return nil, connectionErrorf(false, err, "ServerHandshake(%q) failed: %v", rawConn.RemoteAddr(), err)
+		***REMOVED***
+	***REMOVED***
 	writeBufSize := config.WriteBufferSize
 	readBufSize := config.ReadBufferSize
 	maxHeaderListSize := defaultServerMaxHeaderListSize
@@ -215,14 +231,15 @@ func NewServerTransport(conn net.Conn, config *ServerConfig) (_ ServerTransport,
 	if kep.MinTime == 0 ***REMOVED***
 		kep.MinTime = defaultKeepalivePolicyMinTime
 	***REMOVED***
+
 	done := make(chan struct***REMOVED******REMOVED***)
 	t := &http2Server***REMOVED***
-		ctx:               context.Background(),
+		ctx:               setConnection(context.Background(), rawConn),
 		done:              done,
 		conn:              conn,
 		remoteAddr:        conn.RemoteAddr(),
 		localAddr:         conn.LocalAddr(),
-		authInfo:          config.AuthInfo,
+		authInfo:          authInfo,
 		framer:            framer,
 		readerDone:        make(chan struct***REMOVED******REMOVED***),
 		writerDone:        make(chan struct***REMOVED******REMOVED***),
@@ -1344,4 +1361,19 @@ func getJitter(v time.Duration) time.Duration ***REMOVED***
 	r := int64(v / 10)
 	j := grpcrand.Int63n(2*r) - r
 	return time.Duration(j)
+***REMOVED***
+
+type connectionKey struct***REMOVED******REMOVED***
+
+// GetConnection gets the connection from the context.
+func GetConnection(ctx context.Context) net.Conn ***REMOVED***
+	conn, _ := ctx.Value(connectionKey***REMOVED******REMOVED***).(net.Conn)
+	return conn
+***REMOVED***
+
+// SetConnection adds the connection to the context to be able to get
+// information about the destination ip and port for an incoming RPC. This also
+// allows any unary or streaming interceptors to see the connection.
+func setConnection(ctx context.Context, conn net.Conn) context.Context ***REMOVED***
+	return context.WithValue(ctx, connectionKey***REMOVED******REMOVED***, conn)
 ***REMOVED***

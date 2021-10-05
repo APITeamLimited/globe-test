@@ -147,7 +147,7 @@ func (pw *pickerWrapper) pick(ctx context.Context, failfast bool, info balancer.
 			logger.Error("subconn returned from pick is not *acBalancerWrapper")
 			continue
 		***REMOVED***
-		if t, ok := acw.getAddrConn().getReadyTransport(); ok ***REMOVED***
+		if t := acw.getAddrConn().getReadyTransport(); t != nil ***REMOVED***
 			if channelz.IsOn() ***REMOVED***
 				return t, doneChannelzWrapper(acw, pickResult.Done), nil
 			***REMOVED***

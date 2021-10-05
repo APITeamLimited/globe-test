@@ -107,10 +107,12 @@ func (b *pickfirstBalancer) UpdateSubConnState(sc balancer.SubConn, s balancer.S
 	***REMOVED***
 
 	switch s.ConnectivityState ***REMOVED***
-	case connectivity.Ready, connectivity.Idle:
+	case connectivity.Ready:
 		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &picker***REMOVED***result: balancer.PickResult***REMOVED***SubConn: sc***REMOVED******REMOVED******REMOVED***)
 	case connectivity.Connecting:
 		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &picker***REMOVED***err: balancer.ErrNoSubConnAvailable***REMOVED******REMOVED***)
+	case connectivity.Idle:
+		b.cc.UpdateState(balancer.State***REMOVED***ConnectivityState: s.ConnectivityState, Picker: &idlePicker***REMOVED***sc: sc***REMOVED******REMOVED***)
 	case connectivity.TransientFailure:
 		b.cc.UpdateState(balancer.State***REMOVED***
 			ConnectivityState: s.ConnectivityState,
@@ -122,6 +124,12 @@ func (b *pickfirstBalancer) UpdateSubConnState(sc balancer.SubConn, s balancer.S
 func (b *pickfirstBalancer) Close() ***REMOVED***
 ***REMOVED***
 
+func (b *pickfirstBalancer) ExitIdle() ***REMOVED***
+	if b.state == connectivity.Idle ***REMOVED***
+		b.sc.Connect()
+	***REMOVED***
+***REMOVED***
+
 type picker struct ***REMOVED***
 	result balancer.PickResult
 	err    error
@@ -129,6 +137,17 @@ type picker struct ***REMOVED***
 
 func (p *picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
 	return p.result, p.err
+***REMOVED***
+
+// idlePicker is used when the SubConn is IDLE and kicks the SubConn into
+// CONNECTING when Pick is called.
+type idlePicker struct ***REMOVED***
+	sc balancer.SubConn
+***REMOVED***
+
+func (i *idlePicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) ***REMOVED***
+	i.sc.Connect()
+	return balancer.PickResult***REMOVED******REMOVED***, balancer.ErrNoSubConnAvailable
 ***REMOVED***
 
 func init() ***REMOVED***
