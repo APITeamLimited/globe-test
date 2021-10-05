@@ -64,6 +64,9 @@ type Result struct ***REMOVED***
 	Num float64
 	// Index of raw value in original json, zero means index unknown
 	Index int
+	// Indexes of all the elements that match on a path containing the '#'
+	// query character.
+	Indexes []int
 ***REMOVED***
 
 // String returns a string representation of the value.
@@ -281,7 +284,8 @@ func (t Result) ForEach(iterator func(key, value Result) bool) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// Map returns back an map of values. The result should be a JSON array.
+// Map returns back a map of values. The result should be a JSON object.
+// If the result is not a JSON object, the return value will be an empty map.
 func (t Result) Map() map[string]Result ***REMOVED***
 	if t.Type != JSON ***REMOVED***
 		return map[string]Result***REMOVED******REMOVED***
@@ -1261,6 +1265,7 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 	var alog []int
 	var partidx int
 	var multires []byte
+	var queryIndexes []int
 	rp := parseArrayPath(path)
 	if !rp.arrch ***REMOVED***
 		n, ok := parseUint(rp.part)
@@ -1281,6 +1286,10 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 				multires = append(multires, '[')
 			***REMOVED***
 		***REMOVED***
+		var tmp parseContext
+		tmp.value = qval
+		fillIndex(c.json, &tmp)
+		parentIndex := tmp.value.Index
 		var res Result
 		if qval.Type == JSON ***REMOVED***
 			res = qval.Get(rp.query.path)
@@ -1312,6 +1321,7 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 						multires = append(multires, ',')
 					***REMOVED***
 					multires = append(multires, raw...)
+					queryIndexes = append(queryIndexes, res.Index+parentIndex)
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
 				c.value = res
@@ -1476,6 +1486,7 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 							c.pipe = right
 							c.piped = true
 						***REMOVED***
+						var indexes = make([]int, 0, 64)
 						var jsons = make([]byte, 0, 64)
 						jsons = append(jsons, '[')
 						for j, k := 0, 0; j < len(alog); j++ ***REMOVED***
@@ -1490,6 +1501,7 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 							***REMOVED***
 							if idx < len(c.json) && c.json[idx] != ']' ***REMOVED***
 								_, res, ok := parseAny(c.json, idx, true)
+								parentIndex := res.Index
 								if ok ***REMOVED***
 									res := res.Get(rp.alogkey)
 									if res.Exists() ***REMOVED***
@@ -1501,6 +1513,8 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 											raw = res.String()
 										***REMOVED***
 										jsons = append(jsons, []byte(raw)...)
+										indexes = append(indexes,
+											res.Index+parentIndex)
 										k++
 									***REMOVED***
 								***REMOVED***
@@ -1509,6 +1523,7 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 						jsons = append(jsons, ']')
 						c.value.Type = JSON
 						c.value.Raw = string(jsons)
+						c.value.Indexes = indexes
 						return i + 1, true
 					***REMOVED***
 					if rp.alogok ***REMOVED***
@@ -1524,8 +1539,9 @@ func parseArray(c *parseContext, i int, path string) (int, bool) ***REMOVED***
 				if !c.value.Exists() ***REMOVED***
 					if len(multires) > 0 ***REMOVED***
 						c.value = Result***REMOVED***
-							Raw:  string(append(multires, ']')),
-							Type: JSON,
+							Raw:     string(append(multires, ']')),
+							Type:    JSON,
+							Indexes: queryIndexes,
 						***REMOVED***
 					***REMOVED*** else if rp.query.all ***REMOVED***
 						c.value = Result***REMOVED***
@@ -1806,6 +1822,7 @@ func Get(json, path string) Result ***REMOVED***
 					if len(path) > 0 && (path[0] == '|' || path[0] == '.') ***REMOVED***
 						res := Get(rjson, path[1:])
 						res.Index = 0
+						res.Indexes = nil
 						return res
 					***REMOVED***
 					return Parse(rjson)
@@ -2046,7 +2063,10 @@ func parseAny(json string, i int, hit bool) (int, Result, bool) ***REMOVED***
 				res.Raw = val
 				res.Type = JSON
 			***REMOVED***
-			return i, res, true
+			var tmp parseContext
+			tmp.value = res
+			fillIndex(json, &tmp)
+			return i, tmp.value, true
 		***REMOVED***
 		if json[i] <= ' ' ***REMOVED***
 			continue
@@ -2455,7 +2475,8 @@ func parseInt(s string) (n int64, ok bool) ***REMOVED***
 // safeInt validates a given JSON number
 // ensures it lies within the minimum and maximum representable JSON numbers
 func safeInt(f float64) (n int64, ok bool) ***REMOVED***
-	//  https://tc39.es/ecma262/#sec-number.min_safe_integer || https://tc39.es/ecma262/#sec-number.max_safe_integer
+	// https://tc39.es/ecma262/#sec-number.min_safe_integer
+	// https://tc39.es/ecma262/#sec-number.max_safe_integer
 	if f < -9007199254740991 || f > 9007199254740991 ***REMOVED***
 		return 0, false
 	***REMOVED***
