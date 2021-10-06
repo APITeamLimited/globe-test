@@ -160,14 +160,30 @@ func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]M
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-
 	var rtn []MethodInfo
 	if c.mds == nil ***REMOVED***
 		// This allows us to call load() multiple times, without overwriting the
 		// previously loaded definitions.
 		c.mds = make(map[string]protoreflect.MethodDescriptor)
 	***REMOVED***
-
+	appendMethodInfo := func(
+		fd protoreflect.FileDescriptor,
+		sd protoreflect.ServiceDescriptor,
+		md protoreflect.MethodDescriptor,
+	) ***REMOVED***
+		name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
+		c.mds[name] = md
+		rtn = append(rtn, MethodInfo***REMOVED***
+			MethodInfo: grpc.MethodInfo***REMOVED***
+				Name:           string(md.Name()),
+				IsClientStream: md.IsStreamingClient(),
+				IsServerStream: md.IsStreamingServer(),
+			***REMOVED***,
+			Package:    string(fd.Package()),
+			Service:    string(sd.Name()),
+			FullMethod: name,
+		***REMOVED***)
+	***REMOVED***
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool ***REMOVED***
 		sds := fd.Services()
 		for i := 0; i < sds.Len(); i++ ***REMOVED***
@@ -175,23 +191,11 @@ func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]M
 			mds := sd.Methods()
 			for j := 0; j < mds.Len(); j++ ***REMOVED***
 				md := mds.Get(j)
-				name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
-				c.mds[name] = md
-				rtn = append(rtn, MethodInfo***REMOVED***
-					MethodInfo: grpc.MethodInfo***REMOVED***
-						Name:           string(md.Name()),
-						IsClientStream: md.IsStreamingClient(),
-						IsServerStream: md.IsStreamingServer(),
-					***REMOVED***,
-					Package:    string(fd.Package()),
-					Service:    string(sd.Name()),
-					FullMethod: name,
-				***REMOVED***)
+				appendMethodInfo(fd, sd, md)
 			***REMOVED***
 		***REMOVED***
 		return true
 	***REMOVED***)
-
 	return rtn, nil
 ***REMOVED***
 
@@ -233,7 +237,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			var ok bool
 			reflect, ok = v.(bool)
 			if !ok ***REMOVED***
-				return false, fmt.Errorf(`invalid value for 'reflect': '%#v', it needs to be boolean`, v)
+				return false, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
 			***REMOVED***
 
 		default:
@@ -303,7 +307,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			err = c.reflect(ctxPtr)
 		***REMOVED***)
 		if err != nil ***REMOVED***
-			return false, fmt.Errorf("error invoking reflect API: %w", err)
+			return false, fmt.Errorf("reflect: %w", err)
 		***REMOVED***
 	***REMOVED***
 	return true, nil
@@ -315,19 +319,21 @@ func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
 	client := reflectpb.NewServerReflectionClient(c.conn)
 	methodClient, err := client.ServerReflectionInfo(*ctxPtr)
 	if err != nil ***REMOVED***
-		return err
+		return fmt.Errorf("can't get server info: %w", err)
 	***REMOVED***
-	req := &reflectpb.ServerReflectionRequest***REMOVED***MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED******REMOVED***
+	req := &reflectpb.ServerReflectionRequest***REMOVED***
+		MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED***,
+	***REMOVED***
 	if err = methodClient.Send(req); err != nil ***REMOVED***
-		return err
+		return fmt.Errorf("can't send list services request: %w", err)
 	***REMOVED***
 	resp, err := methodClient.Recv()
 	if err != nil ***REMOVED***
-		return err
+		return fmt.Errorf("please enable server reflection on your grpc server: %w", err)
 	***REMOVED***
 	listResp := resp.GetListServicesResponse()
 	if listResp == nil ***REMOVED***
-		return fmt.Errorf("can't list services")
+		return fmt.Errorf("can't list services, nil response")
 	***REMOVED***
 	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
 	for _, service := range listResp.GetService() ***REMOVED***
@@ -337,22 +343,25 @@ func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
 			***REMOVED***,
 		***REMOVED***
 		if err = methodClient.Send(req); err != nil ***REMOVED***
-			return err
+			return fmt.Errorf("can't send file descriptors request on service %q: %w", service, err)
 		***REMOVED***
 		resp, err = methodClient.Recv()
 		if err != nil ***REMOVED***
-			return fmt.Errorf("error listing methods on '%s': %w", service, err)
+			return fmt.Errorf("can't receive file descriptors request on service %q: %w", service, err)
 		***REMOVED***
 		fdResp := resp.GetFileDescriptorResponse()
-		for _, f := range fdResp.GetFileDescriptorProto() ***REMOVED***
-			a := &descriptorpb.FileDescriptorProto***REMOVED******REMOVED***
-			if err = proto.Unmarshal(f, a); err != nil ***REMOVED***
-				return err
+		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
+			var fdp descriptorpb.FileDescriptorProto
+			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
+				return fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
 			***REMOVED***
-			fdset.File = append(fdset.File, a)
+			fdset.File = append(fdset.File, &fdp)
 		***REMOVED***
 	***REMOVED***
 	_, err = c.convertToMethodInfo(fdset)
+	if err != nil ***REMOVED***
+		err = fmt.Errorf("can't convert method info: %w", err)
+	***REMOVED***
 	return err
 ***REMOVED***
 
@@ -366,20 +375,16 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 	if state == nil ***REMOVED***
 		return nil, errInvokeRPCInInitContext
 	***REMOVED***
-
 	if c.conn == nil ***REMOVED***
 		return nil, errors.New("no gRPC connection, you must call connect first")
 	***REMOVED***
-
 	if method == "" ***REMOVED***
 		return nil, errors.New("method to invoke cannot be empty")
 	***REMOVED***
-
 	if method[0] != '/' ***REMOVED***
 		method = "/" + method
 	***REMOVED***
 	md := c.mds[method]
-
 	if md == nil ***REMOVED***
 		return nil, fmt.Errorf("method %q not found in file descriptors", method)
 	***REMOVED***
@@ -428,7 +433,6 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
 		tags["url"] = fmt.Sprintf("%s%s", c.conn.Target(), method)
 	***REMOVED***
-
 	parts := strings.Split(method[1:], "/")
 	if state.Options.SystemTags.Has(stats.TagService) ***REMOVED***
 		tags["service"] = parts[0]
@@ -504,7 +508,6 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 		_ = json.Unmarshal(raw, &msg)
 		response.Message = msg
 	***REMOVED***
-
 	return &response, nil
 ***REMOVED***
 
@@ -635,6 +638,5 @@ func formatPayload(payload interface***REMOVED******REMOVED***) string ***REMOVE
 	if err != nil ***REMOVED***
 		return ""
 	***REMOVED***
-
 	return string(b)
 ***REMOVED***
