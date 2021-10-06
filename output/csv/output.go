@@ -76,7 +76,11 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 	sort.Strings(resTags)
 	sort.Strings(ignoredTags)
 
-	config, err := GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
+	logger := params.Logger.WithFields(logrus.Fields***REMOVED***
+		"output":   "csv",
+		"filename": params.ConfigArgument,
+	***REMOVED***)
+	config, err := GetConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument, logger.Logger)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -84,10 +88,6 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 	saveInterval := time.Duration(config.SaveInterval.Duration)
 	fname := config.FileName.String
 
-	logger := params.Logger.WithFields(logrus.Fields***REMOVED***
-		"output":   "csv",
-		"filename": params.ConfigArgument,
-	***REMOVED***)
 	if fname == "" || fname == "-" ***REMOVED***
 		stdoutWriter := csv.NewWriter(os.Stdout)
 		return &Output***REMOVED***

@@ -24,10 +24,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
+	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 )
 
@@ -77,8 +81,9 @@ func TestApply(t *testing.T) ***REMOVED***
 
 func TestParseArg(t *testing.T) ***REMOVED***
 	cases := map[string]struct ***REMOVED***
-		config      Config
-		expectedErr bool
+		config             Config
+		expectedLogEntries []string
+		expectedErr        bool
 	***REMOVED******REMOVED***
 		"test_file.csv": ***REMOVED***
 			config: Config***REMOVED***
@@ -90,11 +95,32 @@ func TestParseArg(t *testing.T) ***REMOVED***
 			config: Config***REMOVED***
 				SaveInterval: types.NullDurationFrom(5 * time.Second),
 			***REMOVED***,
+			expectedLogEntries: []string***REMOVED***
+				"CSV output argument 'save_interval' is deprecated, please use 'saveInterval' instead.",
+			***REMOVED***,
+		***REMOVED***,
+		"saveInterval=5s": ***REMOVED***
+			config: Config***REMOVED***
+				SaveInterval: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
 		***REMOVED***,
 		"file_name=test.csv,save_interval=5s": ***REMOVED***
 			config: Config***REMOVED***
 				FileName:     null.StringFrom("test.csv"),
 				SaveInterval: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
+			expectedLogEntries: []string***REMOVED***
+				"CSV output argument 'file_name' is deprecated, please use 'fileName' instead.",
+				"CSV output argument 'save_interval' is deprecated, please use 'saveInterval' instead.",
+			***REMOVED***,
+		***REMOVED***,
+		"fileName=test.csv,save_interval=5s": ***REMOVED***
+			config: Config***REMOVED***
+				FileName:     null.StringFrom("test.csv"),
+				SaveInterval: types.NullDurationFrom(5 * time.Second),
+			***REMOVED***,
+			expectedLogEntries: []string***REMOVED***
+				"CSV output argument 'save_interval' is deprecated, please use 'saveInterval' instead.",
 			***REMOVED***,
 		***REMOVED***,
 		"filename=test.csv,save_interval=5s": ***REMOVED***
@@ -106,8 +132,11 @@ func TestParseArg(t *testing.T) ***REMOVED***
 		arg := arg
 		testCase := testCase
 
+		testLogger, hook := test.NewNullLogger()
+		testLogger.SetOutput(testutils.NewTestOutput(t))
+
 		t.Run(arg, func(t *testing.T) ***REMOVED***
-			config, err := ParseArg(arg)
+			config, err := ParseArg(arg, testLogger)
 
 			if testCase.expectedErr ***REMOVED***
 				assert.Error(t, err)
@@ -116,6 +145,13 @@ func TestParseArg(t *testing.T) ***REMOVED***
 			***REMOVED***
 			assert.Equal(t, testCase.config.FileName.String, config.FileName.String)
 			assert.Equal(t, testCase.config.SaveInterval.String(), config.SaveInterval.String())
+
+			var entries []string
+			for _, v := range hook.AllEntries() ***REMOVED***
+				assert.Equal(t, v.Level, logrus.WarnLevel)
+				entries = append(entries, v.Message)
+			***REMOVED***
+			assert.ElementsMatch(t, entries, testCase.expectedLogEntries)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
