@@ -527,7 +527,7 @@ func TestClient(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			vuString: codeBlock***REMOVED***
 				code: `client.connect("GRPCBIN_ADDR", ***REMOVED***reflect: "true"***REMOVED***)`,
-				err:  `invalid reflect value "true" need bool`,
+				err:  `invalid value for 'reflect': '"true"', it needs to be boolean`,
 			***REMOVED***,
 		***REMOVED***,
 		***REMOVED***
