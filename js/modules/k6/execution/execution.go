@@ -22,6 +22,8 @@ package execution
 
 import (
 	"errors"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/dop251/goja"
@@ -193,7 +195,16 @@ func (mi *ModuleInstance) newVUInfo() (*goja.Object, error) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	return newInfoObj(rt, vi)
+	o, err := newInfoObj(rt, vi)
+	if err != nil ***REMOVED***
+		return o, err
+	***REMOVED***
+
+	err = o.Set("tags", rt.NewDynamicObject(&tagsDynamicObject***REMOVED***
+		Runtime: rt,
+		State:   vuState,
+	***REMOVED***))
+	return o, err
 ***REMOVED***
 
 func newInfoObj(rt *goja.Runtime, props map[string]func() interface***REMOVED******REMOVED***) (*goja.Object, error) ***REMOVED***
@@ -207,4 +218,70 @@ func newInfoObj(rt *goja.Runtime, props map[string]func() interface***REMOVED***
 	***REMOVED***
 
 	return o, nil
+***REMOVED***
+
+type tagsDynamicObject struct ***REMOVED***
+	Runtime *goja.Runtime
+	State   *lib.State
+***REMOVED***
+
+// Get a property value for the key. May return nil if the property does not exist.
+func (o *tagsDynamicObject) Get(key string) goja.Value ***REMOVED***
+	tag, ok := o.State.Tags.Get(key)
+	if !ok ***REMOVED***
+		return nil
+	***REMOVED***
+	return o.Runtime.ToValue(tag)
+***REMOVED***
+
+// Set a property value for the key. It returns true if succeed.
+// String, Boolean and Number types are implicitly converted
+// to the goja's relative string representation.
+// In any other case, if the Throw option is set then an error is raised
+// otherwise just a Warning is written.
+func (o *tagsDynamicObject) Set(key string, val goja.Value) bool ***REMOVED***
+	switch val.ExportType().Kind() ***REMOVED*** //nolint:exhaustive
+	case
+		reflect.String,
+		reflect.Bool,
+		reflect.Int64,
+		reflect.Float64:
+
+		o.State.Tags.Set(key, val.String())
+		return true
+	default:
+		err := fmt.Errorf("only String, Boolean and Number types are accepted as a Tag value")
+		if o.State.Options.Throw.Bool ***REMOVED***
+			common.Throw(o.Runtime, err)
+			return false
+		***REMOVED***
+		o.State.Logger.Warnf("the execution.vu.tags.Set('%s') operation has been discarded because %s", key, err.Error())
+		return false
+	***REMOVED***
+***REMOVED***
+
+// Has returns true if the property exists.
+func (o *tagsDynamicObject) Has(key string) bool ***REMOVED***
+	_, ok := o.State.Tags.Get(key)
+	return ok
+***REMOVED***
+
+// Delete deletes the property for the key. It returns true on success (note, that includes missing property).
+func (o *tagsDynamicObject) Delete(key string) bool ***REMOVED***
+	o.State.Tags.Delete(key)
+	return true
+***REMOVED***
+
+// Keys returns a slice with all existing property keys. The order is not deterministic.
+func (o *tagsDynamicObject) Keys() []string ***REMOVED***
+	if o.State.Tags.Len() < 1 ***REMOVED***
+		return nil
+	***REMOVED***
+
+	tags := o.State.Tags.Clone()
+	keys := make([]string, 0, len(tags))
+	for k := range tags ***REMOVED***
+		keys = append(keys, k)
+	***REMOVED***
+	return keys
 ***REMOVED***
