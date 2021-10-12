@@ -29,7 +29,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -68,9 +67,8 @@ var (
 
 // Client represents a gRPC client that can be used to make RPC requests
 type Client struct ***REMOVED***
-	mds         map[string]protoreflect.MethodDescriptor
-	conn        *grpc.ClientConn
-	reflectOnce sync.Once
+	mds  map[string]protoreflect.MethodDescriptor
+	conn *grpc.ClientConn
 ***REMOVED***
 
 // XClient represents the Client constructor (e.g. `new grpc.Client()`) and
@@ -215,7 +213,7 @@ func (t transportCreds) ClientHandshake(ctx context.Context,
 ***REMOVED***
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
-// nolint: funlen
+// nolint:funlen,cyclop
 func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
 	state := lib.GetState(*ctxPtr)
 	if state == nil ***REMOVED***
@@ -293,24 +291,19 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 		c.conn, err = grpc.DialContext(ctx, addr, opts...)
 		if err != nil ***REMOVED***
 			errc <- err
-
 			return
+		***REMOVED***
+		if reflect ***REMOVED***
+			err := c.reflect(ctxPtr)
+			if err != nil ***REMOVED***
+				errc <- err
+				return
+			***REMOVED***
 		***REMOVED***
 		close(errc)
 	***REMOVED***()
-	if err := <-errc; err != nil ***REMOVED***
-		return false, err
-	***REMOVED***
-	if reflect ***REMOVED***
-		var err error
-		c.reflectOnce.Do(func() ***REMOVED***
-			err = c.reflect(ctxPtr)
-		***REMOVED***)
-		if err != nil ***REMOVED***
-			return false, fmt.Errorf("reflect: %w", err)
-		***REMOVED***
-	***REMOVED***
-	return true, nil
+	err := <-errc
+	return err == nil, err
 ***REMOVED***
 
 // reflect will use the grpc reflection api to make the file descriptors available to request.
@@ -324,39 +317,17 @@ func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
 	req := &reflectpb.ServerReflectionRequest***REMOVED***
 		MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED***,
 	***REMOVED***
-	if err = methodClient.Send(req); err != nil ***REMOVED***
-		return fmt.Errorf("can't send list services request: %w", err)
-	***REMOVED***
-	resp, err := methodClient.Recv()
+	resp, err := sendReceive(methodClient, req)
 	if err != nil ***REMOVED***
-		return fmt.Errorf("please enable server reflection on your grpc server: %w", err)
+		return fmt.Errorf("can't list services: %w", err)
 	***REMOVED***
 	listResp := resp.GetListServicesResponse()
 	if listResp == nil ***REMOVED***
 		return fmt.Errorf("can't list services, nil response")
 	***REMOVED***
-	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
-	for _, service := range listResp.GetService() ***REMOVED***
-		req = &reflectpb.ServerReflectionRequest***REMOVED***
-			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
-				FileContainingSymbol: service.GetName(),
-			***REMOVED***,
-		***REMOVED***
-		if err = methodClient.Send(req); err != nil ***REMOVED***
-			return fmt.Errorf("can't send file descriptors request on service %q: %w", service, err)
-		***REMOVED***
-		resp, err = methodClient.Recv()
-		if err != nil ***REMOVED***
-			return fmt.Errorf("can't receive file descriptors request on service %q: %w", service, err)
-		***REMOVED***
-		fdResp := resp.GetFileDescriptorResponse()
-		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
-			var fdp descriptorpb.FileDescriptorProto
-			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
-				return fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
-			***REMOVED***
-			fdset.File = append(fdset.File, &fdp)
-		***REMOVED***
+	fdset, err := resolveFileDescriptors(methodClient, listResp)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("resolveFileDescriptors: %w", err)
 	***REMOVED***
 	_, err = c.convertToMethodInfo(fdset)
 	if err != nil ***REMOVED***
@@ -365,10 +336,57 @@ func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
 	return err
 ***REMOVED***
 
+func resolveFileDescriptors(
+	mc reflectpb.ServerReflection_ServerReflectionInfoClient,
+	res *reflectpb.ListServiceResponse,
+) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
+	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
+	for _, service := range res.GetService() ***REMOVED***
+		req := &reflectpb.ServerReflectionRequest***REMOVED***
+			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
+				FileContainingSymbol: service.GetName(),
+			***REMOVED***,
+		***REMOVED***
+		resp, err := sendReceive(mc, req)
+		if err != nil ***REMOVED***
+			return nil, fmt.Errorf("can't get method on service %q: %w", service, err)
+		***REMOVED***
+		fdResp := resp.GetFileDescriptorResponse()
+		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
+			var fdp descriptorpb.FileDescriptorProto
+			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
+				return nil, fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
+			***REMOVED***
+			fdset.File = append(fdset.File, &fdp)
+		***REMOVED***
+	***REMOVED***
+	return fdset, nil
+***REMOVED***
+
+// sendReceive sends a request to a reflection client and,
+// receives a response.
+func sendReceive(
+	client reflectpb.ServerReflection_ServerReflectionInfoClient,
+	req *reflectpb.ServerReflectionRequest,
+) (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
+	if err := client.Send(req); err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't send request: %w", err)
+	***REMOVED***
+	resp, err := client.Recv()
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't receive response: %w", err)
+	***REMOVED***
+	return resp, nil
+***REMOVED***
+
 // Invoke creates and calls a unary RPC by fully qualified method name
-//nolint: funlen,gocognit,gocyclo
-func (c *Client) Invoke(ctxPtr *context.Context,
-	method string, req goja.Value, params map[string]interface***REMOVED******REMOVED***) (*Response, error) ***REMOVED***
+//nolint: funlen,gocognit,gocyclo,cyclop
+func (c *Client) Invoke(
+	ctxPtr *context.Context,
+	method string,
+	req goja.Value,
+	params map[string]interface***REMOVED******REMOVED***,
+) (*Response, error) ***REMOVED***
 	ctx := *ctxPtr
 	rt := common.GetRuntime(ctx)
 	state := lib.GetState(ctx)
@@ -452,10 +470,10 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 	***REMOVED***
 		b, err := req.ToObject(rt).MarshalJSON()
 		if err != nil ***REMOVED***
-			return nil, fmt.Errorf("unable to serialise request object: %v", err)
+			return nil, fmt.Errorf("unable to serialise request object: %w", err)
 		***REMOVED***
 		if err := protojson.Unmarshal(b, reqdm); err != nil ***REMOVED***
-			return nil, fmt.Errorf("unable to serialise request object to protocol buffer: %v", err)
+			return nil, fmt.Errorf("unable to serialise request object to protocol buffer: %w", err)
 		***REMOVED***
 	***REMOVED***
 
