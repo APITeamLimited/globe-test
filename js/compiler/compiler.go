@@ -42,7 +42,7 @@ var (
 		"plugins": []interface***REMOVED******REMOVED******REMOVED***
 			// es2015 https://github.com/babel/babel/blob/v6.26.0/packages/babel-preset-es2015/src/index.js
 			[]interface***REMOVED******REMOVED******REMOVED***"transform-es2015-template-literals", map[string]interface***REMOVED******REMOVED******REMOVED***"loose": false, "spec": false***REMOVED******REMOVED***,
-			"transform-es2015-literals",
+			// "transform-es2015-literals", // in goja
 			// "transform-es2015-function-name", // in goja
 			// []interface***REMOVED******REMOVED******REMOVED***"transform-es2015-arrow-functions", map[string]interface***REMOVED******REMOVED******REMOVED***"spec": false***REMOVED******REMOVED***, // in goja
 			// "transform-es2015-block-scoped-functions", // in goja
