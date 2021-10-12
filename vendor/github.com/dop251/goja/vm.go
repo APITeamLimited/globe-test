@@ -5,6 +5,7 @@ import (
 	"math"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -1239,6 +1240,14 @@ type _toPropertyKey struct***REMOVED******REMOVED***
 func (_toPropertyKey) exec(vm *vm) ***REMOVED***
 	p := vm.sp - 1
 	vm.stack[p] = toPropertyKey(vm.stack[p])
+	vm.pc++
+***REMOVED***
+
+type _toString struct***REMOVED******REMOVED***
+
+func (_toString) exec(vm *vm) ***REMOVED***
+	p := vm.sp - 1
+	vm.stack[p] = vm.stack[p].toString()
 	vm.pc++
 ***REMOVED***
 
@@ -3820,6 +3829,7 @@ func (copyStash) exec(vm *vm) ***REMOVED***
 	***REMOVED***
 	vm.stashAllocs++
 	newStash.values = append([]Value(nil), oldStash.values...)
+	newStash.names = oldStash.names
 	vm.stash = newStash
 	vm.pc++
 ***REMOVED***
@@ -3904,5 +3914,83 @@ var createArgsRestStash _createArgsRestStash
 func (_createArgsRestStash) exec(vm *vm) ***REMOVED***
 	vm.push(vm.r.newArrayValues(vm.stash.extraArgs))
 	vm.stash.extraArgs = nil
+	vm.pc++
+***REMOVED***
+
+type concatStrings int
+
+func (n concatStrings) exec(vm *vm) ***REMOVED***
+	strs := vm.stack[vm.sp-int(n) : vm.sp]
+	length := 0
+	allAscii := true
+	for _, s := range strs ***REMOVED***
+		if allAscii ***REMOVED***
+			if _, ok := s.(unicodeString); ok ***REMOVED***
+				allAscii = false
+			***REMOVED***
+		***REMOVED***
+		length += s.(valueString).length()
+	***REMOVED***
+
+	vm.sp -= int(n) - 1
+	if allAscii ***REMOVED***
+		var buf strings.Builder
+		buf.Grow(length)
+		for _, s := range strs ***REMOVED***
+			buf.WriteString(string(s.(asciiString)))
+		***REMOVED***
+		vm.stack[vm.sp-1] = asciiString(buf.String())
+	***REMOVED*** else ***REMOVED***
+		var buf unicodeStringBuilder
+		buf.Grow(length)
+		for _, s := range strs ***REMOVED***
+			buf.WriteString(s.(valueString))
+		***REMOVED***
+		vm.stack[vm.sp-1] = buf.String()
+	***REMOVED***
+	vm.pc++
+***REMOVED***
+
+type getTaggedTmplObject struct ***REMOVED***
+	raw, cooked []Value
+***REMOVED***
+
+// As tagged template objects are not cached (because it's hard to ensure the cache is cleaned without using
+// finalizers) this wrapper is needed to override the equality method so that two objects for the same template
+// literal appeared be equal from the code's point of view.
+type taggedTemplateArray struct ***REMOVED***
+	*arrayObject
+	idPtr *[]Value
+***REMOVED***
+
+func (a *taggedTemplateArray) equal(other objectImpl) bool ***REMOVED***
+	if o, ok := other.(*taggedTemplateArray); ok ***REMOVED***
+		return a.idPtr == o.idPtr
+	***REMOVED***
+	return false
+***REMOVED***
+
+func (c *getTaggedTmplObject) exec(vm *vm) ***REMOVED***
+	cooked := vm.r.newArrayObject()
+	setArrayValues(cooked, c.cooked)
+	cooked.lengthProp.writable = false
+
+	raw := vm.r.newArrayObject()
+	setArrayValues(raw, c.raw)
+	raw.lengthProp.writable = false
+	raw.preventExtensions(true)
+	raw.val.self = &taggedTemplateArray***REMOVED***
+		arrayObject: raw,
+		idPtr:       &c.raw,
+	***REMOVED***
+
+	cooked._putProp("raw", raw.val, false, false, false)
+	cooked.preventExtensions(true)
+	cooked.val.self = &taggedTemplateArray***REMOVED***
+		arrayObject: cooked,
+		idPtr:       &c.cooked,
+	***REMOVED***
+
+	vm.push(cooked.val)
 	vm.pc++
 ***REMOVED***

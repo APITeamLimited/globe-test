@@ -226,6 +226,21 @@ type (
 		Value   unistring.String
 	***REMOVED***
 
+	TemplateElement struct ***REMOVED***
+		Idx     file.Idx
+		Literal string
+		Parsed  unistring.String
+		Valid   bool
+	***REMOVED***
+
+	TemplateLiteral struct ***REMOVED***
+		OpenQuote   file.Idx
+		CloseQuote  file.Idx
+		Tag         Expression
+		Elements    []*TemplateElement
+		Expressions []Expression
+	***REMOVED***
+
 	ThisExpression struct ***REMOVED***
 		Idx file.Idx
 	***REMOVED***
@@ -264,6 +279,7 @@ func (*ObjectLiteral) _expressionNode()         ***REMOVED******REMOVED***
 func (*RegExpLiteral) _expressionNode()         ***REMOVED******REMOVED***
 func (*SequenceExpression) _expressionNode()    ***REMOVED******REMOVED***
 func (*StringLiteral) _expressionNode()         ***REMOVED******REMOVED***
+func (*TemplateLiteral) _expressionNode()       ***REMOVED******REMOVED***
 func (*ThisExpression) _expressionNode()        ***REMOVED******REMOVED***
 func (*UnaryExpression) _expressionNode()       ***REMOVED******REMOVED***
 func (*MetaProperty) _expressionNode()          ***REMOVED******REMOVED***
@@ -555,6 +571,7 @@ func (self *ObjectLiteral) Idx0() file.Idx         ***REMOVED*** return self.Lef
 func (self *RegExpLiteral) Idx0() file.Idx         ***REMOVED*** return self.Idx ***REMOVED***
 func (self *SequenceExpression) Idx0() file.Idx    ***REMOVED*** return self.Sequence[0].Idx0() ***REMOVED***
 func (self *StringLiteral) Idx0() file.Idx         ***REMOVED*** return self.Idx ***REMOVED***
+func (self *TemplateLiteral) Idx0() file.Idx       ***REMOVED*** return self.OpenQuote ***REMOVED***
 func (self *ThisExpression) Idx0() file.Idx        ***REMOVED*** return self.Idx ***REMOVED***
 func (self *UnaryExpression) Idx0() file.Idx       ***REMOVED*** return self.Idx ***REMOVED***
 func (self *MetaProperty) Idx0() file.Idx          ***REMOVED*** return self.Idx ***REMOVED***
@@ -615,6 +632,7 @@ func (self *ObjectPattern) Idx1() file.Idx         ***REMOVED*** return self.Rig
 func (self *RegExpLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
 func (self *SequenceExpression) Idx1() file.Idx    ***REMOVED*** return self.Sequence[len(self.Sequence)-1].Idx1() ***REMOVED***
 func (self *StringLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
+func (self *TemplateLiteral) Idx1() file.Idx       ***REMOVED*** return self.CloseQuote + 1 ***REMOVED***
 func (self *ThisExpression) Idx1() file.Idx        ***REMOVED*** return self.Idx + 4 ***REMOVED***
 func (self *UnaryExpression) Idx1() file.Idx ***REMOVED***
 	if self.Postfix ***REMOVED***

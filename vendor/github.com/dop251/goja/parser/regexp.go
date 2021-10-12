@@ -284,7 +284,12 @@ func (self *_RegExp_parser) scanEscape(inClass bool) ***REMOVED***
 
 	case 'u':
 		self.read()
-		length, base = 4, 16
+		if self.chr == '***REMOVED***' ***REMOVED***
+			self.read()
+			length, base = 0, 16
+		***REMOVED*** else ***REMOVED***
+			length, base = 4, 16
+		***REMOVED***
 
 	case 'b':
 		if inClass ***REMOVED***
@@ -365,31 +370,36 @@ func (self *_RegExp_parser) scanEscape(inClass bool) ***REMOVED***
 	// Otherwise, we're a \u.... or \x...
 	valueOffset := self.chrOffset
 
-	var value uint32
-	***REMOVED***
-		length := length
-		for ; length > 0; length-- ***REMOVED***
+	if length > 0 ***REMOVED***
+		for length := length; length > 0; length-- ***REMOVED***
 			digit := uint32(digitValue(self.chr))
 			if digit >= base ***REMOVED***
 				// Not a valid digit
 				goto skip
 			***REMOVED***
-			value = value*base + digit
+			self.read()
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		for self.chr != '***REMOVED***' && self.chr != -1 ***REMOVED***
+			digit := uint32(digitValue(self.chr))
+			if digit >= base ***REMOVED***
+				// Not a valid digit
+				goto skip
+			***REMOVED***
 			self.read()
 		***REMOVED***
 	***REMOVED***
 
-	if length == 4 ***REMOVED***
+	if length == 4 || length == 0 ***REMOVED***
 		self.write([]byte***REMOVED***
 			'\\',
 			'x',
 			'***REMOVED***',
-			self.str[valueOffset+0],
-			self.str[valueOffset+1],
-			self.str[valueOffset+2],
-			self.str[valueOffset+3],
-			'***REMOVED***',
 		***REMOVED***)
+		self.passString(valueOffset, self.chrOffset)
+		if length != 0 ***REMOVED***
+			self.writeByte('***REMOVED***')
+		***REMOVED***
 	***REMOVED*** else if length == 2 ***REMOVED***
 		self.passString(offset-1, valueOffset+2)
 	***REMOVED*** else ***REMOVED***

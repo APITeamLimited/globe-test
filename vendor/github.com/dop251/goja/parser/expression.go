@@ -85,11 +85,9 @@ func (self *_parser) parsePrimaryExpression() ast.Expression ***REMOVED***
 	case token.LEFT_BRACKET:
 		return self.parseArrayLiteral()
 	case token.LEFT_PARENTHESIS:
-		/*self.expect(token.LEFT_PARENTHESIS)
-		expression := self.parseExpression()
-		self.expect(token.RIGHT_PARENTHESIS)
-		return expression*/
 		return self.parseParenthesisedExpression()
+	case token.BACKTICK:
+		return self.parseTemplateLiteral(false)
 	case token.THIS:
 		self.next()
 		return &ast.ThisExpression***REMOVED***
@@ -465,6 +463,46 @@ func (self *_parser) parseArrayLiteral() *ast.ArrayLiteral ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (self *_parser) parseTemplateLiteral(tagged bool) *ast.TemplateLiteral ***REMOVED***
+	res := &ast.TemplateLiteral***REMOVED***
+		OpenQuote: self.idx,
+	***REMOVED***
+	for self.chr != -1 ***REMOVED***
+		start := self.idx + 1
+		literal, parsed, finished, parseErr, err := self.parseTemplateCharacters()
+		if err != nil ***REMOVED***
+			self.error(self.idx, err.Error())
+		***REMOVED***
+		res.Elements = append(res.Elements, &ast.TemplateElement***REMOVED***
+			Idx:     start,
+			Literal: literal,
+			Parsed:  parsed,
+			Valid:   parseErr == nil,
+		***REMOVED***)
+		if !tagged && parseErr != nil ***REMOVED***
+			self.error(self.idx, parseErr.Error())
+		***REMOVED***
+		end := self.idx + 1
+		self.next()
+		if finished ***REMOVED***
+			res.CloseQuote = end
+			break
+		***REMOVED***
+		expr := self.parseExpression()
+		res.Expressions = append(res.Expressions, expr)
+		if self.token != token.RIGHT_BRACE ***REMOVED***
+			self.errorUnexpectedToken(self.token)
+		***REMOVED***
+	***REMOVED***
+	return res
+***REMOVED***
+
+func (self *_parser) parseTaggedTemplateLiteral(tag ast.Expression) *ast.TemplateLiteral ***REMOVED***
+	l := self.parseTemplateLiteral(true)
+	l.Tag = tag
+	return l
+***REMOVED***
+
 func (self *_parser) parseArgumentList() (argumentList []ast.Expression, idx0, idx1 file.Idx) ***REMOVED***
 	idx0 = self.expect(token.LEFT_PARENTHESIS)
 	if self.token != token.RIGHT_PARENTHESIS ***REMOVED***
@@ -575,14 +613,17 @@ func (self *_parser) parseLeftHandSideExpression() ast.Expression ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		left = self.parsePrimaryExpression()
 	***REMOVED***
-
+L:
 	for ***REMOVED***
-		if self.token == token.PERIOD ***REMOVED***
+		switch self.token ***REMOVED***
+		case token.PERIOD:
 			left = self.parseDotMember(left)
-		***REMOVED*** else if self.token == token.LEFT_BRACKET ***REMOVED***
+		case token.LEFT_BRACKET:
 			left = self.parseBracketMember(left)
-		***REMOVED*** else ***REMOVED***
-			break
+		case token.BACKTICK:
+			left = self.parseTaggedTemplateLiteral(left)
+		default:
+			break L
 		***REMOVED***
 	***REMOVED***
 
@@ -603,16 +644,19 @@ func (self *_parser) parseLeftHandSideExpressionAllowCall() ast.Expression ***RE
 	***REMOVED*** else ***REMOVED***
 		left = self.parsePrimaryExpression()
 	***REMOVED***
-
+L:
 	for ***REMOVED***
-		if self.token == token.PERIOD ***REMOVED***
+		switch self.token ***REMOVED***
+		case token.PERIOD:
 			left = self.parseDotMember(left)
-		***REMOVED*** else if self.token == token.LEFT_BRACKET ***REMOVED***
+		case token.LEFT_BRACKET:
 			left = self.parseBracketMember(left)
-		***REMOVED*** else if self.token == token.LEFT_PARENTHESIS ***REMOVED***
+		case token.LEFT_PARENTHESIS:
 			left = self.parseCallExpression(left)
-		***REMOVED*** else ***REMOVED***
-			break
+		case token.BACKTICK:
+			left = self.parseTaggedTemplateLiteral(left)
+		default:
+			break L
 		***REMOVED***
 	***REMOVED***
 

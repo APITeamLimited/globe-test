@@ -2,16 +2,10 @@ package goja
 
 import (
 	"fmt"
-	"regexp"
-
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
 	"github.com/dop251/goja/unistring"
-)
-
-var (
-	octalRegexp = regexp.MustCompile(`^0[0-7]`)
 )
 
 type compiledExpr interface ***REMOVED***
@@ -59,6 +53,13 @@ type compiledRegexpLiteral struct ***REMOVED***
 type compiledLiteral struct ***REMOVED***
 	baseCompiledExpr
 	val Value
+***REMOVED***
+
+type compiledTemplateLiteral struct ***REMOVED***
+	baseCompiledExpr
+	tag         compiledExpr
+	elements    []*ast.TemplateElement
+	expressions []compiledExpr
 ***REMOVED***
 
 type compiledAssignExpr struct ***REMOVED***
@@ -204,6 +205,8 @@ func (c *compiler) compileExpression(v ast.Expression) compiledExpr ***REMOVED**
 		return c.compileNumberLiteral(v)
 	case *ast.StringLiteral:
 		return c.compileStringLiteral(v)
+	case *ast.TemplateLiteral:
+		return c.compileTemplateLiteral(v)
 	case *ast.BooleanLiteral:
 		return c.compileBooleanLiteral(v)
 	case *ast.NullLiteral:
@@ -825,6 +828,73 @@ func (e *compiledLiteral) constant() bool ***REMOVED***
 	return true
 ***REMOVED***
 
+func (e *compiledTemplateLiteral) emitGetter(putOnStack bool) ***REMOVED***
+	if e.tag == nil ***REMOVED***
+		if len(e.elements) == 0 ***REMOVED***
+			e.c.emit(loadVal(e.c.p.defineLiteralValue(stringEmpty)))
+		***REMOVED*** else ***REMOVED***
+			tail := e.elements[len(e.elements)-1].Parsed
+			if len(e.elements) == 1 ***REMOVED***
+				e.c.emit(loadVal(e.c.p.defineLiteralValue(stringValueFromRaw(tail))))
+			***REMOVED*** else ***REMOVED***
+				stringCount := 0
+				if head := e.elements[0].Parsed; head != "" ***REMOVED***
+					e.c.emit(loadVal(e.c.p.defineLiteralValue(stringValueFromRaw(head))))
+					stringCount++
+				***REMOVED***
+				e.expressions[0].emitGetter(true)
+				e.c.emit(_toString***REMOVED******REMOVED***)
+				stringCount++
+				for i := 1; i < len(e.elements)-1; i++ ***REMOVED***
+					if elt := e.elements[i].Parsed; elt != "" ***REMOVED***
+						e.c.emit(loadVal(e.c.p.defineLiteralValue(stringValueFromRaw(elt))))
+						stringCount++
+					***REMOVED***
+					e.expressions[i].emitGetter(true)
+					e.c.emit(_toString***REMOVED******REMOVED***)
+					stringCount++
+				***REMOVED***
+				if tail != "" ***REMOVED***
+					e.c.emit(loadVal(e.c.p.defineLiteralValue(stringValueFromRaw(tail))))
+					stringCount++
+				***REMOVED***
+				e.c.emit(concatStrings(stringCount))
+			***REMOVED***
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		cooked := make([]Value, len(e.elements))
+		raw := make([]Value, len(e.elements))
+		for i, elt := range e.elements ***REMOVED***
+			raw[i] = &valueProperty***REMOVED***
+				enumerable: true,
+				value:      newStringValue(elt.Literal),
+			***REMOVED***
+			var cookedVal Value
+			if elt.Valid ***REMOVED***
+				cookedVal = stringValueFromRaw(elt.Parsed)
+			***REMOVED*** else ***REMOVED***
+				cookedVal = _undefined
+			***REMOVED***
+			cooked[i] = &valueProperty***REMOVED***
+				enumerable: true,
+				value:      cookedVal,
+			***REMOVED***
+		***REMOVED***
+		e.c.emitCallee(e.tag)
+		e.c.emit(&getTaggedTmplObject***REMOVED***
+			raw:    raw,
+			cooked: cooked,
+		***REMOVED***)
+		for _, expr := range e.expressions ***REMOVED***
+			expr.emitGetter(true)
+		***REMOVED***
+		e.c.emit(call(len(e.expressions) + 1))
+	***REMOVED***
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
 func (c *compiler) compileParameterBindingIdentifier(name unistring.String, offset int) (*binding, bool) ***REMOVED***
 	if c.scope.strict ***REMOVED***
 		c.checkIdentifierName(name, offset)
@@ -1244,13 +1314,11 @@ func (e *compiledThisExpr) emitGetter(putOnStack bool) ***REMOVED***
 	if putOnStack ***REMOVED***
 		e.addSrcMap()
 		scope := e.c.scope
-		for ; scope != nil && !scope.function && !scope.eval; scope = scope.outer ***REMOVED***
+		for ; scope != nil && (scope.arrow || !scope.function && !scope.eval); scope = scope.outer ***REMOVED***
 		***REMOVED***
 
 		if scope != nil ***REMOVED***
-			if !scope.arrow ***REMOVED***
-				scope.thisNeeded = true
-			***REMOVED***
+			scope.thisNeeded = true
 			e.c.emit(loadStack(0))
 		***REMOVED*** else ***REMOVED***
 			e.c.emit(loadGlobalObject)
@@ -1848,28 +1916,32 @@ func (c *compiler) compileRegexpLiteral(v *ast.RegExpLiteral) compiledExpr ***RE
 	return r
 ***REMOVED***
 
-func (e *compiledCallExpr) emitGetter(putOnStack bool) ***REMOVED***
-	var calleeName unistring.String
-	if e.isVariadic ***REMOVED***
-		e.c.emit(startVariadic)
-	***REMOVED***
-	switch callee := e.callee.(type) ***REMOVED***
+func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String) ***REMOVED***
+	switch callee := callee.(type) ***REMOVED***
 	case *compiledDotExpr:
 		callee.left.emitGetter(true)
-		e.c.emit(dup)
-		e.c.emit(getPropCallee(callee.name))
+		c.emit(dup)
+		c.emit(getPropCallee(callee.name))
 	case *compiledBracketExpr:
 		callee.left.emitGetter(true)
-		e.c.emit(dup)
+		c.emit(dup)
 		callee.member.emitGetter(true)
-		e.c.emit(getElemCallee)
+		c.emit(getElemCallee)
 	case *compiledIdentifierExpr:
 		calleeName = callee.name
 		callee.emitGetterAndCallee()
 	default:
-		e.c.emit(loadUndef)
+		c.emit(loadUndef)
 		callee.emitGetter(true)
 	***REMOVED***
+	return
+***REMOVED***
+
+func (e *compiledCallExpr) emitGetter(putOnStack bool) ***REMOVED***
+	if e.isVariadic ***REMOVED***
+		e.c.emit(startVariadic)
+	***REMOVED***
+	calleeName := e.c.emitCallee(e.callee)
 
 	for _, expr := range e.args ***REMOVED***
 		expr.emitGetter(true)
@@ -1972,7 +2044,7 @@ func (c *compiler) compileIdentifierExpression(v *ast.Identifier) compiledExpr *
 ***REMOVED***
 
 func (c *compiler) compileNumberLiteral(v *ast.NumberLiteral) compiledExpr ***REMOVED***
-	if c.scope.strict && octalRegexp.MatchString(v.Literal) ***REMOVED***
+	if c.scope.strict && len(v.Literal) > 1 && v.Literal[0] == '0' && v.Literal[1] <= '7' && v.Literal[1] >= '0' ***REMOVED***
 		c.throwSyntaxError(int(v.Idx)-1, "Octal literals are not allowed in strict mode")
 		panic("Unreachable")
 	***REMOVED***
@@ -1996,6 +2068,21 @@ func (c *compiler) compileStringLiteral(v *ast.StringLiteral) compiledExpr ***RE
 	r := &compiledLiteral***REMOVED***
 		val: stringValueFromRaw(v.Value),
 	***REMOVED***
+	r.init(c, v.Idx0())
+	return r
+***REMOVED***
+
+func (c *compiler) compileTemplateLiteral(v *ast.TemplateLiteral) compiledExpr ***REMOVED***
+	r := &compiledTemplateLiteral***REMOVED******REMOVED***
+	if v.Tag != nil ***REMOVED***
+		r.tag = c.compileExpression(v.Tag)
+	***REMOVED***
+	ce := make([]compiledExpr, len(v.Expressions))
+	for i, expr := range v.Expressions ***REMOVED***
+		ce[i] = c.compileExpression(expr)
+	***REMOVED***
+	r.expressions = ce
+	r.elements = v.Elements
 	r.init(c, v.Idx0())
 	return r
 ***REMOVED***

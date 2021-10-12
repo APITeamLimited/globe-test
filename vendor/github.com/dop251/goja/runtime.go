@@ -33,6 +33,7 @@ var (
 	typeValue    = reflect.TypeOf((*Value)(nil)).Elem()
 	typeObject   = reflect.TypeOf((*Object)(nil))
 	typeTime     = reflect.TypeOf(time.Time***REMOVED******REMOVED***)
+	typeBytes    = reflect.TypeOf(([]byte)(nil))
 )
 
 type iterationKind int
@@ -1788,7 +1789,76 @@ func (r *Runtime) wrapReflectFunc(value reflect.Value) func(FunctionCall) Value 
 
 func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCtx) error ***REMOVED***
 	typ := dst.Type()
-	switch typ.Kind() ***REMOVED***
+
+	if typ == typeValue ***REMOVED***
+		dst.Set(reflect.ValueOf(v))
+		return nil
+	***REMOVED***
+
+	if typ == typeObject ***REMOVED***
+		if obj, ok := v.(*Object); ok ***REMOVED***
+			dst.Set(reflect.ValueOf(obj))
+			return nil
+		***REMOVED***
+	***REMOVED***
+
+	if typ == typeCallable ***REMOVED***
+		if fn, ok := AssertFunction(v); ok ***REMOVED***
+			dst.Set(reflect.ValueOf(fn))
+			return nil
+		***REMOVED***
+	***REMOVED***
+
+	et := v.ExportType()
+	if et == nil || et == reflectTypeNil ***REMOVED***
+		dst.Set(reflect.Zero(typ))
+		return nil
+	***REMOVED***
+
+	kind := typ.Kind()
+	for i := 0; ; i++ ***REMOVED***
+		if et.AssignableTo(typ) ***REMOVED***
+			ev := reflect.ValueOf(exportValue(v, ctx))
+			for ; i > 0; i-- ***REMOVED***
+				ev = ev.Elem()
+			***REMOVED***
+			dst.Set(ev)
+			return nil
+		***REMOVED***
+		expKind := et.Kind()
+		if expKind == kind && et.ConvertibleTo(typ) || expKind == reflect.String && typ == typeBytes ***REMOVED***
+			ev := reflect.ValueOf(exportValue(v, ctx))
+			for ; i > 0; i-- ***REMOVED***
+				ev = ev.Elem()
+			***REMOVED***
+			dst.Set(ev.Convert(typ))
+			return nil
+		***REMOVED***
+		if expKind == reflect.Ptr ***REMOVED***
+			et = et.Elem()
+		***REMOVED*** else ***REMOVED***
+			break
+		***REMOVED***
+	***REMOVED***
+
+	if typ == typeTime ***REMOVED***
+		if obj, ok := v.(*Object); ok ***REMOVED***
+			if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+				dst.Set(reflect.ValueOf(d.time()))
+				return nil
+			***REMOVED***
+		***REMOVED***
+		if et.Kind() == reflect.String ***REMOVED***
+			tme, ok := dateParse(v.String())
+			if !ok ***REMOVED***
+				return fmt.Errorf("could not convert string %v to %v", v, typ)
+			***REMOVED***
+			dst.Set(reflect.ValueOf(tme))
+			return nil
+		***REMOVED***
+	***REMOVED***
+
+	switch kind ***REMOVED***
 	case reflect.String:
 		dst.Set(reflect.ValueOf(v.String()).Convert(typ))
 		return nil
@@ -1831,69 +1901,6 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 	case reflect.Float32:
 		dst.Set(reflect.ValueOf(toFloat32(v)).Convert(typ))
 		return nil
-	***REMOVED***
-
-	if typ == typeCallable ***REMOVED***
-		if fn, ok := AssertFunction(v); ok ***REMOVED***
-			dst.Set(reflect.ValueOf(fn))
-			return nil
-		***REMOVED***
-	***REMOVED***
-
-	if typ == typeValue ***REMOVED***
-		dst.Set(reflect.ValueOf(v))
-		return nil
-	***REMOVED***
-
-	if typ == typeObject ***REMOVED***
-		if obj, ok := v.(*Object); ok ***REMOVED***
-			dst.Set(reflect.ValueOf(obj))
-			return nil
-		***REMOVED***
-	***REMOVED***
-
-	***REMOVED***
-		et := v.ExportType()
-		if et == nil || et == reflectTypeNil ***REMOVED***
-			dst.Set(reflect.Zero(typ))
-			return nil
-		***REMOVED***
-
-		for i := 0; ; i++ ***REMOVED***
-			if et.ConvertibleTo(typ) ***REMOVED***
-				ev := reflect.ValueOf(exportValue(v, ctx))
-				for ; i > 0; i-- ***REMOVED***
-					ev = ev.Elem()
-				***REMOVED***
-				dst.Set(ev.Convert(typ))
-				return nil
-			***REMOVED***
-			if et.Kind() == reflect.Ptr ***REMOVED***
-				et = et.Elem()
-			***REMOVED*** else ***REMOVED***
-				break
-			***REMOVED***
-		***REMOVED***
-
-		if typ == typeTime ***REMOVED***
-			if obj, ok := v.(*Object); ok ***REMOVED***
-				if d, ok := obj.self.(*dateObject); ok ***REMOVED***
-					dst.Set(reflect.ValueOf(d.time()))
-					return nil
-				***REMOVED***
-			***REMOVED***
-			if et.Kind() == reflect.String ***REMOVED***
-				tme, ok := dateParse(v.String())
-				if !ok ***REMOVED***
-					return fmt.Errorf("could not convert string %v to %v", v, typ)
-				***REMOVED***
-				dst.Set(reflect.ValueOf(tme))
-				return nil
-			***REMOVED***
-		***REMOVED***
-	***REMOVED***
-
-	switch typ.Kind() ***REMOVED***
 	case reflect.Slice:
 		if o, ok := v.(*Object); ok ***REMOVED***
 			if o.self.className() == classArray ***REMOVED***
