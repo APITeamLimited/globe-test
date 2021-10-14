@@ -294,7 +294,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			return
 		***REMOVED***
 		if reflect ***REMOVED***
-			err := c.reflect(ctxPtr)
+			err := c.reflect(ctx)
 			if err != nil ***REMOVED***
 				errc <- err
 				return
@@ -308,9 +308,9 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 
 // reflect will use the grpc reflection api to make the file descriptors available to request.
 // It is called in the connect function the first time the Client.Connect function is called.
-func (c *Client) reflect(ctxPtr *context.Context) error ***REMOVED***
+func (c *Client) reflect(ctx context.Context) error ***REMOVED***
 	client := reflectpb.NewServerReflectionClient(c.conn)
-	methodClient, err := client.ServerReflectionInfo(*ctxPtr)
+	methodClient, err := client.ServerReflectionInfo(ctx)
 	if err != nil ***REMOVED***
 		return fmt.Errorf("can't get server info: %w", err)
 	***REMOVED***
