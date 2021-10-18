@@ -316,7 +316,7 @@ export let options = ***REMOVED***
         ***REMOVED*** target: 50, duration: "1m" ***REMOVED***,
         // Hold at 50 VUs for the next 3 minutes and 30 seconds
         ***REMOVED*** target: 50, duration: "3m30s" ***REMOVED***,
-        // Linearly ramp down from 50 to 0 50 VUs over the last 30 seconds
+        // Linearly ramp down from 50 to 0 VUs over the last 30 seconds
         ***REMOVED*** target: 0, duration: "30s" ***REMOVED***
         // Total execution time will be ~5 minutes
     ],
