@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	client "github.com/influxdata/influxdb1-client/v2"
@@ -51,16 +52,16 @@ const (
 type Output struct ***REMOVED***
 	output.SampleBuffer
 
-	params          output.Params
-	periodicFlusher *output.PeriodicFlusher
-
 	Client    client.Client
 	Config    Config
 	BatchConf client.BatchPointsConfig
 
-	logger      logrus.FieldLogger
-	semaphoreCh chan struct***REMOVED******REMOVED***
-	fieldKinds  map[string]FieldKind
+	logger          logrus.FieldLogger
+	params          output.Params
+	fieldKinds      map[string]FieldKind
+	periodicFlusher *output.PeriodicFlusher
+	semaphoreCh     chan struct***REMOVED******REMOVED***
+	wg              sync.WaitGroup
 ***REMOVED***
 
 // New returns new influxdb output
@@ -90,8 +91,9 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 		Client:      cl,
 		Config:      conf,
 		BatchConf:   batchConf,
-		semaphoreCh: make(chan struct***REMOVED******REMOVED***, conf.ConcurrentWrites.Int64),
 		fieldKinds:  fldKinds,
+		semaphoreCh: make(chan struct***REMOVED******REMOVED***, conf.ConcurrentWrites.Int64),
+		wg:          sync.WaitGroup***REMOVED******REMOVED***,
 	***REMOVED***, err
 ***REMOVED***
 
@@ -178,12 +180,12 @@ func (o *Output) Start() error ***REMOVED***
 	// usually means we're either a non-admin user to an existing DB or connecting over UDP.
 	_, err := o.Client.Query(client.NewQuery("CREATE DATABASE "+o.BatchConf.Database, "", ""))
 	if err != nil ***REMOVED***
-		o.logger.WithError(err).Debug("InfluxDB: Couldn't create database; most likely harmless")
+		o.logger.WithError(err).Debug("Couldn't create database; most likely harmless")
 	***REMOVED***
 
 	pf, err := output.NewPeriodicFlusher(time.Duration(o.Config.PushInterval.Duration), o.flushMetrics)
 	if err != nil ***REMOVED***
-		return err //nolint:wrapcheck
+		return err
 	***REMOVED***
 	o.logger.Debug("Started!")
 	o.periodicFlusher = pf
@@ -196,30 +198,45 @@ func (o *Output) Stop() error ***REMOVED***
 	o.logger.Debug("Stopping...")
 	defer o.logger.Debug("Stopped!")
 	o.periodicFlusher.Stop()
+	o.wg.Wait()
 	return nil
 ***REMOVED***
 
 func (o *Output) flushMetrics() ***REMOVED***
 	samples := o.GetBufferedSamples()
-
-	o.semaphoreCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
-	defer func() ***REMOVED***
-		<-o.semaphoreCh
-	***REMOVED***()
-	o.logger.Debug("Committing...")
-	o.logger.WithField("samples", len(samples)).Debug("Writing...")
-
-	batch, err := o.batchFromSamples(samples)
-	if err != nil ***REMOVED***
-		o.logger.WithError(err).Error("Couldn't create batch from samples")
+	if len(samples) < 1 ***REMOVED***
 		return
 	***REMOVED***
 
-	o.logger.WithField("points", len(batch.Points())).Debug("Writing...")
-	startTime := time.Now()
-	if err := o.Client.Write(batch); err != nil ***REMOVED***
-		o.logger.WithError(err).Error("Couldn't write stats")
-	***REMOVED***
-	t := time.Since(startTime)
-	o.logger.WithField("t", t).Debug("Batch written!")
+	o.logger.Debug("Committing...")
+	o.wg.Add(1)
+	o.semaphoreCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	go func() ***REMOVED***
+		defer func() ***REMOVED***
+			<-o.semaphoreCh
+			o.wg.Done()
+		***REMOVED***()
+
+		o.logger.WithField("samples", len(samples)).Debug("Writing...")
+
+		batch, err := o.batchFromSamples(samples)
+		if err != nil ***REMOVED***
+			o.logger.WithError(err).Error("Couldn't create batch from samples")
+			return
+		***REMOVED***
+
+		o.logger.WithField("points", len(batch.Points())).Debug("Writing...")
+		startTime := time.Now()
+		if err := o.Client.Write(batch); err != nil ***REMOVED***
+			o.logger.WithError(err).Error("Couldn't write stats")
+			return
+		***REMOVED***
+		t := time.Since(startTime)
+		o.logger.WithField("t", t).Debug("Batch written!")
+
+		if t > time.Duration(o.Config.PushInterval.Duration) ***REMOVED***
+			o.logger.WithField("t", t).
+				Warn("The flush operation took higher than the expected set push interval. If you see this message multiple times then the setup or configuration need to be adjusted to achieve a sustainable rate.") //nolint:lll
+		***REMOVED***
+	***REMOVED***()
 ***REMOVED***

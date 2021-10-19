@@ -26,9 +26,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/lib/testutils"
@@ -103,6 +107,7 @@ func testOutputCycle(t testing.TB, handler http.HandlerFunc, body func(testing.T
 
 func TestOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
+
 	var samplesRead int
 	defer func() ***REMOVED***
 		require.Equal(t, samplesRead, 20)
@@ -138,6 +143,58 @@ func TestOutput(t *testing.T) ***REMOVED***
 		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
 		c.AddMetricSamples([]stats.SampleContainer***REMOVED***samples***REMOVED***)
 	***REMOVED***)
+***REMOVED***
+
+func TestOutputFlushMetricsConcurrency(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	var (
+		requests = int32(0)
+		block    = make(chan struct***REMOVED******REMOVED***)
+	)
+	wg := sync.WaitGroup***REMOVED******REMOVED***
+	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		// block all the received requests
+		// so concurrency will be needed
+		// to not block the flush
+		atomic.AddInt32(&requests, 1)
+		wg.Done()
+		block <- struct***REMOVED******REMOVED******REMOVED******REMOVED***
+	***REMOVED***))
+	defer func() ***REMOVED***
+		// unlock the server
+		for i := 0; i < 4; i++ ***REMOVED***
+			<-block
+		***REMOVED***
+		close(block)
+		ts.Close()
+	***REMOVED***()
+
+	o, err := newOutput(output.Params***REMOVED***
+		Logger:         testutils.NewLogger(t),
+		ConfigArgument: ts.URL,
+	***REMOVED***)
+	require.NoError(t, err)
+
+	for i := 0; i < 5; i++ ***REMOVED***
+		select ***REMOVED***
+		case o.semaphoreCh <- struct***REMOVED******REMOVED******REMOVED******REMOVED***:
+			<-o.semaphoreCh
+			wg.Add(1)
+			o.AddMetricSamples([]stats.SampleContainer***REMOVED***stats.Samples***REMOVED***
+				stats.Sample***REMOVED***
+					Metric: stats.New("gauge", stats.Gauge),
+					Value:  2.0,
+				***REMOVED***,
+			***REMOVED******REMOVED***)
+			o.flushMetrics()
+		default:
+			// the 5th request should be rate limited
+			assert.Equal(t, 5, i+1)
+		***REMOVED***
+	***REMOVED***
+	wg.Wait()
+	assert.Equal(t, 4, int(atomic.LoadInt32(&requests)))
 ***REMOVED***
 
 func TestExtractTagsToValues(t *testing.T) ***REMOVED***
