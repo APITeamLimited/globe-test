@@ -39,6 +39,53 @@ import (
 	"go.k6.io/k6/stats"
 )
 
+type addTestValue struct ***REMOVED***
+	JS      string
+	Float   float64
+	isError bool
+***REMOVED***
+
+type addTest struct ***REMOVED***
+	val          addTestValue
+	rt           *goja.Runtime
+	hook         *testutils.SimpleLogrusHook
+	samples      chan stats.SampleContainer
+	isThrow      bool
+	mtyp         stats.MetricType
+	valueType    stats.ValueType
+	js           string
+	expectedTags map[string]string
+***REMOVED***
+
+func (a addTest) run(t *testing.T) ***REMOVED***
+	_, err := a.rt.RunString(a.js)
+	if a.val.isError && a.isThrow ***REMOVED***
+		if assert.Error(t, err) ***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		assert.NoError(t, err)
+		if a.val.isError && !a.isThrow ***REMOVED***
+			lines := a.hook.Drain()
+			require.Len(t, lines, 1)
+			assert.Contains(t, lines[0].Message, "is an invalid value for metric")
+			return
+		***REMOVED***
+	***REMOVED***
+	bufSamples := stats.GetBufferedSamples(a.samples)
+	if assert.Len(t, bufSamples, 1) ***REMOVED***
+		sample, ok := bufSamples[0].(stats.Sample)
+		require.True(t, ok)
+
+		assert.NotZero(t, sample.Time)
+		assert.Equal(t, a.val.Float, sample.Value)
+		assert.Equal(t, a.expectedTags, sample.Tags.CloneTags())
+		assert.Equal(t, "my_metric", sample.Metric.Name)
+		assert.Equal(t, a.mtyp, sample.Metric.Type)
+		assert.Equal(t, a.valueType, sample.Metric.Contains)
+	***REMOVED***
+***REMOVED***
+
 func TestMetrics(t *testing.T) ***REMOVED***
 	t.Parallel()
 	types := map[string]stats.MetricType***REMOVED***
@@ -47,11 +94,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		"Trend":   stats.Trend,
 		"Rate":    stats.Rate,
 	***REMOVED***
-	values := map[string]struct ***REMOVED***
-		JS      string
-		Float   float64
-		isError bool
-	***REMOVED******REMOVED***
+	values := map[string]addTestValue***REMOVED***
 		"Float":                 ***REMOVED***JS: `2.5`, Float: 2.5***REMOVED***,
 		"Int":                   ***REMOVED***JS: `5`, Float: 5.0***REMOVED***,
 		"True":                  ***REMOVED***JS: `true`, Float: 1.0***REMOVED***,
@@ -72,20 +115,24 @@ func TestMetrics(t *testing.T) ***REMOVED***
 				isTime, valueType := isTime, valueType
 				t.Run(fmt.Sprintf("isTime=%v", isTime), func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					rt := goja.New()
-					rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+					test := addTest***REMOVED***
+						mtyp:      mtyp,
+						valueType: valueType,
+					***REMOVED***
+					test.rt = goja.New()
+					test.rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 					mii := &modulestest.InstanceCore***REMOVED***
-						Runtime: rt,
+						Runtime: test.rt,
 						InitEnv: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
 						Ctx:     context.Background(),
 					***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
-					require.NoError(t, rt.Set("metrics", m.GetExports().Named))
-					samples := make(chan stats.SampleContainer, 1000)
+					require.NoError(t, test.rt.Set("metrics", m.GetExports().Named))
+					test.samples = make(chan stats.SampleContainer, 1000)
 					state := &lib.State***REMOVED***
 						Options: lib.Options***REMOVED******REMOVED***,
-						Samples: samples,
+						Samples: test.samples,
 						Tags:    map[string]string***REMOVED***"key": "value"***REMOVED***,
 					***REMOVED***
 
@@ -93,91 +140,38 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					if isTime ***REMOVED***
 						isTimeString = `, true`
 					***REMOVED***
-					_, err := rt.RunString(fmt.Sprintf(`var m = new metrics.%s("my_metric"%s)`, fn, isTimeString))
+					_, err := test.rt.RunString(fmt.Sprintf(`var m = new metrics.%s("my_metric"%s)`, fn, isTimeString))
 					require.NoError(t, err)
 
 					t.Run("ExitInit", func(t *testing.T) ***REMOVED***
 						mii.State = state
 						mii.InitEnv = nil
-						_, err := rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
+						_, err := test.rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
 						assert.Contains(t, err.Error(), "metrics must be declared in the init context")
 					***REMOVED***)
 					mii.State = state
 					logger := logrus.New()
 					logger.Out = ioutil.Discard
-					hook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
-					logger.AddHook(hook)
+					test.hook = &testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
+					logger.AddHook(test.hook)
 					state.Logger = logger
+
 					for name, val := range values ***REMOVED***
-						name, val := name, val
-						t.Run(name, func(t *testing.T) ***REMOVED***
-							for _, isThrow := range []bool***REMOVED***false, true***REMOVED*** ***REMOVED***
-								state.Options.Throw.Bool = isThrow
-								t.Run(fmt.Sprintf("isThrow=%v", isThrow), func(t *testing.T) ***REMOVED***
-									t.Run("Simple", func(t *testing.T) ***REMOVED***
-										_, err := rt.RunString(fmt.Sprintf(`m.add(%v)`, val.JS))
-										if val.isError && isThrow ***REMOVED***
-											if assert.Error(t, err) ***REMOVED***
-												return
-											***REMOVED***
-										***REMOVED*** else ***REMOVED***
-											assert.NoError(t, err)
-											if val.isError && !isThrow ***REMOVED***
-												lines := hook.Drain()
-												require.Len(t, lines, 1)
-												assert.Contains(t, lines[0].Message, "is an invalid value for metric")
-												return
-											***REMOVED***
-										***REMOVED***
-										bufSamples := stats.GetBufferedSamples(samples)
-										if assert.Len(t, bufSamples, 1) ***REMOVED***
-											sample, ok := bufSamples[0].(stats.Sample)
-											require.True(t, ok)
-
-											assert.NotZero(t, sample.Time)
-											assert.Equal(t, val.Float, sample.Value)
-											assert.Equal(t, map[string]string***REMOVED***
-												"key": "value",
-											***REMOVED***, sample.Tags.CloneTags())
-											assert.Equal(t, "my_metric", sample.Metric.Name)
-											assert.Equal(t, mtyp, sample.Metric.Type)
-											assert.Equal(t, valueType, sample.Metric.Contains)
-										***REMOVED***
-									***REMOVED***)
-									t.Run("Tags", func(t *testing.T) ***REMOVED***
-										_, err := rt.RunString(fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS))
-										if val.isError && isThrow ***REMOVED***
-											if assert.Error(t, err) ***REMOVED***
-												return
-											***REMOVED***
-										***REMOVED*** else ***REMOVED***
-											assert.NoError(t, err)
-											if val.isError && !isThrow ***REMOVED***
-												lines := hook.Drain()
-												require.Len(t, lines, 1)
-												assert.Contains(t, lines[0].Message, "is an invalid value for metric")
-												return
-											***REMOVED***
-										***REMOVED***
-										bufSamples := stats.GetBufferedSamples(samples)
-										if assert.Len(t, bufSamples, 1) ***REMOVED***
-											sample, ok := bufSamples[0].(stats.Sample)
-											require.True(t, ok)
-
-											assert.NotZero(t, sample.Time)
-											assert.Equal(t, val.Float, sample.Value)
-											assert.Equal(t, map[string]string***REMOVED***
-												"key": "value",
-												"a":   "1",
-											***REMOVED***, sample.Tags.CloneTags())
-											assert.Equal(t, "my_metric", sample.Metric.Name)
-											assert.Equal(t, mtyp, sample.Metric.Type)
-											assert.Equal(t, valueType, sample.Metric.Contains)
-										***REMOVED***
-									***REMOVED***)
-								***REMOVED***)
-							***REMOVED***
-						***REMOVED***)
+						test.val = val
+						for _, isThrow := range []bool***REMOVED***false, true***REMOVED*** ***REMOVED***
+							state.Options.Throw.Bool = isThrow
+							test.isThrow = isThrow
+							t.Run(fmt.Sprintf("%s/isThrow=%v/Simple", name, isThrow), func(t *testing.T) ***REMOVED***
+								test.js = fmt.Sprintf(`m.add(%v)`, val.JS)
+								test.expectedTags = map[string]string***REMOVED***"key": "value"***REMOVED***
+								test.run(t)
+							***REMOVED***)
+							t.Run(fmt.Sprintf("%s/isThrow=%v/Tags", name, isThrow), func(t *testing.T) ***REMOVED***
+								test.js = fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS)
+								test.expectedTags = map[string]string***REMOVED***"key": "value", "a": "1"***REMOVED***
+								test.run(t)
+							***REMOVED***)
+						***REMOVED***
 					***REMOVED***
 				***REMOVED***)
 			***REMOVED***
