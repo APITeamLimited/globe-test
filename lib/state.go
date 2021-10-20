@@ -26,6 +26,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"sync"
 
 	"github.com/oxtoacart/bpool"
 	"github.com/sirupsen/logrus"
@@ -70,7 +71,7 @@ type State struct ***REMOVED***
 
 	VUID, VUIDGlobal uint64
 	Iteration        int64
-	Tags             map[string]string
+	Tags             *TagMap
 	// These will be assigned on VU activation.
 	// Returns the iteration number of this VU in the current scenario.
 	GetScenarioVUIter func() uint64
@@ -88,8 +89,65 @@ type State struct ***REMOVED***
 
 // CloneTags makes a copy of the tags map and returns it.
 func (s *State) CloneTags() map[string]string ***REMOVED***
-	tags := make(map[string]string, len(s.Tags))
-	for k, v := range s.Tags ***REMOVED***
+	return s.Tags.Clone()
+***REMOVED***
+
+// TagMap is a safe-concurrent Tags lookup.
+type TagMap struct ***REMOVED***
+	m     map[string]string
+	mutex sync.RWMutex
+***REMOVED***
+
+// NewTagMap creates a TagMap,
+// if a not-nil map is passed then it will be used as the internal map
+// otherwise a new one will be created.
+func NewTagMap(m map[string]string) *TagMap ***REMOVED***
+	if m == nil ***REMOVED***
+		m = make(map[string]string)
+	***REMOVED***
+	return &TagMap***REMOVED***
+		m:     m,
+		mutex: sync.RWMutex***REMOVED******REMOVED***,
+	***REMOVED***
+***REMOVED***
+
+// Set sets a Tag.
+func (tg *TagMap) Set(k, v string) ***REMOVED***
+	tg.mutex.Lock()
+	defer tg.mutex.Unlock()
+	tg.m[k] = v
+***REMOVED***
+
+// Get returns the Tag value and true
+// if the provided key has been found.
+func (tg *TagMap) Get(k string) (string, bool) ***REMOVED***
+	tg.mutex.RLock()
+	defer tg.mutex.RUnlock()
+	v, ok := tg.m[k]
+	return v, ok
+***REMOVED***
+
+// Len returns the number of the set keys.
+func (tg *TagMap) Len() int ***REMOVED***
+	tg.mutex.RLock()
+	defer tg.mutex.RUnlock()
+	return len(tg.m)
+***REMOVED***
+
+// Delete deletes a map's item based on the provided key.
+func (tg *TagMap) Delete(k string) ***REMOVED***
+	tg.mutex.Lock()
+	defer tg.mutex.Unlock()
+	delete(tg.m, k)
+***REMOVED***
+
+// Clone returns a map with the entire set of items.
+func (tg *TagMap) Clone() map[string]string ***REMOVED***
+	tg.mutex.RLock()
+	defer tg.mutex.RUnlock()
+
+	tags := make(map[string]string, len(tg.m))
+	for k, v := range tg.m ***REMOVED***
 		tags[k] = v
 	***REMOVED***
 	return tags
