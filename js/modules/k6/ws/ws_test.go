@@ -20,6 +20,7 @@
 package ws
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -88,6 +89,43 @@ func assertMetricEmittedCount(t *testing.T, metricName string, sampleContainers 
 		***REMOVED***
 	***REMOVED***
 	assert.Equal(t, count, actualCount, "url %s emitted %s %d times, expected was %d times", url, metricName, actualCount, count)
+***REMOVED***
+
+func newRuntime(t testing.TB) (*httpmultibin.HTTPMultiBin, chan stats.SampleContainer, *goja.Runtime) ***REMOVED***
+	tb := httpmultibin.NewHTTPMultiBin(t)
+
+	root, err := lib.NewGroup("", nil)
+	require.NoError(t, err)
+
+	rt := goja.New()
+	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
+
+	samples := make(chan stats.SampleContainer, 1000)
+
+	state := &lib.State***REMOVED***
+		Group:  root,
+		Dialer: tb.Dialer,
+		Options: lib.Options***REMOVED***
+			SystemTags: stats.NewSystemTagSet(
+				stats.TagURL,
+				stats.TagProto,
+				stats.TagStatus,
+				stats.TagSubproto,
+			),
+			UserAgent: null.StringFrom("TestUserAgent"),
+		***REMOVED***,
+		Samples:        samples,
+		TLSConfig:      tb.TLSClientConfig,
+		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+	***REMOVED***
+
+	ctx := new(context.Context)
+	*ctx = lib.WithState(tb.Context, state)
+	*ctx = common.WithRuntime(*ctx, rt)
+	err = rt.Set("ws", common.Bind(rt, New(), ctx))
+	assert.NoError(t, err)
+
+	return tb, samples, rt
 ***REMOVED***
 
 func TestSession(t *testing.T) ***REMOVED***
@@ -935,4 +973,218 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 	assert.NoError(t, err)
 
 	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-echo-useragent"), statusProtocolSwitch, "")
+***REMOVED***
+
+func TestCompression(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	t.Run("session", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		const text string = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas sed pharetra sapien. Nunc laoreet molestie ante ac gravida. Etiam interdum dui viverra posuere egestas. Pellentesque at dolor tristique, mattis turpis eget, commodo purus. Nunc orci aliquam.`
+
+		tb, samples, rt := newRuntime(t)
+		sr := tb.Replacer.Replace
+		tb.Mux.HandleFunc("/ws-compression", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+			upgrader := websocket.Upgrader***REMOVED***
+				EnableCompression: true,
+				ReadBufferSize:    1024,
+				WriteBufferSize:   1024,
+			***REMOVED***
+
+			conn, e := upgrader.Upgrade(w, req, w.Header())
+			if e != nil ***REMOVED***
+				t.Fatalf("/ws-compression cannot upgrade request: %v", e)
+				return
+			***REMOVED***
+
+			// send a message and exit
+			if e = conn.WriteMessage(websocket.TextMessage, []byte(text)); e != nil ***REMOVED***
+				t.Logf("error while sending message in /ws-compression: %v", e)
+				return
+			***REMOVED***
+
+			e = conn.Close()
+			if e != nil ***REMOVED***
+				t.Logf("error while closing connection in /ws-compression: %v", e)
+				return
+			***REMOVED***
+		***REMOVED***))
+
+		_, err := rt.RunString(sr(`
+		// if client supports compression, it has to send the header 
+		// 'Sec-Websocket-Extensions:permessage-deflate; server_no_context_takeover; client_no_context_takeover' to server.
+		// if compression is negotiated successfully, server will reply with header 
+		// 'Sec-Websocket-Extensions:permessage-deflate; server_no_context_takeover; client_no_context_takeover'
+
+		var params = ***REMOVED***
+			"compression": "deflate"
+		***REMOVED***
+		var res = ws.connect("WSBIN_URL/ws-compression", params, function(socket)***REMOVED***
+			socket.on('message', (data) => ***REMOVED***
+				if(data != "` + text + `")***REMOVED***
+					throw new Error("wrong message received from server: ", data)
+				***REMOVED***
+				socket.close()
+			***REMOVED***)
+		***REMOVED***);
+
+		var wsExtensions = res.headers["Sec-Websocket-Extensions"].split(';').map(e => e.trim())
+		if (!(wsExtensions.includes("permessage-deflate") && wsExtensions.includes("server_no_context_takeover") && wsExtensions.includes("client_no_context_takeover")))***REMOVED***
+			throw new Error("websocket compression negotiation failed");
+		***REMOVED***
+		`))
+
+		assert.NoError(t, err)
+		assertSessionMetricsEmitted(t, stats.GetBufferedSamples(samples), "", sr("WSBIN_URL/ws-compression"), statusProtocolSwitch, "")
+	***REMOVED***)
+
+	t.Run("params", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		testCases := []struct ***REMOVED***
+			compression   string
+			expectedError string
+		***REMOVED******REMOVED***
+			***REMOVED***compression: ""***REMOVED***,
+			***REMOVED***compression: "  "***REMOVED***,
+			***REMOVED***compression: "deflate"***REMOVED***,
+			***REMOVED***compression: "deflate "***REMOVED***,
+			***REMOVED***
+				compression:   "gzip",
+				expectedError: `unsupported compression algorithm 'gzip', supported algorithm is 'deflate'`,
+			***REMOVED***,
+			***REMOVED***
+				compression:   "deflate, gzip",
+				expectedError: `unsupported compression algorithm 'deflate, gzip', supported algorithm is 'deflate'`,
+			***REMOVED***,
+			***REMOVED***
+				compression:   "deflate, deflate",
+				expectedError: `unsupported compression algorithm 'deflate, deflate', supported algorithm is 'deflate'`,
+			***REMOVED***,
+			***REMOVED***
+				compression:   "deflate, ",
+				expectedError: `unsupported compression algorithm 'deflate,', supported algorithm is 'deflate'`,
+			***REMOVED***,
+		***REMOVED***
+
+		for _, testCase := range testCases ***REMOVED***
+			testCase := testCase
+			t.Run(testCase.compression, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+				tb, _, rt := newRuntime(t)
+				sr := tb.Replacer.Replace
+				tb.Mux.HandleFunc("/ws-compression-param", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+					upgrader := websocket.Upgrader***REMOVED***
+						EnableCompression: true,
+						ReadBufferSize:    1024,
+						WriteBufferSize:   1024,
+					***REMOVED***
+
+					conn, e := upgrader.Upgrade(w, req, w.Header())
+					if e != nil ***REMOVED***
+						t.Fatalf("/ws-compression-param cannot upgrade request: %v", e)
+						return
+					***REMOVED***
+
+					e = conn.Close()
+					if e != nil ***REMOVED***
+						t.Logf("error while closing connection in /ws-compression-param: %v", e)
+						return
+					***REMOVED***
+				***REMOVED***))
+
+				_, err := rt.RunString(sr(`
+					var res = ws.connect("WSBIN_URL/ws-compression-param", ***REMOVED***"compression":"` + testCase.compression + `"***REMOVED***, function(socket)***REMOVED***
+						socket.close()
+					***REMOVED***);
+				`))
+
+				if testCase.expectedError == "" ***REMOVED***
+					require.NoError(t, err)
+				***REMOVED*** else ***REMOVED***
+					require.Error(t, err)
+					require.Contains(t, err.Error(), testCase.expectedError)
+				***REMOVED***
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
+***REMOVED***
+
+func clearSamples(tb *httpmultibin.HTTPMultiBin, samples chan stats.SampleContainer) ***REMOVED***
+	ctxDone := tb.Context.Done()
+	for ***REMOVED***
+		select ***REMOVED***
+		case <-samples:
+		case <-ctxDone:
+			return
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+func BenchmarkCompression(b *testing.B) ***REMOVED***
+	const textMessage = 1
+	tb, samples, rt := newRuntime(b)
+	sr := tb.Replacer.Replace
+	go clearSamples(tb, samples)
+
+	testCodes := []string***REMOVED***
+		sr(`
+		var res = ws.connect("WSBIN_URL/ws-compression", ***REMOVED***"compression":"deflate"***REMOVED***, (socket) => ***REMOVED***
+			socket.on('message', (data) => ***REMOVED***
+				socket.close()
+			***REMOVED***)
+		***REMOVED***);
+		`),
+		sr(`
+		var res = ws.connect("WSBIN_URL/ws-compression", ***REMOVED******REMOVED***, (socket) => ***REMOVED***
+			socket.on('message', (data) => ***REMOVED***
+				socket.close()
+			***REMOVED***)
+		***REMOVED***);
+		`),
+	***REMOVED***
+
+	tb.Mux.HandleFunc("/ws-compression", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+		kbData := bytes.Repeat([]byte("0123456789"), 100)
+
+		// upgrade connection, send the first (long) message, disconnect
+		upgrader := websocket.Upgrader***REMOVED***
+			EnableCompression: true,
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+		***REMOVED***
+
+		conn, e := upgrader.Upgrade(w, req, w.Header())
+
+		if e != nil ***REMOVED***
+			b.Fatalf("/ws-compression cannot upgrade request: %v", e)
+			return
+		***REMOVED***
+
+		if e = conn.WriteMessage(textMessage, kbData); e != nil ***REMOVED***
+			b.Fatalf("/ws-compression cannot write message: %v", e)
+			return
+		***REMOVED***
+
+		e = conn.Close()
+		if e != nil ***REMOVED***
+			b.Logf("error while closing connection in /ws-compression: %v", e)
+			return
+		***REMOVED***
+	***REMOVED***))
+
+	b.ResetTimer()
+	b.Run("compression-enabled", func(b *testing.B) ***REMOVED***
+		for i := 0; i < b.N; i++ ***REMOVED***
+			if _, err := rt.RunString(testCodes[0]); err != nil ***REMOVED***
+				b.Error(err)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***)
+	b.Run("compression-disabled", func(b *testing.B) ***REMOVED***
+		for i := 0; i < b.N; i++ ***REMOVED***
+			if _, err := rt.RunString(testCodes[1]); err != nil ***REMOVED***
+				b.Error(err)
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***)
 ***REMOVED***
