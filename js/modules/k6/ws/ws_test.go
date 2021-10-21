@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"strconv"
 	"testing"
@@ -38,9 +39,11 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
+	httpModule "go.k6.io/k6/js/modules/k6/http"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
+
 	"go.k6.io/k6/stats"
 )
 
@@ -1201,4 +1204,62 @@ func BenchmarkCompression(b *testing.B) ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***)
+***REMOVED***
+
+func TestCookieJar(t *testing.T) ***REMOVED***
+	t.Parallel()
+	ts := newTestState(t)
+	sr := ts.tb.Replacer.Replace
+
+	ts.tb.Mux.HandleFunc("/ws-echo-someheader", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) ***REMOVED***
+		responseHeaders := w.Header().Clone()
+		if sh, err := req.Cookie("someheader"); err == nil ***REMOVED***
+			responseHeaders.Add("Echo-Someheader", sh.Value)
+		***REMOVED***
+
+		conn, err := (&websocket.Upgrader***REMOVED******REMOVED***).Upgrade(w, req, responseHeaders)
+		if err != nil ***REMOVED***
+			t.Fatalf("/ws-echo-someheader cannot upgrade request: %v", err)
+		***REMOVED***
+
+		err = conn.Close()
+		if err != nil ***REMOVED***
+			t.Logf("error while closing connection in /ws-echo-someheader: %v", err)
+		***REMOVED***
+	***REMOVED***))
+	err := ts.rt.Set("http", common.Bind(ts.rt, httpModule.New().NewModuleInstancePerVU(), ts.ctxPtr))
+	require.NoError(t, err)
+	ts.state.CookieJar, _ = cookiejar.New(nil)
+
+	_, err = ts.rt.RunString(sr(`
+		var res = ws.connect("WSBIN_URL/ws-echo-someheader", function(socket)***REMOVED***
+			socket.close()
+		***REMOVED***)
+		var someheader = res.headers["Echo-Someheader"];
+		if (someheader !== undefined) ***REMOVED***
+			throw new Error("someheader is echoed back by test server even though it doesn't exist");
+		***REMOVED***
+
+		http.cookieJar().set("HTTPBIN_URL/ws-echo-someheader", "someheader", "defaultjar")
+		res = ws.connect("WSBIN_URL/ws-echo-someheader", function(socket)***REMOVED***
+			socket.close()
+		***REMOVED***)
+		someheader = res.headers["Echo-Someheader"];
+		if (someheader != "defaultjar") ***REMOVED***
+			throw new Error("someheader has wrong value "+ someheader + " instead of defaultjar");
+		***REMOVED***
+
+		var jar = new http.CookieJar();
+		jar.set("HTTPBIN_URL/ws-echo-someheader", "someheader", "customjar")
+		res = ws.connect("WSBIN_URL/ws-echo-someheader", ***REMOVED***jar: jar***REMOVED***, function(socket)***REMOVED***
+			socket.close()
+		***REMOVED***)
+		someheader = res.headers["Echo-Someheader"];
+		if (someheader != "customjar") ***REMOVED***
+			throw new Error("someheader has wrong value "+ someheader + " instead of customjar");
+		***REMOVED***
+		`))
+	assert.NoError(t, err)
+
+	assertSessionMetricsEmitted(t, stats.GetBufferedSamples(ts.samples), "", sr("WSBIN_URL/ws-echo-someheader"), statusProtocolSwitch, "")
 ***REMOVED***
