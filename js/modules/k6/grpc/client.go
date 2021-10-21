@@ -56,6 +56,7 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/stats"
+	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 )
 
 //nolint: lll
@@ -149,19 +150,38 @@ func (c *Client) Load(ctxPtr *context.Context, importPaths []string, filenames .
 	for _, fd := range fds ***REMOVED***
 		fdset.File = append(fdset.File, walkFileDescriptors(seen, fd)...)
 	***REMOVED***
+	return c.convertToMethodInfo(fdset)
+***REMOVED***
 
+func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]MethodInfo, error) ***REMOVED***
 	files, err := protodesc.NewFiles(fdset)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-
 	var rtn []MethodInfo
 	if c.mds == nil ***REMOVED***
 		// This allows us to call load() multiple times, without overwriting the
 		// previously loaded definitions.
 		c.mds = make(map[string]protoreflect.MethodDescriptor)
 	***REMOVED***
-
+	appendMethodInfo := func(
+		fd protoreflect.FileDescriptor,
+		sd protoreflect.ServiceDescriptor,
+		md protoreflect.MethodDescriptor,
+	) ***REMOVED***
+		name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
+		c.mds[name] = md
+		rtn = append(rtn, MethodInfo***REMOVED***
+			MethodInfo: grpc.MethodInfo***REMOVED***
+				Name:           string(md.Name()),
+				IsClientStream: md.IsStreamingClient(),
+				IsServerStream: md.IsStreamingServer(),
+			***REMOVED***,
+			Package:    string(fd.Package()),
+			Service:    string(sd.Name()),
+			FullMethod: name,
+		***REMOVED***)
+	***REMOVED***
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool ***REMOVED***
 		sds := fd.Services()
 		for i := 0; i < sds.Len(); i++ ***REMOVED***
@@ -169,23 +189,11 @@ func (c *Client) Load(ctxPtr *context.Context, importPaths []string, filenames .
 			mds := sd.Methods()
 			for j := 0; j < mds.Len(); j++ ***REMOVED***
 				md := mds.Get(j)
-				name := fmt.Sprintf("/%s/%s", sd.FullName(), md.Name())
-				c.mds[name] = md
-				rtn = append(rtn, MethodInfo***REMOVED***
-					MethodInfo: grpc.MethodInfo***REMOVED***
-						Name:           string(md.Name()),
-						IsClientStream: md.IsStreamingClient(),
-						IsServerStream: md.IsStreamingServer(),
-					***REMOVED***,
-					Package:    string(fd.Package()),
-					Service:    string(sd.Name()),
-					FullMethod: name,
-				***REMOVED***)
+				appendMethodInfo(fd, sd, md)
 			***REMOVED***
 		***REMOVED***
 		return true
 	***REMOVED***)
-
 	return rtn, nil
 ***REMOVED***
 
@@ -205,14 +213,13 @@ func (t transportCreds) ClientHandshake(ctx context.Context,
 ***REMOVED***
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
-// nolint: funlen
+// nolint:funlen,cyclop
 func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
 	state := lib.GetState(*ctxPtr)
 	if state == nil ***REMOVED***
 		return false, errConnectInInitContext
 	***REMOVED***
-
-	isPlaintext, timeout := false, 60*time.Second
+	isPlaintext, reflect, timeout := false, false, 60*time.Second
 
 	for k, v := range params ***REMOVED***
 		switch k ***REMOVED***
@@ -224,6 +231,13 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			if err != nil ***REMOVED***
 				return false, fmt.Errorf("invalid timeout value: %w", err)
 			***REMOVED***
+		case "reflect":
+			var ok bool
+			reflect, ok = v.(bool)
+			if !ok ***REMOVED***
+				return false, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
+			***REMOVED***
+
 		default:
 			return false, fmt.Errorf("unknown connect param: %q", k)
 		***REMOVED***
@@ -277,43 +291,118 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 		c.conn, err = grpc.DialContext(ctx, addr, opts...)
 		if err != nil ***REMOVED***
 			errc <- err
-
 			return
+		***REMOVED***
+		if reflect ***REMOVED***
+			err := c.reflect(ctx)
+			if err != nil ***REMOVED***
+				errc <- err
+				return
+			***REMOVED***
 		***REMOVED***
 		close(errc)
 	***REMOVED***()
+	err := <-errc
+	return err == nil, err
+***REMOVED***
 
-	if err := <-errc; err != nil ***REMOVED***
-		return false, err
+// reflect will use the grpc reflection api to make the file descriptors available to request.
+// It is called in the connect function the first time the Client.Connect function is called.
+func (c *Client) reflect(ctx context.Context) error ***REMOVED***
+	client := reflectpb.NewServerReflectionClient(c.conn)
+	methodClient, err := client.ServerReflectionInfo(ctx)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("can't get server info: %w", err)
 	***REMOVED***
+	req := &reflectpb.ServerReflectionRequest***REMOVED***
+		MessageRequest: &reflectpb.ServerReflectionRequest_ListServices***REMOVED******REMOVED***,
+	***REMOVED***
+	resp, err := sendReceive(methodClient, req)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("can't list services: %w", err)
+	***REMOVED***
+	listResp := resp.GetListServicesResponse()
+	if listResp == nil ***REMOVED***
+		return fmt.Errorf("can't list services, nil response")
+	***REMOVED***
+	fdset, err := resolveFileDescriptors(methodClient, listResp)
+	if err != nil ***REMOVED***
+		return fmt.Errorf("resolveFileDescriptors: %w", err)
+	***REMOVED***
+	_, err = c.convertToMethodInfo(fdset)
+	if err != nil ***REMOVED***
+		err = fmt.Errorf("can't convert method info: %w", err)
+	***REMOVED***
+	return err
+***REMOVED***
 
-	return true, nil
+func resolveFileDescriptors(
+	mc reflectpb.ServerReflection_ServerReflectionInfoClient,
+	res *reflectpb.ListServiceResponse,
+) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
+	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
+	for _, service := range res.GetService() ***REMOVED***
+		req := &reflectpb.ServerReflectionRequest***REMOVED***
+			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
+				FileContainingSymbol: service.GetName(),
+			***REMOVED***,
+		***REMOVED***
+		resp, err := sendReceive(mc, req)
+		if err != nil ***REMOVED***
+			return nil, fmt.Errorf("can't get method on service %q: %w", service, err)
+		***REMOVED***
+		fdResp := resp.GetFileDescriptorResponse()
+		for _, raw := range fdResp.GetFileDescriptorProto() ***REMOVED***
+			var fdp descriptorpb.FileDescriptorProto
+			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
+				return nil, fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
+			***REMOVED***
+			fdset.File = append(fdset.File, &fdp)
+		***REMOVED***
+	***REMOVED***
+	return fdset, nil
+***REMOVED***
+
+// sendReceive sends a request to a reflection client and,
+// receives a response.
+func sendReceive(
+	client reflectpb.ServerReflection_ServerReflectionInfoClient,
+	req *reflectpb.ServerReflectionRequest,
+) (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
+	if err := client.Send(req); err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't send request: %w", err)
+	***REMOVED***
+	resp, err := client.Recv()
+	if err != nil ***REMOVED***
+		return nil, fmt.Errorf("can't receive response: %w", err)
+	***REMOVED***
+	return resp, nil
 ***REMOVED***
 
 // Invoke creates and calls a unary RPC by fully qualified method name
-//nolint: funlen,gocognit,gocyclo
-func (c *Client) Invoke(ctxPtr *context.Context,
-	method string, req goja.Value, params map[string]interface***REMOVED******REMOVED***) (*Response, error) ***REMOVED***
+//nolint: funlen,gocognit,gocyclo,cyclop
+func (c *Client) Invoke(
+	ctxPtr *context.Context,
+	method string,
+	req goja.Value,
+	params map[string]interface***REMOVED******REMOVED***,
+) (*Response, error) ***REMOVED***
 	ctx := *ctxPtr
 	rt := common.GetRuntime(ctx)
 	state := lib.GetState(ctx)
 	if state == nil ***REMOVED***
 		return nil, errInvokeRPCInInitContext
 	***REMOVED***
-
 	if c.conn == nil ***REMOVED***
 		return nil, errors.New("no gRPC connection, you must call connect first")
 	***REMOVED***
-
 	if method == "" ***REMOVED***
 		return nil, errors.New("method to invoke cannot be empty")
 	***REMOVED***
-
 	if method[0] != '/' ***REMOVED***
 		method = "/" + method
 	***REMOVED***
 	md := c.mds[method]
-
 	if md == nil ***REMOVED***
 		return nil, fmt.Errorf("method %q not found in file descriptors", method)
 	***REMOVED***
@@ -362,7 +451,6 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
 		tags["url"] = fmt.Sprintf("%s%s", c.conn.Target(), method)
 	***REMOVED***
-
 	parts := strings.Split(method[1:], "/")
 	if state.Options.SystemTags.Has(stats.TagService) ***REMOVED***
 		tags["service"] = parts[0]
@@ -382,10 +470,10 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 	***REMOVED***
 		b, err := req.ToObject(rt).MarshalJSON()
 		if err != nil ***REMOVED***
-			return nil, fmt.Errorf("unable to serialise request object: %v", err)
+			return nil, fmt.Errorf("unable to serialise request object: %w", err)
 		***REMOVED***
 		if err := protojson.Unmarshal(b, reqdm); err != nil ***REMOVED***
-			return nil, fmt.Errorf("unable to serialise request object to protocol buffer: %v", err)
+			return nil, fmt.Errorf("unable to serialise request object to protocol buffer: %w", err)
 		***REMOVED***
 	***REMOVED***
 
@@ -438,7 +526,6 @@ func (c *Client) Invoke(ctxPtr *context.Context,
 		_ = json.Unmarshal(raw, &msg)
 		response.Message = msg
 	***REMOVED***
-
 	return &response, nil
 ***REMOVED***
 
@@ -474,7 +561,6 @@ func (*Client) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Cont
 func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
 	state := lib.GetState(ctx)
 	tags := getTags(ctx)
-
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
 		if state.Options.SystemTags.Has(stats.TagIP) && s.RemoteAddr != nil ***REMOVED***
@@ -570,6 +656,5 @@ func formatPayload(payload interface***REMOVED******REMOVED***) string ***REMOVE
 	if err != nil ***REMOVED***
 		return ""
 	***REMOVED***
-
 	return string(b)
 ***REMOVED***
