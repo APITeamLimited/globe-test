@@ -133,7 +133,9 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					state := &lib.State***REMOVED***
 						Options: lib.Options***REMOVED******REMOVED***,
 						Samples: test.samples,
-						Tags:    map[string]string***REMOVED***"key": "value"***REMOVED***,
+						Tags: lib.NewTagMap(map[string]string***REMOVED***
+							"key": "value",
+						***REMOVED***),
 					***REMOVED***
 
 					isTimeString := ""

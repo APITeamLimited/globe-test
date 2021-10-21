@@ -245,7 +245,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 		VUID:           vu.ID,
 		VUIDGlobal:     vu.IDGlobal,
 		Samples:        vu.Samples,
-		Tags:           vu.Runner.Bundle.Options.RunTags.CloneTags(),
+		Tags:           lib.NewTagMap(vu.Runner.Bundle.Options.RunTags.CloneTags()),
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.builtinMetrics,
 	***REMOVED***
@@ -505,7 +505,7 @@ func (r *Runner) runPart(ctx context.Context, out chan<- stats.SampleContainer, 
 	***REMOVED***
 
 	if r.Bundle.Options.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		vu.state.Tags["group"] = group.Path
+		vu.state.Tags.Set("group", group.Path)
 	***REMOVED***
 	vu.state.Group = group
 
@@ -604,21 +604,21 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
 
 	opts := u.Runner.Bundle.Options
 	// TODO: maybe we can cache the original tags only clone them and add (if any) new tags on top ?
-	u.state.Tags = opts.RunTags.CloneTags()
+	u.state.Tags = lib.NewTagMap(opts.RunTags.CloneTags())
 	for k, v := range params.Tags ***REMOVED***
-		u.state.Tags[k] = v
+		u.state.Tags.Set(k, v)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagVU) ***REMOVED***
-		u.state.Tags["vu"] = strconv.FormatUint(u.ID, 10)
+		u.state.Tags.Set("vu", strconv.FormatUint(u.ID, 10))
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.iteration, 10)
+		u.state.Tags.Set("iter", strconv.FormatInt(u.iteration, 10))
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagGroup) ***REMOVED***
-		u.state.Tags["group"] = u.state.Group.Path
+		u.state.Tags.Set("group", u.state.Group.Path)
 	***REMOVED***
 	if opts.SystemTags.Has(stats.TagScenario) ***REMOVED***
-		u.state.Tags["scenario"] = params.Scenario
+		u.state.Tags.Set("scenario", params.Scenario)
 	***REMOVED***
 
 	ctx := common.WithRuntime(params.RunContext, u.Runtime)
@@ -731,7 +731,7 @@ func (u *VU) runFn(
 
 	opts := &u.Runner.Bundle.Options
 	if opts.SystemTags.Has(stats.TagIter) ***REMOVED***
-		u.state.Tags["iter"] = strconv.FormatInt(u.state.Iteration, 10)
+		u.state.Tags.Set("iter", strconv.FormatInt(u.state.Iteration, 10))
 	***REMOVED***
 
 	defer func() ***REMOVED***
@@ -769,8 +769,9 @@ func (u *VU) runFn(
 		u.Transport.CloseIdleConnections()
 	***REMOVED***
 
+	sampleTags := stats.NewSampleTags(u.state.CloneTags())
 	u.state.Samples <- u.Dialer.GetTrail(
-		startTime, endTime, isFullIteration, isDefault, stats.NewSampleTags(u.state.Tags), u.Runner.builtinMetrics)
+		startTime, endTime, isFullIteration, isDefault, sampleTags, u.Runner.builtinMetrics)
 
 	return v, isFullIteration, endTime.Sub(startTime), err
 ***REMOVED***

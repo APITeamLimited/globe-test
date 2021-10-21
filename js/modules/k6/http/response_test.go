@@ -169,10 +169,10 @@ func TestResponse(t *testing.T) ***REMOVED***
 			if assert.NoError(t, err) ***REMOVED***
 				old := state.Group
 				state.Group = g
-				state.Tags["group"] = g.Path
+				state.Tags.Set("group", g.Path)
 				defer func() ***REMOVED***
 					state.Group = old
-					state.Tags["group"] = old.Path
+					state.Tags.Set("group", old.Path)
 				***REMOVED***()
 			***REMOVED***
 

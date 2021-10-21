@@ -139,6 +139,7 @@ func TestMakeRequestError(t *testing.T) ***REMOVED***
 			Options:   lib.Options***REMOVED***RunTags: &stats.SampleTags***REMOVED******REMOVED******REMOVED***,
 			Transport: srv.Client().Transport,
 			Logger:    logger,
+			Tags:      lib.NewTagMap(nil),
 		***REMOVED***
 		ctx = lib.WithState(ctx, state)
 		req, _ := http.NewRequest("GET", srv.URL, nil)
@@ -192,6 +193,7 @@ func TestResponseStatus(t *testing.T) ***REMOVED***
 					Logger:         logger,
 					Samples:        samples,
 					BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+					Tags:           lib.NewTagMap(nil),
 				***REMOVED***
 				ctx := lib.WithState(context.Background(), state)
 				req, err := http.NewRequest("GET", server.URL, nil)
@@ -272,6 +274,7 @@ func TestMakeRequestTimeoutInTheMiddle(t *testing.T) ***REMOVED***
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	req, _ := http.NewRequest("GET", srv.URL, nil)
@@ -349,6 +352,7 @@ func TestTrailFailed(t *testing.T) ***REMOVED***
 				Logger:         logger,
 				BPool:          bpool.NewBufferPool(2),
 				BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+				Tags:           lib.NewTagMap(nil),
 			***REMOVED***
 			ctx = lib.WithState(ctx, state)
 			req, _ := http.NewRequest("GET", srv.URL, nil)
@@ -415,6 +419,7 @@ func TestMakeRequestDialTimeout(t *testing.T) ***REMOVED***
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx = lib.WithState(ctx, state)
@@ -470,6 +475,7 @@ func TestMakeRequestTimeoutInTheBegining(t *testing.T) ***REMOVED***
 		Logger:         logger,
 		BPool:          bpool.NewBufferPool(100),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	req, _ := http.NewRequest("GET", srv.URL, nil)

@@ -128,6 +128,7 @@ func newTestState(t testing.TB) testState ***REMOVED***
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := new(context.Context)
@@ -171,6 +172,7 @@ func TestSession(t *testing.T) ***REMOVED***
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := context.Background()
@@ -562,6 +564,7 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := context.Background()
@@ -652,6 +655,7 @@ func TestErrors(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		Samples:        samples,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := context.Background()
@@ -764,6 +768,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := context.Background()
@@ -827,6 +832,7 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		***REMOVED***,
 		Samples:        samples,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := context.Background()
@@ -966,6 +972,7 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 		Samples:        samples,
 		TLSConfig:      tb.TLSClientConfig,
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(metrics.NewRegistry()),
+		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
 	ctx := lib.WithState(context.Background(), state)

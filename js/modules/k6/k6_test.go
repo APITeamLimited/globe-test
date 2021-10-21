@@ -123,7 +123,11 @@ func TestGroup(t *testing.T) ***REMOVED***
 		assert.NoError(t, err)
 
 		rt := goja.New()
-		state := &lib.State***REMOVED***Group: root, Samples: make(chan stats.SampleContainer, 1000)***REMOVED***
+		state := &lib.State***REMOVED***
+			Group:   root,
+			Samples: make(chan stats.SampleContainer, 1000),
+			Tags:    lib.NewTagMap(nil),
+		***REMOVED***
 		ctx := context.Background()
 		ctx = lib.WithState(ctx, state)
 		ctx = common.WithRuntime(ctx, rt)
@@ -167,7 +171,9 @@ func checkTestRuntime(t testing.TB, ctxs ...*context.Context) (
 			SystemTags: &stats.DefaultSystemTagSet,
 		***REMOVED***,
 		Samples: samples,
-		Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
+		Tags: lib.NewTagMap(map[string]string***REMOVED***
+			"group": root.Path,
+		***REMOVED***),
 	***REMOVED***
 	ctx := context.Background()
 	if len(ctxs) == 1 ***REMOVED*** // hacks

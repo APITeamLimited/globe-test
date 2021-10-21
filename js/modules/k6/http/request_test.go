@@ -156,14 +156,16 @@ func newRuntime(
 	samples := make(chan stats.SampleContainer, 1000)
 
 	state := &lib.State***REMOVED***
-		Options:        options,
-		Logger:         logger,
-		Group:          root,
-		TLSConfig:      tb.TLSClientConfig,
-		Transport:      tb.HTTPTransport,
-		BPool:          bpool.NewBufferPool(1),
-		Samples:        samples,
-		Tags:           map[string]string***REMOVED***"group": root.Path***REMOVED***,
+		Options:   options,
+		Logger:    logger,
+		Group:     root,
+		TLSConfig: tb.TLSClientConfig,
+		Transport: tb.HTTPTransport,
+		BPool:     bpool.NewBufferPool(1),
+		Samples:   samples,
+		Tags: lib.NewTagMap(map[string]string***REMOVED***
+			"group": root.Path,
+		***REMOVED***),
 		BuiltinMetrics: metrics.RegisterBuiltinMetrics(registry),
 	***REMOVED***
 
@@ -1094,7 +1096,10 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			t.Run("tags-precedence", func(t *testing.T) ***REMOVED***
 				oldTags := state.Tags
 				defer func() ***REMOVED*** state.Tags = oldTags ***REMOVED***()
-				state.Tags = map[string]string***REMOVED***"runtag1": "val1", "runtag2": "val2"***REMOVED***
+				state.Tags = lib.NewTagMap(map[string]string***REMOVED***
+					"runtag1": "val1",
+					"runtag2": "val2",
+				***REMOVED***)
 
 				_, err := rt.RunString(sr(`
 				var res = http.request("GET", "HTTPBIN_URL/headers", null, ***REMOVED*** tags: ***REMOVED*** method: "test", name: "myName", runtag1: "fromreq" ***REMOVED*** ***REMOVED***);
