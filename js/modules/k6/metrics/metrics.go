@@ -22,6 +22,8 @@ package metrics
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/dop251/goja"
@@ -79,16 +81,35 @@ func (m Metric) add(v goja.Value, addTags ...map[string]string) (bool, error) **
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***
 
-	tags := state.CloneTags()
-	for _, ts := range addTags ***REMOVED***
-		for k, v := range ts ***REMOVED***
-			tags[k] = v
+	// return/throw exception if throw enabled, otherwise just log
+	raiseNan := func() (bool, error) ***REMOVED***
+		err := fmt.Errorf("'%s' is an invalid value for metric '%s', a number or a boolean value is expected",
+			v, m.metric.Name)
+		if state.Options.Throw.Bool ***REMOVED***
+			return false, err
 		***REMOVED***
+		state.Logger.Warn(err)
+		return false, nil
+	***REMOVED***
+
+	if goja.IsNull(v) ***REMOVED***
+		return raiseNan()
 	***REMOVED***
 
 	vfloat := v.ToFloat()
 	if vfloat == 0 && v.ToBoolean() ***REMOVED***
 		vfloat = 1.0
+	***REMOVED***
+
+	if math.IsNaN(vfloat) ***REMOVED***
+		return raiseNan()
+	***REMOVED***
+
+	tags := state.CloneTags()
+	for _, ts := range addTags ***REMOVED***
+		for k, v := range ts ***REMOVED***
+			tags[k] = v
+		***REMOVED***
 	***REMOVED***
 
 	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: stats.IntoSampleTags(&tags)***REMOVED***

@@ -23,17 +23,19 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"testing"
 
 	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
+	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/stats"
 )
 
@@ -46,13 +48,21 @@ func TestMetrics(t *testing.T) ***REMOVED***
 		"Rate":    stats.Rate,
 	***REMOVED***
 	values := map[string]struct ***REMOVED***
-		JS    string
-		Float float64
+		JS      string
+		Float   float64
+		isError bool
 	***REMOVED******REMOVED***
-		"Float": ***REMOVED***`2.5`, 2.5***REMOVED***,
-		"Int":   ***REMOVED***`5`, 5.0***REMOVED***,
-		"True":  ***REMOVED***`true`, 1.0***REMOVED***,
-		"False": ***REMOVED***`false`, 0.0***REMOVED***,
+		"Float":                 ***REMOVED***JS: `2.5`, Float: 2.5***REMOVED***,
+		"Int":                   ***REMOVED***JS: `5`, Float: 5.0***REMOVED***,
+		"True":                  ***REMOVED***JS: `true`, Float: 1.0***REMOVED***,
+		"False":                 ***REMOVED***JS: `false`, Float: 0.0***REMOVED***,
+		"null":                  ***REMOVED***JS: `null`, isError: true***REMOVED***,
+		"undefined":             ***REMOVED***JS: `undefined`, isError: true***REMOVED***,
+		"NaN":                   ***REMOVED***JS: `NaN`, isError: true***REMOVED***,
+		"string":                ***REMOVED***JS: `"string"`, isError: true***REMOVED***,
+		"string 5":              ***REMOVED***JS: `"5.3"`, Float: 5.3***REMOVED***,
+		"some object":           ***REMOVED***JS: `***REMOVED***something: 3***REMOVED***`, isError: true***REMOVED***,
+		"another metric object": ***REMOVED***JS: `m`, isError: true***REMOVED***,
 	***REMOVED***
 	for fn, mtyp := range types ***REMOVED***
 		fn, mtyp := fn, mtyp
@@ -72,14 +82,11 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
 					require.NoError(t, rt.Set("metrics", m.GetExports().Named))
-					root, _ := lib.NewGroup("", nil)
-					child, _ := root.Group("child")
 					samples := make(chan stats.SampleContainer, 1000)
 					state := &lib.State***REMOVED***
-						Options: lib.Options***REMOVED***SystemTags: stats.NewSystemTagSet(stats.TagGroup), Throw: null.BoolFrom(true)***REMOVED***,
-						Group:   root,
+						Options: lib.Options***REMOVED******REMOVED***,
 						Samples: samples,
-						Tags:    map[string]string***REMOVED***"group": root.Path***REMOVED***,
+						Tags:    map[string]string***REMOVED***"key": "value"***REMOVED***,
 					***REMOVED***
 
 					isTimeString := ""
@@ -95,31 +102,42 @@ func TestMetrics(t *testing.T) ***REMOVED***
 						_, err := rt.RunString(fmt.Sprintf(`new metrics.%s("my_metric")`, fn))
 						assert.Contains(t, err.Error(), "metrics must be declared in the init context")
 					***REMOVED***)
-
-					groups := map[string]*lib.Group***REMOVED***
-						"Root":  root,
-						"Child": child,
-					***REMOVED***
-					for name, g := range groups ***REMOVED***
-						name, g := name, g
+					mii.State = state
+					logger := logrus.New()
+					logger.Out = ioutil.Discard
+					hook := &testutils.SimpleLogrusHook***REMOVED***HookedLevels: logrus.AllLevels***REMOVED***
+					logger.AddHook(hook)
+					state.Logger = logger
+					for name, val := range values ***REMOVED***
+						name, val := name, val
 						t.Run(name, func(t *testing.T) ***REMOVED***
-							state.Group = g
-							state.Tags["group"] = g.Path
-							for name, val := range values ***REMOVED***
-								name, val := name, val
-								t.Run(name, func(t *testing.T) ***REMOVED***
+							for _, isThrow := range []bool***REMOVED***false, true***REMOVED*** ***REMOVED***
+								state.Options.Throw.Bool = isThrow
+								t.Run(fmt.Sprintf("isThrow=%v", isThrow), func(t *testing.T) ***REMOVED***
 									t.Run("Simple", func(t *testing.T) ***REMOVED***
 										_, err := rt.RunString(fmt.Sprintf(`m.add(%v)`, val.JS))
-										assert.NoError(t, err)
+										if val.isError && isThrow ***REMOVED***
+											if assert.Error(t, err) ***REMOVED***
+												return
+											***REMOVED***
+										***REMOVED*** else ***REMOVED***
+											assert.NoError(t, err)
+											if val.isError && !isThrow ***REMOVED***
+												lines := hook.Drain()
+												require.Len(t, lines, 1)
+												assert.Contains(t, lines[0].Message, "is an invalid value for metric")
+												return
+											***REMOVED***
+										***REMOVED***
 										bufSamples := stats.GetBufferedSamples(samples)
 										if assert.Len(t, bufSamples, 1) ***REMOVED***
 											sample, ok := bufSamples[0].(stats.Sample)
 											require.True(t, ok)
 
 											assert.NotZero(t, sample.Time)
-											assert.Equal(t, sample.Value, val.Float)
+											assert.Equal(t, val.Float, sample.Value)
 											assert.Equal(t, map[string]string***REMOVED***
-												"group": g.Path,
+												"key": "value",
 											***REMOVED***, sample.Tags.CloneTags())
 											assert.Equal(t, "my_metric", sample.Metric.Name)
 											assert.Equal(t, mtyp, sample.Metric.Type)
@@ -128,17 +146,29 @@ func TestMetrics(t *testing.T) ***REMOVED***
 									***REMOVED***)
 									t.Run("Tags", func(t *testing.T) ***REMOVED***
 										_, err := rt.RunString(fmt.Sprintf(`m.add(%v, ***REMOVED***a:1***REMOVED***)`, val.JS))
-										assert.NoError(t, err)
+										if val.isError && isThrow ***REMOVED***
+											if assert.Error(t, err) ***REMOVED***
+												return
+											***REMOVED***
+										***REMOVED*** else ***REMOVED***
+											assert.NoError(t, err)
+											if val.isError && !isThrow ***REMOVED***
+												lines := hook.Drain()
+												require.Len(t, lines, 1)
+												assert.Contains(t, lines[0].Message, "is an invalid value for metric")
+												return
+											***REMOVED***
+										***REMOVED***
 										bufSamples := stats.GetBufferedSamples(samples)
 										if assert.Len(t, bufSamples, 1) ***REMOVED***
 											sample, ok := bufSamples[0].(stats.Sample)
 											require.True(t, ok)
 
 											assert.NotZero(t, sample.Time)
-											assert.Equal(t, sample.Value, val.Float)
+											assert.Equal(t, val.Float, sample.Value)
 											assert.Equal(t, map[string]string***REMOVED***
-												"group": g.Path,
-												"a":     "1",
+												"key": "value",
+												"a":   "1",
 											***REMOVED***, sample.Tags.CloneTags())
 											assert.Equal(t, "my_metric", sample.Metric.Name)
 											assert.Equal(t, mtyp, sample.Metric.Type)
