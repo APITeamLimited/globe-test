@@ -469,7 +469,7 @@ func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []
 
 // NewExecutor creates a new RampingVUs executor
 func (vlvc RampingVUsConfig) NewExecutor(es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
-	return RampingVUs***REMOVED***
+	return &RampingVUs***REMOVED***
 		BaseExecutor: NewBaseExecutor(vlvc, es, logger),
 		config:       vlvc,
 	***REMOVED***, nil
@@ -486,27 +486,42 @@ func (vlvc RampingVUsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
 type RampingVUs struct ***REMOVED***
 	*BaseExecutor
 	config RampingVUsConfig
+
+	rawSteps, gracefulSteps []lib.ExecutionStep
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
 var _ lib.Executor = &RampingVUs***REMOVED******REMOVED***
 
+// Init initializes the rampingVUs executor by precalculating the raw
+// and graceful steps.
+func (vlv *RampingVUs) Init(_ context.Context) error ***REMOVED***
+	vlv.rawSteps = vlv.config.getRawExecutionSteps(
+		vlv.executionState.ExecutionTuple, true,
+	)
+	vlv.gracefulSteps = vlv.config.GetExecutionRequirements(
+		vlv.executionState.ExecutionTuple,
+	)
+	return nil
+***REMOVED***
+
 // Run constantly loops through as many iterations as possible on a variable
 // number of VUs for the specified stages.
-func (vlv RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, _ *metrics.BuiltinMetrics) error ***REMOVED***
-	rawSteps := vlv.config.getRawExecutionSteps(vlv.executionState.ExecutionTuple, true)
-	regularDuration, isFinal := lib.GetEndOffset(rawSteps)
+func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, _ *metrics.BuiltinMetrics) error ***REMOVED***
+	regularDuration, isFinal := lib.GetEndOffset(vlv.rawSteps)
 	if !isFinal ***REMOVED***
 		return fmt.Errorf("%s expected raw end offset at %s to be final", vlv.config.GetName(), regularDuration)
 	***REMOVED***
-	gracefulSteps := vlv.config.GetExecutionRequirements(vlv.executionState.ExecutionTuple)
-	maxDuration, isFinal := lib.GetEndOffset(gracefulSteps)
+	maxDuration, isFinal := lib.GetEndOffset(vlv.gracefulSteps)
 	if !isFinal ***REMOVED***
 		return fmt.Errorf("%s expected graceful end offset at %s to be final", vlv.config.GetName(), maxDuration)
 	***REMOVED***
-	maxVUs := lib.GetMaxPlannedVUs(gracefulSteps)
-	startTime, maxDurationCtx, regularDurationCtx, cancel := getDurationContexts(ctx, regularDuration, maxDuration-regularDuration)
+	startTime, maxDurationCtx, regularDurationCtx, cancel := getDurationContexts(
+		ctx, regularDuration, maxDuration-regularDuration,
+	)
 	defer cancel()
+
+	maxVUs := lib.GetMaxPlannedVUs(vlv.gracefulSteps)
 
 	vlv.logger.WithFields(logrus.Fields***REMOVED***
 		"type":      vlv.config.GetType(),
@@ -523,8 +538,6 @@ func (vlv RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, _
 		maxVUs:         maxVUs,
 		activeVUsCount: new(int64),
 		started:        startTime,
-		rawSteps:       rawSteps,
-		gracefulSteps:  gracefulSteps,
 		runIteration:   getIterationRunner(vlv.executionState, vlv.logger),
 	***REMOVED***
 
@@ -565,13 +578,12 @@ func (vlv RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, _
 // of the ramping VUs executor. It is used to track and modify various
 // details of the execution.
 type rampingVUsRunState struct ***REMOVED***
-	executor                RampingVUs
-	vuHandles               []*vuHandle // handles for manipulating and tracking all of the VUs
-	maxVUs                  uint64      // the scaled number of initially configured MaxVUs
-	activeVUsCount          *int64      // the current number of active VUs, used only for the progress display
-	started                 time.Time
-	rawSteps, gracefulSteps []lib.ExecutionStep
-	wg                      *sync.WaitGroup
+	executor       *RampingVUs
+	vuHandles      []*vuHandle // handles for manipulating and tracking all of the VUs
+	maxVUs         uint64      // the scaled number of initially configured MaxVUs
+	activeVUsCount *int64      // the current number of active VUs, used only for the progress display
+	started        time.Time
+	wg             *sync.WaitGroup
 
 	runIteration func(context.Context, lib.ActiveVU) bool // a helper closure function that runs a single iteration
 ***REMOVED***
@@ -627,8 +639,8 @@ func (rs rampingVUsRunState) handleVUs(
 ) (handledGracefulSteps int) ***REMOVED***
 	wait := waiter(ctx, rs.started)
 	i, j := 0, 0
-	for i != len(rs.rawSteps) ***REMOVED***
-		r, g := rs.rawSteps[i], rs.gracefulSteps[j]
+	for i != len(rs.executor.rawSteps) ***REMOVED***
+		r, g := rs.executor.rawSteps[i], rs.executor.gracefulSteps[j]
 		if g.TimeOffset < r.TimeOffset ***REMOVED***
 			if wait(g.TimeOffset) ***REMOVED***
 				break
@@ -659,7 +671,7 @@ func (rs rampingVUsRunState) handleRemainingVUs(
 	handledGracefulSteps int,
 ) ***REMOVED***
 	wait := waiter(ctx, rs.started)
-	for _, s := range rs.gracefulSteps[handledGracefulSteps:] ***REMOVED***
+	for _, s := range rs.executor.gracefulSteps[handledGracefulSteps:] ***REMOVED***
 		if wait(s.TimeOffset) ***REMOVED***
 			return
 		***REMOVED***
