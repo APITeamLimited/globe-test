@@ -635,7 +635,6 @@ func (rs rampingVUsRunState) handleVUs(ctx context.Context) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-// TODO: removing this has no effect on tests?
 func (rs rampingVUsRunState) handleRemainingVUs(ctx context.Context) ***REMOVED***
 	var (
 		handleNewMaxAllowedVUs = rs.maxAllowedVUsHandlerStrategy()
