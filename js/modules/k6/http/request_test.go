@@ -49,37 +49,12 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/js/compiler"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/stats"
 )
-
-// runES6String Runs an ES6 string in the given runtime. Use this rather than writing ES5 in tests.
-func runES6String(tb testing.TB, rt *goja.Runtime, src string) (goja.Value, error) ***REMOVED***
-	var err error
-	c := compiler.New(testutils.NewLogger(tb)) // TODO drop it ? maybe we will drop babel and this will be less needed
-	src, _, err = c.Transform(src, "__string__")
-	if err != nil ***REMOVED***
-		return goja.Undefined(), err
-	***REMOVED***
-
-	return rt.RunString(src)
-***REMOVED***
-
-func TestRunES6String(t *testing.T) ***REMOVED***
-	t.Run("Valid", func(t *testing.T) ***REMOVED***
-		_, err := runES6String(t, goja.New(), `let a = 1;`)
-		assert.NoError(t, err)
-	***REMOVED***)
-	t.Run("Invalid", func(t *testing.T) ***REMOVED***
-		_, err := runES6String(t, goja.New(), `let a = #;`)
-		assert.NotNil(t, err)
-		assert.Contains(t, err.Error(), "SyntaxError: __string__: Unexpected character '#' (1:8)\n> 1 | let a = #;\n")
-	***REMOVED***)
-***REMOVED***
 
 // TODO replace this with the Single version
 func assertRequestMetricsEmitted(t *testing.T, sampleContainers []stats.SampleContainer, method, url, name string, status int, group string) ***REMOVED***
@@ -1091,7 +1066,7 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			***REMOVED***)
 
 			t.Run("name/template", func(t *testing.T) ***REMOVED***
-				_, err := runES6String(t, rt, "http.get(http.url`"+sr(`HTTPBIN_URL/anything/$***REMOVED***1+1***REMOVED***`)+"`);")
+				_, err := rt.RunString("http.get(http.url`" + sr(`HTTPBIN_URL/anything/$***REMOVED***1+1***REMOVED***`) + "`);")
 				assert.NoError(t, err)
 				// There's no /anything endpoint in the go-httpbin library we're using, hence the 404,
 				// but it doesn't matter for this test.
@@ -1163,10 +1138,10 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 
 		t.Run("Tagged", func(t *testing.T) ***REMOVED***
-			_, err := runES6String(t, rt, `
+			_, err := rt.RunString(`
 			var a = "1";
 			var b = "2";
-			var res = http.get(http.url`+"`"+sr(`HTTPBIN_URL/get?a=$***REMOVED***a***REMOVED***&b=$***REMOVED***b***REMOVED***`)+"`"+`);
+			var res = http.get(http.url` + "`" + sr(`HTTPBIN_URL/get?a=$***REMOVED***a***REMOVED***&b=$***REMOVED***b***REMOVED***`) + "`" + `);
 			if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 			if (res.json().args.a != a) ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
 			if (res.json().args.b != b) ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
@@ -1403,12 +1378,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 			assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
 			t.Run("Tagged", func(t *testing.T) ***REMOVED***
-				_, err := runES6String(t, rt, sr(`
+				_, err := rt.RunString(sr(`
 			***REMOVED***
 				let fragment = "get";
 				let reqs = [
-					["GET", http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`],
-					["GET", http.url`+"`"+`HTTPBIN_IP_URL/`+"`"+`],
+					["GET", http.url` + "`" + `HTTPBIN_URL/$***REMOVED***fragment***REMOVED***` + "`" + `],
+					["GET", http.url` + "`" + `HTTPBIN_IP_URL/` + "`" + `],
 				];
 				let res = http.batch(reqs);
 				for (var key in res) ***REMOVED***
@@ -1441,12 +1416,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 				assertRequestMetricsEmitted(t, bufSamples, "GET", sr("HTTPBIN_IP_URL/"), "", 200, "")
 
 				t.Run("Tagged", func(t *testing.T) ***REMOVED***
-					_, err := runES6String(t, rt, sr(`
+					_, err := rt.RunString(sr(`
 				***REMOVED***
 					let fragment = "get";
 					let reqs = [
-						http.url`+"`"+`HTTPBIN_URL/$***REMOVED***fragment***REMOVED***`+"`"+`,
-						http.url`+"`"+`HTTPBIN_IP_URL/`+"`"+`,
+						http.url` + "`" + `HTTPBIN_URL/$***REMOVED***fragment***REMOVED***` + "`" + `,
+						http.url` + "`" + `HTTPBIN_IP_URL/` + "`" + `,
 					];
 					let res = http.batch(reqs);
 					for (var key in res) ***REMOVED***
@@ -1759,8 +1734,8 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 			***REMOVED***
 			expectedEncoding = strings.Join(algos, ", ")
 			actualEncoding = expectedEncoding
-			_, err := runES6String(t, rt, tb.Replacer.Replace(`
-		http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,  ***REMOVED***"compression": "`+testCase.compression+`"***REMOVED***);
+			_, err := rt.RunString(tb.Replacer.Replace(`
+		http.post("HTTPBIN_URL/compressed-text", ` + "`" + text + "`" + `,  ***REMOVED***"compression": "` + testCase.compression + `"***REMOVED***);
 	`))
 			if testCase.expectedError == "" ***REMOVED***
 				require.NoError(t, err)
@@ -1777,10 +1752,10 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 		logHook.Drain()
 		t.Run("encoding", func(t *testing.T) ***REMOVED***
-			_, err := runES6String(t, rt, tb.Replacer.Replace(`
-				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
-					***REMOVED***"compression": "`+actualEncoding+`",
-					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`"***REMOVED***
+			_, err := rt.RunString(tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", ` + "`" + text + "`" + `,
+					***REMOVED***"compression": "` + actualEncoding + `",
+					 "headers": ***REMOVED***"Content-Encoding": "` + expectedEncoding + `"***REMOVED***
 					***REMOVED***
 				);
 			`))
@@ -1789,10 +1764,10 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***)
 
 		t.Run("encoding and length", func(t *testing.T) ***REMOVED***
-			_, err := runES6String(t, rt, tb.Replacer.Replace(`
-				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
-					***REMOVED***"compression": "`+actualEncoding+`",
-					 "headers": ***REMOVED***"Content-Encoding": "`+expectedEncoding+`",
+			_, err := rt.RunString(tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", ` + "`" + text + "`" + `,
+					***REMOVED***"compression": "` + actualEncoding + `",
+					 "headers": ***REMOVED***"Content-Encoding": "` + expectedEncoding + `",
 								 "Content-Length": "12"***REMOVED***
 					***REMOVED***
 				);
@@ -1803,10 +1778,10 @@ func TestRequestCompression(t *testing.T) ***REMOVED***
 
 		expectedEncoding = actualEncoding
 		t.Run("correct encoding", func(t *testing.T) ***REMOVED***
-			_, err := runES6String(t, rt, tb.Replacer.Replace(`
-				http.post("HTTPBIN_URL/compressed-text", `+"`"+text+"`"+`,
-					***REMOVED***"compression": "`+actualEncoding+`",
-					 "headers": ***REMOVED***"Content-Encoding": "`+actualEncoding+`"***REMOVED***
+			_, err := rt.RunString(tb.Replacer.Replace(`
+				http.post("HTTPBIN_URL/compressed-text", ` + "`" + text + "`" + `,
+					***REMOVED***"compression": "` + actualEncoding + `",
+					 "headers": ***REMOVED***"Content-Encoding": "` + actualEncoding + `"***REMOVED***
 					***REMOVED***
 				);
 			`))

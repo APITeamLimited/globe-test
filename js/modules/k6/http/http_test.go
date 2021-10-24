@@ -48,7 +48,7 @@ func TestTagURL(t *testing.T) ***REMOVED***
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
 			tag, err := httpext.NewURL(data.u, data.n)
 			require.NoError(t, err)
-			v, err := runES6String(t, rt, "http.url`"+expr+"`")
+			v, err := rt.RunString("http.url`" + expr + "`")
 			if assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, tag, v.Export())
 			***REMOVED***
