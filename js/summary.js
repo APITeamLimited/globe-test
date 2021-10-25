@@ -299,7 +299,18 @@ function summarizeMetrics(options, data, decorate) ***REMOVED***
     ***REMOVED***
   ***REMOVED***)
 
-  names.sort()
+  // sort all metrics but keep sub metrics grouped with their parent metrics
+  names.sort(function (metric1, metric2) ***REMOVED***
+    var parent1 = metric1.split('***REMOVED***', 1)[0]
+    var parent2 = metric2.split('***REMOVED***', 1)[0]
+    var result = parent1.localeCompare(parent2)
+    if (result !== 0) ***REMOVED***
+      return result
+    ***REMOVED***
+    var sub1 = metric1.substring(parent1.length)
+    var sub2 = metric2.substring(parent2.length)
+    return sub1.localeCompare(sub2)
+  ***REMOVED***)
 
   var getData = function (name) ***REMOVED***
     if (trendCols.hasOwnProperty(name)) ***REMOVED***
