@@ -1094,11 +1094,7 @@ func (r *Runtime) typedArrayFrom(ctor, items *Object, mapFn, thisValue Value) *O
 	***REMOVED***
 	usingIter := toMethod(items.self.getSym(SymIterator, nil))
 	if usingIter != nil ***REMOVED***
-		iter := r.getIterator(items, usingIter)
-		var values []Value
-		r.iterate(iter, func(item Value) ***REMOVED***
-			values = append(values, item)
-		***REMOVED***)
+		values := r.iterableToList(items, usingIter)
 		ta := r.typedArrayCreate(ctor, []Value***REMOVED***intToValue(int64(len(values)))***REMOVED***)
 		if mapFc == nil ***REMOVED***
 			for idx, val := range values ***REMOVED***
@@ -1260,11 +1256,8 @@ func (r *Runtime) createArrayBufferProto(val *Object) objectImpl ***REMOVED***
 func (r *Runtime) createArrayBuffer(val *Object) objectImpl ***REMOVED***
 	o := r.newNativeConstructOnly(val, r.builtin_newArrayBuffer, r.global.ArrayBufferPrototype, "ArrayBuffer", 1)
 	o._putProp("isView", r.newNativeFunc(r.arrayBuffer_isView, nil, "isView", nil, 1), true, false, true)
-	o._putSym(SymSpecies, &valueProperty***REMOVED***
-		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
-		accessor:     true,
-		configurable: true,
-	***REMOVED***)
+	r.putSpeciesReturnThis(o)
+
 	return o
 ***REMOVED***
 
@@ -1375,11 +1368,7 @@ func (r *Runtime) createTypedArray(val *Object) objectImpl ***REMOVED***
 	o := r.newNativeConstructOnly(val, r.newTypedArray, r.global.TypedArrayPrototype, "TypedArray", 0)
 	o._putProp("from", r.newNativeFunc(r.typedArray_from, nil, "from", nil, 1), true, false, true)
 	o._putProp("of", r.newNativeFunc(r.typedArray_of, nil, "of", nil, 0), true, false, true)
-	o._putSym(SymSpecies, &valueProperty***REMOVED***
-		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
-		accessor:     true,
-		configurable: true,
-	***REMOVED***)
+	r.putSpeciesReturnThis(o)
 
 	return o
 ***REMOVED***
