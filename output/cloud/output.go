@@ -142,7 +142,8 @@ func newOutput(params output.Params) (*Output, error) ***REMOVED***
 			conf.MaxMetricSamplesPerPackage.Int64)
 	***REMOVED***
 
-	apiClient := cloudapi.NewClient(logger, conf.Token.String, conf.Host.String, consts.Version)
+	apiClient := cloudapi.NewClient(
+		logger, conf.Token.String, conf.Host.String, consts.Version, conf.Timeout.TimeDuration())
 
 	return &Output***REMOVED***
 		config:        conf,

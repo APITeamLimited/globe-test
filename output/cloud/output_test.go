@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
@@ -857,4 +858,26 @@ func TestPublishMetric(t *testing.T) ***REMOVED***
 	err = out.client.PushMetric("1", samples)
 
 	assert.Nil(t, err)
+***REMOVED***
+
+func TestNewOutputClientTimeout(t *testing.T) ***REMOVED***
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) ***REMOVED***
+		time.Sleep(5 * time.Millisecond)
+	***REMOVED***))
+	defer ts.Close()
+
+	out, err := newOutput(output.Params***REMOVED***
+		Logger:     testutils.NewLogger(t),
+		JSONConfig: json.RawMessage(fmt.Sprintf(`***REMOVED***"host": "%s",  "timeout": "2ms"***REMOVED***`, ts.URL)),
+		ScriptOptions: lib.Options***REMOVED***
+			Duration:   types.NullDurationFrom(1 * time.Second),
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		ScriptPath: &url.URL***REMOVED***Path: "script.js"***REMOVED***,
+	***REMOVED***)
+	require.NoError(t, err)
+
+	err = out.client.PushMetric("testmetric", nil)
+	assert.True(t, os.IsTimeout(err))
 ***REMOVED***
