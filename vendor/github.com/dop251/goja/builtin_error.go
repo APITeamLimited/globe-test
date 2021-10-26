@@ -1,5 +1,27 @@
 package goja
 
+func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object ***REMOVED***
+	obj := r.newBaseObject(proto, classError)
+	if len(args) > 0 && args[0] != _undefined ***REMOVED***
+		obj._putProp("message", args[0], true, false, true)
+	***REMOVED***
+	return obj.val
+***REMOVED***
+
+func (r *Runtime) builtin_AggregateError(args []Value, proto *Object) *Object ***REMOVED***
+	obj := r.newBaseObject(proto, classAggError)
+	if len(args) > 1 && args[1] != _undefined ***REMOVED***
+		obj._putProp("message", args[1], true, false, true)
+	***REMOVED***
+	var errors []Value
+	if len(args) > 0 ***REMOVED***
+		errors = r.iterableToList(args[0], nil)
+	***REMOVED***
+	obj._putProp("errors", r.newArrayValues(errors), true, false, true)
+
+	return obj.val
+***REMOVED***
+
 func (r *Runtime) createErrorPrototype(name valueString) *Object ***REMOVED***
 	o := r.newBaseObject(r.global.ErrorPrototype, classObject)
 	o._putProp("message", stringEmpty, true, false, true)
@@ -16,6 +38,10 @@ func (r *Runtime) initErrors() ***REMOVED***
 
 	r.global.Error = r.newNativeFuncConstruct(r.builtin_Error, "Error", r.global.ErrorPrototype, 1)
 	r.addToGlobal("Error", r.global.Error)
+
+	r.global.AggregateErrorPrototype = r.createErrorPrototype(stringAggregateError)
+	r.global.AggregateError = r.newNativeFuncConstructProto(r.builtin_AggregateError, "AggregateError", r.global.AggregateErrorPrototype, r.global.Error, 1)
+	r.addToGlobal("AggregateError", r.global.AggregateError)
 
 	r.global.TypeErrorPrototype = r.createErrorPrototype(stringTypeError)
 

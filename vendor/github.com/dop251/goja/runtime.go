@@ -58,6 +58,7 @@ type global struct ***REMOVED***
 	Date     *Object
 	Symbol   *Object
 	Proxy    *Object
+	Promise  *Object
 
 	ArrayBuffer       *Object
 	DataView          *Object
@@ -78,6 +79,7 @@ type global struct ***REMOVED***
 	Set     *Object
 
 	Error          *Object
+	AggregateError *Object
 	TypeError      *Object
 	ReferenceError *Object
 	SyntaxError    *Object
@@ -104,6 +106,7 @@ type global struct ***REMOVED***
 	WeakMapPrototype     *Object
 	MapPrototype         *Object
 	SetPrototype         *Object
+	PromisePrototype     *Object
 
 	IteratorPrototype             *Object
 	ArrayIteratorPrototype        *Object
@@ -113,6 +116,7 @@ type global struct ***REMOVED***
 	RegExpStringIteratorPrototype *Object
 
 	ErrorPrototype          *Object
+	AggregateErrorPrototype *Object
 	TypeErrorPrototype      *Object
 	SyntaxErrorPrototype    *Object
 	RangeErrorPrototype     *Object
@@ -177,6 +181,10 @@ type Runtime struct ***REMOVED***
 	vm    *vm
 	hash  *maphash.Hash
 	idSeq uint64
+
+	jobQueue []func()
+
+	promiseRejectionTracker PromiseRejectionTracker
 ***REMOVED***
 
 type StackFrame struct ***REMOVED***
@@ -387,6 +395,7 @@ func (r *Runtime) init() ***REMOVED***
 	r.initWeakMap()
 	r.initMap()
 	r.initSet()
+	r.initPromise()
 
 	r.global.thrower = r.newNativeFunc(r.builtin_thrower, nil, "thrower", nil, 0)
 	r.global.throwerProperty = &valueProperty***REMOVED***
@@ -774,14 +783,6 @@ func (r *Runtime) error_toString(call FunctionCall) Value ***REMOVED***
 	sb.WriteString(asciiString(": "))
 	sb.WriteString(msgStr)
 	return sb.String()
-***REMOVED***
-
-func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object ***REMOVED***
-	obj := r.newBaseObject(proto, classError)
-	if len(args) > 0 && args[0] != _undefined ***REMOVED***
-		obj._putProp("message", args[0], true, false, true)
-	***REMOVED***
-	return obj.val
 ***REMOVED***
 
 func (r *Runtime) builtin_new(construct *Object, args []Value) *Object ***REMOVED***
@@ -2395,7 +2396,16 @@ func (r *Runtime) getHash() *maphash.Hash ***REMOVED***
 
 // called when the top level function returns (i.e. control is passed outside the Runtime).
 func (r *Runtime) leave() ***REMOVED***
-	// run jobs, etc...
+	for ***REMOVED***
+		jobs := r.jobQueue
+		r.jobQueue = nil
+		if len(jobs) == 0 ***REMOVED***
+			break
+		***REMOVED***
+		for _, job := range jobs ***REMOVED***
+			job()
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func nilSafe(v Value) Value ***REMOVED***
@@ -2503,6 +2513,38 @@ func (r *Runtime) setGlobal(name unistring.String, v Value, strict bool) ***REMO
 			o.setOwnStr(name, v, false)
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (r *Runtime) trackPromiseRejection(p *Promise, operation PromiseRejectionOperation) ***REMOVED***
+	if r.promiseRejectionTracker != nil ***REMOVED***
+		r.promiseRejectionTracker(p, operation)
+	***REMOVED***
+***REMOVED***
+
+func (r *Runtime) callJobCallback(job *jobCallback, this Value, args ...Value) Value ***REMOVED***
+	return job.callback(FunctionCall***REMOVED***This: this, Arguments: args***REMOVED***)
+***REMOVED***
+
+func (r *Runtime) invoke(v Value, p unistring.String, args ...Value) Value ***REMOVED***
+	o := v.ToObject(r)
+	return r.toCallable(o.self.getStr(p, nil))(FunctionCall***REMOVED***This: v, Arguments: args***REMOVED***)
+***REMOVED***
+
+func (r *Runtime) iterableToList(items Value, method func(FunctionCall) Value) []Value ***REMOVED***
+	iter := r.getIterator(items, method)
+	var values []Value
+	r.iterate(iter, func(item Value) ***REMOVED***
+		values = append(values, item)
+	***REMOVED***)
+	return values
+***REMOVED***
+
+func (r *Runtime) putSpeciesReturnThis(o objectImpl) ***REMOVED***
+	o._putSym(SymSpecies, &valueProperty***REMOVED***
+		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
+		accessor:     true,
+		configurable: true,
+	***REMOVED***)
 ***REMOVED***
 
 func strToArrayIdx(s unistring.String) uint32 ***REMOVED***
@@ -2715,4 +2757,11 @@ func strToIdx64(s unistring.String) int64 ***REMOVED***
 		return n
 	***REMOVED***
 	return -1
+***REMOVED***
+
+func assertCallable(v Value) (func(FunctionCall) Value, bool) ***REMOVED***
+	if obj, ok := v.(*Object); ok ***REMOVED***
+		return obj.self.assertCallable()
+	***REMOVED***
+	return nil, false
 ***REMOVED***

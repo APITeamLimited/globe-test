@@ -218,11 +218,7 @@ func (r *Runtime) createSetProto(val *Object) objectImpl ***REMOVED***
 
 func (r *Runtime) createSet(val *Object) objectImpl ***REMOVED***
 	o := r.newNativeConstructOnly(val, r.builtin_newSet, r.global.SetPrototype, "Set", 0)
-	o._putSym(SymSpecies, &valueProperty***REMOVED***
-		getterFunc:   r.newNativeFunc(r.returnThis, nil, "get [Symbol.species]", nil, 0),
-		accessor:     true,
-		configurable: true,
-	***REMOVED***)
+	r.putSpeciesReturnThis(o)
 
 	return o
 ***REMOVED***

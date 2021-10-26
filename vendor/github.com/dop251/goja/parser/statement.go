@@ -3,14 +3,13 @@ package parser
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"strings"
+
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/file"
 	"github.com/dop251/goja/token"
 	"github.com/go-sourcemap/sourcemap"
-	"io/ioutil"
-	"net/url"
-	"path"
-	"strings"
 )
 
 func (self *_parser) parseBlockStatement() *ast.BlockStatement ***REMOVED***
@@ -694,26 +693,14 @@ func (self *_parser) parseSourceMap() *sourcemap.Consumer ***REMOVED***
 			b64 := urlStr[b64Index+1:]
 			data, err = base64.StdEncoding.DecodeString(b64)
 		***REMOVED*** else ***REMOVED***
-			var smUrl *url.URL
-			if smUrl, err = url.Parse(urlStr); err == nil ***REMOVED***
-				p := smUrl.Path
-				if !path.IsAbs(p) ***REMOVED***
-					baseName := self.file.Name()
-					baseUrl, err1 := url.Parse(baseName)
-					if err1 == nil && baseUrl.Scheme != "" ***REMOVED***
-						baseUrl.Path = path.Join(path.Dir(baseUrl.Path), p)
-						p = baseUrl.String()
-					***REMOVED*** else ***REMOVED***
-						p = path.Join(path.Dir(baseName), p)
-					***REMOVED***
-				***REMOVED***
+			if sourceURL := file.ResolveSourcemapURL(self.file.Name(), urlStr); sourceURL != nil ***REMOVED***
 				if self.opts.sourceMapLoader != nil ***REMOVED***
-					data, err = self.opts.sourceMapLoader(p)
+					data, err = self.opts.sourceMapLoader(sourceURL.String())
 				***REMOVED*** else ***REMOVED***
-					if smUrl.Scheme == "" || smUrl.Scheme == "file" ***REMOVED***
-						data, err = ioutil.ReadFile(p)
+					if sourceURL.Scheme == "" || sourceURL.Scheme == "file" ***REMOVED***
+						data, err = ioutil.ReadFile(sourceURL.Path)
 					***REMOVED*** else ***REMOVED***
-						err = fmt.Errorf("unsupported source map URL scheme: %s", smUrl.Scheme)
+						err = fmt.Errorf("unsupported source map URL scheme: %s", sourceURL.Scheme)
 					***REMOVED***
 				***REMOVED***
 			***REMOVED***
