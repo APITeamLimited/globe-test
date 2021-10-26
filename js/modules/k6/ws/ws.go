@@ -37,6 +37,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"go.k6.io/k6/js/common"
+	httpModule "go.k6.io/k6/js/modules/k6/http"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/stats"
@@ -114,6 +115,7 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	enableCompression := false
 
 	tags := state.CloneTags()
+	jar := state.CookieJar
 
 	// Parse the optional second argument (params)
 	if !goja.IsUndefined(paramsV) && !goja.IsNull(paramsV) ***REMOVED***
@@ -143,6 +145,14 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 				***REMOVED***
 				for _, key := range tagObj.Keys() ***REMOVED***
 					tags[key] = tagObj.Get(key).String()
+				***REMOVED***
+			case "jar":
+				jarV := params.Get(k)
+				if goja.IsUndefined(jarV) || goja.IsNull(jarV) ***REMOVED***
+					continue
+				***REMOVED***
+				if v, ok := jarV.Export().(*httpModule.HTTPCookieJar); ok ***REMOVED***
+					jar = v.Jar
 				***REMOVED***
 			case "compression":
 				// deflate compression algorithm is supported - as defined in RFC7692
@@ -184,6 +194,10 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		Proxy:             http.ProxyFromEnvironment,
 		TLSClientConfig:   tlsConfig,
 		EnableCompression: enableCompression,
+		Jar:               jar,
+	***REMOVED***
+	if jar == nil ***REMOVED*** // this is needed because of how interfaces work and that wsd.Jar is http.Cookiejar
+		wsd.Jar = nil
 	***REMOVED***
 
 	start := time.Now()

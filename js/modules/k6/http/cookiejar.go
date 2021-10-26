@@ -36,7 +36,8 @@ import (
 
 // HTTPCookieJar is cookiejar.Jar wrapper to be used in js scripts
 type HTTPCookieJar struct ***REMOVED***
-	jar *cookiejar.Jar
+	// js is to make it not be accessible from inside goja/js, the json is because it's used if we return it from setup
+	Jar *cookiejar.Jar `js:"-" json:"-"`
 	ctx *context.Context
 ***REMOVED***
 
@@ -55,7 +56,7 @@ func (j HTTPCookieJar) CookiesForURL(url string) map[string][]string ***REMOVED*
 		panic(err)
 	***REMOVED***
 
-	cookies := j.jar.Cookies(u)
+	cookies := j.Jar.Cookies(u)
 	objs := make(map[string][]string, len(cookies))
 	for _, c := range cookies ***REMOVED***
 		objs[c.Name] = append(objs[c.Name], c.Value)
@@ -101,6 +102,6 @@ func (j HTTPCookieJar) Set(url, name, value string, opts goja.Value) (bool, erro
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	j.jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
+	j.Jar.SetCookies(u, []*http.Cookie***REMOVED***&c***REMOVED***)
 	return true, nil
 ***REMOVED***
