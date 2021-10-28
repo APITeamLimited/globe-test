@@ -85,6 +85,7 @@ func TestGetConsolidatedConfig(t *testing.T) ***REMOVED*** //nolint:paralleltest
 	require.Equal(t, config.Token.String, "ext")
 
 	require.NoError(t, os.Setenv("K6_CLOUD_TOKEN", "envvalue")) // TODO drop when we don't use envconfig
+	defer os.Unsetenv("K6_CLOUD_TOKEN")                         //nolint:errcheck
 	config, err = GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "",
 		map[string]json.RawMessage***REMOVED***"loadimpact": json.RawMessage(`***REMOVED***"token":"ext"***REMOVED***`)***REMOVED***)
 	require.NoError(t, err)
