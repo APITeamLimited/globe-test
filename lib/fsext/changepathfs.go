@@ -21,6 +21,7 @@
 package fsext
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,7 +71,12 @@ func (f *ChangePathFile) Name() string ***REMOVED***
 	return f.originalName
 ***REMOVED***
 
-//Chtimes changes the access and modification times of the named file
+// Chown changes the uid and gid of the named file.
+func (b *ChangePathFs) Chown(name string, uid, gid int) error ***REMOVED***
+	return errors.New("unimplemented Chown")
+***REMOVED***
+
+// Chtimes changes the access and modification times of the named file
 func (b *ChangePathFs) Chtimes(name string, atime, mtime time.Time) (err error) ***REMOVED***
 	var newName string
 	if newName, err = b.fn(name); err != nil ***REMOVED***
