@@ -25,66 +25,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
-
-	"gopkg.in/guregu/null.v3"
 )
-
-// NullDecoder converts data with expected type f to a guregu/null value
-// of equivalent type t. It returns an error if a type mismatch occurs.
-func NullDecoder(f reflect.Type, t reflect.Type, data interface***REMOVED******REMOVED***) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	typeFrom := f.String()
-	typeTo := t.String()
-
-	expectedType := ""
-	switch typeTo ***REMOVED***
-	case "null.String":
-		if typeFrom == reflect.String.String() ***REMOVED***
-			return null.StringFrom(data.(string)), nil
-		***REMOVED***
-		expectedType = reflect.String.String()
-	case "null.Bool":
-		if typeFrom == reflect.Bool.String() ***REMOVED***
-			return null.BoolFrom(data.(bool)), nil
-		***REMOVED***
-		expectedType = reflect.Bool.String()
-	case "null.Int":
-		if typeFrom == reflect.Int.String() ***REMOVED***
-			return null.IntFrom(int64(data.(int))), nil
-		***REMOVED***
-		if typeFrom == reflect.Int32.String() ***REMOVED***
-			return null.IntFrom(int64(data.(int32))), nil
-		***REMOVED***
-		if typeFrom == reflect.Int64.String() ***REMOVED***
-			return null.IntFrom(data.(int64)), nil
-		***REMOVED***
-		expectedType = reflect.Int.String()
-	case "null.Float":
-		if typeFrom == reflect.Float32.String() ***REMOVED***
-			return null.FloatFrom(float64(data.(float32))), nil
-		***REMOVED***
-		if typeFrom == reflect.Float64.String() ***REMOVED***
-			return null.FloatFrom(data.(float64)), nil
-		***REMOVED***
-		expectedType = reflect.Float32.String() + " or " + reflect.Float64.String()
-	case "types.NullDuration":
-		if typeFrom == reflect.String.String() ***REMOVED***
-			var d NullDuration
-			err := d.UnmarshalText([]byte(data.(string)))
-			return d, err
-		***REMOVED***
-		expectedType = reflect.String.String()
-	***REMOVED***
-
-	if expectedType != "" ***REMOVED***
-		return data, fmt.Errorf("expected '%s', got '%s'", expectedType, typeFrom)
-	***REMOVED***
-
-	return data, nil
-***REMOVED***
 
 // TODO: something better that won't require so much boilerplate and casts for NullDuration values...
 
