@@ -27,7 +27,6 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/parser"
-	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/lib"
@@ -109,7 +108,7 @@ func (c *Compiler) initializeBabel() error ***REMOVED***
 ***REMOVED***
 
 // Transform the given code into ES5
-func (c *Compiler) Transform(src, filename string) (code string, srcmap *SourceMap, err error) ***REMOVED***
+func (c *Compiler) Transform(src, filename string) (code string, srcmap []byte, err error) ***REMOVED***
 	if c.babel == nil ***REMOVED***
 		onceBabel.Do(func() ***REMOVED***
 			globalBabel, err = newBabel()
@@ -197,7 +196,8 @@ func newBabel() (*babel, error) ***REMOVED***
 
 // Transform the given code into ES5, while synchronizing to ensure only a single
 // bundle instance / Goja VM is in use at a time.
-func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (string, *SourceMap, error) ***REMOVED***
+// TODO the []byte is there to be used as the returned sourcemap and will be done in PR #2082
+func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (string, []byte, error) ***REMOVED***
 	b.m.Lock()
 	defer b.m.Unlock()
 	opts := make(map[string]interface***REMOVED******REMOVED***)
@@ -218,15 +218,7 @@ func (b *babel) Transform(logger logrus.FieldLogger, src, filename string) (stri
 	if err = b.vm.ExportTo(vO.Get("code"), &code); err != nil ***REMOVED***
 		return code, nil, err
 	***REMOVED***
-	var rawMap map[string]interface***REMOVED******REMOVED***
-	if err = b.vm.ExportTo(vO.Get("map"), &rawMap); err != nil ***REMOVED***
-		return code, nil, err
-	***REMOVED***
-	var srcMap SourceMap
-	if err = mapstructure.Decode(rawMap, &srcMap); err != nil ***REMOVED***
-		return code, &srcMap, err
-	***REMOVED***
-	return code, &srcMap, err
+	return code, nil, err
 ***REMOVED***
 
 // Pool is a pool of compilers so it can be used easier in parallel tests as they have their own babel.
