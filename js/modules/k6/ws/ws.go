@@ -37,16 +37,52 @@ import (
 	"github.com/gorilla/websocket"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modules"
 	httpModule "go.k6.io/k6/js/modules/k6/http"
-	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/stats"
 )
 
+type (
+	// RootModule is the global module instance that will create module
+	// instances for each VU.
+	RootModule struct***REMOVED******REMOVED***
+
+	// WS represents a module instance of the WebSocket module.
+	WS struct ***REMOVED***
+		vu  modules.VU
+		obj *goja.Object
+	***REMOVED***
+)
+
+var (
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &WS***REMOVED******REMOVED***
+)
+
+// New returns a pointer to a new RootModule instance.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED******REMOVED***
+***REMOVED***
+
+// NewModuleInstance implements the modules.Module interface to return
+// a new instance for each VU.
+func (*RootModule) NewModuleInstance(m modules.VU) modules.Instance ***REMOVED***
+	rt := m.Runtime()
+	mi := &WS***REMOVED***
+		vu: m,
+	***REMOVED***
+	obj := rt.NewObject()
+	if err := obj.Set("connect", mi.Connect); err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+
+	mi.obj = obj
+	return mi
+***REMOVED***
+
 // ErrWSInInitContext is returned when websockets are using in the init context
 var ErrWSInInitContext = common.NewInitContextError("using websockets in the init context is not supported")
-
-type WS struct***REMOVED******REMOVED***
 
 type Socket struct ***REMOVED***
 	ctx           context.Context
@@ -79,13 +115,18 @@ type message struct ***REMOVED***
 
 const writeWait = 10 * time.Second
 
-func New() *WS ***REMOVED***
-	return &WS***REMOVED******REMOVED***
+// Exports returns the exports of the ws module.
+func (mi *WS) Exports() modules.Exports ***REMOVED***
+	return modules.Exports***REMOVED***Default: mi.obj***REMOVED***
 ***REMOVED***
 
-func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTPResponse, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
-	state := lib.GetState(ctx)
+// Connect establishes a WebSocket connection based on the parameters provided.
+// TODO: refactor to reduce the method complexity
+//nolint: funlen,gocognit,gocyclo,cyclop
+func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) ***REMOVED***
+	ctx := mi.vu.Context()
+	rt := mi.vu.Runtime()
+	state := mi.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrWSInInitContext
 	***REMOVED***
@@ -102,7 +143,6 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 	default:
 		return nil, errors.New("invalid number of arguments to ws.connect")
 	***REMOVED***
-
 	// Get the callable (required)
 	setupFn, isFunc := goja.AssertFunction(callableV)
 	if !isFunc ***REMOVED***
@@ -254,7 +294,6 @@ func (*WS) Connect(ctx context.Context, url string, args ...goja.Value) (*WSHTTP
 		_ = socket.closeConnection(websocket.CloseGoingAway)
 		return nil, err
 	***REMOVED***
-
 	wsResponse, wsRespErr := wrapHTTPResponse(httpResponse)
 	if wsRespErr != nil ***REMOVED***
 		return nil, wsRespErr
