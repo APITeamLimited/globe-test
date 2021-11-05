@@ -30,6 +30,17 @@ type pipeBuffer interface ***REMOVED***
 	io.Reader
 ***REMOVED***
 
+// setBuffer initializes the pipe buffer.
+// It has no effect if the pipe is already closed.
+func (p *pipe) setBuffer(b pipeBuffer) ***REMOVED***
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.err != nil || p.breakErr != nil ***REMOVED***
+		return
+	***REMOVED***
+	p.b = b
+***REMOVED***
+
 func (p *pipe) Len() int ***REMOVED***
 	p.mu.Lock()
 	defer p.mu.Unlock()

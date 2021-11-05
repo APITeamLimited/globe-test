@@ -16,6 +16,12 @@ import (
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
 type ClientConnPool interface ***REMOVED***
+	// GetClientConn returns a specific HTTP/2 connection (usually
+	// a TLS-TCP connection) to an HTTP/2 server. On success, the
+	// returned ClientConn accounts for the upcoming RoundTrip
+	// call, so the caller should not omit it. If the caller needs
+	// to, ClientConn.RoundTrip can be called with a bogus
+	// new(http.Request) to release the stream reservation.
 	GetClientConn(req *http.Request, addr string) (*ClientConn, error)
 	MarkDead(*ClientConn)
 ***REMOVED***
@@ -42,7 +48,7 @@ type clientConnPool struct ***REMOVED***
 	conns        map[string][]*ClientConn // key is host:port
 	dialing      map[string]*dialCall     // currently in-flight dials
 	keys         map[*ClientConn][]string
-	addConnCalls map[string]*addConnCall // in-flight addConnIfNeede calls
+	addConnCalls map[string]*addConnCall // in-flight addConnIfNeeded calls
 ***REMOVED***
 
 func (p *clientConnPool) GetClientConn(req *http.Request, addr string) (*ClientConn, error) ***REMOVED***
@@ -54,28 +60,8 @@ const (
 	noDialOnMiss = false
 )
 
-// shouldTraceGetConn reports whether getClientConn should call any
-// ClientTrace.GetConn hook associated with the http.Request.
-//
-// This complexity is needed to avoid double calls of the GetConn hook
-// during the back-and-forth between net/http and x/net/http2 (when the
-// net/http.Transport is upgraded to also speak http2), as well as support
-// the case where x/net/http2 is being used directly.
-func (p *clientConnPool) shouldTraceGetConn(st clientConnIdleState) bool ***REMOVED***
-	// If our Transport wasn't made via ConfigureTransport, always
-	// trace the GetConn hook if provided, because that means the
-	// http2 package is being used directly and it's the one
-	// dialing, as opposed to net/http.
-	if _, ok := p.t.ConnPool.(noDialClientConnPool); !ok ***REMOVED***
-		return true
-	***REMOVED***
-	// Otherwise, only use the GetConn hook if this connection has
-	// been used previously for other requests. For fresh
-	// connections, the net/http package does the dialing.
-	return !st.freshConn
-***REMOVED***
-
 func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMiss bool) (*ClientConn, error) ***REMOVED***
+	// TODO(dneil): Dial a new connection when t.DisableKeepAlives is set?
 	if isConnectionCloseRequest(req) && dialOnMiss ***REMOVED***
 		// It gets its own connection.
 		traceGetConn(req, addr)
@@ -89,10 +75,14 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 	for ***REMOVED***
 		p.mu.Lock()
 		for _, cc := range p.conns[addr] ***REMOVED***
-			if st := cc.idleState(); st.canTakeNewRequest ***REMOVED***
-				if p.shouldTraceGetConn(st) ***REMOVED***
+			if cc.ReserveNewRequest() ***REMOVED***
+				// When a connection is presented to us by the net/http package,
+				// the GetConn hook has already been called.
+				// Don't call it a second time here.
+				if !cc.getConnCalled ***REMOVED***
 					traceGetConn(req, addr)
 				***REMOVED***
+				cc.getConnCalled = false
 				p.mu.Unlock()
 				return cc, nil
 			***REMOVED***
@@ -108,7 +98,13 @@ func (p *clientConnPool) getClientConn(req *http.Request, addr string, dialOnMis
 		if shouldRetryDial(call, req) ***REMOVED***
 			continue
 		***REMOVED***
-		return call.res, call.err
+		cc, err := call.res, call.err
+		if err != nil ***REMOVED***
+			return nil, err
+		***REMOVED***
+		if cc.ReserveNewRequest() ***REMOVED***
+			return cc, nil
+		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
@@ -205,6 +201,7 @@ func (c *addConnCall) run(t *Transport, key string, tc *tls.Conn) ***REMOVED***
 	if err != nil ***REMOVED***
 		c.err = err
 	***REMOVED*** else ***REMOVED***
+		cc.getConnCalled = true // already called by the net/http package
 		p.addConnLocked(key, cc)
 	***REMOVED***
 	delete(p.addConnCalls, key)

@@ -259,15 +259,11 @@ func ConfigureServer(s *http.Server, conf *Server) error ***REMOVED***
 
 	s.TLSConfig.PreferServerCipherSuites = true
 
-	haveNPN := false
-	for _, p := range s.TLSConfig.NextProtos ***REMOVED***
-		if p == NextProtoTLS ***REMOVED***
-			haveNPN = true
-			break
-		***REMOVED***
-	***REMOVED***
-	if !haveNPN ***REMOVED***
+	if !strSliceContains(s.TLSConfig.NextProtos, NextProtoTLS) ***REMOVED***
 		s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, NextProtoTLS)
+	***REMOVED***
+	if !strSliceContains(s.TLSConfig.NextProtos, "http/1.1") ***REMOVED***
+		s.TLSConfig.NextProtos = append(s.TLSConfig.NextProtos, "http/1.1")
 	***REMOVED***
 
 	if s.TLSNextProto == nil ***REMOVED***

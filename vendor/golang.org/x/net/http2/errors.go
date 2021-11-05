@@ -67,6 +67,11 @@ type StreamError struct ***REMOVED***
 	Cause    error // optional additional detail
 ***REMOVED***
 
+// errFromPeer is a sentinel error value for StreamError.Cause to
+// indicate that the StreamError was sent from the peer over the wire
+// and wasn't locally generated in the Transport.
+var errFromPeer = errors.New("received from peer")
+
 func streamError(id uint32, code ErrCode) StreamError ***REMOVED***
 	return StreamError***REMOVED***StreamID: id, Code: code***REMOVED***
 ***REMOVED***
