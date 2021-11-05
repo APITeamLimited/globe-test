@@ -27,78 +27,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/guregu/null.v3"
 )
-
-func TestNullDecoder(t *testing.T) ***REMOVED***
-	type foo struct ***REMOVED***
-		Strs      []string
-		Str       null.String
-		Boolean   null.Bool
-		Integer   null.Int
-		Integer32 null.Int
-		Integer64 null.Int
-		Float32   null.Float
-		Float64   null.Float
-		Dur       NullDuration
-	***REMOVED***
-	f := foo***REMOVED******REMOVED***
-	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig***REMOVED***
-		DecodeHook: NullDecoder,
-		Result:     &f,
-	***REMOVED***)
-	require.NoError(t, err)
-
-	conf := map[string]interface***REMOVED******REMOVED******REMOVED***
-		"strs":      []string***REMOVED***"fake"***REMOVED***,
-		"str":       "bar",
-		"boolean":   true,
-		"integer":   42,
-		"integer32": int32(42),
-		"integer64": int64(42),
-		"float32":   float32(3.14),
-		"float64":   float64(3.14),
-		"dur":       "1m",
-	***REMOVED***
-
-	err = dec.Decode(conf)
-	require.NoError(t, err)
-
-	require.Equal(t, foo***REMOVED***
-		Strs:      []string***REMOVED***"fake"***REMOVED***,
-		Str:       null.StringFrom("bar"),
-		Boolean:   null.BoolFrom(true),
-		Integer:   null.IntFrom(42),
-		Integer32: null.IntFrom(42),
-		Integer64: null.IntFrom(42),
-		Float32:   null.FloatFrom(3.140000104904175),
-		Float64:   null.FloatFrom(3.14),
-		Dur:       NewNullDuration(1*time.Minute, true),
-	***REMOVED***, f)
-
-	input := map[string][]interface***REMOVED******REMOVED******REMOVED***
-		"Str":       ***REMOVED***true, "string", "bool"***REMOVED***,
-		"Boolean":   ***REMOVED***"invalid", "bool", "string"***REMOVED***,
-		"Integer":   ***REMOVED***"invalid", "int", "string"***REMOVED***,
-		"Integer32": ***REMOVED***true, "int", "bool"***REMOVED***,
-		"Integer64": ***REMOVED***"invalid", "int", "string"***REMOVED***,
-		"Float32":   ***REMOVED***true, "float32 or float64", "bool"***REMOVED***,
-		"Float64":   ***REMOVED***"invalid", "float32 or float64", "string"***REMOVED***,
-		"Dur":       ***REMOVED***10, "string", "int"***REMOVED***,
-	***REMOVED***
-
-	for k, v := range input ***REMOVED***
-		t.Run("Error Message/"+k, func(t *testing.T) ***REMOVED***
-			err = dec.Decode(map[string]interface***REMOVED******REMOVED******REMOVED***
-				k: v[0],
-			***REMOVED***)
-			assert.EqualError(t, err, fmt.Sprintf("1 error(s) decoding:\n\n* error decoding '%s': expected '%s', got '%s'", k, v[1], v[2]))
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
 
 func TestParseExtendedDuration(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***

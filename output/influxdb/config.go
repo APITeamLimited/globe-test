@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/mitchellh/mapstructure"
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib/types"
@@ -113,24 +112,6 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 		c.ConcurrentWrites = cfg.ConcurrentWrites
 	***REMOVED***
 	return c
-***REMOVED***
-
-// ParseMap parses a map[string]interface***REMOVED******REMOVED*** into a Config
-func ParseMap(m map[string]interface***REMOVED******REMOVED***) (Config, error) ***REMOVED***
-	c := Config***REMOVED******REMOVED***
-	if v, ok := m["tagsAsFields"].(string); ok ***REMOVED***
-		m["tagsAsFields"] = []string***REMOVED***v***REMOVED***
-	***REMOVED***
-	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig***REMOVED***
-		DecodeHook: types.NullDecoder,
-		Result:     &c,
-	***REMOVED***)
-	if err != nil ***REMOVED***
-		return c, err
-	***REMOVED***
-
-	err = dec.Decode(m)
-	return c, err
 ***REMOVED***
 
 // ParseJSON parses the supplied JSON into a Config.
