@@ -1075,9 +1075,9 @@ func TestCompression(t *testing.T) ***REMOVED***
 		***REMOVED***))
 
 		_, err := ts.rt.RunString(sr(`
-		// if client supports compression, it has to send the header 
+		// if client supports compression, it has to send the header
 		// 'Sec-Websocket-Extensions:permessage-deflate; server_no_context_takeover; client_no_context_takeover' to server.
-		// if compression is negotiated successfully, server will reply with header 
+		// if compression is negotiated successfully, server will reply with header
 		// 'Sec-Websocket-Extensions:permessage-deflate; server_no_context_takeover; client_no_context_takeover'
 
 		var params = ***REMOVED***
@@ -1274,7 +1274,14 @@ func TestCookieJar(t *testing.T) ***REMOVED***
 			t.Logf("error while closing connection in /ws-echo-someheader: %v", err)
 		***REMOVED***
 	***REMOVED***))
-	err := ts.rt.Set("http", common.Bind(ts.rt, httpModule.New().NewModuleInstancePerVU(), ts.ctxPtr))
+
+	mii := &modulestest.VU***REMOVED***
+		RuntimeField: ts.rt,
+		InitEnvField: &common.InitEnvironment***REMOVED***Registry: metrics.NewRegistry()***REMOVED***,
+		CtxField:     context.Background(),
+		StateField:   ts.state,
+	***REMOVED***
+	err := ts.rt.Set("http", httpModule.New().NewModuleInstance(mii).Exports().Default)
 	require.NoError(t, err)
 	ts.state.CookieJar, _ = cookiejar.New(nil)
 

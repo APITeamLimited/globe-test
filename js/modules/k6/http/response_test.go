@@ -28,8 +28,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"go.k6.io/k6/lib/netext/httpext"
 	"go.k6.io/k6/stats"
 )
 
@@ -187,6 +187,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("NoResponseBody", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`http.get("HTTPBIN_URL/html", ***REMOVED***responseType: 'none'***REMOVED***).html();`))
+			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), "the body is null so we can't transform it to HTML"+
 				" - this likely was because of a request error getting the response")
 		***REMOVED***)
@@ -356,7 +357,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 					data.textarea[0] !== "Lorem ipsum dolor sit amet"
 				) ***REMOVED*** throw new Error("incorrect body: " + JSON.stringify(data, null, 4) ); ***REMOVED***
 			`))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/myforms/get"), "", 200, "")
 		***REMOVED***)
 	***REMOVED***)
@@ -405,37 +406,5 @@ func TestResponse(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get"), "", 200, "")
 		***REMOVED***)
-	***REMOVED***)
-***REMOVED***
-
-func BenchmarkResponseJson(b *testing.B) ***REMOVED***
-	b.Skipf("We need to have context in the response")
-	testCases := []struct ***REMOVED***
-		selector string
-	***REMOVED******REMOVED***
-		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.title"***REMOVED***,
-		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.int"***REMOVED***,
-		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.intArray"***REMOVED***,
-		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.mixedArray"***REMOVED***,
-		***REMOVED***"glossary.friends"***REMOVED***,
-		***REMOVED***"glossary.friends.#.first"***REMOVED***,
-		***REMOVED***"glossary.GlossDiv.GlossList.GlossEntry.GlossDef"***REMOVED***,
-		***REMOVED***"glossary"***REMOVED***,
-	***REMOVED***
-	for _, tc := range testCases ***REMOVED***
-		tc := tc
-		b.Run(fmt.Sprintf("Selector %s ", tc.selector), func(b *testing.B) ***REMOVED***
-			for n := 0; n < b.N; n++ ***REMOVED***
-				resp := new(HTTP).responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
-				resp.JSON(tc.selector)
-			***REMOVED***
-		***REMOVED***)
-	***REMOVED***
-
-	b.Run("Without selector", func(b *testing.B) ***REMOVED***
-		for n := 0; n < b.N; n++ ***REMOVED***
-			resp := new(HTTP).responseFromHttpext(&httpext.Response***REMOVED***Body: jsonData***REMOVED***)
-			resp.JSON()
-		***REMOVED***
 	***REMOVED***)
 ***REMOVED***

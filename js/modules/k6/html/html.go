@@ -21,7 +21,6 @@
 package html
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -31,20 +30,62 @@ import (
 	gohtml "golang.org/x/net/html"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modules"
 )
 
-type HTML struct***REMOVED******REMOVED***
+// RootModule is the global module object type. It is instantiated once per test
+// run and will be used to create k6/html module instances for each VU.
+type RootModule struct***REMOVED******REMOVED***
 
-func New() *HTML ***REMOVED***
-	return &HTML***REMOVED******REMOVED***
+// ModuleInstance represents an instance of the HTML module for every VU.
+type ModuleInstance struct ***REMOVED***
+	vu         modules.VU
+	rootModule *RootModule
+	exports    *goja.Object
 ***REMOVED***
 
-func (HTML) ParseHTML(ctx context.Context, src string) (Selection, error) ***REMOVED***
+var (
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &ModuleInstance***REMOVED******REMOVED***
+)
+
+// New returns a pointer to a new HTML RootModule.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED******REMOVED***
+***REMOVED***
+
+// Exports returns the JS values this module exports.
+func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
+	return modules.Exports***REMOVED***
+		Default: mi.exports,
+	***REMOVED***
+***REMOVED***
+
+// NewModuleInstance returns an HTML module instance for each VU.
+func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	rt := vu.Runtime()
+	mi := &ModuleInstance***REMOVED***
+		vu:         vu,
+		rootModule: r,
+		exports:    rt.NewObject(),
+	***REMOVED***
+	if err := mi.exports.Set("parseHTML", mi.parseHTML); err != nil ***REMOVED***
+		common.Throw(rt, err)
+	***REMOVED***
+	return mi
+***REMOVED***
+
+func (mi *ModuleInstance) parseHTML(src string) (Selection, error) ***REMOVED***
+	return ParseHTML(mi.vu.Runtime(), src)
+***REMOVED***
+
+// ParseHTML parses the provided HTML source into a Selection object.
+func ParseHTML(rt *goja.Runtime, src string) (Selection, error) ***REMOVED***
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(src))
 	if err != nil ***REMOVED***
 		return Selection***REMOVED******REMOVED***, err
 	***REMOVED***
-	return Selection***REMOVED***rt: common.GetRuntime(ctx), sel: doc.Selection***REMOVED***, nil
+	return Selection***REMOVED***rt: rt, sel: doc.Selection***REMOVED***, nil
 ***REMOVED***
 
 type Selection struct ***REMOVED***

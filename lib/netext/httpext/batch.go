@@ -45,10 +45,10 @@ type BatchParsedHTTPRequest struct ***REMOVED***
 // The processResponse callback can be used to modify the response, e.g.
 // to replace the body.
 func MakeBatchRequests(
-	ctx context.Context,
+	ctx context.Context, state *lib.State,
 	requests []BatchParsedHTTPRequest,
 	reqCount, globalLimit, perHostLimit int,
-	processResponse func(context.Context, *Response, ResponseType),
+	processResponse func(*Response, ResponseType),
 ) <-chan error ***REMOVED***
 	workers := globalLimit
 	if reqCount < workers ***REMOVED***
@@ -63,9 +63,9 @@ func MakeBatchRequests(
 			defer hl.End()
 		***REMOVED***
 
-		resp, err := MakeRequest(ctx, req.ParsedHTTPRequest)
+		resp, err := MakeRequest(ctx, state, req.ParsedHTTPRequest)
 		if resp != nil ***REMOVED***
-			processResponse(ctx, resp, req.ParsedHTTPRequest.ResponseType)
+			processResponse(resp, req.ParsedHTTPRequest.ResponseType)
 			*req.Response = *resp
 		***REMOVED***
 		result <- err

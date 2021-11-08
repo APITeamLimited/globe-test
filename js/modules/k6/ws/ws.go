@@ -191,7 +191,7 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 				if goja.IsUndefined(jarV) || goja.IsNull(jarV) ***REMOVED***
 					continue
 				***REMOVED***
-				if v, ok := jarV.Export().(*httpModule.HTTPCookieJar); ok ***REMOVED***
+				if v, ok := jarV.Export().(*httpModule.CookieJar); ok ***REMOVED***
 					jar = v.Jar
 				***REMOVED***
 			case "compression":

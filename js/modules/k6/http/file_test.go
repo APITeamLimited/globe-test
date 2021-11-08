@@ -21,20 +21,17 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"go.k6.io/k6/js/common"
 )
 
 func TestHTTPFile(t *testing.T) ***REMOVED***
 	t.Parallel()
-	rt := goja.New()
+	rt, mi := getTestModuleInstance(t, nil, nil)
 	input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
 
 	testCases := []struct ***REMOVED***
@@ -79,9 +76,7 @@ func TestHTTPFile(t *testing.T) ***REMOVED***
 					require.EqualError(t, val.(error), tc.expErr)
 				***REMOVED***()
 			***REMOVED***
-			h := new(GlobalHTTP).NewModuleInstancePerVU().(*HTTP)
-			ctx := common.WithRuntime(context.Background(), rt)
-			out := h.File(ctx, tc.input, tc.args...)
+			out := mi.file(tc.input, tc.args...)
 			assert.Equal(t, tc.expected, out)
 		***REMOVED***)
 	***REMOVED***

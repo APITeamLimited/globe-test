@@ -21,7 +21,6 @@
 package httpext
 
 import (
-	"context"
 	"crypto/tls"
 
 	"go.k6.io/k6/lib/netext"
@@ -74,8 +73,6 @@ type HTTPCookie struct ***REMOVED***
 
 // Response is a representation of an HTTP response
 type Response struct ***REMOVED***
-	ctx context.Context
-
 	RemoteIP       string                   `json:"remote_ip"`
 	RemotePort     int                      `json:"remote_port"`
 	URL            string                   `json:"url"`
@@ -95,9 +92,8 @@ type Response struct ***REMOVED***
 ***REMOVED***
 
 // NewResponse returns an empty Response instance.
-func NewResponse(ctx context.Context) *Response ***REMOVED***
+func NewResponse() *Response ***REMOVED***
 	return &Response***REMOVED***
-		ctx:  ctx,
 		Body: []byte***REMOVED******REMOVED***,
 	***REMOVED***
 ***REMOVED***
@@ -107,9 +103,4 @@ func (res *Response) setTLSInfo(tlsState *tls.ConnectionState) ***REMOVED***
 	res.TLSVersion = tlsInfo.Version
 	res.TLSCipherSuite = tlsInfo.CipherSuite
 	res.OCSP = oscp
-***REMOVED***
-
-// GetCtx return the response context
-func (res *Response) GetCtx() context.Context ***REMOVED***
-	return res.ctx
 ***REMOVED***

@@ -21,6 +21,7 @@
 package http
 
 import (
+	"context"
 	"testing"
 
 	"github.com/dop251/goja"
@@ -28,13 +29,44 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modulestest"
+	"go.k6.io/k6/lib"
+	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/lib/netext/httpext"
 )
 
-func TestTagURL(t *testing.T) ***REMOVED***
+//nolint: golint, revive
+func getTestModuleInstance(
+	t testing.TB, ctx context.Context, state *lib.State,
+) (*goja.Runtime, *ModuleInstance) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	rt.Set("http", common.Bind(rt, new(GlobalHTTP).NewModuleInstancePerVU(), nil))
+
+	if ctx == nil ***REMOVED***
+		dummyCtx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		ctx = dummyCtx
+	***REMOVED***
+
+	root := New()
+	mockVU := &modulestest.VU***REMOVED***
+		RuntimeField: rt,
+		InitEnvField: &common.InitEnvironment***REMOVED***
+			Registry: metrics.NewRegistry(),
+		***REMOVED***,
+		CtxField:   ctx,
+		StateField: state,
+	***REMOVED***
+	mi, ok := root.NewModuleInstance(mockVU).(*ModuleInstance)
+	require.True(t, ok)
+
+	require.NoError(t, rt.Set("http", mi.Exports().Default))
+
+	return rt, mi
+***REMOVED***
+
+func TestTagURL(t *testing.T) ***REMOVED***
+	t.Parallel()
 
 	testdata := map[string]struct***REMOVED*** u, n string ***REMOVED******REMOVED***
 		`http://localhost/anything/`:               ***REMOVED***"http://localhost/anything/", "http://localhost/anything/"***REMOVED***,
@@ -46,6 +78,8 @@ func TestTagURL(t *testing.T) ***REMOVED***
 	for expr, data := range testdata ***REMOVED***
 		expr, data := expr, data
 		t.Run("expr="+expr, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt, _ := getTestModuleInstance(t, nil, nil)
 			tag, err := httpext.NewURL(data.u, data.n)
 			require.NoError(t, err)
 			v, err := rt.RunString("http.url`" + expr + "`")

@@ -22,7 +22,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"mime/multipart"
@@ -37,7 +36,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/netext/httpext"
 	"go.k6.io/k6/lib/types"
 )
@@ -48,49 +46,16 @@ var ErrHTTPForbiddenInInitContext = common.NewInitContextError("Making http requ
 // ErrBatchForbiddenInInitContext is used when batch was made in the init context
 var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in the init context is not supported")
 
-// Get makes an HTTP GET request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	// The body argument is always undefined for GETs and HEADs.
-	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return h.Request(ctx, HTTP_METHOD_GET, url, args...)
-***REMOVED***
-
-// Head makes an HTTP HEAD request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	// The body argument is always undefined for GETs and HEADs.
-	args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
-	return h.Request(ctx, HTTP_METHOD_HEAD, url, args...)
-***REMOVED***
-
-// Post makes an HTTP POST request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	return h.Request(ctx, HTTP_METHOD_POST, url, args...)
-***REMOVED***
-
-// Put makes an HTTP PUT request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	return h.Request(ctx, HTTP_METHOD_PUT, url, args...)
-***REMOVED***
-
-// Patch makes a patch request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	return h.Request(ctx, HTTP_METHOD_PATCH, url, args...)
-***REMOVED***
-
-// Del makes an HTTP DELETE and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	return h.Request(ctx, HTTP_METHOD_DELETE, url, args...)
-***REMOVED***
-
-// Options makes an HTTP OPTIONS request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	return h.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
+func (c *Client) getMethodClosure(method string) func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+	return func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+		return c.Request(method, url, args...)
+	***REMOVED***
 ***REMOVED***
 
 // Request makes an http request of the provided `method` and returns a corresponding response by
 // taking goja.Values as arguments
-func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (c *Client) Request(method string, url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+	state := c.moduleInstance.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrHTTPForbiddenInInitContext
 	***REMOVED***
@@ -105,36 +70,49 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 		params = args[1]
 	***REMOVED***
 
-	req, err := h.parseRequest(ctx, method, url, body, params)
+	req, err := c.parseRequest(method, url, body, params)
 	if err != nil ***REMOVED***
 		if state.Options.Throw.Bool ***REMOVED***
 			return nil, err
 		***REMOVED***
 		state.Logger.WithField("error", err).Warn("Request Failed")
-		r := httpext.NewResponse(ctx)
+		r := httpext.NewResponse()
 		r.Error = err.Error()
 		var k6e httpext.K6Error
 		if errors.As(err, &k6e) ***REMOVED***
 			r.ErrorCode = int(k6e.Code)
 		***REMOVED***
-		return &Response***REMOVED***Response: r***REMOVED***, nil
+		return &Response***REMOVED***Response: r, client: c***REMOVED***, nil
 	***REMOVED***
 
-	resp, err := httpext.MakeRequest(ctx, req)
+	resp, err := httpext.MakeRequest(c.moduleInstance.vu.Context(), state, req)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
-	processResponse(ctx, resp, req.ResponseType)
-	return h.responseFromHttpext(resp), nil
+	c.processResponse(resp, req.ResponseType)
+	return c.responseFromHTTPext(resp), nil
 ***REMOVED***
 
-//TODO break this function up
-//nolint: gocyclo
-func (h *HTTP) parseRequest(
-	ctx context.Context, method string, reqURL, body interface***REMOVED******REMOVED***, params goja.Value,
+// processResponse stores the body as an ArrayBuffer if indicated by
+// respType. This is done here instead of in httpext.readResponseBody to avoid
+// a reverse dependency on js/common or goja.
+func (c *Client) processResponse(resp *httpext.Response, respType httpext.ResponseType) ***REMOVED***
+	if respType == httpext.ResponseTypeBinary && resp.Body != nil ***REMOVED***
+		resp.Body = c.moduleInstance.vu.Runtime().NewArrayBuffer(resp.Body.([]byte))
+	***REMOVED***
+***REMOVED***
+
+func (c *Client) responseFromHTTPext(resp *httpext.Response) *Response ***REMOVED***
+	return &Response***REMOVED***Response: resp, client: c***REMOVED***
+***REMOVED***
+
+// TODO: break this function up
+//nolint: gocyclo, cyclop, funlen, gocognit
+func (c *Client) parseRequest(
+	method string, reqURL, body interface***REMOVED******REMOVED***, params goja.Value,
 ) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
-	rt := common.GetRuntime(ctx)
-	state := lib.GetState(ctx)
+	rt := c.moduleInstance.vu.Runtime()
+	state := c.moduleInstance.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrHTTPForbiddenInInitContext
 	***REMOVED***
@@ -159,7 +137,7 @@ func (h *HTTP) parseRequest(
 		Redirects:        state.Options.MaxRedirects,
 		Cookies:          make(map[string]*httpext.HTTPRequestCookie),
 		Tags:             make(map[string]string),
-		ResponseCallback: h.responseCallback,
+		ResponseCallback: c.responseCallback,
 	***REMOVED***
 
 	if state.Options.DiscardResponseBodies.Bool ***REMOVED***
@@ -328,7 +306,7 @@ func (h *HTTP) parseRequest(
 					continue
 				***REMOVED***
 				switch v := jarV.Export().(type) ***REMOVED***
-				case *HTTPCookieJar:
+				case *CookieJar:
 					result.ActiveJar = v.Jar
 				***REMOVED***
 			case "compression":
@@ -397,60 +375,60 @@ func (h *HTTP) parseRequest(
 	return result, nil
 ***REMOVED***
 
-func (h *HTTP) prepareBatchArray(
-	ctx context.Context, requests []interface***REMOVED******REMOVED***,
-) ([]httpext.BatchParsedHTTPRequest, []*Response, error) ***REMOVED***
+func (c *Client) prepareBatchArray(requests []interface***REMOVED******REMOVED***) (
+	[]httpext.BatchParsedHTTPRequest, []*Response, error,
+) ***REMOVED***
 	reqCount := len(requests)
 	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
 	results := make([]*Response, reqCount)
 
 	for i, req := range requests ***REMOVED***
-		resp := httpext.NewResponse(ctx)
-		parsedReq, err := h.parseBatchRequest(ctx, i, req)
+		resp := httpext.NewResponse()
+		parsedReq, err := c.parseBatchRequest(i, req)
 		if err != nil ***REMOVED***
 			resp.Error = err.Error()
 			var k6e httpext.K6Error
 			if errors.As(err, &k6e) ***REMOVED***
 				resp.ErrorCode = int(k6e.Code)
 			***REMOVED***
-			results[i] = h.responseFromHttpext(resp)
+			results[i] = c.responseFromHTTPext(resp)
 			return batchReqs, results, err
 		***REMOVED***
 		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
 			ParsedHTTPRequest: parsedReq,
 			Response:          resp,
 		***REMOVED***
-		results[i] = h.responseFromHttpext(resp)
+		results[i] = c.responseFromHTTPext(resp)
 	***REMOVED***
 
 	return batchReqs, results, nil
 ***REMOVED***
 
-func (h *HTTP) prepareBatchObject(
-	ctx context.Context, requests map[string]interface***REMOVED******REMOVED***,
-) ([]httpext.BatchParsedHTTPRequest, map[string]*Response, error) ***REMOVED***
+func (c *Client) prepareBatchObject(requests map[string]interface***REMOVED******REMOVED***) (
+	[]httpext.BatchParsedHTTPRequest, map[string]*Response, error,
+) ***REMOVED***
 	reqCount := len(requests)
 	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
 	results := make(map[string]*Response, reqCount)
 
 	i := 0
 	for key, req := range requests ***REMOVED***
-		resp := httpext.NewResponse(ctx)
-		parsedReq, err := h.parseBatchRequest(ctx, key, req)
+		resp := httpext.NewResponse()
+		parsedReq, err := c.parseBatchRequest(key, req)
 		if err != nil ***REMOVED***
 			resp.Error = err.Error()
 			var k6e httpext.K6Error
 			if errors.As(err, &k6e) ***REMOVED***
 				resp.ErrorCode = int(k6e.Code)
 			***REMOVED***
-			results[key] = h.responseFromHttpext(resp)
+			results[key] = c.responseFromHTTPext(resp)
 			return batchReqs, results, err
 		***REMOVED***
 		batchReqs[i] = httpext.BatchParsedHTTPRequest***REMOVED***
 			ParsedHTTPRequest: parsedReq,
 			Response:          resp,
 		***REMOVED***
-		results[key] = h.responseFromHttpext(resp)
+		results[key] = c.responseFromHTTPext(resp)
 		i++
 	***REMOVED***
 
@@ -459,8 +437,8 @@ func (h *HTTP) prepareBatchObject(
 
 // Batch makes multiple simultaneous HTTP requests. The provideds reqsV should be an array of request
 // objects. Batch returns an array of responses and/or error
-func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (c *Client) Batch(reqsV goja.Value) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+	state := c.moduleInstance.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrBatchForbiddenInInitContext
 	***REMOVED***
@@ -473,9 +451,9 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (interface***REMOVED
 
 	switch v := reqsV.Export().(type) ***REMOVED***
 	case []interface***REMOVED******REMOVED***:
-		batchReqs, results, err = h.prepareBatchArray(ctx, v)
+		batchReqs, results, err = c.prepareBatchArray(v)
 	case map[string]interface***REMOVED******REMOVED***:
-		batchReqs, results, err = h.prepareBatchObject(ctx, v)
+		batchReqs, results, err = c.prepareBatchObject(v)
 	default:
 		return nil, fmt.Errorf("invalid http.batch() argument type %T", v)
 	***REMOVED***
@@ -490,9 +468,9 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (interface***REMOVED
 
 	reqCount := len(batchReqs)
 	errs := httpext.MakeBatchRequests(
-		ctx, batchReqs, reqCount,
+		c.moduleInstance.vu.Context(), state, batchReqs, reqCount,
 		int(state.Options.Batch.Int64), int(state.Options.BatchPerHost.Int64),
-		processResponse,
+		c.processResponse,
 	)
 
 	for i := 0; i < reqCount; i++ ***REMOVED***
@@ -503,15 +481,13 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (interface***REMOVED
 	return results, err
 ***REMOVED***
 
-func (h *HTTP) parseBatchRequest(
-	ctx context.Context, key interface***REMOVED******REMOVED***, val interface***REMOVED******REMOVED***,
-) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
+func (c *Client) parseBatchRequest(key interface***REMOVED******REMOVED***, val interface***REMOVED******REMOVED***) (*httpext.ParsedHTTPRequest, error) ***REMOVED***
 	var (
-		method       = HTTP_METHOD_GET
+		method       = http.MethodGet
 		ok           bool
 		body, reqURL interface***REMOVED******REMOVED***
 		params       goja.Value
-		rt           = common.GetRuntime(ctx)
+		rt           = c.moduleInstance.vu.Runtime()
 	)
 
 	switch data := val.(type) ***REMOVED***
@@ -547,7 +523,7 @@ func (h *HTTP) parseBatchRequest(
 				return nil, fmt.Errorf("invalid method type '%#v'", newMethod)
 			***REMOVED***
 			method = strings.ToUpper(method)
-			if method == HTTP_METHOD_GET || method == HTTP_METHOD_HEAD ***REMOVED***
+			if method == http.MethodGet || method == http.MethodHead ***REMOVED***
 				body = nil
 			***REMOVED***
 		***REMOVED***
@@ -559,7 +535,7 @@ func (h *HTTP) parseBatchRequest(
 		reqURL = val
 	***REMOVED***
 
-	return h.parseRequest(ctx, method, reqURL, body, params)
+	return c.parseRequest(method, reqURL, body, params)
 ***REMOVED***
 
 func requestContainsFile(data map[string]interface***REMOVED******REMOVED***) bool ***REMOVED***

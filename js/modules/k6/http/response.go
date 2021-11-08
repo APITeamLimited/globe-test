@@ -21,10 +21,10 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -39,7 +39,7 @@ import (
 // Response is a representation of an HTTP response to be returned to the goja VM
 type Response struct ***REMOVED***
 	*httpext.Response `js:"-"`
-	h                 *HTTP
+	client            *Client
 
 	cachedJSON    interface***REMOVED******REMOVED***
 	validatedJSON bool
@@ -56,36 +56,23 @@ func (j jsonError) Error() string ***REMOVED***
 	return fmt.Sprintf("%s %d, character %d , error: %v", errMessage, j.line, j.character, j.err)
 ***REMOVED***
 
-// processResponse stores the body as an ArrayBuffer if indicated by
-// respType. This is done here instead of in httpext.readResponseBody to avoid
-// a reverse dependency on js/common or goja.
-func processResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) ***REMOVED***
-	if respType == httpext.ResponseTypeBinary && resp.Body != nil ***REMOVED***
-		rt := common.GetRuntime(ctx)
-		resp.Body = rt.NewArrayBuffer(resp.Body.([]byte))
-	***REMOVED***
-***REMOVED***
-
-func (h *HTTP) responseFromHttpext(resp *httpext.Response) *Response ***REMOVED***
-	return &Response***REMOVED***Response: resp, h: h, cachedJSON: nil, validatedJSON: false***REMOVED***
-***REMOVED***
-
 // HTML returns the body as an html.Selection
 func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
+	rt := res.client.moduleInstance.vu.Runtime()
 	if res.Body == nil ***REMOVED***
 		err := fmt.Errorf("the body is null so we can't transform it to HTML" +
 			" - this likely was because of a request error getting the response")
-		common.Throw(common.GetRuntime(res.GetCtx()), err)
+		common.Throw(rt, err)
 	***REMOVED***
 
 	body, err := common.ToString(res.Body)
 	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.GetCtx()), err)
+		common.Throw(rt, err)
 	***REMOVED***
 
-	sel, err := html.HTML***REMOVED******REMOVED***.ParseHTML(res.GetCtx(), body)
+	sel, err := html.ParseHTML(rt, body)
 	if err != nil ***REMOVED***
-		common.Throw(common.GetRuntime(res.GetCtx()), err)
+		common.Throw(rt, err)
 	***REMOVED***
 	sel.URL = res.URL
 	if len(selector) > 0 ***REMOVED***
@@ -96,7 +83,7 @@ func (res *Response) HTML(selector ...string) html.Selection ***REMOVED***
 
 // JSON parses the body of a response as JSON and returns it to the goja VM.
 func (res *Response) JSON(selector ...string) goja.Value ***REMOVED***
-	rt := common.GetRuntime(res.GetCtx())
+	rt := res.client.moduleInstance.vu.Runtime()
 
 	if res.Body == nil ***REMOVED***
 		err := fmt.Errorf("the body is null so we can't transform it to JSON" +
@@ -168,7 +155,7 @@ func checkErrorInJSON(input []byte, offset int, err error) error ***REMOVED***
 // SubmitForm parses the body as an html looking for a from and then submitting it
 // TODO: document the actual arguments that can be provided
 func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVED***
-	rt := common.GetRuntime(res.GetCtx())
+	rt := res.client.moduleInstance.vu.Runtime()
 
 	formSelector := "form"
 	submitSelector := "[type=\"submit\"]"
@@ -201,7 +188,7 @@ func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVE
 	var requestMethod string
 	if methodAttr == goja.Undefined() ***REMOVED***
 		// Use GET by default
-		requestMethod = HTTP_METHOD_GET
+		requestMethod = http.MethodGet
 	***REMOVED*** else ***REMOVED***
 		requestMethod = strings.ToUpper(methodAttr.String())
 	***REMOVED***
@@ -240,21 +227,24 @@ func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) ***REMOVE
 		values[k] = v
 	***REMOVED***
 
-	if requestMethod == HTTP_METHOD_GET ***REMOVED***
+	if requestMethod == http.MethodGet ***REMOVED***
 		q := url.Values***REMOVED******REMOVED***
 		for k, v := range values ***REMOVED***
 			q.Add(k, v.String())
 		***REMOVED***
 		requestURL.RawQuery = q.Encode()
-		return res.h.Request(res.GetCtx(), requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
+		return res.client.Request(requestMethod, rt.ToValue(requestURL.String()), goja.Null(), requestParams)
 	***REMOVED***
-	return res.h.Request(res.GetCtx(), requestMethod, rt.ToValue(requestURL.String()), rt.ToValue(values), requestParams)
+	return res.client.Request(
+		requestMethod, rt.ToValue(requestURL.String()),
+		rt.ToValue(values), requestParams,
+	)
 ***REMOVED***
 
 // ClickLink parses the body as an html, looks for a link and than makes a request as if the link was
 // clicked
 func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED***
-	rt := common.GetRuntime(res.GetCtx())
+	rt := res.client.moduleInstance.vu.Runtime()
 
 	selector := "a[href]"
 	requestParams := goja.Null()
@@ -289,5 +279,5 @@ func (res *Response) ClickLink(args ...goja.Value) (*Response, error) ***REMOVED
 	***REMOVED***
 	requestURL := responseURL.ResolveReference(hrefURL)
 
-	return res.h.Get(res.GetCtx(), rt.ToValue(requestURL.String()), requestParams)
+	return res.client.Request(http.MethodGet, rt.ToValue(requestURL.String()), goja.Undefined(), requestParams)
 ***REMOVED***
