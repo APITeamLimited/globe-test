@@ -107,7 +107,7 @@ func (sic SharedIterationsConfig) Validate() []error ***REMOVED***
 		))
 	***REMOVED***
 
-	if time.Duration(sic.MaxDuration.Duration) < minDuration ***REMOVED***
+	if sic.MaxDuration.TimeDuration() < minDuration ***REMOVED***
 		errors = append(errors, fmt.Errorf(
 			"the maxDuration should be at least %s, but is %s", minDuration, sic.MaxDuration,
 		))
@@ -138,7 +138,7 @@ func (sic SharedIterationsConfig) GetExecutionRequirements(et *lib.ExecutionTupl
 			PlannedVUs: uint64(vus),
 		***REMOVED***,
 		***REMOVED***
-			TimeOffset: time.Duration(sic.MaxDuration.Duration + sic.GracefulStop.Duration),
+			TimeOffset: sic.MaxDuration.TimeDuration() + sic.GracefulStop.TimeDuration(),
 			PlannedVUs: 0,
 		***REMOVED***,
 	***REMOVED***
@@ -189,7 +189,7 @@ func (si SharedIterations) Run(
 ) (err error) ***REMOVED***
 	numVUs := si.config.GetVUs(si.executionState.ExecutionTuple)
 	iterations := si.et.ScaleInt64(si.config.Iterations.Int64)
-	duration := time.Duration(si.config.MaxDuration.Duration)
+	duration := si.config.MaxDuration.TimeDuration()
 	gracefulStop := si.config.GetGracefulStop()
 
 	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, duration, gracefulStop)

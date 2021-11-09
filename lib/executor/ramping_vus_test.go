@@ -318,9 +318,8 @@ func TestRampingVUsRampDownNoWobble(t *testing.T) ***REMOVED***
 		3000 * time.Millisecond,
 	***REMOVED***
 	const rampDownSampleTime = 50 * time.Millisecond
-	rampDownSamples := int(time.Duration(
-		config.Stages[len(config.Stages)-1].Duration.Duration+config.GracefulRampDown.Duration,
-	) / rampDownSampleTime)
+	rampDownSamples :=
+		int((config.Stages[len(config.Stages)-1].Duration.TimeDuration() + config.GracefulRampDown.TimeDuration()) / rampDownSampleTime)
 
 	errCh := make(chan error)
 	go func() ***REMOVED*** errCh <- executor.Run(ctx, nil, nil) ***REMOVED***()

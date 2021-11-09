@@ -85,7 +85,7 @@ func (vlvc RampingVUsConfig) GetStartVUs(et *lib.ExecutionTuple) int64 ***REMOVE
 // GetGracefulRampDown is just a helper method that returns the graceful
 // ramp-down period as a standard Go time.Duration value...
 func (vlvc RampingVUsConfig) GetGracefulRampDown() time.Duration ***REMOVED***
-	return time.Duration(vlvc.GracefulRampDown.Duration)
+	return vlvc.GracefulRampDown.TimeDuration()
 ***REMOVED***
 
 // GetDescription returns a human-readable description of the executor options
@@ -205,7 +205,7 @@ func (vlvc RampingVUsConfig) getRawExecutionSteps(et *lib.ExecutionTuple, zeroEn
 
 	for _, stage := range vlvc.Stages ***REMOVED***
 		stageEndVUs := stage.Target.Int64
-		stageDuration := time.Duration(stage.Duration.Duration)
+		stageDuration := stage.Duration.TimeDuration()
 		timeTillEnd += stageDuration
 
 		stageVUDiff := stageEndVUs - fromVUs
@@ -453,7 +453,7 @@ func (vlvc RampingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:funlen
 func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []lib.ExecutionStep ***REMOVED***
 	steps := vlvc.getRawExecutionSteps(et, false)
 
-	executorEndOffset := sumStagesDuration(vlvc.Stages) + time.Duration(vlvc.GracefulStop.Duration)
+	executorEndOffset := sumStagesDuration(vlvc.Stages) + vlvc.GracefulStop.TimeDuration()
 	// Handle graceful ramp-downs, if we have them
 	if vlvc.GracefulRampDown.Duration > 0 ***REMOVED***
 		steps = vlvc.reserveVUsForGracefulRampDowns(steps, executorEndOffset)

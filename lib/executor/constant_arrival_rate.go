@@ -95,7 +95,7 @@ func (carc ConstantArrivalRateConfig) GetDescription(et *lib.ExecutionTuple) str
 		maxVUsRange += fmt.Sprintf("-%d", maxVUs)
 	***REMOVED***
 
-	timeUnit := time.Duration(carc.TimeUnit.Duration)
+	timeUnit := carc.TimeUnit.TimeDuration()
 	var arrRatePerSec float64
 	if maxVUs != 0 ***REMOVED*** // TODO: do something better?
 		ratio := big.NewRat(maxVUs, carc.MaxVUs.Int64)
@@ -117,13 +117,13 @@ func (carc *ConstantArrivalRateConfig) Validate() []error ***REMOVED***
 		errors = append(errors, fmt.Errorf("the iteration rate should be more than 0"))
 	***REMOVED***
 
-	if time.Duration(carc.TimeUnit.Duration) <= 0 ***REMOVED***
+	if carc.TimeUnit.TimeDuration() <= 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf("the timeUnit should be more than 0"))
 	***REMOVED***
 
 	if !carc.Duration.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the duration is unspecified"))
-	***REMOVED*** else if time.Duration(carc.Duration.Duration) < minDuration ***REMOVED***
+	***REMOVED*** else if carc.Duration.TimeDuration() < minDuration ***REMOVED***
 		errors = append(errors, fmt.Errorf(
 			"the duration should be at least %s, but is %s", minDuration, carc.Duration,
 		))
@@ -157,7 +157,7 @@ func (carc ConstantArrivalRateConfig) GetExecutionRequirements(et *lib.Execution
 			PlannedVUs:      uint64(et.ScaleInt64(carc.PreAllocatedVUs.Int64)),
 			MaxUnplannedVUs: uint64(et.ScaleInt64(carc.MaxVUs.Int64) - et.ScaleInt64(carc.PreAllocatedVUs.Int64)),
 		***REMOVED***, ***REMOVED***
-			TimeOffset:      time.Duration(carc.Duration.Duration + carc.GracefulStop.Duration),
+			TimeOffset:      carc.Duration.TimeDuration() + carc.GracefulStop.TimeDuration(),
 			PlannedVUs:      0,
 			MaxUnplannedVUs: 0,
 		***REMOVED***,
@@ -216,12 +216,12 @@ func (car ConstantArrivalRate) Run(
 	parentCtx context.Context, out chan<- stats.SampleContainer, builtinMetrics *metrics.BuiltinMetrics,
 ) (err error) ***REMOVED***
 	gracefulStop := car.config.GetGracefulStop()
-	duration := time.Duration(car.config.Duration.Duration)
+	duration := car.config.Duration.TimeDuration()
 	preAllocatedVUs := car.config.GetPreAllocatedVUs(car.executionState.ExecutionTuple)
 	maxVUs := car.config.GetMaxVUs(car.executionState.ExecutionTuple)
 	// TODO: refactor and simplify
-	arrivalRate := getScaledArrivalRate(car.et.Segment, car.config.Rate.Int64, time.Duration(car.config.TimeUnit.Duration))
-	tickerPeriod := time.Duration(getTickerPeriod(arrivalRate).Duration)
+	arrivalRate := getScaledArrivalRate(car.et.Segment, car.config.Rate.Int64, car.config.TimeUnit.TimeDuration())
+	tickerPeriod := getTickerPeriod(arrivalRate).TimeDuration()
 	arrivalRatePerSec, _ := getArrivalRatePerSec(arrivalRate).Float64()
 
 	// Make sure the log and the progress bar have accurate information
@@ -326,12 +326,11 @@ func (car ConstantArrivalRate) Run(
 	start, offsets, _ := car.et.GetStripedOffsets()
 	timer := time.NewTimer(time.Hour * 24)
 	// here the we need the not scaled one
-	notScaledTickerPeriod := time.Duration(
-		getTickerPeriod(
-			big.NewRat(
-				car.config.Rate.Int64,
-				int64(time.Duration(car.config.TimeUnit.Duration)),
-			)).Duration)
+	notScaledTickerPeriod := getTickerPeriod(
+		big.NewRat(
+			car.config.Rate.Int64,
+			int64(car.config.TimeUnit.TimeDuration()),
+		)).TimeDuration()
 
 	droppedIterationMetric := builtinMetrics.DroppedIterations
 	shownWarning := false

@@ -81,7 +81,7 @@ func (mecc ExternallyControlledConfigParams) Validate() (errors []error) ***REMO
 
 	if !mecc.Duration.Valid ***REMOVED***
 		errors = append(errors, fmt.Errorf("the duration should be specified, for infinite duration use 0"))
-	***REMOVED*** else if time.Duration(mecc.Duration.Duration) < 0 ***REMOVED***
+	***REMOVED*** else if mecc.Duration.TimeDuration() < 0 ***REMOVED***
 		errors = append(errors, fmt.Errorf(
 			"the duration shouldn't be negative, for infinite duration use 0",
 		))
@@ -148,7 +148,7 @@ func (mec ExternallyControlledConfig) GetExecutionRequirements(et *lib.Execution
 		MaxUnplannedVUs: 0,                                          // intentional, see function comment
 	***REMOVED***
 
-	maxDuration := time.Duration(mec.Duration.Duration)
+	maxDuration := mec.Duration.TimeDuration()
 	if maxDuration == 0 ***REMOVED***
 		// Infinite duration, don't emit 0 VUs at the end since there's no planned end
 		return []lib.ExecutionStep***REMOVED***startVUs***REMOVED***
@@ -319,7 +319,7 @@ func (mex *ExternallyControlled) stopWhenDurationIsReached(ctx context.Context, 
 		// TODO: something saner and more optimized that sleeps for pauses and
 		// doesn't depend on the global execution state?
 		case <-checkInterval.C:
-			elapsed := mex.executionState.GetCurrentTestRunDuration() - time.Duration(mex.config.StartTime.Duration)
+			elapsed := mex.executionState.GetCurrentTestRunDuration() - mex.config.StartTime.TimeDuration()
 			if elapsed >= duration ***REMOVED***
 				cancel()
 				return
@@ -415,8 +415,7 @@ func (rs *externallyControlledRunState) progressFn() (float64, []string) ***REMO
 
 	// TODO: use a saner way to calculate the elapsed time, without relying on
 	// the global execution state...
-	elapsed := rs.executor.executionState.GetCurrentTestRunDuration() - time.Duration(
-		rs.executor.config.StartTime.Duration)
+	elapsed := rs.executor.executionState.GetCurrentTestRunDuration() - rs.executor.config.StartTime.TimeDuration()
 	if elapsed > rs.duration ***REMOVED***
 		return 1, right
 	***REMOVED***
@@ -515,7 +514,7 @@ func (mex *ExternallyControlled) Run(
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 
-	duration := time.Duration(currentControlConfig.Duration.Duration)
+	duration := currentControlConfig.Duration.TimeDuration()
 	if duration > 0 ***REMOVED*** // Only keep track of duration if it's not infinite
 		go mex.stopWhenDurationIsReached(ctx, duration, cancel)
 	***REMOVED***

@@ -101,7 +101,7 @@ func (bc BaseConfig) GetType() string ***REMOVED***
 // GetStartTime returns the starting time, relative to the beginning of the
 // actual test, that this executor is supposed to execute.
 func (bc BaseConfig) GetStartTime() time.Duration ***REMOVED***
-	return time.Duration(bc.StartTime.Duration)
+	return bc.StartTime.TimeDuration()
 ***REMOVED***
 
 // GetGracefulStop returns how long k6 is supposed to wait for any still
@@ -111,7 +111,7 @@ func (bc BaseConfig) GetStartTime() time.Duration ***REMOVED***
 // Of course, that doesn't count when the user manually interrupts the test,
 // then iterations are immediately stopped.
 func (bc BaseConfig) GetGracefulStop() time.Duration ***REMOVED***
-	return time.Duration(bc.GracefulStop.Duration)
+	return bc.GracefulStop.TimeDuration()
 ***REMOVED***
 
 // GetEnv returns any specific environment key=value pairs that

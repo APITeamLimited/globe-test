@@ -37,7 +37,7 @@ import (
 
 func sumStagesDuration(stages []Stage) (result time.Duration) ***REMOVED***
 	for _, s := range stages ***REMOVED***
-		result += time.Duration(s.Duration.Duration)
+		result += s.Duration.TimeDuration()
 	***REMOVED***
 	return
 ***REMOVED***
