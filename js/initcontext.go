@@ -200,8 +200,8 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 	if !ok ***REMOVED***
 		return nil, fmt.Errorf("unknown module: %s", name)
 	***REMOVED***
-	if modV2, ok := mod.(modules.IsModuleV2); ok ***REMOVED***
-		instance := modV2.NewModuleInstance(&moduleInstanceCoreImpl***REMOVED***ctxPtr: i.ctxPtr***REMOVED***)
+	if m, ok := mod.(modules.Module); ok ***REMOVED***
+		instance := m.NewModuleInstance(&moduleInstanceCoreImpl***REMOVED***ctxPtr: i.ctxPtr***REMOVED***)
 		return i.runtime.ToValue(toESModuleExports(instance.Exports())), nil
 	***REMOVED***
 	if perInstance, ok := mod.(modules.HasModuleInstancePerVU); ok ***REMOVED***
