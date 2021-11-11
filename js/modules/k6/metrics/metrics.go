@@ -158,8 +158,8 @@ func New() *RootModule ***REMOVED***
 	return &RootModule***REMOVED******REMOVED***
 ***REMOVED***
 
-// GetExports returns the exports of the metrics module
-func (mi *ModuleInstance) GetExports() modules.Exports ***REMOVED***
+// Exports returns the exports of the metrics module
+func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
 	return modules.GenerateExports(mi)
 ***REMOVED***
 

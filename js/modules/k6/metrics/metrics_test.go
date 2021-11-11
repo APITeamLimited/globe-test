@@ -128,7 +128,7 @@ func TestMetrics(t *testing.T) ***REMOVED***
 					***REMOVED***
 					m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 					require.True(t, ok)
-					require.NoError(t, test.rt.Set("metrics", m.GetExports().Named))
+					require.NoError(t, test.rt.Set("metrics", m.Exports().Named))
 					test.samples = make(chan stats.SampleContainer, 1000)
 					state := &lib.State***REMOVED***
 						Options: lib.Options***REMOVED******REMOVED***,
@@ -193,7 +193,7 @@ func TestMetricGetName(t *testing.T) ***REMOVED***
 	***REMOVED***
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
-	require.NoError(t, rt.Set("metrics", m.GetExports().Named))
+	require.NoError(t, rt.Set("metrics", m.Exports().Named))
 	v, err := rt.RunString(`
 		var m = new metrics.Counter("my_metric")
 		m.name
@@ -221,7 +221,7 @@ func TestMetricDuplicates(t *testing.T) ***REMOVED***
 	***REMOVED***
 	m, ok := New().NewModuleInstance(mii).(*ModuleInstance)
 	require.True(t, ok)
-	require.NoError(t, rt.Set("metrics", m.GetExports().Named))
+	require.NoError(t, rt.Set("metrics", m.Exports().Named))
 	_, err := rt.RunString(`
 		var m = new metrics.Counter("my_metric")
 	`)

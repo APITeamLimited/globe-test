@@ -72,7 +72,7 @@ func setupTagsExecEnv(t *testing.T) execEnv ***REMOVED***
 		***REMOVED***,
 	).(*ModuleInstance)
 	require.True(t, ok)
-	require.NoError(t, rt.Set("exec", m.GetExports().Default))
+	require.NoError(t, rt.Set("exec", m.Exports().Default))
 
 	return execEnv***REMOVED***
 		Module:  m,

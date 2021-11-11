@@ -82,8 +82,8 @@ func (*RootModule) NewModuleInstance(m modules.InstanceCore) modules.Instance **
 	return mi
 ***REMOVED***
 
-// GetExports returns the exports of the execution module.
-func (mi *ModuleInstance) GetExports() modules.Exports ***REMOVED***
+// Exports returns the exports of the execution module.
+func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
 	return modules.Exports***REMOVED***Default: mi.obj***REMOVED***
 ***REMOVED***
 
