@@ -37,18 +37,18 @@ import (
 
 type Metric struct ***REMOVED***
 	metric *stats.Metric
-	core   modules.InstanceCore
+	vu     modules.VU
 ***REMOVED***
 
 // ErrMetricsAddInInitContext is error returned when adding to metric is done in the init context
 var ErrMetricsAddInInitContext = common.NewInitContextError("Adding to metrics in the init context is not supported")
 
 func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricType) (*goja.Object, error) ***REMOVED***
-	initEnv := mi.GetInitEnv()
+	initEnv := mi.vu.InitEnv()
 	if initEnv == nil ***REMOVED***
 		return nil, errors.New("metrics must be declared in the init context")
 	***REMOVED***
-	rt := mi.GetRuntime()
+	rt := mi.vu.Runtime()
 	c, _ := goja.AssertFunction(rt.ToValue(func(name string, isTime ...bool) (*goja.Object, error) ***REMOVED***
 		valueType := stats.Default
 		if len(isTime) > 0 && isTime[0] ***REMOVED***
@@ -58,7 +58,7 @@ func (mi *ModuleInstance) newMetric(call goja.ConstructorCall, t stats.MetricTyp
 		if err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
-		metric := &Metric***REMOVED***metric: m, core: mi.InstanceCore***REMOVED***
+		metric := &Metric***REMOVED***metric: m, vu: mi.vu***REMOVED***
 		o := rt.NewObject()
 		err = o.DefineDataProperty("name", rt.ToValue(name), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
 		if err != nil ***REMOVED***
@@ -93,7 +93,7 @@ func limitValue(v string) string ***REMOVED***
 ***REMOVED***
 
 func (m Metric) add(v goja.Value, addTags ...map[string]string) (bool, error) ***REMOVED***
-	state := m.core.GetState()
+	state := m.vu.State()
 	if state == nil ***REMOVED***
 		return false, ErrMetricsAddInInitContext
 	***REMOVED***
@@ -130,7 +130,7 @@ func (m Metric) add(v goja.Value, addTags ...map[string]string) (bool, error) **
 	***REMOVED***
 
 	sample := stats.Sample***REMOVED***Time: time.Now(), Metric: m.metric, Value: vfloat, Tags: stats.IntoSampleTags(&tags)***REMOVED***
-	stats.PushIfNotDone(m.core.GetContext(), state.Samples, sample)
+	stats.PushIfNotDone(m.vu.Context(), state.Samples, sample)
 	return true, nil
 ***REMOVED***
 
@@ -139,7 +139,7 @@ type (
 	RootModule struct***REMOVED******REMOVED***
 	// ModuleInstance represents an instance of the metrics module
 	ModuleInstance struct ***REMOVED***
-		modules.InstanceCore
+		vu modules.VU
 	***REMOVED***
 )
 
@@ -149,8 +149,8 @@ var (
 )
 
 // NewModuleInstance implements modules.Module interface
-func (*RootModule) NewModuleInstance(m modules.InstanceCore) modules.Instance ***REMOVED***
-	return &ModuleInstance***REMOVED***InstanceCore: m***REMOVED***
+func (*RootModule) NewModuleInstance(m modules.VU) modules.Instance ***REMOVED***
+	return &ModuleInstance***REMOVED***vu: m***REMOVED***
 ***REMOVED***
 
 // New returns a new RootModule.
@@ -160,7 +160,14 @@ func New() *RootModule ***REMOVED***
 
 // Exports returns the exports of the metrics module
 func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
-	return modules.GenerateExports(mi)
+	return modules.Exports***REMOVED***
+		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+			"Counter": mi.XCounter,
+			"Gauge":   mi.XGauge,
+			"Trend":   mi.XTrend,
+			"Rate":    mi.XRate,
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 // XCounter is a counter constructor

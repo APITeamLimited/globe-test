@@ -29,32 +29,32 @@ import (
 	"go.k6.io/k6/lib"
 )
 
-var _ modules.InstanceCore = &InstanceCore***REMOVED******REMOVED***
+var _ modules.VU = &VU***REMOVED******REMOVED***
 
-// InstanceCore is a modules.InstanceCore implementation meant to be used within tests
-type InstanceCore struct ***REMOVED***
-	Ctx     context.Context
-	InitEnv *common.InitEnvironment
-	State   *lib.State
-	Runtime *goja.Runtime
+// VU is a modules.VU implementation meant to be used within tests
+type VU struct ***REMOVED***
+	CtxField     context.Context
+	InitEnvField *common.InitEnvironment
+	StateField   *lib.State
+	RuntimeField *goja.Runtime
 ***REMOVED***
 
-// GetContext returns internally set field to conform to modules.InstanceCore interface
-func (m *InstanceCore) GetContext() context.Context ***REMOVED***
-	return m.Ctx
+// Context returns internally set field to conform to modules.VU interface
+func (m *VU) Context() context.Context ***REMOVED***
+	return m.CtxField
 ***REMOVED***
 
-// GetInitEnv returns internally set field to conform to modules.InstanceCore interface
-func (m *InstanceCore) GetInitEnv() *common.InitEnvironment ***REMOVED***
-	return m.InitEnv
+// InitEnv returns internally set field to conform to modules.VU interface
+func (m *VU) InitEnv() *common.InitEnvironment ***REMOVED***
+	return m.InitEnvField
 ***REMOVED***
 
-// GetState returns internally set field to conform to modules.InstanceCore interface
-func (m *InstanceCore) GetState() *lib.State ***REMOVED***
-	return m.State
+// State returns internally set field to conform to modules.VU interface
+func (m *VU) State() *lib.State ***REMOVED***
+	return m.StateField
 ***REMOVED***
 
-// GetRuntime returns internally set field to conform to modules.InstanceCore interface
-func (m *InstanceCore) GetRuntime() *goja.Runtime ***REMOVED***
-	return m.Runtime
+// Runtime returns internally set field to conform to modules.VU interface
+func (m *VU) Runtime() *goja.Runtime ***REMOVED***
+	return m.RuntimeField
 ***REMOVED***
