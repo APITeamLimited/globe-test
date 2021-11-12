@@ -98,7 +98,7 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 	defer func() ***REMOVED***
 		state.Group = old
 		if shouldUpdateTag ***REMOVED***
-			state.Tags.Set("group", g.Path)
+			state.Tags.Set("group", old.Path)
 		***REMOVED***
 	***REMOVED***()
 
