@@ -40,14 +40,14 @@ type (
 
 	// ModuleInstance represents an instance of the execution module.
 	ModuleInstance struct ***REMOVED***
-		modules.InstanceCore
+		vu  modules.VU
 		obj *goja.Object
 	***REMOVED***
 )
 
 var (
-	_ modules.IsModuleV2 = &RootModule***REMOVED******REMOVED***
-	_ modules.Instance   = &ModuleInstance***REMOVED******REMOVED***
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &ModuleInstance***REMOVED******REMOVED***
 )
 
 // New returns a pointer to a new RootModule instance.
@@ -55,11 +55,11 @@ func New() *RootModule ***REMOVED***
 	return &RootModule***REMOVED******REMOVED***
 ***REMOVED***
 
-// NewModuleInstance implements the modules.IsModuleV2 interface to return
+// NewModuleInstance implements the modules.Module interface to return
 // a new instance for each VU.
-func (*RootModule) NewModuleInstance(m modules.InstanceCore) modules.Instance ***REMOVED***
-	mi := &ModuleInstance***REMOVED***InstanceCore: m***REMOVED***
-	rt := m.GetRuntime()
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	mi := &ModuleInstance***REMOVED***vu: vu***REMOVED***
+	rt := vu.Runtime()
 	o := rt.NewObject()
 	defProp := func(name string, newInfo func() (*goja.Object, error)) ***REMOVED***
 		err := o.DefineAccessorProperty(name, rt.ToValue(func() goja.Value ***REMOVED***
@@ -82,17 +82,17 @@ func (*RootModule) NewModuleInstance(m modules.InstanceCore) modules.Instance **
 	return mi
 ***REMOVED***
 
-// GetExports returns the exports of the execution module.
-func (mi *ModuleInstance) GetExports() modules.Exports ***REMOVED***
+// Exports returns the exports of the execution module.
+func (mi *ModuleInstance) Exports() modules.Exports ***REMOVED***
 	return modules.Exports***REMOVED***Default: mi.obj***REMOVED***
 ***REMOVED***
 
 // newScenarioInfo returns a goja.Object with property accessors to retrieve
 // information about the scenario the current VU is running in.
 func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.GetContext()
+	ctx := mi.vu.Context()
 	rt := common.GetRuntime(ctx)
-	vuState := mi.GetState()
+	vuState := mi.vu.State()
 	if vuState == nil ***REMOVED***
 		return nil, errors.New("getting scenario information in the init context is not supported")
 	***REMOVED***
@@ -100,7 +100,7 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
 		return nil, errors.New("goja runtime is nil in context")
 	***REMOVED***
 	getScenarioState := func() *lib.ScenarioState ***REMOVED***
-		ss := lib.GetScenarioState(mi.GetContext())
+		ss := lib.GetScenarioState(mi.vu.Context())
 		if ss == nil ***REMOVED***
 			common.Throw(rt, errors.New("getting scenario information in the init context is not supported"))
 		***REMOVED***
@@ -140,7 +140,7 @@ func (mi *ModuleInstance) newScenarioInfo() (*goja.Object, error) ***REMOVED***
 // newInstanceInfo returns a goja.Object with property accessors to retrieve
 // information about the local instance stats.
 func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.GetContext()
+	ctx := mi.vu.Context()
 	es := lib.GetExecutionState(ctx)
 	if es == nil ***REMOVED***
 		return nil, errors.New("getting instance information in the init context is not supported")
@@ -175,7 +175,7 @@ func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) ***REMOVED***
 // newVUInfo returns a goja.Object with property accessors to retrieve
 // information about the currently executing VU.
 func (mi *ModuleInstance) newVUInfo() (*goja.Object, error) ***REMOVED***
-	ctx := mi.GetContext()
+	ctx := mi.vu.Context()
 	vuState := lib.GetState(ctx)
 	if vuState == nil ***REMOVED***
 		return nil, errors.New("getting VU information in the init context is not supported")
