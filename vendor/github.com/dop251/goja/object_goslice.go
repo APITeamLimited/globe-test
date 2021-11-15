@@ -1,6 +1,8 @@
 package goja
 
 import (
+	"math"
+	"math/bits"
 	"reflect"
 	"strconv"
 
@@ -115,8 +117,11 @@ func (o *objectGoSlice) putIdx(idx int, v Value, throw bool) ***REMOVED***
 	(*o.data)[idx] = v.Export()
 ***REMOVED***
 
-func (o *objectGoSlice) putLength(v Value, throw bool) bool ***REMOVED***
-	newLen := toIntStrict(toLength(v))
+func (o *objectGoSlice) putLength(v uint32, throw bool) bool ***REMOVED***
+	if bits.UintSize == 32 && v > math.MaxInt32 ***REMOVED***
+		panic(rangeError("Integer value overflows 32-bit int"))
+	***REMOVED***
+	newLen := int(v)
 	curLen := len(*o.data)
 	if newLen > curLen ***REMOVED***
 		o.grow(newLen)
@@ -156,7 +161,7 @@ func (o *objectGoSlice) setOwnStr(name unistring.String, val Value, throw bool) 
 		o.putIdx(idx, val, throw)
 	***REMOVED*** else ***REMOVED***
 		if name == "length" ***REMOVED***
-			return o.putLength(val, throw)
+			return o.putLength(o.val.runtime.toLengthUint32(val), throw)
 		***REMOVED***
 		if res, ok := o._setForeignStr(name, nil, val, o.val, throw); !ok ***REMOVED***
 			o.val.runtime.typeErrorResult(throw, "Can't set property '%s' on Go slice", name)
@@ -270,20 +275,20 @@ func (i *goslicePropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	if i.idx < i.limit && i.idx < len(*i.o.data) ***REMOVED***
 		name := strconv.Itoa(i.idx)
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.String(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
+		return propIterItem***REMOVED***name: newStringValue(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoSlice) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *objectGoSlice) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&goslicePropIter***REMOVED***
 		o:     o,
 		limit: len(*o.data),
 	***REMOVED***).next
 ***REMOVED***
 
-func (o *objectGoSlice) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
+func (o *objectGoSlice) stringKeys(_ bool, accum []Value) []Value ***REMOVED***
 	for i := range *o.data ***REMOVED***
 		accum = append(accum, asciiString(strconv.Itoa(i)))
 	***REMOVED***

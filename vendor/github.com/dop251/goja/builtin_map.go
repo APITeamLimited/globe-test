@@ -159,7 +159,7 @@ func (r *Runtime) builtin_newMap(args []Value, newTarget *Object) *Object ***REM
 			i0 := valueInt(0)
 			i1 := valueInt(1)
 			if adder == r.global.mapAdder ***REMOVED***
-				r.iterate(iter, func(item Value) ***REMOVED***
+				iter.iterate(func(item Value) ***REMOVED***
 					itemObj := r.toObject(item)
 					k := nilSafe(itemObj.self.getIdx(i0, nil))
 					v := nilSafe(itemObj.self.getIdx(i1, nil))
@@ -170,7 +170,7 @@ func (r *Runtime) builtin_newMap(args []Value, newTarget *Object) *Object ***REM
 				if adderFn == nil ***REMOVED***
 					panic(r.NewTypeError("Map.set in missing"))
 				***REMOVED***
-				r.iterate(iter, func(item Value) ***REMOVED***
+				iter.iterate(func(item Value) ***REMOVED***
 					itemObj := r.toObject(item)
 					k := itemObj.self.getIdx(i0, nil)
 					v := itemObj.self.getIdx(i1, nil)

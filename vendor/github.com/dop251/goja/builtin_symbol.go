@@ -87,6 +87,20 @@ func (r *Runtime) symbol_keyfor(call FunctionCall) Value ***REMOVED***
 	return _undefined
 ***REMOVED***
 
+func (r *Runtime) thisSymbolValue(v Value) *Symbol ***REMOVED***
+	if sym, ok := v.(*Symbol); ok ***REMOVED***
+		return sym
+	***REMOVED***
+	if obj, ok := v.(*Object); ok ***REMOVED***
+		if pVal, ok := obj.self.(*primitiveValueObject); ok ***REMOVED***
+			if sym, ok := pVal.pValue.(*Symbol); ok ***REMOVED***
+				return sym
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	panic(r.NewTypeError("Value is not a Symbol"))
+***REMOVED***
+
 func (r *Runtime) createSymbolProto(val *Object) objectImpl ***REMOVED***
 	o := &baseObject***REMOVED***
 		class:      classObject,
@@ -97,6 +111,13 @@ func (r *Runtime) createSymbolProto(val *Object) objectImpl ***REMOVED***
 	o.init()
 
 	o._putProp("constructor", r.global.Symbol, true, false, true)
+	o.setOwnStr("description", &valueProperty***REMOVED***
+		configurable: true,
+		getterFunc: r.newNativeFunc(func(call FunctionCall) Value ***REMOVED***
+			return r.thisSymbolValue(call.This).desc
+		***REMOVED***, nil, "get description", nil, 0),
+		accessor: true,
+	***REMOVED***, false)
 	o._putProp("toString", r.newNativeFunc(r.symbolproto_tostring, nil, "toString", nil, 0), true, false, true)
 	o._putProp("valueOf", r.newNativeFunc(r.symbolproto_valueOf, nil, "valueOf", nil, 0), true, false, true)
 	o._putSym(SymToPrimitive, valueProp(r.newNativeFunc(r.symbolproto_valueOf, nil, "[Symbol.toPrimitive]", nil, 1), false, false, true))
@@ -106,7 +127,9 @@ func (r *Runtime) createSymbolProto(val *Object) objectImpl ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) createSymbol(val *Object) objectImpl ***REMOVED***
-	o := r.newNativeFuncObj(val, r.builtin_symbol, nil, "Symbol", r.global.SymbolPrototype, 0)
+	o := r.newNativeFuncObj(val, r.builtin_symbol, func(args []Value, proto *Object) *Object ***REMOVED***
+		panic(r.NewTypeError("Symbol is not a constructor"))
+	***REMOVED***, "Symbol", r.global.SymbolPrototype, _positiveZero)
 
 	o._putProp("for", r.newNativeFunc(r.symbol_for, nil, "for", nil, 1), true, false, true)
 	o._putProp("keyFor", r.newNativeFunc(r.symbol_keyfor, nil, "keyFor", nil, 1), true, false, true)

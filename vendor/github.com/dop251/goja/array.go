@@ -20,6 +20,9 @@ func (ai *arrayIterObject) next() Value ***REMOVED***
 	if ai.obj == nil ***REMOVED***
 		return ai.val.runtime.createIterResultObject(_undefined, true)
 	***REMOVED***
+	if ta, ok := ai.obj.self.(*typedArrayObject); ok ***REMOVED***
+		ta.viewedArrayBuf.ensureNotDetached(true)
+	***REMOVED***
 	l := toLength(ai.obj.self.getStr("length", nil))
 	index := ai.nextIdx
 	if index >= l ***REMOVED***
@@ -74,49 +77,45 @@ func (a *arrayObject) init() ***REMOVED***
 	a._put("length", &a.lengthProp)
 ***REMOVED***
 
-func (a *arrayObject) _setLengthInt(l int64, throw bool) bool ***REMOVED***
-	if l >= 0 && l <= math.MaxUint32 ***REMOVED***
-		l := uint32(l)
-		ret := true
-		if l <= a.length ***REMOVED***
-			if a.propValueCount > 0 ***REMOVED***
-				// Slow path
-				for i := len(a.values) - 1; i >= int(l); i-- ***REMOVED***
-					if prop, ok := a.values[i].(*valueProperty); ok ***REMOVED***
-						if !prop.configurable ***REMOVED***
-							l = uint32(i) + 1
-							ret = false
-							break
-						***REMOVED***
-						a.propValueCount--
+func (a *arrayObject) _setLengthInt(l uint32, throw bool) bool ***REMOVED***
+	ret := true
+	if l <= a.length ***REMOVED***
+		if a.propValueCount > 0 ***REMOVED***
+			// Slow path
+			for i := len(a.values) - 1; i >= int(l); i-- ***REMOVED***
+				if prop, ok := a.values[i].(*valueProperty); ok ***REMOVED***
+					if !prop.configurable ***REMOVED***
+						l = uint32(i) + 1
+						ret = false
+						break
 					***REMOVED***
+					a.propValueCount--
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
-		if l <= uint32(len(a.values)) ***REMOVED***
-			if l >= 16 && l < uint32(cap(a.values))>>2 ***REMOVED***
-				ar := make([]Value, l)
-				copy(ar, a.values)
-				a.values = ar
-			***REMOVED*** else ***REMOVED***
-				ar := a.values[l:len(a.values)]
-				for i := range ar ***REMOVED***
-					ar[i] = nil
-				***REMOVED***
-				a.values = a.values[:l]
-			***REMOVED***
-		***REMOVED***
-		a.length = l
-		if !ret ***REMOVED***
-			a.val.runtime.typeErrorResult(throw, "Cannot redefine property: length")
-		***REMOVED***
-		return ret
 	***REMOVED***
-	panic(a.val.runtime.newError(a.val.runtime.global.RangeError, "Invalid array length"))
+	if l <= uint32(len(a.values)) ***REMOVED***
+		if l >= 16 && l < uint32(cap(a.values))>>2 ***REMOVED***
+			ar := make([]Value, l)
+			copy(ar, a.values)
+			a.values = ar
+		***REMOVED*** else ***REMOVED***
+			ar := a.values[l:len(a.values)]
+			for i := range ar ***REMOVED***
+				ar[i] = nil
+			***REMOVED***
+			a.values = a.values[:l]
+		***REMOVED***
+	***REMOVED***
+	a.length = l
+	if !ret ***REMOVED***
+		a.val.runtime.typeErrorResult(throw, "Cannot redefine property: length")
+	***REMOVED***
+	return ret
 ***REMOVED***
 
-func (a *arrayObject) setLengthInt(l int64, throw bool) bool ***REMOVED***
-	if l == int64(a.length) ***REMOVED***
+func (a *arrayObject) setLengthInt(l uint32, throw bool) bool ***REMOVED***
+	if l == a.length ***REMOVED***
 		return true
 	***REMOVED***
 	if !a.lengthProp.writable ***REMOVED***
@@ -126,19 +125,15 @@ func (a *arrayObject) setLengthInt(l int64, throw bool) bool ***REMOVED***
 	return a._setLengthInt(l, throw)
 ***REMOVED***
 
-func (a *arrayObject) setLength(v Value, throw bool) bool ***REMOVED***
-	l, ok := toIntIgnoreNegZero(v)
-	if ok && l == int64(a.length) ***REMOVED***
+func (a *arrayObject) setLength(v uint32, throw bool) bool ***REMOVED***
+	if v == a.length ***REMOVED***
 		return true
 	***REMOVED***
 	if !a.lengthProp.writable ***REMOVED***
 		a.val.runtime.typeErrorResult(throw, "length is not writable")
 		return false
 	***REMOVED***
-	if ok ***REMOVED***
-		return a._setLengthInt(l, throw)
-	***REMOVED***
-	panic(a.val.runtime.newError(a.val.runtime.global.RangeError, "Invalid array length"))
+	return a._setLengthInt(v, throw)
 ***REMOVED***
 
 func (a *arrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
@@ -237,7 +232,7 @@ func (a *arrayObject) _setOwnIdx(idx uint32, val Value, throw bool) bool ***REMO
 			return false
 		***REMOVED*** else ***REMOVED***
 			if idx >= a.length ***REMOVED***
-				if !a.setLengthInt(int64(idx)+1, throw) ***REMOVED***
+				if !a.setLengthInt(idx+1, throw) ***REMOVED***
 					return false
 				***REMOVED***
 			***REMOVED***
@@ -268,7 +263,7 @@ func (a *arrayObject) setOwnStr(name unistring.String, val Value, throw bool) bo
 		return a._setOwnIdx(idx, val, throw)
 	***REMOVED*** else ***REMOVED***
 		if name == "length" ***REMOVED***
-			return a.setLength(val, throw)
+			return a.setLength(a.val.runtime.toLengthUint32(val), throw)
 		***REMOVED*** else ***REMOVED***
 			return a.baseObject.setOwnStr(name, val, throw)
 		***REMOVED***
@@ -291,7 +286,7 @@ type arrayPropIter struct ***REMOVED***
 
 func (i *arrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	for i.idx < len(i.a.values) && i.idx < i.limit ***REMOVED***
-		name := unistring.String(strconv.Itoa(i.idx))
+		name := asciiString(strconv.Itoa(i.idx))
 		prop := i.a.values[i.idx]
 		i.idx++
 		if prop != nil ***REMOVED***
@@ -299,17 +294,17 @@ func (i *arrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		***REMOVED***
 	***REMOVED***
 
-	return i.a.baseObject.enumerateOwnKeys()()
+	return i.a.baseObject.iterateStringKeys()()
 ***REMOVED***
 
-func (a *arrayObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (a *arrayObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&arrayPropIter***REMOVED***
 		a:     a,
 		limit: len(a.values),
 	***REMOVED***).next
 ***REMOVED***
 
-func (a *arrayObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (a *arrayObject) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	for i, prop := range a.values ***REMOVED***
 		name := strconv.Itoa(i)
 		if prop != nil ***REMOVED***
@@ -321,7 +316,7 @@ func (a *arrayObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
 			accum = append(accum, asciiString(name))
 		***REMOVED***
 	***REMOVED***
-	return a.baseObject.ownKeys(all, accum)
+	return a.baseObject.stringKeys(all, accum)
 ***REMOVED***
 
 func (a *arrayObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
@@ -373,15 +368,19 @@ func (a *arrayObject) expand(idx uint32) bool ***REMOVED***
 	return true
 ***REMOVED***
 
-func (r *Runtime) defineArrayLength(prop *valueProperty, descr PropertyDescriptor, setter func(Value, bool) bool, throw bool) bool ***REMOVED***
+func (r *Runtime) defineArrayLength(prop *valueProperty, descr PropertyDescriptor, setter func(uint32, bool) bool, throw bool) bool ***REMOVED***
+	var newLen uint32
 	ret := true
+	if descr.Value != nil ***REMOVED***
+		newLen = r.toLengthUint32(descr.Value)
+	***REMOVED***
 
 	if descr.Configurable == FLAG_TRUE || descr.Enumerable == FLAG_TRUE || descr.Getter != nil || descr.Setter != nil ***REMOVED***
 		ret = false
 		goto Reject
 	***REMOVED***
 
-	if newLen := descr.Value; newLen != nil ***REMOVED***
+	if descr.Value != nil ***REMOVED***
 		ret = setter(newLen, false)
 	***REMOVED*** else ***REMOVED***
 		ret = true
@@ -415,7 +414,7 @@ func (a *arrayObject) _defineIdxProperty(idx uint32, desc PropertyDescriptor, th
 	prop, ok := a.baseObject._defineOwnProperty(unistring.String(strconv.FormatUint(uint64(idx), 10)), existing, desc, throw)
 	if ok ***REMOVED***
 		if idx >= a.length ***REMOVED***
-			if !a.setLengthInt(int64(idx)+1, throw) ***REMOVED***
+			if !a.setLengthInt(idx+1, throw) ***REMOVED***
 				return false
 			***REMOVED***
 		***REMOVED***

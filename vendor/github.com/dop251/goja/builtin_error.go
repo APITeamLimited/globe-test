@@ -10,8 +10,8 @@ func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object ***REMOVED*
 
 func (r *Runtime) builtin_AggregateError(args []Value, proto *Object) *Object ***REMOVED***
 	obj := r.newBaseObject(proto, classAggError)
-	if len(args) > 1 && args[1] != _undefined ***REMOVED***
-		obj._putProp("message", args[1], true, false, true)
+	if len(args) > 1 && args[1] != nil && args[1] != _undefined ***REMOVED***
+		obj._putProp("message", args[1].toString(), true, false, true)
 	***REMOVED***
 	var errors []Value
 	if len(args) > 0 ***REMOVED***
@@ -40,7 +40,7 @@ func (r *Runtime) initErrors() ***REMOVED***
 	r.addToGlobal("Error", r.global.Error)
 
 	r.global.AggregateErrorPrototype = r.createErrorPrototype(stringAggregateError)
-	r.global.AggregateError = r.newNativeFuncConstructProto(r.builtin_AggregateError, "AggregateError", r.global.AggregateErrorPrototype, r.global.Error, 1)
+	r.global.AggregateError = r.newNativeFuncConstructProto(r.builtin_AggregateError, "AggregateError", r.global.AggregateErrorPrototype, r.global.Error, 2)
 	r.addToGlobal("AggregateError", r.global.AggregateError)
 
 	r.global.TypeErrorPrototype = r.createErrorPrototype(stringTypeError)

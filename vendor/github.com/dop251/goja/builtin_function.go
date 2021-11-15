@@ -2,6 +2,7 @@ package goja
 
 import (
 	"fmt"
+	"math"
 )
 
 func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object ***REMOVED***
@@ -16,11 +17,11 @@ func (r *Runtime) builtin_Function(args []Value, proto *Object) *Object ***REMOV
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-	sb.WriteString(asciiString(")***REMOVED***"))
+	sb.WriteString(asciiString("\n) ***REMOVED***\n"))
 	if len(args) > 0 ***REMOVED***
 		sb.WriteString(args[len(args)-1].toString())
 	***REMOVED***
-	sb.WriteString(asciiString("***REMOVED***)"))
+	sb.WriteString(asciiString("\n***REMOVED***)"))
 
 	ret := r.toObject(r.eval(sb.String(), false, false, _undefined))
 	ret.self.setProto(proto, true)
@@ -31,6 +32,8 @@ func (r *Runtime) functionproto_toString(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 repeat:
 	switch f := obj.self.(type) ***REMOVED***
+	case *methodFuncObject:
+		return newStringValue(f.src)
 	case *funcObject:
 		return newStringValue(f.src)
 	case *arrowFuncObject:
@@ -43,28 +46,16 @@ repeat:
 		obj.self = f.create(obj)
 		goto repeat
 	case *proxyObject:
-		var name string
 	repeat2:
 		switch c := f.target.self.(type) ***REMOVED***
-		case *funcObject:
-			name = c.src
-		case *arrowFuncObject:
-			name = c.src
-		case *nativeFuncObject:
-			name = nilSafe(f.getStr("name", nil)).toString().String()
-		case *boundFuncObject:
-			name = nilSafe(f.getStr("name", nil)).toString().String()
+		case *methodFuncObject, *funcObject, *arrowFuncObject, *nativeFuncObject, *boundFuncObject:
+			return asciiString("function () ***REMOVED*** [native code] ***REMOVED***")
 		case *lazyObject:
 			f.target.self = c.create(obj)
 			goto repeat2
-		default:
-			name = f.target.String()
 		***REMOVED***
-		return newStringValue(fmt.Sprintf("function proxy() ***REMOVED*** [%s] ***REMOVED***", name))
 	***REMOVED***
-
-	r.typeErrorResult(true, "Object is not a function")
-	return nil
+	panic(r.NewTypeError("Function.prototype.toString requires that 'this' be a Function"))
 ***REMOVED***
 
 func (r *Runtime) functionproto_hasInstance(call FunctionCall) Value ***REMOVED***
@@ -157,12 +148,36 @@ func (r *Runtime) functionproto_bind(call FunctionCall) Value ***REMOVED***
 	fcall := r.toCallable(call.This)
 	construct := obj.self.assertConstructor()
 
-	l := int(toUint32(nilSafe(obj.self.getStr("length", nil))))
-	l -= len(call.Arguments) - 1
-	if l < 0 ***REMOVED***
-		l = 0
+	var l = _positiveZero
+	if obj.self.hasOwnPropertyStr("length") ***REMOVED***
+		var li int64
+		switch lenProp := nilSafe(obj.self.getStr("length", nil)).(type) ***REMOVED***
+		case valueInt:
+			li = lenProp.ToInteger()
+		case valueFloat:
+			switch lenProp ***REMOVED***
+			case _positiveInf:
+				l = lenProp
+				goto lenNotInt
+			case _negativeInf:
+				goto lenNotInt
+			case _negativeZero:
+				// no-op, li == 0
+			default:
+				if !math.IsNaN(float64(lenProp)) ***REMOVED***
+					li = int64(math.Abs(float64(lenProp)))
+				***REMOVED*** // else li = 0
+			***REMOVED***
+		***REMOVED***
+		if len(call.Arguments) > 1 ***REMOVED***
+			li -= int64(len(call.Arguments)) - 1
+		***REMOVED***
+		if li < 0 ***REMOVED***
+			li = 0
+		***REMOVED***
+		l = intToValue(li)
 	***REMOVED***
-
+lenNotInt:
 	name := obj.self.getStr("name", nil)
 	nameStr := stringBound_
 	if s, ok := name.(valueString); ok ***REMOVED***
@@ -177,10 +192,6 @@ func (r *Runtime) functionproto_bind(call FunctionCall) Value ***REMOVED***
 		wrapped:          obj,
 	***REMOVED***
 
-	//ret := r.newNativeFunc(r.boundCallable(f, call.Arguments), nil, "", nil, l)
-	//o := ret.self
-	//o.putStr("caller", r.global.throwerProperty, false)
-	//o.putStr("arguments", r.global.throwerProperty, false)
 	return v
 ***REMOVED***
 

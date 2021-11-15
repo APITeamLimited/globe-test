@@ -206,16 +206,30 @@ func (i *destructKeyedSourceIter) next() (propIterItem, iterNextFunc) ***REMOVED
 			return item, nil
 		***REMOVED***
 		i.wrapped = next
-		if _, exists := i.d.usedKeys[stringValueFromRaw(item.name)]; !exists ***REMOVED***
+		if _, exists := i.d.usedKeys[item.name]; !exists ***REMOVED***
 			return item, i.next
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (d *destructKeyedSource) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (d *destructKeyedSource) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&destructKeyedSourceIter***REMOVED***
 		d:       d,
-		wrapped: d.w().enumerateOwnKeys(),
+		wrapped: d.w().iterateStringKeys(),
+	***REMOVED***).next
+***REMOVED***
+
+func (d *destructKeyedSource) iterateSymbols() iterNextFunc ***REMOVED***
+	return (&destructKeyedSourceIter***REMOVED***
+		d:       d,
+		wrapped: d.w().iterateSymbols(),
+	***REMOVED***).next
+***REMOVED***
+
+func (d *destructKeyedSource) iterateKeys() iterNextFunc ***REMOVED***
+	return (&destructKeyedSourceIter***REMOVED***
+		d:       d,
+		wrapped: d.w().iterateKeys(),
 	***REMOVED***).next
 ***REMOVED***
 
@@ -231,17 +245,18 @@ func (d *destructKeyedSource) equal(impl objectImpl) bool ***REMOVED***
 	return d.w().equal(impl)
 ***REMOVED***
 
-func (d *destructKeyedSource) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (d *destructKeyedSource) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	var next iterNextFunc
 	if all ***REMOVED***
-		next = d.enumerateOwnKeys()
+		next = d.iterateStringKeys()
 	***REMOVED*** else ***REMOVED***
 		next = (&enumerableIter***REMOVED***
-			wrapped: d.enumerateOwnKeys(),
+			o:       d.wrapped.ToObject(d.r),
+			wrapped: d.iterateStringKeys(),
 		***REMOVED***).next
 	***REMOVED***
 	for item, next := next(); next != nil; item, next = next() ***REMOVED***
-		accum = append(accum, stringValueFromRaw(item.name))
+		accum = append(accum, item.name)
 	***REMOVED***
 	return accum
 ***REMOVED***
@@ -260,12 +275,12 @@ func (d *destructKeyedSource) filterUsedKeys(keys []Value) []Value ***REMOVED***
 	return keys[:k]
 ***REMOVED***
 
-func (d *destructKeyedSource) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
-	return d.filterUsedKeys(d.w().ownSymbols(all, accum))
+func (d *destructKeyedSource) symbols(all bool, accum []Value) []Value ***REMOVED***
+	return d.filterUsedKeys(d.w().symbols(all, accum))
 ***REMOVED***
 
-func (d *destructKeyedSource) ownPropertyKeys(all bool, accum []Value) []Value ***REMOVED***
-	return d.filterUsedKeys(d.w().ownPropertyKeys(all, accum))
+func (d *destructKeyedSource) keys(all bool, accum []Value) []Value ***REMOVED***
+	return d.filterUsedKeys(d.w().keys(all, accum))
 ***REMOVED***
 
 func (d *destructKeyedSource) _putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value ***REMOVED***

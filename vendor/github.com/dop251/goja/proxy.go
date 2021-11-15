@@ -28,24 +28,12 @@ func (i *proxyPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	for i.idx < len(i.names) ***REMOVED***
 		name := i.names[i.idx]
 		i.idx++
-		if prop := i.p.val.getOwnProp(name); prop != nil ***REMOVED***
-			return propIterItem***REMOVED***name: name.string(), value: prop***REMOVED***, i.next
-		***REMOVED***
+		return propIterItem***REMOVED***name: name***REMOVED***, i.next
 	***REMOVED***
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
 func (r *Runtime) newProxyObject(target, handler, proto *Object) *proxyObject ***REMOVED***
-	if p, ok := target.self.(*proxyObject); ok ***REMOVED***
-		if p.handler == nil ***REMOVED***
-			panic(r.NewTypeError("Cannot create proxy with a revoked proxy as target"))
-		***REMOVED***
-	***REMOVED***
-	if p, ok := handler.self.(*proxyObject); ok ***REMOVED***
-		if p.handler == nil ***REMOVED***
-			panic(r.NewTypeError("Cannot create proxy with a revoked proxy as handler"))
-		***REMOVED***
-	***REMOVED***
 	return r._newProxyObject(target, &jsProxyHandler***REMOVED***handler: handler***REMOVED***, proto)
 ***REMOVED***
 
@@ -726,7 +714,7 @@ func (p *proxyObject) setForeignSym(s *Symbol, v, receiver Value, throw bool) (b
 	return p.proxySetSym(s, v, receiver, throw), true
 ***REMOVED***
 
-func (p *proxyObject) proxyDeleteCheck(trapResult bool, targetProp Value, name fmt.Stringer, target *Object) ***REMOVED***
+func (p *proxyObject) proxyDeleteCheck(trapResult bool, targetProp Value, name fmt.Stringer, target *Object, throw bool) ***REMOVED***
 	if trapResult ***REMOVED***
 		if targetProp == nil ***REMOVED***
 			return
@@ -739,13 +727,15 @@ func (p *proxyObject) proxyDeleteCheck(trapResult bool, targetProp Value, name f
 		if !target.self.isExtensible() ***REMOVED***
 			panic(p.val.runtime.NewTypeError("'deleteProperty' on proxy: trap returned truish for property '%s' but the proxy target is non-extensible", name.String()))
 		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		p.val.runtime.typeErrorResult(throw, "'deleteProperty' on proxy: trap returned falsish for property '%s'", name.String())
 	***REMOVED***
 ***REMOVED***
 
 func (p *proxyObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
 	target := p.target
 	if v, ok := p.checkHandler().deleteStr(target, name); ok ***REMOVED***
-		p.proxyDeleteCheck(v, target.self.getOwnPropStr(name), name, target)
+		p.proxyDeleteCheck(v, target.self.getOwnPropStr(name), name, target, throw)
 		return v
 	***REMOVED***
 
@@ -755,7 +745,7 @@ func (p *proxyObject) deleteStr(name unistring.String, throw bool) bool ***REMOV
 func (p *proxyObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 	target := p.target
 	if v, ok := p.checkHandler().deleteIdx(target, idx); ok ***REMOVED***
-		p.proxyDeleteCheck(v, target.self.getOwnPropIdx(idx), idx, target)
+		p.proxyDeleteCheck(v, target.self.getOwnPropIdx(idx), idx, target, throw)
 		return v
 	***REMOVED***
 
@@ -765,20 +755,20 @@ func (p *proxyObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 func (p *proxyObject) deleteSym(s *Symbol, throw bool) bool ***REMOVED***
 	target := p.target
 	if v, ok := p.checkHandler().deleteSym(target, s); ok ***REMOVED***
-		p.proxyDeleteCheck(v, target.self.getOwnPropSym(s), s, target)
+		p.proxyDeleteCheck(v, target.self.getOwnPropSym(s), s, target, throw)
 		return v
 	***REMOVED***
 
 	return target.self.deleteSym(s, throw)
 ***REMOVED***
 
-func (p *proxyObject) ownPropertyKeys(all bool, _ []Value) []Value ***REMOVED***
+func (p *proxyObject) keys(all bool, _ []Value) []Value ***REMOVED***
 	if v, ok := p.proxyOwnKeys(); ok ***REMOVED***
 		if !all ***REMOVED***
 			k := 0
 			for i, key := range v ***REMOVED***
 				prop := p.val.getOwnProp(key)
-				if prop == nil ***REMOVED***
+				if prop == nil || prop == _undefined ***REMOVED***
 					continue
 				***REMOVED***
 				if prop, ok := prop.(*valueProperty); ok && !prop.enumerable ***REMOVED***
@@ -793,7 +783,7 @@ func (p *proxyObject) ownPropertyKeys(all bool, _ []Value) []Value ***REMOVED***
 		***REMOVED***
 		return v
 	***REMOVED***
-	return p.target.self.ownPropertyKeys(all, nil)
+	return p.target.self.keys(all, nil)
 ***REMOVED***
 
 func (p *proxyObject) proxyOwnKeys() ([]Value, bool) ***REMOVED***
@@ -817,16 +807,21 @@ func (p *proxyObject) proxyOwnKeys() ([]Value, bool) ***REMOVED***
 			keySet[item] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 		***REMOVED***
 		ext := target.self.isExtensible()
-		for _, itemName := range target.self.ownPropertyKeys(true, nil) ***REMOVED***
-			if _, exists := keySet[itemName]; exists ***REMOVED***
-				delete(keySet, itemName)
+		for item, next := target.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+			if _, exists := keySet[item.name]; exists ***REMOVED***
+				delete(keySet, item.name)
 			***REMOVED*** else ***REMOVED***
 				if !ext ***REMOVED***
-					panic(p.val.runtime.NewTypeError("'ownKeys' on proxy: trap result did not include '%s'", itemName.String()))
+					panic(p.val.runtime.NewTypeError("'ownKeys' on proxy: trap result did not include '%s'", item.name.String()))
 				***REMOVED***
-				prop := target.getOwnProp(itemName)
+				var prop Value
+				if item.value == nil ***REMOVED***
+					prop = target.getOwnProp(item.name)
+				***REMOVED*** else ***REMOVED***
+					prop = item.value
+				***REMOVED***
 				if prop, ok := prop.(*valueProperty); ok && !prop.configurable ***REMOVED***
-					panic(p.val.runtime.NewTypeError("'ownKeys' on proxy: trap result did not include non-configurable '%s'", itemName.String()))
+					panic(p.val.runtime.NewTypeError("'ownKeys' on proxy: trap result did not include non-configurable '%s'", item.name.String()))
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***
@@ -840,10 +835,24 @@ func (p *proxyObject) proxyOwnKeys() ([]Value, bool) ***REMOVED***
 	return nil, false
 ***REMOVED***
 
-func (p *proxyObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (p *proxyObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&proxyPropIter***REMOVED***
 		p:     p,
-		names: p.ownKeys(true, nil),
+		names: p.stringKeys(true, nil),
+	***REMOVED***).next
+***REMOVED***
+
+func (p *proxyObject) iterateSymbols() iterNextFunc ***REMOVED***
+	return (&proxyPropIter***REMOVED***
+		p:     p,
+		names: p.symbols(true, nil),
+	***REMOVED***).next
+***REMOVED***
+
+func (p *proxyObject) iterateKeys() iterNextFunc ***REMOVED***
+	return (&proxyPropIter***REMOVED***
+		p:     p,
+		names: p.keys(true, nil),
 	***REMOVED***).next
 ***REMOVED***
 
@@ -890,14 +899,6 @@ func (p *proxyObject) __isCompatibleDescriptor(extensible bool, desc *PropertyDe
 	if current == nil ***REMOVED***
 		return extensible
 	***REMOVED***
-
-	/*if desc.Empty() ***REMOVED***
-		return true
-	***REMOVED****/
-
-	/*if p.__isEquivalentDescriptor(desc, current) ***REMOVED***
-		return true
-	***REMOVED****/
 
 	if !current.configurable ***REMOVED***
 		if desc.Configurable == FLAG_TRUE ***REMOVED***
@@ -999,25 +1000,30 @@ func (p *proxyObject) filterKeys(vals []Value, all, symbols bool) []Value ***REM
 	return vals
 ***REMOVED***
 
-func (p *proxyObject) ownKeys(all bool, _ []Value) []Value ***REMOVED*** // we can assume accum is empty
+func (p *proxyObject) stringKeys(all bool, _ []Value) []Value ***REMOVED*** // we can assume accum is empty
+	var keys []Value
 	if vals, ok := p.proxyOwnKeys(); ok ***REMOVED***
-		return p.filterKeys(vals, all, false)
+		keys = vals
+	***REMOVED*** else ***REMOVED***
+		keys = p.target.self.stringKeys(true, nil)
 	***REMOVED***
 
-	return p.target.self.ownKeys(all, nil)
+	return p.filterKeys(keys, all, false)
 ***REMOVED***
 
-func (p *proxyObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
+func (p *proxyObject) symbols(all bool, accum []Value) []Value ***REMOVED***
+	var symbols []Value
 	if vals, ok := p.proxyOwnKeys(); ok ***REMOVED***
-		res := p.filterKeys(vals, all, true)
-		if accum == nil ***REMOVED***
-			return res
-		***REMOVED***
-		accum = append(accum, res...)
-		return accum
+		symbols = vals
+	***REMOVED*** else ***REMOVED***
+		symbols = p.target.self.symbols(true, nil)
 	***REMOVED***
-
-	return p.target.self.ownSymbols(all, accum)
+	symbols = p.filterKeys(symbols, all, true)
+	if accum == nil ***REMOVED***
+		return symbols
+	***REMOVED***
+	accum = append(accum, symbols...)
+	return accum
 ***REMOVED***
 
 func (p *proxyObject) className() string ***REMOVED***

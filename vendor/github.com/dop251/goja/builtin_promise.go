@@ -2,6 +2,7 @@ package goja
 
 import (
 	"github.com/dop251/goja/unistring"
+	"reflect"
 )
 
 type PromiseState int
@@ -41,6 +42,8 @@ type promiseReaction struct ***REMOVED***
 	typ        promiseReactionType
 	handler    *jobCallback
 ***REMOVED***
+
+var typePromise = reflect.TypeOf((*Promise)(nil))
 
 // Promise is a Go wrapper around ECMAScript Promise. Calling Runtime.ToValue() on it
 // returns the underlying Object. Calling Export() on a Promise Object returns a Promise.
@@ -134,6 +137,14 @@ func (p *Promise) fulfill(value Value) Value ***REMOVED***
 	p.state = PromiseStateFulfilled
 	p.val.runtime.triggerPromiseReactions(reactions, value)
 	return _undefined
+***REMOVED***
+
+func (p *Promise) exportType() reflect.Type ***REMOVED***
+	return typePromise
+***REMOVED***
+
+func (p *Promise) export(*objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	return p
 ***REMOVED***
 
 func (r *Runtime) newPromiseResolveThenableJob(p *Promise, thenable Value, then *jobCallback) func() ***REMOVED***
@@ -379,7 +390,7 @@ func (r *Runtime) promise_all(call FunctionCall) Value ***REMOVED***
 		iter := r.getIterator(call.Argument(0), nil)
 		var values []Value
 		remainingElementsCount := 1
-		r.iterate(iter, func(nextValue Value) ***REMOVED***
+		iter.iterate(func(nextValue Value) ***REMOVED***
 			index := len(values)
 			values = append(values, _undefined)
 			nextPromise := promiseResolve(FunctionCall***REMOVED***This: c, Arguments: []Value***REMOVED***nextValue***REMOVED******REMOVED***)
@@ -416,7 +427,7 @@ func (r *Runtime) promise_allSettled(call FunctionCall) Value ***REMOVED***
 		iter := r.getIterator(call.Argument(0), nil)
 		var values []Value
 		remainingElementsCount := 1
-		r.iterate(iter, func(nextValue Value) ***REMOVED***
+		iter.iterate(func(nextValue Value) ***REMOVED***
 			index := len(values)
 			values = append(values, _undefined)
 			nextPromise := promiseResolve(FunctionCall***REMOVED***This: c, Arguments: []Value***REMOVED***nextValue***REMOVED******REMOVED***)
@@ -460,7 +471,7 @@ func (r *Runtime) promise_any(call FunctionCall) Value ***REMOVED***
 		iter := r.getIterator(call.Argument(0), nil)
 		var errors []Value
 		remainingElementsCount := 1
-		r.iterate(iter, func(nextValue Value) ***REMOVED***
+		iter.iterate(func(nextValue Value) ***REMOVED***
 			index := len(errors)
 			errors = append(errors, _undefined)
 			nextPromise := promiseResolve(FunctionCall***REMOVED***This: c, Arguments: []Value***REMOVED***nextValue***REMOVED******REMOVED***)
@@ -500,7 +511,7 @@ func (r *Runtime) promise_race(call FunctionCall) Value ***REMOVED***
 	pcap.try(func() ***REMOVED***
 		promiseResolve := r.toCallable(c.self.getStr("resolve", nil))
 		iter := r.getIterator(call.Argument(0), nil)
-		r.iterate(iter, func(nextValue Value) ***REMOVED***
+		iter.iterate(func(nextValue Value) ***REMOVED***
 			nextPromise := promiseResolve(FunctionCall***REMOVED***This: c, Arguments: []Value***REMOVED***nextValue***REMOVED******REMOVED***)
 			r.invoke(nextPromise, "then", pcap.resolveObj, pcap.rejectObj)
 		***REMOVED***)

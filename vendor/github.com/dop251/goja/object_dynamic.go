@@ -451,18 +451,28 @@ func (i *dynamicObjectPropIter) next() (propIterItem, iterNextFunc) ***REMOVED**
 		name := i.propNames[i.idx]
 		i.idx++
 		if i.o.d.Has(name) ***REMOVED***
-			return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
+			return propIterItem***REMOVED***name: newStringValue(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 		***REMOVED***
 	***REMOVED***
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *dynamicObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *dynamicObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	keys := o.d.Keys()
 	return (&dynamicObjectPropIter***REMOVED***
 		o:         o,
 		propNames: keys,
 	***REMOVED***).next
+***REMOVED***
+
+func (o *baseDynamicObject) iterateSymbols() iterNextFunc ***REMOVED***
+	return func() (propIterItem, iterNextFunc) ***REMOVED***
+		return propIterItem***REMOVED******REMOVED***, nil
+	***REMOVED***
+***REMOVED***
+
+func (o *dynamicObject) iterateKeys() iterNextFunc ***REMOVED***
+	return o.iterateStringKeys()
 ***REMOVED***
 
 func (o *dynamicObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
@@ -480,7 +490,7 @@ func (o *dynamicObject) equal(impl objectImpl) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (o *dynamicObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (o *dynamicObject) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	keys := o.d.Keys()
 	if l := len(accum) + len(keys); l > cap(accum) ***REMOVED***
 		oldAccum := accum
@@ -493,12 +503,12 @@ func (o *dynamicObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (*baseDynamicObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
+func (*baseDynamicObject) symbols(all bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (o *dynamicObject) ownPropertyKeys(all bool, accum []Value) []Value ***REMOVED***
-	return o.ownKeys(all, accum)
+func (o *dynamicObject) keys(all bool, accum []Value) []Value ***REMOVED***
+	return o.stringKeys(all, accum)
 ***REMOVED***
 
 func (*baseDynamicObject) _putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value ***REMOVED***
@@ -686,17 +696,21 @@ func (i *dynArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	if i.idx < i.limit && i.idx < i.a.Len() ***REMOVED***
 		name := strconv.Itoa(i.idx)
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.String(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
+		return propIterItem***REMOVED***name: asciiString(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (a *dynamicArray) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (a *dynamicArray) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&dynArrayPropIter***REMOVED***
 		a:     a.a,
 		limit: a.a.Len(),
 	***REMOVED***).next
+***REMOVED***
+
+func (a *dynamicArray) iterateKeys() iterNextFunc ***REMOVED***
+	return a.iterateStringKeys()
 ***REMOVED***
 
 func (a *dynamicArray) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
@@ -714,7 +728,7 @@ func (a *dynamicArray) equal(impl objectImpl) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func (a *dynamicArray) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (a *dynamicArray) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	al := a.a.Len()
 	l := len(accum) + al
 	if all ***REMOVED***
@@ -734,6 +748,6 @@ func (a *dynamicArray) ownKeys(all bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (a *dynamicArray) ownPropertyKeys(all bool, accum []Value) []Value ***REMOVED***
-	return a.ownKeys(all, accum)
+func (a *dynamicArray) keys(all bool, accum []Value) []Value ***REMOVED***
+	return a.stringKeys(all, accum)
 ***REMOVED***

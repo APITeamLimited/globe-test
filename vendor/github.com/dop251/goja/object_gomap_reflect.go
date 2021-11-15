@@ -242,21 +242,21 @@ func (i *gomapReflectPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		v := i.o.value.MapIndex(key)
 		i.idx++
 		if v.IsValid() ***REMOVED***
-			return propIterItem***REMOVED***name: unistring.NewFromString(key.String()), enumerable: _ENUM_TRUE***REMOVED***, i.next
+			return propIterItem***REMOVED***name: newStringValue(key.String()), enumerable: _ENUM_TRUE***REMOVED***, i.next
 		***REMOVED***
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoMapReflect) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *objectGoMapReflect) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&gomapReflectPropIter***REMOVED***
 		o:    o,
 		keys: o.value.MapKeys(),
 	***REMOVED***).next
 ***REMOVED***
 
-func (o *objectGoMapReflect) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
+func (o *objectGoMapReflect) stringKeys(_ bool, accum []Value) []Value ***REMOVED***
 	// all own keys are enumerable
 	for _, key := range o.value.MapKeys() ***REMOVED***
 		accum = append(accum, newStringValue(key.String()))

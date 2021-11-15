@@ -458,14 +458,14 @@ func (self *_parser) parseForOrForInStatement() ast.Statement ***REMOVED***
 				***REMOVED***
 			***REMOVED***
 			if forIn || forOf ***REMOVED***
+				if list[0].Initializer != nil ***REMOVED***
+					self.error(list[0].Initializer.Idx0(), "for-in loop variable declaration may not have an initializer")
+				***REMOVED***
 				if tok == token.VAR ***REMOVED***
 					into = &ast.ForIntoVar***REMOVED***
 						Binding: list[0],
 					***REMOVED***
 				***REMOVED*** else ***REMOVED***
-					if list[0].Initializer != nil ***REMOVED***
-						self.error(list[0].Initializer.Idx0(), "for-in loop variable declaration may not have an initializer")
-					***REMOVED***
 					into = &ast.ForDeclaration***REMOVED***
 						Idx:     idx,
 						IsConst: tok == token.CONST,

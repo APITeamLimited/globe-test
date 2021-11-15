@@ -76,12 +76,20 @@ func (r *Runtime) object_getOwnPropertyDescriptor(call FunctionCall) Value ***RE
 
 func (r *Runtime) object_getOwnPropertyDescriptors(call FunctionCall) Value ***REMOVED***
 	o := call.Argument(0).ToObject(r)
-	ownKeys := o.self.ownPropertyKeys(true, nil)
 	result := r.newBaseObject(r.global.ObjectPrototype, classObject).val
-	for _, key := range ownKeys ***REMOVED***
-		descriptor := r.valuePropToDescriptorObject(o.getOwnProp(key))
+	for item, next := o.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+		var prop Value
+		if item.value == nil ***REMOVED***
+			prop = o.getOwnProp(item.name)
+			if prop == nil ***REMOVED***
+				continue
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			prop = item.value
+		***REMOVED***
+		descriptor := r.valuePropToDescriptorObject(prop)
 		if descriptor != _undefined ***REMOVED***
-			createDataPropertyOrThrow(result, key, descriptor)
+			createDataPropertyOrThrow(result, item.name, descriptor)
 		***REMOVED***
 	***REMOVED***
 	return result
@@ -90,12 +98,12 @@ func (r *Runtime) object_getOwnPropertyDescriptors(call FunctionCall) Value ***R
 func (r *Runtime) object_getOwnPropertyNames(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
 
-	return r.newArrayValues(obj.self.ownKeys(true, nil))
+	return r.newArrayValues(obj.self.stringKeys(true, nil))
 ***REMOVED***
 
 func (r *Runtime) object_getOwnPropertySymbols(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
-	return r.newArrayValues(obj.self.ownSymbols(true, nil))
+	return r.newArrayValues(obj.self.symbols(true, nil))
 ***REMOVED***
 
 func (r *Runtime) toValueProp(v Value) *valueProperty ***REMOVED***
@@ -132,7 +140,7 @@ func (r *Runtime) toValueProp(v Value) *valueProperty ***REMOVED***
 	***REMOVED***
 
 	if setter != nil && setter != _undefined ***REMOVED***
-		o := r.toObject(v)
+		o := r.toObject(setter)
 		if _, ok := o.self.assertCallable(); !ok ***REMOVED***
 			r.typeErrorResult(true, "setter must be a function")
 		***REMOVED***
@@ -196,12 +204,11 @@ func (r *Runtime) _defineProperties(o *Object, p Value) ***REMOVED***
 		prop PropertyDescriptor
 	***REMOVED***
 	props := p.ToObject(r)
-	names := props.self.ownPropertyKeys(false, nil)
-	list := make([]propItem, 0, len(names))
-	for _, itemName := range names ***REMOVED***
+	var list []propItem
+	for item, next := iterateEnumerableProperties(props)(); next != nil; item, next = next() ***REMOVED***
 		list = append(list, propItem***REMOVED***
-			name: itemName,
-			prop: r.toPropertyDescriptor(props.get(itemName, nil)),
+			name: item.name,
+			prop: r.toPropertyDescriptor(item.value),
 		***REMOVED***)
 	***REMOVED***
 	for _, prop := range list ***REMOVED***
@@ -248,24 +255,19 @@ func (r *Runtime) object_seal(call FunctionCall) Value ***REMOVED***
 	// ES6
 	arg := call.Argument(0)
 	if obj, ok := arg.(*Object); ok ***REMOVED***
+		obj.self.preventExtensions(true)
 		descr := PropertyDescriptor***REMOVED***
-			Writable:     FLAG_TRUE,
-			Enumerable:   FLAG_TRUE,
 			Configurable: FLAG_FALSE,
 		***REMOVED***
-		for _, key := range obj.self.ownPropertyKeys(true, nil) ***REMOVED***
-			v := obj.getOwnProp(key)
-			if prop, ok := v.(*valueProperty); ok ***REMOVED***
-				if !prop.configurable ***REMOVED***
-					continue
-				***REMOVED***
+
+		for item, next := obj.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+			if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
 				prop.configurable = false
 			***REMOVED*** else ***REMOVED***
-				descr.Value = v
-				obj.defineOwnProperty(key, descr, true)
+				obj.defineOwnProperty(item.name, descr, true)
 			***REMOVED***
 		***REMOVED***
-		obj.self.preventExtensions(false)
+
 		return obj
 	***REMOVED***
 	return arg
@@ -274,24 +276,27 @@ func (r *Runtime) object_seal(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) object_freeze(call FunctionCall) Value ***REMOVED***
 	arg := call.Argument(0)
 	if obj, ok := arg.(*Object); ok ***REMOVED***
-		descr := PropertyDescriptor***REMOVED***
-			Writable:     FLAG_FALSE,
-			Enumerable:   FLAG_TRUE,
-			Configurable: FLAG_FALSE,
-		***REMOVED***
-		for _, key := range obj.self.ownPropertyKeys(true, nil) ***REMOVED***
-			v := obj.getOwnProp(key)
-			if prop, ok := v.(*valueProperty); ok ***REMOVED***
+		obj.self.preventExtensions(true)
+
+		for item, next := obj.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+			if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
 				prop.configurable = false
-				if prop.value != nil ***REMOVED***
+				if !prop.accessor ***REMOVED***
 					prop.writable = false
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
-				descr.Value = v
-				obj.defineOwnProperty(key, descr, true)
+				prop := obj.getOwnProp(item.name)
+				descr := PropertyDescriptor***REMOVED***
+					Configurable: FLAG_FALSE,
+				***REMOVED***
+				if prop, ok := prop.(*valueProperty); ok && prop.accessor ***REMOVED***
+					// no-op
+				***REMOVED*** else ***REMOVED***
+					descr.Writable = FLAG_FALSE
+				***REMOVED***
+				obj.defineOwnProperty(item.name, descr, true)
 			***REMOVED***
 		***REMOVED***
-		obj.self.preventExtensions(false)
 		return obj
 	***REMOVED*** else ***REMOVED***
 		// ES6 behavior
@@ -302,12 +307,8 @@ func (r *Runtime) object_freeze(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) object_preventExtensions(call FunctionCall) (ret Value) ***REMOVED***
 	arg := call.Argument(0)
 	if obj, ok := arg.(*Object); ok ***REMOVED***
-		obj.self.preventExtensions(false)
-		return obj
+		obj.self.preventExtensions(true)
 	***REMOVED***
-	// ES6
-	//r.typeErrorResult(true, "Object.preventExtensions called on non-object")
-	//panic("Unreachable")
 	return arg
 ***REMOVED***
 
@@ -316,8 +317,16 @@ func (r *Runtime) object_isSealed(call FunctionCall) Value ***REMOVED***
 		if obj.self.isExtensible() ***REMOVED***
 			return valueFalse
 		***REMOVED***
-		for _, key := range obj.self.ownPropertyKeys(true, nil) ***REMOVED***
-			prop := obj.getOwnProp(key)
+		for item, next := obj.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+			var prop Value
+			if item.value == nil ***REMOVED***
+				prop = obj.getOwnProp(item.name)
+				if prop == nil ***REMOVED***
+					continue
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				prop = item.value
+			***REMOVED***
 			if prop, ok := prop.(*valueProperty); ok ***REMOVED***
 				if prop.configurable ***REMOVED***
 					return valueFalse
@@ -335,8 +344,16 @@ func (r *Runtime) object_isFrozen(call FunctionCall) Value ***REMOVED***
 		if obj.self.isExtensible() ***REMOVED***
 			return valueFalse
 		***REMOVED***
-		for _, key := range obj.self.ownPropertyKeys(true, nil) ***REMOVED***
-			prop := obj.getOwnProp(key)
+		for item, next := obj.self.iterateKeys()(); next != nil; item, next = next() ***REMOVED***
+			var prop Value
+			if item.value == nil ***REMOVED***
+				prop = obj.getOwnProp(item.name)
+				if prop == nil ***REMOVED***
+					continue
+				***REMOVED***
+			***REMOVED*** else ***REMOVED***
+				prop = item.value
+			***REMOVED***
 			if prop, ok := prop.(*valueProperty); ok ***REMOVED***
 				if prop.configurable || prop.value != nil && prop.writable ***REMOVED***
 					return valueFalse
@@ -365,20 +382,16 @@ func (r *Runtime) object_isExtensible(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) object_keys(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
 
-	return r.newArrayValues(obj.self.ownKeys(false, nil))
+	return r.newArrayValues(obj.self.stringKeys(false, nil))
 ***REMOVED***
 
 func (r *Runtime) object_entries(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
 
 	var values []Value
-	iter := &enumerableIter***REMOVED***
-		wrapped: obj.self.enumerateOwnKeys(),
-	***REMOVED***
 
-	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
-		v := nilSafe(obj.self.getStr(item.name, nil))
-		values = append(values, r.newArrayValues([]Value***REMOVED***stringValueFromRaw(item.name), v***REMOVED***))
+	for item, next := iterateEnumerableStringProperties(obj)(); next != nil; item, next = next() ***REMOVED***
+		values = append(values, r.newArrayValues([]Value***REMOVED***item.name, item.value***REMOVED***))
 	***REMOVED***
 
 	return r.newArrayValues(values)
@@ -388,12 +401,9 @@ func (r *Runtime) object_values(call FunctionCall) Value ***REMOVED***
 	obj := call.Argument(0).ToObject(r)
 
 	var values []Value
-	iter := &enumerableIter***REMOVED***
-		wrapped: obj.self.enumerateOwnKeys(),
-	***REMOVED***
 
-	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
-		values = append(values, nilSafe(obj.self.getStr(item.name, nil)))
+	for item, next := iterateEnumerableStringProperties(obj)(); next != nil; item, next = next() ***REMOVED***
+		values = append(values, item.value)
 	***REMOVED***
 
 	return r.newArrayValues(values)
@@ -476,14 +486,23 @@ func (r *Runtime) objectproto_getProto(call FunctionCall) Value ***REMOVED***
 	return _null
 ***REMOVED***
 
-func (r *Runtime) objectproto_setProto(call FunctionCall) Value ***REMOVED***
-	o := call.This
+func (r *Runtime) setObjectProto(o, arg Value) ***REMOVED***
 	r.checkObjectCoercible(o)
-	proto := r.toProto(call.Argument(0))
+	var proto *Object
+	if arg != _null ***REMOVED***
+		if obj, ok := arg.(*Object); ok ***REMOVED***
+			proto = obj
+		***REMOVED*** else ***REMOVED***
+			return
+		***REMOVED***
+	***REMOVED***
 	if o, ok := o.(*Object); ok ***REMOVED***
 		o.self.setProto(proto, true)
 	***REMOVED***
+***REMOVED***
 
+func (r *Runtime) objectproto_setProto(call FunctionCall) Value ***REMOVED***
+	r.setObjectProto(call.This, call.Argument(0))
 	return _undefined
 ***REMOVED***
 
@@ -497,18 +516,8 @@ func (r *Runtime) object_assign(call FunctionCall) Value ***REMOVED***
 		for _, arg := range call.Arguments[1:] ***REMOVED***
 			if arg != _undefined && arg != _null ***REMOVED***
 				source := arg.ToObject(r)
-				for _, key := range source.self.ownPropertyKeys(true, nil) ***REMOVED***
-					p := source.getOwnProp(key)
-					if p == nil ***REMOVED***
-						continue
-					***REMOVED***
-					if v, ok := p.(*valueProperty); ok ***REMOVED***
-						if !v.enumerable ***REMOVED***
-							continue
-						***REMOVED***
-						p = v.get(source)
-					***REMOVED***
-					to.setOwn(key, p, true)
+				for item, next := iterateEnumerableProperties(source)(); next != nil; item, next = next() ***REMOVED***
+					to.setOwn(item.name, item.value, true)
 				***REMOVED***
 			***REMOVED***
 		***REMOVED***

@@ -125,6 +125,7 @@ type compiledFunctionLiteral struct ***REMOVED***
 	strict          *ast.StringLiteral
 	isExpr          bool
 	isArrow         bool
+	isMethod        bool
 ***REMOVED***
 
 type compiledBracketExpr struct ***REMOVED***
@@ -977,7 +978,7 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			hasInits = true
 		***REMOVED***
 
-		if firstDupIdx >= 0 && (hasPatterns || hasInits || s.strict || e.isArrow) ***REMOVED***
+		if firstDupIdx >= 0 && (hasPatterns || hasInits || s.strict || e.isArrow || e.isMethod) ***REMOVED***
 			e.c.throwSyntaxError(firstDupIdx, "Duplicate parameter name not allowed in this context")
 			return
 		***REMOVED***
@@ -1254,9 +1255,13 @@ func (e *compiledFunctionLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	e.c.popScope()
 	e.c.p = savedPrg
 	if e.isArrow ***REMOVED***
-		e.c.emit(&newArrowFunc***REMOVED***newFunc: newFunc***REMOVED***prg: p, length: uint32(length), name: name, source: e.source, strict: strict***REMOVED******REMOVED***)
+		e.c.emit(&newArrowFunc***REMOVED***newFunc: newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED******REMOVED***)
 	***REMOVED*** else ***REMOVED***
-		e.c.emit(&newFunc***REMOVED***prg: p, length: uint32(length), name: name, source: e.source, strict: strict***REMOVED***)
+		if e.isMethod ***REMOVED***
+			e.c.emit(&newMethod***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***)
+		***REMOVED*** else ***REMOVED***
+			e.c.emit(&newFunc***REMOVED***prg: p, length: length, name: name, source: e.source, strict: strict***REMOVED***)
+		***REMOVED***
 	***REMOVED***
 	if !putOnStack ***REMOVED***
 		e.c.emit(pop)
@@ -1770,6 +1775,7 @@ func (c *compiler) compileLogicalAnd(left, right ast.Expression, idx file.Idx) c
 func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	e.addSrcMap()
 	e.c.emit(newObject)
+	hasProto := false
 	for _, prop := range e.expr.Value ***REMOVED***
 		switch prop := prop.(type) ***REMOVED***
 		case *ast.PropertyKeyed:
@@ -1788,7 +1794,10 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 			if fn, ok := valueExpr.(*compiledFunctionLiteral); ok ***REMOVED***
 				if fn.name == nil ***REMOVED***
 					anonFn = fn
-					fn.lhsName = key
+				***REMOVED***
+				switch prop.Kind ***REMOVED***
+				case ast.PropertyKindMethod, ast.PropertyKindGet, ast.PropertyKindSet:
+					fn.isMethod = true
 				***REMOVED***
 			***REMOVED***
 			if computed ***REMOVED***
@@ -1809,13 +1818,21 @@ func (e *compiledObjectLiteral) emitGetter(putOnStack bool) ***REMOVED***
 					panic(fmt.Errorf("unknown property kind: %s", prop.Kind))
 				***REMOVED***
 			***REMOVED*** else ***REMOVED***
-				if anonFn != nil ***REMOVED***
+				isProto := key == __proto__ && !prop.Computed
+				if isProto ***REMOVED***
+					if hasProto ***REMOVED***
+						e.c.throwSyntaxError(int(prop.Idx0())-1, "Duplicate __proto__ fields are not allowed in object literals")
+					***REMOVED*** else ***REMOVED***
+						hasProto = true
+					***REMOVED***
+				***REMOVED***
+				if anonFn != nil && !isProto ***REMOVED***
 					anonFn.lhsName = key
 				***REMOVED***
 				valueExpr.emitGetter(true)
 				switch prop.Kind ***REMOVED***
 				case ast.PropertyKindValue:
-					if key == __proto__ ***REMOVED***
+					if isProto ***REMOVED***
 						e.c.emit(setProto)
 					***REMOVED*** else ***REMOVED***
 						e.c.emit(setProp1(key))
@@ -2229,22 +2246,18 @@ func (c *compiler) emitObjectPattern(pattern *ast.ObjectPattern, emitAssign func
 ***REMOVED***
 
 func (c *compiler) emitArrayPattern(pattern *ast.ArrayPattern, emitAssign func(target, init compiledExpr), putOnStack bool) ***REMOVED***
-	var marks []int
 	c.emit(iterate)
 	for _, elt := range pattern.Elements ***REMOVED***
 		switch elt := elt.(type) ***REMOVED***
 		case nil:
-			marks = append(marks, len(c.p.code))
-			c.emit(nil)
+			c.emit(iterGetNextOrUndef***REMOVED******REMOVED***, pop)
 		case *ast.AssignExpression:
 			c.emitAssign(elt.Left, c.compilePatternInitExpr(func() ***REMOVED***
-				marks = append(marks, len(c.p.code))
-				c.emit(nil, enumGet)
+				c.emit(iterGetNextOrUndef***REMOVED******REMOVED***)
 			***REMOVED***, elt.Right, elt.Idx0()), emitAssign)
 		default:
 			c.emitAssign(elt, c.compileEmitterExpr(func() ***REMOVED***
-				marks = append(marks, len(c.p.code))
-				c.emit(nil, enumGet)
+				c.emit(iterGetNextOrUndef***REMOVED******REMOVED***)
 			***REMOVED***, elt.Idx0()), emitAssign)
 		***REMOVED***
 	***REMOVED***
@@ -2255,40 +2268,6 @@ func (c *compiler) emitArrayPattern(pattern *ast.ArrayPattern, emitAssign func(t
 	***REMOVED*** else ***REMOVED***
 		c.emit(enumPopClose)
 	***REMOVED***
-	mark1 := len(c.p.code)
-	c.emit(nil)
-
-	for i, elt := range pattern.Elements ***REMOVED***
-		switch elt := elt.(type) ***REMOVED***
-		case nil:
-			c.p.code[marks[i]] = iterNext(len(c.p.code) - marks[i])
-		case *ast.Identifier:
-			emitAssign(c.compileIdentifierExpression(elt), c.compileEmitterExpr(func() ***REMOVED***
-				c.p.code[marks[i]] = iterNext(len(c.p.code) - marks[i])
-				c.emit(loadUndef)
-			***REMOVED***, elt.Idx0()))
-		case *ast.AssignExpression:
-			c.emitAssign(elt.Left, c.compileNamedEmitterExpr(func(name unistring.String) ***REMOVED***
-				c.p.code[marks[i]] = iterNext(len(c.p.code) - marks[i])
-				c.emitNamed(c.compileExpression(elt.Right), name)
-			***REMOVED***, elt.Idx0()), emitAssign)
-		default:
-			c.emitAssign(elt, c.compileEmitterExpr(
-				func() ***REMOVED***
-					c.p.code[marks[i]] = iterNext(len(c.p.code) - marks[i])
-					c.emit(loadUndef)
-				***REMOVED***, elt.Idx0()), emitAssign)
-		***REMOVED***
-	***REMOVED***
-	c.emit(enumPop)
-	if pattern.Rest != nil ***REMOVED***
-		c.emitAssign(pattern.Rest, c.compileExpression(
-			&ast.ArrayLiteral***REMOVED***
-				LeftBracket:  pattern.Rest.Idx0(),
-				RightBracket: pattern.Rest.Idx0(),
-			***REMOVED***), emitAssign)
-	***REMOVED***
-	c.p.code[mark1] = jump(len(c.p.code) - mark1)
 
 	if !putOnStack ***REMOVED***
 		c.emit(pop)
@@ -2371,14 +2350,6 @@ func (e *compiledEmitterExpr) emitNamed(name unistring.String) ***REMOVED***
 func (c *compiler) compileEmitterExpr(emitter func(), idx file.Idx) *compiledEmitterExpr ***REMOVED***
 	r := &compiledEmitterExpr***REMOVED***
 		emitter: emitter,
-	***REMOVED***
-	r.init(c, idx)
-	return r
-***REMOVED***
-
-func (c *compiler) compileNamedEmitterExpr(namedEmitter func(unistring.String), idx file.Idx) *compiledEmitterExpr ***REMOVED***
-	r := &compiledEmitterExpr***REMOVED***
-		namedEmitter: namedEmitter,
 	***REMOVED***
 	r.init(c, idx)
 	return r

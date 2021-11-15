@@ -131,14 +131,14 @@ func (i *gomapPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		name := i.propNames[i.idx]
 		i.idx++
 		if _, exists := i.o.data[name]; exists ***REMOVED***
-			return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
+			return propIterItem***REMOVED***name: newStringValue(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 		***REMOVED***
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoMapSimple) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *objectGoMapSimple) iterateStringKeys() iterNextFunc ***REMOVED***
 	propNames := make([]string, len(o.data))
 	i := 0
 	for key := range o.data ***REMOVED***
@@ -152,7 +152,7 @@ func (o *objectGoMapSimple) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	***REMOVED***).next
 ***REMOVED***
 
-func (o *objectGoMapSimple) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
+func (o *objectGoMapSimple) stringKeys(_ bool, accum []Value) []Value ***REMOVED***
 	// all own keys are enumerable
 	for key := range o.data ***REMOVED***
 		accum = append(accum, newStringValue(key))

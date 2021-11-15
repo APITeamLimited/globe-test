@@ -1197,7 +1197,7 @@ func (r *Runtime) array_from(call FunctionCall) Value ***REMOVED***
 		if mapFn == nil ***REMOVED***
 			if a := r.checkStdArrayObj(arr); a != nil ***REMOVED***
 				var values []Value
-				r.iterate(iter, func(val Value) ***REMOVED***
+				iter.iterate(func(val Value) ***REMOVED***
 					values = append(values, val)
 				***REMOVED***)
 				setArrayValues(a, values)
@@ -1205,7 +1205,7 @@ func (r *Runtime) array_from(call FunctionCall) Value ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 		k := int64(0)
-		r.iterate(iter, func(val Value) ***REMOVED***
+		iter.iterate(func(val Value) ***REMOVED***
 			if mapFn != nil ***REMOVED***
 				val = mapFn(FunctionCall***REMOVED***This: t, Arguments: []Value***REMOVED***val, intToValue(k)***REMOVED******REMOVED***)
 			***REMOVED***

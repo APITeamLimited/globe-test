@@ -362,7 +362,7 @@ func (i *goreflectPropIter) nextField() (propIterItem, iterNextFunc) ***REMOVED*
 	if i.idx < len(names) ***REMOVED***
 		name := names[i.idx]
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextField
+		return propIterItem***REMOVED***name: newStringValue(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextField
 	***REMOVED***
 
 	i.idx = 0
@@ -374,13 +374,13 @@ func (i *goreflectPropIter) nextMethod() (propIterItem, iterNextFunc) ***REMOVED
 	if i.idx < len(names) ***REMOVED***
 		name := names[i.idx]
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.NewFromString(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextMethod
+		return propIterItem***REMOVED***name: newStringValue(name), enumerable: _ENUM_TRUE***REMOVED***, i.nextMethod
 	***REMOVED***
 
 	return propIterItem***REMOVED******REMOVED***, nil
 ***REMOVED***
 
-func (o *objectGoReflect) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *objectGoReflect) iterateStringKeys() iterNextFunc ***REMOVED***
 	r := &goreflectPropIter***REMOVED***
 		o: o,
 	***REMOVED***
@@ -391,7 +391,7 @@ func (o *objectGoReflect) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	return r.nextMethod
 ***REMOVED***
 
-func (o *objectGoReflect) ownKeys(_ bool, accum []Value) []Value ***REMOVED***
+func (o *objectGoReflect) stringKeys(_ bool, accum []Value) []Value ***REMOVED***
 	// all own keys are enumerable
 	for _, name := range o.valueTypeInfo.FieldNames ***REMOVED***
 		accum = append(accum, newStringValue(name))

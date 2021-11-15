@@ -81,9 +81,9 @@ func (i *argumentsPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	return item, i.next
 ***REMOVED***
 
-func (a *argumentsObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (a *argumentsObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&argumentsPropIter***REMOVED***
-		wrapped: a.baseObject.enumerateOwnKeys(),
+		wrapped: a.baseObject.iterateStringKeys(),
 	***REMOVED***).next
 ***REMOVED***
 

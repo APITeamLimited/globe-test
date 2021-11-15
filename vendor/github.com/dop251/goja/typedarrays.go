@@ -505,25 +505,24 @@ func (a *typedArrayObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED
 	return a._getIdx(toIntClamp(int64(idx)))
 ***REMOVED***
 
-func (a *typedArrayObject) isValidIntegerIndex(idx int, throw bool) bool ***REMOVED***
-	if a.viewedArrayBuf.ensureNotDetached(throw) ***REMOVED***
+func (a *typedArrayObject) isValidIntegerIndex(idx int) bool ***REMOVED***
+	if a.viewedArrayBuf.ensureNotDetached(false) ***REMOVED***
 		if idx >= 0 && idx < a.length ***REMOVED***
 			return true
 		***REMOVED***
-		a.val.runtime.typeErrorResult(throw, "Invalid typed array index")
 	***REMOVED***
 	return false
 ***REMOVED***
 
 func (a *typedArrayObject) _putIdx(idx int, v Value) ***REMOVED***
 	v = v.ToNumber()
-	if a.isValidIntegerIndex(idx, false) ***REMOVED***
+	if a.isValidIntegerIndex(idx) ***REMOVED***
 		a.typedArray.set(idx+a.offset, v)
 	***REMOVED***
 ***REMOVED***
 
 func (a *typedArrayObject) _hasIdx(idx int) bool ***REMOVED***
-	return a.isValidIntegerIndex(idx, false)
+	return a.isValidIntegerIndex(idx)
 ***REMOVED***
 
 func (a *typedArrayObject) setOwnStr(p unistring.String, v Value, throw bool) bool ***REMOVED***
@@ -534,7 +533,7 @@ func (a *typedArrayObject) setOwnStr(p unistring.String, v Value, throw bool) bo
 	***REMOVED***
 	if idx == 0 ***REMOVED***
 		v.ToNumber() // make sure it throws
-		return false
+		return true
 	***REMOVED***
 	return a.baseObject.setOwnStr(p, v, throw)
 ***REMOVED***
@@ -567,6 +566,21 @@ func (a *typedArrayObject) hasOwnPropertyIdx(idx valueInt) bool ***REMOVED***
 	return a._hasIdx(toIntClamp(int64(idx)))
 ***REMOVED***
 
+func (a *typedArrayObject) hasPropertyStr(name unistring.String) bool ***REMOVED***
+	idx, ok := strToIntNum(name)
+	if ok ***REMOVED***
+		return a._hasIdx(idx)
+	***REMOVED***
+	if idx == 0 ***REMOVED***
+		return false
+	***REMOVED***
+	return a.baseObject.hasPropertyStr(name)
+***REMOVED***
+
+func (a *typedArrayObject) hasPropertyIdx(idx valueInt) bool ***REMOVED***
+	return a.hasOwnPropertyIdx(idx)
+***REMOVED***
+
 func (a *typedArrayObject) _defineIdxProperty(idx int, desc PropertyDescriptor, throw bool) bool ***REMOVED***
 	if desc.Configurable == FLAG_FALSE || desc.Enumerable == FLAG_FALSE || desc.IsAccessor() || desc.Writable == FLAG_FALSE ***REMOVED***
 		a.val.runtime.typeErrorResult(throw, "Cannot redefine property: %d", idx)
@@ -574,7 +588,8 @@ func (a *typedArrayObject) _defineIdxProperty(idx int, desc PropertyDescriptor, 
 	***REMOVED***
 	_, ok := a._defineOwnProperty(unistring.String(strconv.Itoa(idx)), a.getOwnPropIdx(valueInt(idx)), desc, throw)
 	if ok ***REMOVED***
-		if !a.isValidIntegerIndex(idx, throw) ***REMOVED***
+		if !a.isValidIntegerIndex(idx) ***REMOVED***
+			a.val.runtime.typeErrorResult(throw, "Invalid typed array index")
 			return false
 		***REMOVED***
 		a._putIdx(idx, desc.Value)
@@ -603,7 +618,7 @@ func (a *typedArrayObject) defineOwnPropertyIdx(name valueInt, desc PropertyDesc
 func (a *typedArrayObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
 	idx, ok := strToIntNum(name)
 	if ok ***REMOVED***
-		if !a.isValidIntegerIndex(idx, false) ***REMOVED***
+		if a.isValidIntegerIndex(idx) ***REMOVED***
 			a.val.runtime.typeErrorResult(throw, "Cannot delete property '%d' of %s", idx, a.val.String())
 			return false
 		***REMOVED***
@@ -616,7 +631,7 @@ func (a *typedArrayObject) deleteStr(name unistring.String, throw bool) bool ***
 ***REMOVED***
 
 func (a *typedArrayObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
-	if a.viewedArrayBuf.ensureNotDetached(throw) && idx >= 0 && int64(idx) < int64(a.length) ***REMOVED***
+	if a.viewedArrayBuf.ensureNotDetached(false) && idx >= 0 && int64(idx) < int64(a.length) ***REMOVED***
 		a.val.runtime.typeErrorResult(throw, "Cannot delete property '%d' of %s", idx, a.val.String())
 		return false
 	***REMOVED***
@@ -624,14 +639,14 @@ func (a *typedArrayObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED**
 	return true
 ***REMOVED***
 
-func (a *typedArrayObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (a *typedArrayObject) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	if accum == nil ***REMOVED***
 		accum = make([]Value, 0, a.length)
 	***REMOVED***
 	for i := 0; i < a.length; i++ ***REMOVED***
 		accum = append(accum, asciiString(strconv.Itoa(i)))
 	***REMOVED***
-	return a.baseObject.ownKeys(all, accum)
+	return a.baseObject.stringKeys(all, accum)
 ***REMOVED***
 
 type typedArrayPropIter struct ***REMOVED***
@@ -644,13 +659,13 @@ func (i *typedArrayPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		name := strconv.Itoa(i.idx)
 		prop := i.a._getIdx(i.idx)
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.String(name), value: prop***REMOVED***, i.next
+		return propIterItem***REMOVED***name: asciiString(name), value: prop***REMOVED***, i.next
 	***REMOVED***
 
-	return i.a.baseObject.enumerateOwnKeys()()
+	return i.a.baseObject.iterateStringKeys()()
 ***REMOVED***
 
-func (a *typedArrayObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (a *typedArrayObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&typedArrayPropIter***REMOVED***
 		a: a,
 	***REMOVED***).next
@@ -714,8 +729,7 @@ func (r *Runtime) newFloat64ArrayObject(buf *arrayBufferObject, offset, length i
 	return r._newTypedArrayObject(buf, offset, length, 8, r.global.Float64Array, (*float64Array)(unsafe.Pointer(&buf.data)), proto)
 ***REMOVED***
 
-func (o *dataViewObject) getIdxAndByteOrder(idxVal, littleEndianVal Value, size int) (int, byteOrder) ***REMOVED***
-	getIdx := o.val.runtime.toIndex(idxVal)
+func (o *dataViewObject) getIdxAndByteOrder(getIdx int, littleEndianVal Value, size int) (int, byteOrder) ***REMOVED***
 	o.viewedArrayBuf.ensureNotDetached(true)
 	if getIdx+size > o.byteLen ***REMOVED***
 		panic(o.val.runtime.newError(o.val.runtime.global.RangeError, "Index %d is out of bounds", getIdx))
@@ -793,6 +807,7 @@ func (o *arrayBufferObject) getUint32(idx int, byteOrder byteOrder) uint32 ***RE
 ***REMOVED***
 
 func (o *arrayBufferObject) setUint32(idx int, val uint32, byteOrder byteOrder) ***REMOVED***
+	o.ensureNotDetached(true)
 	if byteOrder == nativeEndian ***REMOVED***
 		*(*uint32)(unsafe.Pointer(&o.data[idx])) = val
 	***REMOVED*** else ***REMOVED***

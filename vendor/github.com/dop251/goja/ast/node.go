@@ -200,9 +200,10 @@ type (
 	***REMOVED***
 
 	PropertyKeyed struct ***REMOVED***
-		Key   Expression
-		Kind  PropertyKind
-		Value Expression
+		Key      Expression
+		Kind     PropertyKind
+		Value    Expression
+		Computed bool
 	***REMOVED***
 
 	SpreadElement struct ***REMOVED***
@@ -624,16 +625,22 @@ func (self *DotExpression) Idx1() file.Idx         ***REMOVED*** return self.Ide
 func (self *FunctionLiteral) Idx1() file.Idx       ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *ArrowFunctionLiteral) Idx1() file.Idx  ***REMOVED*** return self.Body.Idx1() ***REMOVED***
 func (self *Identifier) Idx1() file.Idx            ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Name)) ***REMOVED***
-func (self *NewExpression) Idx1() file.Idx         ***REMOVED*** return self.RightParenthesis + 1 ***REMOVED***
-func (self *NullLiteral) Idx1() file.Idx           ***REMOVED*** return file.Idx(int(self.Idx) + 4) ***REMOVED*** // "null"
-func (self *NumberLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *ObjectLiteral) Idx1() file.Idx         ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
-func (self *ObjectPattern) Idx1() file.Idx         ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
-func (self *RegExpLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *SequenceExpression) Idx1() file.Idx    ***REMOVED*** return self.Sequence[len(self.Sequence)-1].Idx1() ***REMOVED***
-func (self *StringLiteral) Idx1() file.Idx         ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
-func (self *TemplateLiteral) Idx1() file.Idx       ***REMOVED*** return self.CloseQuote + 1 ***REMOVED***
-func (self *ThisExpression) Idx1() file.Idx        ***REMOVED*** return self.Idx + 4 ***REMOVED***
+func (self *NewExpression) Idx1() file.Idx ***REMOVED***
+	if self.ArgumentList != nil ***REMOVED***
+		return self.RightParenthesis + 1
+	***REMOVED*** else ***REMOVED***
+		return self.Callee.Idx1()
+	***REMOVED***
+***REMOVED***
+func (self *NullLiteral) Idx1() file.Idx        ***REMOVED*** return file.Idx(int(self.Idx) + 4) ***REMOVED*** // "null"
+func (self *NumberLiteral) Idx1() file.Idx      ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
+func (self *ObjectLiteral) Idx1() file.Idx      ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
+func (self *ObjectPattern) Idx1() file.Idx      ***REMOVED*** return self.RightBrace + 1 ***REMOVED***
+func (self *RegExpLiteral) Idx1() file.Idx      ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
+func (self *SequenceExpression) Idx1() file.Idx ***REMOVED*** return self.Sequence[len(self.Sequence)-1].Idx1() ***REMOVED***
+func (self *StringLiteral) Idx1() file.Idx      ***REMOVED*** return file.Idx(int(self.Idx) + len(self.Literal)) ***REMOVED***
+func (self *TemplateLiteral) Idx1() file.Idx    ***REMOVED*** return self.CloseQuote + 1 ***REMOVED***
+func (self *ThisExpression) Idx1() file.Idx     ***REMOVED*** return self.Idx + 4 ***REMOVED***
 func (self *UnaryExpression) Idx1() file.Idx ***REMOVED***
 	if self.Postfix ***REMOVED***
 		return self.Operand.Idx1() + 2 // ++ --

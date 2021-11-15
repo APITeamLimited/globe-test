@@ -190,13 +190,18 @@ type objectImpl interface ***REMOVED***
 	hasInstance(v Value) bool
 	isExtensible() bool
 	preventExtensions(throw bool) bool
-	enumerateOwnKeys() iterNextFunc
+
 	export(ctx *objectExportCtx) interface***REMOVED******REMOVED***
 	exportType() reflect.Type
 	equal(objectImpl) bool
-	ownKeys(all bool, accum []Value) []Value
-	ownSymbols(all bool, accum []Value) []Value
-	ownPropertyKeys(all bool, accum []Value) []Value
+
+	iterateStringKeys() iterNextFunc
+	iterateSymbols() iterNextFunc
+	iterateKeys() iterNextFunc
+
+	stringKeys(all bool, accum []Value) []Value
+	symbols(all bool, accum []Value) []Value
+	keys(all bool, accum []Value) []Value
 
 	_putProp(name unistring.String, value Value, writable, enumerable, configurable bool) Value
 	_putSym(s *Symbol, prop Value)
@@ -938,7 +943,7 @@ func (o *baseObject) export(ctx *objectExportCtx) interface***REMOVED******REMOV
 	if v, exists := ctx.get(o); exists ***REMOVED***
 		return v
 	***REMOVED***
-	keys := o.ownKeys(false, nil)
+	keys := o.stringKeys(false, nil)
 	m := make(map[string]interface***REMOVED******REMOVED***, len(keys))
 	ctx.put(o, m)
 	for _, itemName := range keys ***REMOVED***
@@ -967,8 +972,8 @@ const (
 )
 
 type propIterItem struct ***REMOVED***
-	name       unistring.String
-	value      Value // set only when enumerable == _ENUM_UNKNOWN
+	name       Value
+	value      Value
 	enumerable enumerableFlag
 ***REMOVED***
 
@@ -985,6 +990,7 @@ type recursivePropIter struct ***REMOVED***
 ***REMOVED***
 
 type enumerableIter struct ***REMOVED***
+	o       *Object
 	wrapped iterNextFunc
 ***REMOVED***
 
@@ -999,7 +1005,16 @@ func (i *enumerableIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 			continue
 		***REMOVED***
 		if item.enumerable == _ENUM_UNKNOWN ***REMOVED***
-			if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
+			var prop Value
+			if item.value == nil ***REMOVED***
+				prop = i.o.getOwnProp(item.name)
+			***REMOVED*** else ***REMOVED***
+				prop = item.value
+			***REMOVED***
+			if prop == nil ***REMOVED***
+				continue
+			***REMOVED***
+			if prop, ok := prop.(*valueProperty); ok ***REMOVED***
 				if !prop.enumerable ***REMOVED***
 					continue
 				***REMOVED***
@@ -1015,14 +1030,15 @@ func (i *recursivePropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		item, i.cur = i.cur()
 		if i.cur == nil ***REMOVED***
 			if proto := i.o.proto(); proto != nil ***REMOVED***
-				i.cur = proto.self.enumerateOwnKeys()
+				i.cur = proto.self.iterateStringKeys()
 				i.o = proto.self
 				continue
 			***REMOVED***
 			return propIterItem***REMOVED******REMOVED***, nil
 		***REMOVED***
-		if _, exists := i.seen[item.name]; !exists ***REMOVED***
-			i.seen[item.name] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
+		name := item.name.string()
+		if _, exists := i.seen[name]; !exists ***REMOVED***
+			i.seen[name] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 			return item, i.next
 		***REMOVED***
 	***REMOVED***
@@ -1030,9 +1046,10 @@ func (i *recursivePropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 
 func enumerateRecursive(o *Object) iterNextFunc ***REMOVED***
 	return (&enumerableIter***REMOVED***
+		o: o,
 		wrapped: (&recursivePropIter***REMOVED***
 			o:    o.self,
-			cur:  o.self.enumerateOwnKeys(),
+			cur:  o.self.iterateStringKeys(),
 			seen: make(map[unistring.String]struct***REMOVED******REMOVED***),
 		***REMOVED***).next,
 	***REMOVED***).next
@@ -1044,7 +1061,7 @@ func (i *objectPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 		i.idx++
 		prop := i.o.values[name]
 		if prop != nil ***REMOVED***
-			return propIterItem***REMOVED***name: name, value: prop***REMOVED***, i.next
+			return propIterItem***REMOVED***name: stringValueFromRaw(name), value: prop***REMOVED***, i.next
 		***REMOVED***
 	***REMOVED***
 	clearNamesCopyMarker(i.propNames)
@@ -1107,7 +1124,7 @@ func copyNamesIfNeeded(names []unistring.String, extraCap int) []unistring.Strin
 	return names
 ***REMOVED***
 
-func (o *baseObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (o *baseObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	if len(o.propNames) > o.lastSortedPropLen ***REMOVED***
 		o.fixPropOrder()
 	***REMOVED***
@@ -1116,6 +1133,53 @@ func (o *baseObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	return (&objectPropIter***REMOVED***
 		o:         o,
 		propNames: propNames,
+	***REMOVED***).next
+***REMOVED***
+
+type objectSymbolIter struct ***REMOVED***
+	iter *orderedMapIter
+***REMOVED***
+
+func (i *objectSymbolIter) next() (propIterItem, iterNextFunc) ***REMOVED***
+	entry := i.iter.next()
+	if entry != nil ***REMOVED***
+		return propIterItem***REMOVED***
+			name:  entry.key,
+			value: entry.value,
+		***REMOVED***, i.next
+	***REMOVED***
+	return propIterItem***REMOVED******REMOVED***, nil
+***REMOVED***
+
+func (o *baseObject) iterateSymbols() iterNextFunc ***REMOVED***
+	if o.symValues != nil ***REMOVED***
+		return (&objectSymbolIter***REMOVED***
+			iter: o.symValues.newIter(),
+		***REMOVED***).next
+	***REMOVED***
+	return func() (propIterItem, iterNextFunc) ***REMOVED***
+		return propIterItem***REMOVED******REMOVED***, nil
+	***REMOVED***
+***REMOVED***
+
+type objectAllPropIter struct ***REMOVED***
+	o      *Object
+	curStr iterNextFunc
+***REMOVED***
+
+func (i *objectAllPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
+	item, next := i.curStr()
+	if next != nil ***REMOVED***
+		i.curStr = next
+		return item, i.next
+	***REMOVED***
+	return i.o.self.iterateSymbols()()
+***REMOVED***
+
+func (o *baseObject) iterateKeys() iterNextFunc ***REMOVED***
+	return (&objectAllPropIter***REMOVED***
+		o:      o.val,
+		curStr: o.val.self.iterateStringKeys(),
 	***REMOVED***).next
 ***REMOVED***
 
@@ -1158,7 +1222,7 @@ func (o *baseObject) fixPropOrder() ***REMOVED***
 	o.lastSortedPropLen = len(names)
 ***REMOVED***
 
-func (o *baseObject) ownKeys(all bool, keys []Value) []Value ***REMOVED***
+func (o *baseObject) stringKeys(all bool, keys []Value) []Value ***REMOVED***
 	if len(o.propNames) > o.lastSortedPropLen ***REMOVED***
 		o.fixPropOrder()
 	***REMOVED***
@@ -1178,7 +1242,7 @@ func (o *baseObject) ownKeys(all bool, keys []Value) []Value ***REMOVED***
 	return keys
 ***REMOVED***
 
-func (o *baseObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
+func (o *baseObject) symbols(all bool, accum []Value) []Value ***REMOVED***
 	if o.symValues != nil ***REMOVED***
 		iter := o.symValues.newIter()
 		if all ***REMOVED***
@@ -1208,8 +1272,8 @@ func (o *baseObject) ownSymbols(all bool, accum []Value) []Value ***REMOVED***
 	return accum
 ***REMOVED***
 
-func (o *baseObject) ownPropertyKeys(all bool, accum []Value) []Value ***REMOVED***
-	return o.ownSymbols(all, o.val.self.ownKeys(all, accum))
+func (o *baseObject) keys(all bool, accum []Value) []Value ***REMOVED***
+	return o.symbols(all, o.val.self.stringKeys(all, accum))
 ***REMOVED***
 
 func (o *baseObject) hasInstance(Value) bool ***REMOVED***
@@ -1300,9 +1364,9 @@ func (o *Object) setStr(name unistring.String, val, receiver Value, throw bool) 
 							return false
 						***REMOVED***
 					***REMOVED***
-					robj.self.defineOwnPropertyStr(name, PropertyDescriptor***REMOVED***Value: val***REMOVED***, throw)
+					return robj.self.defineOwnPropertyStr(name, PropertyDescriptor***REMOVED***Value: val***REMOVED***, throw)
 				***REMOVED*** else ***REMOVED***
-					robj.self.defineOwnPropertyStr(name, PropertyDescriptor***REMOVED***
+					return robj.self.defineOwnPropertyStr(name, PropertyDescriptor***REMOVED***
 						Value:        val,
 						Writable:     FLAG_TRUE,
 						Configurable: FLAG_TRUE,
@@ -1317,7 +1381,6 @@ func (o *Object) setStr(name unistring.String, val, receiver Value, throw bool) 
 			return res
 		***REMOVED***
 	***REMOVED***
-	return true
 ***REMOVED***
 
 func (o *Object) set(name Value, val, receiver Value, throw bool) bool ***REMOVED***
@@ -1551,4 +1614,51 @@ func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value int
 		m[typ] = value
 		ctx.cache[key] = m
 	***REMOVED***
+***REMOVED***
+
+type enumPropertiesIter struct ***REMOVED***
+	o       *Object
+	wrapped iterNextFunc
+***REMOVED***
+
+func (i *enumPropertiesIter) next() (propIterItem, iterNextFunc) ***REMOVED***
+	for i.wrapped != nil ***REMOVED***
+		item, next := i.wrapped()
+		i.wrapped = next
+		if next == nil ***REMOVED***
+			break
+		***REMOVED***
+		if item.value == nil ***REMOVED***
+			item.value = i.o.get(item.name, nil)
+			if item.value == nil ***REMOVED***
+				continue
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			if prop, ok := item.value.(*valueProperty); ok ***REMOVED***
+				item.value = prop.get(i.o)
+			***REMOVED***
+		***REMOVED***
+		return item, i.next
+	***REMOVED***
+	return propIterItem***REMOVED******REMOVED***, nil
+***REMOVED***
+
+func iterateEnumerableProperties(o *Object) iterNextFunc ***REMOVED***
+	return (&enumPropertiesIter***REMOVED***
+		o: o,
+		wrapped: (&enumerableIter***REMOVED***
+			o:       o,
+			wrapped: o.self.iterateKeys(),
+		***REMOVED***).next,
+	***REMOVED***).next
+***REMOVED***
+
+func iterateEnumerableStringProperties(o *Object) iterNextFunc ***REMOVED***
+	return (&enumPropertiesIter***REMOVED***
+		o: o,
+		wrapped: (&enumerableIter***REMOVED***
+			o:       o,
+			wrapped: o.self.iterateStringKeys(),
+		***REMOVED***).next,
+	***REMOVED***).next
 ***REMOVED***

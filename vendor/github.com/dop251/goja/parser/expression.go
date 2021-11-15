@@ -183,7 +183,7 @@ func (self *_parser) parseRegExpLiteral() *ast.RegExpLiteral ***REMOVED***
 	pattern, _, err := self.scanString(offset, false)
 	endOffset := self.chrOffset
 
-	if err == nil ***REMOVED***
+	if err == "" ***REMOVED***
 		pattern = pattern[1 : len(pattern)-1]
 	***REMOVED***
 
@@ -274,12 +274,12 @@ func (self *_parser) parseVarDeclarationList(var_ file.Idx) []*ast.Binding ***RE
 	return declarationList
 ***REMOVED***
 
-func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression, token.Token) ***REMOVED***
+func (self *_parser) parseObjectPropertyKey() (string, unistring.String, ast.Expression, token.Token) ***REMOVED***
 	if self.token == token.LEFT_BRACKET ***REMOVED***
 		self.next()
 		expr := self.parseAssignmentExpression()
 		self.expect(token.RIGHT_BRACKET)
-		return "", expr, token.ILLEGAL
+		return "", "", expr, token.ILLEGAL
 	***REMOVED***
 	idx, tkn, literal, parsedLiteral := self.idx, self.token, self.literal, self.parsedLiteral
 	var value ast.Expression
@@ -289,7 +289,7 @@ func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression,
 		value = &ast.StringLiteral***REMOVED***
 			Idx:     idx,
 			Literal: literal,
-			Value:   unistring.String(literal),
+			Value:   parsedLiteral,
 		***REMOVED***
 	case token.NUMBER:
 		num, err := parseNumberLiteral(literal)
@@ -302,7 +302,7 @@ func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression,
 				Value:   num,
 			***REMOVED***
 		***REMOVED***
-	case token.STRING:
+	case token.STRING, token.KEYWORD:
 		value = &ast.StringLiteral***REMOVED***
 			Idx:     idx,
 			Literal: literal,
@@ -319,7 +319,7 @@ func (self *_parser) parseObjectPropertyKey() (unistring.String, ast.Expression,
 			tkn = token.KEYWORD
 		***REMOVED***
 	***REMOVED***
-	return parsedLiteral, value, tkn
+	return literal, parsedLiteral, value, tkn
 ***REMOVED***
 
 func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
@@ -329,18 +329,19 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 			Expression: self.parseAssignmentExpression(),
 		***REMOVED***
 	***REMOVED***
-	literal, value, tkn := self.parseObjectPropertyKey()
+	keyStartIdx := self.idx
+	literal, parsedLiteral, value, tkn := self.parseObjectPropertyKey()
 	if tkn == token.IDENTIFIER || tkn == token.STRING || tkn == token.KEYWORD || tkn == token.ILLEGAL ***REMOVED***
 		switch ***REMOVED***
 		case self.token == token.LEFT_PARENTHESIS:
-			idx := self.idx
 			parameterList := self.parseFunctionParameterList()
 
 			node := &ast.FunctionLiteral***REMOVED***
-				Function:      idx,
+				Function:      keyStartIdx,
 				ParameterList: parameterList,
 			***REMOVED***
 			node.Body, node.DeclarationList = self.parseFunctionBlock()
+			node.Source = self.slice(keyStartIdx, node.Body.Idx1())
 
 			return &ast.PropertyKeyed***REMOVED***
 				Key:   value,
@@ -358,44 +359,44 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 				***REMOVED***
 				return &ast.PropertyShort***REMOVED***
 					Name: ast.Identifier***REMOVED***
-						Name: literal,
+						Name: parsedLiteral,
 						Idx:  value.Idx0(),
 					***REMOVED***,
 					Initializer: initializer,
 				***REMOVED***
 			***REMOVED***
 		case literal == "get" && self.token != token.COLON:
-			idx := self.idx
-			_, value, _ := self.parseObjectPropertyKey()
+			_, _, keyValue, _ := self.parseObjectPropertyKey()
 			idx1 := self.idx
 			parameterList := self.parseFunctionParameterList()
 			if len(parameterList.List) > 0 || parameterList.Rest != nil ***REMOVED***
 				self.error(idx1, "Getter must not have any formal parameters.")
 			***REMOVED***
 			node := &ast.FunctionLiteral***REMOVED***
-				Function:      idx,
+				Function:      keyStartIdx,
 				ParameterList: parameterList,
 			***REMOVED***
 			node.Body, node.DeclarationList = self.parseFunctionBlock()
+			node.Source = self.slice(keyStartIdx, node.Body.Idx1())
 			return &ast.PropertyKeyed***REMOVED***
-				Key:   value,
+				Key:   keyValue,
 				Kind:  ast.PropertyKindGet,
 				Value: node,
 			***REMOVED***
 		case literal == "set" && self.token != token.COLON:
-			idx := self.idx
-			_, value, _ := self.parseObjectPropertyKey()
+			_, _, keyValue, _ := self.parseObjectPropertyKey()
 			parameterList := self.parseFunctionParameterList()
 
 			node := &ast.FunctionLiteral***REMOVED***
-				Function:      idx,
+				Function:      keyStartIdx,
 				ParameterList: parameterList,
 			***REMOVED***
 
 			node.Body, node.DeclarationList = self.parseFunctionBlock()
+			node.Source = self.slice(keyStartIdx, node.Body.Idx1())
 
 			return &ast.PropertyKeyed***REMOVED***
-				Key:   value,
+				Key:   keyValue,
 				Kind:  ast.PropertyKindSet,
 				Value: node,
 			***REMOVED***
@@ -405,9 +406,10 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 	self.expect(token.COLON)
 
 	return &ast.PropertyKeyed***REMOVED***
-		Key:   value,
-		Kind:  ast.PropertyKindValue,
-		Value: self.parseAssignmentExpression(),
+		Key:      value,
+		Kind:     ast.PropertyKindValue,
+		Value:    self.parseAssignmentExpression(),
+		Computed: tkn == token.ILLEGAL,
 	***REMOVED***
 ***REMOVED***
 
@@ -470,17 +472,17 @@ func (self *_parser) parseTemplateLiteral(tagged bool) *ast.TemplateLiteral ***R
 	for self.chr != -1 ***REMOVED***
 		start := self.idx + 1
 		literal, parsed, finished, parseErr, err := self.parseTemplateCharacters()
-		if err != nil ***REMOVED***
-			self.error(self.idx, err.Error())
+		if err != "" ***REMOVED***
+			self.error(self.idx, err)
 		***REMOVED***
 		res.Elements = append(res.Elements, &ast.TemplateElement***REMOVED***
 			Idx:     start,
 			Literal: literal,
 			Parsed:  parsed,
-			Valid:   parseErr == nil,
+			Valid:   parseErr == "",
 		***REMOVED***)
-		if !tagged && parseErr != nil ***REMOVED***
-			self.error(self.idx, parseErr.Error())
+		if !tagged && parseErr != "" ***REMOVED***
+			self.error(self.idx, parseErr)
 		***REMOVED***
 		end := self.idx + 1
 		self.next()
@@ -505,23 +507,21 @@ func (self *_parser) parseTaggedTemplateLiteral(tag ast.Expression) *ast.Templat
 
 func (self *_parser) parseArgumentList() (argumentList []ast.Expression, idx0, idx1 file.Idx) ***REMOVED***
 	idx0 = self.expect(token.LEFT_PARENTHESIS)
-	if self.token != token.RIGHT_PARENTHESIS ***REMOVED***
-		for ***REMOVED***
-			var item ast.Expression
-			if self.token == token.ELLIPSIS ***REMOVED***
-				self.next()
-				item = &ast.SpreadElement***REMOVED***
-					Expression: self.parseAssignmentExpression(),
-				***REMOVED***
-			***REMOVED*** else ***REMOVED***
-				item = self.parseAssignmentExpression()
-			***REMOVED***
-			argumentList = append(argumentList, item)
-			if self.token != token.COMMA ***REMOVED***
-				break
-			***REMOVED***
+	for self.token != token.RIGHT_PARENTHESIS ***REMOVED***
+		var item ast.Expression
+		if self.token == token.ELLIPSIS ***REMOVED***
 			self.next()
+			item = &ast.SpreadElement***REMOVED***
+				Expression: self.parseAssignmentExpression(),
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			item = self.parseAssignmentExpression()
 		***REMOVED***
+		argumentList = append(argumentList, item)
+		if self.token != token.COMMA ***REMOVED***
+			break
+		***REMOVED***
+		self.next()
 	***REMOVED***
 	idx1 = self.expect(token.RIGHT_PARENTHESIS)
 	return
@@ -546,6 +546,11 @@ func (self *_parser) parseDotMember(left ast.Expression) ast.Expression ***REMOV
 	if self.token != token.IDENTIFIER && !isId(self.token) ***REMOVED***
 		self.expect(token.IDENTIFIER)
 		self.nextStatement()
+		return &ast.BadExpression***REMOVED***From: period, To: self.idx***REMOVED***
+	***REMOVED***
+
+	if leftStr, ok := left.(*ast.StringLiteral); ok && leftStr.Value == "new" ***REMOVED***
+		self.error(left.Idx0(), "Keyword must not contain escaped characters")
 		return &ast.BadExpression***REMOVED***From: period, To: self.idx***REMOVED***
 	***REMOVED***
 
@@ -576,8 +581,7 @@ func (self *_parser) parseNewExpression() ast.Expression ***REMOVED***
 	idx := self.expect(token.NEW)
 	if self.token == token.PERIOD ***REMOVED***
 		self.next()
-		prop := self.parseIdentifier()
-		if prop.Name == "target" ***REMOVED***
+		if self.literal == "target" ***REMOVED***
 			if !self.scope.inFunction ***REMOVED***
 				self.error(idx, "new.target expression is not allowed here")
 			***REMOVED***
@@ -586,12 +590,16 @@ func (self *_parser) parseNewExpression() ast.Expression ***REMOVED***
 					Name: unistring.String(token.NEW.String()),
 					Idx:  idx,
 				***REMOVED***,
-				Property: prop,
+				Property: self.parseIdentifier(),
 			***REMOVED***
 		***REMOVED***
 		self.errorUnexpectedToken(token.IDENTIFIER)
 	***REMOVED***
 	callee := self.parseLeftHandSideExpression()
+	if bad, ok := callee.(*ast.BadExpression); ok ***REMOVED***
+		bad.From = idx
+		return bad
+	***REMOVED***
 	node := &ast.NewExpression***REMOVED***
 		New:    idx,
 		Callee: callee,

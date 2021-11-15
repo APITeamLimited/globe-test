@@ -138,41 +138,47 @@ func (r *Runtime) math_log2(call FunctionCall) Value ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) math_max(call FunctionCall) Value ***REMOVED***
-	if len(call.Arguments) == 0 ***REMOVED***
-		return _negativeInf
+	result := math.Inf(-1)
+	args := call.Arguments
+	for i, arg := range args ***REMOVED***
+		n := nilSafe(arg).ToFloat()
+		if math.IsNaN(n) ***REMOVED***
+			args = args[i+1:]
+			goto NaNLoop
+		***REMOVED***
+		result = math.Max(result, n)
 	***REMOVED***
 
-	result := call.Arguments[0].ToFloat()
-	if math.IsNaN(result) ***REMOVED***
-		return _NaN
-	***REMOVED***
-	for _, arg := range call.Arguments[1:] ***REMOVED***
-		f := arg.ToFloat()
-		if math.IsNaN(f) ***REMOVED***
-			return _NaN
-		***REMOVED***
-		result = math.Max(result, f)
-	***REMOVED***
 	return floatToValue(result)
+
+NaNLoop:
+	// All arguments still need to be coerced to number according to the specs.
+	for _, arg := range args ***REMOVED***
+		nilSafe(arg).ToFloat()
+	***REMOVED***
+	return _NaN
 ***REMOVED***
 
 func (r *Runtime) math_min(call FunctionCall) Value ***REMOVED***
-	if len(call.Arguments) == 0 ***REMOVED***
-		return _positiveInf
+	result := math.Inf(1)
+	args := call.Arguments
+	for i, arg := range args ***REMOVED***
+		n := nilSafe(arg).ToFloat()
+		if math.IsNaN(n) ***REMOVED***
+			args = args[i+1:]
+			goto NaNLoop
+		***REMOVED***
+		result = math.Min(result, n)
 	***REMOVED***
 
-	result := call.Arguments[0].ToFloat()
-	if math.IsNaN(result) ***REMOVED***
-		return _NaN
-	***REMOVED***
-	for _, arg := range call.Arguments[1:] ***REMOVED***
-		f := arg.ToFloat()
-		if math.IsNaN(f) ***REMOVED***
-			return _NaN
-		***REMOVED***
-		result = math.Min(result, f)
-	***REMOVED***
 	return floatToValue(result)
+
+NaNLoop:
+	// All arguments still need to be coerced to number according to the specs.
+	for _, arg := range args ***REMOVED***
+		nilSafe(arg).ToFloat()
+	***REMOVED***
+	return _NaN
 ***REMOVED***
 
 func (r *Runtime) math_pow(call FunctionCall) Value ***REMOVED***
@@ -192,8 +198,15 @@ func (r *Runtime) math_pow(call FunctionCall) Value ***REMOVED***
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
-
-	return floatToValue(math.Pow(x.ToFloat(), y.ToFloat()))
+	xf := x.ToFloat()
+	yf := y.ToFloat()
+	if math.Abs(xf) == 1 && math.IsInf(yf, 0) ***REMOVED***
+		return _NaN
+	***REMOVED***
+	if xf == 1 && math.IsNaN(yf) ***REMOVED***
+		return _NaN
+	***REMOVED***
+	return floatToValue(math.Pow(xf, yf))
 ***REMOVED***
 
 func (r *Runtime) math_random(call FunctionCall) Value ***REMOVED***

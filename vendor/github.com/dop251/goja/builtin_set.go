@@ -140,7 +140,7 @@ func (r *Runtime) builtin_newSet(args []Value, newTarget *Object) *Object ***REM
 			adder := so.getStr("add", nil)
 			iter := r.getIterator(arg, nil)
 			if adder == r.global.setAdder ***REMOVED***
-				r.iterate(iter, func(item Value) ***REMOVED***
+				iter.iterate(func(item Value) ***REMOVED***
 					so.m.set(item, nil)
 				***REMOVED***)
 			***REMOVED*** else ***REMOVED***
@@ -148,7 +148,7 @@ func (r *Runtime) builtin_newSet(args []Value, newTarget *Object) *Object ***REM
 				if adderFn == nil ***REMOVED***
 					panic(r.NewTypeError("Set.add in missing"))
 				***REMOVED***
-				r.iterate(iter, func(item Value) ***REMOVED***
+				iter.iterate(func(item Value) ***REMOVED***
 					adderFn(FunctionCall***REMOVED***This: o, Arguments: []Value***REMOVED***item***REMOVED******REMOVED***)
 				***REMOVED***)
 			***REMOVED***

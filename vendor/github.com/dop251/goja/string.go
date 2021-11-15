@@ -190,12 +190,9 @@ func (s *stringObject) getStr(name unistring.String, receiver Value) Value ***RE
 ***REMOVED***
 
 func (s *stringObject) getIdx(idx valueInt, receiver Value) Value ***REMOVED***
-	i := int64(idx)
-	if i >= 0 ***REMOVED***
-		if i < int64(s.length) ***REMOVED***
-			return s._getIdx(int(i))
-		***REMOVED***
-		return nil
+	i := int(idx)
+	if i >= 0 && i < s.length ***REMOVED***
+		return s._getIdx(i)
 	***REMOVED***
 	return s.baseObject.getStr(idx.string(), receiver)
 ***REMOVED***
@@ -261,8 +258,8 @@ func (s *stringObject) setForeignIdx(idx valueInt, val, receiver Value, throw bo
 
 func (s *stringObject) defineOwnPropertyStr(name unistring.String, descr PropertyDescriptor, throw bool) bool ***REMOVED***
 	if i := strToGoIdx(name); i >= 0 && i < s.length ***REMOVED***
-		s.val.runtime.typeErrorResult(throw, "Cannot redefine property: %d", i)
-		return false
+		_, ok := s._defineOwnProperty(name, &valueProperty***REMOVED***enumerable: true***REMOVED***, descr, throw)
+		return ok
 	***REMOVED***
 
 	return s.baseObject.defineOwnPropertyStr(name, descr, throw)
@@ -288,13 +285,13 @@ func (i *stringPropIter) next() (propIterItem, iterNextFunc) ***REMOVED***
 	if i.idx < i.length ***REMOVED***
 		name := strconv.Itoa(i.idx)
 		i.idx++
-		return propIterItem***REMOVED***name: unistring.String(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
+		return propIterItem***REMOVED***name: asciiString(name), enumerable: _ENUM_TRUE***REMOVED***, i.next
 	***REMOVED***
 
-	return i.obj.baseObject.enumerateOwnKeys()()
+	return i.obj.baseObject.iterateStringKeys()()
 ***REMOVED***
 
-func (s *stringObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
+func (s *stringObject) iterateStringKeys() iterNextFunc ***REMOVED***
 	return (&stringPropIter***REMOVED***
 		str:    s.value,
 		obj:    s,
@@ -302,12 +299,12 @@ func (s *stringObject) enumerateOwnKeys() iterNextFunc ***REMOVED***
 	***REMOVED***).next
 ***REMOVED***
 
-func (s *stringObject) ownKeys(all bool, accum []Value) []Value ***REMOVED***
+func (s *stringObject) stringKeys(all bool, accum []Value) []Value ***REMOVED***
 	for i := 0; i < s.length; i++ ***REMOVED***
 		accum = append(accum, asciiString(strconv.Itoa(i)))
 	***REMOVED***
 
-	return s.baseObject.ownKeys(all, accum)
+	return s.baseObject.stringKeys(all, accum)
 ***REMOVED***
 
 func (s *stringObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***

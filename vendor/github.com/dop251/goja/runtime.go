@@ -397,15 +397,26 @@ func (r *Runtime) init() ***REMOVED***
 	r.initSet()
 	r.initPromise()
 
-	r.global.thrower = r.newNativeFunc(r.builtin_thrower, nil, "thrower", nil, 0)
+	r.global.thrower = r.newNativeFunc(r.builtin_thrower, nil, "", nil, 0)
 	r.global.throwerProperty = &valueProperty***REMOVED***
 		getterFunc: r.global.thrower,
 		setterFunc: r.global.thrower,
 		accessor:   true,
 	***REMOVED***
+	r.object_freeze(FunctionCall***REMOVED***Arguments: []Value***REMOVED***r.global.thrower***REMOVED******REMOVED***)
 
-	funcProtoObj._put("caller", r.global.throwerProperty)
-	funcProtoObj._put("arguments", r.global.throwerProperty)
+	funcProtoObj._put("caller", &valueProperty***REMOVED***
+		getterFunc:   r.global.thrower,
+		setterFunc:   r.global.thrower,
+		accessor:     true,
+		configurable: true,
+	***REMOVED***)
+	funcProtoObj._put("arguments", &valueProperty***REMOVED***
+		getterFunc:   r.global.thrower,
+		setterFunc:   r.global.thrower,
+		accessor:     true,
+		configurable: true,
+	***REMOVED***)
 ***REMOVED***
 
 func (r *Runtime) typeErrorResult(throw bool, args ...interface***REMOVED******REMOVED***) ***REMOVED***
@@ -495,7 +506,7 @@ func (r *Runtime) NewGoError(err error) *Object ***REMOVED***
 	return e
 ***REMOVED***
 
-func (r *Runtime) newFunc(name unistring.String, len int, strict bool) (f *funcObject) ***REMOVED***
+func (r *Runtime) newFunc(name unistring.String, length int, strict bool) (f *funcObject) ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 
 	f = &funcObject***REMOVED******REMOVED***
@@ -505,11 +516,25 @@ func (r *Runtime) newFunc(name unistring.String, len int, strict bool) (f *funcO
 	f.strict = strict
 	v.self = f
 	f.prototype = r.global.FunctionPrototype
-	f.init(name, len)
+	f.init(name, intToValue(int64(length)))
 	return
 ***REMOVED***
 
-func (r *Runtime) newArrowFunc(name unistring.String, len int, strict bool) (f *arrowFuncObject) ***REMOVED***
+func (r *Runtime) newMethod(name unistring.String, length int, strict bool) (f *methodFuncObject) ***REMOVED***
+	v := &Object***REMOVED***runtime: r***REMOVED***
+
+	f = &methodFuncObject***REMOVED******REMOVED***
+	f.class = classFunction
+	f.val = v
+	f.extensible = true
+	f.strict = strict
+	v.self = f
+	f.prototype = r.global.FunctionPrototype
+	f.init(name, intToValue(int64(length)))
+	return
+***REMOVED***
+
+func (r *Runtime) newArrowFunc(name unistring.String, length int, strict bool) (f *arrowFuncObject) ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 
 	f = &arrowFuncObject***REMOVED******REMOVED***
@@ -530,11 +555,11 @@ func (r *Runtime) newArrowFunc(name unistring.String, len int, strict bool) (f *
 	f.newTarget = vm.newTarget
 	v.self = f
 	f.prototype = r.global.FunctionPrototype
-	f.init(name, len)
+	f.init(name, intToValue(int64(length)))
 	return
 ***REMOVED***
 
-func (r *Runtime) newNativeFuncObj(v *Object, call func(FunctionCall) Value, construct func(args []Value, proto *Object) *Object, name unistring.String, proto *Object, length int) *nativeFuncObject ***REMOVED***
+func (r *Runtime) newNativeFuncObj(v *Object, call func(FunctionCall) Value, construct func(args []Value, proto *Object) *Object, name unistring.String, proto *Object, length Value) *nativeFuncObject ***REMOVED***
 	f := &nativeFuncObject***REMOVED***
 		baseFuncObject: baseFuncObject***REMOVED***
 			baseObject: baseObject***REMOVED***
@@ -555,7 +580,7 @@ func (r *Runtime) newNativeFuncObj(v *Object, call func(FunctionCall) Value, con
 	return f
 ***REMOVED***
 
-func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name unistring.String, length int) *Object ***REMOVED***
+func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name unistring.String, length int64) *Object ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 
 	f := &nativeFuncObject***REMOVED***
@@ -589,7 +614,7 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 	***REMOVED***
 
 	v.self = f
-	f.init(name, length)
+	f.init(name, intToValue(length))
 
 	proto := r.NewObject()
 	proto.self._putProp("constructor", v, true, false, true)
@@ -598,7 +623,7 @@ func (r *Runtime) newNativeConstructor(call func(ConstructorCall) *Object, name 
 	return v
 ***REMOVED***
 
-func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, length int) *nativeFuncObject ***REMOVED***
+func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newTarget *Object) *Object, defaultProto *Object, name unistring.String, length int64) *nativeFuncObject ***REMOVED***
 	if v == nil ***REMOVED***
 		v = &Object***REMOVED***runtime: r***REMOVED***
 	***REMOVED***
@@ -623,7 +648,7 @@ func (r *Runtime) newNativeConstructOnly(v *Object, ctor func(args []Value, newT
 		***REMOVED***,
 	***REMOVED***
 	v.self = f
-	f.init(name, length)
+	f.init(name, intToValue(length))
 	if defaultProto != nil ***REMOVED***
 		f._putProp("prototype", defaultProto, false, false, false)
 	***REMOVED***
@@ -647,7 +672,7 @@ func (r *Runtime) newNativeFunc(call func(FunctionCall) Value, construct func(ar
 		construct: r.wrapNativeConstruct(construct, proto),
 	***REMOVED***
 	v.self = f
-	f.init(name, length)
+	f.init(name, intToValue(int64(length)))
 	if proto != nil ***REMOVED***
 		f._putProp("prototype", proto, false, false, false)
 		proto.self._putProp("constructor", v, true, false, true)
@@ -669,18 +694,18 @@ func (r *Runtime) newNativeFuncConstructObj(v *Object, construct func(args []Val
 		construct: r.wrapNativeConstruct(construct, proto),
 	***REMOVED***
 
-	f.init(name, length)
+	f.init(name, intToValue(int64(length)))
 	if proto != nil ***REMOVED***
 		f._putProp("prototype", proto, false, false, false)
 	***REMOVED***
 	return f
 ***REMOVED***
 
-func (r *Runtime) newNativeFuncConstruct(construct func(args []Value, proto *Object) *Object, name unistring.String, prototype *Object, length int) *Object ***REMOVED***
+func (r *Runtime) newNativeFuncConstruct(construct func(args []Value, proto *Object) *Object, name unistring.String, prototype *Object, length int64) *Object ***REMOVED***
 	return r.newNativeFuncConstructProto(construct, name, prototype, r.global.FunctionPrototype, length)
 ***REMOVED***
 
-func (r *Runtime) newNativeFuncConstructProto(construct func(args []Value, proto *Object) *Object, name unistring.String, prototype, proto *Object, length int) *Object ***REMOVED***
+func (r *Runtime) newNativeFuncConstructProto(construct func(args []Value, proto *Object) *Object, name unistring.String, prototype, proto *Object, length int64) *Object ***REMOVED***
 	v := &Object***REMOVED***runtime: r***REMOVED***
 
 	f := &nativeFuncObject***REMOVED******REMOVED***
@@ -691,7 +716,7 @@ func (r *Runtime) newNativeFuncConstructProto(construct func(args []Value, proto
 	f.prototype = proto
 	f.f = r.constructToCall(construct, prototype)
 	f.construct = r.wrapNativeConstruct(construct, prototype)
-	f.init(name, length)
+	f.init(name, intToValue(length))
 	if prototype != nil ***REMOVED***
 		f._putProp("prototype", prototype, false, false, false)
 		prototype.self._putProp("constructor", v, true, false, true)
@@ -759,14 +784,14 @@ func (r *Runtime) builtin_newBoolean(args []Value, proto *Object) *Object ***REM
 
 func (r *Runtime) error_toString(call FunctionCall) Value ***REMOVED***
 	var nameStr, msgStr valueString
-	obj := call.This.ToObject(r).self
-	name := obj.getStr("name", nil)
+	obj := r.toObject(call.This)
+	name := obj.self.getStr("name", nil)
 	if name == nil || name == _undefined ***REMOVED***
 		nameStr = asciiString("Error")
 	***REMOVED*** else ***REMOVED***
 		nameStr = name.toString()
 	***REMOVED***
-	msg := obj.getStr("message", nil)
+	msg := obj.self.getStr("message", nil)
 	if msg == nil || msg == _undefined ***REMOVED***
 		msgStr = stringEmpty
 	***REMOVED*** else ***REMOVED***
@@ -1095,6 +1120,45 @@ func toLength(v Value) int64 ***REMOVED***
 	return i
 ***REMOVED***
 
+func (r *Runtime) toLengthUint32(v Value) uint32 ***REMOVED***
+	var intVal int64
+repeat:
+	switch num := v.(type) ***REMOVED***
+	case valueInt:
+		intVal = int64(num)
+	case valueFloat:
+		if v != _negativeZero ***REMOVED***
+			if i, ok := floatToInt(float64(num)); ok ***REMOVED***
+				intVal = i
+			***REMOVED*** else ***REMOVED***
+				goto fail
+			***REMOVED***
+		***REMOVED***
+	case valueString:
+		v = num.ToNumber()
+		goto repeat
+	default:
+		// Legacy behaviour as specified in https://tc39.es/ecma262/#sec-arraysetlength (see the note)
+		n2 := toUint32(v)
+		n1 := v.ToNumber()
+		if f, ok := n1.(valueFloat); ok ***REMOVED***
+			f := float64(f)
+			if f != 0 || !math.Signbit(f) ***REMOVED***
+				goto fail
+			***REMOVED***
+		***REMOVED***
+		if n1.ToInteger() != int64(n2) ***REMOVED***
+			goto fail
+		***REMOVED***
+		return n2
+	***REMOVED***
+	if intVal >= 0 && intVal <= math.MaxUint32 ***REMOVED***
+		return uint32(intVal)
+	***REMOVED***
+fail:
+	panic(r.newError(r.global.RangeError, "Invalid array length"))
+***REMOVED***
+
 func toIntStrict(i int64) int ***REMOVED***
 	if bits.UintSize == 32 ***REMOVED***
 		if i > math.MaxInt32 || i < math.MinInt32 ***REMOVED***
@@ -1117,12 +1181,12 @@ func toIntClamp(i int64) int ***REMOVED***
 ***REMOVED***
 
 func (r *Runtime) toIndex(v Value) int ***REMOVED***
-	intIdx := v.ToInteger()
-	if intIdx >= 0 && intIdx < maxInt ***REMOVED***
-		if bits.UintSize == 32 && intIdx >= math.MaxInt32 ***REMOVED***
+	num := v.ToInteger()
+	if num >= 0 && num < maxInt ***REMOVED***
+		if bits.UintSize == 32 && num >= math.MaxInt32 ***REMOVED***
 			panic(r.newError(r.global.RangeError, "Index %s overflows int", v.String()))
 		***REMOVED***
-		return int(intIdx)
+		return int(num)
 	***REMOVED***
 	panic(r.newError(r.global.RangeError, "Invalid index %s", v.String()))
 ***REMOVED***
@@ -1287,6 +1351,7 @@ func (r *Runtime) RunProgram(p *Program) (result Value, err error) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		vm.stack = nil
 		vm.prg = nil
+		vm.funcName = ""
 		r.leave()
 	***REMOVED***
 	return
@@ -1940,14 +2005,15 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 			elemTyp := typ.Elem()
 			needConvertKeys := !reflect.ValueOf("").Type().AssignableTo(keyTyp)
 			iter := &enumerableIter***REMOVED***
-				wrapped: o.self.enumerateOwnKeys(),
+				o:       o,
+				wrapped: o.self.iterateStringKeys(),
 			***REMOVED***
 			for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
 				var kv reflect.Value
 				var err error
 				if needConvertKeys ***REMOVED***
 					kv = reflect.New(keyTyp).Elem()
-					err = r.toReflectValue(stringValueFromRaw(item.name), kv, ctx)
+					err = r.toReflectValue(item.name, kv, ctx)
 					if err != nil ***REMOVED***
 						return fmt.Errorf("could not convert map key %s to %v", item.name.String(), typ)
 					***REMOVED***
@@ -1955,7 +2021,7 @@ func (r *Runtime) toReflectValue(v Value, dst reflect.Value, ctx *objectExportCt
 					kv = reflect.ValueOf(item.name.String())
 				***REMOVED***
 
-				ival := o.self.getStr(item.name, nil)
+				ival := o.self.getStr(item.name.string(), nil)
 				if ival != nil ***REMOVED***
 					vv := reflect.New(elemTyp).Elem()
 					err := r.toReflectValue(ival, vv, ctx)
@@ -2301,11 +2367,24 @@ func (r *Runtime) speciesConstructorObj(o, defaultConstructor *Object) *Object *
 	if c == nil || c == _undefined || c == _null ***REMOVED***
 		return defaultConstructor
 	***REMOVED***
-	return r.toObject(c)
+	obj := r.toObject(c)
+	if obj.self.assertConstructor() == nil ***REMOVED***
+		panic(r.NewTypeError("Value is not a constructor"))
+	***REMOVED***
+	return obj
 ***REMOVED***
 
 func (r *Runtime) returnThis(call FunctionCall) Value ***REMOVED***
 	return call.This
+***REMOVED***
+
+func createDataProperty(o *Object, p Value, v Value) ***REMOVED***
+	o.defineOwnProperty(p, PropertyDescriptor***REMOVED***
+		Writable:     FLAG_TRUE,
+		Enumerable:   FLAG_TRUE,
+		Configurable: FLAG_TRUE,
+		Value:        v,
+	***REMOVED***, false)
 ***REMOVED***
 
 func createDataPropertyOrThrow(o *Object, p Value, v Value) ***REMOVED***
@@ -2331,7 +2410,12 @@ func (r *Runtime) getV(v Value, p Value) Value ***REMOVED***
 	return o.get(p, v)
 ***REMOVED***
 
-func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *Object ***REMOVED***
+type iteratorRecord struct ***REMOVED***
+	iterator *Object
+	next     func(FunctionCall) Value
+***REMOVED***
+
+func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *iteratorRecord ***REMOVED***
 	if method == nil ***REMOVED***
 		method = toMethod(r.getV(obj, SymIterator))
 		if method == nil ***REMOVED***
@@ -2339,21 +2423,20 @@ func (r *Runtime) getIterator(obj Value, method func(FunctionCall) Value) *Objec
 		***REMOVED***
 	***REMOVED***
 
-	return r.toObject(method(FunctionCall***REMOVED***
+	iter := r.toObject(method(FunctionCall***REMOVED***
 		This: obj,
 	***REMOVED***))
-***REMOVED***
-
-func returnIter(iter *Object) ***REMOVED***
-	retMethod := toMethod(iter.self.getStr("return", nil))
-	if retMethod != nil ***REMOVED***
-		iter.runtime.toObject(retMethod(FunctionCall***REMOVED***This: iter***REMOVED***))
+	next := toMethod(iter.self.getStr("next", nil))
+	return &iteratorRecord***REMOVED***
+		iterator: iter,
+		next:     next,
 	***REMOVED***
 ***REMOVED***
 
-func (r *Runtime) iterate(iter *Object, step func(Value)) ***REMOVED***
+func (ir *iteratorRecord) iterate(step func(Value)) ***REMOVED***
+	r := ir.iterator.runtime
 	for ***REMOVED***
-		res := r.toObject(toMethod(iter.self.getStr("next", nil))(FunctionCall***REMOVED***This: iter***REMOVED***))
+		res := r.toObject(ir.next(FunctionCall***REMOVED***This: ir.iterator***REMOVED***))
 		if nilSafe(res.self.getStr("done", nil)).ToBoolean() ***REMOVED***
 			break
 		***REMOVED***
@@ -2363,11 +2446,42 @@ func (r *Runtime) iterate(iter *Object, step func(Value)) ***REMOVED***
 		***REMOVED***)
 		if ret != nil ***REMOVED***
 			_ = tryFunc(func() ***REMOVED***
-				returnIter(iter)
+				ir.returnIter()
 			***REMOVED***)
 			panic(ret)
 		***REMOVED***
 	***REMOVED***
+***REMOVED***
+
+func (ir *iteratorRecord) step() (value Value, ex *Exception) ***REMOVED***
+	r := ir.iterator.runtime
+	ex = r.vm.try(func() ***REMOVED***
+		res := r.toObject(ir.next(FunctionCall***REMOVED***This: ir.iterator***REMOVED***))
+		done := nilSafe(res.self.getStr("done", nil)).ToBoolean()
+		if !done ***REMOVED***
+			value = nilSafe(res.self.getStr("value", nil))
+		***REMOVED*** else ***REMOVED***
+			ir.close()
+		***REMOVED***
+	***REMOVED***)
+	return
+***REMOVED***
+
+func (ir *iteratorRecord) returnIter() ***REMOVED***
+	if ir.iterator == nil ***REMOVED***
+		return
+	***REMOVED***
+	retMethod := toMethod(ir.iterator.self.getStr("return", nil))
+	if retMethod != nil ***REMOVED***
+		ir.iterator.runtime.toObject(retMethod(FunctionCall***REMOVED***This: ir.iterator***REMOVED***))
+	***REMOVED***
+	ir.iterator = nil
+	ir.next = nil
+***REMOVED***
+
+func (ir *iteratorRecord) close() ***REMOVED***
+	ir.iterator = nil
+	ir.next = nil
 ***REMOVED***
 
 func (r *Runtime) createIterResultObject(value Value, done bool) Value ***REMOVED***
@@ -2533,7 +2647,7 @@ func (r *Runtime) invoke(v Value, p unistring.String, args ...Value) Value ***RE
 func (r *Runtime) iterableToList(items Value, method func(FunctionCall) Value) []Value ***REMOVED***
 	iter := r.getIterator(items, method)
 	var values []Value
-	r.iterate(iter, func(item Value) ***REMOVED***
+	iter.iterate(func(item Value) ***REMOVED***
 		values = append(values, item)
 	***REMOVED***)
 	return values
