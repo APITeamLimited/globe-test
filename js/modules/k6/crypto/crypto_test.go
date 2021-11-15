@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modulestest"
 	"go.k6.io/k6/lib"
 )
 
@@ -50,7 +51,17 @@ func TestCryptoAlgorithms(t *testing.T) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	ctx := context.Background()
 	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   nil,
+		***REMOVED***,
+	).(*Crypto)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("crypto", m.Exports().Named))
 
 	t.Run("RandomBytesSuccess", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(`
@@ -193,7 +204,16 @@ func TestStreamingApi(t *testing.T) ***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   nil,
+		***REMOVED***,
+	).(*Crypto)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("crypto", m.Exports().Named))
 
 	// Empty strings are still hashable
 	t.Run("Empty", func(t *testing.T) ***REMOVED***
@@ -258,7 +278,16 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   nil,
+		***REMOVED***,
+	).(*Crypto)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("crypto", m.Exports().Named))
 
 	t.Run("Valid", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(`
@@ -318,7 +347,7 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 		hasher.update("hello world");
 		hasher.digest("someInvalidEncoding");
 		`)
-		assert.Contains(t, err.Error(), "Invalid output encoding: someInvalidEncoding")
+		assert.Contains(t, err.Error(), "invalid output encoding: someInvalidEncoding")
 	***REMOVED***)
 ***REMOVED***
 
@@ -337,7 +366,16 @@ func TestHMac(t *testing.T) ***REMOVED***
 	ctx = lib.WithState(ctx, state)
 	ctx = common.WithRuntime(ctx, rt)
 
-	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   nil,
+		***REMOVED***,
+	).(*Crypto)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("crypto", m.Exports().Named))
 
 	testData := map[string]string***REMOVED***
 		"md4":        "92d8f5c302cf04cca0144d7a9feb1596",
@@ -409,7 +447,7 @@ func TestHMac(t *testing.T) ***REMOVED***
 				throw new Error("Hex encoding mismatch: " + resultHex);
 			***REMOVED***`)
 
-			assert.Contains(t, err.Error(), "Invalid algorithm: "+algorithm)
+			assert.Contains(t, err.Error(), "invalid algorithm: "+algorithm)
 		***REMOVED***)
 
 		t.Run(algorithm+" wrapper: invalid", func(t *testing.T) ***REMOVED***
@@ -419,53 +457,60 @@ func TestHMac(t *testing.T) ***REMOVED***
 				throw new Error("Hex encoding mismatch: " + resultHex);
 			***REMOVED***`)
 
-			assert.Contains(t, err.Error(), "Invalid algorithm: "+algorithm)
+			assert.Contains(t, err.Error(), "invalid algorithm: "+algorithm)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
 
-func TestHexEncodeOK(t *testing.T) ***REMOVED***
-	rt := goja.New()
-	input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
-	testCases := []interface***REMOVED******REMOVED******REMOVED***
-		input, string(input), rt.NewArrayBuffer(input),
-	***REMOVED***
+func TestHexEncode(t *testing.T) ***REMOVED***
+	t.Parallel()
+	t.Run("Success", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := goja.New()
+		input := []byte***REMOVED***104, 101, 108, 108, 111***REMOVED***
+		testCases := []interface***REMOVED******REMOVED******REMOVED***
+			input, string(input), rt.NewArrayBuffer(input),
+		***REMOVED***
 
-	for _, tc := range testCases ***REMOVED***
-		tc := tc
-		t.Run(fmt.Sprintf("%T", tc), func(t *testing.T) ***REMOVED***
-			c := New()
-			ctx := common.WithRuntime(context.Background(), rt)
-			out := c.HexEncode(ctx, tc)
-			assert.Equal(t, "68656c6c6f", out)
-		***REMOVED***)
-	***REMOVED***
-***REMOVED***
+		for _, tc := range testCases ***REMOVED***
+			tc := tc
+			t.Run(fmt.Sprintf("%T", tc), func(t *testing.T) ***REMOVED***
+				c := Crypto***REMOVED******REMOVED***
+				out, err := c.hexEncode(tc)
+				require.NoError(t, err)
+				assert.Equal(t, "68656c6c6f", out)
+			***REMOVED***)
+		***REMOVED***
+	***REMOVED***)
 
-func TestHexEncodeError(t *testing.T) ***REMOVED***
-	rt := goja.New()
+	t.Run("InvalidTypeError", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 
-	expErr := "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer"
-	defer func() ***REMOVED***
-		err := recover()
-		require.NotNil(t, err)
-		require.IsType(t, &goja.Object***REMOVED******REMOVED***, err)
-		val := err.(*goja.Object).Export()
-		require.EqualError(t, val.(error), expErr)
-	***REMOVED***()
+		c := Crypto***REMOVED***vu: &modulestest.VU***REMOVED***
+			RuntimeField: goja.New(),
+		***REMOVED******REMOVED***
 
-	c := New()
-	ctx := common.WithRuntime(context.Background(), rt)
-	c.HexEncode(ctx, struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+		_, err := c.hexEncode(struct***REMOVED******REMOVED******REMOVED******REMOVED***)
+		assert.EqualError(t, err, "invalid type struct ***REMOVED******REMOVED***, expected string, []byte or ArrayBuffer")
+	***REMOVED***)
 ***REMOVED***
 
 func TestAWSv4(t *testing.T) ***REMOVED***
 	// example values from https://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	ctx := context.Background()
-	ctx = common.WithRuntime(ctx, rt)
-	rt.Set("crypto", common.Bind(rt, New(), &ctx))
+	ctx := common.WithRuntime(context.Background(), rt)
+
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   nil,
+		***REMOVED***,
+	).(*Crypto)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("crypto", m.Exports().Named))
 
 	_, err := rt.RunString(`
 		var HexEncode = crypto.hexEncode;
