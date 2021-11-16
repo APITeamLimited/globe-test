@@ -22,7 +22,6 @@
 package k6
 
 import (
-	"context"
 	"errors"
 	"math/rand"
 	"sync/atomic"
@@ -31,22 +30,56 @@ import (
 	"github.com/dop251/goja"
 
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
+	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/stats"
 )
 
-// K6 is just the module struct.
-type K6 struct***REMOVED******REMOVED***
+var (
+	// ErrGroupInInitContext is returned when group() are using in the init context.
+	ErrGroupInInitContext = common.NewInitContextError("Using group() in the init context is not supported")
 
-// ErrGroupInInitContext is returned when group() are using in the init context.
-var ErrGroupInInitContext = common.NewInitContextError("Using group() in the init context is not supported")
+	// ErrCheckInInitContext is returned when check() are using in the init context.
+	ErrCheckInInitContext = common.NewInitContextError("Using check() in the init context is not supported")
+)
 
-// ErrCheckInInitContext is returned when check() are using in the init context.
-var ErrCheckInInitContext = common.NewInitContextError("Using check() in the init context is not supported")
+type (
+	// RootModule is the global module instance that will create module
+	// instances for each VU.
+	RootModule struct***REMOVED******REMOVED***
 
-// New returns a new module Struct.
-func New() *K6 ***REMOVED***
-	return &K6***REMOVED******REMOVED***
+	// K6 represents an instance of the k6 module.
+	K6 struct ***REMOVED***
+		vu modules.VU
+	***REMOVED***
+)
+
+var (
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &K6***REMOVED******REMOVED***
+)
+
+// New returns a pointer to a new RootModule instance.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED******REMOVED***
+***REMOVED***
+
+// NewModuleInstance implements the modules.Module interface to return
+// a new instance for each VU.
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	return &K6***REMOVED***vu: vu***REMOVED***
+***REMOVED***
+
+// Exports returns the exports of the k6 module.
+func (mi *K6) Exports() modules.Exports ***REMOVED***
+	return modules.Exports***REMOVED***
+		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+			"check":      mi.Check,
+			"fail":       mi.Fail,
+			"group":      mi.Group,
+			"randomSeed": mi.RandomSeed,
+			"sleep":      mi.Sleep,
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
 // Fail is a fancy way of saying `throw "something"`.
@@ -55,7 +88,8 @@ func (*K6) Fail(msg string) (goja.Value, error) ***REMOVED***
 ***REMOVED***
 
 // Sleep waits the provided seconds before continuing the execution.
-func (*K6) Sleep(ctx context.Context, secs float64) ***REMOVED***
+func (mi *K6) Sleep(secs float64) ***REMOVED***
+	ctx := mi.vu.Context()
 	timer := time.NewTimer(time.Duration(secs * float64(time.Second)))
 	select ***REMOVED***
 	case <-timer.C:
@@ -65,16 +99,14 @@ func (*K6) Sleep(ctx context.Context, secs float64) ***REMOVED***
 ***REMOVED***
 
 // RandomSeed sets the seed to the random generator used for this VU.
-func (*K6) RandomSeed(ctx context.Context, seed int64) ***REMOVED***
+func (mi *K6) RandomSeed(seed int64) ***REMOVED***
 	randSource := rand.New(rand.NewSource(seed)).Float64 //nolint:gosec
-
-	rt := common.GetRuntime(ctx)
-	rt.SetRandSource(randSource)
+	mi.vu.Runtime().SetRandSource(randSource)
 ***REMOVED***
 
 // Group wraps a function call and executes it within the provided group name.
-func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (mi *K6) Group(name string, fn goja.Callable) (goja.Value, error) ***REMOVED***
+	state := mi.vu.State()
 	if state == nil ***REMOVED***
 		return nil, ErrGroupInInitContext
 	***REMOVED***
@@ -108,6 +140,7 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 
 	tags := state.CloneTags()
 
+	ctx := mi.vu.Context()
 	stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 		Time:   t,
 		Metric: state.BuiltinMetrics.GroupDuration,
@@ -120,12 +153,13 @@ func (*K6) Group(ctx context.Context, name string, fn goja.Callable) (goja.Value
 
 // Check will emit check metrics for the provided checks.
 //nolint:cyclop
-func (*K6) Check(ctx context.Context, arg0, checks goja.Value, extras ...goja.Value) (bool, error) ***REMOVED***
-	state := lib.GetState(ctx)
+func (mi *K6) Check(arg0, checks goja.Value, extras ...goja.Value) (bool, error) ***REMOVED***
+	state := mi.vu.State()
 	if state == nil ***REMOVED***
 		return false, ErrCheckInInitContext
 	***REMOVED***
-	rt := common.GetRuntime(ctx)
+	ctx := mi.vu.Context()
+	rt := mi.vu.Runtime()
 	t := time.Now()
 
 	// Prepare the metric tags
