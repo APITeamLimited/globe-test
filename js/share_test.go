@@ -99,15 +99,15 @@ exports.default = function() ***REMOVED***
 			t.Parallel()
 			samples := make(chan stats.SampleContainer, 100)
 			initVU, err := r.NewVU(1, 1, samples)
-			if assert.NoError(t, err) ***REMOVED***
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
-				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
-				err := vu.RunOnce()
-				assert.NoError(t, err)
-				entries := hook.Drain()
-				require.Len(t, entries, 0)
-			***REMOVED***
+			require.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+			err = vu.RunOnce()
+			assert.NoError(t, err)
+			entries := hook.Drain()
+			assert.Len(t, entries, 0)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

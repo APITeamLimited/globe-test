@@ -21,23 +21,87 @@
 package data
 
 import (
-	"context"
 	"errors"
 	"strconv"
 	"sync"
 
 	"github.com/dop251/goja"
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
+	"go.k6.io/k6/js/modules"
 )
 
-type data struct ***REMOVED***
-	shared sharedArrays
+type (
+	// RootModule is the global module instance that will create module
+	// instances for each VU.
+	RootModule struct ***REMOVED***
+		shared sharedArrays
+	***REMOVED***
+
+	// Data represents an instance of the data module.
+	Data struct ***REMOVED***
+		vu     modules.VU
+		shared *sharedArrays
+	***REMOVED***
+
+	sharedArrays struct ***REMOVED***
+		data map[string]sharedArray
+		mu   sync.RWMutex
+	***REMOVED***
+)
+
+var (
+	_ modules.Module   = &RootModule***REMOVED******REMOVED***
+	_ modules.Instance = &Data***REMOVED******REMOVED***
+)
+
+// New returns a pointer to a new RootModule instance.
+func New() *RootModule ***REMOVED***
+	return &RootModule***REMOVED***
+		shared: sharedArrays***REMOVED***
+			data: make(map[string]sharedArray),
+		***REMOVED***,
+	***REMOVED***
 ***REMOVED***
 
-type sharedArrays struct ***REMOVED***
-	data map[string]sharedArray
-	mu   sync.RWMutex
+// NewModuleInstance implements the modules.Module interface to return
+// a new instance for each VU.
+func (rm *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
+	return &Data***REMOVED***
+		vu:     vu,
+		shared: &rm.shared,
+	***REMOVED***
+***REMOVED***
+
+// Exports returns the exports of the data module.
+func (d *Data) Exports() modules.Exports ***REMOVED***
+	return modules.Exports***REMOVED***
+		Named: map[string]interface***REMOVED******REMOVED******REMOVED***
+			"SharedArray": d.sharedArray,
+		***REMOVED***,
+	***REMOVED***
+***REMOVED***
+
+// sharedArray is a constructor returning a shareable read-only array
+// indentified by the name and having their contents be whatever the call returns
+func (d *Data) sharedArray(call goja.ConstructorCall) *goja.Object ***REMOVED***
+	rt := d.vu.Runtime()
+
+	if d.vu.State() != nil ***REMOVED***
+		common.Throw(rt, errors.New("new SharedArray must be called in the init context"))
+	***REMOVED***
+
+	name := call.Argument(0).String()
+	if name == "" ***REMOVED***
+		common.Throw(rt, errors.New("empty name provided to SharedArray's constructor"))
+	***REMOVED***
+
+	fn, ok := goja.AssertFunction(call.Argument(1))
+	if !ok ***REMOVED***
+		common.Throw(rt, errors.New("a function is expected as the second argument of SharedArray's constructor"))
+	***REMOVED***
+
+	array := d.shared.get(rt, name, fn)
+	return array.wrap(rt).ToObject(rt)
 ***REMOVED***
 
 func (s *sharedArrays) get(rt *goja.Runtime, name string, call goja.Callable) sharedArray ***REMOVED***
@@ -55,32 +119,6 @@ func (s *sharedArrays) get(rt *goja.Runtime, name string, call goja.Callable) sh
 	***REMOVED***
 
 	return array
-***REMOVED***
-
-// New return a new Module instance
-func New() interface***REMOVED******REMOVED*** ***REMOVED***
-	return &data***REMOVED***
-		shared: sharedArrays***REMOVED***
-			data: make(map[string]sharedArray),
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-// XSharedArray is a constructor returning a shareable read-only array
-// indentified by the name and having their contents be whatever the call returns
-func (d *data) XSharedArray(ctx context.Context, name string, call goja.Callable) (goja.Value, error) ***REMOVED***
-	if lib.GetState(ctx) != nil ***REMOVED***
-		return nil, errors.New("new SharedArray must be called in the init context")
-	***REMOVED***
-
-	if len(name) == 0 ***REMOVED***
-		return nil, errors.New("empty name provided to SharedArray's constructor")
-	***REMOVED***
-
-	rt := common.GetRuntime(ctx)
-	array := d.shared.get(rt, name, call)
-
-	return array.wrap(rt), nil
 ***REMOVED***
 
 func getShareArrayFromCall(rt *goja.Runtime, call goja.Callable) sharedArray ***REMOVED***

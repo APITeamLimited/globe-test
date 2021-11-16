@@ -22,6 +22,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/modulestest"
 )
 
 const makeArrayScript = `
@@ -43,22 +45,33 @@ var array = new data.SharedArray("shared",function() ***REMOVED***
 ***REMOVED***);
 `
 
-func newConfiguredRuntime(moduleInstance interface***REMOVED******REMOVED***) (*goja.Runtime, error) ***REMOVED***
+func newConfiguredRuntime() (*goja.Runtime, error) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	ctx := common.WithRuntime(context.Background(), rt)
-	err := rt.Set("data", common.Bind(rt, moduleInstance, &ctx))
+
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     common.WithRuntime(context.Background(), rt),
+			StateField:   nil,
+		***REMOVED***,
+	).(*Data)
+	if !ok ***REMOVED***
+		return rt, fmt.Errorf("not a Data module instance")
+	***REMOVED***
+
+	err := rt.Set("data", m.Exports().Named)
 	if err != nil ***REMOVED***
 		return rt, err //nolint:wrapcheck
 	***REMOVED***
 	_, err = rt.RunString("var SharedArray = data.SharedArray;")
-
 	return rt, err //nolint:wrapcheck
 ***REMOVED***
 
 func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 	t.Parallel()
-	rt, err := newConfiguredRuntime(New())
+	rt, err := newConfiguredRuntime()
 	require.NoError(t, err)
 	cases := map[string]struct ***REMOVED***
 		code, err string
@@ -79,6 +92,10 @@ func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 			***REMOVED***
 		`,
 			err: "",
+		***REMOVED***,
+		"not a function": ***REMOVED***
+			code: `var s = new SharedArray("wat3", "astring");`,
+			err:  "a function is expected",
 		***REMOVED***,
 	***REMOVED***
 
@@ -101,13 +118,12 @@ func TestSharedArrayConstructorExceptions(t *testing.T) ***REMOVED***
 func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	moduleInstance := New()
-	rt, err := newConfiguredRuntime(moduleInstance)
+	rt, err := newConfiguredRuntime()
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
 
-	rt, err = newConfiguredRuntime(moduleInstance)
+	rt, err = newConfiguredRuntime()
 	require.NoError(t, err)
 	_, err = rt.RunString(makeArrayScript)
 	require.NoError(t, err)
@@ -153,15 +169,26 @@ func TestSharedArrayAnotherRuntimeExceptions(t *testing.T) ***REMOVED***
 func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 	t.Parallel()
 
-	moduleInstance := New()
-	rt, err := newConfiguredRuntime(moduleInstance)
-	require.NoError(t, err)
-	_, err = rt.RunString(makeArrayScript)
+	rt := goja.New()
+	vu := &modulestest.VU***REMOVED***
+		RuntimeField: rt,
+		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+		CtxField:     common.WithRuntime(context.Background(), rt),
+		StateField:   nil,
+	***REMOVED***
+	m, ok := New().NewModuleInstance(vu).(*Data)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("data", m.Exports().Named))
+
+	_, err := rt.RunString(makeArrayScript)
 	require.NoError(t, err)
 
 	// create another Runtime with new ctx but keep the initEnv
-	rt, err = newConfiguredRuntime(moduleInstance)
-	require.NoError(t, err)
+	rt = goja.New()
+	vu.RuntimeField = rt
+	vu.CtxField = common.WithRuntime(context.Background(), rt)
+	require.NoError(t, rt.Set("data", m.Exports().Named))
+
 	_, err = rt.RunString(`var array = new data.SharedArray("shared", function() ***REMOVED***throw "wat";***REMOVED***);`)
 	require.NoError(t, err)
 
@@ -201,9 +228,8 @@ func TestSharedArrayRaceInInitialization(t *testing.T) ***REMOVED***
 	const repeats = 100
 	for i := 0; i < repeats; i++ ***REMOVED***
 		runtimes := make([]*goja.Runtime, instances)
-		moduleInstance := New()
 		for j := 0; j < instances; j++ ***REMOVED***
-			rt, err := newConfiguredRuntime(moduleInstance)
+			rt, err := newConfiguredRuntime()
 			require.NoError(t, err)
 			runtimes[j] = rt
 		***REMOVED***
