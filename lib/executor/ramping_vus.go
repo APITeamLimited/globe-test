@@ -533,7 +533,6 @@ func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, 
 
 	runState := &rampingVUsRunState***REMOVED***
 		executor:       vlv,
-		wg:             sync.WaitGroup***REMOVED******REMOVED***,
 		vuHandles:      make([]*vuHandle, maxVUs),
 		maxVUs:         maxVUs,
 		activeVUsCount: new(int64),
