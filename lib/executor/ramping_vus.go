@@ -700,7 +700,6 @@ func (rs rampingVUsRunState) scheduledVUsHandlerStrategy() func(lib.ExecutionSte
 		for ; pv < cur; cur-- ***REMOVED***
 			rs.vuHandles[cur-1].gracefulStop()
 		***REMOVED***
-		cur = pv
 	***REMOVED***
 ***REMOVED***
 
