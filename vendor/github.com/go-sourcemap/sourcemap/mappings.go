@@ -23,8 +23,9 @@ type mappings struct ***REMOVED***
 	rd  *strings.Reader
 	dec base64vlq.Decoder
 
-	hasName bool
-	value   mapping
+	hasValue bool
+	hasName  bool
+	value    mapping
 
 	values []mapping
 ***REMOVED***
@@ -91,6 +92,7 @@ func (m *mappings) parse() error ***REMOVED***
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
+			m.hasValue = true
 		***REMOVED***
 	***REMOVED***
 ***REMOVED***
@@ -142,10 +144,10 @@ func parseNamesInd(m *mappings) (fn, error) ***REMOVED***
 ***REMOVED***
 
 func (m *mappings) pushValue() ***REMOVED***
-	if m.value.sourceLine == 1 && m.value.sourceColumn == 0 ***REMOVED***
+	if !m.hasValue ***REMOVED***
 		return
 	***REMOVED***
-
+	m.hasValue = false
 	if m.hasName ***REMOVED***
 		m.values = append(m.values, m.value)
 		m.hasName = false

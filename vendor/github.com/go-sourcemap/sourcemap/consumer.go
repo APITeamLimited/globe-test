@@ -192,19 +192,24 @@ func (c *Consumer) source(
 		return int(m.genLine) >= genLine
 	***REMOVED***)
 
-	// Mapping not found.
+	var match *mapping
+	// Mapping not found
 	if i == len(m.mappings) ***REMOVED***
-		return
-	***REMOVED***
-
-	match := &m.mappings[i]
-
-	// Fuzzy match.
-	if int(match.genLine) > genLine || int(match.genColumn) > genColumn ***REMOVED***
-		if i == 0 ***REMOVED***
+		// lets see if the line is correct but the column is bigger
+		match = &m.mappings[i-1]
+		if int(match.genLine) != genLine ***REMOVED***
 			return
 		***REMOVED***
-		match = &m.mappings[i-1]
+	***REMOVED*** else ***REMOVED***
+		match = &m.mappings[i]
+
+		// Fuzzy match.
+		if int(match.genLine) > genLine || int(match.genColumn) > genColumn ***REMOVED***
+			if i == 0 ***REMOVED***
+				return
+			***REMOVED***
+			match = &m.mappings[i-1]
+		***REMOVED***
 	***REMOVED***
 
 	if match.sourcesInd >= 0 ***REMOVED***
