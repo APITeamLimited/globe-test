@@ -325,9 +325,9 @@ func (c *Client) reflect(ctx context.Context) error ***REMOVED***
 	if listResp == nil ***REMOVED***
 		return fmt.Errorf("can't list services, nil response")
 	***REMOVED***
-	fdset, err := resolveFileDescriptors(methodClient, listResp)
+	fdset, err := resolveServiceFileDescriptors(methodClient, listResp)
 	if err != nil ***REMOVED***
-		return fmt.Errorf("resolveFileDescriptors: %w", err)
+		return fmt.Errorf("can't resolve services' file descriptors: %w", err)
 	***REMOVED***
 	_, err = c.convertToMethodInfo(fdset)
 	if err != nil ***REMOVED***
@@ -336,12 +336,22 @@ func (c *Client) reflect(ctx context.Context) error ***REMOVED***
 	return err
 ***REMOVED***
 
-func resolveFileDescriptors(
+type fileDescriptorLookupKey struct ***REMOVED***
+	Package string
+	Name    string
+***REMOVED***
+
+func resolveServiceFileDescriptors(
 	mc reflectpb.ServerReflection_ServerReflectionInfoClient,
 	res *reflectpb.ListServiceResponse,
 ) (*descriptorpb.FileDescriptorSet, error) ***REMOVED***
-	fdset := &descriptorpb.FileDescriptorSet***REMOVED******REMOVED***
-	for _, service := range res.GetService() ***REMOVED***
+	services := res.GetService()
+	seen := make(map[fileDescriptorLookupKey]bool, len(services))
+	fdset := &descriptorpb.FileDescriptorSet***REMOVED***
+		File: make([]*descriptorpb.FileDescriptorProto, 0, len(services)),
+	***REMOVED***
+
+	for _, service := range services ***REMOVED***
 		req := &reflectpb.ServerReflectionRequest***REMOVED***
 			MessageRequest: &reflectpb.ServerReflectionRequest_FileContainingSymbol***REMOVED***
 				FileContainingSymbol: service.GetName(),
@@ -357,6 +367,17 @@ func resolveFileDescriptors(
 			if err = proto.Unmarshal(raw, &fdp); err != nil ***REMOVED***
 				return nil, fmt.Errorf("can't unmarshal proto on service %q: %w", service, err)
 			***REMOVED***
+			fdkey := fileDescriptorLookupKey***REMOVED***
+				Package: *fdp.Package,
+				Name:    *fdp.Name,
+			***REMOVED***
+			if seen[fdkey] ***REMOVED***
+				// When a proto file contains declarations for multiple services
+				// then the same proto file is returned multiple times,
+				// this prevents adding the returned proto file as a duplicate.
+				continue
+			***REMOVED***
+			seen[fdkey] = true
 			fdset.File = append(fdset.File, &fdp)
 		***REMOVED***
 	***REMOVED***
