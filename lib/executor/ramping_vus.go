@@ -469,7 +469,7 @@ func (vlvc RampingVUsConfig) GetExecutionRequirements(et *lib.ExecutionTuple) []
 
 // NewExecutor creates a new RampingVUs executor
 func (vlvc RampingVUsConfig) NewExecutor(es *lib.ExecutionState, logger *logrus.Entry) (lib.Executor, error) ***REMOVED***
-	return RampingVUs***REMOVED***
+	return &RampingVUs***REMOVED***
 		BaseExecutor: NewBaseExecutor(vlvc, es, logger),
 		config:       vlvc,
 	***REMOVED***, nil
@@ -486,174 +486,233 @@ func (vlvc RampingVUsConfig) HasWork(et *lib.ExecutionTuple) bool ***REMOVED***
 type RampingVUs struct ***REMOVED***
 	*BaseExecutor
 	config RampingVUsConfig
+
+	rawSteps, gracefulSteps []lib.ExecutionStep
 ***REMOVED***
 
 // Make sure we implement the lib.Executor interface.
 var _ lib.Executor = &RampingVUs***REMOVED******REMOVED***
 
+// Init initializes the rampingVUs executor by precalculating the raw
+// and graceful steps.
+func (vlv *RampingVUs) Init(_ context.Context) error ***REMOVED***
+	vlv.rawSteps = vlv.config.getRawExecutionSteps(
+		vlv.executionState.ExecutionTuple, true,
+	)
+	vlv.gracefulSteps = vlv.config.GetExecutionRequirements(
+		vlv.executionState.ExecutionTuple,
+	)
+	return nil
+***REMOVED***
+
 // Run constantly loops through as many iterations as possible on a variable
 // number of VUs for the specified stages.
-//
-// TODO: split up? since this does a ton of things, unfortunately I can't think
-// of a less complex way to implement it (besides the old "increment by 100ms
-// and see what happens)... :/ so maybe see how it can be split?
-// nolint:funlen,gocognit,cyclop
-func (vlv RampingVUs) Run(
-	parentCtx context.Context, out chan<- stats.SampleContainer, _ *metrics.BuiltinMetrics,
-) (err error) ***REMOVED***
-	rawExecutionSteps := vlv.config.getRawExecutionSteps(vlv.executionState.ExecutionTuple, true)
-	regularDuration, isFinal := lib.GetEndOffset(rawExecutionSteps)
+func (vlv *RampingVUs) Run(ctx context.Context, _ chan<- stats.SampleContainer, _ *metrics.BuiltinMetrics) error ***REMOVED***
+	regularDuration, isFinal := lib.GetEndOffset(vlv.rawSteps)
 	if !isFinal ***REMOVED***
 		return fmt.Errorf("%s expected raw end offset at %s to be final", vlv.config.GetName(), regularDuration)
 	***REMOVED***
-
-	gracefulExecutionSteps := vlv.config.GetExecutionRequirements(vlv.executionState.ExecutionTuple)
-	maxDuration, isFinal := lib.GetEndOffset(gracefulExecutionSteps)
+	maxDuration, isFinal := lib.GetEndOffset(vlv.gracefulSteps)
 	if !isFinal ***REMOVED***
 		return fmt.Errorf("%s expected graceful end offset at %s to be final", vlv.config.GetName(), maxDuration)
 	***REMOVED***
-	maxVUs := lib.GetMaxPlannedVUs(gracefulExecutionSteps)
-	gracefulStop := maxDuration - regularDuration
-
-	startTime, maxDurationCtx, regDurationCtx, cancel := getDurationContexts(parentCtx, regularDuration, gracefulStop)
+	startTime, maxDurationCtx, regularDurationCtx, cancel := getDurationContexts(
+		ctx, regularDuration, maxDuration-regularDuration,
+	)
 	defer cancel()
 
-	activeVUs := &sync.WaitGroup***REMOVED******REMOVED***
-	defer activeVUs.Wait()
+	maxVUs := lib.GetMaxPlannedVUs(vlv.gracefulSteps)
 
-	// Make sure the log and the progress bar have accurate information
 	vlv.logger.WithFields(logrus.Fields***REMOVED***
-		"type": vlv.config.GetType(), "startVUs": vlv.config.GetStartVUs(vlv.executionState.ExecutionTuple), "maxVUs": maxVUs,
-		"duration": regularDuration, "numStages": len(vlv.config.Stages),
-	***REMOVED***,
-	).Debug("Starting executor run...")
+		"type":      vlv.config.GetType(),
+		"startVUs":  vlv.config.GetStartVUs(vlv.executionState.ExecutionTuple),
+		"maxVUs":    maxVUs,
+		"duration":  regularDuration,
+		"numStages": len(vlv.config.Stages),
+	***REMOVED***).Debug("Starting executor run...")
 
-	activeVUsCount := new(int64)
-	vusFmt := pb.GetFixedLengthIntFormat(int64(maxVUs))
-	regularDurationStr := pb.GetFixedLengthDuration(regularDuration, regularDuration)
-	progressFn := func() (float64, []string) ***REMOVED***
-		spent := time.Since(startTime)
-		currentlyActiveVUs := atomic.LoadInt64(activeVUsCount)
-		vus := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs", currentlyActiveVUs, maxVUs)
-		if spent > regularDuration ***REMOVED***
-			return 1, []string***REMOVED***vus, regularDuration.String()***REMOVED***
-		***REMOVED***
-		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs", currentlyActiveVUs, maxVUs)
-		progDur := pb.GetFixedLengthDuration(spent, regularDuration) + "/" + regularDurationStr
-		return float64(spent) / float64(regularDuration), []string***REMOVED***progVUs, progDur***REMOVED***
-	***REMOVED***
-	vlv.progress.Modify(pb.WithProgress(progressFn))
-	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, vlv, progressFn)
-
-	// Actually schedule the VUs and iterations, likely the most complicated
-	// executor among all of them...
-	runIteration := getIterationRunner(vlv.executionState, vlv.logger)
-	getVU := func() (lib.InitializedVU, error) ***REMOVED***
-		initVU, err := vlv.executionState.GetPlannedVU(vlv.logger, false)
-		if err != nil ***REMOVED***
-			vlv.logger.WithError(err).Error("Cannot get a VU from the buffer")
-			cancel()
-		***REMOVED*** else ***REMOVED***
-			activeVUs.Add(1)
-			atomic.AddInt64(activeVUsCount, 1)
-			vlv.executionState.ModCurrentlyActiveVUsCount(+1)
-		***REMOVED***
-		return initVU, err
-	***REMOVED***
-	returnVU := func(initVU lib.InitializedVU) ***REMOVED***
-		vlv.executionState.ReturnVU(initVU, false)
-		atomic.AddInt64(activeVUsCount, -1)
-		activeVUs.Done()
-		vlv.executionState.ModCurrentlyActiveVUsCount(-1)
+	runState := &rampingVUsRunState***REMOVED***
+		executor:       vlv,
+		vuHandles:      make([]*vuHandle, maxVUs),
+		maxVUs:         maxVUs,
+		activeVUsCount: new(int64),
+		started:        startTime,
+		runIteration:   getIterationRunner(vlv.executionState, vlv.logger),
 	***REMOVED***
 
+	progressFn := runState.makeProgressFn(regularDuration)
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState***REMOVED***
 		Name:       vlv.config.Name,
 		Executor:   vlv.config.Type,
-		StartTime:  startTime,
+		StartTime:  runState.started,
 		ProgressFn: progressFn,
 	***REMOVED***)
+	vlv.progress.Modify(pb.WithProgress(progressFn))
+	go trackProgress(ctx, maxDurationCtx, regularDurationCtx, vlv, progressFn)
 
-	vuHandles := make([]*vuHandle, maxVUs)
-	for i := uint64(0); i < maxVUs; i++ ***REMOVED***
-		vuHandle := newStoppedVUHandle(
-			maxDurationCtx, getVU, returnVU, vlv.nextIterationCounters,
-			&vlv.config.BaseConfig, vlv.logger.WithField("vuNum", i))
-		go vuHandle.runLoopsIfPossible(runIteration)
-		vuHandles[i] = vuHandle
-	***REMOVED***
+	defer runState.wg.Wait()
+	// this will populate stopped VUs and run runLoopsIfPossible on each VU
+	// handle in a new goroutine
+	runState.runLoopsIfPossible(maxDurationCtx, cancel)
 
-	// 0 <= currentScheduledVUs <= currentMaxAllowedVUs <= maxVUs
-	var currentScheduledVUs, currentMaxAllowedVUs uint64
+	var (
+		handleNewMaxAllowedVUs = runState.maxAllowedVUsHandlerStrategy()
+		handleNewScheduledVUs  = runState.scheduledVUsHandlerStrategy()
+	)
+	handledGracefulSteps := runState.iterateSteps(
+		ctx,
+		handleNewMaxAllowedVUs,
+		handleNewScheduledVUs,
+	)
+	go runState.runRemainingGracefulSteps(
+		ctx,
+		handleNewMaxAllowedVUs,
+		handledGracefulSteps,
+	)
+	return nil
+***REMOVED***
 
-	handleNewScheduledVUs := func(newScheduledVUs uint64) ***REMOVED***
-		if newScheduledVUs > currentScheduledVUs ***REMOVED***
-			for vuNum := currentScheduledVUs; vuNum < newScheduledVUs; vuNum++ ***REMOVED***
-				_ = vuHandles[vuNum].start() // TODO handle error
-			***REMOVED***
-		***REMOVED*** else ***REMOVED***
-			for vuNum := newScheduledVUs; vuNum < currentScheduledVUs; vuNum++ ***REMOVED***
-				vuHandles[vuNum].gracefulStop()
-			***REMOVED***
+// rampingVUsRunState is created and initialized by the Run() method
+// of the ramping VUs executor. It is used to track and modify various
+// details of the execution.
+type rampingVUsRunState struct ***REMOVED***
+	executor       *RampingVUs
+	vuHandles      []*vuHandle // handles for manipulating and tracking all of the VUs
+	maxVUs         uint64      // the scaled number of initially configured MaxVUs
+	activeVUsCount *int64      // the current number of active VUs, used only for the progress display
+	started        time.Time
+	wg             sync.WaitGroup
+
+	runIteration func(context.Context, lib.ActiveVU) bool // a helper closure function that runs a single iteration
+***REMOVED***
+
+func (rs *rampingVUsRunState) makeProgressFn(regular time.Duration) (progressFn func() (float64, []string)) ***REMOVED***
+	vusFmt := pb.GetFixedLengthIntFormat(int64(rs.maxVUs))
+	regularDuration := pb.GetFixedLengthDuration(regular, regular)
+
+	return func() (float64, []string) ***REMOVED***
+		spent := time.Since(rs.started)
+		cur := atomic.LoadInt64(rs.activeVUsCount)
+		progVUs := fmt.Sprintf(vusFmt+"/"+vusFmt+" VUs", cur, rs.maxVUs)
+		if spent > regular ***REMOVED***
+			return 1, []string***REMOVED***progVUs, regular.String()***REMOVED***
 		***REMOVED***
-		currentScheduledVUs = newScheduledVUs
+		status := pb.GetFixedLengthDuration(spent, regular) + "/" + regularDuration
+		return float64(spent) / float64(regular), []string***REMOVED***progVUs, status***REMOVED***
 	***REMOVED***
+***REMOVED***
 
-	handleNewMaxAllowedVUs := func(newMaxAllowedVUs uint64) ***REMOVED***
-		if newMaxAllowedVUs < currentMaxAllowedVUs ***REMOVED***
-			for vuNum := newMaxAllowedVUs; vuNum < currentMaxAllowedVUs; vuNum++ ***REMOVED***
-				vuHandles[vuNum].hardStop()
-			***REMOVED***
+func (rs *rampingVUsRunState) runLoopsIfPossible(ctx context.Context, cancel func()) ***REMOVED***
+	getVU := func() (lib.InitializedVU, error) ***REMOVED***
+		pvu, err := rs.executor.executionState.GetPlannedVU(rs.executor.logger, false)
+		if err != nil ***REMOVED***
+			rs.executor.logger.WithError(err).Error("Cannot get a VU from the buffer")
+			cancel()
+			return pvu, err
 		***REMOVED***
-		currentMaxAllowedVUs = newMaxAllowedVUs
+		rs.wg.Add(1)
+		atomic.AddInt64(rs.activeVUsCount, 1)
+		rs.executor.executionState.ModCurrentlyActiveVUsCount(+1)
+		return pvu, err
 	***REMOVED***
+	returnVU := func(initVU lib.InitializedVU) ***REMOVED***
+		rs.executor.executionState.ReturnVU(initVU, false)
+		atomic.AddInt64(rs.activeVUsCount, -1)
+		rs.wg.Done()
+		rs.executor.executionState.ModCurrentlyActiveVUsCount(-1)
+	***REMOVED***
+	for i := uint64(0); i < rs.maxVUs; i++ ***REMOVED***
+		rs.vuHandles[i] = newStoppedVUHandle(
+			ctx, getVU, returnVU, rs.executor.nextIterationCounters,
+			&rs.executor.config.BaseConfig, rs.executor.logger.WithField("vuNum", i))
+		go rs.vuHandles[i].runLoopsIfPossible(rs.runIteration)
+	***REMOVED***
+***REMOVED***
 
-	wait := waiter(parentCtx, startTime)
-	// iterate over rawExecutionSteps and gracefulExecutionSteps in order by TimeOffset
-	// giving rawExecutionSteps precedence.
-	// we stop iterating once rawExecutionSteps are over as we need to run the remaining
-	// gracefulExecutionSteps concurrently while waiting for VUs to stop in order to not wait until
-	// the end of gracefulStop timeouts
+// iterateSteps iterates over rawSteps and gracefulSteps in order according to
+// their TimeOffsets, prioritizing rawSteps. It stops iterating once rawSteps
+// are over. And it returns the number of handled gracefulSteps.
+func (rs *rampingVUsRunState) iterateSteps(
+	ctx context.Context,
+	handleNewMaxAllowedVUs, handleNewScheduledVUs func(lib.ExecutionStep),
+) (handledGracefulSteps int) ***REMOVED***
+	wait := waiter(ctx, rs.started)
 	i, j := 0, 0
-	for i != len(rawExecutionSteps) ***REMOVED***
-		if rawExecutionSteps[i].TimeOffset > gracefulExecutionSteps[j].TimeOffset ***REMOVED***
-			if wait(gracefulExecutionSteps[j].TimeOffset) ***REMOVED***
-				return
+	for i != len(rs.executor.rawSteps) ***REMOVED***
+		r, g := rs.executor.rawSteps[i], rs.executor.gracefulSteps[j]
+		if g.TimeOffset < r.TimeOffset ***REMOVED***
+			if wait(g.TimeOffset) ***REMOVED***
+				break
 			***REMOVED***
-			handleNewMaxAllowedVUs(gracefulExecutionSteps[j].PlannedVUs)
+			handleNewMaxAllowedVUs(g)
 			j++
 		***REMOVED*** else ***REMOVED***
-			if wait(rawExecutionSteps[i].TimeOffset) ***REMOVED***
-				return
+			if wait(r.TimeOffset) ***REMOVED***
+				break
 			***REMOVED***
-			handleNewScheduledVUs(rawExecutionSteps[i].PlannedVUs)
+			handleNewScheduledVUs(r)
 			i++
 		***REMOVED***
 	***REMOVED***
+	return j
+***REMOVED***
 
-	go func() ***REMOVED*** // iterate over the remaining gracefulExecutionSteps
-		for _, step := range gracefulExecutionSteps[j:] ***REMOVED***
-			if wait(step.TimeOffset) ***REMOVED***
-				return
-			***REMOVED***
-			handleNewMaxAllowedVUs(step.PlannedVUs)
+// runRemainingGracefulSteps runs the remaining gracefulSteps concurrently
+// before the gracefulStop timeout period stops VUs.
+//
+// This way we will have run the gracefulSteps at the same time while
+// waiting for the VUs to finish.
+//
+// (gracefulStop = maxDuration-regularDuration)
+func (rs *rampingVUsRunState) runRemainingGracefulSteps(
+	ctx context.Context,
+	handleNewMaxAllowedVUs func(lib.ExecutionStep),
+	handledGracefulSteps int,
+) ***REMOVED***
+	wait := waiter(ctx, rs.started)
+	for _, s := range rs.executor.gracefulSteps[handledGracefulSteps:] ***REMOVED***
+		if wait(s.TimeOffset) ***REMOVED***
+			return
 		***REMOVED***
-	***REMOVED***()
+		handleNewMaxAllowedVUs(s)
+	***REMOVED***
+***REMOVED***
 
-	return nil
+func (rs *rampingVUsRunState) maxAllowedVUsHandlerStrategy() func(lib.ExecutionStep) ***REMOVED***
+	var cur uint64 // current number of planned graceful VUs
+	return func(graceful lib.ExecutionStep) ***REMOVED***
+		pv := graceful.PlannedVUs
+		for ; pv < cur; cur-- ***REMOVED***
+			rs.vuHandles[cur-1].hardStop()
+		***REMOVED***
+		cur = pv
+	***REMOVED***
+***REMOVED***
+
+func (rs *rampingVUsRunState) scheduledVUsHandlerStrategy() func(lib.ExecutionStep) ***REMOVED***
+	var cur uint64 // current number of planned raw VUs
+	return func(raw lib.ExecutionStep) ***REMOVED***
+		pv := raw.PlannedVUs
+		for ; cur < pv; cur++ ***REMOVED***
+			_ = rs.vuHandles[cur].start() // TODO: handle the error
+		***REMOVED***
+		for ; pv < cur; cur-- ***REMOVED***
+			rs.vuHandles[cur-1].gracefulStop()
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 // waiter returns a function that will sleep/wait for the required time since the startTime and then
 // return. If the context was done before that it will return true otherwise it will return false
 // TODO use elsewhere
-// TODO set startTime here?
+// TODO set start here?
 // TODO move it to a struct type or something and benchmark if that makes a difference
-func waiter(ctx context.Context, startTime time.Time) func(offset time.Duration) bool ***REMOVED***
+func waiter(ctx context.Context, start time.Time) func(offset time.Duration) bool ***REMOVED***
 	timer := time.NewTimer(time.Hour * 24)
 	return func(offset time.Duration) bool ***REMOVED***
-		offsetDiff := offset - time.Since(startTime)
-		if offsetDiff > 0 ***REMOVED*** // wait until time of event arrives // TODO have a mininum
-			timer.Reset(offsetDiff)
+		diff := offset - time.Since(start)
+		if diff > 0 ***REMOVED*** // wait until time of event arrives // TODO have a mininum
+			timer.Reset(diff)
 			select ***REMOVED***
 			case <-ctx.Done():
 				return true // exit if context is cancelled
