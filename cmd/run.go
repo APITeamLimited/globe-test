@@ -121,7 +121,7 @@ a commandline interface for interacting with it.`,
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 			initRunner, err := newRunner(logger, src, runType, filesystems, runtimeOptions, builtinMetrics, registry)
 			if err != nil ***REMOVED***
-				return err
+				return common.UnwrapGojaInterruptedError(err)
 			***REMOVED***
 
 			logger.Debug("Getting the script options...")
@@ -251,6 +251,7 @@ a commandline interface for interacting with it.`,
 			initBar.Modify(pb.WithConstProgress(0, "Init VUs..."))
 			engineRun, engineWait, err := engine.Init(globalCtx, runCtx)
 			if err != nil ***REMOVED***
+				err = common.UnwrapGojaInterruptedError(err)
 				// Add a generic engine exit code if we don't have a more specific one
 				return errext.WithExitCodeIfNone(err, exitcodes.GenericEngine)
 			***REMOVED***
@@ -277,6 +278,7 @@ a commandline interface for interacting with it.`,
 			var interrupt error
 			err = engineRun()
 			if err != nil ***REMOVED***
+				err = common.UnwrapGojaInterruptedError(err)
 				if common.IsInterruptError(err) ***REMOVED***
 					// Don't return here since we need to work with --linger,
 					// show the end-of-test summary and exit cleanly.

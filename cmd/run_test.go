@@ -27,8 +27,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -136,46 +138,81 @@ func TestHandleSummaryResultError(t *testing.T) ***REMOVED***
 func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
 	t.Parallel()
 
-	t.Run("Check correct status code", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		logger := testutils.NewLogger(t)
+	testCases := []struct ***REMOVED***
+		testFilename, expLogOutput string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			testFilename: "abort.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_initerr.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_initvu.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_teardown.js",
+			expLogOutput: "Calling teardown function after test.abort()",
+		***REMOVED***,
+	***REMOVED***
 
-		cmd := getRunCmd(ctx, logger)
-		a, err := filepath.Abs("testdata/abort.js")
-		require.NoError(t, err)
-		cmd.SetArgs([]string***REMOVED***a***REMOVED***)
-		err = cmd.Execute()
-		var e errext.HasExitCode
-		require.ErrorAs(t, err, &e)
-		assert.Equalf(t, exitcodes.ScriptAborted, e.ExitCode(),
-			"Status code must be %d", exitcodes.ScriptAborted)
-		require.Contains(t, e.Error(), common.AbortTest)
-	***REMOVED***)
+	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest
+		tc := tc
+		t.Run(tc.testFilename, func(t *testing.T) ***REMOVED***
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-	t.Run("Check that teardown is called", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		msg := "Calling teardown function after test.abort()"
-		var buf bytes.Buffer
-		logger := logrus.New()
-		logger.SetOutput(&buf)
+			logger := logrus.New()
+			logger.SetLevel(logrus.InfoLevel)
+			logger.Out = ioutil.Discard
+			hook := testutils.SimpleLogrusHook***REMOVED***
+				HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED***,
+			***REMOVED***
+			logger.AddHook(&hook)
 
-		cmd := getRunCmd(ctx, logger)
-		// Redefine the flag to avoid a nil pointer panic on lookup.
-		cmd.Flags().AddFlag(&pflag.Flag***REMOVED***
-			Name:   "address",
-			Hidden: true,
+			cmd := getRunCmd(ctx, logger)
+			// Redefine the flag to avoid a nil pointer panic on lookup.
+			cmd.Flags().AddFlag(&pflag.Flag***REMOVED***
+				Name:   "address",
+				Hidden: true,
+			***REMOVED***)
+			a, err := filepath.Abs(path.Join("testdata", tc.testFilename))
+			require.NoError(t, err)
+			cmd.SetArgs([]string***REMOVED***a***REMOVED***)
+			err = cmd.Execute()
+			var e errext.HasExitCode
+			require.ErrorAs(t, err, &e)
+			assert.Equalf(t, exitcodes.ScriptAborted, e.ExitCode(),
+				"Status code must be %d", exitcodes.ScriptAborted)
+			assert.Contains(t, e.Error(), common.AbortTest)
+
+			if tc.expLogOutput != "" ***REMOVED***
+				var gotMsg bool
+				for _, entry := range hook.Drain() ***REMOVED***
+					if strings.Contains(entry.Message, tc.expLogOutput) ***REMOVED***
+						gotMsg = true
+						break
+					***REMOVED***
+				***REMOVED***
+				assert.True(t, gotMsg)
+			***REMOVED***
 		***REMOVED***)
-		a, err := filepath.Abs("testdata/teardown.js")
-		require.NoError(t, err)
-		cmd.SetArgs([]string***REMOVED***a***REMOVED***)
-		err = cmd.Execute()
-		var e errext.HasExitCode
-		require.ErrorAs(t, err, &e)
-		assert.Equalf(t, exitcodes.ScriptAborted, e.ExitCode(),
-			"Status code must be %d", exitcodes.ScriptAborted)
-		assert.Contains(t, e.Error(), common.AbortTest)
-		assert.Contains(t, buf.String(), msg)
-	***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestInitErrExitCode(t *testing.T) ***REMOVED*** //nolint: paralleltest
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := testutils.NewLogger(t)
+
+	cmd := getRunCmd(ctx, logger)
+	a, err := filepath.Abs("testdata/initerr.js")
+	require.NoError(t, err)
+	cmd.SetArgs([]string***REMOVED***a***REMOVED***)
+	err = cmd.Execute()
+	var e errext.HasExitCode
+	require.ErrorAs(t, err, &e)
+	assert.Equalf(t, exitcodes.ScriptException, e.ExitCode(),
+		"Status code must be %d", exitcodes.ScriptException)
+	assert.Contains(t, err.Error(), "ReferenceError: someUndefinedVar is not defined")
 ***REMOVED***
