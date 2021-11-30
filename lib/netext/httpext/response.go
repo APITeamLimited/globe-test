@@ -91,7 +91,7 @@ type Response struct ***REMOVED***
 	OCSP           netext.OCSP              `json:"ocsp"`
 	Error          string                   `json:"error"`
 	ErrorCode      int                      `json:"error_code"`
-	Request        Request                  `json:"request"`
+	Request        *Request                 `json:"request"`
 ***REMOVED***
 
 // NewResponse returns an empty Response instance.
