@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	stdlog "log"
 	"os"
@@ -240,15 +239,6 @@ func (c *rootCommand) rootCmdPersistentFlagSet() *pflag.FlagSet ***REMOVED***
 	flags.Lookup("config").DefValue = defaultConfigFilePath
 	must(cobra.MarkFlagFilename(flags, "config"))
 	return flags
-***REMOVED***
-
-// fprintf panics when where's an error writing to the supplied io.Writer
-func fprintf(w io.Writer, format string, a ...interface***REMOVED******REMOVED***) (n int) ***REMOVED***
-	n, err := fmt.Fprintf(w, format, a...)
-	if err != nil ***REMOVED***
-		panic(err.Error())
-	***REMOVED***
-	return n
 ***REMOVED***
 
 // RawFormatter it does nothing with the message just prints it
