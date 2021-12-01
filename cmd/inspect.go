@@ -111,7 +111,6 @@ func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 func addExecRequirements(b *js.Bundle,
 	builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
 	logger *logrus.Logger) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-
 	// TODO: after #1048 issue, consider rewriting this without a Runner:
 	// just creating ExecutionPlan directly from validated options
 
