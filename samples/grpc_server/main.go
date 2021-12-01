@@ -57,16 +57,17 @@ var (
 	port       = flag.Int("port", 10000, "The server port")
 )
 
-type routeGuideServer struct ***REMOVED***
-	UnimplementedRouteGuideServer
+type featureExplorerServer struct ***REMOVED***
+	UnimplementedFeatureExplorerServer
 	savedFeatures []*Feature // read-only after initialized
+***REMOVED***
 
-	mu         sync.Mutex // protects routeNotes
-	routeNotes map[string][]*RouteNote
+func newFeatureExplorerServer(features ...*Feature) *featureExplorerServer ***REMOVED***
+	return &featureExplorerServer***REMOVED***savedFeatures: features***REMOVED***
 ***REMOVED***
 
 // GetFeature returns the feature at the given point.
-func (s *routeGuideServer) GetFeature(ctx context.Context, point *Point) (*Feature, error) ***REMOVED***
+func (s *featureExplorerServer) GetFeature(ctx context.Context, point *Point) (*Feature, error) ***REMOVED***
 	n := rand.Intn(1000)
 	time.Sleep(time.Duration(n) * time.Millisecond)
 
@@ -80,7 +81,7 @@ func (s *routeGuideServer) GetFeature(ctx context.Context, point *Point) (*Featu
 ***REMOVED***
 
 // ListFeatures lists all features contained within the given bounding Rectangle.
-func (s *routeGuideServer) ListFeatures(rect *Rectangle, stream RouteGuide_ListFeaturesServer) error ***REMOVED***
+func (s *featureExplorerServer) ListFeatures(rect *Rectangle, stream FeatureExplorer_ListFeaturesServer) error ***REMOVED***
 	for _, feature := range s.savedFeatures ***REMOVED***
 		if inRange(feature.Location, rect) ***REMOVED***
 			time.Sleep(500 * time.Millisecond)
@@ -90,6 +91,22 @@ func (s *routeGuideServer) ListFeatures(rect *Rectangle, stream RouteGuide_ListF
 		***REMOVED***
 	***REMOVED***
 	return nil
+***REMOVED***
+
+type routeGuideServer struct ***REMOVED***
+	UnimplementedRouteGuideServer
+	savedFeatures []*Feature // read-only after initialized
+
+	mu         sync.Mutex // protects routeNotes
+	routeNotes map[string][]*RouteNote
+***REMOVED***
+
+func newRouteGuideServer(features ...*Feature) *routeGuideServer ***REMOVED***
+	s := &routeGuideServer***REMOVED***
+		savedFeatures: features,
+		routeNotes:    make(map[string][]*RouteNote),
+	***REMOVED***
+	return s
 ***REMOVED***
 
 // RecordRoute records a route composited of a sequence of points.
@@ -159,7 +176,7 @@ func (s *routeGuideServer) RouteChat(stream RouteGuide_RouteChatServer) error **
 ***REMOVED***
 
 // loadFeatures loads features from a JSON file.
-func (s *routeGuideServer) loadFeatures(filePath string) ***REMOVED***
+func loadFeatures(filePath string) []*Feature ***REMOVED***
 	var data []byte
 	if filePath != "" ***REMOVED***
 		var err error
@@ -170,9 +187,11 @@ func (s *routeGuideServer) loadFeatures(filePath string) ***REMOVED***
 	***REMOVED*** else ***REMOVED***
 		data = exampleData
 	***REMOVED***
-	if err := json.Unmarshal(data, &s.savedFeatures); err != nil ***REMOVED***
+	var features []*Feature
+	if err := json.Unmarshal(data, &features); err != nil ***REMOVED***
 		log.Fatalf("Failed to load default features: %v", err)
 	***REMOVED***
+	return features
 ***REMOVED***
 
 func toRadians(num float64) float64 ***REMOVED***
@@ -219,12 +238,6 @@ func serialize(point *Point) string ***REMOVED***
 	return fmt.Sprintf("%d %d", point.Latitude, point.Longitude)
 ***REMOVED***
 
-func newServer() *routeGuideServer ***REMOVED***
-	s := &routeGuideServer***REMOVED***routeNotes: make(map[string][]*RouteNote)***REMOVED***
-	s.loadFeatures(*jsonDBFile)
-	return s
-***REMOVED***
-
 func main() ***REMOVED***
 	flag.Parse()
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
@@ -245,8 +258,10 @@ func main() ***REMOVED***
 		***REMOVED***
 		opts = []grpc.ServerOption***REMOVED***grpc.Creds(creds)***REMOVED***
 	***REMOVED***
+	features := loadFeatures(*jsonDBFile)
 	grpcServer := grpc.NewServer(opts...)
-	RegisterRouteGuideServer(grpcServer, newServer())
+	RegisterRouteGuideServer(grpcServer, newRouteGuideServer(features...))
+	RegisterFeatureExplorerServer(grpcServer, newFeatureExplorerServer(features...))
 	reflection.Register(grpcServer)
 	grpcServer.Serve(lis)
 ***REMOVED***
