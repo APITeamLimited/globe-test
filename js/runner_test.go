@@ -359,15 +359,15 @@ func testSetupDataHelper(t *testing.T, data string) ***REMOVED***
 		r := r
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			samples := make(chan stats.SampleContainer, 100)
 
-			if !assert.NoError(t, r.Setup(context.Background(), samples)) ***REMOVED***
+			if !assert.NoError(t, r.Setup(ctx, samples)) ***REMOVED***
 				return
 			***REMOVED***
 			initVU, err := r.NewVU(1, 1, samples)
 			if assert.NoError(t, err) ***REMOVED***
-				ctx, cancel := context.WithCancel(context.Background())
-				defer cancel()
 				vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 				err := vu.RunOnce()
 				assert.NoError(t, err)
@@ -947,7 +947,10 @@ func TestVUIntegrationBlockHostnamesOption(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVu, err := r.NewVU(1, 1, make(chan stats.SampleContainer, 100))
 			require.NoError(t, err)
-			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
@@ -982,7 +985,9 @@ func TestVUIntegrationBlockHostnamesScript(t *testing.T) ***REMOVED***
 			t.Parallel()
 			initVu, err := r.NewVU(0, 0, make(chan stats.SampleContainer, 100))
 			require.NoError(t, err)
-			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: context.Background()***REMOVED***)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVu.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "hostname (k6.io) is in a blocked pattern (*.io)")
@@ -1585,11 +1590,14 @@ func TestArchiveRunningIntegrity(t *testing.T) ***REMOVED***
 			t.Parallel()
 			var err error
 			ch := make(chan stats.SampleContainer, 100)
-			err = r.Setup(context.Background(), ch)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			err = r.Setup(ctx, ch)
+			cancel()
 			require.NoError(t, err)
 			initVU, err := r.NewVU(1, 1, ch)
 			require.NoError(t, err)
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel = context.WithCancel(context.Background())
 			defer cancel()
 			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
 			err = vu.RunOnce()
@@ -1755,6 +1763,8 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		num, tc := num, tc
 		t.Run(fmt.Sprintf("TC %d with only %s", num, tc.tag), func(t *testing.T) ***REMOVED***
 			t.Parallel()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			samples := make(chan stats.SampleContainer, 100)
 			r, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(`
 				var http = require("k6/http");
@@ -1781,7 +1791,7 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 			vu, err := r.NewVU(uint64(num), 0, samples)
 			require.NoError(t, err)
 			activeVU := vu.Activate(&lib.VUActivationParams***REMOVED***
-				RunContext: context.Background(),
+				RunContext: ctx,
 				Exec:       tc.exec,
 				Scenario:   "default",
 			***REMOVED***)
@@ -1972,9 +1982,13 @@ func TestComplicatedFileImportsForGRPC(t *testing.T) ***REMOVED***
 
 			exports.default = function() ***REMOVED***
 				client.connect('GRPCBIN_ADDR', ***REMOVED***timeout: '3s'***REMOVED***);
-				var resp = client.invoke('grpc.testing.TestService/UnaryCall', ***REMOVED******REMOVED***)
-				if (!resp.message || resp.error || resp.message.username !== 'foo') ***REMOVED***
-					throw new Error('unexpected response message: ' + JSON.stringify(resp.message))
+				try ***REMOVED***
+					var resp = client.invoke('grpc.testing.TestService/UnaryCall', ***REMOVED******REMOVED***)
+					if (!resp.message || resp.error || resp.message.username !== 'foo') ***REMOVED***
+						throw new Error('unexpected response message: ' + JSON.stringify(resp.message))
+					***REMOVED***
+				***REMOVED*** finally ***REMOVED***
+					client.close();
 				***REMOVED***
 			***REMOVED***
 		`, loadCode))
