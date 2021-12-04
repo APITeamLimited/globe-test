@@ -61,4 +61,7 @@ func TestTokenizer(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***, tokens)
 	assert.NoError(t, err)
+
+	_, err = tokenize("empty=")
+	assert.EqualError(t, err, "key `empty=` with no value")
 ***REMOVED***

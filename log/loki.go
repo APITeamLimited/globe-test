@@ -144,7 +144,7 @@ func (h *lokiHook) parseArgs(line string) error ***REMOVED***
 				return fmt.Errorf("loki msgMaxSize needs to be a positive number, is %d", h.msgMaxSize)
 			***REMOVED***
 		case "level":
-			h.levels, err = getLevels(value)
+			h.levels, err = parseLevels(value)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -163,18 +163,6 @@ func (h *lokiHook) parseArgs(line string) error ***REMOVED***
 	***REMOVED***
 
 	return nil
-***REMOVED***
-
-func getLevels(level string) ([]logrus.Level, error) ***REMOVED***
-	lvl, err := logrus.ParseLevel(level)
-	if err != nil ***REMOVED***
-		return nil, fmt.Errorf("unknown log level %s", level) // specifically use a custom error
-	***REMOVED***
-	index := sort.Search(len(logrus.AllLevels), func(i int) bool ***REMOVED***
-		return logrus.AllLevels[i] > lvl
-	***REMOVED***)
-
-	return logrus.AllLevels[:index], nil
 ***REMOVED***
 
 // fill one of two equally sized slices with entries and then push it while filling the other one
