@@ -5,26 +5,55 @@ import (
 	"strings"
 )
 
-type authheader string
+type authheader []string
 
 func (h authheader) IsBasic() bool ***REMOVED***
-	return strings.HasPrefix(string(h), "Basic ")
+	for _, s := range h ***REMOVED***
+		if strings.HasPrefix(string(s), "Basic ") ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
+***REMOVED***
+
+func (h authheader) Basic() string ***REMOVED***
+	for _, s := range h ***REMOVED***
+		if strings.HasPrefix(string(s), "Basic ") ***REMOVED***
+			return s
+		***REMOVED***
+	***REMOVED***
+	return ""
 ***REMOVED***
 
 func (h authheader) IsNegotiate() bool ***REMOVED***
-	return strings.HasPrefix(string(h), "Negotiate")
+	for _, s := range h ***REMOVED***
+		if strings.HasPrefix(string(s), "Negotiate") ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
 ***REMOVED***
 
 func (h authheader) IsNTLM() bool ***REMOVED***
-	return strings.HasPrefix(string(h), "NTLM")
+	for _, s := range h ***REMOVED***
+		if strings.HasPrefix(string(s), "NTLM") ***REMOVED***
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
 ***REMOVED***
 
 func (h authheader) GetData() ([]byte, error) ***REMOVED***
-	p := strings.Split(string(h), " ")
-	if len(p) < 2 ***REMOVED***
-		return nil, nil
+	for _, s := range h ***REMOVED***
+		if strings.HasPrefix(string(s), "NTLM") || strings.HasPrefix(string(s), "Negotiate") || strings.HasPrefix(string(s), "Basic ") ***REMOVED***
+			p := strings.Split(string(s), " ")
+			if len(p) < 2 ***REMOVED***
+				return nil, nil
+			***REMOVED***
+			return base64.StdEncoding.DecodeString(string(p[1]))
+		***REMOVED***
 	***REMOVED***
-	return base64.StdEncoding.DecodeString(string(p[1]))
+	return nil, nil
 ***REMOVED***
 
 func (h authheader) GetBasicCreds() (username, password string, err error) ***REMOVED***
