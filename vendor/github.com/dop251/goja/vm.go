@@ -420,12 +420,12 @@ func (vm *vm) run() ***REMOVED***
 		v := &InterruptedError***REMOVED***
 			iface: vm.interruptVal,
 		***REMOVED***
+		v.stack = vm.captureStack(nil, 0)
 		atomic.StoreUint32(&vm.interrupted, 0)
 		vm.interruptVal = nil
 		vm.interruptLock.Unlock()
 		panic(&uncatchableException***REMOVED***
-			stack: &v.stack,
-			err:   v,
+			err: v,
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -453,14 +453,15 @@ func (vm *vm) captureStack(stack []StackFrame, ctxOffset int) []StackFrame ***RE
 		stack = append(stack, StackFrame***REMOVED***prg: vm.prg, pc: vm.pc, funcName: funcName***REMOVED***)
 	***REMOVED***
 	for i := len(vm.callStack) - 1; i > ctxOffset-1; i-- ***REMOVED***
-		if vm.callStack[i].pc != -1 ***REMOVED***
+		frame := &vm.callStack[i]
+		if frame.pc != -1 ***REMOVED***
 			var funcName unistring.String
-			if prg := vm.callStack[i].prg; prg != nil ***REMOVED***
+			if prg := frame.prg; prg != nil ***REMOVED***
 				funcName = prg.funcName
 			***REMOVED*** else ***REMOVED***
-				funcName = vm.callStack[i].funcName
+				funcName = frame.funcName
 			***REMOVED***
-			stack = append(stack, StackFrame***REMOVED***prg: vm.callStack[i].prg, pc: vm.callStack[i].pc - 1, funcName: funcName***REMOVED***)
+			stack = append(stack, StackFrame***REMOVED***prg: vm.callStack[i].prg, pc: frame.pc - 1, funcName: funcName***REMOVED***)
 		***REMOVED***
 	***REMOVED***
 	return stack
@@ -500,6 +501,13 @@ func (vm *vm) try(f func()) (ex *Exception) ***REMOVED***
 				vm.refStack = vm.refStack[:refLen]
 			***REMOVED***()
 			switch x1 := x.(type) ***REMOVED***
+			case *Object:
+				ex = &Exception***REMOVED***
+					val: x1,
+				***REMOVED***
+				if er, ok := x1.self.(*errorObject); ok ***REMOVED***
+					ex.stack = er.stack
+				***REMOVED***
 			case Value:
 				ex = &Exception***REMOVED***
 					val: x1,
@@ -507,7 +515,6 @@ func (vm *vm) try(f func()) (ex *Exception) ***REMOVED***
 			case *Exception:
 				ex = x1
 			case *uncatchableException:
-				*x1.stack = vm.captureStack(*x1.stack, ctxOffset)
 				panic(x1)
 			case typeError:
 				ex = &Exception***REMOVED***
@@ -531,7 +538,9 @@ func (vm *vm) try(f func()) (ex *Exception) ***REMOVED***
 				*/
 				panic(x)
 			***REMOVED***
-			ex.stack = vm.captureStack(ex.stack, ctxOffset)
+			if ex.stack == nil ***REMOVED***
+				ex.stack = vm.captureStack(make([]StackFrame, 0, len(vm.callStack)+1), 0)
+			***REMOVED***
 		***REMOVED***
 	***REMOVED***()
 
@@ -566,9 +575,9 @@ func (vm *vm) saveCtx(ctx *context) ***REMOVED***
 func (vm *vm) pushCtx() ***REMOVED***
 	if len(vm.callStack) > vm.maxCallStackSize ***REMOVED***
 		ex := &StackOverflowError***REMOVED******REMOVED***
+		ex.stack = vm.captureStack(nil, 0)
 		panic(&uncatchableException***REMOVED***
-			stack: &ex.stack,
-			err:   ex,
+			err: ex,
 		***REMOVED***)
 	***REMOVED***
 	vm.callStack = append(vm.callStack, context***REMOVED******REMOVED***)
@@ -3610,7 +3619,27 @@ type _throw struct***REMOVED******REMOVED***
 var throw _throw
 
 func (_throw) exec(vm *vm) ***REMOVED***
-	panic(vm.stack[vm.sp-1])
+	v := vm.stack[vm.sp-1]
+	if o, ok := v.(*Object); ok ***REMOVED***
+		if e, ok := o.self.(*errorObject); ok ***REMOVED***
+			if len(e.stack) > 0 ***REMOVED***
+				frame0 := e.stack[0]
+				// If the Error was created immediately before throwing it (i.e. 'throw new Error(....)')
+				// avoid capturing the stack again by the reusing the stack from the Error.
+				// These stacks would be almost identical and the difference doesn't matter for debugging.
+				if frame0.prg == vm.prg && vm.pc-frame0.pc == 1 ***REMOVED***
+					panic(&Exception***REMOVED***
+						val:   v,
+						stack: e.stack,
+					***REMOVED***)
+				***REMOVED***
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+	panic(&Exception***REMOVED***
+		val:   v,
+		stack: vm.captureStack(make([]StackFrame, 0, len(vm.callStack)+1), 0),
+	***REMOVED***)
 ***REMOVED***
 
 type _newVariadic struct***REMOVED******REMOVED***

@@ -186,53 +186,6 @@ func isLineTerminator(chr rune) bool ***REMOVED***
 	return false
 ***REMOVED***
 
-func isId(tkn token.Token) bool ***REMOVED***
-	switch tkn ***REMOVED***
-	case token.KEYWORD,
-		token.BOOLEAN,
-		token.NULL,
-		token.THIS,
-		token.IF,
-		token.IN,
-		token.OF,
-		token.DO,
-
-		token.VAR,
-		token.LET,
-		token.FOR,
-		token.NEW,
-		token.TRY,
-
-		token.ELSE,
-		token.CASE,
-		token.VOID,
-		token.WITH,
-
-		token.CONST,
-		token.WHILE,
-		token.BREAK,
-		token.CATCH,
-		token.THROW,
-
-		token.RETURN,
-		token.TYPEOF,
-		token.DELETE,
-		token.SWITCH,
-
-		token.DEFAULT,
-		token.FINALLY,
-
-		token.FUNCTION,
-		token.CONTINUE,
-		token.DEBUGGER,
-
-		token.INSTANCEOF:
-
-		return true
-	***REMOVED***
-	return false
-***REMOVED***
-
 type parserState struct ***REMOVED***
 	tok                                token.Token
 	literal                            string
@@ -832,6 +785,7 @@ func (self *_parser) parseTemplateCharacters() (literal string, parsed unistring
 	return
 unterminated:
 	err = err_UnexpectedEndOfInput
+	finished = true
 	return
 ***REMOVED***
 

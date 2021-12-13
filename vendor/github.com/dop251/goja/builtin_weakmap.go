@@ -37,7 +37,7 @@ func (r *Runtime) weakMapProto_delete(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	wmo, ok := thisObj.self.(*weakMapObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method WeakMap.prototype.delete called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method WeakMap.prototype.delete called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 	key, ok := call.Argument(0).(*Object)
 	if ok && wmo.m.remove(key) ***REMOVED***
@@ -50,7 +50,7 @@ func (r *Runtime) weakMapProto_get(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	wmo, ok := thisObj.self.(*weakMapObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method WeakMap.prototype.get called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method WeakMap.prototype.get called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 	var res Value
 	if key, ok := call.Argument(0).(*Object); ok ***REMOVED***
@@ -66,7 +66,7 @@ func (r *Runtime) weakMapProto_has(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	wmo, ok := thisObj.self.(*weakMapObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method WeakMap.prototype.has called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method WeakMap.prototype.has called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 	key, ok := call.Argument(0).(*Object)
 	if ok && wmo.m.has(key) ***REMOVED***
@@ -79,7 +79,7 @@ func (r *Runtime) weakMapProto_set(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	wmo, ok := thisObj.self.(*weakMapObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method WeakMap.prototype.set called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method WeakMap.prototype.set called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 	key := r.toObject(call.Argument(0))
 	wmo.m.set(key, call.Argument(1))

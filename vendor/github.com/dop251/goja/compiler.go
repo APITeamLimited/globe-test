@@ -823,9 +823,13 @@ func (c *compiler) compileFunctionsGlobal(list []*ast.FunctionDeclaration) ***RE
 			m[name] = i
 		***REMOVED***
 	***REMOVED***
+	idx := 0
 	for i, decl := range list ***REMOVED***
-		if m[decl.Function.Name.Name] == i ***REMOVED***
+		name := decl.Function.Name.Name
+		if m[name] == i ***REMOVED***
 			c.compileFunctionLiteral(decl.Function, false).emitGetter(true)
+			c.scope.bindings[idx] = c.scope.boundNames[name]
+			idx++
 		***REMOVED*** else ***REMOVED***
 			leave := c.enterDummyMode()
 			c.compileFunctionLiteral(decl.Function, false).emitGetter(false)

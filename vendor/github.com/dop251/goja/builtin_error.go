@@ -1,7 +1,127 @@
 package goja
 
+import "github.com/dop251/goja/unistring"
+
+const propNameStack = "stack"
+
+type errorObject struct ***REMOVED***
+	baseObject
+	stack          []StackFrame
+	stackPropAdded bool
+***REMOVED***
+
+func (e *errorObject) formatStack() valueString ***REMOVED***
+	var b valueStringBuilder
+	if name := e.getStr("name", nil); name != nil ***REMOVED***
+		b.WriteString(name.toString())
+		b.WriteRune('\n')
+	***REMOVED*** else ***REMOVED***
+		b.WriteASCII("Error\n")
+	***REMOVED***
+
+	for _, frame := range e.stack ***REMOVED***
+		b.WriteASCII("\tat ")
+		frame.WriteToValueBuilder(&b)
+		b.WriteRune('\n')
+	***REMOVED***
+	return b.String()
+***REMOVED***
+
+func (e *errorObject) addStackProp() Value ***REMOVED***
+	if !e.stackPropAdded ***REMOVED***
+		res := e._putProp(propNameStack, e.formatStack(), true, false, true)
+		if len(e.propNames) > 1 ***REMOVED***
+			// reorder property names to ensure 'stack' is the first one
+			copy(e.propNames[1:], e.propNames)
+			e.propNames[0] = propNameStack
+		***REMOVED***
+		e.stackPropAdded = true
+		return res
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (e *errorObject) getStr(p unistring.String, receiver Value) Value ***REMOVED***
+	return e.getStrWithOwnProp(e.getOwnPropStr(p), p, receiver)
+***REMOVED***
+
+func (e *errorObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
+	res := e.baseObject.getOwnPropStr(name)
+	if res == nil && name == propNameStack ***REMOVED***
+		return e.addStackProp()
+	***REMOVED***
+
+	return res
+***REMOVED***
+
+func (e *errorObject) setOwnStr(name unistring.String, val Value, throw bool) bool ***REMOVED***
+	if name == propNameStack ***REMOVED***
+		e.addStackProp()
+	***REMOVED***
+	return e.baseObject.setOwnStr(name, val, throw)
+***REMOVED***
+
+func (e *errorObject) setForeignStr(name unistring.String, val, receiver Value, throw bool) (bool, bool) ***REMOVED***
+	return e._setForeignStr(name, e.getOwnPropStr(name), val, receiver, throw)
+***REMOVED***
+
+func (e *errorObject) deleteStr(name unistring.String, throw bool) bool ***REMOVED***
+	if name == propNameStack ***REMOVED***
+		e.addStackProp()
+	***REMOVED***
+	return e.baseObject.deleteStr(name, throw)
+***REMOVED***
+
+func (e *errorObject) defineOwnPropertyStr(name unistring.String, desc PropertyDescriptor, throw bool) bool ***REMOVED***
+	if name == propNameStack ***REMOVED***
+		e.addStackProp()
+	***REMOVED***
+	return e.baseObject.defineOwnPropertyStr(name, desc, throw)
+***REMOVED***
+
+func (e *errorObject) hasOwnPropertyStr(name unistring.String) bool ***REMOVED***
+	if e.baseObject.hasOwnPropertyStr(name) ***REMOVED***
+		return true
+	***REMOVED***
+
+	return name == propNameStack && !e.stackPropAdded
+***REMOVED***
+
+func (e *errorObject) stringKeys(all bool, accum []Value) []Value ***REMOVED***
+	if all && !e.stackPropAdded ***REMOVED***
+		accum = append(accum, asciiString(propNameStack))
+	***REMOVED***
+	return e.baseObject.stringKeys(all, accum)
+***REMOVED***
+
+func (e *errorObject) iterateStringKeys() iterNextFunc ***REMOVED***
+	e.addStackProp()
+	return e.baseObject.iterateStringKeys()
+***REMOVED***
+
+func (e *errorObject) init() ***REMOVED***
+	e.baseObject.init()
+	vm := e.val.runtime.vm
+	e.stack = vm.captureStack(make([]StackFrame, 0, len(vm.callStack)+1), 0)
+***REMOVED***
+
+func (r *Runtime) newErrorObject(proto *Object, class string) *errorObject ***REMOVED***
+	obj := &Object***REMOVED***runtime: r***REMOVED***
+	o := &errorObject***REMOVED***
+		baseObject: baseObject***REMOVED***
+			class:      class,
+			val:        obj,
+			extensible: true,
+			prototype:  proto,
+		***REMOVED***,
+	***REMOVED***
+	obj.self = o
+	o.init()
+	return o
+***REMOVED***
+
 func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object ***REMOVED***
-	obj := r.newBaseObject(proto, classError)
+	obj := r.newErrorObject(proto, classError)
 	if len(args) > 0 && args[0] != _undefined ***REMOVED***
 		obj._putProp("message", args[0], true, false, true)
 	***REMOVED***
@@ -9,7 +129,7 @@ func (r *Runtime) builtin_Error(args []Value, proto *Object) *Object ***REMOVED*
 ***REMOVED***
 
 func (r *Runtime) builtin_AggregateError(args []Value, proto *Object) *Object ***REMOVED***
-	obj := r.newBaseObject(proto, classAggError)
+	obj := r.newErrorObject(proto, classAggError)
 	if len(args) > 1 && args[1] != nil && args[1] != _undefined ***REMOVED***
 		obj._putProp("message", args[1].toString(), true, false, true)
 	***REMOVED***

@@ -217,6 +217,40 @@ func (f *StackFrame) Position() file.Position ***REMOVED***
 	return f.prg.src.Position(f.prg.sourceOffset(f.pc))
 ***REMOVED***
 
+func (f *StackFrame) WriteToValueBuilder(b *valueStringBuilder) ***REMOVED***
+	if f.prg != nil ***REMOVED***
+		if n := f.prg.funcName; n != "" ***REMOVED***
+			b.WriteString(stringValueFromRaw(n))
+			b.WriteASCII(" (")
+		***REMOVED***
+		p := f.Position()
+		if p.Filename != "" ***REMOVED***
+			b.WriteASCII(p.Filename)
+		***REMOVED*** else ***REMOVED***
+			b.WriteASCII("<eval>")
+		***REMOVED***
+		b.WriteRune(':')
+		b.WriteASCII(strconv.Itoa(p.Line))
+		b.WriteRune(':')
+		b.WriteASCII(strconv.Itoa(p.Column))
+		b.WriteRune('(')
+		b.WriteASCII(strconv.Itoa(f.pc))
+		b.WriteRune(')')
+		if f.prg.funcName != "" ***REMOVED***
+			b.WriteRune(')')
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		if f.funcName != "" ***REMOVED***
+			b.WriteString(stringValueFromRaw(f.funcName))
+			b.WriteASCII(" (")
+		***REMOVED***
+		b.WriteASCII("native")
+		if f.funcName != "" ***REMOVED***
+			b.WriteRune(')')
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
 func (f *StackFrame) Write(b *bytes.Buffer) ***REMOVED***
 	if f.prg != nil ***REMOVED***
 		if n := f.prg.funcName; n != "" ***REMOVED***
@@ -257,8 +291,7 @@ type Exception struct ***REMOVED***
 ***REMOVED***
 
 type uncatchableException struct ***REMOVED***
-	stack *[]StackFrame
-	err   error
+	err error
 ***REMOVED***
 
 type InterruptedError struct ***REMOVED***
@@ -812,10 +845,6 @@ func (r *Runtime) error_toString(call FunctionCall) Value ***REMOVED***
 
 func (r *Runtime) builtin_new(construct *Object, args []Value) *Object ***REMOVED***
 	return r.toConstructor(construct)(args, nil)
-***REMOVED***
-
-func (r *Runtime) throw(e Value) ***REMOVED***
-	panic(e)
 ***REMOVED***
 
 func (r *Runtime) builtin_thrower(call FunctionCall) Value ***REMOVED***
@@ -1462,7 +1491,12 @@ operator:
     // If return value is a non-nil *Object, it will be used instead of call.This
     // This way it is possible to return a Go struct or a map converted
     // into goja.Value using ToValue(), however in this case
-    // instanceof will not work as expected.
+    // instanceof will not work as expected, unless you set the prototype:
+    //
+    // instance := &myCustomStruct***REMOVED******REMOVED***
+    // instanceValue := vm.ToValue(instance).(*Object)
+    // instanceValue.SetPrototype(call.This.Prototype())
+    // return instanceValue
     return nil
  ***REMOVED***
 

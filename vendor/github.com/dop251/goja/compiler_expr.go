@@ -299,7 +299,7 @@ func (e *baseCompiledExpr) emitUnary(func(), func(), bool, bool) ***REMOVED***
 ***REMOVED***
 
 func (e *baseCompiledExpr) addSrcMap() ***REMOVED***
-	if e.offset > 0 ***REMOVED***
+	if e.offset >= 0 ***REMOVED***
 		e.c.p.srcMap = append(e.c.p.srcMap, srcMapItem***REMOVED***pc: len(e.c.p.code), srcPos: e.offset***REMOVED***)
 	***REMOVED***
 ***REMOVED***
@@ -370,12 +370,14 @@ func (e *compiledIdentifierExpr) emitGetterAndCallee() ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitVarSetter1(name unistring.String, offset int, putOnStack bool, emitRight func(isRef bool)) ***REMOVED***
+func (e *compiledIdentifierExpr) emitVarSetter1(putOnStack bool, emitRight func(isRef bool)) ***REMOVED***
+	e.addSrcMap()
+	c := e.c
 	if c.scope.strict ***REMOVED***
-		c.checkIdentifierLName(name, offset)
+		c.checkIdentifierLName(e.name, e.offset)
 	***REMOVED***
 
-	if b, noDynamics := c.scope.lookupName(name); noDynamics ***REMOVED***
+	if b, noDynamics := c.scope.lookupName(e.name); noDynamics ***REMOVED***
 		emitRight(false)
 		if b != nil ***REMOVED***
 			if putOnStack ***REMOVED***
@@ -385,9 +387,9 @@ func (c *compiler) emitVarSetter1(name unistring.String, offset int, putOnStack 
 			***REMOVED***
 		***REMOVED*** else ***REMOVED***
 			if c.scope.strict ***REMOVED***
-				c.emit(setGlobalStrict(name))
+				c.emit(setGlobalStrict(e.name))
 			***REMOVED*** else ***REMOVED***
-				c.emit(setGlobal(name))
+				c.emit(setGlobal(e.name))
 			***REMOVED***
 			if !putOnStack ***REMOVED***
 				c.emit(pop)
@@ -398,9 +400,9 @@ func (c *compiler) emitVarSetter1(name unistring.String, offset int, putOnStack 
 			b.emitResolveVar(c.scope.strict)
 		***REMOVED*** else ***REMOVED***
 			if c.scope.strict ***REMOVED***
-				c.emit(resolveVar1Strict(name))
+				c.emit(resolveVar1Strict(e.name))
 			***REMOVED*** else ***REMOVED***
-				c.emit(resolveVar1(name))
+				c.emit(resolveVar1(e.name))
 			***REMOVED***
 		***REMOVED***
 		emitRight(true)
@@ -412,9 +414,9 @@ func (c *compiler) emitVarSetter1(name unistring.String, offset int, putOnStack 
 	***REMOVED***
 ***REMOVED***
 
-func (c *compiler) emitVarSetter(name unistring.String, offset int, valueExpr compiledExpr, putOnStack bool) ***REMOVED***
-	c.emitVarSetter1(name, offset, putOnStack, func(bool) ***REMOVED***
-		c.emitExpr(valueExpr, true)
+func (e *compiledIdentifierExpr) emitVarSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
+	e.emitVarSetter1(putOnStack, func(bool) ***REMOVED***
+		e.c.emitExpr(valueExpr, true)
 	***REMOVED***)
 ***REMOVED***
 
@@ -440,12 +442,12 @@ func (e *compiledIdentifierExpr) emitRef() ***REMOVED***
 ***REMOVED***
 
 func (e *compiledIdentifierExpr) emitSetter(valueExpr compiledExpr, putOnStack bool) ***REMOVED***
-	e.c.emitVarSetter(e.name, e.offset, valueExpr, putOnStack)
+	e.emitVarSetter(valueExpr, putOnStack)
 ***REMOVED***
 
 func (e *compiledIdentifierExpr) emitUnary(prepare, body func(), postfix, putOnStack bool) ***REMOVED***
 	if putOnStack ***REMOVED***
-		e.c.emitVarSetter1(e.name, e.offset, true, func(isRef bool) ***REMOVED***
+		e.emitVarSetter1(true, func(isRef bool) ***REMOVED***
 			e.c.emit(loadUndef)
 			if isRef ***REMOVED***
 				e.c.emit(getValue)
@@ -465,7 +467,7 @@ func (e *compiledIdentifierExpr) emitUnary(prepare, body func(), postfix, putOnS
 		***REMOVED***)
 		e.c.emit(pop)
 	***REMOVED*** else ***REMOVED***
-		e.c.emitVarSetter1(e.name, e.offset, false, func(isRef bool) ***REMOVED***
+		e.emitVarSetter1(false, func(isRef bool) ***REMOVED***
 			if isRef ***REMOVED***
 				e.c.emit(getValue)
 			***REMOVED*** else ***REMOVED***
@@ -747,7 +749,6 @@ func (e *deleteGlobalExpr) emitGetter(putOnStack bool) ***REMOVED***
 ***REMOVED***
 
 func (e *compiledAssignExpr) emitGetter(putOnStack bool) ***REMOVED***
-	e.addSrcMap()
 	switch e.operator ***REMOVED***
 	case token.ASSIGN:
 		if fn, ok := e.right.(*compiledFunctionLiteral); ok ***REMOVED***
@@ -820,7 +821,6 @@ func (e *compiledAssignExpr) emitGetter(putOnStack bool) ***REMOVED***
 
 func (e *compiledLiteral) emitGetter(putOnStack bool) ***REMOVED***
 	if putOnStack ***REMOVED***
-		e.addSrcMap()
 		e.c.emit(loadVal(e.c.p.defineLiteralValue(e.val)))
 	***REMOVED***
 ***REMOVED***
@@ -1499,6 +1499,7 @@ func (e *compiledUnaryExpr) emitGetter(putOnStack bool) ***REMOVED***
 	var prepare, body func()
 
 	toNumber := func() ***REMOVED***
+		e.addSrcMap()
 		e.c.emit(toNumber)
 	***REMOVED***
 

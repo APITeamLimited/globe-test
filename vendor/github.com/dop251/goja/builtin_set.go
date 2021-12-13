@@ -42,7 +42,7 @@ func (r *Runtime) setProto_add(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method Set.prototype.add called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method Set.prototype.add called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 
 	so.m.set(call.Argument(0), nil)
@@ -53,7 +53,7 @@ func (r *Runtime) setProto_clear(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method Set.prototype.clear called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method Set.prototype.clear called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 
 	so.m.clear()
@@ -64,7 +64,7 @@ func (r *Runtime) setProto_delete(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method Set.prototype.delete called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method Set.prototype.delete called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 
 	return r.toBoolean(so.m.remove(call.Argument(0)))
@@ -78,7 +78,7 @@ func (r *Runtime) setProto_forEach(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method Set.prototype.forEach called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method Set.prototype.forEach called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 	callbackFn, ok := r.toObject(call.Argument(0)).self.assertCallable()
 	if !ok ***REMOVED***
@@ -101,7 +101,7 @@ func (r *Runtime) setProto_has(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method Set.prototype.has called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method Set.prototype.has called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 
 	return r.toBoolean(so.m.has(call.Argument(0)))
@@ -111,7 +111,7 @@ func (r *Runtime) setProto_getSize(call FunctionCall) Value ***REMOVED***
 	thisObj := r.toObject(call.This)
 	so, ok := thisObj.self.(*setObject)
 	if !ok ***REMOVED***
-		panic(r.NewTypeError("Method get Set.prototype.size called on incompatible receiver %s", thisObj.String()))
+		panic(r.NewTypeError("Method get Set.prototype.size called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 	***REMOVED***
 
 	return intToValue(int64(so.m.size))
@@ -185,7 +185,7 @@ func (r *Runtime) setIterProto_next(call FunctionCall) Value ***REMOVED***
 	if iter, ok := thisObj.self.(*setIterObject); ok ***REMOVED***
 		return iter.next()
 	***REMOVED***
-	panic(r.NewTypeError("Method Set Iterator.prototype.next called on incompatible receiver %s", thisObj.String()))
+	panic(r.NewTypeError("Method Set Iterator.prototype.next called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 ***REMOVED***
 
 func (r *Runtime) createSetProto(val *Object) objectImpl ***REMOVED***

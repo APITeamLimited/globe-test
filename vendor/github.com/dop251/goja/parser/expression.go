@@ -310,13 +310,15 @@ func (self *_parser) parseObjectPropertyKey() (string, unistring.String, ast.Exp
 		***REMOVED***
 	default:
 		// null, false, class, etc.
-		if isId(tkn) ***REMOVED***
+		if token.IsId(tkn) ***REMOVED***
 			value = &ast.StringLiteral***REMOVED***
 				Idx:     idx,
 				Literal: literal,
 				Value:   unistring.String(literal),
 			***REMOVED***
 			tkn = token.KEYWORD
+		***REMOVED*** else ***REMOVED***
+			self.errorUnexpectedToken(tkn)
 		***REMOVED***
 	***REMOVED***
 	return literal, parsedLiteral, value, tkn
@@ -404,13 +406,15 @@ func (self *_parser) parseObjectProperty() ast.Property ***REMOVED***
 	***REMOVED***
 
 	self.expect(token.COLON)
-
-	return &ast.PropertyKeyed***REMOVED***
-		Key:      value,
-		Kind:     ast.PropertyKindValue,
-		Value:    self.parseAssignmentExpression(),
-		Computed: tkn == token.ILLEGAL,
+	if value != nil ***REMOVED***
+		return &ast.PropertyKeyed***REMOVED***
+			Key:      value,
+			Kind:     ast.PropertyKindValue,
+			Value:    self.parseAssignmentExpression(),
+			Computed: tkn == token.ILLEGAL,
+		***REMOVED***
 	***REMOVED***
+	return nil
 ***REMOVED***
 
 func (self *_parser) parseObjectLiteral() *ast.ObjectLiteral ***REMOVED***
@@ -418,7 +422,9 @@ func (self *_parser) parseObjectLiteral() *ast.ObjectLiteral ***REMOVED***
 	idx0 := self.expect(token.LEFT_BRACE)
 	for self.token != token.RIGHT_BRACE && self.token != token.EOF ***REMOVED***
 		property := self.parseObjectProperty()
-		value = append(value, property)
+		if property != nil ***REMOVED***
+			value = append(value, property)
+		***REMOVED***
 		if self.token != token.RIGHT_BRACE ***REMOVED***
 			self.expect(token.COMMA)
 		***REMOVED*** else ***REMOVED***
@@ -469,25 +475,25 @@ func (self *_parser) parseTemplateLiteral(tagged bool) *ast.TemplateLiteral ***R
 	res := &ast.TemplateLiteral***REMOVED***
 		OpenQuote: self.idx,
 	***REMOVED***
-	for self.chr != -1 ***REMOVED***
-		start := self.idx + 1
+	for ***REMOVED***
+		start := self.offset
 		literal, parsed, finished, parseErr, err := self.parseTemplateCharacters()
 		if err != "" ***REMOVED***
-			self.error(self.idx, err)
+			self.error(self.offset, err)
 		***REMOVED***
 		res.Elements = append(res.Elements, &ast.TemplateElement***REMOVED***
-			Idx:     start,
+			Idx:     self.idxOf(start),
 			Literal: literal,
 			Parsed:  parsed,
 			Valid:   parseErr == "",
 		***REMOVED***)
 		if !tagged && parseErr != "" ***REMOVED***
-			self.error(self.idx, parseErr)
+			self.error(self.offset, parseErr)
 		***REMOVED***
-		end := self.idx + 1
+		end := self.chrOffset - 1
 		self.next()
 		if finished ***REMOVED***
-			res.CloseQuote = end
+			res.CloseQuote = self.idxOf(end)
 			break
 		***REMOVED***
 		expr := self.parseExpression()
@@ -543,7 +549,7 @@ func (self *_parser) parseDotMember(left ast.Expression) ast.Expression ***REMOV
 	literal := self.parsedLiteral
 	idx := self.idx
 
-	if self.token != token.IDENTIFIER && !isId(self.token) ***REMOVED***
+	if !token.IsId(self.token) ***REMOVED***
 		self.expect(token.IDENTIFIER)
 		self.nextStatement()
 		return &ast.BadExpression***REMOVED***From: period, To: self.idx***REMOVED***

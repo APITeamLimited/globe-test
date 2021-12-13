@@ -1284,7 +1284,7 @@ func (r *Runtime) arrayIterProto_next(call FunctionCall) Value ***REMOVED***
 	if iter, ok := thisObj.self.(*arrayIterObject); ok ***REMOVED***
 		return iter.next()
 	***REMOVED***
-	panic(r.NewTypeError("Method Array Iterator.prototype.next called on incompatible receiver %s", thisObj.String()))
+	panic(r.NewTypeError("Method Array Iterator.prototype.next called on incompatible receiver %s", r.objectproto_toString(FunctionCall***REMOVED***This: thisObj***REMOVED***)))
 ***REMOVED***
 
 func (r *Runtime) createArrayProto(val *Object) objectImpl ***REMOVED***

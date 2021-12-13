@@ -372,7 +372,10 @@ func (o *baseObject) getOwnPropStr(name unistring.String) Value ***REMOVED***
 
 func (o *baseObject) checkDeleteProp(name unistring.String, prop *valueProperty, throw bool) bool ***REMOVED***
 	if !prop.configurable ***REMOVED***
-		o.val.runtime.typeErrorResult(throw, "Cannot delete property '%s' of %s", name, o.val.toString())
+		if throw ***REMOVED***
+			r := o.val.runtime
+			panic(r.NewTypeError("Cannot delete property '%s' of %s", name, r.objectproto_toString(FunctionCall***REMOVED***This: o.val***REMOVED***)))
+		***REMOVED***
 		return false
 	***REMOVED***
 	return true

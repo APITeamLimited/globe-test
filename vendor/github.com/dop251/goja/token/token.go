@@ -114,3 +114,7 @@ func IsKeyword(literal string) (Token, bool) ***REMOVED***
 	***REMOVED***
 	return 0, false
 ***REMOVED***
+
+func IsId(tkn Token) bool ***REMOVED***
+	return tkn >= IDENTIFIER
+***REMOVED***

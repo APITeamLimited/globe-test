@@ -206,6 +206,14 @@ func (b *valueStringBuilder) WriteString(s valueString) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+func (b *valueStringBuilder) WriteASCII(s string) ***REMOVED***
+	if b.ascii() ***REMOVED***
+		b.asciiBuilder.WriteString(s)
+	***REMOVED*** else ***REMOVED***
+		b.unicodeBuilder.writeASCIIString(s)
+	***REMOVED***
+***REMOVED***
+
 func (b *valueStringBuilder) WriteRune(r rune) ***REMOVED***
 	if r < utf8.RuneSelf ***REMOVED***
 		if b.ascii() ***REMOVED***
