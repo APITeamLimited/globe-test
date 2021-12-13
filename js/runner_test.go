@@ -2088,6 +2088,88 @@ func TestMinIterationDurationIsCancellable(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+// nolint:paralleltest
+func TestForceHTTP1Feature(t *testing.T) ***REMOVED***
+	cases := map[string]struct ***REMOVED***
+		godebug               string
+		expectedForceH1Result bool
+		protocol              string
+	***REMOVED******REMOVED***
+		"Force H1 Enabled. Checking for H1": ***REMOVED***
+			godebug:               "http2client=0,gctrace=1",
+			expectedForceH1Result: true,
+			protocol:              "HTTP/1.1",
+		***REMOVED***,
+		"Force H1 Disabled. Checking for H2": ***REMOVED***
+			godebug:               "test=0",
+			expectedForceH1Result: false,
+			protocol:              "HTTP/2.0",
+		***REMOVED***,
+	***REMOVED***
+
+	for name, tc := range cases ***REMOVED***
+		t.Run(name, func(t *testing.T) ***REMOVED***
+			err := os.Setenv("GODEBUG", tc.godebug)
+			require.NoError(t, err)
+			defer func() ***REMOVED***
+				err = os.Unsetenv("GODEBUG")
+				require.NoError(t, err)
+			***REMOVED***()
+			assert.Equal(t, tc.expectedForceH1Result, forceHTTP1())
+
+			tb := httpmultibin.NewHTTPMultiBin(t)
+
+			data := fmt.Sprintf(`var k6 = require("k6");
+			var check = k6.check;
+			var fail = k6.fail;
+			var http = require("k6/http");;
+			exports.default = function() ***REMOVED***
+				var res = http.get("HTTP2BIN_URL");
+				if (
+					!check(res, ***REMOVED***
+					'checking to see if status was 200': (res) => res.status === 200,
+					'checking to see protocol': (res) => res.proto === '%s'
+					***REMOVED***)
+				) ***REMOVED***
+					fail('test failed')
+				***REMOVED***
+			***REMOVED***`, tc.protocol)
+
+			r1, err := getSimpleRunner(t, "/script.js", tb.Replacer.Replace(data))
+			require.NoError(t, err)
+
+			err = r1.SetOptions(lib.Options***REMOVED***
+				Hosts: tb.Dialer.Hosts,
+				// We disable TLS verify so that we don't get a TLS handshake error since
+				// the certificates on the endpoint are not certified by a certificate authority
+				InsecureSkipTLSVerify: null.BoolFrom(true),
+			***REMOVED***)
+
+			require.NoError(t, err)
+
+			registry := metrics.NewRegistry()
+			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
+			r2, err := NewFromArchive(testutils.NewLogger(t), r1.MakeArchive(), lib.RuntimeOptions***REMOVED******REMOVED***, builtinMetrics, registry)
+			require.NoError(t, err)
+
+			runners := map[string]*Runner***REMOVED***"Source": r1, "Archive": r2***REMOVED***
+			for name, r := range runners ***REMOVED***
+				r := r
+				t.Run(name, func(t *testing.T) ***REMOVED***
+					initVU, err := r.NewVU(1, 1, make(chan stats.SampleContainer, 100))
+					require.NoError(t, err)
+
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+					err = vu.RunOnce()
+					require.NoError(t, err)
+				***REMOVED***)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
 func TestExecutionInfo(t *testing.T) ***REMOVED***
 	t.Parallel()
 
