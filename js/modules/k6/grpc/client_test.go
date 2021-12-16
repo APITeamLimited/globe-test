@@ -24,13 +24,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"google.golang.org/grpc/reflection"
+	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -760,4 +765,104 @@ func TestDebugStat(t *testing.T) ***REMOVED***
 			assert.Contains(t, b.String(), tt.expected)
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestResolveFileDescriptors(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	tests := []struct ***REMOVED***
+		name                string
+		pkgs                []string
+		services            []string
+		expectedDescriptors int
+	***REMOVED******REMOVED***
+		***REMOVED***
+			name:                "SuccessSamePackage",
+			pkgs:                []string***REMOVED***"mypkg"***REMOVED***,
+			services:            []string***REMOVED***"Service1", "Service2", "Service3"***REMOVED***,
+			expectedDescriptors: 3,
+		***REMOVED***,
+		***REMOVED***
+			name:                "SuccessMultiPackages",
+			pkgs:                []string***REMOVED***"mypkg1", "mypkg2", "mypkg3"***REMOVED***,
+			services:            []string***REMOVED***"Service", "Service", "Service"***REMOVED***,
+			expectedDescriptors: 3,
+		***REMOVED***,
+		***REMOVED***
+			name:                "DeduplicateServices",
+			pkgs:                []string***REMOVED***"mypkg1"***REMOVED***,
+			services:            []string***REMOVED***"Service1", "Service2", "Service1"***REMOVED***,
+			expectedDescriptors: 2,
+		***REMOVED***,
+		***REMOVED***
+			name:                "NoServices",
+			services:            []string***REMOVED******REMOVED***,
+			expectedDescriptors: 0,
+		***REMOVED***,
+	***REMOVED***
+
+	for _, tt := range tests ***REMOVED***
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			var (
+				lsr  = &reflectpb.ListServiceResponse***REMOVED******REMOVED***
+				mock = &getServiceFileDescriptorMock***REMOVED******REMOVED***
+			)
+			for i, service := range tt.services ***REMOVED***
+				// if only one package is defined then
+				// the package is the same for every service
+				pkg := tt.pkgs[0]
+				if len(tt.pkgs) > 1 ***REMOVED***
+					pkg = tt.pkgs[i]
+				***REMOVED***
+
+				lsr.Service = append(lsr.Service, &reflectpb.ServiceResponse***REMOVED***
+					Name: fmt.Sprintf("%s.%s", pkg, service),
+				***REMOVED***)
+				mock.pkgs = append(mock.pkgs, pkg)
+				mock.names = append(mock.names, service)
+			***REMOVED***
+
+			fdset, err := resolveServiceFileDescriptors(mock, lsr)
+			require.NoError(t, err)
+			assert.Len(t, fdset.File, tt.expectedDescriptors)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+type getServiceFileDescriptorMock struct ***REMOVED***
+	nreqs int64
+	pkgs  []string
+	names []string
+***REMOVED***
+
+func (m *getServiceFileDescriptorMock) Send(req *reflectpb.ServerReflectionRequest) error ***REMOVED***
+	// TODO: check that the sent message is expected,
+	// otherwise return an error
+	return nil
+***REMOVED***
+
+func (m *getServiceFileDescriptorMock) Recv() (*reflectpb.ServerReflectionResponse, error) ***REMOVED***
+	n := atomic.AddInt64(&m.nreqs, 1)
+	ptr := func(s string) (sptr *string) ***REMOVED***
+		return &s
+	***REMOVED***
+	index := n - 1
+	fdp := &descriptorpb.FileDescriptorProto***REMOVED***
+		Package: ptr(m.pkgs[index]),
+		Name:    ptr(m.names[index]),
+	***REMOVED***
+	b, err := proto.Marshal(fdp)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	srr := &reflectpb.ServerReflectionResponse***REMOVED***
+		MessageResponse: &reflectpb.ServerReflectionResponse_FileDescriptorResponse***REMOVED***
+			FileDescriptorResponse: &reflectpb.FileDescriptorResponse***REMOVED***
+				FileDescriptorProto: [][]byte***REMOVED***b***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	return srr, nil
 ***REMOVED***
