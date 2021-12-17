@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/errext"
+	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/ui/pb"
@@ -76,6 +77,62 @@ func validateStages(stages []Stage) []error ***REMOVED***
 	return errors
 ***REMOVED***
 
+// cancelKey is the key used to store the cancel function for the context of an
+// executor. This is a work around to avoid excessive changes for the ability of
+// nested functions to cancel the passed context.
+type cancelKey struct***REMOVED******REMOVED***
+
+type cancelExec struct ***REMOVED***
+	cancel context.CancelFunc
+	reason error
+***REMOVED***
+
+// Context returns context.Context that can be cancelled by calling
+// CancelExecutorContext. Use this to initialize context that will be passed to
+// executors.
+//
+// This allows executors to globally halt any executions that uses this context.
+// Example use case is when a script calls test.abort().
+func Context(ctx context.Context) context.Context ***REMOVED***
+	ctx, cancel := context.WithCancel(ctx)
+	return context.WithValue(ctx, cancelKey***REMOVED******REMOVED***, &cancelExec***REMOVED***cancel: cancel***REMOVED***)
+***REMOVED***
+
+// cancelExecutorContext cancels executor context found in ctx, ctx can be a
+// child of a context that was created with Context function.
+func cancelExecutorContext(ctx context.Context, err error) ***REMOVED***
+	if x := ctx.Value(cancelKey***REMOVED******REMOVED***); x != nil ***REMOVED***
+		if v, ok := x.(*cancelExec); ok ***REMOVED***
+			v.reason = err
+			v.cancel()
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// CancelReason returns a reason the executor context was cancelled. This will
+// return nil if ctx is not an executor context(ctx or any of its parents was
+// never created by Context function).
+func CancelReason(ctx context.Context) error ***REMOVED***
+	if x := ctx.Value(cancelKey***REMOVED******REMOVED***); x != nil ***REMOVED***
+		if v, ok := x.(*cancelExec); ok ***REMOVED***
+			return v.reason
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
+// handleInterrupt returns true if err is InterruptError and if so it
+// cancels the executor context passed with ctx.
+func handleInterrupt(ctx context.Context, err error) bool ***REMOVED***
+	if err != nil ***REMOVED***
+		if common.IsInterruptError(err) ***REMOVED***
+			cancelExecutorContext(ctx, err)
+			return true
+		***REMOVED***
+	***REMOVED***
+	return false
+***REMOVED***
+
 // getIterationRunner is a helper function that returns an iteration executor
 // closure. It takes care of updating the execution state statistics and
 // warning messages. And returns whether a full iteration was finished or not
@@ -98,6 +155,11 @@ func getIterationRunner(
 			return false
 		default:
 			if err != nil ***REMOVED***
+				if handleInterrupt(ctx, err) ***REMOVED***
+					executionState.AddInterruptedIterations(1)
+					return false
+				***REMOVED***
+
 				var exception errext.Exception
 				if errors.As(err, &exception) ***REMOVED***
 					// TODO don't count this as a full iteration?

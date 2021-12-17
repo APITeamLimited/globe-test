@@ -1506,6 +1506,13 @@ func TestInitContextForbidden(t *testing.T) ***REMOVED***
 			k6.ErrCheckInInitContext.Error(),
 		***REMOVED***,
 		***REMOVED***
+			"abortTest",
+			`var test = require("k6/execution").test;
+			 test.abort();
+			 exports.default = function() ***REMOVED*** console.log("p"); ***REMOVED***`,
+			common.AbortTest,
+		***REMOVED***,
+		***REMOVED***
 			"group",
 			`var group = require("k6").group;
 			 group("group1", function () ***REMOVED*** console.log("group1");***REMOVED***)

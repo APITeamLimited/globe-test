@@ -183,3 +183,40 @@ func TestVUTags(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 ***REMOVED***
+
+func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
+	t.Parallel()
+
+	rt := goja.New()
+	ctx := common.WithRuntime(context.Background(), rt)
+	state := &lib.State***REMOVED******REMOVED***
+	ctx = lib.WithState(ctx, state)
+
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   state,
+		***REMOVED***,
+	).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("exec", m.Exports().Default))
+
+	prove := func(t *testing.T, script, reason string) ***REMOVED***
+		_, err := rt.RunString(script)
+		require.NotNil(t, err)
+		var x *goja.InterruptedError
+		assert.ErrorAs(t, err, &x)
+		v, ok := x.Value().(*common.InterruptError)
+		require.True(t, ok)
+		require.Equal(t, v.Reason, reason)
+	***REMOVED***
+
+	t.Run("default reason", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
+		prove(t, "exec.test.abort()", common.AbortTest)
+	***REMOVED***)
+	t.Run("custom reason", func(t *testing.T) ***REMOVED*** //nolint: paralleltest
+		prove(t, `exec.test.abort("mayday")`, fmt.Sprintf("%s: mayday", common.AbortTest))
+	***REMOVED***)
+***REMOVED***

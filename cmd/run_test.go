@@ -22,19 +22,28 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"go.k6.io/k6/errext"
+	"go.k6.io/k6/errext/exitcodes"
+	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib/fsext"
+	"go.k6.io/k6/lib/testutils"
 )
 
 type mockWriter struct ***REMOVED***
@@ -124,4 +133,86 @@ func TestHandleSummaryResultError(t *testing.T) ***REMOVED***
 	files := getFiles(t, fs)
 	assertEqual(t, "file summary 1", files[filePath1])
 	assertEqual(t, "file summary 2", files[filePath2])
+***REMOVED***
+
+func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
+	t.Parallel()
+
+	testCases := []struct ***REMOVED***
+		testFilename, expLogOutput string
+	***REMOVED******REMOVED***
+		***REMOVED***
+			testFilename: "abort.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_initerr.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_initvu.js",
+		***REMOVED***,
+		***REMOVED***
+			testFilename: "abort_teardown.js",
+			expLogOutput: "Calling teardown function after test.abort()",
+		***REMOVED***,
+	***REMOVED***
+
+	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest
+		tc := tc
+		t.Run(tc.testFilename, func(t *testing.T) ***REMOVED***
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			logger := logrus.New()
+			logger.SetLevel(logrus.InfoLevel)
+			logger.Out = ioutil.Discard
+			hook := testutils.SimpleLogrusHook***REMOVED***
+				HookedLevels: []logrus.Level***REMOVED***logrus.InfoLevel***REMOVED***,
+			***REMOVED***
+			logger.AddHook(&hook)
+
+			cmd := getRunCmd(ctx, logger)
+			// Redefine the flag to avoid a nil pointer panic on lookup.
+			cmd.Flags().AddFlag(&pflag.Flag***REMOVED***
+				Name:   "address",
+				Hidden: true,
+			***REMOVED***)
+			a, err := filepath.Abs(path.Join("testdata", tc.testFilename))
+			require.NoError(t, err)
+			cmd.SetArgs([]string***REMOVED***a***REMOVED***)
+			err = cmd.Execute()
+			var e errext.HasExitCode
+			require.ErrorAs(t, err, &e)
+			assert.Equalf(t, exitcodes.ScriptAborted, e.ExitCode(),
+				"Status code must be %d", exitcodes.ScriptAborted)
+			assert.Contains(t, e.Error(), common.AbortTest)
+
+			if tc.expLogOutput != "" ***REMOVED***
+				var gotMsg bool
+				for _, entry := range hook.Drain() ***REMOVED***
+					if strings.Contains(entry.Message, tc.expLogOutput) ***REMOVED***
+						gotMsg = true
+						break
+					***REMOVED***
+				***REMOVED***
+				assert.True(t, gotMsg)
+			***REMOVED***
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestInitErrExitCode(t *testing.T) ***REMOVED*** //nolint: paralleltest
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	logger := testutils.NewLogger(t)
+
+	cmd := getRunCmd(ctx, logger)
+	a, err := filepath.Abs("testdata/initerr.js")
+	require.NoError(t, err)
+	cmd.SetArgs([]string***REMOVED***a***REMOVED***)
+	err = cmd.Execute()
+	var e errext.HasExitCode
+	require.ErrorAs(t, err, &e)
+	assert.Equalf(t, exitcodes.ScriptException, e.ExitCode(),
+		"Status code must be %d", exitcodes.ScriptException)
+	assert.Contains(t, err.Error(), "ReferenceError: someUndefinedVar is not defined")
 ***REMOVED***
