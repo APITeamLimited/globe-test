@@ -544,7 +544,8 @@ func (self *_parser) parseCallExpression(left ast.Expression) ast.Expression ***
 ***REMOVED***
 
 func (self *_parser) parseDotMember(left ast.Expression) ast.Expression ***REMOVED***
-	period := self.expect(token.PERIOD)
+	period := self.idx
+	self.next()
 
 	literal := self.parsedLiteral
 	idx := self.idx
@@ -653,11 +654,14 @@ func (self *_parser) parseLeftHandSideExpressionAllowCall() ast.Expression ***RE
 	***REMOVED***()
 
 	var left ast.Expression
+	start := self.idx
 	if self.token == token.NEW ***REMOVED***
 		left = self.parseNewExpression()
 	***REMOVED*** else ***REMOVED***
 		left = self.parsePrimaryExpression()
 	***REMOVED***
+
+	optionalChain := false
 L:
 	for ***REMOVED***
 		switch self.token ***REMOVED***
@@ -668,12 +672,30 @@ L:
 		case token.LEFT_PARENTHESIS:
 			left = self.parseCallExpression(left)
 		case token.BACKTICK:
+			if optionalChain ***REMOVED***
+				self.error(self.idx, "Invalid template literal on optional chain")
+				self.nextStatement()
+				return &ast.BadExpression***REMOVED***From: start, To: self.idx***REMOVED***
+			***REMOVED***
 			left = self.parseTaggedTemplateLiteral(left)
+		case token.QUESTION_DOT:
+			optionalChain = true
+			left = &ast.Optional***REMOVED***Expression: left***REMOVED***
+
+			switch self.peek() ***REMOVED***
+			case token.LEFT_BRACKET, token.LEFT_PARENTHESIS, token.BACKTICK:
+				self.next()
+			default:
+				left = self.parseDotMember(left)
+			***REMOVED***
 		default:
 			break L
 		***REMOVED***
 	***REMOVED***
 
+	if optionalChain ***REMOVED***
+		left = &ast.OptionalChain***REMOVED***Expression: left***REMOVED***
+	***REMOVED***
 	return left
 ***REMOVED***
 

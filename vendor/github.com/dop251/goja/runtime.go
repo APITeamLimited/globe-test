@@ -294,9 +294,20 @@ type uncatchableException struct ***REMOVED***
 	err error
 ***REMOVED***
 
+func (ue *uncatchableException) Unwrap() error ***REMOVED***
+	return ue.err
+***REMOVED***
+
 type InterruptedError struct ***REMOVED***
 	Exception
 	iface interface***REMOVED******REMOVED***
+***REMOVED***
+
+func (e *InterruptedError) Unwrap() error ***REMOVED***
+	if err, ok := e.iface.(error); ok ***REMOVED***
+		return err
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 type StackOverflowError struct ***REMOVED***

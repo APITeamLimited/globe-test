@@ -3340,6 +3340,20 @@ func (j jdefP) exec(vm *vm) ***REMOVED***
 	vm.sp--
 ***REMOVED***
 
+type jopt int32
+
+func (j jopt) exec(vm *vm) ***REMOVED***
+	switch vm.stack[vm.sp-1] ***REMOVED***
+	case _null:
+		vm.stack[vm.sp-1] = _undefined
+		fallthrough
+	case _undefined:
+		vm.pc += int(j)
+	default:
+		vm.pc++
+	***REMOVED***
+***REMOVED***
+
 type _not struct***REMOVED******REMOVED***
 
 var not _not

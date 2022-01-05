@@ -269,6 +269,7 @@ func (self *_parser) parseThrowStatement() ast.Statement ***REMOVED***
 	***REMOVED***
 
 	node := &ast.ThrowStatement***REMOVED***
+		Throw:    idx,
 		Argument: self.parseExpression(),
 	***REMOVED***
 

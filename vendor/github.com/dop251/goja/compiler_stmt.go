@@ -202,9 +202,13 @@ func (c *compiler) compileTryStatement(v *ast.TryStatement, needResult bool) ***
 	c.leaveBlock()
 ***REMOVED***
 
+func (c *compiler) addSrcMap(node ast.Node) ***REMOVED***
+	c.p.addSrcMap(int(node.Idx0()) - 1)
+***REMOVED***
+
 func (c *compiler) compileThrowStatement(v *ast.ThrowStatement) ***REMOVED***
-	//c.p.srcMap = append(c.p.srcMap, srcMapItem***REMOVED***pc: len(c.p.code), srcPos: int(v.Throw) - 1***REMOVED***)
 	c.compileExpression(v.Argument).emitGetter(true)
+	c.addSrcMap(v)
 	c.emit(throw)
 ***REMOVED***
 
@@ -752,6 +756,7 @@ func (c *compiler) emitVarAssign(name unistring.String, offset int, init compile
 	if init != nil ***REMOVED***
 		c.emitVarRef(name, offset)
 		c.emitNamed(init, name)
+		c.p.addSrcMap(offset)
 		c.emit(initValueP)
 	***REMOVED***
 ***REMOVED***
@@ -775,6 +780,7 @@ func (c *compiler) emitLexicalAssign(name unistring.String, offset int, init com
 	***REMOVED***
 	if init != nil ***REMOVED***
 		c.emitNamed(init, name)
+		c.p.addSrcMap(offset)
 	***REMOVED*** else ***REMOVED***
 		if isConst ***REMOVED***
 			c.throwSyntaxError(offset, "Missing initializer in const declaration")

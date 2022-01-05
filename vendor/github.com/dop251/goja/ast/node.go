@@ -118,6 +118,14 @@ type (
 		Identifier Identifier
 	***REMOVED***
 
+	OptionalChain struct ***REMOVED***
+		Expression
+	***REMOVED***
+
+	Optional struct ***REMOVED***
+		Expression
+	***REMOVED***
+
 	FunctionLiteral struct ***REMOVED***
 		Function      file.Idx
 		Name          *Identifier

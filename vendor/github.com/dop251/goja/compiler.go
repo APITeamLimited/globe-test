@@ -21,6 +21,7 @@ const (
 	blockWith
 	blockScope
 	blockIterScope
+	blockOptChain
 )
 
 const (
@@ -382,6 +383,13 @@ func (p *Program) sourceOffset(pc int) int ***REMOVED***
 	***REMOVED***
 
 	return 0
+***REMOVED***
+
+func (p *Program) addSrcMap(srcPos int) ***REMOVED***
+	if len(p.srcMap) > 0 && p.srcMap[len(p.srcMap)-1].srcPos == srcPos ***REMOVED***
+		return
+	***REMOVED***
+	p.srcMap = append(p.srcMap, srcMapItem***REMOVED***pc: len(p.code), srcPos: srcPos***REMOVED***)
 ***REMOVED***
 
 func (s *scope) lookupName(name unistring.String) (binding *binding, noDynamics bool) ***REMOVED***

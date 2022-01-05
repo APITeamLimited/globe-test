@@ -188,6 +188,16 @@ type compiledSpreadCallArgument struct ***REMOVED***
 	expr compiledExpr
 ***REMOVED***
 
+type compiledOptionalChain struct ***REMOVED***
+	baseCompiledExpr
+	expr compiledExpr
+***REMOVED***
+
+type compiledOptional struct ***REMOVED***
+	baseCompiledExpr
+	expr compiledExpr
+***REMOVED***
+
 func (e *defaultDeleteExpr) emitGetter(putOnStack bool) ***REMOVED***
 	e.expr.emitGetter(false)
 	if putOnStack ***REMOVED***
@@ -264,6 +274,18 @@ func (c *compiler) compileExpression(v ast.Expression) compiledExpr ***REMOVED**
 		return c.compileObjectAssignmentPattern(v)
 	case *ast.ArrayPattern:
 		return c.compileArrayAssignmentPattern(v)
+	case *ast.OptionalChain:
+		r := &compiledOptionalChain***REMOVED***
+			expr: c.compileExpression(v.Expression),
+		***REMOVED***
+		r.init(c, v.Idx0())
+		return r
+	case *ast.Optional:
+		r := &compiledOptional***REMOVED***
+			expr: c.compileExpression(v.Expression),
+		***REMOVED***
+		r.init(c, v.Idx0())
+		return r
 	default:
 		panic(fmt.Errorf("Unknown expression type: %T", v))
 	***REMOVED***
@@ -300,7 +322,7 @@ func (e *baseCompiledExpr) emitUnary(func(), func(), bool, bool) ***REMOVED***
 
 func (e *baseCompiledExpr) addSrcMap() ***REMOVED***
 	if e.offset >= 0 ***REMOVED***
-		e.c.p.srcMap = append(e.c.p.srcMap, srcMapItem***REMOVED***pc: len(e.c.p.code), srcPos: e.offset***REMOVED***)
+		e.c.p.addSrcMap(e.offset)
 	***REMOVED***
 ***REMOVED***
 
@@ -1948,6 +1970,12 @@ func (c *compiler) emitCallee(callee compiledExpr) (calleeName unistring.String)
 	case *compiledIdentifierExpr:
 		calleeName = callee.name
 		callee.emitGetterAndCallee()
+	case *compiledOptionalChain:
+		c.startOptChain()
+		c.emitCallee(callee.expr)
+		c.endOptChain()
+	case *compiledOptional:
+		c.emitCallee(callee.expr)
 	default:
 		c.emit(loadUndef)
 		callee.emitGetter(true)
@@ -2360,5 +2388,37 @@ func (e *compiledSpreadCallArgument) emitGetter(putOnStack bool) ***REMOVED***
 	e.expr.emitGetter(putOnStack)
 	if putOnStack ***REMOVED***
 		e.c.emit(pushSpread)
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) startOptChain() ***REMOVED***
+	c.block = &block***REMOVED***
+		typ:   blockOptChain,
+		outer: c.block,
+	***REMOVED***
+***REMOVED***
+
+func (c *compiler) endOptChain() ***REMOVED***
+	lbl := len(c.p.code)
+	for _, item := range c.block.breaks ***REMOVED***
+		c.p.code[item] = jopt(lbl - item)
+	***REMOVED***
+	c.block = c.block.outer
+***REMOVED***
+
+func (e *compiledOptionalChain) emitGetter(putOnStack bool) ***REMOVED***
+	e.c.startOptChain()
+	e.expr.emitGetter(true)
+	e.c.endOptChain()
+	if !putOnStack ***REMOVED***
+		e.c.emit(pop)
+	***REMOVED***
+***REMOVED***
+
+func (e *compiledOptional) emitGetter(putOnStack bool) ***REMOVED***
+	e.expr.emitGetter(putOnStack)
+	if putOnStack ***REMOVED***
+		e.c.block.breaks = append(e.c.block.breaks, len(e.c.p.code))
+		e.c.emit(nil)
 	***REMOVED***
 ***REMOVED***
