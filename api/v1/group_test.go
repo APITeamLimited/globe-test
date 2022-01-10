@@ -29,6 +29,8 @@ import (
 )
 
 func TestNewCheck(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	og, err := lib.NewGroup("", nil)
 	assert.NoError(t, err)
 	oc, err := lib.NewCheck("my check", og)
@@ -44,7 +46,11 @@ func TestNewCheck(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNewGroup(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	t.Run("simple", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		og, err := lib.NewGroup("My Group", nil)
 		assert.NoError(t, err)
 
@@ -55,6 +61,8 @@ func TestNewGroup(t *testing.T) ***REMOVED***
 		assert.Empty(t, g.Groups)
 	***REMOVED***)
 	t.Run("groups", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		root, _ := lib.NewGroup("My Group", nil)
 		child, _ := root.Group("Child")
 		inner, _ := child.Group("Inner")
@@ -79,6 +87,8 @@ func TestNewGroup(t *testing.T) ***REMOVED***
 		assert.Equal(t, root.ID, g.Groups[0].Groups[0].Parent.Parent.ID)
 	***REMOVED***)
 	t.Run("checks", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		og, _ := lib.NewGroup("My Group", nil)
 		check, _ := og.Check("my check")
 
@@ -95,11 +105,17 @@ func TestNewGroup(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestFlattenGroup(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	t.Run("blank", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		g := &Group***REMOVED******REMOVED***
 		assert.EqualValues(t, []*Group***REMOVED***g***REMOVED***, FlattenGroup(g))
 	***REMOVED***)
 	t.Run("one level", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		g := &Group***REMOVED******REMOVED***
 		g1 := &Group***REMOVED***Parent: g***REMOVED***
 		g2 := &Group***REMOVED***Parent: g***REMOVED***
@@ -107,6 +123,8 @@ func TestFlattenGroup(t *testing.T) ***REMOVED***
 		assert.EqualValues(t, []*Group***REMOVED***g, g1, g2***REMOVED***, FlattenGroup(g))
 	***REMOVED***)
 	t.Run("two levels", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		g := &Group***REMOVED******REMOVED***
 		g1 := &Group***REMOVED***Parent: g***REMOVED***
 		g1a := &Group***REMOVED***Parent: g1***REMOVED***

@@ -25,8 +25,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/manyminds/api2go/jsonapi"
-
 	"go.k6.io/k6/api/common"
 )
 
@@ -42,11 +40,15 @@ type SetupData struct ***REMOVED***
 ***REMOVED***
 
 // GetName is a dummy method so we can satisfy the jsonapi.EntityNamer interface
+// Deprecated: use a constant value instead
+// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
 func (sd SetupData) GetName() string ***REMOVED***
 	return "setupData"
 ***REMOVED***
 
 // GetID is a dummy method so we can satisfy the jsonapi.MarshalIdentifier interface
+// Deprecated: use a constant value instead
+// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
 func (sd SetupData) GetID() string ***REMOVED***
 	return "default"
 ***REMOVED***
@@ -57,9 +59,9 @@ func handleSetupDataOutput(rw http.ResponseWriter, setupData json.RawMessage) **
 	var data []byte
 
 	if setupData == nil ***REMOVED***
-		data, err = jsonapi.Marshal(NullSetupData***REMOVED***Data: nil***REMOVED***)
+		data, err = json.Marshal(newSetUpJSONAPI(NullSetupData***REMOVED***Data: nil***REMOVED***))
 	***REMOVED*** else ***REMOVED***
-		data, err = jsonapi.Marshal(SetupData***REMOVED***setupData***REMOVED***)
+		data, err = json.Marshal(newSetUpJSONAPI(SetupData***REMOVED***setupData***REMOVED***))
 	***REMOVED***
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)

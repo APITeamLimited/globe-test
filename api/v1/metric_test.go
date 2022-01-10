@@ -31,6 +31,8 @@ import (
 )
 
 func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	values := map[NullMetricType]string***REMOVED***
 		***REMOVED******REMOVED***:                    `null`,
 		***REMOVED***stats.Counter, true***REMOVED***: `"counter"`,
@@ -39,8 +41,12 @@ func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
 		***REMOVED***stats.Rate, true***REMOVED***:    `"rate"`,
 	***REMOVED***
 	t.Run("Marshal", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		for mt, val := range values ***REMOVED***
 			t.Run(val, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+
 				data, err := json.Marshal(mt)
 				assert.NoError(t, err)
 				assert.Equal(t, val, string(data))
@@ -48,8 +54,12 @@ func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		for mt, val := range values ***REMOVED***
 			t.Run(val, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+
 				var value NullMetricType
 				assert.NoError(t, json.Unmarshal([]byte(val), &value))
 				assert.Equal(t, mt, value)
@@ -59,14 +69,20 @@ func TestNullMetricTypeJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	values := map[NullValueType]string***REMOVED***
 		***REMOVED******REMOVED***:                    `null`,
 		***REMOVED***stats.Default, true***REMOVED***: `"default"`,
 		***REMOVED***stats.Time, true***REMOVED***:    `"time"`,
 	***REMOVED***
 	t.Run("Marshal", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		for mt, val := range values ***REMOVED***
 			t.Run(val, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+
 				data, err := json.Marshal(mt)
 				assert.NoError(t, err)
 				assert.Equal(t, val, string(data))
@@ -74,8 +90,12 @@ func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("Unmarshal", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		for mt, val := range values ***REMOVED***
 			t.Run(val, func(t *testing.T) ***REMOVED***
+				t.Parallel()
+
 				var value NullValueType
 				assert.NoError(t, json.Unmarshal([]byte(val), &value))
 				assert.Equal(t, mt, value)
@@ -85,6 +105,8 @@ func TestNullValueTypeJSON(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestNewMetric(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	old := stats.New("name", stats.Trend, stats.Time)
 	old.Tainted = null.BoolFrom(true)
 	m := NewMetric(old, 0)

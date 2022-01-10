@@ -21,10 +21,9 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
-
-	"github.com/manyminds/api2go/jsonapi"
 
 	"go.k6.io/k6/api/common"
 )
@@ -37,12 +36,11 @@ func handleGetMetrics(rw http.ResponseWriter, r *http.Request) ***REMOVED***
 		t = engine.ExecutionScheduler.GetState().GetCurrentTestRunDuration()
 	***REMOVED***
 
-	metrics := make([]Metric, 0)
-	for _, m := range engine.Metrics ***REMOVED***
-		metrics = append(metrics, NewMetric(m, t))
-	***REMOVED***
+	engine.MetricsLock.Lock()
+	metrics := newMetricsJSONAPI(engine.Metrics, t)
+	engine.MetricsLock.Unlock()
 
-	data, err := jsonapi.Marshal(metrics)
+	data, err := json.Marshal(metrics)
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return
@@ -58,22 +56,13 @@ func handleGetMetric(rw http.ResponseWriter, r *http.Request, id string) ***REMO
 		t = engine.ExecutionScheduler.GetState().GetCurrentTestRunDuration()
 	***REMOVED***
 
-	var metric Metric
-	var found bool
-	for _, m := range engine.Metrics ***REMOVED***
-		if m.Name == id ***REMOVED***
-			metric = NewMetric(m, t)
-			found = true
-			break
-		***REMOVED***
-	***REMOVED***
-
-	if !found ***REMOVED***
+	metric, ok := engine.Metrics[id]
+	if !ok ***REMOVED***
 		apiError(rw, "Not Found", "No metric with that ID was found", http.StatusNotFound)
 		return
 	***REMOVED***
 
-	data, err := jsonapi.Marshal(metric)
+	data, err := json.Marshal(newMetricEnvelope(metric, t))
 	if err != nil ***REMOVED***
 		apiError(rw, "Encoding error", err.Error(), http.StatusInternalServerError)
 		return

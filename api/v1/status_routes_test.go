@@ -29,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/manyminds/api2go/jsonapi"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +43,8 @@ import (
 )
 
 func TestGetStatus(t *testing.T) ***REMOVED***
+	t.Parallel()
+
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
 	execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED******REMOVED***, logger)
@@ -59,17 +60,23 @@ func TestGetStatus(t *testing.T) ***REMOVED***
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 
 	t.Run("document", func(t *testing.T) ***REMOVED***
-		var doc jsonapi.Document
+		t.Parallel()
+
+		var doc StatusJSONAPI
 		assert.NoError(t, json.Unmarshal(rw.Body.Bytes(), &doc))
-		if !assert.NotNil(t, doc.Data.DataObject) ***REMOVED***
-			return
-		***REMOVED***
-		assert.Equal(t, "status", doc.Data.DataObject.Type)
+		assert.Equal(t, "status", doc.Data.Type)
 	***REMOVED***)
 
 	t.Run("status", func(t *testing.T) ***REMOVED***
-		var status Status
-		assert.NoError(t, jsonapi.Unmarshal(rw.Body.Bytes(), &status))
+		t.Parallel()
+
+		var statusEnvelop StatusJSONAPI
+
+		err := json.Unmarshal(rw.Body.Bytes(), &statusEnvelop)
+		assert.NoError(t, err)
+
+		status := statusEnvelop.Status()
+
 		assert.True(t, status.Paused.Valid)
 		assert.True(t, status.VUs.Valid)
 		assert.True(t, status.VUsMax.Valid)
@@ -79,16 +86,43 @@ func TestGetStatus(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestPatchStatus(t *testing.T) ***REMOVED***
-	testdata := map[string]struct ***REMOVED***
-		StatusCode int
-		Status     Status
+	t.Parallel()
+
+	testData := map[string]struct ***REMOVED***
+		ExpectedStatusCode int
+		ExpectedStatus     Status
+		Payload            []byte
 	***REMOVED******REMOVED***
-		"nothing":               ***REMOVED***200, Status***REMOVED******REMOVED******REMOVED***,
-		"paused":                ***REMOVED***200, Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED******REMOVED***,
-		"max vus":               ***REMOVED***200, Status***REMOVED***VUsMax: null.IntFrom(20)***REMOVED******REMOVED***,
-		"max vus below initial": ***REMOVED***400, Status***REMOVED***VUsMax: null.IntFrom(5)***REMOVED******REMOVED***,
-		"too many vus":          ***REMOVED***400, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED******REMOVED***,
-		"vus":                   ***REMOVED***200, Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED******REMOVED***,
+		"nothing": ***REMOVED***
+			ExpectedStatusCode: 200,
+			ExpectedStatus:     Status***REMOVED******REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":null,"vus-max":null,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
+		"paused": ***REMOVED***
+			ExpectedStatusCode: 200,
+			ExpectedStatus:     Status***REMOVED***Paused: null.BoolFrom(true)***REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":true,"vus":null,"vus-max":null,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
+		"max vus": ***REMOVED***
+			ExpectedStatusCode: 200,
+			ExpectedStatus:     Status***REMOVED***VUsMax: null.IntFrom(20)***REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":null,"vus-max":20,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
+		"max vus below initial": ***REMOVED***
+			ExpectedStatusCode: 400,
+			ExpectedStatus:     Status***REMOVED***VUsMax: null.IntFrom(5)***REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":null,"vus-max":5,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
+		"too many vus": ***REMOVED***
+			ExpectedStatusCode: 400,
+			ExpectedStatus:     Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(0)***REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":10,"vus-max":0,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
+		"vus": ***REMOVED***
+			ExpectedStatusCode: 200,
+			ExpectedStatus:     Status***REMOVED***VUs: null.IntFrom(10), VUsMax: null.IntFrom(10)***REMOVED***,
+			Payload:            []byte(`***REMOVED***"data":***REMOVED***"type":"status","id":"default","attributes":***REMOVED***"status":0,"paused":null,"vus":10,"vus-max":10,"stopped":false,"running":false,"tainted":false***REMOVED******REMOVED******REMOVED***`),
+		***REMOVED***,
 	***REMOVED***
 	logger := logrus.New()
 	logger.SetOutput(testutils.NewTestOutput(t))
@@ -102,8 +136,10 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
-	for name, indata := range testdata ***REMOVED***
+	for name, testCase := range testData ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
 			execScheduler, err := local.NewExecutionScheduler(&minirunner.MiniRunner***REMOVED***Options: options***REMOVED***, logger)
 			require.NoError(t, err)
 			engine, err := core.NewEngine(execScheduler, options, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
@@ -117,29 +153,25 @@ func TestPatchStatus(t *testing.T) ***REMOVED***
 			// wait for the executor to initialize to avoid a potential data race below
 			time.Sleep(100 * time.Millisecond)
 
-			body, err := jsonapi.Marshal(indata.Status)
-			require.NoError(t, err)
-
 			rw := httptest.NewRecorder()
-			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v1/status", bytes.NewReader(body)))
+			NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "PATCH", "/v1/status", bytes.NewReader(testCase.Payload)))
 			res := rw.Result()
 
-			if !assert.Equal(t, indata.StatusCode, res.StatusCode) ***REMOVED***
-				return
-			***REMOVED***
-			if indata.StatusCode != 200 ***REMOVED***
+			require.Equal(t, testCase.ExpectedStatusCode, res.StatusCode)
+
+			if testCase.ExpectedStatusCode != 200 ***REMOVED***
 				return
 			***REMOVED***
 
 			status := NewStatus(engine)
-			if indata.Status.Paused.Valid ***REMOVED***
-				assert.Equal(t, indata.Status.Paused, status.Paused)
+			if testCase.ExpectedStatus.Paused.Valid ***REMOVED***
+				assert.Equal(t, testCase.ExpectedStatus.Paused, status.Paused)
 			***REMOVED***
-			if indata.Status.VUs.Valid ***REMOVED***
-				assert.Equal(t, indata.Status.VUs, status.VUs)
+			if testCase.ExpectedStatus.VUs.Valid ***REMOVED***
+				assert.Equal(t, testCase.ExpectedStatus.VUs, status.VUs)
 			***REMOVED***
-			if indata.Status.VUsMax.Valid ***REMOVED***
-				assert.Equal(t, indata.Status.VUsMax, status.VUsMax)
+			if testCase.ExpectedStatus.VUsMax.Valid ***REMOVED***
+				assert.Equal(t, testCase.ExpectedStatus.VUsMax, status.VUsMax)
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
