@@ -18,9 +18,11 @@
  *
  */
 
+// Package loader is about loading files from either the filesystem or through https requests.
 package loader
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -97,33 +99,7 @@ func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED*
 	***REMOVED***
 
 	if moduleSpecifier[0] == '.' || moduleSpecifier[0] == '/' || filepath.IsAbs(moduleSpecifier) ***REMOVED***
-		if pwd.Opaque != "" ***REMOVED*** // this is a loader reference
-			parts := strings.SplitN(pwd.Opaque, "/", 2)
-			if moduleSpecifier[0] == '/' ***REMOVED***
-				return &url.URL***REMOVED***Opaque: path.Join(parts[0], moduleSpecifier)***REMOVED***, nil
-			***REMOVED***
-			return &url.URL***REMOVED***Opaque: path.Join(parts[0], path.Join(path.Dir(parts[1]+"/"), moduleSpecifier))***REMOVED***, nil
-		***REMOVED***
-
-		// The file is in format like C:/something/path.js. But this will be decoded as scheme `C`
-		// ... which is not what we want we want it to be decode as file:///C:/something/path.js
-		if filepath.VolumeName(moduleSpecifier) != "" ***REMOVED***
-			moduleSpecifier = "/" + moduleSpecifier
-		***REMOVED***
-
-		// we always want for the pwd to end in a slash, but filepath/path.Clean strips it so we read
-		// it if it's missing
-		var finalPwd = pwd
-		if pwd.Opaque != "" ***REMOVED***
-			if !strings.HasSuffix(pwd.Opaque, "/") ***REMOVED***
-				finalPwd = &url.URL***REMOVED***Opaque: pwd.Opaque + "/"***REMOVED***
-			***REMOVED***
-		***REMOVED*** else if !strings.HasSuffix(pwd.Path, "/") ***REMOVED***
-			finalPwd = &url.URL***REMOVED******REMOVED***
-			*finalPwd = *pwd
-			finalPwd.Path += "/"
-		***REMOVED***
-		return finalPwd.Parse(moduleSpecifier)
+		return resolveFilePath(pwd, moduleSpecifier)
 	***REMOVED***
 
 	if strings.Contains(moduleSpecifier, "://") ***REMOVED***
@@ -153,6 +129,36 @@ func Resolve(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED*
 		return u, nil
 	***REMOVED***
 	return &url.URL***REMOVED***Opaque: moduleSpecifier***REMOVED***, nil
+***REMOVED***
+
+func resolveFilePath(pwd *url.URL, moduleSpecifier string) (*url.URL, error) ***REMOVED***
+	if pwd.Opaque != "" ***REMOVED*** // this is a loader reference
+		parts := strings.SplitN(pwd.Opaque, "/", 2)
+		if moduleSpecifier[0] == '/' ***REMOVED***
+			return &url.URL***REMOVED***Opaque: path.Join(parts[0], moduleSpecifier)***REMOVED***, nil
+		***REMOVED***
+		return &url.URL***REMOVED***Opaque: path.Join(parts[0], path.Join(path.Dir(parts[1]+"/"), moduleSpecifier))***REMOVED***, nil
+	***REMOVED***
+
+	// The file is in format like C:/something/path.js. But this will be decoded as scheme `C`
+	// ... which is not what we want we want it to be decode as file:///C:/something/path.js
+	if filepath.VolumeName(moduleSpecifier) != "" ***REMOVED***
+		moduleSpecifier = "/" + moduleSpecifier
+	***REMOVED***
+
+	// we always want for the pwd to end in a slash, but filepath/path.Clean strips it so we read
+	// it if it's missing
+	finalPwd := pwd
+	if pwd.Opaque != "" ***REMOVED***
+		if !strings.HasSuffix(pwd.Opaque, "/") ***REMOVED***
+			finalPwd = &url.URL***REMOVED***Opaque: pwd.Opaque + "/"***REMOVED***
+		***REMOVED***
+	***REMOVED*** else if !strings.HasSuffix(pwd.Path, "/") ***REMOVED***
+		finalPwd = &url.URL***REMOVED******REMOVED***
+		*finalPwd = *pwd
+		finalPwd.Path += "/"
+	***REMOVED***
+	return finalPwd.Parse(moduleSpecifier)
 ***REMOVED***
 
 // Dir returns the directory for the path.
@@ -203,7 +209,7 @@ func Load(
 		return nil, err
 	***REMOVED***
 	if scheme == "https" ***REMOVED***
-		var finalModuleSpecifierURL = &url.URL***REMOVED******REMOVED***
+		finalModuleSpecifierURL := &url.URL***REMOVED******REMOVED***
 
 		switch ***REMOVED***
 		case moduleSpecifier.Opaque != "": // This is loader
@@ -226,7 +232,7 @@ func Load(
 			result.URL = moduleSpecifier
 			// TODO maybe make an afero.Fs which makes request directly and than use CacheOnReadFs
 			// on top of as with the `file` scheme fs
-			_ = afero.WriteFile(filesystems[scheme], pathOnFs, result.Data, 0644)
+			_ = afero.WriteFile(filesystems[scheme], pathOnFs, result.Data, 0o644)
 			return result, nil
 		***REMOVED***
 
@@ -255,7 +261,7 @@ func resolveUsingLoaders(logger logrus.FieldLogger, name string) (*url.URL, erro
 ***REMOVED***
 
 func loadRemoteURL(logger logrus.FieldLogger, u *url.URL) (*SourceData, error) ***REMOVED***
-	var oldQuery = u.RawQuery
+	oldQuery := u.RawQuery
 	if u.RawQuery != "" ***REMOVED***
 		u.RawQuery += "&"
 	***REMOVED***
@@ -292,7 +298,13 @@ func pickLoader(path string) (string, loaderFunc, []string) ***REMOVED***
 func fetch(logger logrus.FieldLogger, u string) ([]byte, error) ***REMOVED***
 	logger.WithField("url", u).Debug("Fetching source...")
 	startTime := time.Now()
-	res, err := http.Get(u)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	res, err := http.DefaultClient.Do(req)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
