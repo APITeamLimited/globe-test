@@ -334,6 +334,10 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	unbindInit()
 	*init.ctxPtr = nil
 
+	if vuID == 0 ***REMOVED***
+		init.allowOnlyOpenedFiles()
+	***REMOVED***
+
 	rt.SetRandSource(common.NewRandSource())
 
 	return nil
