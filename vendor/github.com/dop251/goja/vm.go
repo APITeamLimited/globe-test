@@ -4083,7 +4083,7 @@ type getTaggedTmplObject struct ***REMOVED***
 
 // As tagged template objects are not cached (because it's hard to ensure the cache is cleaned without using
 // finalizers) this wrapper is needed to override the equality method so that two objects for the same template
-// literal appeared be equal from the code's point of view.
+// literal appeared to be equal from the code's point of view.
 type taggedTemplateArray struct ***REMOVED***
 	*arrayObject
 	idPtr *[]Value
@@ -4099,11 +4099,15 @@ func (a *taggedTemplateArray) equal(other objectImpl) bool ***REMOVED***
 func (c *getTaggedTmplObject) exec(vm *vm) ***REMOVED***
 	cooked := vm.r.newArrayObject()
 	setArrayValues(cooked, c.cooked)
-	cooked.lengthProp.writable = false
-
 	raw := vm.r.newArrayObject()
 	setArrayValues(raw, c.raw)
+
+	cooked.propValueCount = len(c.cooked)
+	cooked.lengthProp.writable = false
+
+	raw.propValueCount = len(c.raw)
 	raw.lengthProp.writable = false
+
 	raw.preventExtensions(true)
 	raw.val.self = &taggedTemplateArray***REMOVED***
 		arrayObject: raw,
