@@ -135,9 +135,8 @@ func TestHandleSummaryResultError(t *testing.T) ***REMOVED***
 	assertEqual(t, "file summary 2", files[filePath2])
 ***REMOVED***
 
-func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
-	t.Parallel()
-
+//nolint:paralleltest // this test touchs RunType which is global variable
+func TestAbortTest(t *testing.T) ***REMOVED***
 	testCases := []struct ***REMOVED***
 		testFilename, expLogOutput string
 	***REMOVED******REMOVED***
@@ -200,7 +199,8 @@ func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
 	***REMOVED***
 ***REMOVED***
 
-func TestInitErrExitCode(t *testing.T) ***REMOVED*** //nolint: paralleltest
+func TestInitErrExitCode(t *testing.T) ***REMOVED***
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := testutils.NewLogger(t)

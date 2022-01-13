@@ -121,6 +121,7 @@ export default function() ***REMOVED***
 ***REMOVED***
 `
 
+//nolint:paralleltest // a lot of global variables, hopefully convert will just be dropped
 func TestIntegrationConvertCmd(t *testing.T) ***REMOVED***
 	t.Run("Correlate", func(t *testing.T) ***REMOVED***
 		harFile, err := filepath.Abs("correlate.har")

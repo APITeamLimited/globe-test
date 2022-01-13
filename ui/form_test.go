@@ -32,13 +32,13 @@ func TestForm(t *testing.T) ***REMOVED***
 	t.Run("Blank", func(t *testing.T) ***REMOVED***
 		data, err := Form***REMOVED******REMOVED***.Run(strings.NewReader(""), bytes.NewBuffer(nil))
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED******REMOVED***, data)
 	***REMOVED***)
 	t.Run("Banner", func(t *testing.T) ***REMOVED***
 		out := bytes.NewBuffer(nil)
 		data, err := Form***REMOVED***Banner: "Hi!"***REMOVED***.Run(strings.NewReader(""), out)
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED******REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED******REMOVED***, data)
 		assert.Equal(t, "Hi!\n\n", out.String())
 	***REMOVED***)
 	t.Run("Field", func(t *testing.T) ***REMOVED***
@@ -51,7 +51,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		out := bytes.NewBuffer(nil)
 		data, err := f.Run(strings.NewReader(in), out)
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"key": "Value"***REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED***"key": "Value"***REMOVED***, data)
 		assert.Equal(t, "  label: ", out.String())
 	***REMOVED***)
 	t.Run("Fields", func(t *testing.T) ***REMOVED***
@@ -65,7 +65,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		out := bytes.NewBuffer(nil)
 		data, err := f.Run(strings.NewReader(in), out)
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"a": "1", "b": "2"***REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***, data)
 		assert.Equal(t, "  label a:   label b: ", out.String())
 	***REMOVED***)
 	t.Run("Defaults", func(t *testing.T) ***REMOVED***
@@ -79,7 +79,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		out := bytes.NewBuffer(nil)
 		data, err := f.Run(strings.NewReader(in), out)
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"a": "default a", "b": "2"***REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED***"a": "default a", "b": "2"***REMOVED***, data)
 		assert.Equal(t, "  label a [default a]:   label b [default b]: ", out.String())
 	***REMOVED***)
 	t.Run("Errors", func(t *testing.T) ***REMOVED***
@@ -92,7 +92,7 @@ func TestForm(t *testing.T) ***REMOVED***
 		out := bytes.NewBuffer(nil)
 		data, err := f.Run(strings.NewReader(in), out)
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]interface***REMOVED******REMOVED******REMOVED***"key": "perfect"***REMOVED***, data)
+		assert.Equal(t, map[string]string***REMOVED***"key": "perfect"***REMOVED***, data)
 		assert.Equal(t, "  label: - invalid input, min length is 6\n  label: - invalid input, max length is 10\n  label: ", out.String())
 	***REMOVED***)
 ***REMOVED***

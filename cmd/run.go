@@ -63,7 +63,7 @@ const (
 //nolint:gochecknoglobals
 var runType = os.Getenv("K6_TYPE")
 
-//nolint:funlen,gocognit,gocyclo
+//nolint:funlen,gocognit,gocyclo,cyclop
 func getRunCmd(ctx context.Context, logger *logrus.Logger) *cobra.Command ***REMOVED***
 	// runCmd represents the run command.
 	runCmd := &cobra.Command***REMOVED***
@@ -176,7 +176,7 @@ a commandline interface for interacting with it.`,
 				for _, s := range execScheduler.GetExecutors() ***REMOVED***
 					pbs = append(pbs, s.GetProgress())
 				***REMOVED***
-				showProgress(progressCtx, conf, pbs, logger)
+				showProgress(progressCtx, pbs, logger)
 				progressBarWG.Done()
 			***REMOVED***()
 
@@ -365,7 +365,7 @@ func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
 	if err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	res, err := http.Post("https://reports.k6.io/", "application/json", bytes.NewBuffer(body))
+	res, err := http.Post("https://reports.k6.io/", "application/json", bytes.NewBuffer(body)) //nolint:noctx
 	defer func() ***REMOVED***
 		if err == nil ***REMOVED***
 			_ = res.Body.Close()
@@ -433,7 +433,7 @@ func handleSummaryResult(fs afero.Fs, stdOut, stdErr io.Writer, result map[strin
 		case "stderr":
 			return stdErr, nil
 		default:
-			return fs.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+			return fs.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 		***REMOVED***
 	***REMOVED***
 

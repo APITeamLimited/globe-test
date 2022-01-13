@@ -32,8 +32,10 @@ import (
 )
 
 // Verify that the fields implement the interface
-var _ Field = StringField***REMOVED******REMOVED***
-var _ Field = PasswordField***REMOVED******REMOVED***
+var (
+	_ Field = StringField***REMOVED******REMOVED***
+	_ Field = PasswordField***REMOVED******REMOVED***
+)
 
 // StringField is just a simple field for reading cleartext strings
 type StringField struct ***REMOVED***
@@ -81,13 +83,13 @@ func (f StringField) GetContents(r io.Reader) (string, error) ***REMOVED***
 ***REMOVED***
 
 // Clean trims the spaces in the string and checks for min and max length
-func (f StringField) Clean(s string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+func (f StringField) Clean(s string) (string, error) ***REMOVED***
 	s = strings.TrimSpace(s)
 	if f.Min != 0 && len(s) < f.Min ***REMOVED***
-		return nil, fmt.Errorf("invalid input, min length is %d", f.Min)
+		return "", fmt.Errorf("invalid input, min length is %d", f.Min)
 	***REMOVED***
 	if f.Max != 0 && len(s) > f.Max ***REMOVED***
-		return nil, fmt.Errorf("invalid input, max length is %d", f.Max)
+		return "", fmt.Errorf("invalid input, max length is %d", f.Max)
 	***REMOVED***
 	if s == "" ***REMOVED***
 		s = f.Default
@@ -138,9 +140,9 @@ func (f PasswordField) GetContents(r io.Reader) (string, error) ***REMOVED***
 ***REMOVED***
 
 // Clean just checks if the minimum length is exceeded, it doesn't trim the string!
-func (f PasswordField) Clean(s string) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+func (f PasswordField) Clean(s string) (string, error) ***REMOVED***
 	if f.Min != 0 && len(s) < f.Min ***REMOVED***
-		return nil, fmt.Errorf("invalid input, min length is %d", f.Min)
+		return "", fmt.Errorf("invalid input, min length is %d", f.Min)
 	***REMOVED***
 	return s, nil
 ***REMOVED***

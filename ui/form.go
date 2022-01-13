@@ -35,7 +35,7 @@ type Field interface ***REMOVED***
 	GetContents(io.Reader) (string, error) // Read the field contents from the supplied reader
 
 	// Sanitize user input and return the field's native type.
-	Clean(s string) (interface***REMOVED******REMOVED***, error)
+	Clean(s string) (string, error)
 ***REMOVED***
 
 // A Form used to handle user interactions.
@@ -45,14 +45,14 @@ type Form struct ***REMOVED***
 ***REMOVED***
 
 // Run executes the form against the specified input and output.
-func (f Form) Run(r io.Reader, w io.Writer) (map[string]interface***REMOVED******REMOVED***, error) ***REMOVED***
+func (f Form) Run(r io.Reader, w io.Writer) (map[string]string, error) ***REMOVED***
 	if f.Banner != "" ***REMOVED***
 		if _, err := fmt.Fprintln(w, color.BlueString(f.Banner)+"\n"); err != nil ***REMOVED***
 			return nil, err
 		***REMOVED***
 	***REMOVED***
 
-	data := make(map[string]interface***REMOVED******REMOVED***, len(f.Fields))
+	data := make(map[string]string, len(f.Fields))
 	for _, field := range f.Fields ***REMOVED***
 		for ***REMOVED***
 			displayLabel := field.GetLabel()

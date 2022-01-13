@@ -34,8 +34,8 @@ func getVersionCmd() *cobra.Command ***REMOVED***
 		Use:   "version",
 		Short: "Show application version",
 		Long:  `Show the application version and exit.`,
-		Run: func(cmd *cobra.Command, args []string) ***REMOVED***
-			fmt.Println("k6 v" + consts.FullVersion())
+		Run: func(_ *cobra.Command, _ []string) ***REMOVED***
+			fmt.Println("k6 v" + consts.FullVersion()) //nolint:forbidigo // we probably shouldn't do that though
 		***REMOVED***,
 	***REMOVED***
 	return versionCmd

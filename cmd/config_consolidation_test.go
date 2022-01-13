@@ -240,7 +240,8 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 		***REMOVED***,
 		***REMOVED***opts***REMOVED***cli: []string***REMOVED***"-u", "1", "-i", "6", "-d", "10s"***REMOVED******REMOVED***, exp***REMOVED******REMOVED***, func(t *testing.T, c Config) ***REMOVED***
 			verifySharedIters(I(1), I(6))(t, c)
-			sharedIterConfig := c.Scenarios[lib.DefaultScenarioName].(executor.SharedIterationsConfig)
+			sharedIterConfig, ok := c.Scenarios[lib.DefaultScenarioName].(executor.SharedIterationsConfig)
+			require.True(t, ok)
 			assert.Equal(t, sharedIterConfig.MaxDuration.TimeDuration(), 10*time.Second)
 		***REMOVED******REMOVED***,
 		// This should get a validation error since VUs are more than the shared iterations
@@ -535,6 +536,7 @@ func runTestCase(
 	newFlagSet flagSetInit,
 	logHook *testutils.SimpleLogrusHook,
 ) ***REMOVED***
+	t.Helper()
 	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
 	output := testutils.NewTestOutput(t)
 	logrus.SetOutput(output)
@@ -595,8 +597,7 @@ func runTestCase(
 	***REMOVED***
 	require.NoError(t, err)
 
-	warnings := logHook.Drain()
-	if testCase.expected.logWarning ***REMOVED***
+	if warnings := logHook.Drain(); testCase.expected.logWarning ***REMOVED***
 		assert.NotEmpty(t, warnings)
 	***REMOVED*** else ***REMOVED***
 		assert.Empty(t, warnings)
@@ -614,6 +615,7 @@ func runTestCase(
 	***REMOVED***
 ***REMOVED***
 
+//nolint:paralleltest // see comments in test
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
 	// to mess with shared global objects (env vars, variables, the log, ... santa?)
@@ -623,6 +625,7 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 	defer logrus.SetOutput(os.Stderr)
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
+		tcNum, testCase := tcNum, testCase
 		flagSetInits := testCase.options.cliFlagSetInits
 		if flagSetInits == nil ***REMOVED*** // handle the most common case
 			flagSetInits = mostFlagSets()
@@ -630,7 +633,7 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 		for fsNum, flagSet := range flagSetInits ***REMOVED***
 			// I want to paralelize this, but I cannot... due to global variables and other
 			// questionable architectural choices... :|
-			testCase, flagSet := testCase, flagSet
+			fsNum, flagSet := fsNum, flagSet
 			t.Run(
 				fmt.Sprintf("TestCase#%d_FlagSet#%d", tcNum, fsNum),
 				func(t *testing.T) ***REMOVED*** runTestCase(t, testCase, flagSet, &logHook) ***REMOVED***,

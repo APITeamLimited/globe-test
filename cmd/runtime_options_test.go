@@ -289,6 +289,7 @@ var runtimeOptionsTestCases = map[string]runtimeOptionsTestCase***REMOVED*** //n
 ***REMOVED***
 
 func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED***
+	t.Helper()
 	flags := runtimeOptionFlagSet(tc.useSysEnv)
 	require.NoError(t, flags.Parse(tc.cliFlags))
 
@@ -362,6 +363,7 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 ***REMOVED***
 
 func TestRuntimeOptions(t *testing.T) ***REMOVED***
+	t.Parallel()
 	for name, tc := range runtimeOptionsTestCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("RuntimeOptions test '%s'", name), func(t *testing.T) ***REMOVED***

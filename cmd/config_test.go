@@ -49,6 +49,7 @@ type testCmdTest struct ***REMOVED***
 ***REMOVED***
 
 func TestConfigCmd(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := []testCmdData***REMOVED***
 		***REMOVED***
 			Name: "Out",
@@ -75,8 +76,10 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 
 	for _, data := range testdata ***REMOVED***
 		t.Run(data.Name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for _, test := range data.Tests ***REMOVED***
 				t.Run(`"`+test.Name+`"`, func(t *testing.T) ***REMOVED***
+					t.Parallel()
 					fs := configFlagSet()
 					fs.AddFlagSet(optionFlagSet())
 					assert.NoError(t, fs.Parse(test.Args))
@@ -90,6 +93,7 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
+//nolint:paralleltest // this user testutils.SetEnv
 func TestConfigEnv(t *testing.T) ***REMOVED***
 	testdata := map[struct***REMOVED*** Name, Key string ***REMOVED***]map[string]func(Config)***REMOVED***
 		***REMOVED***"Linger", "K6_LINGER"***REMOVED***: ***REMOVED***
@@ -125,15 +129,19 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestConfigApply(t *testing.T) ***REMOVED***
+	t.Parallel()
 	t.Run("Linger", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Linger: null.BoolFrom(true)***REMOVED***)
 		assert.Equal(t, null.BoolFrom(true), conf.Linger)
 	***REMOVED***)
 	t.Run("NoUsageReport", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***NoUsageReport: null.BoolFrom(true)***REMOVED***)
 		assert.Equal(t, null.BoolFrom(true), conf.NoUsageReport)
 	***REMOVED***)
 	t.Run("Out", func(t *testing.T) ***REMOVED***
+		t.Parallel()
 		conf := Config***REMOVED******REMOVED***.Apply(Config***REMOVED***Out: []string***REMOVED***"influxdb"***REMOVED******REMOVED***)
 		assert.Equal(t, []string***REMOVED***"influxdb"***REMOVED***, conf.Out)
 
@@ -152,23 +160,37 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 		err    string
 	***REMOVED******REMOVED***
 		***REMOVED***"defaultOK", Config***REMOVED******REMOVED***, true, ""***REMOVED***,
-		***REMOVED***"defaultErr", Config***REMOVED******REMOVED***, false,
-			"executor default: function 'default' not found in exports"***REMOVED***,
-		***REMOVED***"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ScenarioConfigs***REMOVED***
-			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
-				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefault")***REMOVED***,
-				VUs:         null.IntFrom(1),
-				Iterations:  null.IntFrom(1),
-				MaxDuration: types.NullDurationFrom(time.Second),
-			***REMOVED******REMOVED******REMOVED******REMOVED***, true, "",
+		***REMOVED***
+			"defaultErr",
+			Config***REMOVED******REMOVED***,
+			false,
+			"executor default: function 'default' not found in exports",
 		***REMOVED***,
-		***REMOVED***"nonDefaultErr", Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ScenarioConfigs***REMOVED***
-			"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***BaseConfig: executor.BaseConfig***REMOVED***
-				Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefaultErr")***REMOVED***,
-				VUs:         null.IntFrom(1),
-				Iterations:  null.IntFrom(1),
-				MaxDuration: types.NullDurationFrom(time.Second),
-			***REMOVED******REMOVED******REMOVED******REMOVED***, false,
+		***REMOVED***
+			"nonDefaultOK", Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ScenarioConfigs***REMOVED***
+				"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***
+					BaseConfig: executor.BaseConfig***REMOVED***
+						Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefault"),
+					***REMOVED***,
+					VUs:         null.IntFrom(1),
+					Iterations:  null.IntFrom(1),
+					MaxDuration: types.NullDurationFrom(time.Second),
+				***REMOVED***,
+			***REMOVED******REMOVED******REMOVED***, true, "",
+		***REMOVED***,
+		***REMOVED***
+			"nonDefaultErr",
+			Config***REMOVED***Options: lib.Options***REMOVED***Scenarios: lib.ScenarioConfigs***REMOVED***
+				"per_vu_iters": executor.PerVUIterationsConfig***REMOVED***
+					BaseConfig: executor.BaseConfig***REMOVED***
+						Name: "per_vu_iters", Type: "per-vu-iterations", Exec: null.StringFrom("nonDefaultErr"),
+					***REMOVED***,
+					VUs:         null.IntFrom(1),
+					Iterations:  null.IntFrom(1),
+					MaxDuration: types.NullDurationFrom(time.Second),
+				***REMOVED***,
+			***REMOVED******REMOVED******REMOVED***,
+			false,
 			"executor per_vu_iters: function 'nonDefaultErr' not found in exports",
 		***REMOVED***,
 	***REMOVED***
@@ -176,6 +198,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			_, err := deriveAndValidateConfig(tc.conf,
 				func(_ string) bool ***REMOVED*** return tc.isExec ***REMOVED***)
 			if tc.err != "" ***REMOVED***

@@ -68,7 +68,7 @@ func (w *consoleWriter) Write(p []byte) (n int, err error) ***REMOVED***
 	if w.IsTTY ***REMOVED***
 		// Add a TTY code to erase till the end of line with each new line
 		// TODO: check how cross-platform this is...
-		p = bytes.Replace(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***, -1)
+		p = bytes.ReplaceAll(p, []byte***REMOVED***'\n'***REMOVED***, []byte***REMOVED***'\x1b', '[', '0', 'K', '\n'***REMOVED***)
 	***REMOVED***
 
 	w.Mutex.Lock()
@@ -184,7 +184,7 @@ func renderMultipleBars(
 ) (string, int) ***REMOVED***
 	lineEnd := "\n"
 	if isTTY ***REMOVED***
-		//TODO: check for cross platform support
+		// TODO: check for cross platform support
 		lineEnd = "\x1b[K\n" // erase till end of line
 	***REMOVED***
 
@@ -259,7 +259,7 @@ func renderMultipleBars(
 
 	if isTTY && goBack ***REMOVED***
 		// Clear screen and go back to the beginning
-		//TODO: check for cross platform support
+		// TODO: check for cross platform support
 		result[pbsCount+1] = fmt.Sprintf("\r\x1b[J\x1b[%dA", pbsCount+lineBreaks+1)
 	***REMOVED*** else ***REMOVED***
 		result[pbsCount+1] = ""
@@ -268,14 +268,11 @@ func renderMultipleBars(
 	return strings.Join(result, ""), longestLine
 ***REMOVED***
 
-//TODO: show other information here?
-//TODO: add a no-progress option that will disable these
-//TODO: don't use global variables...
-// nolint:funlen
-func showProgress(
-	ctx context.Context, conf Config,
-	pbs []*pb.ProgressBar, logger *logrus.Logger,
-) ***REMOVED***
+// TODO: show other information here?
+// TODO: add a no-progress option that will disable these
+// TODO: don't use global variables...
+// nolint:funlen,gocognit
+func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Logger) ***REMOVED***
 	if quiet ***REMOVED***
 		return
 	***REMOVED***
@@ -332,7 +329,7 @@ func showProgress(
 		***REMOVED***
 	***REMOVED***
 
-	//TODO: make configurable?
+	// TODO: make configurable?
 	updateFreq := 1 * time.Second
 	if stdoutTTY ***REMOVED***
 		updateFreq = 100 * time.Millisecond
