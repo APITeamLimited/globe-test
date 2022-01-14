@@ -17,35 +17,54 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
 package stats
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
+
+	"github.com/dop251/goja"
 
 	"go.k6.io/k6/lib/types"
 )
+
+const jsEnvSrc = `
+function p(pct) ***REMOVED***
+	return __sink__.P(pct/100.0);
+***REMOVED***;
+`
+
+var jsEnv *goja.Program
+
+func init() ***REMOVED***
+	pgm, err := goja.Compile("__env__", jsEnvSrc, true)
+	if err != nil ***REMOVED***
+		panic(err)
+	***REMOVED***
+	jsEnv = pgm
+***REMOVED***
 
 // Threshold is a representation of a single threshold for a single metric
 type Threshold struct ***REMOVED***
 	// Source is the text based source of the threshold
 	Source string
-	// LastFailed is a marker if the last testing of this threshold failed
+	// LastFailed is a makrer if the last testing of this threshold failed
 	LastFailed bool
 	// AbortOnFail marks if a given threshold fails that the whole test should be aborted
 	AbortOnFail bool
 	// AbortGracePeriod is a the minimum amount of time a test should be running before a failing
 	// this threshold will abort the test
 	AbortGracePeriod types.NullDuration
-	// parsed is the threshold expression parsed from the Source
-	parsed *thresholdExpression
+
+	pgm *goja.Program
+	rt  *goja.Runtime
 ***REMOVED***
 
-func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) (*Threshold, error) ***REMOVED***
-	parsedExpression, err := parseThresholdExpression(src)
+func newThreshold(src string, newThreshold *goja.Runtime, abortOnFail bool, gracePeriod types.NullDuration) (*Threshold, error) ***REMOVED***
+	pgm, err := goja.Compile("__threshold__", src, true)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -54,57 +73,23 @@ func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) 
 		Source:           src,
 		AbortOnFail:      abortOnFail,
 		AbortGracePeriod: gracePeriod,
-		parsed:           parsedExpression,
+		pgm:              pgm,
+		rt:               newThreshold,
 	***REMOVED***, nil
 ***REMOVED***
 
-func (t *Threshold) runNoTaint(sinks map[string]float64) (bool, error) ***REMOVED***
-	// Extract the sink value for the aggregation method used in the threshold
-	// expression
-	lhs, ok := sinks[t.parsed.AggregationMethod]
-	if !ok ***REMOVED***
-		return false, fmt.Errorf("unable to apply threshold %s over metrics; reason: "+
-			"no metric supporting the %s aggregation method found",
-			t.Source,
-			t.parsed.AggregationMethod)
+func (t Threshold) runNoTaint() (bool, error) ***REMOVED***
+	v, err := t.rt.RunProgram(t.pgm)
+	if err != nil ***REMOVED***
+		return false, err
 	***REMOVED***
-
-	// Apply the threshold expression operator to the left and
-	// right hand side values
-	var passes bool
-	switch t.parsed.Operator ***REMOVED***
-	case ">":
-		passes = lhs > t.parsed.Value
-	case ">=":
-		passes = lhs >= t.parsed.Value
-	case "<=":
-		passes = lhs <= t.parsed.Value
-	case "<":
-		passes = lhs < t.parsed.Value
-	case "==", "===":
-		// Considering a sink always maps to float64 values,
-		// strictly equal is equivalent to loosely equal
-		passes = lhs == t.parsed.Value
-	case "!=":
-		passes = lhs != t.parsed.Value
-	default:
-		// The parseThresholdExpression function should ensure that no invalid
-		// operator gets through, but let's protect our future selves anyhow.
-		return false, fmt.Errorf("unable to apply threshold %s over metrics; "+
-			"reason: %s is an invalid operator",
-			t.Source,
-			t.parsed.Operator,
-		)
-	***REMOVED***
-
-	// Perform the actual threshold verification
-	return passes, nil
+	return v.ToBoolean(), nil
 ***REMOVED***
 
-func (t *Threshold) run(sinks map[string]float64) (bool, error) ***REMOVED***
-	passes, err := t.runNoTaint(sinks)
-	t.LastFailed = !passes
-	return passes, err
+func (t *Threshold) run() (bool, error) ***REMOVED***
+	b, err := t.runNoTaint()
+	t.LastFailed = !b
+	return b, err
 ***REMOVED***
 
 type thresholdConfig struct ***REMOVED***
@@ -113,11 +98,11 @@ type thresholdConfig struct ***REMOVED***
 	AbortGracePeriod types.NullDuration `json:"delayAbortEval"`
 ***REMOVED***
 
-// used internally for JSON marshalling
+//used internally for JSON marshalling
 type rawThresholdConfig thresholdConfig
 
 func (tc *thresholdConfig) UnmarshalJSON(data []byte) error ***REMOVED***
-	// shortcircuit unmarshalling for simple string format
+	//shortcircuit unmarshalling for simple string format
 	if err := json.Unmarshal(data, &tc.Threshold); err == nil ***REMOVED***
 		return nil
 	***REMOVED***
@@ -137,9 +122,9 @@ func (tc thresholdConfig) MarshalJSON() ([]byte, error) ***REMOVED***
 
 // Thresholds is the combination of all Thresholds for a given metric
 type Thresholds struct ***REMOVED***
+	Runtime    *goja.Runtime
 	Thresholds []*Threshold
 	Abort      bool
-	sinked     map[string]float64
 ***REMOVED***
 
 // NewThresholds returns Thresholds objects representing the provided source strings
@@ -153,88 +138,60 @@ func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 ***REMOVED***
 
 func newThresholdsWithConfig(configs []thresholdConfig) (Thresholds, error) ***REMOVED***
-	thresholds := make([]*Threshold, len(configs))
-	sinked := make(map[string]float64)
+	rt := goja.New()
+	if _, err := rt.RunProgram(jsEnv); err != nil ***REMOVED***
+		return Thresholds***REMOVED******REMOVED***, fmt.Errorf("threshold builtin error: %w", err)
+	***REMOVED***
 
+	ts := make([]*Threshold, len(configs))
 	for i, config := range configs ***REMOVED***
-		t, err := newThreshold(config.Threshold, config.AbortOnFail, config.AbortGracePeriod)
+		t, err := newThreshold(config.Threshold, rt, config.AbortOnFail, config.AbortGracePeriod)
 		if err != nil ***REMOVED***
 			return Thresholds***REMOVED******REMOVED***, fmt.Errorf("threshold %d error: %w", i, err)
 		***REMOVED***
-		thresholds[i] = t
+		ts[i] = t
 	***REMOVED***
 
-	return Thresholds***REMOVED***thresholds, false, sinked***REMOVED***, nil
+	return Thresholds***REMOVED***rt, ts, false***REMOVED***, nil
 ***REMOVED***
 
-func (ts *Thresholds) runAll(timeSpentInTest time.Duration) (bool, error) ***REMOVED***
-	succeeded := true
-	for i, threshold := range ts.Thresholds ***REMOVED***
-		b, err := threshold.run(ts.sinked)
+func (ts *Thresholds) updateVM(sink Sink, t time.Duration) error ***REMOVED***
+	ts.Runtime.Set("__sink__", sink)
+	f := sink.Format(t)
+	for k, v := range f ***REMOVED***
+		ts.Runtime.Set(k, v)
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (ts *Thresholds) runAll(t time.Duration) (bool, error) ***REMOVED***
+	succ := true
+	for i, th := range ts.Thresholds ***REMOVED***
+		b, err := th.run()
 		if err != nil ***REMOVED***
 			return false, fmt.Errorf("threshold %d run error: %w", i, err)
 		***REMOVED***
-
 		if !b ***REMOVED***
-			succeeded = false
+			succ = false
 
-			if ts.Abort || !threshold.AbortOnFail ***REMOVED***
+			if ts.Abort || !th.AbortOnFail ***REMOVED***
 				continue
 			***REMOVED***
 
-			ts.Abort = !threshold.AbortGracePeriod.Valid ||
-				threshold.AbortGracePeriod.Duration < types.Duration(timeSpentInTest)
+			ts.Abort = !th.AbortGracePeriod.Valid ||
+				th.AbortGracePeriod.Duration < types.Duration(t)
 		***REMOVED***
 	***REMOVED***
-
-	return succeeded, nil
+	return succ, nil
 ***REMOVED***
 
 // Run processes all the thresholds with the provided Sink at the provided time and returns if any
 // of them fails
-func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***REMOVED***
-	// Initialize the sinks store
-	ts.sinked = make(map[string]float64)
-
-	// FIXME: Remove this comment as soon as the stats.Sink does not expose Format anymore.
-	//
-	// As of December 2021, this block reproduces the behavior of the
-	// stats.Sink.Format behavior. As we intend to try to get away from it,
-	// we instead implement the behavior directly here.
-	//
-	// For more details, see https://github.com/grafana/k6/issues/2320
-	switch sinkImpl := sink.(type) ***REMOVED***
-	case *CounterSink:
-		ts.sinked["count"] = sinkImpl.Value
-		ts.sinked["rate"] = sinkImpl.Value / (float64(duration) / float64(time.Second))
-	case *GaugeSink:
-		ts.sinked["value"] = sinkImpl.Value
-	case *TrendSink:
-		ts.sinked["min"] = sinkImpl.Min
-		ts.sinked["max"] = sinkImpl.Max
-		ts.sinked["avg"] = sinkImpl.Avg
-		ts.sinked["med"] = sinkImpl.Med
-
-		// Parse the percentile thresholds and insert them in
-		// the sinks mapping.
-		for _, threshold := range ts.Thresholds ***REMOVED***
-			if !strings.HasPrefix(threshold.parsed.AggregationMethod, "p(") ***REMOVED***
-				continue
-			***REMOVED***
-
-			ts.sinked[threshold.parsed.AggregationMethod] = sinkImpl.P(threshold.parsed.AggregationValue.Float64 / 100)
-		***REMOVED***
-	case *RateSink:
-		ts.sinked["rate"] = float64(sinkImpl.Trues) / float64(sinkImpl.Total)
-	case DummySink:
-		for k, v := range sinkImpl ***REMOVED***
-			ts.sinked[k] = v
-		***REMOVED***
-	default:
-		return false, fmt.Errorf("unable to run Thresholds; reason: unknown sink type")
+func (ts *Thresholds) Run(sink Sink, t time.Duration) (bool, error) ***REMOVED***
+	if err := ts.updateVM(sink, t); err != nil ***REMOVED***
+		return false, err
 	***REMOVED***
-
-	return ts.runAll(duration)
+	return ts.runAll(t)
 ***REMOVED***
 
 // UnmarshalJSON is implementation of json.Unmarshaler
