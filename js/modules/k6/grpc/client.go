@@ -53,7 +53,7 @@ import (
 	protoV1 "github.com/golang/protobuf/proto"
 
 	"go.k6.io/k6/js/common"
-	"go.k6.io/k6/lib"
+	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/stats"
 	reflectpb "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
@@ -69,15 +69,8 @@ var (
 type Client struct ***REMOVED***
 	mds  map[string]protoreflect.MethodDescriptor
 	conn *grpc.ClientConn
-***REMOVED***
 
-// XClient represents the Client constructor (e.g. `new grpc.Client()`) and
-// creates a new gPRC client object that can load protobuf definitions, connect
-// to servers and invoke RPC methods.
-func (*GRPC) XClient(ctxPtr *context.Context) interface***REMOVED******REMOVED*** ***REMOVED***
-	rt := common.GetRuntime(*ctxPtr)
-
-	return common.Bind(rt, &Client***REMOVED******REMOVED***, ctxPtr)
+	vu modules.VU
 ***REMOVED***
 
 // MethodInfo holds information on any parsed method descriptors that can be used by the goja VM
@@ -115,12 +108,12 @@ func walkFileDescriptors(seen map[string]struct***REMOVED******REMOVED***, fd *d
 ***REMOVED***
 
 // Load will parse the given proto files and make the file descriptors available to request.
-func (c *Client) Load(ctxPtr *context.Context, importPaths []string, filenames ...string) ([]MethodInfo, error) ***REMOVED***
-	if lib.GetState(*ctxPtr) != nil ***REMOVED***
+func (c *Client) Load(importPaths []string, filenames ...string) ([]MethodInfo, error) ***REMOVED***
+	if c.vu.State() != nil ***REMOVED***
 		return nil, errors.New("load must be called in the init context")
 	***REMOVED***
 
-	initEnv := common.GetInitEnv(*ctxPtr)
+	initEnv := c.vu.InitEnv()
 	if initEnv == nil ***REMOVED***
 		return nil, errors.New("missing init environment")
 	***REMOVED***
@@ -213,34 +206,15 @@ func (t transportCreds) ClientHandshake(ctx context.Context,
 ***REMOVED***
 
 // Connect is a block dial to the gRPC server at the given address (host:port)
-// nolint:funlen,cyclop
-func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
-	state := lib.GetState(*ctxPtr)
+func (c *Client) Connect(addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
+	state := c.vu.State() //nolint:ifshort
 	if state == nil ***REMOVED***
 		return false, errConnectInInitContext
 	***REMOVED***
-	isPlaintext, reflect, timeout := false, false, 60*time.Second
 
-	for k, v := range params ***REMOVED***
-		switch k ***REMOVED***
-		case "plaintext":
-			isPlaintext, _ = v.(bool)
-		case "timeout":
-			var err error
-			timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
-				return false, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
-		case "reflect":
-			var ok bool
-			reflect, ok = v.(bool)
-			if !ok ***REMOVED***
-				return false, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
-			***REMOVED***
-
-		default:
-			return false, fmt.Errorf("unknown connect param: %q", k)
-		***REMOVED***
+	p, err := c.parseConnectParams(params)
+	if err != nil ***REMOVED***
+		return false, err
 	***REMOVED***
 
 	// (rogchap) Even with FailOnNonTempDialError, if there is a TLS error this will timeout
@@ -249,6 +223,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 	// returns. We only need to close the channel to un-block in a non-error scenario;
 	// otherwise it can be GCd without closing as we return on an error on the channel.
 	errc := make(chan error, 1)
+
 	go func() ***REMOVED***
 		opts := []grpc.DialOption***REMOVED***
 			grpc.WithBlock(),
@@ -260,7 +235,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			opts = append(opts, grpc.WithUserAgent(ua.ValueOrZero()))
 		***REMOVED***
 
-		if !isPlaintext ***REMOVED***
+		if !p.IsPlaintext ***REMOVED***
 			tlsCfg := state.TLSConfig.Clone()
 			tlsCfg.NextProtos = []string***REMOVED***"h2"***REMOVED***
 
@@ -269,13 +244,12 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			// (rogchap) we create a wrapper for transport credentials so that we can report
 			// on any TLS errors.
 			creds := transportCreds***REMOVED***
-				credentials.NewTLS(tlsCfg),
-				errc,
+				TransportCredentials: credentials.NewTLS(tlsCfg),
+				errc:                 errc,
 			***REMOVED***
-			opts = append(opts, grpc.WithTransportCredentials(creds))
-		***REMOVED***
 
-		if isPlaintext ***REMOVED***
+			opts = append(opts, grpc.WithTransportCredentials(creds))
+		***REMOVED*** else ***REMOVED***
 			opts = append(opts, grpc.WithInsecure())
 		***REMOVED***
 
@@ -284,7 +258,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 		***REMOVED***
 		opts = append(opts, grpc.WithContextDialer(dialer))
 
-		ctx, cancel := context.WithTimeout(*ctxPtr, timeout)
+		ctx, cancel := context.WithTimeout(c.vu.Context(), p.Timeout)
 		defer cancel()
 
 		var err error
@@ -293,7 +267,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 			errc <- err
 			return
 		***REMOVED***
-		if reflect ***REMOVED***
+		if p.UseReflectionProtocol ***REMOVED***
 			err := c.reflect(ctx)
 			if err != nil ***REMOVED***
 				errc <- err
@@ -302,7 +276,7 @@ func (c *Client) Connect(ctxPtr *context.Context, addr string, params map[string
 		***REMOVED***
 		close(errc)
 	***REMOVED***()
-	err := <-errc
+	err = <-errc
 	return err == nil, err
 ***REMOVED***
 
@@ -414,14 +388,12 @@ func sendReceive(
 // Invoke creates and calls a unary RPC by fully qualified method name
 //nolint: funlen,gocognit,gocyclo,cyclop
 func (c *Client) Invoke(
-	ctxPtr *context.Context,
 	method string,
 	req goja.Value,
 	params map[string]interface***REMOVED******REMOVED***,
 ) (*Response, error) ***REMOVED***
-	ctx := *ctxPtr
-	rt := common.GetRuntime(ctx)
-	state := lib.GetState(ctx)
+	rt := c.vu.Runtime()
+	state := c.vu.State()
 	if state == nil ***REMOVED***
 		return nil, errInvokeRPCInInitContext
 	***REMOVED***
@@ -442,7 +414,7 @@ func (c *Client) Invoke(
 	tags := state.CloneTags()
 	timeout := 60 * time.Second
 
-	ctx = metadata.NewOutgoingContext(ctx, metadata.New(nil))
+	ctx := metadata.NewOutgoingContext(c.vu.Context(), metadata.New(nil))
 	for k, v := range params ***REMOVED***
 		switch k ***REMOVED***
 		case "headers":
@@ -591,7 +563,7 @@ func (*Client) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Cont
 
 // HandleRPC implements the stats.Handler interface
 func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMOVED***
-	state := lib.GetState(ctx)
+	state := c.vu.State()
 	tags := getTags(ctx)
 	switch s := stat.(type) ***REMOVED***
 	case *grpcstats.OutHeader:
@@ -625,6 +597,46 @@ func (c *Client) HandleRPC(ctx context.Context, stat grpcstats.RPCStats) ***REMO
 		httpDebugOption := state.Options.HTTPDebug.String
 		debugStat(stat, logger, httpDebugOption)
 	***REMOVED***
+***REMOVED***
+
+type connectParams struct ***REMOVED***
+	IsPlaintext           bool
+	UseReflectionProtocol bool
+	Timeout               time.Duration
+***REMOVED***
+
+func (c *Client) parseConnectParams(raw map[string]interface***REMOVED******REMOVED***) (connectParams, error) ***REMOVED***
+	params := connectParams***REMOVED***
+		IsPlaintext:           false,
+		UseReflectionProtocol: false,
+		Timeout:               time.Minute,
+	***REMOVED***
+	for k, v := range raw ***REMOVED***
+		switch k ***REMOVED***
+		case "plaintext":
+			var ok bool
+			params.IsPlaintext, ok = v.(bool)
+			if !ok ***REMOVED***
+				return params, fmt.Errorf("invalid plaintext value: '%#v', it needs to be boolean", v)
+			***REMOVED***
+		case "timeout":
+			var err error
+			params.Timeout, err = types.GetDurationValue(v)
+			if err != nil ***REMOVED***
+				return params, fmt.Errorf("invalid timeout value: %w", err)
+			***REMOVED***
+		case "reflect":
+			var ok bool
+			params.UseReflectionProtocol, ok = v.(bool)
+			if !ok ***REMOVED***
+				return params, fmt.Errorf("invalid reflect value: '%#v', it needs to be boolean", v)
+			***REMOVED***
+
+		default:
+			return params, fmt.Errorf("unknown connect param: %q", k)
+		***REMOVED***
+	***REMOVED***
+	return params, nil
 ***REMOVED***
 
 func debugStat(stat grpcstats.RPCStats, logger logrus.FieldLogger, httpDebugOption string) ***REMOVED***
