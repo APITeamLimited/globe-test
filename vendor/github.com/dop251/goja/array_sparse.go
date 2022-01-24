@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 	"reflect"
@@ -420,11 +421,11 @@ func (a *sparseArrayObject) sortLen() int64 ***REMOVED***
 ***REMOVED***
 
 func (a *sparseArrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
-	if v, exists := ctx.get(a); exists ***REMOVED***
+	if v, exists := ctx.get(a.val); exists ***REMOVED***
 		return v
 	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
-	ctx.put(a, arr)
+	ctx.put(a.val, arr)
 	var prevIdx uint32
 	for _, item := range a.items ***REMOVED***
 		idx := item.idx
@@ -456,4 +457,35 @@ func (a *sparseArrayObject) export(ctx *objectExportCtx) interface***REMOVED****
 
 func (a *sparseArrayObject) exportType() reflect.Type ***REMOVED***
 	return reflectTypeArray
+***REMOVED***
+
+func (a *sparseArrayObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	r := a.val.runtime
+	if iter := a.getSym(SymIterator, nil); iter == r.global.arrayValues || iter == nil ***REMOVED***
+		l := toIntStrict(int64(a.length))
+		if dst.Len() != l ***REMOVED***
+			if typ.Kind() == reflect.Array ***REMOVED***
+				return fmt.Errorf("cannot convert an Array into an array, lengths mismatch (have %d, need %d)", l, dst.Len())
+			***REMOVED*** else ***REMOVED***
+				dst.Set(reflect.MakeSlice(typ, l, l))
+			***REMOVED***
+		***REMOVED***
+		ctx.putTyped(a.val, typ, dst.Interface())
+		for _, item := range a.items ***REMOVED***
+			val := item.value
+			if p, ok := val.(*valueProperty); ok ***REMOVED***
+				val = p.get(a.val)
+			***REMOVED***
+			idx := toIntStrict(int64(item.idx))
+			if idx >= l ***REMOVED***
+				break
+			***REMOVED***
+			err := r.toReflectValue(val, dst.Index(idx), ctx)
+			if err != nil ***REMOVED***
+				return fmt.Errorf("could not convert array element %v to %v at %d: %w", item.value, typ, idx, err)
+			***REMOVED***
+		***REMOVED***
+		return nil
+	***REMOVED***
+	return a.baseObject.exportToArrayOrSlice(dst, typ, ctx)
 ***REMOVED***

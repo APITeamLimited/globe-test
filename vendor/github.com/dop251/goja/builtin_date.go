@@ -682,20 +682,20 @@ func _dateSetMilliseconds(year, mon, day, hours, min, sec int64, t time.Time, ca
 func (r *Runtime) dateproto_setMilliseconds(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		n := call.Argument(0).ToNumber()
+		if IsNaN(n) ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
+		msec := n.ToInteger()
+		sec := d.msec / 1e3
+		var ok bool
+		sec, msec, ok = _norm(sec, msec, 1e3)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			n := call.Argument(0).ToNumber()
-			if IsNaN(n) ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
-			msec := n.ToInteger()
-			sec := d.msec / 1e3
-			var ok bool
-			sec, msec, ok = _norm(sec, msec, 1e3)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(sec*1e3 + msec)
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -707,20 +707,20 @@ func (r *Runtime) dateproto_setMilliseconds(call FunctionCall) Value ***REMOVED*
 func (r *Runtime) dateproto_setUTCMilliseconds(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		n := call.Argument(0).ToNumber()
+		if IsNaN(n) ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
+		msec := n.ToInteger()
+		sec := d.msec / 1e3
+		var ok bool
+		sec, msec, ok = _norm(sec, msec, 1e3)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			n := call.Argument(0).ToNumber()
-			if IsNaN(n) ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
-			msec := n.ToInteger()
-			sec := d.msec / 1e3
-			var ok bool
-			sec, msec, ok = _norm(sec, msec, 1e3)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(sec*1e3 + msec)
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -732,12 +732,12 @@ func (r *Runtime) dateproto_setUTCMilliseconds(call FunctionCall) Value ***REMOV
 func (r *Runtime) dateproto_setSeconds(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.time(), call, -5, false)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.time(), call, -5, false)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -749,12 +749,12 @@ func (r *Runtime) dateproto_setSeconds(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setUTCSeconds(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -5, true)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -5, true)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -766,12 +766,12 @@ func (r *Runtime) dateproto_setUTCSeconds(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setMinutes(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.time(), call, -4, false)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.time(), call, -4, false)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -783,12 +783,12 @@ func (r *Runtime) dateproto_setMinutes(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setUTCMinutes(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -4, true)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -4, true)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -800,12 +800,12 @@ func (r *Runtime) dateproto_setUTCMinutes(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setHours(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.time(), call, -3, false)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.time(), call, -3, false)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -817,12 +817,12 @@ func (r *Runtime) dateproto_setHours(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setUTCHours(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.timeUTC(), call, -3, true)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.timeUTC(), call, -3, true)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -834,12 +834,12 @@ func (r *Runtime) dateproto_setUTCHours(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setDate(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 1), -2, false)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 1), -2, false)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -851,12 +851,12 @@ func (r *Runtime) dateproto_setDate(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setUTCDate(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 1), -2, true)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 1), -2, true)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -868,12 +868,12 @@ func (r *Runtime) dateproto_setUTCDate(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setMonth(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 2), -1, false)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.time(), limitCallArgs(call, 2), -1, false)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN
@@ -885,12 +885,12 @@ func (r *Runtime) dateproto_setMonth(call FunctionCall) Value ***REMOVED***
 func (r *Runtime) dateproto_setUTCMonth(call FunctionCall) Value ***REMOVED***
 	obj := r.toObject(call.This)
 	if d, ok := obj.self.(*dateObject); ok ***REMOVED***
+		t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 2), -1, true)
+		if !ok ***REMOVED***
+			d.unset()
+			return _NaN
+		***REMOVED***
 		if d.isSet() ***REMOVED***
-			t, ok := _dateSetFullYear(d.timeUTC(), limitCallArgs(call, 2), -1, true)
-			if !ok ***REMOVED***
-				d.unset()
-				return _NaN
-			***REMOVED***
 			return d.setTimeMs(timeToMsec(t))
 		***REMOVED*** else ***REMOVED***
 			return _NaN

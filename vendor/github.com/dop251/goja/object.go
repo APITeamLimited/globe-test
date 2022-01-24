@@ -142,7 +142,7 @@ func (p *PropertyDescriptor) complete() ***REMOVED***
 type objectExportCacheItem map[reflect.Type]interface***REMOVED******REMOVED***
 
 type objectExportCtx struct ***REMOVED***
-	cache map[objectImpl]interface***REMOVED******REMOVED***
+	cache map[*Object]interface***REMOVED******REMOVED***
 ***REMOVED***
 
 type objectImpl interface ***REMOVED***
@@ -193,6 +193,8 @@ type objectImpl interface ***REMOVED***
 
 	export(ctx *objectExportCtx) interface***REMOVED******REMOVED***
 	exportType() reflect.Type
+	exportToMap(m reflect.Value, typ reflect.Type, ctx *objectExportCtx) error
+	exportToArrayOrSlice(s reflect.Value, typ reflect.Type, ctx *objectExportCtx) error
 	equal(objectImpl) bool
 
 	iterateStringKeys() iterNextFunc
@@ -943,12 +945,12 @@ func (o *baseObject) swap(i, j int64) ***REMOVED***
 ***REMOVED***
 
 func (o *baseObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
-	if v, exists := ctx.get(o); exists ***REMOVED***
+	if v, exists := ctx.get(o.val); exists ***REMOVED***
 		return v
 	***REMOVED***
 	keys := o.stringKeys(false, nil)
 	m := make(map[string]interface***REMOVED******REMOVED***, len(keys))
-	ctx.put(o, m)
+	ctx.put(o.val, m)
 	for _, itemName := range keys ***REMOVED***
 		itemNameStr := itemName.String()
 		v := o.val.self.getStr(itemName.string(), nil)
@@ -964,6 +966,114 @@ func (o *baseObject) export(ctx *objectExportCtx) interface***REMOVED******REMOV
 
 func (o *baseObject) exportType() reflect.Type ***REMOVED***
 	return reflectTypeMap
+***REMOVED***
+
+func genericExportToMap(o *Object, dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	if dst.IsNil() ***REMOVED***
+		dst.Set(reflect.MakeMap(typ))
+	***REMOVED***
+	ctx.putTyped(o, typ, dst.Interface())
+	keyTyp := typ.Key()
+	elemTyp := typ.Elem()
+	needConvertKeys := !reflectTypeString.AssignableTo(keyTyp)
+	iter := &enumerableIter***REMOVED***
+		o:       o,
+		wrapped: o.self.iterateStringKeys(),
+	***REMOVED***
+	r := o.runtime
+	for item, next := iter.next(); next != nil; item, next = next() ***REMOVED***
+		var kv reflect.Value
+		var err error
+		if needConvertKeys ***REMOVED***
+			kv = reflect.New(keyTyp).Elem()
+			err = r.toReflectValue(item.name, kv, ctx)
+			if err != nil ***REMOVED***
+				return fmt.Errorf("could not convert map key %s to %v: %w", item.name.String(), typ, err)
+			***REMOVED***
+		***REMOVED*** else ***REMOVED***
+			kv = reflect.ValueOf(item.name.String())
+		***REMOVED***
+
+		ival := o.self.getStr(item.name.string(), nil)
+		if ival != nil ***REMOVED***
+			vv := reflect.New(elemTyp).Elem()
+			err = r.toReflectValue(ival, vv, ctx)
+			if err != nil ***REMOVED***
+				return fmt.Errorf("could not convert map value %v to %v at key %s: %w", ival, typ, item.name.String(), err)
+			***REMOVED***
+			dst.SetMapIndex(kv, vv)
+		***REMOVED*** else ***REMOVED***
+			dst.SetMapIndex(kv, reflect.Zero(elemTyp))
+		***REMOVED***
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
+func (o *baseObject) exportToMap(m reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	return genericExportToMap(o.val, m, typ, ctx)
+***REMOVED***
+
+func genericExportToArrayOrSlice(o *Object, dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) (err error) ***REMOVED***
+	r := o.runtime
+
+	if method := toMethod(r.getV(o, SymIterator)); method != nil ***REMOVED***
+		// iterable
+
+		var values []Value
+		// cannot change (append to) the slice once it's been put into the cache, so we need to know its length beforehand
+		ex := r.try(func() ***REMOVED***
+			values = r.iterableToList(o, method)
+		***REMOVED***)
+		if ex != nil ***REMOVED***
+			return ex
+		***REMOVED***
+		if dst.Len() != len(values) ***REMOVED***
+			if typ.Kind() == reflect.Array ***REMOVED***
+				return fmt.Errorf("cannot convert an iterable into an array, lengths mismatch (have %d, need %d)", len(values), dst.Len())
+			***REMOVED*** else ***REMOVED***
+				dst.Set(reflect.MakeSlice(typ, len(values), len(values)))
+			***REMOVED***
+		***REMOVED***
+		ctx.putTyped(o, typ, dst.Interface())
+		for i, val := range values ***REMOVED***
+			err = r.toReflectValue(val, dst.Index(i), ctx)
+			if err != nil ***REMOVED***
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED*** else ***REMOVED***
+		// array-like
+		var lp Value
+		if _, ok := o.self.assertCallable(); !ok ***REMOVED***
+			lp = o.self.getStr("length", nil)
+		***REMOVED***
+		if lp == nil ***REMOVED***
+			return fmt.Errorf("cannot convert %v to %v: not an array or iterable", o, typ)
+		***REMOVED***
+		l := toIntStrict(toLength(lp))
+		if dst.Len() != l ***REMOVED***
+			if typ.Kind() == reflect.Array ***REMOVED***
+				return fmt.Errorf("cannot convert an array-like object into an array, lengths mismatch (have %d, need %d)", l, dst.Len())
+			***REMOVED*** else ***REMOVED***
+				dst.Set(reflect.MakeSlice(typ, l, l))
+			***REMOVED***
+		***REMOVED***
+		ctx.putTyped(o, typ, dst.Interface())
+		for i := 0; i < l; i++ ***REMOVED***
+			val := nilSafe(o.self.getIdx(valueInt(i), nil))
+			err = r.toReflectValue(val, dst.Index(i), ctx)
+			if err != nil ***REMOVED***
+				return
+			***REMOVED***
+		***REMOVED***
+	***REMOVED***
+
+	return
+***REMOVED***
+
+func (o *baseObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	return genericExportToArrayOrSlice(o.val, dst, typ, ctx)
 ***REMOVED***
 
 type enumerableFlag int
@@ -1561,10 +1671,10 @@ func (o *guardedObject) deleteStr(name unistring.String, throw bool) bool ***REM
 	return res
 ***REMOVED***
 
-func (ctx *objectExportCtx) get(key objectImpl) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
+func (ctx *objectExportCtx) get(key *Object) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
 	if v, exists := ctx.cache[key]; exists ***REMOVED***
 		if item, ok := v.(objectExportCacheItem); ok ***REMOVED***
-			r, exists := item[key.exportType()]
+			r, exists := item[key.self.exportType()]
 			return r, exists
 		***REMOVED*** else ***REMOVED***
 			return v, true
@@ -1573,7 +1683,7 @@ func (ctx *objectExportCtx) get(key objectImpl) (interface***REMOVED******REMOVE
 	return nil, false
 ***REMOVED***
 
-func (ctx *objectExportCtx) getTyped(key objectImpl, typ reflect.Type) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
+func (ctx *objectExportCtx) getTyped(key *Object, typ reflect.Type) (interface***REMOVED******REMOVED***, bool) ***REMOVED***
 	if v, exists := ctx.cache[key]; exists ***REMOVED***
 		if item, ok := v.(objectExportCacheItem); ok ***REMOVED***
 			r, exists := item[typ]
@@ -1587,20 +1697,20 @@ func (ctx *objectExportCtx) getTyped(key objectImpl, typ reflect.Type) (interfac
 	return nil, false
 ***REMOVED***
 
-func (ctx *objectExportCtx) put(key objectImpl, value interface***REMOVED******REMOVED***) ***REMOVED***
+func (ctx *objectExportCtx) put(key *Object, value interface***REMOVED******REMOVED***) ***REMOVED***
 	if ctx.cache == nil ***REMOVED***
-		ctx.cache = make(map[objectImpl]interface***REMOVED******REMOVED***)
+		ctx.cache = make(map[*Object]interface***REMOVED******REMOVED***)
 	***REMOVED***
 	if item, ok := ctx.cache[key].(objectExportCacheItem); ok ***REMOVED***
-		item[key.exportType()] = value
+		item[key.self.exportType()] = value
 	***REMOVED*** else ***REMOVED***
 		ctx.cache[key] = value
 	***REMOVED***
 ***REMOVED***
 
-func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value interface***REMOVED******REMOVED***) ***REMOVED***
+func (ctx *objectExportCtx) putTyped(key *Object, typ reflect.Type, value interface***REMOVED******REMOVED***) ***REMOVED***
 	if ctx.cache == nil ***REMOVED***
-		ctx.cache = make(map[objectImpl]interface***REMOVED******REMOVED***)
+		ctx.cache = make(map[*Object]interface***REMOVED******REMOVED***)
 	***REMOVED***
 	v, exists := ctx.cache[key]
 	if exists ***REMOVED***
@@ -1608,7 +1718,7 @@ func (ctx *objectExportCtx) putTyped(key objectImpl, typ reflect.Type, value int
 			item[typ] = value
 		***REMOVED*** else ***REMOVED***
 			m := make(objectExportCacheItem, 2)
-			m[key.exportType()] = v
+			m[key.self.exportType()] = v
 			m[typ] = value
 			ctx.cache[key] = m
 		***REMOVED***

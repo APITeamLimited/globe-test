@@ -1,5 +1,12 @@
 package goja
 
+import (
+	"fmt"
+	"reflect"
+)
+
+var setExportType = reflectTypeArray
+
 type setObject struct ***REMOVED***
 	baseObject
 	m *orderedMap
@@ -36,6 +43,69 @@ func (o *setIterObject) next() Value ***REMOVED***
 func (so *setObject) init() ***REMOVED***
 	so.baseObject.init()
 	so.m = newOrderedMap(so.val.runtime.getHash())
+***REMOVED***
+
+func (so *setObject) exportType() reflect.Type ***REMOVED***
+	return setExportType
+***REMOVED***
+
+func (so *setObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	a := make([]interface***REMOVED******REMOVED***, so.m.size)
+	ctx.put(so.val, a)
+	iter := so.m.newIter()
+	for i := 0; i < len(a); i++ ***REMOVED***
+		entry := iter.next()
+		if entry == nil ***REMOVED***
+			break
+		***REMOVED***
+		a[i] = exportValue(entry.key, ctx)
+	***REMOVED***
+	return a
+***REMOVED***
+
+func (so *setObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	l := so.m.size
+	if dst.Len() != l ***REMOVED***
+		if typ.Kind() == reflect.Array ***REMOVED***
+			return fmt.Errorf("cannot convert a Set into an array, lengths mismatch: have %d, need %d)", l, dst.Len())
+		***REMOVED*** else ***REMOVED***
+			dst.Set(reflect.MakeSlice(typ, l, l))
+		***REMOVED***
+	***REMOVED***
+	ctx.putTyped(so.val, typ, dst.Interface())
+	iter := so.m.newIter()
+	r := so.val.runtime
+	for i := 0; i < l; i++ ***REMOVED***
+		entry := iter.next()
+		if entry == nil ***REMOVED***
+			break
+		***REMOVED***
+		err := r.toReflectValue(entry.key, dst.Index(i), ctx)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+	***REMOVED***
+	return nil
+***REMOVED***
+
+func (so *setObject) exportToMap(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	keyTyp := typ.Key()
+	elemTyp := typ.Elem()
+	iter := so.m.newIter()
+	r := so.val.runtime
+	for ***REMOVED***
+		entry := iter.next()
+		if entry == nil ***REMOVED***
+			break
+		***REMOVED***
+		keyVal := reflect.New(keyTyp).Elem()
+		err := r.toReflectValue(entry.key, keyVal, ctx)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		dst.SetMapIndex(keyVal, reflect.Zero(elemTyp))
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 func (r *Runtime) setProto_add(call FunctionCall) Value ***REMOVED***

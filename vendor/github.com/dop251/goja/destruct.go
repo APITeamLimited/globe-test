@@ -241,6 +241,14 @@ func (d *destructKeyedSource) exportType() reflect.Type ***REMOVED***
 	return d.w().exportType()
 ***REMOVED***
 
+func (d *destructKeyedSource) exportToMap(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	return d.w().exportToMap(dst, typ, ctx)
+***REMOVED***
+
+func (d *destructKeyedSource) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	return d.w().exportToArrayOrSlice(dst, typ, ctx)
+***REMOVED***
+
 func (d *destructKeyedSource) equal(impl objectImpl) bool ***REMOVED***
 	return d.w().equal(impl)
 ***REMOVED***

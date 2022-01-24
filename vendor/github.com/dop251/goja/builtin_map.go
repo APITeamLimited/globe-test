@@ -1,5 +1,11 @@
 package goja
 
+import (
+	"reflect"
+)
+
+var mapExportType = reflect.TypeOf([][2]interface***REMOVED******REMOVED******REMOVED******REMOVED***)
+
 type mapObject struct ***REMOVED***
 	baseObject
 	m *orderedMap
@@ -38,6 +44,56 @@ func (o *mapIterObject) next() Value ***REMOVED***
 func (mo *mapObject) init() ***REMOVED***
 	mo.baseObject.init()
 	mo.m = newOrderedMap(mo.val.runtime.getHash())
+***REMOVED***
+
+func (mo *mapObject) exportType() reflect.Type ***REMOVED***
+	return mapExportType
+***REMOVED***
+
+func (mo *mapObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
+	m := make([][2]interface***REMOVED******REMOVED***, mo.m.size)
+	ctx.put(mo.val, m)
+
+	iter := mo.m.newIter()
+	for i := 0; i < len(m); i++ ***REMOVED***
+		entry := iter.next()
+		if entry == nil ***REMOVED***
+			break
+		***REMOVED***
+		m[i][0] = exportValue(entry.key, ctx)
+		m[i][1] = exportValue(entry.value, ctx)
+	***REMOVED***
+
+	return m
+***REMOVED***
+
+func (mo *mapObject) exportToMap(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	if dst.IsNil() ***REMOVED***
+		dst.Set(reflect.MakeMap(typ))
+	***REMOVED***
+	ctx.putTyped(mo.val, typ, dst.Interface())
+	keyTyp := typ.Key()
+	elemTyp := typ.Elem()
+	iter := mo.m.newIter()
+	r := mo.val.runtime
+	for ***REMOVED***
+		entry := iter.next()
+		if entry == nil ***REMOVED***
+			break
+		***REMOVED***
+		keyVal := reflect.New(keyTyp).Elem()
+		err := r.toReflectValue(entry.key, keyVal, ctx)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		elemVal := reflect.New(elemTyp).Elem()
+		err = r.toReflectValue(entry.value, elemVal, ctx)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+		dst.SetMapIndex(keyVal, elemVal)
+	***REMOVED***
+	return nil
 ***REMOVED***
 
 func (r *Runtime) mapProto_clear(call FunctionCall) Value ***REMOVED***

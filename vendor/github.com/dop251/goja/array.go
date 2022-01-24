@@ -1,6 +1,7 @@
 package goja
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 	"reflect"
@@ -480,11 +481,11 @@ func (a *arrayObject) deleteIdx(idx valueInt, throw bool) bool ***REMOVED***
 ***REMOVED***
 
 func (a *arrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMOVED*** ***REMOVED***
-	if v, exists := ctx.get(a); exists ***REMOVED***
+	if v, exists := ctx.get(a.val); exists ***REMOVED***
 		return v
 	***REMOVED***
 	arr := make([]interface***REMOVED******REMOVED***, a.length)
-	ctx.put(a, arr)
+	ctx.put(a.val, arr)
 	if a.propValueCount == 0 && a.length == uint32(len(a.values)) && uint32(a.objCount) == a.length ***REMOVED***
 		for i, v := range a.values ***REMOVED***
 			if v != nil ***REMOVED***
@@ -504,6 +505,36 @@ func (a *arrayObject) export(ctx *objectExportCtx) interface***REMOVED******REMO
 
 func (a *arrayObject) exportType() reflect.Type ***REMOVED***
 	return reflectTypeArray
+***REMOVED***
+
+func (a *arrayObject) exportToArrayOrSlice(dst reflect.Value, typ reflect.Type, ctx *objectExportCtx) error ***REMOVED***
+	r := a.val.runtime
+	if iter := a.getSym(SymIterator, nil); iter == r.global.arrayValues || iter == nil ***REMOVED***
+		l := toIntStrict(int64(a.length))
+		if dst.Len() != l ***REMOVED***
+			if typ.Kind() == reflect.Array ***REMOVED***
+				return fmt.Errorf("cannot convert an Array into an array, lengths mismatch (have %d, need %d)", l, dst.Len())
+			***REMOVED*** else ***REMOVED***
+				dst.Set(reflect.MakeSlice(typ, l, l))
+			***REMOVED***
+		***REMOVED***
+		ctx.putTyped(a.val, typ, dst.Interface())
+		for i := 0; i < l; i++ ***REMOVED***
+			if i >= len(a.values) ***REMOVED***
+				break
+			***REMOVED***
+			val := a.values[i]
+			if p, ok := val.(*valueProperty); ok ***REMOVED***
+				val = p.get(a.val)
+			***REMOVED***
+			err := r.toReflectValue(val, dst.Index(i), ctx)
+			if err != nil ***REMOVED***
+				return fmt.Errorf("could not convert array element %v to %v at %d: %w", val, typ, i, err)
+			***REMOVED***
+		***REMOVED***
+		return nil
+	***REMOVED***
+	return a.baseObject.exportToArrayOrSlice(dst, typ, ctx)
 ***REMOVED***
 
 func (a *arrayObject) setValuesFromSparse(items []sparseArrayItem, newMaxIdx int) ***REMOVED***

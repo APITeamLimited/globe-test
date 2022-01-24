@@ -103,6 +103,12 @@ func (o *objectGoReflect) init() ***REMOVED***
 	default:
 		o.class = classObject
 		o.prototype = o.val.runtime.global.ObjectPrototype
+		if !o.value.CanAddr() ***REMOVED***
+			value := reflect.Indirect(reflect.New(o.value.Type()))
+			value.Set(o.value)
+			o.origValue = value
+			o.value = value
+		***REMOVED***
 	***REMOVED***
 	o.extensible = true
 
