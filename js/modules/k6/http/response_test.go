@@ -216,6 +216,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 
 		t.Run("NoResponseBody", func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(sr(`http.get("HTTPBIN_URL/json", ***REMOVED***responseType: 'none'***REMOVED***).json();`))
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "the body is null so we can't transform it to JSON"+
 				" - this likely was because of a request error getting the response")
 		***REMOVED***)
@@ -340,6 +341,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res.submitForm(***REMOVED*** formSelector: "#doesNotExist" ***REMOVED***)
 			`))
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), sr("no form found for selector '#doesNotExist' in response 'HTTPBIN_URL/forms/post'"))
 		***REMOVED***)
 
@@ -391,6 +393,7 @@ func TestResponse(t *testing.T) ***REMOVED***
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				res = res.clickLink(***REMOVED*** selector: 'a#doesNotExist' ***REMOVED***)
 			`))
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), sr("no element found for selector 'a#doesNotExist' in response 'HTTPBIN_URL/links/10/0'"))
 		***REMOVED***)
 
