@@ -95,64 +95,72 @@ const (
 	methodGet  = "get"
 )
 
-type HrefElement struct***REMOVED*** Element ***REMOVED***
-type MediaElement struct***REMOVED*** Element ***REMOVED***
-type FormFieldElement struct***REMOVED*** Element ***REMOVED***
-type ModElement struct***REMOVED*** Element ***REMOVED***
-type TableSectionElement struct***REMOVED*** Element ***REMOVED***
-type TableCellElement struct***REMOVED*** Element ***REMOVED***
+//revive:disable:exported
 
-type AnchorElement struct***REMOVED*** HrefElement ***REMOVED***
-type AreaElement struct***REMOVED*** HrefElement ***REMOVED***
-type AudioElement struct***REMOVED*** MediaElement ***REMOVED***
-type BaseElement struct***REMOVED*** Element ***REMOVED***
-type ButtonElement struct***REMOVED*** FormFieldElement ***REMOVED***
-type CanvasElement struct***REMOVED*** Element ***REMOVED***
-type DataElement struct***REMOVED*** Element ***REMOVED***
-type DataListElement struct***REMOVED*** Element ***REMOVED***
-type DelElement struct***REMOVED*** ModElement ***REMOVED***
-type InsElement struct***REMOVED*** ModElement ***REMOVED***
-type EmbedElement struct***REMOVED*** Element ***REMOVED***
-type FieldSetElement struct***REMOVED*** Element ***REMOVED***
-type FormElement struct***REMOVED*** Element ***REMOVED***
-type IFrameElement struct***REMOVED*** Element ***REMOVED***
-type ImageElement struct***REMOVED*** Element ***REMOVED***
-type InputElement struct***REMOVED*** FormFieldElement ***REMOVED***
-type KeygenElement struct***REMOVED*** Element ***REMOVED***
-type LabelElement struct***REMOVED*** Element ***REMOVED***
-type LegendElement struct***REMOVED*** Element ***REMOVED***
-type LiElement struct***REMOVED*** Element ***REMOVED***
-type LinkElement struct***REMOVED*** Element ***REMOVED***
-type MapElement struct***REMOVED*** Element ***REMOVED***
-type MetaElement struct***REMOVED*** Element ***REMOVED***
-type MeterElement struct***REMOVED*** Element ***REMOVED***
-type ObjectElement struct***REMOVED*** Element ***REMOVED***
-type OListElement struct***REMOVED*** Element ***REMOVED***
-type OptGroupElement struct***REMOVED*** Element ***REMOVED***
-type OptionElement struct***REMOVED*** Element ***REMOVED***
-type OutputElement struct***REMOVED*** Element ***REMOVED***
-type ParamElement struct***REMOVED*** Element ***REMOVED***
-type PreElement struct***REMOVED*** Element ***REMOVED***
-type ProgressElement struct***REMOVED*** Element ***REMOVED***
-type QuoteElement struct***REMOVED*** Element ***REMOVED***
-type ScriptElement struct***REMOVED*** Element ***REMOVED***
-type SelectElement struct***REMOVED*** Element ***REMOVED***
-type SourceElement struct***REMOVED*** Element ***REMOVED***
-type StyleElement struct***REMOVED*** Element ***REMOVED***
-type TableElement struct***REMOVED*** Element ***REMOVED***
-type TableHeadElement struct***REMOVED*** TableSectionElement ***REMOVED***
-type TableFootElement struct***REMOVED*** TableSectionElement ***REMOVED***
-type TableBodyElement struct***REMOVED*** TableSectionElement ***REMOVED***
-type TableRowElement struct***REMOVED*** Element ***REMOVED***
-type TableColElement struct***REMOVED*** Element ***REMOVED***
-type TableDataCellElement struct***REMOVED*** TableCellElement ***REMOVED***
-type TableHeaderCellElement struct***REMOVED*** TableCellElement ***REMOVED***
-type TextAreaElement struct***REMOVED*** Element ***REMOVED***
-type TimeElement struct***REMOVED*** Element ***REMOVED***
-type TitleElement struct***REMOVED*** Element ***REMOVED***
-type TrackElement struct***REMOVED*** Element ***REMOVED***
-type UListElement struct***REMOVED*** Element ***REMOVED***
-type VideoElement struct***REMOVED*** MediaElement ***REMOVED***
+type (
+	HrefElement         struct***REMOVED*** Element ***REMOVED***
+	MediaElement        struct***REMOVED*** Element ***REMOVED***
+	FormFieldElement    struct***REMOVED*** Element ***REMOVED***
+	ModElement          struct***REMOVED*** Element ***REMOVED***
+	TableSectionElement struct***REMOVED*** Element ***REMOVED***
+	TableCellElement    struct***REMOVED*** Element ***REMOVED***
+)
+
+type (
+	AnchorElement          struct***REMOVED*** HrefElement ***REMOVED***
+	AreaElement            struct***REMOVED*** HrefElement ***REMOVED***
+	AudioElement           struct***REMOVED*** MediaElement ***REMOVED***
+	BaseElement            struct***REMOVED*** Element ***REMOVED***
+	ButtonElement          struct***REMOVED*** FormFieldElement ***REMOVED***
+	CanvasElement          struct***REMOVED*** Element ***REMOVED***
+	DataElement            struct***REMOVED*** Element ***REMOVED***
+	DataListElement        struct***REMOVED*** Element ***REMOVED***
+	DelElement             struct***REMOVED*** ModElement ***REMOVED***
+	InsElement             struct***REMOVED*** ModElement ***REMOVED***
+	EmbedElement           struct***REMOVED*** Element ***REMOVED***
+	FieldSetElement        struct***REMOVED*** Element ***REMOVED***
+	FormElement            struct***REMOVED*** Element ***REMOVED***
+	IFrameElement          struct***REMOVED*** Element ***REMOVED***
+	ImageElement           struct***REMOVED*** Element ***REMOVED***
+	InputElement           struct***REMOVED*** FormFieldElement ***REMOVED***
+	KeygenElement          struct***REMOVED*** Element ***REMOVED***
+	LabelElement           struct***REMOVED*** Element ***REMOVED***
+	LegendElement          struct***REMOVED*** Element ***REMOVED***
+	LiElement              struct***REMOVED*** Element ***REMOVED***
+	LinkElement            struct***REMOVED*** Element ***REMOVED***
+	MapElement             struct***REMOVED*** Element ***REMOVED***
+	MetaElement            struct***REMOVED*** Element ***REMOVED***
+	MeterElement           struct***REMOVED*** Element ***REMOVED***
+	ObjectElement          struct***REMOVED*** Element ***REMOVED***
+	OListElement           struct***REMOVED*** Element ***REMOVED***
+	OptGroupElement        struct***REMOVED*** Element ***REMOVED***
+	OptionElement          struct***REMOVED*** Element ***REMOVED***
+	OutputElement          struct***REMOVED*** Element ***REMOVED***
+	ParamElement           struct***REMOVED*** Element ***REMOVED***
+	PreElement             struct***REMOVED*** Element ***REMOVED***
+	ProgressElement        struct***REMOVED*** Element ***REMOVED***
+	QuoteElement           struct***REMOVED*** Element ***REMOVED***
+	ScriptElement          struct***REMOVED*** Element ***REMOVED***
+	SelectElement          struct***REMOVED*** Element ***REMOVED***
+	SourceElement          struct***REMOVED*** Element ***REMOVED***
+	StyleElement           struct***REMOVED*** Element ***REMOVED***
+	TableElement           struct***REMOVED*** Element ***REMOVED***
+	TableHeadElement       struct***REMOVED*** TableSectionElement ***REMOVED***
+	TableFootElement       struct***REMOVED*** TableSectionElement ***REMOVED***
+	TableBodyElement       struct***REMOVED*** TableSectionElement ***REMOVED***
+	TableRowElement        struct***REMOVED*** Element ***REMOVED***
+	TableColElement        struct***REMOVED*** Element ***REMOVED***
+	TableDataCellElement   struct***REMOVED*** TableCellElement ***REMOVED***
+	TableHeaderCellElement struct***REMOVED*** TableCellElement ***REMOVED***
+	TextAreaElement        struct***REMOVED*** Element ***REMOVED***
+	TimeElement            struct***REMOVED*** Element ***REMOVED***
+	TitleElement           struct***REMOVED*** Element ***REMOVED***
+	TrackElement           struct***REMOVED*** Element ***REMOVED***
+	UListElement           struct***REMOVED*** Element ***REMOVED***
+	VideoElement           struct***REMOVED*** MediaElement ***REMOVED***
+)
+
+//revive:enable:exported
 
 func (h HrefElement) hrefURL() *url.URL ***REMOVED***
 	href, exists := h.attrAsURL("href")

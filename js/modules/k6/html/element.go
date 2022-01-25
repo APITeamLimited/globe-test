@@ -449,7 +449,8 @@ func (e Element) NodeValue() goja.Value ***REMOVED***
 
 func (e Element) Contains(v goja.Value) bool ***REMOVED***
 	if other, ok := v.Export().(Element); ok ***REMOVED***
-		// When testing if a node contains itself, jquery's + goquery's version of Contains() return true while the DOM API returns false.
+		// When testing if a node contains itself, jquery's + goquery's version of Contains()
+		// return true while the DOM API returns false.
 		return other.node != e.node && e.sel.sel.Contains(other.node)
 	***REMOVED***
 

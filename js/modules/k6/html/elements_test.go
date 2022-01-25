@@ -25,7 +25,6 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const testHTMLElems = `
@@ -85,16 +84,13 @@ const testHTMLElems = `
 
 func TestElements(t *testing.T) ***REMOVED***
 	t.Parallel()
-	rt, _ := getTestModuleInstance(t)
-	require.NoError(t, rt.Set("src", testHTMLElems))
-
-	_, err := rt.RunString(`var doc = html.parseHTML(src)`)
-
-	require.NoError(t, err)
-	assert.IsType(t, Selection***REMOVED******REMOVED***, rt.Get("doc").Export())
-
 	t.Run("AnchorElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		t.Run("Hash", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(0).hash()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "#hashtext", v.Export())
 			***REMOVED***
@@ -103,6 +99,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Host", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(1).host()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "example.com", v.Export())
 			***REMOVED***
@@ -120,6 +119,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Hostname", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(1).hostname()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "example.com", v.Export())
 			***REMOVED***
@@ -128,6 +130,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Port", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(5).port()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "80", v.Export())
 			***REMOVED***
@@ -136,6 +141,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Username", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(5).username()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "username", v.Export())
 			***REMOVED***
@@ -144,6 +152,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Password", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(5).password()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "password", v.Export())
 			***REMOVED***
@@ -152,6 +163,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Origin", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(5).origin()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "http://example.com:80", v.Export())
 			***REMOVED***
@@ -160,6 +174,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Pathname", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(1).pathname()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "", v.Export())
 			***REMOVED***
@@ -171,6 +188,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Protocol", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(4).protocol()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "https", v.Export())
 			***REMOVED***
@@ -179,6 +199,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("RelList", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(6).relList()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, []string***REMOVED***"prev", "next"***REMOVED***, v.Export())
 			***REMOVED***
@@ -187,23 +210,37 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Search", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(0).search()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "?querytxt", v.Export())
 			***REMOVED***
 		***REMOVED***)
 		t.Run("Text", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("a").get(6).text()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "6", v.Export())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("AreaElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		if v, err := rt.RunString(`doc.find("area").get(0).toString()`); assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, "web.address.com", v.Export())
 		***REMOVED***
 	***REMOVED***)
 	t.Run("ButtonElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		t.Run("form", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form1", v.Export())
 			***REMOVED***
@@ -215,6 +252,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("formaction", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formAction()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "action_url", v.Export())
 			***REMOVED***
@@ -223,6 +263,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("formenctype", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formEnctype()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "text/plain", v.Export())
 			***REMOVED***
@@ -231,6 +274,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("formmethod", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formMethod()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "get", v.Export())
 			***REMOVED***
@@ -239,6 +285,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("formnovalidate", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formNoValidate()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, false, v.Export())
 			***REMOVED***
@@ -247,6 +296,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("formtarget", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).formTarget()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "_self", v.Export())
 			***REMOVED***
@@ -255,6 +307,9 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("labels", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).labels()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 1, len(v.Export().([]goja.Value)))
 				assert.Equal(t, "form_btn_label", v.Export().([]goja.Value)[0].Export().(LabelElement).Id())
@@ -266,29 +321,46 @@ func TestElements(t *testing.T) ***REMOVED***
 			***REMOVED***
 		***REMOVED***)
 		t.Run("name", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn").get(0).name()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form_btn", v.Export())
 			***REMOVED***
 		***REMOVED***)
 		t.Run("value", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("#form_btn_2").get(0).value()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form_btn_2_initval", v.Export())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("CanvasElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+
 		t.Run("width", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("canvas").get(0).width()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(200), v.Export())
 			***REMOVED***
 		***REMOVED***)
 		t.Run("height", func(t *testing.T) ***REMOVED***
+			t.Parallel()
+			rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 			if v, err := rt.RunString(`doc.find("canvas").get(0).height()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, int64(150), v.Export())
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("DataListElement options", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		if v, err := rt.RunString(`doc.find("datalist").get(0).options()`); assert.NoError(t, err) ***REMOVED***
 			assert.Equal(t, 2, len(v.Export().([]goja.Value)))
 			assert.Equal(t, "dl_opt_1", v.Export().([]goja.Value)[0].Export().(OptionElement).Id())
@@ -296,6 +368,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***
 	***REMOVED***)
 	t.Run("FieldSetElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("elements", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("fieldset").get(0).elements()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 5, len(v.Export().([]goja.Value)))
@@ -313,6 +388,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("FormElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("elements", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#fieldset_form").get(0).elements()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 6, len(v.Export().([]goja.Value)))
@@ -333,6 +411,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("InputElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("form", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#test_dl_input").get(0).list().options()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
@@ -340,6 +421,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("LabelElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("control", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#form_btn_2_label").get(0).control().value()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form_btn_2_initval", v.Export())
@@ -352,6 +436,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("LegendElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("form", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#legend_1").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "fieldset_form", v.Export())
@@ -359,6 +446,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("LinkElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("rel list", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("link").get(0).relList()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, []string***REMOVED***"alternate", "next"***REMOVED***, v.Export())
@@ -366,6 +456,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("MapElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("areas", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#find_this_map").get(0).areas()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 3, len(v.Export().([]goja.Value)))
@@ -378,6 +471,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("ObjectElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("form", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#obj_1").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form1", v.Export())
@@ -385,6 +481,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("OptionElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("disabled", func(t *testing.T) ***REMOVED***
 			v1, err1 := rt.RunString(`doc.find("#opt_1").get(0).disabled()`)
 			v2, err2 := rt.RunString(`doc.find("#opt_2").get(0).disabled()`)
@@ -431,6 +530,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("OutputElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("value", func(t *testing.T) ***REMOVED***
 			v1, err1 := rt.RunString(`doc.find("#output1").get(0).value()`)
 			v2, err2 := rt.RunString(`doc.find("#output1").get(0).defaultValue()`)
@@ -446,6 +548,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("ProgressElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("max", func(t *testing.T) ***REMOVED***
 			v1, err1 := rt.RunString(`doc.find("#progress1").get(0).max()`)
 			v2, err2 := rt.RunString(`doc.find("#progress2").get(0).max()`)
@@ -472,6 +577,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("ScriptElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("text", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#script1").get(0).text()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "script text", v.Export())
@@ -479,6 +587,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("SelectElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("form", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#sel2").get(0).form().id()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "form3", v.Export())
@@ -516,6 +627,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("StyleElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("text", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#style1").get(0).type()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "text/css", v.Export())
@@ -523,6 +637,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("TableElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("caption", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("table").get(0).caption().textContent()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "caption text", v.Export())
@@ -617,6 +734,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("VideoElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("text tracks", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("#video1").get(0).textTracks()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, 2, len(v.Export().([]goja.Value)))
@@ -626,6 +746,9 @@ func TestElements(t *testing.T) ***REMOVED***
 		***REMOVED***)
 	***REMOVED***)
 	t.Run("TitleElement", func(t *testing.T) ***REMOVED***
+		t.Parallel()
+		rt := getTestRuntimeWithDoc(t, testHTMLElems)
+
 		t.Run("text tracks", func(t *testing.T) ***REMOVED***
 			if v, err := rt.RunString(`doc.find("title").get(0).text()`); assert.NoError(t, err) ***REMOVED***
 				assert.Equal(t, "titletest", v.Export())
