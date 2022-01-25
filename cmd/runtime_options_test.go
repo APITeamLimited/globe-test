@@ -45,249 +45,6 @@ type runtimeOptionsTestCase struct ***REMOVED***
 	expRTOpts lib.RuntimeOptions
 ***REMOVED***
 
-//nolint:gochecknoglobals
-var (
-	defaultCompatMode  = null.NewString("extended", false)
-	baseCompatMode     = null.NewString("base", true)
-	extendedCompatMode = null.NewString("extended", true)
-)
-
-var runtimeOptionsTestCases = map[string]runtimeOptionsTestCase***REMOVED*** //nolint:gochecknoglobals
-	"empty env": ***REMOVED***
-		useSysEnv: true,
-		// everything else is empty
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  nil,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled sys env by default": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled sys env by default with ext compat mode": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, false),
-			CompatibilityMode:    extendedCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled sys env by cli 1": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "val1", "K6_COMPATIBILITY_MODE": "base"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--include-system-env-vars=false"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, true),
-			CompatibilityMode:    baseCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled sys env by cli 2": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--include-system-env-vars=0", "--compatibility-mode=base"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, true),
-			CompatibilityMode:    baseCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled sys env by env": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "false", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, true),
-			CompatibilityMode:    extendedCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"enabled sys env by env": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, true),
-			CompatibilityMode:    extendedCompatMode,
-			Env:                  map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"enabled sys env by default": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		cliFlags:  []string***REMOVED******REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"enabled sys env by cli 1": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--include-system-env-vars"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, true),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"enabled sys env by cli 2": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--include-system-env-vars=true"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, true),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"run only system env": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		cliFlags:  []string***REMOVED******REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"mixed system and cli env": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5="***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"mixed system and cli env 2": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5=", "--include-system-env-vars=1"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, true),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"disabled system env with cli params": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
-		cliFlags:  []string***REMOVED***"-e", "test2=overwriten", "-e", "test2=val2"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test2": "val2"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"overwriting system env with cli param": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "val1sys"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test1=val1cli"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "val1cli"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"error wrong compat mode env var value": ***REMOVED***
-		systemEnv: map[string]string***REMOVED***"K6_COMPATIBILITY_MODE": "asdf"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"error wrong compat mode env var value even with CLI flag": ***REMOVED***
-		systemEnv: map[string]string***REMOVED***"K6_COMPATIBILITY_MODE": "asdf"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--compatibility-mode", "true"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"error wrong compat mode cli flag value": ***REMOVED***
-		cliFlags: []string***REMOVED***"--compatibility-mode", "whatever"***REMOVED***,
-		expErr:   true,
-	***REMOVED***,
-	"error invalid cli var name 1": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED******REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test a=error"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"error invalid cli var name 2": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED******REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "1var=error"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"error invalid cli var name 3": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED******REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "уникод=unicode-disabled"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"valid env vars with spaces": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test2=value 2"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "value 1", "test2": "value 2"***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"valid env vars with special chars": ***REMOVED***
-		useSysEnv: true,
-		systemEnv: map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--env", "test2=value,2", "-e", `test3= ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(true, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED***"test1": "value 1", "test2": "value,2", "test3": ` ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
-		***REMOVED***,
-	***REMOVED***,
-	"summary and thresholds from env": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "false", "K6_NO_SUMMARY": "0", "K6_SUMMARY_EXPORT": "foo"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-			NoThresholds:         null.NewBool(false, true),
-			NoSummary:            null.NewBool(false, true),
-			SummaryExport:        null.NewString("foo", true),
-		***REMOVED***,
-	***REMOVED***,
-	"summary and thresholds from env overwritten by CLI": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "FALSE", "K6_NO_SUMMARY": "0", "K6_SUMMARY_EXPORT": "foo"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--no-thresholds", "true", "--no-summary", "true", "--summary-export", "bar"***REMOVED***,
-		expRTOpts: lib.RuntimeOptions***REMOVED***
-			IncludeSystemEnvVars: null.NewBool(false, false),
-			CompatibilityMode:    defaultCompatMode,
-			Env:                  map[string]string***REMOVED******REMOVED***,
-			NoThresholds:         null.NewBool(true, true),
-			NoSummary:            null.NewBool(true, true),
-			SummaryExport:        null.NewString("bar", true),
-		***REMOVED***,
-	***REMOVED***,
-	"env var error detected even when CLI flags overwrite 1": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "boo"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--no-thresholds", "true"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-	"env var error detected even when CLI flags overwrite 2": ***REMOVED***
-		useSysEnv: false,
-		systemEnv: map[string]string***REMOVED***"K6_NO_SUMMARY": "hoo"***REMOVED***,
-		cliFlags:  []string***REMOVED***"--no-summary", "true"***REMOVED***,
-		expErr:    true,
-	***REMOVED***,
-***REMOVED***
-
 func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED***
 	t.Helper()
 	flags := runtimeOptionFlagSet(tc.useSysEnv)
@@ -364,6 +121,247 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 
 func TestRuntimeOptions(t *testing.T) ***REMOVED***
 	t.Parallel()
+	var (
+		defaultCompatMode  = null.NewString("extended", false)
+		baseCompatMode     = null.NewString("base", true)
+		extendedCompatMode = null.NewString("extended", true)
+	)
+
+	runtimeOptionsTestCases := map[string]runtimeOptionsTestCase***REMOVED***
+		"empty env": ***REMOVED***
+			useSysEnv: true,
+			// everything else is empty
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  nil,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled sys env by default": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled sys env by default with ext compat mode": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, false),
+				CompatibilityMode:    extendedCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled sys env by cli 1": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "val1", "K6_COMPATIBILITY_MODE": "base"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--include-system-env-vars=false"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, true),
+				CompatibilityMode:    baseCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled sys env by cli 2": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--include-system-env-vars=0", "--compatibility-mode=base"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, true),
+				CompatibilityMode:    baseCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled sys env by env": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "false", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, true),
+				CompatibilityMode:    extendedCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"enabled sys env by env": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, true),
+				CompatibilityMode:    extendedCompatMode,
+				Env:                  map[string]string***REMOVED***"K6_INCLUDE_SYSTEM_ENV_VARS": "true", "K6_COMPATIBILITY_MODE": "extended"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"enabled sys env by default": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			cliFlags:  []string***REMOVED******REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"enabled sys env by cli 1": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--include-system-env-vars"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, true),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"enabled sys env by cli 2": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--include-system-env-vars=true"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, true),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"run only system env": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			cliFlags:  []string***REMOVED******REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"mixed system and cli env": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5="***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"mixed system and cli env 2": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1", "test2": ""***REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test3=val3", "-e", "test4", "-e", "test5=", "--include-system-env-vars=1"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, true),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1", "test2": "", "test3": "val3", "test4": "", "test5": ""***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"disabled system env with cli params": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"test1": "val1"***REMOVED***,
+			cliFlags:  []string***REMOVED***"-e", "test2=overwriten", "-e", "test2=val2"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test2": "val2"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"overwriting system env with cli param": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "val1sys"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test1=val1cli"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "val1cli"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"error wrong compat mode env var value": ***REMOVED***
+			systemEnv: map[string]string***REMOVED***"K6_COMPATIBILITY_MODE": "asdf"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"error wrong compat mode env var value even with CLI flag": ***REMOVED***
+			systemEnv: map[string]string***REMOVED***"K6_COMPATIBILITY_MODE": "asdf"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--compatibility-mode", "true"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"error wrong compat mode cli flag value": ***REMOVED***
+			cliFlags: []string***REMOVED***"--compatibility-mode", "whatever"***REMOVED***,
+			expErr:   true,
+		***REMOVED***,
+		"error invalid cli var name 1": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED******REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test a=error"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"error invalid cli var name 2": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED******REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "1var=error"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"error invalid cli var name 3": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED******REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "уникод=unicode-disabled"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"valid env vars with spaces": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test2=value 2"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "value 1", "test2": "value 2"***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"valid env vars with special chars": ***REMOVED***
+			useSysEnv: true,
+			systemEnv: map[string]string***REMOVED***"test1": "value 1"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--env", "test2=value,2", "-e", `test3= ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(true, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED***"test1": "value 1", "test2": "value,2", "test3": ` ,  ,,, value, ,, 2!'@#,"`***REMOVED***,
+			***REMOVED***,
+		***REMOVED***,
+		"summary and thresholds from env": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "false", "K6_NO_SUMMARY": "0", "K6_SUMMARY_EXPORT": "foo"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+				NoThresholds:         null.NewBool(false, true),
+				NoSummary:            null.NewBool(false, true),
+				SummaryExport:        null.NewString("foo", true),
+			***REMOVED***,
+		***REMOVED***,
+		"summary and thresholds from env overwritten by CLI": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "FALSE", "K6_NO_SUMMARY": "0", "K6_SUMMARY_EXPORT": "foo"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--no-thresholds", "true", "--no-summary", "true", "--summary-export", "bar"***REMOVED***,
+			expRTOpts: lib.RuntimeOptions***REMOVED***
+				IncludeSystemEnvVars: null.NewBool(false, false),
+				CompatibilityMode:    defaultCompatMode,
+				Env:                  map[string]string***REMOVED******REMOVED***,
+				NoThresholds:         null.NewBool(true, true),
+				NoSummary:            null.NewBool(true, true),
+				SummaryExport:        null.NewString("bar", true),
+			***REMOVED***,
+		***REMOVED***,
+		"env var error detected even when CLI flags overwrite 1": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"K6_NO_THRESHOLDS": "boo"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--no-thresholds", "true"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+		"env var error detected even when CLI flags overwrite 2": ***REMOVED***
+			useSysEnv: false,
+			systemEnv: map[string]string***REMOVED***"K6_NO_SUMMARY": "hoo"***REMOVED***,
+			cliFlags:  []string***REMOVED***"--no-summary", "true"***REMOVED***,
+			expErr:    true,
+		***REMOVED***,
+	***REMOVED***
 	for name, tc := range runtimeOptionsTestCases ***REMOVED***
 		tc := tc
 		t.Run(fmt.Sprintf("RuntimeOptions test '%s'", name), func(t *testing.T) ***REMOVED***
