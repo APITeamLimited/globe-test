@@ -134,13 +134,13 @@ func mostFlagSets() []flagSetInit ***REMOVED***
 	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
 	result := []flagSetInit***REMOVED******REMOVED***
-	for i, fsi := range []func() *pflag.FlagSet***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
+	for i, fsi := range []func(globalFlags *commandFlags) *pflag.FlagSet***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
 		i, fsi := i, fsi // go...
 		root := newRootCommand(context.Background(), nil, nil)
 		result = append(result, func() (*pflag.FlagSet, *commandFlags) ***REMOVED***
 			flags := pflag.NewFlagSet(fmt.Sprintf("superContrivedFlags_%d", i), pflag.ContinueOnError)
 			flags.AddFlagSet(root.rootCmdPersistentFlagSet())
-			flags.AddFlagSet(fsi())
+			flags.AddFlagSet(fsi(root.commandFlags))
 			return flags, root.commandFlags
 		***REMOVED***)
 	***REMOVED***
@@ -178,12 +178,6 @@ type opts struct ***REMOVED***
 	// issues on its own, and the func() doesn't help at all, and we need to
 	// use the resetStickyGlobalVars() hack on top of that...
 	cliFlagSetInits []flagSetInit
-***REMOVED***
-
-func resetStickyGlobalVars() ***REMOVED***
-	// TODO: remove after fixing the config, obviously a dirty hack
-	exitOnRunning = false
-	runType = ""
 ***REMOVED***
 
 // exp contains the different events or errors we expect our test case to trigger.
@@ -560,7 +554,6 @@ func runTestCase(
 	logger.SetOutput(output)
 
 	flagSet, globalFlags := newFlagSet()
-	defer resetStickyGlobalVars()
 	flagSet.SetOutput(output)
 	// flagSet.PrintDefaults()
 

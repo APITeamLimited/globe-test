@@ -102,15 +102,6 @@ func readSource(filename string, logger *logrus.Logger) (*loader.SourceData, map
 	return src, filesystems, err
 ***REMOVED***
 
-// TODO: consider moving this out as a method of SourceData ?
-func getRunType(src *loader.SourceData) string ***REMOVED***
-	typ := runType
-	if typ == "" ***REMOVED***
-		typ = detectType(src.Data)
-	***REMOVED***
-	return typ
-***REMOVED***
-
 func detectType(data []byte) string ***REMOVED***
 	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
 		return typeArchive

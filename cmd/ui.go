@@ -104,8 +104,8 @@ func getBanner(noColor bool) string ***REMOVED***
 	return c.Sprint(consts.Banner())
 ***REMOVED***
 
-func printBar(bar *pb.ProgressBar) ***REMOVED***
-	if quiet ***REMOVED***
+func printBar(bar *pb.ProgressBar, globalFlags *commandFlags) ***REMOVED***
+	if globalFlags.quiet ***REMOVED***
 		return
 	***REMOVED***
 	end := "\n"
@@ -127,9 +127,9 @@ func printBar(bar *pb.ProgressBar) ***REMOVED***
 	fprintf(stdout, "%s%s", rendered.String(), end)
 ***REMOVED***
 
-func modifyAndPrintBar(bar *pb.ProgressBar, options ...pb.ProgressBarOption) ***REMOVED***
+func modifyAndPrintBar(bar *pb.ProgressBar, globalFlags *commandFlags, options ...pb.ProgressBarOption) ***REMOVED***
 	bar.Modify(options...)
-	printBar(bar)
+	printBar(bar, globalFlags)
 ***REMOVED***
 
 // Print execution description for both cloud and local execution.
@@ -180,7 +180,7 @@ func printExecutionDescription(
 
 //nolint: funlen
 func renderMultipleBars(
-	isTTY, goBack bool, maxLeft, termWidth, widthDelta int, pbs []*pb.ProgressBar,
+	isTTY, goBack bool, maxLeft, termWidth, widthDelta int, pbs []*pb.ProgressBar, globalFlags *commandFlags,
 ) (string, int) ***REMOVED***
 	lineEnd := "\n"
 	if isTTY ***REMOVED***
@@ -248,7 +248,7 @@ func renderMultipleBars(
 			longestLine = lineRuneCount
 		***REMOVED***
 		lineBreaks += (lineRuneCount - termPadding) / termWidth
-		if !noColor ***REMOVED***
+		if !globalFlags.noColor ***REMOVED***
 			rend.Color = true
 			status = fmt.Sprintf(" %s ", rend.Status())
 			line = fmt.Sprintf(leftPadFmt+"%s%s%s",
@@ -272,8 +272,8 @@ func renderMultipleBars(
 // TODO: add a no-progress option that will disable these
 // TODO: don't use global variables...
 // nolint:funlen,gocognit
-func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Logger) ***REMOVED***
-	if quiet ***REMOVED***
+func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Logger, globalFlags *commandFlags) ***REMOVED***
+	if globalFlags.quiet ***REMOVED***
 		return
 	***REMOVED***
 
@@ -311,7 +311,7 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 	var widthDelta int
 	// Default to responsive progress bars when in an interactive terminal
 	renderProgressBars := func(goBack bool) ***REMOVED***
-		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
+		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs, globalFlags)
 		widthDelta = termWidth - longestLine - termPadding
 		progressBarsLastRenderLock.Lock()
 		progressBarsLastRender = []byte(barText)
@@ -322,7 +322,7 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 	if !stdoutTTY ***REMOVED***
 		widthDelta = -pb.DefaultWidth
 		renderProgressBars = func(goBack bool) ***REMOVED***
-			barText, _ := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
+			barText, _ := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs, globalFlags)
 			progressBarsLastRenderLock.Lock()
 			progressBarsLastRender = []byte(barText)
 			progressBarsLastRenderLock.Unlock()
