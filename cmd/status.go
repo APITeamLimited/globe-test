@@ -46,7 +46,7 @@ func getStatusCmd(ctx context.Context, globalFlags *commandFlags) *cobra.Command
 				return err
 			***REMOVED***
 
-			return yamlPrint(stdout, status)
+			return yamlPrint(globalFlags.stdout, status)
 		***REMOVED***,
 	***REMOVED***
 	return statusCmd

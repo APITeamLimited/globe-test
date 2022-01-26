@@ -90,7 +90,7 @@ a commandline interface for interacting with it.`,
 		Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 			// TODO: disable in quiet mode?
-			_, _ = fmt.Fprintf(stdout, "\n%s\n\n", getBanner(globalFlags.noColor || !stdoutTTY))
+			_, _ = fmt.Fprintf(globalFlags.stdout, "\n%s\n\n", getBanner(globalFlags.noColor || !globalFlags.stdoutTTY))
 
 			logger.Debug("Initializing the runner...")
 
@@ -179,7 +179,7 @@ a commandline interface for interacting with it.`,
 
 			// Create all outputs.
 			executionPlan := execScheduler.GetExecutionPlan()
-			outputs, err := createOutputs(conf.Out, src, conf, runtimeOptions, executionPlan, osEnvironment, logger)
+			outputs, err := createOutputs(conf.Out, src, conf, runtimeOptions, executionPlan, osEnvironment, logger, globalFlags)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -218,7 +218,7 @@ a commandline interface for interacting with it.`,
 
 			printExecutionDescription(
 				"local", args[0], "", conf, execScheduler.GetState().ExecutionTuple,
-				executionPlan, outputs, globalFlags.noColor || !stdoutTTY)
+				executionPlan, outputs, globalFlags.noColor || !globalFlags.stdoutTTY, globalFlags)
 
 			// Trap Interrupts, SIGINTs and SIGTERMs.
 			sigC := make(chan os.Signal, 1)
@@ -298,12 +298,12 @@ a commandline interface for interacting with it.`,
 					TestRunDuration: executionState.GetCurrentTestRunDuration(),
 					NoColor:         globalFlags.noColor,
 					UIState: lib.UIState***REMOVED***
-						IsStdOutTTY: stdoutTTY,
-						IsStdErrTTY: stderrTTY,
+						IsStdOutTTY: globalFlags.stdoutTTY,
+						IsStdErrTTY: globalFlags.stderrTTY,
 					***REMOVED***,
 				***REMOVED***)
 				if err == nil ***REMOVED***
-					err = handleSummaryResult(afero.NewOsFs(), stdout, stderr, summaryResult)
+					err = handleSummaryResult(afero.NewOsFs(), globalFlags.stdout, globalFlags.stderr, summaryResult)
 				***REMOVED***
 				if err != nil ***REMOVED***
 					logger.WithError(err).Error("failed to handle the end-of-test summary")
@@ -316,7 +316,7 @@ a commandline interface for interacting with it.`,
 					// do nothing, we were interrupted by Ctrl+C already
 				default:
 					logger.Debug("Linger set; waiting for Ctrl+C...")
-					fprintf(stdout, "Linger set; waiting for Ctrl+C...")
+					fprintf(globalFlags.stdout, "Linger set; waiting for Ctrl+C...")
 					<-lingerCtx.Done()
 					logger.Debug("Ctrl+C received, exiting...")
 				***REMOVED***
