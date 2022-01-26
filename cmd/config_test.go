@@ -203,7 +203,7 @@ func TestDeriveAndValidateConfig(t *testing.T) ***REMOVED***
 		t.Run(tc.name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			_, err := deriveAndValidateConfig(tc.conf,
-				func(_ string) bool ***REMOVED*** return tc.isExec ***REMOVED***)
+				func(_ string) bool ***REMOVED*** return tc.isExec ***REMOVED***, nil)
 			if tc.err != "" ***REMOVED***
 				var ecerr errext.HasExitCode
 				assert.ErrorAs(t, err, &ecerr)
