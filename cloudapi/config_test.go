@@ -21,7 +21,6 @@ package cloudapi
 
 import (
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 )
 
 func TestConfigApply(t *testing.T) ***REMOVED***
+	t.Parallel()
 	empty := Config***REMOVED******REMOVED***
 	defaults := NewConfig()
 
@@ -74,7 +74,8 @@ func TestConfigApply(t *testing.T) ***REMOVED***
 	assert.Equal(t, full, defaults.Apply(full))
 ***REMOVED***
 
-func TestGetConsolidatedConfig(t *testing.T) ***REMOVED*** //nolint:paralleltest
+func TestGetConsolidatedConfig(t *testing.T) ***REMOVED***
+	t.Parallel()
 	config, err := GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "", nil)
 	require.NoError(t, err)
 	require.Equal(t, config.Token.String, "jsonraw")
@@ -84,9 +85,7 @@ func TestGetConsolidatedConfig(t *testing.T) ***REMOVED*** //nolint:paralleltest
 	require.NoError(t, err)
 	require.Equal(t, config.Token.String, "ext")
 
-	require.NoError(t, os.Setenv("K6_CLOUD_TOKEN", "envvalue")) // TODO drop when we don't use envconfig
-	defer os.Unsetenv("K6_CLOUD_TOKEN")                         //nolint:errcheck
-	config, err = GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), nil, "",
+	config, err = GetConsolidatedConfig(json.RawMessage(`***REMOVED***"token":"jsonraw"***REMOVED***`), map[string]string***REMOVED***"K6_CLOUD_TOKEN": "envvalue"***REMOVED***, "",
 		map[string]json.RawMessage***REMOVED***"loadimpact": json.RawMessage(`***REMOVED***"token":"ext"***REMOVED***`)***REMOVED***)
 	require.NoError(t, err)
 	require.Equal(t, config.Token.String, "envvalue")

@@ -119,7 +119,7 @@ func addExecRequirements(b *js.Bundle,
 		return nil, err
 	***REMOVED***
 
-	conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED******REMOVED***, runner.GetOptions())
+	conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED******REMOVED***, runner.GetOptions(), buildEnvMap(os.Environ()))
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

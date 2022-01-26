@@ -120,7 +120,7 @@ func Usage(prefix string, spec interface***REMOVED******REMOVED***) error ***REM
 	return err
 ***REMOVED***
 
-// Usagef writes usage information to the specified io.Writer using the specifed template specification
+// Usagef writes usage information to the specified io.Writer using the specified template specification
 func Usagef(prefix string, spec interface***REMOVED******REMOVED***, out io.Writer, format string) error ***REMOVED***
 
 	// Specify the default usage template functions

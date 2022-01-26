@@ -188,5 +188,44 @@ type DNSConfig struct ***REMOVED***
 ***REMOVED***
 ```
 
+Example for decoding the environment variables into map[string][]structName type
+
+```Bash
+export SMS_PROVIDER_WITH_WEIGHT= `IND=[***REMOVED***"name":"SMSProvider1","weight":70***REMOVED***,***REMOVED***"name":"SMSProvider2","weight":30***REMOVED***];US=[***REMOVED***"name":"SMSProvider1","weight":100***REMOVED***]`
+```
+
+```GO
+type providerDetails struct ***REMOVED***
+	Name   string
+	Weight int
+***REMOVED***
+
+type SMSProviderDecoder map[string][]providerDetails
+
+func (sd *SMSProviderDecoder) Decode(value string) error ***REMOVED***
+	smsProvider := map[string][]providerDetails***REMOVED******REMOVED***
+	pairs := strings.Split(value, ";")
+	for _, pair := range pairs ***REMOVED***
+		providerdata := []providerDetails***REMOVED******REMOVED***
+		kvpair := strings.Split(pair, "=")
+		if len(kvpair) != 2 ***REMOVED***
+			return fmt.Errorf("invalid map item: %q", pair)
+		***REMOVED***
+		err := json.Unmarshal([]byte(kvpair[1]), &providerdata)
+		if err != nil ***REMOVED***
+			return fmt.Errorf("invalid map json: %w", err)
+		***REMOVED***
+		smsProvider[kvpair[0]] = providerdata
+
+	***REMOVED***
+	*sd = SMSProviderDecoder(smsProvider)
+	return nil
+***REMOVED***
+
+type SMSProviderConfig struct ***REMOVED***
+    ProviderWithWeight SMSProviderDecoder `envconfig:"SMS_PROVIDER_WITH_WEIGHT"`
+***REMOVED***
+```
+
 Also, envconfig will use a `Set(string) error` method like from the
 [flag.Value](https://godoc.org/flag#Value) interface if implemented.

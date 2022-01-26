@@ -21,11 +21,10 @@
 package cmd
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
+	"github.com/mstoykov/envconfig"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/guregu/null.v3"
 
@@ -33,7 +32,6 @@ import (
 	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
-	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/types"
 )
 
@@ -93,8 +91,8 @@ func TestConfigCmd(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-//nolint:paralleltest // this user testutils.SetEnv
 func TestConfigEnv(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testdata := map[struct***REMOVED*** Name, Key string ***REMOVED***]map[string]func(Config)***REMOVED***
 		***REMOVED***"Linger", "K6_LINGER"***REMOVED***: ***REMOVED***
 			"":      func(c Config) ***REMOVED*** assert.Equal(t, null.Bool***REMOVED******REMOVED***, c.Linger) ***REMOVED***,
@@ -114,13 +112,18 @@ func TestConfigEnv(t *testing.T) ***REMOVED***
 	for field, data := range testdata ***REMOVED***
 		field, data := field, data
 		t.Run(field.Name, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			for value, fn := range data ***REMOVED***
 				value, fn := value, fn
 				t.Run(`"`+value+`"`, func(t *testing.T) ***REMOVED***
-					restore := testutils.SetEnv(t, []string***REMOVED***fmt.Sprintf("%s=%s", field.Key, value)***REMOVED***)
-					defer restore()
+					t.Parallel()
 					var config Config
-					assert.NoError(t, envconfig.Process("", &config))
+					assert.NoError(t, envconfig.Process("", &config, func(key string) (string, bool) ***REMOVED***
+						if key == field.Key ***REMOVED***
+							return value, true
+						***REMOVED***
+						return "", false
+					***REMOVED***))
 					fn(config)
 				***REMOVED***)
 			***REMOVED***

@@ -28,7 +28,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kelseyhightower/envconfig"
+	"github.com/mstoykov/envconfig"
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
@@ -156,10 +156,13 @@ func writeDiskConfig(fs afero.Fs, configPath string, conf Config) error ***REMOV
 ***REMOVED***
 
 // Reads configuration variables from the environment.
-func readEnvConfig() (Config, error) ***REMOVED***
+func readEnvConfig(envMap map[string]string) (Config, error) ***REMOVED***
 	// TODO: replace envconfig and refactor the whole configuration from the ground up :/
 	conf := Config***REMOVED******REMOVED***
-	err := envconfig.Process("", &conf)
+	err := envconfig.Process("", &conf, func(key string) (string, bool) ***REMOVED***
+		v, ok := envMap[key]
+		return v, ok
+	***REMOVED***)
 	return conf, err
 ***REMOVED***
 
@@ -172,14 +175,16 @@ func readEnvConfig() (Config, error) ***REMOVED***
 // - set some defaults if they weren't previously specified
 // TODO: add better validation, more explicit default values and improve consistency between formats
 // TODO: accumulate all errors and differentiate between the layers?
-func getConsolidatedConfig(fs afero.Fs, cliConf Config, runnerOpts lib.Options) (conf Config, err error) ***REMOVED***
+func getConsolidatedConfig(
+	fs afero.Fs, cliConf Config, runnerOpts lib.Options, envMap map[string]string,
+) (conf Config, err error) ***REMOVED***
 	// TODO: use errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig) where it makes sense?
 
 	fileConf, _, err := readDiskConfig(fs)
 	if err != nil ***REMOVED***
 		return conf, err
 	***REMOVED***
-	envConf, err := readEnvConfig()
+	envConf, err := readEnvConfig(envMap)
 	if err != nil ***REMOVED***
 		return conf, err
 	***REMOVED***

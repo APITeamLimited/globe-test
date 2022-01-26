@@ -25,7 +25,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -36,11 +35,6 @@ import (
 	"go.k6.io/k6/lib/types"
 )
 
-func init() ***REMOVED***
-	_ = os.Setenv("K6CLOUD_HOST", "")
-	_ = os.Setenv("K6CLOUD_TOKEN", "")
-***REMOVED***
-
 func fprintf(t *testing.T, w io.Writer, format string, a ...interface***REMOVED******REMOVED***) int ***REMOVED***
 	n, err := fmt.Fprintf(w, format, a...)
 	require.NoError(t, err)
@@ -48,6 +42,7 @@ func fprintf(t *testing.T, w io.Writer, format string, a ...interface***REMOVED*
 ***REMOVED***
 
 func TestCreateTestRun(t *testing.T) ***REMOVED***
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		fprintf(t, w, `***REMOVED***"reference_id": "1", "config": ***REMOVED***"aggregationPeriod": "2s"***REMOVED******REMOVED***`)
 	***REMOVED***))
@@ -69,6 +64,7 @@ func TestCreateTestRun(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestFinished(t *testing.T) ***REMOVED***
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		fprintf(t, w, "")
 	***REMOVED***))
@@ -87,6 +83,7 @@ func TestFinished(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestAuthorizedError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		called++
@@ -105,6 +102,7 @@ func TestAuthorizedError(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestDetailsError(t *testing.T) ***REMOVED***
+	t.Parallel()
 	called := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		called++
@@ -179,6 +177,7 @@ func TestClientRetrySuccessOnSecond(t *testing.T) ***REMOVED***
 ***REMOVED***
 
 func TestIdempotencyKey(t *testing.T) ***REMOVED***
+	t.Parallel()
 	const idempotencyKey = "xxx"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) ***REMOVED***
 		gotK6IdempotencyKey := r.Header.Get(k6IdempotencyKeyHeader)
