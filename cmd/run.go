@@ -64,7 +64,7 @@ const (
 var runType = os.Getenv("K6_TYPE")
 
 //nolint:funlen,gocognit,gocyclo,cyclop
-func getRunCmd(ctx context.Context, logger *logrus.Logger) *cobra.Command ***REMOVED***
+func getRunCmd(ctx context.Context, logger *logrus.Logger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
 	// runCmd represents the run command.
 	runCmd := &cobra.Command***REMOVED***
 		Use:   "run",
@@ -123,7 +123,8 @@ a commandline interface for interacting with it.`,
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			conf, err := getConsolidatedConfig(afero.NewOsFs(), cliConf, initRunner.GetOptions(), buildEnvMap(os.Environ()))
+			conf, err := getConsolidatedConfig(
+				afero.NewOsFs(), cliConf, initRunner.GetOptions(), buildEnvMap(os.Environ()), globalFlags)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

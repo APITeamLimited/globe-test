@@ -34,7 +34,7 @@ import (
 //nolint:gochecknoglobals
 var archiveOut = "archive.tar"
 
-func getArchiveCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
+func getArchiveCmd(logger *logrus.Logger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
 	// archiveCmd represents the archive command
 	archiveCmd := &cobra.Command***REMOVED***
 		Use:   "archive",
@@ -72,7 +72,7 @@ An archive is a fully self-contained test run, and can be executed identically e
 				return err
 			***REMOVED***
 			conf, err := getConsolidatedConfig(
-				afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r.GetOptions(), buildEnvMap(os.Environ()),
+				afero.NewOsFs(), Config***REMOVED***Options: cliOpts***REMOVED***, r.GetOptions(), buildEnvMap(os.Environ()), globalFlags,
 			)
 			if err != nil ***REMOVED***
 				return err

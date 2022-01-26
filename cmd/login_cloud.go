@@ -39,7 +39,7 @@ import (
 )
 
 //nolint:funlen,gocognit
-func getLoginCloudCommand(logger logrus.FieldLogger) *cobra.Command ***REMOVED***
+func getLoginCloudCommand(logger logrus.FieldLogger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
 	// loginCloudCommand represents the 'login cloud' command
 	loginCloudCommand := &cobra.Command***REMOVED***
 		Use:   "cloud",
@@ -60,7 +60,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 			fs := afero.NewOsFs()
 
-			currentDiskConf, configPath, err := readDiskConfig(fs)
+			currentDiskConf, configPath, err := readDiskConfig(fs, globalFlags)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

@@ -20,7 +20,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -131,13 +134,14 @@ func mostFlagSets() []flagSetInit ***REMOVED***
 	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
 	result := []flagSetInit***REMOVED******REMOVED***
-	for i, fsi := range []flagSetInit***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
+	for i, fsi := range []func() *pflag.FlagSet***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
 		i, fsi := i, fsi // go...
-		result = append(result, func() *pflag.FlagSet ***REMOVED***
+		root := newRootCommand(context.Background(), nil, nil)
+		result = append(result, func() (*pflag.FlagSet, *commandFlags) ***REMOVED***
 			flags := pflag.NewFlagSet(fmt.Sprintf("superContrivedFlags_%d", i), pflag.ContinueOnError)
-			flags.AddFlagSet(new(rootCommand).rootCmdPersistentFlagSet())
+			flags.AddFlagSet(root.rootCmdPersistentFlagSet())
 			flags.AddFlagSet(fsi())
-			return flags
+			return flags, root.commandFlags
 		***REMOVED***)
 	***REMOVED***
 	return result
@@ -155,11 +159,7 @@ func getFS(files []file) afero.Fs ***REMOVED***
 	return fs
 ***REMOVED***
 
-func defaultConfig(jsonConfig string) afero.Fs ***REMOVED***
-	return getFS([]file***REMOVED******REMOVED***defaultConfigFilePath, jsonConfig***REMOVED******REMOVED***)
-***REMOVED***
-
-type flagSetInit func() *pflag.FlagSet
+type flagSetInit func() (*pflag.FlagSet, *commandFlags)
 
 type opts struct ***REMOVED***
 	cli    []string
@@ -183,7 +183,6 @@ type opts struct ***REMOVED***
 func resetStickyGlobalVars() ***REMOVED***
 	// TODO: remove after fixing the config, obviously a dirty hack
 	exitOnRunning = false
-	configFilePath = ""
 	runType = ""
 ***REMOVED***
 
@@ -206,6 +205,21 @@ type configConsolidationTestCase struct ***REMOVED***
 ***REMOVED***
 
 func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED***
+	defaultConfig := func(jsonConfig string) afero.Fs ***REMOVED***
+		confDir, err := os.UserConfigDir()
+		if err != nil ***REMOVED***
+			confDir = ".config"
+		***REMOVED***
+		return getFS([]file***REMOVED******REMOVED***
+			filepath.Join(
+				confDir,
+				"loadimpact",
+				"k6",
+				defaultConfigFileName,
+			),
+			jsonConfig,
+		***REMOVED******REMOVED***)
+	***REMOVED***
 	I := null.IntFrom // shortcut for "Valid" (i.e. user-specified) ints
 	// This is a function, because some of these test cases actually need for the init() functions
 	// to be executed, since they depend on defaultConfigFilePath
@@ -545,7 +559,7 @@ func runTestCase(
 	logger.AddHook(logHook)
 	logger.SetOutput(output)
 
-	flagSet := newFlagSet()
+	flagSet, globalFlags := newFlagSet()
 	defer resetStickyGlobalVars()
 	flagSet.SetOutput(output)
 	// flagSet.PrintDefaults()
@@ -581,10 +595,9 @@ func runTestCase(
 		t.Logf("Creating an empty FS for this test")
 		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
 	***REMOVED***
-
 	consolidatedConfig, err := getConsolidatedConfig(testCase.options.fs, cliConf, runnerOpts,
 		// TODO: just make testcase.options.env in map[string]string
-		buildEnvMap(testCase.options.env))
+		buildEnvMap(testCase.options.env), globalFlags)
 	if testCase.expected.consolidationError ***REMOVED***
 		require.Error(t, err)
 		return
