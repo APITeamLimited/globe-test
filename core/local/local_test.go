@@ -63,7 +63,7 @@ func newTestExecutionScheduler(
 	ctx, cancel = context.WithCancel(context.Background())
 	newOpts, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		MetricSamplesBufferSize: null.NewInt(200, false),
-	***REMOVED***.Apply(runner.GetOptions()).Apply(opts))
+	***REMOVED***.Apply(runner.GetOptions()).Apply(opts), nil)
 	require.NoError(t, err)
 	require.Empty(t, newOpts.Validate())
 
@@ -940,7 +940,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 	options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 		VUs:        null.IntFrom(1),
 		Iterations: null.IntFrom(100),
-	***REMOVED***)
+	***REMOVED***, nil)
 	require.NoError(t, err)
 	require.Empty(t, options.Validate())
 
@@ -1168,7 +1168,7 @@ func TestRealTimeAndSetupTeardownMetrics(t *testing.T) ***REMOVED***
 		SystemTags:      &stats.DefaultSystemTagSet,
 		SetupTimeout:    types.NullDurationFrom(4 * time.Second),
 		TeardownTimeout: types.NullDurationFrom(4 * time.Second),
-	***REMOVED***))
+	***REMOVED***), nil)
 	require.NoError(t, err)
 	require.NoError(t, runner.SetOptions(options))
 
@@ -1351,7 +1351,7 @@ func TestSetPaused(t *testing.T) ***REMOVED***
 		options, err := executor.DeriveScenariosFromShortcuts(lib.Options***REMOVED***
 			Iterations: null.IntFrom(2),
 			VUs:        null.IntFrom(1),
-		***REMOVED***.Apply(runner.GetOptions()))
+		***REMOVED***.Apply(runner.GetOptions()), nil)
 		require.NoError(t, err)
 		require.NoError(t, runner.SetOptions(options))
 

@@ -124,7 +124,7 @@ func addExecRequirements(b *js.Bundle,
 		return nil, err
 	***REMOVED***
 
-	conf, err = deriveAndValidateConfig(conf, runner.IsExecutable)
+	conf, err = deriveAndValidateConfig(conf, runner.IsExecutable, logger)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
