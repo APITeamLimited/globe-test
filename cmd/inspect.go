@@ -37,7 +37,7 @@ import (
 	"go.k6.io/k6/lib/types"
 )
 
-func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
+func getInspectCmd(logger *logrus.Logger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
 	var addExecReqs bool
 
 	// inspectCmd represents the inspect command
@@ -60,7 +60,11 @@ func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
 			var b *js.Bundle
-			switch getRunType(src) ***REMOVED***
+			typ := globalFlags.runType
+			if typ == "" ***REMOVED***
+				typ = detectType(src.Data)
+			***REMOVED***
+			switch typ ***REMOVED***
 			// this is an exhaustive list
 			case typeArchive:
 				var arc *lib.Archive
@@ -81,7 +85,7 @@ func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 			inspectOutput := interface***REMOVED******REMOVED***(b.Options)
 
 			if addExecReqs ***REMOVED***
-				inspectOutput, err = addExecRequirements(b, builtinMetrics, registry, logger)
+				inspectOutput, err = addExecRequirements(b, builtinMetrics, registry, logger, globalFlags)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***
@@ -99,7 +103,7 @@ func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 
 	inspectCmd.Flags().SortFlags = false
 	inspectCmd.Flags().AddFlagSet(runtimeOptionFlagSet(false))
-	inspectCmd.Flags().StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
+	inspectCmd.Flags().StringVarP(&globalFlags.runType, "type", "t", globalFlags.runType, "override file `type`, \"js\" or \"archive\"") //nolint:lll
 	inspectCmd.Flags().BoolVar(&addExecReqs,
 		"execution-requirements",
 		false,
@@ -110,7 +114,7 @@ func getInspectCmd(logger *logrus.Logger) *cobra.Command ***REMOVED***
 
 func addExecRequirements(b *js.Bundle,
 	builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
-	logger *logrus.Logger) (interface***REMOVED******REMOVED***, error) ***REMOVED***
+	logger *logrus.Logger, globalFlags *commandFlags) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	// TODO: after #1048 issue, consider rewriting this without a Runner:
 	// just creating ExecutionPlan directly from validated options
 
@@ -119,7 +123,8 @@ func addExecRequirements(b *js.Bundle,
 		return nil, err
 	***REMOVED***
 
-	conf, err := getConsolidatedConfig(afero.NewOsFs(), Config***REMOVED******REMOVED***, runner.GetOptions(), buildEnvMap(os.Environ()))
+	conf, err := getConsolidatedConfig(
+		afero.NewOsFs(), Config***REMOVED******REMOVED***, runner.GetOptions(), buildEnvMap(os.Environ()), globalFlags)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***

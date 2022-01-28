@@ -35,7 +35,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -62,7 +61,7 @@ var _ io.Writer = mockWriter***REMOVED******REMOVED***
 
 func getFiles(t *testing.T, fs afero.Fs) map[string]*bytes.Buffer ***REMOVED***
 	result := map[string]*bytes.Buffer***REMOVED******REMOVED***
-	walkFn := func(filePath string, info os.FileInfo, err error) error ***REMOVED***
+	walkFn := func(filePath string, _ os.FileInfo, err error) error ***REMOVED***
 		if filePath == "/" || filePath == "\\" ***REMOVED***
 			return nil
 		***REMOVED***
@@ -135,8 +134,8 @@ func TestHandleSummaryResultError(t *testing.T) ***REMOVED***
 	assertEqual(t, "file summary 2", files[filePath2])
 ***REMOVED***
 
-//nolint:paralleltest // this test touchs RunType which is global variable
 func TestAbortTest(t *testing.T) ***REMOVED***
+	t.Parallel()
 	testCases := []struct ***REMOVED***
 		testFilename, expLogOutput string
 	***REMOVED******REMOVED***
@@ -155,9 +154,10 @@ func TestAbortTest(t *testing.T) ***REMOVED***
 		***REMOVED***,
 	***REMOVED***
 
-	for _, tc := range testCases ***REMOVED*** //nolint: paralleltest
+	for _, tc := range testCases ***REMOVED***
 		tc := tc
 		t.Run(tc.testFilename, func(t *testing.T) ***REMOVED***
+			t.Parallel()
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -169,12 +169,7 @@ func TestAbortTest(t *testing.T) ***REMOVED***
 			***REMOVED***
 			logger.AddHook(&hook)
 
-			cmd := getRunCmd(ctx, logger)
-			// Redefine the flag to avoid a nil pointer panic on lookup.
-			cmd.Flags().AddFlag(&pflag.Flag***REMOVED***
-				Name:   "address",
-				Hidden: true,
-			***REMOVED***)
+			cmd := getRunCmd(ctx, logger, newCommandFlags())
 			a, err := filepath.Abs(path.Join("testdata", tc.testFilename))
 			require.NoError(t, err)
 			cmd.SetArgs([]string***REMOVED***a***REMOVED***)
@@ -205,7 +200,7 @@ func TestInitErrExitCode(t *testing.T) ***REMOVED***
 	defer cancel()
 	logger := testutils.NewLogger(t)
 
-	cmd := getRunCmd(ctx, logger)
+	cmd := getRunCmd(ctx, logger, newCommandFlags())
 	a, err := filepath.Abs("testdata/initerr.js")
 	require.NoError(t, err)
 	cmd.SetArgs([]string***REMOVED***a***REMOVED***)

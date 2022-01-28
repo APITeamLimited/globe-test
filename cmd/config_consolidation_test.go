@@ -20,7 +20,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -131,13 +134,16 @@ func mostFlagSets() []flagSetInit ***REMOVED***
 	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
 	// sigh... compromises...
 	result := []flagSetInit***REMOVED******REMOVED***
-	for i, fsi := range []flagSetInit***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
+	for i, fsi := range []func(globalFlags *commandFlags) *pflag.FlagSet***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
 		i, fsi := i, fsi // go...
-		result = append(result, func() *pflag.FlagSet ***REMOVED***
+		// TODO: this still uses os.GetEnv which needs to be removed
+		// before/along adding tests for those fields
+		root := newRootCommand(context.Background(), nil, nil)
+		result = append(result, func() (*pflag.FlagSet, *commandFlags) ***REMOVED***
 			flags := pflag.NewFlagSet(fmt.Sprintf("superContrivedFlags_%d", i), pflag.ContinueOnError)
-			flags.AddFlagSet(new(rootCommand).rootCmdPersistentFlagSet())
-			flags.AddFlagSet(fsi())
-			return flags
+			flags.AddFlagSet(root.rootCmdPersistentFlagSet())
+			flags.AddFlagSet(fsi(root.commandFlags))
+			return flags, root.commandFlags
 		***REMOVED***)
 	***REMOVED***
 	return result
@@ -155,11 +161,7 @@ func getFS(files []file) afero.Fs ***REMOVED***
 	return fs
 ***REMOVED***
 
-func defaultConfig(jsonConfig string) afero.Fs ***REMOVED***
-	return getFS([]file***REMOVED******REMOVED***defaultConfigFilePath, jsonConfig***REMOVED******REMOVED***)
-***REMOVED***
-
-type flagSetInit func() *pflag.FlagSet
+type flagSetInit func() (*pflag.FlagSet, *commandFlags)
 
 type opts struct ***REMOVED***
 	cli    []string
@@ -172,19 +174,7 @@ type opts struct ***REMOVED***
 	// actually will change those variables to their default values :| In our
 	// case, this happens only some of the time, for global variables that
 	// are configurable only via CLI flags, but not environment variables.
-	//
-	// For the rest, their default value is their current value, since that
-	// has been set from the environment variable. That has a bunch of other
-	// issues on its own, and the func() doesn't help at all, and we need to
-	// use the resetStickyGlobalVars() hack on top of that...
 	cliFlagSetInits []flagSetInit
-***REMOVED***
-
-func resetStickyGlobalVars() ***REMOVED***
-	// TODO: remove after fixing the config, obviously a dirty hack
-	exitOnRunning = false
-	configFilePath = ""
-	runType = ""
 ***REMOVED***
 
 // exp contains the different events or errors we expect our test case to trigger.
@@ -206,6 +196,21 @@ type configConsolidationTestCase struct ***REMOVED***
 ***REMOVED***
 
 func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED***
+	defaultConfig := func(jsonConfig string) afero.Fs ***REMOVED***
+		confDir, err := os.UserConfigDir()
+		if err != nil ***REMOVED***
+			confDir = ".config"
+		***REMOVED***
+		return getFS([]file***REMOVED******REMOVED***
+			filepath.Join(
+				confDir,
+				"loadimpact",
+				"k6",
+				defaultConfigFileName,
+			),
+			jsonConfig,
+		***REMOVED******REMOVED***)
+	***REMOVED***
 	I := null.IntFrom // shortcut for "Valid" (i.e. user-specified) ints
 	// This is a function, because some of these test cases actually need for the init() functions
 	// to be executed, since they depend on defaultConfigFilePath
@@ -545,8 +550,7 @@ func runTestCase(
 	logger.AddHook(logHook)
 	logger.SetOutput(output)
 
-	flagSet := newFlagSet()
-	defer resetStickyGlobalVars()
+	flagSet, globalFlags := newFlagSet()
 	flagSet.SetOutput(output)
 	// flagSet.PrintDefaults()
 
@@ -581,10 +585,9 @@ func runTestCase(
 		t.Logf("Creating an empty FS for this test")
 		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
 	***REMOVED***
-
 	consolidatedConfig, err := getConsolidatedConfig(testCase.options.fs, cliConf, runnerOpts,
 		// TODO: just make testcase.options.env in map[string]string
-		buildEnvMap(testCase.options.env))
+		buildEnvMap(testCase.options.env), globalFlags)
 	if testCase.expected.consolidationError ***REMOVED***
 		require.Error(t, err)
 		return
@@ -617,10 +620,8 @@ func runTestCase(
 	***REMOVED***
 ***REMOVED***
 
-//nolint:paralleltest // see comments in test
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
-	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
-	// to mess with shared global objects (variables, ... santa?)
+	t.Parallel()
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		tcNum, testCase := tcNum, testCase
@@ -629,12 +630,13 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 			flagSetInits = mostFlagSets()
 		***REMOVED***
 		for fsNum, flagSet := range flagSetInits ***REMOVED***
-			// I want to paralelize this, but I cannot... due to global variables and other
-			// questionable architectural choices... :|
 			fsNum, flagSet := fsNum, flagSet
 			t.Run(
 				fmt.Sprintf("TestCase#%d_FlagSet#%d", tcNum, fsNum),
-				func(t *testing.T) ***REMOVED*** runTestCase(t, testCase, flagSet) ***REMOVED***,
+				func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					runTestCase(t, testCase, flagSet)
+				***REMOVED***,
 			)
 		***REMOVED***
 	***REMOVED***

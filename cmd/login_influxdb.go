@@ -37,7 +37,7 @@ import (
 )
 
 //nolint:funlen
-func getLoginInfluxDBCommand(logger logrus.FieldLogger) *cobra.Command ***REMOVED***
+func getLoginInfluxDBCommand(logger logrus.FieldLogger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
 	// loginInfluxDBCommand represents the 'login influxdb' command
 	loginInfluxDBCommand := &cobra.Command***REMOVED***
 		Use:   "influxdb [uri]",
@@ -48,7 +48,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 			fs := afero.NewOsFs()
-			config, configPath, err := readDiskConfig(fs)
+			config, configPath, err := readDiskConfig(fs, globalFlags)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -96,7 +96,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			if !term.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
 				logger.Warn("Stdin is not a terminal, falling back to plain text input")
 			***REMOVED***
-			vals, err := form.Run(os.Stdin, stdout)
+			vals, err := form.Run(os.Stdin, globalFlags.stdout)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***

@@ -104,8 +104,8 @@ func getBanner(noColor bool) string ***REMOVED***
 	return c.Sprint(consts.Banner())
 ***REMOVED***
 
-func printBar(bar *pb.ProgressBar) ***REMOVED***
-	if quiet ***REMOVED***
+func printBar(bar *pb.ProgressBar, globalFlags *commandFlags) ***REMOVED***
+	if globalFlags.quiet ***REMOVED***
 		return
 	***REMOVED***
 	end := "\n"
@@ -113,7 +113,7 @@ func printBar(bar *pb.ProgressBar) ***REMOVED***
 	// stateless... basically first render the left and right parts, so we know
 	// how long the longest line is, and how much space we have for the progress
 	widthDelta := -defaultTermWidth
-	if stdout.IsTTY ***REMOVED***
+	if globalFlags.stdout.IsTTY ***REMOVED***
 		// If we're in a TTY, instead of printing the bar and going to the next
 		// line, erase everything till the end of the line and return to the
 		// start, so that the next print will overwrite the same line.
@@ -124,24 +124,24 @@ func printBar(bar *pb.ProgressBar) ***REMOVED***
 	***REMOVED***
 	rendered := bar.Render(0, widthDelta)
 	// Only output the left and middle part of the progress bar
-	fprintf(stdout, "%s%s", rendered.String(), end)
+	fprintf(globalFlags.stdout, "%s%s", rendered.String(), end)
 ***REMOVED***
 
-func modifyAndPrintBar(bar *pb.ProgressBar, options ...pb.ProgressBarOption) ***REMOVED***
+func modifyAndPrintBar(bar *pb.ProgressBar, globalFlags *commandFlags, options ...pb.ProgressBarOption) ***REMOVED***
 	bar.Modify(options...)
-	printBar(bar)
+	printBar(bar, globalFlags)
 ***REMOVED***
 
 // Print execution description for both cloud and local execution.
 // TODO: Clean this up as part of #1499 or #1427
 func printExecutionDescription(
 	execution, filename, outputOverride string, conf Config, et *lib.ExecutionTuple,
-	execPlan []lib.ExecutionStep, outputs []output.Output, noColor bool,
+	execPlan []lib.ExecutionStep, outputs []output.Output, noColor bool, globalFlags *commandFlags,
 ) ***REMOVED***
 	valueColor := getColor(noColor, color.FgCyan)
 
-	fprintf(stdout, "  execution: %s\n", valueColor.Sprint(execution))
-	fprintf(stdout, "     script: %s\n", valueColor.Sprint(filename))
+	fprintf(globalFlags.stdout, "  execution: %s\n", valueColor.Sprint(execution))
+	fprintf(globalFlags.stdout, "     script: %s\n", valueColor.Sprint(filename))
 
 	var outputDescriptions []string
 	switch ***REMOVED***
@@ -155,8 +155,8 @@ func printExecutionDescription(
 		***REMOVED***
 	***REMOVED***
 
-	fprintf(stdout, "     output: %s\n", valueColor.Sprint(strings.Join(outputDescriptions, ", ")))
-	fprintf(stdout, "\n")
+	fprintf(globalFlags.stdout, "     output: %s\n", valueColor.Sprint(strings.Join(outputDescriptions, ", ")))
+	fprintf(globalFlags.stdout, "\n")
 
 	maxDuration, _ := lib.GetEndOffset(execPlan)
 	executorConfigs := conf.Scenarios.GetSortedConfigs()
@@ -166,21 +166,21 @@ func printExecutionDescription(
 		scenarioDesc = fmt.Sprintf("%d scenarios", len(executorConfigs))
 	***REMOVED***
 
-	fprintf(stdout, "  scenarios: %s\n", valueColor.Sprintf(
+	fprintf(globalFlags.stdout, "  scenarios: %s\n", valueColor.Sprintf(
 		"(%.2f%%) %s, %d max VUs, %s max duration (incl. graceful stop):",
 		conf.ExecutionSegment.FloatLength()*100, scenarioDesc,
 		lib.GetMaxPossibleVUs(execPlan), maxDuration.Round(100*time.Millisecond)),
 	)
 	for _, ec := range executorConfigs ***REMOVED***
-		fprintf(stdout, "           * %s: %s\n",
+		fprintf(globalFlags.stdout, "           * %s: %s\n",
 			ec.GetName(), ec.GetDescription(et))
 	***REMOVED***
-	fprintf(stdout, "\n")
+	fprintf(globalFlags.stdout, "\n")
 ***REMOVED***
 
 //nolint: funlen
 func renderMultipleBars(
-	isTTY, goBack bool, maxLeft, termWidth, widthDelta int, pbs []*pb.ProgressBar,
+	isTTY, goBack bool, maxLeft, termWidth, widthDelta int, pbs []*pb.ProgressBar, globalFlags *commandFlags,
 ) (string, int) ***REMOVED***
 	lineEnd := "\n"
 	if isTTY ***REMOVED***
@@ -248,7 +248,7 @@ func renderMultipleBars(
 			longestLine = lineRuneCount
 		***REMOVED***
 		lineBreaks += (lineRuneCount - termPadding) / termWidth
-		if !noColor ***REMOVED***
+		if !globalFlags.noColor ***REMOVED***
 			rend.Color = true
 			status = fmt.Sprintf(" %s ", rend.Status())
 			line = fmt.Sprintf(leftPadFmt+"%s%s%s",
@@ -272,14 +272,14 @@ func renderMultipleBars(
 // TODO: add a no-progress option that will disable these
 // TODO: don't use global variables...
 // nolint:funlen,gocognit
-func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Logger) ***REMOVED***
-	if quiet ***REMOVED***
+func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Logger, globalFlags *commandFlags) ***REMOVED***
+	if globalFlags.quiet ***REMOVED***
 		return
 	***REMOVED***
 
 	var errTermGetSize bool
 	termWidth := defaultTermWidth
-	if stdoutTTY ***REMOVED***
+	if globalFlags.stdoutTTY ***REMOVED***
 		tw, _, err := term.GetSize(int(os.Stdout.Fd()))
 		if !(tw > 0) || err != nil ***REMOVED***
 			errTermGetSize = true
@@ -304,14 +304,15 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 
 	printProgressBars := func() ***REMOVED***
 		progressBarsLastRenderLock.Lock()
-		_, _ = stdout.Writer.Write(progressBarsLastRender)
+		_, _ = globalFlags.stdout.Writer.Write(progressBarsLastRender)
 		progressBarsLastRenderLock.Unlock()
 	***REMOVED***
 
 	var widthDelta int
 	// Default to responsive progress bars when in an interactive terminal
 	renderProgressBars := func(goBack bool) ***REMOVED***
-		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
+		barText, longestLine := renderMultipleBars(
+			globalFlags.stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs, globalFlags)
 		widthDelta = termWidth - longestLine - termPadding
 		progressBarsLastRenderLock.Lock()
 		progressBarsLastRender = []byte(barText)
@@ -319,10 +320,10 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 	***REMOVED***
 
 	// Otherwise fallback to fixed compact progress bars
-	if !stdoutTTY ***REMOVED***
+	if !globalFlags.stdoutTTY ***REMOVED***
 		widthDelta = -pb.DefaultWidth
 		renderProgressBars = func(goBack bool) ***REMOVED***
-			barText, _ := renderMultipleBars(stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs)
+			barText, _ := renderMultipleBars(globalFlags.stdoutTTY, goBack, maxLeft, termWidth, widthDelta, pbs, globalFlags)
 			progressBarsLastRenderLock.Lock()
 			progressBarsLastRender = []byte(barText)
 			progressBarsLastRenderLock.Unlock()
@@ -331,17 +332,17 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 
 	// TODO: make configurable?
 	updateFreq := 1 * time.Second
-	if stdoutTTY ***REMOVED***
+	if globalFlags.stdoutTTY ***REMOVED***
 		updateFreq = 100 * time.Millisecond
-		outMutex.Lock()
-		stdout.PersistentText = printProgressBars
-		stderr.PersistentText = printProgressBars
-		outMutex.Unlock()
+		globalFlags.outMutex.Lock()
+		globalFlags.stdout.PersistentText = printProgressBars
+		globalFlags.stderr.PersistentText = printProgressBars
+		globalFlags.outMutex.Unlock()
 		defer func() ***REMOVED***
-			outMutex.Lock()
-			stdout.PersistentText = nil
-			stderr.PersistentText = nil
-			outMutex.Unlock()
+			globalFlags.outMutex.Lock()
+			globalFlags.stdout.PersistentText = nil
+			globalFlags.stderr.PersistentText = nil
+			globalFlags.outMutex.Unlock()
 		***REMOVED***()
 	***REMOVED***
 
@@ -361,12 +362,12 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 		select ***REMOVED***
 		case <-ctxDone:
 			renderProgressBars(false)
-			outMutex.Lock()
+			globalFlags.outMutex.Lock()
 			printProgressBars()
-			outMutex.Unlock()
+			globalFlags.outMutex.Unlock()
 			return
 		case <-winch:
-			if stdoutTTY && !errTermGetSize ***REMOVED***
+			if globalFlags.stdoutTTY && !errTermGetSize ***REMOVED***
 				// More responsive progress bar resizing on platforms with SIGWINCH (*nix)
 				tw, _, err := term.GetSize(fd)
 				if tw > 0 && err == nil ***REMOVED***
@@ -375,7 +376,7 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 			***REMOVED***
 		case <-ticker.C:
 			// Default ticker-based progress bar resizing
-			if stdoutTTY && !errTermGetSize && winch == nil ***REMOVED***
+			if globalFlags.stdoutTTY && !errTermGetSize && winch == nil ***REMOVED***
 				tw, _, err := term.GetSize(fd)
 				if tw > 0 && err == nil ***REMOVED***
 					termWidth = tw
@@ -383,9 +384,9 @@ func showProgress(ctx context.Context, pbs []*pb.ProgressBar, logger *logrus.Log
 			***REMOVED***
 		***REMOVED***
 		renderProgressBars(true)
-		outMutex.Lock()
+		globalFlags.outMutex.Lock()
 		printProgressBars()
-		outMutex.Unlock()
+		globalFlags.outMutex.Unlock()
 	***REMOVED***
 ***REMOVED***
 
