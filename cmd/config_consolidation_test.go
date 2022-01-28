@@ -172,11 +172,6 @@ type opts struct ***REMOVED***
 	// actually will change those variables to their default values :| In our
 	// case, this happens only some of the time, for global variables that
 	// are configurable only via CLI flags, but not environment variables.
-	//
-	// For the rest, their default value is their current value, since that
-	// has been set from the environment variable. That has a bunch of other
-	// issues on its own, and the func() doesn't help at all, and we need to
-	// use the resetStickyGlobalVars() hack on top of that...
 	cliFlagSetInits []flagSetInit
 ***REMOVED***
 
@@ -623,10 +618,8 @@ func runTestCase(
 	***REMOVED***
 ***REMOVED***
 
-//nolint:paralleltest // see comments in test
 func TestConfigConsolidation(t *testing.T) ***REMOVED***
-	// This test and its subtests shouldn't be ran in parallel, since they unfortunately have
-	// to mess with shared global objects (variables, ... santa?)
+	t.Parallel()
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		tcNum, testCase := tcNum, testCase
@@ -635,12 +628,13 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 			flagSetInits = mostFlagSets()
 		***REMOVED***
 		for fsNum, flagSet := range flagSetInits ***REMOVED***
-			// I want to paralelize this, but I cannot... due to global variables and other
-			// questionable architectural choices... :|
 			fsNum, flagSet := fsNum, flagSet
 			t.Run(
 				fmt.Sprintf("TestCase#%d_FlagSet#%d", tcNum, fsNum),
-				func(t *testing.T) ***REMOVED*** runTestCase(t, testCase, flagSet) ***REMOVED***,
+				func(t *testing.T) ***REMOVED***
+					t.Parallel()
+					runTestCase(t, testCase, flagSet)
+				***REMOVED***,
 			)
 		***REMOVED***
 	***REMOVED***
