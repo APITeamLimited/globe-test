@@ -385,8 +385,64 @@ func sendReceive(
 	return resp, nil
 ***REMOVED***
 
+type params struct ***REMOVED***
+	Metadata map[string]string
+	Tags     map[string]string
+	Timeout  time.Duration
+***REMOVED***
+
+func (c *Client) parseParams(raw map[string]interface***REMOVED******REMOVED***) (params, error) ***REMOVED***
+	p := params***REMOVED***
+		Timeout: 1 * time.Minute,
+	***REMOVED***
+	for k, v := range raw ***REMOVED***
+		switch k ***REMOVED***
+		case "headers":
+			c.vu.State().Logger.Warn("The headers property is deprecated, replace it with the metadata property, please.")
+			fallthrough
+		case "metadata":
+			p.Metadata = make(map[string]string)
+
+			rawHeaders, ok := v.(map[string]interface***REMOVED******REMOVED***)
+			if !ok ***REMOVED***
+				return p, errors.New("metadata must be an object with key-value pairs")
+			***REMOVED***
+			for hk, kv := range rawHeaders ***REMOVED***
+				// TODO(rogchap): Should we manage a string slice?
+				strval, ok := kv.(string)
+				if !ok ***REMOVED***
+					return p, fmt.Errorf("metadata %q value must be a string", hk)
+				***REMOVED***
+				p.Metadata[hk] = strval
+			***REMOVED***
+		case "tags":
+			p.Tags = make(map[string]string)
+
+			rawTags, ok := v.(map[string]interface***REMOVED******REMOVED***)
+			if !ok ***REMOVED***
+				return p, errors.New("tags must be an object with key-value pairs")
+			***REMOVED***
+			for tk, tv := range rawTags ***REMOVED***
+				strVal, ok := tv.(string)
+				if !ok ***REMOVED***
+					return p, fmt.Errorf("tag %q value must be a string", tk)
+				***REMOVED***
+				p.Tags[tk] = strVal
+			***REMOVED***
+		case "timeout":
+			var err error
+			p.Timeout, err = types.GetDurationValue(v)
+			if err != nil ***REMOVED***
+				return p, fmt.Errorf("invalid timeout value: %w", err)
+			***REMOVED***
+		default:
+			return p, fmt.Errorf("unknown param: %q", k)
+		***REMOVED***
+	***REMOVED***
+	return p, nil
+***REMOVED***
+
 // Invoke creates and calls a unary RPC by fully qualified method name
-//nolint: funlen,gocognit,gocyclo,cyclop
 func (c *Client) Invoke(
 	method string,
 	req goja.Value,
@@ -411,47 +467,21 @@ func (c *Client) Invoke(
 		return nil, fmt.Errorf("method %q not found in file descriptors", method)
 	***REMOVED***
 
-	tags := state.CloneTags()
-	timeout := 60 * time.Second
+	p, err := c.parseParams(params)
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
 
 	ctx := metadata.NewOutgoingContext(c.vu.Context(), metadata.New(nil))
-	for k, v := range params ***REMOVED***
-		switch k ***REMOVED***
-		case "headers":
-			rawHeaders, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
-				return nil, errors.New("headers must be an object with key-value pairs")
-			***REMOVED***
-			for hk, kv := range rawHeaders ***REMOVED***
-				// TODO(rogchap): Should we manage a string slice?
-				strVal, ok := kv.(string)
-				if !ok ***REMOVED***
-					return nil, fmt.Errorf("header %q value must be a string", hk)
-				***REMOVED***
-				ctx = metadata.AppendToOutgoingContext(ctx, hk, strVal)
-			***REMOVED***
-		case "tags":
-			rawTags, ok := v.(map[string]interface***REMOVED******REMOVED***)
-			if !ok ***REMOVED***
-				return nil, errors.New("tags must be an object with key-value pairs")
-			***REMOVED***
-			for tk, tv := range rawTags ***REMOVED***
-				strVal, ok := tv.(string)
-				if !ok ***REMOVED***
-					return nil, fmt.Errorf("tag %q value must be a string", tk)
-				***REMOVED***
-				tags[tk] = strVal
-			***REMOVED***
-		case "timeout":
-			var err error
-			timeout, err = types.GetDurationValue(v)
-			if err != nil ***REMOVED***
-				return nil, fmt.Errorf("invalid timeout value: %w", err)
-			***REMOVED***
-		default:
-			return nil, fmt.Errorf("unknown param: %q", k)
-		***REMOVED***
+	for param, strval := range p.Metadata ***REMOVED***
+		ctx = metadata.AppendToOutgoingContext(ctx, param, strval)
 	***REMOVED***
+
+	tags := state.CloneTags()
+	for k, v := range p.Tags ***REMOVED***
+		tags[k] = v
+	***REMOVED***
+
 	if state.Options.SystemTags.Has(stats.TagURL) ***REMOVED***
 		tags["url"] = fmt.Sprintf("%s%s", c.conn.Target(), method)
 	***REMOVED***
@@ -481,12 +511,12 @@ func (c *Client) Invoke(
 		***REMOVED***
 	***REMOVED***
 
-	reqCtx, cancel := context.WithTimeout(ctx, timeout)
+	reqCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
 	resp := dynamicpb.NewMessage(md.Output())
 	header, trailer := metadata.New(nil), metadata.New(nil)
-	err := c.conn.Invoke(reqCtx, method, reqdm, resp, grpc.Header(&header), grpc.Trailer(&trailer))
+	err = c.conn.Invoke(reqCtx, method, reqdm, resp, grpc.Header(&header), grpc.Trailer(&trailer))
 
 	var response Response
 	response.Headers = header

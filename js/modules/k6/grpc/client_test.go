@@ -26,6 +26,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"runtime"
@@ -56,6 +57,7 @@ import (
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/fsext"
 	"go.k6.io/k6/lib/metrics"
+	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/lib/testutils/httpmultibin"
 	"go.k6.io/k6/stats"
 )
@@ -436,7 +438,7 @@ func TestClient(t *testing.T) ***REMOVED***
 			***REMOVED***,
 			vuString: codeBlock***REMOVED***code: `
 				client.connect("GRPCBIN_ADDR");
-				var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** headers: ***REMOVED*** "X-Load-Tester": "k6" ***REMOVED*** ***REMOVED***)
+				var resp = client.invoke("grpc.testing.TestService/EmptyCall", ***REMOVED******REMOVED***, ***REMOVED*** metadata: ***REMOVED*** "X-Load-Tester": "k6" ***REMOVED*** ***REMOVED***)
 				if (resp.status !== grpc.StatusOK) ***REMOVED***
 					throw new Error("failed to send correct headers in the request")
 				***REMOVED***
@@ -791,6 +793,36 @@ func TestDebugStat(t *testing.T) ***REMOVED***
 			assert.Contains(t, b.String(), tt.expected)
 		***REMOVED***)
 	***REMOVED***
+***REMOVED***
+
+func TestClientInvokeHeadersDeprecated(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	logHook := &testutils.SimpleLogrusHook***REMOVED***
+		HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
+	***REMOVED***
+	testLog := logrus.New()
+	testLog.AddHook(logHook)
+	testLog.SetOutput(ioutil.Discard)
+
+	c := Client***REMOVED***
+		vu: &modulestest.VU***REMOVED***
+			StateField: &lib.State***REMOVED***
+				Logger: testLog,
+			***REMOVED***,
+		***REMOVED***,
+	***REMOVED***
+	params := map[string]interface***REMOVED******REMOVED******REMOVED***
+		"headers": map[string]interface***REMOVED******REMOVED******REMOVED***
+			"X-HEADER-FOO": "bar",
+		***REMOVED***,
+	***REMOVED***
+	_, err := c.parseParams(params)
+	require.NoError(t, err)
+
+	entries := logHook.Drain()
+	require.Len(t, entries, 1)
+	require.Contains(t, entries[0].Message, "headers property is deprecated")
 ***REMOVED***
 
 func TestResolveFileDescriptors(t *testing.T) ***REMOVED***
