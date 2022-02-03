@@ -190,24 +190,9 @@ func (c *Client) convertToMethodInfo(fdset *descriptorpb.FileDescriptorSet) ([]M
 	return rtn, nil
 ***REMOVED***
 
-type transportCreds struct ***REMOVED***
-	credentials.TransportCredentials
-	errc chan<- error
-***REMOVED***
-
-func (t transportCreds) ClientHandshake(ctx context.Context,
-	addr string, in net.Conn) (net.Conn, credentials.AuthInfo, error) ***REMOVED***
-	out, auth, err := t.TransportCredentials.ClientHandshake(ctx, addr, in)
-	if err != nil ***REMOVED***
-		t.errc <- err
-	***REMOVED***
-
-	return out, auth, err
-***REMOVED***
-
 // Connect is a block dial to the gRPC server at the given address (host:port)
 func (c *Client) Connect(addr string, params map[string]interface***REMOVED******REMOVED***) (bool, error) ***REMOVED***
-	state := c.vu.State() //nolint:ifshort
+	state := c.vu.State()
 	if state == nil ***REMOVED***
 		return false, errConnectInInitContext
 	***REMOVED***
@@ -217,67 +202,60 @@ func (c *Client) Connect(addr string, params map[string]interface***REMOVED*****
 		return false, err
 	***REMOVED***
 
-	// (rogchap) Even with FailOnNonTempDialError, if there is a TLS error this will timeout
-	// rather than report the error, so we can't rely on WithBlock. By running in a goroutine
-	// we can then wait on the error channel instead, which could happen before the Dial
-	// returns. We only need to close the channel to un-block in a non-error scenario;
-	// otherwise it can be GCd without closing as we return on an error on the channel.
-	errc := make(chan error, 1)
+	opts := make([]grpc.DialOption, 0, 2)
 
-	go func() ***REMOVED***
-		opts := []grpc.DialOption***REMOVED***
-			grpc.WithBlock(),
-			grpc.FailOnNonTempDialError(true),
-			grpc.WithStatsHandler(c),
-		***REMOVED***
+	if !p.IsPlaintext ***REMOVED***
+		tlsCfg := state.TLSConfig.Clone()
+		tlsCfg.NextProtos = []string***REMOVED***"h2"***REMOVED***
 
-		if ua := state.Options.UserAgent; ua.Valid ***REMOVED***
-			opts = append(opts, grpc.WithUserAgent(ua.ValueOrZero()))
-		***REMOVED***
+		// TODO(rogchap): Would be good to add support for custom RootCAs (self signed)
 
-		if !p.IsPlaintext ***REMOVED***
-			tlsCfg := state.TLSConfig.Clone()
-			tlsCfg.NextProtos = []string***REMOVED***"h2"***REMOVED***
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
+	***REMOVED*** else ***REMOVED***
+		opts = append(opts, grpc.WithInsecure())
+	***REMOVED***
 
-			// TODO(rogchap): Would be good to add support for custom RootCAs (self signed)
+	if ua := state.Options.UserAgent; ua.Valid ***REMOVED***
+		opts = append(opts, grpc.WithUserAgent(ua.ValueOrZero()))
+	***REMOVED***
 
-			// (rogchap) we create a wrapper for transport credentials so that we can report
-			// on any TLS errors.
-			creds := transportCreds***REMOVED***
-				TransportCredentials: credentials.NewTLS(tlsCfg),
-				errc:                 errc,
-			***REMOVED***
+	dialer := func(ctx context.Context, addr string) (net.Conn, error) ***REMOVED***
+		return state.Dialer.DialContext(ctx, "tcp", addr)
+	***REMOVED***
+	opts = append(opts, grpc.WithContextDialer(dialer))
 
-			opts = append(opts, grpc.WithTransportCredentials(creds))
-		***REMOVED*** else ***REMOVED***
-			opts = append(opts, grpc.WithInsecure())
-		***REMOVED***
+	ctx, cancel := context.WithTimeout(c.vu.Context(), p.Timeout)
+	defer cancel()
 
-		dialer := func(ctx context.Context, addr string) (net.Conn, error) ***REMOVED***
-			return state.Dialer.DialContext(ctx, "tcp", addr)
-		***REMOVED***
-		opts = append(opts, grpc.WithContextDialer(dialer))
+	err = c.dial(ctx, addr, p.UseReflectionProtocol, opts...)
+	return err != nil, err
+***REMOVED***
 
-		ctx, cancel := context.WithTimeout(c.vu.Context(), p.Timeout)
-		defer cancel()
+func (c *Client) dial(
+	ctx context.Context,
+	addr string,
+	reflect bool,
+	options ...grpc.DialOption,
+) error ***REMOVED***
+	opts := []grpc.DialOption***REMOVED***
+		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true),
+		grpc.WithStatsHandler(c),
+		grpc.WithReturnConnectionError(),
+	***REMOVED***
+	opts = append(opts, options...)
 
-		var err error
-		c.conn, err = grpc.DialContext(ctx, addr, opts...)
-		if err != nil ***REMOVED***
-			errc <- err
-			return
-		***REMOVED***
-		if p.UseReflectionProtocol ***REMOVED***
-			err := c.reflect(ctx)
-			if err != nil ***REMOVED***
-				errc <- err
-				return
-			***REMOVED***
-		***REMOVED***
-		close(errc)
-	***REMOVED***()
-	err = <-errc
-	return err == nil, err
+	var err error
+	c.conn, err = grpc.DialContext(ctx, addr, opts...)
+	if err != nil ***REMOVED***
+		return err
+	***REMOVED***
+
+	if !reflect ***REMOVED***
+		return nil
+	***REMOVED***
+
+	return c.reflect(ctx)
 ***REMOVED***
 
 // reflect will use the grpc reflection api to make the file descriptors available to request.
