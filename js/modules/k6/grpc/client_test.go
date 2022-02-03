@@ -23,6 +23,7 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
@@ -161,6 +162,24 @@ func TestClient(t *testing.T) ***REMOVED***
 	***REMOVED***
 
 	tests := []testcase***REMOVED***
+		***REMOVED***
+			name: "BadTLS",
+			setup: func(tb *httpmultibin.HTTPMultiBin) ***REMOVED***
+				// changing the pointer's value
+				// for affecting the lib.State
+				// that uses the same pointer
+				*tb.TLSClientConfig = tls.Config***REMOVED***
+					MinVersion: tls.VersionTLS13,
+				***REMOVED***
+			***REMOVED***,
+			initString: codeBlock***REMOVED***
+				code: `var client = new grpc.Client();`,
+			***REMOVED***,
+			vuString: codeBlock***REMOVED***
+				code: `client.connect("GRPCBIN_ADDR", ***REMOVED***timeout: '1s'***REMOVED***)`,
+				err:  "certificate signed by unknown authority",
+			***REMOVED***,
+		***REMOVED***,
 		***REMOVED***
 			name: "New",
 			initString: codeBlock***REMOVED***
@@ -670,7 +689,8 @@ func TestClient(t *testing.T) ***REMOVED***
 
 			ts := setup(t)
 
-			ctx := common.WithRuntime(context.Background(), ts.rt)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			mvu := &modulestest.VU***REMOVED***
 				RuntimeField: ts.rt,
 				InitEnvField: ts.env,
