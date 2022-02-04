@@ -33,6 +33,7 @@ import (
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/js/common"
@@ -104,7 +105,69 @@ func extractLogger(fl logrus.FieldLogger) *logrus.Logger ***REMOVED***
 	return nil
 ***REMOVED***
 
-func TestConsole(t *testing.T) ***REMOVED***
+func TestConsoleLog(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	tests := []struct ***REMOVED***
+		in       string
+		expected string
+	***REMOVED******REMOVED***
+		***REMOVED***``, ``***REMOVED***,
+		***REMOVED***`""`, ``***REMOVED***,
+		***REMOVED***`undefined`, `undefined`***REMOVED***,
+		***REMOVED***`null`, `null`***REMOVED***,
+
+		***REMOVED***in: `"string"`, expected: "string"***REMOVED***,
+		***REMOVED***in: `"string","a","b"`, expected: "string a b"***REMOVED***,
+		***REMOVED***in: `"string",1,2`, expected: "string 1 2"***REMOVED***,
+
+		***REMOVED***in: `["bar", 1, 2]`, expected: `["bar",1,2]`***REMOVED***,
+		***REMOVED***in: `"bar", ["bar", 0x01, 2], 1, 2`, expected: `bar ["bar",1,2] 1 2`***REMOVED***,
+
+		***REMOVED***in: `***REMOVED******REMOVED***`, expected: "***REMOVED******REMOVED***"***REMOVED***,
+		***REMOVED***in: `***REMOVED***foo:"bar"***REMOVED***`, expected: `***REMOVED***"foo":"bar"***REMOVED***`***REMOVED***,
+		***REMOVED***in: `["test1", 2]`, expected: `["test1",2]`***REMOVED***,
+
+		// TODO: the ideal output for a circular object should be like `***REMOVED***a: [Circular]***REMOVED***`
+		***REMOVED***in: `function() ***REMOVED***var a = ***REMOVED***foo: ***REMOVED******REMOVED******REMOVED***; a.foo = a; return a***REMOVED***()`, expected: "[object Object]"***REMOVED***,
+	***REMOVED***
+
+	for i, tt := range tests ***REMOVED***
+		tt := tt
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) ***REMOVED***
+			t.Parallel()
+
+			r, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(
+				`exports.default = function() ***REMOVED*** console.log(%s); ***REMOVED***`, tt.in))
+			require.NoError(t, err)
+
+			samples := make(chan metrics.SampleContainer, 100)
+			initVU, err := r.newVU(1, 1, samples)
+			assert.NoError(t, err)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			vu := initVU.Activate(&lib.VUActivationParams***REMOVED***RunContext: ctx***REMOVED***)
+
+			logger := extractLogger(vu.(*ActiveVU).Console.logger)
+
+			logger.Out = ioutil.Discard
+			logger.Level = logrus.DebugLevel
+			hook := logtest.NewLocal(logger)
+
+			err = vu.RunOnce()
+			assert.NoError(t, err)
+
+			entry := hook.LastEntry()
+
+			require.NotNil(t, entry, "nothing logged")
+			assert.Equal(t, tt.expected, entry.Message)
+			assert.Equal(t, logrus.Fields***REMOVED***"source": "console"***REMOVED***, entry.Data)
+		***REMOVED***)
+	***REMOVED***
+***REMOVED***
+
+func TestConsoleLevels(t *testing.T) ***REMOVED***
 	t.Parallel()
 	levels := map[string]logrus.Level***REMOVED***
 		"log":   logrus.InfoLevel,
@@ -113,21 +176,20 @@ func TestConsole(t *testing.T) ***REMOVED***
 		"warn":  logrus.WarnLevel,
 		"error": logrus.ErrorLevel,
 	***REMOVED***
-	argsets := map[string]struct ***REMOVED***
-		Message string
-		Data    logrus.Fields
+	argsets := []struct ***REMOVED***
+		in  string
+		exp string
 	***REMOVED******REMOVED***
-		`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
-		`"string","a","b"`: ***REMOVED***Message: "string a b", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
-		`"string",1,2`:     ***REMOVED***Message: "string 1 2", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
-		`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED***"source": "console"***REMOVED******REMOVED***,
+		***REMOVED***in: `"string"`, exp: "string"***REMOVED***,
+		***REMOVED***in: `***REMOVED******REMOVED***`, exp: "***REMOVED******REMOVED***"***REMOVED***,
+		***REMOVED***in: `***REMOVED***foo:"bar"***REMOVED***`, exp: `***REMOVED***"foo":"bar"***REMOVED***`***REMOVED***,
 	***REMOVED***
 	for name, level := range levels ***REMOVED***
 		name, level := name, level
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			for args, result := range argsets ***REMOVED***
-				args, result := args, result
+			for _, tt := range argsets ***REMOVED***
+				args, result := tt.in, tt.exp
 				t.Run(args, func(t *testing.T) ***REMOVED***
 					t.Parallel()
 					r, err := getSimpleRunner(t, "/script.js", fmt.Sprintf(
@@ -154,16 +216,11 @@ func TestConsole(t *testing.T) ***REMOVED***
 					assert.NoError(t, err)
 
 					entry := hook.LastEntry()
-					if assert.NotNil(t, entry, "nothing logged") ***REMOVED***
-						assert.Equal(t, level, entry.Level)
-						assert.Equal(t, result.Message, entry.Message)
+					require.NotNil(t, entry, "nothing logged")
 
-						data := result.Data
-						if data == nil ***REMOVED***
-							data = make(logrus.Fields)
-						***REMOVED***
-						assert.Equal(t, data, entry.Data)
-					***REMOVED***
+					assert.Equal(t, level, entry.Level)
+					assert.Equal(t, result, entry.Message)
+					assert.Equal(t, logrus.Fields***REMOVED***"source": "console"***REMOVED***, entry.Data)
 				***REMOVED***)
 			***REMOVED***
 		***REMOVED***)
@@ -187,7 +244,7 @@ func TestFileConsole(t *testing.T) ***REMOVED***
 			`"string"`:         ***REMOVED***Message: "string", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 			`"string","a","b"`: ***REMOVED***Message: "string a b", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 			`"string",1,2`:     ***REMOVED***Message: "string 1 2", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
-			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "[object Object]", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
+			`***REMOVED******REMOVED***`:               ***REMOVED***Message: "***REMOVED******REMOVED***", Data: logrus.Fields***REMOVED******REMOVED******REMOVED***,
 		***REMOVED***
 		preExisting = map[string]bool***REMOVED***
 			"log exists":        false,
