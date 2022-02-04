@@ -132,11 +132,8 @@ func newTestState(t testing.TB) testState ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := lib.WithState(tb.Context, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     tb.Context,
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -144,7 +141,6 @@ func newTestState(t testing.TB) testState ***REMOVED***
 	require.NoError(t, rt.Set("ws", m.Exports().Default))
 
 	return testState***REMOVED***
-		ctxPtr:  &ctx,
 		rt:      rt,
 		tb:      tb,
 		state:   state,
@@ -181,12 +177,8 @@ func TestSession(t *testing.T) ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -579,12 +571,8 @@ func TestSocketSendBinary(t *testing.T) ***REMOVED*** //nolint: tparallel
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -675,12 +663,8 @@ func TestErrors(t *testing.T) ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -794,12 +778,8 @@ func TestSystemTags(t *testing.T) ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -864,12 +844,8 @@ func TestTLSConfig(t *testing.T) ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,
@@ -1010,11 +986,8 @@ func TestUserAgent(t *testing.T) ***REMOVED***
 		Tags:           lib.NewTagMap(nil),
 	***REMOVED***
 
-	ctx := lib.WithState(context.Background(), state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m := New().NewModuleInstance(&modulestest.VU***REMOVED***
-		CtxField:     ctx,
+		CtxField:     context.Background(),
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 		RuntimeField: rt,
 		StateField:   state,

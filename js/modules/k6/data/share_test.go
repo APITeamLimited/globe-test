@@ -53,7 +53,7 @@ func newConfiguredRuntime() (*goja.Runtime, error) ***REMOVED***
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     common.WithRuntime(context.Background(), rt),
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*Data)
@@ -173,7 +173,7 @@ func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 	vu := &modulestest.VU***REMOVED***
 		RuntimeField: rt,
 		InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-		CtxField:     common.WithRuntime(context.Background(), rt),
+		CtxField:     context.Background(),
 		StateField:   nil,
 	***REMOVED***
 	m, ok := New().NewModuleInstance(vu).(*Data)
@@ -186,7 +186,7 @@ func TestSharedArrayAnotherRuntimeWorking(t *testing.T) ***REMOVED***
 	// create another Runtime with new ctx but keep the initEnv
 	rt = goja.New()
 	vu.RuntimeField = rt
-	vu.CtxField = common.WithRuntime(context.Background(), rt)
+	vu.CtxField = context.Background()
 	require.NoError(t, rt.Set("data", m.Exports().Named))
 
 	_, err = rt.RunString(`var array = new data.SharedArray("shared", function() ***REMOVED***throw "wat";***REMOVED***);`)

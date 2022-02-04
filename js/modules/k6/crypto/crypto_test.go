@@ -49,14 +49,12 @@ func TestCryptoAlgorithms(t *testing.T) ***REMOVED***
 
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	ctx := context.Background()
-	ctx = common.WithRuntime(ctx, rt)
 
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*Crypto)
@@ -201,15 +199,13 @@ func TestStreamingApi(t *testing.T) ***REMOVED***
 	state := &lib.State***REMOVED***Group: root***REMOVED***
 
 	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
 
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 			CtxField:     ctx,
-			StateField:   nil,
+			StateField:   state,
 		***REMOVED***,
 	).(*Crypto)
 	require.True(t, ok)
@@ -271,18 +267,11 @@ func TestOutputEncoding(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
-	root, _ := lib.NewGroup("", nil)
-	state := &lib.State***REMOVED***Group: root***REMOVED***
-
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*Crypto)
@@ -359,18 +348,11 @@ func TestHMac(t *testing.T) ***REMOVED***
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 
-	root, _ := lib.NewGroup("", nil)
-	state := &lib.State***REMOVED***Group: root***REMOVED***
-
-	ctx := context.Background()
-	ctx = lib.WithState(ctx, state)
-	ctx = common.WithRuntime(ctx, rt)
-
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*Crypto)
@@ -499,13 +481,12 @@ func TestAWSv4(t *testing.T) ***REMOVED***
 	// example values from https://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
 	rt := goja.New()
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
-	ctx := common.WithRuntime(context.Background(), rt)
 
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*Crypto)

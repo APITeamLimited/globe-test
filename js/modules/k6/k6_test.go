@@ -23,7 +23,6 @@ package k6
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"testing"
 	"time"
 
@@ -45,7 +44,7 @@ func TestFail(t *testing.T) ***REMOVED***
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     common.WithRuntime(context.Background(), rt),
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*K6)
@@ -73,7 +72,7 @@ func TestSleep(t *testing.T) ***REMOVED***
 				&modulestest.VU***REMOVED***
 					RuntimeField: rt,
 					InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-					CtxField:     common.WithRuntime(context.Background(), rt),
+					CtxField:     context.Background(),
 					StateField:   nil,
 				***REMOVED***,
 			).(*K6)
@@ -90,13 +89,14 @@ func TestSleep(t *testing.T) ***REMOVED***
 
 	t.Run("Cancel", func(t *testing.T) ***REMOVED***
 		t.Parallel()
+
 		rt := goja.New()
 		ctx, cancel := context.WithCancel(context.Background())
 		m, ok := New().NewModuleInstance(
 			&modulestest.VU***REMOVED***
 				RuntimeField: rt,
 				InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-				CtxField:     common.WithRuntime(ctx, rt),
+				CtxField:     ctx,
 				StateField:   nil,
 			***REMOVED***,
 		).(*K6)
@@ -111,12 +111,11 @@ func TestSleep(t *testing.T) ***REMOVED***
 			assert.NoError(t, err)
 			dch <- endTime.Sub(startTime)
 		***REMOVED***()
-		runtime.Gosched()
+
 		time.Sleep(1 * time.Second)
-		runtime.Gosched()
 		cancel()
-		runtime.Gosched()
 		d := <-dch
+
 		assert.True(t, d > 500*time.Millisecond, "did not sleep long enough")
 		assert.True(t, d < 2*time.Second, "slept for too long!!")
 	***REMOVED***)
@@ -130,7 +129,7 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     common.WithRuntime(context.Background(), rt),
+			CtxField:     context.Background(),
 			StateField:   nil,
 		***REMOVED***,
 	).(*K6)
@@ -154,6 +153,7 @@ func TestRandSeed(t *testing.T) ***REMOVED***
 
 func TestGroup(t *testing.T) ***REMOVED***
 	t.Parallel()
+
 	setupGroupTest := func() (*goja.Runtime, *lib.State, *lib.Group) ***REMOVED***
 		root, err := lib.NewGroup("", nil)
 		assert.NoError(t, err)
@@ -167,13 +167,13 @@ func TestGroup(t *testing.T) ***REMOVED***
 				SystemTags: stats.NewSystemTagSet(stats.TagGroup),
 			***REMOVED***,
 		***REMOVED***
-		ctx := lib.WithState(context.Background(), state)
 		state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+
 		m, ok := New().NewModuleInstance(
 			&modulestest.VU***REMOVED***
 				RuntimeField: rt,
 				InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-				CtxField:     common.WithRuntime(ctx, rt),
+				CtxField:     context.Background(),
 				StateField:   state,
 			***REMOVED***,
 		).(*K6)
@@ -209,9 +209,7 @@ func TestGroup(t *testing.T) ***REMOVED***
 	***REMOVED***)
 ***REMOVED***
 
-func checkTestRuntime(t testing.TB, ctxs ...*context.Context) (
-	*goja.Runtime, chan stats.SampleContainer, *metrics.BuiltinMetrics,
-) ***REMOVED***
+func checkTestRuntime(t testing.TB) (*goja.Runtime, chan stats.SampleContainer, *metrics.BuiltinMetrics) ***REMOVED***
 	rt := goja.New()
 
 	root, err := lib.NewGroup("", nil)
@@ -227,26 +225,19 @@ func checkTestRuntime(t testing.TB, ctxs ...*context.Context) (
 			"group": root.Path,
 		***REMOVED***),
 	***REMOVED***
-	ctx := context.Background()
-	if len(ctxs) == 1 ***REMOVED*** // hacks
-		ctx = *ctxs[0]
-	***REMOVED***
-	ctx = common.WithRuntime(ctx, rt)
-	ctx = lib.WithState(ctx, state)
+
 	state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
-			CtxField:     ctx,
+			CtxField:     context.Background(),
 			StateField:   state,
 		***REMOVED***,
 	).(*K6)
 	require.True(t, ok)
 	require.NoError(t, rt.Set("k6", m.Exports().Named))
-	if len(ctxs) == 1 ***REMOVED*** // hacks
-		*ctxs[0] = ctx
-	***REMOVED***
+
 	return rt, samples, state.BuiltinMetrics
 ***REMOVED***
 
@@ -425,9 +416,35 @@ func TestCheckTypes(t *testing.T) ***REMOVED***
 
 func TestCheckContextExpiry(t *testing.T) ***REMOVED***
 	t.Parallel()
+
+	rt := goja.New()
 	ctx, cancel := context.WithCancel(context.Background())
-	rt, _, _ := checkTestRuntime(t, &ctx)
-	root := lib.GetState(ctx).Group
+	root, err := lib.NewGroup("", nil)
+	require.NoError(t, err)
+
+	samples := make(chan stats.SampleContainer, 1000)
+	state := &lib.State***REMOVED***
+		Group: root,
+		Options: lib.Options***REMOVED***
+			SystemTags: &stats.DefaultSystemTagSet,
+		***REMOVED***,
+		Samples: samples,
+		Tags: lib.NewTagMap(map[string]string***REMOVED***
+			"group": root.Path,
+		***REMOVED***),
+	***REMOVED***
+
+	state.BuiltinMetrics = metrics.RegisterBuiltinMetrics(metrics.NewRegistry())
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU***REMOVED***
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
+			CtxField:     ctx,
+			StateField:   state,
+		***REMOVED***,
+	).(*K6)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("k6", m.Exports().Named))
 
 	v, err := rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
 	if assert.NoError(t, err) ***REMOVED***
@@ -441,9 +458,8 @@ func TestCheckContextExpiry(t *testing.T) ***REMOVED***
 	cancel()
 
 	v, err = rt.RunString(`k6.check(null, ***REMOVED*** "check": true ***REMOVED***)`)
-	if assert.NoError(t, err) ***REMOVED***
-		assert.Equal(t, true, v.Export())
-	***REMOVED***
+	require.NoError(t, err)
+	assert.Equal(t, true, v.Export())
 
 	assert.Equal(t, int64(1), check.Passes)
 	assert.Equal(t, int64(0), check.Fails)

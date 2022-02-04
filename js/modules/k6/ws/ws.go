@@ -85,6 +85,7 @@ func (*RootModule) NewModuleInstance(m modules.VU) modules.Instance ***REMOVED**
 var ErrWSInInitContext = common.NewInitContextError("using websockets in the init context is not supported")
 
 type Socket struct ***REMOVED***
+	rt            *goja.Runtime
 	ctx           context.Context
 	conn          *websocket.Conn
 	eventHandlers map[string][]goja.Callable
@@ -263,6 +264,7 @@ func (mi *WS) Connect(url string, args ...goja.Value) (*WSHTTPResponse, error) *
 
 	socket := Socket***REMOVED***
 		ctx:                ctx,
+		rt:                 rt,
 		conn:               conn,
 		eventHandlers:      make(map[string][]goja.Callable),
 		pingSendTimestamps: make(map[string]time.Time),
@@ -407,7 +409,7 @@ func (s *Socket) handleEvent(event string, args ...goja.Value) ***REMOVED***
 	if handlers, ok := s.eventHandlers[event]; ok ***REMOVED***
 		for _, handler := range handlers ***REMOVED***
 			if _, err := handler(goja.Undefined(), args...); err != nil ***REMOVED***
-				common.Throw(common.GetRuntime(s.ctx), err)
+				common.Throw(s.rt, err)
 			***REMOVED***
 		***REMOVED***
 	***REMOVED***
@@ -416,7 +418,7 @@ func (s *Socket) handleEvent(event string, args ...goja.Value) ***REMOVED***
 // Send writes the given string message to the connection.
 func (s *Socket) Send(message string) ***REMOVED***
 	if err := s.conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil ***REMOVED***
-		s.handleEvent("error", common.GetRuntime(s.ctx).ToValue(err))
+		s.handleEvent("error", s.rt.ToValue(err))
 	***REMOVED***
 
 	stats.PushIfNotDone(s.ctx, s.samplesOutput, stats.Sample***REMOVED***
@@ -430,24 +432,23 @@ func (s *Socket) Send(message string) ***REMOVED***
 // SendBinary writes the given ArrayBuffer message to the connection.
 func (s *Socket) SendBinary(message goja.Value) ***REMOVED***
 	if message == nil ***REMOVED***
-		common.Throw(common.GetRuntime(s.ctx), errors.New("missing argument, expected ArrayBuffer"))
+		common.Throw(s.rt, errors.New("missing argument, expected ArrayBuffer"))
 	***REMOVED***
 
 	msg := message.Export()
 	if ab, ok := msg.(goja.ArrayBuffer); ok ***REMOVED***
 		if err := s.conn.WriteMessage(websocket.BinaryMessage, ab.Bytes()); err != nil ***REMOVED***
-			s.handleEvent("error", common.GetRuntime(s.ctx).ToValue(err))
+			s.handleEvent("error", s.rt.ToValue(err))
 		***REMOVED***
 	***REMOVED*** else ***REMOVED***
-		rt := common.GetRuntime(s.ctx)
 		var jsType string
 		switch ***REMOVED***
 		case goja.IsNull(message), goja.IsUndefined(message):
 			jsType = message.String()
 		default:
-			jsType = message.ToObject(rt).ClassName()
+			jsType = message.ToObject(s.rt).ClassName()
 		***REMOVED***
-		common.Throw(rt, fmt.Errorf("expected ArrayBuffer as argument, received: %s", jsType))
+		common.Throw(s.rt, fmt.Errorf("expected ArrayBuffer as argument, received: %s", jsType))
 	***REMOVED***
 
 	stats.PushIfNotDone(s.ctx, s.samplesOutput, stats.Sample***REMOVED***
@@ -459,14 +460,13 @@ func (s *Socket) SendBinary(message goja.Value) ***REMOVED***
 ***REMOVED***
 
 func (s *Socket) Ping() ***REMOVED***
-	rt := common.GetRuntime(s.ctx)
 	deadline := time.Now().Add(writeWait)
 	pingID := strconv.Itoa(s.pingSendCounter)
 	data := []byte(pingID)
 
 	err := s.conn.WriteControl(websocket.PingMessage, data, deadline)
 	if err != nil ***REMOVED***
-		s.handleEvent("error", rt.ToValue(err))
+		s.handleEvent("error", s.rt.ToValue(err))
 		return
 	***REMOVED***
 
@@ -578,19 +578,17 @@ func (s *Socket) closeConnection(code int) error ***REMOVED***
 			// Stop the main control loop
 			close(s.done)
 		***REMOVED***()
-		rt := common.GetRuntime(s.ctx)
-
 		err = s.conn.WriteControl(websocket.CloseMessage,
 			websocket.FormatCloseMessage(code, ""),
 			time.Now().Add(writeWait),
 		)
 		if err != nil ***REMOVED***
 			// Call the user-defined error handler
-			s.handleEvent("error", rt.ToValue(err))
+			s.handleEvent("error", s.rt.ToValue(err))
 		***REMOVED***
 
 		// Call the user-defined close handler
-		s.handleEvent("close", rt.ToValue(code))
+		s.handleEvent("close", s.rt.ToValue(code))
 	***REMOVED***)
 
 	return err

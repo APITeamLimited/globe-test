@@ -60,9 +60,11 @@ func setupTagsExecEnv(t *testing.T) execEnv ***REMOVED***
 		Logger: testLog,
 	***REMOVED***
 
-	rt := goja.New()
-	ctx := common.WithRuntime(context.Background(), rt)
-	ctx = lib.WithState(ctx, state)
+	var (
+		rt  = goja.New()
+		ctx = context.Background()
+	)
+
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
 			RuntimeField: rt,
@@ -187,10 +189,11 @@ func TestVUTags(t *testing.T) ***REMOVED***
 func TestAbortTest(t *testing.T) ***REMOVED*** //nolint: tparallel
 	t.Parallel()
 
-	rt := goja.New()
-	ctx := common.WithRuntime(context.Background(), rt)
-	state := &lib.State***REMOVED******REMOVED***
-	ctx = lib.WithState(ctx, state)
+	var (
+		rt    = goja.New()
+		state = &lib.State***REMOVED******REMOVED***
+		ctx   = context.Background()
+	)
 
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***

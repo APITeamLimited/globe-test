@@ -34,6 +34,7 @@ import (
 
 func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 	t.Parallel()
+
 	if testing.Short() ***REMOVED***
 		return
 	***REMOVED***
@@ -42,7 +43,7 @@ func TestEncodingAlgorithms(t *testing.T) ***REMOVED***
 	rt.SetFieldNameMapper(common.FieldNameMapper***REMOVED******REMOVED***)
 	m, ok := New().NewModuleInstance(
 		&modulestest.VU***REMOVED***
-			CtxField:     common.WithRuntime(context.Background(), rt),
+			CtxField:     context.Background(),
 			RuntimeField: rt,
 			InitEnvField: &common.InitEnvironment***REMOVED******REMOVED***,
 			StateField:   nil,
