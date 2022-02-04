@@ -69,6 +69,7 @@ type InitContext struct ***REMOVED***
 	runtime  *goja.Runtime
 	compiler *compiler.Compiler
 
+	moduleVUImpl *moduleVUImpl
 	// Pointer to a context that bridged modules are invoked with.
 	ctxPtr *context.Context
 
@@ -101,10 +102,11 @@ func NewInitContext(
 		compatibilityMode: compatMode,
 		logger:            logger,
 		modules:           getJSModules(),
+		moduleVUImpl:      &moduleVUImpl***REMOVED***ctxPtr: ctxPtr***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
-func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Runtime) *InitContext ***REMOVED***
+func newBoundInitContext(base *InitContext, rt *goja.Runtime, vuImpl *moduleVUImpl) *InitContext ***REMOVED***
 	// we don't copy the exports as otherwise they will be shared and we don't want this.
 	// this means that all the files will be executed again but once again only once per compilation
 	// of the main file.
@@ -117,7 +119,7 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 	***REMOVED***
 	return &InitContext***REMOVED***
 		runtime: rt,
-		ctxPtr:  ctxPtr,
+		ctxPtr:  vuImpl.ctxPtr, // remove this
 
 		filesystems: base.filesystems,
 		pwd:         base.pwd,
@@ -127,6 +129,7 @@ func newBoundInitContext(base *InitContext, ctxPtr *context.Context, rt *goja.Ru
 		compatibilityMode: base.compatibilityMode,
 		logger:            base.logger,
 		modules:           base.modules,
+		moduleVUImpl:      vuImpl,
 	***REMOVED***
 ***REMOVED***
 
@@ -156,6 +159,12 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 type moduleVUImpl struct ***REMOVED***
 	ctxPtr *context.Context
 	// we can technically put lib.State here as well as anything else
+***REMOVED***
+
+func newModuleVUImpl() *moduleVUImpl ***REMOVED***
+	return &moduleVUImpl***REMOVED***
+		ctxPtr: new(context.Context),
+	***REMOVED***
 ***REMOVED***
 
 func (m *moduleVUImpl) Context() context.Context ***REMOVED***
@@ -203,7 +212,7 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 		return nil, fmt.Errorf("unknown module: %s", name)
 	***REMOVED***
 	if m, ok := mod.(modules.Module); ok ***REMOVED***
-		instance := m.NewModuleInstance(&moduleVUImpl***REMOVED***ctxPtr: i.ctxPtr***REMOVED***)
+		instance := m.NewModuleInstance(i.moduleVUImpl)
 		return i.runtime.ToValue(toESModuleExports(instance.Exports())), nil
 	***REMOVED***
 	if perInstance, ok := mod.(modules.HasModuleInstancePerVU); ok ***REMOVED***
