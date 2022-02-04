@@ -282,8 +282,8 @@ func (i *InitContext) compileImport(src, filename string) (*goja.Program, error)
 // Open implements open() in the init context and will read and return the
 // contents of a file. If the second argument is "b" it returns an ArrayBuffer
 // instance, otherwise a string representation.
-func (i *InitContext) Open(ctx context.Context, filename string, args ...string) (goja.Value, error) ***REMOVED***
-	if lib.GetState(ctx) != nil ***REMOVED***
+func (i *InitContext) Open(filename string, args ...string) (goja.Value, error) ***REMOVED***
+	if i.moduleVUImpl.State() != nil ***REMOVED***
 		return nil, errors.New(openCantBeUsedOutsideInitContextMsg)
 	***REMOVED***
 

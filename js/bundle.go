@@ -331,7 +331,10 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	init.moduleVUImpl.initEnv = initenv
 	ctx := common.WithInitEnv(context.Background(), initenv)
 	*init.moduleVUImpl.ctxPtr = common.WithRuntime(ctx, rt)
-	unbindInit := common.BindToGlobal(rt, common.Bind(rt, init, init.moduleVUImpl.ctxPtr))
+	unbindInit := common.BindToGlobal(rt, map[string]interface***REMOVED******REMOVED******REMOVED***
+		"require": init.Require,
+		"open":    init.Open,
+	***REMOVED***)
 	if _, err := rt.RunProgram(b.Program); err != nil ***REMOVED***
 		var exception *goja.Exception
 		if errors.As(err, &exception) ***REMOVED***
