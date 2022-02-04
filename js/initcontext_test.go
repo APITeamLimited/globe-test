@@ -70,7 +70,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				return
 			***REMOVED***
 
-			bi, err := b.Instantiate(logger, 0)
+			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 			if !assert.NoError(t, err, "instance error") ***REMOVED***
 				return
 			***REMOVED***
@@ -100,7 +100,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 				`)
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0)
+			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 			require.NoError(t, err)
 
 			exports := bi.Runtime.Get("exports").ToObject(bi.Runtime)
@@ -137,7 +137,8 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			fs := afero.NewMemMapFs()
 			assert.NoError(t, afero.WriteFile(fs, "/file.js", []byte(`throw new Error("aaaa")`), 0o755))
 			_, err := getSimpleBundle(t, "/script.js", `import "/file.js"; export default function() ***REMOVED******REMOVED***`, fs)
-			assert.EqualError(t, err, "Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat reflect.methodValueCall (native)\n\tat file:///script.js:1:0(14)\n")
+			assert.EqualError(t, err,
+				"Error: aaaa\n\tat file:///file.js:2:7(3)\n\tat go.k6.io/k6/js.(*InitContext).Require-fm (native)\n\tat file:///script.js:1:0(14)\n")
 		***REMOVED***)
 
 		imports := map[string]struct ***REMOVED***
@@ -210,7 +211,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 							assert.Contains(t, b.BaseInitContext.programs, "file://"+constPath)
 						***REMOVED***
 
-						_, err = b.Instantiate(logger, 0)
+						_, err = b.Instantiate(logger, 0, newModuleVUImpl())
 						require.NoError(t, err)
 					***REMOVED***)
 				***REMOVED***
@@ -234,7 +235,7 @@ func TestInitContextRequire(t *testing.T) ***REMOVED***
 			b, err := getSimpleBundle(t, "/script.js", data, fs)
 			require.NoError(t, err)
 
-			bi, err := b.Instantiate(logger, 0)
+			bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 			require.NoError(t, err)
 			_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 			assert.NoError(t, err)
@@ -264,7 +265,7 @@ func createAndReadFile(t *testing.T, file string, content []byte, expectedLength
 		return nil, err
 	***REMOVED***
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, newModuleVUImpl())
 	if !assert.NoError(t, err) ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -377,7 +378,8 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
+	vuImpl := newModuleVUImpl()
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, vuImpl)
 	assert.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -389,7 +391,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	state := &lib.State***REMOVED***
+	vuImpl.state = &lib.State***REMOVED***
 		Options: lib.Options***REMOVED******REMOVED***,
 		Logger:  logger,
 		Group:   root,
@@ -411,7 +413,7 @@ func TestRequestWithBinaryFile(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ctx = lib.WithState(ctx, state)
+	ctx = lib.WithState(ctx, vuImpl.state)
 	ctx = common.WithRuntime(ctx, bi.Runtime)
 	*bi.Context = ctx
 
@@ -526,7 +528,8 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 			`, srv.URL), fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(testutils.NewLogger(t), 0)
+	vuImpl := newModuleVUImpl()
+	bi, err := b.Instantiate(testutils.NewLogger(t), 0, vuImpl)
 	assert.NoError(t, err)
 
 	root, err := lib.NewGroup("", nil)
@@ -538,7 +541,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	state := &lib.State***REMOVED***
+	vuImpl.state = &lib.State***REMOVED***
 		Options: lib.Options***REMOVED******REMOVED***,
 		Logger:  logger,
 		Group:   root,
@@ -560,7 +563,7 @@ func TestRequestWithMultipleBinaryFiles(t *testing.T) ***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ctx = lib.WithState(ctx, state)
+	ctx = lib.WithState(ctx, vuImpl.state)
 	ctx = common.WithRuntime(ctx, bi.Runtime)
 	*bi.Context = ctx
 
@@ -579,7 +582,7 @@ func TestInitContextVU(t *testing.T) ***REMOVED***
 		export default function() ***REMOVED*** return vu; ***REMOVED***
 	`)
 	require.NoError(t, err)
-	bi, err := b.Instantiate(testutils.NewLogger(t), 5)
+	bi, err := b.Instantiate(testutils.NewLogger(t), 5, newModuleVUImpl())
 	require.NoError(t, err)
 	v, err := bi.exports[consts.DefaultFn](goja.Undefined())
 	require.NoError(t, err)
@@ -612,7 +615,7 @@ export default function()***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0)
+	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -643,7 +646,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0)
+	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -675,7 +678,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0)
+	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)
@@ -706,7 +709,7 @@ export default function () ***REMOVED***
 	b, err := getSimpleBundle(t, "/script.js", data, fs)
 	require.NoError(t, err)
 
-	bi, err := b.Instantiate(logger, 0)
+	bi, err := b.Instantiate(logger, 0, newModuleVUImpl())
 	require.NoError(t, err)
 	_, err = bi.exports[consts.DefaultFn](goja.Undefined())
 	require.Error(t, err)

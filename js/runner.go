@@ -150,7 +150,8 @@ func (r *Runner) NewVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 // nolint:funlen
 func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleContainer) (*VU, error) ***REMOVED***
 	// Instantiate a new bundle, make a VU out of it.
-	bi, err := r.Bundle.Instantiate(r.Logger, idLocal)
+	moduleVUImpl := &moduleVUImpl***REMOVED***ctxPtr: new(context.Context)***REMOVED***
+	bi, err := r.Bundle.Instantiate(r.Logger, idLocal, moduleVUImpl)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
@@ -238,6 +239,7 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 		BPool:          bpool.NewBufferPool(100),
 		Samples:        samplesOut,
 		scenarioIter:   make(map[string]uint64),
+		moduleVUImpl:   moduleVUImpl,
 	***REMOVED***
 
 	vu.state = &lib.State***REMOVED***
@@ -256,15 +258,15 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 		Group:          r.defaultGroup,
 		BuiltinMetrics: r.builtinMetrics,
 	***REMOVED***
-	vu.Runtime.Set("console", common.Bind(vu.Runtime, vu.Console, vu.Context))
+	vu.moduleVUImpl.state = vu.state
+	_ = vu.Runtime.Set("console", vu.Console)
 
 	// This is here mostly so if someone tries they get a nice message
 	// instead of "Value is not an object: undefined  ..."
-	common.BindToGlobal(vu.Runtime, map[string]interface***REMOVED******REMOVED******REMOVED***
-		"open": func() ***REMOVED***
+	_ = vu.Runtime.GlobalObject().Set("open",
+		func() ***REMOVED***
 			common.Throw(vu.Runtime, errors.New(openCantBeUsedOutsideInitContextMsg))
-		***REMOVED***,
-	***REMOVED***)
+		***REMOVED***)
 
 	return vu, nil
 ***REMOVED***
@@ -584,6 +586,8 @@ type VU struct ***REMOVED***
 	state *lib.State
 	// count of iterations executed by this VU in each scenario
 	scenarioIter map[string]uint64
+
+	moduleVUImpl *moduleVUImpl
 ***REMOVED***
 
 // Verify that interfaces are implemented
