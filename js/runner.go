@@ -263,11 +263,10 @@ func (r *Runner) newVU(idLocal, idGlobal uint64, samplesOut chan<- stats.SampleC
 
 	// This is here mostly so if someone tries they get a nice message
 	// instead of "Value is not an object: undefined  ..."
-	common.BindToGlobal(vu.Runtime, map[string]interface***REMOVED******REMOVED******REMOVED***
-		"open": func() ***REMOVED***
+	_ = vu.Runtime.GlobalObject().Set("open",
+		func() ***REMOVED***
 			common.Throw(vu.Runtime, errors.New(openCantBeUsedOutsideInitContextMsg))
-		***REMOVED***,
-	***REMOVED***)
+		***REMOVED***)
 
 	return vu, nil
 ***REMOVED***
