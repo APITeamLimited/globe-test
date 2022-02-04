@@ -66,7 +66,6 @@ const openCantBeUsedOutsideInitContextMsg = `The "open()" function is only avail
 // TODO: refactor most/all of this state away, use common.InitEnvironment instead
 type InitContext struct ***REMOVED***
 	// Bound runtime; used to instantiate objects.
-	runtime  *goja.Runtime
 	compiler *compiler.Compiler
 
 	moduleVUImpl *moduleVUImpl
@@ -93,7 +92,6 @@ func NewInitContext(
 	ctxPtr *context.Context, filesystems map[string]afero.Fs, pwd *url.URL,
 ) *InitContext ***REMOVED***
 	return &InitContext***REMOVED***
-		runtime:           rt,
 		compiler:          c,
 		ctxPtr:            ctxPtr,
 		filesystems:       filesystems,
@@ -120,8 +118,7 @@ func newBoundInitContext(base *InitContext, vuImpl *moduleVUImpl) *InitContext *
 		***REMOVED***
 	***REMOVED***
 	return &InitContext***REMOVED***
-		runtime: vuImpl.runtime, // remove this
-		ctxPtr:  vuImpl.ctxPtr,  // remove this
+		ctxPtr: vuImpl.ctxPtr, // remove this
 
 		filesystems: base.filesystems,
 		pwd:         base.pwd,
@@ -144,14 +141,14 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 		// shadows attempts to name your own modules this.
 		v, err := i.requireModule(arg)
 		if err != nil ***REMOVED***
-			common.Throw(i.runtime, err)
+			common.Throw(i.moduleVUImpl.runtime, err)
 		***REMOVED***
 		return v
 	default:
 		// Fall back to loading from the filesystem.
 		v, err := i.requireFile(arg)
 		if err != nil ***REMOVED***
-			common.Throw(i.runtime, err)
+			common.Throw(i.moduleVUImpl.runtime, err)
 		***REMOVED***
 		return v
 	***REMOVED***
@@ -216,13 +213,13 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 	***REMOVED***
 	if m, ok := mod.(modules.Module); ok ***REMOVED***
 		instance := m.NewModuleInstance(i.moduleVUImpl)
-		return i.runtime.ToValue(toESModuleExports(instance.Exports())), nil
+		return i.moduleVUImpl.runtime.ToValue(toESModuleExports(instance.Exports())), nil
 	***REMOVED***
 	if perInstance, ok := mod.(modules.HasModuleInstancePerVU); ok ***REMOVED***
 		mod = perInstance.NewModuleInstancePerVU()
 	***REMOVED***
 
-	return i.runtime.ToValue(common.Bind(i.runtime, mod, i.ctxPtr)), nil
+	return i.moduleVUImpl.runtime.ToValue(common.Bind(i.moduleVUImpl.runtime, mod, i.ctxPtr)), nil
 ***REMOVED***
 
 func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
@@ -244,8 +241,8 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 		***REMOVED***
 		i.pwd = loader.Dir(fileURL)
 		defer func() ***REMOVED*** i.pwd = pwd ***REMOVED***()
-		exports := i.runtime.NewObject()
-		pgm.module = i.runtime.NewObject()
+		exports := i.moduleVUImpl.runtime.NewObject()
+		pgm.module = i.moduleVUImpl.runtime.NewObject()
 		_ = pgm.module.Set("exports", exports)
 
 		if pgm.pgm == nil ***REMOVED***
@@ -267,7 +264,7 @@ func (i *InitContext) requireFile(name string) (goja.Value, error) ***REMOVED***
 		i.programs[fileURL.String()] = pgm
 
 		// Run the program.
-		f, err := i.runtime.RunProgram(pgm.pgm)
+		f, err := i.moduleVUImpl.runtime.RunProgram(pgm.pgm)
 		if err != nil ***REMOVED***
 			delete(i.programs, fileURL.String())
 			return goja.Undefined(), err
@@ -318,10 +315,10 @@ func (i *InitContext) Open(ctx context.Context, filename string, args ...string)
 	***REMOVED***
 
 	if len(args) > 0 && args[0] == "b" ***REMOVED***
-		ab := i.runtime.NewArrayBuffer(data)
-		return i.runtime.ToValue(&ab), nil
+		ab := i.moduleVUImpl.runtime.NewArrayBuffer(data)
+		return i.moduleVUImpl.runtime.ToValue(&ab), nil
 	***REMOVED***
-	return i.runtime.ToValue(string(data)), nil
+	return i.moduleVUImpl.runtime.ToValue(string(data)), nil
 ***REMOVED***
 
 func readFile(fileSystem afero.Fs, filename string) (data []byte, err error) ***REMOVED***
