@@ -314,7 +314,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	***REMOVED***
 	rt.Set("__ENV", env)
 	rt.Set("__VU", vuID)
-	rt.Set("console", common.Bind(rt, newConsole(logger), init.ctxPtr))
+	rt.Set("console", common.Bind(rt, newConsole(logger), init.moduleVUImpl.ctxPtr))
 
 	if init.compatibilityMode == lib.CompatibilityModeExtended ***REMOVED***
 		rt.Set("global", rt.GlobalObject())
@@ -330,8 +330,8 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 	***REMOVED***
 	init.moduleVUImpl.initEnv = initenv
 	ctx := common.WithInitEnv(context.Background(), initenv)
-	*init.ctxPtr = common.WithRuntime(ctx, rt)
-	unbindInit := common.BindToGlobal(rt, common.Bind(rt, init, init.ctxPtr))
+	*init.moduleVUImpl.ctxPtr = common.WithRuntime(ctx, rt)
+	unbindInit := common.BindToGlobal(rt, common.Bind(rt, init, init.moduleVUImpl.ctxPtr))
 	if _, err := rt.RunProgram(b.Program); err != nil ***REMOVED***
 		var exception *goja.Exception
 		if errors.As(err, &exception) ***REMOVED***
@@ -340,7 +340,7 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		return err
 	***REMOVED***
 	unbindInit()
-	*init.ctxPtr = nil
+	*init.moduleVUImpl.ctxPtr = nil
 
 	// If we've already initialized the original VU init context, forbid
 	// any subsequent VUs to open new files
