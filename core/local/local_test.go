@@ -820,7 +820,7 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 			runner := &minirunner.MiniRunner***REMOVED***
-				Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+				Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 					time.Sleep(100 * time.Millisecond)
 					return nil
 				***REMOVED***,
@@ -839,7 +839,7 @@ func TestExecutionSchedulerStages(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			time.Sleep(100 * time.Millisecond)
 			return nil
 		***REMOVED***,
@@ -866,7 +866,7 @@ func TestExecutionSchedulerEndTime(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerRuntimeErrors(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			time.Sleep(10 * time.Millisecond)
 			return errors.New("hi")
 		***REMOVED***,
@@ -906,7 +906,7 @@ func TestExecutionSchedulerEndErrors(t *testing.T) ***REMOVED***
 	exec.GracefulStop = types.NullDurationFrom(0 * time.Second)
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return errors.New("hi")
 		***REMOVED***,
@@ -946,7 +946,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 
 	var i int64
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			select ***REMOVED***
 			case <-ctx.Done():
 			default:
@@ -987,7 +987,7 @@ func TestExecutionSchedulerEndIterations(t *testing.T) ***REMOVED***
 func TestExecutionSchedulerIsRunning(t *testing.T) ***REMOVED***
 	t.Parallel()
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			<-ctx.Done()
 			return nil
 		***REMOVED***,

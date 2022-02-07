@@ -106,11 +106,13 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 	t.Run("exits with context", func(t *testing.T) ***REMOVED***
 		t.Parallel()
 		done := make(chan struct***REMOVED******REMOVED***)
-		runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-			<-ctx.Done()
-			close(done)
-			return nil
-		***REMOVED******REMOVED***
+		runner := &minirunner.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, _ *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
+				<-ctx.Done()
+				close(done)
+				return nil
+			***REMOVED***,
+		***REMOVED***
 
 		duration := 100 * time.Millisecond
 		ctx, cancel := context.WithTimeout(context.Background(), duration)
@@ -141,13 +143,15 @@ func TestEngineRun(t *testing.T) ***REMOVED***
 
 		signalChan := make(chan interface***REMOVED******REMOVED***)
 
-		runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
-			close(signalChan)
-			<-ctx.Done()
-			stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
-			return nil
-		***REMOVED******REMOVED***
+		runner := &minirunner.MiniRunner***REMOVED***
+			Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+				stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+				close(signalChan)
+				<-ctx.Done()
+				stats.PushIfNotDone(ctx, out, stats.Sample***REMOVED***Metric: testMetric, Time: time.Now(), Value: 1***REMOVED***)
+				return nil
+			***REMOVED***,
+		***REMOVED***
 
 		mockOutput := mockoutput.New()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -209,10 +213,12 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testMetric := stats.New("test_metric", stats.Trend)
 
-	runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-		out <- stats.Sample***REMOVED***Metric: testMetric***REMOVED***
-		return nil
-	***REMOVED******REMOVED***
+	runner := &minirunner.MiniRunner***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+			out <- stats.Sample***REMOVED***Metric: testMetric***REMOVED***
+			return nil
+		***REMOVED***,
+	***REMOVED***
 
 	mockOutput := mockoutput.New()
 	e, run, wait := newTestEngine(t, nil, runner, []output.Output***REMOVED***mockOutput***REMOVED***, lib.Options***REMOVED***
@@ -311,12 +317,14 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
 	done := make(chan struct***REMOVED******REMOVED***)
-	runner := &minirunner.MiniRunner***REMOVED***Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
-		out <- stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
-		<-ctx.Done()
-		close(done)
-		return nil
-	***REMOVED******REMOVED***
+	runner := &minirunner.MiniRunner***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
+			out <- stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***
+			<-ctx.Done()
+			close(done)
+			return nil
+		***REMOVED***,
+	***REMOVED***
 
 	_, run, wait := newTestEngine(t, nil, runner, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***)
 	defer wait()
@@ -1114,7 +1122,7 @@ func TestEngineRunsTeardownEvenAfterTestRunIsAborted(t *testing.T) ***REMOVED***
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runner := &minirunner.MiniRunner***REMOVED***
-		Fn: func(ctx context.Context, out chan<- stats.SampleContainer) error ***REMOVED***
+		Fn: func(ctx context.Context, _ *lib.State, out chan<- stats.SampleContainer) error ***REMOVED***
 			cancel() // we cancel the runCtx immediately after the test starts
 			return nil
 		***REMOVED***,
