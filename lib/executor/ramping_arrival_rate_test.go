@@ -72,7 +72,7 @@ func TestRampingArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVED
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestRampingArrivalRateConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
 		***REMOVED***),
@@ -101,7 +101,7 @@ func TestRampingArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestRampingArrivalRateConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
 		***REMOVED***),
@@ -143,7 +143,7 @@ func TestRampingArrivalRateRunUnplannedVUs(t *testing.T) ***REMOVED***
 	var count int64
 	ch := make(chan struct***REMOVED******REMOVED***)  // closed when new unplannedVU is started and signal to get to next iterations
 	ch2 := make(chan struct***REMOVED******REMOVED***) // closed when a second iteration was started on an old VU in order to test it won't start a second unplanned VU in parallel or at all
-	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 		cur := atomic.AddInt64(&count, 1)
 		if cur == 1 ***REMOVED***
 			<-ch // wait to start again
@@ -209,7 +209,7 @@ func TestRampingArrivalRateRunCorrectRateWithSlowRate(t *testing.T) ***REMOVED**
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 1, 3)
 	var count int64
 	ch := make(chan struct***REMOVED******REMOVED***) // closed when new unplannedVU is started and signal to get to next iterations
-	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 		cur := atomic.AddInt64(&count, 1)
 		if cur == 1 ***REMOVED***
 			<-ch // wait to start again
@@ -260,7 +260,7 @@ func TestRampingArrivalRateRunGracefulStop(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 10)
 
-	runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+	runner := simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 		time.Sleep(5 * time.Second)
 		return nil
 	***REMOVED***)
@@ -318,7 +318,7 @@ func BenchmarkRampingArrivalRateRun(b *testing.B) ***REMOVED***
 			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, mustNewExecutionTuple(nil, nil), uint64(tc.prealloc.Int64), uint64(tc.prealloc.Int64))
 
 			var count int64
-			runner := simpleRunner(func(ctx context.Context) error ***REMOVED***
+			runner := simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 				atomic.AddInt64(&count, 1)
 				return nil
 			***REMOVED***)
@@ -750,8 +750,7 @@ func TestRampingArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 
 			gotIters := []uint64***REMOVED******REMOVED***
 			var mx sync.Mutex
-			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
-				state := lib.GetState(ctx)
+			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()

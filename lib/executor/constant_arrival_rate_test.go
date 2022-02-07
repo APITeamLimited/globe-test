@@ -74,7 +74,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) ***REMOVE
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestConstantArrivalRateConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			time.Sleep(time.Second)
 			return nil
 		***REMOVED***),
@@ -104,7 +104,7 @@ func TestConstantArrivalRateRunCorrectRate(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, getTestConstantArrivalRateConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			return nil
 		***REMOVED***),
@@ -211,7 +211,7 @@ func TestConstantArrivalRateRunCorrectTiming(t *testing.T) ***REMOVED***
 			expectedTimeInt64 := int64(test.start)
 			ctx, cancel, executor, logHook := setupExecutor(
 				t, config, es,
-				simpleRunner(func(ctx context.Context) error ***REMOVED***
+				simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 					current := atomic.AddInt64(&count, 1)
 
 					expectedTime := test.start
@@ -277,7 +277,7 @@ func TestArrivalRateCancel(t *testing.T) ***REMOVED***
 			require.NoError(t, err)
 			es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 			ctx, cancel, executor, logHook := setupExecutor(
-				t, config, es, simpleRunner(func(ctx context.Context) error ***REMOVED***
+				t, config, es, simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 					select ***REMOVED***
 					case <-ch:
 						<-ch
@@ -332,7 +332,7 @@ func TestConstantArrivalRateDroppedIterations(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, config, es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			<-ctx.Done()
 			return nil
@@ -392,8 +392,7 @@ func TestConstantArrivalRateGlobalIters(t *testing.T) ***REMOVED***
 
 			gotIters := []uint64***REMOVED******REMOVED***
 			var mx sync.Mutex
-			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
-				state := lib.GetState(ctx)
+			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()

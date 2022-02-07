@@ -57,7 +57,7 @@ func TestSharedIterationsRun(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddUint64(&doneIters, 1)
 			return nil
 		***REMOVED***),
@@ -83,9 +83,8 @@ func TestSharedIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestSharedIterationsConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
 			time.Sleep(10 * time.Millisecond) // small wait to stabilize the test
-			state := lib.GetState(ctx)
 			// Pick one VU randomly and always slow it down.
 			sid := atomic.LoadUint64(&slowVUID)
 			if sid == uint64(0) ***REMOVED***
@@ -134,7 +133,7 @@ func TestSharedIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, config, es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			<-ctx.Done()
 			return nil
@@ -187,8 +186,7 @@ func TestSharedIterationsGlobalIters(t *testing.T) ***REMOVED***
 
 			gotIters := []uint64***REMOVED******REMOVED***
 			var mx sync.Mutex
-			runner.Fn = func(ctx context.Context, _ chan<- stats.SampleContainer) error ***REMOVED***
-				state := lib.GetState(ctx)
+			runner.Fn = func(ctx context.Context, state *lib.State, _ chan<- stats.SampleContainer) error ***REMOVED***
 				mx.Lock()
 				gotIters = append(gotIters, state.GetScenarioGlobalVUIter())
 				mx.Unlock()

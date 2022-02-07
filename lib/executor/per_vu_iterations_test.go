@@ -55,8 +55,7 @@ func TestPerVUIterationsRun(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestPerVUIterationsConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
-			state := lib.GetState(ctx)
+		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
 			currIter, _ := result.LoadOrStore(state.VUID, uint64(0))
 			result.Store(state.VUID, currIter.(uint64)+1)
 			return nil
@@ -92,8 +91,7 @@ func TestPerVUIterationsRunVariableVU(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, _ := setupExecutor(
 		t, getTestPerVUIterationsConfig(), es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
-			state := lib.GetState(ctx)
+		simpleRunner(func(ctx context.Context, state *lib.State) error ***REMOVED***
 			if state.VUID == slowVUID ***REMOVED***
 				time.Sleep(200 * time.Millisecond)
 			***REMOVED***
@@ -143,7 +141,7 @@ func TestPerVuIterationsEmitDroppedIterations(t *testing.T) ***REMOVED***
 	es := lib.NewExecutionState(lib.Options***REMOVED******REMOVED***, et, 10, 50)
 	ctx, cancel, executor, logHook := setupExecutor(
 		t, config, es,
-		simpleRunner(func(ctx context.Context) error ***REMOVED***
+		simpleRunner(func(ctx context.Context, _ *lib.State) error ***REMOVED***
 			atomic.AddInt64(&count, 1)
 			<-ctx.Done()
 			return nil
