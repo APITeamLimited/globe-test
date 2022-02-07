@@ -39,7 +39,7 @@ var (
 // using a real JS runtime, it allows us to directly specify the options and
 // functions with Go code.
 type MiniRunner struct ***REMOVED***
-	Fn              func(ctx context.Context, out chan<- stats.SampleContainer) error
+	Fn              func(ctx context.Context, state *lib.State, out chan<- stats.SampleContainer) error
 	SetupFn         func(ctx context.Context, out chan<- stats.SampleContainer) ([]byte, error)
 	TeardownFn      func(ctx context.Context, out chan<- stats.SampleContainer) error
 	HandleSummaryFn func(context.Context, *lib.Summary) (map[string]io.Reader, error)
@@ -156,9 +156,14 @@ func (vu *VU) GetID() uint64 ***REMOVED***
 	return vu.ID
 ***REMOVED***
 
+// State returns the VU's State.
+func (vu *VU) State() *lib.State ***REMOVED***
+	return vu.state
+***REMOVED***
+
 // Activate the VU so it will be able to run code.
 func (vu *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU ***REMOVED***
-	ctx := lib.WithState(params.RunContext, vu.state)
+	ctx := params.RunContext
 
 	vu.state.GetScenarioVUIter = func() uint64 ***REMOVED***
 		return vu.scenarioIter[params.Scenario]
@@ -224,8 +229,6 @@ func (vu *ActiveVU) RunOnce() error ***REMOVED***
 		<-vu.busy // unlock deactivation again
 	***REMOVED***()
 
-	ctx := lib.WithState(vu.RunContext, vu.state)
 	vu.incrIteration()
-
-	return vu.R.Fn(ctx, vu.Out)
+	return vu.R.Fn(vu.RunContext, vu.State(), vu.Out)
 ***REMOVED***
