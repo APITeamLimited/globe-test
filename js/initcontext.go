@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/sirupsen/logrus"
@@ -201,6 +202,9 @@ func toESModuleExports(exp modules.Exports) interface***REMOVED******REMOVED*** 
 	return result
 ***REMOVED***
 
+// TODO: https://github.com/grafana/k6/issues/2385
+var onceBindWarning sync.Once //nolint: gochecknoglobals
+
 func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED***
 	mod, ok := i.modules[name]
 	if !ok ***REMOVED***
@@ -213,6 +217,12 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 	if perInstance, ok := mod.(modules.HasModuleInstancePerVU); ok ***REMOVED***
 		mod = perInstance.NewModuleInstancePerVU()
 	***REMOVED***
+
+	onceBindWarning.Do(func() ***REMOVED***
+		i.logger.Warnf(`Module '%s' is using deprecated APIs that will be removed in k6 v0.38.0,`+
+			` for more details on how to update it see`+
+			` https://k6.io/docs/extensions/guides/create-an-extension/#advanced-javascript-extension`, name)
+	***REMOVED***)
 
 	return i.moduleVUImpl.runtime.ToValue(common.Bind(i.moduleVUImpl.runtime, mod, i.moduleVUImpl.ctxPtr)), nil
 ***REMOVED***
