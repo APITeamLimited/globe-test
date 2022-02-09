@@ -29,7 +29,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/manyminds/api2go/jsonapi"
 	"github.com/sirupsen/logrus"
 
 	v1 "go.k6.io/k6/api/v1"
@@ -82,42 +81,6 @@ func WithLogger(logger *logrus.Entry) Option ***REMOVED***
 // CallAPI executes the desired REST API request.
 // it's expected that the body and out are the structs that follows the JSON:API
 func (c *Client) CallAPI(ctx context.Context, method string, rel *url.URL, body, out interface***REMOVED******REMOVED***) (err error) ***REMOVED***
-	return c.call(ctx, method, rel, marshaler***REMOVED***
-		marshal:   json.Marshal,
-		unmarshal: json.Unmarshal,
-	***REMOVED***, body, out)
-***REMOVED***
-
-// Call executes the desired REST API request.
-// Deprecated: use instead client.CallAPI
-func (c *Client) Call(ctx context.Context, method string, rel *url.URL, body, out interface***REMOVED******REMOVED***) (err error) ***REMOVED***
-	if c.logger != nil ***REMOVED***
-		c.logger.Warnf(
-			"client.Call is deprecated and will be removed soon, please migrate to a client.CallAPI for %s request to '%s'",
-			method,
-			rel.String(),
-		)
-	***REMOVED***
-
-	return c.call(ctx, method, rel, marshaler***REMOVED***
-		marshal:   jsonapi.Marshal,
-		unmarshal: jsonapi.Unmarshal,
-	***REMOVED***, body, out)
-***REMOVED***
-
-// marshaler is the temporary struct that keeps the marshal/unmarshal methods
-type marshaler struct ***REMOVED***
-	marshal   func(interface***REMOVED******REMOVED***) ([]byte, error)
-	unmarshal func([]byte, interface***REMOVED******REMOVED***) error
-***REMOVED***
-
-func (c *Client) call(
-	ctx context.Context,
-	method string,
-	rel *url.URL,
-	marshaler marshaler,
-	body, out interface***REMOVED******REMOVED***,
-) (err error) ***REMOVED***
 	if c.logger != nil ***REMOVED***
 		c.logger.Debugf("[REST API] Making a %s request to '%s'", method, rel.String())
 		defer func() ***REMOVED***
@@ -136,7 +99,7 @@ func (c *Client) call(
 		case string:
 			bodyData = []byte(val)
 		default:
-			bodyData, err = marshaler.marshal(body)
+			bodyData, err = json.Marshal(body)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -171,7 +134,7 @@ func (c *Client) call(
 	***REMOVED***
 
 	if out != nil ***REMOVED***
-		return marshaler.unmarshal(data, out)
+		return json.Unmarshal(data, out)
 	***REMOVED***
 	return nil
 ***REMOVED***

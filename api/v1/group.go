@@ -23,8 +23,6 @@ package v1
 import (
 	"fmt"
 
-	"github.com/manyminds/api2go/jsonapi"
-
 	"go.k6.io/k6/lib"
 )
 
@@ -82,63 +80,6 @@ func NewGroup(g *lib.Group, parent *Group) *Group ***REMOVED***
 	***REMOVED***
 
 	return group
-***REMOVED***
-
-// GetID gets a group ID
-// Deprecated: use instead g.ID directly
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (g Group) GetID() string ***REMOVED***
-	return g.ID
-***REMOVED***
-
-// SetID sets a group ID
-// Deprecated: use instead g.ID directly
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (g *Group) SetID(v string) error ***REMOVED***
-	g.ID = v
-	return nil
-***REMOVED***
-
-// GetReferences returns the slice of jsonapi.References
-// Deprecated: use instead g.Groups properties
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (g Group) GetReferences() []jsonapi.Reference ***REMOVED***
-	return []jsonapi.Reference***REMOVED***
-		***REMOVED***
-			Type:         "groups",
-			Name:         "parent",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***,
-		***REMOVED***
-			Type:         "groups",
-			Name:         "groups",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***,
-	***REMOVED***
-***REMOVED***
-
-// GetReferencedIDs returns the slice of jsonapi.ReferenceID
-// Deprecated: use instead g.GroupIDs properties
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (g Group) GetReferencedIDs() []jsonapi.ReferenceID ***REMOVED***
-	refs := []jsonapi.ReferenceID***REMOVED******REMOVED***
-	if g.Parent != nil ***REMOVED***
-		refs = append(refs, jsonapi.ReferenceID***REMOVED***
-			ID:           g.Parent.GetID(),
-			Type:         "groups",
-			Name:         "parent",
-			Relationship: jsonapi.ToOneRelationship,
-		***REMOVED***)
-	***REMOVED***
-	for _, gp := range g.Groups ***REMOVED***
-		refs = append(refs, jsonapi.ReferenceID***REMOVED***
-			ID:           gp.GetID(),
-			Type:         "groups",
-			Name:         "groups",
-			Relationship: jsonapi.ToManyRelationship,
-		***REMOVED***)
-	***REMOVED***
-	return refs
 ***REMOVED***
 
 func (g *Group) SetToManyReferenceIDs(name string, ids []string) error ***REMOVED***

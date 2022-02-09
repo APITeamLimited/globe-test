@@ -39,20 +39,6 @@ type SetupData struct ***REMOVED***
 	Data interface***REMOVED******REMOVED*** `json:"data" yaml:"data"`
 ***REMOVED***
 
-// GetName is a dummy method so we can satisfy the jsonapi.EntityNamer interface
-// Deprecated: use a constant value instead
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (sd SetupData) GetName() string ***REMOVED***
-	return "setupData"
-***REMOVED***
-
-// GetID is a dummy method so we can satisfy the jsonapi.MarshalIdentifier interface
-// Deprecated: use a constant value instead
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (sd SetupData) GetID() string ***REMOVED***
-	return "default"
-***REMOVED***
-
 func handleSetupDataOutput(rw http.ResponseWriter, setupData json.RawMessage) ***REMOVED***
 	rw.Header().Set("Content-Type", "application/json")
 	var err error

@@ -91,18 +91,3 @@ func NewMetric(m *stats.Metric, t time.Duration) Metric ***REMOVED***
 		Sample:   m.Sink.Format(t),
 	***REMOVED***
 ***REMOVED***
-
-// GetID gets a metric ID (name)
-// Deprecated: use instead m.Name directly
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (m Metric) GetID() string ***REMOVED***
-	return m.Name
-***REMOVED***
-
-// SetID sets a metric ID (name)
-// Deprecated: use instead m.Name directly
-// This method will be removed with the one of the PRs of (https://github.com/grafana/k6/issues/911)
-func (m *Metric) SetID(id string) error ***REMOVED***
-	m.Name = id
-	return nil
-***REMOVED***
