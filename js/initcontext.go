@@ -214,9 +214,6 @@ func (i *InitContext) requireModule(name string) (goja.Value, error) ***REMOVED*
 		instance := m.NewModuleInstance(i.moduleVUImpl)
 		return i.moduleVUImpl.runtime.ToValue(toESModuleExports(instance.Exports())), nil
 	***REMOVED***
-	if perInstance, ok := mod.(modules.HasModuleInstancePerVU); ok ***REMOVED***
-		mod = perInstance.NewModuleInstancePerVU()
-	***REMOVED***
 
 	onceBindWarning.Do(func() ***REMOVED***
 		i.logger.Warnf(`Module '%s' is using deprecated APIs that will be removed in k6 v0.38.0,`+
