@@ -48,6 +48,7 @@ import (
 	"go.k6.io/k6/errext"
 	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/js/common"
+	"go.k6.io/k6/js/eventloop"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/consts"
 	"go.k6.io/k6/lib/metrics"
@@ -791,9 +792,9 @@ func (u *VU) runFn(
 	startTime := time.Now()
 
 	if u.moduleVUImpl.eventLoop == nil ***REMOVED***
-		u.moduleVUImpl.eventLoop = newEventLoop(u.moduleVUImpl)
+		u.moduleVUImpl.eventLoop = eventloop.New(u.moduleVUImpl)
 	***REMOVED***
-	err = u.moduleVUImpl.eventLoop.start(func() (err error) ***REMOVED***
+	err = u.moduleVUImpl.eventLoop.Start(func() (err error) ***REMOVED***
 		// here the returned value purposefully shadows the external one as they can be different
 		defer func() ***REMOVED***
 			if r := recover(); r != nil ***REMOVED***
@@ -823,7 +824,7 @@ func (u *VU) runFn(
 
 	if cancel != nil ***REMOVED***
 		cancel()
-		u.moduleVUImpl.eventLoop.waitOnRegistered()
+		u.moduleVUImpl.eventLoop.WaitOnRegistered()
 	***REMOVED***
 	endTime := time.Now()
 	var exception *goja.Exception

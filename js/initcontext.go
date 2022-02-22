@@ -35,6 +35,7 @@ import (
 
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/js/compiler"
+	"go.k6.io/k6/js/eventloop"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/js/modules/k6"
 	"go.k6.io/k6/js/modules/k6/crypto"
@@ -156,7 +157,7 @@ type moduleVUImpl struct ***REMOVED***
 	initEnv   *common.InitEnvironment
 	state     *lib.State
 	runtime   *goja.Runtime
-	eventLoop *eventLoop
+	eventLoop *eventloop.EventLoop
 ***REMOVED***
 
 func newModuleVUImpl() *moduleVUImpl ***REMOVED***
@@ -182,7 +183,7 @@ func (m *moduleVUImpl) Runtime() *goja.Runtime ***REMOVED***
 ***REMOVED***
 
 func (m *moduleVUImpl) RegisterCallback() func(func() error) ***REMOVED***
-	return m.eventLoop.registerCallback()
+	return m.eventLoop.RegisterCallback()
 ***REMOVED***
 
 /* This is here to illustrate how to use RegisterCallback to get a promise to work with the event loop
