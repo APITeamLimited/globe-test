@@ -263,8 +263,9 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		ths, err := stats.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
-		assert.NoError(t, err)
+		ths := stats.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
+		gotParseErr := ths.Parse()
+		require.NoError(t, gotParseErr)
 
 		e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
 			Thresholds: map[string]stats.Thresholds***REMOVED***
@@ -294,8 +295,9 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	// The incoming samples for the metric set it to 1.25. Considering
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
-	ths, err := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
-	assert.NoError(t, err)
+	ths := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	gotParseErr := ths.Parse()
+	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
 	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
@@ -317,8 +319,9 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	// the metric is of type Gauge, value > 1.25 should always fail, and
 	// trigger an abort.
 	// **N.B**: a threshold returning an error, won't trigger an abort.
-	ths, err := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
-	assert.NoError(t, err)
+	ths := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
+	gotParseErr := ths.Parse()
+	require.NoError(t, gotParseErr)
 	ths.Thresholds[0].AbortOnFail = true
 
 	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
@@ -373,8 +376,9 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			t.Parallel()
 			thresholds := make(map[string]stats.Thresholds, len(data.ths))
 			for m, srcs := range data.ths ***REMOVED***
-				ths, err := stats.NewThresholds(srcs)
-				assert.NoError(t, err)
+				ths := stats.NewThresholds(srcs)
+				gotParseErr := ths.Parse()
+				require.NoError(t, gotParseErr)
 				ths.Thresholds[0].AbortOnFail = data.abort
 				thresholds[m] = ths
 			***REMOVED***

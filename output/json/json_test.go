@@ -197,8 +197,7 @@ func setThresholds(t *testing.T, out output.Output) ***REMOVED***
 	jout, ok := out.(*Output)
 	require.True(t, ok)
 
-	ts, err := stats.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
-	require.NoError(t, err)
+	ts := stats.NewThresholds([]string***REMOVED***"rate<0.01", "p(99)<250"***REMOVED***)
 
 	jout.SetThresholds(map[string]stats.Thresholds***REMOVED***"my_metric1": ts***REMOVED***)
 ***REMOVED***

@@ -44,18 +44,13 @@ type Threshold struct ***REMOVED***
 	parsed *thresholdExpression
 ***REMOVED***
 
-func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) (*Threshold, error) ***REMOVED***
-	parsedExpression, err := parseThresholdExpression(src)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
+func newThreshold(src string, abortOnFail bool, gracePeriod types.NullDuration) *Threshold ***REMOVED***
 	return &Threshold***REMOVED***
 		Source:           src,
 		AbortOnFail:      abortOnFail,
 		AbortGracePeriod: gracePeriod,
-		parsed:           parsedExpression,
-	***REMOVED***, nil
+		parsed:           nil,
+	***REMOVED***
 ***REMOVED***
 
 func (t *Threshold) runNoTaint(sinks map[string]float64) (bool, error) ***REMOVED***
@@ -143,7 +138,7 @@ type Thresholds struct ***REMOVED***
 ***REMOVED***
 
 // NewThresholds returns Thresholds objects representing the provided source strings
-func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
+func NewThresholds(sources []string) Thresholds ***REMOVED***
 	tcs := make([]thresholdConfig, len(sources))
 	for i, source := range sources ***REMOVED***
 		tcs[i].Threshold = source
@@ -152,19 +147,16 @@ func NewThresholds(sources []string) (Thresholds, error) ***REMOVED***
 	return newThresholdsWithConfig(tcs)
 ***REMOVED***
 
-func newThresholdsWithConfig(configs []thresholdConfig) (Thresholds, error) ***REMOVED***
+func newThresholdsWithConfig(configs []thresholdConfig) Thresholds ***REMOVED***
 	thresholds := make([]*Threshold, len(configs))
 	sinked := make(map[string]float64)
 
 	for i, config := range configs ***REMOVED***
-		t, err := newThreshold(config.Threshold, config.AbortOnFail, config.AbortGracePeriod)
-		if err != nil ***REMOVED***
-			return Thresholds***REMOVED******REMOVED***, fmt.Errorf("threshold %d error: %w", i, err)
-		***REMOVED***
+		t := newThreshold(config.Threshold, config.AbortOnFail, config.AbortGracePeriod)
 		thresholds[i] = t
 	***REMOVED***
 
-	return Thresholds***REMOVED***thresholds, false, sinked***REMOVED***, nil
+	return Thresholds***REMOVED***thresholds, false, sinked***REMOVED***
 ***REMOVED***
 
 func (ts *Thresholds) runAll(timeSpentInTest time.Duration) (bool, error) ***REMOVED***
@@ -237,17 +229,30 @@ func (ts *Thresholds) Run(sink Sink, duration time.Duration) (bool, error) ***RE
 	return ts.runAll(duration)
 ***REMOVED***
 
+// Parse parses the Thresholds and fills each Threshold.parsed field with the result.
+// It effectively asserts they are syntaxically correct.
+func (ts *Thresholds) Parse() error ***REMOVED***
+	for _, t := range ts.Thresholds ***REMOVED***
+		parsed, err := parseThresholdExpression(t.Source)
+		if err != nil ***REMOVED***
+			return err
+		***REMOVED***
+
+		t.parsed = parsed
+	***REMOVED***
+
+	return nil
+***REMOVED***
+
 // UnmarshalJSON is implementation of json.Unmarshaler
 func (ts *Thresholds) UnmarshalJSON(data []byte) error ***REMOVED***
 	var configs []thresholdConfig
 	if err := json.Unmarshal(data, &configs); err != nil ***REMOVED***
 		return err
 	***REMOVED***
-	newts, err := newThresholdsWithConfig(configs)
-	if err != nil ***REMOVED***
-		return err
-	***REMOVED***
-	*ts = newts
+
+	*ts = newThresholdsWithConfig(configs)
+
 	return nil
 ***REMOVED***
 
@@ -279,5 +284,7 @@ func MarshalJSONWithoutHTMLEscape(t interface***REMOVED******REMOVED***) ([]byte
 	return bytes, err
 ***REMOVED***
 
-var _ json.Unmarshaler = &Thresholds***REMOVED******REMOVED***
-var _ json.Marshaler = &Thresholds***REMOVED******REMOVED***
+var (
+	_ json.Unmarshaler = &Thresholds***REMOVED******REMOVED***
+	_ json.Marshaler   = &Thresholds***REMOVED******REMOVED***
+)
