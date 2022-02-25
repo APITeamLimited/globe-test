@@ -263,7 +263,7 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
-		ths, err := stats.NewThresholds([]string***REMOVED***`1+1==2`***REMOVED***)
+		ths, err := stats.NewThresholds([]string***REMOVED***`value<2`***REMOVED***)
 		assert.NoError(t, err)
 
 		e, _, wait := newTestEngine(t, nil, nil, nil, lib.Options***REMOVED***
@@ -291,7 +291,10 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
-	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
+	// The incoming samples for the metric set it to 1.25. Considering
+	// the metric is of type Gauge, value > 1.25 should always fail, and
+	// trigger an abort.
+	ths, err := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
 	assert.NoError(t, err)
 	ths.Thresholds[0].AbortOnFail = true
 
@@ -310,7 +313,11 @@ func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
 	metric := stats.New("my_metric", stats.Gauge)
 
-	ths, err := stats.NewThresholds([]string***REMOVED***"1+1==3"***REMOVED***)
+	// The MiniRunner sets the value of the metric to 1.25. Considering
+	// the metric is of type Gauge, value > 1.25 should always fail, and
+	// trigger an abort.
+	// **N.B**: a threshold returning an error, won't trigger an abort.
+	ths, err := stats.NewThresholds([]string***REMOVED***"value>1.25"***REMOVED***)
 	assert.NoError(t, err)
 	ths.Thresholds[0].AbortOnFail = true
 
@@ -350,14 +357,14 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 		ths   map[string][]string
 		abort bool
 	***REMOVED******REMOVED***
-		"passing":  ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"1+1==2"***REMOVED******REMOVED***, false***REMOVED***,
-		"failing":  ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"1+1==3"***REMOVED******REMOVED***, false***REMOVED***,
-		"aborting": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"1+1==3"***REMOVED******REMOVED***, true***REMOVED***,
+		"passing":  ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
+		"failing":  ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+		"aborting": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, true***REMOVED***,
 
-		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"1+1==2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"1+1==3"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"1+1==2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,failing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"1+1==3"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,nomatch,failing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
