@@ -1113,12 +1113,13 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("GET", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
-		var res = http.get("HTTPBIN_URL/get?a=1&b=2");
+		var res = http.get("HTTPBIN_URL/get?a=1&b=2", ***REMOVED***headers: ***REMOVED***"X-We-Want-This": "value"***REMOVED******REMOVED***);
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 		if (res.json().args.a != "1") ***REMOVED*** throw new Error("wrong ?a: " + res.json().args.a); ***REMOVED***
 		if (res.json().args.b != "2") ***REMOVED*** throw new Error("wrong ?b: " + res.json().args.b); ***REMOVED***
+		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "GET", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
 
 		t.Run("Tagged", func(t *testing.T) ***REMOVED***
@@ -1148,11 +1149,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 
 	t.Run("OPTIONS", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
-		var res = http.options("HTTPBIN_URL/?a=1&b=2");
+		var res = http.options("HTTPBIN_URL/?a=1&b=2", null, ***REMOVED***headers: ***REMOVED***"X-We-Want-This": "value"***REMOVED******REMOVED***);
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 		if (!res.headers["Access-Control-Allow-Methods"]) ***REMOVED*** throw new Error("Missing Access-Control-Allow-Methods header!"); ***REMOVED***
+		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "OPTIONS", sr("HTTPBIN_URL/?a=1&b=2"), "", 200, "")
 	***REMOVED***)
 
@@ -1162,11 +1164,12 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	// https://tools.ietf.org/html/rfc7231#section-4.3.5
 	t.Run("DELETE", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
-		var res = http.del("HTTPBIN_URL/delete?test=mest");
+		var res = http.del("HTTPBIN_URL/delete?test=mest", null, ***REMOVED***headers: ***REMOVED***"X-We-Want-This": "value"***REMOVED******REMOVED***);
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 		if (res.json().args.test != "mest") ***REMOVED*** throw new Error("wrong args: " + JSON.stringify(res.json().args)); ***REMOVED***
+		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "DELETE", sr("HTTPBIN_URL/delete?test=mest"), "", 200, "")
 	***REMOVED***)
 
@@ -1178,12 +1181,13 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	for method, fn := range postMethods ***REMOVED***
 		t.Run(method, func(t *testing.T) ***REMOVED***
 			_, err := rt.RunString(fmt.Sprintf(sr(`
-				var res = http.%s("HTTPBIN_URL/%s", "data");
+				var res = http.%s("HTTPBIN_URL/%s", "data", ***REMOVED***headers: ***REMOVED***"X-We-Want-This": "value"***REMOVED******REMOVED***);
 				if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 				if (res.json().data != "data") ***REMOVED*** throw new Error("wrong data: " + res.json().data); ***REMOVED***
 				if (res.json().headers["Content-Type"]) ***REMOVED*** throw new Error("content type set: " + res.json().headers["Content-Type"]); ***REMOVED***
+				if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 				`), fn, strings.ToLower(method)))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), method, sr("HTTPBIN_URL/")+strings.ToLower(method), "", 200, "")
 
 			t.Run("object", func(t *testing.T) ***REMOVED***
