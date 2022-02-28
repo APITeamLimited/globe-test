@@ -49,6 +49,7 @@ var (
 		"IsHTMLDDA",                   // not supported at all
 		"generators",                  // not supported in a meaningful way IMO
 		"Array.prototype.item",        // not even standard yet
+		"async-iteration",             // not supported at all
 		"TypedArray.prototype.item",   // not even standard yet
 		"String.prototype.replaceAll", // not supported at all, Stage 4 since 2020
 
@@ -90,7 +91,7 @@ var (
 		"String.prototype.at",     // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 		"TypedArray.prototype.at", // stage 3 as of 2021 https://github.com/tc39/proposal-relative-indexing-method
 	***REMOVED***
-	skipWords = []string***REMOVED***"async", "yield", "generator", "Generator"***REMOVED***
+	skipWords = []string***REMOVED***"yield", "generator", "Generator"***REMOVED***
 	skipList  = map[string]bool***REMOVED***
 		"test/built-ins/Function/prototype/toString/AsyncFunction.js": true,
 		"test/built-ins/Object/seal/seal-generatorfunction.js":        true,
@@ -133,10 +134,12 @@ var (
 		"test/built-ins/BigInt",
 		"test/built-ins/SharedArrayBuffer",
 		"test/language/eval-code/direct/async",
+		"test/language/expressions/await",
 		"test/language/expressions/async",
 		"test/language/expressions/dynamic-import",
 		"test/language/expressions/object/dstr/async",
 		"test/language/module-code/top-level-await",
+		"test/language/statements/async-function",
 		"test/built-ins/Function/prototype/toString/async",
 		"test/built-ins/Function/prototype/toString/async",
 		"test/built-ins/Function/prototype/toString/generator",
@@ -302,6 +305,20 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 	if strict ***REMOVED***
 		src = "'use strict';\n" + src
 	***REMOVED***
+
+	var out []string
+	async := meta.hasFlag("async") //nolint:ifshort // false positive
+	if async ***REMOVED***
+		err = ctx.runFile(ctx.base, path.Join("harness", "doneprintHandle.js"), vm)
+		if err != nil ***REMOVED***
+			t.Fatal(err)
+		***REMOVED***
+		_ = vm.Set("print", func(msg string) ***REMOVED***
+			out = append(out, msg)
+		***REMOVED***)
+	***REMOVED*** else ***REMOVED***
+		_ = vm.Set("print", t.Log)
+	***REMOVED***
 	early, origErr, err := ctx.runTC39Script(name, src, meta.Includes, vm)
 
 	if err == nil ***REMOVED***
@@ -349,6 +366,22 @@ func (ctx *tc39TestCtx) runTC39Test(t testing.TB, name, src string, meta *tc39Me
 			t.Fatalf("iter stack is not empty: %d", l)
 		***REMOVED***
 	*/
+	if async ***REMOVED***
+		complete := false
+		for _, line := range out ***REMOVED***
+			if strings.HasPrefix(line, "Test262:AsyncTestFailure:") ***REMOVED***
+				t.Fatal(line)
+			***REMOVED*** else if line == "Test262:AsyncTestComplete" ***REMOVED***
+				complete = true
+			***REMOVED***
+		***REMOVED***
+		if !complete ***REMOVED***
+			for _, line := range out ***REMOVED***
+				t.Log(line)
+			***REMOVED***
+			t.Fatal("Test262:AsyncTestComplete was not printed")
+		***REMOVED***
+	***REMOVED***
 ***REMOVED***
 
 func getErrType(name string, err error, failf func(str string, args ...interface***REMOVED******REMOVED***)) string ***REMOVED***
@@ -381,10 +414,6 @@ func getErrType(name string, err error, failf func(str string, args ...interface
 ***REMOVED***
 
 func shouldBeSkipped(t testing.TB, meta *tc39Meta) ***REMOVED***
-	if meta.hasFlag("async") ***REMOVED*** // this is totally not supported
-		t.Skipf("Skipping as it has flag async")
-	***REMOVED***
-
 	for _, feature := range meta.Features ***REMOVED***
 		for _, bl := range featuresBlockList ***REMOVED***
 			if feature == bl ***REMOVED***
