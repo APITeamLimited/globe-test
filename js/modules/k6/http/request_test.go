@@ -1136,10 +1136,11 @@ func TestRequestAndBatch(t *testing.T) ***REMOVED***
 	***REMOVED***)
 	t.Run("HEAD", func(t *testing.T) ***REMOVED***
 		_, err := rt.RunString(sr(`
-		var res = http.head("HTTPBIN_URL/get?a=1&b=2");
+		var res = http.head("HTTPBIN_URL/get?a=1&b=2", ***REMOVED***headers: ***REMOVED***"X-We-Want-This": "value"***REMOVED******REMOVED***);
 		if (res.status != 200) ***REMOVED*** throw new Error("wrong status: " + res.status); ***REMOVED***
 		if (res.body.length != 0) ***REMOVED*** throw new Error("HEAD responses shouldn't have a body"); ***REMOVED***
 		if (!res.headers["Content-Length"]) ***REMOVED*** throw new Error("Missing or invalid Content-Length header!"); ***REMOVED***
+		if (res.request.headers["X-We-Want-This"] != "value") ***REMOVED*** throw new Error("Missing or invalid X-We-Want-This header!"); ***REMOVED***
 		`))
 		assert.NoError(t, err)
 		assertRequestMetricsEmitted(t, stats.GetBufferedSamples(samples), "HEAD", sr("HTTPBIN_URL/get?a=1&b=2"), "", 200, "")
