@@ -89,11 +89,15 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVE
 	// wrappers (facades) that convert the old k6 idiosyncratic APIs to the new
 	// proper Client ones that accept Request objects and don't suck
 	mustExport("get", func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...) // sigh
+		// http.get(url, params) doesn't have a body argument, so we add undefined
+		// as the third argument to http.request(method, url, body, params)
+		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 		return mi.defaultClient.Request(http.MethodGet, url, args...)
 	***REMOVED***)
 	mustExport("head", func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
-		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...) // sigh
+		// http.head(url, params) doesn't have a body argument, so we add undefined
+		// as the third argument to http.request(method, url, body, params)
+		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...)
 		return mi.defaultClient.Request(http.MethodHead, url, args...)
 	***REMOVED***)
 	mustExport("post", mi.defaultClient.getMethodClosure(http.MethodPost))
