@@ -92,7 +92,10 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVE
 		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...) // sigh
 		return mi.defaultClient.Request(http.MethodGet, url, args...)
 	***REMOVED***)
-	mustExport("head", mi.defaultClient.getMethodClosure(http.MethodHead))
+	mustExport("head", func(url goja.Value, args ...goja.Value) (*Response, error) ***REMOVED***
+		args = append([]goja.Value***REMOVED***goja.Undefined()***REMOVED***, args...) // sigh
+		return mi.defaultClient.Request(http.MethodHead, url, args...)
+	***REMOVED***)
 	mustExport("post", mi.defaultClient.getMethodClosure(http.MethodPost))
 	mustExport("put", mi.defaultClient.getMethodClosure(http.MethodPut))
 	mustExport("patch", mi.defaultClient.getMethodClosure(http.MethodPatch))
