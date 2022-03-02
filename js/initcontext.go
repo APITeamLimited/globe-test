@@ -43,6 +43,7 @@ import (
 	"go.k6.io/k6/js/modules/k6/data"
 	"go.k6.io/k6/js/modules/k6/encoding"
 	"go.k6.io/k6/js/modules/k6/execution"
+	"go.k6.io/k6/js/modules/k6/experimental"
 	"go.k6.io/k6/js/modules/k6/grpc"
 	"go.k6.io/k6/js/modules/k6/html"
 	"go.k6.io/k6/js/modules/k6/http"
@@ -151,10 +152,11 @@ func (i *InitContext) Require(arg string) goja.Value ***REMOVED***
 ***REMOVED***
 
 type moduleVUImpl struct ***REMOVED***
-	ctxPtr  *context.Context
-	initEnv *common.InitEnvironment
-	state   *lib.State
-	runtime *goja.Runtime
+	ctxPtr    *context.Context
+	initEnv   *common.InitEnvironment
+	state     *lib.State
+	runtime   *goja.Runtime
+	eventLoop *eventLoop
 ***REMOVED***
 
 func newModuleVUImpl() *moduleVUImpl ***REMOVED***
@@ -178,6 +180,29 @@ func (m *moduleVUImpl) State() *lib.State ***REMOVED***
 func (m *moduleVUImpl) Runtime() *goja.Runtime ***REMOVED***
 	return m.runtime
 ***REMOVED***
+
+func (m *moduleVUImpl) RegisterCallback() func(func() error) ***REMOVED***
+	return m.eventLoop.registerCallback()
+***REMOVED***
+
+/* This is here to illustrate how to use RegisterCallback to get a promise to work with the event loop
+// TODO move this to a common function or remove before merging
+
+// MakeHandledPromise will create and promise and return it's resolve, reject methods as well wrapped in such a way that
+// it will block the eventloop from exiting before they are called even if the promise isn't resolved by the time the
+// current script ends executing
+func (m *moduleVUImpl) MakeHandledPromise() (*goja.Promise, func(interface***REMOVED******REMOVED***), func(interface***REMOVED******REMOVED***)) ***REMOVED***
+	callback := m.eventLoop.registerCallback()
+	p, resolve, reject := m.runtime.NewPromise()
+	return p, func(i interface***REMOVED******REMOVED***) ***REMOVED***
+			// more stuff
+			callback(func() ***REMOVED*** resolve(i) ***REMOVED***)
+		***REMOVED***, func(i interface***REMOVED******REMOVED***) ***REMOVED***
+			// more stuff
+			callback(func() ***REMOVED*** reject(i) ***REMOVED***)
+		***REMOVED***
+***REMOVED***
+*/
 
 func toESModuleExports(exp modules.Exports) interface***REMOVED******REMOVED*** ***REMOVED***
 	if exp.Named == nil ***REMOVED***
@@ -359,17 +384,18 @@ func (i *InitContext) allowOnlyOpenedFiles() ***REMOVED***
 
 func getInternalJSModules() map[string]interface***REMOVED******REMOVED*** ***REMOVED***
 	return map[string]interface***REMOVED******REMOVED******REMOVED***
-		"k6":             k6.New(),
-		"k6/crypto":      crypto.New(),
-		"k6/crypto/x509": x509.New(),
-		"k6/data":        data.New(),
-		"k6/encoding":    encoding.New(),
-		"k6/execution":   execution.New(),
-		"k6/net/grpc":    grpc.New(),
-		"k6/html":        html.New(),
-		"k6/http":        http.New(),
-		"k6/metrics":     metrics.New(),
-		"k6/ws":          ws.New(),
+		"k6":              k6.New(),
+		"k6/crypto":       crypto.New(),
+		"k6/crypto/x509":  x509.New(),
+		"k6/data":         data.New(),
+		"k6/encoding":     encoding.New(),
+		"k6/execution":    execution.New(),
+		"k6/net/grpc":     grpc.New(),
+		"k6/html":         html.New(),
+		"k6/http":         http.New(),
+		"k6/metrics":      metrics.New(),
+		"k6/ws":           ws.New(),
+		"k6/experimental": experimental.New(),
 	***REMOVED***
 ***REMOVED***
 

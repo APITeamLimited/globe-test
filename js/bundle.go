@@ -335,7 +335,12 @@ func (b *Bundle) instantiate(logger logrus.FieldLogger, rt *goja.Runtime, init *
 		"require": init.Require,
 		"open":    init.Open,
 	***REMOVED***)
-	if _, err := rt.RunProgram(b.Program); err != nil ***REMOVED***
+	init.moduleVUImpl.eventLoop = newEventLoop(init.moduleVUImpl)
+	err := init.moduleVUImpl.eventLoop.start(func() error ***REMOVED***
+		_, err := rt.RunProgram(b.Program)
+		return err
+	***REMOVED***)
+	if err != nil ***REMOVED***
 		var exception *goja.Exception
 		if errors.As(err, &exception) ***REMOVED***
 			err = &scriptException***REMOVED***inner: exception***REMOVED***
