@@ -28,6 +28,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"go.k6.io/k6/errext"
+	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/lib/metrics"
 )
 
@@ -73,6 +75,18 @@ An archive is a fully self-contained test run, and can be executed identically e
 			)
 			if err != nil ***REMOVED***
 				return err
+			***REMOVED***
+
+			// Parse the thresholds, only if the --no-threshold flag is not set.
+			// If parsing the threshold expressions failed, consider it as an
+			// invalid configuration error.
+			if !runtimeOptions.NoThresholds.Bool ***REMOVED***
+				for _, thresholds := range conf.Options.Thresholds ***REMOVED***
+					err = thresholds.Parse()
+					if err != nil ***REMOVED***
+						return errext.WithExitCodeIfNone(err, exitcodes.InvalidConfig)
+					***REMOVED***
+				***REMOVED***
 			***REMOVED***
 
 			_, err = deriveAndValidateConfig(conf, r.IsExecutable, logger)
