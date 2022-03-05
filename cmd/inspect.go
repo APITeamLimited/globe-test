@@ -30,7 +30,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
-	"go.k6.io/k6/core/local"
 	"go.k6.io/k6/js"
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
@@ -57,7 +56,6 @@ func getInspectCmd(logger *logrus.Logger, globalFlags *commandFlags) *cobra.Comm
 				return err
 			***REMOVED***
 			registry := metrics.NewRegistry()
-			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
 
 			var b *js.Bundle
 			typ := globalFlags.runType
@@ -85,7 +83,7 @@ func getInspectCmd(logger *logrus.Logger, globalFlags *commandFlags) *cobra.Comm
 			inspectOutput := interface***REMOVED******REMOVED***(b.Options)
 
 			if addExecReqs ***REMOVED***
-				inspectOutput, err = addExecRequirements(b, builtinMetrics, registry, logger, globalFlags)
+				inspectOutput, err = addExecRequirements(b, logger, globalFlags)
 				if err != nil ***REMOVED***
 					return err
 				***REMOVED***
@@ -112,37 +110,24 @@ func getInspectCmd(logger *logrus.Logger, globalFlags *commandFlags) *cobra.Comm
 	return inspectCmd
 ***REMOVED***
 
-func addExecRequirements(b *js.Bundle,
-	builtinMetrics *metrics.BuiltinMetrics, registry *metrics.Registry,
-	logger *logrus.Logger, globalFlags *commandFlags) (interface***REMOVED******REMOVED***, error) ***REMOVED***
-	// TODO: after #1048 issue, consider rewriting this without a Runner:
-	// just creating ExecutionPlan directly from validated options
-
-	runner, err := js.NewFromBundle(logger, b, builtinMetrics, registry)
-	if err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-
+func addExecRequirements(b *js.Bundle, logger *logrus.Logger, globalFlags *commandFlags) (interface***REMOVED******REMOVED***, error) ***REMOVED***
 	conf, err := getConsolidatedConfig(
-		afero.NewOsFs(), Config***REMOVED******REMOVED***, runner.GetOptions(), buildEnvMap(os.Environ()), globalFlags)
+		afero.NewOsFs(), Config***REMOVED******REMOVED***, b.Options, buildEnvMap(os.Environ()), globalFlags)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	conf, err = deriveAndValidateConfig(conf, runner.IsExecutable, logger)
+	conf, err = deriveAndValidateConfig(conf, b.IsExecutable, logger)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	if err = runner.SetOptions(conf.Options); err != nil ***REMOVED***
-		return nil, err
-	***REMOVED***
-	execScheduler, err := local.NewExecutionScheduler(runner, logger)
+	et, err := lib.NewExecutionTuple(conf.ExecutionSegment, conf.ExecutionSegmentSequence)
 	if err != nil ***REMOVED***
 		return nil, err
 	***REMOVED***
 
-	executionPlan := execScheduler.GetExecutionPlan()
+	executionPlan := conf.Scenarios.GetFullExecutionRequirements(et)
 	duration, _ := lib.GetEndOffset(executionPlan)
 
 	return struct ***REMOVED***
