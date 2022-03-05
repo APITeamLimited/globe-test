@@ -20,24 +20,18 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/executor"
-	"go.k6.io/k6/lib/testutils"
-	"go.k6.io/k6/lib/testutils/minirunner"
 	"go.k6.io/k6/lib/types"
 	"go.k6.io/k6/stats"
 )
@@ -129,26 +123,6 @@ func buildStages(durationsAndVUs ...int64) []executor.Stage ***REMOVED***
 	return result
 ***REMOVED***
 
-func mostFlagSets() []flagSetInit ***REMOVED***
-	// TODO: make this unnecessary... currently these are the only commands in which
-	// getConsolidatedConfig() is used, but they also have differences in their CLI flags :/
-	// sigh... compromises...
-	result := []flagSetInit***REMOVED******REMOVED***
-	for i, fsi := range []func(globalFlags *commandFlags) *pflag.FlagSet***REMOVED***runCmdFlagSet, archiveCmdFlagSet, cloudCmdFlagSet***REMOVED*** ***REMOVED***
-		i, fsi := i, fsi // go...
-		// TODO: this still uses os.GetEnv which needs to be removed
-		// before/along adding tests for those fields
-		root := newRootCommand(context.Background(), nil, nil)
-		result = append(result, func() (*pflag.FlagSet, *commandFlags) ***REMOVED***
-			flags := pflag.NewFlagSet(fmt.Sprintf("superContrivedFlags_%d", i), pflag.ContinueOnError)
-			flags.AddFlagSet(root.rootCmdPersistentFlagSet())
-			flags.AddFlagSet(fsi(root.commandFlags))
-			return flags, root.commandFlags
-		***REMOVED***)
-	***REMOVED***
-	return result
-***REMOVED***
-
 type file struct ***REMOVED***
 	filepath, contents string
 ***REMOVED***
@@ -161,20 +135,12 @@ func getFS(files []file) afero.Fs ***REMOVED***
 	return fs
 ***REMOVED***
 
-type flagSetInit func() (*pflag.FlagSet, *commandFlags)
-
 type opts struct ***REMOVED***
 	cli    []string
 	env    []string
 	runner *lib.Options
 	fs     afero.Fs
-
-	// TODO: remove this when the configuration is more reproducible and sane...
-	// We use a func, because initializing a FlagSet that points to variables
-	// actually will change those variables to their default values :| In our
-	// case, this happens only some of the time, for global variables that
-	// are configurable only via CLI flags, but not environment variables.
-	cliFlagSetInits []flagSetInit
+	cmds   []string
 ***REMOVED***
 
 // exp contains the different events or errors we expect our test case to trigger.
@@ -197,17 +163,8 @@ type configConsolidationTestCase struct ***REMOVED***
 
 func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED***
 	defaultConfig := func(jsonConfig string) afero.Fs ***REMOVED***
-		confDir, err := os.UserConfigDir()
-		if err != nil ***REMOVED***
-			confDir = ".config"
-		***REMOVED***
 		return getFS([]file***REMOVED******REMOVED***
-			filepath.Join(
-				confDir,
-				"loadimpact",
-				"k6",
-				defaultConfigFileName,
-			),
+			filepath.Join(".config", "loadimpact", "k6", defaultConfigFileName), // TODO: improve
 			jsonConfig,
 		***REMOVED******REMOVED***)
 	***REMOVED***
@@ -533,61 +490,48 @@ func getConfigConsolidationTestCases() []configConsolidationTestCase ***REMOVED*
 	***REMOVED***
 ***REMOVED***
 
-func runTestCase(
-	t *testing.T,
-	testCase configConsolidationTestCase,
-	newFlagSet flagSetInit,
-) ***REMOVED***
-	t.Helper()
-	t.Logf("Test with opts=%#v and exp=%#v\n", testCase.options, testCase.expected)
-	output := testutils.NewTestOutput(t)
-	logHook := &testutils.SimpleLogrusHook***REMOVED***
-		HookedLevels: []logrus.Level***REMOVED***logrus.WarnLevel***REMOVED***,
+func runTestCase(t *testing.T, testCase configConsolidationTestCase, subCmd string) ***REMOVED***
+	t.Logf("Test for `k6 %s` with opts=%#v and exp=%#v\n", subCmd, testCase.options, testCase.expected)
+
+	ts := newGlobalTestState(t)
+	ts.args = append([]string***REMOVED***"k6", subCmd***REMOVED***, testCase.options.cli...)
+	ts.envVars = buildEnvMap(testCase.options.env)
+	if testCase.options.fs != nil ***REMOVED***
+		ts.globalState.fs = testCase.options.fs
 	***REMOVED***
 
-	logHook.Drain()
-	logger := logrus.New()
-	logger.AddHook(logHook)
-	logger.SetOutput(output)
+	rootCmd := newRootCommand(ts.globalState)
+	cmd, args, err := rootCmd.cmd.Find(ts.args[1:])
+	require.NoError(t, err)
 
-	flagSet, globalFlags := newFlagSet()
-	flagSet.SetOutput(output)
-	// flagSet.PrintDefaults()
-
-	cliErr := flagSet.Parse(testCase.options.cli)
+	err = cmd.ParseFlags(args)
 	if testCase.expected.cliParseError ***REMOVED***
-		require.Error(t, cliErr)
+		require.Error(t, err)
 		return
 	***REMOVED***
-	require.NoError(t, cliErr)
+	require.NoError(t, err)
+
+	flagSet := cmd.Flags()
 
 	// TODO: remove these hacks when we improve the configuration...
 	var cliConf Config
 	if flagSet.Lookup("out") != nil ***REMOVED***
-		cliConf, cliErr = getConfig(flagSet)
+		cliConf, err = getConfig(flagSet)
 	***REMOVED*** else ***REMOVED***
 		opts, errOpts := getOptions(flagSet)
-		cliConf, cliErr = Config***REMOVED***Options: opts***REMOVED***, errOpts
+		cliConf, err = Config***REMOVED***Options: opts***REMOVED***, errOpts
 	***REMOVED***
 	if testCase.expected.cliReadError ***REMOVED***
-		require.Error(t, cliErr)
+		require.Error(t, err)
 		return
 	***REMOVED***
-	require.NoError(t, cliErr)
+	require.NoError(t, err)
 
-	var runnerOpts lib.Options
+	var opts lib.Options
 	if testCase.options.runner != nil ***REMOVED***
-		runnerOpts = minirunner.MiniRunner***REMOVED***Options: *testCase.options.runner***REMOVED***.GetOptions()
+		opts = *testCase.options.runner
 	***REMOVED***
-	// without runner creation, values in runnerOpts will simply be invalid
-
-	if testCase.options.fs == nil ***REMOVED***
-		t.Logf("Creating an empty FS for this test")
-		testCase.options.fs = afero.NewMemMapFs() // create an empty FS if it wasn't supplied
-	***REMOVED***
-	consolidatedConfig, err := getConsolidatedConfig(testCase.options.fs, cliConf, runnerOpts,
-		// TODO: just make testcase.options.env in map[string]string
-		buildEnvMap(testCase.options.env), globalFlags)
+	consolidatedConfig, err := getConsolidatedConfig(ts.globalState, cliConf, opts)
 	if testCase.expected.consolidationError ***REMOVED***
 		require.Error(t, err)
 		return
@@ -595,14 +539,14 @@ func runTestCase(
 	require.NoError(t, err)
 
 	derivedConfig := consolidatedConfig
-	derivedConfig.Options, err = executor.DeriveScenariosFromShortcuts(consolidatedConfig.Options, logger)
+	derivedConfig.Options, err = executor.DeriveScenariosFromShortcuts(consolidatedConfig.Options, ts.logger)
 	if testCase.expected.derivationError ***REMOVED***
 		require.Error(t, err)
 		return
 	***REMOVED***
 	require.NoError(t, err)
 
-	if warnings := logHook.Drain(); testCase.expected.logWarning ***REMOVED***
+	if warnings := ts.loggerHook.Drain(); testCase.expected.logWarning ***REMOVED***
 		assert.NotEmpty(t, warnings)
 	***REMOVED*** else ***REMOVED***
 		assert.Empty(t, warnings)
@@ -625,17 +569,17 @@ func TestConfigConsolidation(t *testing.T) ***REMOVED***
 
 	for tcNum, testCase := range getConfigConsolidationTestCases() ***REMOVED***
 		tcNum, testCase := tcNum, testCase
-		flagSetInits := testCase.options.cliFlagSetInits
-		if flagSetInits == nil ***REMOVED*** // handle the most common case
-			flagSetInits = mostFlagSets()
+		subCommands := testCase.options.cmds
+		if subCommands == nil ***REMOVED*** // handle the most common case
+			subCommands = []string***REMOVED***"run", "archive", "cloud"***REMOVED***
 		***REMOVED***
-		for fsNum, flagSet := range flagSetInits ***REMOVED***
-			fsNum, flagSet := fsNum, flagSet
+		for fsNum, subCmd := range subCommands ***REMOVED***
+			fsNum, subCmd := fsNum, subCmd
 			t.Run(
 				fmt.Sprintf("TestCase#%d_FlagSet#%d", tcNum, fsNum),
 				func(t *testing.T) ***REMOVED***
 					t.Parallel()
-					runTestCase(t, testCase, flagSet)
+					runTestCase(t, testCase, subCmd)
 				***REMOVED***,
 			)
 		***REMOVED***

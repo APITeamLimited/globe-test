@@ -21,21 +21,19 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"go.k6.io/k6/lib/consts"
 )
 
-func getVersionCmd() *cobra.Command ***REMOVED***
+func getVersionCmd(globalState *globalState) *cobra.Command ***REMOVED***
 	// versionCmd represents the version command.
 	versionCmd := &cobra.Command***REMOVED***
 		Use:   "version",
 		Short: "Show application version",
 		Long:  `Show the application version and exit.`,
 		Run: func(_ *cobra.Command, _ []string) ***REMOVED***
-			fmt.Println("k6 v" + consts.FullVersion()) //nolint:forbidigo // we probably shouldn't do that though
+			fprintf(globalState.stdOut, "k6 v%s\n", consts.FullVersion())
 		***REMOVED***,
 	***REMOVED***
 	return versionCmd

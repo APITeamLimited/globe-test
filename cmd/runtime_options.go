@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
@@ -37,22 +36,6 @@ import (
 // self-contained and easily testable now, without any global dependencies...
 
 var userEnvVarName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-
-func parseEnvKeyValue(kv string) (string, string) ***REMOVED***
-	if idx := strings.IndexRune(kv, '='); idx != -1 ***REMOVED***
-		return kv[:idx], kv[idx+1:]
-	***REMOVED***
-	return kv, ""
-***REMOVED***
-
-func buildEnvMap(environ []string) map[string]string ***REMOVED***
-	env := make(map[string]string, len(environ))
-	for _, kv := range environ ***REMOVED***
-		k, v := parseEnvKeyValue(kv)
-		env[k] = v
-	***REMOVED***
-	return env
-***REMOVED***
 
 func runtimeOptionFlagSet(includeSysEnv bool) *pflag.FlagSet ***REMOVED***
 	flags := pflag.NewFlagSet("", 0)

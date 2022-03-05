@@ -22,12 +22,9 @@ package cmd
 
 import (
 	"encoding/json"
-	"os"
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"gopkg.in/guregu/null.v3"
@@ -37,7 +34,7 @@ import (
 )
 
 //nolint:funlen
-func getLoginInfluxDBCommand(logger logrus.FieldLogger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
+func getLoginInfluxDBCommand(globalState *globalState) *cobra.Command ***REMOVED***
 	// loginInfluxDBCommand represents the 'login influxdb' command
 	loginInfluxDBCommand := &cobra.Command***REMOVED***
 		Use:   "influxdb [uri]",
@@ -47,8 +44,7 @@ func getLoginInfluxDBCommand(logger logrus.FieldLogger, globalFlags *commandFlag
 This will set the default server used when just "-o influxdb" is passed.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
-			fs := afero.NewOsFs()
-			config, configPath, err := readDiskConfig(fs, globalFlags)
+			config, err := readDiskConfig(globalState)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -94,9 +90,9 @@ This will set the default server used when just "-o influxdb" is passed.`,
 				***REMOVED***,
 			***REMOVED***
 			if !term.IsTerminal(int(syscall.Stdin)) ***REMOVED*** // nolint: unconvert
-				logger.Warn("Stdin is not a terminal, falling back to plain text input")
+				globalState.logger.Warn("Stdin is not a terminal, falling back to plain text input")
 			***REMOVED***
-			vals, err := form.Run(os.Stdin, globalFlags.stdout)
+			vals, err := form.Run(globalState.stdIn, globalState.stdOut)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -121,7 +117,7 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			return writeDiskConfig(fs, configPath, config)
+			return writeDiskConfig(globalState, config)
 		***REMOVED***,
 	***REMOVED***
 	return loginInfluxDBCommand

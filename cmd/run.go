@@ -29,7 +29,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime"
 	"sync"
 	"syscall"
@@ -60,7 +59,7 @@ const (
 )
 
 //nolint:funlen,gocognit,gocyclo,cyclop
-func getRunCmd(ctx context.Context, logger *logrus.Logger, globalFlags *commandFlags) *cobra.Command ***REMOVED***
+func getRunCmd(globalState *globalState) *cobra.Command ***REMOVED***
 	// runCmd represents the run command.
 	runCmd := &cobra.Command***REMOVED***
 		Use:   "run",
@@ -90,25 +89,27 @@ a commandline interface for interacting with it.`,
 		Args: exactArgsWithMsg(1, "arg should either be \"-\", if reading script from stdin, or a path to a script file"),
 		RunE: func(cmd *cobra.Command, args []string) error ***REMOVED***
 			// TODO: disable in quiet mode?
-			_, _ = fmt.Fprintf(globalFlags.stdout, "\n%s\n\n", getBanner(globalFlags.noColor || !globalFlags.stdoutTTY))
+			_, _ = fmt.Fprintf(globalState.stdOut, "\n%s\n\n", getBanner(globalState.flags.noColor || !globalState.stdOut.isTTY))
 
+			logger := globalState.logger
 			logger.Debug("Initializing the runner...")
 
 			// Create the Runner.
-			src, filesystems, err := readSource(args[0], logger)
+			src, filesystems, err := readSource(globalState, args[0])
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
-			osEnvironment := buildEnvMap(os.Environ())
-			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), osEnvironment)
+			runtimeOptions, err := getRuntimeOptions(cmd.Flags(), globalState.envVars)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
 
 			registry := metrics.NewRegistry()
 			builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-			initRunner, err := newRunner(logger, src, globalFlags.runType, filesystems, runtimeOptions, builtinMetrics, registry)
+			initRunner, err := newRunner(
+				logger, src, globalState.flags.runType, filesystems, runtimeOptions, builtinMetrics, registry,
+			)
 			if err != nil ***REMOVED***
 				return common.UnwrapGojaInterruptedError(err)
 			***REMOVED***
@@ -119,8 +120,7 @@ a commandline interface for interacting with it.`,
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
-			conf, err := getConsolidatedConfig(
-				afero.NewOsFs(), cliConf, initRunner.GetOptions(), buildEnvMap(os.Environ()), globalFlags)
+			conf, err := getConsolidatedConfig(globalState, cliConf, initRunner.GetOptions())
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -157,7 +157,7 @@ a commandline interface for interacting with it.`,
 			//  - The globalCtx is cancelled only after we're completely done with the
 			//    test execution and any --linger has been cleared, so that the Engine
 			//    can start winding down its metrics processing.
-			globalCtx, globalCancel := context.WithCancel(ctx)
+			globalCtx, globalCancel := context.WithCancel(globalState.ctx)
 			defer globalCancel()
 			lingerCtx, lingerCancel := context.WithCancel(globalCtx)
 			defer lingerCancel()
@@ -185,13 +185,13 @@ a commandline interface for interacting with it.`,
 				for _, s := range execScheduler.GetExecutors() ***REMOVED***
 					pbs = append(pbs, s.GetProgress())
 				***REMOVED***
-				showProgress(progressCtx, pbs, logger, globalFlags)
+				showProgress(progressCtx, globalState, pbs, logger)
 				progressBarWG.Done()
 			***REMOVED***()
 
 			// Create all outputs.
 			executionPlan := execScheduler.GetExecutionPlan()
-			outputs, err := createOutputs(conf.Out, src, conf, runtimeOptions, executionPlan, osEnvironment, logger, globalFlags)
+			outputs, err := createOutputs(globalState, src, conf, runtimeOptions, executionPlan)
 			if err != nil ***REMOVED***
 				return err
 			***REMOVED***
@@ -204,11 +204,11 @@ a commandline interface for interacting with it.`,
 			***REMOVED***
 
 			// Spin up the REST API server, if not disabled.
-			if globalFlags.address != "" ***REMOVED***
+			if globalState.flags.address != "" ***REMOVED***
 				initBar.Modify(pb.WithConstProgress(0, "Init API server"))
 				go func() ***REMOVED***
-					logger.Debugf("Starting the REST API server on %s", globalFlags.address)
-					if aerr := api.ListenAndServe(globalFlags.address, engine, logger); aerr != nil ***REMOVED***
+					logger.Debugf("Starting the REST API server on %s", globalState.flags.address)
+					if aerr := api.ListenAndServe(globalState.flags.address, engine, logger); aerr != nil ***REMOVED***
 						// Only exit k6 if the user has explicitly set the REST API address
 						if cmd.Flags().Lookup("address").Changed ***REMOVED***
 							logger.WithError(aerr).Error("Error from API server")
@@ -229,13 +229,13 @@ a commandline interface for interacting with it.`,
 			defer engine.StopOutputs()
 
 			printExecutionDescription(
-				"local", args[0], "", conf, execScheduler.GetState().ExecutionTuple,
-				executionPlan, outputs, globalFlags.noColor || !globalFlags.stdoutTTY, globalFlags)
+				globalState, "local", args[0], "", conf, execScheduler.GetState().ExecutionTuple, executionPlan, outputs,
+			)
 
 			// Trap Interrupts, SIGINTs and SIGTERMs.
-			sigC := make(chan os.Signal, 1)
-			signal.Notify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-			defer signal.Stop(sigC)
+			sigC := make(chan os.Signal, 2)
+			globalState.signalNotify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+			defer globalState.signalStop(sigC)
 			go func() ***REMOVED***
 				sig := <-sigC
 				logger.WithField("sig", sig).Debug("Stopping k6 in response to signal...")
@@ -308,14 +308,14 @@ a commandline interface for interacting with it.`,
 					Metrics:         engine.Metrics,
 					RootGroup:       engine.ExecutionScheduler.GetRunner().GetDefaultGroup(),
 					TestRunDuration: executionState.GetCurrentTestRunDuration(),
-					NoColor:         globalFlags.noColor,
+					NoColor:         globalState.flags.noColor,
 					UIState: lib.UIState***REMOVED***
-						IsStdOutTTY: globalFlags.stdoutTTY,
-						IsStdErrTTY: globalFlags.stderrTTY,
+						IsStdOutTTY: globalState.stdOut.isTTY,
+						IsStdErrTTY: globalState.stdErr.isTTY,
 					***REMOVED***,
 				***REMOVED***)
 				if err == nil ***REMOVED***
-					err = handleSummaryResult(afero.NewOsFs(), globalFlags.stdout, globalFlags.stderr, summaryResult)
+					err = handleSummaryResult(globalState.fs, globalState.stdOut, globalState.stdErr, summaryResult)
 				***REMOVED***
 				if err != nil ***REMOVED***
 					logger.WithError(err).Error("failed to handle the end-of-test summary")
@@ -328,7 +328,7 @@ a commandline interface for interacting with it.`,
 					// do nothing, we were interrupted by Ctrl+C already
 				default:
 					logger.Debug("Linger set; waiting for Ctrl+C...")
-					fprintf(globalFlags.stdout, "Linger set; waiting for Ctrl+C...")
+					fprintf(globalState.stdOut, "Linger set; waiting for Ctrl+C...")
 					<-lingerCtx.Done()
 					logger.Debug("Ctrl+C received, exiting...")
 				***REMOVED***
@@ -348,7 +348,7 @@ a commandline interface for interacting with it.`,
 	***REMOVED***
 
 	runCmd.Flags().SortFlags = false
-	runCmd.Flags().AddFlagSet(runCmdFlagSet(globalFlags))
+	runCmd.Flags().AddFlagSet(runCmdFlagSet(globalState))
 
 	return runCmd
 ***REMOVED***
@@ -384,7 +384,7 @@ func reportUsage(execScheduler *local.ExecutionScheduler) error ***REMOVED***
 	return err
 ***REMOVED***
 
-func runCmdFlagSet(globalFlags *commandFlags) *pflag.FlagSet ***REMOVED***
+func runCmdFlagSet(globalState *globalState) *pflag.FlagSet ***REMOVED***
 	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
 	flags.SortFlags = false
 	flags.AddFlagSet(optionFlagSet())
@@ -398,7 +398,8 @@ func runCmdFlagSet(globalFlags *commandFlags) *pflag.FlagSet ***REMOVED***
 	//   that will be used in the help/usage message - if we don't set it, the environment
 	//   variables will affect the usage message
 	// - and finally, global variables are not very testable... :/
-	flags.StringVarP(&globalFlags.runType, "type", "t", globalFlags.runType, "override file `type`, \"js\" or \"archive\"")
+	flags.StringVarP(&globalState.flags.runType, "type", "t",
+		globalState.flags.runType, "override file `type`, \"js\" or \"archive\"")
 	flags.Lookup("type").DefValue = ""
 	return flags
 ***REMOVED***
