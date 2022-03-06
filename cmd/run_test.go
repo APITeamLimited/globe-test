@@ -30,9 +30,9 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,6 +41,7 @@ import (
 	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/js/common"
 	"go.k6.io/k6/lib/fsext"
+	"go.k6.io/k6/lib/testutils"
 )
 
 type mockWriter struct ***REMOVED***
@@ -212,14 +213,7 @@ func TestRunScriptErrorsAndAbort(t *testing.T) ***REMOVED***
 			***REMOVED***
 
 			if tc.expLogOutput != "" ***REMOVED***
-				var gotMsg bool
-				for _, entry := range testState.loggerHook.Drain() ***REMOVED***
-					if strings.Contains(entry.Message, tc.expLogOutput) ***REMOVED***
-						gotMsg = true
-						break
-					***REMOVED***
-				***REMOVED***
-				assert.True(t, gotMsg)
+				assert.True(t, testutils.LogContains(testState.loggerHook.Drain(), logrus.InfoLevel, tc.expLogOutput))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
