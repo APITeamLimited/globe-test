@@ -22,11 +22,14 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
 
+	"go.k6.io/k6/errext/exitcodes"
 	"go.k6.io/k6/lib/types"
 )
 
@@ -85,5 +88,38 @@ func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs ***REMOVED***
 func printToStdout(gs *globalState, s string) ***REMOVED***
 	if _, err := fmt.Fprint(gs.stdOut, s); err != nil ***REMOVED***
 		gs.logger.Errorf("could not print '%s' to stdout: %s", s, err.Error())
+	***REMOVED***
+***REMOVED***
+
+// Trap Interrupts, SIGINTs and SIGTERMs and call the given.
+func handleTestAbortSignals(gs *globalState, firstHandler, secondHandler func(os.Signal)) (stop func()) ***REMOVED***
+	sigC := make(chan os.Signal, 2)
+	done := make(chan struct***REMOVED******REMOVED***)
+	gs.signalNotify(sigC, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() ***REMOVED***
+		select ***REMOVED***
+		case sig := <-sigC:
+			firstHandler(sig)
+		case <-done:
+			return
+		***REMOVED***
+
+		select ***REMOVED***
+		case sig := <-sigC:
+			if secondHandler != nil ***REMOVED***
+				secondHandler(sig)
+			***REMOVED***
+			// If we get a second signal, we immediately exit, so something like
+			// https://github.com/k6io/k6/issues/971 never happens again
+			os.Exit(int(exitcodes.ExternalAbort))
+		case <-done:
+			return
+		***REMOVED***
+	***REMOVED***()
+
+	return func() ***REMOVED***
+		close(done)
+		gs.signalStop(sigC)
 	***REMOVED***
 ***REMOVED***
