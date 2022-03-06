@@ -31,6 +31,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +113,17 @@ func newGlobalState(ctx context.Context) *globalState ***REMOVED***
 	stdOut := &consoleWriter***REMOVED***os.Stdout, colorable.NewColorable(os.Stdout), stdoutTTY, outMutex, nil***REMOVED***
 	stdErr := &consoleWriter***REMOVED***os.Stderr, colorable.NewColorable(os.Stderr), stderrTTY, outMutex, nil***REMOVED***
 
-	logger := getDefaultLogger(stdErr)
+	envVars := buildEnvMap(os.Environ())
+	_, noColorsSet := envVars["NO_COLOR"] // even empty values disable colors
+	logger := &logrus.Logger***REMOVED***
+		Out: stdErr,
+		Formatter: &logrus.TextFormatter***REMOVED***
+			ForceColors:   stderrTTY,
+			DisableColors: !stderrTTY || noColorsSet || envVars["K6_NO_COLOR"] != "",
+		***REMOVED***,
+		Hooks: make(logrus.LevelHooks),
+		Level: logrus.InfoLevel,
+	***REMOVED***
 
 	confDir, err := os.UserConfigDir()
 	if err != nil ***REMOVED***
@@ -120,34 +131,29 @@ func newGlobalState(ctx context.Context) *globalState ***REMOVED***
 		confDir = ".config"
 	***REMOVED***
 
-	envVars := buildEnvMap(os.Environ())
 	defaultFlags := getDefaultFlags(confDir)
 
 	return &globalState***REMOVED***
-		ctx:            ctx,
-		fs:             afero.NewOsFs(),
-		getwd:          os.Getwd,
-		args:           append(make([]string, 0, len(os.Args)), os.Args...), // copy
-		envVars:        envVars,
-		defaultFlags:   defaultFlags,
-		flags:          getFlags(defaultFlags, envVars),
-		outMutex:       outMutex,
-		stdOut:         stdOut,
-		stdErr:         stdErr,
-		stdIn:          os.Stdin,
-		signalNotify:   signal.Notify,
-		signalStop:     signal.Stop,
-		logger:         logger,
-		fallbackLogger: getDefaultLogger(stdErr), // we may modify the other one
-	***REMOVED***
-***REMOVED***
-
-func getDefaultLogger(out io.Writer) *logrus.Logger ***REMOVED***
-	return &logrus.Logger***REMOVED***
-		Out:       out,
-		Formatter: new(logrus.TextFormatter),
-		Hooks:     make(logrus.LevelHooks),
-		Level:     logrus.InfoLevel,
+		ctx:          ctx,
+		fs:           afero.NewOsFs(),
+		getwd:        os.Getwd,
+		args:         append(make([]string, 0, len(os.Args)), os.Args...), // copy
+		envVars:      envVars,
+		defaultFlags: defaultFlags,
+		flags:        getFlags(defaultFlags, envVars),
+		outMutex:     outMutex,
+		stdOut:       stdOut,
+		stdErr:       stdErr,
+		stdIn:        os.Stdin,
+		signalNotify: signal.Notify,
+		signalStop:   signal.Stop,
+		logger:       logger,
+		fallbackLogger: &logrus.Logger***REMOVED*** // we may modify the other one
+			Out:       stdErr,
+			Formatter: new(logrus.TextFormatter), // no fancy formatting here
+			Hooks:     make(logrus.LevelHooks),
+			Level:     logrus.InfoLevel,
+		***REMOVED***,
 	***REMOVED***
 ***REMOVED***
 
@@ -176,6 +182,14 @@ func getFlags(defaultFlags globalFlags, env map[string]string) globalFlags ***RE
 	***REMOVED***
 	if val, ok := env["K6_LOG_FORMAT"]; ok ***REMOVED***
 		result.logFormat = val
+	***REMOVED***
+	if env["K6_NO_COLOR"] != "" ***REMOVED***
+		result.noColor = true
+	***REMOVED***
+	// Support https://no-color.org/, even an empty value should disable the
+	// color output from k6.
+	if _, ok := env["NO_COLOR"]; ok ***REMOVED***
+		result.noColor = true
 	***REMOVED***
 	return result
 ***REMOVED***
@@ -341,11 +355,13 @@ func rootCmdPersistentFlagSet(gs *globalState) *pflag.FlagSet ***REMOVED***
 	flags.Lookup("config").DefValue = gs.defaultFlags.configFilePath
 	must(cobra.MarkFlagFilename(flags, "config"))
 
+	flags.BoolVar(&gs.flags.noColor, "no-color", gs.flags.noColor, "disable colored output")
+	flags.Lookup("no-color").DefValue = strconv.FormatBool(gs.defaultFlags.noColor)
+
 	// TODO: support configuring these through environment variables as well?
 	// either with croconf or through the hack above...
 	flags.BoolVarP(&gs.flags.verbose, "verbose", "v", gs.defaultFlags.verbose, "enable verbose logging")
 	flags.BoolVarP(&gs.flags.quiet, "quiet", "q", gs.defaultFlags.quiet, "disable progress updates")
-	flags.BoolVar(&gs.flags.noColor, "no-color", gs.defaultFlags.noColor, "disable colored output")
 	flags.StringVarP(&gs.flags.address, "address", "a", gs.defaultFlags.address, "address for the REST API server")
 
 	return flags
