@@ -21,17 +21,13 @@
 package cmd
 
 import (
-	"archive/tar"
-	"bytes"
 	"fmt"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gopkg.in/guregu/null.v3"
 
 	"go.k6.io/k6/lib/types"
-	"go.k6.io/k6/loader"
 )
 
 // Panic if the given error is not nil.
@@ -84,26 +80,6 @@ func exactArgsWithMsg(n int, msg string) cobra.PositionalArgs ***REMOVED***
 		***REMOVED***
 		return nil
 	***REMOVED***
-***REMOVED***
-
-// readSource is a small wrapper around loader.ReadSource returning
-// result of the load and filesystems map
-func readSource(globalState *globalState, filename string) (*loader.SourceData, map[string]afero.Fs, error) ***REMOVED***
-	pwd, err := globalState.getwd()
-	if err != nil ***REMOVED***
-		return nil, nil, err
-	***REMOVED***
-
-	filesystems := loader.CreateFilesystems(globalState.fs)
-	src, err := loader.ReadSource(globalState.logger, filename, pwd, filesystems, globalState.stdIn)
-	return src, filesystems, err
-***REMOVED***
-
-func detectType(data []byte) string ***REMOVED***
-	if _, err := tar.NewReader(bytes.NewReader(data)).Next(); err == nil ***REMOVED***
-		return typeArchive
-	***REMOVED***
-	return typeJS
 ***REMOVED***
 
 func printToStdout(gs *globalState, s string) ***REMOVED***

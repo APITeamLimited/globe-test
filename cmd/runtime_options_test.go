@@ -33,7 +33,6 @@ import (
 
 	"go.k6.io/k6/lib"
 	"go.k6.io/k6/lib/metrics"
-	"go.k6.io/k6/lib/testutils"
 	"go.k6.io/k6/loader"
 )
 
@@ -78,44 +77,42 @@ func testRuntimeOptionsCase(t *testing.T, tc runtimeOptionsTestCase) ***REMOVED*
 
 	fs := afero.NewMemMapFs()
 	require.NoError(t, afero.WriteFile(fs, "/script.js", jsCode.Bytes(), 0o644))
-	registry := metrics.NewRegistry()
-	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	runner, err := newRunner(
-		testutils.NewLogger(t),
-		&loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
-		typeJS,
-		map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
-		rtOpts,
-		builtinMetrics,
-		registry,
-	)
-	require.NoError(t, err)
 
-	archive := runner.MakeArchive()
+	ts := newGlobalTestState(t) // TODO: move upwards, make this into an almost full integration test
+	registry := metrics.NewRegistry()
+	test := &loadedTest***REMOVED***
+		testPath:        "script.js",
+		source:          &loader.SourceData***REMOVED***Data: jsCode.Bytes(), URL: &url.URL***REMOVED***Path: "/script.js", Scheme: "file"***REMOVED******REMOVED***,
+		fileSystems:     map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
+		runtimeOptions:  rtOpts,
+		metricsRegistry: registry,
+		builtInMetrics:  metrics.RegisterBuiltinMetrics(registry),
+	***REMOVED***
+
+	require.NoError(t, test.initializeFirstRunner(ts.globalState))
+
+	archive := test.initRunner.MakeArchive()
 	archiveBuf := &bytes.Buffer***REMOVED******REMOVED***
 	require.NoError(t, archive.Write(archiveBuf))
 
-	getRunnerErr := func(rtOpts lib.RuntimeOptions) (lib.Runner, error) ***REMOVED***
-		return newRunner(
-			testutils.NewLogger(t),
-			&loader.SourceData***REMOVED***
-				Data: archiveBuf.Bytes(),
-				URL:  &url.URL***REMOVED***Path: "/script.js"***REMOVED***,
-			***REMOVED***,
-			typeArchive,
-			nil,
-			rtOpts,
-			builtinMetrics,
-			registry,
-		)
+	getRunnerErr := func(rtOpts lib.RuntimeOptions) *loadedTest ***REMOVED***
+		return &loadedTest***REMOVED***
+			testPath:        "script.tar",
+			source:          &loader.SourceData***REMOVED***Data: archiveBuf.Bytes(), URL: &url.URL***REMOVED***Path: "/script.tar", Scheme: "file"***REMOVED******REMOVED***,
+			fileSystems:     map[string]afero.Fs***REMOVED***"file": fs***REMOVED***,
+			runtimeOptions:  rtOpts,
+			metricsRegistry: registry,
+			builtInMetrics:  metrics.RegisterBuiltinMetrics(registry),
+		***REMOVED***
 	***REMOVED***
 
-	_, err = getRunnerErr(lib.RuntimeOptions***REMOVED******REMOVED***)
-	require.NoError(t, err)
+	archTest := getRunnerErr(lib.RuntimeOptions***REMOVED******REMOVED***)
+	require.NoError(t, archTest.initializeFirstRunner(ts.globalState))
+
 	for key, val := range tc.expRTOpts.Env ***REMOVED***
-		r, err := getRunnerErr(lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***key: "almost " + val***REMOVED******REMOVED***)
-		assert.NoError(t, err)
-		assert.Equal(t, r.MakeArchive().Env[key], "almost "+val)
+		archTest = getRunnerErr(lib.RuntimeOptions***REMOVED***Env: map[string]string***REMOVED***key: "almost " + val***REMOVED******REMOVED***)
+		require.NoError(t, archTest.initializeFirstRunner(ts.globalState))
+		assert.Equal(t, archTest.initRunner.MakeArchive().Env[key], "almost "+val)
 	***REMOVED***
 ***REMOVED***
 

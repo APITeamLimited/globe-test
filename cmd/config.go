@@ -91,6 +91,16 @@ func (c Config) Apply(cfg Config) Config ***REMOVED***
 	return c
 ***REMOVED***
 
+// Returns a Config but only parses the Options inside.
+func getPartialConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
+	opts, err := getOptions(flags)
+	if err != nil ***REMOVED***
+		return Config***REMOVED******REMOVED***, err
+	***REMOVED***
+
+	return Config***REMOVED***Options: opts***REMOVED***, nil
+***REMOVED***
+
 // Gets configuration from CLI flags.
 func getConfig(flags *pflag.FlagSet) (Config, error) ***REMOVED***
 	opts, err := getOptions(flags)
