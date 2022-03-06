@@ -33,7 +33,7 @@ func getVersionCmd(globalState *globalState) *cobra.Command ***REMOVED***
 		Short: "Show application version",
 		Long:  `Show the application version and exit.`,
 		Run: func(_ *cobra.Command, _ []string) ***REMOVED***
-			fprintf(globalState.stdOut, "k6 v%s\n", consts.FullVersion())
+			printToStdout(globalState, "k6 v\n"+consts.FullVersion())
 		***REMOVED***,
 	***REMOVED***
 	return versionCmd
