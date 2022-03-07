@@ -91,10 +91,9 @@ type globalState struct ***REMOVED***
 	stdOut, stdErr *consoleWriter
 	stdIn          io.Reader
 
+	osExit       func(int)
 	signalNotify func(chan<- os.Signal, ...os.Signal)
 	signalStop   func(chan<- os.Signal)
-
-	// TODO: add os.Exit()?
 
 	logger         *logrus.Logger
 	fallbackLogger logrus.FieldLogger
@@ -144,6 +143,7 @@ func newGlobalState(ctx context.Context) *globalState ***REMOVED***
 		stdOut:       stdOut,
 		stdErr:       stdErr,
 		stdIn:        os.Stdin,
+		osExit:       os.Exit,
 		signalNotify: signal.Notify,
 		signalStop:   signal.Stop,
 		logger:       logger,
@@ -268,47 +268,52 @@ func (c *rootCommand) persistentPreRunE(cmd *cobra.Command, args []string) error
 	return nil
 ***REMOVED***
 
+func (c *rootCommand) execute() ***REMOVED***
+	ctx, cancel := context.WithCancel(c.globalState.ctx)
+	defer cancel()
+	c.globalState.ctx = ctx
+
+	err := c.cmd.Execute()
+	if err == nil ***REMOVED***
+		cancel()
+		c.waitRemoteLogger()
+		return
+	***REMOVED***
+
+	exitCode := -1
+	var ecerr errext.HasExitCode
+	if errors.As(err, &ecerr) ***REMOVED***
+		exitCode = int(ecerr.ExitCode())
+	***REMOVED***
+
+	errText := err.Error()
+	var xerr errext.Exception
+	if errors.As(err, &xerr) ***REMOVED***
+		errText = xerr.StackTrace()
+	***REMOVED***
+
+	fields := logrus.Fields***REMOVED******REMOVED***
+	var herr errext.HasHint
+	if errors.As(err, &herr) ***REMOVED***
+		fields["hint"] = herr.Hint()
+	***REMOVED***
+
+	c.globalState.logger.WithFields(fields).Error(errText)
+	if c.loggerIsRemote ***REMOVED***
+		c.globalState.fallbackLogger.WithFields(fields).Error(errText)
+		cancel()
+		c.waitRemoteLogger()
+	***REMOVED***
+
+	c.globalState.osExit(exitCode)
+***REMOVED***
+
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() ***REMOVED***
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	gs := newGlobalState(context.Background())
 
-	globalState := newGlobalState(ctx)
-
-	rootCmd := newRootCommand(globalState)
-
-	if err := rootCmd.cmd.Execute(); err != nil ***REMOVED***
-		exitCode := -1
-		var ecerr errext.HasExitCode
-		if errors.As(err, &ecerr) ***REMOVED***
-			exitCode = int(ecerr.ExitCode())
-		***REMOVED***
-
-		errText := err.Error()
-		var xerr errext.Exception
-		if errors.As(err, &xerr) ***REMOVED***
-			errText = xerr.StackTrace()
-		***REMOVED***
-
-		fields := logrus.Fields***REMOVED******REMOVED***
-		var herr errext.HasHint
-		if errors.As(err, &herr) ***REMOVED***
-			fields["hint"] = herr.Hint()
-		***REMOVED***
-
-		globalState.logger.WithFields(fields).Error(errText)
-		if rootCmd.loggerIsRemote ***REMOVED***
-			globalState.fallbackLogger.WithFields(fields).Error(errText)
-			cancel()
-			rootCmd.waitRemoteLogger()
-		***REMOVED***
-
-		os.Exit(exitCode) //nolint:gocritic
-	***REMOVED***
-
-	cancel()
-	rootCmd.waitRemoteLogger()
+	newRootCommand(gs).execute()
 ***REMOVED***
 
 func (c *rootCommand) waitRemoteLogger() ***REMOVED***

@@ -23,6 +23,8 @@ type globalTestState struct ***REMOVED***
 	loggerHook     *testutils.SimpleLogrusHook
 
 	cwd string
+
+	expectedExitCode int
 ***REMOVED***
 
 func newGlobalTestState(t *testing.T) *globalTestState ***REMOVED***
@@ -50,8 +52,19 @@ func newGlobalTestState(t *testing.T) *globalTestState ***REMOVED***
 		stdErr:     new(bytes.Buffer),
 	***REMOVED***
 
+	defaultOsExitHandle := func(exitCode int) ***REMOVED***
+		require.Equal(t, ts.expectedExitCode, exitCode)
+		cancel()
+	***REMOVED***
+
 	outMutex := &sync.Mutex***REMOVED******REMOVED***
 	defaultFlags := getDefaultFlags(".config")
+
+	// Set an empty REST API address by default so that `k6 run` dosen't try to
+	// bind to it, which will result in parallel integration tests trying to use
+	// the same port and a warning message in every one.
+	defaultFlags.address = ""
+
 	ts.globalState = &globalState***REMOVED***
 		ctx:            ctx,
 		fs:             fs,
@@ -64,6 +77,7 @@ func newGlobalTestState(t *testing.T) *globalTestState ***REMOVED***
 		stdOut:         &consoleWriter***REMOVED***nil, ts.stdOut, false, outMutex, nil***REMOVED***,
 		stdErr:         &consoleWriter***REMOVED***nil, ts.stdErr, false, outMutex, nil***REMOVED***,
 		stdIn:          new(bytes.Buffer),
+		osExit:         defaultOsExitHandle,
 		signalNotify:   signal.Notify,
 		signalStop:     signal.Stop,
 		logger:         logger,
@@ -82,9 +96,7 @@ func TestDeprecatedOptionWarning(t *testing.T) ***REMOVED***
 		export default function() ***REMOVED*** console.log('bar'); ***REMOVED***;
 	`))
 
-	root := newRootCommand(ts.globalState)
-
-	require.NoError(t, root.cmd.Execute())
+	newRootCommand(ts.globalState).execute()
 
 	logMsgs := ts.loggerHook.Drain()
 	assert.True(t, testutils.LogContains(logMsgs, logrus.InfoLevel, "foo"))

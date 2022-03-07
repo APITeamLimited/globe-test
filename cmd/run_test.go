@@ -197,23 +197,17 @@ func TestRunScriptErrorsAndAbort(t *testing.T) ***REMOVED***
 			require.NoError(t, afero.WriteFile(testState.fs, filepath.Join(testState.cwd, tc.testFilename), testScript, 0o644))
 			testState.args = append([]string***REMOVED***"k6", "run", tc.testFilename***REMOVED***, tc.extraArgs...)
 
-			err = newRootCommand(testState.globalState).cmd.Execute()
+			testState.expectedExitCode = int(tc.expExitCode)
+			newRootCommand(testState.globalState).execute()
+
+			logs := testState.loggerHook.Drain()
 
 			if tc.expErr != "" ***REMOVED***
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.expErr)
-			***REMOVED*** else ***REMOVED***
-				require.NoError(t, err)
-			***REMOVED***
-
-			if tc.expExitCode != 0 ***REMOVED***
-				var e errext.HasExitCode
-				require.ErrorAs(t, err, &e)
-				assert.Equalf(t, tc.expExitCode, e.ExitCode(), "Status code must be %d", tc.expExitCode)
+				assert.True(t, testutils.LogContains(logs, logrus.ErrorLevel, tc.expErr))
 			***REMOVED***
 
 			if tc.expLogOutput != "" ***REMOVED***
-				assert.True(t, testutils.LogContains(testState.loggerHook.Drain(), logrus.InfoLevel, tc.expLogOutput))
+				assert.True(t, testutils.LogContains(logs, logrus.InfoLevel, tc.expLogOutput))
 			***REMOVED***
 		***REMOVED***)
 	***REMOVED***
