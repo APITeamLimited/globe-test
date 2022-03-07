@@ -110,8 +110,12 @@ func TestFileHookFromConfigLine(t *testing.T) ***REMOVED***
 		t.Run(test.line, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
+			getCwd := func() (string, error) ***REMOVED***
+				return "/", nil
+			***REMOVED***
+
 			res, err := FileHookFromConfigLine(
-				context.Background(), afero.NewMemMapFs(), logrus.New(), test.line, make(chan struct***REMOVED******REMOVED***),
+				context.Background(), afero.NewMemMapFs(), getCwd, logrus.New(), test.line, make(chan struct***REMOVED******REMOVED***),
 			)
 
 			if test.err ***REMOVED***

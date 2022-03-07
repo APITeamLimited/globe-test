@@ -14,6 +14,7 @@ import (
 
 const (
 	noopDefaultFunc   = `export default function() ***REMOVED******REMOVED***;`
+	fooLogDefaultFunc = `export default function() ***REMOVED*** console.log('foo'); ***REMOVED***;`
 	noopHandleSummary = `
 		export function handleSummary(data) ***REMOVED***
 			return ***REMOVED******REMOVED***; // silence the end of test summary
@@ -61,10 +62,10 @@ func TestStdoutAndStderrAreEmptyWithQuietAndLogsForwarded(t *testing.T) ***REMOV
 		"k6", "--quiet", "--log-output", "file=" + logFilePath,
 		"--log-format", "raw", "run", "--no-summary", "-",
 	***REMOVED***
-	ts.stdIn = bytes.NewBufferString(`export default function() ***REMOVED*** console.log('foo'); ***REMOVED***;`)
+	ts.stdIn = bytes.NewBufferString(fooLogDefaultFunc)
 	newRootCommand(ts.globalState).execute()
 
-	// The our test state hook still catches this message
+	// The test state hook still catches this message
 	assert.True(t, testutils.LogContains(ts.loggerHook.Drain(), logrus.InfoLevel, `foo`))
 
 	// But it's not shown on stderr or stdout
@@ -75,6 +76,30 @@ func TestStdoutAndStderrAreEmptyWithQuietAndLogsForwarded(t *testing.T) ***REMOV
 	logContents, err := afero.ReadFile(ts.fs, logFilePath)
 	require.NoError(t, err)
 	assert.Equal(t, "foo\n", string(logContents))
+***REMOVED***
+
+func TestRelativeLogPathWithSetupAndTeardown(t *testing.T) ***REMOVED***
+	t.Parallel()
+
+	ts := newGlobalTestState(t)
+
+	ts.args = []string***REMOVED***"k6", "--log-output", "file=test.log", "--log-format", "raw", "run", "-i", "2", "-"***REMOVED***
+	ts.stdIn = bytes.NewBufferString(fooLogDefaultFunc + `
+		export function setup() ***REMOVED*** console.log('bar'); ***REMOVED***;
+		export function teardown() ***REMOVED*** console.log('baz'); ***REMOVED***;
+	`)
+	newRootCommand(ts.globalState).execute()
+
+	// The test state hook still catches these messages
+	logEntries := ts.loggerHook.Drain()
+	assert.True(t, testutils.LogContains(logEntries, logrus.InfoLevel, `foo`))
+	assert.True(t, testutils.LogContains(logEntries, logrus.InfoLevel, `bar`))
+	assert.True(t, testutils.LogContains(logEntries, logrus.InfoLevel, `baz`))
+
+	// And check that the log file also contains everything
+	logContents, err := afero.ReadFile(ts.fs, filepath.Join(ts.cwd, "test.log"))
+	require.NoError(t, err)
+	assert.Equal(t, "bar\nfoo\nfoo\nbaz\n", string(logContents))
 ***REMOVED***
 
 func TestWrongCliFlagIterations(t *testing.T) ***REMOVED***
