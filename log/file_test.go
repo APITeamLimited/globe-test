@@ -115,7 +115,9 @@ func TestFileHookFromConfigLine(t *testing.T) ***REMOVED***
 		t.Run(test.line, func(t *testing.T) ***REMOVED***
 			t.Parallel()
 
-			res, err := FileHookFromConfigLine(context.Background(), logrus.New(), test.line)
+			res, err := FileHookFromConfigLine(
+				context.Background(), logrus.New(), test.line, make(chan struct***REMOVED******REMOVED***),
+			)
 
 			if test.err ***REMOVED***
 				require.Error(t, err)
@@ -147,6 +149,7 @@ func TestFileHookFire(t *testing.T) ***REMOVED***
 		w:        nc,
 		bw:       bufio.NewWriter(nc),
 		levels:   logrus.AllLevels,
+		done:     make(chan struct***REMOVED******REMOVED***),
 	***REMOVED***
 
 	ctx, cancel := context.WithCancel(context.Background())
