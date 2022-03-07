@@ -23,10 +23,12 @@ package json
 import (
 	"bufio"
 	"compress/gzip"
-	stdlibjson "encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
+
+	"github.com/mailru/easyjson/jwriter"
 
 	"github.com/sirupsen/logrus"
 
@@ -46,7 +48,7 @@ type Output struct ***REMOVED***
 
 	logger      logrus.FieldLogger
 	filename    string
-	encoder     *stdlibjson.Encoder
+	out         io.Writer
 	closeFn     func() error
 	seenMetrics map[string]struct***REMOVED******REMOVED***
 	thresholds  map[string][]*stats.Threshold
@@ -80,10 +82,10 @@ func (o *Output) Start() error ***REMOVED***
 
 	if o.filename == "" || o.filename == "-" ***REMOVED***
 		w := bufio.NewWriter(o.params.StdOut)
-		o.encoder = stdlibjson.NewEncoder(w)
 		o.closeFn = func() error ***REMOVED***
 			return w.Flush()
 		***REMOVED***
+		o.out = w
 	***REMOVED*** else ***REMOVED***
 		logfile, err := o.params.FS.Create(o.filename)
 		if err != nil ***REMOVED***
@@ -99,17 +101,15 @@ func (o *Output) Start() error ***REMOVED***
 				_ = w.Flush()
 				return logfile.Close()
 			***REMOVED***
-			o.encoder = stdlibjson.NewEncoder(outfile)
+			o.out = outfile
 		***REMOVED*** else ***REMOVED***
 			o.closeFn = func() error ***REMOVED***
 				_ = w.Flush()
 				return logfile.Close()
 			***REMOVED***
-			o.encoder = stdlibjson.NewEncoder(w)
+			o.out = logfile
 		***REMOVED***
 	***REMOVED***
-
-	o.encoder.SetEscapeHTML(false)
 
 	pf, err := output.NewPeriodicFlusher(flushPeriod, o.flushMetrics)
 	if err != nil ***REMOVED***
@@ -142,33 +142,34 @@ func (o *Output) flushMetrics() ***REMOVED***
 	samples := o.GetBufferedSamples()
 	start := time.Now()
 	var count int
+	jw := new(jwriter.Writer)
 	for _, sc := range samples ***REMOVED***
 		samples := sc.GetSamples()
 		count += len(samples)
 		for _, sample := range samples ***REMOVED***
 			sample := sample
 			sample.Metric.Thresholds.Thresholds = o.thresholds[sample.Metric.Name]
-			o.handleMetric(sample.Metric)
-			err := o.encoder.Encode(WrapSample(sample))
-			if err != nil ***REMOVED***
-				// Skip metric if it can't be made into JSON or envelope is null.
-				o.logger.WithError(err).Error("Sample couldn't be marshalled to JSON")
-			***REMOVED***
+			o.handleMetric(sample.Metric, jw)
+			wrapSample(sample).MarshalEasyJSON(jw)
+			jw.RawByte('\n')
 		***REMOVED***
+	***REMOVED***
+
+	if _, err := jw.DumpTo(o.out); err != nil ***REMOVED***
+		// Skip metric if it can't be made into JSON or envelope is null.
+		o.logger.WithError(err).Error("Sample couldn't be marshalled to JSON")
 	***REMOVED***
 	if count > 0 ***REMOVED***
 		o.logger.WithField("t", time.Since(start)).WithField("count", count).Debug("Wrote metrics to JSON")
 	***REMOVED***
 ***REMOVED***
 
-func (o *Output) handleMetric(m *stats.Metric) ***REMOVED***
+func (o *Output) handleMetric(m *stats.Metric, jw *jwriter.Writer) ***REMOVED***
 	if _, ok := o.seenMetrics[m.Name]; ok ***REMOVED***
 		return
 	***REMOVED***
 	o.seenMetrics[m.Name] = struct***REMOVED******REMOVED******REMOVED******REMOVED***
 
-	err := o.encoder.Encode(wrapMetric(m))
-	if err != nil ***REMOVED***
-		o.logger.WithError(err).Error("Metric couldn't be marshalled to JSON")
-	***REMOVED***
+	wrapMetric(m).MarshalEasyJSON(jw)
+	jw.RawByte('\n')
 ***REMOVED***

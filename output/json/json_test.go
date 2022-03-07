@@ -179,16 +179,16 @@ func TestJsonOutputFileGzipped(t *testing.T) ***REMOVED***
 
 func TestWrapSampleWithSamplePointer(t *testing.T) ***REMOVED***
 	t.Parallel()
-	out := WrapSample(stats.Sample***REMOVED***
+	out := wrapSample(stats.Sample***REMOVED***
 		Metric: &stats.Metric***REMOVED******REMOVED***,
 	***REMOVED***)
-	assert.NotEqual(t, out, (*Envelope)(nil))
+	assert.NotEqual(t, out, (*sampleEnvelope)(nil))
 ***REMOVED***
 
 func TestWrapMetricWithMetricPointer(t *testing.T) ***REMOVED***
 	t.Parallel()
 	out := wrapMetric(&stats.Metric***REMOVED******REMOVED***)
-	assert.NotEqual(t, out, (*Envelope)(nil))
+	assert.NotEqual(t, out, (*metricEnvelope)(nil))
 ***REMOVED***
 
 func setThresholds(t *testing.T, out output.Output) ***REMOVED***

@@ -26,45 +26,41 @@ import (
 	"go.k6.io/k6/stats"
 )
 
-// Envelope is the data format we use to export both metrics and metric samples
-// to the JSON file.
-type Envelope struct ***REMOVED***
-	Type   string      `json:"type"`
-	Data   interface***REMOVED******REMOVED*** `json:"data"`
-	Metric string      `json:"metric,omitempty"`
+//go:generate easyjson -pkg -no_std_marshalers -gen_build_flags -mod=mod .
+
+//easyjson:json
+type sampleEnvelope struct ***REMOVED***
+	Type string `json:"type"`
+	Data struct ***REMOVED***
+		Time  time.Time         `json:"time"`
+		Value float64           `json:"value"`
+		Tags  *stats.SampleTags `json:"tags"`
+	***REMOVED*** `json:"data"`
+	Metric string `json:"metric"`
 ***REMOVED***
 
-// Sample is the data format for metric sample data in the JSON file.
-type Sample struct ***REMOVED***
-	Time  time.Time         `json:"time"`
-	Value float64           `json:"value"`
-	Tags  *stats.SampleTags `json:"tags"`
-***REMOVED***
-
-func newJSONSample(sample stats.Sample) Sample ***REMOVED***
-	return Sample***REMOVED***
-		Time:  sample.Time,
-		Value: sample.Value,
-		Tags:  sample.Tags,
-	***REMOVED***
-***REMOVED***
-
-// WrapSample is used to package a metric sample in a way that's nice to export
+// wrapSample is used to package a metric sample in a way that's nice to export
 // to JSON.
-func WrapSample(sample stats.Sample) Envelope ***REMOVED***
-	return Envelope***REMOVED***
+func wrapSample(sample stats.Sample) sampleEnvelope ***REMOVED***
+	s := sampleEnvelope***REMOVED***
 		Type:   "Point",
 		Metric: sample.Metric.Name,
-		Data:   newJSONSample(sample),
 	***REMOVED***
+	s.Data.Time = sample.Time
+	s.Data.Value = sample.Value
+	s.Data.Tags = sample.Tags
+	return s
 ***REMOVED***
 
-func wrapMetric(metric *stats.Metric) *Envelope ***REMOVED***
-	if metric == nil ***REMOVED***
-		return nil
-	***REMOVED***
+//easyjson:json
+type metricEnvelope struct ***REMOVED***
+	Type   string        `json:"type"`
+	Data   *stats.Metric `json:"data"`
+	Metric string        `json:"metric"`
+***REMOVED***
 
-	return &Envelope***REMOVED***
+func wrapMetric(metric *stats.Metric) metricEnvelope ***REMOVED***
+	return metricEnvelope***REMOVED***
 		Type:   "Metric",
 		Metric: metric.Name,
 		Data:   metric,
