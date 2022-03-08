@@ -395,7 +395,12 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
 		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
 		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,failing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,nomatch,failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+
+		"unused,passing":      ***REMOVED***true, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
+		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
+		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED***, false***REMOVED***,
+		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
@@ -405,6 +410,8 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 
 			registry := metrics.NewRegistry()
 			metric, err := registry.NewMetric("my_metric", stats.Gauge)
+			require.NoError(t, err)
+			_, err = registry.NewMetric("unused_counter", stats.Counter)
 			require.NoError(t, err)
 
 			thresholds := make(map[string]stats.Thresholds, len(data.ths))
