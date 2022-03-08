@@ -85,3 +85,9 @@ func (r *Registry) MustNewMetric(name string, typ stats.MetricType, t ...stats.V
 	***REMOVED***
 	return m
 ***REMOVED***
+
+// Get returns the Metric with the given name. If that metric doesn't exist,
+// Get() will return a nil value.
+func (r *Registry) Get(name string) *stats.Metric ***REMOVED***
+	return r.metrics[name]
+***REMOVED***

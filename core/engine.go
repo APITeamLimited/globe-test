@@ -23,6 +23,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +58,7 @@ type Engine struct ***REMOVED***
 	ExecutionScheduler lib.ExecutionScheduler
 	executionState     *lib.ExecutionState
 
-	Options        lib.Options
+	options        lib.Options
 	runtimeOptions lib.RuntimeOptions
 	outputs        []output.Output
 
@@ -65,15 +66,15 @@ type Engine struct ***REMOVED***
 	stopOnce sync.Once
 	stopChan chan struct***REMOVED******REMOVED***
 
-	Metrics     map[string]*stats.Metric
+	Metrics     map[string]*stats.Metric // TODO: refactor, this doesn't need to be a map
 	MetricsLock sync.Mutex
 
+	registry       *metrics.Registry
 	builtinMetrics *metrics.BuiltinMetrics
 	Samples        chan stats.SampleContainer
 
-	// Assigned to metrics upon first received sample.
-	thresholds map[string]stats.Thresholds
-	submetrics map[string][]*stats.Submetric
+	// These can be both top-level metrics or sub-metrics
+	metricsWithThresholds []*stats.Metric
 
 	// Are thresholds tainted?
 	thresholdsTainted bool
@@ -82,7 +83,7 @@ type Engine struct ***REMOVED***
 // NewEngine instantiates a new Engine, without doing any heavy initialization.
 func NewEngine(
 	ex lib.ExecutionScheduler, opts lib.Options, rtOpts lib.RuntimeOptions, outputs []output.Output, logger *logrus.Logger,
-	builtinMetrics *metrics.BuiltinMetrics,
+	registry *metrics.Registry, builtinMetrics *metrics.BuiltinMetrics,
 ) (*Engine, error) ***REMOVED***
 	if ex == nil ***REMOVED***
 		return nil, errors.New("missing ExecutionScheduler instance")
@@ -92,42 +93,78 @@ func NewEngine(
 		ExecutionScheduler: ex,
 		executionState:     ex.GetState(),
 
-		Options:        opts,
+		options:        opts,
 		runtimeOptions: rtOpts,
 		outputs:        outputs,
 		Metrics:        make(map[string]*stats.Metric),
 		Samples:        make(chan stats.SampleContainer, opts.MetricSamplesBufferSize.Int64),
 		stopChan:       make(chan struct***REMOVED******REMOVED***),
 		logger:         logger.WithField("component", "engine"),
+		registry:       registry,
 		builtinMetrics: builtinMetrics,
 	***REMOVED***
 
-	e.thresholds = opts.Thresholds
-	e.submetrics = make(map[string][]*stats.Submetric)
-	for name := range e.thresholds ***REMOVED***
-		if !strings.Contains(name, "***REMOVED***") ***REMOVED***
-			continue
-		***REMOVED***
-
-		parent, sm := stats.NewSubmetric(name)
-		e.submetrics[parent] = append(e.submetrics[parent], sm)
-	***REMOVED***
-
-	// TODO: refactor this out of here when https://github.com/k6io/k6/issues/1832 lands and
-	// there is a better way to enable a metric with tag
-	if opts.SystemTags.Has(stats.TagExpectedResponse) ***REMOVED***
-		for _, name := range []string***REMOVED***
-			"http_req_duration***REMOVED***expected_response:true***REMOVED***",
-		***REMOVED*** ***REMOVED***
-			if _, ok := e.thresholds[name]; ok ***REMOVED***
-				continue
-			***REMOVED***
-			parent, sm := stats.NewSubmetric(name)
-			e.submetrics[parent] = append(e.submetrics[parent], sm)
+	if !(e.runtimeOptions.NoSummary.Bool && e.runtimeOptions.NoThresholds.Bool) ***REMOVED***
+		err := e.initSubMetricsAndThresholds()
+		if err != nil ***REMOVED***
+			return nil, err
 		***REMOVED***
 	***REMOVED***
 
 	return e, nil
+***REMOVED***
+
+func (e *Engine) getOrInitPotentialSubmetric(name string) (*stats.Metric, error) ***REMOVED***
+	// TODO: replace with strings.Cut after Go 1.18
+	nameParts := strings.SplitN(name, "***REMOVED***", 2)
+
+	metric := e.registry.Get(nameParts[0])
+	if metric == nil ***REMOVED***
+		return nil, fmt.Errorf("metric '%s' does not exist in the script", nameParts[0])
+	***REMOVED***
+	if len(nameParts) == 1 ***REMOVED*** // no sub-metric
+		return metric, nil
+	***REMOVED***
+
+	if nameParts[1][len(nameParts[1])-1] != '***REMOVED***' ***REMOVED***
+		return nil, fmt.Errorf("missing ending bracket, sub-metric format needs to be 'metric***REMOVED***key:value***REMOVED***'")
+	***REMOVED***
+	sm, err := metric.AddSubmetric(nameParts[1][:len(nameParts[1])-1])
+	if err != nil ***REMOVED***
+		return nil, err
+	***REMOVED***
+	return sm.Metric, nil
+***REMOVED***
+
+func (e *Engine) initSubMetricsAndThresholds() error ***REMOVED***
+	for metricName, thresholds := range e.options.Thresholds ***REMOVED***
+		metric, err := e.getOrInitPotentialSubmetric(metricName)
+
+		if e.runtimeOptions.NoThresholds.Bool ***REMOVED***
+			if err != nil ***REMOVED***
+				e.logger.WithError(err).Warnf("Invalid metric '%s' in threshold definitions", metricName)
+			***REMOVED***
+			continue
+		***REMOVED***
+
+		if err != nil ***REMOVED***
+			return fmt.Errorf("invalid metric '%s' in threshold definitions: %w", metricName, err)
+		***REMOVED***
+
+		metric.Thresholds = thresholds
+		e.metricsWithThresholds = append(e.metricsWithThresholds, metric)
+	***REMOVED***
+
+	// TODO: refactor out of here when https://github.com/grafana/k6/issues/1321
+	// lands and there is a better way to enable a metric with tag
+	if e.options.SystemTags.Has(stats.TagExpectedResponse) ***REMOVED***
+		_, err := e.getOrInitPotentialSubmetric("http_req_duration***REMOVED***expected_response:true***REMOVED***")
+		if err != nil ***REMOVED***
+			return err // shouldn't happen, but ¯\_(ツ)_/¯
+		***REMOVED***
+	***REMOVED***
+
+	return nil
 ***REMOVED***
 
 // Init is used to initialize the execution scheduler and all metrics processing
@@ -382,15 +419,15 @@ func (e *Engine) emitMetrics() ***REMOVED***
 				Time:   t,
 				Metric: e.builtinMetrics.VUs,
 				Value:  float64(executionState.GetCurrentlyActiveVUsCount()),
-				Tags:   e.Options.RunTags,
+				Tags:   e.options.RunTags,
 			***REMOVED***, ***REMOVED***
 				Time:   t,
 				Metric: e.builtinMetrics.VUsMax,
 				Value:  float64(executionState.GetInitializedVUsCount()),
-				Tags:   e.Options.RunTags,
+				Tags:   e.options.RunTags,
 			***REMOVED***,
 		***REMOVED***,
-		Tags: e.Options.RunTags,
+		Tags: e.options.RunTags,
 		Time: t,
 	***REMOVED******REMOVED***)
 ***REMOVED***
@@ -427,7 +464,7 @@ func (e *Engine) processThresholds() (shouldAbort bool) ***REMOVED***
 	return shouldAbort
 ***REMOVED***
 
-func (e *Engine) processSamplesForMetrics(sampleContainers []stats.SampleContainer) ***REMOVED***
+func (e *Engine) processMetricsInSamples(sampleContainers []stats.SampleContainer) ***REMOVED***
 	for _, sampleContainer := range sampleContainers ***REMOVED***
 		samples := sampleContainer.GetSamples()
 
@@ -436,25 +473,25 @@ func (e *Engine) processSamplesForMetrics(sampleContainers []stats.SampleContain
 		***REMOVED***
 
 		for _, sample := range samples ***REMOVED***
-			m, ok := e.Metrics[sample.Metric.Name]
-			if !ok ***REMOVED***
-				m = stats.New(sample.Metric.Name, sample.Metric.Type, sample.Metric.Contains)
-				m.Thresholds = e.thresholds[m.Name]
-				m.Submetrics = e.submetrics[m.Name]
+			m := sample.Metric // this should have come from the Registry, no need to look it up
+			if !m.Observed ***REMOVED***
+				// But we need to add it here, so we can show data in the
+				// end-of-test summary for this metric
 				e.Metrics[m.Name] = m
+				m.Observed = true
 			***REMOVED***
-			m.Sink.Add(sample)
+			m.Sink.Add(sample) // add its value to its own sink
 
+			// and also add it to any submetrics that match
 			for _, sm := range m.Submetrics ***REMOVED***
 				if !sample.Tags.Contains(sm.Tags) ***REMOVED***
 					continue
 				***REMOVED***
-
-				if sm.Metric == nil ***REMOVED***
-					sm.Metric = stats.New(sm.Name, sample.Metric.Type, sample.Metric.Contains)
-					sm.Metric.Sub = *sm
-					sm.Metric.Thresholds = e.thresholds[sm.Name]
-					e.Metrics[sm.Name] = sm.Metric
+				if !sm.Metric.Observed ***REMOVED***
+					// But we need to add it here, so we can show data in the
+					// end-of-test summary for this metric
+					e.Metrics[sm.Metric.Name] = sm.Metric
+					sm.Metric.Observed = true
 				***REMOVED***
 				sm.Metric.Sink.Add(sample)
 			***REMOVED***
@@ -473,7 +510,7 @@ func (e *Engine) processSamples(sampleContainers []stats.SampleContainer) ***REM
 
 	// TODO: run this and the below code in goroutines?
 	if !(e.runtimeOptions.NoSummary.Bool && e.runtimeOptions.NoThresholds.Bool) ***REMOVED***
-		e.processSamplesForMetrics(sampleContainers)
+		e.processMetricsInSamples(sampleContainers)
 	***REMOVED***
 
 	for _, out := range e.outputs ***REMOVED***

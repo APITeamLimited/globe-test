@@ -53,7 +53,7 @@ func TestGetGroups(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	registry := metrics.NewRegistry()
 	builtinMetrics := metrics.RegisterBuiltinMetrics(registry)
-	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, builtinMetrics)
+	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry, builtinMetrics)
 	require.NoError(t, err)
 
 	t.Run("list", func(t *testing.T) ***REMOVED***

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) ***REMOVED***
@@ -52,33 +53,39 @@ func TestNew(t *testing.T) ***REMOVED***
 	***REMOVED***
 ***REMOVED***
 
-func TestNewSubmetric(t *testing.T) ***REMOVED***
+func TestAddSubmetric(t *testing.T) ***REMOVED***
 	t.Parallel()
 	testdata := map[string]struct ***REMOVED***
-		parent string
-		tags   map[string]string
+		err  bool
+		tags map[string]string
 	***REMOVED******REMOVED***
-		"my_metric":                 ***REMOVED***"my_metric", nil***REMOVED***,
-		"my_metric***REMOVED******REMOVED***":               ***REMOVED***"my_metric", nil***REMOVED***,
-		"my_metric***REMOVED***a***REMOVED***":              ***REMOVED***"my_metric", map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a:1***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		"my_metric***REMOVED*** a : 1 ***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a,b***REMOVED***":            ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
-		"my_metric***REMOVED***a:1,b:2***REMOVED***":        ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
-		"my_metric***REMOVED*** a : 1, b : 2 ***REMOVED***": ***REMOVED***"my_metric", map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		"":                        ***REMOVED***true, nil***REMOVED***,
+		"  ":                      ***REMOVED***true, nil***REMOVED***,
+		"a":                       ***REMOVED***false, map[string]string***REMOVED***"a": ""***REMOVED******REMOVED***,
+		"a:1":                     ***REMOVED***false, map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		" a : 1 ":                 ***REMOVED***false, map[string]string***REMOVED***"a": "1"***REMOVED******REMOVED***,
+		"a,b":                     ***REMOVED***false, map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
+		` a:"",b: ''`:             ***REMOVED***false, map[string]string***REMOVED***"a": "", "b": ""***REMOVED******REMOVED***,
+		`a:1,b:2`:                 ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		` a : 1, b : 2 `:          ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		`a : '1' , b : "2"`:       ***REMOVED***false, map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED******REMOVED***,
+		`" a" : ' 1' , b : "2 " `: ***REMOVED***false, map[string]string***REMOVED***" a": " 1", "b": "2 "***REMOVED******REMOVED***, //nolint:gocritic
 	***REMOVED***
 
-	for name, data := range testdata ***REMOVED***
-		name, data := name, data
+	for name, expected := range testdata ***REMOVED***
+		name, expected := name, expected
 		t.Run(name, func(t *testing.T) ***REMOVED***
 			t.Parallel()
-			parent, sm := NewSubmetric(name)
-			assert.Equal(t, data.parent, parent)
-			if data.tags != nil ***REMOVED***
-				assert.EqualValues(t, data.tags, sm.Tags.tags)
-			***REMOVED*** else ***REMOVED***
-				assert.Nil(t, sm.Tags)
+
+			m := New("metric", Trend)
+			sm, err := m.AddSubmetric(name)
+			if expected.err ***REMOVED***
+				require.Error(t, err)
+				return
 			***REMOVED***
+			require.NoError(t, err)
+			require.NotNil(t, sm)
+			assert.EqualValues(t, expected.tags, sm.Tags.tags)
 		***REMOVED***)
 	***REMOVED***
 ***REMOVED***

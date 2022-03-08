@@ -18,6 +18,8 @@ type (
 	// JSTest is meant to test xk6 and the JS extension sub-system of k6.
 	JSTest struct ***REMOVED***
 		vu modules.VU
+
+		foos *stats.Metric
 	***REMOVED***
 )
 
@@ -35,7 +37,10 @@ func New() *RootModule ***REMOVED***
 // NewModuleInstance implements the modules.Module interface and returns
 // a new instance for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance ***REMOVED***
-	return &JSTest***REMOVED***vu: vu***REMOVED***
+	return &JSTest***REMOVED***
+		vu:   vu,
+		foos: vu.InitEnv().Registry.MustNewMetric("foos", stats.Counter),
+	***REMOVED***
 ***REMOVED***
 
 // Exports implements the modules.Instance interface and returns the exports
@@ -45,7 +50,7 @@ func (j *JSTest) Exports() modules.Exports ***REMOVED***
 ***REMOVED***
 
 // Foo emits a foo metric
-func (j JSTest) Foo(arg float64) (bool, error) ***REMOVED***
+func (j *JSTest) Foo(arg float64) (bool, error) ***REMOVED***
 	state := j.vu.State()
 	if state == nil ***REMOVED***
 		return false, fmt.Errorf("the VU State is not avaialble in the init context")
@@ -53,12 +58,11 @@ func (j JSTest) Foo(arg float64) (bool, error) ***REMOVED***
 
 	ctx := j.vu.Context()
 
-	allTheFoos := stats.New("foos", stats.Counter)
 	tags := state.CloneTags()
 	tags["foo"] = "bar"
 	stats.PushIfNotDone(ctx, state.Samples, stats.Sample***REMOVED***
 		Time:   time.Now(),
-		Metric: allTheFoos, Tags: stats.IntoSampleTags(&tags),
+		Metric: j.foos, Tags: stats.IntoSampleTags(&tags),
 		Value: arg,
 	***REMOVED***)
 
