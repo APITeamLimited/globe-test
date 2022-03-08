@@ -130,45 +130,6 @@ func NewEngine(
 	return e, nil
 ***REMOVED***
 
-// StartOutputs spins up all configured outputs, giving the thresholds to any
-// that can accept them. And if some output fails, stop the already started
-// ones. This may take some time, since some outputs make initial network
-// requests to set up whatever remote services are going to listen to them.
-//
-// TODO: this doesn't really need to be in the Engine, so take it out?
-func (e *Engine) StartOutputs() error ***REMOVED***
-	e.logger.Debugf("Starting %d outputs...", len(e.outputs))
-	for i, out := range e.outputs ***REMOVED***
-		if stopOut, ok := out.(output.WithTestRunStop); ok ***REMOVED***
-			stopOut.SetTestRunStopCallback(
-				func(err error) ***REMOVED***
-					e.logger.WithError(err).Error("Received error to stop from output")
-					e.Stop()
-				***REMOVED***)
-		***REMOVED***
-
-		if err := out.Start(); err != nil ***REMOVED***
-			e.stopOutputs(i)
-			return err
-		***REMOVED***
-	***REMOVED***
-	return nil
-***REMOVED***
-
-// StopOutputs stops all configured outputs.
-func (e *Engine) StopOutputs() ***REMOVED***
-	e.stopOutputs(len(e.outputs))
-***REMOVED***
-
-func (e *Engine) stopOutputs(upToID int) ***REMOVED***
-	e.logger.Debugf("Stopping %d outputs...", upToID)
-	for i := 0; i < upToID; i++ ***REMOVED***
-		if err := e.outputs[i].Stop(); err != nil ***REMOVED***
-			e.logger.WithError(err).Errorf("Stopping output %d failed", i)
-		***REMOVED***
-	***REMOVED***
-***REMOVED***
-
 // Init is used to initialize the execution scheduler and all metrics processing
 // in the engine. The first is a costly operation, since it initializes all of
 // the planned VUs and could potentially take a long time.
