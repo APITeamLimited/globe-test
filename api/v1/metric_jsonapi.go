@@ -74,7 +74,9 @@ func (m MetricsJSONAPI) Metrics() []Metric ***REMOVED***
 	list := make([]Metric, 0, len(m.Data))
 
 	for _, metric := range m.Data ***REMOVED***
-		list = append(list, metric.Attributes)
+		m := metric.Attributes
+		m.Name = metric.ID
+		list = append(list, m)
 	***REMOVED***
 
 	return list
