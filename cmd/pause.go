@@ -28,7 +28,7 @@ import (
 	"go.k6.io/k6/api/v1/client"
 )
 
-func getPauseCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdPause(globalState *globalState) *cobra.Command ***REMOVED***
 	// pauseCmd represents the pause command
 	pauseCmd := &cobra.Command***REMOVED***
 		Use:   "pause",

@@ -34,7 +34,7 @@ import (
 )
 
 //nolint:funlen
-func getLoginInfluxDBCommand(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdLoginInfluxDB(globalState *globalState) *cobra.Command ***REMOVED***
 	// loginInfluxDBCommand represents the 'login influxdb' command
 	loginInfluxDBCommand := &cobra.Command***REMOVED***
 		Use:   "influxdb [uri]",

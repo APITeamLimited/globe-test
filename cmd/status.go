@@ -26,7 +26,7 @@ import (
 	"go.k6.io/k6/api/v1/client"
 )
 
-func getStatusCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdStatus(globalState *globalState) *cobra.Command ***REMOVED***
 	// statusCmd represents the status command
 	statusCmd := &cobra.Command***REMOVED***
 		Use:   "status",

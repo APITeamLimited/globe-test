@@ -235,16 +235,15 @@ func newRootCommand(gs *globalState) *rootCommand ***REMOVED***
 	rootCmd.SetErr(gs.stdErr) // TODO: use gs.logger.WriterLevel(logrus.ErrorLevel)?
 	rootCmd.SetIn(gs.stdIn)
 
-	loginCmd := getLoginCmd()
-	loginCmd.AddCommand(
-		getLoginCloudCommand(gs),
-		getLoginInfluxDBCommand(gs),
-	)
-	rootCmd.AddCommand(
-		getArchiveCmd(gs), getCloudCmd(gs), getConvertCmd(gs), getInspectCmd(gs),
-		loginCmd, getPauseCmd(gs), getResumeCmd(gs), getScaleCmd(gs), getRunCmd(gs),
-		getStatsCmd(gs), getStatusCmd(gs), getVersionCmd(gs),
-	)
+	subCommands := []func(*globalState) *cobra.Command***REMOVED***
+		getCmdArchive, getCmdCloud, getCmdConvert, getCmdInspect,
+		getCmdLogin, getCmdPause, getCmdResume, getCmdScale, getCmdRun,
+		getCmdStats, getCmdStatus, getCmdVersion,
+	***REMOVED***
+
+	for _, sc := range subCommands ***REMOVED***
+		rootCmd.AddCommand(sc(gs))
+	***REMOVED***
 
 	c.cmd = rootCmd
 	return c

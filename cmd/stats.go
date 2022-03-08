@@ -26,7 +26,7 @@ import (
 	"go.k6.io/k6/api/v1/client"
 )
 
-func getStatsCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdStats(globalState *globalState) *cobra.Command ***REMOVED***
 	// statsCmd represents the stats command
 	statsCmd := &cobra.Command***REMOVED***
 		Use:   "stats",

@@ -28,7 +28,7 @@ import (
 	"go.k6.io/k6/api/v1/client"
 )
 
-func getResumeCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdResume(globalState *globalState) *cobra.Command ***REMOVED***
 	// resumeCmd represents the resume command
 	resumeCmd := &cobra.Command***REMOVED***
 		Use:   "resume",

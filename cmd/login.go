@@ -24,8 +24,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func getLoginCmd() *cobra.Command ***REMOVED***
-	// loginCmd represents the login command
+// getCmdLogin returns the `k6 login` sub-command, together with its children.
+func getCmdLogin(gs *globalState) *cobra.Command ***REMOVED***
 	loginCmd := &cobra.Command***REMOVED***
 		Use:   "login",
 		Short: "Authenticate with a service",
@@ -38,5 +38,10 @@ on the commandline.`,
 			return cmd.Usage()
 		***REMOVED***,
 	***REMOVED***
+	loginCmd.AddCommand(
+		getCmdLoginCloud(gs),
+		getCmdLoginInfluxDB(gs),
+	)
+
 	return loginCmd
 ***REMOVED***

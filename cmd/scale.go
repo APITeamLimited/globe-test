@@ -29,7 +29,7 @@ import (
 	"go.k6.io/k6/api/v1/client"
 )
 
-func getScaleCmd(globalState *globalState) *cobra.Command ***REMOVED***
+func getCmdScale(globalState *globalState) *cobra.Command ***REMOVED***
 	// scaleCmd represents the scale command
 	scaleCmd := &cobra.Command***REMOVED***
 		Use:   "scale",
