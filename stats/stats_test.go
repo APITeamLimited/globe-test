@@ -132,6 +132,7 @@ func TestSampleTags(t *testing.T) ***REMOVED***
 	assert.False(t, tags.IsEqual(IntoSampleTags(&map[string]string***REMOVED***"key1": "val1", "key2": "val3"***REMOVED***)))
 	assert.True(t, tags.Contains(IntoSampleTags(&map[string]string***REMOVED***"key1": "val1"***REMOVED***)))
 	assert.False(t, tags.Contains(IntoSampleTags(&map[string]string***REMOVED***"key3": "val1"***REMOVED***)))
+	assert.False(t, tags.Contains(IntoSampleTags(&map[string]string***REMOVED***"nonexistent_key": ""***REMOVED***)))
 	assert.Equal(t, tagMap, tags.CloneTags())
 
 	assert.Nil(t, tags.json) // No cache

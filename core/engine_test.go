@@ -401,6 +401,15 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
 		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED***, false***REMOVED***,
 		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
+
+		"used,passing":               ***REMOVED***true, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count==2"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,failing":               ***REMOVED***false, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count<1"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,subm,passing":          ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:1***REMOVED***": ***REMOVED***"count==2"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,not-subm,passing":      ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:2***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,invalid-subm,passing1": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,invalid-subm,failing1": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,invalid-subm,passing2": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,invalid-subm,failing2": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED***, false***REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
@@ -409,7 +418,9 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			t.Parallel()
 
 			registry := metrics.NewRegistry()
-			metric, err := registry.NewMetric("my_metric", stats.Gauge)
+			gaugeMetric, err := registry.NewMetric("my_metric", stats.Gauge)
+			require.NoError(t, err)
+			counterMetric, err := registry.NewMetric("used_counter", stats.Counter)
 			require.NoError(t, err)
 			_, err = registry.NewMetric("unused_counter", stats.Counter)
 			require.NoError(t, err)
@@ -427,7 +438,10 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 			defer wait()
 
 			e.processSamples(
-				[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
+				[]stats.SampleContainer***REMOVED***
+					stats.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
+					stats.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
+				***REMOVED***,
 			)
 
 			assert.Equal(t, data.abort, e.processThresholds())
