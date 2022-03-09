@@ -84,6 +84,7 @@ func newTestEngineWithRegistry( //nolint:golint
 
 	engine, err = NewEngine(execScheduler, opts, lib.RuntimeOptions***REMOVED******REMOVED***, outputs, logger, registry)
 	require.NoError(t, err)
+	require.NoError(t, engine.OutputManager.StartOutputs())
 
 	run, waitFn, err := engine.Init(globalCtx, runCtx)
 	require.NoError(t, err)
@@ -94,6 +95,7 @@ func newTestEngineWithRegistry( //nolint:golint
 		***REMOVED***
 		globalCancel()
 		waitFn()
+		engine.OutputManager.StopOutputs()
 	***REMOVED***
 ***REMOVED***
 
@@ -249,7 +251,7 @@ func TestEngineOutput(t *testing.T) ***REMOVED***
 			cSamples = append(cSamples, sample)
 		***REMOVED***
 	***REMOVED***
-	metric := e.Metrics["test_metric"]
+	metric := e.MetricsEngine.ObservedMetrics["test_metric"]
 	if assert.NotNil(t, metric) ***REMOVED***
 		sink := metric.Sink.(*stats.TrendSink)
 		if assert.NotNil(t, sink) ***REMOVED***
@@ -271,13 +273,15 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 
 		e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED******REMOVED***, registry)
-		defer wait()
 
-		e.processSamples(
+		e.OutputManager.AddMetricSamples(
 			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
+		e.Stop()
+		wait()
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
 	***REMOVED***)
 	t.Run("submetric", func(t *testing.T) ***REMOVED***
 		t.Parallel()
@@ -295,19 +299,20 @@ func TestEngine_processSamples(t *testing.T) ***REMOVED***
 				"my_metric***REMOVED***a:1***REMOVED***": ths,
 			***REMOVED***,
 		***REMOVED***, registry)
-		defer wait()
 
-		assert.Len(t, e.metricsWithThresholds, 1)
-		sms := e.metricsWithThresholds[0]
-		assert.Equal(t, "my_metric***REMOVED***a:1***REMOVED***", sms.Name)
-		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
-
-		e.processSamples(
+		e.OutputManager.AddMetricSamples(
 			[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1", "b": "2"***REMOVED***)***REMOVED******REMOVED***,
 		)
 
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric"].Sink)
-		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.Metrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
+		e.Stop()
+		wait()
+
+		assert.Len(t, e.MetricsEngine.ObservedMetrics, 2)
+		sms := e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"]
+		assert.EqualValues(t, map[string]string***REMOVED***"a": "1"***REMOVED***, sms.Sub.Tags.CloneTags())
+
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric"].Sink)
+		assert.IsType(t, &stats.GaugeSink***REMOVED******REMOVED***, e.MetricsEngine.ObservedMetrics["my_metric***REMOVED***a:1***REMOVED***"].Sink)
 	***REMOVED***)
 ***REMOVED***
 
@@ -329,12 +334,13 @@ func TestEngineThresholdsWillAbort(t *testing.T) ***REMOVED***
 	thresholds := map[string]stats.Thresholds***REMOVED***metric.Name: ths***REMOVED***
 
 	e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
-	defer wait()
 
-	e.processSamples(
+	e.OutputManager.AddMetricSamples(
 		[]stats.SampleContainer***REMOVED***stats.Sample***REMOVED***Metric: metric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED******REMOVED***,
 	)
-	assert.True(t, e.processThresholds())
+	e.Stop()
+	wait()
+	assert.True(t, e.thresholdsTainted)
 ***REMOVED***
 
 func TestEngineAbortedByThresholds(t *testing.T) ***REMOVED***
@@ -384,32 +390,30 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 	t.Parallel()
 
 	testdata := map[string]struct ***REMOVED***
-		pass  bool
-		ths   map[string][]string
-		abort bool
+		pass bool
+		ths  map[string][]string
 	***REMOVED******REMOVED***
-		"passing":  ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"failing":  ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
-		"aborting": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, true***REMOVED***,
+		"passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
 
-		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED***, false***REMOVED***,
-		"submetric,nomatch,failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED***, false***REMOVED***,
+		"submetric,match,passing":   ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,match,failing":   ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:1***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,passing": ***REMOVED***true, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value<2"***REMOVED******REMOVED******REMOVED***,
+		"submetric,nomatch,failing": ***REMOVED***false, map[string][]string***REMOVED***"my_metric***REMOVED***a:2***REMOVED***": ***REMOVED***"value>1.25"***REMOVED******REMOVED******REMOVED***,
 
-		"unused,passing":      ***REMOVED***true, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
-		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
-		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED***, false***REMOVED***,
-		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED***, false***REMOVED***,
+		"unused,passing":      ***REMOVED***true, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"unused,failing":      ***REMOVED***false, map[string][]string***REMOVED***"unused_counter": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
+		"unused,subm,passing": ***REMOVED***true, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
+		"unused,subm,failing": ***REMOVED***false, map[string][]string***REMOVED***"unused_counter***REMOVED***a:2***REMOVED***": ***REMOVED***"count>1"***REMOVED******REMOVED******REMOVED***,
 
-		"used,passing":               ***REMOVED***true, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count==2"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,failing":               ***REMOVED***false, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count<1"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,subm,passing":          ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:1***REMOVED***": ***REMOVED***"count==2"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,not-subm,passing":      ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:2***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,invalid-subm,passing1": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,invalid-subm,failing1": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,invalid-subm,passing2": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED***, false***REMOVED***,
-		"used,invalid-subm,failing2": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED***, false***REMOVED***,
+		"used,passing":               ***REMOVED***true, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
+		"used,failing":               ***REMOVED***false, map[string][]string***REMOVED***"used_counter": ***REMOVED***"count<1"***REMOVED******REMOVED******REMOVED***,
+		"used,subm,passing":          ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:1***REMOVED***": ***REMOVED***"count==2"***REMOVED******REMOVED******REMOVED***,
+		"used,not-subm,passing":      ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***b:2***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,passing1": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,failing1": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:''***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,passing2": ***REMOVED***true, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count==0"***REMOVED******REMOVED******REMOVED***,
+		"used,invalid-subm,failing2": ***REMOVED***false, map[string][]string***REMOVED***"used_counter***REMOVED***c:***REMOVED***": ***REMOVED***"count>0"***REMOVED******REMOVED******REMOVED***,
 	***REMOVED***
 
 	for name, data := range testdata ***REMOVED***
@@ -430,21 +434,25 @@ func TestEngine_processThresholds(t *testing.T) ***REMOVED***
 				ths := stats.NewThresholds(srcs)
 				gotParseErr := ths.Parse()
 				require.NoError(t, gotParseErr)
-				ths.Thresholds[0].AbortOnFail = data.abort
 				thresholds[m] = ths
 			***REMOVED***
 
-			e, _, wait := newTestEngineWithRegistry(t, nil, nil, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry)
-			defer wait()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			e, run, wait := newTestEngineWithRegistry(
+				t, ctx, &minirunner.MiniRunner***REMOVED******REMOVED***, nil, lib.Options***REMOVED***Thresholds: thresholds***REMOVED***, registry,
+			)
 
-			e.processSamples(
+			e.OutputManager.AddMetricSamples(
 				[]stats.SampleContainer***REMOVED***
 					stats.Sample***REMOVED***Metric: gaugeMetric, Value: 1.25, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"a": "1"***REMOVED***)***REMOVED***,
 					stats.Sample***REMOVED***Metric: counterMetric, Value: 2, Tags: stats.IntoSampleTags(&map[string]string***REMOVED***"b": "1"***REMOVED***)***REMOVED***,
 				***REMOVED***,
 			)
 
-			assert.Equal(t, data.abort, e.processThresholds())
+			require.NoError(t, run())
+			wait()
+
 			assert.Equal(t, data.pass, !e.IsTainted())
 		***REMOVED***)
 	***REMOVED***
@@ -1289,6 +1297,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 	require.NoError(t, err)
 	engine, err := NewEngine(execScheduler, opts, rtOpts, []output.Output***REMOVED***mockOutput***REMOVED***, logger, registry)
 	require.NoError(t, err)
+	require.NoError(t, engine.OutputManager.StartOutputs())
 	run, waitFn, err := engine.Init(ctx, ctx) // no need for 2 different contexts
 	require.NoError(t, err)
 
@@ -1302,6 +1311,7 @@ func TestActiveVUsCount(t *testing.T) ***REMOVED***
 		require.NoError(t, err)
 		cancel()
 		waitFn()
+		engine.OutputManager.StopOutputs()
 		require.False(t, engine.IsTainted())
 	***REMOVED***
 

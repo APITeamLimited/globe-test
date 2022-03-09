@@ -2,6 +2,8 @@ package output
 
 import (
 	"github.com/sirupsen/logrus"
+	"go.k6.io/k6/lib"
+	"go.k6.io/k6/stats"
 )
 
 // Manager can be used to manage multiple outputs at the same time.
@@ -51,5 +53,29 @@ func (om *Manager) stopOutputs(upToID int) ***REMOVED***
 		if err := om.outputs[i].Stop(); err != nil ***REMOVED***
 			om.logger.WithError(err).Errorf("Stopping output %d failed", i)
 		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// SetRunStatus checks which outputs implement the WithRunStatusUpdates
+// interface and sets the provided RunStatus to them.
+func (om *Manager) SetRunStatus(status lib.RunStatus) ***REMOVED***
+	for _, out := range om.outputs ***REMOVED***
+		if statUpdOut, ok := out.(WithRunStatusUpdates); ok ***REMOVED***
+			statUpdOut.SetRunStatus(status)
+		***REMOVED***
+	***REMOVED***
+***REMOVED***
+
+// AddMetricSamples is a temporary method to make the Manager usable in the
+// current Engine. It needs to be replaced with the full metric pump.
+//
+// TODO: refactor
+func (om *Manager) AddMetricSamples(sampleContainers []stats.SampleContainer) ***REMOVED***
+	if len(sampleContainers) == 0 ***REMOVED***
+		return
+	***REMOVED***
+
+	for _, out := range om.outputs ***REMOVED***
+		out.AddMetricSamples(sampleContainers)
 	***REMOVED***
 ***REMOVED***

@@ -52,10 +52,10 @@ func TestGetMetrics(t *testing.T) ***REMOVED***
 	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
 	require.NoError(t, err)
 
-	engine.Metrics = map[string]*stats.Metric***REMOVED***
+	engine.MetricsEngine.ObservedMetrics = map[string]*stats.Metric***REMOVED***
 		"my_metric": stats.New("my_metric", stats.Trend, stats.Time),
 	***REMOVED***
-	engine.Metrics["my_metric"].Tainted = null.BoolFrom(true)
+	engine.MetricsEngine.ObservedMetrics["my_metric"].Tainted = null.BoolFrom(true)
 
 	rw := httptest.NewRecorder()
 	NewHandler().ServeHTTP(rw, newRequestWithEngine(engine, "GET", "/v1/metrics", nil))
@@ -112,10 +112,10 @@ func TestGetMetric(t *testing.T) ***REMOVED***
 	engine, err := core.NewEngine(execScheduler, lib.Options***REMOVED******REMOVED***, lib.RuntimeOptions***REMOVED******REMOVED***, nil, logger, registry)
 	require.NoError(t, err)
 
-	engine.Metrics = map[string]*stats.Metric***REMOVED***
+	engine.MetricsEngine.ObservedMetrics = map[string]*stats.Metric***REMOVED***
 		"my_metric": stats.New("my_metric", stats.Trend, stats.Time),
 	***REMOVED***
-	engine.Metrics["my_metric"].Tainted = null.BoolFrom(true)
+	engine.MetricsEngine.ObservedMetrics["my_metric"].Tainted = null.BoolFrom(true)
 
 	t.Run("nonexistent", func(t *testing.T) ***REMOVED***
 		t.Parallel()
