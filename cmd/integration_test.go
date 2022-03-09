@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -130,6 +132,101 @@ func TestWrongEnvVarIterations(t *testing.T) ***REMOVED***
 	assert.Contains(t, stdOut, "4 complete and 0 interrupted iterations")
 	assert.Empty(t, ts.stdErr.Bytes())
 	assert.Empty(t, ts.loggerHook.Drain())
+***REMOVED***
+
+func TestMetricsAndThresholds(t *testing.T) ***REMOVED***
+	t.Parallel()
+	script := `
+		import ***REMOVED*** Counter ***REMOVED*** from 'k6/metrics';
+
+		var setupCounter = new Counter('setup_counter');
+		var teardownCounter = new Counter('teardown_counter');
+		var defaultCounter = new Counter('default_counter');
+		let unusedCounter = new Counter('unused_counter');
+
+		export const options = ***REMOVED***
+			scenarios: ***REMOVED***
+				sc1: ***REMOVED***
+					executor: 'per-vu-iterations',
+					vus: 1,
+					iterations: 1,
+				***REMOVED***,
+				sc2: ***REMOVED***
+					executor: 'shared-iterations',
+					vus: 1,
+					iterations: 1,
+				***REMOVED***,
+			***REMOVED***,
+			thresholds: ***REMOVED***
+				'setup_counter': ['count == 1'],
+				'teardown_counter': ['count == 1'],
+				'default_counter': ['count == 2'],
+				'default_counter***REMOVED***scenario:sc1***REMOVED***': ['count == 1'],
+				'default_counter***REMOVED***scenario:sc2***REMOVED***': ['count == 1'],
+				'iterations': ['count == 2'],
+				'iterations***REMOVED***scenario:sc1***REMOVED***': ['count == 1'],
+				'iterations***REMOVED***scenario:sc2***REMOVED***': ['count == 1'],
+				'default_counter***REMOVED***nonexistent:tag***REMOVED***': ['count == 0'],
+				'unused_counter': ['count == 0'],
+				'http_req_duration***REMOVED***status:200***REMOVED***': [' max == 0'], // no HTTP requests
+			***REMOVED***,
+		***REMOVED***;
+
+		export function setup() ***REMOVED***
+			console.log('setup() start');
+			setupCounter.add(1);
+			console.log('setup() end');
+			return ***REMOVED*** foo: 'bar' ***REMOVED***
+		***REMOVED***
+
+		export default function (data) ***REMOVED***
+			console.log('default(' + JSON.stringify(data) + ')');
+			defaultCounter.add(1);
+		***REMOVED***
+
+		export function teardown(data) ***REMOVED***
+			console.log('teardown(' + JSON.stringify(data) + ')');
+			teardownCounter.add(1);
+		***REMOVED***
+
+		export function handleSummary(data) ***REMOVED***
+			console.log('handleSummary()');
+			return ***REMOVED*** stdout: JSON.stringify(data, null, 4) ***REMOVED***
+		***REMOVED***
+	`
+	ts := newGlobalTestState(t)
+	require.NoError(t, afero.WriteFile(ts.fs, filepath.Join(ts.cwd, "test.js"), []byte(script), 0o644))
+	ts.args = []string***REMOVED***"k6", "run", "--quiet", "--log-format=raw", "test.js"***REMOVED***
+
+	newRootCommand(ts.globalState).execute()
+
+	expLogLines := []string***REMOVED***
+		`setup() start`, `setup() end`, `default(***REMOVED***"foo":"bar"***REMOVED***)`,
+		`default(***REMOVED***"foo":"bar"***REMOVED***)`, `teardown(***REMOVED***"foo":"bar"***REMOVED***)`, `handleSummary()`,
+	***REMOVED***
+
+	logHookEntries := ts.loggerHook.Drain()
+	require.Len(t, logHookEntries, len(expLogLines))
+	for i, expLogLine := range expLogLines ***REMOVED***
+		assert.Equal(t, expLogLine, logHookEntries[i].Message)
+	***REMOVED***
+
+	assert.Equal(t, strings.Join(expLogLines, "\n")+"\n", ts.stdErr.String())
+
+	var summary map[string]interface***REMOVED******REMOVED***
+	require.NoError(t, json.Unmarshal(ts.stdOut.Bytes(), &summary))
+
+	metrics, ok := summary["metrics"].(map[string]interface***REMOVED******REMOVED***)
+	require.True(t, ok)
+
+	teardownCounter, ok := metrics["teardown_counter"].(map[string]interface***REMOVED******REMOVED***)
+	require.True(t, ok)
+
+	teardownThresholds, ok := teardownCounter["thresholds"].(map[string]interface***REMOVED******REMOVED***)
+	require.True(t, ok)
+
+	expected := map[string]interface***REMOVED******REMOVED******REMOVED***"count == 1": map[string]interface***REMOVED******REMOVED******REMOVED***"ok": true***REMOVED******REMOVED***
+	require.Equal(t, expected, teardownThresholds)
 ***REMOVED***
 
 // TODO: add a hell of a lot more integration tests, including some that spin up
